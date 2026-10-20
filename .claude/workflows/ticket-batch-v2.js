@@ -10,12 +10,16 @@ export const meta = {
   ],
 }
 
-// args: { repo, wtRoot, inc, base, trailer, gate, items: [{ id, path, branch, kind: 'ticket'|'piece', review: 'lite'|'full' }] }
-// gate: the gate command, e.g. "just gate <base>"; until that recipe exists, "just check && uv run pytest -q <paths>".
+// args: { repo, wtRoot, inc, base, trailer, gate, items: [{ id, path, branch, kind: 'ticket'|'piece', review: 'lite'|'full', tests: [paths], pg: bool }] }
+// gate: optional override of the gate command; default per item: `just check && just gate[-pg] <item.tests> | tee .gate/summary.txt`.
 const A = args
 const REPO = A.repo
 const WT = A.wtRoot
-const GATE_CMD = A.gate || `just gate ${A.base}`
+function gateCmd(t) {
+  if (A.gate) return A.gate
+  const recipe = t.pg ? 'just gate-pg' : 'just gate'
+  return `just check && ${recipe} ${(t.tests || []).join(' ')} | tee .gate/summary.txt`
+}
 
 const IMPL_SCHEMA = {
   type: 'object',
@@ -91,8 +95,8 @@ function gatePrompt(t) {
   return `Run the test gate for ${t.id} on branch ${t.branch}.
 Worktree: ${wt} (it exists; do not create or remove worktrees). Every Bash command must start with \`cd ${wt} && \`.
 If ${wt}/pyproject.toml exists run \`uv sync --all-packages\` once (fall back to \`uv sync\`), then run exactly once, in the foreground with a 10-minute timeout per part:
-  ${GATE_CMD}
-Do not edit, commit, re-run or poll. Return green, summary (\`.gate/summary.txt\` verbatim when it exists, else one line per command with exit code and its last 5 output lines), failing.`
+  ${gateCmd(t)}
+Do not edit, commit, re-run or poll. Return green (just check exit 0 and the last summary line is `gate: PASS`), summary (the just check exit code, then \`.gate/summary.txt\` verbatim), failing.`
 }
 
 function reviewPrompt(t, attempt, gate) {

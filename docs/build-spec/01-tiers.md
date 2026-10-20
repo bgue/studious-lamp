@@ -1,7 +1,7 @@
 # Build spec 01 — Tier contracts
 
 > **Process v2 (2026-10-20).** The operating rules (short-lived supervisor rounds, builder pieces, the single test
-> gate, capped checks, reviewer tiers, the 3-slot cap, the fable plan check, STATE.md and TL92) are defined once in
+> gate, capped checks, reviewer tiers, the 3-slot cap, the planner-tier plan check, STATE.md and TL92) are defined once in
 > the `subagent-throughput-process` skill (`.claude/skills/subagent-throughput-process/SKILL.md`), rationale in
 > `process-v2.md`. This file keeps the role contracts; where a line here disagrees with the skill, the skill wins.
 
@@ -19,7 +19,7 @@
 
 Two further hats: **builder** (Sonnet, one-shot: builds one supervisor-tier piece from a piece spec, with tests, the
 sentinel mutation check and the gate, then returns ≤ 15 lines) and **gate-runner** (Haiku, Bash only: runs `just gate`
-once on a branch and returns the summary). A **plan-check** agent at the strongest tier reviews big plans (skill rule 8).
+once on a branch and returns the summary). A **plan-check** agent (planner tier, model chosen at spawn) reviews big plans (skill rule 8).
 
 ## 2. Orchestrator (Opus)
 

@@ -114,7 +114,7 @@ Verdicts: `pass`; `changes-requested` with numbered findings; `escalate` with th
 **Increment**
 
 - Every ticket in the plan is merged or explicitly abandoned with a reason.
-- `just gate --full` green on the increment branch once, at DONE (check, the whole suite, `test-tui`, parity of the touched directories); the security review of the wave closed (findings fixed or recorded with a decision).
+- `just check`, `just gate` (whole suite) and `just gate-pg <touched directories>` green on the increment branch once, at DONE; the security review of the wave closed (findings fixed or recorded with a decision).
 - Demo script runs clean from `just dev up` on a fresh clone.
 - Increment report written; follow-ups filed as `draft` tickets in the next increment folder.
 - Docs definition of done met (`throughline-docs` skill §4): package READMEs and AGENTS.md current, runbooks for new operations, learnings recorded.

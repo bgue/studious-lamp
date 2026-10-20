@@ -41,7 +41,7 @@ No model names anywhere else in committed content.
 
 GATES: never approve a human gate. Schema changes on the `95` line; state `2` for anything else in 04-gates.md §2.
 
-DONE: after the last merge, one round ends with `88`; the orchestrator runs `just gate --full`, the security review
+DONE: after the last merge, one round ends with `88`; the orchestrator runs the whole-suite gate, the security review
 and the demo, and sends the results (`31 …`, `9 …`) to a final round, which writes docs/reports/{INC}.md (≤ 80 lines,
 from STATE.md), learnings, the README/AGENTS.md updates, and ends with `88` again with `REPORT` set.
 Do not merge into the trunk and do not push.

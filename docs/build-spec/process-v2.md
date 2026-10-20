@@ -2,7 +2,7 @@
 
 Status: proposed, 2026-10-20, from the measured Phase 0–1 run (124 agent transcripts). This note is the rationale
 and the cost model. The **normative rules** live in one place, the `subagent-throughput-process` skill
-(`.claude/skills/subagent-throughput-process/SKILL.md`): STATE.md format, TL92 code, caps, slots, the fable check,
+(`.claude/skills/subagent-throughput-process/SKILL.md`): STATE.md format, TL92 code, caps, slots, the planner-tier check,
 and the tool briefs. Companion edits: `SUPERVISOR-PROMPT.md`, `01-tiers.md`, `02-task-protocol.md`, `04-gates.md`,
 `KICKOFF.md`, `.claude/agents/*.md`, `.claude/workflows/ticket-batch-v2.js`, and `08-phase2-plan.md` (the first
 plan written for this process). Where a line below and the skill differ, the skill wins.
@@ -84,12 +84,12 @@ The ratio to aim for per increment: ≤ 5 builder pieces, 10–20 Haiku tickets,
 
 ### (c) One gate, run once, by a Bash-only agent
 
-- `just gate [<base>]` (being added) is the only test entry point for agents: sequential parts (check; unit tests of
-  the packages the diff touches; `test-tui` if `tl-tui` touched; parity of the touched directories if adapters or
-  the ledger are touched), each part with its own `--basetemp`, logs under the scratchpad, and a ≤ 12-line
-  `.gate/summary.txt` whose last line is `GATE: green|red`. `just gate --full` is the whole suite plus parity of the
-  touched directories and runs once, at increment DONE, on the merged branch. Parity on untouched directories and the
-  full parity suite are phase-exit work on dedicated time (R-P2-18).
+- `just gate [PATHS...]` / `just gate-pg` (`dev/gate.sh`, on the trunk since 70ddd59) is the only test entry point
+  for agents: one pytest session at a time, each part in its own `--basetemp`, logs in `.gate/`, a printed summary
+  whose last line is `gate: PASS|FAIL`. A ticket gate is `just check` plus `just gate <its test paths and touched
+  packages>`; the whole suite (`just gate` without paths) plus `gate-pg` on the touched directories runs once, at
+  increment DONE, on the merged branch. Parity on untouched directories and the full parity suite are phase-exit
+  work on dedicated time (R-P2-18).
 - The gate runs in the workflow through a `gate-runner` agent (Haiku, Bash only, ~5 k tokens): the workflow API has no
   shell, so this is the nearest thing to a deterministic step. The supervisor never runs a suite; it reads summaries.
   Reviewers never re-run anything; they read the diff and the summary. A red gate goes back to the implementer once
@@ -147,16 +147,16 @@ The ratio to aim for per increment: ≤ 5 builder pieces, 10–20 Haiku tickets,
 
 Directly (deterministic work, skill rule 7): spawn supervisor rounds and workflows; merge `pass` branches into the
 increment branch and the increment branch into the trunk (merge commits; a conflict goes to the supervisor round);
-`just check`, `just gate --full` and the demo at DONE (one foreground call each, never a poll); `STATUS.md`,
+`just check`, `just gate`, `just gate-pg <touched dirs>` and the demo at DONE (one foreground call each, never a poll); `STATUS.md`,
 `APPROVALS.md`, ADRs, fanout plans; read `STATE.md`, relay blocks and workflow outcome tables. Delegated
 (judgement): every code change (builder or implementer), every review, every ticket, the increment report
 (supervisor round from `STATE.md`), the phase tour (a ticket), and the gate inside a workflow (gate-runner, because
 the workflow runtime has no shell). The orchestrator is itself long-lived; it reads structured outputs only and
 keeps its own notes in `STATUS.md` so a restart reads two files.
 
-### (g2) Owner rules folded in: the fable check and TL92
+### (g2) Owner rules folded in: the planner-tier check and TL92
 
-- **Fable check** (skill rule 8): a `plan-check` agent at the strongest tier reviews every big plan (phase plan,
+- **Planner-tier check** (skill rule 8): a `plan-check` agent (model picked by the orchestrator at spawn) reviews every big plan (phase plan,
   fanout, process change, core ADR, increment plan over ~10 tickets) before it is implemented; findings are answered
   or waived under `## Plan check` in the plan file. Cost: one agent of ~100–200 k tokens per big plan, against the
   200 M+ an increment costs when a plan is wrong (P1-I3's stubbed-then-rebuilt tickets, L-P1-I3-5). This file and
@@ -182,16 +182,14 @@ keeps its own notes in `STATUS.md` so a restart reads two files.
   repeated multi-call routines (reading the board, assembling a review, checking a relay) into one call each. They
   are specified as `review: lite` Haiku tickets so they cost ~50 k tokens each to build.
 
-## 4. What needs the owner
+## 4. Owner decisions (2026-10-20)
 
-1. Approve the 3-slot cap as a hard rule (slower waves, no stalls).
-2. Approve Haiku reviewers for `lite` tickets (a reviewer tier below Sonnet is new).
-3. Approve the mutation cap (sentinel + 5) for core pieces; the 30–60-mutant sweep becomes a phase-exit activity.
-4. Confirm `just gate` lands before Phase 2 wave 1; until then the gate-runner runs `just check` and the package
-   suites the ticket names.
-5. The word "fable" names a model tier in the skill and in `plan-check.md`; `AGENTS.md` rule 9 forbids model names in
-   committed content. Either add "fable" to the allowed tier words (as Haiku, Sonnet and Opus are) or rename the
-   check. The `plan-check` agent definition carries no `model:` line; the orchestrator passes the tier at spawn, so
-   the alias to use is the owner's to name.
-6. Build the three tool tickets (skill Appendix A) before Phase 2 wave 1, or accept that wave 1 runs without
-   `relay-lint` and `review-pack`.
+1. The 3-slot cap is a hard rule; Phase 2 runs in five waves (`08-phase2-plan.md` §0.2).
+2. Haiku reviewers (`reviewer-lite`) for `review: lite` tickets: accepted.
+3. Mutation cap (sentinel + ≤ 5 targeted) for core pieces: accepted; the full sweep is phase-exit work.
+4. `just gate` / `just gate-pg` are on the trunk (70ddd59); the gate-runner agent is the workflow's deterministic step.
+5. No model names in committed content (AGENTS.md rule 9): the plan check is the **planner tier**; the `plan-check`
+   agent definition carries no `model:` line and the orchestrator picks the model at spawn.
+6. The three tool tickets (skill Appendix A1–A3) are built as Haiku tickets after the Phase 1 exit and before Phase 2
+   wave 1.
+7. The process change is recorded as an addendum to ADR-0004.

@@ -12,7 +12,7 @@ checks, within the 3 slots of the `subagent-throughput-process` skill.
 
 ```text
 You are the Throughline orchestrator. Load the `subagent-throughput-process` skill first: it is the single source of
-truth for how the build runs (short-lived supervisor rounds, builder pieces, the one gate, caps, 3 slots, the fable
+truth for how the build runs (short-lived supervisor rounds, builder pieces, the one gate, caps, 3 slots, the planner-tier
 plan check, STATE.md, TL92). Then read, in order: AGENTS.md, docs/build-spec/00-overview.md, 01-tiers.md,
 02-task-protocol.md, 04-gates.md, docs/adr/0001, 0002 and 0004, then the phase plan of the phase you start and its
 companions. Fetch learnings by id (`grep -n -A6`), never the whole LEARNINGS.md; the active process entries are
@@ -48,8 +48,8 @@ ENVIRONMENT (ADR-0002)
 
 PLAN CHECK (skill rule 8)
 Before implementing any big plan (a phase plan, a fanout, a process change, a core-interface ADR, an increment plan
-of more than about 10 tickets, including the phase plan you start from) spawn a `plan-check` agent at the strongest
-tier available with the plan path. Answer or waive each of its TL92 findings under `## Plan check` in the plan
+of more than about 10 tickets, including the phase plan you start from) spawn a `plan-check` agent at the planner tier (you pick
+the model at spawn; it is never written down) with the plan path. Answer or waive each of its TL92 findings under `## Plan check` in the plan
 file, commit, and only then dispatch. A supervisor asks for the check with `4 PLANCHK <path>`; run it and send the
 findings in the next round message.
 
@@ -63,8 +63,8 @@ PER-INCREMENT LOOP (skill rules 1, 6, 7; prompt in docs/build-spec/SUPERVISOR-PR
      into the increment branch yourself (`git merge --no-ff`, remove the worktree); a conflict or any other outcome
      goes into the next round message as TL92 (≤ 20 lines). Spawn the next round.
    - `2`: decide, or record the stop condition; answer in the next round message.
-   - `88` without REPORT: run `just gate --full` on the increment branch (one foreground call, long timeout, never a
-     poll), the security review of the wave (one fresh agent, scoped to the plan's `Sec` rows and the commit range),
+   - `88` without REPORT: run `just check`, `just gate` (whole suite) and `just gate-pg <touched dirs>` on the
+     increment branch (foreground calls, long timeouts, never a poll), the security review of the wave (one fresh agent, scoped to the plan's `Sec` rows and the commit range),
      and `just demo <increment-id>`; send `31 …` and `9 …` to the DONE round. Findings are fixed through pieces or
      tickets, never by you or the supervisor.
    - `88` with REPORT: merge the increment branch into the trunk (merge commit), re-run `just check` on the trunk,

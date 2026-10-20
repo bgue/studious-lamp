@@ -1,6 +1,6 @@
 ---
 name: subagent-throughput-process
-description: Token-efficient way to run Throughline's multi-agent build - short-lived supervisors seeded from STATE.md, Haiku-first tickets, one deterministic test gate, capped mutation and review passes, a fable design check before any big plan is carried out, and the TL92 telegraph code for all agent-to-agent traffic. Load it before spawning or messaging a supervisor, reviewer or workflow, before planning an increment or phase, and when writing a relay or handoff.
+description: Token-efficient way to run Throughline's multi-agent build - short-lived supervisors seeded from STATE.md, Haiku-first tickets, one deterministic test gate, capped mutation and review passes, a planner-tier design check before any big plan is carried out, and the TL92 telegraph code for all agent-to-agent traffic. Load it before spawning or messaging a supervisor, reviewer or workflow, before planning an increment or phase, and when writing a relay or handoff.
 ---
 
 # Subagent throughput process
@@ -31,18 +31,20 @@ negligible (0.5 M). So the levers are, in order: **smaller contexts, fewer calls
    It reads diffs, reports and `.gate/summary.txt`, never source trees or logs. Target per increment: ≤ 5 pieces,
    10–20 tickets, 0 supervisor-built code.
 3. **One test gate.**
-   - `just gate [<base>]` / `just gate-pg [<base>]` (`dev/gate.sh`, being added; until it lands, `just check` plus
-     the package suites the ticket names): parts run in sequence (check; unit tests of the packages the diff
-     touches; `test-tui` if `tl-tui` is touched; parity of the touched directories if adapters or the ledger are
-     touched), each part with its own `--basetemp` under the scratchpad, logs there, and `.gate/summary.txt` of
-     at most 12 lines whose last line is `GATE: green|red`. `just gate --full` is the whole suite plus parity of
-     the touched directories.
+   - `just gate [PATHS...]` / `just gate-pg [PATHS...]` (`dev/gate.sh`, present since trunk 70ddd59): one pytest
+     session at a time, each part with its own `--basetemp`, full output in `.gate/<part>.log`, and a printed
+     summary (`part k: exit N, <pytest line>`, at most 40 FAILED/ERROR lines, last line `gate: PASS|FAIL`). With
+     PATHS it runs only those test directories as one part; without, the whole suite in 4 parts. `gate-pg` adds
+     the parity suite on Postgres (exit 3 when the cluster is down). The caller saves the summary with
+     `| tee .gate/summary.txt`. A ticket's gate is `just check` then `just gate <the test paths the ticket names
+     plus the packages its diff touches>`; parity (`gate-pg`) on the touched directories when adapters or the
+     ledger are touched; the DONE gate is `just check`, `just gate` (whole suite) and `just gate-pg <touched dirs>`.
    - Inside the ticket workflow the gate is run by a Bash-only `gate-runner` agent between implement and review
      (the workflow runtime has no shell, so this is the deterministic step). A red gate goes back to the author
      once with the summary before any reviewer is spent.
    - Reviewers re-run nothing: they read the diff and the gate summary. Supervisors never run a suite.
-   - The full gate runs once, at increment DONE, by the orchestrator. Parity runs only on the directories the
-     increment touched; the whole parity suite is phase-exit work on dedicated time.
+   - The whole-suite gate runs once, at increment DONE, by the orchestrator. Parity runs only on the directories
+     the increment touched; the whole parity suite is phase-exit work on dedicated time.
    - No polling: a part runs in the foreground with a long timeout, or in the background with the harness
      re-invoking on exit. A `sleep`-and-`grep` loop is a defect. Never delete `/tmp/pytest-of-root`. Never `pkill -f`.
 4. **Capped checks.**
@@ -67,19 +69,20 @@ negligible (0.5 M). So the levers are, in order: **smaller contexts, fewer calls
    removal; a conflict goes to the supervisor round), `just check`, the full gate and the demo at DONE, STATUS and
    APPROVALS lines, pushes. It delegates judgement, not git: every code change, review, ticket and report is an
    agent's. It reads STATE.md, relay blocks and workflow outcome tables, never transcripts or logs.
-8. **Fable check before big plans.** Before any big plan is implemented, a fable-tier agent (`plan-check`, spawned
-   at the strongest tier available) reviews it for scope, seams, waves and token cost. Big means a phase plan, a
+8. **Planner-tier check before big plans.** Before any big plan is implemented, a `plan-check` agent (the planner
+   tier: the orchestrator picks the model at spawn; no model name is written anywhere) reviews it for scope, seams, waves and token cost. Big means a phase plan, a
    fanout, a new process, a core-interface ADR, or anything over about 10 tickets. One short pass, findings in TL92
    (`4 PLANCHK <path> | F1 ... | 30`), written under `## Plan check` in the plan file. Implement only after each
    point is answered or explicitly waived there. A supervisor whose round-1 plan has more than about 10 tickets
    asks for it in the relay block (`4 PLANCHK`) instead of dispatching.
 9. **Bespoke tools over agent loops.** When agents repeat a multi-call routine, script it, add a `just` recipe,
    and say so in STATE.md. Current and wanted tools:
-   - `just gate` / `gate-pg`: the sequential test gate (`dev/gate.sh`). Being added.
+   - `just gate` / `gate-pg`: the sequential test gate (`dev/gate.sh`). Present.
    - `just tour <n>`: the screenshot walkthrough. Present.
    - `dev/state.sh <INC>`: STATE.md plus git state in at most 40 lines. Wanted: Appendix A1.
    - `dev/review-pack.sh <base> <branch>`: one-call review pack. Wanted: Appendix A2.
    - `dev/relay-lint`: validates a relay block and its TL92 fields. Wanted: Appendix A3.
+   A1–A3 are built as Haiku tickets after the Phase 1 exit and before Phase 2 wave 1 (owner decision, 2026-10-20).
 10. **Brevity limits** (a reviewer may flag an overrun): relay prose ≤ 8 lines; STATE.md ≤ 150 lines; increment
     report ≤ 80 lines, written from STATE.md; ticket or piece report ≤ 60 lines with ≤ 5 decisive output lines per
     command; builder return ≤ 15 lines; learning ≤ 6 lines; orchestrator → supervisor message ≤ 20 lines (the
@@ -126,7 +129,7 @@ Abbreviations:
 - **Work:** `T05b` ticket, `S4` builder piece, `t`/`p` ticket or piece, `l`/`f` lite or full review, `@abc1234`
   commit, `st@` STATE.md commit, `r<n>` round, `C<k>` checkpoint, `mrg` merged, `stg` staged, `disp` dispatched,
   `abn` abandoned, `2s` two-strikes, `gr` gate red, `ge` gate environment failure, `blk` blocked, `esc` escalate,
-  `fx` fix, `+t` test added, `dec` decision, `PLANCHK` fable check requested.
+  `fx` fix, `+t` test added, `dec` decision, `PLANCHK` planner-tier check requested.
 - **Severity:** `HI` / `MD` / `LO`, then `F<n>` finding.
 
 Relay block (the last thing in every supervisor reply; `dev/relay-lint` checks it):
@@ -196,7 +199,7 @@ Python symbols: `def`/`class` names added, removed or whose body changed, `<file
 and for every file under `docs/tickets/<INC>/provided/` named in the ticket: `cmp same|differs <target>`; (5)
 `COMMITS` `<sha7> <subject>` since base, with `BAD-MSG` on any subject not matching `^<id>: ` and `MODEL-NAME` on
 any body line outside the trailer that names a model; (6) `GATE` the last line of `.gate/summary.txt` on the
-branch's worktree, or `g-`. Exit 1 if any PATHS, missing TESTS, `differs`, `BAD-MSG` or `MODEL-NAME` line was printed.
+branch's worktree (`gate: PASS|FAIL`), or `g-`. Exit 1 if any PATHS, missing TESTS, `differs`, `BAD-MSG` or `MODEL-NAME` line was printed.
 Acceptance: the test pins a pack for a fixture ticket with one out-of-boundary file and one differing provided test.
 
 ### A3 `dev/relay-lint [<file>]` (stdin by default; ≤ 10 lines; `just relay-lint`)

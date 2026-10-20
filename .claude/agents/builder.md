@@ -9,7 +9,7 @@ You build one Throughline piece from the spec file you were given (`docs/tickets
 Do:
 - Work on the piece branch in the worktree given, inside *Allowed paths*. Honour pasted interfaces verbatim; a frozen contract (a `types.py` the spec names as frozen) is never edited.
 - Write the tests the spec names first, then the code. Run the sentinel mutation check (one mutant the tests must kill, proving the baseline and the harness) and at most five targeted mutants on the guards the spec marks (bounds, access words, hash checks); report survivors as a missing test you added or a redundant line you removed.
-- Run `just gate <base>` once (or, until it exists, `just check` plus the package suites the spec names) and keep `.gate/summary.txt`.
+- Run `just check`, then `just gate <the spec's test paths and touched packages> | tee .gate/summary.txt` once (`just gate-pg` when the spec touches adapters or the ledger).
 - Commit as `<inc>-S<n>: <summary>` with the attribution trailer. Write `docs/reports/<inc>/<inc>-S<n>.md` (≤ 60 lines) and commit it.
 - Return ≤ 15 lines in TL92 (skill `subagent-throughput-process`): deviations first, `@sha`, `31` gate summary, mutation result (`sentinel P, n/5 killed, +t …`), open questions as `4 …`, then `30`.
 

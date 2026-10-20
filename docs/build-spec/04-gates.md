@@ -20,18 +20,19 @@
 
 "Green" means every applicable row passes on the PR head after merge-simulation with the increment branch.
 
-**How the rows run.** `just gate <base>` (`dev/gate.sh`, being added) runs the applicable rows for a branch in
-sequence, each part in its own `--basetemp`, and writes `.gate/summary.txt` (≤ 12 lines, last line `GATE: green|red`).
-It is run once per branch by the `gate-runner` inside the ticket workflow and read by the reviewer; `just gate --full`
-runs every row plus parity of the touched directories once per increment, at DONE, by the orchestrator. Until the
-recipe lands, the gate-runner runs `just check` and the package suites the ticket names. Nobody polls a log.
+**How the rows run.** `just gate [PATHS...]` (`dev/gate.sh`) runs pytest one part at a time, each in its own
+`--basetemp`, logs under `.gate/`, and prints a summary whose last line is `gate: PASS|FAIL` (saved as
+`.gate/summary.txt`). On a ticket branch the `gate-runner` runs `just check` and `just gate <the ticket's test paths
+and touched packages>` once (`just gate-pg` when adapters or the ledger are touched) and the reviewer reads the
+summary; at DONE the orchestrator runs `just check`, `just gate` (the whole suite) and `just gate-pg <touched
+directories>` once. Nobody polls a log.
 
 | Check | Cap (skill rule 4) |
 |---|---|
 | Mutation on a core piece | sentinel + ≤ 5 targeted mutants, by the builder, in its worktree, 3 lines in the report; the full sweep is phase-exit work |
 | Security review | one per wave, scoped to the `Sec` rows and a commit range, ≤ 450 k tokens; fixes as pieces or tickets; one re-check of the fix commits |
 | Parity | touched directories per increment; the whole parity suite at phase exit on dedicated time |
-| Full suite | once per increment at DONE; never on a ticket branch |
+| Whole suite (`just gate` without paths) | once per increment at DONE; never on a ticket branch |
 
 ## 2. Human gates (from §25.5)
 
@@ -51,7 +52,7 @@ The supervisor marks a PR `needs-human` and stops; the orchestrator never substi
 - Implementer branch → gate-runner → reviewer (`lite` Haiku or `full` Sonnet per the ticket header, fresh context) → orchestrator merges.
 - Builder piece branch (the supervisor-tier list in `01-tiers.md` §3) → gate-runner → `full` reviewer → orchestrator or human sign-off → orchestrator merges.
 - Orchestrator never reviews implementer branches; it reads gate summaries and verdicts.
-- A big plan → `plan-check` (strongest tier) → answered under `## Plan check` → dispatch.
+- A big plan → `plan-check` (planner tier) → answered under `## Plan check` → dispatch.
 
 ## 4. Merge order inside an increment
 
