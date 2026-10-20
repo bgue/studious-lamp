@@ -1,0 +1,159 @@
+<svg class="rich-terminal" viewBox="0 0 1458 757.5999999999999" xmlns="http://www.w3.org/2000/svg">
+    <!-- Generated with Rich https://www.textualize.io -->
+    <style>
+
+    
+    
+
+    .terminal-3515764966-matrix {
+        font-family: Fira Code, monospace;
+        font-size: 20px;
+        line-height: 24.4px;
+        font-variant-east-asian: full-width;
+    }
+
+    .terminal-3515764966-title {
+        font-size: 18px;
+        font-weight: bold;
+        font-family: arial;
+    }
+
+    .terminal-3515764966-r1 { fill: #98a84b;font-weight: bold }
+.terminal-3515764966-r2 { fill: #c5c8c6;font-weight: bold }
+.terminal-3515764966-r3 { fill: #c5c8c6 }
+.terminal-3515764966-r4 { fill: #9a9b99;font-style: italic; }
+    </style>
+
+    <defs>
+    <clipPath id="terminal-3515764966-clip-terminal">
+      <rect x="0" y="0" width="1438.6" height="706.5999999999999" />
+    </clipPath>
+    <clipPath id="terminal-3515764966-line-0">
+    <rect x="0" y="1.5" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-3515764966-line-1">
+    <rect x="0" y="25.9" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-3515764966-line-2">
+    <rect x="0" y="50.3" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-3515764966-line-3">
+    <rect x="0" y="74.7" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-3515764966-line-4">
+    <rect x="0" y="99.1" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-3515764966-line-5">
+    <rect x="0" y="123.5" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-3515764966-line-6">
+    <rect x="0" y="147.9" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-3515764966-line-7">
+    <rect x="0" y="172.3" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-3515764966-line-8">
+    <rect x="0" y="196.7" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-3515764966-line-9">
+    <rect x="0" y="221.1" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-3515764966-line-10">
+    <rect x="0" y="245.5" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-3515764966-line-11">
+    <rect x="0" y="269.9" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-3515764966-line-12">
+    <rect x="0" y="294.3" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-3515764966-line-13">
+    <rect x="0" y="318.7" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-3515764966-line-14">
+    <rect x="0" y="343.1" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-3515764966-line-15">
+    <rect x="0" y="367.5" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-3515764966-line-16">
+    <rect x="0" y="391.9" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-3515764966-line-17">
+    <rect x="0" y="416.3" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-3515764966-line-18">
+    <rect x="0" y="440.7" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-3515764966-line-19">
+    <rect x="0" y="465.1" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-3515764966-line-20">
+    <rect x="0" y="489.5" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-3515764966-line-21">
+    <rect x="0" y="513.9" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-3515764966-line-22">
+    <rect x="0" y="538.3" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-3515764966-line-23">
+    <rect x="0" y="562.7" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-3515764966-line-24">
+    <rect x="0" y="587.1" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-3515764966-line-25">
+    <rect x="0" y="611.5" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-3515764966-line-26">
+    <rect x="0" y="635.9" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-3515764966-line-27">
+    <rect x="0" y="660.3" width="1439.6" height="24.65"/>
+            </clipPath>
+    </defs>
+
+    <rect fill="#292929" stroke="rgba(255,255,255,0.35)" stroke-width="1" x="1" y="1" width="1456" height="755.6" rx="8"/><text class="terminal-3515764966-title" fill="#c5c8c6" text-anchor="middle" x="728" y="27">Records&#160;tied&#160;to&#160;activities:&#160;now,&#160;as&#160;of&#160;an&#160;earlier&#160;update,&#160;and&#160;orphaned</text>
+            <g transform="translate(26,22)">
+            <circle cx="0" cy="0" r="7" fill="#ff5f57"/>
+            <circle cx="22" cy="0" r="7" fill="#febc2e"/>
+            <circle cx="44" cy="0" r="7" fill="#28c840"/>
+            </g>
+        
+    <g transform="translate(9, 41)" clip-path="url(#terminal-3515764966-clip-terminal)">
+    
+    <g class="terminal-3515764966-matrix">
+    <text class="terminal-3515764966-r1" x="0" y="20" textLength="73.2" clip-path="url(#terminal-3515764966-line-0)">dora$&#160;</text><text class="terminal-3515764966-r2" x="73.2" y="20" textLength="573.4" clip-path="url(#terminal-3515764966-line-0)">tl&#160;xer&#160;publish&#160;1&#160;--project&#160;P123&#160;--schedule&#160;MAIN</text><text class="terminal-3515764966-r3" x="1439.6" y="20" textLength="12.2" clip-path="url(#terminal-3515764966-line-0)">
+</text><text class="terminal-3515764966-r3" x="0" y="44.4" textLength="195.2" clip-path="url(#terminal-3515764966-line-1)">published&#160;MAIN#1</text><text class="terminal-3515764966-r3" x="1439.6" y="44.4" textLength="12.2" clip-path="url(#terminal-3515764966-line-1)">
+</text><text class="terminal-3515764966-r4" x="0" y="68.8" textLength="963.8" clip-path="url(#terminal-3515764966-line-2)">#&#160;amy&#160;created&#160;three&#160;records&#160;(REC-A&#160;to&#160;REC-C)&#160;and&#160;ties&#160;two&#160;of&#160;them&#160;to&#160;activities</text><text class="terminal-3515764966-r3" x="1439.6" y="68.8" textLength="12.2" clip-path="url(#terminal-3515764966-line-2)">
+</text><text class="terminal-3515764966-r1" x="0" y="93.2" textLength="61" clip-path="url(#terminal-3515764966-line-3)">amy$&#160;</text><text class="terminal-3515764966-r2" x="61" y="93.2" textLength="658.8" clip-path="url(#terminal-3515764966-line-3)">tl&#160;xer&#160;link&#160;REC-A&#160;A1230&#160;--project&#160;P123&#160;--schedule&#160;MAIN</text><text class="terminal-3515764966-r3" x="1439.6" y="93.2" textLength="12.2" clip-path="url(#terminal-3515764966-line-3)">
+</text><text class="terminal-3515764966-r3" x="0" y="117.6" textLength="646.6" clip-path="url(#terminal-3515764966-line-4)">linked&#160;REC-A&#160;-&gt;&#160;MAIN/A1230&#160;01M4RENPF0000000000000013Y</text><text class="terminal-3515764966-r3" x="1439.6" y="117.6" textLength="12.2" clip-path="url(#terminal-3515764966-line-4)">
+</text><text class="terminal-3515764966-r1" x="0" y="142" textLength="61" clip-path="url(#terminal-3515764966-line-5)">amy$&#160;</text><text class="terminal-3515764966-r2" x="61" y="142" textLength="658.8" clip-path="url(#terminal-3515764966-line-5)">tl&#160;xer&#160;link&#160;REC-B&#160;A1990&#160;--project&#160;P123&#160;--schedule&#160;MAIN</text><text class="terminal-3515764966-r3" x="1439.6" y="142" textLength="12.2" clip-path="url(#terminal-3515764966-line-5)">
+</text><text class="terminal-3515764966-r3" x="0" y="166.4" textLength="646.6" clip-path="url(#terminal-3515764966-line-6)">linked&#160;REC-B&#160;-&gt;&#160;MAIN/A1990&#160;01M4REV6800000000000000144</text><text class="terminal-3515764966-r3" x="1439.6" y="166.4" textLength="12.2" clip-path="url(#terminal-3515764966-line-6)">
+</text><text class="terminal-3515764966-r1" x="0" y="190.8" textLength="73.2" clip-path="url(#terminal-3515764966-line-7)">dora$&#160;</text><text class="terminal-3515764966-r2" x="73.2" y="190.8" textLength="573.4" clip-path="url(#terminal-3515764966-line-7)">tl&#160;xer&#160;publish&#160;2&#160;--project&#160;P123&#160;--schedule&#160;MAIN</text><text class="terminal-3515764966-r3" x="1439.6" y="190.8" textLength="12.2" clip-path="url(#terminal-3515764966-line-7)">
+</text><text class="terminal-3515764966-r3" x="0" y="215.2" textLength="195.2" clip-path="url(#terminal-3515764966-line-8)">published&#160;MAIN#2</text><text class="terminal-3515764966-r3" x="1439.6" y="215.2" textLength="12.2" clip-path="url(#terminal-3515764966-line-8)">
+</text><text class="terminal-3515764966-r3" x="0" y="239.6" textLength="1390.8" clip-path="url(#terminal-3515764966-line-9)">links&#160;to&#160;activities&#160;will&#160;be&#160;checked&#160;by&#160;the&#160;worker&#160;(`tl&#160;xer&#160;worker`):&#160;those&#160;whose&#160;activity&#160;left&#160;are&#160;flagged,&#160;those&#160;</text><text class="terminal-3515764966-r3" x="1439.6" y="239.6" textLength="12.2" clip-path="url(#terminal-3515764966-line-9)">
+</text><text class="terminal-3515764966-r3" x="0" y="264" textLength="427" clip-path="url(#terminal-3515764966-line-10)">whose&#160;activity&#160;is&#160;back&#160;are&#160;restored</text><text class="terminal-3515764966-r3" x="1439.6" y="264" textLength="12.2" clip-path="url(#terminal-3515764966-line-10)">
+</text><text class="terminal-3515764966-r1" x="0" y="288.4" textLength="73.2" clip-path="url(#terminal-3515764966-line-11)">demo$&#160;</text><text class="terminal-3515764966-r2" x="73.2" y="288.4" textLength="244" clip-path="url(#terminal-3515764966-line-11)">tl&#160;xer&#160;worker&#160;--once</text><text class="terminal-3515764966-r3" x="1439.6" y="288.4" textLength="12.2" clip-path="url(#terminal-3515764966-line-11)">
+</text><text class="terminal-3515764966-r3" x="0" y="312.8" textLength="1085.8" clip-path="url(#terminal-3515764966-line-12)">ran&#160;flag:01M4RCYRN0000000000000011E:01M4RF0P100000000000000149&#160;schedule.flag_orphans&#160;done</text><text class="terminal-3515764966-r3" x="1439.6" y="312.8" textLength="12.2" clip-path="url(#terminal-3515764966-line-12)">
+</text><text class="terminal-3515764966-r3" x="0" y="337.2" textLength="219.6" clip-path="url(#terminal-3515764966-line-13)">worker&#160;done:&#160;ran=1</text><text class="terminal-3515764966-r3" x="1439.6" y="337.2" textLength="12.2" clip-path="url(#terminal-3515764966-line-13)">
+</text><text class="terminal-3515764966-r1" x="0" y="361.6" textLength="61" clip-path="url(#terminal-3515764966-line-14)">amy$&#160;</text><text class="terminal-3515764966-r2" x="61" y="361.6" textLength="622.2" clip-path="url(#terminal-3515764966-line-14)">tl&#160;xer&#160;resolve&#160;A1230&#160;--project&#160;P123&#160;--schedule&#160;MAIN</text><text class="terminal-3515764966-r3" x="1439.6" y="361.6" textLength="12.2" clip-path="url(#terminal-3515764966-line-14)">
+</text><text class="terminal-3515764966-r3" x="0" y="386" textLength="610" clip-path="url(#terminal-3515764966-line-15)">A1230&#160;&#160;current&#160;&#160;MAIN#2&#160;&#160;data&#160;date&#160;2026-10-12T08:00</text><text class="terminal-3515764966-r3" x="1439.6" y="386" textLength="12.2" clip-path="url(#terminal-3515764966-line-15)">
+</text><text class="terminal-3515764966-r3" x="0" y="410.4" textLength="1110.2" clip-path="url(#terminal-3515764966-line-16)">name&#160;Install&#160;pipe&#160;rack&#160;supports&#160;&#160;start&#160;2026-09-24T08:00&#160;&#160;finish&#160;2026-10-19T16:00&#160;&#160;float&#160;32h</text><text class="terminal-3515764966-r3" x="1439.6" y="410.4" textLength="12.2" clip-path="url(#terminal-3515764966-line-16)">
+</text><text class="terminal-3515764966-r1" x="0" y="434.8" textLength="61" clip-path="url(#terminal-3515764966-line-17)">amy$&#160;</text><text class="terminal-3515764966-r2" x="61" y="434.8" textLength="744.2" clip-path="url(#terminal-3515764966-line-17)">tl&#160;xer&#160;resolve&#160;A1230&#160;--project&#160;P123&#160;--schedule&#160;MAIN&#160;--as-of&#160;1</text><text class="terminal-3515764966-r3" x="1439.6" y="434.8" textLength="12.2" clip-path="url(#terminal-3515764966-line-17)">
+</text><text class="terminal-3515764966-r3" x="0" y="459.2" textLength="585.6" clip-path="url(#terminal-3515764966-line-18)">A1230&#160;&#160;as_of&#160;&#160;MAIN#1&#160;&#160;data&#160;date&#160;2026-10-05T08:00</text><text class="terminal-3515764966-r3" x="1439.6" y="459.2" textLength="12.2" clip-path="url(#terminal-3515764966-line-18)">
+</text><text class="terminal-3515764966-r3" x="0" y="483.6" textLength="1110.2" clip-path="url(#terminal-3515764966-line-19)">name&#160;Install&#160;pipe&#160;rack&#160;supports&#160;&#160;start&#160;2026-09-24T08:00&#160;&#160;finish&#160;2026-10-12T16:00&#160;&#160;float&#160;72h</text><text class="terminal-3515764966-r3" x="1439.6" y="483.6" textLength="12.2" clip-path="url(#terminal-3515764966-line-19)">
+</text><text class="terminal-3515764966-r1" x="0" y="508" textLength="61" clip-path="url(#terminal-3515764966-line-20)">amy$&#160;</text><text class="terminal-3515764966-r2" x="61" y="508" textLength="622.2" clip-path="url(#terminal-3515764966-line-20)">tl&#160;xer&#160;resolve&#160;A1990&#160;--project&#160;P123&#160;--schedule&#160;MAIN</text><text class="terminal-3515764966-r3" x="1439.6" y="508" textLength="12.2" clip-path="url(#terminal-3515764966-line-20)">
+</text><text class="terminal-3515764966-r3" x="0" y="532.4" textLength="622.2" clip-path="url(#terminal-3515764966-line-21)">A1990&#160;&#160;orphaned&#160;&#160;MAIN#2&#160;&#160;data&#160;date&#160;2026-10-12T08:00</text><text class="terminal-3515764966-r3" x="1439.6" y="532.4" textLength="12.2" clip-path="url(#terminal-3515764966-line-21)">
+</text><text class="terminal-3515764966-r1" x="0" y="556.8" textLength="61" clip-path="url(#terminal-3515764966-line-22)">amy$&#160;</text><text class="terminal-3515764966-r2" x="61" y="556.8" textLength="536.8" clip-path="url(#terminal-3515764966-line-22)">tl&#160;xer&#160;health&#160;--project&#160;P123&#160;--schedule&#160;MAIN</text><text class="terminal-3515764966-r3" x="1439.6" y="556.8" textLength="12.2" clip-path="url(#terminal-3515764966-line-22)">
+</text><text class="terminal-3515764966-r3" x="0" y="581.2" textLength="207.4" clip-path="url(#terminal-3515764966-line-23)">orphaned&#160;links:&#160;1</text><text class="terminal-3515764966-r3" x="1439.6" y="581.2" textLength="12.2" clip-path="url(#terminal-3515764966-line-23)">
+</text><text class="terminal-3515764966-r3" x="0" y="605.6" textLength="1098" clip-path="url(#terminal-3515764966-line-24)">01M4REV6800000000000000144&#160;&#160;record&#160;01M4REAPX0000000000000013M&#160;&#160;activity&#160;A1990&#160;&#160;last&#160;seen&#160;1</text><text class="terminal-3515764966-r3" x="1439.6" y="605.6" textLength="12.2" clip-path="url(#terminal-3515764966-line-24)">
+</text><text class="terminal-3515764966-r1" x="0" y="630" textLength="61" clip-path="url(#terminal-3515764966-line-25)">amy$&#160;</text><text class="terminal-3515764966-r2" x="61" y="630" textLength="597.8" clip-path="url(#terminal-3515764966-line-25)">tl&#160;xer&#160;trend&#160;A1230&#160;--project&#160;P123&#160;--schedule&#160;MAIN</text><text class="terminal-3515764966-r3" x="1439.6" y="630" textLength="12.2" clip-path="url(#terminal-3515764966-line-25)">
+</text><text class="terminal-3515764966-r3" x="0" y="654.4" textLength="231.8" clip-path="url(#terminal-3515764966-line-26)">trend&#160;A1230&#160;in&#160;MAIN</text><text class="terminal-3515764966-r3" x="1439.6" y="654.4" textLength="12.2" clip-path="url(#terminal-3515764966-line-26)">
+</text><text class="terminal-3515764966-r3" x="0" y="678.8" textLength="1390.8" clip-path="url(#terminal-3515764966-line-27)">MAIN#1&#160;&#160;Superseded&#160;&#160;data&#160;date&#160;2026-10-05T08:00&#160;&#160;float&#160;9d&#160;&#160;start&#160;2026-09-24T08:00&#160;&#160;finish&#160;2026-10-12T16:00&#160;&#160;40%&#160;&#160;ok</text><text class="terminal-3515764966-r3" x="1439.6" y="678.8" textLength="12.2" clip-path="url(#terminal-3515764966-line-27)">
+</text><text class="terminal-3515764966-r3" x="0" y="703.2" textLength="1378.6" clip-path="url(#terminal-3515764966-line-28)">MAIN#2&#160;&#160;Published&#160;&#160;data&#160;date&#160;2026-10-12T08:00&#160;&#160;float&#160;4d&#160;&#160;start&#160;2026-09-24T08:00&#160;&#160;finish&#160;2026-10-19T16:00&#160;&#160;40%&#160;&#160;ok</text><text class="terminal-3515764966-r3" x="1439.6" y="703.2" textLength="12.2" clip-path="url(#terminal-3515764966-line-28)">
+</text>
+    </g>
+    </g>
+</svg>

@@ -1,16 +1,16 @@
-# Phase 1 tour (interim): sign-in, standards, tags, document control and its controller role
+# Phase 1 tour: identity, standards, document control, derivation, schedules, correspondence and the integration layer
 
-**Status: interim.** This tour covers what P1-I0, P1-I1, P1-I2 and P1-I2b added on top of the Phase 0 core. The final Phase 1 tour will extend this file at the Phase 1 exit, as the remaining increments land. Nothing here is a statement that Phase 1 is complete.
+**Status: interim.** This tour covers what P1-I0 to P1-I7 added on top of the Phase 0 core (P1-I0, I1, I2, I2b, I3, I4, I5, I6 and I7). P1-I8 will be added at the Phase 1 exit. Nothing here is a statement that Phase 1 is complete.
 
-Purpose: show, with real screenshots and a plain account of today's practice, what the first Phase 1 increments delivered: real accounts and sessions, the company standards registry with engineering tags, the first document-control module, and the document controller role that lets a person who is not an admin do the controlling acts. Every screenshot is generated: `just tour 1` (`uv run python dev/tour/phase1.py`) builds a demo ledger, signs in as named people, drives the real terminal UI headless and runs the real commands, and writes the SVG files under `tour/phase-1/`. Written 2026-10-13. Read [PHASE-0-TOUR.md](PHASE-0-TOUR.md) first for the core these build on.
+Purpose: show, with real screenshots and a plain account of today's practice, what Phase 1 delivered so far: real accounts and sessions, the company standards registry with engineering tags, document control and the controller role that lets a person who is not an admin do the controlling acts, the pipeline that turns a spreadsheet into validated records, Primavera schedules and cost periods, correspondence with response clocks and confidentiality, RFIs and commercial notices, and the integration layer with record threads. Every screenshot is generated: `just tour 1` (`uv run python dev/tour/phase1.py`) builds a demo ledger, signs in as named people, drives the real terminal UI headless and runs the real commands, and writes the SVG files under `tour/phase-1/`. Written 2026-10-13 and extended to P1-I7 on 2026-10-20. Read [PHASE-0-TOUR.md](PHASE-0-TOUR.md) first for the core these build on.
 
 ## What these increments added
 
-Phase 0 left the platform core without real authentication. **P1-I0** replaced the development identity stub with accounts, two roles to begin with (`admin` and `user`; P1-I2b added a third, section 14), signed-in sessions, agent tokens, an admin screen, and put the API, TUI, MCP server, simulator and every command group on either SQLite or PostgreSQL ([P1-I0 report](P1-I0.md), ADR-0009). **P1-I1** added the first domain module: a company standards registry (code lists, mnemonics, numbering patterns, tag classes) and engineering **tags** parsed and checked against it ([P1-I1 report](P1-I1.md), ADR-0010). **P1-I2** added **document control**: documents with registered numbers, revisions with a status class each, pinned links that go stale, transmittals, reviews and a legacy register import ([P1-I2 report](P1-I2.md), ADR-0011 and ADR-0012). **P1-I2b** added the third role, `document_controller`, which holds the controlling acts of document control without holding the keys to accounts or the engineering registry ([P1-I2b report](P1-I2b.md), ADR-0013).
+Phase 0 left the platform core without real authentication. **P1-I0** replaced the development identity stub with accounts, two roles to begin with (`admin` and `user`; P1-I2b added a third, section 14), signed-in sessions, agent tokens, an admin screen, and put the API, TUI, MCP server, simulator and every command group on either SQLite or PostgreSQL ([P1-I0 report](P1-I0.md), ADR-0009). **P1-I1** added the first domain module: a company standards registry (code lists, mnemonics, numbering patterns, tag classes) and engineering **tags** parsed and checked against it ([P1-I1 report](P1-I1.md), ADR-0010). **P1-I2** added **document control**: documents with registered numbers, revisions with a status class each, pinned links that go stale, transmittals, reviews and a legacy register import ([P1-I2 report](P1-I2.md), ADR-0011 and ADR-0012). **P1-I2b** added the third role, `document_controller`, which holds the controlling acts of document control without holding the keys to accounts or the engineering registry ([P1-I2b report](P1-I2b.md), ADR-0013). **P1-I3** added the derivation pipeline: a file attached to a document revision is read by an extractor, checked against a registered schema, compared with the pass before, and published as tags with provenance, or taken back ([P1-I3 report](P1-I3.md), ADR-0014). **P1-I4** added Primavera XER schedules as immutable snapshots with a comparison, stable activity links and a look-ahead, and cost periods with a budget report ([P1-I4 report](P1-I4.md), ADR-0015). **P1-I5** added correspondence: letters and emails in one master register, triage, response clocks, and confidentiality classes that every read path respects ([P1-I5 report](P1-I5.md), ADR-0016). **P1-I6** added RFIs and commercial notices on that module, with an escalation rule, time bars and an evidence trail ([P1-I6 report](P1-I6.md)). **P1-I7** added the integration layer (inbound endpoints, rules, enrichers, actions, one kill switch) and record threads with slash commands ([P1-I7 report A](P1-I7-A.md), [report B](P1-I7-B.md), ADR-0017 and ADR-0018).
 
-The demo project is made up: project `P123`, five people (`demo`, an admin; `amy`, `ana` and `ben`, plain users, `ben` locked out for a while; and `dora`, who is granted the controller role in section 14) and one agent `triage`. Each `tl` command in the transcripts is run as a named person with their own session, and the prompt shows who (`amy$`). The clock is frozen at 2026-10-12, so dates are the same on every run.
+The demo project is made up: project `P123`, five people (`demo`, an admin; `amy`, `ana` and `ben`, plain users, `ben` locked out for a while; and `dora`, who is granted the controller role in section 14, loses it at the end of that section and is given it back in section 16) and one agent `triage`. Each `tl` command in the transcripts is run as a named person with their own session, and the prompt shows who (`amy$`). The clock is frozen at 2026-10-12 and moves three minutes with every command, so dates are the same on every run. Sections 15 to 19 sign the people in again first, because a session lasts twelve hours of that clock.
 
-**What is and is not enforced in Phase 1 so far.** There are three roles: `user`, `document_controller` and `admin`. The controlling acts of document control (issuing, superseding or voiding a revision or a document, issuing a transmittal, applying a document import) need `document_controller` or `admin`. Loading the standards, applying a tag import, the registry commands and everything about accounts, roles and tokens need `admin`. Confidentiality is a recorded field (`confidentiality: -` in the screenshots), not an enforced rule, and there are no per-record access lists.
+**What is and is not enforced in Phase 1 so far.** There are three roles: `user`, `document_controller` and `admin`. The controlling acts of document control (issuing, superseding or voiding a revision or a document, issuing a transmittal, applying a document import) need `document_controller` or `admin`. Loading the standards, applying a tag import, the registry commands and everything about accounts, roles and tokens need `admin`. Since P1-I5 (section 17, ADR-0016) confidentiality is enforced: a record has a class (`internal`, `restricted` or `privileged`), a plain user and an agent read `internal` only, a controller or an admin also reads `restricted`, and a hidden record answers as one that never existed. There are still no per-record access lists beyond naming people on a privileged item. Anything automated (a rule, an endpoint, an enricher, an action) acts as its own service actor with a declared access, and an agent only proposes (sections 18 and 19).
 
 | # | Increment | Capability | Screenshots |
 |---|---|---|---|
@@ -28,6 +28,11 @@ The demo project is made up: project `P123`, five people (`demo`, an admin; `amy
 | 12 | P1-I2 | [The legacy DMS register import](#12-the-legacy-dms-register-import) | `12` |
 | 13 | P1-I2 | [What a plain user cannot do](#13-what-a-plain-user-cannot-do) | `13` |
 | 14 | P1-I2b | [The document controller role](#14-the-document-controller-role) | `14a` to `14f` |
+| 15 | P1-I3 | [The derivation pipeline](#15-the-derivation-pipeline) | `15a` to `15e` |
+| 16 | P1-I4 | [Schedules and cost](#16-schedules-and-cost) | `16a` to `16e` |
+| 17 | P1-I5 | [Correspondence, triage, clocks, threads and confidentiality](#17-correspondence-triage-clocks-threads-and-confidentiality) | `17a` to `17e` |
+| 18 | P1-I6 | [RFIs and commercial notices](#18-rfis-and-commercial-notices) | `18a` to `18e` |
+| 19 | P1-I7 | [The integration layer and record threads](#19-the-integration-layer-and-record-threads) | `19a` to `19e` |
 
 ## Regenerating locally
 
@@ -156,7 +161,7 @@ Run `uv sync --all-packages` once first. The tour needs no Postgres: it builds a
 
 **Novel approach.** A document number is checked against the company's pattern at registration (`ISO-12` is refused: four digits required). Revisions follow a configurable scheme (alpha here), carry a purpose, a status code with a class (`IFR` is `review`, `IFC` is `construction`) and renditions that are files in the file service. A document keeps one current revision per status class, so in the register `ISO-1234` shows `current D(IFC)` while revision C (`IFR`, for review) is also current in its own class and A and B are superseded. A user drafts; issuing is a controlling act, which was an admin's in P1-I2 (ADR-0011) and is a document controller's or an admin's since P1-I2b (ADR-0013, section 14).
 
-**Unique value.** The builder sees the revision to build from while the reviewers see theirs, and nobody argues over which one is "current". Honest limits: `confidentiality` is a recorded field and nothing enforces it; derived documents and document schemas are later (P1-I3).
+**Unique value.** The builder sees the revision to build from while the reviewers see theirs, and nobody argues over which one is "current". Honest limits: at the time of P1-I2 `confidentiality` was a recorded field and nothing enforced it; derived documents and document schemas are later (P1-I3).
 
 ## 10. Stale pins and the re-pin diff
 
@@ -234,16 +239,148 @@ Run `uv sync --all-packages` once first. The tour needs no Postgres: it builds a
 
 **Novel approach.** The controller is a role of its own, not "make her an admin". An admin grants it (a ledger event with the admin and the reason; it takes effect on her open session at once) and takes it away the same way. The commands it unlocks are an explicit, typed list: issue, supersede or void a revision or document, set confidentiality, register or replace a signed copy, issue a transmittal, record or override a review outcome on someone's behalf, and apply a document import. Anything not on the list is an admin's, so a typo or a command added later closes a door instead of opening one (ADR-0013). The ledger names the person who did it (`user:dora`), not an admin acting for her. A plain user's refusal names the roles that would do: `needs the document_controller or admin role`. The accounts screen offers the role to admins with `c`; a controller's document register offers `Ctrl+T` in the transmittal composer, which drafts and issues in one step, and the TUI only offers it: the same service gate answers. In the screenshots `dora` cannot list accounts or tokens, change any role (her own included), create an account, or load standards; an agent account cannot hold the role at all, and agents have no part in the controlling acts (P1-I2b, [report](P1-I2b.md)).
 
-**Unique value.** The person who controls the documents does not also hold the keys to accounts, tokens and the engineering registry, and "who issued this revision, and were they allowed to" has a ledger answer with a named person. Honest limits, all from ADR-0013: the role is company-wide (there is no per-project assignment, so a controller controls every project of the ledger); there is no separation of duties (a controller may issue a revision she drafted, and may record or override review answers); the simulator does not issue (its people sign in with development tokens that carry the `user` role only); there are no per-record access lists and confidentiality is recorded, not enforced. A fresh-context security review of the role found no high or medium issue, and its four low findings were fixed with tests before the merge ([P1-I2b report](P1-I2b.md)).
+**Unique value.** The person who controls the documents does not also hold the keys to accounts, tokens and the engineering registry, and "who issued this revision, and were they allowed to" has a ledger answer with a named person. Honest limits, all from ADR-0013: the role is company-wide (there is no per-project assignment, so a controller controls every project of the ledger); there is no separation of duties (a controller may issue a revision she drafted, and may record or override review answers); the simulator does not issue (its people sign in with development tokens that carry the `user` role only); there are no per-record access lists (confidentiality has been enforced since P1-I5, section 17). A fresh-context security review of the role found no high or medium issue, and its four low findings were fixed with tests before the merge ([P1-I2b report](P1-I2b.md)).
+
+## 15. The derivation pipeline
+
+![A schema is registered by an admin; a spreadsheet with one wrong cell is read and the report names the row and the field](tour/phase-1/15a-derive-cli.svg)
+
+An admin registers the `instrument-index` schema once for the company, and a plain user is refused. Amy opens a derived document on revision A of the instrument index `LD-4701`, attaches a spreadsheet with one wrong cell and starts it; the worker reads the file in a child process under a resource limit. The report says where the fault is: row 6, column `fail_action`, `OPEN` is not one of FC, FO, FL.
+
+![F11: the derived document, its passes and its report](tour/phase-1/15b-derived-report.svg)
+
+`F11` lists the derived documents of the project. The same report is on the screen: state Invalid, 40 rows checked, one error, and the source `src.doc.LD-4701@A` that every later record will carry. Nothing has been created in the register yet.
+
+![F11, d: the corrected file is read again and the diff against the pass before it is one cell](tour/phase-1/15c-derived-diff.svg)
+
+Amy attaches the corrected file and the worker reads it again as pass 2, which is Valid. Pressing `d` toggles the report for the diff against the pass before: one cell changed (`fail_action` of `50-XV-1006`, OPEN to FC) and 39 rows unchanged. A reviewer approves one cell, not forty rows.
+
+![F11, p: the publish preview lists the tags that would be created](tour/phase-1/15d-publish-preview.svg)
+
+`p` opens the publish preview: 40 tags would be created, none exists yet, none differs, none is invalid. The screen asks for `p` twice before it writes anything, and `s` would skip tags that already exist.
+
+![A user cannot publish; the admin publishes 40 tags with provenance; the whole batch is then taken back](tour/phase-1/15e-publish-and-undo.svg)
+
+The preview works for a plain user, but applying it is refused. The admin publishes 40 tags, and each carries `provenance` naming the source document and the derived document. Compensation takes back exactly the ids the publication recorded, with a reason; the tags end as Deleted and the ledger keeps every original event.
+
+**Reproduce:** `just demo P1-I3` runs the whole clause list on SQLite and PostgreSQL. By hand: `uv run tl derive schema register instrument-index.yaml --company`, `tl derive open LD-4701 A --schema instrument-index --project P123`, `tl derive content LD-4701@A/instrument-index file.csv --project P123`, `tl derive start ...`, `tl derive worker --once`, `tl derive report ...`, `tl derive diff ... --rev 2`, `tl derive publish ... [--apply]`, `tl derive compensate ... --reason "..."`; in the TUI `F11`, then `d`, `j` (jobs), `p`, `u`. The tour renumbers the sample index to areas 50, 30 and 40 because section 8 already created `47-FV-1001`.
+
+**Standard activity.** A spreadsheet from a vendor or a design office is loaded by hand into the tag register, and its mistakes are found one by one afterwards. **Novel approach.** The check is a registered, versioned JSON Schema applied to the stored rows, publication is one correlated import through the module's own commands, and an undo reverses exactly what it made (P1-I3, ADR-0014; [report](P1-I3.md)). **Honest limits.** PDF content is not extracted (the `pdf` extractor records properties only, ADR-0008 decision 8); a user cannot publish, a document controller publishes documents and an admin publishes tags; an agent can only propose an import (not shown here, section 4 shows the pattern).
+
+## 16. Schedules and cost
+
+![A controller defines the schedule; two XER updates are uploaded and built by the worker; a repeat of a file is refused](tour/phase-1/16a-xer-cli.svg)
+
+Section 14 took the controller role from Dora, so an admin first gives it back. A plain user cannot define a schedule; Dora does, and Amy uploads two weekly Primavera XER updates. The same file twice is refused by its SHA-256, and the worker builds both snapshots: Valid, 21 activities, no errors. The XER files are synthetic (`tl_xer.synth`), not a real project.
+
+![Records tied to activities by id: the current activity, the activity as of an earlier update, an orphan and the float trend](tour/phase-1/16b-activity-links.svg)
+
+The controller publishes snapshot 1, Amy ties two records to activities, and snapshot 2 is published. `A1230` resolves to snapshot 2 now (float 32 hours) and to snapshot 1 when asked as of 1 (72 hours). `A1990` left the schedule in snapshot 2, so the record tied to it is flagged orphaned, and the trend shows `A1230` losing five days of float.
+
+![F12: the schedule and its snapshots, newest first, with the current one marked](tour/phase-1/16c-schedules.svg)
+
+`F12` is the same data in the terminal: the schedule, its snapshots with data date, activity count and errors, and which one is current. The line under the detail says which snapshot the highlighted one compares with.
+
+![F12, c, n: snapshot 2 against snapshot 1, the float section](tour/phase-1/16d-compare.svg)
+
+`c` compares the highlighted snapshot with the one before. The header counts the changes (one activity added, one removed, nine date shifts, eight float changes, three logic changes, three critical-path changes) and the float section lists the eight activities that lost float; `A1230` went from 9 days to 4.
+
+![Cost periods: previewed by a user, applied by an admin, reported against the budget; the records nobody coded or scheduled](tour/phase-1/16e-cost-periods.svg)
+
+A cost period is previewed by anyone signed in and applied only by an admin; two periods are applied here. The budget report says three of four cost codes are forecast over budget, with the linked record count per code. Two reports list the records that have no cost code and no live activity link.
+
+**Reproduce:** `just demo P1-I4`. By hand: `uv run tl xer define MAIN --project P123 --name "Pipe rack schedule"`, `tl xer upload update-1.xer --project P123 --schedule MAIN`, `tl xer worker --once`, `tl xer publish 1 ...`, `tl xer link REC-A A1230 ...`, `tl xer resolve A1230 ... --as-of 1`, `tl xer compare ... --new 2 --old 1`, `tl cost import file.csv --project P123 --period 2026-07 --as-of 2026-07-31 [--apply]`, `tl cost report budget ...`; in the TUI `F12`, then `c`, `a` (activities), `l` (look-ahead), `o` (orphans).
+
+**Standard activity.** The planner emails a new P6 export, someone opens both in P6 to see what moved, and records refer to activities by a number that may not survive the next update. **Novel approach.** Each upload is an immutable, validated snapshot; a record links to an activity by its stable id and resolves to the current snapshot or an earlier one; the comparison is computed from the typed rows (P1-I4, ADR-0015; [report](P1-I4.md)). **Honest limits.** Only P6 XER is read; resource assignments and baselines inside a file are kept in the raw bundle only; applying a cost import needs the admin role and there is no separate cost role.
+
+## 17. Correspondence, triage, clocks, threads and confidentiality
+
+![A letter is received, triaged by a person, answered by a draft that only a controller can issue; the reply starts a 14-day clock](tour/phase-1/17a-letter-triage-reply.svg)
+
+Dora registers the contractor as a party. Amy receives a letter by upload; the engine suggests the General domain and she confirms it. She drafts the reply, and issuing it is refused to her because it is a controlling act. Dora issues it (the send is a stub, nothing leaves the machine), which starts a 14-calendar-day clock with warnings at 7, 3 and 1 days.
+
+![An email joins the thread of the letter and keeps its attachment; a controller marks it restricted; the plain user's answer for it is the answer for a number never used](tour/phase-1/17b-email-thread-restricted.svg)
+
+Amy reads in an email: the sender's domain finds the party, the subject puts it on the thread of the letter, and the PDF attachment and the original message are kept. Reading the same message again is refused. A controller then marks it restricted, and for Amy the item answers `no item`, word for word as the invented number `P123-COR-9999` does, so she cannot learn that it exists.
+
+![F5 as Amy, a plain user: the master register without the restricted email](tour/phase-1/17c-register-as-user.svg)
+
+Amy's `F5` master register has five lines: the two letters and the three transmittals of document control (sections 11 and 14). The restricted email is not among them, and nothing on the screen says that a line was left out.
+
+![F5 as Dora, a cleared controller: the same register with the restricted email, marked class restricted](tour/phase-1/17d-register-as-controller.svg)
+
+Dora's register is the same screen over the same ledger, with six lines: the restricted email is there, highlighted, and its detail says `class restricted`. The filter is applied where the data is read, so the API, the MCP tools, the exports and the feed answer the same way.
+
+![F5, 3: the clocks, with the days left on the project calendar](tour/phase-1/17e-clocks.svg)
+
+Key `3` turns the screen into the clocks of the project. The reply clock is running, due in 14 calendar days on calendar `P123-default@1`, and the warning days are shown. A working-day clock skips weekends.
+
+**Reproduce:** `just demo P1-I5`. By hand: `uv run tl corr receive --project P123 --subject "Revised programme" --from "Acme Construction" --file letter.txt`, `tl corr suggest <no> ...`, `tl corr triage <no> --accept`, `tl corr draft ...`, `tl corr issue <no>` (a controller), `tl corr clock ls`, `tl corr mail ingest reply.eml`, `tl corr class set <no> --to restricted --reason "..."`; in the TUI `F5`, then `1` register, `2` triage inbox, `3` clocks.
+
+**Standard activity.** Letters sit in a shared mailbox and a spreadsheet, the response date is somebody's calendar entry, and who may read the commercial ones is a matter of folder permissions. **Novel approach.** One register covers letters, emails and transmittals; a clock is a record with a calendar, warnings and a reason it closed; confidentiality is a class on the item that every read path filters through one viewer (P1-I5, ADR-0016, [report](P1-I5.md)). **Honest limits.** Three classes and three roles, no per-record access lists beyond naming people on a privileged item; sending is a stub; the triage engine is keyword rules, and an agent only proposes triage.
+
+## 18. RFIs and commercial notices
+
+![An RFI is raised and sent for review by a person, issued by a controller, answered with cost impact yes](tour/phase-1/18a-rfi-cli.svg)
+
+An admin installs the escalation rule. Amy raises an RFI about a clash between a beam and a pipe and sends it for internal review; issuing it is refused to her. Dora issues it, which starts an "answer required" clock. Amy answers with cost impact yes and schedule impact no, and the RFI log shows the response time and the flag.
+
+![A rule proposes an early warning; a plain user cannot accept it; a controller does; the notice is restricted and the user is refused the list](tour/phase-1/18b-rule-escalation.svg)
+
+The rule watches for an answered RFI with an impact and proposes an early warning; it does not act by itself. The proposal shows the command it carries. Amy cannot accept it (it needs the controller role), Dora does, and the RFI now says it was escalated to `P123-EW-0001`, a restricted Draft whose time bar counts from the answer. Amy is refused the Commercial list altogether.
+
+![Ctrl+G: the RFI log with state, response days, on-time marker and the cost and schedule flags](tour/phase-1/18c-rfi-log.svg)
+
+`Ctrl+G` opens the RFI log as Dora. The answered RFI shows 0 days to answer, on time, cost yes and schedule no, and its detail names the notice it was escalated to and the clock that was met.
+
+![Ctrl+G, 2: the commercial register with time bars, a LATE notice and a total per currency](tour/phase-1/18d-commercial-register.svg)
+
+Behind the screen the controller priced and issued the first notice, raised a second one that became aware of the problem 20 days ago, and assessed both. The register shows the first notice's time bar met, the second marked LATE, and the totals in USD and EUR on separate lines, never added.
+
+![Ctrl+G, e: the evidence trail of the notice, back to the RFI it came from](tour/phase-1/18e-evidence-trail.svg)
+
+`e` on a notice opens its evidence trail: the notice, the RFI it is derived from, and the state of each as of the chosen day. `[` and `]` step the day back and forward, so the screen can show what the ledger knew on any earlier day.
+
+**Reproduce:** `just demo P1-I6`. By hand: `uv run tl rule create --file dev/seed/rules/rfi-escalation.json --project P123` and `tl rule enable rfi-escalation --project P123`; `tl rfi raise ...`, `tl rfi submit <no>`, `tl rfi issue <no>` (a controller), `tl rfi answer <no> --answer "..." --cost-impact yes --schedule-impact no`; `tl integration serve --once`; `tl proposal ls`, `tl proposal accept <id>` (a controller); `tl comm ls --time-bars`, `tl evidence P123-EW-0001`; in the TUI `Ctrl+G`, then `1`, `2`, `3` or `e`.
+
+**Standard activity.** An RFI log is a spreadsheet, a claim notice is a letter from the commercial manager, and the link between the two lives in somebody's head until a dispute. **Novel approach.** The answer carries its cost and schedule impact as data, a rule turns an impactful answer into a proposed notice that a controller decides, the notice's time bar is a clock like any other, and the trail between them is a link that the ledger can replay for any past day (P1-I6, [report](P1-I6.md)). **Honest limits.** The delivery of an issued RFI or notice is a stub; the rule only proposes; the Commercial items are all controller acts and restricted by default.
+
+## 19. The integration layer and record threads
+
+![An admin sets up an inbound endpoint, dry-runs its mapping, and a signed delivery changes the records; replays and unsigned posts are refused](tour/phase-1/19a-inbound-endpoint.svg)
+
+An admin registers a contractor's app and an endpoint with a mapping and an allow-list of commands; the signing secret is shown once and is hidden here. The dry run shows the commands the mapping would produce from a sample payload. Switched to live, a signed post is accepted (202), the same message again and an unsigned post are refused (401), and the worker then applies the delivery, and the valve record carries the contractor's tag number and manufacturer. The endpoint acts as its own service actor, so the history names it and not a person.
+
+![A rule that notifies HSE is dry-run over past posts, then switched on; a classifier is registered](tour/phase-1/19b-rules-and-enrichers.svg)
+
+A rule is data. Its dry run over the recent events says what it would have done (one firing), and only then is it switched to act. The next safety post gets a reply from `svc:rule-hse-notify`. A keyword classifier is then registered; it will only propose.
+
+![Ctrl+E: the integration registry, with the endpoint, its mode, its authentication and who it acts as](tour/phase-1/19c-integration-registry.svg)
+
+`Ctrl+E` is the registry of everything the layer can do: endpoints, rules, actions, enrichers, apps, invocations and the error queue, one table at a time (`1` to `7`). The endpoint's detail shows who it acts as, what it may run, the body cap and the rate limit. The kill switch is shown at the top.
+
+![Ctrl+R: the review queue holds what the classifier proposes, with its confidence](tour/phase-1/19d-review-queue.svg)
+
+A new document was registered and the classifier proposed its type and discipline. Nothing is written to the document's own fields: the values wait in the review queue with the enricher, its version and a confidence, until a person accepts (`a`) or rejects (`x`) them.
+
+![Record view, T, c: a slash command is previewed with the caller's own access before it runs](tour/phase-1/19e-thread-dispatch-preview.svg)
+
+Threads were switched on by an admin, and a thread hangs on every plain record. The thread tab shows Amy's message and the result card of an earlier `/raise record`. Typing `/link #V-1002 as requires` and pressing Enter does not run it: the panel lists the command it would run and the access it needs, and a second Enter confirms exactly that plan.
+
+**Reproduce:** `just demo P1-I7` (integration layer) and `just demo P1-I7B` (threads). By hand: `uv run tl integration app add acme-nde --label "Acme NDE" --project P123`, `tl endpoint create acme-nde/results --mapping-file map.jsonata --allow SetPsetValues --project P123`, `tl delivery dry-run ... --sample payload.json`, `tl endpoint mode ... live --reason "..."`, `tl endpoint enable ...`, `tl integration serve --once`; `tl rule create --file hse.json`, `tl rule dry-run hse-notify`, `tl rule mode hse-notify act --reason "..."`; `tl enricher register doc_classifier --file enricher.json`, `tl enrich ls`; `tl thread preview --project P123 V-1001 "/link #V-1002 as requires"`; in the TUI `Ctrl+E`, `Ctrl+R`, or `T` and `c` on a record.
+
+**Standard activity.** A vendor's results are keyed in by hand or pasted from an email, "when X happens, tell Y" is somebody's habit, and a conversation about a record lives in a chat tool that the record does not know about. **Novel approach.** Everything automated acts as its own named service actor with a declared access, starts in a dry-run or propose mode, is bounded in depth and steps, and is stopped by one kill switch; a thread is part of the record, and a slash command in it is previewed and then run as the person who typed it (P1-I7, ADR-0017, ADR-0018; [report A](P1-I7-A.md), [report B](P1-I7-B.md)). **Honest limits.** The signed outbound action (`tl action define` and `invoke`, with a receiver that verifies the signature) and the `/dispatch` of such an action need a loopback receiver and are shown in `just demo P1-I7`, not in this tour; the `/assign`, `/due`, `/hold` and `/release` commands answer "unavailable"; the one enricher is a keyword table, not a model.
 
 ## What Phase 1 so far did not do
 
-- **No permission model beyond three company-wide roles.** Confidentiality is recorded, not enforced; there are no per-record access lists; recipient emails on transmittals are data only.
+- **No permission model beyond three company-wide roles.** Confidentiality is enforced by class (section 17) but there are no per-record access lists apart from naming people on a privileged item; recipient emails on transmittals and the "send" of letters, RFIs and notices are data and stubs.
 - **No single sign-on or MFA**, and no escalating lockout or lockout alert.
-- **Only two domain modules** (engineering data and document control); quality, piping, work packaging, materials and the rest of the brief's modules are later increments.
-- **No derived documents or document schemas** (P1-I3), and no revisions with files or issue dates in the legacy import (P1-I8).
-- **No "newer revision in review" marker** on a healthy construction pin (ADR-0012, option C).
-- **The tour itself ran on SQLite.** The PostgreSQL evidence in section 5 is stored from the P1-I0 report.
-- **This is an interim tour.** The increments after P1-I2b are not covered, and the final Phase 1 tour will replace this note.
+- **Real content extraction is partial.** The PDF extractor records properties only; OCR and content extraction of drawings are later work (section 15).
+- **Only P6 XER** is read for schedules, and resource assignments and baselines inside a file are in the raw bundle only (section 16).
+- **Automation proposes or runs as its own actor.** The signed outbound action and its receiver are shown by `just demo P1-I7`, not by this tour; four thread commands (`/assign`, `/due`, `/hold`, `/release`) answer "unavailable" (section 19).
+- **Several domain modules are still to come:** quality, piping, work packaging, materials and the rest of the brief's modules.
+- **No "newer revision in review" marker** on a healthy construction pin (ADR-0012, option C), and no revisions with files or issue dates in the legacy import (P1-I8).
+- **The tour itself ran on SQLite.** The PostgreSQL evidence in section 5 is stored from the P1-I0 report; the demos of each increment run on both.
+- **This tour stops at P1-I7.** P1-I8 is added at the Phase 1 exit.
 
-The reports behind each section are [P1-I0](P1-I0.md), [P1-I1](P1-I1.md), [P1-I2](P1-I2.md) and [P1-I2b](P1-I2b.md); the Phase 0 core they build on is shown in [PHASE-0-TOUR.md](PHASE-0-TOUR.md).
+The reports behind each section are [P1-I0](P1-I0.md), [P1-I1](P1-I1.md), [P1-I2](P1-I2.md), [P1-I2b](P1-I2b.md), [P1-I3](P1-I3.md), [P1-I4](P1-I4.md), [P1-I5](P1-I5.md), [P1-I6](P1-I6.md), [P1-I7 A](P1-I7-A.md) and [P1-I7 B](P1-I7-B.md); the Phase 0 core they build on is shown in [PHASE-0-TOUR.md](PHASE-0-TOUR.md).
