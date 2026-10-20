@@ -20,6 +20,8 @@ legacy = "tl_mod_legacy.module:spec"
 # One line per loader: <name> = "<module>:<function>" (the function returns a LoaderDef).
 [project.entry-points."throughline.loaders"]
 dms-register = "tl_mod_legacy.loaders.dms_register:loader"
+instrument-index = "tl_mod_legacy.loaders.instrument_index:loader"
+equipment-list = "tl_mod_legacy.loaders.equipment_list:loader"
 
 [build-system]
 requires = ["hatchling"]
