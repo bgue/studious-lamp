@@ -1,9 +1,4 @@
-# ruff: noqa: F401
-# pyright: reportUnusedImport=false
 """`tl schema waiver request|approve|revoke|ls`: the time-limited exceptions (P1-I8-T05a3).
-
-STUB: this file is the interface P1-I8-T05a3 implements. Remove this paragraph, the two directive
-lines above and every STEPS comment when you implement it. `_waiver_id` and the group are complete.
 
 A waiver relaxes one property for one project until a date (at most 366 days ahead). Asking is any
 signed-in person's; approving and revoking are the administrator's, and the person who asked
@@ -56,13 +51,22 @@ def request(
     actor: Actor = DEV_ACTOR,
 ) -> None:
     """Ask to relax a property for a project until a date. Prints `requested <key> <id>`."""
-    # STEPS
-    # 1. db = ctx.obj; require_session(db).
-    # 2. In `with service_errors(), open_uow(db) as uow:` call handle_request_waiver with
-    #    RequestWaiver(actor=acting(db, actor), source=SOURCE, scope=f"project:{project}",
-    #    project=project, path=path, reason=reason, expires=expires); keep the CommandResult.
-    # 3. Print `requested <result.key> <result.stream_id>`.
-    raise NotImplementedError("STEPS: see the comments")
+    db: DbTarget = ctx.obj
+    require_session(db)
+    with service_errors(), open_uow(db) as uow:
+        made = handle_request_waiver(
+            uow,
+            RequestWaiver(
+                actor=acting(db, actor),
+                source=SOURCE,
+                scope=f"project:{project}",
+                project=project,
+                path=path,
+                reason=reason,
+                expires=expires,
+            ),
+        )
+    typer.echo(f"requested {made.key} {made.stream_id}")
 
 
 @app.command("approve")
@@ -73,13 +77,21 @@ def approve(
     actor: Actor = DEV_ACTOR,
 ) -> None:
     """Approve a requested waiver (admin; never the person who asked). Prints `approved <key>`."""
-    # STEPS
-    # 1. db = ctx.obj; require_admin(db); waiver_id = _waiver_id(db, ref).
-    # 2. In `with service_errors(), open_uow(db) as uow:` call handle_approve_waiver with
-    #    ApproveWaiver(actor=acting(db, actor), source=SOURCE, scope="company",
-    #    waiver_id=waiver_id, comment=comment).
-    # 3. Print `approved <result.key>`.
-    raise NotImplementedError("STEPS: see the comments")
+    db: DbTarget = ctx.obj
+    require_admin(db)
+    waiver_id = _waiver_id(db, ref)
+    with service_errors(), open_uow(db) as uow:
+        done = handle_approve_waiver(
+            uow,
+            ApproveWaiver(
+                actor=acting(db, actor),
+                source=SOURCE,
+                scope="company",
+                waiver_id=waiver_id,
+                comment=comment,
+            ),
+        )
+    typer.echo(f"approved {done.key}")
 
 
 @app.command("revoke")
@@ -90,11 +102,21 @@ def revoke(
     actor: Actor = DEV_ACTOR,
 ) -> None:
     """Revoke an approved waiver, or refuse a requested one (admin). Prints `revoked <key>`."""
-    # STEPS
-    # 1. As in approve: require_admin, _waiver_id, then handle_revoke_waiver with
-    #    RevokeWaiver(actor, source, scope="company", waiver_id=waiver_id, reason=reason).
-    # 2. Print `revoked <result.key>`.
-    raise NotImplementedError("STEPS: see the comments")
+    db: DbTarget = ctx.obj
+    require_admin(db)
+    waiver_id = _waiver_id(db, ref)
+    with service_errors(), open_uow(db) as uow:
+        done = handle_revoke_waiver(
+            uow,
+            RevokeWaiver(
+                actor=acting(db, actor),
+                source=SOURCE,
+                scope="company",
+                waiver_id=waiver_id,
+                reason=reason,
+            ),
+        )
+    typer.echo(f"revoked {done.key}")
 
 
 @app.command("ls")
@@ -110,12 +132,16 @@ def ls(
     `<key>  <state>  until <expires>  by <requester>  approver <name or ->`; an approved waiver
     whose day has passed shows `Approved (expired)` as its state. With none: `no waivers`.
     """
-    # STEPS
-    # 1. db = ctx.obj; require_session(db).
-    # 2. In `with service_errors(), open_uow(db, readonly=True) as uow:` call
-    #    views.waiver_views(uow.conn(), project, state) (call it through `views.`, the test
-    #    replaces it).
-    # 3. No rows: print `no waivers` and return. Otherwise one line per row, fields separated
-    #    by two spaces: key; state (`<state> (expired)` when the row's `expired` is true);
-    #    `until <expires>`; `by <requested_by>`; `approver <cell(approver)>`.
-    raise NotImplementedError("STEPS: see the comments")
+    db: DbTarget = ctx.obj
+    require_session(db)
+    with service_errors(), open_uow(db, readonly=True) as uow:
+        rows = views.waiver_views(uow.conn(), project, state)
+    if not rows:
+        typer.echo("no waivers")
+        return
+    for row in rows:
+        shown = f"{row.state} (expired)" if row.expired else row.state
+        typer.echo(
+            f"{row.key}  {shown}  until {row.expires}  by {row.requested_by}  "
+            f"approver {cell(row.approver)}"
+        )
