@@ -119,6 +119,10 @@ run_backend() {
   printf '%s\n' "$TL_DEMO_AMY_PASSWORD" | as amy tl login amy --password-stdin >/dev/null
   printf '%s\n' "$TL_DEMO_DORA_PASSWORD" | as dora tl login dora --password-stdin >/dev/null
 
+  # The escalation rule (propose mode) is installed by the admin before the first answer.
+  as demo tl rule create --file dev/seed/rules/rfi-escalation.json --project P123 >/dev/null
+  as demo tl rule enable rfi-escalation --project P123 >/dev/null
+
   local today needed late_aware yesterday
   today="$(python3 -c 'import datetime as d; print(d.date.today())')"
   needed="$(python3 -c 'import datetime as d; print(d.date.today() + d.timedelta(days=10))')"
@@ -154,24 +158,31 @@ run_backend() {
   expect "clock $rfi-C01 Answer required met" "$out"
   echo "PASS 2: $rfi was answered on the day it was issued; the log shows 0 days, cost yes, and the clock is met"
 
-  step "[$backend] clause 3: a controller escalates it into a restricted early warning; a user cannot see it"
-  if out="$(as amy tl rfi escalate "$rfi" --project P123 2>&1)"; then fail "a user escalated an RFI"; fi
+  step "[$backend] clause 3: the rule proposes an early warning; a user cannot accept it; a controller does"
+  as demo tl integration serve --once >/dev/null
+  out="$(as dora tl proposal ls --project P123)"; echo "$out"
+  expect "svc:rule-rfi-escalation" "$out"
+  proposal="$(echo "$out" | awk '/svc:rule-rfi-escalation/ {print $1; exit}')"
+  [ -n "$proposal" ] || fail "the rule made no proposal"
+  out="$(as dora tl proposal show "$proposal")"; echo "$out"
+  expect "command EscalateTechnical" "$out"
+  if out="$(as amy tl proposal accept "$proposal" 2>&1)"; then fail "a user accepted an escalation"; fi
   echo "$out"
-  expect "needs the document_controller or admin role" "$out"
-  out="$(as dora tl rfi escalate "$rfi" --project P123)"; echo "$out"
-  expect "escalated $rfi to P123-EW-0001" "$out"
-  bar_due="$(python3 -c 'import datetime as d; print(d.date.today() + d.timedelta(days=14))')"
-  expect "time bar P123-EW-0001-C01 Early warning time bar due $bar_due" "$out"
-  expect "P123-EW-0001 is a draft, class restricted" "$out"
-  out="$(as dora tl rfi show "$rfi" --project P123)"
+  out="$(as dora tl proposal accept "$proposal")"; echo "$out"
+  expect "accepted $proposal" "$out"
+  out="$(as dora tl rfi show "$rfi" --project P123)"; echo "$out"
   expect "escalated to P123-EW-0001 (early_warning, Draft)" "$out"
+  bar_due="$(python3 -c 'import datetime as d; print(d.date.today() + d.timedelta(days=14))')"
+  out="$(as dora tl comm show P123-EW-0001 --project P123)"; echo "$out"
+  expect "class restricted" "$out"
+  expect "Early warning time bar (time_bar) running due $bar_due" "$out"
   out="$(as amy tl rfi show "$rfi" --project P123)"
   case "$out" in *"P123-EW-0001"*) fail "a user was told of the early warning" ;; esac
   if out="$(as amy tl comm ls --project P123 2>&1)"; then fail "a user listed the notices"; fi
   expect "needs the document_controller or admin role" "$out"
   export TL_DEMO_NOTICE="P123-EW-0001"
   driver hidden
-  echo "PASS 3: $rfi became P123-EW-0001, restricted, its time bar due $bar_due (14 days from the answer); a user cannot see it or tell that it exists"
+  echo "PASS 3: the rule proposed it, a controller accepted it: $rfi became P123-EW-0001, restricted, its time bar due $bar_due (14 days from the answer); a user cannot accept it, see it or tell that it exists"
 
   step "[$backend] clause 4: the notice is priced, reviewed and issued, which meets its time bar; a late one shows LATE"
   as dora tl comm update P123-EW-0001 --project P123 --currency USD --value 12500 --hours 240 --cost-code "2.3.1=10000" --cost-code "2.3.2=2500:100" --schedule-days 3 --basis "Answer to $rfi" --to "Meridian:pm@meridian.example" >/dev/null
