@@ -31,7 +31,9 @@ from tl_mod_cost import errors as cost
 from tl_mod_documents import errors as doc
 from tl_mod_documents.imports.apply import ImportRefusedError
 from tl_mod_engineering import errors as eng
+from tl_mod_legacy import errors as legacy
 from tl_mod_schedule import errors as sched
+from tl_mod_schemareg import errors as sreg
 
 #: What a client is told when an installed extractor cannot be loaded (detail: the server log).
 EXTRACTOR_UNAVAILABLE = (
@@ -288,10 +290,43 @@ def _rows() -> tuple[ErrorSpec, ...]:
         s(sched.TooManyReferencesError, "too_many_references", 409),
         s(sched.FutureDataDateError, "future_data_date", 409),
         s(sched.TypedRowsMissingError, "typed_rows_missing", 409),
+        # --- schema registry module (P1-I8): packages, adoption, waivers -------------------------
+        s(sreg.SchemaRegistryError, "schema_registry_error", 422),
+        s(sreg.InvalidSchemaPackageError, "invalid_schema_package", 422),
+        s(sreg.DuplicateSchemaPackageError, "duplicate_schema_package", 409),
+        s(sreg.SchemaPackageNotFoundError, "schema_package_not_found", 404),
+        s(sreg.SchemaPackageStateError, "schema_package_state", 409),
+        s(sreg.StaleAnalysisError, "stale_analysis", 409),
+        s(sreg.SelfReviewError, "self_review", 403),
+        s(sreg.NotTheAuthorError, "not_the_author", 403),
+        s(sreg.AdoptionError, "adoption_refused", 422),
+        s(sreg.ImpactReviewRequiredError, "impact_review_required", 409),
+        s(sreg.InvalidWaiverError, "invalid_waiver", 422),
+        s(sreg.WaiverNotFoundError, "waiver_not_found", 404),
+        s(sreg.WaiverStateError, "waiver_state", 409),
+        s(sreg.SchemaScopeError, "schema_scope", 422),
+        s(sreg.EffectiveTimeError, "schema_effective_time", 400),
     )
 
 
-ERROR_TABLE: tuple[ErrorSpec, ...] = _rows()
+def _legacy_rows() -> tuple[ErrorSpec, ...]:
+    """The legacy loaders' errors (P1-I8). No route exposes a run today; the rows keep the table
+    whole, so a future route answers with stable codes."""
+    s = ErrorSpec
+    return (
+        s(legacy.LegacyError, "legacy_error", 422),
+        s(legacy.UnknownLoaderError, "unknown_loader", 404),
+        s(legacy.LoadRunNotFoundError, "load_run_not_found", 404),
+        s(legacy.LoadRunStateError, "load_run_state", 409),
+        s(legacy.SourceFileError, "legacy_source_file", 422),
+        s(legacy.MappingProblemError, "mapping_problem", 422),
+        s(legacy.LoadRefusedError, "load_refused", 422),
+        s(legacy.NotConfiguredError, "legacy_not_configured", 503),
+        s(legacy.CompensationRefusedError, "load_compensation_refused", 409),
+    )
+
+
+ERROR_TABLE: tuple[ErrorSpec, ...] = (*_rows(), *_legacy_rows())
 """Every mapped exception class. ``ServiceError`` itself is deliberately absent: an unmapped
 subclass is a bug (``test_error_table.py``), not a silent 500."""
 

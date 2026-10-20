@@ -36,7 +36,7 @@ from collections.abc import Callable, Generator, Mapping, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from importlib.metadata import entry_points
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 from sqlalchemy import Connection
 
@@ -44,6 +44,10 @@ from tl_core.numbering.config import NumberingPattern
 from tl_core.projection.types import Projector
 from tl_core.services.commands import Command, CommandResult
 from tl_core.uow import UnitOfWork
+
+if TYPE_CHECKING:
+    from tl_core.extypes.registry import UowFactory
+    from tl_core.schema_provider import RegistrySource
 
 ENTRY_POINT_GROUP = "throughline.modules"
 
@@ -202,6 +206,11 @@ class ModuleSpec:
     #: Record types of this module that carry a confidentiality class (ADR-0016). The core filters
     #: every read by them; a module that declares none has no confidential records.
     confidential: Sequence[ConfidentialSource] = ()
+    #: ``(uow_factory)`` to the module's contribution to the effective schema (the schema registry
+    #: module: published packages, pins, waivers). A process attaches it to its schema provider
+    #: where it opens its ledger (``tl_core.extypes.provider.attach``). Module-less processes and
+    #: modules without one are unaffected.
+    schema_source: Callable[[UowFactory], RegistrySource] | None = None
 
     def __post_init__(self) -> None:
         for record_type, commands in self.generic_commands.items():
@@ -407,3 +416,8 @@ def confidential_sources() -> list[ConfidentialSource]:
     for spec in load_modules():
         found.extend(spec.confidential)
     return found
+
+
+def schema_sources() -> list[Callable[[UowFactory], RegistrySource]]:
+    """The modules' schema source factories, in module name order (P1-I8)."""
+    return [spec.schema_source for spec in load_modules() if spec.schema_source is not None]

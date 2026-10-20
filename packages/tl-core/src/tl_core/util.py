@@ -2,12 +2,16 @@
 
 from __future__ import annotations
 
+import re
 from collections.abc import Generator
 from contextlib import contextmanager
 from contextvars import ContextVar
 from datetime import UTC, datetime
 
 from ulid import ULID
+
+#: The scopes of simulation runs: the only scopes where a client may set the effective time.
+SIM_SCOPE = re.compile(r"project:sim-[A-Za-z0-9_.-]+")
 
 _EFFECTIVE_TIME: ContextVar[datetime | None] = ContextVar("tl_effective_time", default=None)
 

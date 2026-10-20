@@ -64,6 +64,7 @@ from tl_api.routes import (
     records,
     reference,
     schedule,
+    schemareg,
     threads,
 )
 from tl_api.routes import feed as feed_routes
@@ -288,6 +289,7 @@ def create_app(
         correspondence,
         schedule,
         cost,
+        schemareg,  # P1-I8
     ):
         app.include_router(module.router)
     app.include_router(commands.router)

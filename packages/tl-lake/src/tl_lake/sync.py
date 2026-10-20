@@ -32,18 +32,21 @@ from typing import Any
 
 from sqlalchemy import Connection, bindparam, text
 from tl_core import confidentiality
+from tl_core.modules import confidential_sources
 from tl_core.projection.promoted import table_columns
 from tl_core.schema_provider import get_provider
 from tl_schema.generators.ddl_types import column_type
 from tl_schema.generators.promoted import promoted_columns
 
 from tl_lake.config import LakeConfig
+from tl_lake.doc_marts import build_document_marts
 from tl_lake.duck import (
     LOCK_TIMEOUT_S,
     Duck,
     ident,
     lake_tables,
     open_lake,
+    sql_str,
     table_ref,
 )
 from tl_lake.errors import LakeAheadError, LakeDivergedError, LakeSyncError
@@ -200,7 +203,35 @@ _VISIBLE_ENDS: dict[str, tuple[str, ...]] = {
     "cur_core_record": ("id",),
     "cur_links": ("from_id", "to_id"),
     "cur_pset_values": ("record_id",),
+    "cur_documents_document": ("id",),
+    "cur_documents_revision": ("id", "document_id"),
 }
+#: Where a table keyed on something else than a record id finds the rows of a record that became
+#: readable again: ``(column of the table, ...)`` that name records; the table's own key column
+#: when it is itself a record id is added to the keys directly.
+_RECORD_KEYED = frozenset({"cur_core_record", "cur_documents_document", "cur_documents_revision"})
+
+
+def _hidden_ids(ledger: Connection) -> set[str]:
+    """Every record the lowest reader may not read now: roots by class, children through roots."""
+    sql = confidentiality.hidden_sql(confidentiality.LOWEST)
+    if sql is None:
+        return set()
+    statement = text(f"SELECT x.id FROM cur_core_record x WHERE x.id IN ({sql})")
+    params = confidentiality.params_for(sql, confidentiality.LOWEST)
+    return {str(v) for v in ledger.execute(statement, params).scalars()}
+
+
+def _links_of(ledger: Connection, record_ids: Sequence[str]) -> list[str]:
+    """Ids of the links with an end in ``record_ids`` (for links to be copied again)."""
+    found: set[str] = set()
+    statement = text(
+        "SELECT link_id FROM cur_links WHERE from_id IN :ids OR to_id IN :ids"
+    ).bindparams(bindparam("ids", expanding=True))
+    for start in range(0, len(record_ids), KEY_BATCH):
+        batch = list(record_ids[start : start + KEY_BATCH])
+        found.update(str(v) for v in ledger.execute(statement, {"ids": batch}).scalars())
+    return sorted(found)
 
 
 def _silver_rows(
@@ -404,7 +435,16 @@ def _sync(
             chunk=chunk,
         )
 
-        record_keys = _changed_keys(ledger, sources[RECORD_SOURCE], "id", watermark)
+        # Who the lowest reader may read changes without the rows of the children changing: a
+        # document's class moves its revisions (ADR-0016). A record of a confidential family that
+        # is readable now and not in the lake is copied (with its links), and every record that
+        # is hidden now is deleted from every silver table that holds one of its ends.
+        hidden_now = _hidden_ids(ledger)
+        visible_again = _visible_again(con, ledger, tables) if watermark > 0 else []
+        record_keys = sorted(
+            {*_changed_keys(ledger, sources[RECORD_SOURCE], "id", watermark), *visible_again}
+        )
+        again = _Again(visible_again, _links_of(ledger, visible_again) if visible_again else [])
         for silver in SILVER_TABLES:
             silver_rows[silver.name] = _sync_silver(
                 con,
@@ -414,9 +454,12 @@ def _sync(
                 tables,
                 watermark,
                 record_keys,
+                again,
                 tmp,
                 chunk,
             )
+        _purge_hidden(con, hidden_now, tmp, chunk)
+        build_document_marts(con)
 
         con.execute(
             f"INSERT INTO {table_ref(SYNC_TABLE)} VALUES (?, ?, ?, ?)",
@@ -440,6 +483,61 @@ def _sync(
     return SyncResult(actual, first, head, events, silver_rows)
 
 
+def _family_types() -> list[str]:
+    """Record types with a class of their own or hanging on one that has (the confidential
+    sources of the modules and their children)."""
+    found: set[str] = set()
+    for source in confidential_sources():
+        found.update(source.record_types)
+        for child in source.children:
+            found.update(child.record_types)
+    return sorted(found)
+
+
+def _visible_again(con: Duck, ledger: Connection, tables: Mapping[str, Any]) -> list[str]:
+    """Records of the confidential families that the lowest reader may read and the lake lacks.
+
+    Nothing about a hidden record is stored in the lake (not even its id), so a record that
+    becomes readable again (its document is declassified, a clearance changes) is found by what
+    is missing: readable in the ledger, not in the lake's ``cur_core_record``.
+    """
+    types = _family_types()
+    if not types or RECORD_SOURCE not in tables:
+        return []
+    clause, params = confidentiality.not_hidden("x.id", confidentiality.LOWEST)
+    statement = text(
+        f"SELECT x.id FROM cur_core_record x WHERE x.type IN :types AND {clause}"
+    ).bindparams(bindparam("types", expanding=True), **params)
+    readable = {str(v) for v in ledger.execute(statement, {"types": types}).scalars()}
+    if not readable:
+        return []
+    marks = ", ".join(sql_str(t) for t in types)
+    held = {
+        str(r[0])
+        for r in con.execute(
+            f"SELECT id FROM {table_ref(RECORD_SOURCE)} WHERE type IN ({marks})"
+        ).fetchall()
+    }
+    return sorted(readable - held)
+
+
+@dataclass(frozen=True)
+class _Again:
+    """What became readable again since the last sync: record ids and the ids of their links."""
+
+    records: list[str]
+    links: list[str]
+
+
+def _purge_hidden(con: Duck, hidden: set[str], tmp: Path, chunk: int) -> None:
+    """Delete from every silver table the rows that have a hidden record at one end."""
+    if not hidden:
+        return
+    for silver in SILVER_TABLES:
+        for column in _VISIBLE_ENDS.get(silver.source, ()):
+            delete_keys(con, silver.name, column, sorted(hidden), tmp, chunk=chunk)
+
+
 def _sync_silver(
     con: Duck,
     ledger: Connection,
@@ -448,6 +546,7 @@ def _sync_silver(
     existing: Mapping[str, list[tuple[str, str]]],
     watermark: int,
     record_keys: list[str],
+    again: _Again,
     tmp: Path,
     chunk: int,
 ) -> int:
@@ -462,6 +561,10 @@ def _sync_silver(
     else:
         if silver.driver is None:
             keys = _changed_keys(ledger, source, silver.key, watermark)
+            if silver.source in _RECORD_KEYED:
+                keys = sorted({*keys, *again.records})
+            elif silver.source == "cur_links":
+                keys = sorted({*keys, *again.links})
         else:
             keys = record_keys
         if not keys:

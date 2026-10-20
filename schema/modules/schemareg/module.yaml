@@ -1,0 +1,29 @@
+id: https://example.org/throughline/modules/schemareg
+name: tl_mod_schemareg
+title: "The schema registry module (brief 27.4, schema package lifecycle, adoption and waivers)"
+description: >-
+  The ledgered side of the schema registry (brief 27.4). A `SchemaPackage` is one version of a
+  company, extension or project package: its YAML content, the classification and impact reports
+  of the change it makes, and the approvals it passed on the way Draft, InReview, Approved,
+  Published, Deprecated, Retired. An `Adoption` is a project's pin of one company package to a
+  published version. A `Waiver` relaxes one property for one project until a date, with a reason and
+  an approver. Publishing, adopting and approving a waiver change the effective schema of a scope;
+  the provider reads them through `tl_mod_schemareg.source`.
+
+  Storage rule (ADR-0010): every record of this module is a row of `cur_core_record` and a row of
+  the module's own current-state table, joined on `id`. Module spec: docs/modules/schemareg/README.md.
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+  - ../../core/annotations
+  - ../../core/record
+  - schema_package
+  - adoption
+  - waiver
+  - events
+default_range: string
+annotations:
+  tl:module: schemareg

@@ -1,0 +1,21 @@
+# Workflow of a waiver (brief 6.3, 27.5): Requested, Approved, Revoked. Only an Approved waiver
+# whose expiry has not passed reaches the conformance evaluator. Expiry is a date on the record, not
+# a state. The moves are made by the registry module's commands.
+id: schemareg.waiver
+version: 1
+record_type: schemareg.Waiver
+scope: company
+initial_state: Requested
+states:
+  - name: Requested
+  - name: Approved
+  - name: Revoked
+transitions:
+  - name: approve
+    label: Approve the waiver
+    from: [Requested]
+    to: Approved
+  - name: revoke
+    label: Revoke the waiver or refuse the request
+    from: [Requested, Approved]
+    to: Revoked

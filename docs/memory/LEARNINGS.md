@@ -661,6 +661,43 @@ A text is as wide as its widest character: one emoji made the typed JSON of a le
   The tl-cli conftest signs in an admin `dev` before each command on Postgres, so a test that needs a plain user, or the absence of a role, must set `AUTO_SIGN_IN = False` and sign its own people in (see `test_cli_wf_roles.py`); an admin also holds `document_controller`, so a role test with the default session passes on Postgres and fails on SQLite for the wrong reason.
   Evidence: `packages/tl-cli/tests/test_cli_wf_roles.py` (`Cast`), `conftest.py`. Status: active
 
+
+### L-P1-I8-1 (design) A ledger-backed source must be able to fail without taking the file-backed schema down
+The registry source of P1-I8 joins published packages, pins and waivers to the package directory through `RegistryState`. Every way it can go wrong (no tables in an old ledger, a package that no longer parses, a pin the registry refuses, a waiver for a property a later schema dropped) leaves the directory's schema in force and logs, because `effective()` runs on every pset write. `trial()` is the one place that is strict, so the workbench says why a draft does not compose. Evidence: `tl_core/schema_provider.py` (`_build_registry`, `_adopted`, `_compose_waived`), `packages/tl-modules/schemareg/tests/test_source.py`.
+
+### L-P1-I8-2 (security) Counts in a stored report are data for every reader
+The impact report of a package is stored in an event the whole company can read, so its record counts are taken as the lowest reader (`confidentiality.LOWEST`), never as the analyst. A count that includes a restricted record tells every reader that one exists. Evidence: `tl_mod_schemareg/analysis.py` `gather_facts`.
+
+### L-P1-I8-3 (process) A reference-first ticket needs the provided test to fail on the stub and to be mutated against the reference before it goes out
+T03 and T08: the stub fails 24 of 28 and 22 of 22 cases; 22 mutants of the impact reference and 29 of the mart references were killed except three that needed a test or are equivalent (a date cast that DuckDB does the same with or without `SUBSTR`; a `sorted()` on a set that only a hash seed can tell, covered with more paths; a table-presence test, then covered). Two survivors were missing tests (a table-presence check with only some silver tables; a one-decimal average that every fixture made whole). Evidence: `docs/tickets/P1-I8/provided/`.
+
+### L-P1-I8-4 (tests) A module that joins every ledger breaks the pinned lists of other packages
+Installing `tl-mod-schemareg` made seven tests fail at once (three DDL file lists, the view list, the webhook scenario that must produce every catalog event, the entry-point list): `pytest packages/tl-schema tests/contract tests/services/test_modules.py tests/webhooks` finds them in six minutes (L-P1-I2-6, again). A script rewrote the file lists. The scenario also needs one stream per new record type (`MODULE_STREAMS`).
+
+### L-P1-I8-5 (env) Never clean `/tmp/pytest-of-root`: it is shared by every agent
+The standing instruction to remove folders older than an hour from `/tmp/pytest-of-root` between runs is wrong when other supervisors run suites at the same time (it caused 767 errors in another run). Give each heavy run its own base temp (`--basetemp=/tmp/pt-p1i8-<name>`), read its exit code, and then remove that one directory. Evidence: coordinator correction of 2026-10-20; one age-based clean-up was run at the start of P1-I8 before the correction.
+
+### L-P1-I8-6 (security) A reclassified parent leaves its children in the lake unless the sync looks for them
+`last_seq` moves for the document that is reclassified, not for its revisions, so "replace the rows whose `last_seq` changed" left the revisions (and their core records and values) of a newly restricted document in silver, and never copied them back after a declassification. The sync now deletes every silver row with a hidden record at an end and copies the readable records of the confidential families that the lake lacks. Storing the hidden ids in the lake to compare with was wrong: it put the ids of restricted records into a table every reader can query (`test_confidential_rows` caught it). Evidence: `tl_lake/sync.py` `_purge_hidden`, `_visible_again`; `packages/tl-lake/tests/test_document_silver.py`.
+
+### L-P1-I8-7 (tests) A new silver table changes the text of `tl lake sync` and `tl lake status`
+Two documents tables in `SILVER_TABLES` added two names to "silver rows: ..." and to the status list; three CLI tests and `dev/demos/P0-I7-lake.sh` pinned the text. `grep -rn "silver rows"` finds them.
+
+
+### L-P1-I8-8 (env) One pytest session over several large packages is killed by the memory limit
+`pytest packages/tl-core packages/tl-api packages/tl-mcp tests/...` in one process grew to 7 GB and was OOM-killed at 67 % (exit 137) with no failure before it. Run the packages one per process (`tl-api` alone takes 13 minutes, `tl-core` 36 seconds, `tl-mcp` 6 minutes, the root `tests/` shards under 2 minutes). Evidence: kernel `oom-kill` line for `pytest`, P1-I8 S6.
+
+### L-P1-I8-9 (design) A file a module writes is in quarantine until it is scanned, and only its uploader can read it
+`FileService.open_file` refuses a quarantined file to everyone but the actor that uploaded it. The legacy module writes and reads its four slots as one actor (`svc:legacy`, `tl_mod_legacy.names.ACTOR`) so a stage can read what the stage before it kept, whether or not the scanner has run. A different actor per stage would fail on the second stage. Evidence: `tl_mod_legacy/store.py`; `tl_core/files/service.py` `_readable`.
+
+### L-P1-I8-10 (security) Reserve the source and correlation prefixes of a new bulk writer in the same commit
+`tl_core.services.reserved` lists the source prefixes (`svc:`, `compensation:`, ...) and correlation prefixes (`derive:`, ...) that no client command may carry. The loaders write as `legacy:<system>` with a `load:<ulid>` correlation id, so both were added there; compensation still reverses the ids the run recorded, not the events that carry the correlation id. Evidence: `reserved.py`; `LoadRun.Loaded.record_ids`.
+
+### L-P1-I8-11 (tests) A guard test reads `git status`: its teardown fails in a worktree with uncommitted files
+`test_apply_is_refused_when_the_generated_directory_leaves_the_repository` (tl-mcp) asserts at teardown that no tracked file changed. In a worktree with uncommitted work it errors although nothing is wrong; commit first, then run the shard.
+
+### L-P1-I8-12 (tests) A project package can pin a company version, so a trial pin for that project does not compose
+The fixture project `P123` has the package `x.P123@1.4.0`, which pins `co.acme.engineering` at 3.2.0; `impact --project P123` for 3.3.0 therefore answers "pinned at both 3.2.0 and 3.3.0". Tests and demos of a pin use a project with no package of its own (`P999`). The diff of a package is against the base that `analyse` chose, so it is empty (and says so) before `analyse`. Evidence: `test_cli_schema_pkg_read.py`.
 - **L-P1-I6-1** · 2026-10-20 · tags: tests, tickets
   Pyright strict does not narrow an attribute through a boolean local computed from it: after `late = waiting and data.required_by is not None and ...`, `if late:` leaves `data.required_by` as `str | None`. A STEPS line that says "when `late`" needs the words "and `data.required_by is not None`" so the code type-checks; the T09a implementer had to add the guard and report it as a deviation.
   Evidence: `docs/reports/P1-I6/P1-I6-T09a.md` (Deviations); `reports_technical.py` (`days_overdue`). Status: active
@@ -697,3 +734,12 @@ A text is as wide as its widest character: one emoji made the typed JSON of a le
 - **L-P1-I6-12** · 2026-10-20 · tags: tests, cli
   A CLI test that looks for a phrase in `stderr` breaks when the error box wraps a long path: the phrase is split across lines and `│` characters, and it depends on the length of the pytest base temp dir (a custom `--basetemp` made it fail where the default did not). Compare the words (`" ".join(stderr.replace("│", " ").split())`) when the message holds a path.
   Evidence: `test_the_export_file_is_private_and_is_never_replaced_or_followed_by_accident`. Status: active
+
+### L-P1-I8-13 (tests) A keymap or palette addition makes a TUI snapshot stale: put it in the ticket's tests
+Adding `Ctrl+O` and its palette entry left `part 2` of the DONE gate red (the command-palette snapshot) although every ticket gate was green, because no ticket ran the snapshot test. A ticket that adds a binding, a keymap line or a palette command names `packages/tl-tui/tests` snapshot and keymap tests in its gate and regenerates the snapshot. Evidence: fix 4e1bba8.
+
+### L-P1-I8-14 (process) The whole-suite DONE gate exceeds the two-hour background limit: run it as separate background runs per part
+`just gate` (4 parts, about 2 h with the parity of touched directories) was stopped by the background limit. The orchestrator starts each part (`dev/gate.sh` part k) and `gate-pg` as its own background run and reads each summary; a rerun after a fix covers the touched directories only. `test_int_inbound_worker` (live secrets = 112) failed in part 3 and passes alone: record it as flaky (112), not as a failure.
+
+### L-P1-I8-15 (tests) `app.pop_screen()` does not run a `push_screen` callback; `screen.dismiss(None)` does
+A modal that opens another (workbench to review) and must re-read when it closes only gets its callback from `dismiss`. A test that closes it with `pop_screen()` passes while the real `Esc` path is untested. Also: a `ruff: noqa` stub header sits in lines 1-2, so `sed 1s` clobbers it. Evidence: `schema_screen.py` `action_review`, T04a/T04b reports.

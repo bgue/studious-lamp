@@ -23,6 +23,7 @@ from harness import SCOPE, Harness
 from tl_core.auth import accounts, sessions
 from tl_core.auth.password import prepare_password
 from tl_mod_correspondence.confseed import TOKENS, seed_hidden_world
+from tl_mod_legacy.testing import seed_restricted_run
 
 PASSWORD = "correct horse battery"
 
@@ -38,8 +39,17 @@ def harness(parity_harness: Harness) -> Harness:
 #: them. A class nobody knows is read by nobody.
 MAY_READ = {
     "bob": {"open"},
-    "ctl": {"open", "restricted", "privileged", "document", "file", "commercial", "secret_rfi"},
-    "boss": {"open", "restricted", "document", "file", "commercial"},
+    "ctl": {
+        "open",
+        "restricted",
+        "privileged",
+        "document",
+        "file",
+        "commercial",
+        "secret_rfi",
+        "loadrun",
+    },
+    "boss": {"open", "restricted", "document", "file", "commercial", "loadrun"},
     "amy": {"open", "privileged", "secret_rfi"},
     "bot": {"open"},
 }
@@ -95,6 +105,9 @@ def seed(h: Harness, tmp_path: Path) -> Seed:
     tokens["bot"] = agent_token
 
     hidden = seed_hidden_world(h.target or h.db, h.service, tmp_path)
+    run_id, run_files = seed_restricted_run(h.target or h.db, h.service)
+    hidden.ids["loadrun"] = run_id
+    hidden.extra_ids.update({f"loadrun_{slot}_file": fid for slot, fid in run_files.items()})
     return Seed(hidden.ids, hidden.numbers, hidden.extra_ids, tokens)
 
 
@@ -103,7 +116,15 @@ def hidden_markers(seed_data: Seed, reader: str) -> tuple[list[str], list[str]]:
     may = MAY_READ[reader]
     tokens = [t for kind, t in TOKENS.items() if kind not in may]
     ids: list[str] = []
-    for kind in ("restricted", "privileged", "bogus", "document", "commercial", "secret_rfi"):
+    for kind in (
+        "restricted",
+        "privileged",
+        "bogus",
+        "document",
+        "commercial",
+        "secret_rfi",
+        "loadrun",
+    ):
         if kind in may:
             continue
         ids.append(seed_data.ids[kind])

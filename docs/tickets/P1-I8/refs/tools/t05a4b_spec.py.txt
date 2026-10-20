@@ -1,0 +1,69 @@
+import runpy
+COMMON = runpy.run_path("/home/user/wt/p1-i8/docs/tickets/P1-I8/refs/tools/t05a1_spec.py.txt")["COMMON_LEARNINGS"]
+T = dict(
+ id="P1-I8-T05a4b",
+ review="full",
+ title="`tl schema export-git`: the published packages as files for a git repository",
+ labels="cli, schema-registry, files",
+ depends="P1-I8-S2 and P1-I8-S5 on `p1/i8`; no other ticket",
+ branch="p1/i8-t05a4b-export-git",
+ goal="""
+The company keeps its schema in git as well as in the ledger. `packages/tl-cli/src/tl_cli/schema_export.py` holds the command `tl schema export-git DIR [--package NAME]` (already registered in `tl schema`): it writes one file `<package>@<version>.yaml` for every version in force, with the text exactly as it was drafted, and nothing else. `_file_name`, `_write_atomic` and `register` are complete; `export_git` raises `NotImplementedError` today. You write its body by the STEPS comments so the one provided test file passes. This is a command that writes files on the host: read the path rules below twice.
+""",
+ brief="""
+> **Brief 27.8.** `tl schema` CLI: `lint`, `diff`, `classify`, `impact`, `test`, `publish`, `adopt`, `crosswalk`, `promote`, `export-git` / `import-git`.
+>
+> **Increment 8 (FANOUT F9, security review).** An export must not carry impact names or record text. A package is schema text; the impact report of a package names mappings and rules (administrators only) and is never exported. Only the administrator exports, because the command writes files where the process runs.
+""",
+ spec="""
+- States in force are `Published` and `Deprecated` (`tl_mod_schemareg.names.IN_FORCE`); a draft, a version in review or a retired one is not exported.
+- `registry.list_packages(conn, state=..., package=..., limit=...)` takes one state at a time and returns rows with `.package`, `.version` and `.content` (the drafted text, kept as it was).
+- Path rules (already in `_file_name` and `_write_atomic`; do not weaken them): the file name is built from the package name and version after a pattern check; a symbolic link is never written through; a file with other text is never overwritten; all targets are checked before the first write.
+- `typer.Argument(..., file_okay=False)` already makes a file in place of the directory an error (exit code 2).
+""",
+ learnings=COMMON,
+ interfaces=[
+  ("`packages/tl-cli/src/tl_cli/schema_export.py` (the stub you complete; the whole file):", "/home/user/wt/p1-i8/packages/tl-cli/src/tl_cli/schema_export.py", None, "python"),
+  ("From `tl_mod_schemareg.registry` (read-only; abridged):", None, '''MAX_PAGE = 1000
+
+@dataclass(frozen=True)
+class PackageRow:
+    package: str      # "co.acme.engineering"
+    version: str      # "3.3.0"
+    content: str      # the package YAML as drafted
+    state: str        # Draft, InReview, Published, ...
+    # (more fields)
+
+def list_packages(conn, *, scope=None, state=None, package=None, limit=200, offset=0) -> list[PackageRow]: ...
+# from tl_schema.packages: def version_tuple(version: str) -> tuple[int, ...]''', "python"),
+  ("From `tl_cli` (read-only): `fail(message)` (prints `error: ...` on stderr, exit 1) and `service_errors()` in `tl_cli.derive_support`; `require_admin(db)` in `tl_cli.session`.", None, "", "text"),
+ ],
+ context=[
+  "`packages/tl-cli/src/tl_cli/schema_export.py` (the stub)",
+  "`docs/tickets/P1-I8/provided/t05a4b-test_cli_schema_export.py.txt`",
+  "`packages/tl-cli/src/tl_cli/schema_gov.py` (finished commands of the same group: the style to follow)",
+  "`docs/templates/haiku-report.md`",
+ ],
+ allowed=[
+  "`packages/tl-cli/src/tl_cli/schema_export.py` (modify: the body of `export_git`, the stub paragraph and directives, the unused imports)",
+  "`packages/tl-cli/tests/test_cli_schema_export.py` (create: a byte-for-byte copy of the provided file)",
+  "`docs/reports/P1-I8/P1-I8-T05a4b.md` (create: your report; commit it)",
+ ],
+ steps=[
+  "Copy the provided test to `packages/tl-cli/tests/test_cli_schema_export.py`. Do not edit the copy (it is ruff-clean and pyright-clean as provided).",
+  "Run it once; all six cases fail against the stub.",
+  "Write the body of `export_git` by its STEPS and docstring. Remove the STUB paragraph, the two directive lines, every STEPS comment and the `raise NotImplementedError` line, and the imports the finished file does not use.",
+  "Run the commands under *Acceptance*.",
+ ],
+ acceptance="""uv run ruff format packages/tl-cli
+uv run pytest packages/tl-cli/tests/test_cli_schema_export.py -q --adapters sqlite,postgres --basetemp=/tmp/pt-t05a4b
+just check""",
+ expected="Expected: six pass on SQLite; on Postgres five pass and the one that signs in a second account skips; `just check` is clean (run it with a 600 000 ms timeout). Remove `/tmp/pt-t05a4b` after you have read the exit code.",
+ tests="None beyond the provided file. If you think a case is missing, say so under *Open questions* in the report; do not edit the provided file.",
+ report="Standard report (`docs/templates/haiku-report.md`), committed at `docs/reports/P1-I8/P1-I8-T05a4b.md`. Deviations first. Paste the last lines of each acceptance command.",
+ escalation=[
+  "Stop and report *Blocked* if a provided test fails and you cannot see a difference between your reading of the STEPS and the test after two attempts.",
+  "Stop if the pasted interface and the repository disagree.",
+  "Stop if you would have to change a provided test or any file outside *Allowed paths*, or weaken a path rule.",
+ ],
+)

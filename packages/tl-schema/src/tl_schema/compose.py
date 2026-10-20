@@ -24,7 +24,7 @@ from tl_schema.effective import (
     resolve_path,
     with_hash,
 )
-from tl_schema.packages import PackageDoc
+from tl_schema.packages import PackageDoc, WaiverDef
 
 T = TypeVar("T")
 
@@ -55,12 +55,24 @@ def _adopted(pset: EffectivePset) -> bool:
     return pset.layer == "project" or pset.extension is not None or pset.adoption != "optional"
 
 
-def compose(docs: Sequence[PackageDoc], scope: str, *, core: str | None = None) -> EffectiveSchema:
+def compose(
+    docs: Sequence[PackageDoc],
+    scope: str,
+    *,
+    core: str | None = None,
+    extra_waivers: Sequence[WaiverDef] = (),
+) -> EffectiveSchema:
     """The effective schema of ``scope`` from its adopted package documents.
 
     ``docs`` is the adopted set (one version per package); selecting it is the registry's job. A
     company scope keeps every pset; a project scope drops optional company psets it does not extend.
     Waiver paths must name existing properties. Raises ``SchemaCompileError``.
+
+    ``extra_waivers`` are the approved waivers of the registry (``schemareg.Waiver``). They join the
+    waivers of the project's package. A project whose package declares no conformance mode and has
+    extra waivers is composed in ``strict_with_waivers`` (the company default, brief 6.3): in
+    ``strict`` a waiver would have no effect. A package that declares ``strict`` or ``lenient``
+    keeps it, and the waivers are carried but not honoured by the evaluator.
     """
     project = project_of(scope)
     for doc in docs:
@@ -83,6 +95,15 @@ def compose(docs: Sequence[PackageDoc], scope: str, *, core: str | None = None) 
             mode=settings.mode,
             lenient_until=settings.lenient_until,
             waivers=[EffectiveWaiver(**w.model_dump()) for w in settings.waivers],
+        )
+    if extra_waivers:
+        held = {w.path for w in conformance.waivers}
+        added = [EffectiveWaiver(**w.model_dump()) for w in extra_waivers if w.path not in held]
+        mode = conformance.mode if declared else "strict_with_waivers"
+        conformance = EffectiveConformance(
+            mode=mode,
+            lenient_until=conformance.lenient_until,
+            waivers=[*conformance.waivers, *added],
         )
 
     schema = EffectiveSchema(

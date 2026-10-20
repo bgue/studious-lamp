@@ -163,6 +163,10 @@ from tl_mod_schedule.handlers.publish import (
 )
 from tl_mod_schedule.lookahead import LookAhead
 from tl_mod_schedule.resolver import ActivityLink, OrphanedLink, Resolution
+from tl_mod_schemareg import analysis as schemareg_analysis
+from tl_mod_schemareg import views as schemareg_views
+from tl_mod_schemareg.commands import API_COMMANDS as SCHEMAREG_COMMANDS
+from tl_mod_schemareg.impact_types import ImpactReport, redact_names
 from tl_schema.forms import ConformanceReport, FormMetadata
 
 from tl_tui.client import RelationInfo
@@ -1315,6 +1319,70 @@ class EmbeddedClient:
     def get_cost_code(self, project: str, code: str) -> cost_views.CostCodeDetailView:
         with self._uow(True) as uow:
             return cost_views.cost_code_detail(uow.conn(), f"project:{project}", code)
+
+    # --- the schema workbench (P1-I8) ---------------------------------------------------------
+
+    def list_schema_packages(
+        self,
+        *,
+        scope: str | None = None,
+        state: str | None = None,
+        package: str | None = None,
+        limit: int = 200,
+    ) -> list[schemareg_views.PackageSummary]:
+        with self._uow(True) as uow:
+            return schemareg_views.package_summaries(
+                uow.conn(), scope=scope, state=state, package=package, limit=limit
+            )
+
+    def _is_admin(self, uow: UnitOfWork) -> bool:
+        try:
+            self._admin_gate(uow)
+        except ForbiddenError:
+            return False
+        return True
+
+    def get_schema_package(self, ref: str) -> schemareg_views.PackageDetail:
+        with self._uow(True) as uow:
+            return schemareg_views.package_detail(uow.conn(), ref, names=self._is_admin(uow))
+
+    def sample_test_schema_package(
+        self, ref: str, sample: int = 1000
+    ) -> schemareg_views.SampleTestView:
+        with self._uow(True) as uow:
+            return schemareg_views.sample_test(uow.conn(), ref, sample)
+
+    def list_schema_adoptions(
+        self, project: str | None = None
+    ) -> list[schemareg_views.AdoptionView]:
+        with self._uow(True) as uow:
+            return schemareg_views.adoption_views(uow.conn(), project)
+
+    def list_schema_waivers(
+        self, project: str | None = None, state: str | None = None
+    ) -> list[schemareg_views.WaiverView]:
+        with self._uow(True) as uow:
+            return schemareg_views.waiver_views(uow.conn(), project, state)
+
+    def get_schema_drift(self, project: str) -> list[schemareg_views.DriftView]:
+        return schemareg_views.drift_views(project)
+
+    def get_project_schema_impact(self, project: str, package: str, version: str) -> ImpactReport:
+        with self._uow(True) as uow:
+            report, _before, _after = schemareg_analysis.project_impact(
+                uow.conn(), project, package, version
+            )
+            return report if self._is_admin(uow) else redact_names(report)
+
+    def schemareg_command(self, name: str, cmd: Command) -> CommandResult:
+        spec = next((c for c in SCHEMAREG_COMMANDS if c.model.__name__ == name), None)
+        if spec is None or type(cmd) is not spec.model:
+            raise ForbiddenError(f"{name} is not a schema registry command")
+        with self._uow(False) as uow:
+            if spec.access == "admin":
+                self._admin_gate(uow)
+            self._own_command(cmd.actor)
+            return self.own_writes.note(spec.handler(uow, cmd))
 
     # --- settings (P0-I8) ---------------------------------------------------------------------
 

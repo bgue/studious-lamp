@@ -1,0 +1,72 @@
+import runpy
+COMMON = runpy.run_path("/home/user/wt/p1-i8/docs/tickets/P1-I8/refs/tools/t05a1_spec.py.txt")["COMMON_LEARNINGS"]
+T = dict(
+ id="P1-I8-T05a4c",
+ review="full",
+ title="`tl schema import-git`: draft the packages a directory of files holds",
+ labels="cli, schema-registry, files",
+ depends="P1-I8-S2 and P1-I8-S5 on `p1/i8`; no other ticket (it does not need `export-git`)",
+ branch="p1/i8-t05a4c-import-git",
+ goal="""
+A steward edits package files in a git repository and brings them into the registry as drafts. `packages/tl-cli/src/tl_cli/schema_import.py` holds the command `tl schema import-git DIR [--dry-run]` (already registered in `tl schema`). It checks every file first, then drafts each new version exactly as `tl schema package draft FILE` does; nothing is analysed, submitted or published. `_files`, `_read` and `register` are complete; `import_git` raises `NotImplementedError` today. You write its body by the STEPS comments and the output formats in its docstring so the one provided test file passes. The files are untrusted input: the reading rules are in `_files` and `_read`; do not weaken them.
+""",
+ brief="""
+> **Brief 27.8.** `tl schema` CLI: ... `export-git` / `import-git`. Agents can draft, but humans review and publish.
+>
+> **Increment 8 decisions (FANOUT D2, D4).** Drafting is any signed-in person's, and the module binds analyse and submit to the person who drafted. A draft of a version that is already in force (in the schema directory or published) is refused by the module (`DuplicateSchemaPackageError`); the command reports such a file as `skipped` instead of failing the whole import. A package does not parse: the module's message (`InvalidSchemaPackageError`) is the reason.
+""",
+ spec="""
+- `analysis.parse_content(text)` (from `tl_mod_schemareg`) parses and checks size, YAML and shape and raises `InvalidSchemaPackageError`; it returns a `PackageDoc` with `.package`, `.version`, `.key()`.
+- `registry.find_package(conn, name, version)` returns the ledger's row (with `.content`) or None. `analysis.provider().registry().origin(name, version)` is not None when the schema directory or a published version answers for that version.
+- The file name must be `<package>@<version>.yaml`; the check is on the parsed package, so a misnamed file is a problem, not a draft.
+- The ledger is read in one read-only unit of work; each draft is its own `open_uow(db)` inside `service_errors()` (an earlier draft stays when a later one fails; that cannot happen after the checks, except on a race).
+""",
+ learnings=COMMON,
+ interfaces=[
+  ("`packages/tl-cli/src/tl_cli/schema_import.py` (the stub you complete; the whole file):", "/home/user/wt/p1-i8/packages/tl-cli/src/tl_cli/schema_import.py", None, "python"),
+  ("From `tl_mod_schemareg` (read-only; abridged):", None, '''class DraftSchemaPackage(Command):      # handlers.packages; extra fields forbidden
+    content: str
+    changelog: str | None = None
+    # every Command also has: actor: str, source: str, scope: str
+def handle_draft_schema_package(uow, cmd: DraftSchemaPackage) -> CommandResult: ...
+
+class CommandResult(BaseModel):
+    stream_id: str        # the new package's record id
+    key: str | None       # name@version
+
+# registry.PackageRow: .package, .version, .content, .state
+def find_package(conn, name: str, version: str) -> PackageRow | None: ...
+# analysis: parse_content(text) -> PackageDoc  (raises errors.InvalidSchemaPackageError)
+#           provider().registry().origin(name, version) -> object | None
+# tl_schema.packages: def version_tuple(version: str) -> tuple[int, ...]''', "python"),
+  ("From `tl_cli` (read-only): `DEV_ACTOR`, `SOURCE`, `Actor`, `acting(db, actor)`, `fail(message)` and `service_errors()` in `tl_cli.derive_support`; `require_session(db)` in `tl_cli.session`. The finished `draft` command in `tl_cli/schema_pkg.py` makes the same call.", None, "", "text"),
+ ],
+ context=[
+  "`packages/tl-cli/src/tl_cli/schema_import.py` (the stub)",
+  "`docs/tickets/P1-I8/provided/t05a4c-test_cli_schema_import.py.txt`",
+  "`packages/tl-cli/src/tl_cli/schema_pkg.py` (lines 144-165, the `draft` command)",
+  "`docs/templates/haiku-report.md`",
+ ],
+ allowed=[
+  "`packages/tl-cli/src/tl_cli/schema_import.py` (modify: the body of `import_git`, the stub paragraph and directives, the unused imports)",
+  "`packages/tl-cli/tests/test_cli_schema_import.py` (create: a byte-for-byte copy of the provided file)",
+  "`docs/reports/P1-I8/P1-I8-T05a4c.md` (create: your report; commit it)",
+ ],
+ steps=[
+  "Copy the provided test to `packages/tl-cli/tests/test_cli_schema_import.py`. Do not edit the copy (it is ruff-clean and pyright-clean as provided).",
+  "Run it once; all ten cases fail against the stub.",
+  "Write the body of `import_git` by its STEPS and docstring. Remove the STUB paragraph, the two directive lines, every STEPS comment and the `raise NotImplementedError` line, and the imports the finished file does not use. Run `uv run ruff format` before `just check`.",
+  "Run the commands under *Acceptance*.",
+ ],
+ acceptance="""uv run ruff format packages/tl-cli
+uv run pytest packages/tl-cli/tests/test_cli_schema_import.py packages/tl-cli/tests/test_cli_schema_package.py -q --adapters sqlite,postgres --basetemp=/tmp/pt-t05a4c
+just check""",
+ expected="Expected: ten pass on SQLite; on Postgres nine pass and the one that signs in a second account skips; the existing `test_cli_schema_package.py` passes unchanged; `just check` is clean (run it with a 600 000 ms timeout). Remove `/tmp/pt-t05a4c` after you have read the exit code.",
+ tests="None beyond the provided file. If you think a case is missing, say so under *Open questions* in the report; do not edit the provided file.",
+ report="Standard report (`docs/templates/haiku-report.md`), committed at `docs/reports/P1-I8/P1-I8-T05a4c.md`. Deviations first. Paste the last lines of each acceptance command.",
+ escalation=[
+  "Stop and report *Blocked* if a provided test fails and you cannot see a difference between your reading of the STEPS and the test after two attempts.",
+  "Stop if the pasted interface and the repository disagree.",
+  "Stop if you would have to change a provided test or any file outside *Allowed paths*, or follow a link.",
+ ],
+)

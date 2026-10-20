@@ -447,6 +447,17 @@ AGENT_MAY_NOT = {
     "control.command.DefineSchedule",
     "control.command.PublishScheduleSnapshot",
     "control.command.VoidScheduleSnapshot",
+    # the schema registry (P1-I8, FANOUT D2): sending back, approving, publishing, deprecating,
+    # retiring, adopting a version and approving or revoking a waiver are the admin's; an agent
+    # proposes nothing here
+    "admin.command.RequestSchemaChanges",
+    "admin.command.ApproveSchemaPackage",
+    "admin.command.PublishSchemaPackage",
+    "admin.command.DeprecateSchemaPackage",
+    "admin.command.RetireSchemaPackage",
+    "admin.command.AdoptSchemaPackage",
+    "admin.command.ApproveWaiver",
+    "admin.command.RevokeWaiver",
     # RFIs and Commercial items (P1-I6): the controller's; an agent proposes
     "control.command.IssueTechnical",
     "control.command.EscalateTechnical",

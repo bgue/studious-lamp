@@ -1,0 +1,124 @@
+id: https://example.org/throughline/modules/legacy/load_run
+name: tl_mod_legacy_load_run
+title: Legacy load runs (brief 29.6)
+description: >-
+  A `LoadRun` is one load of one legacy file. Record type `legacy.LoadRun`; its key is
+  `<system>/<table>#<n>` (`dms/register#1`). The states are Opened, Extracted, Profiled, Planned,
+  Loaded, Reconciled, Compensated and Void. Spec: docs/modules/legacy/README.md.
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+  - ../../core/annotations
+  - ../../core/record
+default_range: string
+annotations:
+  tl:module: legacy
+
+classes:
+  LoadRun:
+    description: One load of one legacy file into a project, from the file to the reconciliation.
+    annotations:
+      tl:current_state: true
+      tl:record_types: "legacy.LoadRun"
+      tl:ix_scope_system: "scope, source_system, source_table"
+    unique_keys:
+      scope_system_table_number:
+        description: A run number is used once per system and table in a project.
+        unique_key_slots:
+          - scope
+          - source_system
+          - source_table
+          - run_number
+    attributes:
+      id:
+        identifier: true
+        range: Ulid
+        required: true
+        description: Record id; equals the ledger stream id and the `cur_core_record` id.
+      scope:
+        range: ScopeId
+        required: true
+        description: "The project scope, `project:<id>`."
+      source_system:
+        required: true
+        description: "The legacy system, lower case: `dms`, `p6`."
+      source_table:
+        required: true
+        description: "The table or list of the system: `register`, `tags`."
+      run_number:
+        range: integer
+        required: true
+        description: "1 for the first run of the system and table in the project, then 2, 3."
+      loader:
+        required: true
+        description: The loader that reads and writes it (`dms-register`).
+      confidentiality:
+        description: >-
+          The class of the run and of its files: `internal` (also when null) or `restricted`
+          (ADR-0016). Set when the run is opened, from the loader or the administrator; the
+          records the run creates are written with the same class where the type has one.
+      source_name:
+        description: Display name of the file.
+      source_sha256:
+        description: Hex SHA-256 of the file's bytes.
+      source_size:
+        range: integer
+        description: Size of the file in bytes.
+      row_count:
+        range: integer
+        description: Data rows read from the file.
+      column_count:
+        range: integer
+        description: Columns read from the file.
+      extracted_file_id:
+        description: The file with the rows (slot `extracted`).
+      extracted_sha256:
+        description: Hex SHA-256 of the extracted rows as stored.
+      profile_file_id:
+        description: The file with the profile (slot `profile`).
+      profile_sha256:
+        description: Hex SHA-256 of the profile as stored.
+      bronze_rows:
+        range: integer
+        description: Rows written to the lake bronze table by the last bronze step (null before one).
+      mapping_name:
+        description: The mapping template the plan was made with.
+      mapping_sha256:
+        description: Hex SHA-256 of the mapping template.
+      plan_new:
+        range: integer
+        description: Rows the plan would create.
+      plan_existing:
+        range: integer
+        description: Rows whose key exists already (left alone).
+      plan_invalid:
+        range: integer
+        description: Rows that cannot be loaded.
+      loaded_count:
+        range: integer
+        description: Records the load created.
+      record_ids:
+        description: The ids of the records the load created (JSON list), for exact compensation.
+      correlation_id:
+        description: The correlation id of the load and of its compensation.
+      report_file_id:
+        description: The reconciliation report (slot `report`).
+      report_sha256:
+        description: Hex SHA-256 of the report as stored.
+      report_document_id:
+        description: The document that registers the reconciliation report.
+      mismatches:
+        range: integer
+        description: Differences the reconciliation found.
+      opened_by:
+        required: true
+        description: The administrator that opened the run.
+      last_error:
+        description: Fixed text of the last stage that failed, or null.
+      last_seq:
+        range: integer
+        required: true
+        description: Ledger `seq` of the last event applied to this row.

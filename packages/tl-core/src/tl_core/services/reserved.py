@@ -30,13 +30,19 @@ from tl_core.services.errors import ReservedIdentifierError, RoleClaimError
 
 DERIVE_CORRELATION_PREFIX = "derive:"
 #: Correlation and causation ids a client may not set: the derivation pipeline's and automation's.
-RESERVED_CORRELATION_PREFIXES = (DERIVE_CORRELATION_PREFIX, *AUTOMATION_CORRELATION_PREFIXES)
+#: ``load:`` is the legacy loaders' (P1-I8): a load and its compensation carry one.
+RESERVED_CORRELATION_PREFIXES = (
+    DERIVE_CORRELATION_PREFIX,
+    "load:",
+    *AUTOMATION_CORRELATION_PREFIXES,
+)
 #: Event sources a client may not set: the derivation pipeline's, the suite's services (``svc:``)
 #: and automation's.
 RESERVED_SOURCE_PREFIXES = (
     "import:derived-",
     "compensation:",
     "svc:",
+    "legacy:",
     *AUTOMATION_SOURCE_PREFIXES,
 )
 

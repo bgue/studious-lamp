@@ -93,6 +93,8 @@ SILVER_TABLES: tuple[SilverTable, ...] = (
     SilverTable("cur_core_record", "cur_core_record", "id"),
     SilverTable("links", "cur_links", "link_id"),
     SilverTable("pset_values", "cur_pset_values", "record_id", driver="cur_core_record"),
+    SilverTable("cur_documents_document", "cur_documents_document", "id"),
+    SilverTable("cur_documents_revision", "cur_documents_revision", "id"),
 )
 RECORD_SOURCE = "cur_core_record"
 """The ledger table that drives ``pset_values`` and carries one row per record."""

@@ -180,7 +180,7 @@ def _check_default(prop: EffectiveProperty) -> None:
         ok = value in codes
     if not ok:
         raise SchemaCompileError(
-            "invalid", f"{prop.origin} {prop.name}: default {value!r} does not fit kind {kind}"
+            "invalid", f"{prop.origin} {prop.name}: the default does not fit kind {kind}"
         )
 
 

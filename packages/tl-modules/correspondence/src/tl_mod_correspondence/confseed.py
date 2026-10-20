@@ -48,6 +48,7 @@ TOKENS = {
     "file": "FILETOKEN",
     "commercial": "COMMTOKEN",
     "secret_rfi": "SECRETRFITOKEN",
+    "loadrun": "LOADTOKEN",
 }
 
 

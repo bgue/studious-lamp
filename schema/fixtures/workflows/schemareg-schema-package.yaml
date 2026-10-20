@@ -1,0 +1,44 @@
+# Workflow of a schema package version (brief 27.4): Draft, InReview, Approved, Published,
+# Deprecated, Retired. A package is Draft while its author edits it; submitting it sends it to
+# review (it must be analysed first: classification and impact reports for the content it has);
+# an administrator approves it or sends it back; publishing makes the version adoptable;
+# Deprecated hides it from new adoptions; Retired takes it out of every effective schema. The
+# moves are made by the registry module's commands (SubmitSchemaPackage and the others); people
+# cannot run them with the generic TransitionWorkflow.
+id: schemareg.schema-package
+version: 1
+record_type: schemareg.SchemaPackage
+scope: company
+initial_state: Draft
+states:
+  - name: Draft
+  - name: InReview
+  - name: Approved
+  - name: Published
+  - name: Deprecated
+  - name: Retired
+transitions:
+  - name: submit
+    label: Send the draft to review
+    from: [Draft]
+    to: InReview
+  - name: request_changes
+    label: Send the package back to its author
+    from: [InReview]
+    to: Draft
+  - name: approve
+    label: Approve the package
+    from: [InReview]
+    to: Approved
+  - name: publish
+    label: Publish the version
+    from: [Approved]
+    to: Published
+  - name: deprecate
+    label: Stop new adoptions of the version
+    from: [Published]
+    to: Deprecated
+  - name: retire
+    label: Take the version out of every effective schema
+    from: [Deprecated]
+    to: Retired

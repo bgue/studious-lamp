@@ -9,13 +9,13 @@ chain and the command models are not touched.
 
 from __future__ import annotations
 
-import re
 from datetime import UTC, datetime
+
+from tl_core.util import SIM_SCOPE
 
 from tl_api.errors import ApiError
 
 EFFECTIVE_AT_HEADER = "X-TL-Effective-At"
-SIM_SCOPE = re.compile(r"project:sim-[A-Za-z0-9_.-]+")
 MIN_YEAR = 1970  # a sanity bound: a simulation plays real calendar dates, not the ends of time
 MAX_YEAR = 2100
 

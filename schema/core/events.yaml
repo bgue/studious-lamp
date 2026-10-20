@@ -463,6 +463,17 @@ classes:
       version:
         description: "Package version."
         required: true
+      record_id:
+        description: "The `schemareg.SchemaPackage` record, when the registry module published it."
+      kind:
+        description: "company, extension or project."
+      worst_class:
+        description: "The worst class of the change the version makes (additive, constraining, ...)."
+      content_sha256:
+        description: "SHA-256 of the package content."
+      auto_adopted:
+        description: "Projects whose pin moved to this version by publication."
+        multivalued: true
     examples:
       - value: "{\"package\": \"co.acme.engineering\", \"version\": \"3.2.0\"}"
   WebhookSubscriptionCreatedPayload:
