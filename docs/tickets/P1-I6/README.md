@@ -51,6 +51,7 @@ Give the correspondence module its second and third domains. **Technical / RFI**
 | S8 | TUI client interface and fakes | Interface other tickets consume | — | done (f43aa36, 9de0abb) |
 | S9 | T05 escalation rule on the P1-I7 engine | Rules; waits for the engine | orchestrator | pending (last) |
 | S11 | Residuals of the security re-check (private export file, own overflow error, scan cards tagged with their record) and the decisions D13, D14 | Confidentiality | orchestrator | done (32c7ed6, 8d2f946) |
+| S15 | TUI domain screen (Ctrl+G), evidence text, client fake seed, embedded reads test | Screen glue and wiring | — | done (394961d) |
 | S10 | Security review fixes F1 to F8 (Commercial controller gate on every command, feed cards of confidential streams, answering records readable by the item's readers, bounded evidence query, private export file, export row limit, issue day floor) | Core feed change; confidentiality | orchestrator re-check of F1 and F2 | done (eb31ba2) |
 
 ## Tickets
@@ -58,15 +59,15 @@ Give the correspondence module its second and third domains. **Technical / RFI**
 |---|---|---|---|---|---|
 | T01 | LinkML for the Technical domain and its workflow | S | — | done | S1 (one class, see D1) |
 | T02a | Technical raise, update, submit, return | H | S3 | merged (dd3260b) | passed first time; asked whether a review reason is required (D13) |
-| T02b | Technical issue, answer, review, reissue, close | H | T02a | dispatched (batch 3) | |
+| T02b | Technical issue, answer, review, reissue, close | H | T02a | merged (116594e) | passed first time; review and reissue results now list their events (8d2f946 + S16) |
 | T03 | Commercial domain: subtypes, workflow, clocks, numbering | S | — | done | S1, S3 (orchestrator approval) |
 | T04a | Commercial raise, update, submit, review, return | H | S3 | merged (66f768f) | passed first time; asked about the link version (correct: links are streams of their own) and `expected_version` 0 (D14) |
-| T04b | Commercial issue, assess, close, refer to legal | H | T04a | dispatched (batch 3) | |
+| T04b | Commercial issue, assess, close, refer to legal | H | T04a | merged (755f763) | passed first time |
 | T04c | Cost-system export (CSV) | S | T09b | done | S5 (9de0abb) |
 | T05 | Escalation RFI to Commercial: the command (S3) and the rule on the I7 engine | S | S3, P1-I7 on trunk | pending | S9 |
 | T06 | Evidence trail query | S | S3 | done | S4 (f43aa36) |
-| T07a | TUI: RFI register and record, Commercial register and record | H | S8, T09a, T09b | draft | |
-| T07b | TUI: evidence view | H | S4, S8 | draft | |
+| T07a | TUI: the text of the RFI log (cells, summary, panel) | H | S8, T09a | dispatched (batch 4) | the screen, the key (Ctrl+G) and the evidence text are supervisor pieces (S15) |
+| T07b | TUI: the text of the Commercial register | H | S8, T09b | dispatched (batch 4) | |
 | T08 | Feed policy per domain | S | S2 | done | S2 and the handlers of S3 (L-P1-I3-5: the cards cannot be tested apart) |
 | T09a | RFI log report | H | S3 | merged (63d7dc1) | passed first time; one equivalent guard added for pyright (L-P1-I6-1) |
 | T09b | Commercial register report | H | S3 | merged (3f753af) | passed first time |
