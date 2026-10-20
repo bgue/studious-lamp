@@ -1,23 +1,26 @@
 # Phase 2 — shared contracts (DRAFT)
 
-Status: **DRAFT**, 2026-10-17. The orchestrator freezes these at phase start (wave 0 of `08-phase2-plan.md`),
-commits the Python files named here, and from then on they change only by orchestrator decision, as
-`tl_core/derivation/types.py` did for P1-I3 (`docs/tickets/P1-I3/FANOUT.md`, "Shared contracts"). Everything
-below names interfaces that do not exist yet; everything it builds on is verified in the tree (`08-phase2-plan.md`
-§0). Owner questions it depends on are marked `P2-Q<n>`.
+Status: **DRAFT**, 2026-10-17; wave column revised 2026-10-20 for the five-wave plan of `08-phase2-plan.md` v0.3.
+The orchestrator freezes these at phase start (wave 0 of `08-phase2-plan.md`, after the plan check of skill rule 8);
+the frozen files with their tests are the wave-0 builder piece W0-B1, and from then on they change only by
+orchestrator decision, as `tl_core/derivation/types.py` did for P1-I3 (`docs/tickets/P1-I3/FANOUT.md`, "Shared
+contracts"). Frozen contracts are what let the consumers below be Haiku tickets: a readiness check, a desk or an
+actor coded against a `Protocol` and a provided test passes the `01-tiers.md` §6 checklist. Everything below names
+interfaces that do not exist yet; everything it builds on is verified in the tree (`08-phase2-plan.md` §0). Owner
+questions it depends on are marked `P2-Q<n>`.
 
 Style: the P1-I3 contract. Pydantic models with bounds as module constants, a `Protocol` per plugin, an entry-point
 group, and pipeline-side signatures listed as comments so the other workstream can test against them.
 
-| § | Contract | Fanout that needs it frozen | File |
-|---|---|---|---|
-| 1 | Readiness checks (plugin registry, facts, results, event, job) | I2 WS-A ∥ WS-B; I3 T07; I4 T05 | `packages/tl-core/src/tl_core/readiness/types.py` |
-| 2 | Constraint sources and the check-raised constraint | I2 WS-A ∥ WS-B | `packages/tl-modules/awp/src/tl_mod_awp/constraints/types.py` |
-| 3 | Requisition and work order base; what the scaffold module consumes | I4 WS-A ∥ WS-B | `schema/modules/requisitions/requisition.yaml` (LinkML), `tl_mod_requisitions/api.py` |
-| 4 | Inventory movements and reservations (what I4 and the readiness check call) | I1 ∥ I3; I4 WS-A | `tl_mod_materials/api.py` |
-| 5 | Rules of credit package and the earned-progress result | I5 (and I2 `ScopeItem`) | `schema/modules/awp/rules_of_credit.yaml`, `tl_mod_awp/progress/types.py` |
-| 6 | Simulator desks and actors for Phase 2 | every actor ticket; I6 | `tl_sim/desks/` (names only) |
-| 7 | Reserved identifiers and job kinds added by Phase 2 | all | `tl_core/services/reserved.py` (additions) |
+| § | Contract | Waves and streams that need it frozen (plan §0.2) | Haiku consumers it enables | File |
+|---|---|---|---|---|
+| 1 | Readiness checks (plugin registry, facts, results, event, job) | wave 2 I2 WS-A ∥ WS-B; wave 1 I3 T07; wave 4 I4-B T05 | I2 T06b, I3 T07, I4-B T05 (checks with provided tests) | `packages/tl-core/src/tl_core/readiness/types.py` |
+| 2 | Constraint sources and the check-raised constraint | wave 2 I2 WS-A ∥ WS-B | I2 T04a, T09a (reads) | `packages/tl-modules/awp/src/tl_mod_awp/constraints/types.py` |
+| 3 | Requisition and work order base; what the scaffold module consumes | wave 3 I4-A, then wave 4 I4-B | I4-B T05, T07a; I4-A T04a, T08a | `schema/modules/requisitions/requisition.yaml` (LinkML), `tl_mod_requisitions/api.py` |
+| 4 | Inventory movements and reservations (what I4 and the readiness check call) | wave 1 I1 ∥ I3; wave 3 I4-A | I3 T07, T09a–b, T10a | `tl_mod_materials/api.py` |
+| 5 | Rules of credit package and the earned-progress result | wave 3 I5 (and wave 2 I2 `ScopeItem`) | I5 T04, T05, T09 | `schema/modules/awp/rules_of_credit.yaml`, `tl_mod_awp/progress/types.py` |
+| 6 | Simulator desks and actors for Phase 2 | every actor ticket; wave 5 I6 | I1 T08a, I2 T10a, I3 T11a, I4-B T10, I6 T01 | `tl_sim/desks/` (names only) |
+| 7 | Reserved identifiers and job kinds added by Phase 2 | all (wave 0, W0-B1) | — | `tl_core/services/reserved.py` (additions) |
 
 ---
 
@@ -162,10 +165,10 @@ Checks and owners:
 | `documents_current` | I2 WS-B | pinned links and `tl_mod_documents.resolver` (stale by the class-aware rule) | — |
 | `rfis_answered` | I2 WS-B | `correspondence` RFI records linked to the IWP (P1-I6) | P1-I6 on the trunk |
 | `constraints_clear` | I2 WS-A (the one check the awp module owns and WS-A writes) | `cur_awp_constraint` (`blocks` the IWP, open) | — |
-| `materials_reserved` | I3 T07 | reservations against the MTO lines of the IWP | — |
-| `scaffold_tagged` | I4 WS-B T05 | `scaffold.Scaffold` the IWP `requires`, tag colour | — |
-| `labour_requested` | I4 WS-B T05 | approved `LaborRequisition` covering the window | — |
-| `permits_planned`, `inspections_planned`, `predecessors_handed_over`, `model_slice_available` | I2 WS-B T06b | nothing | Phase 3 |
+| `materials_reserved` | I3 T07 (Haiku) | reservations against the MTO lines of the IWP | — |
+| `scaffold_tagged` | I4-B T05 (Haiku) | `scaffold.Scaffold` the IWP `requires`, tag colour | — |
+| `labour_requested` | I4-B T05 (Haiku) | approved `LaborRequisition` covering the window | — |
+| `permits_planned`, `inspections_planned`, `predecessors_handed_over`, `model_slice_available` | I2 WS-B T06b (Haiku) | nothing | Phase 3 |
 
 ---
 
@@ -251,7 +254,7 @@ here so a later ADR can replace it with an entry point if a third consumer appea
 
 ---
 
-## 4. Inventory movements and reservations (I3; called by I4 WS-A and the readiness check)
+## 4. Inventory movements and reservations (I3; called by I4-A and the readiness check)
 
 ```python
 """tl_mod_materials/api.py: the surface other modules call. Movements are events on the lot's

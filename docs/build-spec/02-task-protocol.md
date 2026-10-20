@@ -2,6 +2,9 @@
 
 How work moves between tiers: tickets, context packs, reports, reviews, branches, and definitions of done.
 
+> **Process v2.** Round handoffs (`STATE.md`), the TL92 relay format, brevity limits, the gate and reviewer rules are
+> defined in the `subagent-throughput-process` skill and not repeated here; §10 points to them.
+
 ## 1. Ticket lifecycle
 
 ```
@@ -23,7 +26,7 @@ Template: `docs/templates/haiku-ticket.md`. Mandatory sections:
 
 | Section | Content |
 |---|---|
-| Header | ID (`P0-I1-T06`), title, status, tier (`haiku` / `sonnet`), labels (`schema`, `adapter`, `tui`, …), depends-on, branch |
+| Header | ID (`P0-I1-T06`), title, status, tier (`haiku` / `sonnet`), `kind` (`ticket` / `piece`), `review` (`lite` / `full`; pieces are always `full`), labels (`schema`, `adapter`, `tui`, …), depends-on, branch |
 | Goal | One paragraph: what exists after this ticket that did not before |
 | Brief references | Pasted excerpts (tables, bullets) from the brief, not just `§5.1`. The implementer does not open the brief |
 | Interfaces | Pasted Protocols, dataclasses, LinkML fragments, SQL shapes the ticket must honour. Verbatim from the repo |
@@ -41,12 +44,14 @@ Template: `docs/templates/haiku-ticket.md`. Mandatory sections:
 A context pack is the *Brief references* + *Interfaces* + *Context* sections of a ticket. Rules:
 
 - **Paste, don't point.** Implementers never read the brief. The supervisor pastes the lines that matter.
-- **Budget:** ≤ ~40k tokens for an implementer: ticket ≤ 3k, context files ≤ 30k, `AGENTS.md` ≤ 2k.
+- **Budget:** ≤ ~40k tokens for an implementer: ticket ≤ 3k, context files ≤ 20k, `AGENTS.md` ≤ 3k. Excerpts are marked `(abridged)`; `docs/templates/haiku-report.md` is in *Context* (L-P1-I3B-6).
 - **Interfaces verbatim.** Copy from the repo at the commit the ticket branches from. If the interface changes later, the ticket is re-issued, not patched in chat.
 - **Tests as spec.** Where possible the supervisor commits a failing test file before dispatch and the ticket says "make `tests/.../test_x.py` pass".
 - **No transitive reading.** If a context file imports something the implementer would need to understand, either paste the relevant signature into *Interfaces* or add the file to *Context*.
 
-Supervisor context (per increment) is larger: the increment plan, cited brief sections, `03-repo-and-toolchain.md`, the interfaces, and the last increment report. Keep it under ~120k tokens by citing rather than pasting the brief.
+Supervisor context is per round, not per increment: `STATE.md`, the spec sections the round prompt names, the
+learnings fetched by id, and in round 1 the increment section with its cited brief sections. A piece spec for a
+builder follows the same rules as a ticket, with a larger context list (≤ 10 files) and the guards to mutate named.
 
 ## 4. Reports
 
@@ -58,7 +63,13 @@ Implementer report (`docs/templates/haiku-report.md`), returned as the final mes
 4. **Tests added** and what they cover.
 5. **Open questions / Blocked**.
 
-Supervisor increment report (`docs/templates/sonnet-increment.md` §Report): objective met or not, demo path, ticket table with outcomes (merged, taken over, abandoned), gate results, deviations from the plan, escalations and decisions, follow-ups, token/cost notes if available.
+Limits: a ticket or piece report ≤ 60 lines, ≤ 5 decisive output lines per command; a builder's returned message
+≤ 15 lines (TL92).
+
+Supervisor increment report (`docs/templates/sonnet-increment.md` §Report, ≤ 80 lines, written from `STATE.md` in
+the DONE round): objective met or not, demo path, ticket table with outcomes (merged, taken over, abandoned), gate
+results (the full-gate summary pasted, not re-run), deviations from the plan, escalations and decisions, follow-ups,
+token/cost notes if available.
 
 ## 5. Branches, commits, PRs
 
@@ -75,7 +86,7 @@ The reviewer answers each in order and stops at the first hard failure:
 1. **Scope:** the diff does what *Goal* and *Acceptance* say, and nothing beyond. "While I'm here" changes → `changes-requested`.
 2. **Boundary:** every changed path is inside *Allowed paths*.
 3. **Interfaces:** pasted interfaces are honoured verbatim; no redesign.
-4. **Verification:** the reviewer re-runs `just check` and the ticket's test command. Pasted output that does not match a re-run → `changes-requested`.
+4. **Verification:** the gate summary the reviewer was given (run by the `gate-runner`, independent of the author) is green and names every package the diff touches. A missing part → `changes-requested` naming it; the reviewer does not re-run `just check` or the suite, and runs at most one targeted test when the diff alone cannot answer item 9.
 5. **Generated code:** nothing under `packages/tl-schema/src/tl_schema/generated/` or `schema/` changed unless the ticket is labelled `schema` and names an approver.
 6. **Immutability:** no UPDATE/DELETE on event tables, no history rewriting.
 7. **Dialect:** no SQLite- or Postgres-specific SQL outside `packages/tl-adapters/`.
@@ -88,22 +99,22 @@ Verdicts: `pass`; `changes-requested` with numbered findings; `escalate` with th
 
 ## 7. Two-strikes rule
 
-- An implementer ticket that returns `changes-requested` twice is taken over by the supervisor. The ticket records `taken-over: <reason>`.
-- A supervisor-built engine that fails its gates twice is escalated to the orchestrator with the failure evidence.
+- An implementer ticket that returns `changes-requested` twice (`2s`), or whose gate is still red after one fix attempt (`gr`), goes back to the supervisor round, which re-specs it as a piece for a builder or splits it; the ticket records `taken-over: <reason>`. The supervisor never finishes it in its own context.
+- A builder piece that fails its gate or review twice is escalated to the orchestrator with the failure evidence.
 - The rule exists to stop cheap retries from becoming expensive thrash. It is not a penalty; it is a routing decision.
 
 ## 8. Definitions of done
 
 **Ticket**
 
-- All acceptance commands pass on the reviewer's re-run.
-- Reviewer verdict `pass`; merged to the increment branch by the supervisor.
+- The gate-runner's `just gate` on the branch is green (the deterministic step of the workflow).
+- Reviewer verdict `pass`; merged to the increment branch by the orchestrator (merge commit).
 - Report saved under `docs/reports/`.
 
 **Increment**
 
 - Every ticket in the plan is merged or explicitly abandoned with a reason.
-- `just check`, `just test` green on the increment branch; `just test-parity` where adapters changed; `just test-tui` where screens changed.
+- `just check`, `just gate` (whole suite) and `just gate-pg <touched directories>` green on the increment branch once, at DONE; the security review of the wave closed (findings fixed or recorded with a decision).
 - Demo script runs clean from `just dev up` on a fresh clone.
 - Increment report written; follow-ups filed as `draft` tickets in the next increment folder.
 - Docs definition of done met (`throughline-docs` skill §4): package READMEs and AGENTS.md current, runbooks for new operations, learnings recorded.
@@ -119,4 +130,16 @@ Verdicts: `pass`; `changes-requested` with numbered findings; `escalate` with th
 
 `docs/memory/LEARNINGS.md` is the build's memory: small, actionable facts that are expensive to rediscover. Rules
 for reading, writing, and curating it are in the `throughline-docs` skill §3. It is in git, merges with
-`merge=union`, and is never read by implementers directly; supervisors paste the entries a ticket needs.
+`merge=union`, and is never read by implementers directly; supervisors paste the entries a ticket needs. Nobody
+reads the whole file during a build: the orchestrator names ids, agents `grep -n -A6` them. An entry is ≤ 6 lines.
+
+## 10. Round handoffs and agent-to-agent traffic
+
+- `docs/tickets/<increment-id>/STATE.md` is the handoff between supervisor rounds; format and limits in the
+  `subagent-throughput-process` skill ("STATE.md format"). It is committed at the end of every round as
+  `<increment-id>: state r<n>`.
+- Every relay block, orchestrator round message, workflow outcome line and review return is TL92 (skill "TL92");
+  `dev/relay-lint` validates a relay before the orchestrator acts on it. Plans, reports, ADRs, learnings and anything
+  the owner reads stay plain English.
+- A big plan (phase plan, fanout, process change, core ADR, increment plan over ~10 tickets) carries a
+  `## Plan check` section with the `plan-check` findings answered or waived before anything is dispatched (skill rule 8).
