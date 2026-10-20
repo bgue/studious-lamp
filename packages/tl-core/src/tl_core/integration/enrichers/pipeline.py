@@ -28,6 +28,7 @@ from typing import Any
 
 from sqlalchemy import Connection, text
 
+from tl_core import confidentiality
 from tl_core.integration.actor_access import held_access
 from tl_core.integration.contract import (
     ENRICHMENT_PSET_PREFIX,
@@ -557,7 +558,11 @@ def _value_row(uow: UnitOfWork, value_id: str, scope: str) -> Any:
         .mappings()
         .first()
     )
-    if row is None or row["scope"] != scope:
+    if (
+        row is None
+        or row["scope"] != scope
+        or confidentiality.is_hidden(uow.conn(), str(row["target_id"]))
+    ):  # a value of a record the person may not read is as absent as one that does not exist
         raise IntegrationNotFoundError(f"no enrichment value {value_id} in {scope}")
     return row
 

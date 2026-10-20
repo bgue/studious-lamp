@@ -31,7 +31,10 @@ from typing import Any
 from pydantic import ValidationError
 from sqlalchemy import Connection, text
 
+from tl_core import confidentiality
+from tl_core.confidentiality import use_viewer
 from tl_core.files.types import ObjectNotFound, ObjectStore
+from tl_core.integration.actor_access import viewer_of
 from tl_core.integration.automation import (
     Planned,
     ServerFields,
@@ -175,7 +178,9 @@ class RecordKeyLookup:
             "SELECT id, key, type, version FROM cur_core_record "
             "WHERE key = :k AND scope = :s AND voided = :v"
         )
-        params: dict[str, Any] = {"k": key, "s": self._scope, "v": False}
+        visible, extra = confidentiality.not_hidden("id")  # as the current viewer
+        sql += f" AND {visible}"
+        params: dict[str, Any] = {"k": key, "s": self._scope, "v": False, **extra}
         if record_type is not None:
             sql += " AND type = :t"
             params["t"] = record_type
@@ -300,6 +305,16 @@ class InboundMapJobKind:
                 f"mapping_{mapped.status}", problem.message[:MAX_MESSAGE], retryable=False
             )
         definition = self._definition(conn, delivery)
+        # The mapping reads and acts as the endpoint's own service actor (ADR-0016), not as the
+        # job runner's system view: a key that names a record that actor may not read is as
+        # absent as one that does not exist, and a command on such a record is refused.
+        with use_viewer(viewer_of(conn, str(definition["service_actor"]))):
+            self._apply(uow, delivery, definition, mapped)
+
+    def _apply(
+        self, uow: UnitOfWork, delivery: Any, definition: dict[str, Any], mapped: MappingOutcome
+    ) -> None:
+        conn = uow.conn()
         access: AutomationAccess = definition["access"]
         built = plan_mapped(
             conn,

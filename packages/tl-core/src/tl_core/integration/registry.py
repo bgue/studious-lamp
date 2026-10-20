@@ -8,10 +8,11 @@ their payload or object key.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, cast
 
 from sqlalchemy import Connection, text
 
+from tl_core import confidentiality
 from tl_core.integration.errors import IntegrationNotFoundError
 from tl_core.webhooks.rows import load_json
 
@@ -81,6 +82,10 @@ def list_registry(
     else:
         table, order = TABLES[kind]
         if kind == "enrichments":
+            # a value of a record the viewer may not read is not listed (ADR-0016)
+            visible, visible_params = confidentiality.not_hidden("target_id")
+            clauses.append(visible)
+            params.update(visible_params)
             if state is not None:
                 clauses.append("acceptance_state = :state")
                 params["state"] = state
@@ -91,7 +96,29 @@ def list_registry(
                 clauses.append("acceptance_state <> 'shadow'")
         where = f" WHERE {' AND '.join(clauses)}" if clauses else ""
         sql = f"SELECT * FROM {table}{where} ORDER BY {order} LIMIT :limit"  # noqa: S608
-    return [decode(dict(r)) for r in conn.execute(text(sql), params).mappings()]
+    found = [decode(dict(r)) for r in conn.execute(text(sql), params).mappings()]
+    if kind == "invocations":
+        found = _visible_invocations(conn, found)
+    return found
+
+
+def _target_ids(row: dict[str, Any]) -> list[str]:
+    found: list[str] = []
+    for target in cast("list[object]", row.get("targets") or []):
+        if isinstance(target, dict):
+            record_id = cast("dict[str, object]", target).get("id")
+            if record_id:
+                found.append(str(record_id))
+    return found
+
+
+def _visible_invocations(conn: Connection, rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """The invocations none of whose targets the viewer must not read: the row names the records
+    (key, id) it ran on, so one on a hidden record is not listed (ADR-0016)."""
+    hidden = confidentiality.hidden_among(conn, [i for row in rows for i in _target_ids(row)])
+    if not hidden:
+        return rows
+    return [row for row in rows if not hidden.intersection(_target_ids(row))]
 
 
 __all__ = ["KINDS", "MAX_ROWS", "TABLES", "decode", "list_registry"]

@@ -9,7 +9,7 @@ verb   name     runs
 ====== ======== ==========================================================
 link   ``*``    ``AddLink`` from the thread's record to each key
 status ``*``    ``TransitionWorkflow`` on the thread's record
-raise  record   ``CreateRecord`` (``core.Record``) plus ``raised_against`` links
+raise  record, rfi ``CreateRecord`` (``core.Record``) plus ``raised_against`` links
 dispatch ``*``  ``InvokeAction``
 notify ``*``    nothing: the mentions are recorded in the message
 remind ``*``    the ``ThreadReminder`` effect (a ``thread.reminder`` job)
@@ -18,8 +18,8 @@ summarise ``*`` the ``ThreadSummary`` effect (a deterministic summary)
 
 ``assign``, ``due``, ``hold`` and ``release`` have no target in Phase 1 (there is no assignee,
 due-date or constraint model): the planner answers ``dispatch_unavailable`` until a module registers
-one under the entry-point group ``throughline.dispatch_targets``. So does ``/raise rfi`` until
-P1-I6 registers its ``rfi`` alias.
+one under the entry-point group ``throughline.dispatch_targets``. (``/raise rfi`` is a plain record
+until P1-I6 registers the RFI register's own target.)
 
 Lookup: ``raise`` takes the alias exactly (``rfi``, ``record``); ``dispatch`` takes the request type
 then ``*``; every other verb takes the thread's record type (``documents.Revision``) then ``*``.
@@ -83,7 +83,7 @@ def core_targets() -> list[DispatchTarget]:
     from tl_core.threads.targets.dispatch_action import ActionTarget
     from tl_core.threads.targets.link import LinkTarget
     from tl_core.threads.targets.notify import NotifyTarget
-    from tl_core.threads.targets.raise_record import RaiseRecordTarget
+    from tl_core.threads.targets.raise_record import RaiseRecordTarget, RaiseRfiTarget
     from tl_core.threads.targets.remind import RemindTarget
     from tl_core.threads.targets.status import StatusTarget
     from tl_core.threads.targets.summarise import SummariseTarget
@@ -92,6 +92,7 @@ def core_targets() -> list[DispatchTarget]:
         LinkTarget(),
         StatusTarget(),
         RaiseRecordTarget(),
+        RaiseRfiTarget(),
         ActionTarget(),
         NotifyTarget(),
         RemindTarget(),

@@ -30,7 +30,7 @@ class RemindTarget:
         why = reminder_problem(args.when, datetime.fromisoformat(context.now))
         if why is not None:
             return Problem(code="bad_time", message=f"{args.when}: {why}")
-        resolved = resolve_mentions(uow, args.who)
+        resolved = resolve_mentions(uow, args.who, record_id=context.record.id)
         if resolved.problems:
             return first_problem(resolved.problems)
         who = resolved.found

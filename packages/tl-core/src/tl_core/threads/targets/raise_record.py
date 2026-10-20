@@ -19,6 +19,8 @@ MAX_TITLE_CHARS = 200
 class RaiseRecordTarget:
     verb: DispatchVerb = "raise"
     name: str = "record"
+    #: Written into the description of the new record when the text gave none.
+    lead: str | None = None
 
     def plan(
         self, uow: UnitOfWork, context: DispatchContext, parsed: ParsedDispatch
@@ -33,12 +35,14 @@ class RaiseRecordTarget:
                 code="too_long",
                 message=f"a title is at most {MAX_TITLE_CHARS} characters",
             )
-        refs, problems = resolve_keys(uow, context.scope, args.against)
+        refs, problems = resolve_keys(uow, context.scope, args.against, actor=context.actor)
         if problems:
             return first_problem(problems)
         create: dict[str, object] = {"record_type": "core.Record", "title": title}
         if args.note is not None:
             create["description"] = args.note
+        elif self.lead is not None:
+            create["description"] = self.lead
         planned = [
             PlannedCommand(
                 command_type="CreateRecord",
@@ -59,3 +63,13 @@ class RaiseRecordTarget:
                 )
             )
         return planned
+
+
+class RaiseRfiTarget(RaiseRecordTarget):
+    """``/raise rfi <title>``: until the RFI register of P1-I6 registers its own ``rfi`` target
+    (a module's target replaces this one: remove it then), a request for information is a
+    ``core.Record`` raised from the thread, labelled as one in its description, linked to the
+    thread's record and to each ``#KEY`` it was raised against."""
+
+    name: str = "rfi"
+    lead: str | None = "Request for information raised from a record thread."

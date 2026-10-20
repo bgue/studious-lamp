@@ -17,6 +17,7 @@ from datetime import datetime
 from pydantic import BaseModel, Field
 from sqlalchemy import text
 
+from tl_core.confidentiality import use_viewer
 from tl_core.integration.contract import (
     RULE_DRY_RUN_MAX_EVENTS,
     RULE_DRY_RUN_MAX_FIRINGS,
@@ -25,6 +26,7 @@ from tl_core.integration.contract import (
     RuleFiring,
 )
 from tl_core.integration.rules.engine import StoredRule, plan_firing
+from tl_core.integration.visibility import declared_viewer, event_hidden
 from tl_core.webhooks.base import UowFactory, iso_z
 from tl_core.webhooks.filters import WebhookFilter
 from tl_core.webhooks.rows import OUTBOX_COLUMNS, OutboxRow
@@ -98,8 +100,14 @@ def dry_run_rule(
             rows = rows[:max_events]
             report.truncated = True
         report.events_read = len(rows)
+        # read as the rule would: an event about a record its actor may not read is not in a dry
+        # run either (ADR-0016)
+        viewer = declared_viewer(rule.service_actor, rule.access)
         for row in rows:
-            plan = plan_firing(uow, runner, ignoring_the_switch, row)
+            if event_hidden(uow.conn(), row, viewer):
+                continue
+            with use_viewer(viewer):
+                plan = plan_firing(uow, runner, ignoring_the_switch, row)
             if plan is None:
                 continue
             if len(report.firings) >= max_firings:

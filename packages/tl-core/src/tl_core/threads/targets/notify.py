@@ -22,7 +22,7 @@ class NotifyTarget:
     ) -> list[PlannedCommand] | Problem:
         args = parsed.args
         assert isinstance(args, NotifyArgs)
-        resolved = resolve_mentions(uow, args.who)
+        resolved = resolve_mentions(uow, args.who, record_id=context.record.id)
         if resolved.problems:
             return first_problem(resolved.problems)
         return []

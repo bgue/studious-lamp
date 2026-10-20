@@ -17,9 +17,12 @@ from dataclasses import dataclass
 
 from sqlalchemy import text
 
+from tl_core import confidentiality
 from tl_core.auth.names import actor_for
 from tl_core.auth.queries import find_account
+from tl_core.integration.actor_access import viewer_of
 from tl_core.integration.contract import Problem, RecordRef
+from tl_core.threads.visibility import can_read_record
 from tl_core.uow import UnitOfWork
 
 _KEY_SQL = text(
@@ -36,8 +39,15 @@ class Resolved:
     problems: list[Problem]
 
 
-def resolve_mentions(uow: UnitOfWork, mentions: list[str]) -> Resolved:
-    """Actor strings for mentions as typed (``jsmith``, ``agent:planner``), in order, no repeats."""
+def resolve_mentions(
+    uow: UnitOfWork, mentions: list[str], *, record_id: str | None = None
+) -> Resolved:
+    """Actor strings for mentions as typed (``jsmith``, ``agent:planner``), in order, no repeats.
+
+    With ``record_id`` (the thread's record) a mention of an account that may not read that record
+    is the same ``unknown_mention`` as one of an account that does not exist: a notice would carry
+    the thread to someone who cannot read it, and the answer would tell who may (ADR-0016).
+    """
     found: list[str] = []
     problems: list[Problem] = []
     for mention in mentions:
@@ -65,20 +75,33 @@ def resolve_mentions(uow: UnitOfWork, mentions: list[str]) -> Resolved:
             )
             continue
         actor = actor_for(account.kind, account.username)
+        if record_id is not None and not can_read_record(uow, record_id, actor):
+            problems.append(
+                Problem(code="unknown_mention", message=f"@{mention[:60]}: no such active account")
+            )
+            continue
         if actor not in found:
             found.append(actor)
     return Resolved(found, problems)
 
 
 def resolve_keys(
-    uow: UnitOfWork, scope: str, keys: list[str]
+    uow: UnitOfWork, scope: str, keys: list[str], *, actor: str | None = None
 ) -> tuple[list[RecordRef], list[Problem]]:
-    """The records named by keys, in order, no repeats; a problem for each key that fails."""
+    """The records named by keys, in order, no repeats; a problem for each key that fails.
+
+    A record ``actor`` may not read (the viewer of the current request when ``actor`` is not
+    given) is ``unknown_key``, word for word as a key no record has: the answer must not tell a
+    hidden record from a missing one (ADR-0016).
+    """
+    viewer = None if actor is None else viewer_of(uow.conn(), actor)
     refs: list[RecordRef] = []
     problems: list[Problem] = []
     for key in keys:
         rows = uow.conn().execute(_KEY_SQL, {"key": key, "scope": scope}).all()
         row = next((r for r in rows if r.scope == scope), rows[0] if rows else None)
+        if row is not None and confidentiality.is_hidden(uow.conn(), row.id, viewer):
+            row = None
         if row is None:
             problems.append(Problem(code="unknown_key", message=f"no record {key[:80]!r} here"))
         elif row.voided:

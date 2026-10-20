@@ -22,6 +22,8 @@ from dataclasses import dataclass
 
 from sqlalchemy import Connection, text
 
+from tl_core.confidentiality import use_viewer
+from tl_core.integration.actor_access import viewer_of
 from tl_core.integration.contract import RULE_BATCH_EVENTS, Enricher
 from tl_core.integration.enrichers.pipeline import (
     RunStats,
@@ -35,6 +37,7 @@ from tl_core.integration.enrichers.pipeline import (
 from tl_core.integration.enrichers.registry import load_enricher
 from tl_core.integration.killswitch import kill_switch_on
 from tl_core.integration.rules.engine import read_outbox
+from tl_core.integration.visibility import event_hidden
 from tl_core.services.errors import RetryableTransactionError
 from tl_core.webhooks.base import Clock, UowFactory, utc_now
 from tl_core.webhooks.dispatch import record_matches
@@ -50,6 +53,7 @@ ENRICHER_SOURCE_PREFIX = "enricher:"
 class EnrichStats(RunStats):
     read: int = 0
     killed: int = 0
+    hidden: int = 0
     cursor: int = 0
 
 
@@ -98,6 +102,7 @@ class EnrichmentDispatcher:
             total.add(stats)
             total.read += stats.read
             total.killed += stats.killed
+            total.hidden += stats.hidden
             total.cursor = max(total.cursor, stats.cursor)
             if stats.read == 0:
                 return total
@@ -117,23 +122,31 @@ class EnrichmentDispatcher:
                 if not applies(live, row):
                     return none
                 enricher = live
-                selector = enricher.when.record_selector
-                if selector is not None and not record_matches(uow, row, selector):
+                # The enricher reads and writes as its own service actor (ADR-0016): an event
+                # about a record that actor may not read is passed over, and what the plugin is
+                # shown is read as that actor.
+                viewer = viewer_of(uow.conn(), enricher.service_actor)
+                if event_hidden(uow.conn(), row, viewer):
+                    counts.hidden += 1
                     return none
-                subject = load_subject(uow.conn(), row.subject_id)
-                plugin = self._plugins(enricher.name)
-                if subject is None or plugin is None or subject.record.id != row.subject_id:
-                    return none
-                stats, _ = run_enricher(
-                    uow,
-                    enricher,
-                    plugin,
-                    subject,
-                    now=self._clock(),
-                    correlation_id=row.correlation_id,
-                    causation_id=row.event_id,
-                )
-                return stats
+                with use_viewer(viewer):
+                    selector = enricher.when.record_selector
+                    if selector is not None and not record_matches(uow, row, selector):
+                        return none
+                    subject = load_subject(uow.conn(), row.subject_id)
+                    plugin = self._plugins(enricher.name)
+                    if subject is None or plugin is None or subject.record.id != row.subject_id:
+                        return none
+                    stats, _ = run_enricher(
+                        uow,
+                        enricher,
+                        plugin,
+                        subject,
+                        now=self._clock(),
+                        correlation_id=row.correlation_id,
+                        causation_id=row.event_id,
+                    )
+                    return stats
         except RetryableTransactionError:
             raise
         except Exception:  # rolled back with the unit of work; the next event goes on

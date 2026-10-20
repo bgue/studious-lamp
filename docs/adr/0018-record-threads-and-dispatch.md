@@ -32,7 +32,7 @@ of work, with the server-set source `thread:<record id>` and correlation id `dis
 4. **Targets.** A `DispatchTarget` only builds commands. The planner sets `access` from the runner (a target
    cannot grant itself any), `permitted` from `holds`, refuses a command that names a server-set field, validates
    with the command's model, and dry-runs the plan in a unit of work it rolls back. Lookup is most specific
-   first: `raise` takes the alias exactly (`record` now; `rfi` when P1-I6 registers it), `dispatch` the request type
+   first: `raise` takes the alias exactly (`record`, and `rfi`: a record labelled as a request for information until P1-I6 registers the RFI register's own target, which replaces it), `dispatch` the request type
    then `*`, the other verbs the record type then `*`. `assign`, `due`, `hold` and `release` have no target in
    Phase 1 and answer `dispatch_unavailable`. A module registers targets under the entry-point group
    `throughline.dispatch_targets`; a clash is refused and a target that fails to load is logged and skipped.

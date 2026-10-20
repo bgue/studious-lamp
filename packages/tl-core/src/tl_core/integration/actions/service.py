@@ -30,6 +30,7 @@ from typing import Any
 from pydantic import Field, ValidationError
 from sqlalchemy import text
 
+from tl_core import confidentiality
 from tl_core.changefeed.filters import glob_match
 from tl_core.integration.automation import first_error
 from tl_core.integration.contract import (
@@ -578,7 +579,12 @@ def resolve_targets(
     )
     for record_id in targets:
         row = uow.conn().execute(_RECORD_SQL, {"id": record_id}).first()
-        if row is None or row.scope != scope or bool(row.voided):
+        if (
+            row is None
+            or row.scope != scope
+            or bool(row.voided)
+            or confidentiality.is_hidden(uow.conn(), record_id)  # as absent as a missing record
+        ):
             raise IntegrationNotFoundError("a target is not a record of this scope")
         if not any(glob_match(pattern, row.type) for pattern in definition.applies_to.record_types):
             raise InvalidIntegrationError(f"{definition.name} does not apply to {row.type} records")

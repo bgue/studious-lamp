@@ -186,12 +186,15 @@ def test_raise_record_creates_a_linked_record_in_the_dry_run_only(db: DbTarget) 
     assert count(db, "SELECT COUNT(*) FROM cur_core_record") == records
 
 
-def test_raise_needs_a_title_and_an_rfi_is_unavailable_until_p1_i6(db: DbTarget) -> None:
+def test_raise_needs_a_title_and_an_rfi_is_a_labelled_record_until_p1_i6(db: DbTarget) -> None:
     rid = make_record(db, "REC-1")
     assert ok(preview(db, rid, "/raise record")).problems[0].code == "missing_argument"
+    assert ok(preview(db, rid, "/raise rfi")).problems[0].code == "missing_argument"
     rfi = ok(preview(db, rid, "/raise rfi #REC-1 Clash"))
-    assert not rfi.can_dispatch and rfi.problems[0].code == "dispatch_unavailable"
-    assert rfi.planned == []
+    assert rfi.can_dispatch and rfi.problems == []
+    first = rfi.planned[0]
+    assert first.command_type == "CreateRecord" and first.command["title"] == "Clash"
+    assert "Request for information" in str(first.command["description"])
 
 
 def test_assign_due_hold_and_release_are_unavailable(db: DbTarget) -> None:

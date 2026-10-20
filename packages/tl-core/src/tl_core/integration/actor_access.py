@@ -22,6 +22,7 @@ from sqlalchemy import Connection, text
 
 from tl_core.auth.names import actor_for
 from tl_core.auth.queries import find_account
+from tl_core.confidentiality import LOWEST, Viewer, viewer_for_actor
 from tl_core.integration.contract import Access, access_covers
 from tl_core.integration.errors import CommandAccessError
 
@@ -74,6 +75,23 @@ def held_access(conn: Connection, actor: str) -> Access | None:
     return None
 
 
+def viewer_of(conn: Connection, actor: str) -> Viewer:
+    """Who the confidentiality filters (ADR-0016) take ``actor`` to be, for automation.
+
+    A person is the viewer ``viewer_for_actor`` says. A service actor reads ``internal`` records,
+    and ``restricted`` ones too when its declared access is ``controller``; ``privileged`` ones
+    only when a clearance row names the service actor itself, as it does a person. An actor that
+    holds nothing (switched off, unknown) is the lowest viewer. So a rule, a mapping or an enricher
+    never reads or acts on a record its owner could not, unless it is cleared for it.
+    """
+    if actor.startswith("svc:"):
+        held = held_access(conn, actor)
+        if held is None:
+            return LOWEST
+        return Viewer(actor=actor, level=1 if held in ("controller", "admin") else 0, account=actor)
+    return viewer_for_actor(conn, actor)
+
+
 def workflow_roles_of(conn: Connection, actor: str) -> tuple[str, ...]:
     """The workflow roles ``actor`` holds (ADR-0013, addendum P1-SEC1): those of its account when it
     is a person, none for an agent and none for a service actor, so a rule or a mapping that
@@ -112,4 +130,4 @@ def holds_for(held: Access) -> Callable[[Access], bool]:
     return holds
 
 
-__all__ = ["held_access", "holds_for", "require_access", "workflow_roles_of"]
+__all__ = ["held_access", "holds_for", "require_access", "viewer_of", "workflow_roles_of"]

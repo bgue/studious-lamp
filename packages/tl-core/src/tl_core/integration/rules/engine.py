@@ -39,6 +39,8 @@ from pydantic import ValidationError
 from sqlalchemy import Connection, text
 
 from tl_core.auth.projector import ACCOUNT_STREAM_TYPE
+from tl_core.confidentiality import use_viewer
+from tl_core.integration.actor_access import viewer_of
 from tl_core.integration.automation import (
     ServerFields,
     plan_command,
@@ -65,6 +67,7 @@ from tl_core.integration.streams import (
     RULE_BLOCKED,
     RULE_STREAM_TYPE,
 )
+from tl_core.integration.visibility import event_hidden
 from tl_core.ledger import ConcurrencyError, NewEvent
 from tl_core.services import proposals
 from tl_core.services.commands import Command
@@ -173,6 +176,7 @@ class RuleStats:
     proposed: int = 0
     blocked: int = 0
     killed: int = 0
+    hidden: int = 0
     cursor: int = 0
 
 
@@ -436,6 +440,7 @@ class RulesWorker:
             total.proposed += stats.proposed
             total.blocked += stats.blocked
             total.killed += stats.killed
+            total.hidden += stats.hidden
             total.cursor = max(total.cursor, stats.cursor)
             if stats.read == 0:
                 return total
@@ -483,22 +488,14 @@ class RulesWorker:
                     self._write_firing(uow, rule, row, "killed", 0, 0)
                     stats.killed += 1
                     return 0
-                plan = plan_firing(uow, self._runner, rule, row, commands_used=used)
-                if plan is None:
+                # The rule reads and acts as its own service actor (ADR-0016): an event about a
+                # record that actor may not read is passed over without a trace.
+                viewer = viewer_of(uow.conn(), rule.service_actor)
+                if event_hidden(uow.conn(), row, viewer):
+                    stats.hidden += 1
                     return 0
-                if plan.outcome in ("fired", "proposed"):
-                    self._execute(uow, rule, row, plan)
-                    self._write_firing(uow, rule, row, plan.outcome, plan.depth, len(plan.commands))
-                    if plan.outcome == "fired":
-                        stats.fired += 1
-                    else:
-                        stats.proposed += 1
-                    return len(plan.commands)
-                self._write_firing(uow, rule, row, plan.outcome, plan.depth, 0)
-                if plan.announce:
-                    self._announce(uow, rule, row, plan.outcome, plan.depth, plan.problems)
-                    stats.blocked += 1
-                return 0
+                with use_viewer(viewer):
+                    return self._fire_visible(uow, rule, row, used, stats)
         except RetryableTransactionError:
             raise
         except Exception as exc:  # the commands are rolled back with the unit of work
@@ -508,6 +505,27 @@ class RulesWorker:
                 rule, row, "refused", depth_in, 0, stats, announce=True, problems=[problem]
             )
             return 0
+
+    def _fire_visible(
+        self, uow: UnitOfWork, rule: StoredRule, row: OutboxRow, used: int, stats: RuleStats
+    ) -> int:
+        """The rest of :meth:`_fire`, read as the rule's own actor."""
+        plan = plan_firing(uow, self._runner, rule, row, commands_used=used)
+        if plan is None:
+            return 0
+        if plan.outcome in ("fired", "proposed"):
+            self._execute(uow, rule, row, plan)
+            self._write_firing(uow, rule, row, plan.outcome, plan.depth, len(plan.commands))
+            if plan.outcome == "fired":
+                stats.fired += 1
+            else:
+                stats.proposed += 1
+            return len(plan.commands)
+        self._write_firing(uow, rule, row, plan.outcome, plan.depth, 0)
+        if plan.announce:
+            self._announce(uow, rule, row, plan.outcome, plan.depth, plan.problems)
+            stats.blocked += 1
+        return 0
 
     def _execute(self, uow: UnitOfWork, rule: StoredRule, row: OutboxRow, plan: FiringPlan) -> None:
         if rule.mode == "act":

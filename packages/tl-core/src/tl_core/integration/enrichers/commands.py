@@ -14,6 +14,7 @@ from __future__ import annotations
 from pydantic import Field
 from sqlalchemy import text
 
+from tl_core import confidentiality
 from tl_core.integration.enrichers.pipeline import (
     accept_value_by_person,
     in_scope,
@@ -61,6 +62,8 @@ def handle_run_enricher(uow: UnitOfWork, cmd: RunEnricher) -> CommandResult:
     enricher = load_live_enricher(conn, cmd.enricher)
     if enricher is None:
         raise IntegrationNotFoundError(f"no enricher {cmd.enricher} is switched on")
+    if confidentiality.is_hidden(conn, cmd.record_id):  # as absent as a record that is not there
+        raise IntegrationNotFoundError(f"no record {cmd.record_id} in {cmd.scope} for it to read")
     subject = load_subject(conn, cmd.record_id)
     scope = conn.execute(
         text("SELECT scope FROM cur_core_record WHERE id = :i"), {"i": cmd.record_id}

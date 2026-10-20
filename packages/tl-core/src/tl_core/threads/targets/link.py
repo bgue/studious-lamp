@@ -18,7 +18,7 @@ class LinkTarget:
     ) -> list[PlannedCommand] | Problem:
         args = parsed.args
         assert isinstance(args, LinkArgs)
-        refs, problems = resolve_keys(uow, context.scope, args.keys)
+        refs, problems = resolve_keys(uow, context.scope, args.keys, actor=context.actor)
         if problems:
             return first_problem(problems)
         planned: list[PlannedCommand] = []
