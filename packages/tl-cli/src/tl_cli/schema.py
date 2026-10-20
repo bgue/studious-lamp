@@ -22,7 +22,14 @@ from tl_schema.lint import lint_documents
 from tl_schema.packages import PackageDoc
 from tl_schema.registry import PackageError, PackageRegistry, default_schema_dir
 
-from tl_cli import schema_crosswalk, schema_export, schema_gov, schema_pkg, schema_waiver
+from tl_cli import (
+    schema_crosswalk,
+    schema_export,
+    schema_gov,
+    schema_import,
+    schema_pkg,
+    schema_waiver,
+)
 
 app = typer.Typer(help="Inspect and check schema packages.", no_args_is_help=True)
 
@@ -144,3 +151,4 @@ schema_gov.register(schema_pkg.app, app)
 app.add_typer(schema_waiver.app, name="waiver")
 schema_crosswalk.register(app)
 schema_export.register(app)
+schema_import.register(app)
