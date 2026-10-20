@@ -17,6 +17,9 @@ Every ledger event type that can reach a webhook subscriber, generated from the 
 | [`AgentToken.Revoked`](#agenttokenrevoked) | `tl.core.AgentToken.Revoked.v1` | An agent token was revoked and no longer authenticates. |
 | [`CodeValue.Closed`](#codevalueclosed) | `tl.core.CodeValue.Closed.v1` | A code value was superseded by another or retired; it still resolves for old records. |
 | [`CodeValue.Defined`](#codevaluedefined) | `tl.core.CodeValue.Defined.v1` | A value was added to a code list. |
+| [`Commercial.Assessed`](#commercialassessed) | `tl.core.Commercial.Assessed.v1` | The other party assessed an issued Commercial item: agreed, disputed or partially agreed, with the value they assessed. |
+| [`Commercial.Defined`](#commercialdefined) | `tl.core.Commercial.Defined.v1` | A Commercial item (early warning, change notice, claim ...) was raised. |
+| [`Commercial.Updated`](#commercialupdated) | `tl.core.Commercial.Updated.v1` | The domain fields of a Commercial item that is not yet issued changed. |
 | [`ContractClause.Defined`](#contractclausedefined) | `tl.core.ContractClause.Defined.v1` | A contract clause was entered. |
 | [`ContractClause.Retired`](#contractclauseretired) | `tl.core.ContractClause.Retired.v1` | A clause was retired; clocks that cited it keep their reference. |
 | [`Correspondence.ClearanceGranted`](#correspondenceclearancegranted) | `tl.core.Correspondence.ClearanceGranted.v1` | An account was named as able to read a privileged item (ADR-0016). |
@@ -121,6 +124,11 @@ Every ledger event type that can reach a webhook subscriber, generated from the 
 | [`TagClass.Closed`](#tagclassclosed) | `tl.core.TagClass.Closed.v1` | A tag class was retired; tags already of that class keep it. |
 | [`TagClass.Defined`](#tagclassdefined) | `tl.core.TagClass.Defined.v1` | A tag class was defined. |
 | [`TagClass.Revised`](#tagclassrevised) | `tl.core.TagClass.Revised.v1` | A tag class changed. |
+| [`Technical.Answered`](#technicalanswered) | `tl.core.Technical.Answered.v1` | The answer to a Technical item was recorded, with the answerer's statement on cost and schedule. |
+| [`Technical.Defined`](#technicaldefined) | `tl.core.Technical.Defined.v1` | A Technical item (RFI, technical query or deviation request) was raised. |
+| [`Technical.Reissued`](#technicalreissued) | `tl.core.Technical.Reissued.v1` | A rejected Technical item went back to internal review to be issued again. |
+| [`Technical.Reviewed`](#technicalreviewed) | `tl.core.Technical.Reviewed.v1` | The raiser accepted or rejected the answer. |
+| [`Technical.Updated`](#technicalupdated) | `tl.core.Technical.Updated.v1` | The domain fields of a Technical item that is a draft or in internal review changed. |
 | [`Transmittal.Defined`](#transmittaldefined) | `tl.core.Transmittal.Defined.v1` | A transmittal was drafted with the revisions it carries and its recipients. |
 | [`Transmittal.Issued`](#transmittalissued) | `tl.core.Transmittal.Issued.v1` | A transmittal was issued to its recipients. |
 | [`Transmittal.ResponseRecorded`](#transmittalresponserecorded) | `tl.core.Transmittal.ResponseRecorded.v1` | The recipients answered a transmittal. |
@@ -739,6 +747,198 @@ A value was added to a code list.
 }
 ```
 
+## Commercial.Assessed
+
+The other party assessed an issued Commercial item: agreed, disputed or partially agreed, with the value they assessed.
+
+- CloudEvents type: `tl.core.Commercial.Assessed.v1`
+- Ledger payload class: `CommercialAssessedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `assessed_on` | string | yes | ISO date of the assessment. |
+| `assessed_value` | string or null | no | Decimal text, at most two places. |
+| `date_reason` | string or null | no | Why the date is before the day it was recorded; null when it is that day. |
+| `feed_policy` | string or null | no | full, minimal or none: what the feed shows (the domain's policy at the time). |
+| `feed_text` | string or null | no | The line of the feed card when the policy is full or minimal. |
+| `note` | string or null | no | The assessor's reasoning. |
+| `status` | string | yes | agreed, disputed or partially_agreed. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "assessed_on": "2026-11-10",
+      "assessed_value": "9000.00",
+      "date_reason": null,
+      "note": "Hours reduced",
+      "status": "partially_agreed"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Commercial.Assessed/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Commercial.Assessed.v1"
+}
+```
+
+## Commercial.Defined
+
+A Commercial item (early warning, change notice, claim ...) was raised. It follows the `Correspondence.Defined` event of the same item in the same append and holds the domain data.
+
+- CloudEvents type: `tl.core.Commercial.Defined.v1`
+- Ledger payload class: `CommercialDefinedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `aware_on` | string or null | no | ISO date the contractor became aware; the time bar runs from it. |
+| `contract_clause_id` | string or null | no | Record id of the contract clause the notice is given under. |
+| `cost_code_impacts` | any | yes |  |
+| `currency` | string or null | no | ISO 4217 code of every amount. |
+| `derived_from_id` | string or null | no | Record id of the item this one was escalated from. |
+| `entitlement_basis` | string or null | no | Why the contractor is entitled. |
+| `estimated_hours` | string or null | no | Decimal text, at most one place. |
+| `estimated_value` | string or null | no | Decimal text, at most two places. |
+| `schedule_impact_days` | integer or null | no | Days of delay, negative for acceleration. |
+| `schedule_impact_note` | string or null | no | The schedule impact in words. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "aware_on": "2026-10-20",
+      "contract_clause_id": null,
+      "cost_code_impacts": [
+        {
+          "amount": "12500.00",
+          "cost_code": "2.3.1",
+          "hours": null,
+          "quantity": null,
+          "uom": null
+        }
+      ],
+      "currency": "USD",
+      "derived_from_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "entitlement_basis": "Clause 20.1: instruction changing the routing",
+      "estimated_hours": "240.5",
+      "estimated_value": "12500.00",
+      "schedule_impact_days": 3,
+      "schedule_impact_note": "Piping spool S-14 is re-fabricated"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Commercial.Defined/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Commercial.Defined.v1"
+}
+```
+
+## Commercial.Updated
+
+The domain fields of a Commercial item that is not yet issued changed.
+
+- CloudEvents type: `tl.core.Commercial.Updated.v1`
+- Ledger payload class: `CommercialUpdatedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `changes` | any | yes |  |
+| `reason` | string or null | no | Why it changed. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {
+      "estimated_value": [
+        "12500.00",
+        "14000.00"
+      ]
+    },
+    "detail": {
+      "changes": {
+        "estimated_value": [
+          "12500.00",
+          "14000.00"
+        ]
+      },
+      "reason": null
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Commercial.Updated/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Commercial.Updated.v1"
+}
+```
+
 ## ContractClause.Defined
 
 A contract clause was entered.
@@ -1109,6 +1309,8 @@ An outgoing item was issued: its text was rendered to a PDF (stored in the slot 
 | `clock_ids` | any | yes |  |
 | `date_reason` | string or null | no | Why the date is before the day it was recorded; null when it is that day. |
 | `delivery` | string | yes | stub: no message was sent. |
+| `feed_policy` | string or null | no | full, minimal or none: what the feed shows of the issue (the domain's policy, fixed when the event is written). Absent means the generic card. |
+| `feed_text` | string or null | no | The line of the feed card when the policy is full or minimal. |
 | `issued_on` | string | yes | ISO date of the issue. |
 | `rendition_file_id` | string | yes | File id of the PDF rendition. |
 | `rendition_sha256` | string | yes | Hex SHA-256 of the rendition. |
@@ -1223,7 +1425,7 @@ An answer to an item was issued or received.
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `responded_on` | string | yes | ISO date of the answer. |
-| `response_id` | string | yes | Record id of the answering item. |
+| `response_id` | string or null | no | Record id of the answering item; null when the answer is not an item of the register (a Technical item answered in the form). |
 
 ### Sample delivered event
 
@@ -4981,7 +5183,7 @@ A response clock started. The first event of a clock; it carries every parameter
 | `label` | string | yes | What the clock waits for. |
 | `owner` | string or null | no | The actor responsible. |
 | `start_on` | string | yes | ISO date of day zero. |
-| `trigger` | string | yes | What started it: receipt, issue, triage or manual. |
+| `trigger` | string | yes | What started it: receipt, issue, triage, awareness (a time bar counted from the day the contractor became aware) or manual. |
 | `warn_days` | any | yes |  |
 
 ### Sample delivered event
@@ -6729,6 +6931,288 @@ A tag class changed. Adding a required pset is a constraining change: existing t
   "tlseq": 48211933,
   "tlstreamversion": 7,
   "type": "tl.core.TagClass.Revised.v1"
+}
+```
+
+## Technical.Answered
+
+The answer to a Technical item was recorded, with the answerer's statement on cost and schedule. A cost or schedule impact of `yes` is what the RFI to Commercial escalation rule listens for.
+
+- CloudEvents type: `tl.core.Technical.Answered.v1`
+- Ledger payload class: `TechnicalAnsweredPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `answer` | string | yes | The answer, plain text. |
+| `answer_item_id` | string or null | no | Record id of the item that carries the answer, when there is one. |
+| `answered_on` | string | yes | ISO date of the answer. |
+| `answering_revision_id` | string or null | no | Record id of the document revision that answers, when there is one. |
+| `cost_impact` | string | yes | yes, no or unknown. |
+| `date_reason` | string or null | no | Why the date is before the day it was recorded; null when it is that day. |
+| `feed_policy` | string or null | no | full, minimal or none: what the feed shows (the domain's policy at the time). |
+| `feed_text` | string or null | no | The line of the feed card when the policy is full or minimal. |
+| `schedule_impact` | string | yes | yes, no or unknown. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "answer": "Re-route as proposed; revision C follows",
+      "answer_item_id": null,
+      "answered_on": "2026-10-20",
+      "answering_revision_id": null,
+      "cost_impact": "yes",
+      "date_reason": null,
+      "schedule_impact": "no"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Technical.Answered/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Technical.Answered.v1"
+}
+```
+
+## Technical.Defined
+
+A Technical item (RFI, technical query or deviation request) was raised. It follows the `Correspondence.Defined` event of the same item in the same append and holds the domain data.
+
+- CloudEvents type: `tl.core.Technical.Defined.v1`
+- Ledger payload class: `TechnicalDefinedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `discipline` | string or null | no | Discipline code. |
+| `potential_cost_impact` | string | yes | yes, no or unknown. |
+| `potential_schedule_impact` | string | yes | yes, no or unknown. |
+| `proposed_solution` | string or null | no | What the raiser proposes. |
+| `question` | string | yes | The question, or the deviation to be accepted. |
+| `required_by` | string or null | no | ISO date an answer is needed. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "discipline": "M",
+      "potential_cost_impact": "unknown",
+      "potential_schedule_impact": "no",
+      "proposed_solution": "Re-route the line above the beam",
+      "question": "The isometric clashes with beam B12; confirm the routing",
+      "required_by": "2026-10-30"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Technical.Defined/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Technical.Defined.v1"
+}
+```
+
+## Technical.Reissued
+
+A rejected Technical item went back to internal review to be issued again. The answer and the judgement of the round before are cleared from the current state; the events keep them.
+
+- CloudEvents type: `tl.core.Technical.Reissued.v1`
+- Ledger payload class: `TechnicalReissuedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `reason` | string | yes | Why it is issued again. |
+| `round` | integer | yes | The number of the round that starts, counting the first issue as 1. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "reason": "Names beam B12 and B13",
+      "round": 2
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Technical.Reissued/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Technical.Reissued.v1"
+}
+```
+
+## Technical.Reviewed
+
+The raiser accepted or rejected the answer. A rejected answer is re-issued with `Technical.Reissued`.
+
+- CloudEvents type: `tl.core.Technical.Reviewed.v1`
+- Ledger payload class: `TechnicalReviewedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `decision` | string | yes | accepted or rejected. |
+| `note` | string or null | no | Remark on accepting, or why the answer was rejected. |
+| `reviewed_on` | string | yes | ISO date. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "decision": "rejected",
+      "note": "The answer does not say which beam",
+      "reviewed_on": "2026-10-21"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Technical.Reviewed/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Technical.Reviewed.v1"
+}
+```
+
+## Technical.Updated
+
+The domain fields of a Technical item that is a draft or in internal review changed.
+
+- CloudEvents type: `tl.core.Technical.Updated.v1`
+- Ledger payload class: `TechnicalUpdatedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `changes` | any | yes |  |
+| `reason` | string or null | no | Why it changed. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {
+      "required_by": [
+        "2026-10-30",
+        "2026-11-06"
+      ]
+    },
+    "detail": {
+      "changes": {
+        "required_by": [
+          "2026-10-30",
+          "2026-11-06"
+        ]
+      },
+      "reason": null
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Technical.Updated/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Technical.Updated.v1"
 }
 ```
 

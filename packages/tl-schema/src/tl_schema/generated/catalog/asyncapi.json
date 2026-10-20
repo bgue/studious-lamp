@@ -100,6 +100,33 @@
       },
       "title": "A value was added to a code list."
     },
+    "Commercial.Assessed": {
+      "address": "Commercial.Assessed",
+      "messages": {
+        "Commercial.Assessed": {
+          "$ref": "#/components/messages/Commercial.Assessed"
+        }
+      },
+      "title": "The other party assessed an issued Commercial item: agreed, disputed or partially agreed, with the value they assessed."
+    },
+    "Commercial.Defined": {
+      "address": "Commercial.Defined",
+      "messages": {
+        "Commercial.Defined": {
+          "$ref": "#/components/messages/Commercial.Defined"
+        }
+      },
+      "title": "A Commercial item (early warning, change notice, claim ...) was raised."
+    },
+    "Commercial.Updated": {
+      "address": "Commercial.Updated",
+      "messages": {
+        "Commercial.Updated": {
+          "$ref": "#/components/messages/Commercial.Updated"
+        }
+      },
+      "title": "The domain fields of a Commercial item that is not yet issued changed."
+    },
     "ContractClause.Defined": {
       "address": "ContractClause.Defined",
       "messages": {
@@ -1035,6 +1062,51 @@
         }
       },
       "title": "A tag class changed."
+    },
+    "Technical.Answered": {
+      "address": "Technical.Answered",
+      "messages": {
+        "Technical.Answered": {
+          "$ref": "#/components/messages/Technical.Answered"
+        }
+      },
+      "title": "The answer to a Technical item was recorded, with the answerer's statement on cost and schedule."
+    },
+    "Technical.Defined": {
+      "address": "Technical.Defined",
+      "messages": {
+        "Technical.Defined": {
+          "$ref": "#/components/messages/Technical.Defined"
+        }
+      },
+      "title": "A Technical item (RFI, technical query or deviation request) was raised."
+    },
+    "Technical.Reissued": {
+      "address": "Technical.Reissued",
+      "messages": {
+        "Technical.Reissued": {
+          "$ref": "#/components/messages/Technical.Reissued"
+        }
+      },
+      "title": "A rejected Technical item went back to internal review to be issued again."
+    },
+    "Technical.Reviewed": {
+      "address": "Technical.Reviewed",
+      "messages": {
+        "Technical.Reviewed": {
+          "$ref": "#/components/messages/Technical.Reviewed"
+        }
+      },
+      "title": "The raiser accepted or rejected the answer."
+    },
+    "Technical.Updated": {
+      "address": "Technical.Updated",
+      "messages": {
+        "Technical.Updated": {
+          "$ref": "#/components/messages/Technical.Updated"
+        }
+      },
+      "title": "The domain fields of a Technical item that is a draft or in internal review changed."
     },
     "Transmittal.Defined": {
       "address": "Transmittal.Defined",
@@ -4107,6 +4179,883 @@
         "summary": "A value was added to a code list.",
         "title": "A value was added to a code list."
       },
+      "Commercial.Assessed": {
+        "contentType": "application/json",
+        "description": "The other party assessed an issued Commercial item: agreed, disputed or partially agreed, with the value they assessed.",
+        "examples": [
+          {
+            "headers": {
+              "webhook-id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+              "webhook-signature": "v1,ZXhhbXBsZS1zaWduYXR1cmU=",
+              "webhook-timestamp": "1760000047"
+            },
+            "name": "sample",
+            "payload": {
+              "data": {
+                "changes": {},
+                "detail": {
+                  "assessed_on": "2026-11-10",
+                  "assessed_value": "9000.00",
+                  "date_reason": null,
+                  "note": "Hours reduced",
+                  "status": "partially_agreed"
+                },
+                "links": [],
+                "origin": {
+                  "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+                  "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+                  "key": "47-1234-W012",
+                  "type": "core.Record",
+                  "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+                  "version": 7
+                }
+              },
+              "datacontenttype": "application/json",
+              "dataschema": "https://tl.example.com/schema/events/Commercial.Assessed/1",
+              "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+              "source": "https://tl.example.com/c/acme/p/P123",
+              "specversion": "1.0",
+              "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+              "time": "2026-10-09T03:14:07.000000Z",
+              "tlactor": "user:jsmith",
+              "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+              "tlseq": 48211933,
+              "tlstreamversion": 7,
+              "type": "tl.core.Commercial.Assessed.v1"
+            }
+          }
+        ],
+        "headers": {
+          "$ref": "#/components/schemas/WebhookHeaders"
+        },
+        "name": "tl.core.Commercial.Assessed.v1",
+        "payload": {
+          "additionalProperties": false,
+          "description": "The CloudEvents 1.0 envelope (brief 18.3) used for webhooks, streams, the events API and exports. Extension attributes are lower-case as CloudEvents requires: `tlseq`, `tlstreamversion`, `tlcorrelationid`, `tlactor`.",
+          "properties": {
+            "data": {
+              "additionalProperties": true,
+              "description": "The `data` member of a webhook CloudEvent.",
+              "properties": {
+                "changes": {
+                  "description": "Delta and full modes. Object of field path to `[old, new]`; `old` is null when the event does not carry it."
+                },
+                "detail": {
+                  "additionalProperties": true,
+                  "description": "Delta and full modes. The ledger event payload, described per event type in the catalog.",
+                  "properties": {
+                    "assessed_on": {
+                      "description": "ISO date of the assessment.",
+                      "type": "string"
+                    },
+                    "assessed_value": {
+                      "description": "Decimal text, at most two places.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "date_reason": {
+                      "description": "Why the date is before the day it was recorded; null when it is that day.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "feed_policy": {
+                      "description": "full, minimal or none: what the feed shows (the domain's policy at the time).",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "feed_text": {
+                      "description": "The line of the feed card when the policy is full or minimal.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "note": {
+                      "description": "The assessor's reasoning.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "status": {
+                      "description": "agreed, disputed or partially_agreed.",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "assessed_on"
+                  ],
+                  "title": "CommercialAssessedPayload",
+                  "type": "object"
+                },
+                "links": {
+                  "description": "Delta and full modes. Immediate links.",
+                  "items": {
+                    "additionalProperties": false,
+                    "description": "One immediate link of the origin record (delta mode).",
+                    "properties": {
+                      "id": {
+                        "description": "`urn:tl:<ulid>` of the record at the other end.",
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "key": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "rel": {
+                        "type": "string"
+                      },
+                      "type": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "uri": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "rel"
+                    ],
+                    "title": "EventLinkRef",
+                    "type": "object"
+                  },
+                  "type": [
+                    "array",
+                    "null"
+                  ]
+                },
+                "origin": {
+                  "additionalProperties": false,
+                  "description": "Pointer to the originating record at the version of the event (brief 18.3, `RecordRef`).",
+                  "properties": {
+                    "api": {
+                      "description": "API URL of the record.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "id": {
+                      "description": "`urn:tl:<ulid>` of the record.",
+                      "type": "string"
+                    },
+                    "key": {
+                      "description": "Human-readable key.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "type": {
+                      "description": "Record type.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "uri": {
+                      "description": "Resolvable URI of the record at this version (`...@v7`).",
+                      "type": "string"
+                    },
+                    "version": {
+                      "description": "Version of the record after the event.",
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "uri",
+                    "version"
+                  ],
+                  "title": "EventOrigin",
+                  "type": "object"
+                },
+                "record": {
+                  "description": "Full mode only. The record projection as of delivery preparation, with its `version`."
+                }
+              },
+              "required": [
+                "origin"
+              ],
+              "title": "CloudEventData",
+              "type": "object"
+            },
+            "datacontenttype": {
+              "const": "application/json",
+              "type": "string"
+            },
+            "dataschema": {
+              "const": "https://tl.example.com/schema/events/Commercial.Assessed/1",
+              "description": "URI of the catalog schema of this event type.",
+              "type": "string"
+            },
+            "id": {
+              "description": "The ledger event id. Receivers dedupe on it.",
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "type": "string"
+            },
+            "source": {
+              "description": "URI of the company and project the event came from.",
+              "type": "string"
+            },
+            "specversion": {
+              "const": "1.0",
+              "type": "string"
+            },
+            "subject": {
+              "description": "`urn:tl:<ulid>` of the subject record, the ordering key.",
+              "type": "string"
+            },
+            "time": {
+              "description": "When the ledger committed the event (UTC).",
+              "format": "date-time",
+              "type": "string"
+            },
+            "tlactor": {
+              "type": "string"
+            },
+            "tlcorrelationid": {
+              "type": "string"
+            },
+            "tlseq": {
+              "description": "Ledger `seq`.",
+              "type": "integer"
+            },
+            "tlstreamversion": {
+              "description": "Version within the event's stream.",
+              "type": "integer"
+            },
+            "type": {
+              "const": "tl.core.Commercial.Assessed.v1",
+              "description": "`tl.<module>.<Class>.<Verb>.v<schema version>`, for example `tl.core.Record.Created.v1`.",
+              "pattern": "^tl\\.[A-Za-z0-9_]+\\.[A-Za-z0-9_]+\\.[A-Za-z0-9_]+\\.v[0-9]+$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "specversion",
+            "id",
+            "source",
+            "type",
+            "time",
+            "subject",
+            "dataschema",
+            "datacontenttype",
+            "tlseq",
+            "tlstreamversion",
+            "tlcorrelationid",
+            "tlactor",
+            "data"
+          ],
+          "title": "CloudEvent",
+          "type": "object"
+        },
+        "summary": "The other party assessed an issued Commercial item: agreed, disputed or partially agreed, with the value they assessed.",
+        "title": "The other party assessed an issued Commercial item: agreed, disputed or partially agreed, with the value they assessed."
+      },
+      "Commercial.Defined": {
+        "contentType": "application/json",
+        "description": "A Commercial item (early warning, change notice, claim ...) was raised. It follows the `Correspondence.Defined` event of the same item in the same append and holds the domain data.",
+        "examples": [
+          {
+            "headers": {
+              "webhook-id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+              "webhook-signature": "v1,ZXhhbXBsZS1zaWduYXR1cmU=",
+              "webhook-timestamp": "1760000047"
+            },
+            "name": "sample",
+            "payload": {
+              "data": {
+                "changes": {},
+                "detail": {
+                  "aware_on": "2026-10-20",
+                  "contract_clause_id": null,
+                  "cost_code_impacts": [
+                    {
+                      "amount": "12500.00",
+                      "cost_code": "2.3.1",
+                      "hours": null,
+                      "quantity": null,
+                      "uom": null
+                    }
+                  ],
+                  "currency": "USD",
+                  "derived_from_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+                  "entitlement_basis": "Clause 20.1: instruction changing the routing",
+                  "estimated_hours": "240.5",
+                  "estimated_value": "12500.00",
+                  "schedule_impact_days": 3,
+                  "schedule_impact_note": "Piping spool S-14 is re-fabricated"
+                },
+                "links": [],
+                "origin": {
+                  "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+                  "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+                  "key": "47-1234-W012",
+                  "type": "core.Record",
+                  "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+                  "version": 7
+                }
+              },
+              "datacontenttype": "application/json",
+              "dataschema": "https://tl.example.com/schema/events/Commercial.Defined/1",
+              "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+              "source": "https://tl.example.com/c/acme/p/P123",
+              "specversion": "1.0",
+              "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+              "time": "2026-10-09T03:14:07.000000Z",
+              "tlactor": "user:jsmith",
+              "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+              "tlseq": 48211933,
+              "tlstreamversion": 7,
+              "type": "tl.core.Commercial.Defined.v1"
+            }
+          }
+        ],
+        "headers": {
+          "$ref": "#/components/schemas/WebhookHeaders"
+        },
+        "name": "tl.core.Commercial.Defined.v1",
+        "payload": {
+          "additionalProperties": false,
+          "description": "The CloudEvents 1.0 envelope (brief 18.3) used for webhooks, streams, the events API and exports. Extension attributes are lower-case as CloudEvents requires: `tlseq`, `tlstreamversion`, `tlcorrelationid`, `tlactor`.",
+          "properties": {
+            "data": {
+              "additionalProperties": true,
+              "description": "The `data` member of a webhook CloudEvent.",
+              "properties": {
+                "changes": {
+                  "description": "Delta and full modes. Object of field path to `[old, new]`; `old` is null when the event does not carry it."
+                },
+                "detail": {
+                  "additionalProperties": true,
+                  "description": "Delta and full modes. The ledger event payload, described per event type in the catalog.",
+                  "properties": {
+                    "aware_on": {
+                      "description": "ISO date the contractor became aware; the time bar runs from it.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "contract_clause_id": {
+                      "description": "Record id of the contract clause the notice is given under.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "cost_code_impacts": {},
+                    "currency": {
+                      "description": "ISO 4217 code of every amount.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "derived_from_id": {
+                      "description": "Record id of the item this one was escalated from.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "entitlement_basis": {
+                      "description": "Why the contractor is entitled.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "estimated_hours": {
+                      "description": "Decimal text, at most one place.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "estimated_value": {
+                      "description": "Decimal text, at most two places.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "schedule_impact_days": {
+                      "description": "Days of delay, negative for acceleration.",
+                      "type": [
+                        "integer",
+                        "null"
+                      ]
+                    },
+                    "schedule_impact_note": {
+                      "description": "The schedule impact in words.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "cost_code_impacts"
+                  ],
+                  "title": "CommercialDefinedPayload",
+                  "type": "object"
+                },
+                "links": {
+                  "description": "Delta and full modes. Immediate links.",
+                  "items": {
+                    "additionalProperties": false,
+                    "description": "One immediate link of the origin record (delta mode).",
+                    "properties": {
+                      "id": {
+                        "description": "`urn:tl:<ulid>` of the record at the other end.",
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "key": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "rel": {
+                        "type": "string"
+                      },
+                      "type": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "uri": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "rel"
+                    ],
+                    "title": "EventLinkRef",
+                    "type": "object"
+                  },
+                  "type": [
+                    "array",
+                    "null"
+                  ]
+                },
+                "origin": {
+                  "additionalProperties": false,
+                  "description": "Pointer to the originating record at the version of the event (brief 18.3, `RecordRef`).",
+                  "properties": {
+                    "api": {
+                      "description": "API URL of the record.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "id": {
+                      "description": "`urn:tl:<ulid>` of the record.",
+                      "type": "string"
+                    },
+                    "key": {
+                      "description": "Human-readable key.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "type": {
+                      "description": "Record type.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "uri": {
+                      "description": "Resolvable URI of the record at this version (`...@v7`).",
+                      "type": "string"
+                    },
+                    "version": {
+                      "description": "Version of the record after the event.",
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "uri",
+                    "version"
+                  ],
+                  "title": "EventOrigin",
+                  "type": "object"
+                },
+                "record": {
+                  "description": "Full mode only. The record projection as of delivery preparation, with its `version`."
+                }
+              },
+              "required": [
+                "origin"
+              ],
+              "title": "CloudEventData",
+              "type": "object"
+            },
+            "datacontenttype": {
+              "const": "application/json",
+              "type": "string"
+            },
+            "dataschema": {
+              "const": "https://tl.example.com/schema/events/Commercial.Defined/1",
+              "description": "URI of the catalog schema of this event type.",
+              "type": "string"
+            },
+            "id": {
+              "description": "The ledger event id. Receivers dedupe on it.",
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "type": "string"
+            },
+            "source": {
+              "description": "URI of the company and project the event came from.",
+              "type": "string"
+            },
+            "specversion": {
+              "const": "1.0",
+              "type": "string"
+            },
+            "subject": {
+              "description": "`urn:tl:<ulid>` of the subject record, the ordering key.",
+              "type": "string"
+            },
+            "time": {
+              "description": "When the ledger committed the event (UTC).",
+              "format": "date-time",
+              "type": "string"
+            },
+            "tlactor": {
+              "type": "string"
+            },
+            "tlcorrelationid": {
+              "type": "string"
+            },
+            "tlseq": {
+              "description": "Ledger `seq`.",
+              "type": "integer"
+            },
+            "tlstreamversion": {
+              "description": "Version within the event's stream.",
+              "type": "integer"
+            },
+            "type": {
+              "const": "tl.core.Commercial.Defined.v1",
+              "description": "`tl.<module>.<Class>.<Verb>.v<schema version>`, for example `tl.core.Record.Created.v1`.",
+              "pattern": "^tl\\.[A-Za-z0-9_]+\\.[A-Za-z0-9_]+\\.[A-Za-z0-9_]+\\.v[0-9]+$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "specversion",
+            "id",
+            "source",
+            "type",
+            "time",
+            "subject",
+            "dataschema",
+            "datacontenttype",
+            "tlseq",
+            "tlstreamversion",
+            "tlcorrelationid",
+            "tlactor",
+            "data"
+          ],
+          "title": "CloudEvent",
+          "type": "object"
+        },
+        "summary": "A Commercial item (early warning, change notice, claim ...) was raised.",
+        "title": "A Commercial item (early warning, change notice, claim ...) was raised."
+      },
+      "Commercial.Updated": {
+        "contentType": "application/json",
+        "description": "The domain fields of a Commercial item that is not yet issued changed.",
+        "examples": [
+          {
+            "headers": {
+              "webhook-id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+              "webhook-signature": "v1,ZXhhbXBsZS1zaWduYXR1cmU=",
+              "webhook-timestamp": "1760000047"
+            },
+            "name": "sample",
+            "payload": {
+              "data": {
+                "changes": {
+                  "estimated_value": [
+                    "12500.00",
+                    "14000.00"
+                  ]
+                },
+                "detail": {
+                  "changes": {
+                    "estimated_value": [
+                      "12500.00",
+                      "14000.00"
+                    ]
+                  },
+                  "reason": null
+                },
+                "links": [],
+                "origin": {
+                  "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+                  "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+                  "key": "47-1234-W012",
+                  "type": "core.Record",
+                  "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+                  "version": 7
+                }
+              },
+              "datacontenttype": "application/json",
+              "dataschema": "https://tl.example.com/schema/events/Commercial.Updated/1",
+              "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+              "source": "https://tl.example.com/c/acme/p/P123",
+              "specversion": "1.0",
+              "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+              "time": "2026-10-09T03:14:07.000000Z",
+              "tlactor": "user:jsmith",
+              "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+              "tlseq": 48211933,
+              "tlstreamversion": 7,
+              "type": "tl.core.Commercial.Updated.v1"
+            }
+          }
+        ],
+        "headers": {
+          "$ref": "#/components/schemas/WebhookHeaders"
+        },
+        "name": "tl.core.Commercial.Updated.v1",
+        "payload": {
+          "additionalProperties": false,
+          "description": "The CloudEvents 1.0 envelope (brief 18.3) used for webhooks, streams, the events API and exports. Extension attributes are lower-case as CloudEvents requires: `tlseq`, `tlstreamversion`, `tlcorrelationid`, `tlactor`.",
+          "properties": {
+            "data": {
+              "additionalProperties": true,
+              "description": "The `data` member of a webhook CloudEvent.",
+              "properties": {
+                "changes": {
+                  "description": "Delta and full modes. Object of field path to `[old, new]`; `old` is null when the event does not carry it."
+                },
+                "detail": {
+                  "additionalProperties": true,
+                  "description": "Delta and full modes. The ledger event payload, described per event type in the catalog.",
+                  "properties": {
+                    "changes": {},
+                    "reason": {
+                      "description": "Why it changed.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "changes"
+                  ],
+                  "title": "CommercialUpdatedPayload",
+                  "type": "object"
+                },
+                "links": {
+                  "description": "Delta and full modes. Immediate links.",
+                  "items": {
+                    "additionalProperties": false,
+                    "description": "One immediate link of the origin record (delta mode).",
+                    "properties": {
+                      "id": {
+                        "description": "`urn:tl:<ulid>` of the record at the other end.",
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "key": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "rel": {
+                        "type": "string"
+                      },
+                      "type": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "uri": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "rel"
+                    ],
+                    "title": "EventLinkRef",
+                    "type": "object"
+                  },
+                  "type": [
+                    "array",
+                    "null"
+                  ]
+                },
+                "origin": {
+                  "additionalProperties": false,
+                  "description": "Pointer to the originating record at the version of the event (brief 18.3, `RecordRef`).",
+                  "properties": {
+                    "api": {
+                      "description": "API URL of the record.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "id": {
+                      "description": "`urn:tl:<ulid>` of the record.",
+                      "type": "string"
+                    },
+                    "key": {
+                      "description": "Human-readable key.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "type": {
+                      "description": "Record type.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "uri": {
+                      "description": "Resolvable URI of the record at this version (`...@v7`).",
+                      "type": "string"
+                    },
+                    "version": {
+                      "description": "Version of the record after the event.",
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "uri",
+                    "version"
+                  ],
+                  "title": "EventOrigin",
+                  "type": "object"
+                },
+                "record": {
+                  "description": "Full mode only. The record projection as of delivery preparation, with its `version`."
+                }
+              },
+              "required": [
+                "origin"
+              ],
+              "title": "CloudEventData",
+              "type": "object"
+            },
+            "datacontenttype": {
+              "const": "application/json",
+              "type": "string"
+            },
+            "dataschema": {
+              "const": "https://tl.example.com/schema/events/Commercial.Updated/1",
+              "description": "URI of the catalog schema of this event type.",
+              "type": "string"
+            },
+            "id": {
+              "description": "The ledger event id. Receivers dedupe on it.",
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "type": "string"
+            },
+            "source": {
+              "description": "URI of the company and project the event came from.",
+              "type": "string"
+            },
+            "specversion": {
+              "const": "1.0",
+              "type": "string"
+            },
+            "subject": {
+              "description": "`urn:tl:<ulid>` of the subject record, the ordering key.",
+              "type": "string"
+            },
+            "time": {
+              "description": "When the ledger committed the event (UTC).",
+              "format": "date-time",
+              "type": "string"
+            },
+            "tlactor": {
+              "type": "string"
+            },
+            "tlcorrelationid": {
+              "type": "string"
+            },
+            "tlseq": {
+              "description": "Ledger `seq`.",
+              "type": "integer"
+            },
+            "tlstreamversion": {
+              "description": "Version within the event's stream.",
+              "type": "integer"
+            },
+            "type": {
+              "const": "tl.core.Commercial.Updated.v1",
+              "description": "`tl.<module>.<Class>.<Verb>.v<schema version>`, for example `tl.core.Record.Created.v1`.",
+              "pattern": "^tl\\.[A-Za-z0-9_]+\\.[A-Za-z0-9_]+\\.[A-Za-z0-9_]+\\.v[0-9]+$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "specversion",
+            "id",
+            "source",
+            "type",
+            "time",
+            "subject",
+            "dataschema",
+            "datacontenttype",
+            "tlseq",
+            "tlstreamversion",
+            "tlcorrelationid",
+            "tlactor",
+            "data"
+          ],
+          "title": "CloudEvent",
+          "type": "object"
+        },
+        "summary": "The domain fields of a Commercial item that is not yet issued changed.",
+        "title": "The domain fields of a Commercial item that is not yet issued changed."
+      },
       "ContractClause.Defined": {
         "contentType": "application/json",
         "description": "A contract clause was entered.",
@@ -5887,6 +6836,20 @@
                       "description": "stub: no message was sent.",
                       "type": "string"
                     },
+                    "feed_policy": {
+                      "description": "full, minimal or none: what the feed shows of the issue (the domain's policy, fixed when the event is written). Absent means the generic card.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "feed_text": {
+                      "description": "The line of the feed card when the policy is full or minimal.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
                     "issued_on": {
                       "description": "ISO date of the issue.",
                       "type": "string"
@@ -6432,12 +7395,14 @@
                       "type": "string"
                     },
                     "response_id": {
-                      "description": "Record id of the answering item.",
-                      "type": "string"
+                      "description": "Record id of the answering item; null when the answer is not an item of the register (a Technical item answered in the form).",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
                     }
                   },
                   "required": [
-                    "response_id",
                     "responded_on"
                   ],
                   "title": "CorrespondenceRespondedPayload",
@@ -24416,7 +25381,7 @@
                       "type": "string"
                     },
                     "trigger": {
-                      "description": "What started it: receipt, issue, triage or manual.",
+                      "description": "What started it: receipt, issue, triage, awareness (a time bar counted from the day the contractor became aware) or manual.",
                       "type": "string"
                     },
                     "warn_days": {}
@@ -32630,6 +33595,1368 @@
         "summary": "A tag class changed.",
         "title": "A tag class changed."
       },
+      "Technical.Answered": {
+        "contentType": "application/json",
+        "description": "The answer to a Technical item was recorded, with the answerer's statement on cost and schedule. A cost or schedule impact of `yes` is what the RFI to Commercial escalation rule listens for.",
+        "examples": [
+          {
+            "headers": {
+              "webhook-id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+              "webhook-signature": "v1,ZXhhbXBsZS1zaWduYXR1cmU=",
+              "webhook-timestamp": "1760000047"
+            },
+            "name": "sample",
+            "payload": {
+              "data": {
+                "changes": {},
+                "detail": {
+                  "answer": "Re-route as proposed; revision C follows",
+                  "answer_item_id": null,
+                  "answered_on": "2026-10-20",
+                  "answering_revision_id": null,
+                  "cost_impact": "yes",
+                  "date_reason": null,
+                  "schedule_impact": "no"
+                },
+                "links": [],
+                "origin": {
+                  "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+                  "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+                  "key": "47-1234-W012",
+                  "type": "core.Record",
+                  "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+                  "version": 7
+                }
+              },
+              "datacontenttype": "application/json",
+              "dataschema": "https://tl.example.com/schema/events/Technical.Answered/1",
+              "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+              "source": "https://tl.example.com/c/acme/p/P123",
+              "specversion": "1.0",
+              "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+              "time": "2026-10-09T03:14:07.000000Z",
+              "tlactor": "user:jsmith",
+              "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+              "tlseq": 48211933,
+              "tlstreamversion": 7,
+              "type": "tl.core.Technical.Answered.v1"
+            }
+          }
+        ],
+        "headers": {
+          "$ref": "#/components/schemas/WebhookHeaders"
+        },
+        "name": "tl.core.Technical.Answered.v1",
+        "payload": {
+          "additionalProperties": false,
+          "description": "The CloudEvents 1.0 envelope (brief 18.3) used for webhooks, streams, the events API and exports. Extension attributes are lower-case as CloudEvents requires: `tlseq`, `tlstreamversion`, `tlcorrelationid`, `tlactor`.",
+          "properties": {
+            "data": {
+              "additionalProperties": true,
+              "description": "The `data` member of a webhook CloudEvent.",
+              "properties": {
+                "changes": {
+                  "description": "Delta and full modes. Object of field path to `[old, new]`; `old` is null when the event does not carry it."
+                },
+                "detail": {
+                  "additionalProperties": true,
+                  "description": "Delta and full modes. The ledger event payload, described per event type in the catalog.",
+                  "properties": {
+                    "answer": {
+                      "description": "The answer, plain text.",
+                      "type": "string"
+                    },
+                    "answer_item_id": {
+                      "description": "Record id of the item that carries the answer, when there is one.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "answered_on": {
+                      "description": "ISO date of the answer.",
+                      "type": "string"
+                    },
+                    "answering_revision_id": {
+                      "description": "Record id of the document revision that answers, when there is one.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "cost_impact": {
+                      "description": "yes, no or unknown.",
+                      "type": "string"
+                    },
+                    "date_reason": {
+                      "description": "Why the date is before the day it was recorded; null when it is that day.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "feed_policy": {
+                      "description": "full, minimal or none: what the feed shows (the domain's policy at the time).",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "feed_text": {
+                      "description": "The line of the feed card when the policy is full or minimal.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "schedule_impact": {
+                      "description": "yes, no or unknown.",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "answer",
+                    "answered_on",
+                    "cost_impact",
+                    "schedule_impact"
+                  ],
+                  "title": "TechnicalAnsweredPayload",
+                  "type": "object"
+                },
+                "links": {
+                  "description": "Delta and full modes. Immediate links.",
+                  "items": {
+                    "additionalProperties": false,
+                    "description": "One immediate link of the origin record (delta mode).",
+                    "properties": {
+                      "id": {
+                        "description": "`urn:tl:<ulid>` of the record at the other end.",
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "key": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "rel": {
+                        "type": "string"
+                      },
+                      "type": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "uri": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "rel"
+                    ],
+                    "title": "EventLinkRef",
+                    "type": "object"
+                  },
+                  "type": [
+                    "array",
+                    "null"
+                  ]
+                },
+                "origin": {
+                  "additionalProperties": false,
+                  "description": "Pointer to the originating record at the version of the event (brief 18.3, `RecordRef`).",
+                  "properties": {
+                    "api": {
+                      "description": "API URL of the record.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "id": {
+                      "description": "`urn:tl:<ulid>` of the record.",
+                      "type": "string"
+                    },
+                    "key": {
+                      "description": "Human-readable key.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "type": {
+                      "description": "Record type.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "uri": {
+                      "description": "Resolvable URI of the record at this version (`...@v7`).",
+                      "type": "string"
+                    },
+                    "version": {
+                      "description": "Version of the record after the event.",
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "uri",
+                    "version"
+                  ],
+                  "title": "EventOrigin",
+                  "type": "object"
+                },
+                "record": {
+                  "description": "Full mode only. The record projection as of delivery preparation, with its `version`."
+                }
+              },
+              "required": [
+                "origin"
+              ],
+              "title": "CloudEventData",
+              "type": "object"
+            },
+            "datacontenttype": {
+              "const": "application/json",
+              "type": "string"
+            },
+            "dataschema": {
+              "const": "https://tl.example.com/schema/events/Technical.Answered/1",
+              "description": "URI of the catalog schema of this event type.",
+              "type": "string"
+            },
+            "id": {
+              "description": "The ledger event id. Receivers dedupe on it.",
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "type": "string"
+            },
+            "source": {
+              "description": "URI of the company and project the event came from.",
+              "type": "string"
+            },
+            "specversion": {
+              "const": "1.0",
+              "type": "string"
+            },
+            "subject": {
+              "description": "`urn:tl:<ulid>` of the subject record, the ordering key.",
+              "type": "string"
+            },
+            "time": {
+              "description": "When the ledger committed the event (UTC).",
+              "format": "date-time",
+              "type": "string"
+            },
+            "tlactor": {
+              "type": "string"
+            },
+            "tlcorrelationid": {
+              "type": "string"
+            },
+            "tlseq": {
+              "description": "Ledger `seq`.",
+              "type": "integer"
+            },
+            "tlstreamversion": {
+              "description": "Version within the event's stream.",
+              "type": "integer"
+            },
+            "type": {
+              "const": "tl.core.Technical.Answered.v1",
+              "description": "`tl.<module>.<Class>.<Verb>.v<schema version>`, for example `tl.core.Record.Created.v1`.",
+              "pattern": "^tl\\.[A-Za-z0-9_]+\\.[A-Za-z0-9_]+\\.[A-Za-z0-9_]+\\.v[0-9]+$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "specversion",
+            "id",
+            "source",
+            "type",
+            "time",
+            "subject",
+            "dataschema",
+            "datacontenttype",
+            "tlseq",
+            "tlstreamversion",
+            "tlcorrelationid",
+            "tlactor",
+            "data"
+          ],
+          "title": "CloudEvent",
+          "type": "object"
+        },
+        "summary": "The answer to a Technical item was recorded, with the answerer's statement on cost and schedule.",
+        "title": "The answer to a Technical item was recorded, with the answerer's statement on cost and schedule."
+      },
+      "Technical.Defined": {
+        "contentType": "application/json",
+        "description": "A Technical item (RFI, technical query or deviation request) was raised. It follows the `Correspondence.Defined` event of the same item in the same append and holds the domain data.",
+        "examples": [
+          {
+            "headers": {
+              "webhook-id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+              "webhook-signature": "v1,ZXhhbXBsZS1zaWduYXR1cmU=",
+              "webhook-timestamp": "1760000047"
+            },
+            "name": "sample",
+            "payload": {
+              "data": {
+                "changes": {},
+                "detail": {
+                  "discipline": "M",
+                  "potential_cost_impact": "unknown",
+                  "potential_schedule_impact": "no",
+                  "proposed_solution": "Re-route the line above the beam",
+                  "question": "The isometric clashes with beam B12; confirm the routing",
+                  "required_by": "2026-10-30"
+                },
+                "links": [],
+                "origin": {
+                  "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+                  "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+                  "key": "47-1234-W012",
+                  "type": "core.Record",
+                  "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+                  "version": 7
+                }
+              },
+              "datacontenttype": "application/json",
+              "dataschema": "https://tl.example.com/schema/events/Technical.Defined/1",
+              "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+              "source": "https://tl.example.com/c/acme/p/P123",
+              "specversion": "1.0",
+              "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+              "time": "2026-10-09T03:14:07.000000Z",
+              "tlactor": "user:jsmith",
+              "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+              "tlseq": 48211933,
+              "tlstreamversion": 7,
+              "type": "tl.core.Technical.Defined.v1"
+            }
+          }
+        ],
+        "headers": {
+          "$ref": "#/components/schemas/WebhookHeaders"
+        },
+        "name": "tl.core.Technical.Defined.v1",
+        "payload": {
+          "additionalProperties": false,
+          "description": "The CloudEvents 1.0 envelope (brief 18.3) used for webhooks, streams, the events API and exports. Extension attributes are lower-case as CloudEvents requires: `tlseq`, `tlstreamversion`, `tlcorrelationid`, `tlactor`.",
+          "properties": {
+            "data": {
+              "additionalProperties": true,
+              "description": "The `data` member of a webhook CloudEvent.",
+              "properties": {
+                "changes": {
+                  "description": "Delta and full modes. Object of field path to `[old, new]`; `old` is null when the event does not carry it."
+                },
+                "detail": {
+                  "additionalProperties": true,
+                  "description": "Delta and full modes. The ledger event payload, described per event type in the catalog.",
+                  "properties": {
+                    "discipline": {
+                      "description": "Discipline code.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "potential_cost_impact": {
+                      "description": "yes, no or unknown.",
+                      "type": "string"
+                    },
+                    "potential_schedule_impact": {
+                      "description": "yes, no or unknown.",
+                      "type": "string"
+                    },
+                    "proposed_solution": {
+                      "description": "What the raiser proposes.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "question": {
+                      "description": "The question, or the deviation to be accepted.",
+                      "type": "string"
+                    },
+                    "required_by": {
+                      "description": "ISO date an answer is needed.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "question",
+                    "potential_cost_impact",
+                    "potential_schedule_impact"
+                  ],
+                  "title": "TechnicalDefinedPayload",
+                  "type": "object"
+                },
+                "links": {
+                  "description": "Delta and full modes. Immediate links.",
+                  "items": {
+                    "additionalProperties": false,
+                    "description": "One immediate link of the origin record (delta mode).",
+                    "properties": {
+                      "id": {
+                        "description": "`urn:tl:<ulid>` of the record at the other end.",
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "key": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "rel": {
+                        "type": "string"
+                      },
+                      "type": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "uri": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "rel"
+                    ],
+                    "title": "EventLinkRef",
+                    "type": "object"
+                  },
+                  "type": [
+                    "array",
+                    "null"
+                  ]
+                },
+                "origin": {
+                  "additionalProperties": false,
+                  "description": "Pointer to the originating record at the version of the event (brief 18.3, `RecordRef`).",
+                  "properties": {
+                    "api": {
+                      "description": "API URL of the record.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "id": {
+                      "description": "`urn:tl:<ulid>` of the record.",
+                      "type": "string"
+                    },
+                    "key": {
+                      "description": "Human-readable key.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "type": {
+                      "description": "Record type.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "uri": {
+                      "description": "Resolvable URI of the record at this version (`...@v7`).",
+                      "type": "string"
+                    },
+                    "version": {
+                      "description": "Version of the record after the event.",
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "uri",
+                    "version"
+                  ],
+                  "title": "EventOrigin",
+                  "type": "object"
+                },
+                "record": {
+                  "description": "Full mode only. The record projection as of delivery preparation, with its `version`."
+                }
+              },
+              "required": [
+                "origin"
+              ],
+              "title": "CloudEventData",
+              "type": "object"
+            },
+            "datacontenttype": {
+              "const": "application/json",
+              "type": "string"
+            },
+            "dataschema": {
+              "const": "https://tl.example.com/schema/events/Technical.Defined/1",
+              "description": "URI of the catalog schema of this event type.",
+              "type": "string"
+            },
+            "id": {
+              "description": "The ledger event id. Receivers dedupe on it.",
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "type": "string"
+            },
+            "source": {
+              "description": "URI of the company and project the event came from.",
+              "type": "string"
+            },
+            "specversion": {
+              "const": "1.0",
+              "type": "string"
+            },
+            "subject": {
+              "description": "`urn:tl:<ulid>` of the subject record, the ordering key.",
+              "type": "string"
+            },
+            "time": {
+              "description": "When the ledger committed the event (UTC).",
+              "format": "date-time",
+              "type": "string"
+            },
+            "tlactor": {
+              "type": "string"
+            },
+            "tlcorrelationid": {
+              "type": "string"
+            },
+            "tlseq": {
+              "description": "Ledger `seq`.",
+              "type": "integer"
+            },
+            "tlstreamversion": {
+              "description": "Version within the event's stream.",
+              "type": "integer"
+            },
+            "type": {
+              "const": "tl.core.Technical.Defined.v1",
+              "description": "`tl.<module>.<Class>.<Verb>.v<schema version>`, for example `tl.core.Record.Created.v1`.",
+              "pattern": "^tl\\.[A-Za-z0-9_]+\\.[A-Za-z0-9_]+\\.[A-Za-z0-9_]+\\.v[0-9]+$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "specversion",
+            "id",
+            "source",
+            "type",
+            "time",
+            "subject",
+            "dataschema",
+            "datacontenttype",
+            "tlseq",
+            "tlstreamversion",
+            "tlcorrelationid",
+            "tlactor",
+            "data"
+          ],
+          "title": "CloudEvent",
+          "type": "object"
+        },
+        "summary": "A Technical item (RFI, technical query or deviation request) was raised.",
+        "title": "A Technical item (RFI, technical query or deviation request) was raised."
+      },
+      "Technical.Reissued": {
+        "contentType": "application/json",
+        "description": "A rejected Technical item went back to internal review to be issued again. The answer and the judgement of the round before are cleared from the current state; the events keep them.",
+        "examples": [
+          {
+            "headers": {
+              "webhook-id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+              "webhook-signature": "v1,ZXhhbXBsZS1zaWduYXR1cmU=",
+              "webhook-timestamp": "1760000047"
+            },
+            "name": "sample",
+            "payload": {
+              "data": {
+                "changes": {},
+                "detail": {
+                  "reason": "Names beam B12 and B13",
+                  "round": 2
+                },
+                "links": [],
+                "origin": {
+                  "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+                  "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+                  "key": "47-1234-W012",
+                  "type": "core.Record",
+                  "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+                  "version": 7
+                }
+              },
+              "datacontenttype": "application/json",
+              "dataschema": "https://tl.example.com/schema/events/Technical.Reissued/1",
+              "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+              "source": "https://tl.example.com/c/acme/p/P123",
+              "specversion": "1.0",
+              "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+              "time": "2026-10-09T03:14:07.000000Z",
+              "tlactor": "user:jsmith",
+              "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+              "tlseq": 48211933,
+              "tlstreamversion": 7,
+              "type": "tl.core.Technical.Reissued.v1"
+            }
+          }
+        ],
+        "headers": {
+          "$ref": "#/components/schemas/WebhookHeaders"
+        },
+        "name": "tl.core.Technical.Reissued.v1",
+        "payload": {
+          "additionalProperties": false,
+          "description": "The CloudEvents 1.0 envelope (brief 18.3) used for webhooks, streams, the events API and exports. Extension attributes are lower-case as CloudEvents requires: `tlseq`, `tlstreamversion`, `tlcorrelationid`, `tlactor`.",
+          "properties": {
+            "data": {
+              "additionalProperties": true,
+              "description": "The `data` member of a webhook CloudEvent.",
+              "properties": {
+                "changes": {
+                  "description": "Delta and full modes. Object of field path to `[old, new]`; `old` is null when the event does not carry it."
+                },
+                "detail": {
+                  "additionalProperties": true,
+                  "description": "Delta and full modes. The ledger event payload, described per event type in the catalog.",
+                  "properties": {
+                    "reason": {
+                      "description": "Why it is issued again.",
+                      "type": "string"
+                    },
+                    "round": {
+                      "description": "The number of the round that starts, counting the first issue as 1.",
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "reason",
+                    "round"
+                  ],
+                  "title": "TechnicalReissuedPayload",
+                  "type": "object"
+                },
+                "links": {
+                  "description": "Delta and full modes. Immediate links.",
+                  "items": {
+                    "additionalProperties": false,
+                    "description": "One immediate link of the origin record (delta mode).",
+                    "properties": {
+                      "id": {
+                        "description": "`urn:tl:<ulid>` of the record at the other end.",
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "key": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "rel": {
+                        "type": "string"
+                      },
+                      "type": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "uri": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "rel"
+                    ],
+                    "title": "EventLinkRef",
+                    "type": "object"
+                  },
+                  "type": [
+                    "array",
+                    "null"
+                  ]
+                },
+                "origin": {
+                  "additionalProperties": false,
+                  "description": "Pointer to the originating record at the version of the event (brief 18.3, `RecordRef`).",
+                  "properties": {
+                    "api": {
+                      "description": "API URL of the record.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "id": {
+                      "description": "`urn:tl:<ulid>` of the record.",
+                      "type": "string"
+                    },
+                    "key": {
+                      "description": "Human-readable key.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "type": {
+                      "description": "Record type.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "uri": {
+                      "description": "Resolvable URI of the record at this version (`...@v7`).",
+                      "type": "string"
+                    },
+                    "version": {
+                      "description": "Version of the record after the event.",
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "uri",
+                    "version"
+                  ],
+                  "title": "EventOrigin",
+                  "type": "object"
+                },
+                "record": {
+                  "description": "Full mode only. The record projection as of delivery preparation, with its `version`."
+                }
+              },
+              "required": [
+                "origin"
+              ],
+              "title": "CloudEventData",
+              "type": "object"
+            },
+            "datacontenttype": {
+              "const": "application/json",
+              "type": "string"
+            },
+            "dataschema": {
+              "const": "https://tl.example.com/schema/events/Technical.Reissued/1",
+              "description": "URI of the catalog schema of this event type.",
+              "type": "string"
+            },
+            "id": {
+              "description": "The ledger event id. Receivers dedupe on it.",
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "type": "string"
+            },
+            "source": {
+              "description": "URI of the company and project the event came from.",
+              "type": "string"
+            },
+            "specversion": {
+              "const": "1.0",
+              "type": "string"
+            },
+            "subject": {
+              "description": "`urn:tl:<ulid>` of the subject record, the ordering key.",
+              "type": "string"
+            },
+            "time": {
+              "description": "When the ledger committed the event (UTC).",
+              "format": "date-time",
+              "type": "string"
+            },
+            "tlactor": {
+              "type": "string"
+            },
+            "tlcorrelationid": {
+              "type": "string"
+            },
+            "tlseq": {
+              "description": "Ledger `seq`.",
+              "type": "integer"
+            },
+            "tlstreamversion": {
+              "description": "Version within the event's stream.",
+              "type": "integer"
+            },
+            "type": {
+              "const": "tl.core.Technical.Reissued.v1",
+              "description": "`tl.<module>.<Class>.<Verb>.v<schema version>`, for example `tl.core.Record.Created.v1`.",
+              "pattern": "^tl\\.[A-Za-z0-9_]+\\.[A-Za-z0-9_]+\\.[A-Za-z0-9_]+\\.v[0-9]+$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "specversion",
+            "id",
+            "source",
+            "type",
+            "time",
+            "subject",
+            "dataschema",
+            "datacontenttype",
+            "tlseq",
+            "tlstreamversion",
+            "tlcorrelationid",
+            "tlactor",
+            "data"
+          ],
+          "title": "CloudEvent",
+          "type": "object"
+        },
+        "summary": "A rejected Technical item went back to internal review to be issued again.",
+        "title": "A rejected Technical item went back to internal review to be issued again."
+      },
+      "Technical.Reviewed": {
+        "contentType": "application/json",
+        "description": "The raiser accepted or rejected the answer. A rejected answer is re-issued with `Technical.Reissued`.",
+        "examples": [
+          {
+            "headers": {
+              "webhook-id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+              "webhook-signature": "v1,ZXhhbXBsZS1zaWduYXR1cmU=",
+              "webhook-timestamp": "1760000047"
+            },
+            "name": "sample",
+            "payload": {
+              "data": {
+                "changes": {},
+                "detail": {
+                  "decision": "rejected",
+                  "note": "The answer does not say which beam",
+                  "reviewed_on": "2026-10-21"
+                },
+                "links": [],
+                "origin": {
+                  "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+                  "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+                  "key": "47-1234-W012",
+                  "type": "core.Record",
+                  "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+                  "version": 7
+                }
+              },
+              "datacontenttype": "application/json",
+              "dataschema": "https://tl.example.com/schema/events/Technical.Reviewed/1",
+              "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+              "source": "https://tl.example.com/c/acme/p/P123",
+              "specversion": "1.0",
+              "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+              "time": "2026-10-09T03:14:07.000000Z",
+              "tlactor": "user:jsmith",
+              "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+              "tlseq": 48211933,
+              "tlstreamversion": 7,
+              "type": "tl.core.Technical.Reviewed.v1"
+            }
+          }
+        ],
+        "headers": {
+          "$ref": "#/components/schemas/WebhookHeaders"
+        },
+        "name": "tl.core.Technical.Reviewed.v1",
+        "payload": {
+          "additionalProperties": false,
+          "description": "The CloudEvents 1.0 envelope (brief 18.3) used for webhooks, streams, the events API and exports. Extension attributes are lower-case as CloudEvents requires: `tlseq`, `tlstreamversion`, `tlcorrelationid`, `tlactor`.",
+          "properties": {
+            "data": {
+              "additionalProperties": true,
+              "description": "The `data` member of a webhook CloudEvent.",
+              "properties": {
+                "changes": {
+                  "description": "Delta and full modes. Object of field path to `[old, new]`; `old` is null when the event does not carry it."
+                },
+                "detail": {
+                  "additionalProperties": true,
+                  "description": "Delta and full modes. The ledger event payload, described per event type in the catalog.",
+                  "properties": {
+                    "decision": {
+                      "description": "accepted or rejected.",
+                      "type": "string"
+                    },
+                    "note": {
+                      "description": "Remark on accepting, or why the answer was rejected.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "reviewed_on": {
+                      "description": "ISO date.",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "decision",
+                    "reviewed_on"
+                  ],
+                  "title": "TechnicalReviewedPayload",
+                  "type": "object"
+                },
+                "links": {
+                  "description": "Delta and full modes. Immediate links.",
+                  "items": {
+                    "additionalProperties": false,
+                    "description": "One immediate link of the origin record (delta mode).",
+                    "properties": {
+                      "id": {
+                        "description": "`urn:tl:<ulid>` of the record at the other end.",
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "key": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "rel": {
+                        "type": "string"
+                      },
+                      "type": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "uri": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "rel"
+                    ],
+                    "title": "EventLinkRef",
+                    "type": "object"
+                  },
+                  "type": [
+                    "array",
+                    "null"
+                  ]
+                },
+                "origin": {
+                  "additionalProperties": false,
+                  "description": "Pointer to the originating record at the version of the event (brief 18.3, `RecordRef`).",
+                  "properties": {
+                    "api": {
+                      "description": "API URL of the record.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "id": {
+                      "description": "`urn:tl:<ulid>` of the record.",
+                      "type": "string"
+                    },
+                    "key": {
+                      "description": "Human-readable key.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "type": {
+                      "description": "Record type.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "uri": {
+                      "description": "Resolvable URI of the record at this version (`...@v7`).",
+                      "type": "string"
+                    },
+                    "version": {
+                      "description": "Version of the record after the event.",
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "uri",
+                    "version"
+                  ],
+                  "title": "EventOrigin",
+                  "type": "object"
+                },
+                "record": {
+                  "description": "Full mode only. The record projection as of delivery preparation, with its `version`."
+                }
+              },
+              "required": [
+                "origin"
+              ],
+              "title": "CloudEventData",
+              "type": "object"
+            },
+            "datacontenttype": {
+              "const": "application/json",
+              "type": "string"
+            },
+            "dataschema": {
+              "const": "https://tl.example.com/schema/events/Technical.Reviewed/1",
+              "description": "URI of the catalog schema of this event type.",
+              "type": "string"
+            },
+            "id": {
+              "description": "The ledger event id. Receivers dedupe on it.",
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "type": "string"
+            },
+            "source": {
+              "description": "URI of the company and project the event came from.",
+              "type": "string"
+            },
+            "specversion": {
+              "const": "1.0",
+              "type": "string"
+            },
+            "subject": {
+              "description": "`urn:tl:<ulid>` of the subject record, the ordering key.",
+              "type": "string"
+            },
+            "time": {
+              "description": "When the ledger committed the event (UTC).",
+              "format": "date-time",
+              "type": "string"
+            },
+            "tlactor": {
+              "type": "string"
+            },
+            "tlcorrelationid": {
+              "type": "string"
+            },
+            "tlseq": {
+              "description": "Ledger `seq`.",
+              "type": "integer"
+            },
+            "tlstreamversion": {
+              "description": "Version within the event's stream.",
+              "type": "integer"
+            },
+            "type": {
+              "const": "tl.core.Technical.Reviewed.v1",
+              "description": "`tl.<module>.<Class>.<Verb>.v<schema version>`, for example `tl.core.Record.Created.v1`.",
+              "pattern": "^tl\\.[A-Za-z0-9_]+\\.[A-Za-z0-9_]+\\.[A-Za-z0-9_]+\\.v[0-9]+$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "specversion",
+            "id",
+            "source",
+            "type",
+            "time",
+            "subject",
+            "dataschema",
+            "datacontenttype",
+            "tlseq",
+            "tlstreamversion",
+            "tlcorrelationid",
+            "tlactor",
+            "data"
+          ],
+          "title": "CloudEvent",
+          "type": "object"
+        },
+        "summary": "The raiser accepted or rejected the answer.",
+        "title": "The raiser accepted or rejected the answer."
+      },
+      "Technical.Updated": {
+        "contentType": "application/json",
+        "description": "The domain fields of a Technical item that is a draft or in internal review changed.",
+        "examples": [
+          {
+            "headers": {
+              "webhook-id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+              "webhook-signature": "v1,ZXhhbXBsZS1zaWduYXR1cmU=",
+              "webhook-timestamp": "1760000047"
+            },
+            "name": "sample",
+            "payload": {
+              "data": {
+                "changes": {
+                  "required_by": [
+                    "2026-10-30",
+                    "2026-11-06"
+                  ]
+                },
+                "detail": {
+                  "changes": {
+                    "required_by": [
+                      "2026-10-30",
+                      "2026-11-06"
+                    ]
+                  },
+                  "reason": null
+                },
+                "links": [],
+                "origin": {
+                  "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+                  "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+                  "key": "47-1234-W012",
+                  "type": "core.Record",
+                  "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+                  "version": 7
+                }
+              },
+              "datacontenttype": "application/json",
+              "dataschema": "https://tl.example.com/schema/events/Technical.Updated/1",
+              "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+              "source": "https://tl.example.com/c/acme/p/P123",
+              "specversion": "1.0",
+              "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+              "time": "2026-10-09T03:14:07.000000Z",
+              "tlactor": "user:jsmith",
+              "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+              "tlseq": 48211933,
+              "tlstreamversion": 7,
+              "type": "tl.core.Technical.Updated.v1"
+            }
+          }
+        ],
+        "headers": {
+          "$ref": "#/components/schemas/WebhookHeaders"
+        },
+        "name": "tl.core.Technical.Updated.v1",
+        "payload": {
+          "additionalProperties": false,
+          "description": "The CloudEvents 1.0 envelope (brief 18.3) used for webhooks, streams, the events API and exports. Extension attributes are lower-case as CloudEvents requires: `tlseq`, `tlstreamversion`, `tlcorrelationid`, `tlactor`.",
+          "properties": {
+            "data": {
+              "additionalProperties": true,
+              "description": "The `data` member of a webhook CloudEvent.",
+              "properties": {
+                "changes": {
+                  "description": "Delta and full modes. Object of field path to `[old, new]`; `old` is null when the event does not carry it."
+                },
+                "detail": {
+                  "additionalProperties": true,
+                  "description": "Delta and full modes. The ledger event payload, described per event type in the catalog.",
+                  "properties": {
+                    "changes": {},
+                    "reason": {
+                      "description": "Why it changed.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "changes"
+                  ],
+                  "title": "TechnicalUpdatedPayload",
+                  "type": "object"
+                },
+                "links": {
+                  "description": "Delta and full modes. Immediate links.",
+                  "items": {
+                    "additionalProperties": false,
+                    "description": "One immediate link of the origin record (delta mode).",
+                    "properties": {
+                      "id": {
+                        "description": "`urn:tl:<ulid>` of the record at the other end.",
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "key": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "rel": {
+                        "type": "string"
+                      },
+                      "type": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "uri": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "rel"
+                    ],
+                    "title": "EventLinkRef",
+                    "type": "object"
+                  },
+                  "type": [
+                    "array",
+                    "null"
+                  ]
+                },
+                "origin": {
+                  "additionalProperties": false,
+                  "description": "Pointer to the originating record at the version of the event (brief 18.3, `RecordRef`).",
+                  "properties": {
+                    "api": {
+                      "description": "API URL of the record.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "id": {
+                      "description": "`urn:tl:<ulid>` of the record.",
+                      "type": "string"
+                    },
+                    "key": {
+                      "description": "Human-readable key.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "type": {
+                      "description": "Record type.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "uri": {
+                      "description": "Resolvable URI of the record at this version (`...@v7`).",
+                      "type": "string"
+                    },
+                    "version": {
+                      "description": "Version of the record after the event.",
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "uri",
+                    "version"
+                  ],
+                  "title": "EventOrigin",
+                  "type": "object"
+                },
+                "record": {
+                  "description": "Full mode only. The record projection as of delivery preparation, with its `version`."
+                }
+              },
+              "required": [
+                "origin"
+              ],
+              "title": "CloudEventData",
+              "type": "object"
+            },
+            "datacontenttype": {
+              "const": "application/json",
+              "type": "string"
+            },
+            "dataschema": {
+              "const": "https://tl.example.com/schema/events/Technical.Updated/1",
+              "description": "URI of the catalog schema of this event type.",
+              "type": "string"
+            },
+            "id": {
+              "description": "The ledger event id. Receivers dedupe on it.",
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "type": "string"
+            },
+            "source": {
+              "description": "URI of the company and project the event came from.",
+              "type": "string"
+            },
+            "specversion": {
+              "const": "1.0",
+              "type": "string"
+            },
+            "subject": {
+              "description": "`urn:tl:<ulid>` of the subject record, the ordering key.",
+              "type": "string"
+            },
+            "time": {
+              "description": "When the ledger committed the event (UTC).",
+              "format": "date-time",
+              "type": "string"
+            },
+            "tlactor": {
+              "type": "string"
+            },
+            "tlcorrelationid": {
+              "type": "string"
+            },
+            "tlseq": {
+              "description": "Ledger `seq`.",
+              "type": "integer"
+            },
+            "tlstreamversion": {
+              "description": "Version within the event's stream.",
+              "type": "integer"
+            },
+            "type": {
+              "const": "tl.core.Technical.Updated.v1",
+              "description": "`tl.<module>.<Class>.<Verb>.v<schema version>`, for example `tl.core.Record.Created.v1`.",
+              "pattern": "^tl\\.[A-Za-z0-9_]+\\.[A-Za-z0-9_]+\\.[A-Za-z0-9_]+\\.v[0-9]+$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "specversion",
+            "id",
+            "source",
+            "type",
+            "time",
+            "subject",
+            "dataschema",
+            "datacontenttype",
+            "tlseq",
+            "tlstreamversion",
+            "tlcorrelationid",
+            "tlactor",
+            "data"
+          ],
+          "title": "CloudEvent",
+          "type": "object"
+        },
+        "summary": "The domain fields of a Technical item that is a draft or in internal review changed.",
+        "title": "The domain fields of a Technical item that is a draft or in internal review changed."
+      },
       "Transmittal.Defined": {
         "contentType": "application/json",
         "description": "A transmittal was drafted with the revisions it carries and its recipients.",
@@ -36086,6 +38413,42 @@
       ],
       "summary": "A value was added to a code list."
     },
+    "receiveCommercialAssessed": {
+      "action": "receive",
+      "channel": {
+        "$ref": "#/channels/Commercial.Assessed"
+      },
+      "messages": [
+        {
+          "$ref": "#/channels/Commercial.Assessed/messages/Commercial.Assessed"
+        }
+      ],
+      "summary": "The other party assessed an issued Commercial item: agreed, disputed or partially agreed, with the value they assessed."
+    },
+    "receiveCommercialDefined": {
+      "action": "receive",
+      "channel": {
+        "$ref": "#/channels/Commercial.Defined"
+      },
+      "messages": [
+        {
+          "$ref": "#/channels/Commercial.Defined/messages/Commercial.Defined"
+        }
+      ],
+      "summary": "A Commercial item (early warning, change notice, claim ...) was raised."
+    },
+    "receiveCommercialUpdated": {
+      "action": "receive",
+      "channel": {
+        "$ref": "#/channels/Commercial.Updated"
+      },
+      "messages": [
+        {
+          "$ref": "#/channels/Commercial.Updated/messages/Commercial.Updated"
+        }
+      ],
+      "summary": "The domain fields of a Commercial item that is not yet issued changed."
+    },
     "receiveContractClauseDefined": {
       "action": "receive",
       "channel": {
@@ -37333,6 +39696,66 @@
         }
       ],
       "summary": "A tag was replaced by one or more others (a rename, a split or a merge); it stays in the ledger as history."
+    },
+    "receiveTechnicalAnswered": {
+      "action": "receive",
+      "channel": {
+        "$ref": "#/channels/Technical.Answered"
+      },
+      "messages": [
+        {
+          "$ref": "#/channels/Technical.Answered/messages/Technical.Answered"
+        }
+      ],
+      "summary": "The answer to a Technical item was recorded, with the answerer's statement on cost and schedule."
+    },
+    "receiveTechnicalDefined": {
+      "action": "receive",
+      "channel": {
+        "$ref": "#/channels/Technical.Defined"
+      },
+      "messages": [
+        {
+          "$ref": "#/channels/Technical.Defined/messages/Technical.Defined"
+        }
+      ],
+      "summary": "A Technical item (RFI, technical query or deviation request) was raised."
+    },
+    "receiveTechnicalReissued": {
+      "action": "receive",
+      "channel": {
+        "$ref": "#/channels/Technical.Reissued"
+      },
+      "messages": [
+        {
+          "$ref": "#/channels/Technical.Reissued/messages/Technical.Reissued"
+        }
+      ],
+      "summary": "A rejected Technical item went back to internal review to be issued again."
+    },
+    "receiveTechnicalReviewed": {
+      "action": "receive",
+      "channel": {
+        "$ref": "#/channels/Technical.Reviewed"
+      },
+      "messages": [
+        {
+          "$ref": "#/channels/Technical.Reviewed/messages/Technical.Reviewed"
+        }
+      ],
+      "summary": "The raiser accepted or rejected the answer."
+    },
+    "receiveTechnicalUpdated": {
+      "action": "receive",
+      "channel": {
+        "$ref": "#/channels/Technical.Updated"
+      },
+      "messages": [
+        {
+          "$ref": "#/channels/Technical.Updated/messages/Technical.Updated"
+        }
+      ],
+      "summary": "The domain fields of a Technical item that is a draft or in internal review changed."
     },
     "receiveTransmittalDefined": {
       "action": "receive",

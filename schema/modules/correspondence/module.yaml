@@ -23,6 +23,8 @@ imports:
   - ../../core/annotations
   - ../../core/record
   - correspondence
+  - technical_item
+  - commercial_item
   - thread
   - response_clock
   - contract_clause

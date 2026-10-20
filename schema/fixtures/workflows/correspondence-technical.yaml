@@ -1,0 +1,63 @@
+# Workflow of a Technical item: an RFI, a technical query or a deviation request (brief 9 M10, Technical /
+# RFI domain): Draft -> Internal review -> Issued -> Awaiting response -> Answered -> (Accepted | Rejected ->
+# re-issue) -> Closed. The raiser writes a Draft, submits it to internal review, and a document controller
+# issues it (the external act: the letter is rendered and the send is a stub). The send puts the item into
+# Awaiting response; recording the answer moves it to Answered; the raiser then accepts the answer or
+# rejects it and sends the item round again. The moves are made by the module's commands; people cannot run
+# them directly. No role guards (who may do what is the access word of each command, ADR-0013).
+id: correspondence.technical
+version: 1
+record_type: correspondence.TechnicalItem
+scope: company
+initial_state: Draft
+states:
+  - name: Draft
+  - name: Internal review
+  - name: Issued
+  - name: Awaiting response
+  - name: Answered
+  - name: Accepted
+  - name: Rejected
+  - name: Closed
+  - name: Void
+transitions:
+  - name: submit
+    label: Submit for internal review
+    from: [Draft]
+    to: Internal review
+  - name: return
+    label: Return to the raiser
+    from: [Internal review]
+    to: Draft
+  - name: issue
+    label: Issue to the other party
+    from: [Internal review]
+    to: Issued
+  - name: await_response
+    label: Wait for the answer
+    from: [Issued]
+    to: Awaiting response
+  - name: answer
+    label: Record the answer
+    from: [Awaiting response]
+    to: Answered
+  - name: accept
+    label: Accept the answer
+    from: [Answered]
+    to: Accepted
+  - name: reject
+    label: Reject the answer
+    from: [Answered]
+    to: Rejected
+  - name: reissue
+    label: Send the item round again
+    from: [Rejected]
+    to: Internal review
+  - name: close
+    label: Close the item
+    from: [Awaiting response, Accepted, Rejected]
+    to: Closed
+  - name: void
+    label: Void the item made in error
+    from: [Draft, Internal review]
+    to: Void

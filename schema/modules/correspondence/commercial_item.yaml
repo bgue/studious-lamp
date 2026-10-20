@@ -1,0 +1,84 @@
+id: https://example.org/throughline/modules/correspondence/commercial_item
+name: tl_mod_correspondence_commercial_item
+title: Commercial domain items (brief 9, M10 Commercial domain)
+description: >-
+  What the Commercial domain adds to a correspondence item: an early warning, change notice, site
+  instruction, quotation, claim notice, detailed claim, payment application or back-charge. The item itself
+  (number, parties, dates, class, thread, clocks, files) is a row of `cur_correspondence_correspondence`;
+  this table holds the domain data and is joined to it on `id`. The workflow is `correspondence.commercial`.
+  Money is written as a decimal text with at most two places (`12500.00`) and never as a float. Spec:
+  docs/modules/correspondence/technical-commercial.md.
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+  - ../../core/annotations
+  - ../../core/record
+default_range: string
+annotations:
+  tl:module: correspondence
+
+classes:
+  CommercialItem:
+    description: >-
+      The domain data of a Commercial item. Record type `correspondence.CommercialItem`, numbered
+      `<project>-EW-nnnn` (early warning), `-CN-` (change notice), `-SI-` (site instruction), `-QT-`
+      (quotation), `-CL-` (claim notice), `-DC-` (detailed claim), `-PA-` (payment application) or `-BC-`
+      (back-charge). Linked records (RFIs, instructions, cost codes, schedule activities, photos, daily
+      records) are links of the item; the evidence trail follows them.
+    annotations:
+      tl:current_state: true
+      tl:record_types: "correspondence.CommercialItem"
+      tl:ix_scope_clause: "scope, contract_clause_id"
+      tl:ix_scope_status: "scope, assessment_status"
+    attributes:
+      id:
+        identifier: true
+        range: Ulid
+        required: true
+        description: Record id; equals the ledger stream id and the `cur_core_record` id.
+      scope:
+        range: ScopeId
+        required: true
+        description: The project scope, `project:<id>`.
+      contract_clause_id:
+        range: Ulid
+        description: The `correspondence.ContractClause` the notice is given under; its time bar sets the notice clock.
+      aware_on:
+        description: ISO date (YYYY-MM-DD) on which the contractor became aware of the event; the time bar runs from it.
+      derived_from_id:
+        range: Ulid
+        description: The item this one was escalated from (an RFI); the `derived_from` link says the same.
+      currency:
+        description: ISO 4217 code of every amount of the item (`USD`); null when it states no amount.
+      estimated_value:
+        description: "Estimated value as a decimal text, at most two places (`12500.00`); null when none."
+      estimated_hours:
+        description: "Estimated hours as a decimal text, at most one place (`240.5`); null when none."
+      cost_code_impacts:
+        range: Any
+        required: true
+        annotations:
+          tl:json: true
+        description: "JSON list of impacts by cost code, each `{cost_code, amount, hours, quantity, uom}` (cost_code required)."
+      schedule_impact_days:
+        range: integer
+        description: Days of delay (or acceleration, negative) the event is said to cause; null when not stated.
+      schedule_impact_note:
+        description: What the schedule impact is, in words (activities are linked, not listed here).
+      entitlement_basis:
+        description: Why the contractor is entitled (the clause or event relied on), in words.
+      assessed_value:
+        description: "Value the other party assessed, a decimal text with at most two places; null until assessed."
+      assessed_on:
+        description: ISO date (YYYY-MM-DD) of the assessment.
+      assessment_status:
+        description: "agreed, disputed or partially_agreed; null until assessed."
+      assessment_note:
+        description: The assessor's reasoning, in words.
+      last_seq:
+        range: integer
+        required: true
+        description: Ledger `seq` of the last event applied to this row.

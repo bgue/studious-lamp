@@ -68,7 +68,8 @@
             "description": "The event that starts a default clock.",
             "enum": [
                 "receipt",
-                "issue"
+                "issue",
+                "awareness"
             ],
             "title": "ClockTrigger",
             "type": "string"
@@ -136,6 +137,13 @@
                 "numbering_pattern": {
                     "description": "The id of the numbering pattern that numbers items of the domain (it must exist).",
                     "type": "string"
+                },
+                "record_type": {
+                    "description": "The record type of the domain's items (`correspondence.TechnicalItem`); null means `correspondence.Correspondence`. The workflow and the numbering pattern must be for this type.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
                 },
                 "required_psets": {
                     "description": "Property sets an item must carry before it can be issued.",
@@ -316,6 +324,13 @@
                     "pattern": "^[a-z][a-z0-9_]{0,31}$",
                     "type": "string"
                 },
+                "direction": {
+                    "description": "in or out: the direction of items of this subtype; null means the commands decide (out for an item we write).",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
                 "keywords": {
                     "description": "Lower-case words in a subject or body that suggest this subtype at triage.",
                     "items": {
@@ -329,6 +344,14 @@
                 "label": {
                     "description": "Name shown to people.",
                     "type": "string"
+                },
+                "number_code": {
+                    "description": "The upper-case code that fills the `kind` field of the domain's numbering pattern (`RFI` in `P123-RFI-0001`); null when the pattern has no `kind` field.",
+                    "pattern": "^[A-Z][A-Z0-9]{0,7}$",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
                 },
                 "response_required": {
                     "description": "True when an item of this subtype expects an answer; clocks then start by default.",
@@ -451,6 +474,13 @@
         "numbering_pattern": {
             "description": "The id of the numbering pattern that numbers items of the domain (it must exist).",
             "type": "string"
+        },
+        "record_type": {
+            "description": "The record type of the domain's items (`correspondence.TechnicalItem`); null means `correspondence.Correspondence`. The workflow and the numbering pattern must be for this type.",
+            "type": [
+                "string",
+                "null"
+            ]
         },
         "required_psets": {
             "description": "Property sets an item must carry before it can be issued.",
