@@ -29,7 +29,7 @@ import tempfile
 from collections.abc import Awaitable, Callable, Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass, field
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -70,6 +70,12 @@ class _FrozenDatetime(_ORIGINAL_DATETIME):
         return CLOCK.now if tz is None else CLOCK.now.astimezone(tz)
 
 
+class _FrozenDate(date):
+    @classmethod
+    def today(cls) -> date:  # type: ignore[override]
+        return CLOCK.now.date()
+
+
 class _CountingUlid:
     """What `tl_core.util.new_ulid` calls instead of `ULID()`: frozen time plus a counter."""
 
@@ -92,6 +98,9 @@ def freeze() -> None:
 
     lake_sync.datetime = _FrozenDatetime  # type: ignore[misc,assignment]
     lake_query.datetime = _FrozenDatetime  # type: ignore[misc,assignment]
+    import tl_tui.widgets.domain_screen as domain_screen
+
+    domain_screen.date = _FrozenDate  # type: ignore[misc,assignment]  # its "today" for evidence
     CLOCK.reset()
 
 
@@ -341,11 +350,13 @@ class Shell:
         hide: tuple[str, ...] = (),
         show: str | None = None,
         tail: int | None = None,
+        head: int | None = None,
     ) -> str:
         """Run `tl <argv>` (as ``who``); show it. ``ok=False`` means it must be refused.
 
         ``hide`` names output lines to blank out (secrets), ``show`` replaces the typed line (for
-        arguments that are paths of the temporary directory), ``tail`` keeps only the last lines.
+        arguments that are paths of the temporary directory), ``tail`` keeps only the last lines
+        and ``head`` only the first ones.
         """
         import shlex
 
@@ -355,6 +366,8 @@ class Shell:
         shown = redact(output, *hide) if hide else output
         if tail is not None:
             shown = "\n".join(shown.rstrip("\n").split("\n")[-tail:]) + "\n"
+        if head is not None:
+            shown = "\n".join(shown.rstrip("\n").split("\n")[:head]) + "\n"
         if shown.strip():
             self.transcript.output(shown, error=not ok)
         return output

@@ -1,15 +1,19 @@
-"""The Phase 1 screenshot tour, interim: what P1-I0 to P1-I2 added to the platform core.
+"""The Phase 1 screenshot tour: what P1-I0 to P1-I7 added to the platform core.
 
     uv run python dev/tour/phase1.py [--out docs/reports/tour/phase-1]
 
 Same method as `phase0.py` (see its docstring and `tourkit.py`): a fresh SQLite ledger in a
 temporary directory, the real TUI driven headless, the real `tl` commands, an MCP server and an API
 client run in this process, SVG screenshots out. Every `tl` command here runs as a named person with
-their own signed-in session (`demo`, an admin; `amy` and `ana`, plain users), the way the P1 demos
-do. Passwords are the documented dev ones and are only ever typed through stdin.
+their own signed-in session (`demo`, an admin; `amy`, `ana` and `ben`, plain users; `dora`, who
+holds the document controller role when a section needs it), the way the P1 demos do. Passwords are
+the documented dev ones and are only ever typed through stdin.
 
-It covers P1-I0 (identity and admin), P1-I1 (standards and engineering tags) and P1-I2 (document
-control). The final Phase 1 tour extends it at the Phase 1 exit. The text is
+It covers P1-I0 (identity and admin), P1-I1 (standards and engineering tags), P1-I2 and P1-I2b
+(document control and its controller role), P1-I3 (the derivation pipeline), P1-I4 (schedules and
+cost), P1-I5 (correspondence), P1-I6 (RFIs and commercial notices) and P1-I7 (the integration layer
+and record threads). The sample files come from the helpers of the matching demos
+(`dev/demos/p1_i*_demo.py`). P1-I8 is added at the Phase 1 exit. The text is
 `docs/reports/PHASE-1-TOUR.md`; its section numbers match the file names written here.
 """
 
@@ -17,8 +21,13 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import contextlib
+import importlib
+import io
 import shutil
 import sys
+from collections.abc import Callable
+from datetime import timedelta
 from pathlib import Path
 from typing import Any
 
@@ -82,6 +91,13 @@ def add_person(ws: Workspace, name: str, display: str) -> None:
 
 def sign_in(ws: Workspace, who: str) -> None:
     ws.tl("login", who, "--password-stdin", stdin=password(who), who=who)
+
+
+def renew_sessions(ws: Workspace) -> None:
+    """Sign the people of the later sections in again: a session lasts twelve hours, and the
+    frozen clock of a long tour moves on three minutes with every command."""
+    for who in ("demo", "amy", "dora"):
+        sign_in(ws, who)
 
 
 def setup(ws: Workspace) -> None:
@@ -926,6 +942,841 @@ def section_controller(ws: Workspace) -> None:
     ws.save("14f-controller-limits", sh.transcript.svg())
 
 
+# --- helpers for sections 15 to 19 (P1-I3 to P1-I7) -------------------------------------------
+
+
+def demo_module(name: str) -> Any:
+    """The helper module of a demo (`dev/demos/<name>.py`); its setup code writes sample files."""
+    path = str(REPO / "dev" / "demos")
+    if path not in sys.path:
+        sys.path.append(path)
+    return importlib.import_module(name)
+
+
+def quietly(call: Callable[..., Any], *args: Any) -> Any:
+    """Run a demo helper without its console chatter (it names temporary paths)."""
+    with contextlib.redirect_stdout(io.StringIO()):
+        return call(*args)
+
+
+def made(output: str, word: str) -> str:
+    """The number a command printed after ``word`` (`received P123-COR-0001` gives the number)."""
+    for line in output.splitlines():
+        if line.startswith(word + " "):
+            return line.split()[1]
+    raise tk.TourFailed(f"no line starting {word!r} in:\n{output}")
+
+
+async def open_screen(pilot: Pilot[Any], app: Any, key: str, needle: str, what: str) -> None:
+    """Press a main-screen key and wait for the screen it opens to show ``needle``."""
+    await pilot.press(key)
+    await tk.until(pilot, lambda: needle in tk.screen_text(app), what)
+
+
+# --- 15 the derivation pipeline (P1-I3) -------------------------------------------------------
+
+AREAS = {"47": "50", "10": "30", "20": "40"}  # the sample index repeats tags of section 8: renumber
+
+
+def renumbered(source: Path, target: Path) -> None:
+    """Copy a sample CSV with the area of each tag changed, so its tags are new to this ledger."""
+    lines = source.read_text(encoding="utf-8").splitlines()
+    out = [lines[0]]
+    for line in lines[1:]:
+        area, _, rest = line.partition("-")
+        out.append(f"{AREAS[area]}-{rest}")
+    target.write_text("\n".join(out) + "\n", encoding="utf-8")
+
+
+def section_derive(ws: Workspace) -> None:
+    renew_sessions(ws)
+    demo = demo_module("p1_i3_demo")
+    demo.FIXTURES = REPO / "schema/fixtures/document-schemas"
+    work = ws.root / "derive"
+    work.mkdir()
+    quietly(demo.prepare, str(work))
+    for kind in ("invalid", "sample"):
+        renumbered(demo.FIXTURES / f"instrument-index@1.0.0.{kind}.csv", work / f"index-{kind}.csv")
+    key = "LD-4701@A/instrument-index"
+    amy = "derive/index-invalid.csv"
+
+    sh = Shell(ws, "A spreadsheet that tells the author which cell is wrong", 118)
+    sh.run(
+        "derive",
+        "schema",
+        "register",
+        "derive/instrument-index.yaml",
+        "--company",
+        who="amy",
+        ok=False,
+    )
+    sh.run("derive", "schema", "register", "derive/instrument-index.yaml", "--company", who="demo")
+    ws.tl(
+        "doc",
+        "register",
+        "LD-4701",
+        *P,
+        "--title",
+        "Instrument index, unit 47",
+        "--type",
+        "LD",
+        "--discipline",
+        "INS",
+        who="amy",
+    )
+    ws.tl("doc", "rev", "create", "LD-4701", *P, "--purpose", "First issue", who="amy")
+    ws.tl(
+        "doc",
+        "rendition",
+        "add",
+        "LD-4701",
+        "A",
+        "derive/isd-001-A.pdf",
+        *P,
+        "--kind",
+        "pdf",
+        "--pages",
+        "3",
+        who="amy",
+    )
+    sh.note("amy registers LD-4701 and attaches its PDF (as in section 9); then a derived document")
+    sh.run("derive", "open", "LD-4701", "A", "--schema", "instrument-index", *P, who="amy")
+    sh.run("derive", "content", key, amy, *P, who="amy")
+    sh.run("derive", "start", key, *P, who="amy")
+    sh.run("derive", "worker", "--once", who="amy")
+    sh.run("derive", "report", key, *P, who="amy")
+    ws.save("15a-derive-cli", sh.transcript.svg())
+
+    app = build_app(ws, admin=True)
+
+    async def invalid(pilot: Pilot[Any]) -> None:
+        await tk.until(pilot, lambda: len(app.query("RecordGrid")) > 0, "the shell")
+        await open_screen(pilot, app, "f11", "LD-4701", "the derived documents")
+        await tk.until(pilot, lambda: "fail_action" in tk.screen_text(app), "the report")
+        tk.shot_tui(
+            ws,
+            app,
+            "15b-derived-report",
+            "F11: the derived document and its report: the row, the field, the value",
+            "LD-4701",
+            "Invalid",
+            "fail_action",
+            "OPEN",
+        )
+
+    tk.run_tui(ws, app, invalid, size=(160, 44))
+
+    ws.tl("derive", "content", key, "derive/index-sample.csv", *P, who="amy")
+    ws.tl("derive", "start", key, *P, who="amy")
+    ws.tl("derive", "worker", "--once", who="amy")
+    app = build_app(ws, admin=True)
+
+    async def valid(pilot: Pilot[Any]) -> None:
+        await tk.until(pilot, lambda: len(app.query("RecordGrid")) > 0, "the shell")
+        await open_screen(pilot, app, "f11", "LD-4701", "the derived documents")
+        await tk.until(pilot, lambda: "Valid" in tk.screen_text(app), "the valid pass")
+        await pilot.press("d")
+        await tk.until(pilot, lambda: "changed" in tk.screen_text(app).lower(), "the diff")
+        tk.shot_tui(
+            ws,
+            app,
+            "15c-derived-diff",
+            "F11, d: the corrected file read again: the diff is one cell",
+            "Valid",
+            "fail_action",
+        )
+        await pilot.press("p")
+        await tk.until(pilot, lambda: "create" in tk.screen_text(app).lower(), "the preview")
+        tk.shot_tui(
+            ws,
+            app,
+            "15d-publish-preview",
+            "F11, p: the preview of the 40 tags a publication would create",
+            "create",
+        )
+
+    tk.run_tui(ws, app, valid, size=(160, 44))
+
+    sh = Shell(
+        ws, "Publishing 40 tags that remember where they came from, and taking them back", 118
+    )
+    sh.run("derive", "publish", key, *P, who="amy", head=4)
+    sh.run("derive", "publish", key, *P, "--apply", who="amy", ok=False)
+    sh.run("derive", "publish", key, *P, "--apply", who="demo", tail=2)
+    sh.run("pset", "get", "50-FV-1001", *P, who="amy")
+    undo = ("derive", "compensate", key, *P, "--reason", "wrong unit: roll it back")
+    sh.run(*undo, who="demo", head=3)
+    sh.run(*undo, "--apply", who="demo", tail=1)
+    sh.run("tag", "ls", *P, "--all", who="amy", tail=2)
+    ws.save("15e-publish-and-undo", sh.transcript.svg())
+
+
+# --- 16 schedules and cost (P1-I4) ------------------------------------------------------------
+
+SCHEDULE = ("--schedule", "MAIN")
+
+
+def section_schedules(ws: Workspace) -> None:
+    renew_sessions(ws)
+    demo = demo_module("p1_i4_demo")
+    work = ws.root / "xer"
+    work.mkdir()
+    quietly(demo.prepare, str(work))
+
+    sh = Shell(ws, "Primavera XER updates: defined, uploaded, built by the worker", 118)
+    sh.note(
+        "section 14 took the controller role from dora; an admin gives it back for the planning"
+    )
+    sh.run(
+        "admin",
+        "user",
+        "roles",
+        "dora",
+        "--add",
+        "document_controller",
+        "--reason",
+        "takes over planning data",
+        who="demo",
+    )
+    sh.run("xer", "define", "MAIN", *P, "--name", "Pipe rack schedule", who="amy", ok=False)
+    sh.run(
+        "xer", "define", "MAIN", *P, "--name", "Pipe rack schedule", "--type", "current", who="dora"
+    )
+    sh.run("xer", "upload", "xer/update-1.xer", *P, *SCHEDULE, who="amy")
+    sh.run("xer", "upload", "xer/update-2.xer", *P, *SCHEDULE, who="amy")
+    sh.run("xer", "upload", "xer/update-2.xer", *P, *SCHEDULE, who="amy", ok=False)
+    sh.run("xer", "worker", "--once", who="demo")
+    sh.run("xer", "show", *P, *SCHEDULE, who="amy")
+    ws.save("16a-xer-cli", sh.transcript.svg())
+
+    sh = Shell(ws, "Records tied to activities: now, as of an earlier update, and orphaned", 118)
+    sh.run("xer", "publish", "1", *P, *SCHEDULE, who="dora")
+    for key, title in (
+        ("REC-A", "Pipe rack supports work package"),
+        ("REC-B", "Temporary fencing permit"),
+        ("REC-C", "Unplanned site visit"),
+    ):
+        ws.tl("record", "create", *P, "--key", key, "--title", title, who="amy")
+    sh.note("amy created three records (REC-A to REC-C) and ties two of them to activities")
+    sh.run("xer", "link", "REC-A", "A1230", *P, *SCHEDULE, who="amy")
+    sh.run("xer", "link", "REC-B", "A1990", *P, *SCHEDULE, who="amy")
+    sh.run("xer", "publish", "2", *P, *SCHEDULE, who="dora")
+    sh.run("xer", "worker", "--once", who="demo")
+    sh.run("xer", "resolve", "A1230", *P, *SCHEDULE, who="amy")
+    sh.run("xer", "resolve", "A1230", *P, *SCHEDULE, "--as-of", "1", who="amy")
+    sh.run("xer", "resolve", "A1990", *P, *SCHEDULE, who="amy")
+    sh.run("xer", "health", *P, *SCHEDULE, who="amy")
+    sh.run("xer", "trend", "A1230", *P, *SCHEDULE, who="amy")
+    ws.save("16b-activity-links", sh.transcript.svg())
+
+    app = build_app(ws)
+
+    async def screens(pilot: Pilot[Any]) -> None:
+        await tk.until(pilot, lambda: len(app.query("RecordGrid")) > 0, "the shell")
+        await open_screen(pilot, app, "f12", "MAIN", "the schedules")
+        tk.shot_tui(
+            ws,
+            app,
+            "16c-schedules",
+            "F12: the schedule and its snapshots, newest first",
+            "MAIN",
+            "Published",
+        )
+        await pilot.press("tab", "c")  # into the snapshot table (snapshot 2 is on top), compare
+        await tk.until(pilot, lambda: "A2500" in tk.screen_text(app), "the comparison")
+        await pilot.press("n", "n", "n")  # added, removed, date shifts, then float
+        await tk.until(pilot, lambda: "A1230" in tk.screen_text(app), "the float section")
+        tk.shot_tui(
+            ws,
+            app,
+            "16d-compare",
+            "F12, c, n: snapshot 2 against snapshot 1; the float section: A1230 lost five days",
+            "A1230",
+        )
+
+    tk.run_tui(ws, app, screens, size=(160, 48))
+
+    sh = Shell(ws, "Cost periods: previewed, applied by an admin, reported against the budget", 118)
+    sh.run(
+        "cost",
+        "import",
+        "xer/cost-2026-07.csv",
+        *P,
+        "--period",
+        "2026-07",
+        "--as-of",
+        "2026-07-31",
+        who="amy",
+        head=3,
+    )
+    sh.run(
+        "cost",
+        "import",
+        "xer/cost-2026-07.csv",
+        *P,
+        "--period",
+        "2026-07",
+        "--as-of",
+        "2026-07-31",
+        "--apply",
+        who="amy",
+        ok=False,
+    )
+    sh.run(
+        "cost",
+        "import",
+        "xer/cost-2026-07.csv",
+        *P,
+        "--period",
+        "2026-07",
+        "--as-of",
+        "2026-07-31",
+        "--apply",
+        who="demo",
+        tail=1,
+    )
+    ws.tl(
+        "cost",
+        "import",
+        "xer/cost-2026-08.csv",
+        *P,
+        "--period",
+        "2026-08",
+        "--as-of",
+        "2026-08-31",
+        "--apply",
+        who="demo",
+    )
+    ws.tl("link", "add", "REC-A", "4210-PIP", *P, "--relation", "references", who="demo")
+    sh.run("cost", "snapshots", *P, who="amy")
+    sh.run("cost", "report", "budget", *P, "--unit", "quantity", who="amy")
+    sh.run("cost", "report", "uncoded", *P, "--type", "core.Record", who="amy")
+    sh.run("xer", "unscheduled", *P, "--type", "core.Record", who="amy")
+    ws.save("16e-cost-periods", sh.transcript.svg())
+
+
+# --- 17 correspondence (P1-I5) ----------------------------------------------------------------
+
+NOON = "Mon, 12 Oct 2026 12:00:00 +0000"  # the Date header of the tour's email: a real one varies
+
+
+def section_correspondence(ws: Workspace) -> None:
+    renew_sessions(ws)
+    demo = demo_module("p1_i5_demo")
+    demo.formatdate = lambda: NOON  # the demo's own helper writes the email, with a fixed date
+    quietly(demo.make_eml, "reply.eml")
+    (ws.root / "letter.txt").write_text(
+        "Please find our revised programme. We would be grateful for your comments.\n"
+    )
+
+    sh = Shell(
+        ws, "A letter arrives, a person confirms the triage, a controller issues the reply", 118
+    )
+    sh.run(
+        "corr",
+        "party",
+        "add",
+        "ACME",
+        *P,
+        "--name",
+        "Acme Construction",
+        "--role",
+        "contractor",
+        "--email-domain",
+        "acme.example",
+        "--contact",
+        "Ann:ann@acme.example",
+        who="dora",
+    )
+    received = sh.run(
+        "corr",
+        "receive",
+        *P,
+        "--subject",
+        "Revised programme",
+        "--from",
+        "Acme Construction",
+        "--file",
+        "letter.txt",
+        "--body-file",
+        "letter.txt",
+        who="amy",
+    )
+    letter = made(received, "received")
+    sh.run("corr", "suggest", letter, *P, who="amy")
+    sh.run("corr", "triage", letter, *P, "--accept", who="amy")
+    drafted = sh.run(
+        "corr",
+        "draft",
+        *P,
+        "--subject",
+        "Re: Revised programme",
+        "--to",
+        "Acme Construction:ann@acme.example",
+        "--reply-to",
+        letter,
+        "--domain",
+        "general",
+        "--subtype",
+        "letter",
+        "--body",
+        "We have received the programme and will reply by the due date.",
+        who="amy",
+    )
+    reply = made(drafted, "drafted")
+    sh.run("corr", "issue", reply, *P, who="amy", ok=False)
+    sh.run("corr", "issue", reply, *P, who="dora")
+    sh.run("corr", "clock", "ls", *P, who="amy")
+    ws.save("17a-letter-triage-reply", sh.transcript.svg())
+
+    sh = Shell(
+        ws,
+        "An email joins the thread of the letter; a restricted item does not exist for a user",
+        118,
+    )
+    ingested = sh.run("corr", "mail", "ingest", "reply.eml", *P, who="amy")
+    mail = made(ingested, "ingested")
+    sh.run("corr", "mail", "ingest", "reply.eml", *P, who="amy", ok=False)
+    sh.run("corr", "show", mail, *P, who="amy", head=11)
+    sh.note("a controller marks the email restricted (commercial terms)")
+    sh.run(
+        "corr",
+        "class",
+        "set",
+        mail,
+        *P,
+        "--to",
+        "restricted",
+        "--reason",
+        "commercial terms",
+        who="dora",
+    )
+    sh.run("corr", "show", mail, *P, who="amy", ok=False)
+    sh.run("corr", "show", "P123-COR-9999", *P, who="amy", ok=False)
+    ws.save("17b-email-thread-restricted", sh.transcript.svg())
+
+    def tui(
+        actor: str, controller: bool, name: str, title: str, select: str, *needles: str
+    ) -> None:
+        app = build_app(ws, actor=actor, controller=controller)
+
+        async def register(pilot: Pilot[Any]) -> None:
+            await tk.until(pilot, lambda: len(app.query("RecordGrid")) > 0, "the shell")
+            await open_screen(pilot, app, "f5", letter, "the register")
+            numbers = [line.number for line in app.screen.lines]  # type: ignore[attr-defined]
+            app.screen.query_one("#corr-table", DataTable).move_cursor(row=numbers.index(select))
+            await tk.settle(pilot, 3)
+            tk.shot_tui(ws, app, name, title, letter, reply, select, *needles)
+
+        tk.run_tui(ws, app, register, size=(170, 44))
+
+    tui(
+        "user:amy",
+        False,
+        "17c-register-as-user",
+        "F5 as amy, a plain user: the register without the restricted email",
+        letter,
+    )
+    tui(
+        "user:dora",
+        True,
+        "17d-register-as-controller",
+        "F5 as dora, a cleared controller: the same register, with the restricted email",
+        mail,
+        "class restricted",
+    )
+
+    app = build_app(ws, actor="user:dora", controller=True)
+
+    async def clocks(pilot: Pilot[Any]) -> None:
+        await tk.until(pilot, lambda: len(app.query("RecordGrid")) > 0, "the shell")
+        await open_screen(pilot, app, "f5", letter, "the register")
+        await pilot.press("3")
+        await tk.until(pilot, lambda: f"{reply}-C01" in tk.screen_text(app), "the clocks")
+        tk.shot_tui(
+            ws,
+            app,
+            "17e-clocks",
+            "F5, 3: the clocks: reply due in 14 calendar days, with the days left",
+            f"{reply}-C01",
+        )
+
+    tk.run_tui(ws, app, clocks, size=(170, 44))
+
+
+# --- 18 RFIs and commercial notices (P1-I6) ---------------------------------------------------
+
+MERIDIAN = "Meridian:pm@meridian.example"
+
+
+def section_rfi(ws: Workspace) -> None:
+    renew_sessions(ws)
+    shutil.copytree(REPO / "dev/seed/rules", ws.root / "rules")
+    today = tk.CLOCK.now.date()
+    needed = (today + timedelta(days=10)).isoformat()
+    aware = (today - timedelta(days=20)).isoformat()
+
+    sh = Shell(
+        ws, "An RFI: raised by a person, issued by a controller, answered with a cost flag", 118
+    )
+    sh.run("rule", "create", "--file", "rules/rfi-escalation.json", *P, who="demo")
+    sh.run("rule", "enable", "rfi-escalation", *P, who="demo")
+    raised = sh.run(
+        "rfi",
+        "raise",
+        *P,
+        "--subject",
+        "Beam B12 clashes with line 47",
+        "--question",
+        "The isometric clashes with beam B12; confirm the routing.",
+        "--discipline",
+        "structural",
+        "--required-by",
+        needed,
+        "--to",
+        MERIDIAN,
+        who="amy",
+    )
+    rfi = made(raised, "raised")
+    sh.run("rfi", "submit", rfi, *P, who="amy")
+    sh.run("rfi", "issue", rfi, *P, who="amy", ok=False)
+    sh.run("rfi", "issue", rfi, *P, who="dora")
+    sh.run(
+        "rfi",
+        "answer",
+        rfi,
+        *P,
+        "--answer",
+        "Re-route above the beam; revision C follows.",
+        "--cost-impact",
+        "yes",
+        "--schedule-impact",
+        "no",
+        who="amy",
+    )
+    sh.run("rfi", "ls", *P, "--impact", who="amy")
+    ws.save("18a-rfi-cli", sh.transcript.svg())
+
+    sh = Shell(
+        ws, "A rule proposes the early warning; a controller accepts; a user never sees it", 118
+    )
+    sh.run("integration", "serve", "--once", who="demo")
+    listed = sh.run("proposal", "ls", *P, who="dora")
+    proposal = next(
+        line.split()[0] for line in listed.splitlines() if "svc:rule-rfi-escalation" in line
+    )
+    sh.run("proposal", "show", proposal, who="dora", head=12)
+    sh.run("proposal", "accept", proposal, who="amy", ok=False)
+    sh.run("proposal", "accept", proposal, who="dora")
+    sh.run("rfi", "show", rfi, *P, who="dora", tail=4)
+    sh.run("comm", "show", "P123-EW-0001", *P, who="dora", head=6)
+    sh.run("comm", "ls", *P, who="amy", ok=False)
+    ws.save("18b-rule-escalation", sh.transcript.svg())
+
+    # pricing and issuing the notice, a late one, and the assessments (all as the controller)
+    ws.tl(
+        "comm",
+        "update",
+        "P123-EW-0001",
+        *P,
+        "--currency",
+        "USD",
+        "--value",
+        "12500",
+        "--hours",
+        "240",
+        "--cost-code",
+        "2.3.1=10000",
+        "--cost-code",
+        "2.3.2=2500:100",
+        "--schedule-days",
+        "3",
+        "--basis",
+        f"Answer to {rfi}",
+        "--to",
+        MERIDIAN,
+        who="dora",
+    )
+    ws.tl("comm", "submit", "P123-EW-0001", *P, who="dora")
+    ws.tl("comm", "review", "P123-EW-0001", *P, "--note", "figures checked", who="dora")
+    ws.tl("comm", "issue", "P123-EW-0001", *P, who="dora")
+    ws.tl(
+        "comm",
+        "raise",
+        *P,
+        "--subject",
+        "Valve delivery slip",
+        "--subtype",
+        "early_warning",
+        "--aware-on",
+        aware,
+        "--currency",
+        "EUR",
+        "--value",
+        "4000",
+        "--to",
+        MERIDIAN,
+        who="dora",
+    )
+    for step in ("submit", "review", "issue"):
+        ws.tl("comm", step, "P123-EW-0002", *P, who="dora")
+    ws.tl(
+        "comm",
+        "assess",
+        "P123-EW-0001",
+        *P,
+        "--status",
+        "agreed",
+        "--value",
+        "9000",
+        "--note",
+        "as stated",
+        who="dora",
+    )
+    ws.tl(
+        "comm",
+        "assess",
+        "P123-EW-0002",
+        *P,
+        "--status",
+        "disputed",
+        "--note",
+        "no entitlement",
+        who="dora",
+    )
+
+    app = build_app(ws, actor="user:dora", controller=True)
+
+    async def domains(pilot: Pilot[Any]) -> None:
+        await tk.until(pilot, lambda: len(app.query("RecordGrid")) > 0, "the shell")
+        await open_screen(pilot, app, "ctrl+g", rfi, "the RFI log")
+        tk.shot_tui(
+            ws,
+            app,
+            "18c-rfi-log",
+            "Ctrl+G: the RFI log: state, days to answer, cost and schedule flags",
+            rfi,
+        )
+        await open_screen(pilot, app, "2", "P123-EW-0002", "the commercial register")
+        tk.shot_tui(
+            ws,
+            app,
+            "18d-commercial-register",
+            "Ctrl+G, 2: the commercial register: time bars, LATE, a total per currency",
+            "P123-EW-0001",
+            "LATE",
+        )
+        numbers = [line.number for line in app.screen.notices.lines]  # type: ignore[attr-defined]
+        table = app.screen.query_one("#dom-table", DataTable)
+        table.move_cursor(row=numbers.index("P123-EW-0001"))
+        await tk.settle(pilot, 3)
+        await pilot.press("e")
+        await tk.until(pilot, lambda: rfi in tk.screen_text(app), "the evidence trail")
+        tk.shot_tui(
+            ws,
+            app,
+            "18e-evidence-trail",
+            "Ctrl+G, e: the evidence trail of the notice, back to the RFI it came from",
+            rfi,
+        )
+
+    tk.run_tui(ws, app, domains, size=(180, 46))
+
+
+# --- 19 integration layer and record threads (P1-I7) -----------------------------------------
+
+
+def inbound_posts(
+    secret: str, payload: Path, cases: list[tuple[str, bool]], path: str = "/in/acme-nde/results"
+) -> list[int]:
+    """POST ``payload`` to the API in process once per ``(message id, signed)``; the statuses.
+
+    A signed request carries the Standard Webhooks headers, stamped with the tour's clock; the
+    secret is the one the endpoint printed once when it was created.
+    """
+    from fastapi.testclient import TestClient
+    from tl_adapters.objectstore import make_object_store
+    from tl_api.app import create_app
+    from tl_api.backend import open_backend
+    from tl_api.settings import ApiSettings
+    from tl_core.webhooks.signing import SigningSecret, sign_headers
+
+    body = payload.read_bytes()
+    settings = ApiSettings.from_env()
+    backend = open_backend(settings.db_path)
+    try:
+        client = TestClient(
+            create_app(backend, settings=settings, object_store=make_object_store())
+        )
+        statuses: list[int] = []
+        for message_id, signed in cases:
+            headers = {"Content-Type": "application/json"}
+            if signed:
+                stamp = int(tk.CLOCK.now.timestamp())
+                headers.update(
+                    sign_headers(message_id, stamp, body.decode(), [SigningSecret(secret)])
+                )
+            statuses.append(client.post(path, content=body, headers=headers).status_code)
+    finally:
+        backend.close()
+    return statuses
+
+
+def section_integration(ws: Workspace) -> None:
+    renew_sessions(ws)
+    demo = demo_module("p1_i7_demo")
+    work = ws.root / "integ"
+    work.mkdir()
+    quietly(demo.prepare, str(work))
+    for key, title in (("V-1001", "Valve 1"), ("V-1002", "Valve 2")):
+        ws.tl("record", "create", *P, "--key", key, "--title", title, who="amy")
+    endpoint = ("acme-nde/results", *P)
+
+    sh = Shell(ws, "An inbound endpoint: a dry run, then a signed delivery from a contractor", 118)
+    sh.run("integration", "app", "add", "acme-nde", "--label", "Acme NDE", *P, who="amy", ok=False)
+    sh.run("integration", "app", "add", "acme-nde", "--label", "Acme NDE", *P, who="demo")
+    created = sh.run(
+        "endpoint",
+        "create",
+        endpoint[0],
+        *P,
+        "--mapping-file",
+        "integ/map.jsonata",
+        "--allow",
+        "SetPsetValues",
+        who="demo",
+        hide=("secret ",),
+    )
+    secret = next(
+        line.split(None, 1)[1] for line in created.splitlines() if line.startswith("secret ")
+    )
+    sh.run("delivery", "dry-run", *endpoint, "--sample", "integ/payload.json", who="demo")
+    sh.run(
+        "endpoint", "mode", *endpoint, "live", "--reason", "the dry run looked right", who="demo"
+    )
+    sh.run("endpoint", "enable", *endpoint, who="demo")
+    cases = [("m1", True), ("m1", True), ("m2", False)]
+    statuses = inbound_posts(secret, work / "payload.json", cases)
+    expect(statuses == [202, 401, 401], f"unexpected inbound answers {statuses}")
+    answers = {202: "202 accepted", 401: "401 unauthorized"}
+    for status, label in zip(
+        statuses, ("signed", "the same message again", "no signature"), strict=True
+    ):
+        sh.line(f"POST /in/acme-nde/results  ({label})", answers[status])
+    sh.run("integration", "serve", "--once", who="demo")
+    sh.run("pset", "get", "V-1001", *P, who="amy")
+    ws.save("19a-inbound-endpoint", sh.transcript.svg())
+
+    sh = Shell(
+        ws, "A rule that tells HSE, shown before it runs; a classifier that only proposes", 118
+    )
+    sh.run("feed", "post", "Earlier: gas alarm in unit 47 #safety", *P, who="demo")
+    sh.run("rule", "create", "--file", "integ/hse.json", *P, who="demo")
+    sh.run("rule", "dry-run", "hse-notify", *P, who="demo")
+    sh.run(
+        "rule", "mode", "hse-notify", "act", "--reason", "the dry run looked right", *P, who="demo"
+    )
+    sh.run("rule", "enable", "hse-notify", *P, who="demo")
+    sh.run("feed", "post", "Gas alarm in unit 47 #safety", *P, who="demo")
+    sh.run("integration", "serve", "--once", who="demo")
+    sh.run("feed", "ls", *P, who="demo", head=3)
+    sh.note(
+        "a keyword classifier proposes a document type; nothing is written until a person decides"
+    )
+    sh.run(
+        "enricher", "register", "doc_classifier", "--file", "integ/enricher.json", *P, who="demo"
+    )
+    sh.run("enricher", "enable", "doc_classifier", *P, who="demo")
+    ws.tl(
+        "doc", "register", "ISO-5001", *P, "--title", "Piping isometric drawing, unit 47", who="amy"
+    )
+    ws.tl("integration", "serve", "--once", who="demo")
+    ws.save("19b-rules-and-enrichers", sh.transcript.svg())
+
+    app = build_app(ws, admin=True)
+
+    async def registry(pilot: Pilot[Any]) -> None:
+        await tk.until(pilot, lambda: len(app.query("RecordGrid")) > 0, "the shell")
+        await open_screen(pilot, app, "ctrl+e", "acme-nde", "the integration registry")
+        tk.shot_tui(
+            ws,
+            app,
+            "19c-integration-registry",
+            "Ctrl+E: the integration registry: endpoints, rules, enrichers, actions",
+            "acme-nde",
+        )
+        await pilot.press("escape")
+        await tk.settle(pilot, 3)
+        await open_screen(pilot, app, "ctrl+r", "doc_classifier", "the review queue")
+        tk.shot_tui(
+            ws,
+            app,
+            "19d-review-queue",
+            "Ctrl+R: the review queue: what the classifier proposes, with its evidence",
+            "doc_classifier",
+        )
+
+    tk.run_tui(ws, app, registry, size=(170, 44))
+
+    ws.tl(
+        "config",
+        "set",
+        "threads.enabled",
+        "true",
+        "--company",
+        "--reason",
+        "switch threads on",
+        who="demo",
+    )
+    ws.tl(
+        "config",
+        "set",
+        "threads.enabled_types",
+        "core.Record",
+        "--company",
+        "--reason",
+        "threads on plain records",
+        who="demo",
+    )
+    ws.tl("thread", "post", *P, "V-1001", "Flanges are short at grid C4, see #V-1002", who="amy")
+    ws.tl("thread", "dispatch", *P, "V-1001", "/raise record Clash at grid C4", "--yes", who="amy")
+    thread_app = build_app(ws, actor="user:amy")
+
+    async def thread(pilot: Pilot[Any]) -> None:
+        from phase0 import open_record
+
+        await tk.until(pilot, lambda: len(thread_app.query("RecordGrid")) > 0, "the shell")
+        await tk.until(pilot, lambda: "V-1001" in tk.screen_text(thread_app), "the grid")
+        await open_record(pilot, thread_app, "V-1001")
+        await pilot.press("T")
+        await tk.until(
+            pilot, lambda: "Flanges are short" in tk.screen_text(thread_app), "the thread"
+        )
+        thread_app.query_one("ThreadTab").focus()
+        await tk.settle(pilot, 2)
+        await pilot.press("c")
+        await tk.until(
+            pilot, lambda: "Message. / for commands" in tk.screen_text(thread_app), "the composer"
+        )
+        thread_app.screen.query_one("#tc-input", Input).value = "/link #V-1002 as requires"
+        await tk.settle(pilot, 4)
+        await pilot.press("enter")
+        await tk.settle(pilot, 4)
+        await tk.until(pilot, lambda: "AddLink" in tk.screen_text(thread_app), "the preview")
+        tk.shot_tui(
+            ws,
+            thread_app,
+            "19e-thread-dispatch-preview",
+            "Record view, T, c: a slash command is previewed, with the caller's own access, first",
+            "AddLink",
+            "Flanges are short",
+        )
+        await pilot.press("escape", "escape")
+        await tk.settle(pilot, 3)
+
+    tk.run_tui(ws, thread_app, thread, size=(170, 48))
+
+
 # --- the tour --------------------------------------------------------------------------------
 
 
@@ -961,6 +1812,16 @@ def main(argv: list[str] | None = None) -> int:
         section_refused(ws)
         print("P1-I2b: the document controller role", flush=True)
         section_controller(ws)
+        print("P1-I3: the derivation pipeline", flush=True)
+        section_derive(ws)
+        print("P1-I4: schedules and cost", flush=True)
+        section_schedules(ws)
+        print("P1-I5: correspondence", flush=True)
+        section_correspondence(ws)
+        print("P1-I6: RFIs and commercial notices", flush=True)
+        section_rfi(ws)
+        print("P1-I7: the integration layer and record threads", flush=True)
+        section_integration(ws)
     finally:
         ws.close()
     print(f"wrote {len(ws.written)} screenshots to {out}")
