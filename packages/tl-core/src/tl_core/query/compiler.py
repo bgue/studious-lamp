@@ -37,6 +37,7 @@ from dataclasses import dataclass
 from datetime import date
 from typing import Any, Literal
 
+from tl_core import confidentiality
 from tl_core.query.api import QuerySpec, QuerySyntaxError
 from tl_core.query.ast import (
     And,
@@ -142,6 +143,7 @@ def compile_query(
         clauses.append(f"r.voided = {builder.bind(False)}")
     if spec.where is not None:
         clauses.append(builder.expr(spec.where, "r", 0))
+    clauses.append(builder.visible("r.id"))  # a record the viewer may not read is not a result
     where = " AND ".join(clauses)
     if count:
         return Compiled(f"SELECT COUNT(*) FROM cur_core_record r WHERE {where}", builder.params)
@@ -376,9 +378,19 @@ class _Builder:
 
     # --- links --------------------------------------------------------------------------------
 
+    def visible(self, id_expr: str) -> str:
+        """``id_expr`` is a record the viewer may read (ADR-0016); binds what the clause needs."""
+        clause, params = confidentiality.not_hidden(id_expr)
+        self.params.update(params)
+        return clause
+
     def link_filter(self, node: Linked, link: str, other: str, depth: int) -> str:
-        """The shared ``WHERE`` tail: live status, relation, type of the other end, condition."""
-        parts = [f"{link}.status IN {_LIVE}"]
+        """The shared ``WHERE`` tail: live status, relation, type of the other end, condition.
+
+        The other end must be readable too: a link to a hidden record does not exist for a viewer
+        who may not read it (ADR-0016), so it can neither match nor be counted.
+        """
+        parts = [f"{link}.status IN {_LIVE}", self.visible(f"{other}.id")]
         if node.relation is not None:
             if RELATION_RE.match(node.relation) is None:
                 raise self.fail(f"not a relation code: {node.relation!r}")

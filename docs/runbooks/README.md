@@ -26,4 +26,5 @@ Operational procedures, one file per alert or recovery path (§24.6). Template: 
 - `engineering-standards-and-tags.md` — load the company standards, change a tag class, preview and apply a tag-list import, read the tag reports (P1-I1).
 - `documents.md` — register, issue, re-pin stale links, transmittals, reviews, the legacy register import and recovery (P1-I2).
 - `derivation-pipeline.md` — register a document schema, run the worker, read a failed job, preview and approve a publication, take it back, requeue after a restore (P1-I3).
+- `correspondence.md` — receive, triage, reply, response clocks, email in, restricting an item and the register export (P1-I5).
 - `schedule-snapshots.md` — upload, build, publish and compare P6 schedule snapshots, the worker, reconcile after a restore, the orphan-flagging job, and the cost snapshot import (P1-I4).

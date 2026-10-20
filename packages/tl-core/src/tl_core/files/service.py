@@ -44,6 +44,7 @@ from typing import Any, BinaryIO
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import text
 
+from tl_core import confidentiality
 from tl_core.files.errors import ObjectIntegrityError
 from tl_core.files.lifecycle import FILE_STREAM_TYPE, next_file_status
 from tl_core.files.queries import FileInfo, get_file
@@ -144,9 +145,9 @@ class _Record:
 
 
 _RECORD_SQL = text("SELECT id, type, scope, voided FROM cur_core_record WHERE id = :id")
-_KNOWN_SQL = text(
+_KNOWN_SQL = (
     "SELECT size FROM cur_files WHERE sha256 = :sha256 AND scope = :scope "
-    "AND status = 'available' ORDER BY uploaded_at LIMIT 1"
+    "AND status = 'available' AND {visible} ORDER BY uploaded_at LIMIT 1"
 )
 _REJECTED_SQL = text("SELECT 1 FROM cur_files WHERE sha256 = :sha256 AND status = 'rejected'")
 _SAME_SQL = (
@@ -370,7 +371,7 @@ class FileService:
         by_module: bool = False,
     ) -> _Record:
         row = uow.conn().execute(_RECORD_SQL, {"id": record_id}).first()
-        if row is None or row.scope != scope:
+        if row is None or row.scope != scope or confidentiality.is_hidden(uow.conn(), record_id):
             raise RecordNotFoundError(f"no record {record_id!r} in scope {scope!r}")
         if not by_module:
             require_generic(uow.conn(), row.type, "AttachFile", record_id, slot=slot)
@@ -405,8 +406,18 @@ class FileService:
 
     @staticmethod
     def _known_size(uow: UnitOfWork, scope: str, sha256: str) -> int | None:
-        """The verified size of bytes this scope has already attached, else ``None``."""
-        row = uow.conn().execute(_KNOWN_SQL, {"sha256": sha256, "scope": scope}).first()
+        """The verified size of bytes this scope has already attached to a record the viewer may
+        read, else ``None``. A file of a record the viewer cannot read does not count: it would
+        tell them the bytes exist and how long they are (ADR-0016)."""
+        visible, params = confidentiality.not_hidden("record_id")
+        row = (
+            uow.conn()
+            .execute(
+                text(_KNOWN_SQL.format(visible=visible)),
+                {"sha256": sha256, "scope": scope, **params},
+            )
+            .first()
+        )
         return None if row is None else int(row.size)
 
     def _put(self, key: str, data: BinaryIO, cmd: _Declared) -> None:
@@ -440,11 +451,8 @@ class FileService:
             return True
         source = self._source_stream(data, staging)
         if source is None:
-            raise UploadIncompleteError(
-                "no bytes received for this upload"
-                if not exists
-                else "this scope has not attached these bytes before; send them once to prove it"
-            )
+            # one text whether or not the store holds these bytes: the difference is an oracle
+            raise UploadIncompleteError("no bytes received for this upload")
         try:
             if exists:
                 # Present in the store but never attached here: the sender must show the bytes.

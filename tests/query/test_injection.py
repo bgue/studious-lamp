@@ -102,8 +102,12 @@ def test_no_caller_text_appears_in_the_sql(uow: BaseUnitOfWork, payload: str) ->
     ):
         compiled = compile_query(QuerySpec(scope=SCOPE, where=parse(query)))
         assert payload not in compiled.sql, query
+        # The text of the SQL does not depend on the value, so a fragment is there as often as it is
+        # for a harmless value: the confidentiality filter of a module may add a UNION of its own
+        # (P1-I5), but the caller's text adds none.
+        harmless = compile_query(QuerySpec(scope=SCOPE, where=parse(query.replace(quoted, '"x"'))))
         for fragment in ("DROP", "UNION", "DELETE", "1=1", "--"):
-            assert fragment not in compiled.sql, (query, fragment)
+            assert compiled.sql.count(fragment) == harmless.sql.count(fragment), (query, fragment)
         count = compile_query(QuerySpec(scope=payload, where=parse(query)), count=True)
         assert payload not in count.sql
         assert payload in count.params.values()

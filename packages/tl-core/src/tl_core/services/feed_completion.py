@@ -9,9 +9,10 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import Literal
 
-from sqlalchemy import TextClause, bindparam, text
+from sqlalchemy import bindparam, text
 from sqlalchemy.engine import Connection
 
+from tl_core import confidentiality
 from tl_core.feed.config import signal_tags
 from tl_core.feed.tags import tag_key
 from tl_core.feed.types import FeedItem
@@ -21,24 +22,24 @@ from tl_core.uow import UnitOfWork
 _KEYS_SQL = text("SELECT id, key FROM cur_core_record WHERE id IN :ids").bindparams(
     bindparam("ids", expanding=True)
 )
-_RECORDS_SQL = text(
+_RECORDS_TEXT = (
     "SELECT key, title FROM cur_core_record "
     "WHERE scope IN (:scope, 'company') AND voided = :no AND key IS NOT NULL "
-    "AND LOWER(key) LIKE :p ESCAPE '\\' ORDER BY key LIMIT :limit"
+    "AND LOWER(key) LIKE :p ESCAPE '\\'"
 )
-_CODES_AND_TOPICS_SQL = text(
+# `{visible}` is replaced by the viewer's filter on the feed items (ADR-0016).
+_CODES_AND_TOPICS_SQL = (
     "SELECT tag_key, kind, COUNT(*) AS n FROM cur_feed_tags "
     "WHERE scope = :scope AND kind IN ('code', 'topic') AND tag_key LIKE :p ESCAPE '\\' "
-    "GROUP BY tag_key, kind ORDER BY n DESC, tag_key LIMIT :limit"
+    "AND {visible} GROUP BY tag_key, kind ORDER BY n DESC, tag_key LIMIT :limit"
 )
-_MENTIONS_SQL = text(
+_MENTIONS_SQL = (
     "SELECT tag_key, kind, COUNT(*) AS n FROM cur_feed_tags "
     "WHERE scope = :scope AND kind IN ('mention') AND tag_key LIKE :p ESCAPE '\\' "
-    "GROUP BY tag_key, kind ORDER BY n DESC, tag_key LIMIT :limit"
+    "AND {visible} GROUP BY tag_key, kind ORDER BY n DESC, tag_key LIMIT :limit"
 )
-_AUTHORS_SQL = text(
-    "SELECT DISTINCT actor FROM cur_feed_items "
-    "WHERE scope = :scope AND item_type = 'post' ORDER BY actor"
+_AUTHORS_TEXT = (
+    "SELECT DISTINCT actor FROM cur_feed_items WHERE scope = :scope AND item_type = 'post'"
 )
 
 
@@ -92,17 +93,27 @@ def _used(count: int) -> str:
 
 
 def _used_tags(
-    conn: Connection, sql: TextClause, scope: str, pattern: str, limit: int
+    conn: Connection, sql: str, scope: str, pattern: str, limit: int
 ) -> list[Completion]:
     """Tags of ``sql`` used in the scope, most used first, then by text."""
-    rows = conn.execute(sql, {"scope": scope, "p": pattern, "limit": limit}).mappings().all()
+    visible, params = confidentiality.not_hidden_item("item_id")
+    statement = text(sql.replace("{visible}", visible))
+    rows = (
+        conn.execute(statement, {"scope": scope, "p": pattern, "limit": limit, **params})
+        .mappings()
+        .all()
+    )
     return [Completion(row["tag_key"], row["kind"], _used(row["n"])) for row in rows]
 
 
 def _hash_completions(conn: Connection, scope: str, prefix: str, limit: int) -> list[Completion]:
     pattern = _prefix_pattern(prefix)
+    visible, visible_params = confidentiality.not_hidden("id")
     records = (
-        conn.execute(_RECORDS_SQL, {"scope": scope, "no": False, "p": pattern, "limit": limit})
+        conn.execute(
+            text(f"{_RECORDS_TEXT} AND {visible} ORDER BY key LIMIT :limit"),
+            {"scope": scope, "no": False, "p": pattern, "limit": limit, **visible_params},
+        )
         .mappings()
         .all()
     )
@@ -131,7 +142,9 @@ def _at_completions(conn: Connection, scope: str, prefix: str, limit: int) -> li
     found = _used_tags(conn, _MENTIONS_SQL, scope, pattern, limit)
     listed = {completion.text.lower() for completion in found}
     lowered = prefix.lower()
-    for row in conn.execute(_AUTHORS_SQL, {"scope": scope}).mappings().all():
+    visible, visible_params = confidentiality.not_hidden_item("item_id")
+    authors = text(f"{_AUTHORS_TEXT} AND {visible} ORDER BY actor")
+    for row in conn.execute(authors, {"scope": scope, **visible_params}).mappings().all():
         author = _author_completion(row["actor"])
         if author is None:
             continue

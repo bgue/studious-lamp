@@ -295,10 +295,9 @@ def test_void_is_for_a_controller_and_voids_the_document(
     assert "takes no more changes" in again.stderr
 
 
-def test_the_confidentiality_help_says_the_class_is_not_enforced(env: dict[str, str]) -> None:
+def test_the_confidentiality_help_says_the_class_is_enforced(env: dict[str, str]) -> None:
     text = " ".join(doc(env, "confidentiality", "--help").stdout.split())
-    assert "recorded but not enforced" in text or "recorded but not\nenforced" in text
-    assert "recipient emails" in text
+    assert "is enforced" in text and "ADR-0016" in text
 
 
 def test_confidentiality_is_for_a_controller_and_keeps_the_reason(

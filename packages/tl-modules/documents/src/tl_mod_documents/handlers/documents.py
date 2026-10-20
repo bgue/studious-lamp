@@ -11,7 +11,7 @@ anything is appended. All the events of one command share one correlation id.
 from __future__ import annotations
 
 from datetime import date
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import ConfigDict, Field, ValidationError, field_validator
 from sqlalchemy import Connection
@@ -63,6 +63,10 @@ def _non_blank(value: str) -> str:
     return value
 
 
+#: The classes a document may have: `privileged` needs a clearance list, which documents lack.
+DocumentClass = Literal["internal", "restricted"]
+
+
 class RegisterDocument(Command):
     """Register a document in a project under its number. The number becomes the record key.
 
@@ -79,9 +83,7 @@ class RegisterDocument(Command):
     doc_type: str | None = Field(default=None, max_length=MAX_NUMBER)
     discipline: str | None = Field(default=None, max_length=MAX_NUMBER)
     originator: str | None = Field(default=None, max_length=MAX_TEXT)
-    confidentiality: str | None = Field(
-        default=None, max_length=MAX_NUMBER, description=CONFIDENTIALITY_NOTE
-    )
+    confidentiality: DocumentClass | None = Field(default=None, description=CONFIDENTIALITY_NOTE)
     revision_scheme: str | None = Field(default=None, max_length=MAX_NUMBER)
 
     @field_validator("title")
@@ -121,17 +123,15 @@ class UpdateDocument(Command):
 class SetDocumentConfidentiality(Command):
     """Set or clear a document's confidentiality class (controller). The reason is kept.
 
-    In Phase 1 confidentiality is recorded but not enforced: every signed-in person and every
-    agent can read all documents and transmittals of a project, including recipient emails.
+    Confidentiality is enforced (ADR-0016): a person reads a document only when their clearance
+    covers its class (internal or restricted); any other class is hidden from everyone.
     """
 
     model_config = ConfigDict(extra="forbid")
 
     stream_id: str
     expected_version: int | None = None
-    confidentiality: str | None = Field(
-        default=None, max_length=MAX_NUMBER, description=CONFIDENTIALITY_NOTE
-    )
+    confidentiality: DocumentClass | None = Field(default=None, description=CONFIDENTIALITY_NOTE)
     reason: str = Field(max_length=MAX_REASON)
 
     @field_validator("reason")

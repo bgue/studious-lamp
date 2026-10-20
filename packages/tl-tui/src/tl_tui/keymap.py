@@ -55,6 +55,13 @@ KEYMAP: tuple[KeyEntry, ...] = (
         "App", "R", "Add the selection or the open record to the reference tray", "TlApp", "R"
     ),
     KeyEntry("App", "F4", "Open the reference tray", "TlApp", "f4"),
+    KeyEntry(
+        "App",
+        "F5",
+        "Correspondence: register, triage inbox, response clocks",
+        "TlApp",
+        "f5",
+    ),
     KeyEntry("App", "w", "Workflow actions of the open record", "TlApp", "w"),
     KeyEntry("App", "t", "Trace the open record through its links", "TlApp", "t"),
     KeyEntry(

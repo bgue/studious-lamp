@@ -1,0 +1,45 @@
+# Workflow of a correspondence item (brief 9 M10: General domain Draft -> Issued -> Response -> Closed,
+# plus the receiving side). An item we write starts as a Draft and is Issued; an item we receive is
+# Received, then Triaged when a person confirms its domain, Responded when an answer is issued or
+# received, and Closed. Only a Draft or a Received item that was filed in error can be voided. The moves
+# are made by the correspondence module's commands (ReceiveCorrespondence, ConfirmTriage,
+# IssueCorrespondence, RecordResponse, CloseCorrespondence, VoidCorrespondence); people cannot run
+# them directly.
+id: correspondence.correspondence
+version: 1
+record_type: correspondence.Correspondence
+scope: company
+initial_state: Draft
+states:
+  - name: Draft
+  - name: Received
+  - name: Triaged
+  - name: Issued
+  - name: Responded
+  - name: Closed
+  - name: Void
+transitions:
+  - name: receive
+    label: Log the item as received
+    from: [Draft]
+    to: Received
+  - name: triage
+    label: Confirm the domain and subtype
+    from: [Received]
+    to: Triaged
+  - name: issue
+    label: Issue the item
+    from: [Draft]
+    to: Issued
+  - name: respond
+    label: Record that an answer exists
+    from: [Received, Triaged, Issued]
+    to: Responded
+  - name: close
+    label: Close the item
+    from: [Triaged, Issued, Responded]
+    to: Closed
+  - name: void
+    label: Void the item filed in error
+    from: [Draft, Received]
+    to: Void

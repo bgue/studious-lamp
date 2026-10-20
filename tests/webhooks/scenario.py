@@ -81,6 +81,46 @@ MODULE_STREAMS = (
         ),
     ),
     (
+        "correspondence.Correspondence",
+        "Correspondence.Defined",
+        (
+            "Correspondence.Updated",
+            "Correspondence.Triaged",
+            "Correspondence.Reclassified",
+            "Correspondence.ThreadAssigned",
+            "Correspondence.Issued",
+            "Correspondence.Responded",
+            "Correspondence.Superseded",
+            "Correspondence.ConfidentialityChanged",
+            "Correspondence.ClearanceGranted",
+            "Correspondence.ClearanceWithdrawn",
+        ),
+    ),
+    (
+        "correspondence.CorrespondenceThread",
+        "CorrespondenceThread.Defined",
+        ("CorrespondenceThread.ItemAdded", "CorrespondenceThread.StateChanged"),
+    ),
+    (
+        "correspondence.ResponseClock",
+        "ResponseClock.Started",
+        (
+            "ResponseClock.Paused",
+            "ResponseClock.Resumed",
+            "ResponseClock.Restarted",
+            "ResponseClock.Met",
+            "ResponseClock.Cancelled",
+            "ResponseClock.Warned",
+            "ResponseClock.Expired",
+        ),
+    ),
+    ("correspondence.ContractClause", "ContractClause.Defined", ("ContractClause.Retired",)),
+    (
+        "correspondence.Party",
+        "Party.Defined",
+        ("Party.ContactAdded", "Party.ContactEnded", "Party.Retired"),
+    ),
+    (
         "cost.CostCode",
         "CostCode.Defined",
         ("CostCode.Revised", "CostCode.MeasuresRecorded"),
@@ -107,14 +147,41 @@ MODULE_STREAMS = (
 )
 
 
+#: A child record names its parent in its first event; the sample id is nobody's, and a record whose
+#: parent cannot be found is hidden from everyone (ADR-0016). So the scenario points each child at
+#: the stream it made for the parent: record type, the field that names the parent, the parent type.
+PARENTS = {
+    "documents.Revision": ("document_id", "documents.Document"),
+    "documents.Rendition": ("document_id", "documents.Document"),
+    "documents.ReviewCycle": ("document_id", "documents.Document"),
+    "documents.DerivedDocument": ("source_document_id", "documents.Document"),
+    "documents.ProcessingJob": ("derived_id", "documents.DerivedDocument"),
+    "correspondence.CorrespondenceThread": ("governing_item_id", "correspondence.Correspondence"),
+    "correspondence.ResponseClock": ("item_id", "correspondence.Correspondence"),
+}
+#: Events whose sample would change the class of the record to one the subscription owner may not
+#: read; the scenario keeps the record internal so that every event of it is delivered.
+KEEP_INTERNAL = {
+    "Correspondence.ConfidentialityChanged": {"from_class": "internal", "to_class": "internal"}
+}
+
+
+def stream_of(index: int) -> str:
+    return (
+        f"01J9Z6Q4W3X2Y1V0T9S8R7Q6M{index}"
+        if index < 10
+        else f"01J9Z6Q4W3X2Y1V0T9S8R7Q6N{index - 10}"
+    )
+
+
 def append_module_events(world: World) -> None:
     """One stream per module record type: the envelope event, then the module's own events."""
+    streams = {
+        record_type: stream_of(index)
+        for index, (record_type, _, _) in enumerate(MODULE_STREAMS, start=1)
+    }
     for index, (record_type, defined, followers) in enumerate(MODULE_STREAMS, start=1):
-        stream = (
-            f"01J9Z6Q4W3X2Y1V0T9S8R7Q6M{index}"
-            if index < 10
-            else f"01J9Z6Q4W3X2Y1V0T9S8R7Q6N{index - 10}"
-        )
+        stream = stream_of(index)
         created = {
             "record_type": record_type,
             "key": f"MOD-{index}",
@@ -124,7 +191,13 @@ def append_module_events(world: World) -> None:
         }
         world.append("Record.Created", created, stream_id=stream, stream_type=record_type)
         for kind in (defined, *followers):
-            world.append(kind, payload_of(kind), stream_id=stream, stream_type=record_type)
+            override: dict[str, Any] = dict(KEEP_INTERNAL.get(kind, {}))
+            if kind == defined and record_type in PARENTS:
+                field, parent = PARENTS[record_type]
+                override[field] = streams[parent]
+            world.append(
+                kind, payload_of(kind, **override), stream_id=stream, stream_type=record_type
+            )
 
 
 def run_scenario(world: World) -> dict[str, list[dict[str, Any]]]:

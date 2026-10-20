@@ -13,6 +13,7 @@ from collections.abc import Sequence
 from pydantic import BaseModel
 from sqlalchemy import text
 
+from tl_core import confidentiality
 from tl_core.numbering.config import NumberingPattern, get_numbering
 from tl_core.uow import UnitOfWork
 
@@ -101,6 +102,8 @@ def resolve_chips(
         rows = uow.conn().execute(_LOOKUP_SQL, {"key": match.key, "scope": scope}).all()
         ordered = sorted(rows, key=lambda r: bool(r.scope != scope))
         found = ordered[0] if ordered else None
+        if found is not None and confidentiality.is_hidden(uow.conn(), found.id):
+            found = None  # a record the viewer may not read is not a match (ADR-0016)
         if found is not None and found.id == exclude_id:
             continue
 

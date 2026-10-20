@@ -16,6 +16,7 @@ members = [
     "tl-extract",
     "tl-lake",
     "tl-mcp",
+    "tl-mod-correspondence",
     "tl-mod-cost",
     "tl-mod-documents",
     "tl-mod-engineering",
@@ -2580,6 +2581,7 @@ dependencies = [
     { name = "pydantic" },
     { name = "tl-adapters" },
     { name = "tl-core" },
+    { name = "tl-mod-correspondence" },
     { name = "tl-mod-cost" },
     { name = "tl-mod-documents" },
     { name = "tl-mod-engineering" },
@@ -2595,6 +2597,7 @@ requires-dist = [
     { name = "pydantic", specifier = ">=2" },
     { name = "tl-adapters", editable = "packages/tl-adapters" },
     { name = "tl-core", editable = "packages/tl-core" },
+    { name = "tl-mod-correspondence", editable = "packages/tl-modules/correspondence" },
     { name = "tl-mod-cost", editable = "packages/tl-modules/cost" },
     { name = "tl-mod-documents", editable = "packages/tl-modules/documents" },
     { name = "tl-mod-engineering", editable = "packages/tl-modules/engineering" },
@@ -2614,6 +2617,7 @@ dependencies = [
     { name = "tl-api" },
     { name = "tl-core" },
     { name = "tl-lake" },
+    { name = "tl-mod-correspondence" },
     { name = "tl-mod-cost" },
     { name = "tl-mod-documents" },
     { name = "tl-mod-engineering" },
@@ -2633,6 +2637,7 @@ requires-dist = [
     { name = "tl-api", editable = "packages/tl-api" },
     { name = "tl-core", editable = "packages/tl-core" },
     { name = "tl-lake", editable = "packages/tl-lake" },
+    { name = "tl-mod-correspondence", editable = "packages/tl-modules/correspondence" },
     { name = "tl-mod-cost", editable = "packages/tl-modules/cost" },
     { name = "tl-mod-documents", editable = "packages/tl-modules/documents" },
     { name = "tl-mod-engineering", editable = "packages/tl-modules/engineering" },
@@ -2754,6 +2759,31 @@ requires-dist = [
     { name = "tl-mod-schedule", editable = "packages/tl-modules/schedule" },
     { name = "tl-schema", editable = "packages/tl-schema" },
     { name = "tl-tui", editable = "packages/tl-tui" },
+]
+
+[[package]]
+name = "tl-mod-correspondence"
+version = "0.0.1"
+source = { editable = "packages/tl-modules/correspondence" }
+dependencies = [
+    { name = "pydantic" },
+    { name = "pyyaml" },
+    { name = "sqlalchemy" },
+    { name = "tl-adapters" },
+    { name = "tl-core" },
+    { name = "tl-mod-documents" },
+    { name = "tl-schema" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "pydantic", specifier = ">=2" },
+    { name = "pyyaml", specifier = ">=6" },
+    { name = "sqlalchemy", specifier = ">=2" },
+    { name = "tl-adapters", editable = "packages/tl-adapters" },
+    { name = "tl-core", editable = "packages/tl-core" },
+    { name = "tl-mod-documents", editable = "packages/tl-modules/documents" },
+    { name = "tl-schema", editable = "packages/tl-schema" },
 ]
 
 [[package]]
@@ -2914,6 +2944,7 @@ dependencies = [
     { name = "tl-adapters" },
     { name = "tl-api" },
     { name = "tl-core" },
+    { name = "tl-mod-correspondence" },
     { name = "tl-mod-cost" },
     { name = "tl-mod-documents" },
     { name = "tl-mod-engineering" },
@@ -2930,6 +2961,7 @@ requires-dist = [
     { name = "tl-adapters", editable = "packages/tl-adapters" },
     { name = "tl-api", editable = "packages/tl-api" },
     { name = "tl-core", editable = "packages/tl-core" },
+    { name = "tl-mod-correspondence", editable = "packages/tl-modules/correspondence" },
     { name = "tl-mod-cost", editable = "packages/tl-modules/cost" },
     { name = "tl-mod-documents", editable = "packages/tl-modules/documents" },
     { name = "tl-mod-engineering", editable = "packages/tl-modules/engineering" },

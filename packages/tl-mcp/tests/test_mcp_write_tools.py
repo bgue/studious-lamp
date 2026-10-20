@@ -446,6 +446,7 @@ def test_write_mode_is_refused_with_the_human_gate_message(env: McpHarness) -> N
         "propose_import_tags",
         "propose_import_documents",
         "propose_publish_schedule_snapshot",
+        "propose_triage",
     }
     for tool in PROPOSING:
         with pytest.raises(ToolModeError, match="human gate") as refused:

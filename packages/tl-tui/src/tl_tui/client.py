@@ -17,7 +17,7 @@ from tl_core.extypes.types import TypeStatus
 from tl_core.ledger import Event
 from tl_core.links.expected import MissingLink
 from tl_core.numbering.detect import KeyChip
-from tl_core.services.commands import CommandResult, CreateRecord, UpdateRecord
+from tl_core.services.commands import Command, CommandResult, CreateRecord, UpdateRecord
 from tl_core.services.edit import EditRecord
 from tl_core.services.feed import EditPost, PostToFeed
 from tl_core.services.feed_actions import ReactToPost, RetractPost
@@ -38,6 +38,7 @@ from tl_core.services.psets import SetPsetValues
 from tl_core.services.workflow import TransitionWorkflow, WorkflowStatus
 from tl_core.settings.types import SettingChange
 from tl_core.settings.views import SettingView
+from tl_mod_correspondence import views as correspondence_views
 from tl_mod_cost import views as cost_views
 from tl_mod_documents import reports as document_reports
 from tl_mod_documents import views as document_views
@@ -380,6 +381,97 @@ class ClientInterface(Protocol):
 
     def issue_transmittal(self, cmd: IssueTransmittal) -> CommandResult:
         """Issue a draft transmittal (a controller's act: ``ForbiddenError`` for anyone else)."""
+        ...
+
+    # --- correspondence (P1-I5; brief 9 M10) -------------------------------------------------
+    #
+    # The same names and signatures as ``tl_api.client.ApiClient``. ``project`` is the project id.
+    # An item the person may not read is not in a list and raises ``ItemNotFoundError`` by number,
+    # with the text of an item that does not exist (ADR-0016). ``correspondence_command`` runs a
+    # command of ``tl_mod_correspondence.commands`` by name; issuing, setting a class, voiding a
+    # received item, replacing an item, parties, clauses and the sweep are a document
+    # controller's (``ForbiddenError`` for anyone else).
+
+    def list_correspondence(
+        self,
+        project: str,
+        *,
+        state: str | None = None,
+        direction: str | None = None,
+        domain: str | None = None,
+        subtype: str | None = None,
+        awaiting_response: bool = False,
+        include_void: bool = False,
+        sources: bool = True,
+        limit: int = 500,
+        offset: int = 0,
+    ) -> list[correspondence_views.RegisterLineView]:
+        """The master register: items plus the lines of the domains' register sources."""
+        ...
+
+    def get_correspondence(self, project: str, number: str) -> correspondence_views.ItemView:
+        """One item with its clocks."""
+        ...
+
+    def get_correspondence_suggestion(
+        self, project: str, number: str
+    ) -> correspondence_views.SuggestionView:
+        """The domain and subtype the suggestion engine proposes for an item."""
+        ...
+
+    def suggest_domain(
+        self, project: str, subject: str, body: str | None = None
+    ) -> correspondence_views.SuggestionView:
+        """The proposal of the suggestion engine for a text."""
+        ...
+
+    def list_threads(
+        self, project: str, *, state: str | None = None
+    ) -> list[correspondence_views.ThreadView]:
+        """A project's threads, newest first."""
+        ...
+
+    def get_thread(self, project: str, number: str) -> correspondence_views.ThreadView:
+        """One thread with the items the person may read."""
+        ...
+
+    def list_clocks(
+        self,
+        project: str,
+        *,
+        open_only: bool = True,
+        overdue_only: bool = False,
+        due_to: date | None = None,
+    ) -> list[correspondence_views.ClockView]:
+        """Response clocks, soonest due first, with days left as of today."""
+        ...
+
+    def get_clock(self, project: str, clock_id: str) -> correspondence_views.ClockView:
+        """One clock."""
+        ...
+
+    def list_parties(
+        self, project: str, *, include_inactive: bool = False
+    ) -> list[correspondence_views.PartyView]:
+        """A project's parties with their contacts."""
+        ...
+
+    def get_party(self, project: str, code: str) -> correspondence_views.PartyView:
+        """One party with its contacts."""
+        ...
+
+    def list_clauses(
+        self, project: str, *, include_inactive: bool = False
+    ) -> list[correspondence_views.ClauseView]:
+        """A project's contract clauses."""
+        ...
+
+    def list_correspondence_domains(self, project: str) -> list[correspondence_views.DomainView]:
+        """The domain definitions in force for a project."""
+        ...
+
+    def correspondence_command(self, name: str, cmd: Command) -> CommandResult:
+        """Run a correspondence command by name (the token's or the signed-in person's actor)."""
         ...
 
     # --- derivation (P1-I3; ADR-0014) --------------------------------------------------------

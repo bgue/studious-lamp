@@ -35,6 +35,7 @@ from tl_core.services.workflow import TransitionWorkflow, handle_transition_work
 from tl_core.uow import UnitOfWork
 from tl_core.util import effective_time
 from tl_core.workflow.roles import workflow_roles
+from tl_mod_correspondence.commands import API_COMMANDS as CORRESPONDENCE_COMMANDS
 from tl_mod_cost.commands import API_COMMANDS as COST_COMMANDS
 from tl_mod_documents.commands import API_COMMANDS as DOCUMENT_COMMANDS
 from tl_mod_engineering.commands import API_COMMANDS
@@ -94,6 +95,7 @@ COMMANDS: tuple[CommandSpec, ...] = (
     CommandSpec(ChangeSetting, handle_change_setting),
     *(CommandSpec(c.model, c.handler, c.access) for c in API_COMMANDS),
     *(CommandSpec(c.model, c.handler, c.access) for c in DOCUMENT_COMMANDS),
+    *(CommandSpec(c.model, c.handler, c.access) for c in CORRESPONDENCE_COMMANDS),
     *(CommandSpec(c.model, c.handler, c.access) for c in COST_COMMANDS),
     *(CommandSpec(c.model, c.handler, c.access) for c in SCHEDULE_COMMANDS),
 )

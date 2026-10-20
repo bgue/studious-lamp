@@ -142,7 +142,13 @@ def test_the_installed_modules_are_found_through_their_entry_points() -> None:
     from tl_core import modules
 
     found = modules._discover()  # pyright: ignore[reportPrivateUsage]
-    assert [m.name for m in found] == ["cost", "documents", "engineering", "schedule"]
+    assert [m.name for m in found] == [
+        "correspondence",
+        "cost",
+        "documents",
+        "engineering",
+        "schedule",
+    ]
     by_name = {m.name: m for m in found}
     assert "engineering.Tag" in by_name["engineering"].record_types
     assert "documents.Document" in by_name["documents"].record_types

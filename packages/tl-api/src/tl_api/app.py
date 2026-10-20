@@ -47,6 +47,7 @@ from tl_api.ratelimit import RateLimitMiddleware, SourceLimiter
 from tl_api.routes import (
     admin,
     auth,
+    correspondence,
     cost,
     derivation,
     documents,
@@ -272,6 +273,7 @@ def create_app(
         engineering,
         documents,
         derivation,
+        correspondence,
         schedule,
         cost,
     ):

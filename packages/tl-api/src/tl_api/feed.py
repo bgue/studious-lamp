@@ -24,6 +24,7 @@ from collections.abc import AsyncIterator, Callable
 from concurrent.futures import ThreadPoolExecutor
 from functools import partial
 
+from tl_core import confidentiality
 from tl_core.bus import Subscription
 from tl_core.changefeed import (
     ChangePoller,
@@ -33,6 +34,7 @@ from tl_core.changefeed import (
     SubscriptionRegistry,
     fetch_changes,
 )
+from tl_core.confidentiality import Viewer
 from tl_core.ledger import Event
 
 from tl_api.backend import Backend
@@ -117,6 +119,17 @@ class FeedHub:
         with self._lock:
             self._open = max(0, self._open - 1)
 
+    def visible(self, events: list[Event], viewer: Viewer) -> list[Event]:
+        """``events`` without those the viewer must not read (ADR-0016), judged on a fresh read.
+
+        The viewer is passed in: this runs in a worker thread, which does not inherit the context
+        variable. A read that fails hides the batch (the stream ends) rather than showing it.
+        """
+        if not events:
+            return events
+        with self.backend(True) as uow:
+            return confidentiality.filter_events(uow.conn(), events, viewer)
+
     async def stream(
         self,
         flt: SubscriptionFilter,
@@ -134,6 +147,7 @@ class FeedHub:
         ``closed`` event, so a signed-out, revoked or expired token does not keep a stream open.
         """
         loop = asyncio.get_running_loop()
+        viewer = confidentiality.current_viewer()  # set by the authentication middleware
         opened = checked = loop.time()
         sub: QueueSubscription | None = None
         try:
@@ -151,7 +165,10 @@ class FeedHub:
                             limit=CATCH_UP_PAGE,
                         ),
                     )
-                    for event in page.events:
+                    shown = await loop.run_in_executor(
+                        self._executor, self.visible, page.events, viewer
+                    )
+                    for event in shown:
                         yield format_event(event)
                     cursor = page.next_seq
                     if not page.has_more:
@@ -176,9 +193,14 @@ class FeedHub:
                     sub.close()
                     sub = self.registry.subscribe_queue(flt, after_seq=overflow.resume_seq)
                     continue
+                shown = (
+                    await loop.run_in_executor(self._executor, self.visible, events, viewer)
+                    if events
+                    else []
+                )
                 if events:
                     idle = 0.0
-                    for event in events:
+                    for event in shown:
                         yield format_event(event)
                 else:
                     idle += self.wait_s

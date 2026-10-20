@@ -1,0 +1,224 @@
+id: https://example.org/throughline/modules/correspondence/domain
+name: tl_mod_correspondence_domain
+title: Correspondence domain definition (brief 9, M10 domain layer)
+description: >-
+  What a correspondence domain configures: subtypes, workflow, numbering, required property sets, default
+  clocks, routing, confidentiality default, feed policy, integration policy, letter templates and the
+  words triage looks for. It is data, not code: a domain file (company default, project override) is
+  checked against this class and compiled by `tl_mod_correspondence.domains`; nothing in it can run. This
+  file is a stand-alone LinkML schema, not imported by the module root: it describes a document format, not
+  a table. The JSON Schema generated from it is `json_schema/correspondence.domain.schema.json`.
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+default_range: string
+annotations:
+  tl:module: correspondence
+
+enums:
+  FeedPolicy:
+    description: What the feed shows of an item of the domain.
+    permissible_values:
+      full:
+        description: A full card with the subject.
+      minimal:
+        description: A card that says only that an item was issued or received.
+      none:
+        description: Nothing.
+  ClockTrigger:
+    description: The event that starts a default clock.
+    permissible_values:
+      receipt:
+        description: The item is received (triage confirms it).
+      issue:
+        description: The item is issued.
+  ClockKind:
+    description: What a clock waits for.
+    permissible_values:
+      response_from_them:
+        description: They owe us an answer.
+      response_from_us:
+        description: We owe an answer.
+      time_bar:
+        description: A contract notice period.
+  DayType:
+    description: How days are counted.
+    permissible_values:
+      calendar:
+        description: Every day counts.
+      working:
+        description: Only the working days of the project calendar count.
+  ConfidentialityClass:
+    description: The classes a domain can default to (ADR-0016).
+    permissible_values:
+      internal:
+        description: Every signed-in person.
+      restricted:
+        description: Document controllers and admins.
+      privileged:
+        description: Only the accounts named on the item.
+
+classes:
+  ClockTemplate:
+    description: A clock the domain starts by default for a subtype.
+    attributes:
+      label:
+        required: true
+        description: What the clock waits for.
+      trigger:
+        range: ClockTrigger
+        required: true
+        description: When it starts.
+      kind:
+        range: ClockKind
+        required: true
+        description: What kind of clock it is.
+      duration_days:
+        range: integer
+        required: true
+        minimum_value: 1
+        maximum_value: 3650
+        description: Length in days of the unit.
+      day_type:
+        range: DayType
+        required: true
+        description: Calendar or working days.
+      warn_days:
+        range: integer
+        multivalued: true
+        description: Days-before-due warning thresholds, largest first, each at least 1.
+      clause:
+        description: "`<contract>/<clause number>` of the contract clause the clock is based on; null when none."
+
+  DomainSubtype:
+    description: One kind of item inside a domain.
+    attributes:
+      code:
+        required: true
+        pattern: "^[a-z][a-z0-9_]{0,31}$"
+        description: Lower-case code.
+      label:
+        required: true
+        description: Name shown to people.
+      response_required:
+        range: boolean
+        description: True when an item of this subtype expects an answer; clocks then start by default.
+      clocks:
+        range: ClockTemplate
+        multivalued: true
+        inlined_as_list: true
+        description: The default clocks of the subtype.
+      keywords:
+        multivalued: true
+        description: Lower-case words in a subject or body that suggest this subtype at triage.
+
+  DomainRouting:
+    description: Who receives, reviews and approves items of the domain.
+    attributes:
+      receive_roles:
+        multivalued: true
+        description: Contact roles or account roles who receive incoming items.
+      review_roles:
+        multivalued: true
+        description: Roles who review an outgoing item before it is issued.
+      approve_roles:
+        multivalued: true
+        description: Roles who approve (issue) an outgoing item.
+      party_roles:
+        multivalued: true
+        description: Party roles (client, engineer ...) that normally correspond in the domain.
+
+  DomainIntegration:
+    description: What may leave the system for items of the domain.
+    attributes:
+      webhook_modes:
+        multivalued: true
+        description: Webhook payload modes allowed (thin, delta, full). The class of an item can lower this further.
+      portal_response:
+        range: boolean
+        description: True when an external party may answer through a portal or guest link.
+
+  LetterTemplate:
+    description: An outgoing letter template. The text may use {number}, {date}, {subject}, {to} and {body}.
+    attributes:
+      code:
+        required: true
+        pattern: "^[a-z][a-z0-9-]{0,63}$"
+        description: Template code.
+      label:
+        required: true
+        description: Name shown to people.
+      subtype:
+        required: true
+        description: The subtype it is for.
+      header:
+        description: Fixed text above the subject line (a letterhead stub).
+      footer:
+        description: Fixed text below the body.
+
+  CorrespondenceDomain:
+    tree_root: true
+    description: One domain of the correspondence module.
+    attributes:
+      code:
+        required: true
+        pattern: "^[a-z][a-z0-9_]{0,31}$"
+        description: Lower-case domain code, for example `general` or `document_control`.
+      name:
+        required: true
+        description: Name shown to people.
+      semver:
+        required: true
+        pattern: "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+        description: Version of this definition; the highest of equal scope wins.
+      scope:
+        required: true
+        pattern: "^(company|project:[A-Za-z0-9_.-]+)$"
+        description: "`company` for the default; `project:<id>` for an override."
+      description:
+        description: What the domain is for.
+      subtypes:
+        range: DomainSubtype
+        multivalued: true
+        inlined_as_list: true
+        required: true
+        description: The kinds of item; at least one.
+      default_subtype:
+        required: true
+        description: The subtype triage proposes when no keyword matches; one of the subtypes.
+      workflow_ref:
+        required: true
+        description: The id of the workflow that moves items of the domain (it must exist).
+      numbering_pattern:
+        required: true
+        description: The id of the numbering pattern that numbers items of the domain (it must exist).
+      required_psets:
+        multivalued: true
+        description: Property sets an item must carry before it can be issued.
+      routing:
+        range: DomainRouting
+        description: Who receives, reviews and approves.
+      confidentiality_default:
+        range: ConfidentialityClass
+        required: true
+        description: The class a new item of the domain gets.
+      feed_policy:
+        range: FeedPolicy
+        required: true
+        description: What the feed shows.
+      integration:
+        range: DomainIntegration
+        description: What may leave the system.
+      templates:
+        range: LetterTemplate
+        multivalued: true
+        inlined_as_list: true
+        description: Outgoing letter templates.
+      triage_keywords:
+        multivalued: true
+        description: Lower-case words in a subject or body that suggest this domain at triage.
+      item_source:
+        description: "The name of a code-defined register source that supplies items of this domain from another module (`documents.transmittal`); null when items are `Correspondence` records."

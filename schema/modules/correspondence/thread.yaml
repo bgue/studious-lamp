@@ -1,0 +1,66 @@
+id: https://example.org/throughline/modules/correspondence/thread
+name: tl_mod_correspondence_thread
+title: Correspondence threads (brief 9, M10 core)
+description: >-
+  A thread groups the items of one exchange: the first letter, the replies, the follow-ups. Items join a
+  thread when their headers, subject or body keys match (`Correspondence.ThreadAssigned`). The thread is
+  open until every item that needed an answer has one; `governing_item_id` is the item the others answer.
+  Spec: docs/modules/correspondence/README.md.
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+  - ../../core/annotations
+  - ../../core/record
+default_range: string
+annotations:
+  tl:module: correspondence
+
+classes:
+  CorrespondenceThread:
+    description: >-
+      One thread. Record type `correspondence.CorrespondenceThread`; its key is the thread number and the
+      title is the normalised subject.
+    annotations:
+      tl:current_state: true
+      tl:record_types: "correspondence.CorrespondenceThread"
+      tl:ix_scope_state: "scope, state"
+      tl:ix_scope_subject: "scope, subject_key"
+    attributes:
+      id:
+        identifier: true
+        range: Ulid
+        required: true
+        description: Record id; equals the ledger stream id and the `cur_core_record` id.
+      scope:
+        range: ScopeId
+        required: true
+        description: The project scope, `project:<id>`.
+      number:
+        required: true
+        description: The thread number, equal to the record key.
+      subject_key:
+        required: true
+        description: The subject with reply and forward prefixes removed, lower case; threading matches on it.
+      domain:
+        description: The domain the thread belongs to; null while its items are untriaged.
+      state:
+        required: true
+        ifabsent: string(open)
+        description: "open or closed."
+      governing_item_id:
+        range: Ulid
+        description: The item the thread is about (the first item unless a domain says otherwise).
+      item_count:
+        range: integer
+        required: true
+        ifabsent: int(0)
+        description: Number of items in the thread.
+      last_item_on:
+        description: ISO date (YYYY-MM-DD) of the newest item.
+      last_seq:
+        range: integer
+        required: true
+        description: Ledger `seq` of the last event applied to this row.

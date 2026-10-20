@@ -1,0 +1,109 @@
+id: https://example.org/throughline/modules/correspondence/response_clock
+name: tl_mod_correspondence_response_clock
+title: Response clocks (brief 9, M10 core)
+description: >-
+  A response clock counts the days left to answer an item, or to give a notice under a contract clause.
+  It runs on calendar days or on working days of a named calendar version, may carry warning thresholds,
+  and can be paused, resumed, restarted, met or cancelled. Every figure derives from the clock's events
+  and the calendar named in its first event, so the same events always give the same clock
+  (`tl_mod_correspondence.clocks`). Whether a running clock has expired depends on today's date and is
+  read, not stored; the sweep records `ResponseClock.Warned` and `ResponseClock.Expired` events.
+  Spec: docs/modules/correspondence/clocks.md.
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+  - ../../core/annotations
+  - ../../core/record
+default_range: string
+annotations:
+  tl:module: correspondence
+
+classes:
+  ResponseClock:
+    description: >-
+      One clock of one item. Record type `correspondence.ResponseClock`; its key is `<item number>/CLK<n>`
+      and the title is its label. The row keeps the figures the register and the clocks screen need; the
+      events keep the facts.
+    annotations:
+      tl:current_state: true
+      tl:record_types: "correspondence.ResponseClock"
+      tl:ix_item: "item_id"
+      tl:ix_scope_state_due: "scope, state, due_on"
+      tl:ix_clause: "clause_id"
+    attributes:
+      id:
+        identifier: true
+        range: Ulid
+        required: true
+        description: Record id; equals the ledger stream id and the `cur_core_record` id.
+      scope:
+        range: ScopeId
+        required: true
+        description: The project scope, `project:<id>`.
+      item_id:
+        range: Ulid
+        required: true
+        description: The correspondence item the clock belongs to.
+      item_number:
+        required: true
+        description: Its number, copied so the clocks screen needs no join.
+      label:
+        required: true
+        description: What the clock waits for, for example `Reply to client letter`.
+      kind:
+        required: true
+        description: "response_from_them (they owe us an answer), response_from_us (we owe an answer) or time_bar (a contract notice period)."
+      start_on:
+        required: true
+        description: ISO date (YYYY-MM-DD) from which the count starts (day zero).
+      duration_days:
+        range: integer
+        required: true
+        description: Length in days of the unit named by `day_type`.
+      day_type:
+        required: true
+        description: "calendar or working."
+      calendar:
+        required: true
+        description: "The calendar and version the count used, `<code>@<version>` (for example `P123-default@1`)."
+      warn_days:
+        range: Any
+        required: true
+        annotations:
+          tl:json: true
+        description: JSON list of days-before-due thresholds at which a warning is raised, largest first.
+      due_on:
+        required: true
+        description: ISO date (YYYY-MM-DD) on which the clock expires; moves when the clock is paused, resumed or restarted.
+      state:
+        required: true
+        ifabsent: string(running)
+        description: "running, paused, met, cancelled or expired. A running clock past `due_on` is shown as expired by the reads; the sweep records it."
+      paused_on:
+        description: ISO date (YYYY-MM-DD) on which the clock was paused; null unless paused.
+      pause_reason:
+        description: Why the clock is paused.
+      closed_on:
+        description: ISO date (YYYY-MM-DD) on which the clock was met or cancelled.
+      closed_reason:
+        description: Why or how the clock ended (the answering item, the reason for a cancel).
+      warned_level:
+        range: integer
+        description: The smallest warning threshold already raised; null when none.
+      owner:
+        description: The actor responsible for the answer.
+      clause_id:
+        range: Ulid
+        description: The `correspondence.ContractClause` the clock is based on; null when none.
+      restarts:
+        range: integer
+        required: true
+        ifabsent: int(0)
+        description: Number of times the clock was restarted.
+      last_seq:
+        range: integer
+        required: true
+        description: Ledger `seq` of the last event applied to this row.

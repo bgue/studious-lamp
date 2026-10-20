@@ -216,4 +216,4 @@ def test_the_openapi_document_says_confidentiality_is_not_enforced() -> None:
     from tl_api import openapi
 
     schemas = openapi.render()
-    assert schemas.count("recorded but not enforced") >= 3  # view, register and set commands
+    assert schemas.count("is enforced") >= 3  # view, register and set commands

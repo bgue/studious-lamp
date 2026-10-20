@@ -35,6 +35,7 @@ from tl_mod_documents.derivation import store as derivation_store
 
 from tl_mcp import resources, tools
 from tl_mcp.context import Authorizer, McpContext, UowFactory
+from tl_mcp.correspondence_tools import register_correspondence_tools
 from tl_mcp.derivation_tools import register_derivation_tools
 from tl_mcp.document_tools import register_document_tools
 from tl_mcp.engineering_tools import register_engineering_tools
@@ -136,6 +137,7 @@ def build_server(
     register_engineering_tools(server, ctx)
     register_document_tools(server, ctx)
     register_derivation_tools(server, ctx)
+    register_correspondence_tools(server, ctx)
     register_schedule_tools(server, ctx)
     register_schedule_read_tools(server, ctx)
 

@@ -14,6 +14,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from sqlalchemy import Connection, text
+from tl_core import confidentiality
 
 from tl_mod_documents.names import (
     DD_PENDING,
@@ -297,12 +298,18 @@ def _derived(row: Any) -> DerivedRow:
     )
 
 
+def _hidden(conn: Connection, record_id: str) -> bool:
+    """The viewer may not read this record (ADR-0016): a derived document or job hangs on a
+    document, and is as hidden as it."""
+    return confidentiality.is_hidden(conn, record_id)
+
+
 def get_derived(conn: Connection, derived_id: str) -> DerivedRow | None:
     row = conn.execute(
         text(f"SELECT {_DERIVED_COLUMNS} FROM {DERIVED_DOCUMENT_VIEW} WHERE id = :id"),
         {"id": derived_id},
     ).first()
-    return None if row is None else _derived(row)
+    return None if row is None or _hidden(conn, derived_id) else _derived(row)
 
 
 def find_derived(
@@ -316,7 +323,7 @@ def find_derived(
         ),
         {"scope": scope, "rev": revision_id, "code": schema_code},
     ).first()
-    return None if row is None else _derived(row)
+    return None if row is None or _hidden(conn, row.id) else _derived(row)
 
 
 def find_derived_by_key(conn: Connection, scope: str, key: str) -> DerivedRow | None:
@@ -327,7 +334,7 @@ def find_derived_by_key(conn: Connection, scope: str, key: str) -> DerivedRow | 
         ),
         {"scope": scope, "key": key},
     ).first()
-    return None if row is None else _derived(row)
+    return None if row is None or _hidden(conn, row.id) else _derived(row)
 
 
 def list_derived(
@@ -343,6 +350,9 @@ def list_derived(
     """Derived documents of a project, newest first (by creation, then key)."""
     sql = f"SELECT {_DERIVED_COLUMNS} FROM {DERIVED_DOCUMENT_VIEW} WHERE scope = :scope"
     params: dict[str, Any] = {"scope": scope, "limit": limit}
+    visible, visible_params = confidentiality.not_hidden("id")
+    sql += f" AND {visible}"
+    params.update(visible_params)
     if not include_void:
         sql += " AND voided = :no"
         params["no"] = False
@@ -383,7 +393,7 @@ def previous_derived(
             "ord": before_ordinal,
         },
     ).first()
-    return None if row is None else _derived(row)
+    return None if row is None or _hidden(conn, row.id) else _derived(row)
 
 
 # --- content revisions -----------------------------------------------------------------------
@@ -430,6 +440,8 @@ def _content(row: Any) -> ContentRow:
 
 def contents_of(conn: Connection, derived_id: str) -> list[ContentRow]:
     """Every content revision of a derived document, oldest first."""
+    if _hidden(conn, derived_id):
+        return []
     rows = conn.execute(
         text(
             f"SELECT {_CONTENT_COLUMNS} FROM {DERIVED_CONTENT_TABLE} "
@@ -441,6 +453,8 @@ def contents_of(conn: Connection, derived_id: str) -> list[ContentRow]:
 
 
 def get_content(conn: Connection, derived_id: str, content_rev: int) -> ContentRow | None:
+    if _hidden(conn, derived_id):
+        return None
     row = conn.execute(
         text(
             f"SELECT {_CONTENT_COLUMNS} FROM {DERIVED_CONTENT_TABLE} "
@@ -493,7 +507,7 @@ def get_job(conn: Connection, job_id: str) -> JobRow | None:
     row = conn.execute(
         text(f"SELECT {_JOB_COLUMNS} FROM {PROCESSING_JOB_VIEW} WHERE id = :id"), {"id": job_id}
     ).first()
-    return None if row is None else _job(row)
+    return None if row is None or _hidden(conn, job_id) else _job(row)
 
 
 def list_jobs(
@@ -507,6 +521,9 @@ def list_jobs(
     """Jobs of a project, newest first."""
     sql = f"SELECT {_JOB_COLUMNS} FROM {PROCESSING_JOB_VIEW} WHERE scope = :scope"
     params: dict[str, Any] = {"scope": scope, "limit": limit}
+    visible, visible_params = confidentiality.not_hidden("id")
+    sql += f" AND {visible}"
+    params.update(visible_params)
     if state is not None:
         sql += " AND state = :state"
         params["state"] = state
@@ -519,6 +536,8 @@ def list_jobs(
 
 def active_job(conn: Connection, derived_id: str) -> JobRow | None:
     """The queued or running job of a derived document, if there is one."""
+    if _hidden(conn, derived_id):
+        return None
     row = conn.execute(
         text(
             f"SELECT {_JOB_COLUMNS} FROM {PROCESSING_JOB_VIEW} WHERE derived_id = :derived "

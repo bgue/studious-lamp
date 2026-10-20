@@ -17,6 +17,22 @@ Every ledger event type that can reach a webhook subscriber, generated from the 
 | [`AgentToken.Revoked`](#agenttokenrevoked) | `tl.core.AgentToken.Revoked.v1` | An agent token was revoked and no longer authenticates. |
 | [`CodeValue.Closed`](#codevalueclosed) | `tl.core.CodeValue.Closed.v1` | A code value was superseded by another or retired; it still resolves for old records. |
 | [`CodeValue.Defined`](#codevaluedefined) | `tl.core.CodeValue.Defined.v1` | A value was added to a code list. |
+| [`ContractClause.Defined`](#contractclausedefined) | `tl.core.ContractClause.Defined.v1` | A contract clause was entered. |
+| [`ContractClause.Retired`](#contractclauseretired) | `tl.core.ContractClause.Retired.v1` | A clause was retired; clocks that cited it keep their reference. |
+| [`Correspondence.ClearanceGranted`](#correspondenceclearancegranted) | `tl.core.Correspondence.ClearanceGranted.v1` | An account was named as able to read a privileged item (ADR-0016). |
+| [`Correspondence.ClearanceWithdrawn`](#correspondenceclearancewithdrawn) | `tl.core.Correspondence.ClearanceWithdrawn.v1` | An account was removed from the readers of a privileged item. |
+| [`Correspondence.ConfidentialityChanged`](#correspondenceconfidentialitychanged) | `tl.core.Correspondence.ConfidentialityChanged.v1` | The confidentiality class of an item changed (a controller's act, ADR-0016). |
+| [`Correspondence.Defined`](#correspondencedefined) | `tl.core.Correspondence.Defined.v1` | A correspondence item was received, drafted or logged. |
+| [`Correspondence.Issued`](#correspondenceissued) | `tl.core.Correspondence.Issued.v1` | An outgoing item was issued: its text was rendered to a PDF (stored in the slot `rendition`) and sent. |
+| [`Correspondence.Reclassified`](#correspondencereclassified) | `tl.core.Correspondence.Reclassified.v1` | The domain or subtype of an item changed before it was issued. |
+| [`Correspondence.Responded`](#correspondenceresponded) | `tl.core.Correspondence.Responded.v1` | An answer to an item was issued or received. |
+| [`Correspondence.Superseded`](#correspondencesuperseded) | `tl.core.Correspondence.Superseded.v1` | An item was replaced by another item; it stays in the ledger. |
+| [`Correspondence.ThreadAssigned`](#correspondencethreadassigned) | `tl.core.Correspondence.ThreadAssigned.v1` | An item joined a thread, and optionally answers another item. |
+| [`Correspondence.Triaged`](#correspondencetriaged) | `tl.core.Correspondence.Triaged.v1` | A person confirmed the domain and subtype of a received item, with the records it refers to and the clocks that were started. |
+| [`Correspondence.Updated`](#correspondenceupdated) | `tl.core.Correspondence.Updated.v1` | The register fields of a draft or received item changed (the subject changes through the core `Record.Updated`). |
+| [`CorrespondenceThread.Defined`](#correspondencethreaddefined) | `tl.core.CorrespondenceThread.Defined.v1` | A thread was opened by its first item. |
+| [`CorrespondenceThread.ItemAdded`](#correspondencethreaditemadded) | `tl.core.CorrespondenceThread.ItemAdded.v1` | An item joined the thread. |
+| [`CorrespondenceThread.StateChanged`](#correspondencethreadstatechanged) | `tl.core.CorrespondenceThread.StateChanged.v1` | A thread was closed or reopened. |
 | [`CostCode.Defined`](#costcodedefined) | `tl.core.CostCode.Defined.v1` | A cost code was registered (by the first snapshot that names it). |
 | [`CostCode.MeasuresRecorded`](#costcodemeasuresrecorded) | `tl.core.CostCode.MeasuresRecorded.v1` | A snapshot stated the figures of a cost code. |
 | [`CostCode.Revised`](#costcoderevised) | `tl.core.CostCode.Revised.v1` | A snapshot changed the description, parent or unit of measure of an existing cost code. |
@@ -48,6 +64,10 @@ Every ledger event type that can reach a webhook subscriber, generated from the 
 | [`Link.Suggested`](#linksuggested) | `tl.core.Link.Suggested.v1` | A link was suggested and waits for a person to accept or decline. |
 | [`Link.Verified`](#linkverified) | `tl.core.Link.Verified.v1` | A person verified an active link. |
 | [`Numbering.Allocated`](#numberingallocated) | `tl.core.Numbering.Allocated.v1` | A number was allocated from a counter. |
+| [`Party.ContactAdded`](#partycontactadded) | `tl.core.Party.ContactAdded.v1` | A contact was added to a party. |
+| [`Party.ContactEnded`](#partycontactended) | `tl.core.Party.ContactEnded.v1` | A contact was ended. |
+| [`Party.Defined`](#partydefined) | `tl.core.Party.Defined.v1` | A party was entered, with its first contacts. |
+| [`Party.Retired`](#partyretired) | `tl.core.Party.Retired.v1` | A party was retired. |
 | [`ProcessingJob.Cancelled`](#processingjobcancelled) | `tl.core.ProcessingJob.Cancelled.v1` | A queued job was cancelled before a worker took it. |
 | [`ProcessingJob.Defined`](#processingjobdefined) | `tl.core.ProcessingJob.Defined.v1` | A processing job was queued. |
 | [`ProcessingJob.Failed`](#processingjobfailed) | `tl.core.ProcessingJob.Failed.v1` | The claimed attempt failed. |
@@ -65,6 +85,14 @@ Every ledger event type that can reach a webhook subscriber, generated from the 
 | [`Record.Voided`](#recordvoided) | `tl.core.Record.Voided.v1` | A record was voided. |
 | [`Rendition.Defined`](#renditiondefined) | `tl.core.Rendition.Defined.v1` | A file was registered as a rendition of a revision. |
 | [`Rendition.Superseded`](#renditionsuperseded) | `tl.core.Rendition.Superseded.v1` | A rendition was replaced by a newer one of the same kind on the same revision. |
+| [`ResponseClock.Cancelled`](#responseclockcancelled) | `tl.core.ResponseClock.Cancelled.v1` | The clock was cancelled: no answer is needed any more. |
+| [`ResponseClock.Expired`](#responseclockexpired) | `tl.core.ResponseClock.Expired.v1` | The sweep found a running clock past its due date. |
+| [`ResponseClock.Met`](#responseclockmet) | `tl.core.ResponseClock.Met.v1` | The clock was met: the answer came in time (or late; the date says which). |
+| [`ResponseClock.Paused`](#responseclockpaused) | `tl.core.ResponseClock.Paused.v1` | A clock was paused; the days of the pause do not count. |
+| [`ResponseClock.Restarted`](#responseclockrestarted) | `tl.core.ResponseClock.Restarted.v1` | A clock started its count again from a new day zero, with the same parameters. |
+| [`ResponseClock.Resumed`](#responseclockresumed) | `tl.core.ResponseClock.Resumed.v1` | A paused clock ran again; the due date moved by the days of the pause. |
+| [`ResponseClock.Started`](#responseclockstarted) | `tl.core.ResponseClock.Started.v1` | A response clock started. |
+| [`ResponseClock.Warned`](#responseclockwarned) | `tl.core.ResponseClock.Warned.v1` | The sweep found a running clock at or inside a warning threshold smaller than the last one raised. |
 | [`ReviewCycle.Closed`](#reviewcycleclosed) | `tl.core.ReviewCycle.Closed.v1` | A review cycle was closed with an overall outcome. |
 | [`ReviewCycle.Defined`](#reviewcycledefined) | `tl.core.ReviewCycle.Defined.v1` | A review of a revision was opened with its reviewers. |
 | [`ReviewCycle.OutcomeRecorded`](#reviewcycleoutcomerecorded) | `tl.core.ReviewCycle.OutcomeRecorded.v1` | A reviewer answered. |
@@ -708,6 +736,903 @@ A value was added to a code list.
   "tlseq": 48211933,
   "tlstreamversion": 7,
   "type": "tl.core.CodeValue.Defined.v1"
+}
+```
+
+## ContractClause.Defined
+
+A contract clause was entered.
+
+- CloudEvents type: `tl.core.ContractClause.Defined.v1`
+- Ledger payload class: `ContractClauseDefinedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `clause_number` | string | yes | The clause number. |
+| `contract` | string | yes | The contract. |
+| `contract_document_id` | string or null | no | Record id of the contract document. |
+| `domains` | any | yes |  |
+| `notice_requirements` | string or null | no | What the notice must contain. |
+| `required_recipients` | any | yes |  |
+| `service_method` | string or null | no | email, letter, portal or hand. |
+| `time_bar_day_type` | string or null | no | calendar or working. |
+| `time_bar_days` | integer or null | no | Days allowed; null when none. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "clause_number": "20.1",
+      "contract": "MSA-2026",
+      "contract_document_id": null,
+      "domains": [
+        "general"
+      ],
+      "notice_requirements": "State the event and the date it was noticed",
+      "required_recipients": [
+        "project_manager"
+      ],
+      "service_method": "letter",
+      "time_bar_day_type": "calendar",
+      "time_bar_days": 28
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/ContractClause.Defined/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.ContractClause.Defined.v1"
+}
+```
+
+## ContractClause.Retired
+
+A clause was retired; clocks that cited it keep their reference.
+
+- CloudEvents type: `tl.core.ContractClause.Retired.v1`
+- Ledger payload class: `ContractClauseRetiredPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `reason` | string | yes | Why. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "reason": "Replaced by the amended contract"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/ContractClause.Retired/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.ContractClause.Retired.v1"
+}
+```
+
+## Correspondence.ClearanceGranted
+
+An account was named as able to read a privileged item (ADR-0016).
+
+- CloudEvents type: `tl.core.Correspondence.ClearanceGranted.v1`
+- Ledger payload class: `CorrespondenceClearanceGrantedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `account` | string | yes | The account name. |
+| `granted_on` | string | yes | ISO date. |
+| `reason` | string | yes | Why. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "account": "user:amy",
+      "granted_on": "2026-10-17",
+      "reason": "Counsel"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Correspondence.ClearanceGranted/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Correspondence.ClearanceGranted.v1"
+}
+```
+
+## Correspondence.ClearanceWithdrawn
+
+An account was removed from the readers of a privileged item.
+
+- CloudEvents type: `tl.core.Correspondence.ClearanceWithdrawn.v1`
+- Ledger payload class: `CorrespondenceClearanceWithdrawnPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `account` | string | yes | The account name. |
+| `reason` | string | yes | Why. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "account": "user:amy",
+      "reason": "Matter closed"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Correspondence.ClearanceWithdrawn/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Correspondence.ClearanceWithdrawn.v1"
+}
+```
+
+## Correspondence.ConfidentialityChanged
+
+The confidentiality class of an item changed (a controller's act, ADR-0016).
+
+- CloudEvents type: `tl.core.Correspondence.ConfidentialityChanged.v1`
+- Ledger payload class: `CorrespondenceConfidentialityChangedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `from_class` | string | yes | Class before. |
+| `reason` | string | yes | Why. |
+| `to_class` | string | yes | Class after. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "from_class": "internal",
+      "reason": "Contains commercial terms",
+      "to_class": "restricted"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Correspondence.ConfidentialityChanged/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Correspondence.ConfidentialityChanged.v1"
+}
+```
+
+## Correspondence.Defined
+
+A correspondence item was received, drafted or logged. The subject is the title of the `Record.Created` event that comes first.
+
+- CloudEvents type: `tl.core.Correspondence.Defined.v1`
+- Ledger payload class: `CorrespondenceDefinedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `body` | string or null | no | Plain text of the item or its summary. |
+| `cc` | any | yes |  |
+| `confidentiality` | string | yes | internal, restricted or privileged. |
+| `direction` | string | yes | in, out or internal. |
+| `domain` | string or null | no | Domain code when known at creation (an outgoing item). |
+| `external_ref` | string or null | no | The sender's own reference. |
+| `from_name` | string or null | no | Who sent it, as written. |
+| `from_party_id` | string or null | no | Record id of the sending party, when known. |
+| `in_reply_to` | string or null | no | Email In-Reply-To, normalised. |
+| `medium` | string | yes | letter, email, portal, minutes or other. |
+| `message_id` | string or null | no | Email Message-ID, normalised. |
+| `number` | string | yes | The item number. |
+| `received_on` | string or null | no | ISO date it arrived. |
+| `received_via` | string | yes | upload, email or manual. |
+| `responds_to_id` | string or null | no | Record id of the item this one answers, when stated. |
+| `response_due` | string or null | no | ISO date an answer is due. |
+| `response_required` | boolean or null | no | True when an answer is expected. |
+| `sent_on` | string or null | no | ISO date the sender dated it. |
+| `subtype` | string or null | no | Subtype when known at creation. |
+| `to` | any | yes |  |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "body": "Please confirm the revised programme.",
+      "cc": [],
+      "confidentiality": "internal",
+      "direction": "in",
+      "external_ref": "MER/L/0042",
+      "from_name": "Meridian Energy",
+      "medium": "letter",
+      "number": "P123-COR-0001",
+      "received_on": "2026-10-17",
+      "received_via": "upload",
+      "response_required": true,
+      "sent_on": "2026-10-16",
+      "to": [
+        {
+          "email": null,
+          "name": "Project manager",
+          "party_id": null
+        }
+      ]
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Correspondence.Defined/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Correspondence.Defined.v1"
+}
+```
+
+## Correspondence.Issued
+
+An outgoing item was issued: its text was rendered to a PDF (stored in the slot `rendition`) and sent. Sending is a stub in Phase 1; nothing leaves the machine.
+
+- CloudEvents type: `tl.core.Correspondence.Issued.v1`
+- Ledger payload class: `CorrespondenceIssuedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `clock_ids` | any | yes |  |
+| `date_reason` | string or null | no | Why the date is before the day it was recorded; null when it is that day. |
+| `delivery` | string | yes | stub: no message was sent. |
+| `issued_on` | string | yes | ISO date of the issue. |
+| `rendition_file_id` | string | yes | File id of the PDF rendition. |
+| `rendition_sha256` | string | yes | Hex SHA-256 of the rendition. |
+| `template` | string | yes | The letter template used. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "clock_ids": [],
+      "date_reason": null,
+      "delivery": "stub",
+      "issued_on": "2026-10-17",
+      "rendition_file_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "rendition_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "template": "general-letter"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Correspondence.Issued/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Correspondence.Issued.v1"
+}
+```
+
+## Correspondence.Reclassified
+
+The domain or subtype of an item changed before it was issued. After issue a misfiled item gets a linked item in the right domain instead.
+
+- CloudEvents type: `tl.core.Correspondence.Reclassified.v1`
+- Ledger payload class: `CorrespondenceReclassifiedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `domain` | string | yes | Domain after. |
+| `from_domain` | string or null | no | Domain before. |
+| `from_subtype` | string or null | no | Subtype before. |
+| `reason` | string | yes | Why. |
+| `subtype` | string | yes | Subtype after. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "domain": "document_control",
+      "from_domain": "general",
+      "from_subtype": "letter",
+      "reason": "It transmits drawings",
+      "subtype": "submittal"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Correspondence.Reclassified/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Correspondence.Reclassified.v1"
+}
+```
+
+## Correspondence.Responded
+
+An answer to an item was issued or received.
+
+- CloudEvents type: `tl.core.Correspondence.Responded.v1`
+- Ledger payload class: `CorrespondenceRespondedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `responded_on` | string | yes | ISO date of the answer. |
+| `response_id` | string | yes | Record id of the answering item. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "responded_on": "2026-10-17",
+      "response_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P5"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Correspondence.Responded/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Correspondence.Responded.v1"
+}
+```
+
+## Correspondence.Superseded
+
+An item was replaced by another item; it stays in the ledger.
+
+- CloudEvents type: `tl.core.Correspondence.Superseded.v1`
+- Ledger payload class: `CorrespondenceSupersededPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `reason` | string | yes | Why. |
+| `superseded_by_id` | string | yes | Record id of the replacing item. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "reason": "Corrected figures",
+      "superseded_by_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P5"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Correspondence.Superseded/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Correspondence.Superseded.v1"
+}
+```
+
+## Correspondence.ThreadAssigned
+
+An item joined a thread, and optionally answers another item.
+
+- CloudEvents type: `tl.core.Correspondence.ThreadAssigned.v1`
+- Ledger payload class: `CorrespondenceThreadAssignedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `matched_by` | string | yes | header, reference_key, subject or manual. |
+| `responds_to_id` | string or null | no | Record id of the item this one answers. |
+| `thread_id` | string | yes | Record id of the thread. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "matched_by": "header",
+      "responds_to_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "thread_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P6"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Correspondence.ThreadAssigned/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Correspondence.ThreadAssigned.v1"
+}
+```
+
+## Correspondence.Triaged
+
+A person confirmed the domain and subtype of a received item, with the records it refers to and the clocks that were started. A proposal by an agent is a proposal, not this event.
+
+- CloudEvents type: `tl.core.Correspondence.Triaged.v1`
+- Ledger payload class: `CorrespondenceTriagedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `clock_ids` | any | yes |  |
+| `domain` | string | yes | Domain code. |
+| `referenced_ids` | any | yes |  |
+| `subtype` | string | yes | Subtype code. |
+| `suggestion` | string or null | no | The domain the suggestion engine proposed, when it differs from the confirmed one; null otherwise. |
+| `triaged_on` | string | yes | ISO date. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "clock_ids": [],
+      "domain": "general",
+      "referenced_ids": [],
+      "subtype": "letter",
+      "suggestion": null,
+      "triaged_on": "2026-10-17"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Correspondence.Triaged/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Correspondence.Triaged.v1"
+}
+```
+
+## Correspondence.Updated
+
+The register fields of a draft or received item changed (the subject changes through the core `Record.Updated`).
+
+- CloudEvents type: `tl.core.Correspondence.Updated.v1`
+- Ledger payload class: `CorrespondenceUpdatedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `changes` | any | yes |  |
+| `reason` | string or null | no | Why it changed. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {
+      "body": [
+        "Draft",
+        "Final text"
+      ]
+    },
+    "detail": {
+      "changes": {
+        "body": [
+          "Draft",
+          "Final text"
+        ]
+      },
+      "reason": null
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Correspondence.Updated/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Correspondence.Updated.v1"
+}
+```
+
+## CorrespondenceThread.Defined
+
+A thread was opened by its first item.
+
+- CloudEvents type: `tl.core.CorrespondenceThread.Defined.v1`
+- Ledger payload class: `CorrespondenceThreadDefinedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `domain` | string or null | no | Domain code, when known. |
+| `governing_item_id` | string | yes | Record id of the first item. |
+| `item_on` | string or null | no | ISO date of the first item. |
+| `number` | string | yes | The thread number. |
+| `subject_key` | string | yes | The normalised subject. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "domain": null,
+      "governing_item_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "item_on": "2026-10-17",
+      "number": "P123-THR-0001",
+      "subject_key": "revised programme"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/CorrespondenceThread.Defined/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.CorrespondenceThread.Defined.v1"
+}
+```
+
+## CorrespondenceThread.ItemAdded
+
+An item joined the thread.
+
+- CloudEvents type: `tl.core.CorrespondenceThread.ItemAdded.v1`
+- Ledger payload class: `CorrespondenceThreadItemAddedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `item_id` | string | yes | Record id of the item. |
+| `item_on` | string or null | no | ISO date of the item. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "item_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "item_on": "2026-10-18"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/CorrespondenceThread.ItemAdded/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.CorrespondenceThread.ItemAdded.v1"
+}
+```
+
+## CorrespondenceThread.StateChanged
+
+A thread was closed or reopened.
+
+- CloudEvents type: `tl.core.CorrespondenceThread.StateChanged.v1`
+- Ledger payload class: `CorrespondenceThreadStateChangedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `reason` | string or null | no | Why. |
+| `state` | string | yes | open or closed. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "reason": "Every question answered",
+      "state": "closed"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/CorrespondenceThread.StateChanged/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.CorrespondenceThread.StateChanged.v1"
 }
 ```
 
@@ -2536,6 +3461,226 @@ A number was allocated from a counter.
 }
 ```
 
+## Party.ContactAdded
+
+A contact was added to a party.
+
+- CloudEvents type: `tl.core.Party.ContactAdded.v1`
+- Ledger payload class: `PartyContactAddedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `domain` | string or null | no | Domain code; null for every domain. |
+| `email` | string or null | no | Lower-case email. |
+| `is_authorised` | boolean | yes | True for an authorised representative. |
+| `name` | string | yes | The person's name. |
+| `position` | integer | yes | Position among the party's contacts. |
+| `title` | string or null | no | Job title. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "domain": null,
+      "email": "lee@meridian.example",
+      "is_authorised": false,
+      "name": "Lee Wong",
+      "position": 2,
+      "title": "Planner"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Party.ContactAdded/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Party.ContactAdded.v1"
+}
+```
+
+## Party.ContactEnded
+
+A contact was ended.
+
+- CloudEvents type: `tl.core.Party.ContactEnded.v1`
+- Ledger payload class: `PartyContactEndedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `position` | integer | yes | Position of the contact. |
+| `reason` | string or null | no | Why. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "position": 2,
+      "reason": "Left the project"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Party.ContactEnded/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Party.ContactEnded.v1"
+}
+```
+
+## Party.Defined
+
+A party was entered, with its first contacts.
+
+- CloudEvents type: `tl.core.Party.Defined.v1`
+- Ledger payload class: `PartyDefinedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `code` | string | yes | The party code. |
+| `contacts` | any | yes |  |
+| `email_domains` | any | yes |  |
+| `project_role` | string | yes | client, engineer, contractor, subcontractor, supplier, authority, internal or other. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "code": "CLIENT",
+      "contacts": [
+        {
+          "domain": null,
+          "email": "pm@meridian.example",
+          "is_authorised": true,
+          "name": "Dana Cole",
+          "title": "Project manager"
+        }
+      ],
+      "email_domains": [
+        "meridian.example"
+      ],
+      "project_role": "client"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Party.Defined/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Party.Defined.v1"
+}
+```
+
+## Party.Retired
+
+A party was retired.
+
+- CloudEvents type: `tl.core.Party.Retired.v1`
+- Ledger payload class: `PartyRetiredPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `reason` | string | yes | Why. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "reason": "Contract complete"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Party.Retired/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Party.Retired.v1"
+}
+```
+
 ## ProcessingJob.Cancelled
 
 A queued job was cancelled before a worker took it.
@@ -3504,6 +4649,440 @@ A rendition was replaced by a newer one of the same kind on the same revision.
   "tlseq": 48211933,
   "tlstreamversion": 7,
   "type": "tl.core.Rendition.Superseded.v1"
+}
+```
+
+## ResponseClock.Cancelled
+
+The clock was cancelled: no answer is needed any more.
+
+- CloudEvents type: `tl.core.ResponseClock.Cancelled.v1`
+- Ledger payload class: `ResponseClockCancelledPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `day` | string | yes | ISO date. |
+| `reason` | string | yes | Why. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "day": "2026-10-25",
+      "reason": "Withdrawn by the client"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/ResponseClock.Cancelled/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.ResponseClock.Cancelled.v1"
+}
+```
+
+## ResponseClock.Expired
+
+The sweep found a running clock past its due date. A late answer still ends it with `ResponseClock.Met`.
+
+- CloudEvents type: `tl.core.ResponseClock.Expired.v1`
+- Ledger payload class: `ResponseClockExpiredPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `day` | string | yes | ISO date of the sweep. |
+| `days_overdue` | integer | yes | Days past the due date on the clock's own count. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "day": "2026-11-01",
+      "days_overdue": 1
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/ResponseClock.Expired/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.ResponseClock.Expired.v1"
+}
+```
+
+## ResponseClock.Met
+
+The clock was met: the answer came in time (or late; the date says which).
+
+- CloudEvents type: `tl.core.ResponseClock.Met.v1`
+- Ledger payload class: `ResponseClockMetPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `day` | string | yes | ISO date of the answer. |
+| `reason` | string or null | no | How it was met. |
+| `response_id` | string or null | no | Record id of the answering item, when there is one. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "day": "2026-10-25",
+      "reason": null,
+      "response_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P5"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/ResponseClock.Met/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.ResponseClock.Met.v1"
+}
+```
+
+## ResponseClock.Paused
+
+A clock was paused; the days of the pause do not count.
+
+- CloudEvents type: `tl.core.ResponseClock.Paused.v1`
+- Ledger payload class: `ResponseClockPausedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `day` | string | yes | ISO date of the pause. |
+| `reason` | string | yes | Why. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "day": "2026-10-20",
+      "reason": "Waiting for the client to send the drawing"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/ResponseClock.Paused/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.ResponseClock.Paused.v1"
+}
+```
+
+## ResponseClock.Restarted
+
+A clock started its count again from a new day zero, with the same parameters.
+
+- CloudEvents type: `tl.core.ResponseClock.Restarted.v1`
+- Ledger payload class: `ResponseClockRestartedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `due_on` | string | yes | The new due date. |
+| `reason` | string | yes | Why. |
+| `start_on` | string | yes | ISO date of the new day zero. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "due_on": "2026-11-10",
+      "reason": "A revised letter was issued",
+      "start_on": "2026-10-27"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/ResponseClock.Restarted/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.ResponseClock.Restarted.v1"
+}
+```
+
+## ResponseClock.Resumed
+
+A paused clock ran again; the due date moved by the days of the pause.
+
+- CloudEvents type: `tl.core.ResponseClock.Resumed.v1`
+- Ledger payload class: `ResponseClockResumedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `day` | string | yes | ISO date of the resume. |
+| `due_on` | string | yes | The new due date. |
+| `reason` | string or null | no | Why, when the date is before today. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "day": "2026-10-23",
+      "due_on": "2026-11-03",
+      "reason": null
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/ResponseClock.Resumed/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.ResponseClock.Resumed.v1"
+}
+```
+
+## ResponseClock.Started
+
+A response clock started. The first event of a clock; it carries every parameter of the count and the due date the engine computed from them and the named calendar version.
+
+- CloudEvents type: `tl.core.ResponseClock.Started.v1`
+- Ledger payload class: `ResponseClockStartedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `calendar` | string | yes | Calendar and version, code@version. |
+| `clause_id` | string or null | no | Record id of the contract clause. |
+| `day_type` | string | yes | calendar or working. |
+| `due_on` | string | yes | ISO date the clock expires. |
+| `duration_days` | integer | yes | Length in days of the unit. |
+| `item_id` | string | yes | Record id of the item. |
+| `item_number` | string | yes | Its number. |
+| `kind` | string | yes | response_from_them, response_from_us or time_bar. |
+| `label` | string | yes | What the clock waits for. |
+| `owner` | string or null | no | The actor responsible. |
+| `start_on` | string | yes | ISO date of day zero. |
+| `trigger` | string | yes | What started it: receipt, issue, triage or manual. |
+| `warn_days` | any | yes |  |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "calendar": "P123-default@1",
+      "clause_id": null,
+      "day_type": "calendar",
+      "due_on": "2026-10-31",
+      "duration_days": 14,
+      "item_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "item_number": "P123-COR-0002",
+      "kind": "response_from_them",
+      "label": "Reply expected",
+      "owner": "user:amy",
+      "start_on": "2026-10-17",
+      "trigger": "issue",
+      "warn_days": [
+        7,
+        3,
+        1
+      ]
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/ResponseClock.Started/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.ResponseClock.Started.v1"
+}
+```
+
+## ResponseClock.Warned
+
+The sweep found a running clock at or inside a warning threshold smaller than the last one raised. The smallest crossed threshold is recorded.
+
+- CloudEvents type: `tl.core.ResponseClock.Warned.v1`
+- Ledger payload class: `ResponseClockWarnedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `day` | string | yes | ISO date of the sweep. |
+| `days_left` | integer | yes | Days left on the clock's own count when the sweep ran. |
+| `level` | integer | yes | The threshold in days that was crossed. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "day": "2026-10-28",
+      "days_left": 3,
+      "level": 3
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/ResponseClock.Warned/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.ResponseClock.Warned.v1"
 }
 ```
 

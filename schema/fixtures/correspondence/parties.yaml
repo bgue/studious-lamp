@@ -1,0 +1,28 @@
+# Sample parties of project P123 for `tl corr party load` and the demos. The names and the email
+# domains are invented (`.example` is reserved for documentation).
+parties:
+  - code: CLIENT
+    name: Meridian Energy
+    project_role: client
+    email_domains: [meridian.example]
+    contacts:
+      - { name: Dana Cole, email: dana.cole@meridian.example, title: Project manager, is_authorised: true }
+      - { name: Lee Wong, email: lee.wong@meridian.example, title: Planner }
+  - code: ENGINEER
+    name: Northgate Engineering
+    project_role: engineer
+    email_domains: [northgate.example]
+    contacts:
+      - { name: Priya Nair, email: priya.nair@northgate.example, title: Lead engineer, is_authorised: true }
+  - code: SUBCON
+    name: Harbour Mechanical
+    project_role: subcontractor
+    email_domains: [harbourmech.example]
+    contacts:
+      - { name: Tom Reyes, email: tom.reyes@harbourmech.example, title: Site manager }
+  - code: OURS
+    name: Acme Construction
+    project_role: internal
+    email_domains: [acme.example]
+    contacts:
+      - { name: Amy Lopez, email: amy.lopez@acme.example, title: Document controller, is_authorised: true }

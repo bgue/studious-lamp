@@ -11,11 +11,12 @@ import asyncio
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from mcp import Client
 from mcp.server.mcpserver import MCPServer
 from mcp_types import CallToolResult
+from tl_adapters.db import DbTarget, make_uow_factory
 from tl_adapters.sqlite.factory import SqliteUowFactory
 from tl_adapters.sqlite.uow import create_schema
 from tl_core.files.service import FileService
@@ -31,7 +32,7 @@ ACTOR = "agent:triage"
 
 @dataclass
 class McpHarness:
-    db: Path
+    db: DbTarget
     factory: SqliteUowFactory
     server: MCPServer
 
@@ -43,10 +44,17 @@ class McpHarness:
         lake_dir: Path | None = None,
         object_store: ObjectStore | None = None,
         files: FileService | None = None,
+        target: DbTarget | None = None,
     ) -> McpHarness:
-        db = root / "tl.db"
-        create_schema(db)
-        factory = SqliteUowFactory(db)
+        """A harness over a new SQLite file, or over ``target`` (what the parity fixture ``db``
+        returns: a SQLite file or a Postgres schema, with the default schema in place)."""
+        db: DbTarget = root / "tl.db"
+        if target is None:
+            create_schema(db)
+            factory = SqliteUowFactory(db)
+        else:
+            db = target
+            factory = cast(SqliteUowFactory, make_uow_factory(target))
         lake = lake_dir if lake_dir is not None else root / "lake"
         if authorize_hook is None:
             server = build_server(
@@ -64,7 +72,8 @@ class McpHarness:
         return McpHarness(db, factory, server)
 
     def close(self) -> None:
-        self.factory.close()
+        closer = getattr(self.factory, "close", None) or self.factory.dispose  # Postgres: dispose
+        closer()
 
     # --- seeding ---------------------------------------------------------------------------
 

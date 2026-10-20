@@ -100,6 +100,150 @@
       "version": 1
     },
     {
+      "ce_type": "tl.core.ContractClause.Defined.v1",
+      "event_type": "ContractClause.Defined",
+      "payload_class": "ContractClauseDefinedPayload",
+      "sample": "samples/ContractClause.Defined.v1.json",
+      "schema": "schemas/ContractClause.Defined.v1.json",
+      "title": "A contract clause was entered.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.ContractClause.Retired.v1",
+      "event_type": "ContractClause.Retired",
+      "payload_class": "ContractClauseRetiredPayload",
+      "sample": "samples/ContractClause.Retired.v1.json",
+      "schema": "schemas/ContractClause.Retired.v1.json",
+      "title": "A clause was retired; clocks that cited it keep their reference.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Correspondence.ClearanceGranted.v1",
+      "event_type": "Correspondence.ClearanceGranted",
+      "payload_class": "CorrespondenceClearanceGrantedPayload",
+      "sample": "samples/Correspondence.ClearanceGranted.v1.json",
+      "schema": "schemas/Correspondence.ClearanceGranted.v1.json",
+      "title": "An account was named as able to read a privileged item (ADR-0016).",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Correspondence.ClearanceWithdrawn.v1",
+      "event_type": "Correspondence.ClearanceWithdrawn",
+      "payload_class": "CorrespondenceClearanceWithdrawnPayload",
+      "sample": "samples/Correspondence.ClearanceWithdrawn.v1.json",
+      "schema": "schemas/Correspondence.ClearanceWithdrawn.v1.json",
+      "title": "An account was removed from the readers of a privileged item.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Correspondence.ConfidentialityChanged.v1",
+      "event_type": "Correspondence.ConfidentialityChanged",
+      "payload_class": "CorrespondenceConfidentialityChangedPayload",
+      "sample": "samples/Correspondence.ConfidentialityChanged.v1.json",
+      "schema": "schemas/Correspondence.ConfidentialityChanged.v1.json",
+      "title": "The confidentiality class of an item changed (a controller's act, ADR-0016).",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Correspondence.Defined.v1",
+      "event_type": "Correspondence.Defined",
+      "payload_class": "CorrespondenceDefinedPayload",
+      "sample": "samples/Correspondence.Defined.v1.json",
+      "schema": "schemas/Correspondence.Defined.v1.json",
+      "title": "A correspondence item was received, drafted or logged.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Correspondence.Issued.v1",
+      "event_type": "Correspondence.Issued",
+      "payload_class": "CorrespondenceIssuedPayload",
+      "sample": "samples/Correspondence.Issued.v1.json",
+      "schema": "schemas/Correspondence.Issued.v1.json",
+      "title": "An outgoing item was issued: its text was rendered to a PDF (stored in the slot `rendition`) and sent.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Correspondence.Reclassified.v1",
+      "event_type": "Correspondence.Reclassified",
+      "payload_class": "CorrespondenceReclassifiedPayload",
+      "sample": "samples/Correspondence.Reclassified.v1.json",
+      "schema": "schemas/Correspondence.Reclassified.v1.json",
+      "title": "The domain or subtype of an item changed before it was issued.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Correspondence.Responded.v1",
+      "event_type": "Correspondence.Responded",
+      "payload_class": "CorrespondenceRespondedPayload",
+      "sample": "samples/Correspondence.Responded.v1.json",
+      "schema": "schemas/Correspondence.Responded.v1.json",
+      "title": "An answer to an item was issued or received.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Correspondence.Superseded.v1",
+      "event_type": "Correspondence.Superseded",
+      "payload_class": "CorrespondenceSupersededPayload",
+      "sample": "samples/Correspondence.Superseded.v1.json",
+      "schema": "schemas/Correspondence.Superseded.v1.json",
+      "title": "An item was replaced by another item; it stays in the ledger.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Correspondence.ThreadAssigned.v1",
+      "event_type": "Correspondence.ThreadAssigned",
+      "payload_class": "CorrespondenceThreadAssignedPayload",
+      "sample": "samples/Correspondence.ThreadAssigned.v1.json",
+      "schema": "schemas/Correspondence.ThreadAssigned.v1.json",
+      "title": "An item joined a thread, and optionally answers another item.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Correspondence.Triaged.v1",
+      "event_type": "Correspondence.Triaged",
+      "payload_class": "CorrespondenceTriagedPayload",
+      "sample": "samples/Correspondence.Triaged.v1.json",
+      "schema": "schemas/Correspondence.Triaged.v1.json",
+      "title": "A person confirmed the domain and subtype of a received item, with the records it refers to and the clocks that were started.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Correspondence.Updated.v1",
+      "event_type": "Correspondence.Updated",
+      "payload_class": "CorrespondenceUpdatedPayload",
+      "sample": "samples/Correspondence.Updated.v1.json",
+      "schema": "schemas/Correspondence.Updated.v1.json",
+      "title": "The register fields of a draft or received item changed (the subject changes through the core `Record.Updated`).",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.CorrespondenceThread.Defined.v1",
+      "event_type": "CorrespondenceThread.Defined",
+      "payload_class": "CorrespondenceThreadDefinedPayload",
+      "sample": "samples/CorrespondenceThread.Defined.v1.json",
+      "schema": "schemas/CorrespondenceThread.Defined.v1.json",
+      "title": "A thread was opened by its first item.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.CorrespondenceThread.ItemAdded.v1",
+      "event_type": "CorrespondenceThread.ItemAdded",
+      "payload_class": "CorrespondenceThreadItemAddedPayload",
+      "sample": "samples/CorrespondenceThread.ItemAdded.v1.json",
+      "schema": "schemas/CorrespondenceThread.ItemAdded.v1.json",
+      "title": "An item joined the thread.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.CorrespondenceThread.StateChanged.v1",
+      "event_type": "CorrespondenceThread.StateChanged",
+      "payload_class": "CorrespondenceThreadStateChangedPayload",
+      "sample": "samples/CorrespondenceThread.StateChanged.v1.json",
+      "schema": "schemas/CorrespondenceThread.StateChanged.v1.json",
+      "title": "A thread was closed or reopened.",
+      "version": 1
+    },
+    {
       "ce_type": "tl.core.CostCode.Defined.v1",
       "event_type": "CostCode.Defined",
       "payload_class": "CostCodeDefinedPayload",
@@ -379,6 +523,42 @@
       "version": 1
     },
     {
+      "ce_type": "tl.core.Party.ContactAdded.v1",
+      "event_type": "Party.ContactAdded",
+      "payload_class": "PartyContactAddedPayload",
+      "sample": "samples/Party.ContactAdded.v1.json",
+      "schema": "schemas/Party.ContactAdded.v1.json",
+      "title": "A contact was added to a party.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Party.ContactEnded.v1",
+      "event_type": "Party.ContactEnded",
+      "payload_class": "PartyContactEndedPayload",
+      "sample": "samples/Party.ContactEnded.v1.json",
+      "schema": "schemas/Party.ContactEnded.v1.json",
+      "title": "A contact was ended.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Party.Defined.v1",
+      "event_type": "Party.Defined",
+      "payload_class": "PartyDefinedPayload",
+      "sample": "samples/Party.Defined.v1.json",
+      "schema": "schemas/Party.Defined.v1.json",
+      "title": "A party was entered, with its first contacts.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Party.Retired.v1",
+      "event_type": "Party.Retired",
+      "payload_class": "PartyRetiredPayload",
+      "sample": "samples/Party.Retired.v1.json",
+      "schema": "schemas/Party.Retired.v1.json",
+      "title": "A party was retired.",
+      "version": 1
+    },
+    {
       "ce_type": "tl.core.ProcessingJob.Cancelled.v1",
       "event_type": "ProcessingJob.Cancelled",
       "payload_class": "ProcessingJobCancelledPayload",
@@ -529,6 +709,78 @@
       "sample": "samples/Rendition.Superseded.v1.json",
       "schema": "schemas/Rendition.Superseded.v1.json",
       "title": "A rendition was replaced by a newer one of the same kind on the same revision.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.ResponseClock.Cancelled.v1",
+      "event_type": "ResponseClock.Cancelled",
+      "payload_class": "ResponseClockCancelledPayload",
+      "sample": "samples/ResponseClock.Cancelled.v1.json",
+      "schema": "schemas/ResponseClock.Cancelled.v1.json",
+      "title": "The clock was cancelled: no answer is needed any more.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.ResponseClock.Expired.v1",
+      "event_type": "ResponseClock.Expired",
+      "payload_class": "ResponseClockExpiredPayload",
+      "sample": "samples/ResponseClock.Expired.v1.json",
+      "schema": "schemas/ResponseClock.Expired.v1.json",
+      "title": "The sweep found a running clock past its due date.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.ResponseClock.Met.v1",
+      "event_type": "ResponseClock.Met",
+      "payload_class": "ResponseClockMetPayload",
+      "sample": "samples/ResponseClock.Met.v1.json",
+      "schema": "schemas/ResponseClock.Met.v1.json",
+      "title": "The clock was met: the answer came in time (or late; the date says which).",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.ResponseClock.Paused.v1",
+      "event_type": "ResponseClock.Paused",
+      "payload_class": "ResponseClockPausedPayload",
+      "sample": "samples/ResponseClock.Paused.v1.json",
+      "schema": "schemas/ResponseClock.Paused.v1.json",
+      "title": "A clock was paused; the days of the pause do not count.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.ResponseClock.Restarted.v1",
+      "event_type": "ResponseClock.Restarted",
+      "payload_class": "ResponseClockRestartedPayload",
+      "sample": "samples/ResponseClock.Restarted.v1.json",
+      "schema": "schemas/ResponseClock.Restarted.v1.json",
+      "title": "A clock started its count again from a new day zero, with the same parameters.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.ResponseClock.Resumed.v1",
+      "event_type": "ResponseClock.Resumed",
+      "payload_class": "ResponseClockResumedPayload",
+      "sample": "samples/ResponseClock.Resumed.v1.json",
+      "schema": "schemas/ResponseClock.Resumed.v1.json",
+      "title": "A paused clock ran again; the due date moved by the days of the pause.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.ResponseClock.Started.v1",
+      "event_type": "ResponseClock.Started",
+      "payload_class": "ResponseClockStartedPayload",
+      "sample": "samples/ResponseClock.Started.v1.json",
+      "schema": "schemas/ResponseClock.Started.v1.json",
+      "title": "A response clock started.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.ResponseClock.Warned.v1",
+      "event_type": "ResponseClock.Warned",
+      "payload_class": "ResponseClockWarnedPayload",
+      "sample": "samples/ResponseClock.Warned.v1.json",
+      "schema": "schemas/ResponseClock.Warned.v1.json",
+      "title": "The sweep found a running clock at or inside a warning threshold smaller than the last one raised.",
       "version": 1
     },
     {

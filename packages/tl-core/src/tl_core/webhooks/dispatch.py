@@ -29,6 +29,7 @@ from typing import Any
 
 from sqlalchemy import Connection, text
 
+from tl_core import confidentiality
 from tl_core.auth.projector import ACCOUNT_STREAM_TYPE
 from tl_core.query.api import QuerySpec, count_query, parse
 from tl_core.query.ast import And, Compare
@@ -68,6 +69,7 @@ _INSERT_DELIVERY = text(
     "(:delivery_id, :subscription_id, :dedupe_key, :seq, :event_id, :subject_id, :origin, "
     "'pending', :body, 0, :now, :now, :replay_of) ON CONFLICT DO NOTHING"
 )
+_EVENT_PAYLOAD = text("SELECT payload FROM events WHERE event_id = :event_id")
 _DELIVERY_EXISTS = text(
     "SELECT 1 FROM wh_delivery "
     "WHERE subscription_id = :subscription_id AND dedupe_key = :dedupe_key"
@@ -342,7 +344,36 @@ class Dispatcher:
             return False
         if not self._policy.allows(row, sub.owner):
             return False
-        body = self.render_body(uow, row, sub.payload_mode)
+        # The audience is the subscription's owner (ADR-0016, brief 18.3): a record the owner may
+        # not read is not delivered; a privileged or unknown class is never delivered; a
+        # restricted record goes out as `thin` only.
+        owner = confidentiality.viewer_for_actor(conn, sub.owner)
+        if row.stream_type in confidentiality.SCANNED_STREAM_TYPES:  # a counter or a proposal
+            stored = conn.execute(_EVENT_PAYLOAD, {"event_id": row.event_id}).scalar_one_or_none()
+            for who in (owner, confidentiality.RESTRICTED_ONLY):
+                if stored is not None and confidentiality.names_hidden_record(
+                    conn, row.stream_type, stored, who
+                ):
+                    return False
+        if confidentiality.is_hidden(conn, row.subject_id, owner) or confidentiality.is_hidden(
+            conn, row.subject_id, confidentiality.RESTRICTED_ONLY
+        ):
+            return False
+        # A link with a hidden end, a file of a hidden record and a post that tags one are
+        # streams of their own: judged by the stream, for the owner and for the thin audience.
+        for who in (owner, confidentiality.RESTRICTED_ONLY):
+            if row.stream_id in confidentiality.hidden_event_streams(
+                conn, [(row.stream_id, row.stream_type)], who
+            ):
+                return False
+        thin = confidentiality.is_hidden(
+            conn, row.subject_id, confidentiality.LOWEST
+        ) or row.stream_id in confidentiality.hidden_event_streams(
+            conn, [(row.stream_id, row.stream_type)], confidentiality.LOWEST
+        )
+        requested = "thin" if thin else sub.payload_mode
+        with confidentiality.use_viewer(owner):
+            body = self.render_body(uow, row, requested)
         result = conn.execute(
             _INSERT_DELIVERY,
             {
@@ -383,7 +414,9 @@ class Dispatcher:
             }
         for link in conn.execute(_LINKS_SQL, {"id": row.subject_id}).mappings():
             found[(link["rel"], link["id"])] = dict(link)
-        return sorted(found.values(), key=lambda item: (item["rel"], item["id"] or ""))
+        hidden = confidentiality.hidden_among(conn, [i["id"] for i in found.values() if i["id"]])
+        shown = [item for item in found.values() if item["id"] not in hidden]  # ADR-0016
+        return sorted(shown, key=lambda item: (item["rel"], item["id"] or ""))
 
     @staticmethod
     def _read(conn: Connection, where: str, params: dict[str, Any], limit: int) -> list[OutboxRow]:

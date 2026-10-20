@@ -23,6 +23,7 @@ MAX_MARKUPS = 20  # current markup renditions of one revision (markup is additiv
 
 #: Said wherever confidentiality is set or shown, so nobody takes the class for access control.
 CONFIDENTIALITY_NOTE = (
-    "In Phase 1 confidentiality is recorded but not enforced: every signed-in person and every "
-    "agent can read all documents and transmittals of a project, including recipient emails."
+    "Confidentiality is enforced (ADR-0016): a person reads a document only when their "
+    "clearance covers its class (internal or restricted); a document of any other class is "
+    "hidden from everyone."
 )

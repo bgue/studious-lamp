@@ -16,6 +16,7 @@ from sqlalchemy import bindparam, text
 from sqlalchemy.engine import Connection
 from sqlalchemy.sql.elements import BindParameter
 
+from tl_core import confidentiality
 from tl_core.feed.types import FeedItem, ParsedTag, TagKind
 from tl_core.services.errors import PostNotFoundError
 from tl_core.uow import UnitOfWork
@@ -82,9 +83,7 @@ _TAGS_SQL = text(
 _LABELS_SQL = text("SELECT id, key, title FROM cur_core_record WHERE id IN :ids").bindparams(
     bindparam("ids", expanding=True)
 )
-_POST_SQL = text(
-    _FEED_COLUMNS + " WHERE i.item_id = :id AND i.item_type = 'post' AND i.scope = :scope"
-)
+_POST_SQL = _FEED_COLUMNS + " WHERE i.item_id = :id AND i.item_type = 'post' AND i.scope = :scope"
 
 
 def _unique(values: Iterable[str | None]) -> tuple[str, ...]:
@@ -199,6 +198,9 @@ def list_feed(
     conn = uow.conn()
     clauses = ["i.scope = :scope"]
     params: dict[str, Any] = {"scope": scope, "limit": limit + 1}
+    visible, visible_params = confidentiality.not_hidden_item("i.item_id")
+    clauses.append(visible)  # a card or post about a record the viewer may not read is hidden
+    params.update(visible_params)
     bindings: list[BindParameter[Any]] = []
     if item_type is not None:
         clauses.append("i.item_type = :item_type")
@@ -243,7 +245,10 @@ def get_post(uow: UnitOfWork, scope: str, post_id: str) -> FeedItem:
     Raises ``PostNotFoundError`` when no post has this id in ``scope``.
     """
     conn = uow.conn()
-    rows = conn.execute(_POST_SQL, {"id": post_id, "scope": scope}).all()
+    visible, visible_params = confidentiality.not_hidden_item("i.item_id")
+    rows = conn.execute(
+        text(f"{_POST_SQL} AND {visible}"), {"id": post_id, "scope": scope, **visible_params}
+    ).all()
     if not rows:
         raise PostNotFoundError(f"no post {post_id!r} in scope {scope!r}")
     return _feed_items(conn, rows)[0]

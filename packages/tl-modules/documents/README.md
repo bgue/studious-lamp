@@ -38,8 +38,8 @@ uv run pytest packages/tl-modules/documents -q --adapters sqlite,postgres   # ne
 uv run tl doc register ISO-1234 --project P123 --title "Isometric" --type ISO --discipline PIP
 ```
 
-## Confidentiality in Phase 1
-In Phase 1 confidentiality is recorded but not enforced: every signed-in person and every agent can read all documents and transmittals of a project, including recipient emails.
+## Confidentiality
+Confidentiality is enforced (ADR-0016). A document is `internal` (no class set means internal) or `restricted`; a person reads a restricted document only as a document controller or admin, an agent reads internal documents only, and a document of any other class is hidden from everyone. A revision, rendition, review, derived document and processing job are as hidden as their document; a transmittal item that names a hidden revision is left out. The registry, reports, resolver and derivation reads call `tl_core.confidentiality`; the worker of the derivation queue reads as the system.
 
 ## Configuration
 | Setting or env var | Default | Notes |

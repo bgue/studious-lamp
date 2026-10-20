@@ -46,6 +46,7 @@ tickets in `docs/tickets/`, reports in `docs/reports/`, decisions in `docs/adr/`
 - Never touch `schema/**` from a ticket that is not labelled `schema` and does not name a human approver.
 - Never write auth, permission, migration, numbering-allocation, or sync/merge code from a Haiku ticket. Those are Sonnet-tier with a human gate (§25.5).
 - Never log, print, echo, store in an event or put in an error text a password, a password hash or a session or agent token, and never accept a password as a command-line argument (ADR-0009). Hash before a write transaction. Authorization is closed for agents: a new route or MCP tool is denied until someone allows it.
+- Never read a module record, its history or the events that name it without the viewer's class filter (`tl_core.confidentiality`, ADR-0016): the viewer defaults to the lowest clearance, a hidden record answers as one that never existed, and a test that widens the default to get green is wrong. A new route, tool, feed, webhook or export that can carry record text needs a walking test as five kinds of reader.
 - Never put business logic in the TUI. Screens call the same command and query contracts the API uses (§16, "Web readiness").
 
 ## Commands
@@ -76,4 +77,6 @@ Details: `docs/build-spec/03-repo-and-toolchain.md`.
 | Dev MCP server for coding agents (`python -m tl_mcp.dev`, dev data only; runbook `docs/runbooks/dev-mcp.md`) | `packages/tl-mcp/src/tl_mcp/dev/` |
 | Scaffolded modules (`tl new module`, `record-type`, `projector`) | `packages/tl-modules/<m>/`, `schema/modules/<m>/`, `docs/modules/<m>/` |
 | Accounts, sessions, agent tokens, roles (`tl_core.auth`; ADR-0009; runbook `docs/runbooks/accounts-and-access.md`) | `packages/tl-core/src/tl_core/auth/`, `schema/core/auth.yaml`; CLI `packages/tl-cli/src/tl_cli/{session,login,admin*}.py`; API `routes/auth.py`, `routes/admin.py`; TUI `sign_in.py`, `widgets/admin_screen.py` |
+| Correspondence (M10: items, threads, response clocks, parties, clauses, the General and Document-control domains, email in; `tl corr`, TUI `F12`; ADR-0016; runbook `docs/runbooks/correspondence.md`) | `packages/tl-modules/correspondence/`, `schema/modules/correspondence/`, `schema/fixtures/correspondence/`, `schema/fixtures/calendars/`, `docs/modules/correspondence/`; CLI `packages/tl-cli/src/tl_cli/corr*.py`; API `routes/correspondence.py`; MCP `correspondence_tools.py`; TUI `widgets/correspondence_screen.py` |
+| Confidentiality enforcement (viewer, class filters, event and row filters) | `packages/tl-core/src/tl_core/confidentiality.py`; walking tests `packages/tl-api/tests/test_confidentiality_walk.py`, `packages/tl-mcp/tests/test_confidentiality_walk.py` |
 | Docs and memory rules | `.claude/skills/throughline-docs/SKILL.md` |

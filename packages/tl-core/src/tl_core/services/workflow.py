@@ -14,6 +14,7 @@ from typing import Any
 from pydantic import BaseModel
 from sqlalchemy import text
 
+from tl_core import confidentiality
 from tl_core.ledger import NewEvent
 from tl_core.modules import bound_psets, require_generic
 from tl_core.services.commands import Command, CommandResult
@@ -70,7 +71,11 @@ class WorkflowStatus(BaseModel):
 
 def _load(uow: UnitOfWork, record_id: str, scope: str | None = None) -> Any:
     row = uow.conn().execute(_RECORD_SQL, {"id": record_id}).first()
-    if row is None or (scope is not None and row.scope != scope):
+    if (
+        row is None
+        or (scope is not None and row.scope != scope)
+        or confidentiality.is_hidden(uow.conn(), record_id)
+    ):
         raise RecordNotFoundError(f"no record {record_id!r}")
     return row
 

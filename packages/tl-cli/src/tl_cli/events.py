@@ -7,6 +7,7 @@ from typing import Annotated
 
 import typer
 from tl_adapters.db import DbTarget, open_uow
+from tl_core import confidentiality
 from tl_core.changefeed.filters import INTERNAL_STREAM_TYPES
 from tl_core.ledger import Event
 
@@ -37,7 +38,8 @@ def tail(
             page = uow.ledger.read_after(seq, scope=scope, limit=_PAGE)
             if not page:
                 break
-            newest.extend(e for e in page if e.stream_type not in INTERNAL_STREAM_TYPES)
+            shown = confidentiality.filter_events(uow.conn(), page)  # ADR-0016
+            newest.extend(e for e in shown if e.stream_type not in INTERNAL_STREAM_TYPES)
             seq = page[-1].seq
     for event in newest:
         typer.echo(
