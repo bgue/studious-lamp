@@ -15,6 +15,7 @@ from typing import Any
 
 from sqlalchemy import text
 from tl_core import confidentiality
+from tl_core.auth.errors import ForbiddenError
 from tl_core.ledger import AppendResult, NewEvent
 from tl_core.services.commands import Command, CommandResult
 from tl_core.services.errors import RecordNotFoundError
@@ -28,7 +29,7 @@ from tl_mod_correspondence.errors import (
     ItemBackdatedError,
     ItemStateError,
 )
-from tl_mod_correspondence.names import CORRESPONDENCE
+from tl_mod_correspondence.names import COMMERCIAL, CORRESPONDENCE
 
 ISO_DATE = re.compile(r"\d{4}-\d{2}-\d{2}")
 _VERSION_SQL = text("SELECT version FROM cur_core_record WHERE id = :id")
@@ -209,6 +210,18 @@ def open_item(uow: UnitOfWork, cmd: Command, item_id: str) -> registry.ItemRow:
     return found
 
 
+def require_controller_for(item: registry.ItemRow) -> None:
+    """Refuse a viewer below a document controller when ``item`` is a Commercial item.
+
+    A Commercial item is changed by controllers only, **whatever the access word of the command**
+    (ADR-0019 section 3): a person named on a privileged one (an escalation names the readers of
+    the RFI) may read it and must not pause its clock, void it, thread it or attach to it. Called
+    by every command of the module that changes an item or its clocks.
+    """
+    if item.record_type == COMMERCIAL and confidentiality.current_viewer().level < 1:
+        raise ForbiddenError("commercial items are for the document_controller and admin roles")
+
+
 def require_core(item: registry.ItemRow) -> None:
     """Raise ``ItemStateError`` unless the item is a core item (General, Document control).
 
@@ -245,6 +258,7 @@ __all__ = [
     "now",
     "open_item",
     "plausible_date",
+    "require_controller_for",
     "require_core",
     "require_project",
     "require_state",

@@ -50,6 +50,12 @@ FeedPolicy = Literal["full", "minimal", "none"]
 POLICY_KEY = "feed_policy"
 TEXT_KEY = "feed_text"
 MAX_POLICY_TEXT = 300
+#: The only events that may carry a feed policy: the three that make a domain's card (ADR-0019
+#: section 7). The same keys on any other event are ignored, so a payload that happens to have
+#: them cannot silence or replace a card.
+POLICY_EVENT_TYPES: frozenset[str] = frozenset(
+    {"Correspondence.Issued", "Technical.Answered", "Commercial.Assessed"}
+)
 
 TRANSPARENT_EVENT_TYPES: frozenset[str] = frozenset({"Numbering.Allocated", "Link.Suggested"})
 TRANSPARENT_PREFIXES: tuple[str, ...] = (
@@ -117,10 +123,11 @@ def card_id_for(first_event_id: str) -> str:
 def policy_of(event: Event) -> FeedPolicy | None:
     """The feed policy the event carries, ``None`` when it carries none.
 
-    ``full`` and ``minimal`` need a ``feed_text`` of at most 300 characters; without one, and for
-    any value that is not one of the three, the policy is ``none`` (fail closed).
+    Only ``POLICY_EVENT_TYPES`` carry one. ``full`` and ``minimal`` need a ``feed_text`` of at most
+    300 characters; without one, and for any value that is not one of the three, the policy is
+    ``none`` (fail closed).
     """
-    if POLICY_KEY not in event.payload:
+    if event.event_type not in POLICY_EVENT_TYPES or POLICY_KEY not in event.payload:
         return None
     value = event.payload[POLICY_KEY]
     text = event.payload.get(TEXT_KEY)
@@ -159,15 +166,23 @@ def disposition(open_card: OpenCard | None, event: Event) -> Disposition:
 def subjects_of(event: Event) -> list[str]:
     """Ids of the records ``event`` is about, without repeats.
 
-    ``Record.*``, ``Pset.*`` and ``Workflow.*`` are about their stream's record. ``Link.*`` are
-    about both ends (``from_ref``, ``to_ref``). ``File.*`` are about ``record_id`` when the payload
-    has one. Anything else is about no record.
+    ``Record.*``, ``Pset.*`` and ``Workflow.*`` are about their stream's record. Every event of a
+    stream whose type a module declared confidential (an item, a thread, a clock of the
+    correspondence module) is about that stream's record too, whatever its name: a card that
+    names no record would show a reader who may not read the item that "someone defined a
+    commercial" (ADR-0016, the P1-I6 security review). ``Link.*`` are about both ends
+    (``from_ref``, ``to_ref``). ``File.*`` are about ``record_id`` when the payload has one.
+    Anything else is about no record.
     """
+    from tl_core.modules import confidential_stream_types  # a module imports the projections
+
     event_type = event.event_type
     found: list[str] = []
     if policy_of(event) in ("full", "minimal"):
         found = [event.stream_id]
     elif event_type.startswith(_STREAM_SUBJECT_PREFIXES):
+        found = [event.stream_id]
+    elif event.stream_type in confidential_stream_types():
         found = [event.stream_id]
     elif event_type.startswith("Link."):
         found = [str(event.payload[k]) for k in ("from_ref", "to_ref") if event.payload.get(k)]

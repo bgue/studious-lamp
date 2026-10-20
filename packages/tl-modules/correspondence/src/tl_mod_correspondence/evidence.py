@@ -68,7 +68,7 @@ _NEIGHBOURS = (
     "FROM cur_links l "
     "JOIN cur_core_record r ON r.id = CASE WHEN l.from_id = :id THEN l.to_id ELSE l.from_id END "
     "WHERE (l.from_id = :id OR l.to_id = :id) AND r.scope = :scope AND {visible} "
-    "ORDER BY l.created_at, l.link_id"
+    "ORDER BY l.created_at, l.link_id LIMIT :cap"
 )
 _EVENTS = (
     "SELECT event_type, payload, recorded_at FROM events WHERE stream_id = :id "
@@ -347,18 +347,22 @@ def evidence_trail(
     seen = {root.id}
     frontier = [root.id]
     looked_at = 0
+    stop = False
     for level in range(1, limit_depth + 1):
         following: list[str] = []
         for parent_id in frontier:
             visible, params = confidentiality.not_hidden("r.id")
+            # one row more than the budget left says "there was more" without reading it all
+            cap = MAX_LINKS_LOOKED_AT - looked_at + 1
             rows = conn.execute(
                 text(_NEIGHBOURS.format(visible=visible)),
-                {**params, "id": parent_id, "scope": scope},
+                {**params, "id": parent_id, "scope": scope, "cap": cap},
             ).all()
             for row in rows:
                 looked_at += 1
                 if looked_at > MAX_LINKS_LOOKED_AT or len(nodes) >= limit_nodes:
                     truncated = True
+                    stop = True
                     break
                 other = str(row.other_id)
                 if other in seen:
@@ -396,8 +400,10 @@ def evidence_trail(
                 )
                 seen.add(other)
                 following.append(other)
+            if stop:
+                break
         frontier = following
-        if not frontier:
+        if stop or not frontier:
             break
     return EvidenceTrail(scope=scope, as_of=day, root_id=root.id, nodes=nodes, truncated=truncated)
 

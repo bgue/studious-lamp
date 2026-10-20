@@ -76,7 +76,7 @@ Events stay immutable and complete in the ledger and in the archive; the archive
 - A document controller sees every `restricted` item of every project (the role is company-wide, ADR-0013).
 - A `privileged` item can be read by an admin only after an admin names themselves; the event records it.
 - A hidden record can still be seen to exist by someone who knows its id through the shape of an answer that depends on it (a counter, a gap in `seq`). Counts leave hidden records out; sequence gaps remain.
-- The feed policy of a domain (`full`, `minimal`, `none`) is compiled and shown but does not yet change the cards; the class filter does.
+- The feed policy of a domain (`full`, `minimal`, `none`) changes the cards of the three events that carry it since P1-I6 (ADR-0019 section 7; only `Correspondence.Issued`, `Technical.Answered` and `Commercial.Assessed` may carry it); the class filter hides a card with the record it is about, and since P1-I6 every event of an item's stream is about that item, so the generic cards of correspondence events are hidden with it too.
 - The archive, backup and restore tools see everything and are protected by who may run them.
 - CLI on a dev ledger file reads as the owner of the file; the file itself is the boundary (ADR-0009 section 7).
 

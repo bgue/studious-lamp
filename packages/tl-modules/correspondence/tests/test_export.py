@@ -225,3 +225,15 @@ def test_no_float_arithmetic_touches_an_amount(world: CorrWorld) -> None:
     world.forge_commercial("P123-EW-0001", state="Awaiting assessment", estimated_value="0.10")
     [row] = export(world).rows
     assert dict(zip(ex.COLUMNS, row, strict=True))["value"] == "0.10"
+
+
+def test_a_register_too_big_for_one_file_is_refused_not_cut_short(
+    world: CorrWorld, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(ex, "MAX_ROWS", 2)
+    for n in range(1, 4):
+        world.forge_commercial(f"P123-EW-000{n}", state="Awaiting assessment")
+    with pytest.raises(ExportClassError, match="more than 2"):
+        export(world)
+    monkeypatch.setattr(ex, "MAX_ROWS", 3)
+    assert len(export(world).rows) == 3

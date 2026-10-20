@@ -584,3 +584,18 @@ A text is as wide as its widest character: one emoji made the typed JSON of a le
   The tl-cli conftest signs in an admin `dev` before each command on Postgres, so a test that needs a plain user, or the absence of a role, must set `AUTO_SIGN_IN = False` and sign its own people in (see `test_cli_wf_roles.py`); an admin also holds `document_controller`, so a role test with the default session passes on Postgres and fails on SQLite for the wrong reason.
   Evidence: `packages/tl-cli/tests/test_cli_wf_roles.py` (`Cast`), `conftest.py`. Status: active
 
+- **L-P1-I6-1** · 2026-10-20 · tags: tests, tickets
+  Pyright strict does not narrow an attribute through a boolean local computed from it: after `late = waiting and data.required_by is not None and ...`, `if late:` leaves `data.required_by` as `str | None`. A STEPS line that says "when `late`" needs the words "and `data.required_by is not None`" so the code type-checks; the T09a implementer had to add the guard and report it as a deviation.
+  Evidence: `docs/reports/P1-I6/P1-I6-T09a.md` (Deviations); `reports_technical.py` (`days_overdue`). Status: active
+- **L-P1-I6-2** · 2026-10-20 · tags: tooling
+  The first `just check` in a fresh worktree can end with a bare exit 247 at the pyright step and no output (probably the process killed while the machine is busy); the same tree passes on the second run, and `uv run pyright` alone reports 0 errors. Rerun once before reading it as a type error.
+  Evidence: `docs/reports/P1-I6/P1-I6-T09b.md` (Learnings). Status: active
+- **L-P1-I6-3** · 2026-10-20 · tags: tests, ledger
+  A test helper that appends a raw event to an item must use the item's own record type as the stream type (`item.record_type`), not the module's first type: the Technical and Commercial items are streams of `correspondence.TechnicalItem` and `correspondence.CommercialItem`, and confidentiality keys its hidden-stream filter on the stream type. `CorrWorld.forge_item_event` used `correspondence.Correspondence` and would have written a clearance event on the wrong stream type.
+  Evidence: `packages/tl-modules/correspondence/src/tl_mod_correspondence/testing.py` (`forge_item_event`); `confseed.py` (the privileged RFI). Status: active
+- **L-P1-I6-4** · 2026-10-20 · tags: process, tooling
+  A mutation run edits the source files in place, so nothing else can run in that worktree while it works (a test run, a stub generator, a commit with `add -A`). Give the run its own worktree: `git worktree add --detach /home/user/wt/<inc>-mut HEAD`, copy the uncommitted tests, `uv sync --all-packages`, and use a copy of the harness whose temporary files (`last.log`, the mutant list) have their own names so that two runs can go at once. The 170 mutants of four handler files take about an hour at 25 s each.
+  Evidence: `scratchpad` harness copies; P1-I6 handler tickets T02a, T02b, T04a, T04b. Status: active
+- **L-P1-I6-5** · 2026-10-20 · tags: tickets, process
+  When tickets of one batch stub files that other tickets' provided tests call, stub only the files of the tickets in the batch and keep the other references in the tree: T02a's test uses `issue_technical`, so the T02b handlers stay as references until T02a is merged, and T02b's provided test lives in `provided/` (not in `tests/`) until then. Tests that call stubbed handlers from elsewhere (`test_domain_flow.py`, `test_evidence.py`) go to `docs/tickets/<inc>/held/` and are restored after the merge.
+  Evidence: `docs/tickets/P1-I6/README.md` (order of work). Status: active

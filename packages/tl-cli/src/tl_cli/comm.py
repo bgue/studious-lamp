@@ -16,6 +16,7 @@ as a formula.
 from __future__ import annotations
 
 import json
+import os
 import sys
 from collections.abc import Callable
 from pathlib import Path
@@ -455,6 +456,24 @@ def legal(
     typer.echo(f"{number} is {state}")
 
 
+def _write_private(path: Path, text: str, *, force: bool) -> None:
+    """Write ``text`` to ``path`` as a new file only the owner can read.
+
+    The register is restricted data: the file is created with mode 0600, a symbolic link at
+    ``path`` is not followed, and an existing file is replaced only with ``--force``.
+    """
+    flags = os.O_WRONLY | os.O_CREAT | os.O_NOFOLLOW
+    flags |= os.O_TRUNC if force else os.O_EXCL
+    try:
+        fd = os.open(path, flags, 0o600)
+    except FileExistsError:
+        raise typer.BadParameter(f"{path} exists already; use --force to replace it") from None
+    except OSError as exc:
+        raise typer.BadParameter(f"cannot write {path}: {exc.strerror}") from None
+    with os.fdopen(fd, "w", encoding="utf-8", newline="") as handle:
+        handle.write(text)
+
+
 @app.command("export")
 def export_(
     ctx: typer.Context,
@@ -470,6 +489,9 @@ def export_(
     out: Annotated[
         Path | None, typer.Option("--out", help="Write here instead of the screen.")
     ] = None,
+    force: Annotated[
+        bool, typer.Option("--force", help="Replace --out when the file exists already.")
+    ] = False,
 ) -> None:
     """The pending and approved changes as CSV for the cost system (controller; bulk export)."""
     db: DbTarget = ctx.obj
@@ -480,11 +502,13 @@ def export_(
         )
     text = export.csv_text(result)
     if out is not None:
-        out.write_text(text, encoding="utf-8", newline="")
+        _write_private(out, text, force=force)
         typer.echo(f"wrote {len(result.rows)} changes to {out}")
     else:
         sys.stdout.write(text)
     for named, count in sorted(result.left_out.items()):
-        typer.echo(
-            f"{count} {named} items were left out: name the class with --class {named}", err=True
-        )
+        if named in export.EXPORTABLE_CLASSES:
+            hint = f": name the class with --class {named}"
+        else:  # privileged (or a class nobody knows) is never exported
+            hint = " (never exported)"
+        typer.echo(f"{count} {named} items were left out{hint}", err=True)

@@ -30,6 +30,7 @@ from tl_mod_correspondence.handlers.common import (
     correlated,
     load_item,
     open_item,
+    require_controller_for,
     require_core,
     require_project,
     require_state,
@@ -301,6 +302,7 @@ def _void(
 ) -> CommandResult:
     cmd = correlated(cmd)
     item = open_item(uow, cmd, cmd.stream_id)
+    require_controller_for(item)
     if item.record_type == CORRESPONDENCE:
         require_state(item, *allowed)
     else:  # a Technical or Commercial item can be voided until it is issued

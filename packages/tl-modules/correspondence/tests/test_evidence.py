@@ -14,6 +14,7 @@ from dataclasses import dataclass
 from typing import Any
 
 import pytest
+from sqlalchemy import event
 from tl_adapters.db import open_uow
 from tl_core import confidentiality as cf
 from tl_mod_correspondence import evidence as ev
@@ -249,3 +250,34 @@ def test_the_facts_of_a_commercial_item_are_folded_from_its_events(story: Story)
     assert "estimated_value" not in earlier.facts
     assert later.facts["estimated_value"] == "1000.00" and later.facts["currency"] == "USD"
     assert later.facts["aware_on"] == "2026-10-22"
+
+
+def test_the_neighbour_query_reads_no_more_than_the_budget_of_links_and_the_walk_stops(
+    story: Story, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A record with thousands of links must not be read whole to say "truncated"."""
+    monkeypatch.setattr(ev, "MAX_LINKS_LOOKED_AT", 2)
+    with at("2026-10-23"), cf.use_viewer(CONTROLLER):
+        for n in range(4, 9):
+            other = story.world.forge_item(
+                f"P123-COR-000{n}", subject=f"Letter {n}", state="Received"
+            )
+            story.world.link(story.warning, other)
+    asked: list[Any] = []
+
+    def record(conn: Any, cursor: Any, statement: str, parameters: Any, *rest: Any) -> None:
+        if "FROM cur_links l" in statement:
+            asked.append(parameters)
+
+    with (
+        frozen_today("2026-10-30"),
+        cf.use_viewer(CONTROLLER),
+        open_uow(story.world.db, readonly=True) as uow,
+    ):
+        event.listen(uow.conn(), "before_cursor_execute", record)
+        found = ev.evidence_trail(uow.conn(), PROJECT, "P123-EW-0001", None, depth=3)
+    assert found.truncated is True
+    assert len(found.nodes) <= 3  # the warning and at most the two links looked at
+    assert len(asked) == 1  # and the walk stopped: no second parent was asked about
+    values = asked[0].values() if isinstance(asked[0], dict) else asked[0]
+    assert 3 in list(values)  # the cap: the budget left (2) plus one

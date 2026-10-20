@@ -11,12 +11,14 @@ from tl_core.feed.cards import (
     card_id_for,
     disposition,
     fold_cards,
+    policy_of,
     render_card_summary,
     subjects_of,
     to_us,
 )
 from tl_core.feed.types import CARD_WINDOW_SECONDS
 from tl_core.ledger import Event
+from tl_core.modules import ConfidentialSource, ModuleSpec, use_modules
 
 T0 = datetime(2026, 10, 9, 9, 0, 0, tzinfo=UTC)
 
@@ -238,3 +240,45 @@ def test_fold_closes_a_policy_card_at_once() -> None:
         ("card:E2", 1),
         ("card:E3", 2),
     ]
+
+
+def test_policy_keys_on_an_event_that_may_not_carry_them_are_ignored() -> None:
+    odd = ev(1, "Probe.Noted", payload={"feed_policy": "none"})
+    assert policy_of(odd) is None
+    assert disposition(None, odd) == "start"  # the generic rules, not silence
+    odd = ev(1, "Record.Updated", payload={"feed_policy": "full", "feed_text": "my own line"})
+    assert policy_of(odd) is None and subjects_of(odd) == ["01REC"]
+    assert fold_cards([odd])[0][1:3] == ("user:jo", "Record.Updated")
+    for allowed in ("Correspondence.Issued", "Technical.Answered", "Commercial.Assessed"):
+        assert (
+            policy_of(ev(1, allowed, payload={"feed_policy": "full", "feed_text": "x"})) == "full"
+        )
+
+
+def _confidential_module() -> ModuleSpec:
+    source = ConfidentialSource(
+        record_types=frozenset({"demo.Item"}),
+        table="cur_demo_item",
+        id_column="id",
+        class_column="confidentiality",
+    )
+    return ModuleSpec(
+        name="demo",
+        record_types=frozenset({"demo.Item", "demo.Child"}),
+        projectors=lambda: [],
+        confidential=(source,),
+    )
+
+
+def test_any_event_of_a_confidential_stream_is_about_its_record() -> None:
+    """A card that names no record would show that someone defined a commercial item."""
+
+    def on(stream_type: str, event_type: str) -> Event:
+        return ev(1, event_type, stream_id="01ITEM").model_copy(update={"stream_type": stream_type})
+
+    with use_modules([_confidential_module()]):
+        assert subjects_of(on("demo.Item", "Demo.Defined")) == ["01ITEM"]
+        assert subjects_of(on("demo.Item", "Demo.ClearanceGranted")) == ["01ITEM"]
+        assert subjects_of(on("demo.Other", "Demo.Defined")) == []
+        assert subjects_of(on("core.Record", "Demo.Defined")) == []
+    assert subjects_of(on("demo.Item", "Demo.Defined")) == []  # no module declares the type

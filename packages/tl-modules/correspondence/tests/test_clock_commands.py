@@ -12,6 +12,7 @@ import pytest
 from pydantic import ValidationError
 from tl_adapters.db import open_uow
 from tl_core import confidentiality as cf
+from tl_core.auth.errors import ForbiddenError
 from tl_core.services.errors import RecordNotFoundError
 from tl_mod_correspondence import catalog, registry
 from tl_mod_correspondence.clocks import replay
@@ -27,7 +28,7 @@ from tl_mod_correspondence.handlers.clocks import (
     handle_sweep_clocks,
 )
 from tl_mod_correspondence.handlers.common import correlated
-from tl_mod_correspondence.testing import BASE, CorrWorld, frozen_today
+from tl_mod_correspondence.testing import BASE, CorrWorld, as_controller, frozen_today
 
 MONDAY = "2026-10-19"
 
@@ -413,7 +414,10 @@ def test_closing_the_open_clocks_of_an_item_meets_or_cancels_them(
                 kinds=("response_from_them",),
             )
         assert [e.stream_id for e in events] == [a]
-        with open_uow(world.db) as uow:
+        with open_uow(world.db) as uow, pytest.raises(ForbiddenError):
+            # a voided item may not end its contractual bar unless a controller voids it
+            close_clocks_of_item(uow, cmd, item, how="cancelled", day=MONDAY, reason="item voided")
+        with as_controller(), open_uow(world.db) as uow:
             events = close_clocks_of_item(
                 uow, cmd, item, how="cancelled", day=MONDAY, reason="item voided"
             )

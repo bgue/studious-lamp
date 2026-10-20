@@ -387,6 +387,17 @@ def module_proposables() -> dict[str, ProposableCommand]:
     return found
 
 
+def confidential_stream_types() -> frozenset[str]:
+    """The record types of every confidential source and of its children (ADR-0016): the streams
+    whose events are about a record a viewer may not be allowed to read."""
+    types: set[str] = set()
+    for source in confidential_sources():
+        types |= source.record_types
+        for child in source.children:
+            types |= child.record_types
+    return frozenset(types)
+
+
 def confidential_sources() -> list[ConfidentialSource]:
     """Every module's confidential sources, module by module in name order (ADR-0016)."""
     found: list[ConfidentialSource] = []

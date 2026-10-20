@@ -65,6 +65,7 @@ COLUMNS: Final = (
     "class",
 )
 EXPORTABLE_CLASSES: Final = ("internal", "restricted")
+MAX_ROWS: Final = 5000  # the register of one project; more is refused, never cut short
 _FORMULA_STARTS: Final = ("=", "+", "-", "@", "|", "\t", "\r")
 _NUMBER: Final = re.compile(r"-?[0-9]+(\.[0-9]+)?")
 _PENDING_STATES: Final = (ST_ISSUED, ST_AWAITING_ASSESSMENT, ST_DISPUTED, ST_ESCALATED)
@@ -129,7 +130,13 @@ def commercial_export(
     day = date.fromisoformat(today or module_today())
     rows: list[list[str]] = []
     left_out: dict[str, int] = {}
-    for row in registry_domain.list_commercial(conn, scope, limit=5000):
+    found = registry_domain.list_commercial(conn, scope, limit=MAX_ROWS + 1)
+    if len(found) > MAX_ROWS:
+        raise ExportClassError(
+            f"the register holds more than {MAX_ROWS} Commercial items; an export of this size "
+            "is not supported in one file, narrow the scope or export in parts"
+        )
+    for row in found:
         item, data = row.item, row.data
         status = _cost_status(item.state, data.assessment_status)
         if status is None:

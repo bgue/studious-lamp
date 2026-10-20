@@ -240,6 +240,36 @@ def test_the_export_names_its_classes_and_quotes_what_a_spreadsheet_would_run(
     assert "never exported" in never.stderr
 
 
+def test_the_export_file_is_private_and_is_never_replaced_or_followed_by_accident(
+    cast: Cast, tmp_path: Path
+) -> None:
+    out = tmp_path / "changes.csv"
+    wrote = run(cast.dora, "comm", "export", *PROJECT, "--out", str(out))
+    assert f"wrote 0 changes to {out}" in wrote.stdout
+    assert out.stat().st_mode & 0o777 == 0o600  # restricted data: the owner only
+    out.write_text("keep me")
+    refused = run(cast.dora, "comm", "export", *PROJECT, "--out", str(out), ok=False)
+    assert "exists already; use --force" in refused.stderr and out.read_text() == "keep me"
+    run(cast.dora, "comm", "export", *PROJECT, "--out", str(out), "--force")
+    assert out.read_text().startswith("number,kind,title")
+    elsewhere = tmp_path / "elsewhere.txt"
+    elsewhere.write_text("not mine")
+    link = tmp_path / "link.csv"
+    link.symlink_to(elsewhere)
+    for extra in ((), ("--force",)):
+        run(cast.dora, "comm", "export", *PROJECT, "--out", str(link), *extra, ok=False)
+        assert elsewhere.read_text() == "not mine"
+    dangling = tmp_path / "dangling.csv"
+    dangling.symlink_to(tmp_path / "nowhere.txt")
+    run(cast.dora, "comm", "export", *PROJECT, "--out", str(dangling), ok=False)
+    assert not (tmp_path / "nowhere.txt").exists()
+
+
+def test_a_privileged_item_left_out_is_not_offered_a_class_to_name(cast: Cast) -> None:
+    quiet = run(cast.dora, "comm", "export", *PROJECT)
+    assert "--class privileged" not in quiet.stderr
+
+
 def test_the_evidence_trail_follows_the_links_as_of_a_day(cast: Cast) -> None:
     number = answered_rfi(cast)
     run(cast.dora, "rfi", "escalate", number, *PROJECT)

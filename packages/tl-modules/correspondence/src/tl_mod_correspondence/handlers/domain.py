@@ -188,6 +188,32 @@ def check_references(
             raise InvalidItemError("an item cannot refer to itself")
 
 
+def require_readers_may_read(uow: UnitOfWork, item: registry.ItemRow, target_id: str) -> None:
+    """Refuse ``target_id`` unless everyone who reads ``item`` may read it too.
+
+    An event on the item's stream names the record (the answering item, the answering revision),
+    and every reader of the item reads that event: a record they may not read must not be named
+    there. The readers of an ``internal`` item are anyone, of a ``restricted`` one a controller,
+    of a ``privileged`` one the accounts named on it; an unknown class has none we can vouch for.
+    The refusal is the one for an unknown record (ADR-0016).
+    """
+    probes: list[confidentiality.Viewer]
+    if item.confidentiality == "internal":
+        probes = [confidentiality.Viewer(actor="probe", level=0, account="")]
+    elif item.confidentiality == "restricted":
+        probes = [confidentiality.Viewer(actor="probe", level=1, account="")]
+    elif item.confidentiality == "privileged":
+        named = registry.clearances_of(uow.conn(), item.id, for_control=True)
+        probes = [
+            confidentiality.Viewer(actor=row.account, level=0, account=row.account) for row in named
+        ]
+    else:
+        probes = [confidentiality.Viewer(actor="probe", level=-1, account="")]
+    for probe in probes:
+        if confidentiality.is_hidden(uow.conn(), target_id, probe):
+            raise RecordNotFoundError(f"no record {target_id!r}")
+
+
 def link_references(
     uow: UnitOfWork, cmd: Command, item_id: str, references: Sequence[Reference]
 ) -> list[Event]:

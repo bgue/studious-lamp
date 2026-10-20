@@ -44,6 +44,7 @@ from tl_mod_correspondence.handlers.domain import (
     feed_fields,
     link_if_new,
     open_technical,
+    require_readers_may_read,
     start_domain_clocks,
 )
 from tl_mod_correspondence.handlers.models import non_blank
@@ -315,7 +316,8 @@ def handle_answer_technical(uow: UnitOfWork, cmd: AnswerTechnical) -> CommandRes
     item to Answered and meet the clocks that waited for the answer.
 
     Raises ``RecordNotFoundError`` (the item, the answering item or the revision is unknown,
-    foreign or hidden), ``ItemStateError`` (not awaiting a response), ``InvalidItemError`` (the
+    foreign or hidden, or is of a class that some reader of the item may not read: the item's own
+    events name it), ``ItemStateError`` (not awaiting a response), ``InvalidItemError`` (the
     answering item is the item itself, or the revision is not a document revision) and the date
     errors of ``resolve_date``.
     """
@@ -329,8 +331,10 @@ def handle_answer_technical(uow: UnitOfWork, cmd: AnswerTechnical) -> CommandRes
             raise RecordNotFoundError(f"no record {cmd.answer_item_id!r}")
         if answer.id == item.id:
             raise InvalidItemError("an item cannot be its own answer")
+        require_readers_may_read(uow, item, answer.id)
     if cmd.answering_revision_id is not None:
         _check_revision(uow, cmd, cmd.answering_revision_id, item.id)
+        require_readers_may_read(uow, item, cmd.answering_revision_id)
     day, date_reason = resolve_date(cmd.answered_on, cmd.date_reason, "the answer day")
     definition = catalog.check_subtype(cmd.scope, DOMAIN_TECHNICAL, item.subtype or "")
     done = append(

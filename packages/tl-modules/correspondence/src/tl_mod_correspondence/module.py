@@ -10,7 +10,7 @@ from tl_core.modules import ChildSource, ConfidentialSource, ModuleSpec, Proposa
 from tl_core.projection.types import Projector
 
 from tl_mod_correspondence import MODULE
-from tl_mod_correspondence.guards import item_upload, not_void
+from tl_mod_correspondence.guards import controller_only, item_upload, not_void
 from tl_mod_correspondence.handlers.triage import ConfirmTriage, handle_confirm_triage
 from tl_mod_correspondence.names import (
     CLAUSE,
@@ -114,6 +114,15 @@ def spec() -> ModuleSpec:
                     ("AddLink", not_void),
                     ("SuggestLink", not_void),
                 )
+            },
+            # a Commercial item is changed by controllers only, whatever the command's access word
+            **{
+                (COMMERCIAL, command): controller_only(
+                    {"AttachFile": item_upload, "AddLink": not_void, "SuggestLink": not_void}.get(
+                        command
+                    )
+                )
+                for command in ITEM_GENERIC_COMMANDS
             },
         },
         proposable=PROPOSABLE,

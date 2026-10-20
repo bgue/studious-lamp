@@ -243,6 +243,31 @@ def test_the_rfi_and_commercial_routes_show_each_reader_only_what_they_may_read(
 
 
 @pytest.mark.parametrize("reader", sorted(MAY_READ))
+def test_the_feed_cards_do_not_tell_a_reader_what_happened_to_what_they_may_not_read(
+    harness: Harness, seeded: Seed, reader: str
+) -> None:
+    """A card's summary names the kind of record and the act, not a token: "ctl defined a
+    commercial" or "ctl clearancegranted 2 correspondence" says that a hidden item exists."""
+    client = harness.client_for(None)
+    headers = {"Authorization": f"Bearer {seeded.tokens[reader]}"}
+    cards = []
+    before_seq: int | None = None
+    for _ in range(20):  # every page of the project's feed
+        query: dict[str, Any] = {"scope": SCOPE, "item_type": "card", "limit": 200}
+        if before_seq is not None:
+            query["before_seq"] = before_seq
+        page = client.get("/feed", params=query, headers=headers).json()
+        cards += page["items"]
+        before_seq = page.get("next_before")
+        if before_seq is None:
+            break
+    assert cards, reader  # the open items make cards for everybody
+    said = " ".join(str(card["summary"]) for card in cards).lower()
+    assert ("commercial" in said) == ("commercial" in MAY_READ[reader]), (reader, said)
+    assert ("clearancegranted" in said) == ("secret_rfi" in MAY_READ[reader]), (reader, said)
+
+
+@pytest.mark.parametrize("reader", sorted(MAY_READ))
 def test_no_get_route_shows_a_reader_what_they_may_not_read(
     harness: Harness, seeded: Seed, reader: str
 ) -> None:

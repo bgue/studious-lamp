@@ -153,8 +153,8 @@ def handle_issue_commercial(uow: UnitOfWork, cmd: IssueCommercial) -> CommandRes
     ``Correspondence.Issued`` and move the item to Awaiting assessment.
 
     Raises ``ForbiddenError``, ``RecordNotFoundError``, ``ItemStateError`` (not in PM approval),
-    ``InvalidItemError`` (no recipient), ``UnknownDomainError``, ``LetterRenderError`` and the
-    date errors of ``resolve_date``.
+    ``InvalidItemError`` (no recipient, or an issue day before the day the contractor became
+    aware), ``UnknownDomainError``, ``LetterRenderError`` and the date errors of ``resolve_date``.
     """
     require_controller_viewer()
     cmd = correlated(cmd)
@@ -166,6 +166,10 @@ def handle_issue_commercial(uow: UnitOfWork, cmd: IssueCommercial) -> CommandRes
         raise InvalidItemError(f"item {item.number} has no recipient")
     definition = catalog.check_subtype(cmd.scope, DOMAIN_COMMERCIAL, item.subtype or "")
     day, date_reason = resolve_date(cmd.issued_on, cmd.date_reason, "the issue day")
+    if data.aware_on is not None and day < data.aware_on:  # the bar could not be met before it ran
+        raise InvalidItemError(
+            f"the issue day {day} is before the day the contractor became aware ({data.aware_on})"
+        )
     wanted = cmd.template
     templates = [t for t in definition.templates if wanted is None or t.code == wanted]
     if wanted is None:
