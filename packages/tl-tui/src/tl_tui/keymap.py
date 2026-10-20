@@ -119,6 +119,13 @@ KEYMAP: tuple[KeyEntry, ...] = (
     ),
     KeyEntry(
         "App",
+        "Ctrl+O",
+        "Schema workbench: packages, lint, diff, impact, review and publish",
+        "TlApp",
+        "ctrl+o",
+    ),
+    KeyEntry(
+        "App",
         "Ctrl+G",
         "RFI log, Commercial register and the evidence trail as of a day",
         "TlApp",
