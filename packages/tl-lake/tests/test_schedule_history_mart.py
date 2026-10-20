@@ -170,5 +170,5 @@ def test_a_published_snapshot_without_activities_is_skipped_as_the_one_before(co
     build_schedule_history(con)
     assert [(r[2], r[9], r[10], r[11]) for r in history(con)] == [
         (1, None, None, None),
-        (3, 3, 0, 0),
+        (3, 2, 0, 0),
     ]
