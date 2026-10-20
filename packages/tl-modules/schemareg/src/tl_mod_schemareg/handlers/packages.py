@@ -26,7 +26,15 @@ from tl_schema.packages import PackageDoc
 from tl_schema.registry import PackageError
 
 from tl_mod_schemareg import analysis, registry
-from tl_mod_schemareg.common import append, bump, canonical, correlated, sha256_text, transition
+from tl_mod_schemareg.common import (
+    append,
+    bump,
+    canonical,
+    correlated,
+    scoped,
+    sha256_text,
+    transition,
+)
 from tl_mod_schemareg.errors import (
     AdoptionError,
     DuplicateSchemaPackageError,
@@ -191,10 +199,10 @@ def handle_draft_schema_package(uow: UnitOfWork, cmd: DraftSchemaPackage) -> Com
         raise DuplicateSchemaPackageError(f"{doc.key()} is already in force in this registry")
     if registry.find_package(uow.conn(), doc.package, doc.version) is not None:
         raise DuplicateSchemaPackageError(f"{doc.key()} is already drafted")
-    scoped = cmd.model_copy(update={"scope": analysis.scope_of(doc)})
+    scoped_cmd = scoped(cmd, analysis.scope_of(doc))
     return create_module_record(
         uow,
-        scoped,
+        scoped_cmd,
         record_type=SCHEMA_PACKAGE,
         title=doc.key(),
         key=doc.key(),
@@ -236,7 +244,7 @@ def handle_revise_schema_package(uow: UnitOfWork, cmd: ReviseSchemaPackage) -> C
             f"the name, version, kind and project of {row.key} cannot change; "
             "draft another version instead"
         )
-    cmd = cmd.model_copy(update={"scope": row.scope})
+    cmd = scoped(cmd, row.scope)
     done = append(
         uow,
         cmd,
@@ -274,7 +282,7 @@ def handle_analyse_schema_package(uow: UnitOfWork, cmd: AnalyseSchemaPackage) ->
     impact = made.impact.model_dump(mode="json")
     if len(canonical(classification)) + len(canonical(impact)) > MAX_REPORT_BYTES:
         raise InvalidSchemaPackageError("the reports are too large to store; split the change")
-    cmd = cmd.model_copy(update={"scope": row.scope})
+    cmd = scoped(cmd, row.scope)
     done = append(
         uow,
         cmd,
@@ -319,7 +327,7 @@ def handle_submit_schema_package(uow: UnitOfWork, cmd: SubmitSchemaPackage) -> C
             f"{row.key} has lint errors: "
             + "; ".join(f"{i.rule} {i.path}: {i.message}" for i in problems[:5])
         )
-    cmd = cmd.model_copy(update={"scope": row.scope})
+    cmd = scoped(cmd, row.scope)
     moved = transition(uow, cmd, row.id, "submit")
     done = append(
         uow,
@@ -346,7 +354,7 @@ def handle_request_schema_changes(uow: UnitOfWork, cmd: RequestSchemaChanges) ->
     cmd = correlated(cmd)
     row = load(uow, cmd.package_id)
     _require_state(row, IN_REVIEW)
-    cmd = cmd.model_copy(update={"scope": row.scope})
+    cmd = scoped(cmd, row.scope)
     moved = transition(uow, cmd, row.id, "request_changes", reason=cmd.reason)
     done = append(
         uow,
@@ -370,7 +378,7 @@ def handle_approve_schema_package(uow: UnitOfWork, cmd: ApproveSchemaPackage) ->
     _require_state(row, IN_REVIEW)
     _require_other_than_authors(row, cmd)
     report = _current_analysis(row)
-    cmd = cmd.model_copy(update={"scope": row.scope})
+    cmd = scoped(cmd, row.scope)
     moved = transition(uow, cmd, row.id, "approve")
     done = append(
         uow,
@@ -414,7 +422,7 @@ def handle_publish_schema_package(uow: UnitOfWork, cmd: PublishSchemaPackage) ->
             f"(compared with {row.base_ref}, now {base.key() if base else None}); "
             "send it back and analyse it again"
         )
-    cmd = cmd.model_copy(update={"scope": row.scope})
+    cmd = scoped(cmd, row.scope)
     moved = transition(uow, cmd, row.id, "publish")
     pins = (
         _adoptable(uow, row, doc, row.base_ref)
@@ -446,7 +454,7 @@ def handle_publish_schema_package(uow: UnitOfWork, cmd: PublishSchemaPackage) ->
         events.extend(
             append(
                 uow,
-                cmd.model_copy(update={"scope": pin.scope}),
+                scoped(cmd, pin.scope),
                 pin.id,
                 ADOPTION,
                 [
@@ -497,7 +505,7 @@ def handle_deprecate_schema_package(uow: UnitOfWork, cmd: DeprecateSchemaPackage
     cmd = correlated(cmd)
     row = load(uow, cmd.package_id)
     _require_state(row, PUBLISHED)
-    cmd = cmd.model_copy(update={"scope": row.scope})
+    cmd = scoped(cmd, row.scope)
     moved = transition(uow, cmd, row.id, "deprecate", reason=cmd.reason)
     done = append(
         uow,
@@ -534,7 +542,7 @@ def handle_retire_schema_package(uow: UnitOfWork, cmd: RetireSchemaPackage) -> C
         raise AdoptionError(
             f"{row.key} is still pinned by {', '.join(sorted(pinned))}; move them off it first"
         )
-    cmd = cmd.model_copy(update={"scope": row.scope})
+    cmd = scoped(cmd, row.scope)
     moved = transition(uow, cmd, row.id, "retire", reason=cmd.reason)
     done = append(
         uow,

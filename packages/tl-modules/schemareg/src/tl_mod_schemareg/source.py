@@ -22,7 +22,7 @@ from datetime import date
 from sqlalchemy import text
 from tl_core.extypes.registry import UowFactory
 from tl_core.schema_provider import RegistryState
-from tl_core.util import current_effective_time, utcnow
+from tl_core.util import utcnow
 from tl_schema.packages import PackageDoc, WaiverDef
 from tl_schema.registry import PackageError, parse_package
 
@@ -59,7 +59,7 @@ _WAIVERS_SQL = text(
 
 
 def _today() -> date:
-    return (current_effective_time() or utcnow()).date()
+    return utcnow().date()
 
 
 class LedgerRegistrySource:

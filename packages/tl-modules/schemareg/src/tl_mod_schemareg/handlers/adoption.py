@@ -22,7 +22,7 @@ from tl_schema.packages import version_tuple
 from tl_schema.registry import PackageError
 
 from tl_mod_schemareg import analysis, registry
-from tl_mod_schemareg.common import append, bump, correlated
+from tl_mod_schemareg.common import append, bump, correlated, scoped
 from tl_mod_schemareg.errors import (
     AdoptionError,
     ImpactReviewRequiredError,
@@ -52,7 +52,7 @@ def handle_adopt_schema_package(uow: UnitOfWork, cmd: AdoptSchemaPackage) -> Com
     if _PROJECT.fullmatch(cmd.project) is None or _VERSION.fullmatch(cmd.version) is None:
         raise AdoptionError("the project or the version is not written in a form that can be used")
     scope = f"project:{cmd.project}"
-    cmd = cmd.model_copy(update={"scope": scope})
+    cmd = scoped(cmd, scope)
     held = analysis.provider()
     reg = held.registry()
     try:

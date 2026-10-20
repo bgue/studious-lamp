@@ -19,7 +19,7 @@ from pydantic import BaseModel, ConfigDict
 from sqlalchemy import Connection, text
 from tl_core import confidentiality
 from tl_core.modules import bound_psets
-from tl_core.util import current_effective_time, utcnow
+from tl_core.util import utcnow
 from tl_schema.classify import ClassificationReport
 from tl_schema.conformance import evaluate
 from tl_schema.packages import version_tuple
@@ -142,7 +142,7 @@ class SampleTestView(BaseModel):
 
 
 def _today() -> date:
-    return (current_effective_time() or utcnow()).date()
+    return utcnow().date()
 
 
 def _summary(row: registry.PackageRow) -> dict[str, Any]:

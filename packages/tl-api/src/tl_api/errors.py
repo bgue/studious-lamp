@@ -301,6 +301,7 @@ def _rows() -> tuple[ErrorSpec, ...]:
         s(sreg.WaiverNotFoundError, "waiver_not_found", 404),
         s(sreg.WaiverStateError, "waiver_state", 409),
         s(sreg.SchemaScopeError, "schema_scope", 422),
+        s(sreg.EffectiveTimeError, "schema_effective_time", 400),
     )
 
 

@@ -186,3 +186,80 @@ def test_the_reviewer_may_approve_what_someone_else_asked(world: RegistryWorld) 
     waiver = request(world)
     world.do(ApproveWaiver, REVIEWER, waiver_id=waiver.stream_id)
     assert world.waiver(waiver.stream_id).approver == REVIEWER
+
+
+def test_a_waiver_is_found_by_its_id_or_its_key(world: RegistryWorld) -> None:
+    from tl_mod_schemareg import registry
+
+    made = world.do(
+        RequestWaiver,
+        AUTHOR,
+        project="P999",
+        path="psets.valve_data.size_in",
+        reason="Legacy.",
+        expires=(utcnow().date() + timedelta(days=20)).isoformat(),
+    )
+    row = world.waiver(made.stream_id)
+    with open_uow(world.db, readonly=True) as uow:
+        by_id = registry.find_waiver(uow.conn(), made.stream_id)
+        by_key = registry.find_waiver(uow.conn(), row.key)
+        nothing = [
+            registry.find_waiver(uow.conn(), ref)
+            for ref in ("nope", "P999/psets.valve_data.size_in@9", "P999/x@y", "P998/a@1")
+        ]
+    assert by_id is not None and by_key is not None and by_id.id == by_key.id == made.stream_id
+    assert nothing == [None, None, None, None]
+
+
+def test_a_simulated_time_is_refused_for_a_scope_that_is_not_a_simulation(
+    world: RegistryWorld,
+) -> None:
+    """The API judges the header against the scope in the body; the handler writes to its own."""
+    from datetime import UTC, datetime
+
+    from tl_core.util import effective_time
+    from tl_mod_schemareg.errors import EffectiveTimeError
+
+    forged = datetime(2099, 1, 1, tzinfo=UTC)
+    with effective_time(forged), pytest.raises(EffectiveTimeError, match="simulation scopes"):
+        world.do(
+            RequestWaiver,
+            AUTHOR,
+            project="P999",
+            path="psets.valve_data.size_in",
+            reason="Legacy.",
+            expires="2099-12-30",  # inside 366 days of the forged day, far past the real cap
+        )
+    assert world.scalar("SELECT count(*) FROM cur_schemareg_waiver") == 0
+
+
+def test_the_366_day_cap_counts_from_the_real_day_outside_a_simulation(
+    world: RegistryWorld,
+) -> None:
+    expires = (utcnow().date() + timedelta(days=400)).isoformat()
+    with pytest.raises(InvalidWaiverError, match="366"):
+        world.do(
+            RequestWaiver,
+            AUTHOR,
+            project="P999",
+            path="psets.valve_data.size_in",
+            reason="Legacy.",
+            expires=expires,
+        )
+
+
+def test_a_simulation_scope_keeps_its_own_clock(world: RegistryWorld) -> None:
+    from datetime import UTC, datetime
+
+    from tl_core.util import effective_time
+
+    with effective_time(datetime(2026, 3, 1, tzinfo=UTC)):
+        made = world.do(
+            RequestWaiver,
+            AUTHOR,
+            project="sim-run1",
+            path="psets.valve_data.size_in",
+            reason="Rehearsal.",
+            expires="2026-03-20",
+        )
+    assert world.waiver(made.stream_id).state == "Requested"

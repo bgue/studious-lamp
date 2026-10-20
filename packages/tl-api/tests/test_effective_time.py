@@ -127,3 +127,21 @@ def test_the_openapi_document_lists_the_header_on_command_routes(harness: Harnes
     operation = harness.app.openapi()["paths"]["/commands/CreateRecord"]["post"]
     names = [p["name"] for p in operation["parameters"] if p["in"] == "header"]
     assert EFFECTIVE_AT_HEADER.lower() in [n.lower() for n in names]
+
+
+def test_a_command_that_writes_to_a_derived_scope_cannot_borrow_a_simulation_scope(
+    harness: Harness,
+) -> None:
+    """The header is judged against the body's scope; a waiver writes to its project's scope."""
+    body = {
+        "scope": SIM,
+        "project": "P999",
+        "path": "psets.valve_data.size_in",
+        "reason": "Forged clock.",
+        "expires": "2099-12-30",
+    }
+    response = harness.client_for(ALICE).post(
+        "/commands/RequestWaiver", json=body, headers={EFFECTIVE_AT_HEADER: "2099-01-01T00:00:00Z"}
+    )
+    assert response.status_code == 400, response.text
+    assert response.json()["error"] == "schema_effective_time"

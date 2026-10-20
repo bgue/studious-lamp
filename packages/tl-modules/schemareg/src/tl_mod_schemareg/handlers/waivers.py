@@ -21,11 +21,10 @@ from tl_core.services.commands import Command, CommandResult
 from tl_core.services.records import create_module_record
 from tl_core.text import clean_optional_text
 from tl_core.uow import UnitOfWork
-from tl_core.util import current_effective_time, utcnow
 from tl_schema.effective import resolve_path
 
 from tl_mod_schemareg import analysis, registry
-from tl_mod_schemareg.common import append, bump, correlated, transition
+from tl_mod_schemareg.common import append, bump, correlated, scoped, today_in, transition
 from tl_mod_schemareg.errors import (
     InvalidWaiverError,
     SelfReviewError,
@@ -81,11 +80,6 @@ class RevokeWaiver(Command):
     reason: str = Field(min_length=1, max_length=MAX_REASON)
 
 
-def today() -> date:
-    """The handler's date: simulated time when a simulation sets it, else the real one."""
-    return (current_effective_time() or utcnow()).date()
-
-
 def _load(uow: UnitOfWork, waiver_id: str) -> registry.WaiverRow:
     row = registry.get_waiver(uow.conn(), waiver_id)
     if row is None:
@@ -120,14 +114,14 @@ def handle_request_waiver(uow: UnitOfWork, cmd: RequestWaiver) -> CommandResult:
         raise InvalidWaiverError(
             "path must look like psets.<pset>.<property> or psets.<pset>.x.<property>"
         )
+    scope = f"project:{cmd.project}"
+    cmd = scoped(cmd, scope)
     until = _expiry(cmd.expires)
-    now = today()
+    now = today_in(scope)
     if until < now:
         raise InvalidWaiverError("expires is in the past")
     if until > now + timedelta(days=WAIVER_MAX_DAYS):
         raise InvalidWaiverError(f"a waiver holds for {WAIVER_MAX_DAYS} days at most")
-    scope = f"project:{cmd.project}"
-    cmd = cmd.model_copy(update={"scope": scope})
     schema = analysis.provider().effective(scope)
     if resolve_path(schema, cmd.path) is None:
         raise InvalidWaiverError(f"{cmd.path} names no property of {scope}")
@@ -182,12 +176,12 @@ def handle_approve_waiver(uow: UnitOfWork, cmd: ApproveWaiver) -> CommandResult:
         raise WaiverStateError(f"{row.key} is {row.state}; only a requested waiver is approved")
     if cmd.actor == row.requested_by:
         raise SelfReviewError(f"{cmd.actor} asked for {row.key} and cannot approve it")
-    if _expiry(row.expires) < today():
+    if _expiry(row.expires) < today_in(row.scope):
         raise WaiverStateError(f"{row.key} expired on {row.expires}; ask again")
     blocked = _declared_mode_blocks(row.scope)
     if blocked is not None:
         raise InvalidWaiverError(f"{blocked}; waivers have no effect there")
-    cmd = cmd.model_copy(update={"scope": row.scope})
+    cmd = scoped(cmd, row.scope)
     moved = transition(uow, cmd, row.id, "approve")
     done = append(
         uow,
@@ -216,7 +210,7 @@ def handle_revoke_waiver(uow: UnitOfWork, cmd: RevokeWaiver) -> CommandResult:
     row = _load(uow, cmd.waiver_id)
     if row.state not in (REQUESTED, WAIVER_APPROVED_STATE):
         raise WaiverStateError(f"{row.key} is {row.state}; there is nothing to revoke")
-    cmd = cmd.model_copy(update={"scope": row.scope})
+    cmd = scoped(cmd, row.scope)
     moved = transition(uow, cmd, row.id, "revoke", reason=cmd.reason)
     done = append(
         uow,

@@ -18,6 +18,7 @@ from pydantic import ValidationError
 
 from tl_schema.effective import canonical_dump
 from tl_schema.packages import PackageDoc, version_tuple
+from tl_schema.plain_yaml import PlainYamlError, load_plain
 
 SCHEMA_DIR_ENV = "TL_SCHEMA_DIR"
 #: ``schema/fixtures`` at the repository root; the default package directory in development.
@@ -39,6 +40,14 @@ def default_schema_dir() -> Path:
     return Path(configured) if configured else DEFAULT_SCHEMA_DIR
 
 
+def _where(exc: yaml.YAMLError) -> str:
+    """`` at line N: <problem>`` for a YAML syntax error, with none of the text."""
+    mark = getattr(exc, "problem_mark", None)
+    problem = getattr(exc, "problem", None)
+    line = f" at line {mark.line + 1}" if mark is not None else ""
+    return f"{line}: {problem}" if problem else line
+
+
 def parse_package(text: str, *, source: str = "<string>") -> PackageDoc:
     """Parse YAML text into a ``PackageDoc``.
 
@@ -46,9 +55,11 @@ def parse_package(text: str, *, source: str = "<string>") -> PackageDoc:
     is not a mapping, or a pydantic ``ValidationError`` (one line per error, ``<loc>: <message>``).
     """
     try:
-        data: Any = yaml.safe_load(text)
-    except yaml.YAMLError as exc:
+        data: Any = load_plain(text)
+    except PlainYamlError as exc:
         raise PackageError(f"{source}: invalid YAML: {exc}") from exc
+    except yaml.YAMLError as exc:
+        raise PackageError(f"{source}: invalid YAML{_where(exc)}") from exc
     if not isinstance(data, dict):
         kind = type(data).__name__
         raise PackageError(f"{source}: a package file must be a YAML mapping, not {kind}")

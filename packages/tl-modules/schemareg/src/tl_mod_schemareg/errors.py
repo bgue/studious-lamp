@@ -62,3 +62,7 @@ class WaiverStateError(SchemaRegistryError):
 
 class SchemaScopeError(SchemaRegistryError):
     """The act needs a project (or the company) scope it was not given."""
+
+
+class EffectiveTimeError(SchemaRegistryError):
+    """A command carries a simulated time but writes to a scope that is not a simulation."""

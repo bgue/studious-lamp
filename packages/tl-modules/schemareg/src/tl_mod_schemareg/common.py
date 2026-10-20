@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import threading
+from datetime import date
 from typing import Any
 
 from sqlalchemy import text
@@ -12,7 +13,9 @@ from tl_core.ledger import AppendResult, NewEvent
 from tl_core.services.commands import Command, CommandResult
 from tl_core.services.workflow import TransitionWorkflow, handle_transition_workflow
 from tl_core.uow import UnitOfWork
-from tl_core.util import new_ulid
+from tl_core.util import SIM_SCOPE, current_effective_time, new_ulid, utcnow
+
+from tl_mod_schemareg.errors import EffectiveTimeError
 
 _VERSION_SQL = text("SELECT version FROM cur_core_record WHERE id = :id")
 
@@ -91,3 +94,31 @@ def canonical(value: Any) -> str:
 
 def sha256_text(value: str) -> str:
     return hashlib.sha256(value.encode("utf-8")).hexdigest()
+
+
+def check_clock(scope: str) -> None:
+    """Refuse a simulated time for a scope that is not a simulation scope.
+
+    The API judges the effective-time header against the scope in the body of the command, but
+    these handlers write to a scope they derive (a package's, a project's). A client that names a
+    simulation scope in the body and a real project in the fields would otherwise stamp its events
+    and its waiver dates with a time of its own choosing.
+    """
+    if current_effective_time() is not None and SIM_SCOPE.fullmatch(scope) is None:
+        raise EffectiveTimeError(
+            f"a simulated time is only accepted for simulation scopes, not for {scope}"
+        )
+
+
+def today_in(scope: str) -> date:
+    """The date a handler uses for ``scope``: simulated time in a simulation scope, else real."""
+    when = current_effective_time()
+    if when is not None and SIM_SCOPE.fullmatch(scope) is not None:
+        return when.date()
+    return utcnow().date()
+
+
+def scoped[C: Command](cmd: C, scope: str) -> C:
+    """``cmd`` with the scope the handler writes to, after the clock check for that scope."""
+    check_clock(scope)
+    return cmd.model_copy(update={"scope": scope})

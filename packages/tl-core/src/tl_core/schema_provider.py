@@ -330,7 +330,9 @@ class DirectorySchemaProvider:
                 pins={**held.pins, scope: dict(pins)} if pins is not None else held.pins,
                 waivers=held.waivers,
             )
-            return self._compose(trial, scope, state, strict=True)
+        # The compile is the costly part and reads only the copies made above: it runs outside the
+        # lock, so one person's draft cannot stall every other reader of the schema.
+        return self._compose(trial, scope, state, strict=True)
 
     def pins_of(self, scope: str) -> Mapping[str, str]:
         """The pins the registry holds for ``scope`` (package name to version)."""

@@ -278,3 +278,18 @@ def list_waivers(
 def get_waiver(conn: Connection, waiver_id: str) -> WaiverRow | None:
     row = conn.execute(text(f"{_WAIVER_SQL} WHERE t.id = :id"), {"id": waiver_id}).first()
     return _waiver(row) if row is not None else None
+
+
+def find_waiver(conn: Connection, ref: str) -> WaiverRow | None:
+    """A waiver by record id or by key (``P123/psets.valve_data.size_in@1``)."""
+    found = get_waiver(conn, ref)
+    if found is not None or "@" not in ref or "/" not in ref:
+        return found
+    head, _, number = ref.rpartition("@")
+    project, _, path = head.partition("/")
+    if not number.isascii() or not number.isdigit():
+        return None
+    for row in list_waivers(conn, project=project, path=path):
+        if row.number == int(number[:9]):
+            return row
+    return None
