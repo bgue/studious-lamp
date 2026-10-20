@@ -37456,7 +37456,7 @@
     },
     "/commands/UpdateCommercial": {
       "post": {
-        "description": "Change a Commercial item that is a Draft or in commercial review (a controller's act).\n\nA field you leave out stays as it is; ``null`` clears an optional one. The clause and the\nawareness day cannot be changed. Give a ``reason`` when you change an item that is in review.",
+        "description": "Change a Commercial item that is a Draft or in commercial review (a controller's act).\n\nA field you leave out stays as it is; ``null`` clears an optional one. The clause and the\nawareness day cannot be changed. Say why in ``reason`` when you change an item that is in\nreview: it is recorded with the change (it is not required).",
         "operationId": "command_UpdateCommercial",
         "parameters": [
           {
@@ -37884,7 +37884,7 @@
     },
     "/commands/UpdateTechnical": {
       "post": {
-        "description": "Change a Technical item that is a Draft or in internal review.\n\nA field you leave out stays as it is; ``null`` clears ``proposed_solution``, ``discipline``\nand ``required_by`` (the question, the subject and the flags cannot be cleared). The number\nand the subtype never change. Give a ``reason`` when you change an item that is in review.",
+        "description": "Change a Technical item that is a Draft or in internal review.\n\nA field you leave out stays as it is; ``null`` clears ``proposed_solution``, ``discipline``\nand ``required_by`` (the question, the subject and the flags cannot be cleared). The number\nand the subtype never change. Say why in ``reason`` when you change an item that is in review:\nit is recorded with the change (it is not required).",
         "operationId": "command_UpdateTechnical",
         "parameters": [
           {
