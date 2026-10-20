@@ -10,23 +10,27 @@ provider with ``use_provider``.
 from __future__ import annotations
 
 import hashlib
+import logging
 import re
 import threading
-from collections.abc import Generator
+from collections.abc import Generator, Mapping, Sequence
 from contextlib import contextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Protocol
 
 from tl_schema.compile import SchemaCompileError
 from tl_schema.compose import compose
 from tl_schema.effective import EffectiveSchema
-from tl_schema.packages import PackageDoc
-from tl_schema.registry import PackageRegistry, default_schema_dir
+from tl_schema.packages import PackageDoc, WaiverDef, version_tuple
+from tl_schema.registry import PackageError, PackageRegistry, default_schema_dir
 
 from tl_core.services.errors import InvalidScopeError
 
 _SCOPE_PATTERN = re.compile(r"company|project:[A-Za-z0-9_.-]+")
+
+log = logging.getLogger("tl_core.schema_provider")
+log.addHandler(logging.NullHandler())
 
 
 class SchemaProvider(Protocol):
@@ -55,6 +59,41 @@ class ExtensionSource(Protocol):
     def token(self) -> str: ...
 
     def documents(self) -> list[PackageDoc]: ...
+
+
+@dataclass(frozen=True)
+class RegistryState:
+    """What the schema registry holds that the effective schema depends on (P1-I8).
+
+    ``documents`` are the published (and deprecated) packages, parsed; ``pins`` maps a project
+    scope to ``{company package name: version}``; ``waivers`` maps a project scope to its approved
+    waivers (an expired one may be among them: the evaluator checks the date).
+    """
+
+    documents: Sequence[PackageDoc] = ()
+    pins: Mapping[str, Mapping[str, str]] = field(default_factory=lambda: {})
+    waivers: Mapping[str, Sequence[WaiverDef]] = field(default_factory=lambda: {})
+
+    def projects(self) -> set[str]:
+        """Project ids named by a pin, a waiver or a package of the registry."""
+        found = {d.project for d in self.documents if d.project is not None}
+        for scope in (*self.pins, *self.waivers):
+            if scope.startswith("project:"):
+                found.add(scope.removeprefix("project:"))
+        return found
+
+
+class RegistrySource(Protocol):
+    """The ledgered schema registry as the provider sees it (``tl_mod_schemareg.source``).
+
+    ``token()`` must be cheap and change whenever ``snapshot()`` would; the provider asks it on
+    every call and rebuilds only when it changed. A source that cannot answer returns an empty
+    state: the registry must never take the directory's packages down with it.
+    """
+
+    def token(self) -> str: ...
+
+    def snapshot(self) -> RegistryState: ...
 
 
 @dataclass(frozen=True)
@@ -97,6 +136,9 @@ class DirectorySchemaProvider:
         self._extensions: ExtensionSource | None = None
         self._extension_token: str | None = None
         self._extension_docs: list[PackageDoc] = []
+        self._registry_source: RegistrySource | None = None
+        self._registry_token: str | None = None
+        self._registry_state = RegistryState()
         self._registry = PackageRegistry()
         self._cache: dict[str, EffectiveSchema] = {}
         self._reported: dict[
@@ -119,15 +161,48 @@ class DirectorySchemaProvider:
             self._extension_docs = []
             self._cache = {}
 
+    def attach_registry(self, source: RegistrySource | None) -> None:
+        """Include the published packages, pins and waivers of ``source`` (the schema registry)."""
+        with self._lock:
+            self._registry_source = source
+            self._registry_token = None
+            self._registry_state = RegistryState()
+            self._signature = None  # the registry is rebuilt on the next call
+            self._cache = {}
+
+    def _build_registry(self, state: RegistryState) -> PackageRegistry:
+        """The directory's packages plus the registry's published ones.
+
+        A published package that does not fit (a dependency missing, a name taken by a file) is
+        left out and logged: a bad registry entry must not take the directory's schema down.
+        """
+        registry = PackageRegistry.from_directory(self.directory)
+        registry.check()
+        for doc in sorted(state.documents, key=lambda d: (d.package, version_tuple(d.version))):
+            if registry.origin(doc.package, doc.version) is not None:
+                log.warning("registry package %s is also a file; the file wins", doc.key())
+                continue
+            registry.add(doc, origin="ledger")
+            try:
+                registry.check()
+            except PackageError as exc:
+                registry.discard(doc.package, doc.version)
+                log.warning("registry package %s left out: %s", doc.key(), exc)
+        return registry
+
     def _refresh(self) -> None:
         signature = _signature(self.directory)
         token = self._extensions.token() if self._extensions is not None else None
-        if signature != self._signature:
-            registry = PackageRegistry.from_directory(self.directory)
-            registry.check()
-            self._registry = registry
+        registry_token = (
+            self._registry_source.token() if self._registry_source is not None else None
+        )
+        if signature != self._signature or registry_token != self._registry_token:
+            if self._registry_source is not None:
+                self._registry_state = self._registry_source.snapshot()
+            self._registry = self._build_registry(self._registry_state)
             self._cache = {}
             self._signature = signature
+            self._registry_token = registry_token
         if self._extensions is not None and token != self._extension_token:
             self._extension_docs = self._extensions.documents()
             self._extension_token = token
@@ -136,18 +211,27 @@ class DirectorySchemaProvider:
             self._extension_docs = []
             self._cache = {}
 
-    def _compose(self, registry: PackageRegistry, scope: str) -> EffectiveSchema:
+    def _compose(
+        self,
+        registry: PackageRegistry,
+        scope: str,
+        state: RegistryState | None = None,
+        *,
+        strict: bool = False,
+    ) -> EffectiveSchema:
         """The scope's schema: directory packages plus the extension documents that compose.
 
         A type that cannot join (its pset name collides with a package that arrived later) is
         left out rather than taking the whole scope's schema down.
         """
-        base = registry.adopted(scope)
+        held = state if state is not None else self._registry_state
+        base = self._adopted(registry, scope, held, strict=strict)
+        waivers = list(held.waivers.get(scope, ()))
         extra = self._extension_docs
         if not extra:
-            return compose(base, scope)
+            return self._compose_waived(base, scope, waivers)
         try:
-            return compose([*base, *extra], scope)
+            return self._compose_waived([*base, *extra], scope, waivers)
         except SchemaCompileError:
             kept: list[PackageDoc] = []
             for doc in extra:
@@ -156,7 +240,49 @@ class DirectorySchemaProvider:
                 except SchemaCompileError:
                     continue
                 kept.append(doc)
-            return compose([*base, *kept], scope)
+            return self._compose_waived([*base, *kept], scope, waivers)
+
+    @staticmethod
+    def _adopted(
+        registry: PackageRegistry, scope: str, state: RegistryState, *, strict: bool = False
+    ) -> list[PackageDoc]:
+        """The adopted documents of ``scope``, honouring the pins of the registry.
+
+        A pin that no longer fits (the registry refuses it) is left out and logged, so a scope
+        falls back to the directory's versions instead of having no schema.
+        """
+        pins = dict(state.pins.get(scope, {}))
+        try:
+            return registry.adopted(scope, pins)
+        except PackageError as exc:
+            if strict or not pins:
+                raise
+            log.warning("pins of %s ignored: %s", scope, exc)
+            return registry.adopted(scope)
+
+    @staticmethod
+    def _compose_waived(
+        docs: Sequence[PackageDoc], scope: str, waivers: Sequence[WaiverDef]
+    ) -> EffectiveSchema:
+        """Compose with the registry's waivers; one that names a missing property is dropped."""
+        if not waivers:
+            return compose(docs, scope)
+        try:
+            return compose(docs, scope, extra_waivers=waivers)
+        except SchemaCompileError as exc:
+            if exc.rule != "unknown_property":
+                raise
+        kept: list[WaiverDef] = []
+        for waiver in waivers:
+            try:
+                compose(docs, scope, extra_waivers=[*kept, waiver])
+            except SchemaCompileError as exc:
+                if exc.rule != "unknown_property":
+                    raise
+                log.warning("waiver for %s left out: %s", waiver.path, exc)
+                continue
+            kept.append(waiver)
+        return compose(docs, scope, extra_waivers=kept)
 
     def registry(self) -> PackageRegistry:
         with self._lock:
@@ -176,6 +302,42 @@ class DirectorySchemaProvider:
                 self._remember(cached)
             return cached
 
+    def trial(
+        self,
+        scope: str,
+        add: Sequence[PackageDoc] = (),
+        *,
+        pins: Mapping[str, str] | None = None,
+    ) -> EffectiveSchema:
+        """The schema ``scope`` would have with ``add`` published and ``pins`` as its pins.
+
+        Nothing is saved or cached: this answers "what if" for the workbench (impact, the compose
+        check before a package is submitted or published). ``pins`` replaces the scope's pins when
+        given. Raises ``PackageError`` or ``SchemaCompileError`` when the result does not hold
+        together, and ``InvalidScopeError`` for a malformed scope.
+        """
+        if _SCOPE_PATTERN.fullmatch(scope) is None:
+            raise InvalidScopeError(f"scope must be 'company' or 'project:<id>', got {scope!r}")
+        with self._lock:
+            self._refresh()
+            trial = self._registry.copy()
+            for doc in add:
+                trial.add(doc, origin="ledger")
+            trial.check()
+            held = self._registry_state
+            state = RegistryState(
+                documents=held.documents,
+                pins={**held.pins, scope: dict(pins)} if pins is not None else held.pins,
+                waivers=held.waivers,
+            )
+            return self._compose(trial, scope, state, strict=True)
+
+    def pins_of(self, scope: str) -> Mapping[str, str]:
+        """The pins the registry holds for ``scope`` (package name to version)."""
+        with self._lock:
+            self._refresh()
+            return dict(self._registry_state.pins.get(scope, {}))
+
     def effective_by_hash(self, schema_hash: str) -> EffectiveSchema | None:
         """A schema this provider composed earlier, by its hash (or ``None``)."""
         with self._lock:
@@ -184,7 +346,8 @@ class DirectorySchemaProvider:
     def scopes(self) -> list[str]:
         with self._lock:
             self._refresh()
-            return ["company", *(f"project:{p}" for p in self._registry.projects())]
+            projects = {*self._registry.projects(), *self._registry_state.projects()}
+            return ["company", *(f"project:{p}" for p in sorted(projects))]
 
     def reload(self) -> list[SchemaChange]:
         """Re-read the directory now and report scopes whose hash differs from the last report.
@@ -195,15 +358,22 @@ class DirectorySchemaProvider:
         """
         with self._lock:
             signature = _signature(self.directory)
-            registry = PackageRegistry.from_directory(self.directory)
-            registry.check()
+            state = self._registry_state
+            registry_token = self._registry_token
+            if self._registry_source is not None:
+                registry_token = self._registry_source.token()
+                state = self._registry_source.snapshot()
+            registry = self._build_registry(state)
             if self._extensions is not None:
                 token = self._extensions.token()
                 self._extension_docs = self._extensions.documents()
                 self._extension_token = token
-            scopes = ["company", *(f"project:{p}" for p in registry.projects())]
-            fresh = {scope: self._compose(registry, scope) for scope in scopes}
+            projects = {*registry.projects(), *state.projects()}
+            scopes = ["company", *(f"project:{p}" for p in sorted(projects))]
+            fresh = {scope: self._compose(registry, scope, state) for scope in scopes}
             self._registry = registry
+            self._registry_state = state
+            self._registry_token = registry_token
             self._signature = signature
             self._cache = dict(fresh)
             changes: list[SchemaChange] = []

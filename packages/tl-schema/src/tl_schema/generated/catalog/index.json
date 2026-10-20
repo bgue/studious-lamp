@@ -136,6 +136,15 @@
       "version": 1
     },
     {
+      "ce_type": "tl.core.Adoption.Pinned.v1",
+      "event_type": "Adoption.Pinned",
+      "payload_class": "AdoptionPinnedPayload",
+      "sample": "samples/Adoption.Pinned.v1.json",
+      "schema": "schemas/Adoption.Pinned.v1.json",
+      "title": "A project pinned a version of a company package.",
+      "version": 1
+    },
+    {
       "ce_type": "tl.core.AgentToken.Issued.v1",
       "event_type": "AgentToken.Issued",
       "payload_class": "AgentTokenIssuedPayload",
@@ -1234,12 +1243,84 @@
       "version": 1
     },
     {
+      "ce_type": "tl.core.SchemaPackage.Analysed.v1",
+      "event_type": "SchemaPackage.Analysed",
+      "payload_class": "SchemaPackageAnalysedPayload",
+      "sample": "samples/SchemaPackage.Analysed.v1.json",
+      "schema": "schemas/SchemaPackage.Analysed.v1.json",
+      "title": "The classification and impact reports of the draft were made, for the content with the stated hash.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.SchemaPackage.Approved.v1",
+      "event_type": "SchemaPackage.Approved",
+      "payload_class": "SchemaPackageApprovedPayload",
+      "sample": "samples/SchemaPackage.Approved.v1.json",
+      "schema": "schemas/SchemaPackage.Approved.v1.json",
+      "title": "An administrator approved the package, having read the classification report with this digest.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.SchemaPackage.ChangesRequested.v1",
+      "event_type": "SchemaPackage.ChangesRequested",
+      "payload_class": "SchemaPackageChangesRequestedPayload",
+      "sample": "samples/SchemaPackage.ChangesRequested.v1.json",
+      "schema": "schemas/SchemaPackage.ChangesRequested.v1.json",
+      "title": "A reviewer sent the package back to Draft.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.SchemaPackage.Deprecated.v1",
+      "event_type": "SchemaPackage.Deprecated",
+      "payload_class": "SchemaPackageDeprecatedPayload",
+      "sample": "samples/SchemaPackage.Deprecated.v1.json",
+      "schema": "schemas/SchemaPackage.Deprecated.v1.json",
+      "title": "A published version was deprecated: projects that pinned it keep it, nobody can adopt it.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.SchemaPackage.Drafted.v1",
+      "event_type": "SchemaPackage.Drafted",
+      "payload_class": "SchemaPackageDraftedPayload",
+      "sample": "samples/SchemaPackage.Drafted.v1.json",
+      "schema": "schemas/SchemaPackage.Drafted.v1.json",
+      "title": "A package version was drafted.",
+      "version": 1
+    },
+    {
       "ce_type": "tl.core.SchemaPackage.Published.v1",
       "event_type": "SchemaPackage.Published",
       "payload_class": "SchemaPackagePublishedPayload",
       "sample": "samples/SchemaPackage.Published.v1.json",
       "schema": "schemas/SchemaPackage.Published.v1.json",
       "title": "A schema package version was published.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.SchemaPackage.Retired.v1",
+      "event_type": "SchemaPackage.Retired",
+      "payload_class": "SchemaPackageRetiredPayload",
+      "sample": "samples/SchemaPackage.Retired.v1.json",
+      "schema": "schemas/SchemaPackage.Retired.v1.json",
+      "title": "A deprecated version was retired: it is out of every effective schema.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.SchemaPackage.Revised.v1",
+      "event_type": "SchemaPackage.Revised",
+      "payload_class": "SchemaPackageRevisedPayload",
+      "sample": "samples/SchemaPackage.Revised.v1.json",
+      "schema": "schemas/SchemaPackage.Revised.v1.json",
+      "title": "The author changed the content of a draft.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.SchemaPackage.Submitted.v1",
+      "event_type": "SchemaPackage.Submitted",
+      "payload_class": "SchemaPackageSubmittedPayload",
+      "sample": "samples/SchemaPackage.Submitted.v1.json",
+      "schema": "schemas/SchemaPackage.Submitted.v1.json",
+      "title": "The author sent the package to review.",
       "version": 1
     },
     {
@@ -1420,6 +1501,33 @@
       "sample": "samples/TypeRegistration.Registered.v1.json",
       "schema": "schemas/TypeRegistration.Registered.v1.json",
       "title": "A type package validated and was registered.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Waiver.Approved.v1",
+      "event_type": "Waiver.Approved",
+      "payload_class": "WaiverApprovedPayload",
+      "sample": "samples/Waiver.Approved.v1.json",
+      "schema": "schemas/Waiver.Approved.v1.json",
+      "title": "An administrator approved the waiver; the effective schema of the project changes.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Waiver.Requested.v1",
+      "event_type": "Waiver.Requested",
+      "payload_class": "WaiverRequestedPayload",
+      "sample": "samples/Waiver.Requested.v1.json",
+      "schema": "schemas/Waiver.Requested.v1.json",
+      "title": "Someone asked to relax one property for a project until a date.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Waiver.Revoked.v1",
+      "event_type": "Waiver.Revoked",
+      "payload_class": "WaiverRevokedPayload",
+      "sample": "samples/Waiver.Revoked.v1.json",
+      "schema": "schemas/Waiver.Revoked.v1.json",
+      "title": "An administrator revoked the waiver (or refused a request).",
       "version": 1
     },
     {

@@ -15,6 +15,7 @@ dependencies = [
   "tl-mod-engineering",
   "tl-mod-cost",
   "tl-mod-schedule",
+  "tl-mod-schemareg",
   "httpx2",
 ]
 

@@ -21,6 +21,7 @@ Every ledger event type that can reach a webhook subscriber, generated from the 
 | [`ActionDefinition.SecretRotated`](#actiondefinitionsecretrotated) | `tl.core.ActionDefinition.SecretRotated.v1` | A new signing secret was issued for a webhook action; the previous one keeps verifying until the overlap ends. |
 | [`ActivityRef.Defined`](#activityrefdefined) | `tl.core.ActivityRef.Defined.v1` | The first link to an activity made its reference. |
 | [`ActivityRef.PresenceChanged`](#activityrefpresencechanged) | `tl.core.ActivityRef.PresenceChanged.v1` | A publication found the activity gone from the schedule (present false) or back (present true). |
+| [`Adoption.Pinned`](#adoptionpinned) | `tl.core.Adoption.Pinned.v1` | A project pinned a version of a company package. |
 | [`AgentToken.Issued`](#agenttokenissued) | `tl.core.AgentToken.Issued.v1` | An agent token was issued. |
 | [`AgentToken.Revoked`](#agenttokenrevoked) | `tl.core.AgentToken.Revoked.v1` | An agent token was revoked and no longer authenticates. |
 | [`CodeValue.Closed`](#codevalueclosed) | `tl.core.CodeValue.Closed.v1` | A code value was superseded by another or retired; it still resolves for old records. |
@@ -143,7 +144,15 @@ Every ledger event type that can reach a webhook subscriber, generated from the 
 | [`ScheduleSnapshot.Queued`](#schedulesnapshotqueued) | `tl.core.ScheduleSnapshot.Queued.v1` | The build of a snapshot was queued: the XER file is fixed. |
 | [`ScheduleSnapshot.Rejected`](#schedulesnapshotrejected) | `tl.core.ScheduleSnapshot.Rejected.v1` | The file was read and is not a valid schedule snapshot (or could not be read): the snapshot is Invalid and no rows were written. |
 | [`Schema.EffectiveChanged`](#schemaeffectivechanged) | `tl.core.Schema.EffectiveChanged.v1` | The effective schema of a scope changed. |
+| [`SchemaPackage.Analysed`](#schemapackageanalysed) | `tl.core.SchemaPackage.Analysed.v1` | The classification and impact reports of the draft were made, for the content with the stated hash. |
+| [`SchemaPackage.Approved`](#schemapackageapproved) | `tl.core.SchemaPackage.Approved.v1` | An administrator approved the package, having read the classification report with this digest. |
+| [`SchemaPackage.ChangesRequested`](#schemapackagechangesrequested) | `tl.core.SchemaPackage.ChangesRequested.v1` | A reviewer sent the package back to Draft. |
+| [`SchemaPackage.Deprecated`](#schemapackagedeprecated) | `tl.core.SchemaPackage.Deprecated.v1` | A published version was deprecated: projects that pinned it keep it, nobody can adopt it. |
+| [`SchemaPackage.Drafted`](#schemapackagedrafted) | `tl.core.SchemaPackage.Drafted.v1` | A package version was drafted. |
 | [`SchemaPackage.Published`](#schemapackagepublished) | `tl.core.SchemaPackage.Published.v1` | A schema package version was published. |
+| [`SchemaPackage.Retired`](#schemapackageretired) | `tl.core.SchemaPackage.Retired.v1` | A deprecated version was retired: it is out of every effective schema. |
+| [`SchemaPackage.Revised`](#schemapackagerevised) | `tl.core.SchemaPackage.Revised.v1` | The author changed the content of a draft. |
+| [`SchemaPackage.Submitted`](#schemapackagesubmitted) | `tl.core.SchemaPackage.Submitted.v1` | The author sent the package to review. |
 | [`Setting.Changed`](#settingchanged) | `tl.core.Setting.Changed.v1` | One key was set, or reset to what the layer above gives, at one layer. |
 | [`Setting.Locked`](#settinglocked) | `tl.core.Setting.Locked.v1` | The company locked a key for its projects, unlocked it, or changed the bounds projects must keep to. |
 | [`Standard.Closed`](#standardclosed) | `tl.core.Standard.Closed.v1` | A registry entry was superseded by another or retired; it stays resolvable for history. |
@@ -164,6 +173,9 @@ Every ledger event type that can reach a webhook subscriber, generated from the 
 | [`TypeRegistration.Deprecated`](#typeregistrationdeprecated) | `tl.core.TypeRegistration.Deprecated.v1` | The owner retired a version. |
 | [`TypeRegistration.Quarantined`](#typeregistrationquarantined) | `tl.core.TypeRegistration.Quarantined.v1` | A type package failed validation, or its files changed under a version that is already registered. |
 | [`TypeRegistration.Registered`](#typeregistrationregistered) | `tl.core.TypeRegistration.Registered.v1` | A type package validated and was registered. |
+| [`Waiver.Approved`](#waiverapproved) | `tl.core.Waiver.Approved.v1` | An administrator approved the waiver; the effective schema of the project changes. |
+| [`Waiver.Requested`](#waiverrequested) | `tl.core.Waiver.Requested.v1` | Someone asked to relax one property for a project until a date. |
+| [`Waiver.Revoked`](#waiverrevoked) | `tl.core.Waiver.Revoked.v1` | An administrator revoked the waiver (or refused a request). |
 | [`WebhookSubscription.Created`](#webhooksubscriptioncreated) | `tl.core.WebhookSubscription.Created.v1` | A webhook subscription was created. |
 | [`WebhookSubscription.Disabled`](#webhooksubscriptiondisabled) | `tl.core.WebhookSubscription.Disabled.v1` | A subscription stopped receiving events. |
 | [`WebhookSubscription.Enabled`](#webhooksubscriptionenabled) | `tl.core.WebhookSubscription.Enabled.v1` | A disabled subscription started receiving events again, from this event on. |
@@ -1045,6 +1057,68 @@ A publication found the activity gone from the schedule (present false) or back 
   "tlseq": 48211933,
   "tlstreamversion": 7,
   "type": "tl.core.ActivityRef.PresenceChanged.v1"
+}
+```
+
+## Adoption.Pinned
+
+A project pinned a version of a company package. The record is created by the first pin.
+
+- CloudEvents type: `tl.core.Adoption.Pinned.v1`
+- Ledger payload class: `AdoptionPinnedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `adopted_by` | string | yes | The administrator that pinned it, or the publisher for an automatic pin. |
+| `auto` | boolean or null | no | True when publication pinned it (an additive version, auto-adoption on). |
+| `impact_sha256` | string or null | no | The SHA-256 of the project impact report the adopter saw, or null for an additive pin. |
+| `package` | string | yes | The company package name. |
+| `previous_version` | string or null | no | The version pinned before, or null. |
+| `project` | string | yes | The project id. |
+| `version` | string | yes | The pinned version. |
+| `worst_class` | string or null | no | The worst class of the change from the previous version, or null for a first pin. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "adopted_by": "user:admin",
+      "auto": false,
+      "impact_sha256": null,
+      "package": "co.acme.engineering",
+      "previous_version": "3.2.0",
+      "project": "P123",
+      "version": "3.3.0",
+      "worst_class": "additive"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Adoption.Pinned/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Adoption.Pinned.v1"
 }
 ```
 
@@ -8039,6 +8113,284 @@ The effective schema of a scope changed.
 }
 ```
 
+## SchemaPackage.Analysed
+
+The classification and impact reports of the draft were made, for the content with the stated hash.
+
+- CloudEvents type: `tl.core.SchemaPackage.Analysed.v1`
+- Ledger payload class: `SchemaPackageAnalysedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `base_ref` | string or null | no | name@version the change was compared with, or null for a first version. |
+| `classification` | any | yes |  |
+| `classification_digest` | string | yes | The digest of the classification report. |
+| `content_sha256` | string | yes | The content hash the reports were made for. |
+| `impact` | any | yes |  |
+| `impact_sha256` | string | yes | SHA-256 of the canonical JSON of the impact report. |
+| `worst_class` | string | yes | The worst class of the change. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "base_ref": "co.acme.engineering@3.2.0",
+      "classification": {
+        "worst": "additive"
+      },
+      "classification_digest": "1111111111111111111111111111111111111111111111111111111111111111",
+      "content_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "impact": {
+        "sections": []
+      },
+      "impact_sha256": "2222222222222222222222222222222222222222222222222222222222222222",
+      "worst_class": "additive"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/SchemaPackage.Analysed/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.SchemaPackage.Analysed.v1"
+}
+```
+
+## SchemaPackage.Approved
+
+An administrator approved the package, having read the classification report with this digest.
+
+- CloudEvents type: `tl.core.SchemaPackage.Approved.v1`
+- Ledger payload class: `SchemaPackageApprovedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `approver` | string | yes | The approving administrator. |
+| `classification_digest` | string | yes | The digest of the classification report approved. |
+| `comment` | string or null | no | A remark, or null. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "approver": "user:admin",
+      "classification_digest": "1111111111111111111111111111111111111111111111111111111111111111",
+      "comment": null
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/SchemaPackage.Approved/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.SchemaPackage.Approved.v1"
+}
+```
+
+## SchemaPackage.ChangesRequested
+
+A reviewer sent the package back to Draft.
+
+- CloudEvents type: `tl.core.SchemaPackage.ChangesRequested.v1`
+- Ledger payload class: `SchemaPackageChangesRequestedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `reason` | string | yes | What must change. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "reason": "Say what seat_leak_class measures."
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/SchemaPackage.ChangesRequested/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.SchemaPackage.ChangesRequested.v1"
+}
+```
+
+## SchemaPackage.Deprecated
+
+A published version was deprecated: projects that pinned it keep it, nobody can adopt it.
+
+- CloudEvents type: `tl.core.SchemaPackage.Deprecated.v1`
+- Ledger payload class: `SchemaPackageDeprecatedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `reason` | string | yes | Why. |
+| `replacement` | string or null | no | name@version that replaces it, or null. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "reason": "Superseded by 3.3.0.",
+      "replacement": "co.acme.engineering@3.3.0"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/SchemaPackage.Deprecated/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.SchemaPackage.Deprecated.v1"
+}
+```
+
+## SchemaPackage.Drafted
+
+A package version was drafted. The content is the package YAML, at most 262144 bytes.
+
+- CloudEvents type: `tl.core.SchemaPackage.Drafted.v1`
+- Ledger payload class: `SchemaPackageDraftedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `changelog` | string or null | no | What the author says changed, or null. |
+| `content` | string | yes | The package YAML. |
+| `content_sha256` | string | yes | SHA-256 of the content. |
+| `drafted_by` | string | yes | The actor that drafted it. |
+| `kind` | string | yes | company, extension or project. |
+| `package` | string | yes | Package name. |
+| `package_title` | string or null | no | The title the package gives itself, or null. |
+| `project` | string or null | no | The project of an extension or project package, or null. |
+| `version` | string | yes | Package version. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "changelog": "Adds seat_leak_class.",
+      "content": "package: co.acme.engineering\n",
+      "content_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "drafted_by": "user:rgarcia",
+      "kind": "company",
+      "package": "co.acme.engineering",
+      "package_title": null,
+      "project": null,
+      "version": "3.3.0"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/SchemaPackage.Drafted/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.SchemaPackage.Drafted.v1"
+}
+```
+
 ## SchemaPackage.Published
 
 A schema package version was published.
@@ -8051,8 +8403,13 @@ A schema package version was published.
 
 | Field | Type | Required | Description |
 |---|---|---|---|
+| `auto_adopted` | array or null | no | Projects whose pin moved to this version by publication. |
+| `content_sha256` | string or null | no | SHA-256 of the package content. |
+| `kind` | string or null | no | company, extension or project. |
 | `package` | string | yes | Package name. |
+| `record_id` | string or null | no | The `schemareg.SchemaPackage` record, when the registry module published it. |
 | `version` | string | yes | Package version. |
+| `worst_class` | string or null | no | The worst class of the change the version makes (additive, constraining, ...). |
 
 ### Sample delivered event
 
@@ -8086,6 +8443,158 @@ A schema package version was published.
   "tlseq": 48211933,
   "tlstreamversion": 7,
   "type": "tl.core.SchemaPackage.Published.v1"
+}
+```
+
+## SchemaPackage.Retired
+
+A deprecated version was retired: it is out of every effective schema.
+
+- CloudEvents type: `tl.core.SchemaPackage.Retired.v1`
+- Ledger payload class: `SchemaPackageRetiredPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `reason` | string | yes | Why. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "reason": "No project pins it."
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/SchemaPackage.Retired/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.SchemaPackage.Retired.v1"
+}
+```
+
+## SchemaPackage.Revised
+
+The author changed the content of a draft. Any earlier analysis no longer holds.
+
+- CloudEvents type: `tl.core.SchemaPackage.Revised.v1`
+- Ledger payload class: `SchemaPackageRevisedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `changelog` | string or null | no | What the author says changed, or null. |
+| `content` | string | yes | The package YAML. |
+| `content_sha256` | string | yes | SHA-256 of the content. |
+| `package_title` | string or null | no | The title the package gives itself, or null. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "changelog": null,
+      "content": "package: co.acme.engineering\n",
+      "content_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "package_title": null
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/SchemaPackage.Revised/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.SchemaPackage.Revised.v1"
+}
+```
+
+## SchemaPackage.Submitted
+
+The author sent the package to review.
+
+- CloudEvents type: `tl.core.SchemaPackage.Submitted.v1`
+- Ledger payload class: `SchemaPackageSubmittedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `classification_digest` | string | yes | The digest of the classification report the reviewer will read. |
+| `submitted_by` | string | yes | The actor that submitted it. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "classification_digest": "1111111111111111111111111111111111111111111111111111111111111111",
+      "submitted_by": "user:rgarcia"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/SchemaPackage.Submitted/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.SchemaPackage.Submitted.v1"
 }
 ```
 
@@ -9316,6 +9825,164 @@ A type package validated and was registered. The package files stay where they a
   "tlseq": 48211933,
   "tlstreamversion": 7,
   "type": "tl.core.TypeRegistration.Registered.v1"
+}
+```
+
+## Waiver.Approved
+
+An administrator approved the waiver; the effective schema of the project changes.
+
+- CloudEvents type: `tl.core.Waiver.Approved.v1`
+- Ledger payload class: `WaiverApprovedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `approver` | string | yes | The approving administrator. |
+| `comment` | string or null | no | A remark, or null. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "approver": "user:admin",
+      "comment": null
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Waiver.Approved/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Waiver.Approved.v1"
+}
+```
+
+## Waiver.Requested
+
+Someone asked to relax one property for a project until a date.
+
+- CloudEvents type: `tl.core.Waiver.Requested.v1`
+- Ledger payload class: `WaiverRequestedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `expires` | string | yes | Last day it holds, YYYY-MM-DD. |
+| `number` | integer | yes | 1 for the first waiver of the path in the project. |
+| `path` | string | yes | The property path. |
+| `project` | string | yes | The project id. |
+| `reason` | string | yes | Why. |
+| `requested_by` | string | yes | The actor that asked. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "expires": "2027-03-31",
+      "number": 1,
+      "path": "psets.valve_data.size_in",
+      "project": "P123",
+      "reason": "Legacy valves have no size on record.",
+      "requested_by": "user:rgarcia"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Waiver.Requested/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Waiver.Requested.v1"
+}
+```
+
+## Waiver.Revoked
+
+An administrator revoked the waiver (or refused a request).
+
+- CloudEvents type: `tl.core.Waiver.Revoked.v1`
+- Ledger payload class: `WaiverRevokedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `reason` | string | yes | Why. |
+| `revoked_by` | string | yes | The administrator. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "reason": "The data was corrected.",
+      "revoked_by": "user:admin"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Waiver.Revoked/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Waiver.Revoked.v1"
 }
 ```
 

@@ -9,9 +9,9 @@ from __future__ import annotations
 
 import hashlib
 import os
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import yaml
 from pydantic import ValidationError
@@ -24,6 +24,9 @@ SCHEMA_DIR_ENV = "TL_SCHEMA_DIR"
 DEFAULT_SCHEMA_DIR: Path = Path(__file__).resolve().parents[4] / "schema" / "fixtures"
 
 _PROJECT_SCOPE = "project:"
+
+#: Where a document came from: a file of the package directory, or a published ledger package.
+Origin = Literal["directory", "ledger"]
 
 
 class PackageError(ValueError):
@@ -80,6 +83,7 @@ class PackageRegistry:
 
     def __init__(self, docs: Iterable[PackageDoc] = ()) -> None:
         self._docs: dict[tuple[str, str], PackageDoc] = {}
+        self._origins: dict[tuple[str, str], Origin] = {}
         for doc in docs:
             self.add(doc)
 
@@ -93,12 +97,34 @@ class PackageRegistry:
             raise PackageError(f"{directory}: package directory does not exist")
         return cls(load_package(path) for path in sorted(directory.glob("*.yaml")))
 
-    def add(self, doc: PackageDoc) -> None:
-        """Add a document. A second ``package@version`` raises ``PackageError``."""
+    def add(self, doc: PackageDoc, *, origin: Origin = "directory") -> None:
+        """Add a document. A second ``package@version`` raises ``PackageError``.
+
+        ``origin`` says where it came from. A company package of origin ``ledger`` is a version
+        a steward published through the registry: the company scope uses it at once, but a project
+        uses it only when it pins it (``adopted(..., pins=...)``).
+        """
         slot = (doc.package, doc.version)
         if slot in self._docs:
             raise PackageError(f"{doc.key()}: already registered")
         self._docs[slot] = doc
+        self._origins[slot] = origin
+
+    def copy(self) -> PackageRegistry:
+        """A registry holding the same documents (they are immutable), to try a change on."""
+        other = PackageRegistry()
+        other._docs = dict(self._docs)
+        other._origins = dict(self._origins)
+        return other
+
+    def discard(self, name: str, version: str) -> None:
+        """Forget ``name@version`` (a no-op when it is not registered)."""
+        self._docs.pop((name, version), None)
+        self._origins.pop((name, version), None)
+
+    def origin(self, name: str, version: str) -> Origin | None:
+        """Where ``name@version`` came from, or ``None`` when it is not registered."""
+        return self._origins.get((name, version))
 
     def names(self) -> list[str]:
         """Sorted package names."""
@@ -127,25 +153,28 @@ class PackageRegistry:
         """Sorted ids of the projects that have an extension or project package."""
         return sorted({doc.project for doc in self._docs.values() if doc.project is not None})
 
-    def adopted(self, scope: str) -> list[PackageDoc]:
+    def adopted(self, scope: str, pins: Mapping[str, str] | None = None) -> list[PackageDoc]:
         """The documents ``scope`` adopts, one version per package. See the ticket for the rules.
 
         ``company``: the latest version of every company package.
         ``project:<id>``: for each extension or project package of that project the highest
-        version; the company versions its ``depends`` pin; and the latest version of every other
-        company package. Two pins of one company package at different versions raise
-        ``PackageError``. Result order: company, then extension, then project documents, each
-        sorted by package name. A scope other than ``company`` or ``project:<id>`` raises
-        ``ValueError``.
+        version; the company versions its ``depends`` pin; the versions the project pinned through
+        the registry (``pins``: package name to version, each a company package that is
+        registered); and, for every other company package, the latest version of *directory*
+        origin (a version that exists only in the ledger is in force for a project only when the
+        project pins it). Two pins of one company package at different versions, whether from
+        packages or from ``pins``, raise ``PackageError``. Result order: company, then extension,
+        then project documents, each sorted by package name. A scope other than ``company`` or
+        ``project:<id>`` raises ``ValueError``.
         """
         if scope == "company":
             company = _highest(doc for doc in self._docs.values() if doc.kind == "company")
             return [company[name] for name in sorted(company)]
         if not scope.startswith(_PROJECT_SCOPE) or scope == _PROJECT_SCOPE:
             raise ValueError(f"unknown scope {scope!r}; use 'company' or 'project:<id>'")
-        return self._project_adoption(scope[len(_PROJECT_SCOPE) :])
+        return self._project_adoption(scope[len(_PROJECT_SCOPE) :], pins or {})
 
-    def _project_adoption(self, project: str) -> list[PackageDoc]:
+    def _project_adoption(self, project: str, adopted: Mapping[str, str]) -> list[PackageDoc]:
         """The adopted documents of ``project:<project>`` (rules in ``adopted``)."""
         own = _highest(doc for doc in self._docs.values() if doc.project == project)
         pins: dict[str, str] = {}
@@ -160,9 +189,26 @@ class PackageRegistry:
                         f"project:{project}: {dep} is pinned at both {existing} and {version}"
                     )
                 pins[dep] = version
-        company = _highest(doc for doc in self._docs.values() if doc.kind == "company")
+        company = _highest(
+            doc
+            for slot, doc in self._docs.items()
+            if doc.kind == "company" and self._origins[slot] == "directory"
+        )
         for dep, version in pins.items():
             company[dep] = self.get(dep, version)
+        for dep, version in sorted(adopted.items()):
+            stored = self._docs.get((dep, version))
+            if stored is None or stored.kind != "company":
+                raise PackageError(
+                    f"project:{project}: pinned {dep}@{version}, which is not a registered "
+                    "company package"
+                )
+            existing = pins.get(dep)
+            if existing is not None and existing != version:
+                raise PackageError(
+                    f"project:{project}: {dep} is pinned at both {existing} and {version}"
+                )
+            company[dep] = stored
         extensions = [own[name] for name in sorted(own) if own[name].kind == "extension"]
         projects = [own[name] for name in sorted(own) if own[name].kind == "project"]
         return [company[name] for name in sorted(company)] + extensions + projects

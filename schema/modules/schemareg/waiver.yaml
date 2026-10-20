@@ -1,0 +1,69 @@
+id: https://example.org/throughline/modules/schemareg/waiver
+name: tl_mod_schemareg_waiver
+title: Waivers (brief 6.3, 27.5)
+description: >-
+  A `Waiver` relaxes one property of the effective schema for one project until a date. Record type
+  `schemareg.Waiver`; its key is `<project>/<path>@<n>`; it lives in the project's scope. The states
+  are Requested, Approved and Revoked. An approved waiver whose date has not passed reaches the
+  conformance evaluator through the effective schema; the same path may be waived again after an
+  earlier waiver expired or was revoked. Spec: docs/modules/schemareg/README.md.
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+  - ../../core/annotations
+  - ../../core/record
+default_range: string
+annotations:
+  tl:module: schemareg
+
+classes:
+  Waiver:
+    description: A time-limited relaxation of one property for one project, with a reason and an approver.
+    annotations:
+      tl:current_state: true
+      tl:record_types: "schemareg.Waiver"
+      tl:ix_scope_path: "scope, path"
+    attributes:
+      id:
+        identifier: true
+        range: Ulid
+        required: true
+        description: Record id; equals the ledger stream id and the `cur_core_record` id.
+      scope:
+        range: ScopeId
+        required: true
+        description: "The project scope, `project:<id>`."
+      project:
+        required: true
+        description: The project id.
+      path:
+        required: true
+        description: "The property path, for example `psets.valve_data.size_in`."
+      number:
+        range: integer
+        required: true
+        description: "1 for the first waiver of the path in the project, then 2, 3."
+      reason:
+        required: true
+        description: Why the property is relaxed.
+      expires:
+        required: true
+        description: "The last day the waiver holds, `YYYY-MM-DD`; at most 366 days after the request."
+      requested_by:
+        required: true
+        description: The actor that asked for the waiver.
+      approver:
+        description: The administrator that approved it.
+      approved_at:
+        description: Timestamp of the approval (ISO, UTC).
+      revoked_by:
+        description: The administrator that revoked it.
+      revoked_at:
+        description: Timestamp of the revocation (ISO, UTC).
+      last_seq:
+        range: integer
+        required: true
+        description: Ledger `seq` of the last event applied to this row.

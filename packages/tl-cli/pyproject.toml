@@ -18,6 +18,7 @@ dependencies = [
   "tl-mod-correspondence",
   "tl-mod-cost",
   "tl-mod-schedule",
+  "tl-mod-schemareg",
   "tl-xer",
 ]
 

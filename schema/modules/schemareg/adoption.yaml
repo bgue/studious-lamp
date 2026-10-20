@@ -1,0 +1,68 @@
+id: https://example.org/throughline/modules/schemareg/adoption
+name: tl_mod_schemareg_adoption
+title: Adoption of package versions by projects (brief 27.4)
+description: >-
+  An `Adoption` records which version of one company package a project uses. Record type
+  `schemareg.Adoption`; its key is `<project>/<package>`; it lives in the project's scope. A new pin
+  is an event on the same record, so the history of pins is the history of the record. Spec:
+  docs/modules/schemareg/README.md.
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+  - ../../core/annotations
+  - ../../core/record
+default_range: string
+annotations:
+  tl:module: schemareg
+
+classes:
+  Adoption:
+    description: The version of one company package a project has pinned.
+    annotations:
+      tl:current_state: true
+      tl:record_types: "schemareg.Adoption"
+      tl:ix_scope_package: "scope, package"
+    unique_keys:
+      scope_package:
+        description: A project pins one version of a package.
+        unique_key_slots:
+          - scope
+          - package
+    attributes:
+      id:
+        identifier: true
+        range: Ulid
+        required: true
+        description: Record id; equals the ledger stream id and the `cur_core_record` id.
+      scope:
+        range: ScopeId
+        required: true
+        description: "The project scope, `project:<id>`."
+      project:
+        required: true
+        description: The project id.
+      package:
+        required: true
+        description: The company package name.
+      semver:
+        required: true
+        description: The pinned version.
+      previous_semver:
+        description: The version pinned before; null for the first pin.
+      worst_class:
+        description: The worst class of the change from the previous version to this one.
+      impact_sha256:
+        description: The SHA-256 of the project impact report the adopter saw; null for an additive pin.
+      adopted_by:
+        required: true
+        description: The administrator that pinned the version.
+      adopted_at:
+        required: true
+        description: Timestamp of the latest pin (ISO, UTC).
+      last_seq:
+        range: integer
+        required: true
+        description: Ledger `seq` of the last event applied to this row.

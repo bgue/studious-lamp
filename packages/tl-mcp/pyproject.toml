@@ -12,6 +12,7 @@ dependencies = [
   "tl-lake",
   "tl-tui",
   "tl-mod-schedule",
+  "tl-mod-schemareg",
 ]
 
 [project.scripts]
