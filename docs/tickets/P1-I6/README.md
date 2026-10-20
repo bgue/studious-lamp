@@ -1,6 +1,6 @@
 # Increment plan — P1-I6 Technical / RFI and Commercial domains, escalation paths
 
-Status: in-progress (T05b dispatched)
+Status: done
 Supervisor session: 2026-10-20
 Brief sections: §9 M10 (domain layer, "Initial domains": Technical / RFI and Commercial; "Cross-domain behaviour": escalation paths, clock dashboard, evidence trail, feed and webhooks follow each domain's policy), §9 M5 (an RFI is a Technical-domain item that feeds AWP constraints), §9 M11 (the register exports to the cost system as pending or approved changes), §18.8 (the rule: an RFI answer with a cost impact proposes a linked commercial change notice and starts its clock), §18.10 (restricted classes are left out of exports), §8 (permissions), §7.2 (links)
 Branch: `p1/i6` (trunk `claude/wizardly-allen-m2v96s` at 61717ad). Parallel increment: P1-I7 (`p1/i7`), whose rules engine T05 builds on.
@@ -13,7 +13,7 @@ Give the correspondence module its second and third domains. **Technical / RFI**
 `just demo P1-I6` (SQLite and Postgres; `dev/demos/P1-I6.sh`, driver `dev/demos/p1_i6_demo.py`), one PASS line per clause:
 1. a person raises an RFI and sends it to review; a user is refused the issue; a document controller issues it (stub send) and its response clock starts;
 2. the answer says yes to cost impact: the RFI is Answered, its clock is met, the log shows the response time and the impact flag;
-3. a controller escalates it: a Draft restricted early warning, `derived from` the RFI, with a 14-day time bar from the answer; a user cannot see it or tell that it exists;
+3. the escalation rule (propose mode, on the P1-I7 engine) proposes an early warning for the answered RFI; a user cannot accept it; a controller does: a Draft restricted early warning, `derived from` the RFI, with a 14-day time bar from the answer; a user cannot see it or tell that it exists;
 4. the notice is priced, reviewed and issued, which meets the bar; a second one issued after its bar shows LATE;
 5. one notice is agreed, one disputed; the register totals each currency on its own line; a dispute goes to the legal route and its clocks stop;
 6. the cost-system export names its class, is a private file (0600), quotes a formula and keeps currencies apart;
@@ -21,7 +21,7 @@ Give the correspondence module its second and third domains. **Technical / RFI**
 8. the TUI (`Ctrl+G`) and an agent (MCP) read the same RFIs and no notice they may not read;
 9. a simulated site engineer and client representative play two days of RFIs; `tl sim assert` holds the run to its ground truth.
 
-Not in the demo, covered by tests: the PDF rendition of an issued RFI, the feed cards (full and minimal) and the proposal of the escalation by the rule (T05, waits for the P1-I7 engine).
+Not in the demo, covered by tests: the PDF rendition of an issued RFI and the feed cards (full and minimal).
 
 ## Design decisions (supervisor, within the plan)
 | # | Decision |
