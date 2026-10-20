@@ -11,7 +11,7 @@ import time
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Annotated, NoReturn
+from typing import Annotated, Any, NoReturn
 
 import typer
 from sqlalchemy import Connection
@@ -283,6 +283,10 @@ def query(
     """Run a read-only query through the lake_query guard."""
     with _lake_errors():
         result = LakeQueryService(_config(ctx)).query(sql, limit=limit, caller=_CALLER)
+    _print_result(result, as_json)
+
+
+def _print_result(result: Any, as_json: bool) -> None:
     if as_json:
         payload = {
             "columns": result.columns,
@@ -300,3 +304,40 @@ def query(
     if result.truncated:
         typer.echo(f"truncated at {len(result.rows)} rows")
     typer.echo(result.as_of_line())
+
+
+mart_app = typer.Typer(help="The marts: gold tables rebuilt from silver.", no_args_is_help=True)
+app.add_typer(mart_app, name="mart")
+
+
+def _marts(ctx: typer.Context) -> list[str]:
+    with _lake_errors():
+        return sorted(name for name in describe_lake(_config(ctx)) if name.startswith("mart_"))
+
+
+@mart_app.command("ls")
+def mart_ls(ctx: typer.Context) -> None:
+    """List the marts and their row counts (document status, turnaround, issues; float trend;
+    schedule history). A mart that has no source rows yet is not listed."""
+    names = _marts(ctx)
+    with _lake_errors():
+        counts = lake_status(_config(ctx)).tables
+    for name in names:
+        typer.echo(f"{name} {counts.get(name, 0)}")
+
+
+@mart_app.command("show")
+def mart_show(
+    ctx: typer.Context,
+    name: Annotated[str, typer.Argument(help="A mart from `tl lake mart ls`.")],
+    limit: Annotated[int, typer.Option("--limit", help="Maximum rows to return.")] = 100,
+    as_json: Annotated[bool, typer.Option("--json", help="Print one JSON object.")] = False,
+) -> None:
+    """Print the rows of one mart, the way `tl lake query` does."""
+    if name not in _marts(ctx):
+        _fail(f"no mart {name!r}: run `tl lake sync`, then `tl lake mart ls`")
+    with _lake_errors():
+        result = LakeQueryService(_config(ctx)).query(
+            f"SELECT * FROM {name}", limit=limit, caller=_CALLER
+        )
+    _print_result(result, as_json)

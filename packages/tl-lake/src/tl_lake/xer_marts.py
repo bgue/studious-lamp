@@ -3,6 +3,7 @@
 A mart is a table rebuilt from silver whenever the schedule tables changed (``tl_lake.xer`` calls
 ``build_marts`` inside its transaction), so it never disagrees with the silver it came from.
 
+* ``mart_schedule_history`` (:func:`build_schedule_history`): one row per published snapshot.
 * ``mart_float_trend``: one row per activity per published snapshot (Published or Superseded: the
   history a planner reads), oldest data date first, with the float of the snapshot before it and
   the change in days (negative: erosion).
@@ -19,6 +20,7 @@ SCHEDULE_HISTORY_TABLE = "mart_schedule_history"
 def build_marts(con: Duck) -> None:
     """Rebuild every mart from the silver schedule tables."""
     build_float_trend(con)
+    build_schedule_history(con)
 
 
 def build_float_trend(con: Duck) -> None:

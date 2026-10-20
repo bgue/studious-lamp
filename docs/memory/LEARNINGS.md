@@ -676,3 +676,10 @@ Installing `tl-mod-schemareg` made seven tests fail at once (three DDL file list
 
 ### L-P1-I8-5 (env) Never clean `/tmp/pytest-of-root`: it is shared by every agent
 The standing instruction to remove folders older than an hour from `/tmp/pytest-of-root` between runs is wrong when other supervisors run suites at the same time (it caused 767 errors in another run). Give each heavy run its own base temp (`--basetemp=/tmp/pt-p1i8-<name>`), read its exit code, and then remove that one directory. Evidence: coordinator correction of 2026-10-20; one age-based clean-up was run at the start of P1-I8 before the correction.
+
+### L-P1-I8-6 (security) A reclassified parent leaves its children in the lake unless the sync looks for them
+`last_seq` moves for the document that is reclassified, not for its revisions, so "replace the rows whose `last_seq` changed" left the revisions (and their core records and values) of a newly restricted document in silver, and never copied them back after a declassification. The sync now deletes every silver row with a hidden record at an end and copies the readable records of the confidential families that the lake lacks. Storing the hidden ids in the lake to compare with was wrong: it put the ids of restricted records into a table every reader can query (`test_confidential_rows` caught it). Evidence: `tl_lake/sync.py` `_purge_hidden`, `_visible_again`; `packages/tl-lake/tests/test_document_silver.py`.
+
+### L-P1-I8-7 (tests) A new silver table changes the text of `tl lake sync` and `tl lake status`
+Two documents tables in `SILVER_TABLES` added two names to "silver rows: ..." and to the status list; three CLI tests and `dev/demos/P0-I7-lake.sh` pinned the text. `grep -rn "silver rows"` finds them.
+
