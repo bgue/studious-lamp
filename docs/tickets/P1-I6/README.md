@@ -1,6 +1,6 @@
 # Increment plan — P1-I6 Technical / RFI and Commercial domains, escalation paths
 
-Status: in-progress
+Status: waiting for P1-I7 (T05)
 Supervisor session: 2026-10-20
 Brief sections: §9 M10 (domain layer, "Initial domains": Technical / RFI and Commercial; "Cross-domain behaviour": escalation paths, clock dashboard, evidence trail, feed and webhooks follow each domain's policy), §9 M5 (an RFI is a Technical-domain item that feeds AWP constraints), §9 M11 (the register exports to the cost system as pending or approved changes), §18.8 (the rule: an RFI answer with a cost impact proposes a linked commercial change notice and starts its clock), §18.10 (restricted classes are left out of exports), §8 (permissions), §7.2 (links)
 Branch: `p1/i6` (trunk `claude/wizardly-allen-m2v96s` at 61717ad). Parallel increment: P1-I7 (`p1/i7`), whose rules engine T05 builds on.
@@ -11,14 +11,17 @@ Give the correspondence module its second and third domains. **Technical / RFI**
 
 ## Demo
 `just demo P1-I6` (SQLite and Postgres; `dev/demos/P1-I6.sh`, driver `dev/demos/p1_i6_demo.py`), one PASS line per clause:
-1. raise an RFI pinned to `ISO-1234` rev B (`tl rfi raise`), submit it, a document controller issues it: a PDF rendition, a stub send, a response clock that ends on the day an answer is needed;
-2. the client answers with `cost_impact = yes`: the RFI is Answered, its clock is met on the day, the feed shows a **full** card;
-3. the rule (or `tl rfi escalate`) proposes a linked Early Warning; a controller accepts it: a Draft `P123-EW-0001`, `derived from` the RFI, restricted, with a **14-day time bar** counted from the answer;
-4. the same Early Warning does not exist for a user or an agent (same answer as an unused number) and its feed card, register line and export are absent for them;
-5. the Early Warning goes through commercial review, PM approval and issue: the time bar is met, a **minimal** card says only that a notice was issued;
-6. the other party assesses it as partially agreed with a value: the register shows estimated against assessed per currency;
-7. the **evidence trail** assembles the chain as of the answer date, and again as of today; the earlier view leaves out the later links and states;
-8. `tl comm export` writes the pending and approved changes as CSV for a controller, with spreadsheet formulas quoted, and refuses to write restricted items without a named class.
+1. a person raises an RFI and sends it to review; a user is refused the issue; a document controller issues it (stub send) and its response clock starts;
+2. the answer says yes to cost impact: the RFI is Answered, its clock is met, the log shows the response time and the impact flag;
+3. a controller escalates it: a Draft restricted early warning, `derived from` the RFI, with a 14-day time bar from the answer; a user cannot see it or tell that it exists;
+4. the notice is priced, reviewed and issued, which meets the bar; a second one issued after its bar shows LATE;
+5. one notice is agreed, one disputed; the register totals each currency on its own line; a dispute goes to the legal route and its clocks stop;
+6. the cost-system export names its class, is a private file (0600), quotes a formula and keeps currencies apart;
+7. the evidence trail runs from the notice to its RFI for a controller, stops at the RFI for a user, and refuses a day before either existed;
+8. the TUI (`Ctrl+G`) and an agent (MCP) read the same RFIs and no notice they may not read;
+9. a simulated site engineer and client representative play two days of RFIs; `tl sim assert` holds the run to its ground truth.
+
+Not in the demo, covered by tests: the PDF rendition of an issued RFI, the feed cards (full and minimal) and the proposal of the escalation by the rule (T05, waits for the P1-I7 engine).
 
 ## Design decisions (supervisor, within the plan)
 | # | Decision |
@@ -53,8 +56,9 @@ Give the correspondence module its second and third domains. **Technical / RFI**
 | S11 | Residuals of the security re-check (private export file, own overflow error, scan cards tagged with their record) and the decisions D13, D14 | Confidentiality | orchestrator | done (32c7ed6, 8d2f946) |
 | S17 | Fake client counts open RFIs as the report does (answered excluded); screen pilot test restored | Interface fix | none | done (b945bdf) |
 | S18 | Simulator: RFI author and client representative, TechnicalDesk client methods, numbering spells the project without symbols (core change) | Core numbering | security review, orchestrator | done (6856497) |
-| S19 | Demo `just demo P1-I6` (nine clauses, sqlite and postgres) | Cross-cutting | none | done |
-| S20 | Ticket T11 (package docs), plan update | Docs ticket for Haiku | none | done |
+| S19 | Demo `just demo P1-I6` (nine clauses, sqlite and postgres) | Cross-cutting | none | done (2770ba3) |
+| S20 | Ticket T11 (package docs), plan update | Docs ticket for Haiku | none | done (2770ba3) |
+| S21 | Test: two projects whose ids spell the same number alike resolve only their own item (orchestrator's condition on S18) | Core numbering follow-up | orchestrator | done (52ba97c) |
 | S15 | TUI domain screen (Ctrl+G), evidence text, client fake seed, embedded reads test | Screen glue and wiring | — | done (394961d) |
 | S10 | Security review fixes F1 to F8 (Commercial controller gate on every command, feed cards of confidential streams, answering records readable by the item's readers, bounded evidence query, private export file, export row limit, issue day floor) | Core feed change; confidentiality | orchestrator re-check of F1 and F2 | done (eb31ba2) |
 
@@ -76,7 +80,7 @@ Give the correspondence module its second and third domains. **Technical / RFI**
 | T09a | RFI log report | H | S3 | merged (63d7dc1) | passed first time; one equivalent guard added for pyright (L-P1-I6-1) |
 | T09b | Commercial register report | H | S3 | merged (3f753af) | passed first time |
 | T10 | Simulator: client representative answers RFIs; RFI author; demo; report | S | T02, T04, T09 | built by the supervisor (S18, S19): the owner asked for Haiku tickets only after it was built; no commercial sim actor (sim people hold role user) | S18 |
-| T11 | Package READMEs and AGENTS notes for RFI, Commercial and the evidence trail | H | all code | ready | |
+| T11 | Package READMEs and AGENTS notes for RFI, Commercial and the evidence trail | H | all code | merged (15e66af) | passed first time |
 
 ## Order of work
 1. Plan, schema, generalisation, references, reports interfaces: done. First batch: T09a and T09b.
