@@ -1,10 +1,4 @@
-# ruff: noqa: F401
-# pyright: reportUnusedImport=false
 """The review of one schema package version (P1-I8-T04b; brief 27.4, 27.8).
-
-STUB: this file is the interface P1-I8-T04b implements. Remove this paragraph, the two directive
-lines above and every STEPS comment when you implement it. The layout, the keys, `_say`, `_ids`
-and `action_close` are complete.
 
 A full-size modal that ``v`` opens from the workbench. It shows the classification of the version,
 what it would touch (the stored impact report, or with ``i`` the impact of pinning it in the
@@ -105,36 +99,51 @@ class SchemaReviewScreen(ModalScreen[None]):
 
     def reload(self) -> bool:
         """Read the version again and show it; False (with the error shown) when that failed."""
-        # STEPS
-        # 1. In a try: self.detail = self.client.get_schema_package(self.ref). On
-        #    CLIENT_ERRORS as exc: self.detail = None, self._show(),
-        #    self._say(describe_error(exc), error=True) and return False.
-        # 2. self._show(); return True.
-        raise NotImplementedError("STEPS: see the comments")
+        try:
+            self.detail = self.client.get_schema_package(self.ref)
+        except CLIENT_ERRORS as exc:
+            self.detail = None
+            self._show()
+            self._say(describe_error(exc), error=True)
+            return False
+        self._show()
+        return True
 
     def _impact(self) -> list[str]:
         """The impact section: the stored report, or the project's when `i` was pressed."""
-        # STEPS
-        # 1. Lines of the impact section. Without self.project_view: ['Impact (stored)',
-        #    *impact_lines(self.detail.impact)].
-        # 2. With it: project = project_of_scope(self.scope). No project (the company
-        #    scope): ['Impact of a project', 'The scope is the company: no project to
-        #    pin it in.'].
-        # 3. Otherwise report = self.client.get_project_schema_impact(project,
-        #    self.detail.package, self.detail.version) and [f'Impact in {project}',
-        #    *impact_lines(report)]. On CLIENT_ERRORS: [f'Impact in {project}', f'!
-        #    {describe_error(exc)}'].
-        raise NotImplementedError("STEPS: see the comments")
+        detail = self.detail
+        if detail is None:
+            return []
+        if not self.project_view:
+            return ["Impact (stored)", *impact_lines(detail.impact)]
+        project = project_of_scope(self.scope)
+        if project is None:
+            return ["Impact of a project", "The scope is the company: no project to pin it in."]
+        try:
+            report = self.client.get_project_schema_impact(project, detail.package, detail.version)
+        except CLIENT_ERRORS as exc:
+            return [f"Impact in {project}", f"! {describe_error(exc)}"]
+        return [f"Impact in {project}", *impact_lines(report)]
 
     def _show(self) -> None:
-        # STEPS
-        # 1. Without a detail: #review-title gets self.ref, #review-next '' and #review-
-        #    body 'This package version could not be read.'; return.
-        # 2. Otherwise #review-title gets title_line(detail), #review-next
-        #    next_step(detail.state), and #review-body the lines joined by newlines:
-        #    'Classification', *classification_lines(detail), '', *self._impact(), '',
-        #    'Test on a sample', *sample_lines(self.sample).
-        raise NotImplementedError("STEPS: see the comments")
+        detail = self.detail
+        if detail is None:
+            self.query_one("#review-title", Static).update(self.ref)
+            self.query_one("#review-next", Static).update("")
+            self.query_one("#review-body", Static).update("This package version could not be read.")
+            return
+        self.query_one("#review-title", Static).update(title_line(detail))
+        self.query_one("#review-next", Static).update(next_step(detail.state))
+        lines = [
+            "Classification",
+            *classification_lines(detail),
+            "",
+            *self._impact(),
+            "",
+            "Test on a sample",
+            *sample_lines(self.sample),
+        ]
+        self.query_one("#review-body", Static).update("\n".join(lines))
 
     def _say(self, text: str, *, error: bool = False) -> None:
         self.query_one("#review-status", Static).update(("! " if error else "") + text)
@@ -143,13 +152,15 @@ class SchemaReviewScreen(ModalScreen[None]):
 
     def _run(self, name: str, command: Any, done: str) -> None:
         """Run one command; read the version again; say `done`, or why it was refused."""
-        # STEPS
-        # 1. Call self.client.schemareg_command(name, command). On CLIENT_ERRORS as exc:
-        #    self.reload() (to show what the version really is), then
-        #    self._say(describe_error(exc), error=True) and return.
-        # 2. On success: self.sample = None (a sample belongs to the content it was made
-        #    for); if self.reload(): self._say(done).
-        raise NotImplementedError("STEPS: see the comments")
+        try:
+            self.client.schemareg_command(name, command)
+        except CLIENT_ERRORS as exc:
+            self.reload()  # show what the version really is
+            self._say(describe_error(exc), error=True)
+            return
+        self.sample = None  # a sample belongs to the content it was made for
+        if self.reload():
+            self._say(done)
 
     def _ids(self) -> tuple[str, str] | None:
         if self.detail is None:
@@ -158,62 +169,97 @@ class SchemaReviewScreen(ModalScreen[None]):
         return self.detail.id, self.detail.key
 
     def action_analyse(self) -> None:
-        # STEPS
-        # ids = self._ids(); None: return. AnalyseSchemaPackage(actor=self.actor,
-        #    source='tui', scope='company', package_id=ids[0]) through
-        #    self._run('AnalyseSchemaPackage', command, f'Analysed {ids[1]}.').
-        raise NotImplementedError("STEPS: see the comments")
+        ids = self._ids()
+        if ids is None:
+            return
+        command = AnalyseSchemaPackage(
+            actor=self.actor, source="tui", scope="company", package_id=ids[0]
+        )
+        self._run("AnalyseSchemaPackage", command, f"Analysed {ids[1]}.")
 
     def action_submit(self) -> None:
-        # STEPS
-        # As analyse, with SubmitSchemaPackage and the text f'Submitted {ids[1]} for
-        #    review.'.
-        raise NotImplementedError("STEPS: see the comments")
+        ids = self._ids()
+        if ids is None:
+            return
+        command = SubmitSchemaPackage(
+            actor=self.actor, source="tui", scope="company", package_id=ids[0]
+        )
+        self._run("SubmitSchemaPackage", command, f"Submitted {ids[1]} for review.")
 
     def action_approve(self) -> None:
-        # STEPS
-        # As analyse, with ApproveSchemaPackage and the text f'Approved {ids[1]}.'.
-        raise NotImplementedError("STEPS: see the comments")
+        ids = self._ids()
+        if ids is None:
+            return
+        command = ApproveSchemaPackage(
+            actor=self.actor, source="tui", scope="company", package_id=ids[0]
+        )
+        self._run("ApproveSchemaPackage", command, f"Approved {ids[1]}.")
 
     def action_send_back(self) -> None:
-        # STEPS
-        # 1. ids = self._ids(); None: return.
-        # 2. Push PromptScreen(f'Send {ids[1]} back', 'What must the author change?')
-        #    with a callback `asked(reason)`: None says 'Nothing sent back.'; otherwise
-        #    run RequestSchemaChanges(..., package_id=ids[0], reason=reason) through
-        #    self._run with the text f'Sent {ids[1]} back to its author.'.
-        raise NotImplementedError("STEPS: see the comments")
+        ids = self._ids()
+        if ids is None:
+            return
+        package_id, key = ids
+
+        def asked(reason: str | None) -> None:
+            if reason is None:
+                self._say("Nothing sent back.")
+                return
+            command = RequestSchemaChanges(
+                actor=self.actor,
+                source="tui",
+                scope="company",
+                package_id=package_id,
+                reason=reason,
+            )
+            self._run("RequestSchemaChanges", command, f"Sent {key} back to its author.")
+
+        self.app.push_screen(
+            PromptScreen(f"Send {key} back", "What must the author change?"), callback=asked
+        )
 
     def action_publish(self) -> None:
-        # STEPS
-        # 1. ids = self._ids(); None: return.
-        # 2. Push PromptScreen(f'Publish {ids[1]}', 'Type publish to confirm; it cannot
-        #    be undone.') with a callback `asked(answer)`: any answer but exactly
-        #    'publish' says 'Not published: the word was not typed.'; otherwise run
-        #    PublishSchemaPackage(..., package_id=ids[0]) through self._run with the
-        #    text f'Published {ids[1]}.'.
-        raise NotImplementedError("STEPS: see the comments")
+        ids = self._ids()
+        if ids is None:
+            return
+        package_id, key = ids
+
+        def asked(answer: str | None) -> None:
+            if answer != "publish":
+                self._say("Not published: the word was not typed.")
+                return
+            command = PublishSchemaPackage(
+                actor=self.actor, source="tui", scope="company", package_id=package_id
+            )
+            self._run("PublishSchemaPackage", command, f"Published {key}.")
+
+        self.app.push_screen(
+            PromptScreen(f"Publish {key}", "Type publish to confirm; it cannot be undone."),
+            callback=asked,
+        )
 
     def action_sample(self) -> None:
         """Test the version on a sample of the records the person may read."""
-        # STEPS
-        # 1. ids = self._ids(); None: return. self.sample =
-        #    self.client.sample_test_schema_package(ids[0]); on CLIENT_ERRORS say the
-        #    error with error=True and return.
-        # 2. self._show(); self._say(f'Tested {ids[1]} on a sample.').
-        raise NotImplementedError("STEPS: see the comments")
+        ids = self._ids()
+        if ids is None:
+            return
+        try:
+            self.sample = self.client.sample_test_schema_package(ids[0])
+        except CLIENT_ERRORS as exc:
+            self._say(describe_error(exc), error=True)
+            return
+        self._show()
+        self._say(f"Tested {ids[1]} on a sample.")
 
     def action_project_impact(self) -> None:
         """Switch the impact section between the stored report and the project's."""
-        # STEPS
-        # Flip self.project_view; call self._show() when self.detail is not None.
-        raise NotImplementedError("STEPS: see the comments")
+        self.project_view = not self.project_view
+        if self.detail is not None:
+            self._show()
 
     def action_reload(self) -> None:
-        # STEPS
-        # if self.reload(): self._say('Reloaded.')  (a failed read keeps its error
-        #    text).
-        raise NotImplementedError("STEPS: see the comments")
+        if self.reload():
+            self._say("Reloaded.")
 
     def action_close(self) -> None:
         self.dismiss(None)

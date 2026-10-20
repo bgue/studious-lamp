@@ -1,10 +1,4 @@
-# ruff: noqa: F401
-# pyright: reportUnusedImport=false
 """Plain text for the review of a schema package version (P1-I8-T04b).
-
-STUB: this file is the interface P1-I8-T04b implements. Remove this paragraph, the two directive
-lines above and every STEPS comment when you implement it. `MAX_LINES`, `NEXT_STEPS` and `_cut`
-are complete.
 
 Pure functions of the views the client returns (`PackageDetail`, `ImpactReport`,
 `SampleTestView`), so they are tested without a terminal. A list is cut at `MAX_LINES` entries and
@@ -31,22 +25,22 @@ NEXT_STEPS = {
 
 def title_line(detail: PackageDetail) -> str:
     """`<key>  <state>  class <worst class or ->`."""
-    # STEPS
-    # f'{detail.key}  {detail.state}  class {detail.worst_class or "-"}'.
-    raise NotImplementedError("STEPS: see the comments")
+    return f"{detail.key}  {detail.state}  class {detail.worst_class or '-'}"
 
 
 def next_step(state: str) -> str:
     """The line for `state` in `NEXT_STEPS`; `State <state>.` for one that is not there."""
-    # STEPS
-    # NEXT_STEPS.get(state, f'State {state}.').
-    raise NotImplementedError("STEPS: see the comments")
+    return NEXT_STEPS.get(state, f"State {state}.")
 
 
 def _cut(lines: list[str]) -> list[str]:
     if len(lines) <= MAX_LINES:
         return lines
     return [*lines[:MAX_LINES], f"... {len(lines) - MAX_LINES} more"]
+
+
+def _yes_no(flag: bool) -> str:
+    return "yes" if flag else "no"
 
 
 def classification_lines(detail: PackageDetail) -> list[str]:
@@ -56,12 +50,16 @@ def classification_lines(detail: PackageDetail) -> list[str]:
     yes|no  blocks submit yes|no`, `Base <name@version or ->`, then one line per change,
     `<class>  <path>  <detail>`, cut at `MAX_LINES`.
     """
-    # STEPS
-    # 1. detail.classification is None: return ['Not analysed: press a to analyse.'].
-    # 2. Otherwise the two head lines of the docstring (`yes`/`no` for the two flags; `-`
-    #    for no base), then one line per change `<cls>  <path>  <detail>`, passed through
-    #    `_cut`.
-    raise NotImplementedError("STEPS: see the comments")
+    report = detail.classification
+    if report is None:
+        return ["Not analysed: press a to analyse."]
+    head = [
+        f"Worst {report.worst}  auto-adoptable {_yes_no(report.auto_adoptable)}"
+        f"  blocks submit {_yes_no(report.blocks_submit)}",
+        f"Base {report.base or '-'}",
+    ]
+    changes = [f"{c.cls}  {c.path}  {c.detail}" for c in report.changes]
+    return [*head, *_cut(changes)]
 
 
 def impact_lines(report: ImpactReport | None) -> list[str]:
@@ -72,13 +70,18 @@ def impact_lines(report: ImpactReport | None) -> list[str]:
     `<section>  <target>  <change>  <count or ->  <detail>`, cut at `MAX_LINES`; a report that was
     cut by the module ends with `(report cut)`.
     """
-    # STEPS
-    # 1. None: return ['No impact report: press a to analyse.'].
-    # 2. Counts are `<section> <n>` joined by ', ' (report.counts is in section order), or
-    #    '-'. An entry's count is '-' when None. The entry lines go through `_cut`; the
-    #    report's digest is `report.digest`.
-    # 3. Add '(report cut)' as the last line when report.truncated.
-    raise NotImplementedError("STEPS: see the comments")
+    if report is None:
+        return ["No impact report: press a to analyse."]
+    counts = ", ".join(f"{section} {n}" for section, n in report.counts.items()) or "-"
+    entries = [
+        f"{e.section}  {e.target}  {e.change}  {'-' if e.count is None else e.count}  {e.detail}"
+        for e in report.entries
+    ]
+    lines = [f"Scope {report.scope}", f"Digest {report.digest}", f"Counts {counts}"]
+    lines.extend(_cut(entries))
+    if report.truncated:
+        lines.append("(report cut)")
+    return lines
 
 
 def sample_lines(view: SampleTestView | None) -> list[str]:
@@ -89,7 +92,11 @@ def sample_lines(view: SampleTestView | None) -> list[str]:
     `Newly nonconformant <n>  newly warning <n>  fixed <n>`, then one line per example,
     `<key>  <path>  <rule>  <message>`.
     """
-    # STEPS
-    # 1. None: return ['Not run: press t to test on a sample of records.'].
-    # 2. Otherwise the two lines and the example lines of the docstring.
-    raise NotImplementedError("STEPS: see the comments")
+    if view is None:
+        return ["Not run: press t to test on a sample of records."]
+    return [
+        f"Tested {view.package}  scope {view.scope}  sample {view.sample}  checked {view.checked}",
+        f"Newly nonconformant {view.newly_nonconformant}  newly warning {view.newly_warning}"
+        f"  fixed {view.fixed}",
+        *(f"{e.key}  {e.path}  {e.rule}  {e.message}" for e in view.examples),
+    ]
