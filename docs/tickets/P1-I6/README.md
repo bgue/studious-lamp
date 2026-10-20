@@ -42,11 +42,11 @@ Give the correspondence module its second and third domains. **Technical / RFI**
 | S1 | T01 and T03 schema: `technical_item.yaml`, `commercial_item.yaml`, events, workflows, domain files, numbering, file slots, domain format extension | Schema (human-gated, SCHEMA_APPROVALS); contractual workflow and clocks (human-gated) | orchestrator | done (9d00d21) |
 | S2 | T08 core: the feed policy in the card rules and the feed projector | Core projection | orchestrator | done (833fa0e) |
 | S3 | Module generalisation (record type per item, `require_core`), projectors, registry reads, domain helpers, reference handlers, commands table, test world | Interfaces first; references of the tickets | — | done (122e96c) |
-| S4 | T06 evidence trail | Time-travel reads, confidentiality | orchestrator, security review | pending |
-| S5 | T04c cost-system export | Export, confidentiality | security review | pending |
-| S6 | API routes, `ApiClient`, MCP read tools, controlling set, walking tests | Access and confidentiality surfaces | security review | pending |
-| S7 | CLI `tl rfi`, `tl comm`, `tl evidence` | Controller gates, export | security review | pending |
-| S8 | TUI client interface and fakes | Interface other tickets consume | — | pending |
+| S4 | T06 evidence trail | Time-travel reads, confidentiality | orchestrator, security review | done (f43aa36) |
+| S5 | T04c cost-system export | Export, confidentiality | security review | done (9de0abb) |
+| S6 | API routes, `ApiClient`, MCP read tools, controlling set, walking tests | Access and confidentiality surfaces | security review | done (f43aa36, 9de0abb) |
+| S7 | CLI `tl rfi`, `tl comm`, `tl evidence` | Controller gates, export | security review | done (9de0abb) |
+| S8 | TUI client interface and fakes | Interface other tickets consume | — | done (f43aa36, 9de0abb) |
 | S9 | T05 escalation rule on the P1-I7 engine | Rules; waits for the engine | orchestrator | pending (last) |
 
 ## Tickets
@@ -58,14 +58,14 @@ Give the correspondence module its second and third domains. **Technical / RFI**
 | T03 | Commercial domain: subtypes, workflow, clocks, numbering | S | — | done | S1, S3 (orchestrator approval) |
 | T04a | Commercial raise, update, submit, review, return | H | S3 | draft | |
 | T04b | Commercial issue, assess, close, refer to legal | H | S3 | draft | |
-| T04c | Cost-system export (CSV) | S | T09b | pending | S5 |
+| T04c | Cost-system export (CSV) | S | T09b | done | S5 (9de0abb) |
 | T05 | Escalation RFI to Commercial: the command (S3) and the rule on the I7 engine | S | S3, P1-I7 on trunk | pending | S9 |
-| T06 | Evidence trail query | S | S3 | pending | S4 |
+| T06 | Evidence trail query | S | S3 | done | S4 (f43aa36) |
 | T07a | TUI: RFI register and record, Commercial register and record | H | S8, T09a, T09b | draft | |
 | T07b | TUI: evidence view | H | S4, S8 | draft | |
 | T08 | Feed policy per domain | S | S2 | done | S2 and the handlers of S3 (L-P1-I3-5: the cards cannot be tested apart) |
-| T09a | RFI log report | H | S3 | ready | |
-| T09b | Commercial register report | H | S3 | ready | |
+| T09a | RFI log report | H | S3 | dispatched (batch 1) | |
+| T09b | Commercial register report | H | S3 | dispatched (batch 1) | |
 | T10 | Simulator: client representative answers RFIs; commercial manager raises notices; demo; report | H | T02, T04, T09 | draft | |
 
 ## Order of work

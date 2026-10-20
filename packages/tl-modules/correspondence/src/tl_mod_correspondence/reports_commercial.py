@@ -1,3 +1,4 @@
+# ruff: noqa: F401, F841
 """The Commercial register: every notice and claim with its values and its time bar (brief 9, M10).
 
 "Commercial notice/claim register with values (estimated vs assessed)": for each Commercial item
@@ -9,6 +10,9 @@ currencies are never added together. Money is exact (``Decimal``), written with 
 Reads go through ``registry_domain``, which applies the viewer's confidentiality (ADR-0016):
 Commercial items are ``restricted``, so a plain user's register is empty. Nothing here writes. The
 export to the cost system (``export.py``) builds on these lines.
+
+STUB (P1-I6-T09b): the functions with a STEPS comment are for you to write. When they are
+written, delete this paragraph, the STEPS comments and the `ruff: noqa` line at the top.
 """
 
 from __future__ import annotations
@@ -93,79 +97,43 @@ def commercial_register(
     was late. ``today`` (an ISO date; the module's today by default) is the day the time bars
     are judged on.
     """
-    day = today or module_today()
-    rows = registry_domain.list_commercial(
-        conn, scope, subtype=subtype, state=state, open_only=only_open, limit=limit
-    )
-    lines: list[CommercialLine] = []
-    for row in rows:
-        item, data = row.item, row.data
-        bar = next(
-            (
-                views.clock_view(conn, c, date.fromisoformat(day))
-                for c in registry.clocks_of(conn, item.id)
-                if c.kind == "time_bar"
-            ),
-            None,
-        )
-        clause = (
-            registry.get_clause(conn, data.contract_clause_id) if data.contract_clause_id else None
-        )
-        source = registry.get_item(conn, data.derived_from_id) if data.derived_from_id else None
-        estimated, assessed = _amount(data.estimated_value), _amount(data.assessed_value)
-        late = bar is not None and (
-            bar.effective_state == "expired"
-            or (bar.state == "met" and bar.closed_on is not None and bar.closed_on > bar.due_on)
-        )
-        line = CommercialLine(
-            id=item.id,
-            number=item.number,
-            subject=item.subject,
-            subtype=item.subtype or "",
-            state=item.state,
-            direction=item.direction,
-            confidentiality=item.confidentiality,
-            clause=f"{clause.contract}/{clause.clause_number}" if clause else None,
-            aware_on=data.aware_on,
-            issued_on=item.issued_on,
-            time_bar_due=bar.due_on if bar else None,
-            time_bar_days_left=bar.days_left if bar else None,
-            time_bar_state=bar.effective_state if bar else None,
-            time_bar_late=late,
-            currency=data.currency,
-            estimated_value=data.estimated_value,
-            assessed_value=data.assessed_value,
-            variance=_money(assessed - estimated)
-            if assessed is not None and estimated is not None
-            else None,
-            schedule_impact_days=data.schedule_impact_days,
-            assessment_status=data.assessment_status,
-            derived_from=source.number if source else None,
-        )
-        if time_bars_only and not (
-            line.time_bar_state in ("running", "paused") or line.time_bar_late
-        ):
-            continue
-        lines.append(line)
-    sums: dict[str, list[Decimal]] = {}
-    counts: dict[str, int] = {}
-    for line in lines:
-        if line.currency is None:
-            continue
-        counts[line.currency] = counts.get(line.currency, 0) + 1
-        found = sums.setdefault(line.currency, [Decimal(0), Decimal(0)])
-        found[0] += _amount(line.estimated_value) or Decimal(0)
-        found[1] += _amount(line.assessed_value) or Decimal(0)
-    return CommercialRegister(
-        scope=scope,
-        as_of=day,
-        lines=lines,
-        totals=[
-            CurrencyTotal(
-                currency=code, count=counts[code], estimated=_money(est), assessed=_money(ass)
-            )
-            for code, (est, ass) in sorted(sums.items())
-        ],
-        time_bars_running=sum(1 for ln in lines if ln.time_bar_state in ("running", "paused")),
-        time_bars_late=sum(1 for ln in lines if ln.time_bar_late),
-    )
+    # STEPS
+    # 1. `day = today or module_today()`.
+    # 2. `rows = registry_domain.list_commercial(conn, scope, subtype=subtype,
+    #    state=state, open_only=only_open, limit=limit)`. The viewer's class filter is
+    #    applied inside it (Commercial items are restricted, so a plain user gets no
+    #    rows): read the items only this way, never with a query of your own.
+    # 3. For each `row`: `item, data = row.item, row.data`. The time bar is the first
+    #    clock of the item whose `kind` is `time_bar` among `registry.clocks_of(conn,
+    #    item.id)`; make it `bar = views.clock_view(conn, clock, date.fromisoformat(day))`
+    #    (it carries `due_on`, `days_left`, `state`, `effective_state` and `closed_on`),
+    #    or `bar = None` when there is none.
+    # 4. `clause = registry.get_clause(conn, data.contract_clause_id)` when the item names
+    #    a clause, else None. `source = registry.get_item(conn, data.derived_from_id)`
+    #    when it has a source item (this is None when the viewer may not read it), else
+    #    None. `estimated, assessed = _amount(data.estimated_value),
+    #    _amount(data.assessed_value)`.
+    # 5. `late = bar is not None and (bar.effective_state == "expired" or (bar.state ==
+    #    "met" and bar.closed_on is not None and bar.closed_on > bar.due_on))`.
+    # 6. Build the `CommercialLine`: `id`, `number`, `subject`, `state`, `direction`,
+    #    `confidentiality` from `item`; `subtype=item.subtype or ""`;
+    #    `clause=f"{clause.contract}/{clause.clause_number}"` or None; `aware_on` from
+    #    `data`; `issued_on=item.issued_on`; `time_bar_due=bar.due_on`,
+    #    `time_bar_days_left=bar.days_left`, `time_bar_state=bar.effective_state` (all
+    #    None without a bar); `time_bar_late=late`; `currency`, `estimated_value`,
+    #    `assessed_value`, `schedule_impact_days`, `assessment_status` from `data`;
+    #    `variance=_money(assessed - estimated)` when both are not None, else None;
+    #    `derived_from=source.number` or None.
+    # 7. With `time_bars_only`, `continue` (skip the line) unless its `time_bar_state` is
+    #    `running` or `paused`, or `time_bar_late` is true. Append the others to `lines`.
+    # 8. Totals: `counts: dict[str, int]` and `sums: dict[str, list[Decimal]]` (estimated,
+    #    assessed). For each kept line that has a `currency`, add 1 to its count, and add
+    #    `_amount(line.estimated_value) or Decimal(0)` to the first sum and
+    #    `_amount(line.assessed_value) or Decimal(0)` to the second (a currency is never
+    #    added to another).
+    # 9. Return `CommercialRegister(scope=scope, as_of=day, lines=lines,
+    #    totals=[CurrencyTotal(currency=code, count=counts[code], estimated=_money(est),
+    #    assessed=_money(ass)) for code, (est, ass) in sorted(sums.items())],
+    #    time_bars_running=<lines whose time_bar_state is running or paused>,
+    #    time_bars_late=<lines with time_bar_late>)`.
+    raise NotImplementedError

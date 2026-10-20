@@ -1,3 +1,4 @@
+# ruff: noqa: F401, F841
 """The RFI log: every Technical item with its response time and its impact flags (brief 9, M10).
 
 "RFI log with response times and impact flags": for each RFI, technical query or deviation request
@@ -9,6 +10,9 @@ TUI list these lines.
 Reads go through ``registry_domain``, which applies the viewer's confidentiality (ADR-0016): an
 item the viewer may not read is not a line and is not counted. Nothing here writes. Time comes in
 as ``today`` (an ISO date), so a report is a pure function of the ledger and a day.
+
+STUB (P1-I6-T09a): the functions with a STEPS comment are for you to write. When they are
+written, delete this paragraph, the STEPS comments and the `ruff: noqa` line at the top.
 """
 
 from __future__ import annotations
@@ -86,66 +90,36 @@ def rfi_log(
     awaiting a response whose ``required_by`` is before ``today`` (the module's today by default).
     ``only_impact`` keeps those whose answer said yes to cost or to schedule.
     """
-    day = today or module_today()
-    rows = registry_domain.list_technical(
-        conn, scope, subtype=subtype, state=state, discipline=discipline, limit=limit
-    )
-    lines: list[RfiLogLine] = []
-    for row in rows:
-        item, data = row.item, row.data
-        answered = data.answered_on is not None
-        waiting = item.state == ST_AWAITING_RESPONSE
-        late = waiting and data.required_by is not None and data.required_by < day
-        line = RfiLogLine(
-            id=item.id,
-            number=item.number,
-            subject=item.subject,
-            subtype=item.subtype or "",
-            discipline=data.discipline,
-            state=item.state,
-            raised_on=item.created_at[:10],
-            issued_on=item.issued_on,
-            required_by=data.required_by,
-            answered_on=data.answered_on,
-            response_days=(
-                _days_between(item.issued_on, data.answered_on)
-                if item.issued_on and data.answered_on
-                else None
-            ),
-            on_time=(
-                data.answered_on <= data.required_by
-                if data.answered_on and data.required_by
-                else None
-            ),
-            overdue=late,
-            days_overdue=_days_between(data.required_by, day)
-            if late and data.required_by
-            else None,
-            potential_cost_impact=data.potential_cost_impact,
-            potential_schedule_impact=data.potential_schedule_impact,
-            cost_impact=data.answer_cost_impact,
-            schedule_impact=data.answer_schedule_impact,
-            review_decision=data.review_decision,
-            confidentiality=item.confidentiality,
-        )
-        if only_open and (answered or item.state == "Closed"):
-            continue
-        if only_overdue and not line.overdue:
-            continue
-        if only_impact and "yes" not in (line.cost_impact, line.schedule_impact):
-            continue
-        lines.append(line)
-    times = [ln.response_days for ln in lines if ln.response_days is not None]
-    return RfiLog(
-        scope=scope,
-        as_of=day,
-        lines=lines,
-        total=len(lines),
-        answered=sum(1 for ln in lines if ln.answered_on is not None),
-        open=sum(
-            1 for ln in lines if ln.answered_on is None and ln.state not in ("Closed", "Void")
-        ),
-        overdue=sum(1 for ln in lines if ln.overdue),
-        impact_yes=sum(1 for ln in lines if "yes" in (ln.cost_impact, ln.schedule_impact)),
-        average_response_days=round(sum(times) / len(times), 1) if times else None,
-    )
+    # STEPS
+    # 1. `day = today or module_today()` (ISO dates compare as text, so every date test
+    #    below is a string comparison).
+    # 2. `rows = registry_domain.list_technical(conn, scope, subtype=subtype, state=state,
+    #    discipline=discipline, limit=limit)`. The viewer's class filter is applied inside
+    #    it: read the items only this way, never with a query of your own, and a row the
+    #    viewer may not read is simply not there.
+    # 3. For each `row`: `item, data = row.item, row.data`; `answered = data.answered_on
+    #    is not None`; `waiting = item.state == ST_AWAITING_RESPONSE`; `late = waiting and
+    #    data.required_by is not None and data.required_by < day`.
+    # 4. Build the `RfiLogLine`: `id`, `number`, `subject` from `item`;
+    #    `subtype=item.subtype or ""`; `discipline` from `data`; `state=item.state`;
+    #    `raised_on=item.created_at[:10]`; `issued_on=item.issued_on`; `required_by` and
+    #    `answered_on` from `data`; `response_days=_days_between(item.issued_on,
+    #    data.answered_on)` when both are not None, else None; `on_time=data.answered_on
+    #    <= data.required_by` when both are not None, else None; `overdue=late`;
+    #    `days_overdue=_days_between(data.required_by, day)` when `late`, else None;
+    #    `potential_cost_impact`, `potential_schedule_impact` from `data`;
+    #    `cost_impact=data.answer_cost_impact`,
+    #    `schedule_impact=data.answer_schedule_impact`;
+    #    `review_decision=data.review_decision`; `confidentiality=item.confidentiality`.
+    # 5. Filters, applied to the built line in this order, each with `continue`:
+    #    `only_open` skips a line that is `answered` or whose `item.state` is `Closed`;
+    #    `only_overdue` skips a line whose `overdue` is false; `only_impact` skips a line
+    #    when `"yes"` is neither its `cost_impact` nor its `schedule_impact`. Keep the
+    #    others in `lines`, in the order `list_technical` gave them.
+    # 6. `times` is the `response_days` of the kept lines that have one. Return
+    #    `RfiLog(scope=scope, as_of=day, lines=lines, total=len(lines), answered=<kept
+    #    lines with an answered_on>, open=<kept lines with no answered_on whose state is
+    #    neither Closed nor Void>, overdue=<kept lines with overdue>, impact_yes=<kept
+    #    lines with "yes" as cost_impact or schedule_impact>,
+    #    average_response_days=round(sum(times) / len(times), 1) if times else None)`.
+    raise NotImplementedError
