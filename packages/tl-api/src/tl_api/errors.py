@@ -19,9 +19,11 @@ from pydantic import BaseModel, ValidationError
 from tl_core.auth import errors as auth
 from tl_core.derivation.registry import ExtractorLoadError
 from tl_core.extypes import errors as ext
+from tl_core.integration import errors as integ
 from tl_core.ledger import ConcurrencyError
 from tl_core.query import QuerySyntaxError
 from tl_core.services import errors as svc
+from tl_core.threads import errors as thr
 from tl_core.webhooks import subscriptions as wh
 from tl_core.workflow.engine import GuardResult
 from tl_mod_correspondence import errors as corr
@@ -107,6 +109,13 @@ def _rows() -> tuple[ErrorSpec, ...]:
         s(wh.InvalidSubscriptionError, "invalid_subscription", 422),
         s(wh.AlreadyInStateError, "already_in_state", 409),
         s(wh.SubscriptionNotActiveError, "subscription_not_active", 409),
+        # --- integration layer (P1-I7 WS-A) ----------------------------------------------------
+        s(integ.InvalidIntegrationError, "invalid_integration", 422),
+        s(integ.IntegrationNotFoundError, "integration_not_found", 404),
+        s(integ.DuplicateIntegrationError, "duplicate_integration", 409),
+        s(integ.IntegrationStateError, "integration_state", 409),
+        s(integ.ActionAccessError, "action_access", 403),
+        s(integ.CommandAccessError, "command_access", 403),
         # --- activity feed (P0-I6) -----------------------------------------------------------
         s(svc.PostNotFoundError, "post_not_found", 404),
         s(svc.PostRetractedError, "post_retracted", 409),
@@ -238,6 +247,18 @@ def _rows() -> tuple[ErrorSpec, ...]:
         s(corr.LetterRenderError, "letter_render", 422),
         s(doc.PublishRefusedError, "publish_refused", 422),
         s(doc.CompensationRefusedError, "compensation_refused", 409),
+        # --- record threads and dispatch (P1-I7 workstream B) ---------------------------------
+        s(thr.ThreadError, "thread_error", 422),
+        s(thr.ThreadsDisabledError, "threads_disabled", 403),
+        s(thr.ThreadMessageNotFoundError, "thread_message_not_found", 404),
+        s(thr.NotMessageAuthorError, "not_message_author", 403),
+        s(thr.MessageRetractedError, "message_retracted", 409),
+        s(thr.MessageNotEditableError, "message_not_editable", 409),
+        s(thr.DispatchDisabledError, "dispatch_disabled", 403),
+        s(thr.DispatchForbiddenError, "dispatch_forbidden", 403),
+        s(thr.DispatchStaleError, "dispatch_stale", 409),
+        s(thr.DispatchRefusedError, "dispatch_refused", 422),
+        s(thr.DispatchSyntaxError, "dispatch_syntax", 422),
         # --- cost module (P1-I4): cost codes and period snapshots -------------------------------
         s(cost.CostError, "cost_error", 422),
         s(cost.CostScopeError, "cost_scope", 422),
@@ -368,6 +389,8 @@ def body_for(exc: BaseException) -> tuple[int, ErrorBody] | None:
         ),
     ):
         body.issues = list(exc.problems)
+    elif isinstance(exc, thr.DispatchRefusedError):
+        body.issues = list(exc.problems)  # one {code, message} per problem of the plan
     elif isinstance(exc, cost.CostImportRefusedError):
         body.issues = list(exc.issues)
     elif isinstance(exc, cost.CostFileError):
@@ -417,6 +440,10 @@ def exception_for(status: int, body: dict[str, Any]) -> Exception:
             doc.CompensationRefusedError,
         ):
             return spec.exc(message, [str(i) for i in body.get("issues") or []])
+        if spec.exc is thr.DispatchRefusedError:
+            return thr.DispatchRefusedError(
+                message, [dict(i) for i in body.get("issues") or [] if isinstance(i, dict)]
+            )
         if spec.exc is cost.CostImportRefusedError:
             return cost.CostImportRefusedError(message, [str(i) for i in body.get("issues") or []])
         if spec.exc is cost.CostFileError:

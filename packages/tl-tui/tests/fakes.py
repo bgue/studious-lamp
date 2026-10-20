@@ -20,11 +20,13 @@ from fakes_correspondence import FakeCorrespondenceSupport
 from fakes_derivation import FakeDerivationSupport
 from fakes_documents import FakeDocumentSupport
 from fakes_feed import FakeFeedSupport
+from fakes_integration import FakeIntegrationSupport
 from fakes_links import FakeLinkSupport
 from fakes_query import FakeQuerySupport
 from fakes_schedule import FakeScheduleSupport
 from fakes_settings import FakeSettingsSupport
 from fakes_tags import FakeTagSupport
+from fakes_threads import FakeThreadSupport
 from fakes_types import FakeTypeSupport
 from tl_core.ledger import ConcurrencyError, Event
 from tl_core.services.commands import CommandResult, CreateRecord, UpdateRecord
@@ -214,12 +216,14 @@ class FakeClient(
     FakeQuerySupport,
     FakeLinkSupport,
     FakeFeedSupport,
+    FakeThreadSupport,
     FakeSettingsSupport,
     FakeTypeSupport,
     FakeAdminSupport,
     FakeTagSupport,
     FakeDocumentSupport,
     FakeDerivationSupport,
+    FakeIntegrationSupport,
     FakeCorrespondenceSupport,
     FakeScheduleSupport,
 ):
@@ -238,12 +242,14 @@ class FakeClient(
         self._id = 0
         self._init_links()
         self._init_feed()
+        self._init_threads()
         self._init_settings()
         self._init_admin()
         self._init_types()
         self._init_tags()
         self._init_documents()
         self._init_derivation()
+        self._init_integration()
         self._init_correspondence()
         self._init_schedule()
 

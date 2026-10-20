@@ -133,3 +133,97 @@ settings:
     validation:
       choices: [auto, kitty, iterm2, sixel, "off"]
     since: "0.1.0"
+
+  # P1-I7 WS-B: record threads with dispatch (brief 21.5; ADR-0018).
+  - key: threads.enabled
+    type: bool
+    default: false
+    description: Whether record threads are switched on.
+    docs: >-
+      A thread needs this switch and a record type listed in `threads.enabled_types`. Messages already
+      posted stay in the ledger; while threads are off nobody sees them and nobody can post, and they are shown
+      again when threads are switched on.
+    scopes: [platform, company, project]
+    lockable: true
+    since: "0.1.0"
+
+  - key: threads.enabled_types
+    type: list
+    default: []
+    description: The record types that have a thread, for example `core.Record` or `documents.Revision`.
+    docs: >-
+      Empty means no record type has a thread, even when `threads.enabled` is on. A type is listed by its full
+      name, as it appears in the record's type.
+    scopes: [platform, company, project]
+    lockable: true
+    validation:
+      pattern: "^[A-Za-z][A-Za-z0-9_.-]{0,127}$"
+    since: "0.1.0"
+
+  - key: threads.dispatch.enabled
+    type: bool
+    default: true
+    description: Whether a slash command in a thread can dispatch work.
+    docs: >-
+      When off, a thread still takes messages, but previews and dispatches are refused. Dispatch runs existing
+      commands with the caller's own access, never more.
+    scopes: [platform, company, project]
+    lockable: true
+    since: "0.1.0"
+
+  - key: threads.dispatch.roles
+    type: list
+    default: []
+    description: The roles that may dispatch from a thread. Empty means any signed-in person.
+    docs: >-
+      A person needs one of these roles to confirm a dispatch, and each command the dispatch runs still needs
+      its own access. Names are the account roles (`admin`, `document_controller`, `user`).
+    scopes: [platform, company, project]
+    lockable: true
+    validation:
+      choices: [admin, document_controller, user]
+    since: "0.1.0"
+
+  - key: threads.agents.can_dispatch
+    type: enum
+    default: propose
+    description: What an AI agent may do with a dispatch from a thread.
+    docs: >-
+      `propose` lets an agent record a proposal that a person previews and accepts. `none` refuses the tool.
+      An agent never dispatches directly.
+    scopes: [platform, company, project]
+    lockable: true
+    validation:
+      choices: [propose, none]
+    risk: advanced
+    since: "0.1.0"
+
+  - key: threads.reminders.max_pending
+    type: int
+    default: 20
+    description: How many reminders one thread, and one person, may have waiting at a time.
+    docs: >-
+      A `/remind` is refused while this many reminders set from the same thread, or by the same person, are
+      still waiting to fall due. There is no scheduler for the `thread.reminder` job in the server: run
+      `tl thread reminders` (or the P1-I7 job runner) so that due reminders are posted.
+    scopes: [platform, company, project]
+    lockable: true
+    validation:
+      minimum: 1
+      maximum: 1000
+    since: "0.1.0"
+
+  # P1-I7 WS-A: the integration layer (FANOUT D11, ADR-0017)
+  - key: integration.kill_switch
+    type: bool
+    default: false
+    description: Stops every inbound endpoint, rule, action executor and enricher.
+    docs: >-
+      When on, inbound endpoints answer the same 404 as an unknown path, the rules worker and the enrichment
+      dispatcher pass over the events they read and record them as killed (they are not replayed when the switch
+      goes off), and action jobs fail with `killed` and are not retried. Records, people and webhooks are not
+      affected. Read before every batch and every delivery, so a running worker obeys a change at once.
+    scopes: [platform, company]
+    lockable: true
+    risk: advanced
+    since: "0.1.0"

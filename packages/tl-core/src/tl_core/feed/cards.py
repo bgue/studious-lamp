@@ -33,6 +33,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Literal
 
+from tl_core.changefeed.filters import is_shadow_proposal
 from tl_core.feed.types import CARD_WINDOW_SECONDS
 from tl_core.ledger import Event
 
@@ -45,6 +46,7 @@ TRANSPARENT_PREFIXES: tuple[str, ...] = (
     "Setting.",
     "Account.",
     "AgentToken.",
+    "Thread.",  # P1-I7 WS-B: messages are not in the activity stream (brief 21.5)
 )
 
 # Event types whose stream is the subject record (the card is about that record).
@@ -104,7 +106,7 @@ def card_id_for(first_event_id: str) -> str:
 def disposition(open_card: OpenCard | None, event: Event) -> Disposition:
     """What ``event`` does to its scope's open card. See the module docstring."""
     event_type = event.event_type
-    if is_transparent(event_type):
+    if is_transparent(event_type) or is_shadow_proposal(event_type, event.payload):
         return "ignore"
     if is_feed_event(event_type):
         return "close"

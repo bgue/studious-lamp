@@ -11,6 +11,14 @@ Every ledger event type that can reach a webhook subscriber, generated from the 
 | [`Account.Enabled`](#accountenabled) | `tl.core.Account.Enabled.v1` | A disabled account was enabled again. |
 | [`Account.PasswordChanged`](#accountpasswordchanged) | `tl.core.Account.PasswordChanged.v1` | The password of an account was set or changed. |
 | [`Account.RolesSet`](#accountrolesset) | `tl.core.Account.RolesSet.v1` | The roles of an account were replaced. |
+| [`Action.Completed`](#actioncompleted) | `tl.core.Action.Completed.v1` | The executor finished the action. |
+| [`Action.Failed`](#actionfailed) | `tl.core.Action.Failed.v1` | The action failed for good (not retried any more). |
+| [`Action.Requested`](#actionrequested) | `tl.core.Action.Requested.v1` | An action was requested on records. |
+| [`Action.Running`](#actionrunning) | `tl.core.Action.Running.v1` | A worker started an attempt. |
+| [`ActionDefinition.Defined`](#actiondefinitiondefined) | `tl.core.ActionDefinition.Defined.v1` | An action was defined (version 1). |
+| [`ActionDefinition.Retired`](#actiondefinitionretired) | `tl.core.ActionDefinition.Retired.v1` | An action was retired: it can no longer be invoked; its invocations stay readable. |
+| [`ActionDefinition.Revised`](#actiondefinitionrevised) | `tl.core.ActionDefinition.Revised.v1` | An action was revised; the event carries the whole new definition and the row is replaced. |
+| [`ActionDefinition.SecretRotated`](#actiondefinitionsecretrotated) | `tl.core.ActionDefinition.SecretRotated.v1` | A new signing secret was issued for a webhook action; the previous one keeps verifying until the overlap ends. |
 | [`ActivityRef.Defined`](#activityrefdefined) | `tl.core.ActivityRef.Defined.v1` | The first link to an activity made its reference. |
 | [`ActivityRef.PresenceChanged`](#activityrefpresencechanged) | `tl.core.ActivityRef.PresenceChanged.v1` | A publication found the activity gone from the schedule (present false) or back (present true). |
 | [`AgentToken.Issued`](#agenttokenissued) | `tl.core.AgentToken.Issued.v1` | An agent token was issued. |
@@ -48,6 +56,13 @@ Every ledger event type that can reach a webhook subscriber, generated from the 
 | [`Document.Updated`](#documentupdated) | `tl.core.Document.Updated.v1` | The register fields of a document changed (the title changes through the core `Record.Updated`). |
 | [`DocumentSchema.Defined`](#documentschemadefined) | `tl.core.DocumentSchema.Defined.v1` | A version of a document schema was registered. |
 | [`DocumentSchema.Retired`](#documentschemaretired) | `tl.core.DocumentSchema.Retired.v1` | A version of a document schema was retired; documents that named it keep it. |
+| [`Enricher.Disabled`](#enricherdisabled) | `tl.core.Enricher.Disabled.v1` | An enricher was switched off. |
+| [`Enricher.Enabled`](#enricherenabled) | `tl.core.Enricher.Enabled.v1` | An enricher was switched on. |
+| [`Enricher.Registered`](#enricherregistered) | `tl.core.Enricher.Registered.v1` | An enricher was registered. |
+| [`Enricher.Revised`](#enricherrevised) | `tl.core.Enricher.Revised.v1` | An enricher's registration changed; the event carries the whole new registration. |
+| [`Enrichment.Accepted`](#enrichmentaccepted) | `tl.core.Enrichment.Accepted.v1` | A person (or the enricher's own auto policy) accepted a value: it is now written to the enricher's layer of the record. |
+| [`Enrichment.Proposed`](#enrichmentproposed) | `tl.core.Enrichment.Proposed.v1` | An enricher proposed a value for a property of its own layer of a record. |
+| [`Enrichment.Rejected`](#enrichmentrejected) | `tl.core.Enrichment.Rejected.v1` | A value was rejected by a person, or replaced by a newer proposal. |
 | [`Feed.Edited`](#feededited) | `tl.core.Feed.Edited.v1` | A post was edited. |
 | [`Feed.Posted`](#feedposted) | `tl.core.Feed.Posted.v1` | A post was made in a project feed. |
 | [`Feed.Reacted`](#feedreacted) | `tl.core.Feed.Reacted.v1` | A reaction was set or cleared on a post. |
@@ -55,6 +70,19 @@ Every ledger event type that can reach a webhook subscriber, generated from the 
 | [`File.Processed`](#fileprocessed) | `tl.core.File.Processed.v1` | A file passed its scan and is available. |
 | [`File.Rejected`](#filerejected) | `tl.core.File.Rejected.v1` | A file failed its scan and was rejected. |
 | [`File.Uploaded`](#fileuploaded) | `tl.core.File.Uploaded.v1` | A file was uploaded and attached to a record; it is quarantined until its scan finishes. |
+| [`Inbound.Applied`](#inboundapplied) | `tl.core.Inbound.Applied.v1` | A delivery was mapped and its commands ran (or, for a dry-run endpoint, were planned). |
+| [`Inbound.Failed`](#inboundfailed) | `tl.core.Inbound.Failed.v1` | A delivery could not be applied; it is in the error queue until an admin retries it. |
+| [`Inbound.Received`](#inboundreceived) | `tl.core.Inbound.Received.v1` | A signed POST was accepted and queued for mapping. |
+| [`Inbound.Retried`](#inboundretried) | `tl.core.Inbound.Retried.v1` | An admin re-ran a failed delivery, optionally with a corrected payload. |
+| [`InboundEndpoint.Created`](#inboundendpointcreated) | `tl.core.InboundEndpoint.Created.v1` | An inbound endpoint was created. |
+| [`InboundEndpoint.Disabled`](#inboundendpointdisabled) | `tl.core.InboundEndpoint.Disabled.v1` | An endpoint stopped accepting deliveries; it answers 404. |
+| [`InboundEndpoint.Enabled`](#inboundendpointenabled) | `tl.core.InboundEndpoint.Enabled.v1` | An endpoint started accepting deliveries. |
+| [`InboundEndpoint.Revised`](#inboundendpointrevised) | `tl.core.InboundEndpoint.Revised.v1` | An endpoint was revised; the event carries the whole new definition (no secret). |
+| [`InboundEndpoint.SecretRotated`](#inboundendpointsecretrotated) | `tl.core.InboundEndpoint.SecretRotated.v1` | A new secret was issued; the previous one keeps verifying until the overlap ends (at most 24 hours). |
+| [`IntegrationApp.Disabled`](#integrationappdisabled) | `tl.core.IntegrationApp.Disabled.v1` | An app was switched off: its endpoints answer 404 and its rules, actions and enrichers do nothing. |
+| [`IntegrationApp.Enabled`](#integrationappenabled) | `tl.core.IntegrationApp.Enabled.v1` | An app was switched on: its endpoints, rules, actions and enrichers run again. |
+| [`IntegrationApp.Registered`](#integrationappregistered) | `tl.core.IntegrationApp.Registered.v1` | An integration app was registered. |
+| [`IntegrationApp.Revised`](#integrationapprevised) | `tl.core.IntegrationApp.Revised.v1` | An app's label, description or owner changed. |
 | [`Link.Accepted`](#linkaccepted) | `tl.core.Link.Accepted.v1` | A suggested link was accepted and is now active. |
 | [`Link.Added`](#linkadded) | `tl.core.Link.Added.v1` | A link between two records became active. |
 | [`Link.Declined`](#linkdeclined) | `tl.core.Link.Declined.v1` | A suggested link was declined; it will not be suggested again. |
@@ -99,6 +127,11 @@ Every ledger event type that can reach a webhook subscriber, generated from the 
 | [`Revision.Defined`](#revisiondefined) | `tl.core.Revision.Defined.v1` | A revision of a document was created, as a draft. |
 | [`Revision.Issued`](#revisionissued) | `tl.core.Revision.Issued.v1` | A revision was issued with an issue status; it is now current for its status class. |
 | [`Revision.Superseded`](#revisionsuperseded) | `tl.core.Revision.Superseded.v1` | An issued revision stopped being current because a later one replaced it. |
+| [`Rule.Blocked`](#ruleblocked) | `tl.core.Rule.Blocked.v1` | A matched event did not run the rule: the step was refused, the causation depth limit or a budget stopped it. |
+| [`Rule.Created`](#rulecreated) | `tl.core.Rule.Created.v1` | A rule was created. |
+| [`Rule.Disabled`](#ruledisabled) | `tl.core.Rule.Disabled.v1` | A rule was switched off. |
+| [`Rule.Enabled`](#ruleenabled) | `tl.core.Rule.Enabled.v1` | A rule was switched on, from this event on. |
+| [`Rule.Revised`](#rulerevised) | `tl.core.Rule.Revised.v1` | A rule was revised; the event carries the whole new rule. |
 | [`Schedule.Defined`](#scheduledefined) | `tl.core.Schedule.Defined.v1` | A schedule was registered. |
 | [`Schedule.OrphansChecked`](#scheduleorphanschecked) | `tl.core.Schedule.OrphansChecked.v1` | One run of the job that makes the links to a schedule's activities agree with its current snapshot (ADR-0015 section 5): activity references whose presence changed, links flagged stale (their activity is gone) and links restored (it came back). |
 | [`Schedule.SnapshotPublished`](#schedulesnapshotpublished) | `tl.core.Schedule.SnapshotPublished.v1` | A snapshot became the schedule's current one. |
@@ -121,6 +154,10 @@ Every ledger event type that can reach a webhook subscriber, generated from the 
 | [`TagClass.Closed`](#tagclassclosed) | `tl.core.TagClass.Closed.v1` | A tag class was retired; tags already of that class keep it. |
 | [`TagClass.Defined`](#tagclassdefined) | `tl.core.TagClass.Defined.v1` | A tag class was defined. |
 | [`TagClass.Revised`](#tagclassrevised) | `tl.core.TagClass.Revised.v1` | A tag class changed. |
+| [`Thread.Dispatched`](#threaddispatched) | `tl.core.Thread.Dispatched.v1` | A slash command in a thread was confirmed and its commands ran, in the same transaction as the message of kind `dispatch` that carries the command line. |
+| [`Thread.MessageEdited`](#threadmessageedited) | `tl.core.Thread.MessageEdited.v1` | The author replaced the body of a message. |
+| [`Thread.MessagePosted`](#threadmessageposted) | `tl.core.Thread.MessagePosted.v1` | A message was posted in a record thread. |
+| [`Thread.MessageRetracted`](#threadmessageretracted) | `tl.core.Thread.MessageRetracted.v1` | The author retracted a message. |
 | [`Transmittal.Defined`](#transmittaldefined) | `tl.core.Transmittal.Defined.v1` | A transmittal was drafted with the revisions it carries and its recipients. |
 | [`Transmittal.Issued`](#transmittalissued) | `tl.core.Transmittal.Issued.v1` | A transmittal was issued to its recipients. |
 | [`Transmittal.ResponseRecorded`](#transmittalresponserecorded) | `tl.core.Transmittal.ResponseRecorded.v1` | The recipients answered a transmittal. |
@@ -396,6 +433,506 @@ The roles of an account were replaced. Internal: never delivered to webhooks.
   "tlseq": 48211933,
   "tlstreamversion": 7,
   "type": "tl.core.Account.RolesSet.v1"
+}
+```
+
+## Action.Completed
+
+The executor finished the action.
+
+- CloudEvents type: `tl.core.Action.Completed.v1`
+- Ledger payload class: `ActionCompletedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `attempt` | integer | yes | Attempt number. |
+| `http_status` | integer or null | no | HTTP status of a webhook action. |
+| `invocation_id` | string | yes | Invocation id. |
+| `result` | any | no | The executor's bounded JSON result. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "attempt": 1,
+      "http_status": 200,
+      "invocation_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "result": {
+        "accepted": true
+      }
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Action.Completed/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Action.Completed.v1"
+}
+```
+
+## Action.Failed
+
+The action failed for good (not retried any more).
+
+- CloudEvents type: `tl.core.Action.Failed.v1`
+- Ledger payload class: `ActionFailedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `attempt` | integer | yes | Attempt number. |
+| `http_status` | integer or null | no | HTTP status of a webhook action. |
+| `invocation_id` | string | yes | Invocation id. |
+| `problems` | any | yes |  |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "attempt": 3,
+      "http_status": 503,
+      "invocation_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "problems": [
+        {
+          "code": "http_error",
+          "message": "The receiver answered 503."
+        }
+      ]
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Action.Failed/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Action.Failed.v1"
+}
+```
+
+## Action.Requested
+
+An action was requested on records. The execution is queued as a job.
+
+- CloudEvents type: `tl.core.Action.Requested.v1`
+- Ledger payload class: `ActionRequestedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `action` | string | yes | Action name. |
+| `action_version` | integer | yes | Definition version run. |
+| `definition_id` | string | yes | Definition id. |
+| `invocation_id` | string | yes | Invocation id. |
+| `invoked_by` | string | yes | Who asked. |
+| `parameters` | any | yes |  |
+| `proposal_id` | string or null | no | The accepted proposal this came from, when the action requires approval. |
+| `targets` | any | yes |  |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "action": "send_to_nde",
+      "action_version": 1,
+      "definition_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P2",
+      "invocation_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "invoked_by": "user:jsmith",
+      "parameters": {
+        "method": "RT"
+      },
+      "targets": [
+        {
+          "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P6",
+          "key": "47-1234-W012",
+          "record_type": "core.Record",
+          "version": 3
+        }
+      ]
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Action.Requested/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Action.Requested.v1"
+}
+```
+
+## Action.Running
+
+A worker started an attempt.
+
+- CloudEvents type: `tl.core.Action.Running.v1`
+- Ledger payload class: `ActionRunningPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `attempt` | integer | yes | Attempt number, from 1. |
+| `invocation_id` | string | yes | Invocation id. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "attempt": 1,
+      "invocation_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P5"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Action.Running/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Action.Running.v1"
+}
+```
+
+## ActionDefinition.Defined
+
+An action was defined (version 1). A webhook action's signing secret is held outside the ledger.
+
+- CloudEvents type: `tl.core.ActionDefinition.Defined.v1`
+- Ledger payload class: `ActionDefinitionDefinedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `access` | string | yes | user, controller or admin. |
+| `applies_to` | any | yes |  |
+| `definition_id` | string | yes | Definition id. |
+| `description` | string or null | no | Description. |
+| `enabled` | boolean or null | no | Whether it can be invoked. |
+| `executor` | string | yes | job or webhook. |
+| `executor_config` | any | yes |  |
+| `integration_app` | string or null | no | Integration app name. |
+| `label` | string | yes | Label. |
+| `name` | string | yes | Action name (slug). |
+| `owner` | string | yes | Owner actor. |
+| `parameters` | any | yes |  |
+| `requires_approval` | boolean or null | no | Whether an invocation waits for a second person. |
+| `result_handling` | any | yes |  |
+| `secret_id` | string or null | no | Id of the first signing secret of a webhook action (not the secret). |
+| `side_effect_class` | string | yes | read, propose, write or external. |
+| `version` | integer | yes | Definition version. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "access": "user",
+      "applies_to": {
+        "condition": null,
+        "record_types": [
+          "core.Record"
+        ]
+      },
+      "definition_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P2",
+      "description": "Send an inspection request to the NDE contractor",
+      "enabled": true,
+      "executor": "webhook",
+      "executor_config": {
+        "kind": "webhook",
+        "timeout_s": 10.0,
+        "url": "https://nde.example.net/hooks/request"
+      },
+      "integration_app": "acme-nde",
+      "label": "Send to NDE",
+      "name": "send_to_nde",
+      "owner": "user:jsmith",
+      "parameters": [
+        {
+          "choices": [
+            "RT",
+            "UT"
+          ],
+          "kind": "string",
+          "label": "Method",
+          "max_length": null,
+          "name": "method",
+          "required": true
+        }
+      ],
+      "requires_approval": false,
+      "result_handling": [
+        "store"
+      ],
+      "secret_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P3",
+      "side_effect_class": "external",
+      "version": 1
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/ActionDefinition.Defined/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.ActionDefinition.Defined.v1"
+}
+```
+
+## ActionDefinition.Retired
+
+An action was retired: it can no longer be invoked; its invocations stay readable.
+
+- CloudEvents type: `tl.core.ActionDefinition.Retired.v1`
+- Ledger payload class: `ActionDefinitionRetiredPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `definition_id` | string | yes | Definition id. |
+| `reason` | string | yes | Why. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "definition_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P2",
+      "reason": "replaced by send_to_nde_v2"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/ActionDefinition.Retired/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.ActionDefinition.Retired.v1"
+}
+```
+
+## ActionDefinition.Revised
+
+An action was revised; the event carries the whole new definition and the row is replaced.
+
+- CloudEvents type: `tl.core.ActionDefinition.Revised.v1`
+- Ledger payload class: `ActionDefinitionRevisedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `definition` | any | yes |  |
+| `definition_id` | string | yes | Definition id. |
+| `reason` | string | yes | Why. |
+| `version` | integer | yes | The new definition version. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "definition": {
+        "label": "Send to NDE contractor",
+        "name": "send_to_nde",
+        "version": 2
+      },
+      "definition_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P2",
+      "reason": "label",
+      "version": 2
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/ActionDefinition.Revised/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.ActionDefinition.Revised.v1"
+}
+```
+
+## ActionDefinition.SecretRotated
+
+A new signing secret was issued for a webhook action; the previous one keeps verifying until the overlap ends.
+
+- CloudEvents type: `tl.core.ActionDefinition.SecretRotated.v1`
+- Ledger payload class: `ActionDefinitionSecretRotatedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `definition_id` | string | yes | Definition id. |
+| `previous_expires_at` | string or null | no | ISO-8601 time when the previous secret stops. |
+| `previous_secret_id` | string or null | no | Id of the secret being replaced. |
+| `secret_id` | string | yes | Id of the new secret (not the secret). |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "definition_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P2",
+      "previous_expires_at": "2026-10-18T03:14:07.000000Z",
+      "previous_secret_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P3",
+      "secret_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P4"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/ActionDefinition.SecretRotated/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.ActionDefinition.SecretRotated.v1"
 }
 ```
 
@@ -2576,6 +3113,431 @@ A version of a document schema was retired; documents that named it keep it.
 }
 ```
 
+## Enricher.Disabled
+
+An enricher was switched off.
+
+- CloudEvents type: `tl.core.Enricher.Disabled.v1`
+- Ledger payload class: `EnricherDisabledPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `enricher_id` | string | yes | Enricher id. |
+| `reason` | string or null | no | Why. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "enricher_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P13",
+      "reason": "wrong labels"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Enricher.Disabled/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Enricher.Disabled.v1"
+}
+```
+
+## Enricher.Enabled
+
+An enricher was switched on.
+
+- CloudEvents type: `tl.core.Enricher.Enabled.v1`
+- Ledger payload class: `EnricherEnabledPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `enricher_id` | string | yes | Enricher id. |
+| `reason` | string or null | no | Why. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "enricher_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P13",
+      "reason": "after evaluation"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Enricher.Enabled/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Enricher.Enabled.v1"
+}
+```
+
+## Enricher.Registered
+
+An enricher was registered. It starts disabled.
+
+- CloudEvents type: `tl.core.Enricher.Registered.v1`
+- Ledger payload class: `EnricherRegisteredPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `access` | string | yes | user or controller. |
+| `code_version` | string | yes | The plugin's own version. |
+| `enabled` | boolean or null | no | Whether it runs. |
+| `enricher_id` | string | yes | Enricher id. |
+| `integration_app` | string or null | no | Integration app name. |
+| `model_ref` | string or null | no | Null for a deterministic enricher. |
+| `name` | string | yes | Enricher name; one path segment of the enrich. layer. |
+| `owner` | string | yes | Owner actor. |
+| `properties` | any | yes |  |
+| `service_actor` | string | yes | svc:enricher-<slug>. |
+| `version` | integer | yes | Registration version. |
+| `when` | any | yes |  |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "access": "user",
+      "code_version": "1.0.0",
+      "enabled": false,
+      "enricher_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P13",
+      "integration_app": null,
+      "model_ref": null,
+      "name": "doc_classifier",
+      "owner": "user:jsmith",
+      "properties": [
+        {
+          "kind": "string",
+          "name": "doc_type",
+          "policy": "propose",
+          "threshold": 0.9
+        }
+      ],
+      "service_actor": "svc:enricher-doc-classifier",
+      "version": 1,
+      "when": {
+        "event_types": [
+          "File.Processed"
+        ]
+      }
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Enricher.Registered/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Enricher.Registered.v1"
+}
+```
+
+## Enricher.Revised
+
+An enricher's registration changed; the event carries the whole new registration.
+
+- CloudEvents type: `tl.core.Enricher.Revised.v1`
+- Ledger payload class: `EnricherRevisedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `enricher` | any | yes |  |
+| `enricher_id` | string | yes | Enricher id. |
+| `reason` | string | yes | Why. |
+| `version` | integer | yes | The new registration version. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "enricher": {
+        "name": "doc_classifier",
+        "version": 2
+      },
+      "enricher_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P13",
+      "reason": "auto-accept above 0.95",
+      "version": 2
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Enricher.Revised/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Enricher.Revised.v1"
+}
+```
+
+## Enrichment.Accepted
+
+A person (or the enricher's own auto policy) accepted a value: it is now written to the enricher's layer of the record.
+
+- CloudEvents type: `tl.core.Enrichment.Accepted.v1`
+- Ledger payload class: `EnrichmentAcceptedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `automatic` | boolean | yes | True for the auto policy. |
+| `by` | string | yes | The accepting person, or the enricher's service actor. |
+| `value_id` | string | yes | Value id. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "automatic": false,
+      "by": "user:mlee",
+      "value_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P14"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Enrichment.Accepted/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Enrichment.Accepted.v1"
+}
+```
+
+## Enrichment.Proposed
+
+An enricher proposed a value for a property of its own layer of a record. A shadow value is for evaluation and admins only.
+
+- CloudEvents type: `tl.core.Enrichment.Proposed.v1`
+- Ledger payload class: `EnrichmentProposedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `acceptance_state` | string | yes | shadow or proposed. |
+| `confidence` | number | yes | 0 to 1. |
+| `enricher` | string | yes | Enricher name. |
+| `enricher_version` | string | yes | The plugin's version. |
+| `inputs` | any | yes |  |
+| `model_ref` | string or null | no | Null for a deterministic enricher. |
+| `produced_at` | string | yes | ISO-8601 time. |
+| `property_path` | string | yes | enrich.<enricher>.<property>. |
+| `target` | any | yes |  |
+| `value` | any | no | A scalar or a list of scalars. |
+| `value_id` | string | yes | Value id. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "acceptance_state": "proposed",
+      "confidence": 0.9,
+      "enricher": "doc_classifier",
+      "enricher_version": "1.0.0",
+      "inputs": [
+        {
+          "file_sha256": "2222222222222222222222222222222222222222222222222222222222222222",
+          "record": {
+            "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P6",
+            "key": "ISD-001",
+            "record_type": "documents.Document",
+            "version": 4
+          }
+        }
+      ],
+      "model_ref": null,
+      "produced_at": "2026-10-17T03:14:07.000000Z",
+      "property_path": "enrich.doc_classifier.doc_type",
+      "target": {
+        "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P6",
+        "key": "ISD-001",
+        "record_type": "documents.Document",
+        "version": 4
+      },
+      "value": "ISO",
+      "value_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P14"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Enrichment.Proposed/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Enrichment.Proposed.v1"
+}
+```
+
+## Enrichment.Rejected
+
+A value was rejected by a person, or replaced by a newer proposal.
+
+- CloudEvents type: `tl.core.Enrichment.Rejected.v1`
+- Ledger payload class: `EnrichmentRejectedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `by` | string | yes | The person, or the enricher's service actor for a replacement. |
+| `reason` | string | yes | Why. |
+| `value_id` | string | yes | Value id. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "by": "user:mlee",
+      "reason": "wrong type",
+      "value_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P14"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Enrichment.Rejected/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Enrichment.Rejected.v1"
+}
+```
+
 ## Feed.Edited
 
 A post was edited. The payload is a full replacement of the body and its tags; the earlier text stays in the ledger, so edits are visible history (brief 21.1).
@@ -2984,6 +3946,723 @@ A file was uploaded and attached to a record; it is quarantined until its scan f
   "tlseq": 48211933,
   "tlstreamversion": 7,
   "type": "tl.core.File.Uploaded.v1"
+}
+```
+
+## Inbound.Applied
+
+A delivery was mapped and its commands ran (or, for a dry-run endpoint, were planned).
+
+- CloudEvents type: `tl.core.Inbound.Applied.v1`
+- Ledger payload class: `InboundAppliedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `command_count` | integer | yes | Commands run or planned. |
+| `delivery_id` | string | yes | Delivery id. |
+| `dry_run` | boolean | yes | True when nothing ran. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "command_count": 2,
+      "delivery_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P12",
+      "dry_run": false
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Inbound.Applied/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Inbound.Applied.v1"
+}
+```
+
+## Inbound.Failed
+
+A delivery could not be applied; it is in the error queue until an admin retries it.
+
+- CloudEvents type: `tl.core.Inbound.Failed.v1`
+- Ledger payload class: `InboundFailedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `code` | string | yes | A fixed code. |
+| `delivery_id` | string | yes | Delivery id. |
+| `message` | string | yes | A bounded message; never a payload excerpt. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "code": "key_not_found",
+      "delivery_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P12",
+      "message": "No record has the key 47-1234-W099."
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Inbound.Failed/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Inbound.Failed.v1"
+}
+```
+
+## Inbound.Received
+
+A signed POST was accepted and queued for mapping. The payload and the headers are not in the event.
+
+- CloudEvents type: `tl.core.Inbound.Received.v1`
+- Ledger payload class: `InboundReceivedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `delivery_id` | string | yes | Delivery id. |
+| `endpoint_id` | string | yes | Endpoint id. |
+| `endpoint_version` | integer | yes | The endpoint version it will be mapped by. |
+| `payload_sha256` | string | yes | SHA-256 of the raw body. |
+| `payload_size` | integer | yes | Body size in bytes. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "delivery_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P12",
+      "endpoint_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+      "endpoint_version": 2,
+      "payload_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "payload_size": 412
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Inbound.Received/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Inbound.Received.v1"
+}
+```
+
+## Inbound.Retried
+
+An admin re-ran a failed delivery, optionally with a corrected payload.
+
+- CloudEvents type: `tl.core.Inbound.Retried.v1`
+- Ledger payload class: `InboundRetriedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `by` | string | yes | The admin. |
+| `corrected_sha256` | string or null | no | SHA-256 of the corrected body, when one was supplied. |
+| `delivery_id` | string | yes | Delivery id. |
+| `original_sha256` | string | yes | SHA-256 of the received body. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "by": "user:jsmith",
+      "corrected_sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+      "delivery_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P12",
+      "original_sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Inbound.Retried/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Inbound.Retried.v1"
+}
+```
+
+## InboundEndpoint.Created
+
+An inbound endpoint was created. It starts disabled and in dry-run mode. Its secret is held outside the ledger.
+
+- CloudEvents type: `tl.core.InboundEndpoint.Created.v1`
+- Ledger payload class: `InboundEndpointCreatedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `access` | string | yes | user or controller. |
+| `allowed_commands` | any | yes |  |
+| `app` | string | yes | Integration app name. |
+| `auth` | string | yes | hmac_sha256 or jwt_hs256. |
+| `dry_run` | boolean or null | no | Verify, map and plan only. |
+| `enabled` | boolean or null | no | Whether it accepts deliveries. |
+| `endpoint_id` | string | yes | Endpoint id. |
+| `external_schema` | string or null | no | Which external schema the mapping reads. |
+| `mapping` | string | yes | Restricted JSONata expression. |
+| `mapping_language` | string | yes | jsonata-restricted@1. |
+| `max_body_bytes` | integer | yes | Body cap. |
+| `name` | string | yes | Endpoint name (slug). |
+| `owner` | string | yes | Owner actor. |
+| `rate_per_minute` | integer | yes | Rate bound. |
+| `secret_id` | string | yes | Id of the first secret (not the secret). |
+| `service_actor` | string | yes | svc:inbound-<app>.<endpoint>. |
+| `version` | integer | yes | Endpoint version. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "access": "user",
+      "allowed_commands": [
+        "SetPsetValues"
+      ],
+      "app": "acme-nde",
+      "auth": "hmac_sha256",
+      "dry_run": true,
+      "enabled": false,
+      "endpoint_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+      "external_schema": null,
+      "mapping": "results.{\"command\": \"SetPsetValues\", \"args\": {\"stream_id\": {\"$key\": weld}, \"pset\": \"nde\", \"values\": {\"result\": result}}}",
+      "mapping_language": "jsonata-restricted@1",
+      "max_body_bytes": 262144,
+      "name": "results",
+      "owner": "user:jsmith",
+      "rate_per_minute": 60,
+      "secret_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P10",
+      "service_actor": "svc:inbound-acme-nde.results",
+      "version": 1
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/InboundEndpoint.Created/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.InboundEndpoint.Created.v1"
+}
+```
+
+## InboundEndpoint.Disabled
+
+An endpoint stopped accepting deliveries; it answers 404.
+
+- CloudEvents type: `tl.core.InboundEndpoint.Disabled.v1`
+- Ledger payload class: `InboundEndpointDisabledPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `endpoint_id` | string | yes | Endpoint id. |
+| `reason` | string or null | no | Why. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "endpoint_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+      "reason": "key leaked"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/InboundEndpoint.Disabled/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.InboundEndpoint.Disabled.v1"
+}
+```
+
+## InboundEndpoint.Enabled
+
+An endpoint started accepting deliveries.
+
+- CloudEvents type: `tl.core.InboundEndpoint.Enabled.v1`
+- Ledger payload class: `InboundEndpointEnabledPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `endpoint_id` | string | yes | Endpoint id. |
+| `reason` | string or null | no | Why. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "endpoint_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+      "reason": "go live"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/InboundEndpoint.Enabled/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.InboundEndpoint.Enabled.v1"
+}
+```
+
+## InboundEndpoint.Revised
+
+An endpoint was revised; the event carries the whole new definition (no secret).
+
+- CloudEvents type: `tl.core.InboundEndpoint.Revised.v1`
+- Ledger payload class: `InboundEndpointRevisedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `endpoint` | any | yes |  |
+| `endpoint_id` | string | yes | Endpoint id. |
+| `reason` | string | yes | Why. |
+| `version` | integer | yes | The new endpoint version. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "endpoint": {
+        "dry_run": false,
+        "name": "results",
+        "version": 2
+      },
+      "endpoint_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+      "reason": "go live",
+      "version": 2
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/InboundEndpoint.Revised/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.InboundEndpoint.Revised.v1"
+}
+```
+
+## InboundEndpoint.SecretRotated
+
+A new secret was issued; the previous one keeps verifying until the overlap ends (at most 24 hours).
+
+- CloudEvents type: `tl.core.InboundEndpoint.SecretRotated.v1`
+- Ledger payload class: `InboundEndpointSecretRotatedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `endpoint_id` | string | yes | Endpoint id. |
+| `previous_expires_at` | string or null | no | ISO-8601 time when the previous secret stops. |
+| `previous_secret_id` | string or null | no | Id of the secret being replaced. |
+| `secret_id` | string | yes | Id of the new secret (not the secret). |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "endpoint_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+      "previous_expires_at": "2026-10-18T03:14:07.000000Z",
+      "previous_secret_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P10",
+      "secret_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P11"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/InboundEndpoint.SecretRotated/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.InboundEndpoint.SecretRotated.v1"
+}
+```
+
+## IntegrationApp.Disabled
+
+An app was switched off: its endpoints answer 404 and its rules, actions and enrichers do nothing.
+
+- CloudEvents type: `tl.core.IntegrationApp.Disabled.v1`
+- Ledger payload class: `IntegrationAppDisabledPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `reason` | string or null | no | Why. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "reason": "contractor offboarded"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/IntegrationApp.Disabled/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.IntegrationApp.Disabled.v1"
+}
+```
+
+## IntegrationApp.Enabled
+
+An app was switched on: its endpoints, rules, actions and enrichers run again.
+
+- CloudEvents type: `tl.core.IntegrationApp.Enabled.v1`
+- Ledger payload class: `IntegrationAppEnabledPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `reason` | string or null | no | Why. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "reason": "contract renewed"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/IntegrationApp.Enabled/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.IntegrationApp.Enabled.v1"
+}
+```
+
+## IntegrationApp.Registered
+
+An integration app was registered. Its name is the first segment of its inbound paths.
+
+- CloudEvents type: `tl.core.IntegrationApp.Registered.v1`
+- Ledger payload class: `IntegrationAppRegisteredPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `app_id` | string | yes | App id. |
+| `description` | string or null | no | Description. |
+| `enabled` | boolean or null | no | Whether its endpoints, rules, actions and enrichers run. |
+| `label` | string | yes | Label. |
+| `name` | string | yes | Slug, unique across the ledger. |
+| `owner` | string | yes | Owner actor. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "app_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P1",
+      "description": "Results from the NDE contractor",
+      "enabled": true,
+      "label": "Acme NDE",
+      "name": "acme-nde",
+      "owner": "user:jsmith"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/IntegrationApp.Registered/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.IntegrationApp.Registered.v1"
+}
+```
+
+## IntegrationApp.Revised
+
+An app's label, description or owner changed.
+
+- CloudEvents type: `tl.core.IntegrationApp.Revised.v1`
+- Ledger payload class: `IntegrationAppRevisedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `changes` | any | yes |  |
+| `reason` | string or null | no | Why. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "changes": {
+        "label": [
+          "Acme NDE",
+          "Acme NDE results"
+        ]
+      },
+      "reason": "renamed"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/IntegrationApp.Revised/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.IntegrationApp.Revised.v1"
 }
 ```
 
@@ -5430,6 +7109,315 @@ An issued revision stopped being current because a later one replaced it. It sta
 }
 ```
 
+## Rule.Blocked
+
+A matched event did not run the rule: the step was refused, the causation depth limit or a budget stopped it.
+
+- CloudEvents type: `tl.core.Rule.Blocked.v1`
+- Ledger payload class: `RuleBlockedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `depth` | integer | yes | Causation depth of the trigger. |
+| `outcome` | string | yes | refused, depth_limit or budget. |
+| `problems` | any | yes |  |
+| `rule_id` | string | yes | Rule id. |
+| `rule_version` | integer | yes | Rule version. |
+| `trigger_event_id` | string | yes | The event that matched. |
+| `trigger_seq` | integer | yes | Its seq. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "depth": 3,
+      "outcome": "depth_limit",
+      "problems": [
+        {
+          "code": "depth_limit",
+          "message": "The causation depth limit of 3 was reached."
+        }
+      ],
+      "rule_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P7",
+      "rule_version": 2,
+      "trigger_event_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P8",
+      "trigger_seq": 412
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Rule.Blocked/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Rule.Blocked.v1"
+}
+```
+
+## Rule.Created
+
+A rule was created. It starts disabled and in propose mode.
+
+- CloudEvents type: `tl.core.Rule.Created.v1`
+- Ledger payload class: `RuleCreatedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `access` | string | yes | user or controller. |
+| `condition` | string or null | no | Query-language condition on the subject record. |
+| `enabled` | boolean or null | no | Whether it runs. |
+| `integration_app` | string or null | no | Integration app name. |
+| `key` | string | yes | Rule key (slug). |
+| `mode` | string | yes | act or propose. |
+| `owner` | string | yes | Owner actor. |
+| `rule_id` | string | yes | Rule id. |
+| `service_actor` | string | yes | svc:rule-<slug>. |
+| `then` | any | yes |  |
+| `title` | string | yes | Title. |
+| `version` | integer | yes | Rule version. |
+| `when` | any | yes |  |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "access": "user",
+      "condition": null,
+      "enabled": false,
+      "integration_app": null,
+      "key": "hse-notify",
+      "mode": "propose",
+      "owner": "user:jsmith",
+      "rule_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P7",
+      "service_actor": "svc:rule-hse-notify",
+      "then": [
+        {
+          "args": {
+            "body": "HSE notified of ${subject_key}"
+          },
+          "command": "PostToFeed"
+        }
+      ],
+      "title": "Notify HSE on #safety",
+      "version": 1,
+      "when": {
+        "event_types": [
+          "Feed.PostCreated"
+        ],
+        "hashtags": [
+          "safety"
+        ]
+      }
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Rule.Created/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Rule.Created.v1"
+}
+```
+
+## Rule.Disabled
+
+A rule was switched off.
+
+- CloudEvents type: `tl.core.Rule.Disabled.v1`
+- Ledger payload class: `RuleDisabledPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `reason` | string or null | no | Why. |
+| `rule_id` | string | yes | Rule id. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "reason": "noisy",
+      "rule_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P7"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Rule.Disabled/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Rule.Disabled.v1"
+}
+```
+
+## Rule.Enabled
+
+A rule was switched on, from this event on.
+
+- CloudEvents type: `tl.core.Rule.Enabled.v1`
+- Ledger payload class: `RuleEnabledPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `reason` | string or null | no | Why. |
+| `rule_id` | string | yes | Rule id. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "reason": "after dry run",
+      "rule_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P7"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Rule.Enabled/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Rule.Enabled.v1"
+}
+```
+
+## Rule.Revised
+
+A rule was revised; the event carries the whole new rule. Switching to act mode is a revision with a reason.
+
+- CloudEvents type: `tl.core.Rule.Revised.v1`
+- Ledger payload class: `RuleRevisedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `reason` | string | yes | Why. |
+| `rule` | any | yes |  |
+| `rule_id` | string | yes | Rule id. |
+| `version` | integer | yes | The new rule version. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "reason": "ready to act",
+      "rule": {
+        "key": "hse-notify",
+        "mode": "act",
+        "version": 2
+      },
+      "rule_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P7",
+      "version": 2
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Rule.Revised/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Rule.Revised.v1"
+}
+```
+
 ## Schedule.Defined
 
 A schedule was registered.
@@ -6729,6 +8717,247 @@ A tag class changed. Adding a required pset is a constraining change: existing t
   "tlseq": 48211933,
   "tlstreamversion": 7,
   "type": "tl.core.TagClass.Revised.v1"
+}
+```
+
+## Thread.Dispatched
+
+A slash command in a thread was confirmed and its commands ran, in the same transaction as the message of kind `dispatch` that carries the command line. `results` lists the commands, `link_ids` the `dispatched_from` links from created records back to the thread's record. Each command's own events carry the source `thread:<record id>`, the correlation id `dispatch:<message id>` and this message's event as their cause.
+
+- CloudEvents type: `tl.core.Thread.Dispatched.v1`
+- Ledger payload class: `ThreadDispatchedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `link_ids` | array or null | no |  |
+| `message_id` | string | yes |  |
+| `record_id` | string | yes |  |
+| `results` | array or null | no |  |
+| `summary` | string or null | no | One line for the result card. |
+| `verb` | string | yes | The slash command verb (`link`, `status`, `raise`, `dispatch`, `notify`, `remind`, `summarise`...). |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "link_ids": [
+        "01J9Z6Q4W3X2Y1V0T9S8R7Q6P8"
+      ],
+      "message_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "record_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P6",
+      "results": [
+        {
+          "command_type": "CreateRecord",
+          "key": "P123-REC-0044",
+          "stream_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P7",
+          "version": 1
+        }
+      ],
+      "summary": "Created P123-REC-0044",
+      "verb": "raise"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Thread.Dispatched/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Thread.Dispatched.v1"
+}
+```
+
+## Thread.MessageEdited
+
+The author replaced the body of a message. The payload is a full replacement of the body, the mentions and the record references; the earlier text stays in the ledger.
+
+- CloudEvents type: `tl.core.Thread.MessageEdited.v1`
+- Ledger payload class: `ThreadMessageEditedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `body` | string | yes |  |
+| `mentions` | array or null | no |  |
+| `message_id` | string | yes |  |
+| `record_id` | string | yes |  |
+| `record_refs` | array or null | no |  |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "body": "Flanges short for W019 and W020 @lchen",
+      "mentions": [
+        "lchen"
+      ],
+      "message_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "record_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P6",
+      "record_refs": []
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Thread.MessageEdited/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Thread.MessageEdited.v1"
+}
+```
+
+## Thread.MessagePosted
+
+A message was posted in a record thread. The first message of a record creates the thread stream and also carries `record_creator`, the actor that created the record, who joins the participants.
+
+- CloudEvents type: `tl.core.Thread.MessagePosted.v1`
+- Ledger payload class: `ThreadMessagePostedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `author` | string | yes |  |
+| `body` | string | yes |  |
+| `kind` | string | yes | What a message is. A person's message is `message`; the others are written by the server. |
+| `mentions` | array or null | no |  |
+| `message_id` | string | yes |  |
+| `record_creator` | string or null | no | First message of the thread only; the actor that created the record. |
+| `record_id` | string | yes |  |
+| `record_refs` | array or null | no |  |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "author": "user:rgarcia",
+      "body": "Flanges short for W019 @lchen",
+      "kind": "message",
+      "mentions": [
+        "lchen"
+      ],
+      "message_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "record_creator": "user:mlee",
+      "record_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P6",
+      "record_refs": []
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Thread.MessagePosted/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Thread.MessagePosted.v1"
+}
+```
+
+## Thread.MessageRetracted
+
+The author retracted a message. The projection keeps a tombstone row and drops the body.
+
+- CloudEvents type: `tl.core.Thread.MessageRetracted.v1`
+- Ledger payload class: `ThreadMessageRetractedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `message_id` | string | yes |  |
+| `reason` | string | yes | Why the message was retracted. |
+| `record_id` | string | yes |  |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "message_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "reason": "Wrong record",
+      "record_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P6"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Thread.MessageRetracted/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Thread.MessageRetracted.v1"
 }
 ```
 

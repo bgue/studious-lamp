@@ -1,0 +1,291 @@
+{
+ "description": "Golden cases for the doc_classifier (P1-I7). doc_type and discipline are codes of the DocumentType and Discipline lists of schema/fixtures/standards/co.acme.standards@1.0.0.yaml; null means the classifier should propose nothing for that property.",
+ "cases": [
+  {
+   "id": "c01",
+   "key": "ISO-1234",
+   "title": "Isometric 47-1234 line 6-P-1001",
+   "filename": "iso-1234.pdf",
+   "file_title": null,
+   "content_type": "application/pdf",
+   "page_count": 3,
+   "doc_type": "ISO",
+   "discipline": "PIP"
+  },
+  {
+   "id": "c02",
+   "key": "PID-0042",
+   "title": "P&ID Unit 47 hydrotreater feed",
+   "filename": "pid-0042.pdf",
+   "file_title": null,
+   "content_type": "application/pdf",
+   "page_count": 3,
+   "doc_type": "PID",
+   "discipline": "PIP"
+  },
+  {
+   "id": "c03",
+   "key": null,
+   "title": "Piping and instrument diagram, Unit 20 crude distillation",
+   "filename": "u20-pid.pdf",
+   "file_title": null,
+   "content_type": "application/pdf",
+   "page_count": 3,
+   "doc_type": "PID",
+   "discipline": "PIP"
+  },
+  {
+   "id": "c04",
+   "key": "DS-0310",
+   "title": "Datasheet for control valve FV-1001",
+   "filename": "ds-0310.pdf",
+   "file_title": null,
+   "content_type": "application/pdf",
+   "page_count": 3,
+   "doc_type": "DS",
+   "discipline": "INS"
+  },
+  {
+   "id": "c05",
+   "key": null,
+   "title": "Instrument data sheet transmitter PT-2001",
+   "filename": "pt-2001.pdf",
+   "file_title": null,
+   "content_type": "application/pdf",
+   "page_count": 3,
+   "doc_type": "DS",
+   "discipline": "INS"
+  },
+  {
+   "id": "c06",
+   "key": "LD-0007",
+   "title": "Loop diagram for LIC-3001",
+   "filename": "ld-0007.pdf",
+   "file_title": null,
+   "content_type": "application/pdf",
+   "page_count": 3,
+   "doc_type": "LD",
+   "discipline": "INS"
+  },
+  {
+   "id": "c07",
+   "key": null,
+   "title": "Loop drawing level control",
+   "filename": "ld-level.pdf",
+   "file_title": null,
+   "content_type": "application/pdf",
+   "page_count": 3,
+   "doc_type": "LD",
+   "discipline": "INS"
+  },
+  {
+   "id": "c08",
+   "key": "SPC-0100",
+   "title": "Pipe support specification",
+   "filename": "spc-0100.pdf",
+   "file_title": null,
+   "content_type": "application/pdf",
+   "page_count": 3,
+   "doc_type": "SPC",
+   "discipline": "PIP"
+  },
+  {
+   "id": "c09",
+   "key": null,
+   "title": "Electrical cable specification",
+   "filename": "cable.pdf",
+   "file_title": null,
+   "content_type": "application/pdf",
+   "page_count": 3,
+   "doc_type": "SPC",
+   "discipline": "ELE"
+  },
+  {
+   "id": "c10",
+   "key": "PRC-0015",
+   "title": "Hydrotest procedure for Unit 47",
+   "filename": "prc-0015.pdf",
+   "file_title": null,
+   "content_type": "application/pdf",
+   "page_count": 3,
+   "doc_type": "PRC",
+   "discipline": null
+  },
+  {
+   "id": "c11",
+   "key": null,
+   "title": "Method statement for lifting the reactor vessel",
+   "filename": "lift.pdf",
+   "file_title": null,
+   "content_type": "application/pdf",
+   "page_count": 3,
+   "doc_type": "PRC",
+   "discipline": "MEC"
+  },
+  {
+   "id": "c12",
+   "key": "CAL-0021",
+   "title": "Pump hydraulic calculation",
+   "filename": "cal-0021.xlsx",
+   "file_title": null,
+   "content_type": "application/octet-stream",
+   "page_count": null,
+   "doc_type": "CAL",
+   "discipline": "MEC"
+  },
+  {
+   "id": "c13",
+   "key": null,
+   "title": "Foundation load calculations",
+   "filename": "found-calc.pdf",
+   "file_title": null,
+   "content_type": "application/pdf",
+   "page_count": 3,
+   "doc_type": "CAL",
+   "discipline": "CIV"
+  },
+  {
+   "id": "c14",
+   "key": "MTO-0003",
+   "title": "Material take-off for Unit 40 piping",
+   "filename": "mto-0003.xlsx",
+   "file_title": null,
+   "content_type": "application/octet-stream",
+   "page_count": null,
+   "doc_type": "MTO",
+   "discipline": "PIP"
+  },
+  {
+   "id": "c15",
+   "key": null,
+   "title": "Bill of materials structural steelwork",
+   "filename": "bom.xlsx",
+   "file_title": null,
+   "content_type": "application/octet-stream",
+   "page_count": null,
+   "doc_type": "MTO",
+   "discipline": "STR"
+  },
+  {
+   "id": "c16",
+   "key": "ITR-0090",
+   "title": "Inspection and test record for motor megger",
+   "filename": "itr-0090.pdf",
+   "file_title": null,
+   "content_type": "application/pdf",
+   "page_count": 3,
+   "doc_type": "ITR",
+   "discipline": "ELE"
+  },
+  {
+   "id": "c17",
+   "key": null,
+   "title": "Welding procedure specification WPS-014 carbon steel",
+   "filename": "wps-014.pdf",
+   "file_title": null,
+   "content_type": "application/pdf",
+   "page_count": 3,
+   "doc_type": "WPS",
+   "discipline": null
+  },
+  {
+   "id": "c18",
+   "key": "WPS-0002",
+   "title": "Qualification of butt welds",
+   "filename": "wps-0002.pdf",
+   "file_title": null,
+   "content_type": "application/pdf",
+   "page_count": 3,
+   "doc_type": "WPS",
+   "discipline": null
+  },
+  {
+   "id": "c19",
+   "key": null,
+   "title": "General arrangement of compressor house",
+   "filename": "ga-comp.pdf",
+   "file_title": null,
+   "content_type": "application/pdf",
+   "page_count": 3,
+   "doc_type": "GA",
+   "discipline": "MEC"
+  },
+  {
+   "id": "c20",
+   "key": null,
+   "title": "Drainage drawing, Unit 10 tank farm",
+   "filename": "drain.dwg",
+   "file_title": null,
+   "content_type": "application/octet-stream",
+   "page_count": null,
+   "doc_type": "DRW",
+   "discipline": "CIV"
+  },
+  {
+   "id": "c21",
+   "key": null,
+   "title": "Fire and gas detection layout",
+   "filename": "fg-layout.pdf",
+   "file_title": null,
+   "content_type": "application/pdf",
+   "page_count": 3,
+   "doc_type": "DRW",
+   "discipline": "HSE"
+  },
+  {
+   "id": "c22",
+   "key": null,
+   "title": "Photo log of site visit",
+   "filename": "photos.pdf",
+   "file_title": null,
+   "content_type": "application/pdf",
+   "page_count": 3,
+   "doc_type": null,
+   "discipline": null
+  },
+  {
+   "id": "c23",
+   "key": null,
+   "title": "Meeting minutes",
+   "filename": "minutes.docx",
+   "file_title": null,
+   "content_type": "application/octet-stream",
+   "page_count": null,
+   "doc_type": null,
+   "discipline": null
+  },
+  {
+   "id": "c24",
+   "key": null,
+   "title": "Revision 3",
+   "filename": "scan0042.pdf",
+   "file_title": "Process flow diagram, sulfur recovery",
+   "content_type": "application/pdf",
+   "page_count": 3,
+   "doc_type": null,
+   "discipline": "PRO"
+  },
+  {
+   "id": "c25",
+   "key": "GA-0011",
+   "title": "Platform steelwork general arrangement",
+   "filename": "ga-0011.pdf",
+   "file_title": null,
+   "content_type": "application/pdf",
+   "page_count": 3,
+   "doc_type": "GA",
+   "discipline": "STR"
+  },
+  {
+   "id": "c26",
+   "key": null,
+   "title": "",
+   "filename": "datasheet-pump-p101.pdf",
+   "file_title": "Pump P-101",
+   "content_type": "application/pdf",
+   "page_count": 3,
+   "doc_type": "DS",
+   "discipline": "MEC"
+  }
+ ]
+}

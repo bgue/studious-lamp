@@ -49,6 +49,7 @@ The Textual application shell, grid, record view, and forms; every screen reads 
 | `tl_tui.extension_body`, `widgets.extension_edit_form.ExtensionEditForm` | module, modal | `e` on an object-backed record edits its stored body: only changed slots are applied, the rest of the body is kept, a stale version blocks the save |
 | `tl_tui.main.make_app`, `run`, `main` | functions | `tl-tui` / `python -m tl_tui` / `tl tui`: embedded by default, remote with `--remote URL` and a token |
 | `tl_tui.widgets.derived_documents.DerivedDocumentsScreen`, `job_monitor.JobMonitorScreen`, `publish_preview.PublishPreviewScreen`, `tl_tui.derive_text` | modals, module | Derived documents (`F11`, P1-I3): the table with state, pass, rows and errors; the panel shows the validation report or (`d`) the diff against the previous pass; `x` queues an extraction, `v` a validation, `j` opens the job monitor (refreshes every 2 s, `c` cancels a queued job), `p` the publish preview (counts, rows, `s` skip existing, `p` twice to create, `c` shows and `u` does the compensation; role-gated: admin for tags, controller for documents). The text is pure functions in `derive_text` |
+| `tl_tui.widgets.review_queue.ReviewQueueScreen`, `integration_screen.IntegrationScreen`, `tl_tui.integration_text` | modals, module | The integration layer (P1-I7). Review queue (`Ctrl+R`, any person): the values enrichers proposed, `a` accept, `x` reject (asks for a reason), `s` waiting or all. Registry (`Ctrl+E`, admins): endpoints, rules, actions, enrichers, apps, invocations and the inbound error queue (`[` `]` or `1`-`7`), `e` switches an app, endpoint, rule or enricher, `y` retries a failed delivery, the kill switch is in the title (changed in `F9`). Both call the allow-listed commands through `ClientInterface.integration_command` and read with `list_integration`; the service decides every rule |
 | `tl_tui.widgets.schedule_screen.ScheduleScreen`, `compare_screen.CompareScreen`, `activity_screen.ActivityScreen`, `tl_tui.schedule_text` | modals, module | Schedules (`F12`, P1-I4): the schedules and the snapshots of the highlighted one (the current one marked `*` and "(current)"), the panel with the snapshot, the look-ahead (`l`) or the orphaned links (`o`); `c` opens the comparison (sections added, removed, date shifts, float, logic, progress, durations, critical, `Right`/`Left` to move), `a` the activities (paged, `c` critical only, `/` filter) with the relationships and float trend of the highlighted one, `p` publishes the highlighted snapshot (the service decides who may). A short note shows while the links are still being checked. The text is pure functions in `schedule_text` |
 
 ## Depends on / used by
@@ -74,6 +75,11 @@ uv run pytest packages/tl-tui/tests/test_grid.py -q
 | `TL_SCHEMA_DIR` | `schema/fixtures` | Package directory the pset services read (see `tl_core.schema_provider`) |
 | `TL_REMOTE` | (unset) | API URL; when set the TUI runs remote (`--remote` overrides) |
 | `TL_TOKEN` | (unset) | Dev token for remote mode (ADR-0005); prefer it to `--token`, which shows in `ps` |
+
+### Record threads (P1-I7 WS-B)
+The record view's Thread tab (`T`; `widgets/thread_tab.py`, text in `thread_text.py`) and the thread composer (`c`;
+`widgets/thread_composer.py`, text in `compose_text.py`): `/` offers the verbs, a command line is previewed and then
+confirmed with the preview's token. The client calls are `thread_page`, `thread_post`, `thread_preview`, `thread_dispatch`.
 
 ## Rules specific to this package
 See `AGENTS.md` in this directory.

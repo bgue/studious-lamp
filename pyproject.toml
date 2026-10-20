@@ -86,6 +86,7 @@ extraPaths = [
   "packages/tl-extract/tests",
   "packages/tl-extract/tests/golden",
   "tests/contract",
+  "tests/threads",
 ]
 typeCheckingMode = "standard"
 strict = [

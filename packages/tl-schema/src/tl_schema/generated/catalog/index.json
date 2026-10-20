@@ -46,6 +46,78 @@
       "version": 1
     },
     {
+      "ce_type": "tl.core.Action.Completed.v1",
+      "event_type": "Action.Completed",
+      "payload_class": "ActionCompletedPayload",
+      "sample": "samples/Action.Completed.v1.json",
+      "schema": "schemas/Action.Completed.v1.json",
+      "title": "The executor finished the action.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Action.Failed.v1",
+      "event_type": "Action.Failed",
+      "payload_class": "ActionFailedPayload",
+      "sample": "samples/Action.Failed.v1.json",
+      "schema": "schemas/Action.Failed.v1.json",
+      "title": "The action failed for good (not retried any more).",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Action.Requested.v1",
+      "event_type": "Action.Requested",
+      "payload_class": "ActionRequestedPayload",
+      "sample": "samples/Action.Requested.v1.json",
+      "schema": "schemas/Action.Requested.v1.json",
+      "title": "An action was requested on records.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Action.Running.v1",
+      "event_type": "Action.Running",
+      "payload_class": "ActionRunningPayload",
+      "sample": "samples/Action.Running.v1.json",
+      "schema": "schemas/Action.Running.v1.json",
+      "title": "A worker started an attempt.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.ActionDefinition.Defined.v1",
+      "event_type": "ActionDefinition.Defined",
+      "payload_class": "ActionDefinitionDefinedPayload",
+      "sample": "samples/ActionDefinition.Defined.v1.json",
+      "schema": "schemas/ActionDefinition.Defined.v1.json",
+      "title": "An action was defined (version 1).",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.ActionDefinition.Retired.v1",
+      "event_type": "ActionDefinition.Retired",
+      "payload_class": "ActionDefinitionRetiredPayload",
+      "sample": "samples/ActionDefinition.Retired.v1.json",
+      "schema": "schemas/ActionDefinition.Retired.v1.json",
+      "title": "An action was retired: it can no longer be invoked; its invocations stay readable.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.ActionDefinition.Revised.v1",
+      "event_type": "ActionDefinition.Revised",
+      "payload_class": "ActionDefinitionRevisedPayload",
+      "sample": "samples/ActionDefinition.Revised.v1.json",
+      "schema": "schemas/ActionDefinition.Revised.v1.json",
+      "title": "An action was revised; the event carries the whole new definition and the row is replaced.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.ActionDefinition.SecretRotated.v1",
+      "event_type": "ActionDefinition.SecretRotated",
+      "payload_class": "ActionDefinitionSecretRotatedPayload",
+      "sample": "samples/ActionDefinition.SecretRotated.v1.json",
+      "schema": "schemas/ActionDefinition.SecretRotated.v1.json",
+      "title": "A new signing secret was issued for a webhook action; the previous one keeps verifying until the overlap ends.",
+      "version": 1
+    },
+    {
       "ce_type": "tl.core.ActivityRef.Defined.v1",
       "event_type": "ActivityRef.Defined",
       "payload_class": "ActivityRefDefinedPayload",
@@ -379,6 +451,69 @@
       "version": 1
     },
     {
+      "ce_type": "tl.core.Enricher.Disabled.v1",
+      "event_type": "Enricher.Disabled",
+      "payload_class": "EnricherDisabledPayload",
+      "sample": "samples/Enricher.Disabled.v1.json",
+      "schema": "schemas/Enricher.Disabled.v1.json",
+      "title": "An enricher was switched off.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Enricher.Enabled.v1",
+      "event_type": "Enricher.Enabled",
+      "payload_class": "EnricherEnabledPayload",
+      "sample": "samples/Enricher.Enabled.v1.json",
+      "schema": "schemas/Enricher.Enabled.v1.json",
+      "title": "An enricher was switched on.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Enricher.Registered.v1",
+      "event_type": "Enricher.Registered",
+      "payload_class": "EnricherRegisteredPayload",
+      "sample": "samples/Enricher.Registered.v1.json",
+      "schema": "schemas/Enricher.Registered.v1.json",
+      "title": "An enricher was registered.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Enricher.Revised.v1",
+      "event_type": "Enricher.Revised",
+      "payload_class": "EnricherRevisedPayload",
+      "sample": "samples/Enricher.Revised.v1.json",
+      "schema": "schemas/Enricher.Revised.v1.json",
+      "title": "An enricher's registration changed; the event carries the whole new registration.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Enrichment.Accepted.v1",
+      "event_type": "Enrichment.Accepted",
+      "payload_class": "EnrichmentAcceptedPayload",
+      "sample": "samples/Enrichment.Accepted.v1.json",
+      "schema": "schemas/Enrichment.Accepted.v1.json",
+      "title": "A person (or the enricher's own auto policy) accepted a value: it is now written to the enricher's layer of the record.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Enrichment.Proposed.v1",
+      "event_type": "Enrichment.Proposed",
+      "payload_class": "EnrichmentProposedPayload",
+      "sample": "samples/Enrichment.Proposed.v1.json",
+      "schema": "schemas/Enrichment.Proposed.v1.json",
+      "title": "An enricher proposed a value for a property of its own layer of a record.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Enrichment.Rejected.v1",
+      "event_type": "Enrichment.Rejected",
+      "payload_class": "EnrichmentRejectedPayload",
+      "sample": "samples/Enrichment.Rejected.v1.json",
+      "schema": "schemas/Enrichment.Rejected.v1.json",
+      "title": "A value was rejected by a person, or replaced by a newer proposal.",
+      "version": 1
+    },
+    {
       "ce_type": "tl.core.Feed.Edited.v1",
       "event_type": "Feed.Edited",
       "payload_class": "FeedEditedPayload",
@@ -439,6 +574,123 @@
       "sample": "samples/File.Uploaded.v1.json",
       "schema": "schemas/File.Uploaded.v1.json",
       "title": "A file was uploaded and attached to a record; it is quarantined until its scan finishes.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Inbound.Applied.v1",
+      "event_type": "Inbound.Applied",
+      "payload_class": "InboundAppliedPayload",
+      "sample": "samples/Inbound.Applied.v1.json",
+      "schema": "schemas/Inbound.Applied.v1.json",
+      "title": "A delivery was mapped and its commands ran (or, for a dry-run endpoint, were planned).",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Inbound.Failed.v1",
+      "event_type": "Inbound.Failed",
+      "payload_class": "InboundFailedPayload",
+      "sample": "samples/Inbound.Failed.v1.json",
+      "schema": "schemas/Inbound.Failed.v1.json",
+      "title": "A delivery could not be applied; it is in the error queue until an admin retries it.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Inbound.Received.v1",
+      "event_type": "Inbound.Received",
+      "payload_class": "InboundReceivedPayload",
+      "sample": "samples/Inbound.Received.v1.json",
+      "schema": "schemas/Inbound.Received.v1.json",
+      "title": "A signed POST was accepted and queued for mapping.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Inbound.Retried.v1",
+      "event_type": "Inbound.Retried",
+      "payload_class": "InboundRetriedPayload",
+      "sample": "samples/Inbound.Retried.v1.json",
+      "schema": "schemas/Inbound.Retried.v1.json",
+      "title": "An admin re-ran a failed delivery, optionally with a corrected payload.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.InboundEndpoint.Created.v1",
+      "event_type": "InboundEndpoint.Created",
+      "payload_class": "InboundEndpointCreatedPayload",
+      "sample": "samples/InboundEndpoint.Created.v1.json",
+      "schema": "schemas/InboundEndpoint.Created.v1.json",
+      "title": "An inbound endpoint was created.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.InboundEndpoint.Disabled.v1",
+      "event_type": "InboundEndpoint.Disabled",
+      "payload_class": "InboundEndpointDisabledPayload",
+      "sample": "samples/InboundEndpoint.Disabled.v1.json",
+      "schema": "schemas/InboundEndpoint.Disabled.v1.json",
+      "title": "An endpoint stopped accepting deliveries; it answers 404.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.InboundEndpoint.Enabled.v1",
+      "event_type": "InboundEndpoint.Enabled",
+      "payload_class": "InboundEndpointEnabledPayload",
+      "sample": "samples/InboundEndpoint.Enabled.v1.json",
+      "schema": "schemas/InboundEndpoint.Enabled.v1.json",
+      "title": "An endpoint started accepting deliveries.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.InboundEndpoint.Revised.v1",
+      "event_type": "InboundEndpoint.Revised",
+      "payload_class": "InboundEndpointRevisedPayload",
+      "sample": "samples/InboundEndpoint.Revised.v1.json",
+      "schema": "schemas/InboundEndpoint.Revised.v1.json",
+      "title": "An endpoint was revised; the event carries the whole new definition (no secret).",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.InboundEndpoint.SecretRotated.v1",
+      "event_type": "InboundEndpoint.SecretRotated",
+      "payload_class": "InboundEndpointSecretRotatedPayload",
+      "sample": "samples/InboundEndpoint.SecretRotated.v1.json",
+      "schema": "schemas/InboundEndpoint.SecretRotated.v1.json",
+      "title": "A new secret was issued; the previous one keeps verifying until the overlap ends (at most 24 hours).",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.IntegrationApp.Disabled.v1",
+      "event_type": "IntegrationApp.Disabled",
+      "payload_class": "IntegrationAppDisabledPayload",
+      "sample": "samples/IntegrationApp.Disabled.v1.json",
+      "schema": "schemas/IntegrationApp.Disabled.v1.json",
+      "title": "An app was switched off: its endpoints answer 404 and its rules, actions and enrichers do nothing.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.IntegrationApp.Enabled.v1",
+      "event_type": "IntegrationApp.Enabled",
+      "payload_class": "IntegrationAppEnabledPayload",
+      "sample": "samples/IntegrationApp.Enabled.v1.json",
+      "schema": "schemas/IntegrationApp.Enabled.v1.json",
+      "title": "An app was switched on: its endpoints, rules, actions and enrichers run again.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.IntegrationApp.Registered.v1",
+      "event_type": "IntegrationApp.Registered",
+      "payload_class": "IntegrationAppRegisteredPayload",
+      "sample": "samples/IntegrationApp.Registered.v1.json",
+      "schema": "schemas/IntegrationApp.Registered.v1.json",
+      "title": "An integration app was registered.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.IntegrationApp.Revised.v1",
+      "event_type": "IntegrationApp.Revised",
+      "payload_class": "IntegrationAppRevisedPayload",
+      "sample": "samples/IntegrationApp.Revised.v1.json",
+      "schema": "schemas/IntegrationApp.Revised.v1.json",
+      "title": "An app's label, description or owner changed.",
       "version": 1
     },
     {
@@ -838,6 +1090,51 @@
       "version": 1
     },
     {
+      "ce_type": "tl.core.Rule.Blocked.v1",
+      "event_type": "Rule.Blocked",
+      "payload_class": "RuleBlockedPayload",
+      "sample": "samples/Rule.Blocked.v1.json",
+      "schema": "schemas/Rule.Blocked.v1.json",
+      "title": "A matched event did not run the rule: the step was refused, the causation depth limit or a budget stopped it.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Rule.Created.v1",
+      "event_type": "Rule.Created",
+      "payload_class": "RuleCreatedPayload",
+      "sample": "samples/Rule.Created.v1.json",
+      "schema": "schemas/Rule.Created.v1.json",
+      "title": "A rule was created.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Rule.Disabled.v1",
+      "event_type": "Rule.Disabled",
+      "payload_class": "RuleDisabledPayload",
+      "sample": "samples/Rule.Disabled.v1.json",
+      "schema": "schemas/Rule.Disabled.v1.json",
+      "title": "A rule was switched off.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Rule.Enabled.v1",
+      "event_type": "Rule.Enabled",
+      "payload_class": "RuleEnabledPayload",
+      "sample": "samples/Rule.Enabled.v1.json",
+      "schema": "schemas/Rule.Enabled.v1.json",
+      "title": "A rule was switched on, from this event on.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Rule.Revised.v1",
+      "event_type": "Rule.Revised",
+      "payload_class": "RuleRevisedPayload",
+      "sample": "samples/Rule.Revised.v1.json",
+      "schema": "schemas/Rule.Revised.v1.json",
+      "title": "A rule was revised; the event carries the whole new rule.",
+      "version": 1
+    },
+    {
       "ce_type": "tl.core.Schedule.Defined.v1",
       "event_type": "Schedule.Defined",
       "payload_class": "ScheduleDefinedPayload",
@@ -1033,6 +1330,42 @@
       "sample": "samples/TagClass.Revised.v1.json",
       "schema": "schemas/TagClass.Revised.v1.json",
       "title": "A tag class changed.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Thread.Dispatched.v1",
+      "event_type": "Thread.Dispatched",
+      "payload_class": "ThreadDispatchedPayload",
+      "sample": "samples/Thread.Dispatched.v1.json",
+      "schema": "schemas/Thread.Dispatched.v1.json",
+      "title": "A slash command in a thread was confirmed and its commands ran, in the same transaction as the message of kind `dispatch` that carries the command line.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Thread.MessageEdited.v1",
+      "event_type": "Thread.MessageEdited",
+      "payload_class": "ThreadMessageEditedPayload",
+      "sample": "samples/Thread.MessageEdited.v1.json",
+      "schema": "schemas/Thread.MessageEdited.v1.json",
+      "title": "The author replaced the body of a message.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Thread.MessagePosted.v1",
+      "event_type": "Thread.MessagePosted",
+      "payload_class": "ThreadMessagePostedPayload",
+      "sample": "samples/Thread.MessagePosted.v1.json",
+      "schema": "schemas/Thread.MessagePosted.v1.json",
+      "title": "A message was posted in a record thread.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Thread.MessageRetracted.v1",
+      "event_type": "Thread.MessageRetracted",
+      "payload_class": "ThreadMessageRetractedPayload",
+      "sample": "samples/Thread.MessageRetracted.v1.json",
+      "schema": "schemas/Thread.MessageRetracted.v1.json",
+      "title": "The author retracted a message.",
       "version": 1
     },
     {

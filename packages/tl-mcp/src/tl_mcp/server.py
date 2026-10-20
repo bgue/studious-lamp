@@ -44,6 +44,7 @@ from tl_mcp.models import LakeQueryOutput, SearchResult
 from tl_mcp.modes import resolve_tool_modes
 from tl_mcp.schedule_read_tools import register_schedule_read_tools
 from tl_mcp.schedule_tools import register_schedule_tools
+from tl_mcp.thread_tools import register_thread_tools
 from tl_mcp.type_tools import register_type_tools
 from tl_mcp.write_tools import register_write_tools
 
@@ -137,6 +138,7 @@ def build_server(
     register_engineering_tools(server, ctx)
     register_document_tools(server, ctx)
     register_derivation_tools(server, ctx)
+    register_thread_tools(server, ctx)  # P1-I7 WS-B
     register_correspondence_tools(server, ctx)
     register_schedule_tools(server, ctx)
     register_schedule_read_tools(server, ctx)

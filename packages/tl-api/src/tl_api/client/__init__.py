@@ -18,11 +18,13 @@ from tl_api.client.engineering import EngineeringApi
 from tl_api.client.events import EventsApi
 from tl_api.client.feed import FeedApi
 from tl_api.client.files import FilesApi
+from tl_api.client.integration import IntegrationApi
 from tl_api.client.links import LinksApi
 from tl_api.client.proposals import ProposalsApi
 from tl_api.client.records import RecordsApi
 from tl_api.client.schedule import ScheduleApi
 from tl_api.client.settings import SettingsApi
+from tl_api.client.threads import ThreadsApi
 from tl_api.client.types_api import TypesApi
 
 
@@ -43,6 +45,8 @@ class ApiClient(
     CostApi,
     AuthApi,
     AdminApi,
+    IntegrationApi,
+    ThreadsApi,
 ):
     """One connection, every group of methods."""
 

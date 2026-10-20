@@ -39,7 +39,7 @@ _ABSOLUTE_PATH = re.compile(r"(?<![\w>])(?:/[^/\s'\"]+){2,}/?")
 _SQLITE_DENIED_FUNCTIONS = frozenset(
     {"load_extension", "fts3_tokenizer", "readfile", "writefile", "edit", "zipfile"}
 )
-_SQLITE_DENIED_COLUMNS = frozenset({("wh_secret", "secret")})
+_SQLITE_DENIED_COLUMNS = frozenset({("wh_secret", "secret"), ("int_secret", "secret")})
 _SQLITE_RAW_TABLES = frozenset({"sqlite_dbpage", "dbstat"})
 """Virtual tables that expose raw database pages, secret rows included."""
 _SQLITE_LIMIT_LENGTH = 1_000_000

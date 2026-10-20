@@ -32,6 +32,7 @@ The `tl` command: a thin typer front end over the `tl_core` command and query se
 | `tl tag report summary|missing|violations --project ID [--json]` | command | Tags by class and state, tags lacking what their class requires, numbers that break the pattern (T11) |
 | `tl doc register|show|ls|update|supersede|void|confidentiality ...` | command | Register a document under its number (checked against the registry pattern), show it with its revisions and links, list the register, change register fields; `supersede`, `void` and `confidentiality` need the document controller or admin role (`require_controller`, P1-I2-T09a, ADR-0013) |
 | `tl doc rev create|issue|supersede|void|ls ...` | command | Start the next revision as a draft, list them; `issue` and `supersede` need the document controller or admin role and flag the links the class-aware rule names (T09b) |
+| `tl integration serve [--once]`, `status`; `tl integration app add|ls|enable|disable`; `tl endpoint`, `tl rule`, `tl delivery`, `tl enricher`, `tl enrich`, `tl action` | commands | The integration layer (P1-I7; runbook `docs/runbooks/integration.md`). `serve` runs the rules worker, the enrichment dispatcher and the action and inbound job runners (`--once` runs until idle); the groups author and switch endpoints, rules, enrichers and actions (admin), work the inbound error queue, and let a person decide enrichment values. A secret is printed once, by create and rotate; a failure is `error: ...`, exit 1 |
 | `tl doc rendition add|register-signed|replace-signed|ls ...` | command | Upload a file into a revision and register it as a rendition; the checks that need no file run before the upload; the signed copy is a controller's (T09c) |
 | `tl doc link|stale|diff|repin ...` | command | Link a record to a document floating or pinned, list stale links, show what changed between two revisions, re-pin after the diff (`--apply` confirms) (T09d) |
 | `tl doc report register|history|overdue|transmittals|stale --project ID [--json]` | command | The base document reports (T11b) |
@@ -116,6 +117,10 @@ just demo P0-I1
 | `TL_WEBHOOK_ALLOWLIST` | empty | Comma-separated egress allow-list for `tl webhook test` and `run` |
 | `TL_ARCHIVE_DIR`, `TL_ARCHIVE_KEY`, `TL_ARCHIVE_PUBLIC_KEY` | `./dev/data/archive`, `dev/data/archive-signing.key`, `dev/data/archive-signing.pub` | Archive directory and keys for `tl archive` and `tl restore` |
 | `TL_OBJECT_STORE`, `TL_OBJECT_ROOT`, `TL_OBJECT_SECRET`, `TL_ENV`, `TL_S3_*` | `fs`, `./dev/data/objects`, none, unset | Object store for `tl file`; see `packages/tl-adapters/README.md`. `just` exports `TL_ENV=dev` |
+
+### Record threads (P1-I7 WS-B)
+`tl thread show|post|edit|retract` and `tl thread preview|dispatch|reminders`. `dispatch` takes the `--token` of a
+preview, or `--yes` to preview, print and run in one go. The dispatching person needs an account (`tl admin user add`).
 
 ## Rules specific to this package
 See `AGENTS.md` in this directory.

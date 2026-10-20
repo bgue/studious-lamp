@@ -25,6 +25,7 @@ from tl_core.auth.types import IdentityProvider
 from tl_core.extypes.provider import attach as attach_extension_types
 from tl_core.files.service import FileService
 from tl_core.files.types import ObjectStore
+from tl_core.integration.inbound import store as inbound_store
 from tl_mod_documents.derivation import store as derivation_store
 
 from tl_api import commands
@@ -43,6 +44,7 @@ from tl_api.backend import Backend
 from tl_api.context import ApiContext
 from tl_api.errors import ERROR_TABLE, ApiError, ErrorBody, body_for
 from tl_api.feed import FeedHub
+from tl_api.inbound import InboundMiddleware
 from tl_api.ratelimit import RateLimitMiddleware, SourceLimiter
 from tl_api.routes import (
     admin,
@@ -56,11 +58,13 @@ from tl_api.routes import (
     extypes,
     files,
     health,
+    integration,
     links,
     proposals,
     records,
     reference,
     schedule,
+    threads,
 )
 from tl_api.routes import feed as feed_routes
 from tl_api.routes import settings as settings_routes
@@ -222,6 +226,7 @@ def create_app(
         files=files_service,
         objects=object_store,
     )
+    inbound_store.configure(object_store)  # inbound payloads (a retry with a corrected body)
     if files_service is not None:  # derivation commands and reads store/read rows as files
         derivation_store.configure(files_service)
     install_error_handlers(app)
@@ -235,6 +240,11 @@ def create_app(
         limiter=source_limiter
         if source_limiter is not None
         else SourceLimiter(cfg.rate_limit_failures, cfg.rate_limit_window_s),
+        trusted_header=cfg.trusted_proxy_header,
+    )
+    app.add_middleware(  # outermost of all: nothing reads an inbound request before it
+        InboundMiddleware,
+        sources=SourceLimiter(cfg.rate_limit_failures, cfg.rate_limit_window_s),
         trusted_header=cfg.trusted_proxy_header,
     )
 
@@ -273,6 +283,8 @@ def create_app(
         engineering,
         documents,
         derivation,
+        integration,
+        threads,  # P1-I7 WS-B
         correspondence,
         schedule,
         cost,

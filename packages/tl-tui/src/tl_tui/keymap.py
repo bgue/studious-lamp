@@ -103,6 +103,20 @@ KEYMAP: tuple[KeyEntry, ...] = (
         "TlApp",
         "f12",
     ),
+    KeyEntry(
+        "App",
+        "Ctrl+R",
+        "Review queue: accept or reject what an enricher proposed",
+        "TlApp",
+        "ctrl+r",
+    ),
+    KeyEntry(
+        "App",
+        "Ctrl+E",
+        "Integration registry: endpoints, rules, actions (admins)",
+        "TlApp",
+        "ctrl+e",
+    ),
     KeyEntry("App", "Ctrl+Q", "Quit"),
     KeyEntry(
         "Grid",

@@ -64,12 +64,14 @@ SCHEDULE_READ_TOOLS = {
     "get_cost_code",
     "list_cost_snapshots",
 }
+THREAD_READ = {"read_thread"}  # P1-I7 WS-B
 READING = (
     READ_TOOLS
     | TYPE_TOOLS
     | ENGINEERING_TOOLS
     | DOCUMENT_TOOLS
     | DERIVATION_READ_TOOLS
+    | THREAD_READ
     | CORRESPONDENCE_TOOLS
     | SCHEDULE_READ_TOOLS
 )
@@ -79,7 +81,7 @@ TOOLS = (
     | DERIVATION_PROPOSE_TOOLS
     | CORRESPONDENCE_PROPOSE_TOOLS
     | SCHEDULE_PROPOSE_TOOLS
-    | {"post_feed"}
+    | {"post_feed", "post_thread_message", "propose_dispatch"}
 )
 
 

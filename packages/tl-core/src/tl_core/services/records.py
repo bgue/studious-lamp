@@ -19,7 +19,7 @@ from __future__ import annotations
 import json
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, cast
 
 from sqlalchemy import text
 
@@ -39,6 +39,7 @@ from tl_core.services.commands import (
 from tl_core.services.errors import (
     AlreadyVoidedError,
     DuplicateKeyError,
+    LayerError,
     NoChangesError,
     NoNumberingPatternError,
     RecordNotFoundError,
@@ -105,6 +106,7 @@ def create_record_internal(
     An object-backed type is refused (``BodyRequiredError``) unless ``allow_object_backed``: a
     record of such a type without a body would be a state the registry never wants to see.
     """
+    _refuse_read_only_psets(cmd.psets)
     extension = None
     if cmd.record_type != RECORD_TYPE:
         extension = prepare_create(
@@ -282,6 +284,37 @@ def create_module_record(
     )
 
 
+def _canonical(value: Any) -> str:
+    return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=True, default=str)
+
+
+def _refuse_read_only_psets(new: Any, old: Any = None) -> None:
+    """Refuse a write that sets or changes a pset under ``enrich`` or ``src``.
+
+    Those roots belong to the enrichment and source layers: only their own Python path writes
+    them (``SetPsetValues`` refuses them for the same reason). ``new`` is the psets a command
+    carries; ``old`` the ones the record holds, so an update that sends the record's own enrich
+    values back unchanged is not a write to them.
+    """
+    from tl_core.services.psets import READ_ONLY_ROOTS
+
+    if not isinstance(new, dict):
+        return
+    sent = cast("dict[str, Any]", new)
+    held = cast("dict[str, Any]", old) if isinstance(old, dict) else {}
+    missing = object()
+    for name in sorted({*sent, *held}):
+        if name.split(".")[0] not in READ_ONLY_ROOTS:
+            continue
+        # Canonical JSON, not ``==``: 1, 1.0 and True are equal in Python and different values.
+        before = held.get(name, missing)
+        after = sent.get(name, missing)
+        if (before is missing) != (after is missing) or (
+            before is not missing and _canonical(before) != _canonical(after)
+        ):
+            raise LayerError(f"{name} is in an enrichment or source layer and is not writable")
+
+
 def handle_update_record(uow: UnitOfWork, cmd: UpdateRecord) -> CommandResult:
     stored = _load_record(uow, cmd.scope, cmd.stream_id)
     require_generic(uow.conn(), stored.type, "UpdateRecord", cmd.stream_id)
@@ -289,6 +322,7 @@ def handle_update_record(uow: UnitOfWork, cmd: UpdateRecord) -> CommandResult:
         raise RecordVoidedError(f"record {cmd.stream_id!r} is voided and cannot be updated")
     if "psets" in cmd.changes:
         refuse_index_write(uow, stored.type)
+        _refuse_read_only_psets(cmd.changes["psets"], stored.psets)
     unsupported = sorted(set(cmd.changes) - _UPDATABLE_FIELDS)
     if unsupported:
         raise UnsupportedFieldError(

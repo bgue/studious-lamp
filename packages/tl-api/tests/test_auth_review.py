@@ -336,6 +336,7 @@ def route_actions(app: Any) -> set[str]:
 #: Every non-command action a route may use, decided once. A route with an action in neither set
 #: fails the test below: whoever adds it has to say whether an agent may call it.
 AGENT_MAY = {
+    "thread.read",  # P1-I7 WS-B
     "auth.me",
     "auth.sign_out",
     "correspondence.read",
@@ -357,10 +358,19 @@ AGENT_MAY = {
     "type.read",
 }
 AGENT_MAY_NOT = {
+    "thread.preview",  # P1-I7 WS-B: an agent proposes a dispatch with the MCP tool
     "auth.password",
     "file.upload",
     "record.write",
     "setting.write",
+    "admin.integration.action.define",
+    "admin.integration.action.rotate",
+    "admin.integration.endpoint.create",
+    "admin.integration.endpoint.rotate",
+    "admin.integration.endpoint.dry_run",
+    "admin.integration.rule.dry_run",
+    "admin.integration.deliveries.read",
+    "integration.read",
     "admin.accounts.list",
     "admin.accounts.create",
     "admin.accounts.roles",
@@ -378,6 +388,22 @@ AGENT_MAY_NOT = {
     "admin.command.ReviseTagClass",
     "admin.command.CloseTagClass",
     "admin.command.RecordTag",
+    # the integration layer (P1-I7 WS-A, FANOUT D12): authoring is the admin's, agents have no tool
+    "admin.command.CreateRule",
+    "admin.command.ReviseRule",
+    "admin.command.EnableRule",
+    "admin.command.DisableRule",
+    "admin.command.ReviseAction",
+    "admin.command.RetireAction",
+    "admin.command.RegisterIntegrationApp",
+    "admin.command.ReviseIntegrationApp",
+    "admin.command.SetIntegrationAppEnabled",
+    "admin.command.ReviseInboundEndpoint",
+    "admin.command.SetInboundEndpointEnabled",
+    "admin.command.RetryInboundDelivery",
+    "admin.command.RegisterEnricher",
+    "admin.command.ReviseEnricher",
+    "admin.command.SetEnricherEnabled",
     # recovery: flag or retract any link, a module's rule link included (the admin's, ADR-0013)
     "admin.command.AdminFlagLink",
     "admin.command.AdminRetractLink",
@@ -422,7 +448,16 @@ AGENT_MAY_NOT = {
     "control.command.PublishScheduleSnapshot",
     "control.command.VoidScheduleSnapshot",
 }
-FEED_COMMANDS = {"PostToFeed", "EditPost", "RetractPost", "ReactToPost"}
+FEED_COMMANDS = {
+    "PostToFeed",
+    "EditPost",
+    "RetractPost",
+    "ReactToPost",
+    # P1-I7 WS-B: a thread message changes no record (brief 21.5); dispatch is not here
+    "PostThreadMessage",
+    "EditThreadMessage",
+    "RetractThreadMessage",
+}
 
 
 def test_every_route_action_is_decided_for_agents(harness: Harness) -> None:

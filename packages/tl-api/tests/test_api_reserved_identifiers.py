@@ -69,6 +69,16 @@ RESERVED_VALUES = [
     {"causation_id": "derive:anything"},
     {"source": "import:derived-01J9Z6Q4W3X2Y1V0T9S8R7Q6PB"},
     {"source": "compensation:01J9Z6Q4W3X2Y1V0T9S8R7Q6PB"},
+    # P1-I7 (FANOUT D2): the identifiers of automation
+    *({"source": f"{prefix}:x"} for prefix in ("inbound", "rule", "enricher", "action", "thread")),
+    *(
+        {"correlation_id": f"{prefix}:01J9Z6Q4W3X2Y1V0T9S8R7Q6PB"}
+        for prefix in ("inbound", "rule", "action", "dispatch")
+    ),
+    *(
+        {"causation_id": f"{prefix}:01J9Z6Q4W3X2Y1V0T9S8R7Q6PB"}
+        for prefix in ("inbound", "rule", "action", "dispatch")
+    ),
     {"source": "svc:schedule"},
 ]
 

@@ -35,7 +35,7 @@ def test_the_tool_is_a_read_only_tool(env: McpHarness) -> None:
 def test_without_arguments_every_setting_is_listed_with_its_definition(env: McpHarness) -> None:
     rows = listed(env)
     keys = [r["effective"]["key"] for r in rows]
-    assert keys == sorted(keys) and len(keys) == 10
+    assert keys == sorted(keys) and len(keys) == 17
     first = next(r for r in rows if r["effective"]["key"] == KEY)
     assert first["definition"]["type"] == "bool" and first["definition"]["risk"] == "normal"
     assert first["effective"]["value"] is True and first["effective"]["origin"] == "default"

@@ -15,12 +15,21 @@ import pytest
 from jsonschema import Draft202012Validator
 from scenario import run_scenario
 from tl_core.auth.projector import ACCOUNT_EVENT_TYPES
+from tl_core.integration.streams import INTEGRATION_INTERNAL_EVENT_TYPES
+from tl_core.threads.contract import THREAD_EVENT_TYPES, THREAD_WEBHOOK_EVENT_TYPES
 from tl_core.webhooks.signing import SigningSecret, verify
 from tl_schema import catalog
 from world import World
 
 #: Account events are in the catalog but internal: the dispatcher never delivers them (ADR-0009).
-DELIVERABLE = set(catalog.event_types()) - ACCOUNT_EVENT_TYPES
+#: So are the configuration and bookkeeping events of the integration layer (P1-I7, ADR-0017), and a
+#: thread's edits and retractions, which are in the catalog but not delivered (brief 21.5).
+DELIVERABLE = (
+    set(catalog.event_types())
+    - ACCOUNT_EVENT_TYPES
+    - INTEGRATION_INTERNAL_EVENT_TYPES
+    - (set(THREAD_EVENT_TYPES) - set(THREAD_WEBHOOK_EVENT_TYPES))
+)
 
 
 @pytest.fixture
