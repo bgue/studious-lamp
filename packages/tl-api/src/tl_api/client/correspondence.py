@@ -11,7 +11,13 @@ from datetime import date
 
 from pydantic import TypeAdapter
 from tl_core.services.commands import Command, CommandResult
-from tl_mod_correspondence import views
+from tl_mod_correspondence import (
+    evidence,
+    reports_commercial,
+    reports_technical,
+    views,
+    views_domain,
+)
 
 from tl_api.client.base import ApiClientBase, quote
 
@@ -120,6 +126,80 @@ class CorrespondenceApi(ApiClientBase):
     def list_correspondence_domains(self, project: str) -> list[views.DomainView]:
         data = self._get_json(f"/projects/{quote(project)}/correspondence-domains")
         return TypeAdapter(list[views.DomainView]).validate_python(data)
+
+    def get_evidence_trail(
+        self,
+        project: str,
+        number: str,
+        *,
+        as_of: date | None = None,
+        depth: int = 2,
+        max_nodes: int = 100,
+    ) -> evidence.EvidenceTrail:
+        """The chain around an item as it stood at the end of ``as_of`` (default today)."""
+        params = {
+            "as_of": as_of.isoformat() if as_of else None,
+            "depth": depth,
+            "max_nodes": max_nodes,
+        }
+        data = self._get_json(
+            f"/projects/{quote(project)}/correspondence/{quote(number)}/evidence", params
+        )
+        return self._model(evidence.EvidenceTrail, data)
+
+    def list_rfis(
+        self,
+        project: str,
+        *,
+        subtype: str | None = None,
+        state: str | None = None,
+        discipline: str | None = None,
+        only_open: bool = False,
+        only_overdue: bool = False,
+        only_impact: bool = False,
+        limit: int = 500,
+    ) -> reports_technical.RfiLog:
+        """The RFI log (``GET /projects/{project}/rfis``)."""
+        params = {
+            "subtype": subtype,
+            "state": state,
+            "discipline": discipline,
+            "only_open": "true" if only_open else None,
+            "only_overdue": "true" if only_overdue else None,
+            "only_impact": "true" if only_impact else None,
+            "limit": limit,
+        }
+        data = self._get_json(f"/projects/{quote(project)}/rfis", params)
+        return self._model(reports_technical.RfiLog, data)
+
+    def get_rfi(self, project: str, number: str) -> views_domain.TechnicalView:
+        data = self._get_json(f"/projects/{quote(project)}/rfis/{quote(number)}")
+        return self._model(views_domain.TechnicalView, data)
+
+    def list_commercial(
+        self,
+        project: str,
+        *,
+        subtype: str | None = None,
+        state: str | None = None,
+        only_open: bool = False,
+        time_bars_only: bool = False,
+        limit: int = 500,
+    ) -> reports_commercial.CommercialRegister:
+        """The Commercial register (``GET /projects/{project}/commercial``)."""
+        params = {
+            "subtype": subtype,
+            "state": state,
+            "only_open": "true" if only_open else None,
+            "time_bars_only": "true" if time_bars_only else None,
+            "limit": limit,
+        }
+        data = self._get_json(f"/projects/{quote(project)}/commercial", params)
+        return self._model(reports_commercial.CommercialRegister, data)
+
+    def get_commercial(self, project: str, number: str) -> views_domain.CommercialView:
+        data = self._get_json(f"/projects/{quote(project)}/commercial/{quote(number)}")
+        return self._model(views_domain.CommercialView, data)
 
     def correspondence_command(self, name: str, cmd: Command) -> CommandResult:
         """Run any correspondence command by name (``POST /commands/{name}``); the token's actor

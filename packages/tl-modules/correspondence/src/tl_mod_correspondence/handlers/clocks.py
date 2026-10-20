@@ -52,6 +52,7 @@ from tl_mod_correspondence.handlers.common import (
     append,
     correlated,
     open_item,
+    require_controller_for,
     require_project,
     resolve_date,
     today,
@@ -221,6 +222,9 @@ def load_clock(uow: UnitOfWork, cmd: Command, clock_id: str) -> registry.ClockRo
     found = registry.get_clock(uow.conn(), clock_id)
     if found is None or found.scope != cmd.scope:
         raise RecordNotFoundError(f"no record {clock_id!r}")
+    item = registry.get_item(uow.conn(), found.item_id)
+    if item is not None:  # a clock of a Commercial item is moved by a controller only
+        require_controller_for(item)
     return found
 
 
@@ -342,6 +346,7 @@ def handle_start_clock(uow: UnitOfWork, cmd: StartClock) -> CommandResult:
     require_project(cmd)
     cmd = correlated(cmd)
     item = open_item(uow, cmd, cmd.item_id)
+    require_controller_for(item)
     start_on, _ = _day(cmd.start_on, cmd.start_reason, "the start day")
     return start_clock(
         uow,
@@ -491,6 +496,7 @@ def close_clocks_of_item(
             payload: dict[str, Any] = {"day": day, "response_id": response_id, "reason": reason}
             result = _close(uow, cmd, clock, CLOCK_MET, payload)
         else:
+            require_controller_for_bar(clock)  # a voided item may not end its contractual bar
             result = _close(uow, cmd, clock, CLOCK_CANCELLED, {"day": day, "reason": reason})
         events.extend(result.events)
     return events

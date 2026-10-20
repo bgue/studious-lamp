@@ -11,12 +11,14 @@ from tl_core.feed.cards import (
     card_id_for,
     disposition,
     fold_cards,
+    policy_of,
     render_card_summary,
     subjects_of,
     to_us,
 )
 from tl_core.feed.types import CARD_WINDOW_SECONDS
 from tl_core.ledger import Event
+from tl_core.modules import ConfidentialSource, ModuleSpec, use_modules
 
 T0 = datetime(2026, 10, 9, 9, 0, 0, tzinfo=UTC)
 
@@ -179,3 +181,104 @@ def test_the_window_runs_from_the_first_event_not_the_latest() -> None:
         ("card:E1", "user:jo", "Record.Created", 2, 2),
         ("card:E3", "user:jo", "Record.Created", 1, 3),
     ]
+
+
+# --- a domain's feed policy (P1-I6; brief 9 M10: full, minimal or no card) -----------------------
+
+
+def issued(
+    seq: int, policy: object, text: object = "RFI P1-RFI-0001 answered", **more: Any
+) -> Event:
+    payload: dict[str, Any] = {"feed_policy": policy}
+    if text is not None:
+        payload["feed_text"] = text
+    return ev(seq, "Technical.Answered", payload=payload, **more)
+
+
+@pytest.mark.parametrize("policy", ["full", "minimal"])
+def test_a_policy_event_always_starts_a_card_of_its_own(policy: str) -> None:
+    assert disposition(None, issued(1, policy)) == "start"
+    same = open_card(event_type="Technical.Answered")
+    assert disposition(same, issued(2, policy, at=1)) == "start"  # never extends
+
+
+def test_policy_none_makes_no_card_and_leaves_the_open_card_alone() -> None:
+    assert disposition(open_card(), issued(2, "none", None, at=1)) == "ignore"
+    assert disposition(None, issued(1, "none", None)) == "ignore"
+
+
+@pytest.mark.parametrize(
+    ("policy", "text"),
+    [
+        ("secret", "x"),
+        ("full", None),
+        ("full", ""),
+        ("minimal", 7),
+        ("full", "x" * 301),
+        (None, "x"),
+    ],
+)
+def test_an_unusable_policy_makes_no_card(policy: object, text: object) -> None:
+    assert disposition(None, issued(1, policy, text)) == "ignore"
+
+
+def test_a_policy_card_is_about_its_own_record_and_only_it() -> None:
+    assert subjects_of(issued(1, "full", stream_id="01RFI")) == ["01RFI"]
+    assert subjects_of(issued(1, "minimal", stream_id="01RFI")) == ["01RFI"]
+    assert subjects_of(issued(1, "none", None, stream_id="01RFI")) == []
+
+
+def test_fold_closes_a_policy_card_at_once() -> None:
+    events = [
+        ev(1, "Technical.Answered", payload={"feed_policy": "full", "feed_text": "a"}),
+        ev(2, "Technical.Answered", payload={"feed_policy": "full", "feed_text": "b"}, at=1),
+        ev(3, "Technical.Answered", at=2),  # no policy: the generic rules, a card of its own
+        ev(4, "Technical.Answered", at=3),  # and this one extends it
+    ]
+    assert [(c[0], c[3]) for c in fold_cards(events)] == [
+        ("card:E1", 1),
+        ("card:E2", 1),
+        ("card:E3", 2),
+    ]
+
+
+def test_policy_keys_on_an_event_that_may_not_carry_them_are_ignored() -> None:
+    odd = ev(1, "Probe.Noted", payload={"feed_policy": "none"})
+    assert policy_of(odd) is None
+    assert disposition(None, odd) == "start"  # the generic rules, not silence
+    odd = ev(1, "Record.Updated", payload={"feed_policy": "full", "feed_text": "my own line"})
+    assert policy_of(odd) is None and subjects_of(odd) == ["01REC"]
+    assert fold_cards([odd])[0][1:3] == ("user:jo", "Record.Updated")
+    for allowed in ("Correspondence.Issued", "Technical.Answered", "Commercial.Assessed"):
+        assert (
+            policy_of(ev(1, allowed, payload={"feed_policy": "full", "feed_text": "x"})) == "full"
+        )
+
+
+def _confidential_module() -> ModuleSpec:
+    source = ConfidentialSource(
+        record_types=frozenset({"demo.Item"}),
+        table="cur_demo_item",
+        id_column="id",
+        class_column="confidentiality",
+    )
+    return ModuleSpec(
+        name="demo",
+        record_types=frozenset({"demo.Item", "demo.Child"}),
+        projectors=lambda: [],
+        confidential=(source,),
+    )
+
+
+def test_any_event_of_a_confidential_stream_is_about_its_record() -> None:
+    """A card that names no record would show that someone defined a commercial item."""
+
+    def on(stream_type: str, event_type: str) -> Event:
+        return ev(1, event_type, stream_id="01ITEM").model_copy(update={"stream_type": stream_type})
+
+    with use_modules([_confidential_module()]):
+        assert subjects_of(on("demo.Item", "Demo.Defined")) == ["01ITEM"]
+        assert subjects_of(on("demo.Item", "Demo.ClearanceGranted")) == ["01ITEM"]
+        assert subjects_of(on("demo.Other", "Demo.Defined")) == []
+        assert subjects_of(on("core.Record", "Demo.Defined")) == []
+    assert subjects_of(on("demo.Item", "Demo.Defined")) == []  # no module declares the type

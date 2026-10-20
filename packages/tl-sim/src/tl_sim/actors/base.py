@@ -21,6 +21,7 @@ from tl_core.services.errors import (
     InvalidStateError,
     UnknownTransitionError,
 )
+from tl_mod_correspondence.errors import ItemStateError
 
 from tl_sim import groundtruth as gt
 from tl_sim.client import (
@@ -29,6 +30,7 @@ from tl_sim.client import (
     ProposeUnavailableError,
     ScheduleDesk,
     TagDesk,
+    TechnicalDesk,
 )
 from tl_sim.mcp_caller import ProposalRefusedError
 from tl_sim.types import GroundTruth, SimContext
@@ -41,6 +43,7 @@ DOCUMENT_TYPE = "documents.Document"
 REVISION_TYPE = "documents.Revision"
 SCHEDULE_SNAPSHOT_TYPE = "schedule.ScheduleSnapshot"
 ACTIVITY_REF_TYPE = "schedule.ActivityRef"
+TECHNICAL_TYPE = "correspondence.TechnicalItem"
 ACTIVITY_RELATION = "references"  # what links a record to an activity (ADR-0015 section 5)
 MAX_REF_TITLE = 200  # the module cuts the title of an activity's reference here
 SUPERSEDED = "Superseded"  # the state of a tag that a rename replaced
@@ -108,6 +111,25 @@ class Activity:
 
     id: str
     name: str
+
+
+@dataclass(frozen=True)
+class Rfi:
+    """An RFI as the log shows it: the id to write with, the number to talk about."""
+
+    id: str
+    number: str
+    subject: str
+    state: str
+
+    @classmethod
+    def of(cls, line: dict[str, Any]) -> Rfi:
+        return cls(
+            id=str(line["id"]),
+            number=str(line["number"]),
+            subject=str(line["subject"]),
+            state=str(line["state"]),
+        )
 
 
 class Recorder:
@@ -213,6 +235,57 @@ class Recorder:
             {"title": title, "record_type": REVISION_TYPE, "voided": False},
         )
         return rec
+
+    def _technical_desk(self) -> TechnicalDesk:
+        client = self.ctx.client
+        if not isinstance(client, TechnicalDesk):
+            raise ProposeUnavailableError("this client cannot keep the RFI log")
+        return client
+
+    def rfis(self, *, subject_prefix: str | None = None) -> list[Rfi]:
+        """The project's RFIs in number order (a read, not recorded)."""
+        found = [Rfi.of(line) for line in self._technical_desk().rfis()]
+        if subject_prefix is not None:
+            found = [x for x in found if x.subject.startswith(subject_prefix)]
+        return sorted(found, key=lambda x: x.number)
+
+    def raise_rfi(self, subject: str, question: str, discipline: str, required_by: str) -> Rfi:
+        """Raise an RFI and send it to internal review: the log names the record. The state it
+        ends in (Internal review) is not noted, because a controller moves it on (issues it)
+        beside the run, and the log says only what no one else changes."""
+        desk = self._technical_desk()
+        made = desk.raise_rfi(subject, question, discipline, required_by)
+        rfi = Rfi(id=str(made["id"]), number=str(made["key"]), subject=subject, state="Draft")
+        self._note(
+            gt.RECORD_CREATED,
+            rfi.number,
+            {"title": subject, "record_type": TECHNICAL_TYPE, "voided": False},
+        )
+        desk.submit_rfi(rfi.id)
+        return rfi
+
+    def answer_rfi(self, rfi: Rfi, answer: str, cost_impact: str, schedule_impact: str) -> bool:
+        """Answer an RFI that waits for one: it ends in Answered. ``False`` (nothing recorded) when
+        the suite refused (it was answered meanwhile)."""
+        try:
+            self._technical_desk().answer_rfi(rfi.id, answer, cost_impact, schedule_impact)
+        except REFUSALS + (ItemStateError,):
+            return False
+        self._note(
+            gt.WORKFLOW_TRANSITIONED, rfi.number, {"status": "Answered", "transition": "answer"}
+        )
+        return True
+
+    def accept_answer(self, rfi: Rfi) -> bool:
+        """Accept the answer of an RFI: it ends in Accepted."""
+        try:
+            self._technical_desk().accept_answer(rfi.id)
+        except REFUSALS + (ItemStateError,):
+            return False
+        self._note(
+            gt.WORKFLOW_TRANSITIONED, rfi.number, {"status": "Accepted", "transition": "accept"}
+        )
+        return True
 
     def _schedule_desk(self) -> ScheduleDesk:
         client = self.ctx.client

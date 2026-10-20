@@ -186,11 +186,22 @@ def test_raise_record_creates_a_linked_record_in_the_dry_run_only(db: DbTarget) 
     assert count(db, "SELECT COUNT(*) FROM cur_core_record") == records
 
 
-def test_raise_needs_a_title_and_an_rfi_is_a_labelled_record_until_p1_i6(db: DbTarget) -> None:
+def test_raise_needs_a_title_and_a_core_only_rfi_is_a_labelled_record(db: DbTarget) -> None:
+    """The core placeholder (no module installed): `/raise rfi` makes a labelled `core.Record`.
+    With the correspondence module installed its own target replaces it (tl-modules tests)."""
+    core_only = TargetRegistry()
+    for target in core_targets():
+        core_only.register(target)
     rid = make_record(db, "REC-1")
+    only = ThreadPlanner(
+        factory=lambda readonly=False: open_uow(db, readonly=readonly), targets=core_only
+    )
     assert ok(preview(db, rid, "/raise record")).problems[0].code == "missing_argument"
-    assert ok(preview(db, rid, "/raise rfi")).problems[0].code == "missing_argument"
-    rfi = ok(preview(db, rid, "/raise rfi #REC-1 Clash"))
+    assert (
+        ok(preview(db, rid, "/raise rfi", thread_planner=only)).problems[0].code
+        == "missing_argument"
+    )
+    rfi = ok(preview(db, rid, "/raise rfi #REC-1 Clash", thread_planner=only))
     assert rfi.can_dispatch and rfi.problems == []
     first = rfi.planned[0]
     assert first.command_type == "CreateRecord" and first.command["title"] == "Clash"

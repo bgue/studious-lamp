@@ -51,7 +51,6 @@ from tl_mod_correspondence.names import (
     CORR_CLASS_CHANGED,
     CORR_CLEARANCE_GRANTED,
     CORR_CLEARANCE_WITHDRAWN,
-    CORRESPONDENCE,
     LIMITS_NOTE_CLASSES,
 )
 
@@ -179,7 +178,7 @@ def handle_set_confidentiality(
             for row in registry.clearances_of(uow.conn(), item.id)
         ]
     done = append(
-        uow, cmd, item.id, CORRESPONDENCE, events, expected=cmd.expected_version or item.version
+        uow, cmd, item.id, item.record_type, events, expected=cmd.expected_version or item.version
     )
     return CommandResult(
         stream_id=item.id, key=item.number, version=done.new_version, events=list(done.events)
@@ -227,7 +226,7 @@ def handle_grant_clearance(uow: UnitOfWork, cmd: GrantClearance) -> CommandResul
         raise ClearanceError(f"{cmd.account} is already named on this item")
     if len(named) >= MAX_CLEARANCES:
         raise ClearanceError(f"at most {MAX_CLEARANCES} accounts may be named on an item")
-    done = append(uow, cmd, item.id, CORRESPONDENCE, granted_events([cmd.account], cmd.reason))
+    done = append(uow, cmd, item.id, item.record_type, granted_events([cmd.account], cmd.reason))
     return _result(uow, item, done)
 
 
@@ -247,7 +246,7 @@ def handle_withdraw_clearance(uow: UnitOfWork, cmd: WithdrawClearance) -> Comman
         uow,
         cmd,
         item.id,
-        CORRESPONDENCE,
+        item.record_type,
         [
             NewEvent(
                 event_type=CORR_CLEARANCE_WITHDRAWN,
@@ -324,7 +323,7 @@ def inherit_from_matches(
             if source.confidentiality == "privileged":
                 named |= {row.account for row in registry.clearances_of(uow.conn(), source.id)}
         events += granted_events(sorted(named), "inherited from the item it answers")
-    return list(append(uow, cmd, item.id, CORRESPONDENCE, events).events)
+    return list(append(uow, cmd, item.id, item.record_type, events).events)
 
 
 def _rank(klass: str) -> int:

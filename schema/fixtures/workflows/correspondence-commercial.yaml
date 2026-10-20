@@ -1,0 +1,81 @@
+# Workflow of a Commercial item: early warning, change notice, site instruction, quotation, claim notice,
+# detailed claim, payment application, back-charge (brief 9 M10, Commercial domain): Draft -> Commercial
+# review -> PM approval -> Issued -> Awaiting assessment -> Assessed (Agreed | Disputed | Partially agreed)
+# -> Closed, or Disputed -> Escalated (to Legal, a later domain).
+#
+# CONTRACTUAL DEFINITION: this workflow is a human gate (04-gates.md section 2, "contractual workflow
+# or clock definitions (M10)"), approved by the orchestrator under ADR-0008 decision 6 and logged in
+# docs/reports/APPROVALS.md. A change to it, to the clocks of the commercial domain file, or to the
+# commands that make the moves, needs the same approval.
+#
+# An item we write is Draft, then Commercial review (the commercial manager), then PM approval; issuing it
+# is the external act and the notice is then given. An instruction we receive (site instruction) is logged
+# with `receive` and waits for our assessment. The moves are made by the module's commands; people cannot
+# run them directly. No role guards: every Commercial command is a document controller's (the items are
+# `restricted`), ADR-0013, ADR-0016.
+id: correspondence.commercial
+version: 1
+record_type: correspondence.CommercialItem
+scope: company
+initial_state: Draft
+states:
+  - name: Draft
+  - name: Commercial review
+  - name: PM approval
+  - name: Issued
+  - name: Awaiting assessment
+  - name: Agreed
+  - name: Disputed
+  - name: Partially agreed
+  - name: Closed
+  - name: Escalated
+  - name: Void
+transitions:
+  - name: submit
+    label: Submit for commercial review
+    from: [Draft]
+    to: Commercial review
+  - name: review
+    label: Pass the commercial review to the project manager
+    from: [Commercial review]
+    to: PM approval
+  - name: return
+    label: Return to the author
+    from: [Commercial review, PM approval]
+    to: Draft
+  - name: issue
+    label: Approve and issue the notice
+    from: [PM approval]
+    to: Issued
+  - name: await_assessment
+    label: Wait for the assessment
+    from: [Issued]
+    to: Awaiting assessment
+  - name: receive
+    label: Log an instruction that arrived
+    from: [Draft]
+    to: Awaiting assessment
+  - name: agree
+    label: Assessed as agreed
+    from: [Awaiting assessment]
+    to: Agreed
+  - name: dispute
+    label: Assessed as disputed
+    from: [Awaiting assessment]
+    to: Disputed
+  - name: part_agree
+    label: Assessed as partially agreed
+    from: [Awaiting assessment]
+    to: Partially agreed
+  - name: close
+    label: Close the item
+    from: [Agreed, Partially agreed, Disputed]
+    to: Closed
+  - name: escalate
+    label: Escalate a dispute to the legal route
+    from: [Disputed]
+    to: Escalated
+  - name: void
+    label: Void the item made in error
+    from: [Draft, Commercial review, PM approval]
+    to: Void

@@ -30,3 +30,18 @@ patterns:
     template: "{project}-{type}-{seq:4}"
     type_code: THR
     gap_free: true
+  # Technical and Commercial items (brief 9 M10): the `kind` field is the number code of the subtype
+  # (RFI, TQ, DEV; EW, CN, SI, QT, CL, DC, PA, BC), so each kind counts on its own: P123-RFI-0001,
+  # P123-EW-0001. The domain file names the code of each subtype (`number_code`).
+  - id: correspondence.TechnicalItem
+    record_type: correspondence.TechnicalItem
+    scope: "project:*"
+    template: "{project}-{kind}-{seq:4}"
+    type_code: TEC
+    gap_free: true
+  - id: correspondence.CommercialItem
+    record_type: correspondence.CommercialItem
+    scope: "project:*"
+    template: "{project}-{kind}-{seq:4}"
+    type_code: COM
+    gap_free: true

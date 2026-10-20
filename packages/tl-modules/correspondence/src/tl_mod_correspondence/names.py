@@ -15,8 +15,16 @@ THREAD: Final = "correspondence.CorrespondenceThread"
 CLOCK: Final = "correspondence.ResponseClock"
 CLAUSE: Final = "correspondence.ContractClause"
 PARTY: Final = "correspondence.Party"
+#: The items of the Technical and Commercial domains: records of a type of their own because a
+#: workflow belongs to a record type (brief 8). They have a row in the item table too.
+TECHNICAL: Final = "correspondence.TechnicalItem"
+COMMERCIAL: Final = "correspondence.CommercialItem"
 
-RECORD_TYPES: Final = frozenset({CORRESPONDENCE, THREAD, CLOCK, CLAUSE, PARTY})
+RECORD_TYPES: Final = frozenset(
+    {CORRESPONDENCE, THREAD, CLOCK, CLAUSE, PARTY, TECHNICAL, COMMERCIAL}
+)
+#: Every record type that is a row of the item table (register, clocks, threads, class).
+ITEM_TYPES: Final = frozenset({CORRESPONDENCE, TECHNICAL, COMMERCIAL})
 
 # Tables (generated from schema/modules/correspondence/*.yaml) and their flat views.
 CORRESPONDENCE_TABLE: Final = "cur_correspondence_correspondence"
@@ -26,12 +34,16 @@ CLOCK_TABLE: Final = "cur_correspondence_response_clock"
 CLAUSE_TABLE: Final = "cur_correspondence_contract_clause"
 PARTY_TABLE: Final = "cur_correspondence_party"
 CONTACT_TABLE: Final = "cur_correspondence_contact_role"
+TECHNICAL_TABLE: Final = "cur_correspondence_technical_item"
+COMMERCIAL_TABLE: Final = "cur_correspondence_commercial_item"
 
 CORRESPONDENCE_VIEW: Final = "v_correspondence_correspondence"
 THREAD_VIEW: Final = "v_correspondence_correspondence_thread"
 CLOCK_VIEW: Final = "v_correspondence_response_clock"
 CLAUSE_VIEW: Final = "v_correspondence_contract_clause"
 PARTY_VIEW: Final = "v_correspondence_party"
+TECHNICAL_VIEW: Final = "v_correspondence_technical_item"
+COMMERCIAL_VIEW: Final = "v_correspondence_commercial_item"
 
 # Event types. The first event of a record follows Record.Created in the same append.
 CORR_DEFINED: Final = "Correspondence.Defined"
@@ -77,6 +89,18 @@ PARTY_CONTACT_ADDED: Final = "Party.ContactAdded"
 PARTY_CONTACT_ENDED: Final = "Party.ContactEnded"
 PARTY_RETIRED: Final = "Party.Retired"
 
+TECH_DEFINED: Final = "Technical.Defined"
+TECH_UPDATED: Final = "Technical.Updated"
+TECH_ANSWERED: Final = "Technical.Answered"
+TECH_REVIEWED: Final = "Technical.Reviewed"
+TECH_REISSUED: Final = "Technical.Reissued"
+TECH_EVENTS: Final = (TECH_DEFINED, TECH_UPDATED, TECH_ANSWERED, TECH_REVIEWED, TECH_REISSUED)
+
+COMM_DEFINED: Final = "Commercial.Defined"
+COMM_UPDATED: Final = "Commercial.Updated"
+COMM_ASSESSED: Final = "Commercial.Assessed"
+COMM_EVENTS: Final = (COMM_DEFINED, COMM_UPDATED, COMM_ASSESSED)
+
 # Workflow of a correspondence item (schema/fixtures/workflows/correspondence-correspondence.yaml).
 # A record that never moved has no status in cur_core_record: it is in the initial state, Draft.
 WORKFLOW_ID: Final = "correspondence.correspondence"
@@ -89,7 +113,52 @@ ST_CLOSED: Final = "Closed"
 ST_VOID: Final = "Void"
 STATES: Final = (ST_DRAFT, ST_RECEIVED, ST_TRIAGED, ST_ISSUED, ST_RESPONDED, ST_CLOSED, ST_VOID)
 
+# Workflow of a Technical item (schema/fixtures/workflows/correspondence-technical.yaml).
+TECHNICAL_WORKFLOW_ID: Final = "correspondence.technical"
+ST_INTERNAL_REVIEW: Final = "Internal review"
+ST_AWAITING_RESPONSE: Final = "Awaiting response"
+ST_ANSWERED: Final = "Answered"
+ST_ACCEPTED: Final = "Accepted"
+ST_REJECTED: Final = "Rejected"
+TECHNICAL_STATES: Final = (
+    ST_DRAFT,
+    ST_INTERNAL_REVIEW,
+    ST_ISSUED,
+    ST_AWAITING_RESPONSE,
+    ST_ANSWERED,
+    ST_ACCEPTED,
+    ST_REJECTED,
+    ST_CLOSED,
+    ST_VOID,
+)
+
+# Workflow of a Commercial item (schema/fixtures/workflows/correspondence-commercial.yaml).
+COMMERCIAL_WORKFLOW_ID: Final = "correspondence.commercial"
+ST_COMMERCIAL_REVIEW: Final = "Commercial review"
+ST_PM_APPROVAL: Final = "PM approval"
+ST_AWAITING_ASSESSMENT: Final = "Awaiting assessment"
+ST_AGREED: Final = "Agreed"
+ST_DISPUTED: Final = "Disputed"
+ST_PARTLY_AGREED: Final = "Partially agreed"
+ST_ESCALATED: Final = "Escalated"
+COMMERCIAL_STATES: Final = (
+    ST_DRAFT,
+    ST_COMMERCIAL_REVIEW,
+    ST_PM_APPROVAL,
+    ST_ISSUED,
+    ST_AWAITING_ASSESSMENT,
+    ST_AGREED,
+    ST_DISPUTED,
+    ST_PARTLY_AGREED,
+    ST_CLOSED,
+    ST_ESCALATED,
+    ST_VOID,
+)
+
 # Vocabularies.
+YES_NO_UNKNOWN: Final = ("yes", "no", "unknown")
+REVIEW_DECISIONS: Final = ("accepted", "rejected")
+ASSESSMENT_STATUSES: Final = ("agreed", "disputed", "partially_agreed")
 DIRECTIONS: Final = ("in", "out", "internal")
 MEDIA: Final = ("letter", "email", "portal", "minutes", "other")
 RECEIVED_VIA: Final = ("upload", "email", "manual")
@@ -106,9 +175,9 @@ PARTY_ROLES: Final = (
 SERVICE_METHODS: Final = ("email", "letter", "portal", "hand")
 DAY_TYPES: Final = ("calendar", "working")
 CLOCK_KINDS: Final = ("response_from_them", "response_from_us", "time_bar")
-CLOCK_TRIGGERS: Final = ("receipt", "issue")
+CLOCK_TRIGGERS: Final = ("receipt", "issue", "awareness")
 #: How a clock came to start (the ``trigger`` of ``ResponseClock.Started``).
-START_TRIGGERS: Final = ("receipt", "issue", "triage", "manual")
+START_TRIGGERS: Final = ("receipt", "issue", "triage", "manual", "awareness")
 CLOCK_RUNNING: Final = "running"
 CLOCK_PAUSED_STATE: Final = "paused"
 CLOCK_MET_STATE: Final = "met"
@@ -128,6 +197,8 @@ MATCHED_BY: Final = ("header", "reference_key", "subject", "manual")
 # Domains of this increment. A domain is defined by a file (tl_mod_correspondence.domains).
 DOMAIN_GENERAL: Final = "general"
 DOMAIN_DOCUMENT_CONTROL: Final = "document_control"
+DOMAIN_TECHNICAL: Final = "technical"
+DOMAIN_COMMERCIAL: Final = "commercial"
 
 # File slots of a correspondence item (schema/fixtures/files/correspondence-correspondence.yaml):
 # ``original`` and ``attachment`` are what a person uploads; ``rendition`` and ``message`` are

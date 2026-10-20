@@ -115,6 +115,24 @@ MODULE_STREAMS = (
             "ResponseClock.Expired",
         ),
     ),
+    # An item of the Technical or Commercial domain is a row of the item table too, so its stream
+    # begins with the item's own Defined event (without it the record has no class and is hidden).
+    (
+        "correspondence.TechnicalItem",
+        "Correspondence.Defined",
+        (
+            "Technical.Defined",
+            "Technical.Updated",
+            "Technical.Answered",
+            "Technical.Reviewed",
+            "Technical.Reissued",
+        ),
+    ),
+    (
+        "correspondence.CommercialItem",
+        "Correspondence.Defined",
+        ("Commercial.Defined", "Commercial.Updated", "Commercial.Assessed"),
+    ),
     ("correspondence.ContractClause", "ContractClause.Defined", ("ContractClause.Retired",)),
     (
         "correspondence.Party",

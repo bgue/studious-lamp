@@ -78,7 +78,7 @@ def test_the_controlling_set_is_the_twelve_and_the_actions_follow() -> None:
     scheduling = {c.model.__name__ for c in SCHEDULE_COMMANDS if c.access == "controller"}
     assert scheduling == {"DefineSchedule", "PublishScheduleSnapshot", "VoidScheduleSnapshot"}
     correspondence = {c.model.__name__ for c in CORRESPONDENCE_COMMANDS if c.access == "controller"}
-    assert len(correspondence) == 13  # P1-I5: the controlling acts of the correspondence module
+    assert len(correspondence) == 24  # P1-I5: 13; P1-I6: issue + escalate an RFI, 9 Commercial
     assert controller_actions() == {
         f"control.command.{n}" for n in CONTROLLING | scheduling | correspondence
     }

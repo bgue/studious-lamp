@@ -1,10 +1,11 @@
 """Correspondence tools: read the register, ask the suggestion engine, propose a triage (P1-I5).
 
-``list_correspondence``, ``get_correspondence``, ``list_response_clocks``, ``list_parties`` and
-``suggest_triage`` only read. ``propose_triage`` never changes anything: it builds the
-``ConfirmTriage`` command the API would run, has the handler's own checks run when a person accepts
-it, and files a pending proposal. An agent never triages, issues or classifies an item itself
-(brief 9 M10: agents propose only).
+``list_correspondence``, ``get_correspondence``, ``list_response_clocks``, ``list_parties``,
+``suggest_triage`` and, from P1-I6, ``list_rfis``, ``get_rfi``, ``list_commercial_items``,
+``get_commercial_item`` and ``get_evidence_trail`` only read. ``propose_triage`` never changes
+anything: it builds the ``ConfirmTriage`` command the API would run, has the handler's own checks
+run when a person accepts it, and files a pending proposal. An agent never triages, issues or
+classifies an item itself (brief 9 M10: agents propose only).
 
 **What an agent can read is ADR-0016:** an agent reads items of the class `internal` only; an item
 of any other class does not exist for it, in a list or by number (the same "not found").
@@ -19,7 +20,13 @@ from mcp.server.mcpserver import MCPServer
 from mcp.types import ToolAnnotations
 from pydantic import Field
 from tl_core.services import proposals
-from tl_mod_correspondence import views
+from tl_mod_correspondence import (
+    evidence,
+    reports_commercial,
+    reports_technical,
+    views,
+    views_domain,
+)
 from tl_mod_correspondence.handlers.triage import ConfirmTriage
 
 from tl_mcp.context import McpContext
@@ -84,6 +91,54 @@ def suggest_triage_impl(ctx: McpContext, *, project: str, number: str) -> views.
         return views.suggestion_for_item(uow.conn(), f"project:{project}", number)
 
 
+def list_rfis_impl(
+    ctx: McpContext, *, project: str, state: str | None, only_open: bool, only_overdue: bool
+) -> reports_technical.RfiLog:
+    with ctx.factory(True) as uow:
+        return reports_technical.rfi_log(
+            uow.conn(),
+            f"project:{project}",
+            state=state,
+            only_open=only_open,
+            only_overdue=only_overdue,
+            limit=500,
+        )
+
+
+def get_rfi_impl(ctx: McpContext, *, project: str, number: str) -> views_domain.TechnicalView:
+    with ctx.factory(True) as uow:
+        return views_domain.technical_view(uow.conn(), f"project:{project}", number)
+
+
+def list_commercial_items_impl(
+    ctx: McpContext, *, project: str, state: str | None, time_bars_only: bool
+) -> reports_commercial.CommercialRegister:
+    with ctx.factory(True) as uow:
+        return reports_commercial.commercial_register(
+            uow.conn(),
+            f"project:{project}",
+            state=state,
+            time_bars_only=time_bars_only,
+            limit=500,
+        )
+
+
+def get_commercial_item_impl(
+    ctx: McpContext, *, project: str, number: str
+) -> views_domain.CommercialView:
+    with ctx.factory(True) as uow:
+        return views_domain.commercial_view(uow.conn(), f"project:{project}", number)
+
+
+def get_evidence_trail_impl(
+    ctx: McpContext, *, project: str, number: str, as_of: str | None, depth: int
+) -> evidence.EvidenceTrail:
+    with ctx.factory(True) as uow:
+        return evidence.evidence_trail(
+            uow.conn(), f"project:{project}", number, as_of, depth=depth, max_nodes=100
+        )
+
+
 def propose_triage_impl(
     ctx: McpContext,
     *,
@@ -117,7 +172,7 @@ def propose_triage_impl(
 
 
 def register_correspondence_tools(server: MCPServer, ctx: McpContext) -> None:
-    """Add the five read tools and the triage proposal to ``server``."""
+    """Add the ten read tools and the triage proposal to ``server``."""
 
     @server.tool(annotations=READ_ONLY)
     def list_correspondence(
@@ -190,6 +245,93 @@ def register_correspondence_tools(server: MCPServer, ctx: McpContext) -> None:
         """
         with guarded(ctx, "suggest_triage", resource_name("correspondence", project, number)):
             return suggest_triage_impl(ctx, project=project, number=number)
+
+    @server.tool(annotations=READ_ONLY)
+    def list_rfis(
+        project: Project,
+        state: Annotated[
+            str | None, Field(max_length=MAX_PART, description="A state, e.g. `Awaiting response`.")
+        ] = None,
+        only_open: Annotated[bool, Field(description="Not answered and not closed.")] = False,
+        only_overdue: Annotated[
+            bool, Field(description="Awaiting a response past the day it was needed.")
+        ] = False,
+    ) -> reports_technical.RfiLog:
+        """The RFI log (brief 9 M10): requests for information, technical queries and deviation
+        requests with their response times, overdue flags and impact flags (what the raiser
+        expected and what the answer said about cost and schedule), newest first.
+
+        Confidentiality is enforced (ADR-0016): an agent reads `internal` items only.
+        """
+        with guarded(ctx, "list_rfis", resource_name("rfis", project)):
+            return list_rfis_impl(
+                ctx, project=project, state=state, only_open=only_open, only_overdue=only_overdue
+            )
+
+    @server.tool(annotations=READ_ONLY)
+    def get_rfi(project: Project, number: Number) -> views_domain.TechnicalView:
+        """Get one RFI, technical query or deviation request: the question, the answer, the
+        impact statements, the clocks and the commercial items raised from it.
+
+        Confidentiality is enforced (ADR-0016): an agent reads `internal` items only.
+        """
+        with guarded(ctx, "get_rfi", resource_name("rfis", project, number)):
+            return get_rfi_impl(ctx, project=project, number=number)
+
+    @server.tool(annotations=READ_ONLY)
+    def list_commercial_items(
+        project: Project,
+        state: Annotated[
+            str | None,
+            Field(max_length=MAX_PART, description="A state, e.g. `Awaiting assessment`."),
+        ] = None,
+        time_bars_only: Annotated[
+            bool, Field(description="Only items whose time bar is running or was late.")
+        ] = False,
+    ) -> reports_commercial.CommercialRegister:
+        """The Commercial register: notices and claims with their values (estimated against
+        assessed, totalled per currency) and time bars.
+
+        Commercial items are `restricted` (ADR-0016): an agent reads none of them, so its register
+        is empty.
+        """
+        with guarded(ctx, "list_commercial_items", resource_name("commercial", project)):
+            return list_commercial_items_impl(
+                ctx, project=project, state=state, time_bars_only=time_bars_only
+            )
+
+    @server.tool(annotations=READ_ONLY)
+    def get_commercial_item(project: Project, number: Number) -> views_domain.CommercialView:
+        """Get one Commercial item: values, clause, awareness day, time bar clocks, assessment.
+
+        Commercial items are `restricted` (ADR-0016): an agent gets "not found".
+        """
+        with guarded(ctx, "get_commercial_item", resource_name("commercial", project, number)):
+            return get_commercial_item_impl(ctx, project=project, number=number)
+
+    @server.tool(annotations=READ_ONLY)
+    def get_evidence_trail(
+        project: Project,
+        number: Number,
+        as_of: Annotated[
+            str | None,
+            Field(
+                max_length=10,
+                description="A day, YYYY-MM-DD (default today): the ledger is replayed to its end.",
+            ),
+        ] = None,
+        depth: Annotated[int, Field(ge=0, le=3, description="Links to follow.")] = 2,
+    ) -> evidence.EvidenceTrail:
+        """The chain of records linked to an item as it stood at the end of a day: correspondence,
+        RFIs, documents at the pinned revision, schedule activities, cost codes, each with its
+        state then and the status of the link then.
+
+        A record or link an agent cannot read today is left out, whatever its class was then.
+        """
+        with guarded(ctx, "get_evidence_trail", resource_name("correspondence", project, number)):
+            return get_evidence_trail_impl(
+                ctx, project=project, number=number, as_of=as_of, depth=depth
+            )
 
     @server.tool(annotations=PROPOSES)
     def propose_triage(

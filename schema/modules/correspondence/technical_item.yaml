@@ -1,0 +1,86 @@
+id: https://example.org/throughline/modules/correspondence/technical_item
+name: tl_mod_correspondence_technical_item
+title: Technical domain items (brief 9, M10 Technical / RFI domain)
+description: >-
+  What the Technical domain adds to a correspondence item: a request for information (RFI), a technical
+  query (TQ) or a deviation / concession request. The item itself (number, parties, dates, class, thread,
+  clocks, files) is a row of `cur_correspondence_correspondence`; this table holds the domain data and is
+  joined to it on `id`. The subtype (`rfi`, `tq`, `deviation`) is the `subtype` of the item row. The
+  workflow is `correspondence.technical` (Draft, Internal review, Issued, Awaiting response, Answered,
+  Accepted, Rejected, Closed, Void). Spec: docs/modules/correspondence/technical-commercial.md.
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+  - ../../core/annotations
+  - ../../core/record
+default_range: string
+annotations:
+  tl:module: correspondence
+
+classes:
+  TechnicalItem:
+    description: >-
+      The domain data of a Technical item. Record type `correspondence.TechnicalItem`, numbered
+      `<project>-RFI-nnnn`, `<project>-TQ-nnnn` or `<project>-DEV-nnnn` by subtype. The question is the
+      text the item is about; for a deviation request it describes the deviation and `proposed_solution`
+      the disposition asked for. An RFI that feeds an AWP constraint is linked to the work package by a
+      `references` link; the constraint itself arrives with Phase 2 (a hook stub notes the intent).
+    annotations:
+      tl:current_state: true
+      tl:record_types: "correspondence.TechnicalItem"
+      tl:ix_scope_discipline: "scope, discipline"
+      tl:ix_scope_required_by: "scope, required_by"
+    attributes:
+      id:
+        identifier: true
+        range: Ulid
+        required: true
+        description: Record id; equals the ledger stream id and the `cur_core_record` id.
+      scope:
+        range: ScopeId
+        required: true
+        description: The project scope, `project:<id>`.
+      question:
+        required: true
+        description: The question asked, or for a deviation request the deviation to be accepted. Plain text, bounded.
+      proposed_solution:
+        description: The answer or disposition the raiser proposes; null when none.
+      discipline:
+        description: Discipline code (a code of the project standards, for example `M`, `E`, `C`); null when none.
+      required_by:
+        description: ISO date (YYYY-MM-DD) by which an answer is needed; null when none.
+      potential_cost_impact:
+        required: true
+        ifabsent: string(unknown)
+        description: "The raiser's own flag before the answer: yes, no or unknown."
+      potential_schedule_impact:
+        required: true
+        ifabsent: string(unknown)
+        description: "The raiser's own flag before the answer: yes, no or unknown."
+      answer:
+        description: The answer, plain text; null until answered.
+      answered_on:
+        description: ISO date (YYYY-MM-DD) of the answer; null until answered.
+      answer_cost_impact:
+        description: "The answerer's statement on cost: yes, no or unknown; null until answered."
+      answer_schedule_impact:
+        description: "The answerer's statement on schedule: yes, no or unknown; null until answered."
+      answer_item_id:
+        range: Ulid
+        description: The correspondence item that carries the answer (the client's letter), when there is one.
+      answering_revision_id:
+        range: Ulid
+        description: The `documents.Revision` that answers the question (a re-issued drawing), when there is one.
+      review_decision:
+        description: "accepted or rejected, once the raiser has judged the answer; null before."
+      reviewed_on:
+        description: ISO date (YYYY-MM-DD) of the judgement.
+      review_note:
+        description: Why the answer was rejected, or a remark on accepting it.
+      last_seq:
+        range: integer
+        required: true
+        description: Ledger `seq` of the last event applied to this row.

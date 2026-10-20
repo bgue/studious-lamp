@@ -22,6 +22,7 @@ digits), so ``{project}-{type}-{discipline}-{seq:4}`` numbers each discipline se
 
 from __future__ import annotations
 
+import re
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from typing import NoReturn
@@ -36,6 +37,7 @@ from tl_core.uow import UnitOfWork
 from tl_core.util import new_ulid
 
 COUNTER_STREAM_TYPE = "numbering.Counter"
+_NOT_ALNUM = re.compile(r"[^A-Za-z0-9]")
 _COUNTER_SQL = text("SELECT last_sequence, version FROM cur_numbering WHERE counter_id = :counter")
 
 
@@ -53,9 +55,10 @@ def segment_values(
 ) -> dict[str, str]:
     """The value of every field segment of ``pattern`` for a record in ``scope``.
 
-    ``{project}`` comes from the scope (a project scope only), ``{type}`` from the pattern's
-    ``type_code``; every other field must be in ``extra``. Raises ``NumberingValueError`` when a
-    value is missing or is not letters and digits.
+    ``{project}`` comes from the scope (a project scope only; its letters and digits, so
+    ``sim-wk1`` numbers as ``simwk1``), ``{type}`` from the pattern's ``type_code``; every other
+    field must be in ``extra``. Raises ``NumberingValueError`` when a value is missing or is not
+    letters and digits.
     """
     fields = pattern.compiled().fields
     values: dict[str, str] = dict(extra or {})
@@ -64,7 +67,10 @@ def segment_values(
             raise NumberingValueError(
                 f"pattern {pattern.id!r} needs a project, but the scope is {scope!r}"
             )
-        values["project"] = scope.removeprefix("project:")
+        # A project id may hold a hyphen (``sim-wk1``); the number may not (it must parse back),
+        # so the number spells it without. Counters and keys are per scope, so two projects whose
+        # spellings coincide never share a number.
+        values["project"] = _NOT_ALNUM.sub("", scope.removeprefix("project:"))
     if "type" in fields:
         values["type"] = pattern.type_code
     missing = [name for name in fields if name not in values]

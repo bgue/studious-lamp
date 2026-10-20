@@ -35,6 +35,8 @@ enums:
         description: The item is received (triage confirms it).
       issue:
         description: The item is issued.
+      awareness:
+        description: The day the contractor became aware of the event (the item's `aware_on`); the item is made on that day or later.
   ClockKind:
     description: What a clock waits for.
     permissible_values:
@@ -114,6 +116,11 @@ classes:
       keywords:
         multivalued: true
         description: Lower-case words in a subject or body that suggest this subtype at triage.
+      number_code:
+        pattern: "^[A-Z][A-Z0-9]{0,7}$"
+        description: "The upper-case code that fills the `kind` field of the domain's numbering pattern (`RFI` in `P123-RFI-0001`); null when the pattern has no `kind` field."
+      direction:
+        description: "in or out: the direction of items of this subtype; null means the commands decide (out for an item we write)."
 
   DomainRouting:
     description: Who receives, reviews and approves items of the domain.
@@ -220,5 +227,7 @@ classes:
       triage_keywords:
         multivalued: true
         description: Lower-case words in a subject or body that suggest this domain at triage.
+      record_type:
+        description: "The record type of the domain's items (`correspondence.TechnicalItem`); null means `correspondence.Correspondence`. The workflow and the numbering pattern must be for this type."
       item_source:
         description: "The name of a code-defined register source that supplies items of this domain from another module (`documents.transmittal`); null when items are `Correspondence` records."

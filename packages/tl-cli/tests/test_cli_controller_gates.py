@@ -168,6 +168,10 @@ def test_there_are_eleven_controller_sites(tmp_path: Path) -> None:
     assert found.pop("xer.py") == 3
     # the correspondence group has sites of its own (test_cli_corr.py names and tries each)
     assert sum(n for name, n in found.items() if name.startswith("corr")) == 15
+    # `tl rfi` and `tl comm` (P1-I6): the issue, escalate and every Commercial command; named and
+    # tried in test_cli_domains.py
+    assert found.pop("rfi.py") == 2
+    assert found.pop("comm.py") == 8
     assert sum(n for name, n in found.items() if not name.startswith("corr")) == 11
     assert tuple(sites(tmp_path)) == SITE_NAMES
 

@@ -113,7 +113,10 @@ from tl_core.threads.visibility import readable_record
 from tl_core.uow import UnitOfWork
 from tl_core.util import utcnow
 from tl_core.workflow.roles import workflow_roles
+from tl_mod_correspondence import evidence as correspondence_evidence
+from tl_mod_correspondence import reports_commercial, reports_technical
 from tl_mod_correspondence import views as correspondence_views
+from tl_mod_correspondence import views_domain as correspondence_domain_views
 from tl_mod_correspondence.commands import API_COMMANDS as CORRESPONDENCE_COMMANDS
 from tl_mod_cost import views as cost_views
 from tl_mod_documents import reports as document_reports
@@ -945,6 +948,85 @@ class EmbeddedClient:
 
     def list_correspondence_domains(self, project: str) -> list[correspondence_views.DomainView]:
         return correspondence_views.domain_views(f"project:{project}")
+
+    def list_rfis(
+        self,
+        project: str,
+        *,
+        subtype: str | None = None,
+        state: str | None = None,
+        discipline: str | None = None,
+        only_open: bool = False,
+        only_overdue: bool = False,
+        only_impact: bool = False,
+        limit: int = 500,
+    ) -> reports_technical.RfiLog:
+        with self._uow(True) as uow:
+            return reports_technical.rfi_log(
+                uow.conn(),
+                f"project:{project}",
+                subtype=subtype,
+                state=state,
+                discipline=discipline,
+                only_open=only_open,
+                only_overdue=only_overdue,
+                only_impact=only_impact,
+                limit=limit,
+            )
+
+    def get_rfi(self, project: str, number: str) -> correspondence_domain_views.TechnicalView:
+        with self._uow(True) as uow:
+            return correspondence_domain_views.technical_view(
+                uow.conn(), f"project:{project}", number
+            )
+
+    def list_commercial(
+        self,
+        project: str,
+        *,
+        subtype: str | None = None,
+        state: str | None = None,
+        only_open: bool = False,
+        time_bars_only: bool = False,
+        limit: int = 500,
+    ) -> reports_commercial.CommercialRegister:
+        with self._uow(True) as uow:
+            return reports_commercial.commercial_register(
+                uow.conn(),
+                f"project:{project}",
+                subtype=subtype,
+                state=state,
+                only_open=only_open,
+                time_bars_only=time_bars_only,
+                limit=limit,
+            )
+
+    def get_commercial(
+        self, project: str, number: str
+    ) -> correspondence_domain_views.CommercialView:
+        with self._uow(True) as uow:
+            return correspondence_domain_views.commercial_view(
+                uow.conn(), f"project:{project}", number
+            )
+
+    def get_evidence_trail(
+        self,
+        project: str,
+        number: str,
+        *,
+        as_of: date | None = None,
+        depth: int = 2,
+        max_nodes: int = 100,
+    ) -> correspondence_evidence.EvidenceTrail:
+        with self._uow(True) as uow:
+            return correspondence_evidence.evidence_trail(
+                uow.conn(),
+                f"project:{project}",
+                number,
+                as_of.isoformat() if as_of else None,
+                depth=depth,
+                max_nodes=max_nodes,
+            )
 
     def correspondence_command(self, name: str, cmd: Command) -> CommandResult:
         spec = next((c for c in CORRESPONDENCE_COMMANDS if c.model.__name__ == name), None)

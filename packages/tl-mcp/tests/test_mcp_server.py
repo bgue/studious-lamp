@@ -46,6 +46,12 @@ CORRESPONDENCE_TOOLS = {  # P1-I5: five reads and one proposal (an agent only pr
     "list_response_clocks",
     "list_parties",
     "suggest_triage",
+    # P1-I6: the two domains and the evidence trail (reads; an agent reads internal items only)
+    "list_rfis",
+    "get_rfi",
+    "list_commercial_items",
+    "get_commercial_item",
+    "get_evidence_trail",
 }
 CORRESPONDENCE_PROPOSE_TOOLS = {"propose_triage"}
 SCHEDULE_PROPOSE_TOOLS = {"propose_publish_schedule_snapshot"}

@@ -6,6 +6,10 @@ The API builds one ``POST /commands/<Name>`` route per row. ``access`` says who 
 * ``admin``: only an admin (none of this module's commands);
 * ``user``: any signed-in person.
 
+Technical and Commercial items (P1-I6) add the commands of their two domains: the raiser's side of
+an RFI is open to any signed-in person (issuing it is a controller's act), and every Commercial
+command is a controller's because the items are ``restricted`` (ADR-0016, ADR-0019).
+
 The **controlling acts** belong to the document controller role (ADR-0013): issuing a letter,
 setting the confidentiality class and naming who may read a privileged item, voiding a received
 item, replacing an item, registering parties and clauses, and sweeping the clocks. Everything that
@@ -49,6 +53,28 @@ from tl_mod_correspondence.handlers.clocks import (
     handle_start_clock,
     handle_sweep_clocks,
 )
+from tl_mod_correspondence.handlers.commercial import (
+    RaiseCommercial,
+    ReturnCommercial,
+    ReviewCommercial,
+    SubmitCommercial,
+    UpdateCommercial,
+    handle_raise_commercial,
+    handle_return_commercial,
+    handle_review_commercial,
+    handle_submit_commercial,
+    handle_update_commercial,
+)
+from tl_mod_correspondence.handlers.commercial_flow import (
+    AssessCommercial,
+    CloseCommercial,
+    IssueCommercial,
+    ReferCommercialToLegal,
+    handle_assess_commercial,
+    handle_close_commercial,
+    handle_issue_commercial,
+    handle_refer_commercial_to_legal,
+)
 from tl_mod_correspondence.handlers.confidentiality import (
     GrantClearance,
     SetCorrespondenceConfidentiality,
@@ -57,6 +83,7 @@ from tl_mod_correspondence.handlers.confidentiality import (
     handle_set_confidentiality,
     handle_withdraw_clearance,
 )
+from tl_mod_correspondence.handlers.escalate import EscalateTechnical, handle_escalate_technical
 from tl_mod_correspondence.handlers.issue import IssueCorrespondence, handle_issue_correspondence
 from tl_mod_correspondence.handlers.items import (
     ReceiveCorrespondence,
@@ -85,6 +112,28 @@ from tl_mod_correspondence.handlers.responses import (
     handle_record_response,
     handle_void_correspondence,
     handle_void_draft,
+)
+from tl_mod_correspondence.handlers.technical import (
+    RaiseTechnical,
+    ReturnTechnical,
+    SubmitTechnical,
+    UpdateTechnical,
+    handle_raise_technical,
+    handle_return_technical,
+    handle_submit_technical,
+    handle_update_technical,
+)
+from tl_mod_correspondence.handlers.technical_flow import (
+    AnswerTechnical,
+    CloseTechnical,
+    IssueTechnical,
+    ReissueTechnical,
+    ReviewTechnicalAnswer,
+    handle_answer_technical,
+    handle_close_technical,
+    handle_issue_technical,
+    handle_reissue_technical,
+    handle_review_technical_answer,
 )
 from tl_mod_correspondence.handlers.threads import (
     AssignThread,
@@ -142,4 +191,26 @@ API_COMMANDS: tuple[ApiCommand, ...] = (
     ApiCommand(RetireParty, handle_retire_party, "controller"),
     ApiCommand(DefineClause, handle_define_clause, "controller"),
     ApiCommand(RetireClause, handle_retire_clause, "controller"),
+    # Technical items: RFI, technical query, deviation request. The raiser's side is open to every
+    # signed-in person; issuing is the external act and so is a controller's.
+    ApiCommand(RaiseTechnical, handle_raise_technical, "user"),
+    ApiCommand(UpdateTechnical, handle_update_technical, "user"),
+    ApiCommand(SubmitTechnical, handle_submit_technical, "user"),
+    ApiCommand(ReturnTechnical, handle_return_technical, "user"),
+    ApiCommand(IssueTechnical, handle_issue_technical, "controller"),
+    ApiCommand(AnswerTechnical, handle_answer_technical, "user"),
+    ApiCommand(ReviewTechnicalAnswer, handle_review_technical_answer, "user"),
+    ApiCommand(ReissueTechnical, handle_reissue_technical, "user"),
+    ApiCommand(CloseTechnical, handle_close_technical, "user"),
+    ApiCommand(EscalateTechnical, handle_escalate_technical, "controller"),
+    # Commercial items: restricted by default (ADR-0016), so every command is a controller's.
+    ApiCommand(RaiseCommercial, handle_raise_commercial, "controller"),
+    ApiCommand(UpdateCommercial, handle_update_commercial, "controller"),
+    ApiCommand(SubmitCommercial, handle_submit_commercial, "controller"),
+    ApiCommand(ReviewCommercial, handle_review_commercial, "controller"),
+    ApiCommand(ReturnCommercial, handle_return_commercial, "controller"),
+    ApiCommand(IssueCommercial, handle_issue_commercial, "controller"),
+    ApiCommand(AssessCommercial, handle_assess_commercial, "controller"),
+    ApiCommand(CloseCommercial, handle_close_commercial, "controller"),
+    ApiCommand(ReferCommercialToLegal, handle_refer_commercial_to_legal, "controller"),
 )

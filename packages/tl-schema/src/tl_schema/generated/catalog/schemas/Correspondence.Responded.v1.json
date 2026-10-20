@@ -20,12 +20,14 @@
               "type": "string"
             },
             "response_id": {
-              "description": "Record id of the answering item.",
-              "type": "string"
+              "description": "Record id of the answering item; null when the answer is not an item of the register (a Technical item answered in the form).",
+              "type": [
+                "string",
+                "null"
+              ]
             }
           },
           "required": [
-            "response_id",
             "responded_on"
           ],
           "title": "CorrespondenceRespondedPayload",

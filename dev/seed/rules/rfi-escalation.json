@@ -1,0 +1,16 @@
+{
+  "key": "rfi-escalation",
+  "title": "Propose an early warning when an RFI is answered",
+  "when": {
+    "event_types": ["Workflow.Transitioned"],
+    "transitions": ["Awaiting response -> Answered"],
+    "record_selector": "type=correspondence.TechnicalItem"
+  },
+  "then": [
+    {
+      "command": "EscalateTechnical",
+      "args": {"stream_id": "${subject_id}", "require_impact": true}
+    }
+  ],
+  "access": "controller"
+}

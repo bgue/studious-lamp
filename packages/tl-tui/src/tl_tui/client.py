@@ -42,7 +42,10 @@ from tl_core.threads.dispatch import DispatchFromThread
 from tl_core.threads.messages import EditThreadMessage, PostThreadMessage, RetractThreadMessage
 from tl_core.threads.planner import PreviewResult
 from tl_core.threads.queries import ThreadPage
+from tl_mod_correspondence import evidence as correspondence_evidence
+from tl_mod_correspondence import reports_commercial, reports_technical
 from tl_mod_correspondence import views as correspondence_views
+from tl_mod_correspondence import views_domain as correspondence_domain_views
 from tl_mod_cost import views as cost_views
 from tl_mod_documents import reports as document_reports
 from tl_mod_documents import views as document_views
@@ -504,6 +507,63 @@ class ClientInterface(Protocol):
 
     def correspondence_command(self, name: str, cmd: Command) -> CommandResult:
         """Run a correspondence command by name (the token's or the signed-in person's actor)."""
+        ...
+
+    # --- Technical and Commercial items (P1-I6; brief 9 M10) ---------------------------------
+    #
+    # The same names and signatures as ``tl_api.client.ApiClient``. The RFI log and the Commercial
+    # register are the lists of the two domains; an item the person may not read is not in them
+    # (Commercial items are restricted, so a plain user's register is empty). The evidence trail
+    # replays the ledger to the end of a day (``as_of``, default today).
+
+    def list_rfis(
+        self,
+        project: str,
+        *,
+        subtype: str | None = None,
+        state: str | None = None,
+        discipline: str | None = None,
+        only_open: bool = False,
+        only_overdue: bool = False,
+        only_impact: bool = False,
+        limit: int = 500,
+    ) -> reports_technical.RfiLog:
+        """The RFI log: Technical items with response times and impact flags."""
+        ...
+
+    def get_rfi(self, project: str, number: str) -> correspondence_domain_views.TechnicalView:
+        """One RFI, technical query or deviation request."""
+        ...
+
+    def list_commercial(
+        self,
+        project: str,
+        *,
+        subtype: str | None = None,
+        state: str | None = None,
+        only_open: bool = False,
+        time_bars_only: bool = False,
+        limit: int = 500,
+    ) -> reports_commercial.CommercialRegister:
+        """The Commercial register: values by currency and time bars."""
+        ...
+
+    def get_commercial(
+        self, project: str, number: str
+    ) -> correspondence_domain_views.CommercialView:
+        """One Commercial item."""
+        ...
+
+    def get_evidence_trail(
+        self,
+        project: str,
+        number: str,
+        *,
+        as_of: date | None = None,
+        depth: int = 2,
+        max_nodes: int = 100,
+    ) -> correspondence_evidence.EvidenceTrail:
+        """The chain of records around an item as it stood at the end of ``as_of``."""
         ...
 
     # --- derivation (P1-I3; ADR-0014) --------------------------------------------------------

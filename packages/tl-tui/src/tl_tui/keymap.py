@@ -117,6 +117,13 @@ KEYMAP: tuple[KeyEntry, ...] = (
         "TlApp",
         "ctrl+e",
     ),
+    KeyEntry(
+        "App",
+        "Ctrl+G",
+        "RFI log, Commercial register and the evidence trail as of a day",
+        "TlApp",
+        "ctrl+g",
+    ),
     KeyEntry("App", "Ctrl+Q", "Quit"),
     KeyEntry(
         "Grid",

@@ -25,6 +25,7 @@ from tl_mod_correspondence.handlers.common import (
     append,
     correlated,
     open_item,
+    require_core,
     require_state,
     resolve_date,
     transition,
@@ -35,7 +36,6 @@ from tl_mod_correspondence.letter import LetterError, LetterFields, compose_lett
 from tl_mod_correspondence.limits import MAX_NUMBER, MAX_REASON
 from tl_mod_correspondence.names import (
     CORR_ISSUED,
-    CORRESPONDENCE,
     ST_DRAFT,
     ST_ISSUED,
     ST_RECEIVED,
@@ -81,6 +81,7 @@ def handle_issue_correspondence(uow: UnitOfWork, cmd: IssueCorrespondence) -> Co
     """
     cmd = correlated(cmd)
     item = open_item(uow, cmd, cmd.stream_id)
+    require_core(item)
     require_state(item, ST_DRAFT)
     if item.direction != "out":
         raise ItemStateError(f"item {item.number} was received; only a letter we wrote is issued")
@@ -137,7 +138,7 @@ def handle_issue_correspondence(uow: UnitOfWork, cmd: IssueCorrespondence) -> Co
         uow,
         cmd,
         item.id,
-        CORRESPONDENCE,
+        item.record_type,
         [
             NewEvent(
                 event_type=CORR_ISSUED,

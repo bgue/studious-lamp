@@ -27,6 +27,20 @@
               "description": "stub: no message was sent.",
               "type": "string"
             },
+            "feed_policy": {
+              "description": "full, minimal or none: what the feed shows of the issue (the domain's policy, fixed when the event is written). Absent means the generic card.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "feed_text": {
+              "description": "The line of the feed card when the policy is full or minimal.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
             "issued_on": {
               "description": "ISO date of the issue.",
               "type": "string"

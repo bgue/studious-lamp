@@ -81,3 +81,15 @@ class ClearanceError(CorrespondenceError):
 
 class LetterRenderError(CorrespondenceError):
     """The letter cannot be filled or rendered from the item and its template."""
+
+
+class EvidenceDateError(CorrespondenceError):
+    """The day an evidence trail is asked for is not a date, is to come, or is before the item."""
+
+
+class ExportTooLargeError(CorrespondenceError):
+    """The register holds more items than one export file takes."""
+
+
+class ExportClassError(CorrespondenceError):
+    """An export was asked for a class it never carries (privileged) or that is none."""
