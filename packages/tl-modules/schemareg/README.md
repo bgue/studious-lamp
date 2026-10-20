@@ -23,6 +23,9 @@ The schema registry module: the ledgered lifecycle of schema packages, per-proje
 - Depends on: `tl_core` (ledger, services, `schema_provider`), `tl_schema` (packages, classify, compose), `tl_adapters`, `pydantic`, `sqlalchemy`.
 - Used by: the platform through its entry point; `tl_api` (`/schema/...` reads, `/commands/<Name>` writes, client in `tl_api.client.schemareg`), `tl_cli` (`tl schema package ...`), `tl_tui` (the workbench, through `TuiClient`).
 
+## Conformance dashboard
+`dashboard.conformance_dashboard(conn, project)` is one read of how a project's records stand (brief 27.3, 27.5): per record type the stored `ok`, `warning` and `nonconformant` counts and the records checked against an older schema than the one in force (stale, a NULL hash included), the approved waivers with their days left, the expired ones as a count, and the company packages the project is behind on. The stored status is read, never recomputed, and the counts are taken as the current viewer (ADR-0016). CLI: `tl schema conformance --project P [--json]`.
+
 ## Commands
 ```
 just test -- packages/tl-modules/schemareg
