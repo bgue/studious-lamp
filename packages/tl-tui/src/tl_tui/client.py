@@ -72,6 +72,8 @@ from tl_mod_schedule.handlers.activity import LinkActivity
 from tl_mod_schedule.handlers.publish import PublishScheduleSnapshot
 from tl_mod_schedule.lookahead import LookAhead
 from tl_mod_schedule.resolver import ActivityLink, OrphanedLink, Resolution
+from tl_mod_schemareg import views as schemareg_views
+from tl_mod_schemareg.impact_types import ImpactReport
 from tl_schema.forms import ConformanceReport, FormMetadata
 
 
@@ -737,6 +739,59 @@ class ClientInterface(Protocol):
 
     def get_cost_code(self, project: str, code: str) -> cost_views.CostCodeDetailView:
         """One cost code with its children and the figures of every snapshot."""
+        ...
+
+    # --- the schema workbench (P1-I8; brief 27.8) ----------------------------------------------
+    #
+    # The same names and signatures as ``tl_api.client.ApiClient``. A package is named by its record
+    # id or ``name@version``. A missing one raises ``SchemaPackageNotFoundError``. The writes are
+    # one call: ``schemareg_command(name, cmd)`` runs a command of ``tl_mod_schemareg.commands`` by
+    # name (the draft, analyse, submit, review, publish, adopt and waiver commands), as the
+    # signed-in person; an admin's act by anyone else raises ``ForbiddenError``.
+
+    def list_schema_packages(
+        self,
+        *,
+        scope: str | None = None,
+        state: str | None = None,
+        package: str | None = None,
+        limit: int = 200,
+    ) -> list[schemareg_views.PackageSummary]:
+        """Package versions by name and version, highest first."""
+        ...
+
+    def get_schema_package(self, ref: str) -> schemareg_views.PackageDetail:
+        """One package with its reports, lint and the diff against its base."""
+        ...
+
+    def sample_test_schema_package(
+        self, ref: str, sample: int = 1000
+    ) -> schemareg_views.SampleTestView:
+        """Test on sample: records that would newly be non-conformant under the draft."""
+        ...
+
+    def list_schema_adoptions(
+        self, project: str | None = None
+    ) -> list[schemareg_views.AdoptionView]:
+        """The pins of every project, or of one."""
+        ...
+
+    def list_schema_waivers(
+        self, project: str | None = None, state: str | None = None
+    ) -> list[schemareg_views.WaiverView]:
+        """Waivers by project and path."""
+        ...
+
+    def get_schema_drift(self, project: str) -> list[schemareg_views.DriftView]:
+        """The project's version of each company package against the company's."""
+        ...
+
+    def get_project_schema_impact(self, project: str, package: str, version: str) -> ImpactReport:
+        """What pinning ``package@version`` does to the project."""
+        ...
+
+    def schemareg_command(self, name: str, cmd: Command) -> CommandResult:
+        """Run a schema registry command by name."""
         ...
 
     # --- settings (P0-I8; brief 30) -----------------------------------------------------------

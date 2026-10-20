@@ -15,12 +15,13 @@ The schema registry module: the ledgered lifecycle of schema packages, per-proje
 | `tl_mod_schemareg.impact` / `impact_types` | modules | `impact_report(old, new, facts)`, a pure function, and its types |
 | `tl_mod_schemareg.source` | module | `LedgerRegistrySource`: published packages, pins, approved waivers for `DirectorySchemaProvider` |
 | `tl_mod_schemareg.registry` | module | Reads: packages, adoptions, waivers |
+| `tl_mod_schemareg.views` | module | Read models for the API, CLI and TUI: `package_summaries`, `package_detail` (reports, lint, text diff), `adoption_views`, `waiver_views`, `drift_views`, `sample_test` |
 | `tl_mod_schemareg.commands` | module | `API_COMMANDS` with their access levels |
 | `tl_mod_schemareg.testing` | module | `RegistryWorld`: a ledger and a schema provider that reads it, for tests of other packages |
 
 ## Depends on / used by
 - Depends on: `tl_core` (ledger, services, `schema_provider`), `tl_schema` (packages, classify, compose), `tl_adapters`, `pydantic`, `sqlalchemy`.
-- Used by: the platform through its entry point; `tl_api`, `tl_cli` (`tl schema`), `tl_tui` (the workbench).
+- Used by: the platform through its entry point; `tl_api` (`/schema/...` reads, `/commands/<Name>` writes, client in `tl_api.client.schemareg`), `tl_cli` (`tl schema package ...`), `tl_tui` (the workbench, through `TuiClient`).
 
 ## Commands
 ```

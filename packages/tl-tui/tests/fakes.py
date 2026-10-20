@@ -24,6 +24,7 @@ from fakes_integration import FakeIntegrationSupport
 from fakes_links import FakeLinkSupport
 from fakes_query import FakeQuerySupport
 from fakes_schedule import FakeScheduleSupport
+from fakes_schemareg import FakeSchemaRegistrySupport
 from fakes_settings import FakeSettingsSupport
 from fakes_tags import FakeTagSupport
 from fakes_threads import FakeThreadSupport
@@ -226,6 +227,7 @@ class FakeClient(
     FakeIntegrationSupport,
     FakeCorrespondenceSupport,
     FakeScheduleSupport,
+    FakeSchemaRegistrySupport,
 ):
     """Implements `tl_tui.client.ClientInterface` in memory."""
 
@@ -252,6 +254,7 @@ class FakeClient(
         self._init_integration()
         self._init_correspondence()
         self._init_schedule()
+        self._init_schemareg()
 
     # --- seeding -----------------------------------------------------------------------------
 

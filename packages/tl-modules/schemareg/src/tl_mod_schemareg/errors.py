@@ -60,5 +60,5 @@ class WaiverStateError(SchemaRegistryError):
     """The waiver is not in a state that allows the act."""
 
 
-class RegistryScopeError(SchemaRegistryError):
+class SchemaScopeError(SchemaRegistryError):
     """The act needs a project (or the company) scope it was not given."""

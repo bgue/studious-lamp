@@ -144,3 +144,26 @@ def publish_version(
     world.do(SubmitSchemaPackage, package_id=package_id)
     world.do(ApproveSchemaPackage, ADMIN, package_id=package_id)
     return world.do(PublishSchemaPackage, ADMIN, package_id=package_id, auto_adopt=auto_adopt)
+
+
+def make_record(
+    world: RegistryWorld, key: str, psets: dict[str, Any], scope: str = "project:P999"
+) -> str:
+    """A ``core.Record`` holding ``psets``; returns its id (for tests of conformance and impact)."""
+    from tl_core.services.commands import CreateRecord
+    from tl_core.services.records import handle_create_record
+
+    with open_uow(world.db) as uow:
+        result = handle_create_record(
+            uow,
+            CreateRecord(
+                actor=ADMIN,
+                source="test",
+                scope=scope,
+                record_type="core.Record",
+                title=f"Record {key}",
+                key=key,
+                psets=psets,
+            ),
+        )
+    return result.stream_id

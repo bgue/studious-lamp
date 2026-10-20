@@ -32,6 +32,7 @@ from tl_mod_documents import errors as doc
 from tl_mod_documents.imports.apply import ImportRefusedError
 from tl_mod_engineering import errors as eng
 from tl_mod_schedule import errors as sched
+from tl_mod_schemareg import errors as sreg
 
 #: What a client is told when an installed extractor cannot be loaded (detail: the server log).
 EXTRACTOR_UNAVAILABLE = (
@@ -285,6 +286,21 @@ def _rows() -> tuple[ErrorSpec, ...]:
         s(sched.TooManyReferencesError, "too_many_references", 409),
         s(sched.FutureDataDateError, "future_data_date", 409),
         s(sched.TypedRowsMissingError, "typed_rows_missing", 409),
+        # --- schema registry module (P1-I8): packages, adoption, waivers -------------------------
+        s(sreg.SchemaRegistryError, "schema_registry_error", 422),
+        s(sreg.InvalidSchemaPackageError, "invalid_schema_package", 422),
+        s(sreg.DuplicateSchemaPackageError, "duplicate_schema_package", 409),
+        s(sreg.SchemaPackageNotFoundError, "schema_package_not_found", 404),
+        s(sreg.SchemaPackageStateError, "schema_package_state", 409),
+        s(sreg.StaleAnalysisError, "stale_analysis", 409),
+        s(sreg.SelfReviewError, "self_review", 403),
+        s(sreg.NotTheAuthorError, "not_the_author", 403),
+        s(sreg.AdoptionError, "adoption_refused", 422),
+        s(sreg.ImpactReviewRequiredError, "impact_review_required", 409),
+        s(sreg.InvalidWaiverError, "invalid_waiver", 422),
+        s(sreg.WaiverNotFoundError, "waiver_not_found", 404),
+        s(sreg.WaiverStateError, "waiver_state", 409),
+        s(sreg.SchemaScopeError, "schema_scope", 422),
     )
 
 
