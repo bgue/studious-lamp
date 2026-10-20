@@ -261,7 +261,9 @@ class FakeCorrespondenceSupport:
             lines=lines[:limit],
             total=len(lines),
             answered=sum(1 for line in lines if line.answered_on),
-            open=sum(1 for line in lines if line.state not in ("Closed", "Void")),
+            open=sum(
+                1 for line in lines if not line.answered_on and line.state not in ("Closed", "Void")
+            ),
             overdue=sum(1 for line in lines if line.overdue),
             impact_yes=sum(
                 1 for line in lines if "yes" in (line.cost_impact, line.schedule_impact)

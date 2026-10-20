@@ -65,7 +65,7 @@ def test_the_impact_is_the_answerers_statement_or_the_raisers_flag_in_brackets()
 def test_the_summary_counts_and_names_the_filters_that_are_on() -> None:
     client = seeded()
     log = client.list_rfis("P123")
-    assert rt.rfi_summary(log) == ("3 items | answered 1 | open 3 | overdue 1 | impact yes 1")
+    assert rt.rfi_summary(log) == ("3 items | answered 1 | open 2 | overdue 1 | impact yes 1")
     only = client.list_rfis("P123", only_overdue=True)
     assert rt.rfi_summary(only, only_open=True, only_overdue=True, only_impact=True) == (
         "1 item | answered 0 | open 1 | overdue 1 | impact yes 0 | filter: open, overdue, impact"

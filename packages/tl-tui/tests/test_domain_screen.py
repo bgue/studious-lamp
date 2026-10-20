@@ -55,7 +55,7 @@ def test_ctrl_g_opens_the_rfi_log_with_a_summary_and_the_first_rfi_in_full() -> 
         text = screen_text(app)
         assert "RFI log of P123" in text
         assert numbers(screen) == ["P123-RFI-0001", "P123-RFI-0002", "P123-RFI-0003"]
-        assert "3 items | answered 1 | open 3 | overdue 1 | impact yes 1" in text
+        assert "3 items | answered 1 | open 2 | overdue 1 | impact yes 1" in text
         assert "overdue 1d" in text and "on time" in text and "C:yes S:no" in text
         assert "answer (2026-10-12): Re-route above the beam." in text
         await pilot.press("down")
