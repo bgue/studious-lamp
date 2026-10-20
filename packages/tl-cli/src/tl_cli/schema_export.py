@@ -1,0 +1,85 @@
+# ruff: noqa: F401
+# pyright: reportUnusedImport=false
+"""`tl schema export-git DIR [--package NAME]`: the published packages as files (P1-I8-T05a4b).
+
+STUB: this file is the interface P1-I8-T05a4b implements. Remove this paragraph, the two directive
+lines above and every STEPS comment when you implement it. `_file_name`, `_write_atomic` and
+`register` are complete.
+
+The files are what a git repository of the company's schema holds: one `<package>@<version>.yaml`
+per version in force (Published or Deprecated), the text exactly as it was drafted. Nothing else
+is written: no report, no impact, no record text (the impact report names mappings and rules,
+which are for administrators; FANOUT F9). It writes files on the host, so it is the
+administrator's. Importing is `tl schema import-git` (P1-I8-T05a4c).
+"""
+
+from __future__ import annotations
+
+import os
+import re
+from pathlib import Path
+from typing import Annotated
+
+import typer
+from tl_adapters.db import DbTarget, open_uow
+from tl_mod_schemareg import registry
+from tl_mod_schemareg.names import IN_FORCE
+from tl_schema.packages import version_tuple
+
+from tl_cli.derive_support import fail, service_errors
+from tl_cli.session import require_admin
+
+_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,99}")
+_VERSION = re.compile(r"[0-9]+\.[0-9]+\.[0-9]+")
+
+
+def _file_name(row: registry.PackageRow) -> str:
+    """The file name of a version; a name that could leave the directory is an error."""
+    if _NAME.fullmatch(row.package) is None or _VERSION.fullmatch(row.version) is None:
+        fail(f"{row.package}@{row.version} cannot be a file name")
+    return f"{row.package}@{row.version}.yaml"
+
+
+def _write_atomic(path: Path, text: str) -> None:
+    """Write `text` to `path` through a temporary file in the same directory."""
+    temp = path.with_name(f".{path.name}.tmp")
+    temp.write_text(text, encoding="utf-8")
+    os.replace(temp, path)
+
+
+def export_git(
+    ctx: typer.Context,
+    directory: Annotated[
+        Path, typer.Argument(help="The directory to write to; made when missing.", file_okay=False)
+    ],
+    package: Annotated[
+        str | None, typer.Option("--package", help="Only the versions of this package.")
+    ] = None,
+) -> None:
+    """Write every published version as `<package>@<version>.yaml` into DIR (admin).
+
+    Lines: `wrote <file>` or `unchanged <file>` (the file already holds the same text), in the
+    order package name then version, then `exported <w> written, <u> unchanged to <DIR>`. With
+    nothing to export: `nothing to export` (and DIR is not made). A file that exists with other
+    text, or is a symbolic link, is `error: ...` (exit 1) and nothing is written.
+    """
+    # STEPS
+    # 1. db: DbTarget = ctx.obj; require_admin(db).
+    # 2. In `with service_errors(), open_uow(db, readonly=True) as uow:` collect
+    #    `registry.list_packages(uow.conn(), state=state, package=package,
+    #    limit=registry.MAX_PAGE)` for each `state` in IN_FORCE. Sort by `(row.package,
+    #    version_tuple(row.version))`.
+    # 3. No rows: print `nothing to export` and return.
+    # 4. `directory.mkdir(parents=True, exist_ok=True)`. For each row make the target
+    #    `directory / _file_name(row)`. Before writing anything check all of them: a symbolic
+    #    link (`is_symlink()`) or a file whose text differs from `row.content` is
+    #    `fail(f"{target.name} exists with other text")` (say `is a link` for a link).
+    # 5. Then for each row: write with `_write_atomic(target, row.content)` and print
+    #    `wrote <name>`, or print `unchanged <name>` when the file already holds the text.
+    # 6. Print the last line from the docstring.
+    raise NotImplementedError("STEPS: see the comments")
+
+
+def register(app: typer.Typer) -> None:
+    """Add the command to `tl schema`."""
+    app.command("export-git")(export_git)
