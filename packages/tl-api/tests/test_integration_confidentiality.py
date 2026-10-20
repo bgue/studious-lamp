@@ -20,7 +20,6 @@ import pytest
 from fastapi.testclient import TestClient
 from harness import SCOPE, Harness
 from sqlalchemy import text
-from test_confidentiality_walk import MAY_READ, Seed, seed
 from tl_core import confidentiality
 from tl_core.confidentiality import Viewer, hidden_event_streams, use_viewer
 from tl_core.integration.contract import RecordRef
@@ -30,6 +29,32 @@ from tl_core.ledger import NewEvent
 from tl_core.threads.dispatch import DispatchFromThread
 from tl_core.threads.messages import post_message
 from tl_core.threads.visibility import ThreadRecord, readable_record
+
+
+def _walk() -> Any:
+    """The confidentiality walk's cast and seed, loaded by path.
+
+    ``tl-mcp`` has a test file with the same name, so a plain ``import test_confidentiality_walk``
+    finds the wrong one when both packages are collected in one run.
+    """
+    import importlib.util
+    import sys
+
+    name = "tl_api_confidentiality_walk"
+    if name not in sys.modules:
+        path = Path(__file__).with_name("test_confidentiality_walk.py")
+        spec = importlib.util.spec_from_file_location(name, path)
+        assert spec is not None and spec.loader is not None
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[name] = module
+        spec.loader.exec_module(module)
+    return sys.modules[name]
+
+
+_WALK = _walk()
+MAY_READ = _WALK.MAY_READ
+Seed = _WALK.Seed
+seed = _WALK.seed
 
 
 @pytest.fixture
