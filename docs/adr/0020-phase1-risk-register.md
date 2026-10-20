@@ -25,7 +25,7 @@ KICKOFF asks for an ADR at each phase exit that records any change to the brief 
 | R11, contractual clocks | Built; the definitions are illustrative and await commercial or legal review. | ADR-0019, `APPROVALS.md` |
 | X7, Postgres only in tests | Largely closed: every service and CLI group runs on both backends. Pool, LISTEN/NOTIFY and `query_db` remain. | `P1-I0-B.md` |
 | X13, feedback loop | Worse: the suite takes 1–2 h and the whole parity suite does not fit a background run. Process v2 and `just gate` respond. | `STATUS.md`, `process-v2.md` |
-| R12, X15, schema change and upgrade | Unchanged in substance: all changes additive and hand-approved. The classification gate is P1-I8 work; the orchestrator re-checks R12, R13, R14 and R17 after P1-I8 merges. | `PHASE-1.md` §8 |
+| R12, X15, schema change and upgrade | Package changes are classified and gated since P1-I8; repository and event-schema classification (`tl schema classify --base`) is unwired. R12, R13, R14 and R17 were re-checked after P1-I8 merged (`RISKS.md`). | `PHASE-1.md` §8 |
 | X24–X28 | New: untrusted-file cost, hidden-record side channels, privilege escalation through generic and automation paths, automation without conflict detection, pinned-list coupling. | `docs/reports/RISKS.md` §2 |
 | R10, X1–X4, X17 | Updated with Phase 1 counts (14 HIGH, at least 61 MEDIUM found and fixed) and the process v2 response. | `PHASE-1.md` §5 |
 
