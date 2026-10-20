@@ -224,8 +224,8 @@ def test_an_agent_token_cannot_run_any_record_changing_command(harness: Harness)
         assert response.json()["message"] == MESSAGE
         seen.add(spec.name)
     assert (
-        len(seen) == len(COMMANDS) - len(FEED_COMMANDS) == 71 + 28
-    )  # + the correspondence commands
+        len(seen) == len(COMMANDS) - len(FEED_COMMANDS) == 71 + 28 + 19
+    )  # + the correspondence commands (P1-I5) and RFIs and Commercial items (P1-I6)
 
 
 def test_an_agent_token_can_still_post_and_read_and_a_person_can_still_change_records(

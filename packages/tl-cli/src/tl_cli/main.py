@@ -41,6 +41,7 @@ from tl_cli import (
     admin_user,
     archive,
     backup,
+    comm,
     config,
     corr,
     corr_clock,
@@ -56,6 +57,7 @@ from tl_cli import (
     doc_report,
     doc_rev,
     events,
+    evidence,
     extypes,
     extypes_quarantine,
     feed,
@@ -70,6 +72,7 @@ from tl_cli import (
     record,
     restore,
     review,
+    rfi,
     schema,
     serve,
     sim_agent,
@@ -132,6 +135,9 @@ app.add_typer(cost.app, name="cost")
 app.add_typer(transmittal.app, name="transmittal")
 app.add_typer(review.app, name="review")
 app.add_typer(corr.app, name="corr")
+app.add_typer(rfi.app, name="rfi")
+app.add_typer(comm.app, name="comm")
+app.command("evidence")(evidence.evidence_cmd)
 corr.app.add_typer(corr_clock.app, name="clock")
 corr.app.add_typer(corr_registry.thread_app, name="thread")
 corr.app.add_typer(corr_registry.party_app, name="party")

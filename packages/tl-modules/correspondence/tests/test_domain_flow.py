@@ -6,7 +6,10 @@ review, issue the notice, assess, close. The per-command rules are in the tests 
 
 from __future__ import annotations
 
+from typing import Any
+
 from tl_core import confidentiality as cf
+from tl_mod_correspondence import constraints
 from tl_mod_correspondence.testing import CONTROLLER, CorrWorld, as_controller, frozen_today
 
 MONDAY = "2026-10-19"
@@ -74,3 +77,41 @@ def test_a_commercial_item_goes_from_draft_to_closed(world: CorrWorld) -> None:
         assert world.clocks(made.key)[1].state == "met"
         world.close_commercial(made.stream_id)
         assert world.commercial(made.key).item.state == "Closed"
+
+
+class _Recorder:
+    def __init__(self) -> None:
+        self.calls: list[tuple[str, str, str, str | None]] = []
+
+    def rfi_issued(self, uow: object, item: Any, data: Any) -> None:
+        self.calls.append(("issued", item.number, item.state, data.answered_on))
+
+    def rfi_answered(self, uow: object, item: Any, data: Any) -> None:
+        self.calls.append(("answered", item.number, item.state, data.answered_on))
+
+
+def test_the_constraint_hook_hears_of_an_rfi_when_it_is_issued_and_when_it_is_answered(
+    world: CorrWorld,
+) -> None:
+    recorder = _Recorder()
+    with constraints.use_sink(recorder), frozen_today(MONDAY):
+        made = world.raise_technical(required_by="2026-11-02")
+        world.submit_technical(made.stream_id)
+        assert recorder.calls == []
+        with cf.use_viewer(CONTROLLER):
+            world.issue_technical(made.stream_id)
+        world.answer_technical(made.stream_id)
+    assert recorder.calls == [
+        ("issued", "P123-RFI-0001", "Awaiting response", None),
+        ("answered", "P123-RFI-0001", "Answered", MONDAY),
+    ]
+
+
+def test_without_a_sink_the_hook_does_nothing(world: CorrWorld) -> None:
+    assert isinstance(constraints.current(), constraints.NullSink)
+    with frozen_today(MONDAY):
+        made = world.raise_technical(required_by="2026-11-02")
+        world.submit_technical(made.stream_id)
+        with cf.use_viewer(CONTROLLER):
+            world.issue_technical(made.stream_id)
+    assert world.technical("P123-RFI-0001").item.state == "Awaiting response"

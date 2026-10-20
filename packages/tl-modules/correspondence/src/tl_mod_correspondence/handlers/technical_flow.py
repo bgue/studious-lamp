@@ -26,7 +26,7 @@ from tl_core.services.commands import Command, CommandResult
 from tl_core.services.errors import RecordNotFoundError
 from tl_core.uow import UnitOfWork
 
-from tl_mod_correspondence import catalog, files, registry
+from tl_mod_correspondence import catalog, constraints, files, registry, registry_domain
 from tl_mod_correspondence.errors import InvalidItemError, ItemStateError, LetterRenderError
 from tl_mod_correspondence.handlers.clocks import close_clocks_of_item
 from tl_mod_correspondence.handlers.common import (
@@ -196,6 +196,15 @@ def _letter_text(question: str, proposed: str | None, required_by: str | None) -
     return body
 
 
+def _tell_the_sink(uow: UnitOfWork, item_id: str, *, issued: bool) -> None:
+    """Call the constraint hook (a stub in Phase 1) with the item as it is now."""
+    now = registry_domain.get_technical(uow.conn(), item_id)
+    if now is None:  # the viewer reads what it just changed; this is not reachable
+        return
+    sink = constraints.current()
+    (sink.rfi_issued if issued else sink.rfi_answered)(uow, now.item, now.data)
+
+
 def handle_issue_technical(uow: UnitOfWork, cmd: IssueTechnical) -> CommandResult:
     """Render and store the PDF, "send" it, start the issue clocks, append
     ``Correspondence.Issued`` and move the item to Awaiting response.
@@ -280,6 +289,7 @@ def handle_issue_technical(uow: UnitOfWork, cmd: IssueTechnical) -> CommandResul
     )
     issued = transition(uow, cmd, item.id, "issue")
     waiting = transition(uow, cmd, item.id, "await_response")
+    _tell_the_sink(uow, item.id, issued=True)
     return CommandResult(
         stream_id=item.id,
         key=item.number,
@@ -371,6 +381,7 @@ def handle_answer_technical(uow: UnitOfWork, cmd: AnswerTechnical) -> CommandRes
         response_id=cmd.answer_item_id,
         kinds=ANSWER_CLOCKS,
     )
+    _tell_the_sink(uow, item.id, issued=False)
     return CommandResult(
         stream_id=item.id,
         key=item.number,

@@ -13,10 +13,17 @@ from datetime import date
 
 from tl_core.auth.errors import ForbiddenError
 from tl_core.services.commands import Command, CommandResult
-from tl_mod_correspondence import views
+from tl_mod_correspondence import (
+    evidence,
+    reports_commercial,
+    reports_technical,
+    views,
+    views_domain,
+)
 from tl_mod_correspondence.commands import API_COMMANDS as CORRESPONDENCE_COMMANDS
 from tl_mod_correspondence.errors import (
     ClockNotFoundError,
+    EvidenceDateError,
     ItemNotFoundError,
     PartyNotFoundError,
     ThreadNotFoundError,
@@ -39,6 +46,11 @@ class FakeCorrespondenceSupport:
         self._suggestion = views.SuggestionView(
             domain=None, subtype=None, score=0, reasons=[], scores={}
         )
+        self._rfi_lines: dict[str, list[reports_technical.RfiLogLine]] = {}
+        self._rfis: dict[str, dict[str, views_domain.TechnicalView]] = {}
+        self._commercial_lines: dict[str, list[reports_commercial.CommercialLine]] = {}
+        self._commercial: dict[str, dict[str, views_domain.CommercialView]] = {}
+        self._trails: dict[str, dict[str, evidence.EvidenceTrail]] = {}
         self.correspondence_commands: list[tuple[str, Command]] = []
         self.is_corr_controller = True  # False: a controller's command raises ForbiddenError
 
@@ -77,6 +89,30 @@ class FakeCorrespondenceSupport:
 
     def add_domain(self, project: str, domain: views.DomainView) -> None:
         self._domains.setdefault(project, []).append(domain)
+
+    def add_rfi(
+        self,
+        project: str,
+        view: views_domain.TechnicalView,
+        line: reports_technical.RfiLogLine,
+    ) -> None:
+        """Add an RFI (its view) and its line of the RFI log."""
+        self._rfis.setdefault(project, {})[view.number] = view
+        self._rfi_lines.setdefault(project, []).append(line)
+
+    def add_commercial(
+        self,
+        project: str,
+        view: views_domain.CommercialView,
+        line: reports_commercial.CommercialLine,
+    ) -> None:
+        """Add a Commercial item (its view) and its line of the register."""
+        self._commercial.setdefault(project, {})[view.number] = view
+        self._commercial_lines.setdefault(project, []).append(line)
+
+    def add_trail(self, project: str, trail: evidence.EvidenceTrail, number: str) -> None:
+        """The evidence trail the fake answers for ``number`` (whatever day is asked)."""
+        self._trails.setdefault(project, {})[number] = trail
 
     def set_suggestion(self, suggestion: views.SuggestionView) -> None:
         self._suggestion = suggestion
@@ -193,6 +229,106 @@ class FakeCorrespondenceSupport:
     def list_correspondence_domains(self, project: str) -> list[views.DomainView]:
         self.calls.append("list_correspondence_domains")  # type: ignore[attr-defined]
         return list(self._domains.get(project, []))
+
+    def list_rfis(
+        self,
+        project: str,
+        *,
+        subtype: str | None = None,
+        state: str | None = None,
+        discipline: str | None = None,
+        only_open: bool = False,
+        only_overdue: bool = False,
+        only_impact: bool = False,
+        limit: int = 500,
+    ) -> reports_technical.RfiLog:
+        self.calls.append("list_rfis")  # type: ignore[attr-defined]
+        every = self._rfi_lines.get(project, [])
+        lines = [
+            line
+            for line in every
+            if (subtype is None or line.subtype == subtype)
+            and (state is None or line.state == state)
+            and (discipline is None or line.discipline == discipline)
+            and (not only_open or line.state not in ("Answered", "Accepted", "Closed", "Void"))
+            and (not only_overdue or line.overdue)
+            and (not only_impact or "yes" in (line.cost_impact, line.schedule_impact))
+        ]
+        return reports_technical.RfiLog(
+            scope=project,
+            as_of="2026-10-20",
+            lines=lines[:limit],
+            total=len(lines),
+            answered=sum(1 for line in lines if line.answered_on),
+            open=sum(1 for line in lines if line.state not in ("Closed", "Void")),
+            overdue=sum(1 for line in lines if line.overdue),
+            impact_yes=sum(
+                1 for line in lines if "yes" in (line.cost_impact, line.schedule_impact)
+            ),
+            average_response_days=None,
+        )
+
+    def get_rfi(self, project: str, number: str) -> views_domain.TechnicalView:
+        self.calls.append("get_rfi")  # type: ignore[attr-defined]
+        found = self._rfis.get(project, {}).get(number)
+        if found is None:
+            raise ItemNotFoundError(f"no technical item {number!r} in scope {project!r}")
+        return found
+
+    def list_commercial(
+        self,
+        project: str,
+        *,
+        subtype: str | None = None,
+        state: str | None = None,
+        only_open: bool = False,
+        time_bars_only: bool = False,
+        limit: int = 500,
+    ) -> reports_commercial.CommercialRegister:
+        self.calls.append("list_commercial")  # type: ignore[attr-defined]
+        if not self.is_corr_controller:
+            lines: list[reports_commercial.CommercialLine] = []
+        else:
+            lines = [
+                line
+                for line in self._commercial_lines.get(project, [])
+                if (subtype is None or line.subtype == subtype)
+                and (state is None or line.state == state)
+                and (not only_open or line.state not in ("Closed", "Void"))
+                and (not time_bars_only or line.time_bar_due is not None)
+            ]
+        return reports_commercial.CommercialRegister(
+            scope=project,
+            as_of="2026-10-20",
+            lines=lines[:limit],
+            totals=[],
+            time_bars_running=sum(1 for line in lines if line.time_bar_state == "running"),
+            time_bars_late=sum(1 for line in lines if line.time_bar_late),
+        )
+
+    def get_commercial(self, project: str, number: str) -> views_domain.CommercialView:
+        self.calls.append("get_commercial")  # type: ignore[attr-defined]
+        found = self._commercial.get(project, {}).get(number) if self.is_corr_controller else None
+        if found is None:
+            raise ItemNotFoundError(f"no commercial item {number!r} in scope {project!r}")
+        return found
+
+    def get_evidence_trail(
+        self,
+        project: str,
+        number: str,
+        *,
+        as_of: date | None = None,
+        depth: int = 2,
+        max_nodes: int = 100,
+    ) -> evidence.EvidenceTrail:
+        self.calls.append("get_evidence_trail")  # type: ignore[attr-defined]
+        found = self._trails.get(project, {}).get(number)
+        if found is None:
+            raise ItemNotFoundError(f"no item {number!r} in scope {project!r}")
+        if as_of is not None and as_of.isoformat() > "2026-10-20":
+            raise EvidenceDateError("the date is to come")
+        return found
 
     def correspondence_command(self, name: str, cmd: Command) -> CommandResult:
         self.calls.append("correspondence_command")  # type: ignore[attr-defined]

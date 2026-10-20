@@ -26,6 +26,7 @@ from tl_core import util
 from tl_core.files.service import CompleteUpload, FileResult, FileService, RegisterUpload
 from tl_core.ledger import NewEvent
 from tl_core.services.commands import Command, CommandResult
+from tl_core.services.links import AddLink, RetractLink, handle_add_link, handle_retract_link
 from tl_core.services.records import create_module_record
 
 from tl_mod_correspondence import registry, registry_domain
@@ -583,14 +584,26 @@ class CorrWorld:
                 uow, CompleteUpload(**BASE, upload_id=ticket.upload_id), io.BytesIO(data)
             )
 
+    def link(
+        self, from_id: str, to_id: str, relation: str = "references", **more: Any
+    ) -> CommandResult:
+        """A person's link from one record to another (``AddLink``); the result's ``stream_id`` is
+        the link's id."""
+        fields: dict[str, Any] = {"from_id": from_id, "to_id": to_id, "relation": relation, **more}
+        return self.run(AddLink, handle_add_link, **fields)
+
+    def retract_link(self, link_id: str, reason: str = "not relevant") -> CommandResult:
+        return self.run(RetractLink, handle_retract_link, link_id=link_id, reason=reason)
+
     def forge_item_event(self, item_id: str, event_type: str, payload: dict[str, Any]) -> None:
         """Append an item event without the checks of the commands (a damaged or old history)."""
         with cf.system_view(), open_uow(self.db) as uow:
+            row = registry.get_item(uow.conn(), item_id)
             common.append(
                 uow,
                 _Forge(**BASE),
                 item_id,
-                CORRESPONDENCE,
+                row.record_type if row is not None else CORRESPONDENCE,
                 [NewEvent(event_type=event_type, payload=payload)],
             )
 

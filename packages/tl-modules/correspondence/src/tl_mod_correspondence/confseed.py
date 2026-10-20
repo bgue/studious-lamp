@@ -1,11 +1,13 @@
 """A ledger with something of every class in it, for the tests that look for leaks (ADR-0016).
 
 ``seed_hidden_world`` writes, in project ``P123``: four correspondence items (internal, restricted,
-privileged and one whose class nobody knows), each with a clock and a thread; a file on an internal
+privileged and one whose class nobody knows), each with a clock and a thread; an RFI (internal), a
+privileged RFI and a restricted early warning derived from the RFI (P1-I6); a file on an internal
 and on a restricted item; a link from the internal item to the restricted one; a feed post that
 names each of three items; and a restricted and an internal document. Every hidden thing carries a
 token (``TOKENS``) in its text, so a test can search a response for what must not be there.
-The accounts named on the privileged item are ``user:amy`` and ``user:ctl``.
+The accounts named on the privileged item and on the privileged RFI are ``user:amy`` and
+``user:ctl``.
 """
 
 from __future__ import annotations
@@ -44,6 +46,8 @@ TOKENS = {
     "bogus": "BOGUSTOKEN",
     "document": "DOCTOKEN",
     "file": "FILETOKEN",
+    "commercial": "COMMTOKEN",
+    "secret_rfi": "SECRETRFITOKEN",
 }
 
 
@@ -58,6 +62,71 @@ class Hidden:
 
 class _Cmd(Command):
     """A command carrier for seeding."""
+
+
+def _seed_domain_items(
+    db: DbTarget,
+    world: CorrWorld,
+    scope: str,
+    ids: dict[str, str],
+    numbers: dict[str, str],
+    extra: dict[str, str],
+) -> None:
+    """An answered RFI anybody may read, a privileged RFI, and a restricted early warning derived
+    from the RFI, linked to it (the evidence trail of the RFI leads to it, for a controller)."""
+    word = TOKENS["open"]
+    ids["open_rfi"] = world.forge_technical(
+        "P123-RFI-0001",
+        subject=f"{word} RFI",
+        state="Answered",
+        scope=scope,
+        question=f"{word} question",
+        item={"body": f"{word} RFI body"},
+        answer={"answer": f"{word} answer", "cost_impact": "yes"},
+    )
+    numbers["open_rfi"] = "P123-RFI-0001"
+    secret = TOKENS["secret_rfi"]
+    ids["secret_rfi"] = world.forge_technical(
+        "P123-RFI-0002",
+        subject=f"{secret} subject",
+        state="Awaiting response",
+        scope=scope,
+        confidentiality="privileged",
+        question=f"{secret} question",
+        item={"body": f"{secret} body"},
+    )
+    numbers["secret_rfi"] = "P123-RFI-0002"
+    for account in ("user:amy", "user:ctl"):
+        world.forge_item_event(
+            ids["secret_rfi"],
+            CORR_CLEARANCE_GRANTED,
+            {"account": account, "granted_on": "2026-10-19", "reason": "counsel"},
+        )
+    comm = TOKENS["commercial"]
+    ids["commercial"] = world.forge_commercial(
+        "P123-EW-0001",
+        subject=f"{comm} subject",
+        scope=scope,
+        state="Awaiting assessment",
+        item={"body": f"{comm} body"},
+        derived_from_id=ids["open_rfi"],
+        entitlement_basis=f"{comm} basis",
+    )
+    numbers["commercial"] = "P123-EW-0001"
+    with open_uow(db) as uow:
+        link = handle_add_link(
+            uow,
+            AddLink(
+                actor="user:ctl",
+                source="test",
+                scope=scope,
+                from_id=ids["commercial"],
+                to_id=ids["open_rfi"],
+                relation="derived_from",
+            ),  # fmt: skip
+            by_module=True,
+        )
+    extra["commercial_link"] = link.stream_id
 
 
 def seed_hidden_world(
@@ -96,6 +165,7 @@ def seed_hidden_world(
                 CORR_CLEARANCE_GRANTED,
                 {"account": account, "granted_on": "2026-10-19", "reason": "counsel"},
             )
+        _seed_domain_items(db, world, scope, ids, numbers, extra)
         for kind in ("open", "restricted", "privileged"):
             clock = world.start_clock(ids[kind], label=f"{TOKENS[kind]} clock")
             extra[f"{kind}_clock"] = clock.stream_id

@@ -237,6 +237,7 @@ def _rows() -> tuple[ErrorSpec, ...]:
         s(corr.ClearanceError, "clearance", 422),
         s(corr.LetterRenderError, "letter_render", 422),
         s(corr.EvidenceDateError, "evidence_date", 422),
+        s(corr.ExportClassError, "export_class", 422),
         s(doc.PublishRefusedError, "publish_refused", 422),
         s(doc.CompensationRefusedError, "compensation_refused", 409),
         # --- cost module (P1-I4): cost codes and period snapshots -------------------------------

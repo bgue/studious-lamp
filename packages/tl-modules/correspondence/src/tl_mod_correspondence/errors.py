@@ -85,3 +85,7 @@ class LetterRenderError(CorrespondenceError):
 
 class EvidenceDateError(CorrespondenceError):
     """The day an evidence trail is asked for is not a date, is to come, or is before the item."""
+
+
+class ExportClassError(CorrespondenceError):
+    """An export was asked for a class it never carries (privileged) or that is none."""

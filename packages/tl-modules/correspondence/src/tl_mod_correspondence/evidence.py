@@ -36,6 +36,7 @@ from tl_core import confidentiality
 from tl_core.links.lifecycle import CREATING_EVENTS, next_status
 from tl_core.links.provider import get_vocabulary
 from tl_core.services.errors import ServiceError
+from tl_core.workflow.provider import get_workflows
 
 from tl_mod_correspondence import registry
 from tl_mod_correspondence.errors import EvidenceDateError, ItemNotFoundError
@@ -286,10 +287,17 @@ def cutoff_of(as_of: str | None) -> tuple[str, datetime]:
     return day.isoformat(), datetime.combine(day, time.max, tzinfo=UTC)
 
 
+def _initial_state(kind: str, scope: str) -> str | None:
+    """The first state of the workflow of a record type: where a record that never moved is."""
+    found = get_workflows().find(kind, scope)
+    return found.initial_state if found is not None else None
+
+
 def _node(
     record_id: str,
     folded: _Folded,
     kind: str,
+    scope: str,
     depth: int,
     parent: str | None,
     via: EvidenceLink | None,
@@ -302,7 +310,7 @@ def _node(
         depth=depth,
         parent_id=parent,
         via=via,
-        state=folded.state,
+        state=folded.state or _initial_state(kind, scope),
         voided=folded.voided,
         created_on=folded.created_on,
         facts=_facts(folded),
@@ -335,7 +343,7 @@ def evidence_trail(
     if folded is None:
         raise EvidenceDateError(f"item {number} did not exist on {day}")
     truncated = cut
-    nodes = [_node(root.id, folded, root.record_type, 0, None, None)]
+    nodes = [_node(root.id, folded, root.record_type, scope, 0, None, None)]
     seen = {root.id}
     frontier = [root.id]
     looked_at = 0
@@ -371,6 +379,7 @@ def evidence_trail(
                         other,
                         other_folded,
                         str(row.other_type),
+                        scope,
                         level,
                         parent_id,
                         EvidenceLink(
