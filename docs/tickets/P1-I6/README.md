@@ -48,31 +48,32 @@ Give the correspondence module its second and third domains. **Technical / RFI**
 | S7 | CLI `tl rfi`, `tl comm`, `tl evidence` | Controller gates, export | security review | done (9de0abb) |
 | S8 | TUI client interface and fakes | Interface other tickets consume | — | done (f43aa36, 9de0abb) |
 | S9 | T05 escalation rule on the P1-I7 engine | Rules; waits for the engine | orchestrator | pending (last) |
+| S10 | Security review fixes F1 to F8 (Commercial controller gate on every command, feed cards of confidential streams, answering records readable by the item's readers, bounded evidence query, private export file, export row limit, issue day floor) | Core feed change; confidentiality | orchestrator re-check of F1 and F2 | done (eb31ba2) |
 
 ## Tickets
 | ID | Title | Tier | Depends | Status | Outcome |
 |---|---|---|---|---|---|
 | T01 | LinkML for the Technical domain and its workflow | S | — | done | S1 (one class, see D1) |
-| T02a | Technical raise, update, submit, return | H | S3 | draft | |
-| T02b | Technical issue, answer, review, reissue, close | H | S3 | draft | |
+| T02a | Technical raise, update, submit, return | H | S3 | dispatched (batch 2) | |
+| T02b | Technical issue, answer, review, reissue, close | H | T02a | ready (batch 3) | |
 | T03 | Commercial domain: subtypes, workflow, clocks, numbering | S | — | done | S1, S3 (orchestrator approval) |
-| T04a | Commercial raise, update, submit, review, return | H | S3 | draft | |
-| T04b | Commercial issue, assess, close, refer to legal | H | S3 | draft | |
+| T04a | Commercial raise, update, submit, review, return | H | S3 | dispatched (batch 2) | |
+| T04b | Commercial issue, assess, close, refer to legal | H | T04a | ready (batch 3) | |
 | T04c | Cost-system export (CSV) | S | T09b | done | S5 (9de0abb) |
 | T05 | Escalation RFI to Commercial: the command (S3) and the rule on the I7 engine | S | S3, P1-I7 on trunk | pending | S9 |
 | T06 | Evidence trail query | S | S3 | done | S4 (f43aa36) |
 | T07a | TUI: RFI register and record, Commercial register and record | H | S8, T09a, T09b | draft | |
 | T07b | TUI: evidence view | H | S4, S8 | draft | |
 | T08 | Feed policy per domain | S | S2 | done | S2 and the handlers of S3 (L-P1-I3-5: the cards cannot be tested apart) |
-| T09a | RFI log report | H | S3 | dispatched (batch 1) | |
-| T09b | Commercial register report | H | S3 | dispatched (batch 1) | |
+| T09a | RFI log report | H | S3 | merged (63d7dc1) | passed first time; one equivalent guard added for pyright (L-P1-I6-1) |
+| T09b | Commercial register report | H | S3 | merged (3f753af) | passed first time |
 | T10 | Simulator: client representative answers RFIs; commercial manager raises notices; demo; report | H | T02, T04, T09 | draft | |
 
 ## Order of work
 1. Plan, schema, generalisation, references, reports interfaces: done. First batch: T09a and T09b.
 2. Evidence trail, export, API, MCP, CLI, TUI client interface (supervisor).
 3. Second batch: TUI tickets (T07a, T07b).
-4. Stub the four handler files from their references and dispatch T02a and T04a, then T02b and T04b; restore the held tests after each merge.
+4. Stub the handler files of the batch from their references and dispatch T02a and T04a (batch 2), then T02b and T04b (batch 3); the other pair stays a reference in the tree meanwhile (L-P1-I6-5). Restore the held tests (`held/test_domain_flow.py.txt`, `held/test_evidence.py.txt`) once all four are merged.
 5. Third batch: simulator (T10). Ask the orchestrator whether P1-I7 is on trunk; merge it; build T05 on the real engine.
 6. Demo, docs, runbook, ADR, report, gates, security review.
 

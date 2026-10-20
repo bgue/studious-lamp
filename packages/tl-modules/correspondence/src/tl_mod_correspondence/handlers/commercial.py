@@ -1,3 +1,4 @@
+# ruff: noqa: F401, F841
 """Raise, edit, submit and review a Commercial item: an early warning, a change notice, a claim ...
 
 A Commercial item (brief 9, M10) is a notice or a claim under the contract. It is a record of the
@@ -21,6 +22,9 @@ a viewer below that level before it writes anything.
 
 ``create_commercial`` is the one place an item is made; ``RaiseCommercial`` and the escalation of
 an answered RFI (``escalate.py``) both call it.
+
+STUB (P1-I6-T04a): the functions with a STEPS comment are for you to write. When they are
+written, delete this paragraph, the STEPS comments and the `ruff: noqa` line at the top.
 """
 
 from __future__ import annotations
@@ -304,81 +308,45 @@ def create_commercial(
     ``clearances`` override the domain's default class when the source asks for a higher one. A
     Python-only path: no field of ``RaiseCommercial`` can set them.
     """
-    require_controller_viewer()
-    chosen = definition.subtype(cmd.subtype)
-    assert chosen is not None  # check_subtype ran
-    clause_id = resolve_clause(uow, cmd, cmd.clause)
-    aware_on = _aware_on(cmd.aware_on)
-    impacts = check_impacts(cmd.cost_code_impacts or [])
-    check_references(uow, cmd, cmd.references, None)
-    direction = chosen.direction or "out"
-    made = create_item(
-        uow,
-        cmd,
-        subject=cmd.subject,
-        direction=direction,
-        medium="other",
-        received_via="manual",
-        to=cmd.to,
-        cc=cmd.cc,
-        received_on=today() if direction == "in" else None,
-        body=cmd.body,
-        confidentiality=confidentiality_class or definition.confidentiality_default,
-        clearances=clearances or [],
-        response_required=chosen.response_required,
-        domain=DOMAIN_COMMERCIAL,
-        subtype=cmd.subtype,
-        record_type=COMMERCIAL,
-        numbering=kind_numbering(definition, cmd.subtype),
-        domain_events=[
-            NewEvent(
-                event_type=COMM_DEFINED,
-                payload={
-                    "contract_clause_id": clause_id,
-                    "aware_on": aware_on,
-                    "derived_from_id": derived_from.id if derived_from else None,
-                    "currency": cmd.currency,
-                    "estimated_value": cmd.estimated_value,
-                    "estimated_hours": cmd.estimated_hours,
-                    "cost_code_impacts": impacts,
-                    "schedule_impact_days": cmd.schedule_impact_days,
-                    "schedule_impact_note": cmd.schedule_impact_note,
-                    "entitlement_basis": cmd.entitlement_basis,
-                },
-            )
-        ],
-    )
-    events: list[Event] = list(made.events)
-    version = made.version
-    item = registry.get_item(uow.conn(), made.stream_id)
-    assert item is not None  # the controller viewer reads what it made
-    if derived_from is not None:
-        events += handle_add_link(
-            uow,
-            AddLink(
-                actor=cmd.actor,
-                source=cmd.source,
-                scope=cmd.scope,
-                correlation_id=cmd.correlation_id,
-                causation_id=cmd.causation_id,
-                from_id=item.id,
-                to_id=derived_from.id,
-                relation="derived_from",
-                link_source="rule",
-                note=f"escalated from {derived_from.number}",
-            ),
-            by_module=True,
-        ).events
-    events += link_references(uow, cmd, item.id, cmd.references)
-    _, clock_events = start_domain_clocks(
-        uow, cmd, item, definition, "awareness", aware_on, clause_id=clause_id
-    )
-    events += clock_events
-    if direction == "in":  # an instruction that arrived waits for our assessment
-        moved = transition(uow, cmd, item.id, "receive")
-        events += moved.events
-        version = moved.version
-    return CommandResult(stream_id=item.id, key=item.number, version=version, events=events)
+    # STEPS
+    # 1. `require_controller_viewer()`; `chosen = definition.subtype(cmd.subtype)` and
+    #    `assert chosen is not None`.
+    # 2. `clause_id = resolve_clause(uow, cmd, cmd.clause)`; `aware_on =
+    #    _aware_on(cmd.aware_on)`; `impacts = check_impacts(cmd.cost_code_impacts or [])`;
+    #    `check_references(uow, cmd, cmd.references, None)`. All of these raise before
+    #    anything is written.
+    # 3. `direction = chosen.direction or "out"`.
+    # 4. `made = create_item(uow, cmd, ...)` with: `subject=cmd.subject`,
+    #    `direction=direction`, `medium="other"`, `received_via="manual"`, `to=cmd.to`,
+    #    `cc=cmd.cc`, `received_on=today() if direction == "in" else None`,
+    #    `body=cmd.body`, `confidentiality=confidentiality_class or
+    #    definition.confidentiality_default`, `clearances=clearances or []`,
+    #    `response_required=chosen.response_required`, `domain=DOMAIN_COMMERCIAL`,
+    #    `subtype=cmd.subtype`, `record_type=COMMERCIAL`,
+    #    `numbering=kind_numbering(definition, cmd.subtype)`.
+    # 5. Also pass `domain_events=[NewEvent(event_type=COMM_DEFINED, payload={...})]`; the
+    #    payload keys are exactly: `contract_clause_id` (`clause_id`), `aware_on`,
+    #    `derived_from_id` (`derived_from.id` or `None`), `currency`, `estimated_value`,
+    #    `estimated_hours` (from `cmd`), `cost_code_impacts` (`impacts`),
+    #    `schedule_impact_days`, `schedule_impact_note`, `entitlement_basis` (from `cmd`).
+    # 6. `events: list[Event] = list(made.events)`; `version = made.version`; `item =
+    #    registry.get_item(uow.conn(), made.stream_id)` and `assert item is not None` (the
+    #    controller viewer reads what it made).
+    # 7. If `derived_from` is not None, add the events of `handle_add_link(uow,
+    #    AddLink(actor=cmd.actor, source=cmd.source, scope=cmd.scope,
+    #    correlation_id=cmd.correlation_id, causation_id=cmd.causation_id,
+    #    from_id=item.id, to_id=derived_from.id, relation="derived_from",
+    #    link_source="rule", note=f"escalated from {derived_from.number}"),
+    #    by_module=True).events`.
+    # 8. `events += link_references(uow, cmd, item.id, cmd.references)`.
+    # 9. `_, clock_events = start_domain_clocks(uow, cmd, item, definition, "awareness",
+    #    aware_on, clause_id=clause_id)`; `events += clock_events`.
+    # 10. If `direction == "in"` (an instruction that arrived waits for our assessment):
+    #    `moved = transition(uow, cmd, item.id, "receive")`, add `moved.events` and set
+    #    `version = moved.version`.
+    # 11. Return `CommandResult(stream_id=item.id, key=item.number, version=version,
+    #    events=events)`.
+    raise NotImplementedError
 
 
 def handle_raise_commercial(uow: UnitOfWork, cmd: RaiseCommercial) -> CommandResult:
@@ -391,11 +359,11 @@ def handle_raise_commercial(uow: UnitOfWork, cmd: RaiseCommercial) -> CommandRes
     ``InvalidClockError`` and ``CalendarUnavailableError`` (the time bar cannot be counted), and
     the numbering errors of the core.
     """
-    require_controller_viewer()
-    require_project(cmd)
-    cmd = correlated(cmd)
-    definition = catalog.check_subtype(cmd.scope, DOMAIN_COMMERCIAL, cmd.subtype)
-    return create_commercial(uow, cmd, definition=definition)
+    # STEPS
+    # 1. `require_controller_viewer()`, `require_project(cmd)`, `cmd = correlated(cmd)`.
+    # 2. `definition = catalog.check_subtype(cmd.scope, DOMAIN_COMMERCIAL, cmd.subtype)`.
+    # 3. Return `create_commercial(uow, cmd, definition=definition)`.
+    raise NotImplementedError
 
 
 def handle_update_commercial(uow: UnitOfWork, cmd: UpdateCommercial) -> CommandResult:
@@ -406,69 +374,41 @@ def handle_update_commercial(uow: UnitOfWork, cmd: UpdateCommercial) -> CommandR
     Commercial item), ``ItemStateError`` (not a Draft or in commercial review),
     ``InvalidItemError`` (a text, a party, an amount without a currency) and ``NoChangesError``.
     """
-    require_controller_viewer()
-    cmd = correlated(cmd)
-    row = open_commercial(uow, cmd, cmd.stream_id)
-    item, data = row.item, row.data
-    require_state(item, ST_DRAFT, ST_COMMERCIAL_REVIEW)
-    given = cmd.model_fields_set
-    old: dict[str, Any] = {
-        "currency": data.currency,
-        "estimated_value": data.estimated_value,
-        "estimated_hours": data.estimated_hours,
-        "cost_code_impacts": data.cost_code_impacts,
-        "schedule_impact_days": data.schedule_impact_days,
-        "schedule_impact_note": data.schedule_impact_note,
-        "entitlement_basis": data.entitlement_basis,
-    }
-    new: dict[str, Any] = {}
-    for name in _UPDATABLE:
-        if name not in given:
-            continue
-        value = getattr(cmd, name)
-        if name == "cost_code_impacts":
-            value = check_impacts(value or [])
-        new[name] = value
-    after = {**old, **new}
-    stated = after["estimated_value"] is not None or any(
-        i.get("amount") is not None for i in after["cost_code_impacts"]
-    )
-    if stated and after["currency"] is None:
-        raise InvalidItemError("state the currency of the amounts")
-    register_old: dict[str, Any] = {"to": item.to, "cc": item.cc}
-    register_new: dict[str, Any] = {}
-    for name in ("to", "cc"):
-        if name not in given:
-            continue
-        value = getattr(cmd, name)
-        if value is None:
-            raise InvalidItemError(f"{name} is a list; send [] to clear it")
-        check_recipients(uow, cmd, value)
-        register_new[name] = [r.as_payload() for r in value]
-    if "body" in given:
-        register_old["body"], register_new["body"] = item.body, check_body(cmd.body)
-    domain = changes_of(old, new)
-    register = changes_of(register_old, register_new)
-    envelope = changes_of({"title": item.subject}, {"title": cmd.subject} if cmd.subject else {})
-    if not (domain or register or envelope):
-        raise NoChangesError(f"no field of item {item.number} differs from the request")
-    events: list[NewEvent] = []
-    if envelope:
-        events.append(NewEvent(event_type="Record.Updated", payload={"changes": envelope}))
-    if register:
-        events.append(
-            NewEvent(event_type=CORR_UPDATED, payload={"changes": register, "reason": cmd.reason})
-        )
-    if domain:
-        events.append(
-            NewEvent(event_type=COMM_UPDATED, payload={"changes": domain, "reason": cmd.reason})
-        )
-    done = append(
-        uow, cmd, item.id, item.record_type, events, expected=cmd.expected_version or item.version
-    )
-    return CommandResult(
-        stream_id=item.id, key=item.number, version=done.new_version, events=list(done.events)
-    )
+    # STEPS
+    # 1. `require_controller_viewer()`; `cmd = correlated(cmd)`; `row =
+    #    open_commercial(uow, cmd, cmd.stream_id)`; `item, data = row.item, row.data`;
+    #    `require_state(item, ST_DRAFT, ST_COMMERCIAL_REVIEW)`; `given =
+    #    cmd.model_fields_set`.
+    # 2. `old` is a dict of the seven notice fields as they are now, from `data`:
+    #    `currency`, `estimated_value`, `estimated_hours`, `cost_code_impacts`,
+    #    `schedule_impact_days`, `schedule_impact_note`, `entitlement_basis`. `new = {}`;
+    #    for `name` in `_UPDATABLE` that is in `given`: `value = getattr(cmd, name)`; for
+    #    `cost_code_impacts` replace it by `check_impacts(value or [])` (a `null` clears
+    #    the list); `new[name] = value`.
+    # 3. `after = {**old, **new}`. `stated` is true when `after["estimated_value"] is not
+    #    None` or any impact in `after["cost_code_impacts"]` has `i.get("amount") is not
+    #    None`. If `stated` and `after["currency"] is None` raise `InvalidItemError("state
+    #    the currency of the amounts")`.
+    # 4. `register_old = {"to": item.to, "cc": item.cc}` and `register_new = {}`. For
+    #    `name` in `("to", "cc")` that is in `given`: `value = getattr(cmd, name)`; if it
+    #    is `None` raise `InvalidItemError(f"{name} is a list; send [] to clear it")`;
+    #    call `check_recipients(uow, cmd, value)`; set `register_new[name] =
+    #    [r.as_payload() for r in value]`. If `"body"` is in `given`:
+    #    `register_old["body"], register_new["body"] = item.body, check_body(cmd.body)`.
+    # 5. `domain = changes_of(old, new)`; `register = changes_of(register_old,
+    #    register_new)`; `envelope = changes_of({"title": item.subject}, {"title":
+    #    cmd.subject} if cmd.subject else {})`. If all three are empty raise
+    #    `NoChangesError(f"no field of item {item.number} differs from the request")`.
+    # 6. `events` in this order, each only when its changes are not empty:
+    #    `NewEvent(event_type="Record.Updated", payload={"changes": envelope})`;
+    #    `NewEvent(event_type=CORR_UPDATED, payload={"changes": register, "reason":
+    #    cmd.reason})`; `NewEvent(event_type=COMM_UPDATED, payload={"changes": domain,
+    #    "reason": cmd.reason})`.
+    # 7. `done = append(uow, cmd, item.id, item.record_type, events,
+    #    expected=cmd.expected_version or item.version)`; return
+    #    `CommandResult(stream_id=item.id, key=item.number, version=done.new_version,
+    #    events=list(done.events))`.
+    raise NotImplementedError
 
 
 def handle_submit_commercial(uow: UnitOfWork, cmd: SubmitCommercial) -> CommandResult:
@@ -477,20 +417,18 @@ def handle_submit_commercial(uow: UnitOfWork, cmd: SubmitCommercial) -> CommandR
     Raises ``ForbiddenError``, ``RecordNotFoundError``, ``ItemStateError`` (not a Draft) and
     ``InvalidItemError`` (no recipient, or data the subtype needs is missing).
     """
-    require_controller_viewer()
-    cmd = correlated(cmd)
-    row = open_commercial(uow, cmd, cmd.stream_id)
-    item, data = row.item, row.data
-    require_state(item, ST_DRAFT)
-    missing: list[str] = []
-    if item.direction == "out" and not item.to:
-        missing.append("a recipient")
-    for name in REQUIRED_TO_SUBMIT.get(item.subtype or "", ()):
-        if not getattr(data, name):
-            missing.append(name)
-    if missing:
-        raise InvalidItemError(f"item {item.number} needs {', '.join(missing)} before review")
-    return transition(uow, cmd, item.id, "submit", expected=cmd.expected_version)
+    # STEPS
+    # 1. `require_controller_viewer()`; `cmd = correlated(cmd)`; `row =
+    #    open_commercial(uow, cmd, cmd.stream_id)`; `item, data = row.item, row.data`;
+    #    `require_state(item, ST_DRAFT)`.
+    # 2. `missing: list[str] = []`. If `item.direction == "out"` and `item.to` is empty
+    #    append `"a recipient"`. For `name` in `REQUIRED_TO_SUBMIT.get(item.subtype or "",
+    #    ())`: if `getattr(data, name)` is falsy (None, empty text or empty list) append
+    #    `name`.
+    # 3. If `missing` is not empty raise `InvalidItemError(f"item {item.number} needs {',
+    #    '.join(missing)} before review")`.
+    # 4. Return `transition(uow, cmd, item.id, "submit", expected=cmd.expected_version)`.
+    raise NotImplementedError
 
 
 def handle_review_commercial(uow: UnitOfWork, cmd: ReviewCommercial) -> CommandResult:
@@ -498,13 +436,13 @@ def handle_review_commercial(uow: UnitOfWork, cmd: ReviewCommercial) -> CommandR
 
     Raises ``ForbiddenError``, ``RecordNotFoundError`` and ``ItemStateError`` (not in review).
     """
-    require_controller_viewer()
-    cmd = correlated(cmd)
-    row = open_commercial(uow, cmd, cmd.stream_id)
-    require_state(row.item, ST_COMMERCIAL_REVIEW)
-    return transition(
-        uow, cmd, row.item.id, "review", reason=cmd.note, expected=cmd.expected_version
-    )
+    # STEPS
+    # 1. `require_controller_viewer()`; `cmd = correlated(cmd)`; `row =
+    #    open_commercial(uow, cmd, cmd.stream_id)`; `require_state(row.item,
+    #    ST_COMMERCIAL_REVIEW)`.
+    # 2. Return `transition(uow, cmd, row.item.id, "review", reason=cmd.note,
+    #    expected=cmd.expected_version)`.
+    raise NotImplementedError
 
 
 def handle_return_commercial(uow: UnitOfWork, cmd: ReturnCommercial) -> CommandResult:
@@ -512,10 +450,10 @@ def handle_return_commercial(uow: UnitOfWork, cmd: ReturnCommercial) -> CommandR
 
     Raises ``ForbiddenError``, ``RecordNotFoundError`` and ``ItemStateError``.
     """
-    require_controller_viewer()
-    cmd = correlated(cmd)
-    row = open_commercial(uow, cmd, cmd.stream_id)
-    require_state(row.item, ST_COMMERCIAL_REVIEW, ST_PM_APPROVAL)
-    return transition(
-        uow, cmd, row.item.id, "return", reason=cmd.reason, expected=cmd.expected_version
-    )
+    # STEPS
+    # 1. `require_controller_viewer()`; `cmd = correlated(cmd)`; `row =
+    #    open_commercial(uow, cmd, cmd.stream_id)`; `require_state(row.item,
+    #    ST_COMMERCIAL_REVIEW, ST_PM_APPROVAL)`.
+    # 2. Return `transition(uow, cmd, row.item.id, "return", reason=cmd.reason,
+    #    expected=cmd.expected_version)`.
+    raise NotImplementedError

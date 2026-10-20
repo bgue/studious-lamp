@@ -1,3 +1,4 @@
+# ruff: noqa: F401, F841
 """Raise, edit, submit and return a Technical item: an RFI, a technical query, a deviation request.
 
 A Technical item (brief 9, M10) is a question to the designer or the client, or a request to
@@ -14,6 +15,9 @@ appended.
 * ``UpdateTechnical``: changes those fields while the item is a Draft or in internal review.
 * ``SubmitTechnical``: Draft to Internal review; it needs a recipient and a date for the answer.
 * ``ReturnTechnical``: Internal review back to Draft, with a reason.
+
+STUB (P1-I6-T02a): the functions with a STEPS comment are for you to write. When they are
+written, delete this paragraph, the STEPS comments and the `ruff: noqa` line at the top.
 """
 
 from __future__ import annotations
@@ -222,51 +226,29 @@ def handle_raise_technical(uow: UnitOfWork, cmd: RaiseTechnical) -> CommandResul
     a text, a repeated reference), ``RecordNotFoundError`` (a reference that is unknown, foreign
     or hidden) and the numbering errors of the core.
     """
-    require_project(cmd)
-    cmd = correlated(cmd)
-    definition = catalog.check_subtype(cmd.scope, DOMAIN_TECHNICAL, cmd.subtype)
-    chosen = definition.subtype(cmd.subtype)
-    assert chosen is not None  # check_subtype ran
-    required_by = _required_by(cmd.required_by)
-    check_references(uow, cmd, cmd.references, None)
-    made = create_item(
-        uow,
-        cmd,
-        subject=cmd.subject,
-        direction="out",
-        medium="other",
-        received_via="manual",
-        to=cmd.to,
-        cc=cmd.cc,
-        body=cmd.question,
-        confidentiality=definition.confidentiality_default,
-        response_required=chosen.response_required,
-        response_due=required_by,
-        domain=DOMAIN_TECHNICAL,
-        subtype=cmd.subtype,
-        record_type=TECHNICAL,
-        numbering=kind_numbering(definition, cmd.subtype),
-        domain_events=[
-            NewEvent(
-                event_type=TECH_DEFINED,
-                payload={
-                    "question": cmd.question,
-                    "proposed_solution": cmd.proposed_solution,
-                    "discipline": cmd.discipline,
-                    "required_by": required_by,
-                    "potential_cost_impact": cmd.potential_cost_impact,
-                    "potential_schedule_impact": cmd.potential_schedule_impact,
-                },
-            )
-        ],
-    )
-    linked = link_references(uow, cmd, made.stream_id, cmd.references)
-    return CommandResult(
-        stream_id=made.stream_id,
-        key=made.key,
-        version=made.version,
-        events=[*made.events, *linked],
-    )
+    # STEPS
+    # 1. `require_project(cmd)`, then `cmd = correlated(cmd)`.
+    # 2. `definition = catalog.check_subtype(cmd.scope, DOMAIN_TECHNICAL, cmd.subtype)`
+    #    (it raises `UnknownDomainError`), then `chosen = definition.subtype(cmd.subtype)`
+    #    and `assert chosen is not None`.
+    # 3. `required_by = _required_by(cmd.required_by)` and `check_references(uow, cmd,
+    #    cmd.references, None)`: both raise before anything is written.
+    # 4. `made = create_item(uow, cmd, ...)` with these keyword arguments:
+    #    `subject=cmd.subject`, `direction="out"`, `medium="other"`,
+    #    `received_via="manual"`, `to=cmd.to`, `cc=cmd.cc`, `body=cmd.question`,
+    #    `confidentiality=definition.confidentiality_default`,
+    #    `response_required=chosen.response_required`, `response_due=required_by`,
+    #    `domain=DOMAIN_TECHNICAL`, `subtype=cmd.subtype`, `record_type=TECHNICAL`,
+    #    `numbering=kind_numbering(definition, cmd.subtype)`.
+    # 5. Also pass `domain_events=[NewEvent(event_type=TECH_DEFINED, payload={...})]` to
+    #    `create_item`; the payload has exactly these keys: `question`,
+    #    `proposed_solution`, `discipline` (each from `cmd`), `required_by` (the checked
+    #    `required_by`), `potential_cost_impact`, `potential_schedule_impact` (from
+    #    `cmd`).
+    # 6. `linked = link_references(uow, cmd, made.stream_id, cmd.references)`.
+    # 7. Return `CommandResult(stream_id=made.stream_id, key=made.key,
+    #    version=made.version, events=[*made.events, *linked])`.
+    raise NotImplementedError
 
 
 def handle_update_technical(uow: UnitOfWork, cmd: UpdateTechnical) -> CommandResult:
@@ -277,72 +259,42 @@ def handle_update_technical(uow: UnitOfWork, cmd: UpdateTechnical) -> CommandRes
     ``ItemStateError`` (not a Draft or in internal review), ``InvalidItemError`` (a date before
     today, a party, a text) and ``NoChangesError`` (nothing differs).
     """
-    cmd = correlated(cmd)
-    row = open_technical(uow, cmd, cmd.stream_id)
-    item, data = row.item, row.data
-    require_state(item, ST_DRAFT, ST_INTERNAL_REVIEW)
-    given = cmd.model_fields_set
-    old: dict[str, Any] = {
-        "question": data.question,
-        "proposed_solution": data.proposed_solution,
-        "discipline": data.discipline,
-        "required_by": data.required_by,
-        "potential_cost_impact": data.potential_cost_impact,
-        "potential_schedule_impact": data.potential_schedule_impact,
-    }
-    new: dict[str, Any] = {}
-    for name in old:
-        if name not in given:
-            continue
-        value = getattr(cmd, name)
-        if value is None and name in (
-            "question",
-            "potential_cost_impact",
-            "potential_schedule_impact",
-        ):
-            raise InvalidItemError(f"{name} cannot be cleared")
-        new[name] = value
-    if "required_by" in new:
-        new["required_by"] = _required_by(new["required_by"])
-    register_old: dict[str, Any] = {"to": item.to, "cc": item.cc}
-    register_new: dict[str, Any] = {}
-    for name in ("to", "cc"):
-        if name not in given:
-            continue
-        value = getattr(cmd, name)
-        if value is None:
-            raise InvalidItemError(f"{name} is a list; send [] to clear it")
-        check_recipients(uow, cmd, value)
-        register_new[name] = [r.as_payload() for r in value]
-    if "question" in new:  # the register shows the question as the text of the item
-        register_old["body"], register_new["body"] = item.body, check_body(new["question"])
-    if "required_by" in new:  # and the answer date as the date an answer is due
-        register_old["response_due"], register_new["response_due"] = (
-            item.response_due,
-            new["required_by"],
-        )
-    domain = changes_of(old, new)
-    register = changes_of(register_old, register_new)
-    envelope = changes_of({"title": item.subject}, {"title": cmd.subject} if cmd.subject else {})
-    if not (domain or register or envelope):
-        raise NoChangesError(f"no field of item {item.number} differs from the request")
-    events: list[NewEvent] = []
-    if envelope:
-        events.append(NewEvent(event_type="Record.Updated", payload={"changes": envelope}))
-    if register:
-        events.append(
-            NewEvent(event_type=CORR_UPDATED, payload={"changes": register, "reason": cmd.reason})
-        )
-    if domain:
-        events.append(
-            NewEvent(event_type=TECH_UPDATED, payload={"changes": domain, "reason": cmd.reason})
-        )
-    done = append(
-        uow, cmd, item.id, item.record_type, events, expected=cmd.expected_version or item.version
-    )
-    return CommandResult(
-        stream_id=item.id, key=item.number, version=done.new_version, events=list(done.events)
-    )
+    # STEPS
+    # 1. `cmd = correlated(cmd)`; `row = open_technical(uow, cmd, cmd.stream_id)`; `item,
+    #    data = row.item, row.data`; `require_state(item, ST_DRAFT, ST_INTERNAL_REVIEW)`;
+    #    `given = cmd.model_fields_set`.
+    # 2. `old` is a dict of the six domain fields as they are now: `question`,
+    #    `proposed_solution`, `discipline`, `required_by`, `potential_cost_impact`,
+    #    `potential_schedule_impact` (from `data`). Build `new` from the names of `old`
+    #    that are in `given`: `value = getattr(cmd, name)`; if `value is None` and `name`
+    #    is `question`, `potential_cost_impact` or `potential_schedule_impact`, raise
+    #    `InvalidItemError(f"{name} cannot be cleared")`; else `new[name] = value`.
+    # 3. If `"required_by"` is in `new`, replace it by `_required_by(new["required_by"])`
+    #    (a plausible date that is not before today).
+    # 4. `register_old = {"to": item.to, "cc": item.cc}` and `register_new = {}`. For
+    #    `name` in `("to", "cc")` that is in `given`: `value = getattr(cmd, name)`; if it
+    #    is `None` raise `InvalidItemError(f"{name} is a list; send [] to clear it")`;
+    #    call `check_recipients(uow, cmd, value)`; set `register_new[name] =
+    #    [r.as_payload() for r in value]`.
+    # 5. The register shows the question as the text of the item: if `"question"` is in
+    #    `new`, set `register_old["body"], register_new["body"] = item.body,
+    #    check_body(new["question"])`. It shows the answer date as the date an answer is
+    #    due: if `"required_by"` is in `new`, set `register_old["response_due"],
+    #    register_new["response_due"] = item.response_due, new["required_by"]`.
+    # 6. `domain = changes_of(old, new)`; `register = changes_of(register_old,
+    #    register_new)`; `envelope = changes_of({"title": item.subject}, {"title":
+    #    cmd.subject} if cmd.subject else {})`. If all three are empty raise
+    #    `NoChangesError(f"no field of item {item.number} differs from the request")`.
+    # 7. `events` in this order, each only when its changes are not empty:
+    #    `NewEvent(event_type="Record.Updated", payload={"changes": envelope})`;
+    #    `NewEvent(event_type=CORR_UPDATED, payload={"changes": register, "reason":
+    #    cmd.reason})`; `NewEvent(event_type=TECH_UPDATED, payload={"changes": domain,
+    #    "reason": cmd.reason})`.
+    # 8. `done = append(uow, cmd, item.id, item.record_type, events,
+    #    expected=cmd.expected_version or item.version)`; return
+    #    `CommandResult(stream_id=item.id, key=item.number, version=done.new_version,
+    #    events=list(done.events))`.
+    raise NotImplementedError
 
 
 def handle_submit_technical(uow: UnitOfWork, cmd: SubmitTechnical) -> CommandResult:
@@ -351,23 +303,18 @@ def handle_submit_technical(uow: UnitOfWork, cmd: SubmitTechnical) -> CommandRes
     Raises ``RecordNotFoundError``, ``ItemStateError`` (not a Draft) and ``InvalidItemError`` (no
     recipient, or no date for the answer, or that date has passed).
     """
-    cmd = correlated(cmd)
-    row = open_technical(uow, cmd, cmd.stream_id)
-    item, data = row.item, row.data
-    require_state(item, ST_DRAFT)
-    missing = [
-        name
-        for name, ok in (
-            ("a recipient", bool(item.to)),
-            ("required_by", data.required_by is not None),
-        )
-        if not ok
-    ]
-    if missing:
-        raise InvalidItemError(f"item {item.number} needs {' and '.join(missing)} before review")
-    if data.required_by is not None and data.required_by < today():
-        raise InvalidItemError(f"required_by {data.required_by} is before today ({today()})")
-    return transition(uow, cmd, item.id, "submit", expected=cmd.expected_version)
+    # STEPS
+    # 1. `cmd = correlated(cmd)`; `row = open_technical(uow, cmd, cmd.stream_id)`; `item,
+    #    data = row.item, row.data`; `require_state(item, ST_DRAFT)`.
+    # 2. `missing` lists `"a recipient"` when `item.to` is empty and `"required_by"` when
+    #    `data.required_by is None`, in that order. If it is not empty raise
+    #    `InvalidItemError(f"item {item.number} needs {' and '.join(missing)} before
+    #    review")`.
+    # 3. If `data.required_by` is not None and is before `today()` (ISO dates compare as
+    #    text), raise `InvalidItemError(f"required_by {data.required_by} is before today
+    #    ({today()})")`.
+    # 4. Return `transition(uow, cmd, item.id, "submit", expected=cmd.expected_version)`.
+    raise NotImplementedError
 
 
 def handle_return_technical(uow: UnitOfWork, cmd: ReturnTechnical) -> CommandResult:
@@ -375,9 +322,9 @@ def handle_return_technical(uow: UnitOfWork, cmd: ReturnTechnical) -> CommandRes
 
     Raises ``RecordNotFoundError`` and ``ItemStateError`` (not in internal review).
     """
-    cmd = correlated(cmd)
-    row = open_technical(uow, cmd, cmd.stream_id)
-    require_state(row.item, ST_INTERNAL_REVIEW)
-    return transition(
-        uow, cmd, row.item.id, "return", reason=cmd.reason, expected=cmd.expected_version
-    )
+    # STEPS
+    # 1. `cmd = correlated(cmd)`; `row = open_technical(uow, cmd, cmd.stream_id)`;
+    #    `require_state(row.item, ST_INTERNAL_REVIEW)`.
+    # 2. Return `transition(uow, cmd, row.item.id, "return", reason=cmd.reason,
+    #    expected=cmd.expected_version)`.
+    raise NotImplementedError

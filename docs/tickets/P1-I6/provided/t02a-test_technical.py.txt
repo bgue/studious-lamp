@@ -121,9 +121,6 @@ def test_the_item_is_in_the_technical_workflow_and_belongs_to_the_technical_reco
         made = world.raise_technical()
     assert world.item("P123-RFI-0001").record_type == "correspondence.TechnicalItem"
     assert world.technical("P123-RFI-0001").item.id == made.stream_id
-    with pytest.raises(RecordNotFoundError):  # it is not a Commercial item
-        with cf.use_viewer(CONTROLLER):
-            world.update_commercial(made.stream_id, currency="USD")
 
 
 def test_the_references_become_links_of_the_raiser(world: CorrWorld) -> None:
