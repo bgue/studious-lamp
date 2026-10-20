@@ -406,7 +406,7 @@ def handle_review_technical_answer(uow: UnitOfWork, cmd: ReviewTechnicalAnswer) 
     require_state(item, ST_ANSWERED)
     if cmd.decision == "rejected" and not (cmd.note and cmd.note.strip()):
         raise InvalidItemError("say why the answer is rejected")
-    append(
+    done = append(
         uow,
         cmd,
         item.id,
@@ -419,12 +419,18 @@ def handle_review_technical_answer(uow: UnitOfWork, cmd: ReviewTechnicalAnswer) 
         ],
         expected=cmd.expected_version or item.version,
     )
-    return transition(
+    moved = transition(
         uow,
         cmd,
         item.id,
         "accept" if cmd.decision == "accepted" else "reject",
         reason=cmd.note,
+    )
+    return CommandResult(
+        stream_id=item.id,
+        key=item.number,
+        version=moved.version,
+        events=[*done.events, *moved.events],
     )
 
 
@@ -439,7 +445,7 @@ def handle_reissue_technical(uow: UnitOfWork, cmd: ReissueTechnical) -> CommandR
     item = row.item
     require_state(item, ST_REJECTED)
     rounds = int(uow.conn().execute(_ISSUES_SQL, {"id": item.id}).scalar_one()) + 1
-    append(
+    done = append(
         uow,
         cmd,
         item.id,
@@ -452,7 +458,13 @@ def handle_reissue_technical(uow: UnitOfWork, cmd: ReissueTechnical) -> CommandR
         ],
         expected=cmd.expected_version or item.version,
     )
-    return transition(uow, cmd, item.id, "reissue", reason=cmd.reason)
+    moved = transition(uow, cmd, item.id, "reissue", reason=cmd.reason)
+    return CommandResult(
+        stream_id=item.id,
+        key=item.number,
+        version=moved.version,
+        events=[*done.events, *moved.events],
+    )
 
 
 def handle_close_technical(uow: UnitOfWork, cmd: CloseTechnical) -> CommandResult:

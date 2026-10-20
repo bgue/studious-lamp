@@ -97,6 +97,7 @@ class TlApp(App[None]):
         Binding("f10", "admin", "Accounts", show=False),
         Binding("f11", "derived", "Derived documents", show=False),
         Binding("f12", "schedules", "Schedules", show=False),
+        Binding("ctrl+g", "domains", "RFIs and notices", show=False),
         Binding("alt+left", "back", "Back", show=False),
         Binding("alt+right", "forward", "Forward", show=False),
     ]
@@ -582,6 +583,22 @@ class TlApp(App[None]):
             return
         self.push_screen(
             CorrespondenceScreen(self.client, project, self.actor, is_controller=self.is_controller)
+        )
+
+    def action_domains(self) -> None:
+        """RFIs, Commercial notices and the evidence trail of this project."""
+        if self._modal_open():
+            return
+        from tl_core.settings.layers import project_of_scope
+
+        from tl_tui.widgets.domain_screen import DomainScreen
+
+        project = project_of_scope(self.scope)
+        if project is None:
+            self.notify("RFIs and notices need a project.", severity="warning")
+            return
+        self.push_screen(
+            DomainScreen(self.client, project, self.actor, is_controller=self.is_controller)
         )
 
     def action_schedules(self) -> None:

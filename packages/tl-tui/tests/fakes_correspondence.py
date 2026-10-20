@@ -51,6 +51,7 @@ class FakeCorrespondenceSupport:
         self._commercial_lines: dict[str, list[reports_commercial.CommercialLine]] = {}
         self._commercial: dict[str, dict[str, views_domain.CommercialView]] = {}
         self._trails: dict[str, dict[str, evidence.EvidenceTrail]] = {}
+        self.trail_requests: list[tuple[str, date | None]] = []  # (number, as_of) asked for
         self.correspondence_commands: list[tuple[str, Command]] = []
         self.is_corr_controller = True  # False: a controller's command raises ForbiddenError
 
@@ -323,6 +324,7 @@ class FakeCorrespondenceSupport:
         max_nodes: int = 100,
     ) -> evidence.EvidenceTrail:
         self.calls.append("get_evidence_trail")  # type: ignore[attr-defined]
+        self.trail_requests.append((number, as_of))
         found = self._trails.get(project, {}).get(number)
         if found is None:
             raise ItemNotFoundError(f"no item {number!r} in scope {project!r}")
@@ -400,4 +402,166 @@ def seed_correspondence(client: FakeCorrespondenceSupport, project: str = "P123"
             domain="general", subtype="letter", score=0,
             reasons=["no keyword matched; the default domain"], scores={"general": 0},
         )
+    )  # fmt: skip
+
+
+def _item_fields(number: str, subject: str, state: str, **more: object) -> dict[str, object]:
+    """The fields of an ``ItemView`` for an outgoing item of a domain, with ``more`` over them."""
+    fields: dict[str, object] = {
+        "id": f"ID-{number}", "number": number, "subject": subject, "state": state,
+        "direction": "out", "medium": "other", "received_via": "manual", "external_ref": None,
+        "from_name": None, "from_party_id": None,
+        "to": [views.RecipientView(name="Meridian", email="pm@meridian.test", party_id=None)],
+        "cc": [], "sent_on": None, "received_on": None, "issued_on": None, "body": None,
+        "confidentiality": "internal", "domain": None, "subtype": None, "thread_id": None,
+        "thread_number": None, "responds_to_id": None, "responds_to_number": None,
+        "superseded_by_id": None, "response_required": True, "response_due": None,
+        "responded_on": None, "triaged_on": None, "triaged_by": None, "delivery": "none",
+        "rendition_file_id": None, "version": 1,
+    }  # fmt: skip
+    return {**fields, **more}
+
+
+def seed_domains(client: FakeCorrespondenceSupport, project: str = "P123") -> None:
+    """Three RFIs (one answered in time with a cost impact and escalated, one overdue, one a
+    draft), two Commercial notices (an early warning whose bar was met late, an agreed change
+    notice) and the evidence trail of the early warning (the RFI it came from)."""
+    clock = views.ClockView(
+        id="CLK-R2", key="P123-RFI-0002-C01", item_id="ID-P123-RFI-0002",
+        item_number="P123-RFI-0002", label="Answer required", kind="response_from_them",
+        start_on="2026-10-05", duration_days=10, day_type="working", calendar="P123-default@1",
+        warn_days=[3, 1], due_on="2026-10-19", state="running", effective_state="expired",
+        days_left=-1, warned_level=None, paused_on=None, closed_on=None, closed_reason=None,
+        owner=None, clause_id=None, restarts=0,
+    )  # fmt: skip
+
+    def rfi(number: str, subject: str, state: str, **more: object) -> views_domain.TechnicalView:
+        fields: dict[str, object] = {
+            **_item_fields(number, subject, state, domain="technical", subtype="rfi"),
+            "question": f"Please confirm: {subject}", "proposed_solution": None,
+            "discipline": "structural", "required_by": "2026-11-02",
+            "potential_cost_impact": "unknown", "potential_schedule_impact": "unknown",
+            "answer": None, "answered_on": None, "answer_cost_impact": None,
+            "answer_schedule_impact": None, "answer_item_id": None, "answer_item_number": None,
+            "answering_revision_id": None, "review_decision": None, "reviewed_on": None,
+            "review_note": None,
+        }  # fmt: skip
+        return views_domain.TechnicalView(**{**fields, **more})  # type: ignore[arg-type]
+
+    def log_line(view: views_domain.TechnicalView, **more: object) -> reports_technical.RfiLogLine:
+        fields: dict[str, object] = {
+            "id": view.id, "number": view.number, "subject": view.subject,
+            "subtype": view.subtype or "", "discipline": view.discipline, "state": view.state,
+            "raised_on": "2026-10-05", "issued_on": view.issued_on,
+            "required_by": view.required_by, "answered_on": view.answered_on,
+            "response_days": None, "on_time": None, "overdue": False, "days_overdue": None,
+            "potential_cost_impact": view.potential_cost_impact,
+            "potential_schedule_impact": view.potential_schedule_impact,
+            "cost_impact": view.answer_cost_impact,
+            "schedule_impact": view.answer_schedule_impact,
+            "review_decision": view.review_decision, "confidentiality": "internal",
+        }  # fmt: skip
+        return reports_technical.RfiLogLine(**{**fields, **more})  # type: ignore[arg-type]
+
+    answered = rfi(
+        "P123-RFI-0001", "Beam B12 clashes with line 47", "Answered", issued_on="2026-10-05",
+        answer="Re-route above the beam.", answered_on="2026-10-12", answer_cost_impact="yes",
+        answer_schedule_impact="no", required_by="2026-10-19", potential_cost_impact="unknown",
+        escalations=[views_domain.EscalationView(
+            id="ID-P123-EW-0001", number="P123-EW-0001", subtype="early_warning", state="Draft"
+        )],
+    )  # fmt: skip
+    overdue = rfi(
+        "P123-RFI-0002", "Cable tray height", "Awaiting response", issued_on="2026-10-05",
+        required_by="2026-10-19", potential_schedule_impact="yes", clocks=[clock],
+    )  # fmt: skip
+    draft = rfi("P123-RFI-0003", "Anchor bolt spacing", "Draft", discipline=None, required_by=None)
+    client.add_rfi(project, answered, log_line(answered, response_days=7, on_time=True))
+    client.add_rfi(project, overdue, log_line(overdue, overdue=True, days_overdue=1))
+    client.add_rfi(project, draft, log_line(draft))
+
+    def notice(number: str, subject: str, state: str, subtype: str, **more: object):  # type: ignore[no-untyped-def]
+        fields: dict[str, object] = {
+            **_item_fields(
+                number, subject, state, domain="commercial", subtype=subtype,
+                confidentiality="restricted",
+            ),
+            "contract_clause_id": None, "clause": "CT-1/20.1", "aware_on": "2026-10-12",
+            "derived_from_id": None, "derived_from_number": None, "currency": "USD",
+            "estimated_value": "12500.00", "estimated_hours": "240.0",
+            "cost_code_impacts": [{"cost_code": "2.3.1", "amount": "12500.00"}],
+            "schedule_impact_days": 3, "schedule_impact_note": None,
+            "entitlement_basis": "Clause 20.1", "assessed_value": None, "assessed_on": None,
+            "assessment_status": None, "assessment_note": None,
+        }  # fmt: skip
+        return views_domain.CommercialView(**{**fields, **more})  # type: ignore[arg-type]
+
+    warning = notice(
+        "P123-EW-0001", "Early warning: routing change", "Awaiting assessment", "early_warning",
+        derived_from_id="ID-P123-RFI-0001", derived_from_number="P123-RFI-0001",
+        issued_on="2026-10-30",
+    )  # fmt: skip
+    change = notice(
+        "P123-CN-0001", "Change notice: cable tray", "Agreed", "change_notice",
+        assessed_value="9000.00", assessed_on="2026-10-20", assessment_status="agreed",
+        assessment_note="as stated", issued_on="2026-10-15",
+    )  # fmt: skip
+
+    def register_line(
+        view: views_domain.CommercialView, **more: object
+    ) -> reports_commercial.CommercialLine:
+        fields: dict[str, object] = {
+            "id": view.id, "number": view.number, "subject": view.subject,
+            "subtype": view.subtype or "", "state": view.state, "direction": "out",
+            "confidentiality": "restricted", "clause": view.clause, "aware_on": view.aware_on,
+            "issued_on": view.issued_on, "time_bar_due": None, "time_bar_days_left": None,
+            "time_bar_state": None, "time_bar_late": False, "currency": view.currency,
+            "estimated_value": view.estimated_value, "assessed_value": view.assessed_value,
+            "variance": None, "schedule_impact_days": view.schedule_impact_days,
+            "assessment_status": view.assessment_status, "derived_from": view.derived_from_number,
+        }  # fmt: skip
+        return reports_commercial.CommercialLine(**{**fields, **more})  # type: ignore[arg-type]
+
+    client.add_commercial(
+        project, warning,
+        register_line(
+            warning, time_bar_due="2026-10-26", time_bar_days_left=-4, time_bar_state="met",
+            time_bar_late=True,
+        ),
+    )  # fmt: skip
+    client.add_commercial(
+        project, change,
+        register_line(
+            change, time_bar_due="2026-11-09", time_bar_days_left=10, time_bar_state="met",
+            variance="-3500.00",
+        ),
+    )  # fmt: skip
+
+    def node(key: str, kind: str, state: str, title: str, depth: int, **more: object):  # type: ignore[no-untyped-def]
+        fields: dict[str, object] = {
+            "record_id": f"ID-{key}", "key": key, "title": title, "type": kind, "depth": depth,
+            "parent_id": None, "via": None, "state": state, "voided": False,
+            "created_on": "2026-10-12", "facts": {},
+        }  # fmt: skip
+        return evidence.EvidenceNode(**{**fields, **more})  # type: ignore[arg-type]
+
+    via = evidence.EvidenceLink(
+        link_id="LNK-1", relation="derived_from", label="derived from", direction="out",
+        status="active", pin=None, note="escalated from P123-RFI-0001", since="2026-10-12",
+    )  # fmt: skip
+    client.add_trail(
+        project,
+        evidence.EvidenceTrail(
+            scope=f"project:{project}", as_of="2026-10-20", root_id="ID-P123-EW-0001",
+            nodes=[
+                node("P123-EW-0001", "correspondence.CommercialItem", "Draft", warning.subject, 0),
+                node(
+                    "P123-RFI-0001", "correspondence.TechnicalItem", "Answered",
+                    answered.subject, 1, parent_id="ID-P123-EW-0001", via=via,
+                    facts={"cost_impact": "yes"},
+                ),
+            ],
+            truncated=False,
+        ),
+        "P123-EW-0001",
     )  # fmt: skip

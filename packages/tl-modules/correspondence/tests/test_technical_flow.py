@@ -674,3 +674,18 @@ def test_a_refused_command_does_not_tell_the_hook(world: CorrWorld) -> None:
         with pytest.raises(ItemStateError):
             world.answer_technical(draft)
     assert recorder.calls == []
+
+
+def test_the_result_of_a_review_and_of_a_reissue_lists_every_event_they_wrote(
+    world: CorrWorld,
+) -> None:
+    item_id = awaiting(world)
+    with frozen_today(MONDAY):
+        world.answer_technical(item_id, answer="Fine.")
+        rejected = world.review_technical(item_id, "rejected", note="no")
+        again = world.reissue_technical(item_id, reason="clarified")
+    assert [e.event_type for e in rejected.events] == [
+        "Technical.Reviewed",
+        "Workflow.Transitioned",
+    ]
+    assert [e.event_type for e in again.events] == ["Technical.Reissued", "Workflow.Transitioned"]
