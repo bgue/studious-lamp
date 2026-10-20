@@ -1,0 +1,24 @@
+# Mapping template of the loader `equipment-list` (P1-I8-T07b): the equipment list of the incumbent
+# system as a workbook, one row per equipment tag. Read by tl_mod_engineering.imports.mapping; the
+# loader framework makes the delimiter a comma because it hands the template the extracted grid as
+# CSV text. The workbook has the sheet `Equipment List`, with two title rows above the header. The
+# design data (pressure, temperature, weight, vendor) are not mapped: they are kept in the source
+# layer `src.legacy-equip.list`.
+name: equipment-list
+description: >-
+  The equipment list of the incumbent system, one row per equipment tag: its number, a
+  description and a type that names the tag class.
+delimiter: ","
+columns:
+  - {column: "EQUIP NO", to: number}
+  - {column: "DESCRIPTION", to: service}
+  - column: "TYPE"
+    to: class
+    values:
+      PUMP: Pump
+      VESSEL: Vessel
+      EXCHANGER: HeatExchanger
+      COMPRESSOR: Compressor
+      MOTOR: Motor
+# Columns the file has that the import does not want.
+ignore: ["DESIGN PRESSURE (BAR)", "DESIGN TEMP (C)", "WEIGHT (KG)", "VENDOR", "REMARKS"]

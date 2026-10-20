@@ -34,13 +34,13 @@ A schema steward drafts a package, sees its classification and impact, has it re
 | T04a | Workbench TUI: package tree, property table, lint, diff | H | S5 | draft | |
 | T04b | Workbench TUI: impact, test on sample, review and publish | H | S5, T03, T04a | draft | |
 | T05a1 | `tl schema package diff\|classify\|impact\|test` | H | S5, T03 | ready | |
-| T05a2 | `tl schema package publish\|deprecate\|retire` and `tl schema adopt\|adoptions\|drift` | H | S5, T05a1 | draft | |
+| T05a2 | `tl schema package publish\|deprecate\|retire` and `tl schema adopt\|adoptions\|drift` | H | S5, T05a1 | ready (after T05a1 merges) | |
 | T05a3 | `tl schema waiver request\|approve\|revoke\|ls` | H | S5 | draft | |
 | T05a4 | `tl schema crosswalk\|export-git\|import-git` | H | S5 | draft | |
 | T05b | Conformance dashboard (report function, `tl schema conformance`) | H | S5 | draft | |
 | T06 | Loader framework: `legacy.LoadRun` and the stages | S | — | done (S6) | built by supervisor |
 | T07a | Loader `dms-register`: document register CSV or workbook | H | S6 | ready | the reconciliation report stays a file of the run (see Risks) |
-| T07b | Loaders `instrument-index` (workbook or CSV) and `equipment-list` (workbook) | H | S6, T07a | draft | line list: see Risks |
+| T07b | Loaders `instrument-index` (workbook or CSV) and `equipment-list` (workbook) | H | S6, T07a | ready (after T07a merges) | line list: see Risks |
 | T08 | Lake marts: documents (status, turnaround, issues) and schedule history | H | S1, S2 | merged (3fb9c0a) | passed first review; empty snapshots are skipped as the snapshot before (decision, test added) |
 | T09 | Phase-exit demo script: PDF, derived, published, feed, webhook receiver; `just demo P1-I8` | H | all | draft | |
 | T10 | Phase report, risk register, ADRs | O | T09 | orchestrator | not written here |

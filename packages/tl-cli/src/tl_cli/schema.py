@@ -22,7 +22,7 @@ from tl_schema.lint import lint_documents
 from tl_schema.packages import PackageDoc
 from tl_schema.registry import PackageError, PackageRegistry, default_schema_dir
 
-from tl_cli import schema_pkg
+from tl_cli import schema_gov, schema_pkg
 
 app = typer.Typer(help="Inspect and check schema packages.", no_args_is_help=True)
 
@@ -140,3 +140,4 @@ def reload(ctx: typer.Context, directory: DirOption = None) -> None:
 
 
 app.add_typer(schema_pkg.app, name="package")
+schema_gov.register(schema_pkg.app, app)

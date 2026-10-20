@@ -61,7 +61,7 @@ def _read(path: Path) -> str:
         fail(f"{path.name} is not UTF-8 text")
 
 
-def _package_id(db: DbTarget, ref: str) -> str:
+def resolve_package(db: DbTarget, ref: str) -> str:
     with service_errors(), open_uow(db, readonly=True) as uow:
         return views.package_detail(uow.conn(), ref).id
 
@@ -174,7 +174,7 @@ def revise(
     """Replace the content of your draft. Prints `revised <name@version> <id>`."""
     db: DbTarget = ctx.obj
     require_session(db)
-    package_id = _package_id(db, ref)
+    package_id = resolve_package(db, ref)
     content = _read(path)
     with service_errors(), open_uow(db) as uow:
         made = handle_revise_schema_package(
@@ -199,7 +199,7 @@ def analyse(ctx: typer.Context, ref: _Ref, actor: Actor = DEV_ACTOR) -> None:
     """
     db: DbTarget = ctx.obj
     require_session(db)
-    package_id = _package_id(db, ref)
+    package_id = resolve_package(db, ref)
     with service_errors(), open_uow(db) as uow:
         handle_analyse_schema_package(
             uow,
@@ -217,7 +217,7 @@ def submit(ctx: typer.Context, ref: _Ref, actor: Actor = DEV_ACTOR) -> None:
     """Send your analysed draft to review. Refused for breaking or forbidden changes."""
     db: DbTarget = ctx.obj
     require_session(db)
-    package_id = _package_id(db, ref)
+    package_id = resolve_package(db, ref)
     with service_errors(), open_uow(db) as uow:
         made = handle_submit_schema_package(
             uow,
@@ -238,7 +238,7 @@ def changes(
     """Send a package in review back to its author (admin)."""
     db: DbTarget = ctx.obj
     require_admin(db)
-    package_id = _package_id(db, ref)
+    package_id = resolve_package(db, ref)
     with service_errors(), open_uow(db) as uow:
         made = handle_request_schema_changes(
             uow,
@@ -263,7 +263,7 @@ def approve(
     """Approve a package in review (admin; never its author or submitter)."""
     db: DbTarget = ctx.obj
     require_admin(db)
-    package_id = _package_id(db, ref)
+    package_id = resolve_package(db, ref)
     with service_errors(), open_uow(db) as uow:
         made = handle_approve_schema_package(
             uow,
