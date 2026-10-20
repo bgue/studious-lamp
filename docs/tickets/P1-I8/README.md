@@ -1,6 +1,6 @@
 # Increment plan — P1-I8 Schema workbench, legacy loaders, lake marts, Phase 1 exit
 
-Status: in-progress
+Status: done (report: docs/reports/P1-I8.md)
 Supervisor session: 2026-10-20
 Brief sections: §27 (schema and semantic model management), §28 (lakehouse), §29.6 (legacy loading), §24.5 (compensation), §6.3 (conformance modes and waivers), §10.6 (workbench sketch 8), §16 Phase 1 exit
 Branch: `p1/i8`
@@ -22,9 +22,9 @@ A schema steward drafts a package, sees its classification and impact, has it re
 | S4 | Silver for documents and revisions in `tl lake sync`; the readable-set rule for children of a reclassified record; the walking test with a restricted document; the marts wired in; `tl lake mart ls\|show` | Sync engine, rebuild equality, confidentiality | security pass + orchestrator review | done (3d007e5) |
 | S5 | Plumbing for track A: views, API routes and client methods, error rows, CLI base (`tl schema package` review commands), TUI client interface and fakes | Public interfaces, access table | security pass | done (72559cd) |
 | S6 | T06: module `legacy` (`LoadRun`), the stage framework (extract in the envelope, bronze, profile, plan, load, reconcile, compensate), `tl load`, the reserved `legacy:` and `load:` prefixes | Untrusted files, bulk writes, compensation | security pass + orchestrator review | done (c65c7ab) |
-| S7 | References, stubs, provided tests and tickets, batch by batch (T05a1, T07a first) | Ticket scaffolding | — | in-progress |
-| S8 | Demo wiring, docs, runbooks, report | — | — | planned |
-| S9 | Conformance dashboard `conformance_dashboard()` and `tl schema conformance` (was T05b: it counts records as the viewer) | Access path over `cur_core_record` | orchestrator review | dispatched r2 |
+| S7 | References, stubs, provided tests and tickets, batch by batch (T05a1, T07a first) | Ticket scaffolding | — | done |
+| S8 | Demo wiring, docs, runbooks, report | — | — | done (r5) |
+| S9 | Conformance dashboard `conformance_dashboard()` and `tl schema conformance` (was T05b: it counts records as the viewer) | Access path over `cur_core_record` | orchestrator review | done (cdfb5ab) |
 
 ## Tickets
 | ID | Title | Tier | Depends | Status | Outcome |
@@ -32,21 +32,21 @@ A schema steward drafts a package, sees its classification and impact, has it re
 | T01 | `SchemaPackage` record, lifecycle, `SchemaPackage.Published`, adoption with pins (plus `Waiver`, the plan's T05 record) | S | — | done (S2) | built by supervisor |
 | T02 | Classification report (`tl_schema.classify`, `classify_linkml`) | S | T01 | done (S1) | built by supervisor |
 | T03 | Impact report: records, columns, views, mappings, reports, MCP schemas | H | S1, S2 | merged (07c7bb7) | passed first review; dotted pset names fixed after (see report) |
-| T04a | Workbench TUI: package tree, property table, lint, diff | H | S5 | dispatched r3 | |
-| T04b | Workbench TUI: impact, test on sample, review and publish | H | S5, T03 | staged (independent of T04a: stub) | |
+| T04a | Workbench TUI: package tree, property table, lint, diff | H | S5 | merged | `Ctrl+O` |
+| T04b | Workbench TUI: impact, test on sample, review and publish | H | S5, T03 | merged (d136c1a) | |
 | T05a1 | `tl schema package diff\|classify\|impact\|test` | H | S5, T03 | merged | |
 | T05a2 | `tl schema package publish\|deprecate\|retire` and `tl schema adopt\|adoptions\|drift` | H | S5, T05a1 | merged (538cdff) | |
-| T05a3 | `tl schema waiver request\|approve\|revoke\|ls` | H | S5 | dispatched r2 | |
-| T05a4a | `tl schema crosswalk` | H | S5 | dispatched r3 | |
-| T05a4b | `tl schema export-git` | H | S5 | dispatched r3 | |
-| T05a4c | `tl schema import-git` | H | S5 | staged | |
-| T05b | Conformance dashboard | — | — | folded into S9 | a read over records as the viewer: a piece, not a ticket |
+| T05a3 | `tl schema waiver request\|approve\|revoke\|ls` | H | S5 | merged (89c1e20) | |
+| T05a4a | `tl schema crosswalk` | H | S5 | merged | |
+| T05a4b | `tl schema export-git` | H | S5 | merged (8a7ee4d) | company scope only |
+| T05a4c | `tl schema import-git` | H | S5 | merged (30d276d) | |
+| T05b | Conformance dashboard | — | — | folded into S9 (done) | a read over records as the viewer: a piece, not a ticket |
 | T06 | Loader framework: `legacy.LoadRun` and the stages | S | — | done (S6) | built by supervisor |
 | T07a | Loader `dms-register`: document register CSV or workbook | H | S6 | merged | the reconciliation report stays a file of the run (see Risks) |
 | T07b | Loaders `instrument-index` (workbook or CSV) and `equipment-list` (workbook) | H | S6, T07a | merged | line list: see Risks |
 | T08 | Lake marts: documents (status, turnaround, issues) and schedule history | H | S1, S2 | merged (3fb9c0a) | passed first review; empty snapshots are skipped as the snapshot before (decision, test added) |
-| T09a | `just demo P1-I8`: script, schema lifecycle, adoption, waivers, crosswalk, export | H | all CLI | staged | |
-| T09b | `just demo P1-I8`: legacy load, lake marts, Phase 1 exit chain | H | T09a | staged | |
+| T09a | `just demo P1-I8`: script, schema lifecycle, adoption, waivers, crosswalk, export | H | all CLI | merged (d002b41) | |
+| T09b | `just demo P1-I8`: legacy load, lake marts, Phase 1 exit chain | H | T09a | merged (95a1b1e) | 7/7 on both adapters |
 | T10 | Phase report, risk register, ADRs | O | T09 | orchestrator | not written here |
 
 ## Order of work

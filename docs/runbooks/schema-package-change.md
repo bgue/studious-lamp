@@ -37,5 +37,14 @@ Purpose: edit a company or project package, check it, and record `Schema.Effecti
 ## Roll back
 - Restore the previous file content (version control) and run steps 2 to 4 again. The ledger keeps both `Schema.EffectiveChanged` events; nothing is rewritten (§5.2).
 
+## Registry lifecycle (P1-I8)
+For a ledgered package (not a file in the package directory), use the registry instead of editing files:
+1. `tl schema package draft FILE --changelog "..."`, then `analyse` and `classify` (a breaking or forbidden draft cannot be submitted).
+2. `submit` (author); `approve` (a different admin); `publish` (admin). The TUI does the same: `Ctrl+O`, `v`.
+3. `tl schema package impact NAME@VERSION --project P`, then `tl schema adopt P NAME VERSION --impact-sha256 DIGEST`.
+4. A waiver is the time-limited exception: `tl schema waiver request|approve|revoke`; read the state with `tl schema conformance --project P`.
+5. Back up or review in git: `tl schema export-git DIR`; `tl schema import-git DIR --dry-run` then without `--dry-run` drafts the files (it never publishes).
+Roll back: `tl schema package deprecate|retire` (retire is refused while a project pins the version) and re-pin with `adopt`.
+
 ## Related
 - `docs/runbooks/rebuild-projections.md`, `docs/tickets/P0-I2/README-A.md`
