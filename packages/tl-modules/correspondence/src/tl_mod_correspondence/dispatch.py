@@ -1,4 +1,3 @@
-# ruff: noqa: F401, F841
 """``/raise rfi <title>`` from a record thread: a real RFI of the correspondence module (P1-I6 T05).
 
 The core has a placeholder target for ``/raise rfi`` (a labelled ``core.Record``); a module's target
@@ -8,9 +7,6 @@ registers this one under the entry-point group ``throughline.dispatch_targets``.
 The target only builds the command; the planner checks the person's access (``RaiseTechnical`` is
 any signed-in person's), dry-runs it and shows the preview. The thread engine adds the
 ``dispatched_from`` link from the new RFI to the thread's record.
-
-STUB (P1-I6-T05b): the functions with a STEPS comment are for you to write. When they are
-written, delete this paragraph, the STEPS comments and the `ruff: noqa` line at the top.
 """
 
 from __future__ import annotations

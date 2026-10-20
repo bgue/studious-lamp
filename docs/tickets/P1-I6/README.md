@@ -73,7 +73,7 @@ Not in the demo, covered by tests: the PDF rendition of an issued RFI, the feed 
 | T04b | Commercial issue, assess, close, refer to legal | H | T04a | merged (755f763) | passed first time |
 | T04c | Cost-system export (CSV) | S | T09b | done | S5 (9de0abb) |
 | T05 | Escalation RFI to Commercial: the command (S3) and the rule on the I7 engine | S | S3, P1-I7 on trunk | built by the supervisor (S23): the rule `dev/seed/rules/rfi-escalation.json`, `EscalateTechnical` proposable and in `AUTOMATION_COMMANDS`, `require_impact` | S9, S23 |
-| T05b | The module's `/raise rfi` thread target | H | T05 | ready | |
+| T05b | The module's `/raise rfi` thread target | H | T05 | passed, merged | |
 | T06 | Evidence trail query | S | S3 | done | S4 (f43aa36) |
 | T07a | TUI: the text of the RFI log (cells, summary, panel) | H | S8, T09a | merged 0cee9ab | the screen, the key (Ctrl+G) and the evidence text are supervisor pieces (S15) |
 | T07b | TUI: the text of the Commercial register | H | S8, T09b | merged 411f397 | |
