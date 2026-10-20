@@ -198,7 +198,7 @@ def register_correspondence_tools(server: MCPServer, ctx: McpContext) -> None:
         domain: Annotated[str, Field(min_length=1, max_length=MAX_PART)],
         subtype: Annotated[str, Field(min_length=1, max_length=MAX_PART)],
         referenced_ids: Annotated[
-            list[str],
+            list[Annotated[str, Field(min_length=1, max_length=MAX_PART)]],
             Field(
                 max_length=50,
                 description="Record ids the item refers to; each gets a `references` link.",

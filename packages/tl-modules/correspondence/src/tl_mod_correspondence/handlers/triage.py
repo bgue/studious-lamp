@@ -14,6 +14,8 @@ is the record of what was sent).
 
 from __future__ import annotations
 
+from typing import Annotated
+
 from pydantic import ConfigDict, Field, field_validator
 from sqlalchemy import text
 from tl_core import confidentiality
@@ -67,7 +69,9 @@ class ConfirmTriage(Command):
     expected_version: int | None = None
     domain: str = Field(min_length=1, max_length=MAX_NUMBER)
     subtype: str = Field(min_length=1, max_length=MAX_NUMBER)
-    referenced_ids: list[str] = Field(default_factory=list, max_length=MAX_REFERENCES)
+    referenced_ids: list[Annotated[str, Field(min_length=1, max_length=MAX_NUMBER)]] = Field(
+        default_factory=list, max_length=MAX_REFERENCES
+    )
     response_required: bool | None = None
     response_due: str | None = Field(default=None, max_length=10)
     start_clocks: bool = True

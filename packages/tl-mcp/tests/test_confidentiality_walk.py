@@ -42,12 +42,16 @@ def values(hidden: Hidden) -> dict[str, list[Any]]:
         "scope": [SCOPE],
         "number": [*hidden.numbers.values(), "P123-THR-0001"],
         "record": [*all_ids, *hidden.numbers.values()],
+        "record_id": all_ids,
         "derived": ["x"],
         "type_ref": ["x"],
         "code_list": ["x"],
         "from_code": ["A"],
         "to_code": ["B"],
         "q": ["", *TOKENS.values()],
+        "schedule": ["MAIN", "x"],
+        "activity_id": ["x"],
+        "code": ["MER", "x"],
     }
 
 

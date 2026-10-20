@@ -500,6 +500,12 @@ T14d came back blocked for two reasons that were both in the ticket: the provide
 - **L-P1-I5-8** · 2026-10-19 · tags: process, tests
   A mutation check of a read model must damage the stored row, not only the events: `views.clock_view` recomputes the dates from the events and falls back to the stored row, and the tests passed with either, because the two agree on an undamaged ledger. `UPDATE` the projected column to a wrong value and assert the view still shows the replayed one. The same run showed that a register filter applied to the second source of lines (the transmittals) needs a test with a source line in the ledger: the item-only tests cannot see it.
   Evidence: `packages/tl-modules/correspondence/tests/test_views_extra.py`. Status: active
+- **L-P1-I5-9** · 2026-10-19 · tags: process, security
+  Inheriting a class from what an item answers is for NEW items only. Run for an existing item (`AssignThread`, a plain user command), the same rule let a person named on a privileged thread pull anyone's item into it, so its author and the admins lost it. Any path that re-threads or re-answers an existing item must refuse a higher class unless the actor is a controller, and a controller's move must record a class event (`guard_move`).
+  Evidence: `packages/tl-modules/correspondence/tests/test_threads.py` (the four tests after "moving an existing item"), ADR-0016. Status: active
+- **L-P1-I5-10** · 2026-10-19 · tags: process, tests
+  A module that adds commands, routes or screens breaks tests of other packages that pin the whole set (`test_api_document_controller.py` pinned the controller actions, `test_confidentiality_walk.py` the path parameters of every GET route), and per-file runs of "the files I touched" do not find them. Run the whole `just test` once before the merge, not only at the end. Two workstreams also took the same TUI key (F12); check `tl_tui/keymap.py` on trunk before binding one (the correspondence screen is on F5).
+  Evidence: the merge commit of p1/i5 and its fix commit. Status: active
 ### L-P1-I4-1 (security) In a pattern for numbers write `[0-9]`, not `\d`
 `\d` matches the digits of every script (Arabic-Indic, Devanagari) and `float()` and `int()` accept them, so a cost file with `١٢٣` passed a number check that was meant to be plain ASCII. Use `[0-9]` and `fullmatch`. A mutation of the cost CSV reader found it; `test_cost_csv_reader.py` pins it. Evidence: `tl_mod_cost/imports/reader.py` (`_NUMBER`).
 

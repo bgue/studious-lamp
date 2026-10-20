@@ -3159,6 +3159,8 @@
           },
           "referenced_ids": {
             "items": {
+              "maxLength": 128,
+              "minLength": 1,
               "type": "string"
             },
             "maxItems": 50,
