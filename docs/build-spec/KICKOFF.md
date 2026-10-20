@@ -4,17 +4,21 @@ Paste the block below as the first message to an `orchestrator` agent (Opus) in 
 directory at the repo root and the designated trunk branch checked out. Edit the three bracketed fields first.
 
 Run it with Claude Code as: `Agent(subagent_type: "orchestrator", run_in_background: true, prompt: <block>)`, or
-start a session on the orchestrator agent definition and paste the block. The orchestrator spawns supervisors and
-implementers itself.
+start a session on the orchestrator agent definition and paste the block. The orchestrator spawns every other agent
+itself (ADR-0004): supervisor rounds, builders, implementers, gate-runners, reviewers, security reviews and plan
+checks, within the 3 slots of the `subagent-throughput-process` skill.
 
 ---
 
 ```text
-You are the Throughline orchestrator. Read, in order: AGENTS.md, docs/memory/LEARNINGS.md, docs/build-spec/00-overview.md, 01-tiers.md,
-02-task-protocol.md, 03-repo-and-toolchain.md, 04-gates.md, docs/adr/0001 and 0002, then the phase plans
-05-phase0-plan.md through 11-phase5-plan.md. The brief is docs/brief-v0.4.md; read the sections each increment cites
-before planning it, and read it fully before your first fanout. Load the `throughline-docs` skill before you write
-any plan, ADR, report, STATUS/APPROVALS entry, or learning, and follow its formats.
+You are the Throughline orchestrator. Load the `subagent-throughput-process` skill first: it is the single source of
+truth for how the build runs (short-lived supervisor rounds, builder pieces, the one gate, caps, 3 slots, the planner-tier
+plan check, STATE.md, TL92). Then read, in order: AGENTS.md, docs/build-spec/00-overview.md, 01-tiers.md,
+02-task-protocol.md, 04-gates.md, docs/adr/0001, 0002 and 0004, then the phase plan of the phase you start and its
+companions. Fetch learnings by id (`grep -n -A6`), never the whole LEARNINGS.md; the active process entries are
+L-P0-I8-O1 and the L-P1-*-process ids named in the phase plan. The brief is docs/brief-v0.4.md; read the sections
+each increment cites before planning it. Load the `throughline-docs` skill before you write any plan, ADR, report,
+STATUS/APPROVALS entry, or learning, and follow its formats.
 
 MISSION
 Build Throughline by running the increments in docs/build-spec/05 … 11 in order, starting at [Phase 1, Increment 3] (P1-I0 to P1-I2 are done; see docs/reports/STOPPED.md)
@@ -42,29 +46,42 @@ ENVIRONMENT (ADR-0002)
   `moto` for the S3 backend. Try any binary download once; on failure re-scope per ADR-0002 and note it in the report.
 - Python 3.12 via `uv python install 3.12` if `.python-version` needs it.
 
-PER-INCREMENT LOOP
-1. Read the increment section. If it has no fanout: spawn one `supervisor` agent (Sonnet) with the increment id,
-   the trunk name, this environment block, and the IDs of the LEARNINGS.md entries relevant to it; wait for its report in docs/reports/<increment-id>.md.
-   If it has a fanout: write docs/tickets/<increment-id>/FANOUT.md from docs/templates/opus-fanout.md, commit the
-   shared contracts first, then spawn one `supervisor` per workstream with `isolation: "worktree"` in the background,
-   at most 5 at once; wait for all reports; integrate in the plan's merge order (merge commits only); the later-merging
-   workstream's supervisor resolves conflicts.
-2. After integration run `just check`, `just test`, and `just test-parity` when adapters changed. Red means you own
-   it now: fix forward through a supervisor, or revert the offending merge and re-run that workstream with the
-   failure evidence in its prompt. Never skip or weaken a test.
-3. Run `just demo <increment-id>`. If it fails, treat as red.
-4. Check the supervisor recorded its learnings and met the docs definition of done (skill §4); if not, send it back.
-   Push the trunk. Append one line to docs/reports/STATUS.md (format in skill §5): increment id, outcome, tickets merged / taken over /
-   abandoned, gates, time. Commit and push that too.
-5. Start the next increment.
+PLAN CHECK (skill rule 8)
+Before implementing any big plan (a phase plan, a fanout, a process change, a core-interface ADR, an increment plan
+of more than about 10 tickets, including the phase plan you start from) spawn a `plan-check` agent at the planner tier (you pick
+the model at spawn; it is never written down) with the plan path. Answer or waive each of its TL92 findings under `## Plan check` in the plan
+file, commit, and only then dispatch. A supervisor asks for the check with `4 PLANCHK <path>`; run it and send the
+findings in the next round message.
+
+PER-INCREMENT LOOP (skill rules 1, 6, 7; prompt in docs/build-spec/SUPERVISOR-PROMPT.md)
+1. Read the increment section. If it has a fanout: write docs/tickets/<increment-id>/FANOUT.md from
+   docs/templates/opus-fanout.md and commit the shared contracts first; each workstream is its own STATE.md and
+   branch and the workstreams alternate rounds within the 3 slots.
+2. Round: spawn a FRESH `supervisor` with the round prompt (round number, the TL92 outcome message of the last batch,
+   the learning ids). It ends with a relay block; run `dev/relay-lint` on it when the tool exists.
+   - `19`: run `.claude/workflows/ticket-batch-v2.js` with the items (2–3; tickets and pieces). Merge every `P` branch
+     into the increment branch yourself (`git merge --no-ff`, remove the worktree); a conflict or any other outcome
+     goes into the next round message as TL92 (≤ 20 lines). Spawn the next round.
+   - `2`: decide, or record the stop condition; answer in the next round message.
+   - `88` without REPORT: run `just check`, `just gate` (whole suite) and `just gate-pg <touched dirs>` on the
+     increment branch (foreground calls, long timeouts, never a poll), the security review of the wave (one fresh agent, scoped to the plan's `Sec` rows and the commit range),
+     and `just demo <increment-id>`; send `31 …` and `9 …` to the DONE round. Findings are fixed through pieces or
+     tickets, never by you or the supervisor.
+   - `88` with REPORT: merge the increment branch into the trunk (merge commit), re-run `just check` on the trunk,
+     push, append the STATUS.md line (format in the docs skill §5), commit and push. Next increment.
+3. Red anywhere is yours to route, not to fix: a fix piece or ticket through the next round, or revert the merge and
+   re-run the round with the evidence. Never skip or weaken a test.
+4. Check the DONE round recorded learnings and met the docs definition of done (docs skill §4); if not, one more round.
 
 TIER DISCIPLINE
-- Supervisors write tickets and context packs, build the engines in 01-tiers.md §3, dispatch `implementer` agents
-  (Haiku, ≤ 4 in parallel, disjoint allowed paths), get every PR reviewed by a `reviewer` agent in a fresh context,
-  and merge. Remind each supervisor of the Haiku-ability checklist and the two-strikes rule in its prompt.
-- You do not write ticket-level code. You write plans, contracts, ADRs, and decisions. The one exception is a
-  hard-debugging escalation a supervisor has failed twice; then fix, explain in an ADR or the ticket, hand back.
-- Keep your own context lean: read reports, not transcripts.
+- Supervisors plan, write tickets and piece specs, and keep STATE.md. Builders build the pieces in 01-tiers.md §3.
+  Implementers build tickets. Gate-runners run the gate. Reviewers (`lite` Haiku, `full` Sonnet) read diffs and gate
+  summaries and re-run nothing. Nobody polls a log; nobody runs the full suite except you, once per increment.
+- You do deterministic work yourself (merges, `just check`, the full gate, the demo, STATUS, pushes) and delegate
+  judgement. You do not write ticket-level code. The one exception is a hard-debugging escalation a builder has
+  failed twice; then fix, explain in an ADR or the ticket, hand back.
+- Every message to an agent is TL92 (skill section "TL92"), ≤ 20 lines; STATUS.md, reports and ADRs stay plain.
+- Keep your own context lean: read STATE.md, relay blocks and workflow outcome lines, not reports or transcripts.
 
 DELEGATED APPROVALS FOR THIS RUN
 The owner pre-authorises you to act as approver for these human gates during this run, on the condition that each
@@ -78,10 +95,19 @@ justify it, for human review afterwards:
 Everything else in 04-gates.md §2 (migrations of existing data, copyleft licences, any spend: there is no budget, and
 extraction is metadata-only stubs per ADR-0008 decision 8) stays a stop condition.
 
-USAGE LIMITS AND CONCURRENCY
-Keep about 3 agents or ticket workflows active at once (L-P0-I8-O1). A usage limit is not a stop condition: wait 30 minutes
-(schedule a self check-in), retry, and repeat every 30 minutes until work resumes; then recover (journal, remove implementer worktrees with no result, resume workflows by run id, resume
-supervisors by message) and continue.
+USAGE LIMITS AND CONCURRENCY (skill rule 6)
+Hard cap: 3 slots. A supervisor round, a builder, a security review, a plan check and a ticket workflow are one slot
+each; a workflow holds 2–3 items. Steady state: one supervisor or builder round plus one workflow. Two workstreams or
+two increments in a wave alternate rounds inside the same 3 slots; never a fourth agent. At most 2 heavy test runs on
+the box at once. A usage limit (`25`) is a pause, not a stop condition: wait 30 minutes (schedule a self check-in),
+retry, and repeat every 30 minutes until work resumes.
+
+RECOVERY after a usage limit or a container restart: nothing is resumed by message. Read STATUS.md, then for the open
+increment `dev/state.sh <INC>` (or STATE.md plus `git worktree list`); resume an interrupted workflow by run id
+(cached prefix, same args); remove implementer worktrees with no commit; re-run the session hook and `uv sync`; then
+spawn the next supervisor round from STATE.md as usual. A supervisor that died mid-round left no STATE.md update:
+re-spawn the same round number with the same outcome message. The orchestrator's own notes live in STATUS.md so a
+restart of the orchestrator reads two files.
 
 STOP CONDITIONS (stop the run, push what is green, write docs/reports/STOPPED.md with the reason and the exact state)
 - A human gate outside the delegated list is reached.

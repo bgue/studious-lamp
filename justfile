@@ -40,6 +40,14 @@ test-parity *args:
 test-tui *args:
     uv run pytest packages/tl-tui -q {{args}}
 
+# Deterministic test gate: the whole suite in sequential parts, or only the given paths (dev/gate.sh)
+gate *args:
+    bash dev/gate.sh {{args}}
+
+# Test gate that also runs the parity suite on Postgres (native cluster must be up; dev/gate.sh)
+gate-pg *args:
+    bash dev/gate.sh --postgres {{args}}
+
 # Synthetic project into the dev ledger, written through the API by the simulator (xs, s or m)
 seed scale="xs" *args:
     bash dev/seed/seed.sh {{scale}} {{args}}

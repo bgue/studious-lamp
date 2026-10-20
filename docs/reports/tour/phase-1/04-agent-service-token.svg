@@ -1,150 +1,170 @@
-<svg class="rich-terminal" viewBox="0 0 1458 708.8" xmlns="http://www.w3.org/2000/svg">
+<svg class="rich-terminal" viewBox="0 0 1458 830.8" xmlns="http://www.w3.org/2000/svg">
     <!-- Generated with Rich https://www.textualize.io -->
     <style>
 
     
     
 
-    .terminal-2410219015-matrix {
+    .terminal-3779209375-matrix {
         font-family: Fira Code, monospace;
         font-size: 20px;
         line-height: 24.4px;
         font-variant-east-asian: full-width;
     }
 
-    .terminal-2410219015-title {
+    .terminal-3779209375-title {
         font-size: 18px;
         font-weight: bold;
         font-family: arial;
     }
 
-    .terminal-2410219015-r1 { fill: #9a9b99;font-style: italic; }
-.terminal-2410219015-r2 { fill: #c5c8c6 }
-.terminal-2410219015-r3 { fill: #98a84b;font-weight: bold }
-.terminal-2410219015-r4 { fill: #c5c8c6;font-weight: bold }
+    .terminal-3779209375-r1 { fill: #9a9b99;font-style: italic; }
+.terminal-3779209375-r2 { fill: #c5c8c6 }
+.terminal-3779209375-r3 { fill: #98a84b;font-weight: bold }
+.terminal-3779209375-r4 { fill: #c5c8c6;font-weight: bold }
     </style>
 
     <defs>
-    <clipPath id="terminal-2410219015-clip-terminal">
-      <rect x="0" y="0" width="1438.6" height="657.8" />
+    <clipPath id="terminal-3779209375-clip-terminal">
+      <rect x="0" y="0" width="1438.6" height="779.8" />
     </clipPath>
-    <clipPath id="terminal-2410219015-line-0">
+    <clipPath id="terminal-3779209375-line-0">
     <rect x="0" y="1.5" width="1439.6" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-2410219015-line-1">
+<clipPath id="terminal-3779209375-line-1">
     <rect x="0" y="25.9" width="1439.6" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-2410219015-line-2">
+<clipPath id="terminal-3779209375-line-2">
     <rect x="0" y="50.3" width="1439.6" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-2410219015-line-3">
+<clipPath id="terminal-3779209375-line-3">
     <rect x="0" y="74.7" width="1439.6" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-2410219015-line-4">
+<clipPath id="terminal-3779209375-line-4">
     <rect x="0" y="99.1" width="1439.6" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-2410219015-line-5">
+<clipPath id="terminal-3779209375-line-5">
     <rect x="0" y="123.5" width="1439.6" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-2410219015-line-6">
+<clipPath id="terminal-3779209375-line-6">
     <rect x="0" y="147.9" width="1439.6" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-2410219015-line-7">
+<clipPath id="terminal-3779209375-line-7">
     <rect x="0" y="172.3" width="1439.6" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-2410219015-line-8">
+<clipPath id="terminal-3779209375-line-8">
     <rect x="0" y="196.7" width="1439.6" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-2410219015-line-9">
+<clipPath id="terminal-3779209375-line-9">
     <rect x="0" y="221.1" width="1439.6" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-2410219015-line-10">
+<clipPath id="terminal-3779209375-line-10">
     <rect x="0" y="245.5" width="1439.6" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-2410219015-line-11">
+<clipPath id="terminal-3779209375-line-11">
     <rect x="0" y="269.9" width="1439.6" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-2410219015-line-12">
+<clipPath id="terminal-3779209375-line-12">
     <rect x="0" y="294.3" width="1439.6" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-2410219015-line-13">
+<clipPath id="terminal-3779209375-line-13">
     <rect x="0" y="318.7" width="1439.6" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-2410219015-line-14">
+<clipPath id="terminal-3779209375-line-14">
     <rect x="0" y="343.1" width="1439.6" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-2410219015-line-15">
+<clipPath id="terminal-3779209375-line-15">
     <rect x="0" y="367.5" width="1439.6" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-2410219015-line-16">
+<clipPath id="terminal-3779209375-line-16">
     <rect x="0" y="391.9" width="1439.6" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-2410219015-line-17">
+<clipPath id="terminal-3779209375-line-17">
     <rect x="0" y="416.3" width="1439.6" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-2410219015-line-18">
+<clipPath id="terminal-3779209375-line-18">
     <rect x="0" y="440.7" width="1439.6" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-2410219015-line-19">
+<clipPath id="terminal-3779209375-line-19">
     <rect x="0" y="465.1" width="1439.6" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-2410219015-line-20">
+<clipPath id="terminal-3779209375-line-20">
     <rect x="0" y="489.5" width="1439.6" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-2410219015-line-21">
+<clipPath id="terminal-3779209375-line-21">
     <rect x="0" y="513.9" width="1439.6" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-2410219015-line-22">
+<clipPath id="terminal-3779209375-line-22">
     <rect x="0" y="538.3" width="1439.6" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-2410219015-line-23">
+<clipPath id="terminal-3779209375-line-23">
     <rect x="0" y="562.7" width="1439.6" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-2410219015-line-24">
+<clipPath id="terminal-3779209375-line-24">
     <rect x="0" y="587.1" width="1439.6" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-2410219015-line-25">
+<clipPath id="terminal-3779209375-line-25">
     <rect x="0" y="611.5" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-3779209375-line-26">
+    <rect x="0" y="635.9" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-3779209375-line-27">
+    <rect x="0" y="660.3" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-3779209375-line-28">
+    <rect x="0" y="684.7" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-3779209375-line-29">
+    <rect x="0" y="709.1" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-3779209375-line-30">
+    <rect x="0" y="733.5" width="1439.6" height="24.65"/>
             </clipPath>
     </defs>
 
-    <rect fill="#292929" stroke="rgba(255,255,255,0.35)" stroke-width="1" x="1" y="1" width="1456" height="706.8" rx="8"/><text class="terminal-2410219015-title" fill="#c5c8c6" text-anchor="middle" x="728" y="27">An&#160;agent&#160;with&#160;a&#160;service&#160;token:&#160;it&#160;proposes,&#160;a&#160;person&#160;decides</text>
+    <rect fill="#292929" stroke="rgba(255,255,255,0.35)" stroke-width="1" x="1" y="1" width="1456" height="828.8" rx="8"/><text class="terminal-3779209375-title" fill="#c5c8c6" text-anchor="middle" x="728" y="27">An&#160;agent&#160;with&#160;a&#160;service&#160;token:&#160;it&#160;proposes,&#160;a&#160;person&#160;decides</text>
             <g transform="translate(26,22)">
             <circle cx="0" cy="0" r="7" fill="#ff5f57"/>
             <circle cx="22" cy="0" r="7" fill="#febc2e"/>
             <circle cx="44" cy="0" r="7" fill="#28c840"/>
             </g>
         
-    <g transform="translate(9, 41)" clip-path="url(#terminal-2410219015-clip-terminal)">
+    <g transform="translate(9, 41)" clip-path="url(#terminal-3779209375-clip-terminal)">
     
-    <g class="terminal-2410219015-matrix">
-    <text class="terminal-2410219015-r1" x="0" y="20" textLength="988.2" clip-path="url(#terminal-2410219015-line-0)">#&#160;the&#160;host&#160;of&#160;the&#160;agent&#160;has&#160;the&#160;token&#160;in&#160;TL_AGENT_TOKEN;&#160;it&#160;is&#160;shown&#160;nowhere&#160;here</text><text class="terminal-2410219015-r2" x="1439.6" y="20" textLength="12.2" clip-path="url(#terminal-2410219015-line-0)">
-</text><text class="terminal-2410219015-r3" x="0" y="44.4" textLength="24.4" clip-path="url(#terminal-2410219015-line-1)">$&#160;</text><text class="terminal-2410219015-r4" x="24.4" y="44.4" textLength="414.8" clip-path="url(#terminal-2410219015-line-1)">mcp&#160;tools/list&#160;&#160;&#160;(as&#160;agent:triage)</text><text class="terminal-2410219015-r2" x="1439.6" y="44.4" textLength="12.2" clip-path="url(#terminal-2410219015-line-1)">
-</text><text class="terminal-2410219015-r2" x="0" y="68.8" textLength="1439.6" clip-path="url(#terminal-2410219015-line-2)">create_record&#160;get_document&#160;get_document_diff&#160;get_links&#160;get_record&#160;get_record_body&#160;get_record_type&#160;get_settings&#160;get_tag</text><text class="terminal-2410219015-r2" x="1439.6" y="68.8" textLength="12.2" clip-path="url(#terminal-2410219015-line-2)">
-</text><text class="terminal-2410219015-r2" x="0" y="93.2" textLength="1354.2" clip-path="url(#terminal-2410219015-line-3)">get_transmittal&#160;lake_query&#160;link_records&#160;list_code_values&#160;list_documents&#160;list_overdue_reviews&#160;list_record_types&#160;</text><text class="terminal-2410219015-r2" x="1439.6" y="93.2" textLength="12.2" clip-path="url(#terminal-2410219015-line-3)">
-</text><text class="terminal-2410219015-r2" x="0" y="117.6" textLength="1293.2" clip-path="url(#terminal-2410219015-line-4)">list_stale_links&#160;list_tag_classes&#160;list_transmittals&#160;post_feed&#160;propose_setting_change&#160;search_records&#160;trace&#160;</text><text class="terminal-2410219015-r2" x="1439.6" y="117.6" textLength="12.2" clip-path="url(#terminal-2410219015-line-4)">
-</text><text class="terminal-2410219015-r2" x="0" y="142" textLength="390.4" clip-path="url(#terminal-2410219015-line-5)">transition_workflow&#160;update_psets</text><text class="terminal-2410219015-r2" x="1439.6" y="142" textLength="12.2" clip-path="url(#terminal-2410219015-line-5)">
-</text><text class="terminal-2410219015-r2" x="0" y="166.4" textLength="756.4" clip-path="url(#terminal-2410219015-line-6)">no&#160;accept_proposal,&#160;no&#160;reject_proposal:&#160;an&#160;agent&#160;cannot&#160;decide</text><text class="terminal-2410219015-r2" x="1439.6" y="166.4" textLength="12.2" clip-path="url(#terminal-2410219015-line-6)">
-</text><text class="terminal-2410219015-r2" x="1439.6" y="190.8" textLength="12.2" clip-path="url(#terminal-2410219015-line-7)">
-</text><text class="terminal-2410219015-r3" x="0" y="215.2" textLength="24.4" clip-path="url(#terminal-2410219015-line-8)">$&#160;</text><text class="terminal-2410219015-r4" x="24.4" y="215.2" textLength="1415.2" clip-path="url(#terminal-2410219015-line-8)">mcp&#160;tools/call&#160;update_psets&#160;{record:&#160;&quot;FV-1002&quot;,&#160;pset:&#160;&quot;valve_data&quot;,&#160;values:&#160;{size_in:&#160;6,&#160;manufacturer:&#160;&quot;Acme&#160;Flow&quot;}}</text><text class="terminal-2410219015-r2" x="1439.6" y="215.2" textLength="12.2" clip-path="url(#terminal-2410219015-line-8)">
-</text><text class="terminal-2410219015-r2" x="0" y="239.6" textLength="414.8" clip-path="url(#terminal-2410219015-line-9)">status:&#160;pending&#160;&#160;&#160;by:&#160;agent:triage</text><text class="terminal-2410219015-r2" x="1439.6" y="239.6" textLength="12.2" clip-path="url(#terminal-2410219015-line-9)">
-</text><text class="terminal-2410219015-r2" x="0" y="264" textLength="1439.6" clip-path="url(#terminal-2410219015-line-10)">Proposal&#160;01M4QR63400000000000000011&#160;is&#160;pending&#160;review.&#160;Nothing&#160;has&#160;changed&#160;yet:&#160;a&#160;person&#160;accepts&#160;or&#160;rejects&#160;it&#160;in&#160;the&#160;</text><text class="terminal-2410219015-r2" x="1439.6" y="264" textLength="12.2" clip-path="url(#terminal-2410219015-line-10)">
-</text><text class="terminal-2410219015-r2" x="0" y="288.4" textLength="158.6" clip-path="url(#terminal-2410219015-line-11)">review&#160;queue.</text><text class="terminal-2410219015-r2" x="1439.6" y="288.4" textLength="12.2" clip-path="url(#terminal-2410219015-line-11)">
-</text><text class="terminal-2410219015-r2" x="1439.6" y="312.8" textLength="12.2" clip-path="url(#terminal-2410219015-line-12)">
-</text><text class="terminal-2410219015-r3" x="0" y="337.2" textLength="61" clip-path="url(#terminal-2410219015-line-13)">ana$&#160;</text><text class="terminal-2410219015-r4" x="61" y="337.2" textLength="353.8" clip-path="url(#terminal-2410219015-line-13)">tl&#160;proposal&#160;ls&#160;--project&#160;P123</text><text class="terminal-2410219015-r2" x="1439.6" y="337.2" textLength="12.2" clip-path="url(#terminal-2410219015-line-13)">
-</text><text class="terminal-2410219015-r2" x="0" y="361.6" textLength="1378.6" clip-path="url(#terminal-2410219015-line-14)">01M4QR63400000000000000011&#160;&#160;pending&#160;&#160;agent:triage&#160;&#160;update_psets&#160;&#160;Set&#160;valve_data&#160;on&#160;FV-1002:&#160;manufacturer,&#160;size_in</text><text class="terminal-2410219015-r2" x="1439.6" y="361.6" textLength="12.2" clip-path="url(#terminal-2410219015-line-14)">
-</text><text class="terminal-2410219015-r3" x="0" y="386" textLength="61" clip-path="url(#terminal-2410219015-line-15)">ana$&#160;</text><text class="terminal-2410219015-r4" x="61" y="386" textLength="549" clip-path="url(#terminal-2410219015-line-15)">tl&#160;proposal&#160;accept&#160;01M4QR63400000000000000011</text><text class="terminal-2410219015-r2" x="1439.6" y="386" textLength="12.2" clip-path="url(#terminal-2410219015-line-15)">
-</text><text class="terminal-2410219015-r2" x="0" y="410.4" textLength="427" clip-path="url(#terminal-2410219015-line-16)">accepted&#160;01M4QR63400000000000000011</text><text class="terminal-2410219015-r2" x="1439.6" y="410.4" textLength="12.2" clip-path="url(#terminal-2410219015-line-16)">
-</text><text class="terminal-2410219015-r2" x="0" y="434.8" textLength="402.6" clip-path="url(#terminal-2410219015-line-17)">result&#160;01M4QR0KB0000000000000000W</text><text class="terminal-2410219015-r2" x="1439.6" y="434.8" textLength="12.2" clip-path="url(#terminal-2410219015-line-17)">
-</text><text class="terminal-2410219015-r2" x="1439.6" y="459.2" textLength="12.2" clip-path="url(#terminal-2410219015-line-18)">
-</text><text class="terminal-2410219015-r1" x="0" y="483.6" textLength="902.8" clip-path="url(#terminal-2410219015-line-19)">#&#160;an&#160;admin&#160;revokes&#160;the&#160;token&#160;while&#160;the&#160;agent&#x27;s&#160;MCP&#160;server&#160;is&#160;still&#160;running</text><text class="terminal-2410219015-r2" x="1439.6" y="483.6" textLength="12.2" clip-path="url(#terminal-2410219015-line-19)">
-</text><text class="terminal-2410219015-r3" x="0" y="508" textLength="73.2" clip-path="url(#terminal-2410219015-line-20)">demo$&#160;</text><text class="terminal-2410219015-r4" x="73.2" y="508" textLength="207.4" clip-path="url(#terminal-2410219015-line-20)">tl&#160;admin&#160;token&#160;ls</text><text class="terminal-2410219015-r2" x="1439.6" y="508" textLength="12.2" clip-path="url(#terminal-2410219015-line-20)">
-</text><text class="terminal-2410219015-r2" x="0" y="532.4" textLength="1085.8" clip-path="url(#terminal-2410219015-line-21)">01M4QNS660000000000000000M&#160;&#160;triage&#160;&#160;triage&#160;assistant&#160;&#160;2027-01-10T09:06:00.000000Z&#160;&#160;active</text><text class="terminal-2410219015-r2" x="1439.6" y="532.4" textLength="12.2" clip-path="url(#terminal-2410219015-line-21)">
-</text><text class="terminal-2410219015-r3" x="0" y="556.8" textLength="73.2" clip-path="url(#terminal-2410219015-line-22)">demo$&#160;</text><text class="terminal-2410219015-r4" x="73.2" y="556.8" textLength="585.6" clip-path="url(#terminal-2410219015-line-22)">tl&#160;admin&#160;token&#160;revoke&#160;01M4QNS660000000000000000M</text><text class="terminal-2410219015-r2" x="1439.6" y="556.8" textLength="12.2" clip-path="url(#terminal-2410219015-line-22)">
-</text><text class="terminal-2410219015-r2" x="0" y="581.2" textLength="414.8" clip-path="url(#terminal-2410219015-line-23)">revoked&#160;01M4QNS660000000000000000M</text><text class="terminal-2410219015-r2" x="1439.6" y="581.2" textLength="12.2" clip-path="url(#terminal-2410219015-line-23)">
-</text><text class="terminal-2410219015-r2" x="1439.6" y="605.6" textLength="12.2" clip-path="url(#terminal-2410219015-line-24)">
-</text><text class="terminal-2410219015-r3" x="0" y="630" textLength="24.4" clip-path="url(#terminal-2410219015-line-25)">$&#160;</text><text class="terminal-2410219015-r4" x="24.4" y="630" textLength="866.2" clip-path="url(#terminal-2410219015-line-25)">mcp&#160;tools/call&#160;search_records&#160;{scope:&#160;&quot;project:P123&quot;}&#160;&#160;&#160;(the&#160;next&#160;call)</text><text class="terminal-2410219015-r2" x="1439.6" y="630" textLength="12.2" clip-path="url(#terminal-2410219015-line-25)">
-</text><text class="terminal-2410219015-r2" x="0" y="654.4" textLength="854" clip-path="url(#terminal-2410219015-line-26)">refused:&#160;Error&#160;executing&#160;tool&#160;search_records:&#160;invalid&#160;or&#160;expired&#160;token</text><text class="terminal-2410219015-r2" x="1439.6" y="654.4" textLength="12.2" clip-path="url(#terminal-2410219015-line-26)">
+    <g class="terminal-3779209375-matrix">
+    <text class="terminal-3779209375-r1" x="0" y="20" textLength="988.2" clip-path="url(#terminal-3779209375-line-0)">#&#160;the&#160;host&#160;of&#160;the&#160;agent&#160;has&#160;the&#160;token&#160;in&#160;TL_AGENT_TOKEN;&#160;it&#160;is&#160;shown&#160;nowhere&#160;here</text><text class="terminal-3779209375-r2" x="1439.6" y="20" textLength="12.2" clip-path="url(#terminal-3779209375-line-0)">
+</text><text class="terminal-3779209375-r3" x="0" y="44.4" textLength="24.4" clip-path="url(#terminal-3779209375-line-1)">$&#160;</text><text class="terminal-3779209375-r4" x="24.4" y="44.4" textLength="414.8" clip-path="url(#terminal-3779209375-line-1)">mcp&#160;tools/list&#160;&#160;&#160;(as&#160;agent:triage)</text><text class="terminal-3779209375-r2" x="1439.6" y="44.4" textLength="12.2" clip-path="url(#terminal-3779209375-line-1)">
+</text><text class="terminal-3779209375-r2" x="0" y="68.8" textLength="1439.6" clip-path="url(#terminal-3779209375-line-2)">compare_schedule_snapshots&#160;create_record&#160;get_activity_float_trend&#160;get_commercial_item&#160;get_correspondence&#160;get_cost_code</text><text class="terminal-3779209375-r2" x="1439.6" y="68.8" textLength="12.2" clip-path="url(#terminal-3779209375-line-2)">
+</text><text class="terminal-3779209375-r2" x="0" y="93.2" textLength="1305.4" clip-path="url(#terminal-3779209375-line-3)">get_derived_document&#160;get_document&#160;get_document_diff&#160;get_evidence_trail&#160;get_links&#160;get_look_ahead&#160;get_record&#160;</text><text class="terminal-3779209375-r2" x="1439.6" y="93.2" textLength="12.2" clip-path="url(#terminal-3779209375-line-3)">
+</text><text class="terminal-3779209375-r2" x="0" y="117.6" textLength="1390.8" clip-path="url(#terminal-3779209375-line-4)">get_record_activity_links&#160;get_record_body&#160;get_record_type&#160;get_rfi&#160;get_schedule&#160;get_schedule_activity&#160;get_settings&#160;</text><text class="terminal-3779209375-r2" x="1439.6" y="117.6" textLength="12.2" clip-path="url(#terminal-3779209375-line-4)">
+</text><text class="terminal-3779209375-r2" x="0" y="142" textLength="1305.4" clip-path="url(#terminal-3779209375-line-5)">get_tag&#160;get_transmittal&#160;lake_query&#160;link_records&#160;list_code_values&#160;list_commercial_items&#160;list_correspondence&#160;</text><text class="terminal-3779209375-r2" x="1439.6" y="142" textLength="12.2" clip-path="url(#terminal-3779209375-line-5)">
+</text><text class="terminal-3779209375-r2" x="0" y="166.4" textLength="1403" clip-path="url(#terminal-3779209375-line-6)">list_cost_codes&#160;list_cost_snapshots&#160;list_derived_documents&#160;list_documents&#160;list_orphaned_links&#160;list_overdue_reviews&#160;</text><text class="terminal-3779209375-r2" x="1439.6" y="166.4" textLength="12.2" clip-path="url(#terminal-3779209375-line-6)">
+</text><text class="terminal-3779209375-r2" x="0" y="190.8" textLength="1439.6" clip-path="url(#terminal-3779209375-line-7)">list_parties&#160;list_record_types&#160;list_response_clocks&#160;list_rfis&#160;list_schedule_activities&#160;list_schedules&#160;list_stale_links</text><text class="terminal-3779209375-r2" x="1439.6" y="190.8" textLength="12.2" clip-path="url(#terminal-3779209375-line-7)">
+</text><text class="terminal-3779209375-r2" x="0" y="215.2" textLength="1183.4" clip-path="url(#terminal-3779209375-line-8)">list_tag_classes&#160;list_transmittals&#160;post_feed&#160;post_thread_message&#160;propose_dispatch&#160;propose_import&#160;</text><text class="terminal-3779209375-r2" x="1439.6" y="215.2" textLength="12.2" clip-path="url(#terminal-3779209375-line-8)">
+</text><text class="terminal-3779209375-r2" x="0" y="239.6" textLength="1342" clip-path="url(#terminal-3779209375-line-9)">propose_publish_schedule_snapshot&#160;propose_setting_change&#160;propose_triage&#160;read_thread&#160;resolve_schedule_activity&#160;</text><text class="terminal-3779209375-r2" x="1439.6" y="239.6" textLength="12.2" clip-path="url(#terminal-3779209375-line-9)">
+</text><text class="terminal-3779209375-r2" x="0" y="264" textLength="1329.8" clip-path="url(#terminal-3779209375-line-10)">search_records&#160;start_extraction&#160;suggest_triage&#160;trace&#160;transition_workflow&#160;update_psets&#160;validate_against_schema</text><text class="terminal-3779209375-r2" x="1439.6" y="264" textLength="12.2" clip-path="url(#terminal-3779209375-line-10)">
+</text><text class="terminal-3779209375-r2" x="0" y="288.4" textLength="756.4" clip-path="url(#terminal-3779209375-line-11)">no&#160;accept_proposal,&#160;no&#160;reject_proposal:&#160;an&#160;agent&#160;cannot&#160;decide</text><text class="terminal-3779209375-r2" x="1439.6" y="288.4" textLength="12.2" clip-path="url(#terminal-3779209375-line-11)">
+</text><text class="terminal-3779209375-r2" x="1439.6" y="312.8" textLength="12.2" clip-path="url(#terminal-3779209375-line-12)">
+</text><text class="terminal-3779209375-r3" x="0" y="337.2" textLength="24.4" clip-path="url(#terminal-3779209375-line-13)">$&#160;</text><text class="terminal-3779209375-r4" x="24.4" y="337.2" textLength="1415.2" clip-path="url(#terminal-3779209375-line-13)">mcp&#160;tools/call&#160;update_psets&#160;{record:&#160;&quot;FV-1002&quot;,&#160;pset:&#160;&quot;valve_data&quot;,&#160;values:&#160;{size_in:&#160;6,&#160;manufacturer:&#160;&quot;Acme&#160;Flow&quot;}}</text><text class="terminal-3779209375-r2" x="1439.6" y="337.2" textLength="12.2" clip-path="url(#terminal-3779209375-line-13)">
+</text><text class="terminal-3779209375-r2" x="0" y="361.6" textLength="414.8" clip-path="url(#terminal-3779209375-line-14)">status:&#160;pending&#160;&#160;&#160;by:&#160;agent:triage</text><text class="terminal-3779209375-r2" x="1439.6" y="361.6" textLength="12.2" clip-path="url(#terminal-3779209375-line-14)">
+</text><text class="terminal-3779209375-r2" x="0" y="386" textLength="1439.6" clip-path="url(#terminal-3779209375-line-15)">Proposal&#160;01M4QR63400000000000000011&#160;is&#160;pending&#160;review.&#160;Nothing&#160;has&#160;changed&#160;yet:&#160;a&#160;person&#160;accepts&#160;or&#160;rejects&#160;it&#160;in&#160;the&#160;</text><text class="terminal-3779209375-r2" x="1439.6" y="386" textLength="12.2" clip-path="url(#terminal-3779209375-line-15)">
+</text><text class="terminal-3779209375-r2" x="0" y="410.4" textLength="158.6" clip-path="url(#terminal-3779209375-line-16)">review&#160;queue.</text><text class="terminal-3779209375-r2" x="1439.6" y="410.4" textLength="12.2" clip-path="url(#terminal-3779209375-line-16)">
+</text><text class="terminal-3779209375-r2" x="1439.6" y="434.8" textLength="12.2" clip-path="url(#terminal-3779209375-line-17)">
+</text><text class="terminal-3779209375-r3" x="0" y="459.2" textLength="61" clip-path="url(#terminal-3779209375-line-18)">ana$&#160;</text><text class="terminal-3779209375-r4" x="61" y="459.2" textLength="353.8" clip-path="url(#terminal-3779209375-line-18)">tl&#160;proposal&#160;ls&#160;--project&#160;P123</text><text class="terminal-3779209375-r2" x="1439.6" y="459.2" textLength="12.2" clip-path="url(#terminal-3779209375-line-18)">
+</text><text class="terminal-3779209375-r2" x="0" y="483.6" textLength="1378.6" clip-path="url(#terminal-3779209375-line-19)">01M4QR63400000000000000011&#160;&#160;pending&#160;&#160;agent:triage&#160;&#160;update_psets&#160;&#160;Set&#160;valve_data&#160;on&#160;FV-1002:&#160;manufacturer,&#160;size_in</text><text class="terminal-3779209375-r2" x="1439.6" y="483.6" textLength="12.2" clip-path="url(#terminal-3779209375-line-19)">
+</text><text class="terminal-3779209375-r3" x="0" y="508" textLength="61" clip-path="url(#terminal-3779209375-line-20)">ana$&#160;</text><text class="terminal-3779209375-r4" x="61" y="508" textLength="549" clip-path="url(#terminal-3779209375-line-20)">tl&#160;proposal&#160;accept&#160;01M4QR63400000000000000011</text><text class="terminal-3779209375-r2" x="1439.6" y="508" textLength="12.2" clip-path="url(#terminal-3779209375-line-20)">
+</text><text class="terminal-3779209375-r2" x="0" y="532.4" textLength="427" clip-path="url(#terminal-3779209375-line-21)">accepted&#160;01M4QR63400000000000000011</text><text class="terminal-3779209375-r2" x="1439.6" y="532.4" textLength="12.2" clip-path="url(#terminal-3779209375-line-21)">
+</text><text class="terminal-3779209375-r2" x="0" y="556.8" textLength="402.6" clip-path="url(#terminal-3779209375-line-22)">result&#160;01M4QR0KB0000000000000000W</text><text class="terminal-3779209375-r2" x="1439.6" y="556.8" textLength="12.2" clip-path="url(#terminal-3779209375-line-22)">
+</text><text class="terminal-3779209375-r2" x="1439.6" y="581.2" textLength="12.2" clip-path="url(#terminal-3779209375-line-23)">
+</text><text class="terminal-3779209375-r1" x="0" y="605.6" textLength="902.8" clip-path="url(#terminal-3779209375-line-24)">#&#160;an&#160;admin&#160;revokes&#160;the&#160;token&#160;while&#160;the&#160;agent&#x27;s&#160;MCP&#160;server&#160;is&#160;still&#160;running</text><text class="terminal-3779209375-r2" x="1439.6" y="605.6" textLength="12.2" clip-path="url(#terminal-3779209375-line-24)">
+</text><text class="terminal-3779209375-r3" x="0" y="630" textLength="73.2" clip-path="url(#terminal-3779209375-line-25)">demo$&#160;</text><text class="terminal-3779209375-r4" x="73.2" y="630" textLength="207.4" clip-path="url(#terminal-3779209375-line-25)">tl&#160;admin&#160;token&#160;ls</text><text class="terminal-3779209375-r2" x="1439.6" y="630" textLength="12.2" clip-path="url(#terminal-3779209375-line-25)">
+</text><text class="terminal-3779209375-r2" x="0" y="654.4" textLength="1085.8" clip-path="url(#terminal-3779209375-line-26)">01M4QNS660000000000000000M&#160;&#160;triage&#160;&#160;triage&#160;assistant&#160;&#160;2027-01-10T09:06:00.000000Z&#160;&#160;active</text><text class="terminal-3779209375-r2" x="1439.6" y="654.4" textLength="12.2" clip-path="url(#terminal-3779209375-line-26)">
+</text><text class="terminal-3779209375-r3" x="0" y="678.8" textLength="73.2" clip-path="url(#terminal-3779209375-line-27)">demo$&#160;</text><text class="terminal-3779209375-r4" x="73.2" y="678.8" textLength="585.6" clip-path="url(#terminal-3779209375-line-27)">tl&#160;admin&#160;token&#160;revoke&#160;01M4QNS660000000000000000M</text><text class="terminal-3779209375-r2" x="1439.6" y="678.8" textLength="12.2" clip-path="url(#terminal-3779209375-line-27)">
+</text><text class="terminal-3779209375-r2" x="0" y="703.2" textLength="414.8" clip-path="url(#terminal-3779209375-line-28)">revoked&#160;01M4QNS660000000000000000M</text><text class="terminal-3779209375-r2" x="1439.6" y="703.2" textLength="12.2" clip-path="url(#terminal-3779209375-line-28)">
+</text><text class="terminal-3779209375-r2" x="1439.6" y="727.6" textLength="12.2" clip-path="url(#terminal-3779209375-line-29)">
+</text><text class="terminal-3779209375-r3" x="0" y="752" textLength="24.4" clip-path="url(#terminal-3779209375-line-30)">$&#160;</text><text class="terminal-3779209375-r4" x="24.4" y="752" textLength="866.2" clip-path="url(#terminal-3779209375-line-30)">mcp&#160;tools/call&#160;search_records&#160;{scope:&#160;&quot;project:P123&quot;}&#160;&#160;&#160;(the&#160;next&#160;call)</text><text class="terminal-3779209375-r2" x="1439.6" y="752" textLength="12.2" clip-path="url(#terminal-3779209375-line-30)">
+</text><text class="terminal-3779209375-r2" x="0" y="776.4" textLength="854" clip-path="url(#terminal-3779209375-line-31)">refused:&#160;Error&#160;executing&#160;tool&#160;search_records:&#160;invalid&#160;or&#160;expired&#160;token</text><text class="terminal-3779209375-r2" x="1439.6" y="776.4" textLength="12.2" clip-path="url(#terminal-3779209375-line-31)">
 </text>
     </g>
     </g>
