@@ -6,7 +6,7 @@ Worktree `/home/user/wt/p1-i8`, branch `p1/i8`. Protocol: ADR-0004 relay (one `=
 ## Base and gates
 - Base: the merge of trunk fdb2eff (P1-I6) into p1/i8, commit 10a8414 (see `git log -1`); batch 3 (T05a2 c09a578, T07b c45de16) merged at 0609333 and 62a7142.
 - After the trunk merge: `ruff check`, `ruff format --check`, `pyright`, `generate --check`, `openapi --check` and `check_licences` are clean (run the pieces, `just check` itself takes minutes).
-- Shards after the merge, all passed: tl-schema + contract + services + webhooks + schema + ci 1225; api (commands, proposals, auth review, error table, effective time, schemareg, both walking tests) 517 after the legacy error rows were added (a55 fix: `tl_api/errors.py` `_legacy_rows`); cli (gov, load, lake, schema package) + legacy + document silver 93 (sqlite); tl-tui was still running when this was written.
+- Shards after the merge, all passed: tl-schema + contract + services + webhooks + schema + ci 1225; api (commands, proposals, auth review, error table, effective time, schemareg, both walking tests) 517 after the legacy error rows were added (fix: `tl_api/errors.py` `_legacy_rows`); cli (gov, load, lake, schema package) + legacy + document silver 93 (sqlite); tl-tui 1085.
 - Not yet run: the whole `tl-cli` suite (about 2 hours), the demo, the parity run of the whole tree.
 
 ## Board (README.md has the same table)
