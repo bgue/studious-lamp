@@ -34,6 +34,7 @@ from tl_mod_correspondence.handlers.common import (
     correlated,
     open_item,
     plausible_date,
+    require_core,
     require_state,
     today,
     transition,
@@ -44,7 +45,6 @@ from tl_mod_correspondence.names import (
     CORR_RECLASSIFIED,
     CORR_TRIAGED,
     CORR_UPDATED,
-    CORRESPONDENCE,
     ST_DRAFT,
     ST_RECEIVED,
     ST_TRIAGED,
@@ -170,6 +170,7 @@ def handle_confirm_triage(uow: UnitOfWork, cmd: ConfirmTriage) -> CommandResult:
     """
     cmd = correlated(cmd)
     item = open_item(uow, cmd, cmd.stream_id)
+    require_core(item)
     require_state(item, ST_RECEIVED)
     definition = catalog.check_subtype(cmd.scope, cmd.domain, cmd.subtype)
     references = _check_references(uow, cmd, cmd.referenced_ids, item.id)
@@ -179,9 +180,7 @@ def handle_confirm_triage(uow: UnitOfWork, cmd: ConfirmTriage) -> CommandResult:
         raise InvalidItemError(str(exc)) from exc
     chosen = definition.subtype(cmd.subtype)
     assert chosen is not None  # check_subtype ran
-    proposed = suggest(
-        catalog.domain_set().for_scope(cmd.scope), subject=item.subject, body=item.body
-    )
+    proposed = suggest(catalog.triage_domains(cmd.scope), subject=item.subject, body=item.body)
     clock_ids: list[str] = []
     clock_events: list[Event] = []
     if cmd.start_clocks:
@@ -212,7 +211,7 @@ def handle_confirm_triage(uow: UnitOfWork, cmd: ConfirmTriage) -> CommandResult:
             NewEvent(event_type=CORR_UPDATED, payload={"changes": changes, "reason": "triage"})
         )
     done = append(
-        uow, cmd, item.id, CORRESPONDENCE, events, expected=cmd.expected_version or item.version
+        uow, cmd, item.id, item.record_type, events, expected=cmd.expected_version or item.version
     )
     link_events: list[Event] = []
     for target in references:
@@ -252,6 +251,7 @@ def handle_reclassify_correspondence(
     """
     cmd = correlated(cmd)
     item = open_item(uow, cmd, cmd.stream_id)
+    require_core(item)
     require_state(item, ST_DRAFT, ST_RECEIVED, ST_TRIAGED)
     catalog.check_subtype(cmd.scope, cmd.domain, cmd.subtype)
     if (item.domain, item.subtype) == (cmd.domain, cmd.subtype):
@@ -260,7 +260,7 @@ def handle_reclassify_correspondence(
         uow,
         cmd,
         item.id,
-        CORRESPONDENCE,
+        item.record_type,
         [
             NewEvent(
                 event_type=CORR_RECLASSIFIED,

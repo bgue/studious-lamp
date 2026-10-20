@@ -10,7 +10,7 @@ domain and subtype are known, a text has no control character, a class is one of
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from typing import Any
 
 from tl_core.ledger import NewEvent
@@ -81,9 +81,17 @@ def create_item(
     domain: str | None = None,
     subtype: str | None = None,
     received: bool = False,
+    record_type: str = CORRESPONDENCE,
+    numbering: Mapping[str, str] | None = None,
+    domain_events: Sequence[NewEvent] = (),
 ) -> CommandResult:
     """Create an item: ``Record.Created``, ``Correspondence.Defined`` and, for ``received=True``,
     the move to Received. ``direction`` is in, out or internal.
+
+    ``record_type`` is the type of the item: the core item for General and Document control, the
+    Technical or Commercial type for those domains (their commands pass it, with ``numbering``
+    holding the ``kind`` field of the domain's pattern and ``domain_events`` the events that
+    write the domain row). The domain and subtype must belong to that record type.
 
     Raises ``InvalidItemError`` (a date, a party, a text, a vocabulary word),
     ``UnknownDomainError`` and the numbering errors of the core (``NoNumberingPatternError``).
@@ -93,7 +101,14 @@ def create_item(
     if (domain is None) != (subtype is None):
         raise InvalidItemError("give the domain and the subtype together, or neither")
     if domain is not None and subtype is not None:
-        catalog.check_subtype(cmd.scope, domain, subtype)
+        definition = catalog.check_subtype(cmd.scope, domain, subtype)
+        if definition.item_record_type != record_type:
+            raise InvalidItemError(
+                f"domain {domain!r} has items of its own kind; an item of that kind is made "
+                "with the commands of the domain, and a letter cannot be filed into it"
+                if record_type == CORRESPONDENCE
+                else f"domain {domain!r} does not make items of this kind"
+            )
     check_recipients(uow, cmd, [*to, *cc])
     check_party(uow, cmd, [from_party_id])
     try:
@@ -103,7 +118,9 @@ def create_item(
     except ValueError as exc:
         raise InvalidItemError(str(exc)) from exc
     text = check_body(body)
-    made = create_module_record(uow, cmd, record_type=CORRESPONDENCE, title=subject, key=None)
+    made = create_module_record(
+        uow, cmd, record_type=record_type, title=subject, key=None, numbering=dict(numbering or {})
+    )
     payload: dict[str, Any] = {
         "number": made.key,
         "direction": direction,
@@ -128,7 +145,8 @@ def create_item(
     }
     events = [NewEvent(event_type=CORR_DEFINED, payload=payload)]
     events += granted_events(list(clearances), "named when the item was made")
-    done = append(uow, cmd, made.stream_id, CORRESPONDENCE, events, expected=made.version)
+    events += list(domain_events)
+    done = append(uow, cmd, made.stream_id, record_type, events, expected=made.version)
     version, all_events = done.new_version, [*made.events, *done.events]
     if received:
         moved = transition(uow, cmd, made.stream_id, "receive")

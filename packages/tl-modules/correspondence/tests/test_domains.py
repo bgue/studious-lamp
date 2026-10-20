@@ -43,10 +43,10 @@ def problems(definition: dm.DomainDefinition) -> list[str]:
     )
 
 
-def test_the_two_committed_domains_load_and_check_clean() -> None:
+def test_the_committed_domains_load_and_check_clean() -> None:
     workflows, numbering = systems()
     found = dm.load_domains(FIXTURES, workflows=workflows, numbering=numbering, sources=SOURCES)
-    assert found.codes() == ["document_control", "general"]
+    assert found.codes() == ["commercial", "document_control", "general", "technical"]
     general = found.find("general", "project:P123")
     assert general is not None
     clock = general.subtype("letter").clocks[0]  # type: ignore[union-attr]
@@ -63,7 +63,7 @@ def test_the_two_committed_domains_load_and_check_clean() -> None:
 
 def test_the_committed_files_validate_against_the_generated_json_schema() -> None:
     schema = json.loads(SCHEMA_JSON.read_text())
-    for name in ("general", "document-control"):
+    for name in ("general", "document-control", "technical", "commercial"):
         data = yaml.safe_load((FIXTURES / f"correspondence/domains/{name}.yaml").read_text())
         jsonschema.validate(data, schema)
 

@@ -18,7 +18,9 @@ def both() -> list[dm.DomainDefinition]:
         numbering=load_numbering(FIXTURES / "numbering" / "patterns.yaml"),
         sources={"documents.transmittal"},
     )
-    return found.for_scope("project:P123")
+    # as the triage does: the domains whose items are letters (Technical and Commercial items
+    # are made by their own commands)
+    return [d for d in found.for_scope("project:P123") if not d.has_own_type]
 
 
 def test_a_letter_with_no_keyword_goes_to_general_with_its_default_subtype(

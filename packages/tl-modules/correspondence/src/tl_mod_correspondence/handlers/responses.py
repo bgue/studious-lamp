@@ -30,6 +30,7 @@ from tl_mod_correspondence.handlers.common import (
     correlated,
     load_item,
     open_item,
+    require_core,
     require_project,
     require_state,
     resolve_date,
@@ -42,13 +43,18 @@ from tl_mod_correspondence.handlers.models import Medium, Recipient, non_blank
 from tl_mod_correspondence.handlers.threads import with_thread
 from tl_mod_correspondence.limits import MAX_BODY, MAX_NUMBER, MAX_REASON, MAX_RECIPIENTS, MAX_TEXT
 from tl_mod_correspondence.names import (
+    COMMERCIAL,
     CORR_RESPONDED,
     CORRESPONDENCE,
+    ST_COMMERCIAL_REVIEW,
     ST_DRAFT,
+    ST_INTERNAL_REVIEW,
     ST_ISSUED,
+    ST_PM_APPROVAL,
     ST_RECEIVED,
     ST_RESPONDED,
     ST_TRIAGED,
+    TECHNICAL,
 )
 from tl_mod_correspondence.textcheck import clean_optional_text, clean_text
 
@@ -209,7 +215,7 @@ def mark_responded(
         uow,
         cmd,
         item.id,
-        CORRESPONDENCE,
+        item.record_type,
         [
             NewEvent(
                 event_type=CORR_RESPONDED, payload={"response_id": response_id, "responded_on": day}
@@ -244,6 +250,7 @@ def handle_record_response(uow: UnitOfWork, cmd: RecordResponse) -> CommandResul
     """
     cmd = correlated(cmd)
     item = open_item(uow, cmd, cmd.stream_id)
+    require_core(item)
     answer = registry.get_item(uow.conn(), cmd.response_id)
     if answer is None or answer.scope != cmd.scope:
         raise RecordNotFoundError(f"no record {cmd.response_id!r}")
@@ -261,6 +268,7 @@ def handle_close_correspondence(uow: UnitOfWork, cmd: CloseCorrespondence) -> Co
     """
     cmd = correlated(cmd)
     item = open_item(uow, cmd, cmd.stream_id)
+    require_core(item)
     require_state(item, ST_TRIAGED, ST_ISSUED, ST_RESPONDED)
     unanswered = item.response_required and item.state != ST_RESPONDED
     if unanswered and not (cmd.reason and cmd.reason.strip()):
@@ -279,6 +287,13 @@ def handle_close_correspondence(uow: UnitOfWork, cmd: CloseCorrespondence) -> Co
     )
 
 
+#: The states in which a Technical or Commercial item may still be voided (not yet issued).
+_UNISSUED = {
+    TECHNICAL: (ST_DRAFT, ST_INTERNAL_REVIEW),
+    COMMERCIAL: (ST_DRAFT, ST_COMMERCIAL_REVIEW, ST_PM_APPROVAL),
+}
+
+
 def _void(
     uow: UnitOfWork,
     cmd: VoidDraft | VoidCorrespondence,
@@ -286,13 +301,20 @@ def _void(
 ) -> CommandResult:
     cmd = correlated(cmd)
     item = open_item(uow, cmd, cmd.stream_id)
-    require_state(item, *allowed)
+    if item.record_type == CORRESPONDENCE:
+        require_state(item, *allowed)
+    else:  # a Technical or Commercial item can be voided until it is issued
+        require_state(item, *_UNISSUED[item.record_type])
     cancelled = close_clocks_of_item(
         uow, cmd, item.id, how="cancelled", day=today(), reason=f"item void: {cmd.reason}"
     )
     moved = transition(uow, cmd, item.id, "void", reason=cmd.reason, expected=cmd.expected_version)
     voided = append(
-        uow, cmd, item.id, CORRESPONDENCE, [NewEvent(event_type="Record.Voided", payload=_why(cmd))]
+        uow,
+        cmd,
+        item.id,
+        item.record_type,
+        [NewEvent(event_type="Record.Voided", payload=_why(cmd))],
     )
     return CommandResult(
         stream_id=item.id,
@@ -307,7 +329,8 @@ def _why(cmd: VoidDraft | VoidCorrespondence) -> dict[str, Any]:
 
 
 def handle_void_draft(uow: UnitOfWork, cmd: VoidDraft) -> CommandResult:
-    """Void a Draft. ``ItemStateError`` for any other state."""
+    """Void a Draft (a Technical item in internal review, a Commercial item before it is issued,
+    too). ``ItemStateError`` for any other state."""
     return _void(uow, cmd, (ST_DRAFT,))
 
 

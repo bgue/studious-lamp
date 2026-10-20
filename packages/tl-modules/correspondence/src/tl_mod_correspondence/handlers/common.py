@@ -28,6 +28,7 @@ from tl_mod_correspondence.errors import (
     ItemBackdatedError,
     ItemStateError,
 )
+from tl_mod_correspondence.names import CORRESPONDENCE
 
 ISO_DATE = re.compile(r"\d{4}-\d{2}-\d{2}")
 _VERSION_SQL = text("SELECT version FROM cur_core_record WHERE id = :id")
@@ -208,6 +209,20 @@ def open_item(uow: UnitOfWork, cmd: Command, item_id: str) -> registry.ItemRow:
     return found
 
 
+def require_core(item: registry.ItemRow) -> None:
+    """Raise ``ItemStateError`` unless the item is a core item (General, Document control).
+
+    A Technical or Commercial item has a workflow of its own (brief 8): the commands that move a
+    core item through Received, Triaged, Issued and Responded do not apply to it, and it is
+    changed with the commands of its domain.
+    """
+    if item.record_type != CORRESPONDENCE:
+        raise ItemStateError(
+            f"item {item.number} belongs to the {item.domain or 'domain'} domain, which has "
+            "commands of its own; this command is for letters and minutes"
+        )
+
+
 def require_state(item: registry.ItemRow, *states: str) -> None:
     """Raise ``ItemStateError`` unless the item is in one of ``states``."""
     if item.state not in states:
@@ -230,6 +245,7 @@ __all__ = [
     "now",
     "open_item",
     "plausible_date",
+    "require_core",
     "require_project",
     "require_state",
     "resolve_date",

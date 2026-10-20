@@ -55,6 +55,7 @@ def _hidden(conn: Connection, record_id: str) -> bool:
 @dataclass(frozen=True)
 class ItemRow:
     id: str
+    record_type: str
     scope: str
     number: str
     subject: str
@@ -99,7 +100,8 @@ class ItemRow:
 
 
 _ITEM_COLUMNS = (
-    "id, scope, number, title, status, voided, version, direction, medium, received_via, "
+    "id, record_type, scope, number, title, status, voided, version, direction, medium, "
+    "received_via, "
     "external_ref, message_id, in_reply_to, from_party_id, from_name, to_parties_json, "
     "cc_parties_json, sent_on, received_on, issued_on, body, confidentiality, domain, subtype, "
     "thread_id, responds_to_id, superseded_by_id, response_required, response_due, responded_on, "
@@ -110,6 +112,7 @@ _ITEM_COLUMNS = (
 def _item(row: Any) -> ItemRow:
     return ItemRow(
         id=row.id,
+        record_type=row.record_type,
         scope=row.scope,
         number=row.number,
         subject=row.title,

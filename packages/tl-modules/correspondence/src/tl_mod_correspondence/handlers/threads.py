@@ -39,7 +39,6 @@ from tl_mod_correspondence.limits import MAX_NUMBER, MAX_REASON
 from tl_mod_correspondence.names import (
     CORR_SUPERSEDED,
     CORR_THREAD_ASSIGNED,
-    CORRESPONDENCE,
     THREAD,
     THREAD_DEFINED,
     THREAD_ITEM_ADDED,
@@ -197,7 +196,7 @@ def _join(
         uow,
         cmd,
         item.id,
-        CORRESPONDENCE,
+        item.record_type,
         [
             NewEvent(
                 event_type=CORR_THREAD_ASSIGNED,
@@ -344,7 +343,7 @@ def handle_supersede_correspondence(uow: UnitOfWork, cmd: SupersedeCorrespondenc
         uow,
         cmd,
         old.id,
-        CORRESPONDENCE,
+        old.record_type,
         [
             NewEvent(
                 event_type=CORR_SUPERSEDED,

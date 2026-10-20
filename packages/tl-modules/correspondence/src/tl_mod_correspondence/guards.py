@@ -7,8 +7,8 @@ them (and a record the viewer may not read answers "not found" before the guard 
 
 * **Item, AttachFile.** A person attaches the slots ``original`` and ``attachment`` only (the
   slots ``rendition`` and ``message`` are written by the module), and only while the item is a
-  Draft, Received or Triaged: an issued, answered or closed item is the record of what was sent or
-  received.
+  Draft, Received or Triaged (or, for a Technical or Commercial item, still in review): an issued,
+  answered or closed item is the record of what was sent or received.
 * **Item, AddLink and SuggestLink.** Any state but Void.
 """
 
@@ -20,7 +20,10 @@ from tl_core.services.errors import UnsupportedRecordTypeError
 from tl_mod_correspondence.names import (
     SLOT_ATTACHMENT,
     SLOT_ORIGINAL,
+    ST_COMMERCIAL_REVIEW,
     ST_DRAFT,
+    ST_INTERNAL_REVIEW,
+    ST_PM_APPROVAL,
     ST_RECEIVED,
     ST_TRIAGED,
     ST_VOID,
@@ -28,7 +31,14 @@ from tl_mod_correspondence.names import (
 
 #: The slots a person may fill, and the states in which the item takes a file.
 PERSON_SLOTS = (SLOT_ORIGINAL, SLOT_ATTACHMENT)
-UPLOAD_STATES = (ST_DRAFT, ST_RECEIVED, ST_TRIAGED)
+UPLOAD_STATES = (
+    ST_DRAFT,
+    ST_RECEIVED,
+    ST_TRIAGED,
+    ST_INTERNAL_REVIEW,
+    ST_COMMERCIAL_REVIEW,
+    ST_PM_APPROVAL,
+)
 _STATE_SQL = text("SELECT status, voided FROM cur_core_record WHERE id = :id")
 
 

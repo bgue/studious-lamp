@@ -82,6 +82,15 @@ def use_domains(domains: DomainSet) -> Generator[None]:
         _override = previous
 
 
+def triage_domains(scope: str) -> list[DomainDefinition]:
+    """The domains a received letter can be triaged into: those whose items are core items.
+
+    Technical and Commercial items are records of a type of their own, born by their domain's
+    commands; a letter cannot be filed into them, so the suggestion engine never proposes them.
+    """
+    return [d for d in domain_set().for_scope(scope) if not d.has_own_type]
+
+
 def find_domain(scope: str, code: str) -> DomainDefinition:
     """The definition that governs ``code`` in ``scope``. Raises ``UnknownDomainError``."""
     found = domain_set().find(code, scope)
