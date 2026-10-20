@@ -32,18 +32,21 @@ A schema steward drafts a package, sees its classification and impact, has it re
 | T01 | `SchemaPackage` record, lifecycle, `SchemaPackage.Published`, adoption with pins (plus `Waiver`, the plan's T05 record) | S | — | done (S2) | built by supervisor |
 | T02 | Classification report (`tl_schema.classify`, `classify_linkml`) | S | T01 | done (S1) | built by supervisor |
 | T03 | Impact report: records, columns, views, mappings, reports, MCP schemas | H | S1, S2 | merged (07c7bb7) | passed first review; dotted pset names fixed after (see report) |
-| T04a | Workbench TUI: package tree, property table, lint, diff | H | S5 | draft | |
-| T04b | Workbench TUI: impact, test on sample, review and publish | H | S5, T03, T04a | draft | |
+| T04a | Workbench TUI: package tree, property table, lint, diff | H | S5 | dispatched r3 | |
+| T04b | Workbench TUI: impact, test on sample, review and publish | H | S5, T03 | staged (independent of T04a: stub) | |
 | T05a1 | `tl schema package diff\|classify\|impact\|test` | H | S5, T03 | merged | |
 | T05a2 | `tl schema package publish\|deprecate\|retire` and `tl schema adopt\|adoptions\|drift` | H | S5, T05a1 | merged (538cdff) | |
 | T05a3 | `tl schema waiver request\|approve\|revoke\|ls` | H | S5 | dispatched r2 | |
-| T05a4 | `tl schema crosswalk\|export-git\|import-git` | H | S5 | draft | |
+| T05a4a | `tl schema crosswalk` | H | S5 | dispatched r3 | |
+| T05a4b | `tl schema export-git` | H | S5 | dispatched r3 | |
+| T05a4c | `tl schema import-git` | H | S5 | staged | |
 | T05b | Conformance dashboard | — | — | folded into S9 | a read over records as the viewer: a piece, not a ticket |
 | T06 | Loader framework: `legacy.LoadRun` and the stages | S | — | done (S6) | built by supervisor |
 | T07a | Loader `dms-register`: document register CSV or workbook | H | S6 | merged | the reconciliation report stays a file of the run (see Risks) |
 | T07b | Loaders `instrument-index` (workbook or CSV) and `equipment-list` (workbook) | H | S6, T07a | merged | line list: see Risks |
 | T08 | Lake marts: documents (status, turnaround, issues) and schedule history | H | S1, S2 | merged (3fb9c0a) | passed first review; empty snapshots are skipped as the snapshot before (decision, test added) |
-| T09 | Phase-exit demo script: PDF, derived, published, feed, webhook receiver; `just demo P1-I8` | H | all | draft | |
+| T09a | `just demo P1-I8`: script, schema lifecycle, adoption, waivers, crosswalk, export | H | all CLI | staged | |
+| T09b | `just demo P1-I8`: legacy load, lake marts, Phase 1 exit chain | H | T09a | staged | |
 | T10 | Phase report, risk register, ADRs | O | T09 | orchestrator | not written here |
 
 ## Order of work
