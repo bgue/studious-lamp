@@ -9087,6 +9087,11 @@
             ],
             "title": "Idempotency Key"
           },
+          "require_impact": {
+            "default": false,
+            "title": "Require Impact",
+            "type": "boolean"
+          },
           "scope": {
             "title": "Scope",
             "type": "string"

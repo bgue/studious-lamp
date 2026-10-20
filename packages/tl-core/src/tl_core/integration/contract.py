@@ -101,6 +101,10 @@ AUTOMATION_COMMANDS = frozenset(
         "TransitionWorkflow",
         "PostToFeed",
         "InvokeAction",
+        # The correspondence module's escalation of an answered RFI (P1-I6, ADR-0019). A rule may
+        # only propose it: the command needs a controller viewer, and a service actor reads as the
+        # lowest viewer, so acted by a rule or a mapping it is refused.
+        "EscalateTechnical",
     }
 )
 

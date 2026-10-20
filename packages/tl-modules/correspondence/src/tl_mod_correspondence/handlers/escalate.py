@@ -55,6 +55,9 @@ class EscalateTechnical(Command):
     subject: str | None = Field(default=None, min_length=1, max_length=MAX_TEXT)
     body: str | None = Field(default=None, max_length=MAX_BODY)
     clause: str | None = Field(default=None, max_length=MAX_NUMBER)
+    #: Refuse unless the answer says ``yes`` to a cost or a schedule impact. The escalation rule
+    #: (ADR-0019) sets it, because a rule cannot read the answer and proposes for every answer.
+    require_impact: bool = False
 
     @field_validator("subject")
     @classmethod
@@ -77,7 +80,8 @@ def handle_escalate_technical(uow: UnitOfWork, cmd: EscalateTechnical) -> Comman
 
     Raises ``ForbiddenError`` (the viewer is below a document controller), ``RecordNotFoundError``
     (the item is unknown, foreign, hidden or not a Technical item), ``ItemStateError`` (it has no
-    answer yet), ``InvalidItemError`` (it was escalated already, to an item the viewer can read)
+    answer yet), ``InvalidItemError`` (it was escalated already, to an item the viewer can read,
+    or ``require_impact`` is set and the answer states no impact)
     and the errors of ``create_commercial``.
     """
     require_controller_viewer()
@@ -89,6 +93,14 @@ def handle_escalate_technical(uow: UnitOfWork, cmd: EscalateTechnical) -> Comman
     item, data = found.item, found.data
     if data.answered_on is None:
         raise ItemStateError(f"item {item.number} has no answer yet; there is nothing to escalate")
+    if cmd.require_impact and "yes" not in (
+        data.answer_cost_impact,
+        data.answer_schedule_impact,
+    ):
+        raise InvalidItemError(
+            f"the answer to item {item.number} states no cost or schedule impact; "
+            "there is nothing to escalate"
+        )
     earlier = registry_domain.derived_from_commercial(uow.conn(), item.id)
     live = [e.item.number for e in earlier if e.item.state != "Void"]
     if live:

@@ -161,11 +161,23 @@ RULE_PROPOSABLE = frozenset(
 CORE_ACCESS = dict.fromkeys(COMMANDS, "user")
 
 
+def _module_command_for_rules(command_type: str) -> bool:
+    """A command a module made proposable that automation may also produce (``AUTOMATION_COMMANDS``,
+    for example ``EscalateTechnical``): a rule may propose it, a person with its access accepts."""
+    from tl_core.integration.contract import AUTOMATION_COMMANDS
+
+    return command_type in AUTOMATION_COMMANDS and command_type in command_table()
+
+
 def proposable_tools() -> dict[str, str]:
     """Tool name -> command type: the core tools and the proposable commands of the modules."""
     return {
         **PROPOSABLE_TOOLS,
-        **{tool: item.model.__name__ for tool, item in module_proposables().items()},
+        **{
+            tool: item.model.__name__
+            for tool, item in module_proposables().items()
+            if item.agent_tool
+        },
     }
 
 
@@ -504,7 +516,7 @@ def propose_for_rule(
     if _RULE_PROPOSER.fullmatch(proposer) is None:
         raise InvalidProposalError(f"{proposer!r} is not 'svc:rule-<slug>'")
     command_type = type(command).__name__
-    if command_type not in RULE_PROPOSABLE:
+    if command_type not in RULE_PROPOSABLE and not _module_command_for_rules(command_type):
         raise InvalidProposalError(f"a rule cannot propose a {command_type}")
     refuse_reserved(command)
     clean = summary.strip()

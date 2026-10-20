@@ -8,7 +8,9 @@ holds each of them to it.
 from __future__ import annotations
 
 from tl_adapters.db import open_uow
+from tl_core.integration.inbound.worker import RecordKeyLookup
 from tl_core.services import queries
+from tl_core.threads.resolve import resolve_keys
 from tl_mod_correspondence import registry, registry_domain
 from tl_mod_correspondence.testing import CorrWorld, frozen_today
 
@@ -34,5 +36,12 @@ def test_equal_spellings_in_two_projects_resolve_only_their_own_item(world: Corr
             record = queries.get_record(uow, scope, NUMBER)
             assert record is not None and record["id"] == mine
             assert [row.item.id for row in registry_domain.list_technical(conn, scope)] == [mine]
+            # the thread dispatch key (#KEY) and the inbound mapping's key lookup are scoped too
+            refs, problems = resolve_keys(uow, scope, [NUMBER])
+            assert problems == [] and [ref.id for ref in refs] == [mine]
+            assert [ref.id for ref in RecordKeyLookup(conn, scope).find(NUMBER, None)] == [mine]
         assert registry_domain.find_technical(conn, "project:P123", NUMBER) is None
         assert queries.get_record(uow, "project:P123", NUMBER) is None
+        refs, problems = resolve_keys(uow, "project:P123", [NUMBER])
+        assert refs == [] and [p.code for p in problems] == ["unknown_key"]
+        assert RecordKeyLookup(conn, "project:P123").find(NUMBER, None) == []

@@ -11,6 +11,7 @@ from tl_core.projection.types import Projector
 
 from tl_mod_correspondence import MODULE
 from tl_mod_correspondence.guards import controller_only, item_upload, not_void
+from tl_mod_correspondence.handlers.escalate import EscalateTechnical, handle_escalate_technical
 from tl_mod_correspondence.handlers.triage import ConfirmTriage, handle_confirm_triage
 from tl_mod_correspondence.names import (
     CLAUSE,
@@ -56,7 +57,18 @@ LINKABLE_GENERIC_COMMANDS = frozenset({"AddLink", "SuggestLink"}) | LINK_LIFE
 #: What an agent may propose (ADR-0014 section 8): the triage of a received item. Accepting runs
 #: ``ConfirmTriage`` as the accepting person, who needs the access of that command (any signed-in
 #: person); the agent only reads what its clearance allows (internal items) and proposes.
-PROPOSABLE = (ProposableCommand("propose_triage", ConfirmTriage, handle_confirm_triage, "user"),)
+PROPOSABLE = (
+    ProposableCommand("propose_triage", ConfirmTriage, handle_confirm_triage, "user"),
+    # The escalation rule (ADR-0019) proposes it; a controller accepts. It names no agent tool:
+    # an agent does not propose an escalation.
+    ProposableCommand(
+        "escalate_technical",
+        EscalateTechnical,
+        handle_escalate_technical,
+        "controller",
+        agent_tool=False,
+    ),
+)
 
 #: The items of the Technical and Commercial domains are records of a type of their own and take the
 #: same generic commands as an item (the module's commands do the rest).

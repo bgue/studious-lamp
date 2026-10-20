@@ -15,6 +15,9 @@ dependencies = [
 [project.entry-points."throughline.modules"]
 correspondence = "tl_mod_correspondence.module:spec"
 
+[project.entry-points."throughline.dispatch_targets"]
+correspondence = "tl_mod_correspondence.dispatch:targets"
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"

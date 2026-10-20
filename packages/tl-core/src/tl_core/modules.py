@@ -102,6 +102,9 @@ class ProposableCommand:
     model: type[Command]
     handler: ProposalHandler
     access: ProposalAccess
+    #: ``False`` for a command only a rule proposes (``EscalateTechnical``, ADR-0019): it can be
+    #: accepted like any proposal but names no agent tool, so no tool mode is offered for it.
+    agent_tool: bool = True
 
 
 _SQL_NAME = re.compile(r"[a-z][a-z0-9_]{0,62}")

@@ -1,6 +1,6 @@
 # Increment plan — P1-I6 Technical / RFI and Commercial domains, escalation paths
 
-Status: waiting for P1-I7 (T05)
+Status: in-progress (T05b dispatched)
 Supervisor session: 2026-10-20
 Brief sections: §9 M10 (domain layer, "Initial domains": Technical / RFI and Commercial; "Cross-domain behaviour": escalation paths, clock dashboard, evidence trail, feed and webhooks follow each domain's policy), §9 M5 (an RFI is a Technical-domain item that feeds AWP constraints), §9 M11 (the register exports to the cost system as pending or approved changes), §18.8 (the rule: an RFI answer with a cost impact proposes a linked commercial change notice and starts its clock), §18.10 (restricted classes are left out of exports), §8 (permissions), §7.2 (links)
 Branch: `p1/i6` (trunk `claude/wizardly-allen-m2v96s` at 61717ad). Parallel increment: P1-I7 (`p1/i7`), whose rules engine T05 builds on.
@@ -52,7 +52,7 @@ Not in the demo, covered by tests: the PDF rendition of an issued RFI, the feed 
 | S6 | API routes, `ApiClient`, MCP read tools, controlling set, walking tests | Access and confidentiality surfaces | security review | done (f43aa36, 9de0abb) |
 | S7 | CLI `tl rfi`, `tl comm`, `tl evidence` | Controller gates, export | security review | done (9de0abb) |
 | S8 | TUI client interface and fakes | Interface other tickets consume | — | done (f43aa36, 9de0abb) |
-| S9 | T05 escalation rule on the P1-I7 engine | Rules; waits for the engine | orchestrator | pending (last) |
+| S9 | T05 escalation rule on the P1-I7 engine | Rules; waits for the engine | orchestrator | done (S23) |
 | S11 | Residuals of the security re-check (private export file, own overflow error, scan cards tagged with their record) and the decisions D13, D14 | Confidentiality | orchestrator | done (32c7ed6, 8d2f946) |
 | S17 | Fake client counts open RFIs as the report does (answered excluded); screen pilot test restored | Interface fix | none | done (b945bdf) |
 | S18 | Simulator: RFI author and client representative, TechnicalDesk client methods, numbering spells the project without symbols (core change) | Core numbering | security review, orchestrator | done (6856497) |
@@ -72,7 +72,8 @@ Not in the demo, covered by tests: the PDF rendition of an issued RFI, the feed 
 | T04a | Commercial raise, update, submit, review, return | H | S3 | merged (66f768f) | passed first time; asked about the link version (correct: links are streams of their own) and `expected_version` 0 (D14) |
 | T04b | Commercial issue, assess, close, refer to legal | H | T04a | merged (755f763) | passed first time |
 | T04c | Cost-system export (CSV) | S | T09b | done | S5 (9de0abb) |
-| T05 | Escalation RFI to Commercial: the command (S3) and the rule on the I7 engine | S | S3, P1-I7 on trunk | pending | S9 |
+| T05 | Escalation RFI to Commercial: the command (S3) and the rule on the I7 engine | S | S3, P1-I7 on trunk | built by the supervisor (S23): the rule `dev/seed/rules/rfi-escalation.json`, `EscalateTechnical` proposable and in `AUTOMATION_COMMANDS`, `require_impact` | S9, S23 |
+| T05b | The module's `/raise rfi` thread target | H | T05 | ready | |
 | T06 | Evidence trail query | S | S3 | done | S4 (f43aa36) |
 | T07a | TUI: the text of the RFI log (cells, summary, panel) | H | S8, T09a | merged 0cee9ab | the screen, the key (Ctrl+G) and the evidence text are supervisor pieces (S15) |
 | T07b | TUI: the text of the Commercial register | H | S8, T09b | merged 411f397 | |

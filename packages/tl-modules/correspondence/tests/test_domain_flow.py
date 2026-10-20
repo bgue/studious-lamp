@@ -115,3 +115,29 @@ def test_without_a_sink_the_hook_does_nothing(world: CorrWorld) -> None:
         with cf.use_viewer(CONTROLLER):
             world.issue_technical(made.stream_id)
     assert world.technical("P123-RFI-0001").item.state == "Awaiting response"
+
+
+def test_require_impact_escalates_only_an_answer_that_says_yes_to_cost_or_schedule(
+    world: CorrWorld,
+) -> None:
+    """The escalation rule sets it, because a rule cannot read the answer (ADR-0019)."""
+    import pytest
+    from tl_mod_correspondence.errors import InvalidItemError
+
+    def answered(cost: str, schedule: str) -> str:
+        with frozen_today(MONDAY):
+            made = world.raise_technical(required_by="2026-11-02")
+            world.submit_technical(made.stream_id)
+            with cf.use_viewer(CONTROLLER):
+                world.issue_technical(made.stream_id)
+            world.answer_technical(made.stream_id, cost_impact=cost, schedule_impact=schedule)
+        return made.stream_id
+
+    none = answered("no", "unknown")
+    with frozen_today(MONDAY), as_controller():
+        with pytest.raises(InvalidItemError, match="states no cost or schedule impact"):
+            world.escalate(none, require_impact=True)
+        assert world.escalate(none).key == "P123-EW-0001"  # without the flag a controller may
+    schedule = answered("unknown", "yes")
+    with frozen_today(MONDAY), as_controller():
+        assert world.escalate(schedule, require_impact=True).key == "P123-EW-0002"
