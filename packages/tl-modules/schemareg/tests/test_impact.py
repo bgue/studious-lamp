@@ -6,6 +6,7 @@ from collections.abc import Callable
 from typing import Any
 
 import pytest
+import yaml
 from tl_mod_schemareg import impact as impact_module
 from tl_mod_schemareg.impact import impact_report
 from tl_mod_schemareg.impact_types import (
@@ -342,3 +343,21 @@ def test_a_report_with_exactly_the_limit_is_not_truncated(monkeypatch: pytest.Mo
     monkeypatch.setattr(impact_module, "MAX_ENTRIES", len(full.entries))
     exact = report(edit, facts)
     assert exact.entries == full.entries and not exact.truncated
+
+
+def test_a_property_of_a_dotted_pset_name_reaches_the_tool_schema() -> None:
+    company = parse_package(fixture_text("co.acme.engineering"), source="test")
+    old_project = parse_package(fixture_text("prj.P123"), source="test")
+    grown = yaml.safe_load(fixture_text("prj.P123"))
+    grown["version"] = "1.1.0"
+    grown["psets"]["shutdown_tie_in"]["properties"]["crew"] = {
+        "description": "The crew that does the tie-in.",
+        "range": "string",
+    }
+    new_project = parse_package(yaml.safe_dump(grown, sort_keys=False), source="test")
+    old = compose([company, old_project], "project:P123")
+    new = compose([company, new_project], "project:P123")
+    assert any("." in name for name in new.psets)  # the project pset is named prj.<name>
+    r = impact_report(old, new, ImpactFacts())
+    assert r.changed_paths == ("psets.prj.shutdown_tie_in.crew",)
+    assert entries(r, "mcp_schemas") == [("core.Record tool input schema", "schema_regenerated")]

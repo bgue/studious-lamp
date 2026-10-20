@@ -8,7 +8,7 @@ the code of the first group of fields that changed.
 
 from __future__ import annotations
 
-from tl_schema.effective import EffectiveProperty, EffectiveSchema
+from tl_schema.effective import EffectiveProperty, EffectivePset, EffectiveSchema
 from tl_schema.generators.promoted import PromotedColumn, promoted_columns
 
 from tl_mod_schemareg.impact_types import (
@@ -62,6 +62,22 @@ def _columns(schema: EffectiveSchema | None) -> dict[str, PromotedColumn]:
     if schema is None:
         return {}
     return {column.name: column for column in promoted_columns(schema)}
+
+
+def _pset_of(path: str, schema: EffectiveSchema) -> EffectivePset | None:
+    """The property set a path ``psets.<pset>.<property>`` names, or ``None``.
+
+    A pset name may hold dots (``prj.shutdown_tie_in``), so the name is the longest one in the
+    schema that the path continues with a dot.
+    """
+    if not path.startswith("psets."):
+        return None
+    rest = path[len("psets.") :]
+    best: str | None = None
+    for name in schema.psets:
+        if rest.startswith(f"{name}.") and (best is None or len(name) > len(best)):
+            best = name
+    return schema.psets[best] if best is not None else None
 
 
 def impact_report(
@@ -179,10 +195,7 @@ def impact_report(
     # mcp_schemas: the tool input schemas of the record types whose psets change
     collected: dict[str, set[str]] = {}
     for path in codes:
-        pset_name = path.split(".")[1]
-        pset = new.psets.get(pset_name)
-        if pset is None and old is not None:
-            pset = old.psets.get(pset_name)
+        pset = _pset_of(path, new) or (_pset_of(path, old) if old is not None else None)
         if pset is None:
             continue
         for record_type in pset.applies_to:
