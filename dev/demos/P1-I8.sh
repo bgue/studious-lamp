@@ -14,25 +14,44 @@
 #      Revoked;
 #   4  the crosswalk of P123 maps valve_data.body_material; export-git writes the published
 #      versions and a second run says unchanged; import-git --dry-run drafts nothing; a file
-#      edited by hand makes import-git print a problem and exit 1.
+#      edited by hand makes import-git print a problem and exit 1;
+#   7  the exit chain, PDF -> derived -> published -> feed -> receiver: a rule on the publication
+#      posts to the feed and an action sends a signed webhook that the loopback receiver verifies
+#      (the PDF and publication steps of P1-I3, and the receiver, allow-list, action and rule
+#      steps of P1-I7, copied here).
 #
-# Part 2 (loaders, marts, the Phase 1 exit chain) is appended to this script by P1-I8-T09b.
+# Part 2 is in progress (P1-I8-T09b): clauses 5 (the legacy register) and 6 (the lake marts) are
+# not in this script yet; see the report of P1-I8-T09b.
 #
 # Backends: `TL_DEMO_BACKENDS` is a space-separated list, default "sqlite postgres". Postgres is a
 # throw-away database on TL_PG_URL (default postgresql://postgres:postgres@localhost:5432/tl_test,
 # `just dev up`), dropped afterwards; an unreachable server is a failure, not a skip. No server is
-# needed: the `tl schema` commands work on the ledger. Nothing is left behind.
+# needed: the `tl schema` commands work on the ledger, and clause 7 starts a receiver on a loopback
+# port and stops it again. Nothing is left behind.
 # Exits non-zero (and prints DEMO FAILED) when any clause is not met.
 set -euo pipefail
 
 cd "$(dirname "${BASH_SOURCE[0]}")/../.."
 workdir="$(mktemp -d)"
 pg_url=""
+receiver_pid=""
+stop_receiver() { # the receiver has its own process group (setsid): stop the whole group
+  local pid="$receiver_pid"
+  [ -n "$pid" ] || return 0
+  kill -TERM -- "-$pid" 2>/dev/null || true
+  for _ in $(seq 1 30); do kill -0 "$pid" 2>/dev/null || break; sleep 0.1; done
+  kill -KILL -- "-$pid" 2>/dev/null || true
+  wait "$pid" 2>/dev/null || true
+  receiver_pid=""
+}
 drop_pg() {
   [ -z "$pg_url" ] || quiet uv run python dev/demos/p1_i0_demo.py pg-drop "$pg_url" || true
   pg_url=""
 }
-trap 'drop_pg; rm -rf "$workdir"' EXIT
+trap 'stop_receiver; drop_pg; rm -rf "$workdir"' EXIT
+
+STANDARDS=schema/fixtures/standards/co.acme.standards@1.0.0.yaml
+SAMPLES=schema/fixtures/document-schemas
 
 export TL_ENV="${TL_ENV:-dev}"
 export TL_PG_URL="${TL_PG_URL:-postgresql://postgres:postgres@localhost:5432/tl_test}"
@@ -45,6 +64,8 @@ tl() { quiet uv run tl "$@"; }
 step() { printf '\n== %s\n' "$*"; }
 fail() { echo "DEMO FAILED: $*" >&2; exit 1; }
 driver() { quiet uv run python dev/demos/p1_i8_demo.py "$@" || fail "an exit clause was not met"; }
+i3() { quiet uv run python dev/demos/p1_i3_demo.py "$@" || fail "the P1-I3 driver failed: $*"; }
+i7() { quiet uv run python dev/demos/p1_i7_demo.py "$@" || fail "the P1-I7 driver failed: $*"; }
 as() { # as NAME cmd...: run a command with that person's CLI session
   local who="$1"; shift
   TL_SESSION_FILE="$workdir/session-$who.json" "$@"
@@ -144,8 +165,76 @@ run_backend() {
   expect "problem co.acme.engineering@3.3.0.yaml exists with other text" "$out"
   echo "PASS 4: the crosswalk maps valve_data.body_material; export-git wrote the published versions and a second run was unchanged; import-git --dry-run drafted nothing; a file edited by hand was refused with a problem and exit 1"
 
+  step "[$backend] clause 7: PDF -> derived -> published -> feed -> receiver"
+  # The PDF and publication steps are copied from dev/demos/P1-I3.sh (clauses 2 and 5); the
+  # receiver, allow-list, action and rule steps from dev/demos/P1-I7.sh (clauses 2 and 5).
+  rm -f "$workdir"/receiver.* "$workdir"/action.json
+  mkdir -p "$workdir/exit"
+  i3 prepare "$workdir/exit"
+  as demo tl standards load "$STANDARDS" >/dev/null
+  as demo tl derive schema register "$workdir/exit/instrument-index.yaml" --company >/dev/null
+  as amy tl doc register ISD-001 --project P123 --title "Instrument index, unit 47" >/dev/null
+  as amy tl doc rev create ISD-001 --project P123 --purpose "First issue" >/dev/null
+  as amy tl doc rendition add ISD-001 A "$workdir/exit/isd-001-A.pdf" --project P123 --kind pdf \
+    --pages 3 >/dev/null
+  out="$(as amy tl derive open ISD-001 A --schema instrument-index --project P123)"; echo "$out"
+  expect "opened ISD-001@A/instrument-index" "$out"
+  as amy tl derive content "ISD-001@A/instrument-index" "$SAMPLES/instrument-index@1.0.0.sample.csv" \
+    --project P123 >/dev/null
+  as amy tl derive start "ISD-001@A/instrument-index" --project P123 >/dev/null
+  as amy tl derive worker --once >/dev/null
+  out="$(as amy tl derive show "ISD-001@A/instrument-index" --project P123)"; echo "$out"
+  expect "state Valid" "$out"
+
+  setsid uv run python dev/demos/p1_i7_demo.py receiver "$workdir" \
+    >"$workdir/receiver-$backend.log" 2>&1 &
+  receiver_pid=$!
+  for _ in $(seq 1 100); do [ -s "$workdir/receiver.port" ] && break; sleep 0.1; done
+  [ -s "$workdir/receiver.port" ] || fail "the receiver did not start"
+  i7 action-file "$workdir"
+  as demo tl config set webhooks.egress.allowlist 127.0.0.1 --company --reason "the demo receiver" \
+    --accept-risk >/dev/null
+  as demo tl record create --project P123 --title "Valve 1" --key V-1001 >/dev/null
+  valve="$(as demo tl record show V-1001 --project P123 | awk '/^id:/{print $2}')"
+  [ -n "$valve" ] || fail "the valve record has no id"
+  out="$(as demo tl action define --file "$workdir/action.json" --project P123)"
+  echo "$out" | sed 's/^secret .*/secret ***/'
+  echo "$out" | sed -n 's/^secret //p' >"$workdir/receiver.secret"
+  [ -s "$workdir/receiver.secret" ] || fail "no action secret was printed"
+  sleep 0.5 # the receiver picks the secret up
+  cat >"$workdir/publish-notify.json" <<JSON
+{
+  "key": "publish-notify",
+  "title": "A publication posts to the feed and sends the webhook",
+  "when": {"event_types": ["DerivedDocument.Published"]},
+  "then": [
+    {"command": "PostToFeed", "args": {"body": "Published: derived document to the feed #published"}},
+    {"command": "InvokeAction", "args": {"action": "send_to_nde", "targets": ["$valve"], "parameters": {"method": "RT"}}}
+  ]
+}
+JSON
+  as demo tl rule create --file "$workdir/publish-notify.json" --project P123 >/dev/null
+  as demo tl rule mode publish-notify act --reason "the demo" --project P123 >/dev/null
+  as demo tl rule enable publish-notify --project P123 >/dev/null
+  out="$(as demo tl derive publish "ISD-001@A/instrument-index" --project P123 --apply)"
+  echo "$out" | tail -n 2
+  expect "published 40 records" "$out"
+  as demo tl integration serve --once >/dev/null
+  out="$(as demo tl feed ls --project P123)"; echo "$out"
+  expect "svc:rule-publish-notify" "$out"
+  expect "Published: derived document to the feed" "$out"
+  out="$(as demo tl action invocations)"; echo "$out"
+  expect "completed" "$out"
+  for _ in $(seq 1 50); do [ -s "$workdir/receiver.log" ] && break; sleep 0.1; done
+  [ -s "$workdir/receiver.log" ] || fail "the receiver logged nothing"
+  grep -q '"verified": true' "$workdir/receiver.log" || fail "the receiver did not verify the webhook"
+  grep -q '"invoked_by": "svc:rule-publish-notify"' "$workdir/receiver.log" \
+    || fail "the webhook was not invoked by the rule"
+  stop_receiver
+  echo "PASS 7: the publication of ISD-001@A/instrument-index posted to the feed; the rule's action sent a signed webhook that the receiver verified"
+
   drop_pg
-  echo "[$backend] clauses 1-4 passed"
+  echo "[$backend] clauses 1-4 and 7 passed"
 }
 
 driver prepare "$workdir"
