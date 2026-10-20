@@ -10,6 +10,9 @@ before anything is drafted.
 
 from __future__ import annotations
 
+import itertools
+import os
+import stat
 from pathlib import Path
 from typing import Annotated
 
@@ -29,7 +32,8 @@ MAX_FILES = 200
 
 def _files(directory: Path) -> list[Path]:
     """The `*.yaml` entries directly in `directory`, by name (a link or folder is still listed)."""
-    found = sorted(p for p in directory.iterdir() if p.name.endswith(".yaml"))
+    named = (p for p in directory.iterdir() if p.name.endswith(".yaml"))
+    found = sorted(itertools.islice(named, MAX_FILES + 1))
     if len(found) > MAX_FILES:
         fail(f"{directory} holds more than {MAX_FILES} package files")
     return found
@@ -37,12 +41,28 @@ def _files(directory: Path) -> list[Path]:
 
 def _read(path: Path) -> tuple[str | None, str | None]:
     """`(text, None)` for a usable file, `(None, problem)` for one that is not."""
-    if path.is_symlink() or not path.is_file():
+    try:
+        fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+    except OSError:
         return None, "is not a regular file"
-    if path.stat().st_size > MAX_CONTENT_BYTES:
+    try:
+        if not stat.S_ISREG(os.fstat(fd).st_mode):
+            return None, "is not a regular file"
+        chunks: list[bytes] = []
+        size = 0
+        while size <= MAX_CONTENT_BYTES:
+            chunk = os.read(fd, MAX_CONTENT_BYTES + 1 - size)
+            if not chunk:
+                break
+            chunks.append(chunk)
+            size += len(chunk)
+    finally:
+        os.close(fd)
+    data = b"".join(chunks)
+    if len(data) > MAX_CONTENT_BYTES:
         return None, f"is larger than {MAX_CONTENT_BYTES} bytes"
     try:
-        return path.read_text(encoding="utf-8"), None
+        return data.decode("utf-8"), None
     except UnicodeDecodeError:
         return None, "is not UTF-8 text"
 

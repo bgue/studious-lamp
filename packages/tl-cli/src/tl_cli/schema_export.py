@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import os
 import re
+import tempfile
 from pathlib import Path
 from typing import Annotated
 
@@ -37,9 +38,17 @@ def _file_name(row: registry.PackageRow) -> str:
 
 def _write_atomic(path: Path, text: str) -> None:
     """Write `text` to `path` through a temporary file in the same directory."""
-    temp = path.with_name(f".{path.name}.tmp")
-    temp.write_text(text, encoding="utf-8")
-    os.replace(temp, path)
+    fd, name = tempfile.mkstemp(dir=path.parent, prefix=".", suffix=".tmp")  # O_EXCL: no link
+    try:
+        with os.fdopen(fd, "wb") as handle:
+            os.fchmod(handle.fileno(), 0o644)  # mkstemp makes 0600; a git checkout wants 0644
+            handle.write(text.encode("utf-8"))
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(name, path)
+    except BaseException:
+        Path(name).unlink(missing_ok=True)
+        raise
 
 
 def export_git(
@@ -63,15 +72,20 @@ def export_git(
     rows: list[registry.PackageRow] = []
     with service_errors(), open_uow(db, readonly=True) as uow:
         for state in IN_FORCE:
-            rows.extend(
-                registry.list_packages(
+            offset = 0
+            while True:
+                page = registry.list_packages(
                     uow.conn(),
                     scope="company",
                     state=state,
                     package=package,
                     limit=registry.MAX_PAGE,
+                    offset=offset,
                 )
-            )
+                rows.extend(page)
+                if len(page) < registry.MAX_PAGE:
+                    break
+                offset += len(page)
         try:
             rows.sort(key=lambda row: (row.package, version_tuple(row.version)))
         except ValueError as exc:

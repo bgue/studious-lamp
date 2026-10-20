@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import re
 from collections.abc import Callable
 from pathlib import Path
@@ -179,3 +180,44 @@ def test_any_signed_in_person_may_draft_like_tl_schema_package_draft(
     src = tmp_path / "git"
     put(src, "3.3.0")
     assert import_git(plain, str(src)).stdout.startswith(f"drafted {NAME}@3.3.0 ")
+
+
+def test_a_link_swapped_in_after_listing_is_not_read_and_a_big_file_is_cut_at_the_cap(
+    tmp_path: Path,
+) -> None:
+    from tl_cli import schema_import
+
+    secret = tmp_path / "secret.yaml"
+    secret.write_text("secret\n", encoding="utf-8")
+    link = tmp_path / "link.yaml"
+    link.symlink_to(secret)
+    assert schema_import._read(link) == (None, "is not a regular file")
+    fifo = tmp_path / "fifo.yaml"
+    os.mkfifo(fifo)
+    assert schema_import._read(fifo) == (None, "is not a regular file")
+    big = tmp_path / "big.yaml"
+    big.write_bytes(b"x" * (MAX_CONTENT_BYTES + 1))
+    assert schema_import._read(big) == (None, f"is larger than {MAX_CONTENT_BYTES} bytes")
+    edge = tmp_path / "edge.yaml"
+    edge.write_bytes(b"x" * MAX_CONTENT_BYTES)
+    assert schema_import._read(edge) == ("x" * MAX_CONTENT_BYTES, None)
+
+
+def test_listing_stops_one_past_the_cap(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from tl_cli import schema_import
+
+    for n in range(50):
+        (tmp_path / f"p{n}.yaml").write_text("x", encoding="utf-8")
+    monkeypatch.setattr(schema_import, "MAX_FILES", 4)
+    seen: list[int] = []
+    real = Path.iterdir
+
+    def counting(self: Path):  # type: ignore[no-untyped-def]
+        for entry in real(self):
+            seen.append(1)
+            yield entry
+
+    monkeypatch.setattr(Path, "iterdir", counting)
+    with pytest.raises(BaseException):  # noqa: B017, PT011 - `fail` exits
+        schema_import._files(tmp_path)
+    assert len(seen) <= 5
