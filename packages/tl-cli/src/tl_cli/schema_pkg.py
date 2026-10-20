@@ -36,10 +36,12 @@ from tl_mod_schemareg.handlers.packages import (
 )
 from tl_mod_schemareg.limits import MAX_CONTENT_BYTES
 
+from tl_cli import schema_pkg_read
 from tl_cli.derive_support import DEV_ACTOR, SOURCE, Actor, acting, cell, fail, service_errors
 from tl_cli.session import require_admin, require_session
 
 app = typer.Typer(help="Draft, review and read schema package versions.", no_args_is_help=True)
+schema_pkg_read.register(app)
 
 _Ref = Annotated[str, typer.Argument(help="A package id or name@version, for example acme@1.1.0.")]
 _File = Annotated[

@@ -695,3 +695,6 @@ Two documents tables in `SILVER_TABLES` added two names to "silver rows: ..." an
 
 ### L-P1-I8-11 (tests) A guard test reads `git status`: its teardown fails in a worktree with uncommitted files
 `test_apply_is_refused_when_the_generated_directory_leaves_the_repository` (tl-mcp) asserts at teardown that no tracked file changed. In a worktree with uncommitted work it errors although nothing is wrong; commit first, then run the shard.
+
+### L-P1-I8-12 (tests) A project package can pin a company version, so a trial pin for that project does not compose
+The fixture project `P123` has the package `x.P123@1.4.0`, which pins `co.acme.engineering` at 3.2.0; `impact --project P123` for 3.3.0 therefore answers "pinned at both 3.2.0 and 3.3.0". Tests and demos of a pin use a project with no package of its own (`P999`). The diff of a package is against the base that `analyse` chose, so it is empty (and says so) before `analyse`. Evidence: `test_cli_schema_pkg_read.py`.
