@@ -5,6 +5,7 @@ CREATE TABLE IF NOT EXISTS cur_legacy_load_run (
   source_table TEXT NOT NULL,
   run_number INTEGER NOT NULL,
   loader TEXT NOT NULL,
+  confidentiality TEXT,
   source_name TEXT,
   source_sha256 TEXT,
   source_size INTEGER,

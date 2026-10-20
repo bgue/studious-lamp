@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from sqlalchemy import Connection, text
+from tl_core import confidentiality
 
 from tl_mod_legacy.names import OPENED, RUN_TABLE
 
@@ -16,7 +17,8 @@ _COLUMNS = (
     "t.extracted_sha256, t.profile_file_id, t.profile_sha256, t.bronze_rows, t.mapping_name, "
     "t.mapping_sha256, t.plan_new, t.plan_existing, t.plan_invalid, t.loaded_count, t.record_ids, "
     "t.correlation_id, t.report_file_id, t.report_sha256, t.report_document_id, t.mismatches, "
-    f"t.opened_by, t.last_error, COALESCE(r.status, '{OPENED}') AS state, r.created_at"
+    f"t.opened_by, t.confidentiality, t.last_error, COALESCE(r.status, '{OPENED}') AS state, "
+    "r.created_at"
 )
 _SQL = f"SELECT {_COLUMNS} FROM {RUN_TABLE} t JOIN cur_core_record r ON r.id = t.id"
 MAX_PAGE = 500
@@ -53,6 +55,7 @@ class RunRow:
     report_document_id: str | None
     mismatches: int | None
     opened_by: str
+    confidentiality: str | None
     last_error: str | None
     state: str
     created_at: str
@@ -95,19 +98,29 @@ def _run(row: Any) -> RunRow:
         report_document_id=m["report_document_id"],
         mismatches=m["mismatches"],
         opened_by=m["opened_by"],
+        confidentiality=m["confidentiality"],
         last_error=m["last_error"],
         state=m["state"],
         created_at=str(m["created_at"]),
     )
 
 
+def _visible() -> tuple[str, dict[str, Any]]:
+    """The clause that leaves out the runs the current reader may not read (ADR-0016)."""
+    return confidentiality.not_hidden("t.id")
+
+
 def get_run(conn: Connection, run_id: str) -> RunRow | None:
-    row = conn.execute(text(f"{_SQL} WHERE t.id = :id"), {"id": run_id}).first()
+    clause, params = _visible()
+    row = conn.execute(
+        text(f"{_SQL} WHERE t.id = :id AND {clause}"), {"id": run_id, **params}
+    ).first()
     return _run(row) if row is not None else None
 
 
 def find_run(conn: Connection, scope: str, key: str) -> RunRow | None:
     """A run by ``system/table#n`` in a project."""
+    clause, params = _visible()
     head, _, number = key.rpartition("#")
     system, _, table = head.partition("/")
     if not number.isascii() or not number.isdigit() or not system or not table:
@@ -115,9 +128,9 @@ def find_run(conn: Connection, scope: str, key: str) -> RunRow | None:
     row = conn.execute(
         text(
             f"{_SQL} WHERE t.scope = :s AND t.source_system = :sys AND t.source_table = :tab "
-            "AND t.run_number = :n"
+            f"AND t.run_number = :n AND {clause}"
         ),
-        {"s": scope, "sys": system, "tab": table, "n": int(number[:9])},
+        {"s": scope, "sys": system, "tab": table, "n": int(number[:9]), **params},
     ).first()
     return _run(row) if row is not None else None
 
@@ -126,9 +139,13 @@ def list_runs(
     conn: Connection, scope: str, *, state: str | None = None, limit: int = 100
 ) -> list[RunRow]:
     where = " AND COALESCE(r.status, 'Opened') = :state" if state else ""
+    clause, params = _visible()
     rows = conn.execute(
-        text(f"{_SQL} WHERE t.scope = :s{where} ORDER BY r.created_at DESC, t.id DESC LIMIT :n"),
-        {"s": scope, "state": state, "n": max(1, min(limit, MAX_PAGE))},
+        text(
+            f"{_SQL} WHERE t.scope = :s{where} AND {clause} "
+            "ORDER BY r.created_at DESC, t.id DESC LIMIT :n"
+        ),
+        {"s": scope, "state": state, "n": max(1, min(limit, MAX_PAGE)), **params},
     )
     return [_run(r) for r in rows]
 

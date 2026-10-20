@@ -12,16 +12,18 @@ from __future__ import annotations
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query
+from tl_core.auth.types import Principal
 from tl_mod_schemareg import analysis, views
-from tl_mod_schemareg.impact_types import ImpactReport
+from tl_mod_schemareg.impact_types import ImpactReport, redact_names
 
-from tl_api.auth import guard
+from tl_api.auth import current_principal, guard
 from tl_api.context import ApiContext, get_ctx
 
 router = APIRouter(tags=["schema registry"])
 
 Ctx = Annotated[ApiContext, Depends(get_ctx)]
 Reader = Annotated[str, Depends(guard("document.read"))]
+Me = Annotated[Principal, Depends(current_principal)]
 
 
 @router.get("/schema/packages", operation_id="list_schema_packages")
@@ -44,11 +46,12 @@ def list_schema_packages(
 
 
 @router.get("/schema/packages/{ref:path}", operation_id="get_schema_package")
-def get_schema_package(ctx: Ctx, actor: Reader, ref: str) -> views.PackageDetail:
+def get_schema_package(ctx: Ctx, actor: Reader, principal: Me, ref: str) -> views.PackageDetail:
     """One package by record id or ``name@version``, with its reports, lint and diff.
+    The impact report names mappings, rules and reports only to an administrator.
     404 `schema_package_not_found`."""
     with ctx.backend(True) as uow:
-        return views.package_detail(uow.conn(), ref)
+        return views.package_detail(uow.conn(), ref, names=principal.is_admin)
 
 
 @router.get("/schema/sample-tests/{ref:path}", operation_id="sample_test_schema_package")
@@ -94,11 +97,14 @@ def get_schema_drift(ctx: Ctx, actor: Reader, project: str) -> list[views.DriftV
 def get_project_schema_impact(
     ctx: Ctx,
     actor: Reader,
+    principal: Me,
     project: str,
     package: Annotated[str, Query(max_length=200)],
     version: Annotated[str, Query(max_length=40)],
 ) -> ImpactReport:
-    """What pinning ``package@version`` does to the project; its ``digest`` confirms an adoption."""
+    """What pinning ``package@version`` does to the project; its ``digest`` confirms an adoption.
+    Other readers than an administrator get counts where the report would name mappings, rules
+    and reports (and a digest of their own: only an administrator adopts)."""
     with ctx.backend(True) as uow:
         report, _before, _after = analysis.project_impact(uow.conn(), project, package, version)
-        return report
+        return report if principal.is_admin else redact_names(report)

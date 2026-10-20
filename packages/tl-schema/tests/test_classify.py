@@ -585,3 +585,25 @@ def test_an_optional_pset_with_required_properties_is_only_additive() -> None:
         }
 
     assert _codes(_classify(add)) == {"psets.fan_data|pset_added": "additive"}
+
+
+def test_a_waiver_a_package_adds_needs_review_and_is_never_auto_adopted() -> None:
+    old_raw = _raw("x.P123")
+    new_raw = copy.deepcopy(old_raw)
+    new_raw["version"] = "1.5.0"
+    new_raw["conformance"] = {
+        "mode": "strict_with_waivers",
+        "waivers": [{"path": "psets.valve_data.size_in", "reason": "Legacy.", "approver": "lead"}],
+    }
+    report = classify_packages(
+        PackageDoc.model_validate(old_raw), PackageDoc.model_validate(new_raw)
+    )
+    added = [c for c in report.changes if c.code == "waiver_added"]
+    assert len(added) == 1 and added[0].review and added[0].relaxing
+    assert report.worst == "additive" and not report.auto_adoptable
+    plain = copy.deepcopy(old_raw)
+    plain["version"] = "1.6.0"
+    plain["description"] = "A different sentence."
+    assert classify_packages(
+        PackageDoc.model_validate(old_raw), PackageDoc.model_validate(plain)
+    ).auto_adoptable

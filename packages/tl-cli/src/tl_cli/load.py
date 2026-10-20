@@ -100,6 +100,14 @@ def open_run(
     ],
     project: Project,
     loader: Annotated[str, typer.Option("--loader", help="A name from `tl load loaders`.")],
+    confidentiality: Annotated[
+        str | None,
+        typer.Option(
+            "--confidentiality",
+            help="internal or restricted; default the loader's, else internal. A restricted run "
+            "and its files are read by document controllers and administrators only.",
+        ),
+    ] = None,
     actor: Actor = DEV_ACTOR,
 ) -> None:
     """Keep the file and record a run for it. Prints `opened <key> <id>`."""
@@ -109,7 +117,12 @@ def open_run(
         fail(f"{path.name} is larger than {MAX_SOURCE_BYTES} bytes")
     with _errors():
         run = _service(db).open(
-            _scope(project), loader, path.name, path.read_bytes(), actor=acting(db, actor)
+            _scope(project),
+            loader,
+            path.name,
+            path.read_bytes(),
+            actor=acting(db, actor),
+            confidentiality=confidentiality,
         )
     typer.echo(f"opened {run.key} {run.id}")
 
@@ -158,17 +171,31 @@ def bronze(
     run: _Run,
     project: Project,
     lake_dir: _Lake = None,
+    include_confidential: Annotated[
+        bool,
+        typer.Option(
+            "--include-confidential",
+            help="Say that the file may hold rows of records that are not open to every reader "
+            "and copy it all the same. Needed for every copy; refused for a restricted run.",
+        ),
+    ] = False,
     actor: Actor = DEV_ACTOR,
 ) -> None:
     """Copy the rows as they are into the lake table legacy_<system>_<table>.
 
-    Every reader of the lake can read the copy. Prints `bronze <key> rows <n>`.
+    Every reader of the lake can read the copy, so a restricted run is never copied and an
+    internal one needs `--include-confidential`. Prints `bronze <key> rows <n>`.
     """
     db: DbTarget = ctx.obj
     require_admin(db)
     with _errors():
         service = _service(db, lake_dir)
-        written = service.bronze(_scope(project), run, actor=acting(db, actor))
+        written = service.bronze(
+            _scope(project),
+            run,
+            actor=acting(db, actor),
+            include_confidential=include_confidential,
+        )
         key = service.get(_scope(project), run).key
     typer.echo(f"bronze {key} rows {written}")
 
@@ -320,6 +347,7 @@ def show(
         "correlation": found.correlation_id,
         "mismatches": found.mismatches,
         "last error": found.last_error,
+        "confidentiality": found.confidentiality,
         "opened by": found.opened_by,
     }
     if as_json:

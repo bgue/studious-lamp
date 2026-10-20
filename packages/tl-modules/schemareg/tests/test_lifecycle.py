@@ -251,3 +251,39 @@ def test_deprecate_then_retire_takes_the_version_out_of_the_company_schema(
 
 def test_every_failure_of_the_module_is_a_service_error() -> None:
     assert issubclass(StaleAnalysisError, ServiceError)
+
+
+def _project_package_with(world: RegistryWorld, version: str, waivers: list[dict]) -> str:  # type: ignore[type-arg]
+    import yaml
+    from tl_mod_schemareg.testing import fixture_text
+
+    data = yaml.safe_load(fixture_text("prj.P123"))
+    data["package"], data["project"], data["version"] = "prj.P555", "P555", version
+    data["conformance"] = {"mode": "strict_with_waivers", "waivers": waivers}
+    content = yaml.safe_dump(data, sort_keys=False)
+    package_id = world.do(DraftSchemaPackage, content=content).stream_id
+    world.do(AnalyseSchemaPackage, package_id=package_id)
+    return package_id
+
+
+def _waiver(**more: object) -> dict:  # type: ignore[type-arg]
+    return {"path": "psets.valve_data.size_in", "reason": "Legacy.", "approver": "lead", **more}
+
+
+def test_a_package_waiver_needs_an_expiry_no_more_than_a_year_ahead(world: RegistryWorld) -> None:
+    from datetime import timedelta
+
+    from tl_core.util import utcnow
+
+    soon = (utcnow().date() + timedelta(days=30)).isoformat()
+    late = (utcnow().date() + timedelta(days=500)).isoformat()
+    forever = _project_package_with(world, "1.0.0", [_waiver()])
+    far = _project_package_with(world, "1.1.0", [_waiver(expires=late)])
+    fine = _project_package_with(world, "1.2.0", [_waiver(expires=soon)])
+    with pytest.raises(InvalidSchemaPackageError, match="no expiry"):
+        world.do(SubmitSchemaPackage, package_id=forever)
+    with pytest.raises(InvalidSchemaPackageError, match="ends after"):
+        world.do(SubmitSchemaPackage, package_id=far)
+    world.do(SubmitSchemaPackage, package_id=fine)
+    assert world.package(fine).state == "InReview"
+    assert world.package(forever).state == "Draft" and world.package(far).state == "Draft"

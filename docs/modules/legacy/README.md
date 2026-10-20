@@ -48,9 +48,10 @@ Every stage is the administrator's (D9). `tl load` runs them; `tl_mod_legacy.ser
 A loader is a `tl_mod_legacy.model.LoaderDef` returned by a function named in the entry-point group `throughline.loaders` of its package; the entry-point name is the loader's name. It carries the system and table names (`[a-z][a-z0-9_]{0,30}`), the target (`tags` or `documents`), the mapping template text, the file kinds and, for documents, the class they are registered with. Loaders are code in the install, not data a client can send.
 
 ## Confidentiality
-- Documents are registered `internal` unless the loader says `restricted`; a register that holds restricted documents is loaded as restricted and a controller declassifies afterwards. Registering a restricted document needs a viewer who may read it (an administrator).
+- A run has a class, `internal` (also when null) or `restricted`, set when it is opened: the administrator's `--confidentiality`, else the loader's, else `internal`. The module declares it to the platform (`ConfidentialSource`, ADR-0016), so the run's record, its four files, its events and the ids in them are hidden from every reader who may not read that class, and so is the run in the lake silver.
+- The documents a run registers get the run's class; registering a restricted document needs a viewer who may read it (an administrator).
 - The profile and the report quote the file (the profile shows the five most frequent values of a column). Every `tl load` command is the administrator's, and no API route or MCP tool exposes a run.
-- The silver and mart tables of the lake are built from rows the lowest reader may read; a loaded record is in them like any other.
+- Bronze copies the rows to the lake, which every user can query. A restricted run is never copied. For an internal run the administrator must say that the file may hold rows of records that are not open to every reader (`--include-confidential`); the choice is recorded in `LoadRun.Bronzed`.
 
 ## Not built, by plan
 - Registering the reconciliation report as a controlled document (it needs a document type for reports in the company's standards); the report is a file of the run: `tl load show RUN --report`.

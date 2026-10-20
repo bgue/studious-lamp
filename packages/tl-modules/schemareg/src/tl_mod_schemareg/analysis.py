@@ -10,6 +10,7 @@ from __future__ import annotations
 import re
 from collections.abc import Mapping
 from dataclasses import dataclass
+from datetime import date, timedelta
 
 from sqlalchemy import Connection, text
 from tl_core import confidentiality
@@ -24,7 +25,7 @@ from tl_schema.registry import PackageError, PackageRegistry, parse_package
 from tl_mod_schemareg.errors import InvalidSchemaPackageError
 from tl_mod_schemareg.impact import impact_report
 from tl_mod_schemareg.impact_types import ImpactFacts, ImpactReport, Reference
-from tl_mod_schemareg.limits import MAX_CONTENT_BYTES, MAX_PROJECT
+from tl_mod_schemareg.limits import MAX_CONTENT_BYTES, MAX_PROJECT, WAIVER_MAX_DAYS
 
 _PROJECT = re.compile(r"[A-Za-z0-9_.-]+")
 _PATH = re.compile(r"psets\.[A-Za-z0-9_]+(?:\.[A-Za-z0-9_]+)+")
@@ -62,6 +63,25 @@ def parse_content(content: str) -> PackageDoc:
     ):
         raise InvalidSchemaPackageError(f"project {doc.project!r} is not a usable project id")
     return doc
+
+
+def package_waiver_problems(doc: PackageDoc, today: date) -> list[str]:
+    """Why the waivers a package declares break the rules of a waiver (FANOUT D5).
+
+    A waiver asked for through ``RequestWaiver`` ends on a date at most 366 days ahead. A waiver
+    that a package carries must too: without an expiry it would relax a property for ever, and
+    without a limit it would do so for years, with none of the approval a request goes through.
+    """
+    if doc.conformance is None:
+        return []
+    last = today + timedelta(days=WAIVER_MAX_DAYS)
+    found: list[str] = []
+    for waiver in doc.conformance.waivers:
+        if waiver.expires is None:
+            found.append(f"the waiver for {waiver.path} has no expiry")
+        elif waiver.expires > last:
+            found.append(f"the waiver for {waiver.path} ends after {last.isoformat()}")
+    return found
 
 
 def scope_of(doc: PackageDoc) -> str:

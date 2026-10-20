@@ -55,6 +55,10 @@ class LoaderDef:
     #: restricted documents is loaded as ``restricted``, and a controller declassifies afterwards.
     confidentiality: str | None = None
 
+    def __post_init__(self) -> None:
+        if self.confidentiality not in (None, "internal", "restricted"):
+            raise ValueError(f"loader {self.name}: confidentiality is internal or restricted")
+
 
 _lock = threading.Lock()
 _found: dict[str, LoaderDef] | None = None

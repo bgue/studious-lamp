@@ -18,6 +18,13 @@
             "bronze_rows": {
               "description": "Rows written to the lake bronze table.",
               "type": "integer"
+            },
+            "include_confidential": {
+              "description": "True: the administrator said the copy may hold rows of confidential records.",
+              "type": [
+                "boolean",
+                "null"
+              ]
             }
           },
           "required": [

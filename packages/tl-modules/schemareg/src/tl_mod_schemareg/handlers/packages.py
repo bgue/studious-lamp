@@ -33,6 +33,7 @@ from tl_mod_schemareg.common import (
     correlated,
     scoped,
     sha256_text,
+    today_in,
     transition,
 )
 from tl_mod_schemareg.errors import (
@@ -45,6 +46,7 @@ from tl_mod_schemareg.errors import (
     SelfReviewError,
     StaleAnalysisError,
 )
+from tl_mod_schemareg.impact_types import redact_names
 from tl_mod_schemareg.limits import MAX_CHANGELOG, MAX_COMMENT, MAX_REASON, MAX_REPORT_BYTES
 from tl_mod_schemareg.names import (
     ADOPTION,
@@ -279,7 +281,8 @@ def handle_analyse_schema_package(uow: UnitOfWork, cmd: AnalyseSchemaPackage) ->
     except ValueError as exc:  # a version that is not higher than the one below it
         raise InvalidSchemaPackageError(str(exc)) from exc
     classification = made.classification.model_dump(mode="json")
-    impact = made.impact.model_dump(mode="json")
+    stored = redact_names(made.impact)  # the event is read by everyone: counts, not names
+    impact = stored.model_dump(mode="json")
     if len(canonical(classification)) + len(canonical(impact)) > MAX_REPORT_BYTES:
         raise InvalidSchemaPackageError("the reports are too large to store; split the change")
     cmd = scoped(cmd, row.scope)
@@ -297,7 +300,7 @@ def handle_analyse_schema_package(uow: UnitOfWork, cmd: AnalyseSchemaPackage) ->
                     "classification_digest": made.classification.digest,
                     "worst_class": made.classification.worst,
                     "impact": impact,
-                    "impact_sha256": made.impact.digest,
+                    "impact_sha256": stored.digest,
                     "content_sha256": row.content_sha256,
                 },
             )
@@ -321,7 +324,13 @@ def handle_submit_schema_package(uow: UnitOfWork, cmd: SubmitSchemaPackage) -> C
             f"{row.key} makes changes that are not allowed in place: "
             + "; ".join(f"{c.path}: {c.detail}" for c in blocking[:5])
         )
-    problems = analysis.lint_errors(analysis.parse_content(row.content))
+    doc = analysis.parse_content(row.content)
+    waiver_problems = analysis.package_waiver_problems(doc, today_in(row.scope))
+    if waiver_problems:
+        raise InvalidSchemaPackageError(
+            f"{row.key} has waivers that break the waiver rules: " + "; ".join(waiver_problems[:5])
+        )
+    problems = analysis.lint_errors(doc)
     if problems:
         raise InvalidSchemaPackageError(
             f"{row.key} has lint errors: "

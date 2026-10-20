@@ -141,11 +141,26 @@ class LoadService:
     # --- open -------------------------------------------------------------------------------
 
     def open(
-        self, scope: str, loader_name: str, filename: str, data: bytes, *, actor: str
+        self,
+        scope: str,
+        loader_name: str,
+        filename: str,
+        data: bytes,
+        *,
+        actor: str,
+        confidentiality: str | None = None,
     ) -> RunRow:
         """Record a run for a file and keep the file. Raises ``UnknownLoaderError`` or
-        ``SourceFileError`` (too large, or a kind the loader does not read)."""
+        ``SourceFileError`` (too large, or a kind the loader does not read).
+
+        The run has a class (ADR-0016): ``confidentiality``, else the loader's, else ``internal``.
+        A ``restricted`` run, its files, its events and the ids it records are read by those who
+        may read restricted records, and the documents it registers are ``restricted``.
+        """
         loader = _loader(loader_name)
+        klass = confidentiality or loader.confidentiality or "internal"
+        if klass not in ("internal", "restricted"):
+            raise LoadRefusedError("confidentiality is internal or restricted")
         name = PurePath(filename).name[:255] or "upload"
         if len(data) == 0:
             raise SourceFileError("the file is empty")
@@ -181,6 +196,7 @@ class LoadService:
                             "source_sha256": digest,
                             "source_size": len(data),
                             "opened_by": actor,
+                            "confidentiality": klass,
                         },
                     )
                 ],
@@ -293,16 +309,34 @@ class LoadService:
             transition(uow, cmd, run.id, "profile")
         return self.get(scope, run.id)
 
-    def bronze(self, scope: str, key_or_id: str, *, actor: str) -> int:
+    def bronze(
+        self, scope: str, key_or_id: str, *, actor: str, include_confidential: bool = False
+    ) -> int:
         """Copy the rows as they are into the lake table ``legacy_<system>_<table>`` (replacing
-        this run's rows). Every reader of the lake can read the copy: take this step only for a
-        file that holds nothing restricted. Returns the rows written."""
+        this run's rows). Returns the rows written.
+
+        Every reader of the lake can read the copy (ADR-0016), so a run that is not ``internal``
+        is never copied. For an ``internal`` run the file may still hold rows of records that are
+        not: the caller says so with ``include_confidential=True``, and the choice is recorded in
+        ``LoadRun.Bronzed``.
+        """
         if self._lake is None:
             raise NotConfiguredError("no lake is configured for this process")
         with open_uow(self._db, readonly=True) as uow:
             run = self._find(uow.conn(), scope, key_or_id)
+            if run.confidentiality not in (None, "internal"):
+                raise LoadRefusedError(
+                    f"{run.key} is {run.confidentiality}: the lake is read by every user, so its "
+                    "rows are not copied there"
+                )
             if run.state in (OPENED, "Void"):
                 raise LoadRunStateError(f"{run.key} is {run.state}: extract it before bronze")
+            if not include_confidential:
+                raise LoadRefusedError(
+                    "the file may hold rows of records that are not open to every reader, and "
+                    "every reader of the lake can read a copy; pass include_confidential to copy "
+                    "the rows all the same"
+                )
             loader = _loader(run.loader)
             grid = self._grid(uow, run)
         written = bronze_module.write_bronze(self._lake, run.system, run.table, run.id, grid)
@@ -312,7 +346,12 @@ class LoadService:
                 self._command(run.scope, loader, actor, new_ulid()),
                 run.id,
                 LOAD_RUN,
-                [NewEvent(event_type=RUN_BRONZED, payload={"bronze_rows": written})],
+                [
+                    NewEvent(
+                        event_type=RUN_BRONZED,
+                        payload={"bronze_rows": written, "include_confidential": True},
+                    )
+                ],
             )
         return written
 
@@ -400,6 +439,9 @@ class LoadService:
                     actor=actor,
                     source=cmd.source,
                     correlation_id=correlation,
+                    confidentiality=run.confidentiality
+                    if run.confidentiality == "restricted"
+                    else None,
                 )
                 layered = 0
                 for item in created:

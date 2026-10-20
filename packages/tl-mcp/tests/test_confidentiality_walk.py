@@ -25,6 +25,7 @@ from tl_adapters.objectstore.fs import FsObjectStore
 from tl_core.files.service import FileService
 from tl_mcp.server import build_server
 from tl_mod_correspondence.confseed import TOKENS, Hidden, seed_hidden_world
+from tl_mod_legacy.testing import seed_restricted_run
 
 FAKE_ID = "01J000000000000000000000"
 #: Tools that change nothing and are not walked here, and why (the proposing tools are tested in
@@ -72,6 +73,9 @@ def world(
     service = FileService(store, secret=b"s")
     env = McpHarness.build(tmp_path, object_store=store, files=service, target=db)
     hidden = seed_hidden_world(env.db, service, tmp_path)
+    run_id, run_files = seed_restricted_run(env.db, service)
+    hidden.ids["loadrun"] = run_id
+    hidden.extra_ids.update({f"loadrun_{slot}_file": fid for slot, fid in run_files.items()})
     yield env, hidden, service
     env.close()
 

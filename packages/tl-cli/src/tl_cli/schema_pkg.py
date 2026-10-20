@@ -111,9 +111,9 @@ def show(
 ) -> None:
     """One package version: state, reports and lint (`--diff` the change, `--json` everything)."""
     db: DbTarget = ctx.obj
-    require_session(db)
+    principal = require_session(db)
     with service_errors(), open_uow(db, readonly=True) as uow:
-        detail = views.package_detail(uow.conn(), ref)
+        detail = views.package_detail(uow.conn(), ref, names=principal.is_admin)
     if as_json:
         typer.echo(detail.model_dump_json(indent=2))
         return

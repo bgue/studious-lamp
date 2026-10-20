@@ -2,16 +2,18 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import timedelta
 
 import pytest
 from tl_adapters.db import open_uow
 from tl_core.util import utcnow
-from tl_mod_schemareg import views
+from tl_mod_schemareg import analysis, views
 from tl_mod_schemareg.errors import SchemaPackageNotFoundError
 from tl_mod_schemareg.handlers.adoption import AdoptSchemaPackage
 from tl_mod_schemareg.handlers.packages import AnalyseSchemaPackage, DraftSchemaPackage
 from tl_mod_schemareg.handlers.waivers import ApproveWaiver, RequestWaiver
+from tl_mod_schemareg.impact_types import ImpactEntry, ImpactReport, redact_names
 from tl_mod_schemareg.testing import (
     ADMIN,
     AUTHOR,
@@ -136,3 +138,81 @@ def test_an_additive_draft_changes_no_record(world: RegistryWorld) -> None:
         0,
         0,
     )
+
+
+def _named_report(real: ImpactReport) -> ImpactReport:
+    """The report of a change that a mapping, a rule and a report name (as T03 makes them)."""
+    entries = (
+        *real.entries,
+        ImpactEntry(
+            section="mappings",
+            target="rule SecretRule",
+            change="property_modified",
+            detail="rule SecretRule names psets.valve_data.size_in",
+        ),
+        ImpactEntry(
+            section="mappings",
+            target="mapping vendor-feed",
+            change="property_modified",
+            detail="mapping vendor-feed names psets.valve_data.size_in",
+        ),
+        ImpactEntry(
+            section="reports",
+            target="report ValveList",
+            change="property_removed",
+            detail="report ValveList names psets.valve_data.size_in",
+        ),
+    )
+    return real.model_copy(update={"entries": entries})
+
+
+def test_redacting_a_report_replaces_names_by_counts_and_keeps_the_rest() -> None:
+    full = _named_report(
+        ImpactReport(
+            scope="company",
+            old_hash="a",
+            new_hash="b",
+            changed_paths=(),
+            entries=(
+                ImpactEntry(
+                    section="views", target="v", change="views_regenerated", detail="views"
+                ),
+            ),
+            counts={"views": 1},
+            truncated=False,
+        )
+    )
+    seen = redact_names(full)
+    text = seen.model_dump_json()
+    assert "SecretRule" not in text and "vendor-feed" not in text and "ValveList" not in text
+    by_section = {(e.section, e.change): e.count for e in seen.entries}
+    assert by_section[("mappings", "property_modified")] == 2
+    assert by_section[("reports", "property_removed")] == 1
+    assert [e.target for e in seen.entries if e.section == "views"] == ["v"]
+    assert seen.digest != full.digest and redact_names(seen).entries == seen.entries
+
+
+def test_the_stored_report_has_no_names_and_an_administrator_sees_them(
+    world: RegistryWorld, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    real = analysis.analyse
+
+    def named(conn, doc):  # type: ignore[no-untyped-def]
+        made = real(conn, doc)
+        return replace(made, impact=_named_report(made.impact))
+
+    monkeypatch.setattr(analysis, "analyse", named)
+    package_id = draft(world)
+    world.do(AnalyseSchemaPackage, package_id=package_id)
+    event = world.rows(
+        "SELECT payload FROM events WHERE event_type = 'SchemaPackage.Analysed' AND stream_id = :i",
+        i=package_id,
+    )[0]["payload"]
+    assert "SecretRule" not in str(event) and "ValveList" not in str(event)
+    with open_uow(world.db, readonly=True) as uow:
+        plain = views.package_detail(uow.conn(), package_id)
+        admin = views.package_detail(uow.conn(), package_id, names=True)
+    assert plain.impact is not None and admin.impact is not None
+    assert "SecretRule" not in plain.impact.model_dump_json()
+    assert "SecretRule" in admin.impact.model_dump_json()
+    assert plain.impact_sha256 == plain.impact.digest

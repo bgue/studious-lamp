@@ -15,6 +15,13 @@
           "additionalProperties": true,
           "description": "Delta and full modes. The ledger event payload, described per event type in the catalog.",
           "properties": {
+            "confidentiality": {
+              "description": "The class of the run: internal or restricted.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
             "loader": {
               "description": "The loader.",
               "type": "string"

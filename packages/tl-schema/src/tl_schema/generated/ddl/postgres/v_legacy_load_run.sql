@@ -17,6 +17,7 @@ SELECT
   t.source_table AS source_table,
   t.run_number AS run_number,
   t.loader AS loader,
+  t.confidentiality AS confidentiality,
   t.source_name AS source_name,
   t.source_sha256 AS source_sha256,
   t.source_size AS source_size,

@@ -51,6 +51,8 @@ classes:
       opened_by:
         description: "The administrator."
         required: true
+      confidentiality:
+        description: "The class of the run: internal or restricted."
     examples:
       - value: "{\"loader\": \"dms-register\", \"opened_by\": \"user:admin\", \"run_number\": 1, \"source_name\": \"register.csv\", \"source_sha256\": \"0000000000000000000000000000000000000000000000000000000000000000\", \"source_size\": 1200, \"source_system\": \"dms\", \"source_table\": \"register\"}"
   LoadRunExtractedPayload:
@@ -109,6 +111,9 @@ classes:
         description: "Rows written to the lake bronze table."
         range: integer
         required: true
+      include_confidential:
+        description: "True: the administrator said the copy may hold rows of confidential records."
+        range: boolean
     examples:
       - value: "{\"bronze_rows\": 40}"
   LoadRunPlannedPayload:

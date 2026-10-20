@@ -12,6 +12,7 @@ from tl_mod_legacy.model import use_loaders
 from tl_mod_legacy.testing import ADMIN, DOC_FILE, PROJECT, LegacyWorld, document_loader
 
 DATA = DOC_FILE.read_bytes()
+CONTROLLER = cf.Viewer(actor=ADMIN, level=1, account=ADMIN)
 
 
 def test_a_register_loads_its_valid_rows_and_counts_the_rest(world: LegacyWorld) -> None:
@@ -39,18 +40,16 @@ def test_the_documents_of_a_loader_can_be_restricted(world: LegacyWorld) -> None
     # registering a restricted document is a controller's act: the viewer must be one
     with (
         use_loaders({"test-docs": document_loader(confidentiality="restricted")}),
-        cf.use_viewer(cf.Viewer(actor=ADMIN, level=1, account=ADMIN)),
+        cf.use_viewer(CONTROLLER),
     ):
         run = world.loaded("test-docs", "register.csv", DATA)
-    assert len(world.run(run.key).record_ids) == 9
+        assert len(world.run(run.key).record_ids) == 9
+        assert world.service.preview_compensation(PROJECT, run.key) == []
     classes = {
         r["confidentiality"]
         for r in world.rows("SELECT confidentiality FROM cur_documents_document")
     }
     assert classes == {"restricted"}
-    # the lowest reader finds none of them; the administrator who loaded them reads them
-    with cf.use_viewer(cf.Viewer(actor=ADMIN, level=1, account=ADMIN)):
-        assert world.service.preview_compensation(PROJECT, run.key) == []
 
 
 def test_compensation_voids_the_documents_the_run_registered(world: LegacyWorld) -> None:

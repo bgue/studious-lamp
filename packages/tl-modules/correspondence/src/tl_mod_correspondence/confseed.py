@@ -44,6 +44,7 @@ TOKENS = {
     "bogus": "BOGUSTOKEN",
     "document": "DOCTOKEN",
     "file": "FILETOKEN",
+    "loadrun": "LOADTOKEN",
 }
 
 

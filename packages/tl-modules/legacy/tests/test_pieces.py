@@ -114,8 +114,10 @@ def test_bronze_copies_the_cells_as_they_are_and_replaces_a_run(
     world: LegacyWorld, lake: LakeConfig
 ) -> None:
     run = world.through_plan("test-tags", "a.csv", tag_csv(5))
-    assert world.service.bronze(PROJECT, run.key, actor=ADMIN) == 5
-    assert world.service.bronze(PROJECT, run.key, actor=ADMIN) == 5  # again: same rows, not ten
+    assert world.service.bronze(PROJECT, run.key, actor=ADMIN, include_confidential=True) == 5
+    assert (
+        world.service.bronze(PROJECT, run.key, actor=ADMIN, include_confidential=True) == 5
+    )  # again: same rows, not ten
     with open_lake(lake, write=False) as con:
         rows = con.execute(
             "SELECT _row_no, tag_no, mfr FROM legacy_plantx_tags ORDER BY _row_no"

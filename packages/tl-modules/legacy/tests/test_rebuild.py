@@ -17,7 +17,7 @@ def snapshot(world: LegacyWorld) -> dict[str, list[dict[str, Any]]]:
 def test_a_rebuild_reproduces_the_run_table_in_every_state(world: LegacyWorld) -> None:
     done = world.loaded("test-tags", "a.csv", tag_csv(4))
     world.service.reconcile(PROJECT, done.key, actor=ADMIN)
-    world.service.bronze(PROJECT, done.key, actor=ADMIN)
+    world.service.bronze(PROJECT, done.key, actor=ADMIN, include_confidential=True)
     undone = world.loaded("test-tags", "b.csv", tag_csv(3, start=10))
     world.service.compensate(PROJECT, undone.key, actor=ADMIN, reason="wrong file")
     voided = world.open("test-tags", "c.csv", tag_csv(2))

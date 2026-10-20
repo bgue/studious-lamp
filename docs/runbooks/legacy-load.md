@@ -19,7 +19,7 @@ Purpose: bring the tag list, document register or another export of an incumbent
    Expected: one line per loader: name, system/table, target, file kinds.
 2. Keep the file and record the run.
    ```
-   tl load open export.xlsx --project P123 --loader <name>
+   tl load open export.xlsx --project P123 --loader <name> [--confidentiality restricted]
    ```
    Expected: `opened <system>/<table>#<n> <id>`.
 3. Read it, profile it, and look at the profile.
@@ -45,9 +45,9 @@ Purpose: bring the tag list, document register or another export of an incumbent
    tl load show <run> --project P123 --report
    ```
    Expected: `mismatches 0`. A mismatch names a line and a field.
-7. Optional: copy the rows to the lake for analysis. Every reader of the lake can read the copy, so only for a file with nothing restricted.
+7. Optional: copy the rows to the lake for analysis. Every reader of the lake can read the copy: a restricted run is refused, and for an internal one you must say that the file may hold rows of records that are not open to every reader.
    ```
-   tl load bronze <run> --project P123
+   tl load bronze <run> --project P123 --include-confidential
    ```
 
 ## Verify

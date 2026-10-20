@@ -8,7 +8,7 @@ Read the root `AGENTS.md` first. These rules add to it.
 - `tl_core.services.reserved` reserves the source prefix `legacy:` and the correlation prefix `load:` so a client cannot pose as a load. Do not widen what a client may set.
 - Every stage moves the run with `common.transition` (`by_module=True`); the run takes no generic command. A stage that fails after the file was read appends `LoadRun.Failed` and leaves the state.
 - Files of a run are written by the module only (`store.RunFiles`, `by_module=True`, actor `svc:legacy`, which is the only reader of a file that is still in quarantine).
-- Bronze is a copy every lake reader can read and is a stage of its own; do not call it from another stage.
+- A run has a class (`confidentiality`, ADR-0016) and `module.CONFIDENTIAL` declares it: every read of a run goes through `registry` (which filters by the reader) and a stage that creates records passes the run's class on. Bronze is a copy every lake reader can read: it is a stage of its own, refused for a restricted run, and needs `include_confidential` for an internal one; do not call it from another stage.
 - Every `tl load` command is the administrator's. No API route or MCP tool exposes a run (the profile and the report quote the file).
 - A loader is a `LoaderDef` from an entry point of `throughline.loaders`; its mapping is a template of the existing imports. A new loader brings a sample file with synthetic data and a test that loads it on both databases.
 - Tests use `LegacyWorld` and run on both databases. Synthetic data only.

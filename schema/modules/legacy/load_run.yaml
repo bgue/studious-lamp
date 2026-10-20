@@ -55,6 +55,11 @@ classes:
       loader:
         required: true
         description: The loader that reads and writes it (`dms-register`).
+      confidentiality:
+        description: >-
+          The class of the run and of its files: `internal` (also when null) or `restricted`
+          (ADR-0016). Set when the run is opened, from the loader or the administrator; the
+          records the run creates are written with the same class where the type has one.
       source_name:
         description: Display name of the file.
       source_sha256:

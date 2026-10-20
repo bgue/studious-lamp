@@ -119,6 +119,7 @@ class Target(Protocol):
         actor: str,
         source: str,
         correlation_id: str,
+        confidentiality: str | None,
     ) -> list[Created]: ...
 
     def compare(
@@ -247,6 +248,7 @@ class TagTarget:
         actor: str,
         source: str,
         correlation_id: str,
+        confidentiality: str | None,
     ) -> list[Created]:
         if not plan.rows:
             return []
@@ -374,6 +376,7 @@ class DocumentTarget:
         actor: str,
         source: str,
         correlation_id: str,
+        confidentiality: str | None,
     ) -> list[Created]:
         created: list[Created] = []
         for planned in plan.rows:
@@ -391,7 +394,7 @@ class DocumentTarget:
                     doc_type=row.doc_type,
                     discipline=row.discipline,
                     originator=row.originator,
-                    confidentiality=loader.confidentiality,  # type: ignore[arg-type]
+                    confidentiality=confidentiality,  # type: ignore[arg-type]
                 ),
             )
             created.append(Created(made.stream_id, row.number, row.line, planned.raw))

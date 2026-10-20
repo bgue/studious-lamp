@@ -147,7 +147,8 @@ def build_report(base: str | None, target: str, changes: Sequence[Change]) -> Cl
         changes=ordered,
         counts={name: n for name, n in counts.items() if n},
         worst=worst,
-        auto_adoptable=worst == "additive",
+        # a waiver relaxes a rule without the approval a requested one gets: never adopted unseen
+        auto_adoptable=worst == "additive" and not any(c.code == "waiver_added" for c in ordered),
         blocks_submit=any(c.cls in BLOCKING for c in ordered),
         handling={name: HANDLING[name] for name in present},
         digest=hashlib.sha256(body.encode("utf-8")).hexdigest(),
@@ -754,6 +755,7 @@ def _conformance(before: ConformanceDef | None, after: ConformanceDef | None, si
             f"conformance.waivers.{path}",
             f"waiver for {path} added",
             relaxing=True,
+            review=True,
         )
     for path in sorted(set(old_paths) - set(new_paths)):
         sink.add(

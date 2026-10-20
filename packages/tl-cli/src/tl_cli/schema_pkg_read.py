@@ -14,6 +14,7 @@ from typing import Annotated
 import typer
 from tl_adapters.db import DbTarget, open_uow
 from tl_mod_schemareg import analysis, views
+from tl_mod_schemareg.impact_types import redact_names
 
 from tl_cli.derive_support import cell, service_errors
 from tl_cli.session import require_session
@@ -105,15 +106,17 @@ def impact(
     the report was cut.
     """
     db: DbTarget = ctx.obj
-    require_session(db)
+    principal = require_session(db)
     with service_errors(), open_uow(db, readonly=True) as uow:
-        detail = views.package_detail(uow.conn(), ref)
+        detail = views.package_detail(uow.conn(), ref, names=principal.is_admin)
         if project is None:
             report = detail.impact
         else:
             report, _, _ = analysis.project_impact(
                 uow.conn(), project, detail.package, detail.version
             )
+            if not principal.is_admin:  # names of mappings and rules are for administrators
+                report = redact_names(report)
     if report is None:
         typer.echo(f"not analysed: run tl schema package analyse {ref}")
         return

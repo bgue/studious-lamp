@@ -112,3 +112,38 @@ def empty_report(scope: str, old_hash: str | None, new_hash: str) -> ImpactRepor
         counts={},
         truncated=False,
     )
+
+
+#: The sections whose entries name things other than property paths and record types: the
+#: mappings, rules, enrichers, actions, endpoints and reports that use a path (ADR-0016 review F6).
+NAMED_SECTIONS: tuple[Section, ...] = ("mappings", "reports")
+
+
+def redact_names(report: ImpactReport) -> ImpactReport:
+    """The report with the names of what uses a changed path replaced by counts.
+
+    Who has a mapping, a rule or a report on a property is for those who administer them. Every
+    other reader sees how many there are in each section and why, never the names. The digest of
+    the redacted report is its own.
+    """
+    kept: list[ImpactEntry] = []
+    grouped: dict[tuple[str, str], int] = {}
+    for entry in report.entries:
+        if entry.section in NAMED_SECTIONS:
+            key = (entry.section, entry.change)
+            grouped[key] = grouped.get(key, 0) + (entry.count or 1)  # a redacted entry counts n
+        else:
+            kept.append(entry)
+    for (section, change), n in sorted(grouped.items()):
+        kept.append(
+            ImpactEntry(
+                section=section,  # type: ignore[arg-type]
+                target=f"{n} item(s)",
+                change=change,
+                count=n,
+                detail=f"{n} {section} are affected; their names are shown to administrators",
+            )
+        )
+    order = {name: i for i, name in enumerate(SECTION_ORDER)}
+    kept.sort(key=lambda e: (order[e.section], e.target, e.change))
+    return report.model_copy(update={"entries": tuple(kept)})

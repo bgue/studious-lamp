@@ -124,3 +124,34 @@ def tag_csv(count: int, start: int = 1) -> bytes:
         for n in range(start, start + count)
     ]
     return ("\n".join([header, *rows]) + "\n").encode()
+
+
+def seed_restricted_run(
+    db: DbTarget, files: FileService, scope: str = PROJECT
+) -> tuple[str, dict[str, str]]:
+    """A restricted run taken to Profiled, with ``LOADTOKEN`` in its file, rows and profile.
+
+    For the tests that walk every read path as readers of every class (ADR-0016). Returns the id
+    of the run and its files by kind (``source``, ``extracted``, ``profile``).
+    """
+    from tl_core import confidentiality as cf
+
+    from tl_mod_legacy.model import use_loaders
+
+    text_file = b"TAG NO,SERVICE\nLOADTOKEN-1,LOADTOKEN service\nLOADTOKEN-2,LOADTOKEN other\n"
+    service = LoadService(db, files)
+    controller = cf.Viewer(actor=ADMIN, level=1, account=ADMIN)
+    with use_loaders({"walk": tag_loader("walk")}), cf.use_viewer(controller):
+        run = service.open(
+            scope, "walk", "walk.csv", text_file, actor=ADMIN, confidentiality="restricted"
+        )
+        service.extract(scope, run.id, actor=ADMIN)
+        service.profile(scope, run.id, actor=ADMIN)
+    with open_uow(db, readonly=True) as uow:
+        found = {
+            str(r.slot): str(r.file_id)
+            for r in uow.conn().execute(
+                text("SELECT slot, file_id FROM cur_files WHERE record_id = :r"), {"r": run.id}
+            )
+        }
+    return run.id, found

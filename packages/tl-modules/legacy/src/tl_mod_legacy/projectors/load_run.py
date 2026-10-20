@@ -25,9 +25,10 @@ from tl_mod_legacy.projectors._common import ddl_for, json_text, touch_record
 
 _INSERT_SQL = text(
     f"INSERT INTO {RUN_TABLE} (id, scope, source_system, source_table, run_number, loader, "
-    "source_name, source_sha256, source_size, opened_by, last_seq) VALUES (:id, :scope, "
+    "source_name, source_sha256, source_size, opened_by, confidentiality, last_seq) VALUES "
+    "(:id, :scope, "
     ":source_system, :source_table, :run_number, :loader, :source_name, :source_sha256, "
-    ":source_size, :opened_by, :last_seq)"
+    ":source_size, :opened_by, :confidentiality, :last_seq)"
 )
 
 
@@ -123,6 +124,7 @@ class LoadRunProjector:
                     "source_sha256": payload.get("source_sha256"),
                     "source_size": payload.get("source_size"),
                     "opened_by": payload["opened_by"],
+                    "confidentiality": payload.get("confidentiality"),
                     "last_seq": event.seq,
                 },
             )

@@ -5179,6 +5179,7 @@ The rows were copied, as they are, to the lake bronze table of the system and ta
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `bronze_rows` | integer | yes | Rows written to the lake bronze table. |
+| `include_confidential` | boolean or null | no | True: the administrator said the copy may hold rows of confidential records. |
 
 ### Sample delivered event
 
@@ -5442,6 +5443,7 @@ A load run was opened for a file.
 
 | Field | Type | Required | Description |
 |---|---|---|---|
+| `confidentiality` | string or null | no | The class of the run: internal or restricted. |
 | `loader` | string | yes | The loader. |
 | `opened_by` | string | yes | The administrator. |
 | `run_number` | integer | yes | The number of the run. |

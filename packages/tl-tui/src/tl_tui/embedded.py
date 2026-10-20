@@ -163,7 +163,7 @@ from tl_mod_schedule.resolver import ActivityLink, OrphanedLink, Resolution
 from tl_mod_schemareg import analysis as schemareg_analysis
 from tl_mod_schemareg import views as schemareg_views
 from tl_mod_schemareg.commands import API_COMMANDS as SCHEMAREG_COMMANDS
-from tl_mod_schemareg.impact_types import ImpactReport
+from tl_mod_schemareg.impact_types import ImpactReport, redact_names
 from tl_schema.forms import ConformanceReport, FormMetadata
 
 from tl_tui.client import RelationInfo
@@ -1253,9 +1253,16 @@ class EmbeddedClient:
                 uow.conn(), scope=scope, state=state, package=package, limit=limit
             )
 
+    def _is_admin(self, uow: UnitOfWork) -> bool:
+        try:
+            self._admin_gate(uow)
+        except ForbiddenError:
+            return False
+        return True
+
     def get_schema_package(self, ref: str) -> schemareg_views.PackageDetail:
         with self._uow(True) as uow:
-            return schemareg_views.package_detail(uow.conn(), ref)
+            return schemareg_views.package_detail(uow.conn(), ref, names=self._is_admin(uow))
 
     def sample_test_schema_package(
         self, ref: str, sample: int = 1000
@@ -1283,7 +1290,7 @@ class EmbeddedClient:
             report, _before, _after = schemareg_analysis.project_impact(
                 uow.conn(), project, package, version
             )
-            return report
+            return report if self._is_admin(uow) else redact_names(report)
 
     def schemareg_command(self, name: str, cmd: Command) -> CommandResult:
         spec = next((c for c in SCHEMAREG_COMMANDS if c.model.__name__ == name), None)

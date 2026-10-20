@@ -229,9 +229,20 @@ def lint_issues(row: registry.PackageRow) -> list[LintIssueView]:
     ]
 
 
-def package_detail(conn: Connection, ref: str) -> PackageDetail:
-    """One package by id or ``name@version``: content, stored reports, lint and the text diff."""
+def package_detail(conn: Connection, ref: str, *, names: bool = False) -> PackageDetail:
+    """One package by id or ``name@version``: content, stored reports, lint and the text diff.
+
+    The stored impact report holds counts where it would name mappings, rules and reports. With
+    ``names`` (the caller is an administrator) the report is made again from the content, so it
+    names them; if the package no longer composes the stored report is returned.
+    """
     row = _find(conn, ref)
+    full: ImpactReport | None = None
+    if names and row.impact is not None:
+        try:
+            full = analysis.analyse(conn, analysis.parse_content(row.content)).impact
+        except Exception:  # noqa: BLE001 - a package that no longer composes keeps its stored report
+            full = None
     diff, truncated = _diff(row)
     return PackageDetail(
         **_summary(row),
@@ -243,7 +254,9 @@ def package_detail(conn: Connection, ref: str) -> PackageDetail:
             if row.classification is not None
             else None
         ),
-        impact=ImpactReport.model_validate(row.impact) if row.impact is not None else None,
+        impact=full
+        if full is not None
+        else (ImpactReport.model_validate(row.impact) if row.impact is not None else None),
         impact_sha256=row.impact_sha256,
         lint=lint_issues(row),
         diff=diff,

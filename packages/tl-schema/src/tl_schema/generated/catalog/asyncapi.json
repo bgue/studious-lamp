@@ -25400,6 +25400,13 @@
                     "bronze_rows": {
                       "description": "Rows written to the lake bronze table.",
                       "type": "integer"
+                    },
+                    "include_confidential": {
+                      "description": "True: the administrator said the copy may hold rows of confidential records.",
+                      "type": [
+                        "boolean",
+                        "null"
+                      ]
                     }
                   },
                   "required": [
@@ -26710,6 +26717,13 @@
                   "additionalProperties": true,
                   "description": "Delta and full modes. The ledger event payload, described per event type in the catalog.",
                   "properties": {
+                    "confidentiality": {
+                      "description": "The class of the run: internal or restricted.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
                     "loader": {
                       "description": "The loader.",
                       "type": "string"
