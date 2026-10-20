@@ -51,6 +51,10 @@ Give the correspondence module its second and third domains. **Technical / RFI**
 | S8 | TUI client interface and fakes | Interface other tickets consume | — | done (f43aa36, 9de0abb) |
 | S9 | T05 escalation rule on the P1-I7 engine | Rules; waits for the engine | orchestrator | pending (last) |
 | S11 | Residuals of the security re-check (private export file, own overflow error, scan cards tagged with their record) and the decisions D13, D14 | Confidentiality | orchestrator | done (32c7ed6, 8d2f946) |
+| S17 | Fake client counts open RFIs as the report does (answered excluded); screen pilot test restored | Interface fix | none | done (b945bdf) |
+| S18 | Simulator: RFI author and client representative, TechnicalDesk client methods, numbering spells the project without symbols (core change) | Core numbering | security review, orchestrator | done (6856497) |
+| S19 | Demo `just demo P1-I6` (nine clauses, sqlite and postgres) | Cross-cutting | none | done |
+| S20 | Ticket T11 (package docs), plan update | Docs ticket for Haiku | none | done |
 | S15 | TUI domain screen (Ctrl+G), evidence text, client fake seed, embedded reads test | Screen glue and wiring | — | done (394961d) |
 | S10 | Security review fixes F1 to F8 (Commercial controller gate on every command, feed cards of confidential streams, answering records readable by the item's readers, bounded evidence query, private export file, export row limit, issue day floor) | Core feed change; confidentiality | orchestrator re-check of F1 and F2 | done (eb31ba2) |
 
@@ -66,12 +70,13 @@ Give the correspondence module its second and third domains. **Technical / RFI**
 | T04c | Cost-system export (CSV) | S | T09b | done | S5 (9de0abb) |
 | T05 | Escalation RFI to Commercial: the command (S3) and the rule on the I7 engine | S | S3, P1-I7 on trunk | pending | S9 |
 | T06 | Evidence trail query | S | S3 | done | S4 (f43aa36) |
-| T07a | TUI: the text of the RFI log (cells, summary, panel) | H | S8, T09a | dispatched (batch 4) | the screen, the key (Ctrl+G) and the evidence text are supervisor pieces (S15) |
-| T07b | TUI: the text of the Commercial register | H | S8, T09b | dispatched (batch 4) | |
+| T07a | TUI: the text of the RFI log (cells, summary, panel) | H | S8, T09a | merged 0cee9ab | the screen, the key (Ctrl+G) and the evidence text are supervisor pieces (S15) |
+| T07b | TUI: the text of the Commercial register | H | S8, T09b | merged 411f397 | |
 | T08 | Feed policy per domain | S | S2 | done | S2 and the handlers of S3 (L-P1-I3-5: the cards cannot be tested apart) |
 | T09a | RFI log report | H | S3 | merged (63d7dc1) | passed first time; one equivalent guard added for pyright (L-P1-I6-1) |
 | T09b | Commercial register report | H | S3 | merged (3f753af) | passed first time |
-| T10 | Simulator: client representative answers RFIs; commercial manager raises notices; demo; report | H | T02, T04, T09 | draft | |
+| T10 | Simulator: client representative answers RFIs; RFI author; demo; report | S | T02, T04, T09 | built by the supervisor (S18, S19): the owner asked for Haiku tickets only after it was built; no commercial sim actor (sim people hold role user) | S18 |
+| T11 | Package READMEs and AGENTS notes for RFI, Commercial and the evidence trail | H | all code | ready | |
 
 ## Order of work
 1. Plan, schema, generalisation, references, reports interfaces: done. First batch: T09a and T09b.
