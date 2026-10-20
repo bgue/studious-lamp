@@ -1,4 +1,4 @@
-"""The Phase 1 screenshot tour: what P1-I0 to P1-I7 added to the platform core.
+"""The Phase 1 screenshot tour: what P1-I0 to P1-I8 added to the platform core.
 
     uv run python dev/tour/phase1.py [--out docs/reports/tour/phase-1]
 
@@ -11,9 +11,10 @@ the documented dev ones and are only ever typed through stdin.
 
 It covers P1-I0 (identity and admin), P1-I1 (standards and engineering tags), P1-I2 and P1-I2b
 (document control and its controller role), P1-I3 (the derivation pipeline), P1-I4 (schedules and
-cost), P1-I5 (correspondence), P1-I6 (RFIs and commercial notices) and P1-I7 (the integration layer
-and record threads). The sample files come from the helpers of the matching demos
-(`dev/demos/p1_i*_demo.py`). P1-I8 is added at the Phase 1 exit. The text is
+cost), P1-I5 (correspondence), P1-I6 (RFIs and commercial notices), P1-I7 (the integration layer
+and record threads) and P1-I8 (the schema registry and workbench, waivers and the conformance
+dashboard, legacy loads and the lake marts). The sample files come from the helpers of the matching
+demos (`dev/demos/p1_i*_demo.py`). The text is
 `docs/reports/PHASE-1-TOUR.md`; its section numbers match the file names written here.
 """
 
@@ -1777,6 +1778,227 @@ def section_integration(ws: Workspace) -> None:
     tk.run_tui(ws, thread_app, thread, size=(170, 48))
 
 
+# --- 20 to 22 the schema registry, conformance and legacy loads (P1-I8) ----------------------
+
+PACKAGE = "co.acme.engineering"
+ADDITIVE = f"{PACKAGE}@3.3.0"
+BREAKING = f"{PACKAGE}@4.0.0"
+
+
+def section_schema_registry(ws: Workspace) -> None:
+    renew_sessions(ws)
+    demo = demo_module("p1_i8_demo")
+    work = ws.root / "pkgs"
+    work.mkdir()
+    quietly(demo.prepare, work)
+
+    sh = Shell(ws, "A schema change: drafted, analysed, reviewed by someone else, published", 118)
+    sh.run(
+        "schema",
+        "package",
+        "draft",
+        "pkgs/pkg-3.3.0.yaml",
+        "--changelog",
+        "Adds the actuator make.",
+        who="amy",
+    )
+    sh.run("schema", "package", "analyse", ADDITIVE, who="amy")
+    sh.run("schema", "package", "classify", ADDITIVE, who="amy")
+    sh.run("schema", "package", "submit", ADDITIVE, who="amy")
+    sh.run("schema", "package", "approve", ADDITIVE, who="amy", ok=False)
+    sh.run("schema", "package", "approve", ADDITIVE, "--comment", "additive, reviewed", who="demo")
+    sh.run("schema", "package", "publish", ADDITIVE, who="demo")
+    sh.note(
+        "the admin drafts a second version that retypes size_in: breaking, so submit is refused"
+    )
+    sh.run("schema", "package", "draft", "pkgs/pkg-4.0.0.yaml", who="demo")
+    sh.run("schema", "package", "analyse", BREAKING, who="demo")
+    sh.run("schema", "package", "classify", BREAKING, who="demo", head=5)
+    sh.run("schema", "package", "submit", BREAKING, who="demo", ok=False)
+    ws.save("20a-package-lifecycle", sh.transcript.svg())
+
+    app = build_app(ws, admin=True)
+
+    async def workbench(pilot: Pilot[Any]) -> None:
+        await tk.until(pilot, lambda: len(app.query("RecordGrid")) > 0, "the shell")
+        await open_screen(pilot, app, "ctrl+o", "Schema packages", "the workbench")
+        await tk.until(pilot, lambda: "3.3.0" in tk.screen_text(app), "the package versions")
+        tk.shot_tui(
+            ws,
+            app,
+            "20b-workbench-tree",
+            "Ctrl+O: the schema workbench: each version of each package, with its state and class",
+            "Schema packages",
+            "Published",
+            "Draft",
+        )
+        await pilot.press("down", "3")
+        await tk.settle(pilot, 3)
+        scroll = app.screen.query_one("#schema-scroll")
+        for _ in range(40):  # down to the hunk that adds the property
+            if "actuator_make" in tk.screen_text(app):
+                break
+            scroll.scroll_relative(y=3, animate=False)
+            await tk.settle(pilot, 2)
+        scroll.scroll_relative(y=7, animate=False)
+        await tk.settle(pilot, 2)
+        tk.shot_tui(
+            ws,
+            app,
+            "20c-workbench-diff",
+            "Ctrl+O, 3: the diff of the highlighted version against the one below it",
+            "Diff",
+        )
+        await pilot.press("up", "v")  # the breaking draft, on top
+        await tk.until(pilot, lambda: "Impact" in tk.screen_text(app), "the review screen")
+        tk.shot_tui(
+            ws,
+            app,
+            "20d-review-screen",
+            "Ctrl+O, v: the review: classification, impact and the next step",
+            "Impact",
+        )
+        await pilot.press("t")
+        await tk.until(pilot, lambda: "Tested" in tk.screen_text(app), "the sample test")
+        await pilot.press("s")
+        await tk.until(pilot, lambda: "not allowed in place" in tk.screen_text(app), "the refusal")
+        tk.shot_tui(
+            ws,
+            app,
+            "20e-review-refused",
+            "t, then s: tried on a sample of records; submitting the breaking change is refused",
+            "Tested",
+            "! ",
+        )
+
+    tk.run_tui(ws, app, workbench, size=(170, 48))
+
+    sh = Shell(ws, "What a change touches in a project, and the project pinning a version", 118)
+    impact = sh.run("schema", "package", "impact", ADDITIVE, "--project", "P999", who="demo")
+    digest = next(line.split()[1] for line in impact.splitlines() if line.startswith("digest "))
+    sh.run("schema", "adopt", "P999", PACKAGE, "3.3.0", who="amy", ok=False)
+    sh.run("schema", "adopt", "P999", PACKAGE, "3.3.0", "--impact-sha256", digest, who="demo")
+    sh.run("schema", "adoptions", who="demo")
+    ws.save("20f-impact-and-pin", sh.transcript.svg())
+
+
+# --- 21 waivers, conformance, crosswalk, export and import (P1-I8) -----------------------------
+
+WAIVED = "psets.valve_data.size_in"
+OTHER = "P999"  # pinned to 3.3.0 in section 20; P123 declares the strict conformance mode
+WAIVER = f"{OTHER}/{WAIVED}@1"
+
+
+def section_conformance(ws: Workspace) -> None:
+    renew_sessions(ws)
+    until = (tk.CLOCK.now.date() + timedelta(days=30)).isoformat()
+
+    sh = Shell(ws, "A time-limited waiver: asked for, approved by an admin, counted apart", 118)
+    request = ("schema", "waiver", "request", OTHER, WAIVED)
+    sh.run(
+        *request,
+        "--reason",
+        "Legacy valves keep the old nominal size.",
+        "--expires",
+        until,
+        who="amy",
+    )
+    sh.run("schema", "waiver", "approve", WAIVER, who="amy", ok=False)
+    sh.run("schema", "waiver", "approve", WAIVER, "--comment", "for 30 days", who="demo")
+    sh.run("schema", "waiver", "ls", "--project", OTHER, who="amy")
+    sh.run("schema", "conformance", "--project", OTHER, who="amy")
+    sh.run("schema", "waiver", "revoke", WAIVER, "--reason", "Fixed at the source.", who="demo")
+    sh.run("schema", "waiver", "ls", "--project", OTHER, who="amy")
+    ws.save("21a-waivers", sh.transcript.svg())
+
+    sh = Shell(ws, "How a project stands against the company schema, and its code crosswalk", 118)
+    sh.run("schema", "conformance", *P, who="amy")
+    sh.run("schema", "crosswalk", *P, who="amy")
+    ws.save("21b-crosswalk", sh.transcript.svg())
+
+    sh = Shell(ws, "Published packages to a git directory, and back in as drafts", 118)
+    sh.run("schema", "export-git", "schema-git", who="amy", ok=False)
+    sh.run("schema", "export-git", "schema-git", who="demo")
+    sh.run("schema", "export-git", "schema-git", who="demo")
+    sh.run("schema", "import-git", "schema-git", "--dry-run", who="demo")
+    edited = ws.root / "schema-git" / f"{ADDITIVE}.yaml"
+    edited.write_text(edited.read_text(encoding="utf-8") + "# edited by hand\n", encoding="utf-8")
+    sh.note(f"someone edits {edited.name} in the checkout; the import checks every file first")
+    sh.run("schema", "import-git", "schema-git", who="demo", ok=False)
+    ws.save("21c-export-import", sh.transcript.svg())
+
+
+# --- 22 legacy loads and lake marts (P1-I8) ---------------------------------------------------
+
+LOAD_KEYS = {"ISO-0101": "ISO-0301", "ISO-0102": "ISO-0302", "PID-0201": "PID-0303"}
+RUN = "dms/register#1"
+STATUS_MART = "mart_document_status"
+
+
+def section_legacy_load(ws: Workspace) -> None:
+    renew_sessions(ws)
+    demo = demo_module("p1_i8_demo")
+    work = ws.root / "loads"
+    quietly(demo.registers, work)
+    register = work / "register.csv"
+    text = register.read_text(encoding="utf-8")
+    for old, new in LOAD_KEYS.items():  # the numbers of section 12 are taken: use new ones
+        text = text.replace(old, new)
+    register.write_text(text, encoding="utf-8")
+    restricted = work / "restricted.csv"  # SEC is no document type of the standards: use PRC
+    restricted.write_text(
+        restricted.read_text(encoding="utf-8").replace("SEC-", "PRC-"), encoding="utf-8"
+    )
+    loader = ("--project", PROJECT, "--loader", "dms-register")
+    run = (RUN, *P)
+
+    sh = Shell(ws, "A legacy register: read, profiled and planned; nothing written yet", 118)
+    sh.run("load", "open", "loads/register.csv", *loader, who="amy", ok=False)
+    sh.run("load", "open", "loads/register.csv", *loader, who="demo")
+    sh.run("load", "extract", *run, who="demo")
+    sh.run("load", "profile", *run, who="demo")
+    sh.run("load", "plan", *run, who="demo")
+    sh.note("the lake is read before the load: the document mart for this project")
+    sh.run("lake", "sync", who="demo")
+    sh.run("lake", "mart", "show", STATUS_MART, who="demo")
+    ws.save("22a-load-plan", sh.transcript.svg())
+
+    sh = Shell(ws, "Loading what the plan said, reconciling, and the lake after", 118)
+    sh.run("load", "load", *run, "--expect-new", "2", who="demo", ok=False)
+    sh.run("load", "load", *run, "--expect-new", "3", who="demo")
+    sh.run("load", "reconcile", *run, who="demo")
+    sh.note("a second file holds one restricted document, loaded as a restricted run")
+    ws.tl(
+        "load",
+        "open",
+        "loads/restricted.csv",
+        *loader,
+        "--confidentiality",
+        "restricted",
+        who="demo",
+    )
+    for step in ("extract", "profile", "plan"):
+        ws.tl("load", step, "dms/register#2", *P, who="demo")
+    ws.tl("load", "load", "dms/register#2", *P, "--expect-new", "1", who="demo")
+    sh.run("doc", "show", "PRC-0001", *P, who="demo", head=9)
+    sh.run("lake", "sync", who="demo")
+    sh.run("lake", "mart", "ls", who="demo")
+    sh.run("lake", "mart", "show", STATUS_MART, who="demo")
+    ws.save("22b-load-and-marts", sh.transcript.svg())
+
+    sh = Shell(ws, "Taking the load back: compensated, and the mart falls back", 118)
+    sh.run("load", "compensate", *run, "--reason", "demo: the load is taken back", who="demo")
+    sh.run("doc", "show", "ISO-0301", *P, who="demo", head=4)
+    sh.run("lake", "sync", who="demo")
+    sh.run("lake", "mart", "show", STATUS_MART, who="demo")
+    ws.tl("load", "open", "loads/register.csv", *loader, who="demo")
+    ws.tl("load", "extract", "dms/register#3", *P, who="demo")
+    ws.tl("load", "profile", "dms/register#3", *P, who="demo")
+    sh.run("load", "plan", "dms/register#3", *P, who="demo")
+    ws.tl("load", "void", "dms/register#3", *P, "--reason", "the plan was only a check", who="demo")
+    ws.save("22c-compensate", sh.transcript.svg())
+
+
 # --- the tour --------------------------------------------------------------------------------
 
 
@@ -1822,6 +2044,10 @@ def main(argv: list[str] | None = None) -> int:
         section_rfi(ws)
         print("P1-I7: the integration layer and record threads", flush=True)
         section_integration(ws)
+        print("P1-I8: the schema registry, conformance and legacy loads", flush=True)
+        section_schema_registry(ws)
+        section_conformance(ws)
+        section_legacy_load(ws)
     finally:
         ws.close()
     print(f"wrote {len(ws.written)} screenshots to {out}")
