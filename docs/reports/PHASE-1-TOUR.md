@@ -2,7 +2,7 @@
 
 **Status: interim.** This tour covers what P1-I0, P1-I1, P1-I2 and P1-I2b added on top of the Phase 0 core. The final Phase 1 tour will extend this file at the Phase 1 exit, as the remaining increments land. Nothing here is a statement that Phase 1 is complete.
 
-Purpose: show, with real screenshots and a plain account of today's practice, what the first Phase 1 increments delivered: real accounts and sessions, the company standards registry with engineering tags, the first document-control module, and the document controller role that lets a person who is not an admin do the controlling acts. Every screenshot is generated: `uv run python dev/tour/phase1.py` builds a demo ledger, signs in as named people, drives the real terminal UI headless and runs the real commands, and writes the SVG files under `tour/phase-1/`. Written 2026-10-13. Read [PHASE-0-TOUR.md](PHASE-0-TOUR.md) first for the core these build on.
+Purpose: show, with real screenshots and a plain account of today's practice, what the first Phase 1 increments delivered: real accounts and sessions, the company standards registry with engineering tags, the first document-control module, and the document controller role that lets a person who is not an admin do the controlling acts. Every screenshot is generated: `just tour 1` (`uv run python dev/tour/phase1.py`) builds a demo ledger, signs in as named people, drives the real terminal UI headless and runs the real commands, and writes the SVG files under `tour/phase-1/`. Written 2026-10-13. Read [PHASE-0-TOUR.md](PHASE-0-TOUR.md) first for the core these build on.
 
 ## What these increments added
 
@@ -28,6 +28,13 @@ The demo project is made up: project `P123`, five people (`demo`, an admin; `amy
 | 12 | P1-I2 | [The legacy DMS register import](#12-the-legacy-dms-register-import) | `12` |
 | 13 | P1-I2 | [What a plain user cannot do](#13-what-a-plain-user-cannot-do) | `13` |
 | 14 | P1-I2b | [The document controller role](#14-the-document-controller-role) | `14a` to `14f` |
+
+## Regenerating locally
+
+Run `uv sync --all-packages` once first. The tour needs no Postgres: it builds a fresh SQLite ledger in a temporary directory. Then:
+
+- `just tour 1` rewrites `tour/phase-1/` (this tour); `just tour 0` rewrites `tour/phase-0/`; `just tour-all` does both.
+- `just tour 1 some/dir` writes to another directory instead. The output is deterministic, so a rerun on unchanged code changes no SVG.
 
 ## 1. Sign-in and sessions
 

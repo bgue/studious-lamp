@@ -1,6 +1,6 @@
 # Phase 0 tour: what the platform core does, shown on screen
 
-Purpose: show a reader who has not run the code what Phase 0 of Throughline delivered, one capability at a time, with real screenshots and a plain-language account of how the same activity is done today. Every screenshot is generated, not drawn: `uv run python dev/tour/phase0.py` builds a demo ledger, drives the real terminal UI headless and runs the real commands, and writes the SVG files under `tour/phase-0/`. Written 2026-10-13. Companion documents: [PHASE-0.md](PHASE-0.md) (the report), [PHASE-0-AUDIT.md](PHASE-0-AUDIT.md) (each brief §16 bullet against the code), and the interim [PHASE-1-TOUR.md](PHASE-1-TOUR.md) for what came after.
+Purpose: show a reader who has not run the code what Phase 0 of Throughline delivered, one capability at a time, with real screenshots and a plain-language account of how the same activity is done today. Every screenshot is generated, not drawn: `just tour 0` (`uv run python dev/tour/phase0.py`) builds a demo ledger, drives the real terminal UI headless and runs the real commands, and writes the SVG files under `tour/phase-0/`. Written 2026-10-13. Companion documents: [PHASE-0.md](PHASE-0.md) (the report), [PHASE-0-AUDIT.md](PHASE-0-AUDIT.md) (each brief §16 bullet against the code), and the interim [PHASE-1-TOUR.md](PHASE-1-TOUR.md) for what came after.
 
 ## What Throughline is, and what Phase 0 delivered
 
