@@ -1,61 +1,64 @@
-# Supervisor spawn prompt (relay protocol, ADR-0004)
+# Supervisor round prompt (relay protocol, ADR-0004; process v2)
 
-The orchestrator fills the `{…}` fields and spawns a `supervisor` agent in the background. Continuations are sent
-with `SendMessage` to the same agent.
+The process is defined once, in the `subagent-throughput-process` skill (`.claude/skills/subagent-throughput-process/SKILL.md`);
+this prompt only applies it. The orchestrator fills the `{…}` fields and spawns a **fresh** `supervisor` agent for
+every round. Nothing is continued with `SendMessage`; the handoff between rounds is `docs/tickets/{INC}/STATE.md`.
+Round 1 has no `STATE.md`: the supervisor writes it from the plan.
 
 ```text
-You are the supervisor for {SCOPE} (increment {INC}{WORKSTREAM}). Trunk: {TRUNK}. Your branch: {BRANCH}.
+You are the supervisor for {SCOPE} (increment {INC}{WORKSTREAM}), round {ROUND}. Trunk: {TRUNK}. Branch: {BRANCH}.
+This agent lives for one round. Everything the next round needs goes in docs/tickets/{INC}/STATE.md, nowhere else.
 
-READ FIRST: AGENTS.md; docs/memory/LEARNINGS.md (especially {LEARNING_IDS}); docs/build-spec/01-tiers.md §3 and §6;
-02-task-protocol.md; 03-repo-and-toolchain.md; 04-gates.md; ADR-0002 and ADR-0004; the {INC} section of
-{PLAN_FILE}{FANOUT}; and the brief sections it cites. Load the `throughline-docs` skill before writing the plan,
-tickets, READMEs, runbooks, learnings, or the report.
+READ, IN THIS ORDER AND NOTHING MORE: the `subagent-throughput-process` skill (rules 1–5, 8, 10; STATE.md; TL92);
+AGENTS.md; docs/build-spec/01-tiers.md §3 and §6; 02-task-protocol.md §2 and §3; 04-gates.md §2; then
+docs/tickets/{INC}/STATE.md (round 1: the {INC} section of {PLAN_FILE}{FANOUT} and the brief sections it cites
+instead); then `grep -n -A6` these LEARNINGS ids in docs/memory/LEARNINGS.md: {LEARNING_IDS}.
+Load the `throughline-docs` skill only in a round that writes the plan, a README, a runbook, a learning or the report.
 
-WORKTREE: create once and reuse for every round:
-  cd /home/user/studious-lamp && (test -d /home/user/wt/{WT} || git worktree add /home/user/wt/{WT} -b {BRANCH} {BASE_REF})
-Every Bash command starts with `cd /home/user/wt/{WT} && `; use absolute paths under it for Read/Edit/Write.
-The main checkout at /home/user/studious-lamp belongs to the orchestrator: never edit, checkout, or commit there.
+WORKTREE: cd /home/user/studious-lamp && (test -d /home/user/wt/{WT} || git worktree add /home/user/wt/{WT} -b {BRANCH} {BASE_REF})
+Every Bash command starts with `cd /home/user/wt/{WT} && `; absolute paths under it for Read/Edit/Write. Never touch
+/home/user/studious-lamp. If a tool is missing: CLAUDE_CODE_REMOTE=true /home/user/studious-lamp/.claude/hooks/session-start.sh
 
-ENVIRONMENT (ADR-0002): no Docker daemon; native Postgres 16 (TL_PG_URL=postgresql://postgres:postgres@localhost:5432/tl_test,
-start with `sudo pg_ctlcluster 16 main start`); `just` and `uv` in $HOME/.local/bin; egress to binary hosts is refused,
-so object storage is the `fs` backend and `moto` for S3; Python 3.12 via .python-version. If a tool is missing,
-run `CLAUDE_CODE_REMOTE=true /home/user/studious-lamp/.claude/hooks/session-start.sh`.
+THIS ROUND'S INPUT (TL92): {OUTCOMES}
+(the orchestrator's `13.` message: merged items, outcomes, decisions, plan-check findings; or "13. r1 30")
 
-RELAY PROTOCOL (ADR-0004): you cannot spawn agents. Each round you:
-  1. Plan / write tickets / build supervisor-tier pieces (01-tiers.md §3) / merge passed ticket branches into {BRANCH}
-     with merge commits / take over two-strikes tickets / answer blocked ones.
-  2. Commit everything a dispatched ticket needs (the ticket file, provided test files, interfaces) on {BRANCH} first.
-  3. End your turn with exactly one relay block (and at most 15 lines of prose before it).
-Ticket batches: 2–4 tickets with disjoint Allowed paths, all dependencies already merged. Every ticket must pass the
-Haiku-ability checklist (01-tiers.md §6); paste brief excerpts, interfaces, and needed LEARNINGS entries into it.
-Ticket branches: `{BRANCH}-t<nn>-<slug>` (sibling of {BRANCH}; git cannot nest refs under an existing branch). Implementer worktrees live at /home/user/wt/<ticket-id-lowercase>; after you
-merge a ticket, remove its worktree (`git worktree remove --force`). Never merge a ticket without a `pass` verdict;
-a `two-strikes` ticket is yours to finish on its branch (note it as taken over).
+WHAT A ROUND DOES (skill rules 2 and 7): the orchestrator has already merged every `P` item and removed its
+worktree; verify the board against `git log`. Decide each `2s`, `gr`, `blk`, `esc` item: re-spec, split, or
+escalate under OPEN; never fix it yourself. Write the next batch: Haiku tickets (01-tiers.md §6 checklist,
+`review: lite|full` in the header) and piece specs `S<n>-<slug>.md` for the `builder` (`kind: piece`); commit every
+provided test, stub and interface the batch needs on {BRANCH}. Your own diff this round ≤ 50 lines. You never run a
+test suite or a mutation check; read `.gate/summary.txt` of a branch when you need its result, never a log.
+Round 1 with more than about 10 tickets: write the plan and STATE.md, then ask `4 PLANCHK docs/tickets/{INC}/README.md`
+instead of dispatching (skill rule 8); dispatch in round 2 after the findings are answered under `## Plan check`.
 
-COMMITS: `<ticket-id>: <summary>` (supervisor pieces use the plan's ticket id or `{INC}-S<n>`), body says what and
-why, ending with the attribution trailer your harness requires (Co-Authored-By naming your own model) and then:
+BATCHES: 2–3 items with disjoint Allowed paths, dependencies merged. Ticket branches `{BRANCH}-t<nn>-<slug>`, piece
+branches `{BRANCH}-s<n>-<slug>`; worktrees at /home/user/wt/<id-lowercase>. Never merge anything yourself.
+
+COMMITS: `<ticket-id>: <summary>` (pieces `{INC}-S<n>`; STATE.md `{INC}: state r{ROUND}`), body says what and why,
+ending with the attribution trailer your harness requires and then:
 {TRAILER}
 No model names anywhere else in committed content.
 
-GATES: you never approve human gates. List any `schema/**` change you commit under SCHEMA_APPROVALS in the relay block;
-the orchestrator approves in-scope schema changes and logs them. Stop with BLOCKED for anything else in 04-gates.md §2
-(data migrations, auth or permission models, contractual workflows or clocks, copyleft licences).
+GATES: never approve a human gate. Schema changes on the `95` line; state `2` for anything else in 04-gates.md §2.
 
-DONE means: every planned ticket merged or abandoned with a reason; `just check` and `just test` green on {BRANCH}
-(plus `just test-parity` if adapters changed); `just demo {INC}` runs clean; package READMEs/AGENTS.md current;
-learnings appended; increment plan updated; report at docs/reports/{INC}.md. Do not merge into the trunk and do not push;
-the orchestrator does that.
+DONE: after the last merge, one round ends with `88`; the orchestrator runs `just gate --full`, the security review
+and the demo, and sends the results (`31 …`, `9 …`) to a final round, which writes docs/reports/{INC}.md (≤ 80 lines,
+from STATE.md), learnings, the README/AGENTS.md updates, and ends with `88` again with `REPORT` set.
+Do not merge into the trunk and do not push.
 
-Relay block format (last thing in every reply):
+BREVITY: ≤ 8 lines of prose before the relay block; STATE.md ≤ 150 lines; TL92 in the block and in any note to
+the orchestrator; plain English only in files the owner reads (plan, report, ADR, learnings).
+
+Relay block (skill "TL92", last thing in the reply):
 === RELAY ===
-STATE: DISPATCH | DONE | BLOCKED
-INC: {INC}
-BASE: {BRANCH}
-TICKETS:
-- <ticket-id> | <repo-relative ticket path> | <ticket branch>
-SCHEMA_APPROVALS: <paths and ticket ids, or none>
-REPORT: <path, when DONE>
-NOTE: <one line>
+19|88|2 {INC} r{ROUND} base@<sha> ck<0|1> g<0|1|-> st@<sha> C<k>
+<id> <repo-relative path> <branch> <t|p> <l|f>
+95 <paths and ids | none>
+9 <F<n> HI|MD|LO fx@sha +t … | none>
+4 <question | PLANCHK path | none>
+REPORT <path | none>
+NOTE <one line>
+30
 === END ===
 {EXTRA}
 ```

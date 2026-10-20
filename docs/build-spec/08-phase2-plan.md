@@ -3,10 +3,18 @@
 Brief: §16 Phase 2. M3 field work packaging (COAA WFP), M4 materials, M9 requisitions and work orders; lake gold
 marts; simulator scenarios. Six increments. Ticket IDs `P2-I<n>-T<nn>`.
 
-Status: v0.2, revised 2026-10-17 against what Phase 1 built (P1-I0 to P1-I3 on the trunk, P1-I4 on `p1/i4`).
-Companions: `phase2-owner-questions.md` (decisions the owner makes before the phase starts),
+Status: v0.3, revised 2026-10-20 for process v2 (`process-v2.md`; rules in the `subagent-throughput-process`
+skill): builder pieces instead of supervisor-built code, Haiku tickets wherever the interface is in the tree, waves
+sized for 3 slots, one security review per wave, `STATE.md` checkpoints per increment, and a plan check before
+wave 1. v0.2 (2026-10-17) was revised against what Phase 1 built; Phase 1 is now complete on the trunk (P1-I6 done).
+Companions: `phase2-owner-questions.md` (decisions the owner makes before the phase starts; untouched by v0.3),
 `phase2-contracts-draft.md` (the shared contracts of the fanouts, DRAFT until the orchestrator freezes them),
 `phase2-risks.md` (ranked risks and open technical questions).
+
+Tier letters in the tables: **H** Haiku ticket (`review: lite` or `full` set in the ticket), **B** builder piece
+(one-shot Sonnet from a piece spec, always `full` review, orchestrator or human sign-off per `04-gates.md` §3),
+**O** orchestrator. There is no supervisor-built code in this plan; the supervisor's own commits per round are
+registry lines, `just gen`, held tests and `STATE.md`.
 
 **Phase exit (§16):** issue an IWP with a readiness check covering documents, materials, and scaffold, on a simulated
 project, on SQLite and Postgres.
@@ -53,7 +61,7 @@ uses, so no supervisor re-invents it. Names are those in the code; `p1/i4` names
 | MTO import "from derived documents (Phase 1 pipeline)" as its own importer | Publication is a `PublishMapping` with a `target_kind` and a module command per kind, create-only, compensable | I3 T05 adds `target_kind: mto` and `PublishDerivedMto` (`controller`); nothing else |
 | `/dispatch material-request` and `/hold` from threads, constraint source `rule`, `IWP.Ready` webhook | Threads and dispatch (P1-I7 WS-B), the rules engine (P1-I7 WS-A) and the RFI record (P1-I6) are still to come at the time of writing; `IWP.Ready` is already in the brief's default webhook list, the catalog is generated from `tl:event_type` classes | Each is consumed through the interface `07-phase1-plan.md` names and verified at phase start (§0.1). A missing one degrades to a stub with the source `manual` and a test that pins the degradation |
 | Lake marts written against silver tables of module types | Module tables are not yet mirrored in silver (P1-I1 follow-up; P1-I8 T08 builds the marts framework); `tl_lake.xer` shows the second-pass pattern | I6 T02 marts read the generated `v_<module>_<class>` views and the readiness events; if P1-I8 T08 is not on the trunk, I6 builds on the `xer_marts.py` pattern and says so |
-| Toolcrib screen in I4 | Toolcrib is M4 (brief §9 M4 "Toolcrib mode") over inventory commands | Stays in I4 WS-B as a screen ticket over I3 commands (no new module); it waits for I3 |
+| Toolcrib screen in I4 | Toolcrib is M4 (brief §9 M4 "Toolcrib mode") over inventory commands | Stays in I4-B (wave 4) as a screen ticket over I3 commands (no new module); it waits for I3 T09c |
 | Six sequential increments | I1 and I3 share no module, no schema file and no record type | I1 ∥ I3 and I4 ∥ I5 (§0.2) |
 
 ### 0.1 Phase 1 pieces Phase 2 consumes and must verify at phase start
@@ -66,24 +74,30 @@ uses, so no supervisor re-invents it. Names are those in the code; `p1/i4` names
 | Inbound endpoints (subcontractor progress by webhook, I5 T10) | P1-I7 WS-A T04 | I5 T10 ships the command and the CSV path only |
 | Lake marts framework and silver mirrors of module tables | P1-I8 T08 | I6 T02 uses the `tl_lake.xer` second-pass pattern on the generated views |
 | `#hold` hashtag proposal (constraint from a feed post) | P0-I6 (exists: hashtag proposals) | — |
-| Cost codes, activity links, look-ahead | P1-I4 (`p1/i4`, merge pending) | Phase 2 does not start before `p1/i4` is on the trunk |
+| Cost codes, activity links, look-ahead | P1-I4 (on the trunk since 2026-10-19) | — |
 
-### 0.2 Parallelism plan
+### 0.2 Parallelism plan (3 slots)
 
-The owner wants speed. The safe parallelism is between increments that share no module directory, no schema file
-and no record type, with the shared registries (§0.3) owned by one named workstream per wave. The agent cap stays
-about three active agents or workflows (L-P0-I8-O1).
+The owner wants speed and no usage-limit stalls. The hard cap is **3 slots** (skill rule 6): a supervisor round, a
+builder, a security review, a plan check and a ticket workflow are one slot each, and a workflow holds 2–3 items.
+Two streams in a wave therefore *alternate*: while stream X's workflow of 2 runs, stream Y gets one supervisor or
+builder round; a workflow of 3 runs only while the other stream is idle. Parallel streams buy wall clock, not
+throughput, so a wave has at most two streams, chosen so they share no module directory, no schema file and no record
+type, with the shared registries (§0.3) owned by one named stream per wave. Each stream has its own branch and
+`STATE.md` (`docs/tickets/<INC>/STATE.md`; a fanout's workstreams use `STATE-A.md` and `STATE-B.md`).
 
-| Wave | Runs in parallel | Why it is safe | Registry owner (merges last, resolves conflicts) | Needs before start |
-|---|---|---|---|---|
-| 0 | Orchestrator alone: freeze `phase2-contracts-draft.md`, commit the readiness and requisition contracts and the `awp` fixture package skeleton, record owner answers as ADR-0016 | — | — | P2-Q1 to P2-Q13 answered |
-| 1 | **I1** (awp part 1) ∥ **I3** (materials) | Different modules (`awp`, `materials`), different fixture files, no link between their record types until I3 T07 (which consumes the frozen readiness contract, not awp code) | I3 | Wave 0 |
-| 2 | **I2** fanout (WS-A IWP and constraints ∥ WS-B readiness engine and screens) | I1 merged; WS-B codes against the frozen `ReadinessCheck` contract and the IWP facts view WS-A commits first | WS-A | I1 on trunk; I3 may still be running (its readiness check lands in I3, found by entry point) |
-| 3 | **I4** fanout (WS-A requisitions ∥ WS-B scaffold and toolcrib) ∥ **I5** (weekly cycle, rules of credit, progress, pack) | I4 and I5 touch different modules (`requisitions`, `scaffold` against `awp`); I5 only reads readiness and constraints | I5 merges last; inside I4, WS-A | I2 and I3 on trunk |
-| 4 | **I6** alone (simulation, marts, exit) | Integrates everything | — | I4 and I5 on trunk |
+| Wave | Streams (alternating rounds) | Why it is safe | Registry owner (merges last) | Security review at wave end | Needs before start |
+|---|---|---|---|---|---|
+| 0 | Orchestrator alone: plan check of this plan (skill rule 8, findings under §7), freeze `phase2-contracts-draft.md`; one builder piece **W0-B1**: the contract files of `phase2-contracts-draft.md` §1–§5 and §7 as frozen skeletons with their tests, the `awp.*`, `materials.*` and `scaffold.*` keys in `platform.yaml` (one gated change), and the R-P2-3 fix (the API derives `actor_roles` from the principal and refuses a body that carries it, walked over the published API, L-P1-I3-10); owner answers recorded in a Phase 2 decisions ADR (next free number) | — | — | folded into SR1 | P2-Q1 to P2-Q13 answered |
+| 1 | **I1** (awp part 1) ∥ **I3** (materials) | Different modules (`awp`, `materials`), different fixture files; I3 T07 consumes the frozen readiness contract, not awp code | I3 | **SR1**: W0-B1, I1 and I3 `Sec` rows, range `trunk@wave0..` | Wave 0 |
+| 2 | **I2** fanout: WS-A (IWP, constraints, sign-off) ∥ WS-B (readiness engine, checks, screens) | WS-B codes against the frozen `ReadinessCheck` contract and the `iwp_facts` reader WS-A commits at C1 | WS-A | **SR2**: I2 `Sec` rows | I1 on trunk; I3 may still be running (its check is found by entry point) |
+| 3 | **I4-A** (`requisitions`: engine, four request types, work orders) ∥ **I5** (weekly cycle, rules of credit, progress, pack, closeout) | Different modules; I5 only reads readiness and constraints | I5 merges last | **SR3**: I4-A and I5 `Sec` rows | I2 and I3 on trunk |
+| 4 | **I4-B** (`scaffold`, its two checks, toolcrib) ∥ **I6 prep** (T02 marts, T03 report audit as Haiku tickets under the I6 `STATE.md`) | Scaffold consumes the frozen §3 contract and I4-A's merged base; the marts read generated views and readiness events only | I4-B | **SR4**: I4-B `Sec` rows, marts guard | I4-A on trunk; I5 may still be finishing |
+| 5 | **I6** (scenario, injections, exit demo) alone; the full parity suite and the capped-mutation sweep of the phase on dedicated time; phase exit | Integrates everything | — | **SR5**: scenario and injection pieces; then the phase-exit review of open `SEC` lines | I4-B and I5 on trunk |
 
-Critical path: I1 → I2 → I4 → I6 (four waves instead of six increments). I5 T01 (the rules-of-credit package) can be
-drafted in wave 1 because it is a human-gated fixture, not code.
+Critical path: I1 → I2 → I4-A → I4-B → I6 (five waves; one more than v0.2 because I4's two workstreams no longer run
+beside I5). I5 T01 (the rules-of-credit package) can be drafted in wave 1 because it is a human-gated fixture, not code.
+Estimated cost per increment under process v2 (`process-v2.md` §2): 0.15–0.3 B input tokens, against 0.7–1.1 B in Phase 1.
 
 ### 0.3 Shared registries that conflict (one owner per wave; the later-merging side regenerates, never hand-merges)
 
@@ -101,24 +115,44 @@ drafted in wave 1 because it is a human-gated fixture, not code.
 | Generated artefacts | `packages/tl-schema/src/tl_schema/generated/**` | Never merged by hand: the later side runs `just gen` and commits |
 | Memory and status | `docs/memory/LEARNINGS.md` (`merge=union`), `docs/reports/STATUS.md` (orchestrator only) | Append only |
 
-### 0.4 Tier rule applied to every increment
+### 0.4 Tier rule applied to every increment (process v2)
 
-Supervisor-built, by `01-tiers.md` §3 and the Phase 1 practice (L-P1-I3-5: a piece other pieces cannot be tested
-without is built, not stubbed): every LinkML schema and fixture; every module's `ModuleSpec`, projectors, allow-list
-and guards; every command with an access word other than `user`; every job kind; every parser of an uploaded file;
-every API command-table entry, route and client method; every MCP tool registration; every piece that writes money
-or quantities (movements, adjustments, rollups, exports). Implementer tickets: one read view or report function with a
-provided test; one CLI read group; one TUI screen from a sketch with a provided test that mounts only its own
-screen (L-P1-I3-6); one MCP read tool; one simulator actor over an existing desk; one fixture file from a table.
-Every implementer ticket is generated from a mutation-checked reference (L-P1-I4-6, L-P1-I4-16) and its provided test is
-linted in place before dispatch (L-P1-I3-12). The `01-tiers.md` §6 checklist was run on every H row below: ≤ 6
-context files, interfaces in the tree before dispatch (the S pieces it depends on), a provided test, ≤ 400 lines in
-≤ 5 files, no row of the supervisor-authored table, no `schema/**`, verifiable from the diff.
+**Builder pieces (B)**, by `01-tiers.md` §3 and L-P1-I3-5 (a piece other pieces cannot be tested without is built,
+not stubbed): every LinkML schema and fixture pattern; every module's `ModuleSpec`, projectors, allow-list and
+guards; every command with an access word other than `user`, and every `user` command that moves state; every job
+kind; every parser of an uploaded file; every piece that writes money or quantities (movements, adjustments,
+rollups, exports); engines. A builder piece also leaves behind the **references** of the Haiku tickets that depend on
+it: the reference implementation, the provided test mutation-checked with the sentinel plus ≤ 5 targeted mutants
+(L-P1-I4-6, L-P1-I4-16, capped per skill rule 4), the stub, and the test linted in place (L-P1-I3-12). At most 5
+pieces per stream; a sixth is a sign the stream should be split.
 
-**Security review (fresh context, before DONE) covers**, in every increment: new routes and their access words;
-every allow-list and guard; every upload slot and parser; every job claim and settle; every agent tool and
-proposable command; every reserved identifier; every place a quantity or an amount is written. The `Sec` column
-below marks the pieces.
+**Haiku tickets (H)**, once the interface is in the tree: read views and report functions with a provided test; API
+read routes and `ApiClient` methods over committed command models; TUI client methods for one increment's reads,
+with the fakes changed in the same commit (L-P1-I5-5); one TUI screen from a sketch with a provided test that
+mounts only its own screen (L-P1-I3-6); CLI read groups; MCP read tools; readiness-check plugins against the frozen
+contract with a provided test; `user`-access mirror commands from a pasted model; simulator actors over an existing
+desk; fixture files from a table; Jinja2 templates and renderers over committed read views; demo drivers from a
+clause list (`dev/demos/P1-I3.sh` pattern); docs. `review: lite` for pure functions, fixtures, templates, reports
+and docs; `full` for anything that touches a route, access, an adapter, a screen, a parser or a job.
+
+**Supervisor glue** per round, ≤ 50 lines: the one `<MODULE>_COMMANDS` splat line, `MCP_ACTIONS` and tool-list
+entries that register an already-reviewed command, `add_typer` lines, `just gen` output, held tests restored.
+
+The `01-tiers.md` §6 checklist was run on every H row below: ≤ 6 context files, interfaces in the tree before
+dispatch (the B pieces it depends on), a provided test, ≤ 400 lines in ≤ 5 files, no row of the supervisor-tier
+table, no `schema/**`, verifiable from the diff and the gate summary.
+
+**Checkpoints** (skill "STATE.md format"), the same four in every increment and named in each section: **C1** schema,
+fixtures and module spec merged (the base for the first ticket batch); **C2** write commands, routes, client methods
+and registrations merged (screens, tools and reports can go); **C3** every ticket merged or abandoned; **C4** DONE
+(full gate, security review, demo, report). `STATE.md` records `C=<k>` in its header; the orchestrator's `STATUS.md`
+line names the checkpoint reached when an increment stops early.
+
+**Security review once per wave** (skill rule 4; column `Sec` below marks the pieces): one fresh-context review at
+the wave's DONE while the full gate runs, scoped to the wave's `Sec` rows and the commit range since the wave's
+base, covering new routes and their access words, every allow-list and guard, every upload slot and parser, every
+job claim and settle, every agent tool and proposable command, every reserved identifier, every place a quantity or
+an amount is written. Findings become builder pieces or Haiku tickets; one re-check reads the fix commits.
 
 ---
 
@@ -139,25 +173,28 @@ the ledger holds both runs; (6) a user cannot define the path or change allocati
 same CWP.
 **Seams:** ADR-0010 module; `LinkActivity`; `cost.CostCode` by `references`; `allocate_key`; the job runner;
 `platform.yaml` keys.
-**Fanout:** no. Runs in parallel with I3 (wave 1).
-**Supervisor builds:** S1 schema and fixtures (T02, T01's pattern part), S2 module spec, projectors, allow-lists
-and guards, S3 commands with their access words (T03's write side), S4 the allocation rollup job (T05), S5 the
-WBS CSV reader in the envelope (T03's import), S6 API table, routes, client methods, MCP tool registration, S7
-`platform.yaml` keys, S8 the demo.
+**Fanout:** no. Wave 1, alternating with I3. `STATE.md`: `docs/tickets/P2-I1/STATE.md`.
+**Builder pieces (3):** B1 schema and fixture patterns (T02 and T01's pattern part); B2 module spec, projectors,
+allow-lists and guards, the write commands with their access words (T03), the WBS CSV reader in the envelope with
+preview and apply, and the references and provided tests of T04, T07a and T07c; B3 the allocation rollup job (T05).
+The `platform.yaml` keys land in wave 0 (W0-B1). Registrations are supervisor glue.
+**Checkpoints:** C1 = B1, B2 merged; C2 = B3, T07a merged; C3 = T04, T06a–b, T07b–c, T08a merged; C4 = T08b
+demo green on both adapters, SR1 closed.
 
 | ID | Title | Tier | Depends | Sec |
 |---|---|---|---|---|
-| T01 | Fixtures: `co.acme.awp@1.0.0.yaml` (patterns `CWP`, `IWP`, `CON`, code lists: constraint types, CWA sequence reasons), sample WBS and CWA CSVs | H (data), S (patterns) | — | — |
-| T02 | LinkML `schema/modules/awp/`: `WBSNode`, `PathOfConstruction`, `CWA`, `CWP`, `EWPRef`, `PWPRef`; CWP workflow fixture (Planned → In development → Released for IWP development → Executing → Complete → Closed) | S | T01 | schema |
-| T03 | Commands `DefineWbsNode`, `MapWbsToCostCode` (allocation %, sums to 100), `DefinePathOfConstruction`, `ResequencePath`, `DefineCwa`, `CreateCwp`, `UpdateCwp`, `LinkCwpScope`; access: WBS and path are `admin` (cost control, P2-Q12), CWP and CWA `user`; projectors; WBS CSV import preview and apply | S | T02 | routes, access, parser |
-| T04 | `EWPRef` / `PWPRef` mirror commands (`RecordExternalPackage`, `UpdateExternalPackageDates`) with the `constraint_source` flag; read views | H | T03 | — |
-| T05 | Allocation rollup: job kind `awp.rollup` (bounded runs, state-derived), `CWP.BudgetRolledUp` event, `cur_awp_wbs_rollup`; export view by cost code | S | T03 | job, money |
-| T06a | TUI: CWP and CWA registers (grid over the client) | H | S6 | — |
-| T06b | TUI: WBS tree and path-of-construction sequence editor (calls `ResequencePath`) | H | S6 | — |
-| T07a | API read views for WBS, path, CWA, CWP and their tests (the routes and `ApiClient` methods are S6) | H | S6 | — |
-| T07b | MCP read tools `list_cwps`, `get_cwp`, `wbs_tree`, `path_of_construction` | H | S6 | agent (read) |
-| T07c | Reports `cwp_status`, `wbs_vs_cost_code` (`tl awp report`) | H | T05 | — |
-| T08 | Simulator `workface_planner` actor desk (creates CWPs from a template); `dev/demos/P2-I1.sh`; report | H (actor), S (demo) | T07c | — |
+| T01 | Fixtures: `co.acme.awp@1.0.0.yaml` code lists (constraint types, CWA sequence reasons), sample WBS and CWA CSVs (the patterns `CWP`, `IWP`, `CON` are B1) | H lite | B1 | — |
+| T02 | LinkML `schema/modules/awp/`: `WBSNode`, `PathOfConstruction`, `CWA`, `CWP`, `EWPRef`, `PWPRef`; CWP workflow fixture (Planned → In development → Released for IWP development → Executing → Complete → Closed) | B1 | — | schema |
+| T03 | Commands `DefineWbsNode`, `MapWbsToCostCode` (allocation %, sums to 100), `DefinePathOfConstruction`, `ResequencePath`, `DefineCwa`, `CreateCwp`, `UpdateCwp`, `LinkCwpScope`; access: WBS and path are `admin` (cost control, P2-Q12), CWP and CWA `user`; projectors; WBS CSV import preview and apply | B2 | B1 | routes, access, parser |
+| T04 | `EWPRef` / `PWPRef` mirror commands (`RecordExternalPackage`, `UpdateExternalPackageDates`, `user`) from the pasted models, with the `constraint_source` flag; read views | H full | B2 | — |
+| T05 | Allocation rollup: job kind `awp.rollup` (bounded runs, state-derived), `CWP.BudgetRolledUp` event, `cur_awp_wbs_rollup`; export view by cost code | B3 | B2 | job, money |
+| T06a | TUI: CWP and CWA registers (grid over the client) | H full | T07a | — |
+| T06b | TUI: WBS tree and path-of-construction sequence editor (calls `ResequencePath`) | H full | T07a | — |
+| T07a | API read routes for WBS, path, CWA, CWP from the B2 command models, their `ApiClient` and TUI client methods (fakes in the same commit), tests | H full | B2 | routes (read) |
+| T07b | MCP read tools `list_cwps`, `get_cwp`, `wbs_tree`, `path_of_construction` (registration is glue) | H full | T07a | agent (read) |
+| T07c | Reports `cwp_status`, `wbs_vs_cost_code` (`tl awp report`) | H lite | B3 | — |
+| T08a | Simulator `workface_planner` actor desk (creates CWPs from a template) | H lite | T07c | — |
+| T08b | `dev/demos/P2-I1.sh` from the clause list above (`P1-I3.sh` pattern; both adapters) | H full | T08a | — |
 
 ---
 
@@ -183,30 +220,35 @@ webhooks (`IWP.Ready` is in the catalog from the module's `tl:event_type` class)
 **Fanout (orchestrator):** WS-A IWP, constraints, sign-off (owner of the merge); WS-B readiness engine, checks,
 screens, tile. Contract: `tl_core/readiness/types.py` (`phase2-contracts-draft.md` §1), frozen before the fanout;
 WS-A commits `tl_mod_awp.facts.iwp_facts(conn, iwp_id)` (the `IwpFacts` reader) first.
-**Supervisor builds:** WS-A: S1 schema part 2 (T01), S2 IWP commands and guards (T02), S3 constraint commands
-(T03), S4 sign-off and issue (`SignOffIwp`, `IssueIwp`, `HoldIwp`, `ReleaseHold`: access per P2-Q2; distinct
-signers; the record hash in the signature event), S5 API, client, MCP registration, S6 webhook event class and
-the simulator desk; WS-B: S7 the readiness engine (registry, job kind, event, projector), S8 the documents and
-RFI checks, S9 client methods for readiness.
+**Builder pieces (WS-A 4, WS-B 2):** WS-A: B1 schema part 2 with the `IWP.Ready` event class (T01) and the
+`iwp_facts` reader; B2 IWP commands and guards (T02); B3 constraint commands (T03); B4 sign-off, issue and hold
+(`SignOffIwp`, `IssueIwp`, `HoldIwp`, `ReleaseHold`: access per P2-Q2; distinct signers; the record hash in the
+signature event) and the references of T04a, T09a and T09b. WS-B: B5 the readiness engine (T05); B6 the
+`documents_current` and `rfis_answered` checks (T06a) and the references of T06b, T07a–b and T08. Routes and client
+methods are T04c; registrations are glue; the simulator desk is T10a. `STATE-A.md`, `STATE-B.md`.
+**Checkpoints:** C1 = B1 merged (WS-B starts), B5 merged; C2 = B2–B4, B6, T04c merged; C3 = all H rows merged;
+C4 = T10b demo green, SR2 closed.
 
 | WS | ID | Title | Tier | Depends | Sec |
 |---|---|---|---|---|---|
-| A | T01 | LinkML `awp` part 2: `IWP`, `Constraint`, `IWPCloseout`, `ScopeItem` (P2-Q7); IWP workflow with side states (Draft → In development → Constraint check → Ready → Issued → In progress → Field complete → Closed; On hold, Split, Cancelled); `tl:expects_link` permit-to-work at Issued | S | — | schema |
-| A | T02 | IWP commands: `CreateIwp`, `AddIwpScope` / `RemoveIwpScope` (`contains`), `PinIwpDocument`, `SplitIwp` (by scope items or hours), `HoldIwp` / `ReleaseHold`; guards per state; sizing warning from `awp.iwp.size_hours` | S | T01 | guards |
-| A | T03 | Constraint commands: `RaiseConstraint` (sources `manual`, `rule`, `feed_hold`, `thread_hold`, `check`; need-by from the setting; owner required), `AssignConstraint`, `ClearConstraint` (resolving record link `resolves`), aging; `blocks` link to the IWP | S | T01 | by_module sources |
-| A | T04a | `cur_awp_constraint` read views: by owner, by type, by age; `tl awp constraint ls|show` | H | T03 | — |
-| A | T04b | TUI constraint review screen grouped by owner and type | H | S5 | — |
-| B | T05 | Readiness engine: `tl_core/readiness/` registry (entry point `throughline.readiness_checks`), job kind `awp.readiness` (one IWP per run, bounded `resolve_via`), event `IWP.ReadinessEvaluated`, projector `cur_awp_readiness`, `IWP.Ready` on the first all-green evaluation, re-evaluation requests from link, pin and constraint events | S | contract | job, event |
-| B | T06a | Checks `documents_current` (stale pins via `tl_mod_documents.resolver`) and `rfis_answered` (P1-I6 type, else `n_a`) | S | T05 | — |
-| B | T06b | Checks `permits_planned`, `inspections_planned`, `labour_requested`, `predecessors_handed_over`, `model_slice_available` returning `n_a` with a fixed note, each with its test and name reserved | H | T05 | — |
-| B | T07a | TUI readiness screen (sketch §10.6 no. 5): checks, counts, `resolve_via` jump | H | S9 | — |
-| B | T07b | TUI IWP record view tabs (scope, documents, constraints, readiness, history) | H | S9 | — |
-| B | T08 | Sizing warning surface and the backlog-weeks-per-foreman dashboard tile (`awp.backlog.target_weeks`) | H | T05 | — |
-| A | T09a | Reports: IWP status, readiness and constraint log, constraints by type, owner and age (`tl awp report`) | H | T04a, T05 | — |
-| A | T09b | MCP read tools `get_iwp`, `iwp_readiness`, `list_constraints`; proposable `propose_constraint` (`user`) and `propose_iwp_scope` (registration is S5) | H (reads) | S5 | agent |
-| A | T10 | Simulator `workface_planner` actor: builds IWPs, raises and clears constraints; `dev/demos/P2-I2.sh`; report | H (actor), S (demo) | T09a | — |
+| A | T01 | LinkML `awp` part 2: `IWP`, `Constraint`, `IWPCloseout`, `ScopeItem` (P2-Q7); IWP workflow with side states (Draft → In development → Constraint check → Ready → Issued → In progress → Field complete → Closed; On hold, Split, Cancelled); `tl:expects_link` permit-to-work at Issued; `iwp_facts` reader | B1 | — | schema |
+| A | T02 | IWP commands: `CreateIwp`, `AddIwpScope` / `RemoveIwpScope` (`contains`), `PinIwpDocument`, `SplitIwp` (by scope items or hours); guards per state; sizing warning from `awp.iwp.size_hours` | B2 | B1 | guards |
+| A | T03 | Constraint commands: `RaiseConstraint` (sources `manual`, `rule`, `feed_hold`, `thread_hold`, `check`; need-by from the setting; owner required), `AssignConstraint`, `ClearConstraint` (resolving record link `resolves`), aging; `blocks` link to the IWP | B3 | B1 | by_module sources |
+| A | T04a | `cur_awp_constraint` read views: by owner, by type, by age; `tl awp constraint ls|show` | H lite | B3 | — |
+| A | T04b | TUI constraint review screen grouped by owner and type | H full | T04c | — |
+| A | T04c | API read routes for IWP, constraints and readiness from the B2–B5 models; `ApiClient` and TUI client methods with the fakes; tests | H full | B2–B5 | routes (read) |
+| B | T05 | Readiness engine: `tl_core/readiness/` registry (entry point `throughline.readiness_checks`), job kind `awp.readiness` (one IWP per run, bounded `resolve_via`), event `IWP.ReadinessEvaluated`, projector `cur_awp_readiness`, `IWP.Ready` on the first all-green evaluation, re-evaluation requests from link, pin and constraint events | B5 | contract, B1 | job, event |
+| B | T06a | Checks `documents_current` (stale pins via `tl_mod_documents.resolver`) and `rfis_answered` (P1-I6 type) | B6 | B5 | — |
+| B | T06b | Checks `permits_planned`, `inspections_planned`, `labour_requested`, `predecessors_handed_over`, `model_slice_available` returning `n_a` with a fixed note, each with its test and name reserved | H lite | B5 | — |
+| B | T07a | TUI readiness screen (sketch §10.6 no. 5): checks, counts, `resolve_via` jump | H full | T04c | — |
+| B | T07b | TUI IWP record view tabs (scope, documents, constraints, readiness, history) | H full | T04c | — |
+| B | T08 | Sizing warning surface and the backlog-weeks-per-foreman dashboard tile (`awp.backlog.target_weeks`) | H full | B5, T04c | — |
+| A | T09a | Reports: IWP status, readiness and constraint log, constraints by type, owner and age (`tl awp report`) | H lite | T04a, B5 | — |
+| A | T09b | MCP read tools `get_iwp`, `iwp_readiness`, `list_constraints`; proposable `propose_constraint` (`user`) and `propose_iwp_scope` from the B3 models (registration is glue) | H full | T04c | agent |
+| A | T10a | Simulator desk and `workface_planner` actor: builds IWPs, raises and clears constraints | H lite | T09a | — |
+| A | T10b | `dev/demos/P2-I2.sh` from the clause list (both adapters) | H full | T10a | — |
 
-Merge order: A T01–T03 → B (T05 first) → A T04–T10. A owns conflicts.
+Merge order: A B1 → B B5 → A B2–B4 ∥ B B6 → A T04c → the H rows in dependency order. A owns conflicts.
 
 ---
 
@@ -230,30 +272,32 @@ message.
 **Seams:** module records; movements as events on the lot stream with typed references (P2-Q5); `PublishMapping`
 `target_kind: mto`; the envelope for the item-library CSV; file slot `mtr`; the readiness entry point; `cost.CostCode`
 by `references`.
-**Fanout:** no. Runs in parallel with I1 (wave 1); merges after I1 (registry owner).
-**Supervisor builds:** S1 schema and fixtures (T02, T01's lists), S2 module spec, projectors (the inventory
-projection T04: stock per lot and location from movement events; heat columns), allow-lists, S3 movement commands
-(T03: `Receive`, `Issue`, `Transfer`, `Return`, `Adjust` (admin), `Scrap` (admin), `Reserve`, `Unreserve`;
-quantities as deltas, decimal with UOM), S4 the readiness check `materials_reserved` (T07), S5 the item-library
-and MTO readers in the envelope and `PublishDerivedMto` (T05's write side), S6 receiving acceptance with the MTR
-slot guard (T06), S7 API, client, MCP registration, S8 the demo.
+**Fanout:** no. Wave 1, alternating with I1; merges after I1 (registry owner). `STATE.md`: `docs/tickets/P2-I3/STATE.md`.
+**Builder pieces (4):** B1 schema and fixture patterns (T02, T01's patterns); B2 module spec, projectors including
+the inventory projection (T04: stock per lot and location from movement events, heat columns, rebuild equality on
+both adapters), allow-lists, and the references of T07, T09a–b and T10a; B3 movement commands (T03) and receiving
+acceptance with the MTR slot guard (T06); B4 the item-library and MTO readers in the envelope and `PublishDerivedMto`
+(T05). Routes and client methods are T09c; registrations are glue.
+**Checkpoints:** C1 = B1, B2 merged; C2 = B3, B4, T09c merged; C3 = all H rows merged; C4 = T11b demo green, SR1 closed.
 
 | ID | Title | Tier | Depends | Sec |
 |---|---|---|---|---|
-| T01 | Fixtures: `co.acme.materials@1.0.0.yaml` (item categories, location kinds, condition codes, movement reasons, patterns `RCPT`, `MTO`), sample item library and location CSVs | H (data), S (patterns) | — | — |
-| T02 | LinkML `schema/modules/materials/`: `ItemMaster`, `CatalogItem`, `ProjectItem`, `MTO`, `MTOLine`, `POLineRef`, `Receipt` (slot `mtr`), `StockLot`, `SerializedItem`, `Equipment`, `InventoryLocation`; movement event classes; receipt workflow (Received → Inspected → Accepted / Rejected) | S | T01 | schema |
-| T03 | Movement commands as above; `cur_materials_movement`; cost-code posting of consumables | S | T02 | money |
-| T04 | Inventory projection: `cur_materials_stock` (lot × location), serialized items, heat traceability columns; rebuild equality test on both adapters | S | T03 | — |
-| T05 | MTO publication: `PublishMapping` `target_kind: mto`, `PublishDerivedMto` (`controller`), compensation through the recorded ids; `tl derive publish` picks the command by kind | S | T03 | import |
-| T06 | Receiving acceptance: `AcceptReceipt` guarded by the `mtr` slot for permanent materials; inspection hook as an expected link (Phase 3 fills it) | S | T03 | guard, slot |
-| T07 | Readiness check `materials_reserved` (reservation rows against MTO lines of the IWP) registered under `throughline.readiness_checks` | S | T04 | — |
-| T08a | TUI item library and stock-by-location screens | H | S7 | — |
-| T08b | TUI receipt entry form and movement log | H | S7 | — |
-| T09a | CLI `tl mat item|stock|lot|move` reads | H | S7 | — |
-| T09b | Company-level aggregation views (equipment by project, surplus by item) and `tl mat report equipment|surplus` | H | T04 | — |
-| T10a | Reports: stock on hand, MTO vs received vs issued, shortages against IWPs, heat traceability | H | T04 | — |
-| T10b | MCP read tools (`stock_on_hand`, `get_lot`, `heat_trace`, `mto_status`); proposable `propose_reservation` (`user`, registration is S7) | H (reads) | S7 | agent |
-| T11 | Simulator `materials_coordinator` desk and actor (receipts with MTRs, reservations); `dev/demos/P2-I3.sh`; report | H (actor), S (demo) | T10a | — |
+| T01 | Fixtures: `co.acme.materials@1.0.0.yaml` code lists (item categories, location kinds, condition codes, movement reasons), sample item library and location CSVs (patterns `RCPT`, `MTO` are B1) | H lite | B1 | — |
+| T02 | LinkML `schema/modules/materials/`: `ItemMaster`, `CatalogItem`, `ProjectItem`, `MTO`, `MTOLine`, `POLineRef`, `Receipt` (slot `mtr`), `StockLot`, `SerializedItem`, `Equipment`, `InventoryLocation`; movement event classes; receipt workflow (Received → Inspected → Accepted / Rejected) | B1 | — | schema |
+| T03 | Movement commands `Receive`, `Issue`, `Transfer`, `Return`, `Adjust` (admin), `Scrap` (admin), `Reserve`, `Unreserve` (quantities as deltas, decimal with UOM); `cur_materials_movement`; cost-code posting of consumables; `AcceptReceipt` guarded by the `mtr` slot for permanent materials, inspection hook as an expected link (T06) | B3 | B2 | money, guard, slot |
+| T04 | Inventory projection: `cur_materials_stock` (lot × location), serialized items, heat traceability columns; rebuild equality test on both adapters | B2 | B1 | — |
+| T05 | MTO publication: `PublishMapping` `target_kind: mto`, `PublishDerivedMto` (`controller`), compensation through the recorded ids; `tl derive publish` picks the command by kind; item-library and MTO readers in the envelope | B4 | B3 | import, parser |
+| T06 | (folded into B3) | — | — | — |
+| T07 | Readiness check `materials_reserved` (reservation rows against MTO lines of the IWP) against the frozen contract, registered under `throughline.readiness_checks`; provided test from the B2 reference | H full | B2 | — |
+| T08a | TUI item library and stock-by-location screens | H full | T09c | — |
+| T08b | TUI receipt entry form and movement log | H full | T09c | — |
+| T09a | CLI `tl mat item|stock|lot|move` reads | H lite | B2 | — |
+| T09b | Company-level aggregation views (equipment by project, surplus by item) and `tl mat report equipment|surplus` | H lite | B2 | — |
+| T09c | API read routes from the B3–B4 models; `ApiClient` and TUI client methods with the fakes; tests | H full | B3, B4 | routes (read) |
+| T10a | Reports: stock on hand, MTO vs received vs issued, shortages against IWPs, heat traceability | H lite | B2 | — |
+| T10b | MCP read tools (`stock_on_hand`, `get_lot`, `heat_trace`, `mto_status`); proposable `propose_reservation` (`user`) from the B3 model (registration is glue) | H full | T09c | agent |
+| T11a | Simulator `materials_coordinator` desk and actor (receipts with MTRs, reservations) | H lite | T10a | — |
+| T11b | `dev/demos/P2-I3.sh` from the clause list (both adapters) | H full | T11a | — |
 
 ---
 
@@ -277,31 +321,38 @@ work order screens) and MCP.
 commands called by the material requisition fulfilment (`tl_mod_materials` imported by `tl_mod_requisitions`: the
 first module-to-module import, recorded in the contract); `allocate_key`; the job runner for the inspection due
 list.
-**Fanout (orchestrator):** WS-A `requisitions` (engine, all four request types, work orders) (owner of the merge);
-WS-B `scaffold` (asset lifecycle, inspections, register screen, readiness check) and the toolcrib screen. Contract:
-`phase2-contracts-draft.md` §3 (the `Requisition` and `WorkOrder` LinkML base, the events WS-B consumes, the
-`open_requisitions_for(conn, record_id)` view).
-**Supervisor builds:** WS-A: S1 schema (T01), S2 engine (T02: numbering per kind, approval chain, scheduling,
-assignment, closeout), S3 the labour and material specialisations (T04 write side), S4 API, client, MCP
-registration; WS-B: S5 scaffold schema and lifecycle (T03 write side, tag colour rules, dismantle check), S6
-inspection due job kind `scaffold.inspections_due`, S7 the two readiness checks (T05), S8 client methods for the
-screens.
+**Fanout (orchestrator), in two waves:** **I4-A** `requisitions` (engine, all four request types, work orders;
+owner of the merge) runs in wave 3 beside I5; **I4-B** `scaffold` (asset lifecycle, inspections, register screen,
+readiness checks) and the toolcrib screen run in wave 4 beside the I6 prep tickets. Contract:
+`phase2-contracts-draft.md` §3 (the `Requisition` and `WorkOrder` LinkML base, the events I4-B consumes, the
+`open_requisitions_for(conn, record_id)` view). `STATE-A.md`, `STATE-B.md`.
+**Builder pieces (A 3, B 2):** A: B1 schema (T01); B2 engine (T02: numbering per kind, approval chain, scheduling,
+assignment, closeout) and the references of T04a and T08a; B3 the labour and material specialisations with the
+fulfilment into I3 movements (T04b). B: B4 scaffold schema and lifecycle (T03: tag colour rules, dismantle check)
+and the job kind `scaffold.inspections_due`; B5 none planned (the two checks are T05, Haiku against the frozen
+contract). Routes and client methods are T09a (A) and T09b (B); registrations are glue.
+**Checkpoints:** A: C1 = B1 merged; C2 = B2, B3, T09a merged; C3 = T04a, T07b, T08a–b merged; C4 = T10 demo
+clauses 1, 4, 5, 7, 8 green, SR3 closed. B: C1 = B4 merged; C2 = T09b merged; C3 = T05, T06, T07a merged; C4 = T10
+clauses 2, 3, 6 green, SR4 closed.
 
 | WS | ID | Title | Tier | Depends | Sec |
 |---|---|---|---|---|---|
-| A | T01 | LinkML `schema/modules/requisitions/`: `Requisition` (abstract), `WorkOrder`, `LaborRequisition`, `MaterialRequisition`, `GeneralRequisition`, `ScaffoldRequest`; workflows (Requested → Approved → Scheduled → In progress → Done → Closed; Rejected, Cancelled) | S | — | schema |
-| A | T02 | Generic engine: `RaiseRequisition`, `ApproveRequisition` (access per P2-Q3), `RejectRequisition`, `ScheduleWorkOrder`, `AssignWorkOrder`, `CompleteWorkOrder`, `CloseWorkOrder`; numbering per kind; guards | S | T01 | access |
-| B | T03 | LinkML `schema/modules/scaffold/`: `Scaffold` asset, `ScaffoldInspection`; lifecycle (Requested → Designed → Erecting → Inspected/Tagged Green → In Use → Modify → Dismantle → Removed); tag colour; `DismantleScaffold` refuses while an open IWP `requires` it; job `scaffold.inspections_due` | S | contract | guard, job |
-| A | T04a | Labour requisition forecast by craft and week (view and report) | H | S3 | — |
-| A | T04b | Material requisition fulfilment: approved lines → `Issue` movements (I3), partial fulfilment, shortage back to the constraint owner | S | S3 | money |
-| B | T05 | Readiness checks `scaffold_tagged` (green tag on every scaffold the IWP `requires`) and `labour_requested` (an approved labour requisition covers the window) | S | T03 | — |
-| B | T06 | Toolcrib issue and return fast-entry screen (§10.5) over the I3 `Issue` and `Return` commands, serial or item, person, qty, keyboard only | H | I3 S7 | — |
-| B | T07a | TUI scaffold register (status, tag colour, inspection due) and scaffold record view | H | S8 | — |
-| B | T07b | TUI requisition and work order screens; dispatch wiring from threads when the parser exists | H | S8 | — |
-| A | T08a | Reports: open requisitions, scaffold register, quantities on hire, labour forecast, work order backlog | H | T04a, T05 | — |
-| A | T08b | MCP read tools; proposable `propose_requisition` (`user`); simulator `scaffold_supervisor` actor; `dev/demos/P2-I4.sh`; report | H (reads, actor), S (demo) | T08a | agent |
+| A | T01 | LinkML `schema/modules/requisitions/`: `Requisition` (abstract), `WorkOrder`, `LaborRequisition`, `MaterialRequisition`, `GeneralRequisition`, `ScaffoldRequest`; workflows (Requested → Approved → Scheduled → In progress → Done → Closed; Rejected, Cancelled) | B1 | contract | schema |
+| A | T02 | Generic engine: `RaiseRequisition`, `ApproveRequisition` (access per P2-Q3), `RejectRequisition`, `ScheduleWorkOrder`, `AssignWorkOrder`, `CompleteWorkOrder`, `CloseWorkOrder`; numbering per kind; guards | B2 | B1 | access |
+| B | T03 | LinkML `schema/modules/scaffold/`: `Scaffold` asset, `ScaffoldInspection`; lifecycle (Requested → Designed → Erecting → Inspected/Tagged Green → In Use → Modify → Dismantle → Removed); tag colour; `DismantleScaffold` refuses while an open IWP `requires` it; job `scaffold.inspections_due` | B4 | contract, I4-A on trunk | guard, job |
+| A | T04a | Labour requisition forecast by craft and week (view and report) | H lite | B3 | — |
+| A | T04b | Material requisition fulfilment: approved lines → `Issue` movements (I3), partial fulfilment, shortage back to the constraint owner; the labour and material specialisations | B3 | B2 | money |
+| B | T05 | Readiness checks `scaffold_tagged` (green tag on every scaffold the IWP `requires`) and `labour_requested` (an approved labour requisition covers the window) against the frozen contract, provided tests from the B4 and B3 references | H full | B4 | — |
+| B | T06 | Toolcrib issue and return fast-entry screen (§10.5) over the I3 `Issue` and `Return` commands, serial or item, person, qty, keyboard only | H full | I3 T09c | — |
+| B | T07a | TUI scaffold register (status, tag colour, inspection due) and scaffold record view | H full | T09b | — |
+| A | T07b | TUI requisition and work order screens; dispatch wiring from threads (P1-I7 parser) | H full | T09a | — |
+| A | T08a | Reports: open requisitions, quantities on hire, labour forecast, work order backlog (the scaffold register report moves to B T07a) | H lite | T04a | — |
+| A | T08b | MCP read tools; proposable `propose_requisition` (`user`) from the B2 model (registration is glue) | H full | T09a | agent |
+| A | T09a | API read routes from the B2–B3 models; `ApiClient` and TUI client methods with the fakes; tests | H full | B2, B3 | routes (read) |
+| B | T09b | API read routes from the B4 models; client methods with the fakes; tests | H full | B4 | routes (read) |
+| B | T10 | Simulator `scaffold_supervisor` actor (desk from the contract §6); `dev/demos/P2-I4.sh` (A's clauses are added by A's T08b report, B's by this ticket; both adapters) | H full | T08b, T07a | — |
 
-Merge order: A T01–T02 → B T03, T05 → A T04 → B T06–T07 → A T08. A owns conflicts.
+Merge order: wave 3: A B1 → B2 → B3 ∥ T09a → T04a, T07b, T08a–b. Wave 4: B B4 → T09b → T05 ∥ T06 ∥ T07a → T10. A owns conflicts in wave 3, B in wave 4.
 
 ---
 
@@ -325,25 +376,31 @@ agree with the ledger on both databases; (8) a CWP assigned to a subcontractor p
 **Seams:** standards loader pattern for the package; `look_ahead` and `resolve_activity`; `cur_awp_readiness`;
 job kind `awp.rollup`; the envelope for the hours CSV; file slots `pack`, `redlines`; `cost.CostCode` figures are
 read, never written.
-**Fanout:** no. Runs in parallel with I4 (wave 3); merges after I4.
-**Supervisor builds:** S1 the package schema and loader (T01), S2 the rules-of-credit engine (T02), S3 the progress
-rollup and export (T03), S4 `LookAhead` and `WeeklyPlan` commands (the write side of T04, T05), S5 the pack
-renderer core (template loading, deep links; T07's data assembly), S6 closeout commands and the hours reader
-(T08 write side), S7 subcontract progress command, S8 API, client, MCP registration, S9 the demo.
+**Fanout:** no. Wave 3, alternating with I4-A; merges after I4-A. `STATE.md`: `docs/tickets/P2-I5/STATE.md`.
+**Builder pieces (5):** B1 the package schema and loader (T01, human gate); B2 the rules-of-credit engine (T02);
+B3 the progress rollup and export (T03); B4 the `WeeklyPlan` commands (commitments, PPC), the `LookAhead` read
+and the `RecordSubcontractProgress` command with party assignment (T05, T04, T10 write sides) and the references
+of T04, T05, T09; B5 closeout commands with the actual-hours reader in the envelope (T08 write side) and the
+references of T07a. The pack renderer is Haiku (T07a: a renderer over committed read views and repository
+templates); routes and client methods are T11; registrations are glue.
+**Checkpoints:** C1 = B1, B2 merged; C2 = B3–B5, T11 merged; C3 = all H rows merged; C4 = T12 demo green, SR3 closed.
 
 | ID | Title | Tier | Depends | Sec |
 |---|---|---|---|---|
-| T01 | `RulesOfCredit` package: LinkML class, `co.acme.awp-roc@1.0.0.yaml` with scope item, weld and bolted joint examples, loader `tl awp roc load`, weights sum to 100 (human gate) | S | — | schema |
-| T02 | Rules-of-credit engine: `earned_fraction(conn, iwp_id)` from linked record states; manual entry for commodities without records; `IWP.ProgressRecorded` | S | T01 | — |
-| T03 | Progress rollup IWP → CWP → WBS → cost code (job `awp.rollup` shared with I1 T05) and `tl awp export progress` (CSV, period, reserved source prefix) | S | T02 | money, export |
-| T04 | `LookAhead` read: `look_ahead` joined with `cur_awp_readiness` and constraints; `tl awp look-ahead`; view | H | S4 | — |
-| T05 | `WeeklyPlan`: commitments, PPC, miss reasons; `tl awp week commit|ppc` | H | S4 | — |
-| T06a | TUI weekly cycle steps 1 to 3 (load snapshot, constraint review, release) | H | T04 | — |
-| T06b | TUI weekly cycle steps 4 to 6 (commitments, progress and PPC, closeout) | H | T05 | — |
-| T07 | IWP pack template (Jinja2 → HTML, PDF behind a flag): cover, scope and steps, drawing list with QR, MTO, safety, ITP placeholder, permits, scaffold tags, sign-off sheet; stored in slot `pack` | H (template), S (renderer) | S5 | template input |
-| T08 | Closeout: actual hours import (CSV in the envelope), `redlines` slot, remaining punch, feedback; `IWPCloseout` record | H (reads), S (writes) | S6 | parser |
-| T09 | KPIs as reports and dashboard tiles: backlog weeks, % constraint-free, constraint aging, schedule compliance, PPC, earned vs burned, IWPs issued with stale pins | H | T03 | — |
-| T10 | Subcontracted scope: CWP and IWP party assignment, interface constraints, `RecordSubcontractProgress` (CSV; inbound mapping when available); `dev/demos/P2-I5.sh`; report | H (reads), S (command, demo) | T09 | access |
+| T01 | `RulesOfCredit` package: LinkML class, `co.acme.awp-roc@1.0.0.yaml` with scope item, weld and bolted joint examples, loader `tl awp roc load`, weights sum to 100 (human gate) | B1 | — | schema |
+| T02 | Rules-of-credit engine: `earned_fraction(conn, iwp_id)` from linked record states; manual entry for commodities without records; `IWP.ProgressRecorded` | B2 | B1 | — |
+| T03 | Progress rollup IWP → CWP → WBS → cost code (job `awp.rollup` shared with I1 T05) and `tl awp export progress` (CSV, period, reserved source prefix) | B3 | B2 | money, export |
+| T04 | `LookAhead` read: `look_ahead` joined with `cur_awp_readiness` and constraints; `tl awp look-ahead`; view (the read is B4's reference) | H lite | B4 | — |
+| T05 | `WeeklyPlan` reads and CLI: `tl awp week commit|ppc` over the B4 commands; miss reasons view | H lite | B4 | — |
+| T06a | TUI weekly cycle steps 1 to 3 (load snapshot, constraint review, release) | H full | T11 | — |
+| T06b | TUI weekly cycle steps 4 to 6 (commitments, progress and PPC, closeout) | H full | T11 | — |
+| T07a | IWP pack renderer: data assembly over the committed read views, Jinja2 → HTML, deep links from `api.public_base_url`, PDF behind the P2-Q11 flag; stored in slot `pack`; templates are repository files, never uploaded | H full | T11 | template input |
+| T07b | IWP pack template: cover, scope and steps, drawing list with QR, MTO, safety, ITP placeholder, permits, scaffold tags, sign-off sheet; snapshot test | H lite | T07a | — |
+| T08 | Closeout reads: `redlines` slot view, remaining punch, feedback, `IWPCloseout` register and `tl awp closeout show` (writes and the hours reader are B5) | H lite | B5 | — |
+| T09 | KPIs as reports and dashboard tiles: backlog weeks, % constraint-free, constraint aging, schedule compliance, PPC, earned vs burned, IWPs issued with stale pins | H lite | B3, B4 | — |
+| T10 | Subcontracted scope reads: party assignment views, interface constraints report, `tl awp subcontract` reads (the command is B4; inbound mapping when available) | H lite | B4 | — |
+| T11 | API read routes from the B2–B5 models; `ApiClient` and TUI client methods with the fakes; MCP read tools; tests | H full | B2–B5 | routes (read), agent |
+| T12 | `dev/demos/P2-I5.sh` from the clause list (both adapters) | H full | T06b, T07a, T09 | — |
 
 ---
 
@@ -359,15 +416,28 @@ as `resolve_via`, the IWP goes On hold, and clears when the receipt lands; (3) a
 materials and scaffold `ok` (the §16 exit), on SQLite and Postgres; (4) `tl lake sync` loads the marts and
 `lake_query` answers the readiness history of that IWP and the schedule trend against readiness with the ledger
 `seq` it covers; (5) every §12 M3, M4 and M9 base report runs from the CLI and the API with a non-empty result.
-**Fanout:** no.
-**Supervisor builds:** S1 the scenario and injection semantics (`material_late` as a late receipt, `scaffold_failed`,
-`design_revision` against pinned IWP drawings), S2 the marts (rebuild equals incremental, property-tested as the
-lake is), S3 the exit demo.
+**Fanout:** no. T02 and T03 run in wave 4 as I6 prep (under `docs/tickets/P2-I6/STATE.md`, beside I4-B); the rest
+is wave 5 alone.
+**Builder pieces (2):** B1 the injection semantics (`material_late` as a late receipt, `scaffold_failed`,
+`design_revision` against pinned IWP drawings) and the scenario references; B2 the marts sync pass (rebuild equals
+incremental, property-tested as the lake is) and the SQL model references. The exit demo is Haiku from the clause list.
+**Checkpoints:** C1 = B2 merged (wave 4); C2 = B1 merged (wave 5); C3 = T01–T03 merged; C4 = T04 green on both
+adapters, SR5 closed, the phase-exit review of open `SEC` lines done.
 
 | ID | Title | Tier | Depends | Sec |
 |---|---|---|---|---|
-| T01 | Scenario `refinery-piping-medium` v2: `ROLE_NAMES` gains `workface_planner`, `materials_coordinator`, `scaffold_supervisor`, `foreman`; injections `material_late` (real), `scaffold_failed`; operators for sign-off and issue | H (scenario, actors from the desks), S (injection semantics) | — | — |
-| T02 | Lake gold marts: `mart_iwp_readiness_history` (from `IWP.ReadinessEvaluated`), `mart_materials` (stock and movements by period), `mart_schedule_vs_readiness` (activity dates against readiness per snapshot) | H (SQL models over the views and events), S (sync pass) | — | lake guard |
-| T03 | Base reports audit against §12 for M3, M4 and M9: one row per report with its command and route; gaps filed | H | — | — |
-| T04 | Phase-exit demo `dev/demos/P2-I6.sh` (clauses above) | S | T01, T02 | — |
-| T05 | Phase report, risk register, `LEARNINGS.md` curation, ADRs (orchestrator) | O | T04 | — |
+| T01 | Scenario `refinery-piping-medium` v2: `ROLE_NAMES` gains `workface_planner`, `materials_coordinator`, `scaffold_supervisor`, `foreman`; injections `material_late` (real), `scaffold_failed` wired to B1; operators for sign-off and issue | H full | B1 | — |
+| T02 | Lake gold marts as SQL models over the B2 sync pass: `mart_iwp_readiness_history` (from `IWP.ReadinessEvaluated`), `mart_materials` (stock and movements by period), `mart_schedule_vs_readiness` (activity dates against readiness per snapshot) | H full | B2 | lake guard |
+| T03 | Base reports audit against §12 for M3, M4 and M9: one row per report with its command and route; gaps filed as draft tickets | H lite | I5 on trunk | — |
+| T04 | Phase-exit demo `dev/demos/P2-I6.sh` (clauses above, both adapters) | H full | T01, T02 | — |
+| T05 | Phase report, risk register, `LEARNINGS.md` curation, ADRs; the full parity suite and the capped-mutation sweep of the phase on dedicated time (orchestrator) | O | T04 | — |
+
+---
+
+## 7. Plan check (skill rule 8)
+
+Pending. Before wave 1 the orchestrator spawns `plan-check` on this file and on `phase2-contracts-draft.md` and
+records each finding here as `F<n> <sev> <section>: <answer | waived: reason>`. Nothing is dispatched until this
+section is filled. v0.3 points the check should weigh first: the five-wave shape against four (§0.2); T07a of I5
+and T05 of I4-B as Haiku rather than builder work; T04c, T09c, T09a–b and T11 (routes plus client methods plus fakes)
+against the ≤ 5-file rule; the I2 piece count (6 across two workstreams).

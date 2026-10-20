@@ -1,16 +1,25 @@
 # Build spec 01 — Tier contracts
 
+> **Process v2 (2026-10-20).** The operating rules (short-lived supervisor rounds, builder pieces, the single test
+> gate, capped checks, reviewer tiers, the 3-slot cap, the fable plan check, STATE.md and TL92) are defined once in
+> the `subagent-throughput-process` skill (`.claude/skills/subagent-throughput-process/SKILL.md`), rationale in
+> `process-v2.md`. This file keeps the role contracts; where a line here disagrees with the skill, the skill wins.
+
 ## 1. Summary table
 
 | | Orchestrator (Opus) | Supervisor (Sonnet) | Implementer (Haiku) | Reviewer (Sonnet, fresh) |
 |---|---|---|---|---|
 | Input | Phase goal, brief, ADRs, latest reports, escalation | Increment or workstream section, fanout plan, brief sections | One ticket + its context files | One PR + its ticket |
 | Output | Fanout plan, contracts, ADRs, escalation decisions, phase report | Increment plan, tickets, core-engine code, merged increment branch, increment report, demo script | Diff on the ticket branch + report | Verdict: pass / changes-requested / escalate |
-| May write code | Only for a hard-debugging escalation | Yes: engines, interfaces, test scaffolds, and any ticket that fails the Haiku-ability checklist | Yes: inside *Allowed paths* only | No |
+| May write code | Only for a hard-debugging escalation | ≤ 50 diff lines of glue per round (registry lines, `just gen`, held tests); everything else is a piece spec for a **builder** (Sonnet, one-shot, `.claude/agents/builder.md`) or a Haiku ticket | Yes: inside *Allowed paths* only | No |
 | May change `schema/**` | Yes, as a schema ticket with human approver | Yes, as a schema ticket with human approver | No | No |
 | May merge | Workstream integration branches | Implementer PRs after a pass verdict | Never | Never |
 | Escalates to | Human | Orchestrator, then human | Supervisor | Supervisor |
-| Context size target | Full brief + plans + reports | Increment plan + cited brief sections + interfaces (≤ ~120k tokens) | ≤ ~40k tokens | Ticket + diff (≤ ~60k tokens) |
+| Context size target | Full brief + plans + reports | One round: STATE.md + the spec sections named in the prompt (≤ ~60k tokens at start, never resumed past ~150k) | ≤ ~40k tokens | Ticket + diff + gate summary (≤ ~40k tokens; `lite` ≤ ~20k) |
+
+Two further hats: **builder** (Sonnet, one-shot: builds one supervisor-tier piece from a piece spec, with tests, the
+sentinel mutation check and the gate, then returns ≤ 15 lines) and **gate-runner** (Haiku, Bash only: runs `just gate`
+once on a branch and returns the summary). A **plan-check** agent at the strongest tier reviews big plans (skill rule 8).
 
 ## 2. Orchestrator (Opus)
 
@@ -49,23 +58,21 @@
 
 **Deliverables**
 
-1. **Increment plan** (`docs/templates/sonnet-increment.md`) at `docs/tickets/<increment-id>/README.md`: objective, demo, Sonnet-built pieces, ticket table with dependencies, order of work, risks, escalation triggers.
-2. **Tickets** (`docs/templates/haiku-ticket.md`), one file per implementer task at `docs/tickets/<increment-id>/T<nn>-<slug>.md`.
-3. **Sonnet-tier code**: interfaces, engines, generators, test scaffolds (tests that implementers must make pass). Built before dependent tickets are dispatched.
-4. **Merged increment branch** with every gate green (`04-gates.md`).
-5. **Increment report** (`docs/templates/sonnet-increment.md` §Report) at `docs/reports/<increment-id>.md`.
-6. **Demo script** `dev/demos/<increment-id>.sh` wired to `just demo <increment-id>`.
+1. **Increment plan** (`docs/templates/sonnet-increment.md`) at `docs/tickets/<increment-id>/README.md`: objective, demo, builder pieces, ticket table with dependencies, order of work, risks, escalation triggers. Written once; the live board is `STATE.md`.
+2. **Tickets** (`docs/templates/haiku-ticket.md`), one file per implementer task at `docs/tickets/<increment-id>/T<nn>-<slug>.md`, header field `review: lite | full`.
+3. **Piece specs** `docs/tickets/<increment-id>/S<n>-<slug>.md` (ticket anatomy, `kind: piece`) for every supervisor-tier piece (the table below): interfaces, provided tests or test names, the guards the sentinel and targeted mutants must cover. Built by a `builder` agent before dependent tickets are dispatched.
+4. **`STATE.md`** rewritten and committed at the end of every round (skill format, ≤ 150 lines).
+5. **Increment report** (≤ 80 lines, from `STATE.md`) at `docs/reports/<increment-id>.md`, written in the DONE round.
+6. **Demo clause list** in the plan; the demo script `dev/demos/<increment-id>.sh` is a Haiku ticket from it.
 
-**Working method**
+**Working method (one round per agent; skill rules 1, 2, 7, 8)**
 
-1. Read the increment section and every brief section it cites. Write the increment plan.
-2. Identify the Sonnet-tier pieces (engines, interfaces) and build them first, with tests. Get them reviewed (reviewer agent, then orchestrator or human for anything in the Sonnet-authored list below).
-3. Write tickets. Run the Haiku-ability checklist (§6) on each. Split or keep anything that fails it.
-4. Dispatch implementers: `Agent(subagent_type: "implementer", isolation: "worktree")`, one ticket each, at most four in parallel, only with disjoint *Allowed paths*.
-5. For each returned PR: run `Agent(subagent_type: "reviewer")` in a fresh context. On `pass`, re-run `just check && just test` on the merged state, then merge to the increment branch. On `changes-requested`, send the findings back to the same implementer (`SendMessage`) once; on a second failure take the ticket over (two-strikes).
-6. After the last merge: `just test-parity` where the increment touches adapters, `just test-tui` where it touches screens, the demo script, the report.
+1. Round 1: read the increment section and every brief section it cites. Write the plan, the first piece specs and `STATE.md`. More than about 10 tickets: ask for the plan check (`4 PLANCHK`) and dispatch in round 2.
+2. Every round: verify the board against `git log` (the orchestrator merged the `P` items); decide each `2s`, `gr`, `blk`, `esc` item (re-spec, split, escalate); write the next batch of 2–3 items with disjoint *Allowed paths* and all dependencies merged; run the Haiku-ability checklist (§6) on each ticket; commit the provided tests, stubs and interfaces; rewrite `STATE.md`; end with the TL92 relay block.
+3. Never: build a piece, run a suite or a mutation check, merge, read a log, or continue past the relay block.
+4. The DONE round (after the orchestrator's `31` full-gate and `9` security results): report, learnings, README and `AGENTS.md` updates, `88` with `REPORT`.
 
-**Sonnet-authored by rule (never a Haiku ticket)**
+**Supervisor-tier by rule (never a Haiku ticket; built by a `builder` from a piece spec)**
 
 | Area | Why |
 |---|---|
@@ -80,7 +87,9 @@
 | Webhook signing, outbox delivery ordering | §18.4 |
 | Any migration or data-conversion job | §24.2, §27.5 |
 
-Everything in this table also needs an orchestrator or human review before merge (`04-gates.md`).
+Everything in this table also needs a `full` reviewer and then an orchestrator or human sign-off before merge
+(`04-gates.md` §3). Being in this table makes a piece *builder* work, not supervisor work: the supervisor writes the
+spec, the builder writes the code. A piece other tickets cannot be tested without is a piece, not a stub (L-P1-I3-5).
 
 **Escalation triggers** (write under *Blocked* in the increment plan, then call the orchestrator)
 
@@ -113,11 +122,15 @@ Everything in this table also needs an orchestrator or human review before merge
 - Allowed paths acknowledged.
 - Commands to run acknowledged.
 
-## 5. Reviewer (Sonnet, fresh context)
+## 5. Reviewer (fresh context; `full` is Sonnet, `lite` is Haiku)
 
-- One PR, one ticket, one verdict. Never the author's context.
-- Re-runs `just check` and the ticket's test command; does not trust pasted output alone.
-- Findings cite `file:line` and the ticket line or `AGENTS.md` rule violated.
+- One branch, one ticket, one verdict. Never the author's context. One reviewer per item, never per batch.
+- Re-runs nothing: the `gate-runner` ran `just gate` on the branch before the review, independently of the author,
+  and the reviewer reads its summary. A summary that does not cover a touched package is a finding, not a re-run.
+- `review: lite` (Haiku) for pure-function, text, docs, fixture and loader-table tickets with a provided test; it
+  returns `escalate` ("needs a full review") when the diff touches a route, an access word, an adapter, a screen,
+  a parser or a job. `full` (Sonnet) for everything else and for every piece.
+- Findings cite `file:line` and the ticket line or `AGENTS.md` rule violated, in TL92 when returned to the orchestrator.
 - `escalate` when the diff exposes a question the ticket cannot answer (interface mismatch, missing spec).
 - Checklist in `02-task-protocol.md` §6.
 
@@ -169,13 +182,15 @@ Each step is written into the ticket or plan under *Blocked* before the call. Th
 
 ## 9. Fanout mechanics
 
-> **Harness note (ADR-0004):** subagents cannot spawn subagents here. The orchestrator spawns every agent; supervisors
-> return `DISPATCH`/`DONE`/`BLOCKED` blocks and the orchestrator runs tickets through `.claude/workflows/ticket-batch.js`.
-> Where this section or §3 says a supervisor dispatches or reviews via agents, read it as "asks the orchestrator to".
+> **Harness note (ADR-0004, process v2):** subagents cannot spawn subagents here. The orchestrator spawns every agent;
+> supervisors return a TL92 relay block (`19` dispatch, `88` done, `2` blocked) and the orchestrator runs tickets and
+> pieces through `.claude/workflows/ticket-batch-v2.js` (implement → gate → review → one retry). The orchestrator
+> merges `P` branches itself and spawns a fresh supervisor for the next round. Where this section or §3 says a
+> supervisor dispatches, reviews or merges, read it as "asks the orchestrator to".
 
 
 - **Worktrees.** Every supervisor and implementer runs in its own git worktree (`isolation: "worktree"`). Branch names: `<phase>/<inc>-<ticket>` (e.g. `p0/i1-t06-sqlite-ledger`); increment branch `p0/i1`; integration branch `p0/integration`; default branch `main`.
 - **Merge order.** Set in the fanout plan from the dependency DAG. Later-merging workstream's supervisor resolves conflicts, never by rewriting another branch's history (merge commits only).
 - **Interfaces first.** A fanout never starts before the shared interfaces are committed on the integration branch.
-- **Parallelism limits.** ≤ 4 implementers per supervisor, ≤ 5 supervisors per fanout. More parallelism is paid for in integration time, not saved.
+- **Parallelism limits.** 3 slots in the whole run (skill rule 6): a supervisor round, a builder, a security review or a ticket workflow is one slot each; a workflow holds 2–3 items. Two workstreams of a fanout alternate rounds. More parallelism is paid for in usage-limit stalls and integration time, not saved.
 - **Reporting.** Supervisors write reports to `docs/reports/`; the orchestrator reads them rather than the transcripts.
