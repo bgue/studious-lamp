@@ -91,12 +91,14 @@ def test_the_text_is_one_line_per_type_waiver_and_drifting_package(
         place(world, "B", "core.Record", "warning", "1" * 64)
         place(world, "C", "core.Record", "nonconformant", None)
         place(world, "D", "core.Other", "ok", in_force)
+        place(world, "E", "core.Waived", "waived", in_force)
     out = conformance(env, "--project", "P999").stdout.splitlines()
-    # 5: the four records and the waiver, which is a record of the project too
-    assert out[0] == f"P999  schema {in_force[:12]}  records 5"
-    record = "core.Record  total 3  ok 1  warning 1  nonconformant 1  stale 2"
-    other = "core.Other  total 1  ok 1  warning 0  nonconformant 0  stale 0"
-    assert record in out and other in out
+    # 6: the five records and the waiver, which is a record of the project too
+    assert out[0] == f"P999  schema {in_force[:12]}  records 6"
+    record = "core.Record  total 3  ok 1  warning 1  nonconformant 1  waived 0  stale 2"
+    other = "core.Other  total 1  ok 1  warning 0  nonconformant 0  waived 0  stale 0"
+    waived = "core.Waived  total 1  ok 0  warning 0  nonconformant 0  waived 1  stale 0"
+    assert record in out and other in out and waived in out
     assert out.index(other) < out.index(record)  # sorted by type
     assert f"waiver {key}  until {days(10)}  10 days left" in out
     assert not any(line.startswith("expired waivers") for line in out)
@@ -129,7 +131,10 @@ def test_json_is_the_view_and_nothing_else(env: dict[str, str], world: RegistryW
     assert json.loads(result.stdout) == json.loads(view.model_dump_json())
     assert result.stdout == view.model_dump_json(indent=2) + "\n"
     assert view.project == "P999" and view.drift[0].package == NAME
-    assert [(t.type, t.warning, t.stale) for t in view.by_type] == [("core.Record", 1, 1)]
+    assert [(t.type, t.warning, t.waived, t.stale) for t in view.by_type] == [
+        ("core.Record", 1, 0, 1)
+    ]
+    assert json.loads(result.stdout)["by_type"][0]["waived"] == 0
 
 
 def test_a_person_who_is_not_signed_in_is_refused(env: dict[str, str]) -> None:

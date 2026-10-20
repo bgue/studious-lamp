@@ -27,9 +27,9 @@ def conformance(
     """Show the conformance of a project's records, its live waivers and its drift.
 
     `<project>  schema <12 of hash>  records <n>`, then one line per record type
-    (`<type>  total  ok  warning  nonconformant  stale`), per live waiver (`waiver <key>  until
-    <date>  <n> days left`), `expired waivers <n>` when there are any, and `behind <package>
-    <project version> < <company version>` per package the project is behind on.
+    (`<type>  total  ok  warning  nonconformant  waived  stale`), per live waiver
+    (`waiver <key>  until <date>  <n> days left`), `expired waivers <n>` when there are any, and
+    `behind <package>  <project version> < <company version>` per package the project is behind on.
     """
     db: DbTarget = ctx.obj
     require_session(db)
@@ -42,7 +42,7 @@ def conformance(
     for row in found.by_type:
         typer.echo(
             f"{row.type}  total {row.total}  ok {row.ok}  warning {row.warning}  "
-            f"nonconformant {row.nonconformant}  stale {row.stale}"
+            f"nonconformant {row.nonconformant}  waived {row.waived}  stale {row.stale}"
         )
     for waiver in found.waivers:
         typer.echo(f"waiver {waiver.key}  until {waiver.expires}  {waiver.days_left} days left")

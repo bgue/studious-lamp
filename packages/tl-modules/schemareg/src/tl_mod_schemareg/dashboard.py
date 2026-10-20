@@ -29,6 +29,7 @@ class TypeConformance(BaseModel):
     ok: int
     warning: int
     nonconformant: int
+    waived: int  # stored status ``waived``: a waiver cleared the only issues
     stale: int  # effective_schema_hash is not the hash in force (NULL counts as stale)
 
 
@@ -84,6 +85,7 @@ def _counts(conn: Connection, scope: str, schema_hash: str) -> list[TypeConforma
             ok=counts.get("ok", 0),
             warning=counts.get("warning", 0),
             nonconformant=counts.get("nonconformant", 0),
+            waived=counts.get("waived", 0),
             stale=stale.get(name, 0),
         )
         for name, counts in sorted(by_status.items())

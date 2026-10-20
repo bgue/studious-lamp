@@ -108,7 +108,7 @@ def test_counts_by_type_and_status_with_the_total_their_sum_and_types_sorted(
     one, two = types(found)[THING], types(found)[OTHER]
     assert (one.total, one.ok, one.warning, one.nonconformant) == (6, 3, 2, 1)
     assert (two.total, two.ok, two.warning, two.nonconformant) == (7, 1, 4, 2)
-    assert one.total == one.ok + one.warning + one.nonconformant
+    assert one.total == one.ok + one.warning + one.nonconformant + one.waived
     assert found.total == 13 == sum(t.total for t in found.by_type)
     assert (one.stale, two.stale) == (0, 0)
 
@@ -235,16 +235,23 @@ def test_voided_records_and_records_of_another_project_are_never_counted(
     place(world, "COMPANY", hash=OLD, status="warning", scope="company")
     found = view(world)
     assert found.total == 1 and types(found)[THING] == TypeConformance(
-        type=THING, total=1, ok=1, warning=0, nonconformant=0, stale=0
+        type=THING, total=1, ok=1, warning=0, nonconformant=0, waived=0, stale=0
     )
     assert view(world, "P998").total == 1
 
 
-def test_a_waived_record_counts_in_the_total_only(world: RegistryWorld) -> None:
-    place(world, "W", status="waived", hash=hash_in_force(world))
-    place(world, "K", status="ok", hash=hash_in_force(world))
+def test_a_waived_record_is_counted_as_waived_and_the_parts_sum_to_the_total(
+    world: RegistryWorld,
+) -> None:
+    current = hash_in_force(world)
+    place(world, "W1", status="waived", hash=current)
+    place(world, "W2", status="waived", hash=current)
+    place(world, "K", status="ok", hash=current)
+    place(world, "N", status="nonconformant", hash=current)
     counted = types(view(world))[THING]
-    assert (counted.total, counted.ok, counted.warning, counted.nonconformant) == (2, 1, 0, 0)
+    assert (counted.ok, counted.warning, counted.nonconformant, counted.waived) == (1, 0, 1, 2)
+    parts = counted.ok + counted.warning + counted.nonconformant + counted.waived
+    assert counted.total == 4 == parts
 
 
 # -- the viewer (ADR-0016) ----------------------------------------------------------------------
@@ -289,7 +296,7 @@ def test_a_restricted_record_is_not_counted_for_the_lowest_viewer(
     lowest = view(world)  # nobody set a viewer: the lowest clearance
     assert lowest.total == 3 and list(types(lowest)) == [THING]
     assert types(lowest)[THING] == TypeConformance(
-        type=THING, total=3, ok=1, warning=1, nonconformant=1, stale=0
+        type=THING, total=3, ok=1, warning=1, nonconformant=1, waived=0, stale=0
     )
     with cf.use_viewer(READER):
         assert view(world) == lowest
@@ -297,7 +304,7 @@ def test_a_restricted_record_is_not_counted_for_the_lowest_viewer(
         every = view(world)
     assert every.total == 7 and list(types(every)) == [THING, VAULT]
     assert types(every)[THING] == TypeConformance(
-        type=THING, total=6, ok=2, warning=2, nonconformant=2, stale=3
+        type=THING, total=6, ok=2, warning=2, nonconformant=2, waived=0, stale=3
     )
     assert types(every)[VAULT].total == 1 and types(every)[VAULT].stale == 1
 
