@@ -26,6 +26,7 @@ from tl_adapters.db import (
     open_uow,
     rebuild_projections,
 )
+from tl_core import confidentiality
 from tl_core.auth.env import current_env, demo_allowed
 from tl_core.auth.seed import DEMO_WARNING, seed_demo
 from tl_core.extypes.provider import attach
@@ -42,6 +43,11 @@ from tl_cli import (
     archive,
     backup,
     config,
+    corr,
+    corr_clock,
+    corr_registry,
+    corr_report,
+    cost,
     delivery,
     derive,
     dev,
@@ -85,8 +91,9 @@ from tl_cli import (
     tui,
     webhook,
     wf,
+    xer,
 )
-from tl_cli.session import open_backend
+from tl_cli.session import open_backend, session_viewer
 
 
 class TlGroup(TyperGroup):
@@ -133,8 +140,19 @@ standards.app.add_typer(standards_class.app, name="class")
 app.add_typer(tag.app, name="tag")
 app.add_typer(doc.app, name="doc")
 app.add_typer(derive.app, name="derive")
+app.add_typer(xer.app, name="xer")
+app.add_typer(cost.app, name="cost")
 app.add_typer(transmittal.app, name="transmittal")
 app.add_typer(review.app, name="review")
+app.add_typer(corr.app, name="corr")
+corr.app.add_typer(corr_clock.app, name="clock")
+corr.app.add_typer(corr_registry.thread_app, name="thread")
+corr.app.add_typer(corr_registry.party_app, name="party")
+corr.app.add_typer(corr_registry.clause_app, name="clause")
+corr.app.add_typer(corr_registry.class_app, name="class")
+corr.app.add_typer(corr_registry.clearance_app, name="clearance")
+corr.app.add_typer(corr_registry.mail_app, name="mail")
+corr.app.add_typer(corr_report.app, name="report")
 doc.app.add_typer(doc_rev.app, name="rev")
 doc.app.add_typer(doc_rendition.app, name="rendition")
 doc.app.add_typer(doc_report.app, name="report")
@@ -207,6 +225,9 @@ def root(
     # the default --actor of every command is the signed-in user (ADR-0009 section 4); a database
     # server is never a file the caller owns, so there only a session lets a command act
     actor_hook.install(ctx.command, target, local=not is_postgres(target))
+    # every read of this invocation sees what the signed-in person may read (ADR-0016)
+    token = confidentiality.set_viewer(session_viewer(target))
+    ctx.call_on_close(lambda: confidentiality.reset_viewer(token))
 
 
 def _has_ledger(target: DbTarget) -> bool:

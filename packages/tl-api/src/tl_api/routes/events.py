@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, Header, Query, Request
 from fastapi.responses import StreamingResponse
 from starlette.types import Receive, Send
 from starlette.types import Scope as AsgiScope
+from tl_core import confidentiality
 from tl_core.auth.types import Principal
 from tl_core.changefeed import SubscriptionFilter, fetch_changes
 from tl_core.ledger import Event
@@ -110,7 +111,9 @@ def list_events(
         flt=build_filter(ctx, scope, types, record_id, me),
         limit=limit,
     )
-    return EventPage(events=page.events, next_seq=page.next_seq, has_more=page.has_more)
+    with ctx.backend(True) as uow:  # events of records the viewer may not read are left out
+        shown = confidentiality.filter_events(uow.conn(), page.events)
+    return EventPage(events=shown, next_seq=page.next_seq, has_more=page.has_more)
 
 
 @router.get(

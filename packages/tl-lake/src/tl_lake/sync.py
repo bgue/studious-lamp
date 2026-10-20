@@ -31,6 +31,7 @@ from pathlib import Path
 from typing import Any
 
 from sqlalchemy import Connection, bindparam, text
+from tl_core import confidentiality
 from tl_core.projection.promoted import table_columns
 from tl_core.schema_provider import get_provider
 from tl_schema.generators.ddl_types import column_type
@@ -95,8 +96,13 @@ def _event_rows(conn: Connection, after: int, upto: int, size: int) -> Iterator[
         f"SELECT {names} FROM {EVENTS_TABLE} WHERE seq > :after AND seq <= :upto ORDER BY seq"
     ).bindparams(after=after, upto=upto)
     for page in _pages(conn, statement, size):
-        for row in page:
-            yield row._mapping
+        rows = [row._mapping for row in page]
+        # The lake is read by every user and by agents: events of a record that is not `internal`
+        # (restricted, privileged or of an unknown class) are redacted like account events
+        # (ADR-0016, brief 18.10). A reclassification is applied at the next sync only.
+        hidden = confidentiality.hidden_row_ids(conn, rows, confidentiality.LOWEST)
+        for row in rows:
+            yield {**row, HIDDEN_KEY: True} if row["event_id"] in hidden else row
 
 
 #: Streams whose events never reach the lake (usernames and roles of accounts, ADR-0009). The lake
@@ -104,6 +110,7 @@ def _event_rows(conn: Connection, after: int, upto: int, size: int) -> Iterator[
 #: can: no stream, type, actor, payload, hash or exact time, and a constant version, so it reveals
 #: neither how many accounts exist nor how many events each has (only that `seq` N was internal).
 INTERNAL_STREAM_TYPES = frozenset({"core.Account"})
+HIDDEN_KEY = "_confidential"  # set on an event row whose stream the lake viewer may not read
 REDACTED_TYPE = "Internal." + "Redacted"
 REDACTED_HASH = "redacted"
 
@@ -115,7 +122,7 @@ def _day(stamp: Any) -> str:
 
 def _redacted(rows: Iterator[Mapping[str, Any]]) -> Iterator[Mapping[str, Any]]:
     for row in rows:
-        if row["stream_type"] in INTERNAL_STREAM_TYPES:
+        if row["stream_type"] in INTERNAL_STREAM_TYPES or row.get(HIDDEN_KEY):
             marker = f"redacted-{row['seq']}"
             yield {
                 **row,
@@ -188,6 +195,14 @@ def _changed_keys(conn: Connection, table: LedgerTable, key: str, watermark: int
     return [str(v) for v in conn.execute(statement, {"w": watermark}).scalars()]
 
 
+#: The columns of a silver source that name records the reader must be allowed to see.
+_VISIBLE_ENDS: dict[str, tuple[str, ...]] = {
+    "cur_core_record": ("id",),
+    "cur_links": ("from_id", "to_id"),
+    "cur_pset_values": ("record_id",),
+}
+
+
 def _silver_rows(
     conn: Connection, table: LedgerTable, key: str, keys: Sequence[str] | None, size: int
 ) -> Iterator[Mapping[str, Any]]:
@@ -195,13 +210,28 @@ def _silver_rows(
     cols = ", ".join(_q(conn, c) for c in table.columns)
     order = ", ".join(_q(conn, c) for c in (key, *(["path"] if "path" in table.columns else [])))
     base = f"SELECT {cols} FROM {_q(conn, table.name)}"
+    # Only what an `internal` reader may see goes to silver (ADR-0016): a hidden record, and a
+    # link or value row of one, is left out. A row that was copied before it became hidden is
+    # deleted by the same pass, because the reclassification moved the record's `last_seq`.
+    ends = _VISIBLE_ENDS.get(table.name, ())
+    clauses: list[str] = []
+    visible: dict[str, Any] = {}
+    for column in ends:
+        clause, params = confidentiality.not_hidden(_q(conn, column), confidentiality.LOWEST)
+        clauses.append(clause)
+        visible.update(params)
+    guard = " AND ".join(clauses)
     if keys is None:
-        for page in _pages(conn, text(f"{base} ORDER BY {order}"), size):
+        where = f" WHERE {guard}" if guard else ""
+        for page in _pages(
+            conn, text(f"{base}{where} ORDER BY {order}").bindparams(**visible), size
+        ):
             for row in page:
                 yield row._mapping
         return
-    statement = text(f"{base} WHERE {_q(conn, key)} IN :keys ORDER BY {order}").bindparams(
-        bindparam("keys", expanding=True)
+    extra = f" AND {guard}" if guard else ""
+    statement = text(f"{base} WHERE {_q(conn, key)} IN :keys{extra} ORDER BY {order}").bindparams(
+        bindparam("keys", expanding=True), **visible
     )
     for start in range(0, len(keys), KEY_BATCH):
         batch = list(keys[start : start + KEY_BATCH])

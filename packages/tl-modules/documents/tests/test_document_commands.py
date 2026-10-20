@@ -9,6 +9,7 @@ import pytest
 from docworld import BASE, PROJECT, World
 from pydantic import ValidationError
 from tl_adapters.db import open_uow
+from tl_core.confidentiality import Viewer, use_viewer
 from tl_core.services.errors import (
     DuplicateKeyError,
     NoChangesError,
@@ -37,6 +38,8 @@ from tl_mod_engineering.document import load_standards_file
 from tl_mod_engineering.loader import load_standards
 
 STANDARDS = Path(__file__).resolve().parents[4] / "schema" / "fixtures" / "standards"
+
+CONTROLLER = Viewer(actor="user:ctl", level=1, account="user:ctl")
 
 
 def run(world: World, handler: Any, command: Any) -> Any:
@@ -288,38 +291,47 @@ def test_confidentiality_changes_only_through_its_own_command(world: World) -> N
         handle_set_document_confidentiality,
     )
 
-    world.register(confidentiality="internal")
-    doc = world.document("ISO-1234")
-    with pytest.raises(ValidationError):  # the update command no longer has the field
-        UpdateDocument(**BASE, stream_id=doc.id, confidentiality="public")  # type: ignore[call-arg]
-    result = run(
-        world,
-        handle_set_document_confidentiality,
-        SetDocumentConfidentiality(
-            **BASE, stream_id=doc.id, confidentiality="restricted", reason="client request"
-        ),
-    )
-    assert result.events[0].payload["reason"] == "client request"
-    assert result.events[0].payload["changes"] == {"confidentiality": ["internal", "restricted"]}
-    assert world.document("ISO-1234").confidentiality == "restricted"
-    with pytest.raises(NoChangesError):
+    with use_viewer(CONTROLLER):  # a restricted document is read by a document controller
+        world.register(confidentiality="internal")
+        doc = world.document("ISO-1234")
+        with pytest.raises(ValidationError):  # the update command no longer has the field
+            UpdateDocument(**BASE, stream_id=doc.id, confidentiality="public")  # type: ignore[call-arg]
+        result = run(
+            world,
+            handle_set_document_confidentiality,
+            SetDocumentConfidentiality(
+                **BASE, stream_id=doc.id, confidentiality="restricted", reason="client request"
+            ),
+        )
+        assert result.events[0].payload["reason"] == "client request"
+        assert result.events[0].payload["changes"] == {
+            "confidentiality": ["internal", "restricted"]
+        }
+        assert world.document("ISO-1234").confidentiality == "restricted"
+        with pytest.raises(NoChangesError):
+            run(
+                world,
+                handle_set_document_confidentiality,
+                SetDocumentConfidentiality(
+                    **BASE, stream_id=doc.id, confidentiality="restricted", reason="again"
+                ),
+            )
         run(
             world,
             handle_set_document_confidentiality,
             SetDocumentConfidentiality(
-                **BASE, stream_id=doc.id, confidentiality="restricted", reason="again"
+                **BASE, stream_id=doc.id, confidentiality=None, reason="cleared"
             ),
         )
-    run(
-        world,
-        handle_set_document_confidentiality,
-        SetDocumentConfidentiality(
-            **BASE, stream_id=doc.id, confidentiality=None, reason="cleared"
-        ),
-    )
-    assert world.document("ISO-1234").confidentiality is None
-    with pytest.raises(ValidationError):
-        SetDocumentConfidentiality(**BASE, stream_id=doc.id, confidentiality="x", reason=" ")
+        assert world.document("ISO-1234").confidentiality is None
+        with pytest.raises(ValidationError):
+            SetDocumentConfidentiality(
+                **BASE, stream_id=doc.id, confidentiality="restricted", reason=" "
+            )
+        for not_a_class in ("x", "privileged", "Confidential", ""):  # ADR-0016: two classes only
+            fields: dict[str, Any] = {**BASE, "stream_id": doc.id, "confidentiality": not_a_class}
+            with pytest.raises(ValidationError):
+                SetDocumentConfidentiality(**fields, reason="r")
 
 
 def test_a_document_number_with_a_slash_is_accepted_and_its_revision_keys_work(

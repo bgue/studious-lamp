@@ -35,12 +35,15 @@ from tl_mod_documents.derivation import store as derivation_store
 
 from tl_mcp import resources, tools
 from tl_mcp.context import Authorizer, McpContext, UowFactory
+from tl_mcp.correspondence_tools import register_correspondence_tools
 from tl_mcp.derivation_tools import register_derivation_tools
 from tl_mcp.document_tools import register_document_tools
 from tl_mcp.engineering_tools import register_engineering_tools
 from tl_mcp.errors import MAX_PART, guarded, resource_name
 from tl_mcp.models import LakeQueryOutput, SearchResult
 from tl_mcp.modes import resolve_tool_modes
+from tl_mcp.schedule_read_tools import register_schedule_read_tools
+from tl_mcp.schedule_tools import register_schedule_tools
 from tl_mcp.thread_tools import register_thread_tools
 from tl_mcp.type_tools import register_type_tools
 from tl_mcp.write_tools import register_write_tools
@@ -136,6 +139,9 @@ def build_server(
     register_document_tools(server, ctx)
     register_derivation_tools(server, ctx)
     register_thread_tools(server, ctx)  # P1-I7 WS-B
+    register_correspondence_tools(server, ctx)
+    register_schedule_tools(server, ctx)
+    register_schedule_read_tools(server, ctx)
 
     @server.tool(annotations=READ_ONLY)
     def search_records(

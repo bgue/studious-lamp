@@ -90,10 +90,10 @@ out="$(tl wf transition --project P123 "$ncr" approve)"
 echo "$out"
 expect "$out" "^transitioned $ncr Review -> Approved$"
 
-step "issue needs the manager role (a stub list until auth exists): refused, then allowed"
+step "issue needs the document_controller role (the dev path honours --role like --actor): refused, then allowed"
 refuse "issue without the role" tl wf transition --project P123 "$ncr" issue | tee "$workdir/role.txt"
-expect "$(cat "$workdir/role.txt")" 'needs one of the roles: manager'
-out="$(tl wf transition --project P123 "$ncr" issue --role manager)"
+expect "$(cat "$workdir/role.txt")" 'needs one of the roles: document_controller'
+out="$(tl wf transition --project P123 "$ncr" issue --role document_controller)"
 echo "$out"
 expect "$out" "^transitioned $ncr Approved -> Issued$"
 

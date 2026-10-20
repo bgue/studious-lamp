@@ -155,8 +155,9 @@ def sites(tmp_path: Path) -> dict[str, tuple[str, ...]]:
 
 def test_there_are_eleven_controller_sites(tmp_path: Path) -> None:
     """The sites below are all of them: `require_controller` appears 11 times in `tl doc` and
-    friends, and once more in `tl derive publish` (a controller publishes documents; its own test
-    is `test_cli_derive_publish.py`)."""
+    friends, once more in `tl derive publish` (a controller publishes documents; its own test
+    is `test_cli_derive_publish.py`) and three times in `tl xer` (define, publish and void a
+    schedule; the tests are in `test_cli_xer.py`)."""
     src = Path(__file__).resolve().parents[1] / "src" / "tl_cli"
     found = {
         p.name: p.read_text().count("require_controller(db)")
@@ -164,7 +165,10 @@ def test_there_are_eleven_controller_sites(tmp_path: Path) -> None:
         if "require_controller(db)" in p.read_text()
     }
     assert found.pop("derive_publish.py") == 1
-    assert sum(found.values()) == 11
+    assert found.pop("xer.py") == 3
+    # the correspondence group has sites of its own (test_cli_corr.py names and tries each)
+    assert sum(n for name, n in found.items() if name.startswith("corr")) == 15
+    assert sum(n for name, n in found.items() if not name.startswith("corr")) == 11
     assert tuple(sites(tmp_path)) == SITE_NAMES
 
 

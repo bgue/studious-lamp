@@ -1,0 +1,33 @@
+# Working calendar of project P123, version 1 (brief 9 M10: working/calendar days, project holidays).
+# The response-clock engine counts working days on this file and records `P123-default@1` in the first
+# event of every clock, so the same events always give the same due date. A change is a NEW version
+# (`P123-default@2.yaml`); version 1 stays as it is. A count that would leave the covered range is
+# refused, never assumed to be working time.
+id: P123-default
+version: 1
+scope: "project:P123"
+name: Project P123 working calendar
+# Days of the week that are not worked, lower case (mon tue wed thu fri sat sun).
+rest_days: [sat, sun]
+# The first and last date the holiday list is complete for.
+covers_from: "2026-01-01"
+covers_to: "2028-12-31"
+holidays:
+  - { date: "2026-01-01", name: "New Year's Day" }
+  - { date: "2026-04-03", name: "Good Friday" }
+  - { date: "2026-04-06", name: "Easter Monday" }
+  - { date: "2026-05-01", name: "Labour Day" }
+  - { date: "2026-12-25", name: "Christmas Day" }
+  - { date: "2026-12-28", name: "Boxing Day (observed)" }
+  - { date: "2027-01-01", name: "New Year's Day" }
+  - { date: "2027-03-26", name: "Good Friday" }
+  - { date: "2027-03-29", name: "Easter Monday" }
+  - { date: "2027-05-03", name: "Labour Day (observed)" }
+  - { date: "2027-12-27", name: "Christmas Day (observed)" }
+  - { date: "2027-12-28", name: "Boxing Day (observed)" }
+  - { date: "2028-01-03", name: "New Year's Day (observed)" }
+  - { date: "2028-04-14", name: "Good Friday" }
+  - { date: "2028-04-17", name: "Easter Monday" }
+  - { date: "2028-05-01", name: "Labour Day" }
+  - { date: "2028-12-25", name: "Christmas Day" }
+  - { date: "2028-12-26", name: "Boxing Day" }

@@ -17,6 +17,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from sqlalchemy import Connection, text
+from tl_core import confidentiality
 
 from tl_mod_documents.names import (
     DOC_DRAFT,
@@ -32,6 +33,15 @@ from tl_mod_documents.names import (
 
 #: Revision states in which the revision is still being prepared or reviewed.
 OPEN_STATES = ("Draft", "In Review")
+
+
+def _hidden(conn: Connection, record_id: str) -> bool:
+    """True when the viewer may not read this record (ADR-0016): it then does not exist for them.
+
+    Documents and everything that hangs on a document (revisions, renditions, reviews, derived
+    documents) are covered by the documents module's confidential source.
+    """
+    return confidentiality.is_hidden(conn, record_id)
 
 
 def _json(value: Any, default: Any) -> Any:
@@ -231,7 +241,7 @@ def get_document(conn: Connection, document_id: str) -> DocumentRow | None:
     row = conn.execute(
         text(f"SELECT {_DOCUMENT_COLUMNS} FROM {DOCUMENT_VIEW} WHERE id = :id"), {"id": document_id}
     ).first()
-    return None if row is None else _document(row)
+    return None if row is None or _hidden(conn, document_id) else _document(row)
 
 
 def find_document(conn: Connection, scope: str, number: str) -> DocumentRow | None:
@@ -241,7 +251,7 @@ def find_document(conn: Connection, scope: str, number: str) -> DocumentRow | No
         ),
         {"scope": scope, "key": number},
     ).first()
-    return None if row is None else _document(row)
+    return None if row is None or _hidden(conn, row.id) else _document(row)
 
 
 def list_documents(
@@ -258,6 +268,9 @@ def list_documents(
     """The documents of a scope ordered by number. A void document is left out unless asked."""
     sql = f"SELECT {_DOCUMENT_COLUMNS} FROM {DOCUMENT_VIEW} WHERE scope = :scope"
     params: dict[str, Any] = {"scope": scope, "limit": limit, "offset": offset}
+    visible, visible_params = confidentiality.not_hidden("id")
+    sql += f" AND {visible}"
+    params.update(visible_params)
     if doc_type is not None:
         sql += " AND doc_type = :doc_type"
         params["doc_type"] = doc_type
@@ -313,7 +326,7 @@ def get_revision(conn: Connection, revision_id: str) -> RevisionRow | None:
         text(f"SELECT {_REVISION_COLUMNS} FROM {REVISION_VIEW} WHERE id = :id"),
         {"id": revision_id},
     ).first()
-    return None if row is None else _revision(row)
+    return None if row is None or _hidden(conn, revision_id) else _revision(row)
 
 
 def find_revision(conn: Connection, document_id: str, code: str) -> RevisionRow | None:
@@ -324,13 +337,15 @@ def find_revision(conn: Connection, document_id: str, code: str) -> RevisionRow 
         ),
         {"document_id": document_id, "code": code},
     ).first()
-    return None if row is None else _revision(row)
+    return None if row is None or _hidden(conn, document_id) else _revision(row)
 
 
 def revisions_of(
     conn: Connection, document_id: str, *, include_void: bool = True
 ) -> list[RevisionRow]:
     """The revisions of a document, oldest first (by ordinal)."""
+    if _hidden(conn, document_id):
+        return []
     sql = f"SELECT {_REVISION_COLUMNS} FROM {REVISION_VIEW} WHERE document_id = :document_id"
     if not include_void:
         sql += " AND COALESCE(status, 'Draft') <> 'Void'"
@@ -340,6 +355,8 @@ def revisions_of(
 
 def last_revision(conn: Connection, document_id: str) -> RevisionRow | None:
     """The revision with the highest ordinal, whatever its state (a void one keeps its code)."""
+    if _hidden(conn, document_id):
+        return None
     row = conn.execute(
         text(
             f"SELECT {_REVISION_COLUMNS} FROM {REVISION_VIEW} "
@@ -352,6 +369,8 @@ def last_revision(conn: Connection, document_id: str) -> RevisionRow | None:
 
 def open_revision(conn: Connection, document_id: str) -> RevisionRow | None:
     """The revision being prepared or reviewed (state Draft or In Review), if any."""
+    if _hidden(conn, document_id):
+        return None
     row = conn.execute(
         text(
             f"SELECT {_REVISION_COLUMNS} FROM {REVISION_VIEW} WHERE document_id = :document_id "
@@ -364,6 +383,8 @@ def open_revision(conn: Connection, document_id: str) -> RevisionRow | None:
 
 def highest_issued_ordinal(conn: Connection, document_id: str) -> int:
     """The highest ordinal among issued revisions (superseded ones count); 0 when none."""
+    if _hidden(conn, document_id):
+        return 0
     value = conn.execute(
         text(
             f"SELECT COALESCE(MAX(ordinal), 0) FROM {REVISION_VIEW} "
@@ -376,6 +397,8 @@ def highest_issued_ordinal(conn: Connection, document_id: str) -> int:
 
 def current_revisions(conn: Connection, document_id: str) -> list[RevisionRow]:
     """Revisions that are current in their status class, highest ordinal first."""
+    if _hidden(conn, document_id):
+        return []
     rows = conn.execute(
         text(
             f"SELECT {_REVISION_COLUMNS} FROM {REVISION_VIEW} "
@@ -420,13 +443,15 @@ def get_rendition(conn: Connection, rendition_id: str) -> RenditionRow | None:
         text(f"SELECT {_RENDITION_COLUMNS} FROM {RENDITION_VIEW} WHERE id = :id"),
         {"id": rendition_id},
     ).first()
-    return None if row is None else _rendition(row)
+    return None if row is None or _hidden(conn, rendition_id) else _rendition(row)
 
 
 def renditions_of(
     conn: Connection, revision_id: str, *, current_only: bool = False, kind: str | None = None
 ) -> list[RenditionRow]:
     """The renditions of a revision ordered by kind, then oldest first (by creation, id)."""
+    if _hidden(conn, revision_id):
+        return []
     sql = f"SELECT {_RENDITION_COLUMNS} FROM {RENDITION_VIEW} WHERE revision_id = :revision_id"
     params: dict[str, Any] = {"revision_id": revision_id}
     if current_only:
@@ -441,6 +466,8 @@ def renditions_of(
 
 def rendition_count(conn: Connection, revision_id: str, kind: str) -> int:
     """How many renditions of ``kind`` the revision has had (superseded ones included)."""
+    if _hidden(conn, revision_id):
+        return 0
     value = conn.execute(
         text(
             f"SELECT COUNT(*) FROM {RENDITION_VIEW} "
@@ -534,6 +561,8 @@ def transmittal_items(conn: Connection, transmittal_id: str) -> list[Transmittal
         ),
         {"id": transmittal_id},
     ).all()
+    hidden = confidentiality.hidden_among(conn, [r.revision_id for r in rows])
+    rows = [r for r in rows if r.revision_id not in hidden]  # an item the viewer may not read
     return [
         TransmittalItemRow(
             transmittal_id=r.transmittal_id,
@@ -550,6 +579,8 @@ def transmittal_items(conn: Connection, transmittal_id: str) -> list[Transmittal
 
 def transmittals_of_revision(conn: Connection, revision_id: str) -> list[TransmittalRow]:
     """The transmittals that carry a revision (void ones left out), oldest number first."""
+    if _hidden(conn, revision_id):
+        return []
     rows = conn.execute(
         text(
             f"SELECT {_TRANSMITTAL_COLUMNS} FROM {TRANSMITTAL_VIEW} WHERE id IN "
@@ -592,11 +623,13 @@ def get_review_cycle(conn: Connection, cycle_id: str) -> ReviewCycleRow | None:
     row = conn.execute(
         text(f"SELECT {_CYCLE_COLUMNS} FROM {REVIEW_CYCLE_VIEW} WHERE id = :id"), {"id": cycle_id}
     ).first()
-    return None if row is None else _cycle(row)
+    return None if row is None or _hidden(conn, cycle_id) else _cycle(row)
 
 
 def review_cycles_of(conn: Connection, revision_id: str) -> list[ReviewCycleRow]:
     """The review cycles of a revision, round by round."""
+    if _hidden(conn, revision_id):
+        return []
     rows = conn.execute(
         text(
             f"SELECT {_CYCLE_COLUMNS} FROM {REVIEW_CYCLE_VIEW} "
@@ -608,6 +641,8 @@ def review_cycles_of(conn: Connection, revision_id: str) -> list[ReviewCycleRow]
 
 
 def open_review_cycle(conn: Connection, revision_id: str) -> ReviewCycleRow | None:
+    if _hidden(conn, revision_id):
+        return None
     row = conn.execute(
         text(
             f"SELECT {_CYCLE_COLUMNS} FROM {REVIEW_CYCLE_VIEW} "
@@ -619,6 +654,8 @@ def open_review_cycle(conn: Connection, revision_id: str) -> ReviewCycleRow | No
 
 
 def reviewers_of(conn: Connection, cycle_id: str) -> list[ReviewerRow]:
+    if _hidden(conn, cycle_id):
+        return []
     rows = conn.execute(
         text(
             "SELECT review_cycle_id, revision_id, document_id, reviewer, due_date, outcome, "

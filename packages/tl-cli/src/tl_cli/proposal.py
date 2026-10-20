@@ -14,7 +14,7 @@ from typing import Annotated, Any, NoReturn, cast
 
 import typer
 from pydantic import ValidationError
-from tl_adapters.db import DbTarget, open_uow
+from tl_adapters.db import DbTarget, is_postgres, open_uow
 from tl_adapters.objectstore import make_object_store, object_secret
 from tl_api.thread_runner import thread_runner
 from tl_core.files.service import FileService
@@ -185,7 +185,11 @@ def accept(
     proposal_id: Annotated[str, typer.Argument(help="Proposal id from `tl proposal ls`.")],
     role: Annotated[
         list[str] | None,
-        typer.Option("--role", help="A workflow role you hold (for a transition); repeatable."),
+        typer.Option(
+            "--role",
+            help="Dev setup on a ledger file only: accept with this workflow role (repeatable). "
+            "Elsewhere your roles come from your session.",
+        ),
     ] = None,
     accept_risk: Annotated[
         bool,
@@ -195,8 +199,9 @@ def accept(
 ) -> None:
     """Run the proposal's command as you. Prints `accepted <id>` and `result <stream id>`.
 
-    ``proposals.accept_or_fail(_factory(db), proposal_id=..., by=actor, roles=role or [],
-    source="cli")`` inside ``_service_errors`` (it opens its own units of work; do not open one).
+    ``proposals.accept_or_fail(_factory(db), proposal_id=..., by=actor, roles=<the session's
+    workflow roles>, source="cli")`` inside ``_service_errors`` (it opens its own units of work; do
+    not open one).
     When the returned view has ``status == "failed"`` nothing of the command was kept: print
     ``failed <id>`` to stdout, then ``_fail(view.reason or "the command was refused")``
     (``error: ...`` on stderr, exit code 1). Otherwise print ``accepted <id>`` and then
@@ -213,6 +218,7 @@ def accept(
             level, level == "user"
         )
 
+    roles = session.workflow_roles_of(db, role or (), actor=actor, local=not is_postgres(db))
     _configure_derivation_files()
     with _service_errors():
         holds: Callable[[Any], bool] = session_holds
@@ -225,7 +231,7 @@ def accept(
             _factory(db),
             proposal_id=proposal_id,
             by=actor,
-            roles=role or [],
+            roles=roles,
             accept_risk=accept_risk,
             source="cli",
             holds=holds,

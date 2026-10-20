@@ -11,7 +11,10 @@ dependencies = [
   "tl-adapters",
   "tl-api",
   "tl-mod-documents",
+  "tl-mod-correspondence",
   "tl-mod-engineering",
+  "tl-mod-cost",
+  "tl-mod-schedule",
   "httpx2",
 ]
 

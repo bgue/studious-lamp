@@ -1,0 +1,58 @@
+{
+  "envelope": {
+    "data": {
+      "changes": {},
+      "detail": {
+        "clause_number": "20.1",
+        "contract": "MSA-2026",
+        "contract_document_id": null,
+        "domains": [
+          "general"
+        ],
+        "notice_requirements": "State the event and the date it was noticed",
+        "required_recipients": [
+          "project_manager"
+        ],
+        "service_method": "letter",
+        "time_bar_day_type": "calendar",
+        "time_bar_days": 28
+      },
+      "links": [],
+      "origin": {
+        "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+        "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+        "key": "47-1234-W012",
+        "type": "core.Record",
+        "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+        "version": 7
+      }
+    },
+    "datacontenttype": "application/json",
+    "dataschema": "https://tl.example.com/schema/events/ContractClause.Defined/1",
+    "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+    "source": "https://tl.example.com/c/acme/p/P123",
+    "specversion": "1.0",
+    "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+    "time": "2026-10-09T03:14:07.000000Z",
+    "tlactor": "user:jsmith",
+    "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+    "tlseq": 48211933,
+    "tlstreamversion": 7,
+    "type": "tl.core.ContractClause.Defined.v1"
+  },
+  "payload": {
+    "clause_number": "20.1",
+    "contract": "MSA-2026",
+    "contract_document_id": null,
+    "domains": [
+      "general"
+    ],
+    "notice_requirements": "State the event and the date it was noticed",
+    "required_recipients": [
+      "project_manager"
+    ],
+    "service_method": "letter",
+    "time_bar_day_type": "calendar",
+    "time_bar_days": 28
+  }
+}

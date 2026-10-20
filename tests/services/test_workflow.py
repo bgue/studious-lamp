@@ -168,8 +168,8 @@ def go(db: DbTarget, record_id: str, name: str, *roles: str, scope: str = P1) ->
                 stream_id=record_id,
                 expected_version=version(db, record_id),
                 transition=name,
-                actor_roles=list(roles),
             ),
+            roles=roles,
         ).events
 
 
@@ -329,7 +329,7 @@ def test_expected_links_guard_uses_expectations_of_the_target_state_only(db: DbT
     assert [g["kind"] for g in event.payload["guards_evaluated"]] == ["expected_links", "roles"]
 
 
-def test_roles_guard_is_a_stub_list_on_the_command(db: DbTarget) -> None:
+def test_roles_guard_judges_the_roles_the_caller_derived(db: DbTarget) -> None:
     rid, other = new_record(db, "A"), new_record(db, "B")
     set_psets(db, rid, VALVE)
     go(db, rid, "start")
@@ -552,7 +552,22 @@ def test_the_shipped_sample_workflow_runs_end_to_end(db: DbTarget) -> None:
             go(db, rid, "approve")
         add_link(db, "L1", rid, other, "references")
         go(db, rid, "approve")
-        with pytest.raises(GuardFailedError, match="manager"):
+        with pytest.raises(GuardFailedError, match="document_controller"):
             go(db, rid, "issue")
-        go(db, rid, "issue", "manager")
+        go(db, rid, "issue", "document_controller")
         assert row(db, rid)["status"] == "Issued"
+
+
+def test_a_transition_with_no_roles_given_fails_every_roles_guard(db: DbTarget) -> None:
+    """P1-SEC1: roles are an argument of the handler; leaving it out is "no roles", not "all"."""
+    rid, other = new_record(db, "A"), new_record(db, "B")
+    set_psets(db, rid, VALVE)
+    go(db, rid, "start")
+    add_link(db, "L1", rid, other, "requires")
+    add_link(db, "L2", rid, new_record(db, "C"), "requires")
+    add_link(db, "L3", rid, other, "references")
+    go(db, rid, "review")
+    with pytest.raises(GuardFailedError, match="needs one of the roles: manager, admin"):
+        go(db, rid, "finish")
+    assert status(db, rid).options[0].allowed is False
+    assert go(db, rid, "finish", "admin")[0].payload["to_state"] == "Done"

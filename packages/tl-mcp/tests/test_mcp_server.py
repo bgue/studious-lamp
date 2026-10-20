@@ -40,6 +40,30 @@ DERIVATION_READ_TOOLS = {
     "validate_against_schema",
 }
 DERIVATION_PROPOSE_TOOLS = {"start_extraction", "propose_import"}
+CORRESPONDENCE_TOOLS = {  # P1-I5: five reads and one proposal (an agent only proposes a triage)
+    "list_correspondence",
+    "get_correspondence",
+    "list_response_clocks",
+    "list_parties",
+    "suggest_triage",
+}
+CORRESPONDENCE_PROPOSE_TOOLS = {"propose_triage"}
+SCHEDULE_PROPOSE_TOOLS = {"propose_publish_schedule_snapshot"}
+SCHEDULE_READ_TOOLS = {
+    "list_schedules",
+    "get_schedule",
+    "list_schedule_activities",
+    "get_schedule_activity",
+    "compare_schedule_snapshots",
+    "get_look_ahead",
+    "resolve_schedule_activity",
+    "get_activity_float_trend",
+    "list_orphaned_links",
+    "get_record_activity_links",
+    "list_cost_codes",
+    "get_cost_code",
+    "list_cost_snapshots",
+}
 THREAD_READ = {"read_thread"}  # P1-I7 WS-B
 READING = (
     READ_TOOLS
@@ -48,11 +72,15 @@ READING = (
     | DOCUMENT_TOOLS
     | DERIVATION_READ_TOOLS
     | THREAD_READ
+    | CORRESPONDENCE_TOOLS
+    | SCHEDULE_READ_TOOLS
 )
 TOOLS = (
     READING
     | PROPOSE_TOOLS
     | DERIVATION_PROPOSE_TOOLS
+    | CORRESPONDENCE_PROPOSE_TOOLS
+    | SCHEDULE_PROPOSE_TOOLS
     | {"post_feed", "post_thread_message", "propose_dispatch"}
 )
 
@@ -76,13 +104,13 @@ def test_the_phase_0_surface_is_read_tools_proposing_tools_and_post_feed(
     assert by_name["trace"].input_schema["properties"]["direction"]["enum"] == ["out", "in", "both"]
 
 
-def test_the_tools_that_show_documents_say_confidentiality_is_not_enforced(
+def test_the_tools_that_show_documents_say_confidentiality_is_enforced(
     env: McpHarness,
 ) -> None:
     by_name = {t.name: t for t in asyncio.run(env.server.list_tools())}
     for name in ("list_documents", "get_document", "get_transmittal"):
         text = " ".join((by_name[name].description or "").split())
-        assert "recorded but not enforced" in text and "recipient emails" in text, name
+        assert "is enforced" in text and "ADR-0016" in text, name
 
 
 def test_the_resources_are_registered(env: McpHarness) -> None:

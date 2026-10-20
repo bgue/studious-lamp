@@ -263,6 +263,7 @@ class Simulation:
                 and guaranteed(actors.assistant.proposals_per_day),
                 decisions=actors.approver is not None,
                 days_played=self.state.day,
+                operators=frozenset(self.state.scenario.operators),
             ),
         )
 

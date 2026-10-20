@@ -3,8 +3,10 @@
 A publication or a compensation of derived data is told apart in the ledger by its correlation id
 and its event source. A client that could set either could make its own events look like part of a
 publication (and have them read back as one). So a correlation id that starts with ``derive:``,
-a causation id that starts with it, and a source that starts with ``import:derived-`` or
-``compensation:`` are the module's alone: a client command that carries one is refused. The module
+a causation id that starts with it, and a source that starts with ``import:derived-``,
+``compensation:`` or ``svc:`` are the module's alone: a client command that carries one is refused.
+(``svc:`` is the source of the services of the suite, the schedule worker and the scanner among
+them; a module that tells its own events from a person's by that source relies on this.) The module
 builds them itself, after the client's command has been checked, so its own calls are untouched.
 Compensation does not trust them in any case: it reverses the ids a publication recorded.
 
@@ -17,18 +19,26 @@ command that carries one is refused, so no client can pose as an automation.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
+
 from tl_core.integration.contract import (
     RESERVED_CORRELATION_PREFIXES as AUTOMATION_CORRELATION_PREFIXES,
 )
 from tl_core.integration.contract import RESERVED_SOURCE_PREFIXES as AUTOMATION_SOURCE_PREFIXES
 from tl_core.services.commands import Command
-from tl_core.services.errors import ReservedIdentifierError
+from tl_core.services.errors import ReservedIdentifierError, RoleClaimError
 
 DERIVE_CORRELATION_PREFIX = "derive:"
 #: Correlation and causation ids a client may not set: the derivation pipeline's and automation's.
 RESERVED_CORRELATION_PREFIXES = (DERIVE_CORRELATION_PREFIX, *AUTOMATION_CORRELATION_PREFIXES)
-#: Event sources a client may not set: the derivation pipeline's and automation's.
-RESERVED_SOURCE_PREFIXES = ("import:derived-", "compensation:", *AUTOMATION_SOURCE_PREFIXES)
+#: Event sources a client may not set: the derivation pipeline's, the suite's services (``svc:``)
+#: and automation's.
+RESERVED_SOURCE_PREFIXES = (
+    "import:derived-",
+    "compensation:",
+    "svc:",
+    *AUTOMATION_SOURCE_PREFIXES,
+)
 
 
 def refuse_reserved_fields(
@@ -51,3 +61,21 @@ def refuse_reserved(cmd: Command) -> None:
     refuse_reserved_fields(
         source=cmd.source, correlation_id=cmd.correlation_id, causation_id=cmd.causation_id
     )
+
+
+#: The fixed refusal of a client that names workflow roles (ADR-0013, addendum P1-SEC1). It never
+#: repeats what the client sent.
+ROLE_CLAIM_MESSAGE = (
+    "workflow roles cannot be claimed; the server derives them from the signed-in account"
+)
+#: The body key of a claim of workflow roles in a command body. (The accept-proposal body also
+#: refuses ``roles``, its old field.)
+CLAIMED_ROLE_FIELDS = frozenset({"actor_roles"})
+
+
+def refuse_role_claim(
+    body: Mapping[str, object], fields: frozenset[str] = CLAIMED_ROLE_FIELDS
+) -> None:
+    """Raise ``RoleClaimError`` when a client body names workflow roles (any of ``fields``)."""
+    if not fields.isdisjoint(body):
+        raise RoleClaimError(ROLE_CLAIM_MESSAGE)

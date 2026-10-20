@@ -71,13 +71,10 @@ def test_guard_lines_mark_each_guard() -> None:
 
 
 class Host(App[None]):
-    def __init__(
-        self, client: FakeClient, key: str = "FV-1001", roles: tuple[str, ...] = ()
-    ) -> None:
+    def __init__(self, client: FakeClient, key: str = "FV-1001") -> None:
         super().__init__()
         self.client = client
         self.key = key
-        self.roles = roles
         self.results: list[bool | None] = []
 
     def compose(self) -> ComposeResult:
@@ -86,7 +83,7 @@ class Host(App[None]):
     def on_mount(self) -> None:
         record = self.client.get_record(SCOPE, self.key)
         assert record is not None
-        menu = WorkflowMenu(self.client, SCOPE, record, roles=self.roles, actor="user:t")
+        menu = WorkflowMenu(self.client, SCOPE, record, actor="user:t")
         self.push_screen(menu, self.results.append)
 
 
@@ -99,7 +96,7 @@ def test_it_shows_the_state_the_transitions_and_why_one_is_blocked() -> None:
         text = screen_text(app)
         assert "FV-1001  fake.valves v1" in text
         assert "State: Design  (since 2026-10-09" in text
-        assert "Roles: none" in text
+        assert "Roles:" not in text  # the menu shows no roles: the server derives them
         assert "Install → Installed  ✗ blocked" in text
         assert "✗ expected_links: missing links: data sheet (0 of 1)" in text
         assert "✗ roles: needs one of the roles: engineer" in text
@@ -127,24 +124,21 @@ def test_enter_on_a_blocked_transition_explains_and_stays_open() -> None:
 def test_an_allowed_transition_runs_and_dismisses_with_true() -> None:
     client = FakeClient.with_valve_example()
     client.seed_link("FV-1001", "FV-1002")
-    app = Host(client, roles=("engineer",))
+    client.account_roles = ("engineer",)  # what the server derives from the signed-in account
+    app = Host(client)
 
     async def scenario(pilot: Pilot[Any]) -> None:
         await pilot.pause()
         text = screen_text(app)
-        assert "Roles: engineer" in text and "Install → Installed  ✓ allowed" in text
+        assert "Install → Installed  ✓ allowed" in text
         await pilot.press("enter")
         await pilot.pause()
         assert app.results == [True]
         record = client.get_record(SCOPE, "FV-1001")
         assert record is not None and record["status"] == "Installed"
         (cmd,) = [c for c in client.link_commands if hasattr(c, "transition")]
-        assert (cmd.actor, cmd.source, cmd.transition, cmd.actor_roles) == (
-            "user:t",
-            "tui",
-            "install",
-            ["engineer"],
-        )
+        assert (cmd.actor, cmd.source, cmd.transition) == ("user:t", "tui", "install")
+        assert "actor_roles" not in cmd.model_dump()  # the client names no roles
         assert cmd.expected_version == 3
 
     run_pilot(app, scenario, size=(110, 40))
@@ -201,7 +195,7 @@ def test_a_record_with_no_options_says_so() -> None:
 
 def test_w_on_the_grid_opens_the_menu_for_the_cursor_row() -> None:
     client = FakeClient.with_valve_example()
-    app = TlApp(client, roles=("engineer",))
+    app = TlApp(client)
 
     async def scenario(pilot: Pilot[Any]) -> None:
         await pilot.pause()
@@ -210,7 +204,6 @@ def test_w_on_the_grid_opens_the_menu_for_the_cursor_row() -> None:
         menu = app.screen
         assert isinstance(menu, WorkflowMenu)
         assert menu.record["key"] == "FV-1001"
-        assert menu.roles == ("engineer",)
         await pilot.press("w")  # typed nowhere, and no second menu
         await pilot.pause()
         assert len(app.screen_stack) == 2
@@ -224,7 +217,8 @@ def test_w_on_the_grid_opens_the_menu_for_the_cursor_row() -> None:
 def test_a_transition_from_the_record_view_refreshes_the_view() -> None:
     client = FakeClient.with_valve_example()
     client.seed_link("FV-1001", "FV-1002")
-    app = TlApp(client, roles=("engineer",))
+    client.account_roles = ("engineer",)
+    app = TlApp(client)
 
     async def scenario(pilot: Pilot[Any]) -> None:
         await pilot.pause()

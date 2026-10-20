@@ -23,6 +23,7 @@ from typing import Any, cast
 
 from sqlalchemy import text
 
+from tl_core import confidentiality
 from tl_core.extypes.service import prepare_create, refuse_index_write
 from tl_core.ledger import NewEvent
 from tl_core.modules import is_module_record_type, require_generic
@@ -76,7 +77,7 @@ class _StoredRecord:
 
 def _load_record(uow: UnitOfWork, scope: str, stream_id: str) -> _StoredRecord:
     row = uow.conn().execute(_LOAD_SQL, {"id": stream_id}).first()
-    if row is None or row.scope != scope:
+    if row is None or row.scope != scope or confidentiality.is_hidden(uow.conn(), stream_id):
         raise RecordNotFoundError(f"no record {stream_id!r} in scope {scope!r}")
     return _StoredRecord(
         key=row.key,

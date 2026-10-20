@@ -15,6 +15,10 @@ dependencies = [
   "tl-tui",
   "tl-mod-engineering",
   "tl-mod-documents",
+  "tl-mod-correspondence",
+  "tl-mod-cost",
+  "tl-mod-schedule",
+  "tl-xer",
 ]
 
 [project.scripts]

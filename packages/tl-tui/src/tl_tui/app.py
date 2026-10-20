@@ -86,6 +86,7 @@ class TlApp(App[None]):
         Binding("l", "link", "Link", show=False),
         Binding("R", "tray_add", "Add to tray", show=False),
         Binding("f4", "tray_open", "Tray", show=False),
+        Binding("f5", "correspondence", "Correspondence", show=False),
         Binding("w", "workflow", "Workflow", show=False),
         Binding("t", "trace", "Trace", show=False),
         Binding("F", "feed", "Feed", show=False),
@@ -97,6 +98,7 @@ class TlApp(App[None]):
         Binding("f11", "derived", "Derived documents", show=False),
         Binding("ctrl+r", "review", "Review queue", show=False),
         Binding("ctrl+e", "integration", "Integration registry", show=False),
+        Binding("f12", "schedules", "Schedules", show=False),
         Binding("alt+left", "back", "Back", show=False),
         Binding("alt+right", "forward", "Forward", show=False),
     ]
@@ -110,7 +112,6 @@ class TlApp(App[None]):
         record_type: str | None = "core.Record",
         actor: str = "user:dev",
         mode: str = "embedded",
-        roles: tuple[str, ...] = (),
         is_admin: bool = False,
         is_controller: bool = False,
         feed: ChangeFeed | None = None,
@@ -122,8 +123,6 @@ class TlApp(App[None]):
         self.record_type = record_type
         self.actor = actor
         self.mode = mode
-        # Roles the user claims for workflow guards: a stub until auth exists (brief 8).
-        self.roles = roles
         self.is_admin = is_admin  # the person signed in holds the admin role (F10 accounts screen)
         # an admin or a document controller: the document screens offer the controlling acts
         self.is_controller = is_controller or is_admin
@@ -496,9 +495,7 @@ class TlApp(App[None]):
             if ran:
                 self._changed(str(record["id"]))
 
-        self.push_screen(
-            WorkflowMenu(self.client, self.scope, record, roles=self.roles, actor=self.actor), done
-        )
+        self.push_screen(WorkflowMenu(self.client, self.scope, record, actor=self.actor), done)
 
     def action_trace(self) -> None:
         if self._modal_open():
@@ -572,6 +569,36 @@ class TlApp(App[None]):
                 is_controller=self.is_controller,
             )
         )
+
+    def action_correspondence(self) -> None:
+        """Correspondence of this project: register, triage inbox and response clocks."""
+        if self._modal_open():
+            return
+        from tl_core.settings.layers import project_of_scope
+
+        from tl_tui.widgets.correspondence_screen import CorrespondenceScreen
+
+        project = project_of_scope(self.scope)
+        if project is None:
+            self.notify("Correspondence needs a project.", severity="warning")
+            return
+        self.push_screen(
+            CorrespondenceScreen(self.client, project, self.actor, is_controller=self.is_controller)
+        )
+
+    def action_schedules(self) -> None:
+        """The schedules of this project: snapshots, comparison, activities, look-ahead."""
+        if self._modal_open():
+            return
+        from tl_core.settings.layers import project_of_scope
+
+        from tl_tui.widgets.schedule_screen import ScheduleScreen
+
+        project = project_of_scope(self.scope)
+        if project is None:
+            self.notify("The schedules need a project.", severity="warning")
+            return
+        self.push_screen(ScheduleScreen(self.client, project, self.actor))
 
     def action_tags(self) -> None:
         """The tag register of this project: class, state, conformance, what each tag lacks."""

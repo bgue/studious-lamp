@@ -160,6 +160,21 @@ def test_a_voided_record_is_tagged_but_not_linked(db: DbTarget) -> None:
     assert sql(db, "SELECT 1 FROM cur_links") == []
 
 
+def test_a_record_only_its_module_links_to_is_tagged_but_not_suggested(
+    db: DbTarget, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A post naming a schedule activity reference must not fail because the generic suggestion
+    to it is refused (`MODULE_COMMAND_TARGETS`): it is tagged, and no link is made."""
+    from tl_core.services import links
+
+    rec = record(db, REC1)
+    monkeypatch.setattr(links, "MODULE_COMMAND_TARGETS", frozenset({"core.Record"}))
+    result = post(db, f"see #{REC1}")
+    assert [e.event_type for e in result.events] == ["Feed.Posted"]
+    assert result.events[0].payload["record_ids"] == [rec]
+    assert sql(db, "SELECT 1 FROM cur_links") == []
+
+
 def test_a_signal_tag_raises_the_effective_importance_only(db: DbTarget) -> None:
     result = post(db, "stop #hold", importance="low")
     assert result.events[0].payload["importance"] == "low"

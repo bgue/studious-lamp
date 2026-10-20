@@ -1,0 +1,167 @@
+id: https://example.org/throughline/modules/cost/cost_snapshot
+name: tl_mod_cost_cost_snapshot
+title: Cost snapshots (brief 9, M11)
+description: >-
+  A `CostSnapshot` is one imported period of figures from the cost system: a ledgered, correlated
+  import that creates the codes it names for the first time and records the figures of each. The
+  snapshot is never edited; a corrected file for the same period is the next revision. Spec:
+  docs/modules/cost/README.md.
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+  - ../../core/annotations
+  - ../../core/record
+default_range: string
+annotations:
+  tl:module: cost
+
+classes:
+  CostSnapshot:
+    description: >-
+      One imported period. Record type `cost.CostSnapshot`; its key is `<period>@<revision>`
+      (`2026-09@1`). The most recent as-of date decides which snapshot's figures a code's matrix holds.
+    annotations:
+      tl:current_state: true
+      tl:record_types: "cost.CostSnapshot"
+      tl:ix_scope_period: "scope, period, revision"
+    unique_keys:
+      scope_period_revision:
+        description: A period is imported once per revision.
+        unique_key_slots:
+          - scope
+          - period
+          - revision
+    attributes:
+      id:
+        identifier: true
+        range: Ulid
+        required: true
+        description: Record id; equals the ledger stream id and the `cur_core_record` id.
+      scope:
+        range: ScopeId
+        required: true
+        description: The project scope, `project:<id>`.
+      period:
+        required: true
+        description: "The period the figures cover, `YYYY-MM`."
+      revision:
+        range: integer
+        required: true
+        description: 1 for the first import of the period, then 2, 3 for corrected files.
+      as_of:
+        required: true
+        description: "The date the figures are as of, `YYYY-MM-DD`."
+      currency:
+        description: "ISO 4217 code of the amount figures, null when the file states none."
+      source_name:
+        description: Display name of the file that was imported.
+      source_sha256:
+        description: Hex SHA-256 of the file's bytes.
+      row_count:
+        range: integer
+        required: true
+        description: Codes the file stated figures for.
+      new_code_count:
+        range: integer
+        required: true
+        description: Codes this import created.
+      revised_code_count:
+        range: integer
+        required: true
+        description: Existing codes whose description, parent or unit of measure the file changed.
+      last_seq:
+        range: integer
+        required: true
+        description: Ledger `seq` of the last event applied to this row.
+
+  CostSnapshotValue:
+    description: >-
+      The figures one snapshot states for one code. Not a record: a row of the history of the code's matrix,
+      written by the projector of `CostCode.MeasuresRecorded` and never changed.
+    annotations:
+      tl:current_state: true
+      tl:table: cur_cost_snapshot_value
+      tl:ix_snapshot: "snapshot_id, code"
+      tl:ix_code_as_of: "cost_code_id, as_of"
+    attributes:
+      row_id:
+        identifier: true
+        required: true
+        description: "`<snapshot id>:<cost code id>`."
+      scope:
+        range: ScopeId
+        required: true
+        description: The project scope, `project:<id>`.
+      snapshot_id:
+        range: Ulid
+        required: true
+        description: The snapshot.
+      cost_code_id:
+        range: Ulid
+        required: true
+        description: The cost code record.
+      code:
+        required: true
+        description: The code, copied so a report needs no join.
+      period:
+        required: true
+        description: "`YYYY-MM`."
+      revision:
+        range: integer
+        required: true
+        description: The snapshot's revision of the period.
+      as_of:
+        required: true
+        description: "`YYYY-MM-DD`."
+      hours_budget:
+        range: float
+        description: "Hours, budget (hours); null when the snapshot did not state it."
+      hours_actual:
+        range: float
+        description: "Hours, actual to date (hours); null when the snapshot did not state it."
+      hours_earned:
+        range: float
+        description: "Hours, earned (hours); null when the snapshot did not state it."
+      hours_ftc:
+        range: float
+        description: "Hours, forecast to complete (hours); null when the snapshot did not state it."
+      hours_eac:
+        range: float
+        description: "Hours, estimate at completion (hours); null when the snapshot did not state it."
+      quantity_budget:
+        range: float
+        description: "Quantity, budget (quantity in the code's unit of measure); null when the snapshot did not state it."
+      quantity_actual:
+        range: float
+        description: "Quantity, actual to date (quantity in the code's unit of measure); null when the snapshot did not state it."
+      quantity_earned:
+        range: float
+        description: "Quantity, earned (quantity in the code's unit of measure); null when the snapshot did not state it."
+      quantity_ftc:
+        range: float
+        description: "Quantity, forecast to complete (quantity in the code's unit of measure); null when the snapshot did not state it."
+      quantity_eac:
+        range: float
+        description: "Quantity, estimate at completion (quantity in the code's unit of measure); null when the snapshot did not state it."
+      amount_budget:
+        range: float
+        description: "Amount, budget (amount in the snapshot's currency); null when the snapshot did not state it."
+      amount_actual:
+        range: float
+        description: "Amount, actual to date (amount in the snapshot's currency); null when the snapshot did not state it."
+      amount_earned:
+        range: float
+        description: "Amount, earned (amount in the snapshot's currency); null when the snapshot did not state it."
+      amount_ftc:
+        range: float
+        description: "Amount, forecast to complete (amount in the snapshot's currency); null when the snapshot did not state it."
+      amount_eac:
+        range: float
+        description: "Amount, estimate at completion (amount in the snapshot's currency); null when the snapshot did not state it."
+      last_seq:
+        range: integer
+        required: true
+        description: Ledger `seq` of the event that wrote the row.

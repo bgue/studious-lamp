@@ -24,7 +24,7 @@ from tl_core.integration.actions.service import (
     handle_retire_action,
     handle_revise_action,
 )
-from tl_core.integration.actor_access import holds_for, require_access
+from tl_core.integration.actor_access import holds_for, require_access, workflow_roles_of
 from tl_core.integration.apps import (
     RegisterIntegrationApp,
     ReviseIntegrationApp,
@@ -81,14 +81,18 @@ from tl_core.services.feed_actions import (
 )
 from tl_core.services.proposals import source_for
 from tl_core.services.records import handle_create_record, handle_update_record
-from tl_core.services.reserved import refuse_reserved, refuse_reserved_fields
+from tl_core.services.reserved import refuse_reserved, refuse_reserved_fields, refuse_role_claim
 from tl_core.services.settings import ChangeSetting, handle_change_setting
 from tl_core.services.workflow import TransitionWorkflow, handle_transition_workflow
 from tl_core.threads import messages as thread_messages
 from tl_core.uow import UnitOfWork
 from tl_core.util import effective_time
+from tl_core.workflow.roles import workflow_roles
+from tl_mod_correspondence.commands import API_COMMANDS as CORRESPONDENCE_COMMANDS
+from tl_mod_cost.commands import API_COMMANDS as COST_COMMANDS
 from tl_mod_documents.commands import API_COMMANDS as DOCUMENT_COMMANDS
 from tl_mod_engineering.commands import API_COMMANDS
+from tl_mod_schedule.commands import API_COMMANDS as SCHEDULE_COMMANDS
 
 from tl_api.auth import AGENT_DIRECT_COMMANDS, current_principal, guard
 from tl_api.context import get_ctx
@@ -115,6 +119,9 @@ class CommandSpec:
     #: never a field of the body) because its access depends on the content of the command
     #: (``InvokeAction``: the access of the action named, ADR-0014 section 8).
     needs_holds: bool = False
+    #: The handler also takes ``roles=``: the caller's workflow roles, derived here from the
+    #: authenticated principal (``tl_core.workflow.roles``) and never read from the body.
+    takes_roles: bool = False
 
     @property
     def name(self) -> str:
@@ -137,7 +144,7 @@ COMMANDS: tuple[CommandSpec, ...] = (
     # recovery: any link, whatever its source or owner (ADR-0011)
     CommandSpec(links.AdminFlagLink, links.handle_admin_flag_link, "admin"),
     CommandSpec(links.AdminRetractLink, links.handle_admin_retract_link, "admin"),
-    CommandSpec(TransitionWorkflow, handle_transition_workflow),
+    CommandSpec(TransitionWorkflow, handle_transition_workflow, takes_roles=True),
     CommandSpec(PostToFeed, handle_post),
     CommandSpec(EditPost, handle_edit_post),
     CommandSpec(RetractPost, handle_retract_post),
@@ -172,6 +179,9 @@ COMMANDS: tuple[CommandSpec, ...] = (
     CommandSpec(RunEnricher, handle_run_enricher),
     CommandSpec(AcceptEnrichment, handle_accept_enrichment),
     CommandSpec(RejectEnrichment, handle_reject_enrichment),
+    *(CommandSpec(c.model, c.handler, c.access) for c in CORRESPONDENCE_COMMANDS),
+    *(CommandSpec(c.model, c.handler, c.access) for c in COST_COMMANDS),
+    *(CommandSpec(c.model, c.handler, c.access) for c in SCHEDULE_COMMANDS),
 )
 """Every command the API accepts. Void, mark-pins-stale and the file commands are not here:
 voiding is not in the Phase 0 client contract, pin staleness is a system command, and files have
@@ -186,7 +196,8 @@ def request_model(model: type[Command], name: str) -> type[BaseModel]:
     """The body model for a command: its fields minus ``actor``, ``source`` made optional.
 
     Unknown fields (``actor`` included) are refused, and so is a reserved ``source``,
-    ``correlation_id`` or ``causation_id`` (ADR-0014). Used for the commands here and for the
+    ``correlation_id`` or ``causation_id`` (ADR-0014) and a claim of workflow roles
+    (``actor_roles``, ADR-0013 addendum P1-SEC1). Used for the commands here and for the
     upload commands in ``routes/files.py``.
     """
     fields: dict[str, Any] = {}
@@ -214,10 +225,13 @@ def _refuse_reserved_body(data: Any) -> Any:
 
     The error is the service's ``ReservedIdentifierError`` (not a validation error), so the client
     sees the same 422 ``reserved_identifier`` from every route that takes a command body, the
-    upload routes included (ADR-0014; security re-review of b5f5d41).
+    upload routes included (ADR-0014; security re-review of b5f5d41). A body that names workflow
+    roles gets the same treatment, 422 ``role_claim_refused``: the roles of a guard are derived
+    from the signed-in account, so no route takes them from a client (ADR-0013 addendum P1-SEC1).
     """
     if isinstance(data, dict):
         body = cast(dict[str, Any], data)
+        refuse_role_claim(body)
         refuse_reserved_fields(
             source=body.get("source"),
             correlation_id=body.get("correlation_id"),
@@ -277,6 +291,8 @@ def _make_endpoint(spec: CommandSpec, body_model: type[BaseModel]) -> Callable[.
                 return cast(Any, spec.handler)(
                     uow, command, holds=lambda level: holds_access(principal, actor, level)
                 )
+            if spec.takes_roles:
+                return cast(Any, spec.handler)(uow, command, roles=workflow_roles(principal))
             return spec.handler(uow, command)
 
     endpoint.__name__ = f"command_{spec.name}"
@@ -349,6 +365,11 @@ class TableCommandRunner:
         held = require_access(uow.conn(), command.actor, needed, spec.name)
         if spec.needs_holds:
             return cast(Any, spec.handler)(uow, command, holds=holds_for(held))
+        if spec.takes_roles:
+            # the roles of the command's own actor, from the ledger: a person's account, nothing
+            # for a service actor (a workflow guard on a role fails closed for automation)
+            roles = workflow_roles_of(uow.conn(), command.actor)
+            return cast(Any, spec.handler)(uow, command, roles=roles)
         return spec.handler(uow, command)
 
 

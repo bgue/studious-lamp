@@ -1,0 +1,32 @@
+id: https://example.org/throughline/modules/schedule
+name: tl_mod_schedule
+title: "The schedule module (M11, P6 schedules by XER snapshot)"
+description: >-
+  Schedules from Primavera P6, linked only (brief 9, M11): v1 reads XER files and nothing else. A
+  `Schedule` is a named series of uploads (baseline, current, look-ahead, what-if). Each upload is an
+  immutable `ScheduleSnapshot`: the XER file is read in a resource-limited process, checked against
+  the XER document schema, and its activities, logic, calendars, WBS, codes and user fields are kept
+  as typed rows (`sched_*`). One valid snapshot at a time is published as the schedule's current one.
+  A record links to an activity through its stable activity id (`ActivityRef`), not through a
+  snapshot row, so the link resolves to whatever the current snapshot holds and can be read as of any
+  earlier snapshot; an activity that disappears from a new snapshot flags its links.
+
+  Storage rule (ADR-0010): every record of this module is a row of `cur_core_record` and a row of the
+  module's own current-state table, joined on `id`. The typed rows of a snapshot are operational
+  tables (ADR-0015). Module spec: docs/modules/schedule/README.md.
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+  - ../../core/annotations
+  - ../../core/record
+  - schedule
+  - schedule_snapshot
+  - activity_ref
+  - snapshot_tables
+  - events
+default_range: string
+annotations:
+  tl:module: schedule

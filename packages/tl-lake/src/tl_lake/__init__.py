@@ -14,6 +14,7 @@ from tl_lake.query import LakeQueryResult, LakeQueryService, QueryError, lake_qu
 from tl_lake.source import read_snapshot
 from tl_lake.status import LakeStatus, describe_lake, lake_status
 from tl_lake.sync import SyncResult, sync_lake
+from tl_lake.xer import RawReader, XerSyncResult, sync_xer
 
 __all__ = [
     "GuardError",
@@ -29,9 +30,12 @@ __all__ = [
     "LakeNotInitialisedError",
     "LakeStatus",
     "LakeSyncError",
+    "RawReader",
     "SyncResult",
+    "XerSyncResult",
     "describe_lake",
     "lake_status",
     "read_snapshot",
     "sync_lake",
+    "sync_xer",
 ]

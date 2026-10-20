@@ -339,6 +339,7 @@ AGENT_MAY = {
     "thread.read",  # P1-I7 WS-B
     "auth.me",
     "auth.sign_out",
+    "correspondence.read",
     "document.read",
     "events.read",
     "events.stream",
@@ -425,6 +426,27 @@ AGENT_MAY_NOT = {
     "admin.command.CompensatePublication",
     "control.command.PublishDerivedDocuments",
     "control.command.VoidDerivedDocument",
+    # the correspondence module (P1-I5): the controlling acts are the controller's; an agent
+    # proposes a triage (a user command) and reads internal items only
+    "control.command.IssueCorrespondence",
+    "control.command.VoidCorrespondence",
+    "control.command.SupersedeCorrespondence",
+    "control.command.SetCorrespondenceConfidentiality",
+    "control.command.GrantClearance",
+    "control.command.WithdrawClearance",
+    "control.command.SweepClocks",
+    "control.command.RegisterParty",
+    "control.command.AddContact",
+    "control.command.EndContact",
+    "control.command.RetireParty",
+    "control.command.DefineClause",
+    "control.command.RetireClause",
+    # the cost and schedule modules (P1-I4, ADR-0015): defining, publishing and voiding a schedule
+    # are the controller's, importing cost figures the admin's; an agent proposes
+    "admin.command.ImportCostSnapshot",
+    "control.command.DefineSchedule",
+    "control.command.PublishScheduleSnapshot",
+    "control.command.VoidScheduleSnapshot",
 }
 FEED_COMMANDS = {
     "PostToFeed",

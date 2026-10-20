@@ -22,6 +22,7 @@ from typing import Any
 from pydantic import field_validator
 from sqlalchemy import text
 
+from tl_core import confidentiality
 from tl_core.feed.config import signal_tags
 from tl_core.feed.tags import (
     parse_tags,
@@ -29,7 +30,7 @@ from tl_core.feed.tags import (
     tags_to_payload,
 )
 from tl_core.feed.types import FEED_EDITED, FEED_POSTED, Importance, ParsedTag
-from tl_core.ledger import Event, NewEvent
+from tl_core.ledger import ConcurrencyError, Event, NewEvent
 from tl_core.numbering.config import numbering_for
 from tl_core.numbering.detect import KeyMatch, resolve_chips
 from tl_core.services.commands import Command, CommandResult
@@ -42,6 +43,7 @@ from tl_core.services.errors import (
     PostRetractedError,
     RecordVoidedError,
     SuggestionDeclinedError,
+    UnsupportedRecordTypeError,
 )
 from tl_core.services.links import SuggestLink, handle_suggest_link
 from tl_core.uow import UnitOfWork
@@ -50,8 +52,15 @@ from tl_core.util import new_ulid
 POST_STREAM_TYPE = "core.ActivityPost"
 MAX_BODY_LENGTH = 10_000
 
-# Refusals of SuggestLink that are not errors for a post: the link is simply not suggested.
-_NOT_SUGGESTED = (DuplicateLinkError, SuggestionDeclinedError, RecordVoidedError)
+# Refusals of SuggestLink that are not errors for a post: the link is simply not suggested. (A
+# record a module links to only through its own command, such as a schedule activity reference,
+# is tagged in the post and not linked.)
+_NOT_SUGGESTED = (
+    DuplicateLinkError,
+    SuggestionDeclinedError,
+    RecordVoidedError,
+    UnsupportedRecordTypeError,
+)
 
 _POST_SQL = text(
     "SELECT item_id, scope, actor, summary, retracted, version, base_importance, reactions_json "
@@ -115,11 +124,19 @@ class PostRow:
     reactions: dict[str, list[str]]  # reaction -> sorted actors
 
 
+def _post_visible(uow: UnitOfWork, post_id: str) -> bool:
+    """False when the post tags a record the viewer must not read: it is about that record, and
+    its text may hold the record's title (ADR-0016). A hidden post answers as an absent one."""
+    clause, params = confidentiality.not_hidden_item("CAST(:_post_id AS TEXT)")
+    found = uow.conn().execute(text(f"SELECT 1 WHERE {clause}"), {"_post_id": post_id, **params})
+    return found.first() is not None
+
+
 def load_post(uow: UnitOfWork, scope: str, post_id: str) -> PostRow:
     """The post, read in the caller's transaction. Raises ``PostNotFoundError`` if no post has this
     id in ``scope`` (a post of another project reads as absent)."""
     row = uow.conn().execute(_POST_SQL, {"post_id": post_id}).first()
-    if row is None or row.scope != scope:
+    if row is None or row.scope != scope or not _post_visible(uow, post_id):
         raise PostNotFoundError(f"no post {post_id!r} in scope {scope!r}")
     reactions: dict[str, list[str]] = json.loads(row.reactions_json)
     return PostRow(
@@ -210,7 +227,28 @@ def handle_post(uow: UnitOfWork, cmd: PostToFeed) -> CommandResult:
     tags = parse_post(uow, cmd.scope, cmd.body)
     record_ids = record_ids_of(tags)
 
-    result = uow.append(
+    try:
+        result = _append_post(uow, cmd, post_id, correlation_id, tags, record_ids)
+    except ConcurrencyError:
+        if cmd.post_id is None:
+            raise
+        # The caller chose the id: say it is taken, not what holds it (a hidden record's stream
+        # would otherwise tell its version)
+        raise ConcurrencyError(f"post id {post_id!r} is already used") from None
+    events = list(result.events)
+    events += _suggest_references(uow, cmd, post_id, record_ids, result.events[0], correlation_id)
+    return CommandResult(stream_id=post_id, key=None, version=result.new_version, events=events)
+
+
+def _append_post(
+    uow: UnitOfWork,
+    cmd: PostToFeed,
+    post_id: str,
+    correlation_id: str,
+    tags: Any,
+    record_ids: Any,
+) -> Any:
+    return uow.append(
         stream_id=post_id,
         stream_type=POST_STREAM_TYPE,
         scope=cmd.scope,
@@ -233,9 +271,6 @@ def handle_post(uow: UnitOfWork, cmd: PostToFeed) -> CommandResult:
         correlation_id=correlation_id,
         causation_id=cmd.causation_id,
     )
-    events = list(result.events)
-    events += _suggest_references(uow, cmd, post_id, record_ids, result.events[0], correlation_id)
-    return CommandResult(stream_id=post_id, key=None, version=result.new_version, events=events)
 
 
 def handle_edit_post(uow: UnitOfWork, cmd: EditPost) -> CommandResult:

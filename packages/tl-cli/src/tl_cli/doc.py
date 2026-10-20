@@ -23,6 +23,7 @@ from tl_core.uow import UnitOfWork
 from tl_mod_documents import registry
 from tl_mod_documents.errors import InvalidDocumentNumberError
 from tl_mod_documents.handlers.documents import (
+    DocumentClass,
     RegisterDocument,
     SetDocumentConfidentiality,
     SupersedeDocument,
@@ -144,7 +145,7 @@ def register(
                 doc_type=doc_type,
                 discipline=discipline,
                 originator=originator,
-                confidentiality=confidentiality,
+                confidentiality=_class(confidentiality),
                 revision_scheme=scheme,
             ),
         )
@@ -288,6 +289,15 @@ def update(
     typer.echo(f"updated {number}")
 
 
+def _class(value: str | None) -> DocumentClass | None:
+    """``value`` as a document class (ADR-0016), or `error: ...` and exit 1."""
+    if value is None:
+        return None
+    if value == "internal" or value == "restricted":
+        return value
+    _fail("the class is internal or restricted (a document has no other class)")
+
+
 @app.command("confidentiality")
 def confidentiality(
     ctx: typer.Context,
@@ -303,8 +313,8 @@ def confidentiality(
 ) -> None:
     """Set or clear a document's confidentiality class (controller). The reason is kept.
 
-    In Phase 1 the class is recorded but not enforced: every signed-in person and every agent can
-    read all documents and transmittals of a project, including recipient emails.
+    The class is enforced (ADR-0016): a person reads a document only when their clearance covers
+    its class (internal or restricted); any other class is hidden from everyone.
     """
     db: DbTarget = ctx.obj
     scope = f"project:{project}"
@@ -320,7 +330,7 @@ def confidentiality(
                 source="cli",
                 scope=scope,
                 stream_id=row.id,
-                confidentiality=value,
+                confidentiality=_class(value),
                 reason=reason,
             ),
         )

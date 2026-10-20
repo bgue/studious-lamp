@@ -16,6 +16,7 @@ from tl_schema.formgen import form_metadata as build_form_metadata
 from tl_schema.forms import ConformanceReport, FormMetadata
 from tl_schema.validation import validate_psets
 
+from tl_core import confidentiality
 from tl_core.extypes.service import refuse_index_write
 from tl_core.ledger import NewEvent
 from tl_core.modules import bound_psets, require_generic
@@ -56,7 +57,7 @@ class SetPsetValues(Command):
 
 def load_row(uow: UnitOfWork, stream_id: str, scope: str) -> Any:
     row = uow.conn().execute(_RECORD_SQL, {"id": stream_id}).first()
-    if row is None or row.scope != scope:
+    if row is None or row.scope != scope or confidentiality.is_hidden(uow.conn(), stream_id):
         raise RecordNotFoundError(f"no record {stream_id!r} in scope {scope!r}")
     return row
 
@@ -196,7 +197,7 @@ def form_metadata(
 def conformance(uow: UnitOfWork, record_id: str) -> ConformanceReport:
     """Conformance of a record's current values against its scope's current effective schema."""
     row = uow.conn().execute(_RECORD_SQL, {"id": record_id}).first()
-    if row is None:
+    if row is None or confidentiality.is_hidden(uow.conn(), record_id):
         raise RecordNotFoundError(f"no record {record_id!r}")
     schema = get_provider().effective(row.scope)
     psets: dict[str, Any] = json.loads(row.psets_json)

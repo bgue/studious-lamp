@@ -103,3 +103,15 @@ uv run tl lake rebuild --yes
 ```
 Expected: the old catalog and Parquet files are deleted and everything is loaded again, with the account rows redacted. A lake that never saw an `Account.*` event needs nothing.
 
+## Schedule snapshots in the lake (P1-I4)
+The schedule tables and `mart_float_trend` carry `scope` (the project): two projects may each have a schedule `MAIN`, and the float trend of one never reads the other. A lake made before that column is loaded again by the next `tl lake sync` (silver and bronze rows are dropped and written once more); nothing is lost, the ledger and the files are the source.
+`tl lake sync` and `tl lake rebuild --yes` run a second pass after the event pass (`tl_lake.xer`). It loads every built P6 schedule snapshot (Valid, Published, Superseded) once: silver `schedule_snapshot` and `schedule_activity`, bronze `xer_<table>` (the tables P6 defines, as text, from the snapshot's raw bundle; every other table of the file goes to the long table `xer_other`), and the mart `mart_float_trend`.
+
+- The line `schedule snapshots: loaded N (A activities), dropped D, bronze tables for B (R rows) in snapshot S` appears only when something was loaded. A ledger with no schedule adds none of these tables.
+- `schedule snapshots waiting for their typed rows (tl xer reconcile): N`: the ledger knows the snapshot but `sched_*` has no rows for it (a restore). Run `tl xer reconcile`, then sync again.
+- `schedule snapshots without bronze tables (no object store is configured): N`: the silver tables are in; set `TL_OBJECT_ROOT` (or the store of the ledger) and sync again to load the bronze tables.
+- `schedule snapshots whose raw tables could not be loaded (see _tl_xer_failed in the lake): N`: the bundle matched its recorded hash but the lake refused its content (the silver rows are in). They are recorded in `_tl_xer_failed` (snapshot id and a fixed reason) and later syncs skip them, so the sync is not stuck. `uv run tl lake query "SELECT * FROM _tl_xer_failed"` lists them; upload the file again to get a snapshot that loads. A bundle whose hash does *not* match the ledger (damage, or the wrong object) is not recorded: the sync stops with `the raw bundle of <code>#<n> is not the one recorded` and the next sync tries again; restore the object (`tl xer reconcile` rewrites the typed rows, not the bundle). A failure of the object store also stops the pass.
+- The long table `xer_other` is written in one lake transaction for the snapshot (every cell of every table P6 does not define is a row), which can take about a minute for a file at the limits. That is accepted: the lake is a reading copy and the transaction holds no ledger lock.
+- A snapshot that is voided after it was loaded is taken out of every schedule table by the next sync.
+- Example query: `uv run tl lake query "SELECT activity_id, previous_float_days, total_float_days, float_change_days FROM mart_float_trend WHERE eroded AND snapshot_number = 2 ORDER BY float_change_days"`.
+

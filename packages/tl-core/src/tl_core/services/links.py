@@ -17,6 +17,7 @@ from typing import Any, Literal
 from pydantic import Field, field_validator
 from sqlalchemy import text
 
+from tl_core import confidentiality
 from tl_core.ledger import Event, NewEvent
 from tl_core.links.lifecycle import next_status
 from tl_core.links.provider import get_vocabulary
@@ -32,6 +33,7 @@ from tl_core.services.errors import (
     RecordVoidedError,
     ReservedLinkSourceError,
     SelfLinkError,
+    ServiceError,
     SuggestionDeclinedError,
     UnknownRelationError,
     UnsupportedRecordTypeError,
@@ -125,6 +127,7 @@ _LINK_SQL = text(
     "SELECT link_id, scope, status, pin, version, from_id, to_id, source "
     "FROM cur_links WHERE link_id = :id"
 )
+_ENDS_SQL = text("SELECT from_id, to_id FROM cur_links WHERE link_id = :id")
 _TYPE_SQL = text("SELECT type FROM cur_core_record WHERE id = :id")
 #: The generic command that makes each link event (ADR-0010 addendum: the life of a link).
 _COMMAND_OF = {
@@ -144,6 +147,11 @@ RESERVED_RELATION = "supersedes"
 PIPELINE_OWNED_TARGETS: dict[str, frozenset[str]] = {
     "derived_from": frozenset({"documents.DerivedDocument"})
 }
+#: Record types a link may only point to through the module's own command, because that command
+#: checks what the target stands for and bounds what people hang on it: a link to an activity
+#: reference is made by `LinkActivity` (it checks the activity exists and caps the links per
+#: activity), not by a generic `AddLink` or `SuggestLink` (security review of P1-I4, finding 9).
+MODULE_COMMAND_TARGETS: frozenset[str] = frozenset({"schedule.ActivityRef"})
 #: Link sources only the system may claim: a rule, an enricher, an import, a mapping and a thread
 #: dispatch write links no person made, and a link of such a source is kept by the module that wrote
 #: it. A client that could claim one would make a link nobody can retract (P1-I2 security review;
@@ -171,6 +179,12 @@ def _record(uow: UnitOfWork, record_id: str, *, allow_post: bool = False) -> Any
     if row is None and allow_post:
         post = uow.conn().execute(_POST_SQL, {"id": record_id}).first()
         if post is not None:
+            clause, params = confidentiality.not_hidden_item("CAST(:_post_id AS TEXT)")
+            visible = uow.conn().execute(
+                text(f"SELECT 1 WHERE {clause}"), {"_post_id": record_id, **params}
+            )
+            if visible.first() is None:  # a post that tags a hidden record does not exist
+                raise RecordNotFoundError(f"no record {record_id!r}")
             return SimpleNamespace(
                 id=post.item_id,
                 key=None,
@@ -178,7 +192,7 @@ def _record(uow: UnitOfWork, record_id: str, *, allow_post: bool = False) -> Any
                 type=POST_RECORD_TYPE,
                 voided=bool(post.retracted),
             )
-    if row is None:
+    if row is None or confidentiality.is_hidden(uow.conn(), record_id):
         raise RecordNotFoundError(f"no record {record_id!r}")
     return row
 
@@ -191,6 +205,7 @@ def _create(
     *,
     by_module: bool = False,
     system_source: LinkSource | None = None,
+    via_module_command: bool = False,
 ) -> CommandResult:
     """Shared body of ``handle_add_link`` and ``handle_suggest_link``."""
     if (
@@ -237,6 +252,11 @@ def _create(
             "commands (a rename, a split, a merge, a supersession), not by a generic link"
         )
 
+    if not (by_module or via_module_command) and target.type in MODULE_COMMAND_TARGETS:
+        raise UnsupportedRecordTypeError(
+            f"a link to a {target.type} record is made by that module's own command, "
+            "not by a generic link"
+        )
     if not by_module and target.type in PIPELINE_OWNED_TARGETS.get(relation, frozenset()):
         raise UnsupportedRecordTypeError(
             f"a {relation} link to a {target.type} record is written by the derivation pipeline "
@@ -293,6 +313,24 @@ def _create(
     )
 
 
+def require_link_visible(
+    uow: UnitOfWork,
+    link: Any,
+    link_id: str,
+    scope: str,
+    error: type[ServiceError] = LinkNotFoundError,
+) -> None:
+    """Raise ``LinkNotFoundError`` when an end of the link is a record the viewer must not read:
+    a link to a hidden record does not exist for them (ADR-0016), and the answer is the one for a
+    link that was never made (``error`` is the class that caller raises for a missing link).
+    ``link`` is the loaded link row (its ends are read again by id)."""
+    ends = uow.conn().execute(_ENDS_SQL, {"id": link_id}).first()
+    if ends is not None and confidentiality.hidden_among(
+        uow.conn(), [str(ends.from_id), str(ends.to_id)]
+    ):
+        raise error(f"no link {link_id!r} in scope {scope!r}")
+
+
 def _act(
     uow: UnitOfWork,
     cmd: _OnLink,
@@ -308,6 +346,7 @@ def _act(
     if link is None or link.scope != cmd.scope:
         raise LinkNotFoundError(f"no link {cmd.link_id!r} in scope {cmd.scope!r}")
     if not by_module:
+        require_link_visible(uow, link, cmd.link_id, cmd.scope)
         _require_owner_allows(uow, link, event_type)
     next_status(link.status, event_type, flag=flag)  # raises InvalidLinkTransitionError
     if same_pin_is_noop and link.status == "active" and link.pin == payload["pin"]:
@@ -362,8 +401,13 @@ def handle_add_link(
     *,
     by_module: bool = False,
     system_source: LinkSource | None = None,
+    via_module_command: bool = False,
 ) -> CommandResult:
     """Create an active link. Emits ``Link.Added``.
+
+    ``via_module_command`` is for the command of the module that owns the target type
+    (``MODULE_COMMAND_TARGETS``): the allow-list of the source still applies, and the target check
+    is the caller's.
 
     ``by_module`` is for a module or service path: its own command makes the link, so the type's
     generic-command allow-list, the reserved ``supersedes`` relation and the system link sources
@@ -374,7 +418,15 @@ def handle_add_link(
     carry that one system link source and nothing else is lifted, so the allow-list, the guards
     and the reserved relations still apply to the rule, endpoint or dispatch that uses it.
     """
-    return _create(uow, cmd, "Link.Added", {}, by_module=by_module, system_source=system_source)
+    return _create(
+        uow,
+        cmd,
+        "Link.Added",
+        {},
+        by_module=by_module,
+        system_source=system_source,
+        via_module_command=via_module_command,
+    )
 
 
 def handle_suggest_link(
@@ -449,13 +501,22 @@ def handle_retract_link(
     return _act(uow, cmd, "Link.Retracted", {"reason": cmd.reason}, by_module=by_module)
 
 
+def _admin_sees(uow: UnitOfWork, cmd: _OnLink) -> None:
+    """The admin recovery commands skip the owner rule, not the confidentiality rule."""
+    link = uow.conn().execute(_LINK_SQL, {"id": cmd.link_id}).first()
+    if link is not None and link.scope == cmd.scope:
+        require_link_visible(uow, link, cmd.link_id, cmd.scope)
+
+
 def handle_admin_flag_link(uow: UnitOfWork, cmd: AdminFlagLink) -> CommandResult:
     """Flag a link whatever its source or owner. The API gates it to an admin (ADR-0011)."""
+    _admin_sees(uow, cmd)
     return handle_flag_link(uow, cmd, by_module=True)
 
 
 def handle_admin_retract_link(uow: UnitOfWork, cmd: AdminRetractLink) -> CommandResult:
     """Retract a link whatever its source or owner. The API gates it to an admin (ADR-0011)."""
+    _admin_sees(uow, cmd)
     return handle_retract_link(uow, cmd, by_module=True)
 
 

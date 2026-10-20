@@ -17,7 +17,9 @@ from tl_api.commands import controller_actions
 from tl_api.tokens import add_token
 from tl_core.auth import accounts, sessions
 from tl_core.auth.password import prepare_password
+from tl_mod_correspondence.commands import API_COMMANDS as CORRESPONDENCE_COMMANDS
 from tl_mod_documents.commands import API_COMMANDS
+from tl_mod_schedule.commands import API_COMMANDS as SCHEDULE_COMMANDS
 
 PASSWORD = "correct horse battery"
 SCOPE = "project:P123"
@@ -73,7 +75,13 @@ def run(client: TestClient, name: str) -> tuple[int, str]:
 
 def test_the_controlling_set_is_the_twelve_and_the_actions_follow() -> None:
     assert len(CONTROLLING) == 12  # the ten acts of document control, PublishDerivedDocuments, void
-    assert controller_actions() == {f"control.command.{n}" for n in CONTROLLING}
+    scheduling = {c.model.__name__ for c in SCHEDULE_COMMANDS if c.access == "controller"}
+    assert scheduling == {"DefineSchedule", "PublishScheduleSnapshot", "VoidScheduleSnapshot"}
+    correspondence = {c.model.__name__ for c in CORRESPONDENCE_COMMANDS if c.access == "controller"}
+    assert len(correspondence) == 13  # P1-I5: the controlling acts of the correspondence module
+    assert controller_actions() == {
+        f"control.command.{n}" for n in CONTROLLING | scheduling | correspondence
+    }
 
 
 def test_a_user_is_refused_every_controlling_command_naming_its_action(cast: Cast) -> None:

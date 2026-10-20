@@ -16,7 +16,6 @@ from tl_core.services.errors import (
     ReservedIdentifierError,
 )
 from tl_core.services.feed import PostToFeed
-from tl_core.services.workflow import TransitionWorkflow
 
 SCOPE = "project:P123"
 RULE = "svc:rule-hse-notify"
@@ -105,15 +104,6 @@ def test_a_command_a_rule_may_not_propose_is_refused(db: str | Path) -> None:
 def test_a_server_set_identifier_in_the_command_is_refused(db: str | Path) -> None:
     with pytest.raises(ReservedIdentifierError):
         propose(db, post(correlation_id="rule:x"))
-
-
-def test_a_rule_cannot_claim_workflow_roles(db: str | Path) -> None:
-    move = TransitionWorkflow(
-        actor=RULE, source="proposal", scope=SCOPE, stream_id="r", transition="issue",
-        expected_version=1, actor_roles=["approver"],
-    )  # fmt: skip
-    with pytest.raises(InvalidProposalError):
-        propose(db, move)
 
 
 def test_a_rule_has_a_daily_budget_like_an_agent(db: str | Path) -> None:

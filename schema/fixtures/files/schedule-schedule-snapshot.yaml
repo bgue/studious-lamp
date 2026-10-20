@@ -1,0 +1,46 @@
+# File slots of a schedule snapshot (brief 9 M11, 20.1; ADR-0015). `xer` is what a person attaches: the
+# XER export, once. `report` (the check report, JSON) and `raw` (every table of the file, verbatim, as
+# gzip-compressed JSON lines for the lake) are written by the module only: the generic upload is refused
+# for them by the snapshot's upload guard, and the module writes them with the Python-only `by_module`
+# keyword of the file service.
+id: https://example.org/throughline/fixtures/files/schedule-schedule-snapshot
+name: tl_fixture_schedule_snapshot_files
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+default_range: string
+annotations:
+  tl:module: schedule
+
+classes:
+  ScheduleSnapshot:
+    annotations:
+      tl:file_slots:
+        - name: xer
+          label: P6 export (XER)
+          cardinality: one
+          accepted_types:
+            - application/octet-stream
+            - application/x-xer
+            - text/plain
+            - text/x-xer
+          max_size: 52428800
+          retention_class: project
+        - name: report
+          label: Check report (JSON)
+          cardinality: many
+          accepted_types:
+            - application/json
+          max_size: 67108864
+          retention_class: project
+        - name: raw
+          label: Raw tables (gzip JSON lines)
+          cardinality: many
+          accepted_types:
+            - application/gzip
+            - application/x-gzip
+          max_size: 268435456
+          retention_class: project

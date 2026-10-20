@@ -1,0 +1,46 @@
+# Workflow of a schedule snapshot (brief 9 M11: upload, read, check, build, publish). A snapshot is
+# Uploaded until its build is queued, Processing while a worker reads the XER file, Invalid when the
+# file is refused or fails the XER document schema (the report says why), Valid when the typed rows
+# were written, Published once it is the schedule's current snapshot, Superseded when a later
+# snapshot is published. A snapshot is immutable: Invalid and Superseded are final but for Void, and
+# a corrected file is a new snapshot. The moves are made by the schedule module's commands
+# (StartScheduleSnapshot, the job runner, PublishScheduleSnapshot, VoidScheduleSnapshot); people
+# cannot run them directly.
+id: schedule.schedule-snapshot
+version: 1
+record_type: schedule.ScheduleSnapshot
+scope: company
+initial_state: Uploaded
+states:
+  - name: Uploaded
+  - name: Processing
+  - name: Invalid
+  - name: Valid
+  - name: Published
+  - name: Superseded
+  - name: Void
+transitions:
+  - name: start
+    label: A worker starts reading the file
+    from: [Uploaded]
+    to: Processing
+  - name: finish_invalid
+    label: The file was refused or failed the XER document schema
+    from: [Processing]
+    to: Invalid
+  - name: finish_valid
+    label: The file passed and the typed rows were written
+    from: [Processing]
+    to: Valid
+  - name: publish
+    label: Make the snapshot the schedule's current one
+    from: [Valid]
+    to: Published
+  - name: supersede
+    label: A later snapshot was published
+    from: [Published]
+    to: Superseded
+  - name: void
+    label: Void the snapshot
+    from: [Uploaded, Invalid, Valid]
+    to: Void

@@ -1,0 +1,44 @@
+# File slots of a correspondence item (brief 9 M10, 20.1). `original` is the letter or message as it
+# arrived; `attachment` holds its enclosures. `rendition` is the PDF the module renders when an item is
+# issued and `message` the raw email that was ingested: both are written by the module only (the
+# state guard refuses a person's upload into them).
+id: https://example.org/throughline/fixtures/files/correspondence-correspondence
+name: tl_fixture_correspondence_correspondence_files
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+default_range: string
+annotations:
+  tl:module: correspondence
+
+classes:
+  Correspondence:
+    annotations:
+      tl:file_slots:
+        - name: original
+          label: Original letter or message
+          cardinality: many
+          max_size: 104857600
+          retention_class: project
+        - name: attachment
+          label: Attachment
+          cardinality: many
+          max_size: 524288000
+          retention_class: project
+        - name: rendition
+          label: Issued PDF
+          cardinality: many
+          accepted_types:
+            - application/pdf
+          max_size: 52428800
+          retention_class: project
+        - name: message
+          label: Ingested email (raw)
+          cardinality: many
+          accepted_types:
+            - message/rfc822
+          max_size: 26214400
+          retention_class: project

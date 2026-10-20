@@ -1,0 +1,77 @@
+id: https://example.org/throughline/modules/correspondence/contract_clause
+name: tl_mod_correspondence_contract_clause
+title: Contract clauses (brief 9, M10 core)
+description: >-
+  A contract clause says where a time bar or a notice requirement comes from: contract, clause number,
+  title, the days allowed, who must be told and how. A clock cites a clause; a domain subtype names the
+  clauses it relies on. Spec: docs/modules/correspondence/README.md.
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+  - ../../core/annotations
+  - ../../core/record
+default_range: string
+annotations:
+  tl:module: correspondence
+
+classes:
+  ContractClause:
+    description: >-
+      One clause. Record type `correspondence.ContractClause`; its key is `<contract>/<clause number>` and the
+      title is the clause title.
+    annotations:
+      tl:current_state: true
+      tl:record_types: "correspondence.ContractClause"
+      tl:ix_scope_contract: "scope, contract"
+    attributes:
+      id:
+        identifier: true
+        range: Ulid
+        required: true
+        description: Record id; equals the ledger stream id and the `cur_core_record` id.
+      scope:
+        range: ScopeId
+        required: true
+        description: The project scope, `project:<id>`.
+      contract:
+        required: true
+        description: The contract the clause belongs to, as the project names it (`MSA-2026`).
+      clause_number:
+        required: true
+        description: The clause number as printed (`20.1`).
+      time_bar_days:
+        range: integer
+        description: Days allowed to give notice or answer; null when the clause has no time bar.
+      time_bar_day_type:
+        description: "calendar or working; null when there is no time bar."
+      notice_requirements:
+        description: What the notice must contain, in the clause's words.
+      required_recipients:
+        range: Any
+        required: true
+        annotations:
+          tl:json: true
+        description: JSON list of the contact roles that must receive the notice.
+      service_method:
+        description: "How the notice is served: email, letter, portal or hand."
+      contract_document_id:
+        range: Ulid
+        description: The `documents.Document` that holds the contract, when it is in the register.
+      domains:
+        range: Any
+        required: true
+        annotations:
+          tl:json: true
+        description: JSON list of the domain codes that cite the clause.
+      is_active:
+        range: boolean
+        required: true
+        ifabsent: "true"
+        description: False once the clause is retired; a retired clause still explains the clocks that cited it.
+      last_seq:
+        range: integer
+        required: true
+        description: Ledger `seq` of the last event applied to this row.

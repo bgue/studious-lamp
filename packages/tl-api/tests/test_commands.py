@@ -28,9 +28,10 @@ def test_every_command_in_the_table_has_a_route(harness: Harness) -> None:
     paths = harness.app.openapi()["paths"]
     assert {f"/commands/{spec.name}" for spec in COMMANDS} <= set(paths)
     # the core commands, the engineering module's (14) and the documents module's (34)
-    assert (
-        len(COMMANDS) == 20 + 14 + 24 + 10 + 4 + 3 + 5 + 6 + 1 + 3
-    )  # + derivation (P1-I3), rules and actions (P1-I7 WS-A), threads (WS-B)
+    # + the derivation pipeline (P1-I3), the cost (1) and schedule (6) modules (P1-I4), the
+    # correspondence module's 28 (P1-I5), rules and actions (P1-I7 WS-A: 4 + 3 + 5 + 6 + 1) and
+    # the thread messages (WS-B: 3)
+    assert len(COMMANDS) == 20 + 14 + 24 + 10 + 1 + 6 + 28 + 4 + 3 + 5 + 6 + 1 + 3
 
 
 def test_create_record_returns_the_command_result(harness: Harness) -> None:
@@ -219,7 +220,7 @@ def test_a_command_with_no_body_is_a_422_not_a_500(harness: Harness, spec) -> No
 
 
 def test_the_controller_actions_are_exactly_the_commands_marked_controller() -> None:
-    """The authorizer's list (ADR-0013) is derived from the typed table; this pins the twelve."""
+    """The authorizer's list (ADR-0013) is derived from the typed table; this pins them."""
     from tl_api.commands import controller_actions
 
     assert controller_actions() == {
@@ -237,6 +238,23 @@ def test_the_controller_actions_are_exactly_the_commands_marked_controller() -> 
             "OverrideReviewOutcome",
             "PublishDerivedDocuments",
             "VoidDerivedDocument",
+            # the correspondence module (P1-I5)
+            "IssueCorrespondence",
+            "VoidCorrespondence",
+            "SupersedeCorrespondence",
+            "SetCorrespondenceConfidentiality",
+            "GrantClearance",
+            "WithdrawClearance",
+            "SweepClocks",
+            "RegisterParty",
+            "AddContact",
+            "EndContact",
+            "RetireParty",
+            "DefineClause",
+            "RetireClause",
+            "DefineSchedule",
+            "PublishScheduleSnapshot",
+            "VoidScheduleSnapshot",
         )
     }
     assert {s.name for s in COMMANDS if s.access == "controller"} == {

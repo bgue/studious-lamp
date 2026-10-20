@@ -1,0 +1,74 @@
+{
+  "envelope": {
+    "data": {
+      "changes": {},
+      "detail": {
+        "as_of": "2026-09-30",
+        "measures": {
+          "amount_actual": 51240.0,
+          "amount_budget": 96000.0,
+          "amount_eac": 102440.0,
+          "amount_earned": 48000.0,
+          "amount_ftc": 51200.0,
+          "hours_actual": 640.5,
+          "hours_budget": 1200.0,
+          "hours_eac": 1280.5,
+          "hours_earned": 600.0,
+          "hours_ftc": 640.0,
+          "quantity_actual": 250.0,
+          "quantity_budget": 480.0,
+          "quantity_eac": 480.0,
+          "quantity_earned": 250.0,
+          "quantity_ftc": 230.0
+        },
+        "period": "2026-09",
+        "revision": 1,
+        "snapshot_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P6"
+      },
+      "links": [],
+      "origin": {
+        "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+        "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+        "key": "47-1234-W012",
+        "type": "core.Record",
+        "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+        "version": 7
+      }
+    },
+    "datacontenttype": "application/json",
+    "dataschema": "https://tl.example.com/schema/events/CostCode.MeasuresRecorded/1",
+    "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+    "source": "https://tl.example.com/c/acme/p/P123",
+    "specversion": "1.0",
+    "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+    "time": "2026-10-09T03:14:07.000000Z",
+    "tlactor": "user:jsmith",
+    "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+    "tlseq": 48211933,
+    "tlstreamversion": 7,
+    "type": "tl.core.CostCode.MeasuresRecorded.v1"
+  },
+  "payload": {
+    "as_of": "2026-09-30",
+    "measures": {
+      "amount_actual": 51240.0,
+      "amount_budget": 96000.0,
+      "amount_eac": 102440.0,
+      "amount_earned": 48000.0,
+      "amount_ftc": 51200.0,
+      "hours_actual": 640.5,
+      "hours_budget": 1200.0,
+      "hours_eac": 1280.5,
+      "hours_earned": 600.0,
+      "hours_ftc": 640.0,
+      "quantity_actual": 250.0,
+      "quantity_budget": 480.0,
+      "quantity_eac": 480.0,
+      "quantity_earned": 250.0,
+      "quantity_ftc": 230.0
+    },
+    "period": "2026-09",
+    "revision": 1,
+    "snapshot_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P6"
+  }
+}

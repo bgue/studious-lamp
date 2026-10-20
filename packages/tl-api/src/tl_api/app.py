@@ -49,6 +49,8 @@ from tl_api.ratelimit import RateLimitMiddleware, SourceLimiter
 from tl_api.routes import (
     admin,
     auth,
+    correspondence,
+    cost,
     derivation,
     documents,
     engineering,
@@ -61,6 +63,7 @@ from tl_api.routes import (
     proposals,
     records,
     reference,
+    schedule,
     threads,
 )
 from tl_api.routes import feed as feed_routes
@@ -282,6 +285,9 @@ def create_app(
         derivation,
         integration,
         threads,  # P1-I7 WS-B
+        correspondence,
+        schedule,
+        cost,
     ):
         app.include_router(module.router)
     app.include_router(commands.router)

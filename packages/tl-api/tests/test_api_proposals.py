@@ -138,13 +138,16 @@ def test_an_agent_token_cannot_accept_or_reject(harness: Harness) -> None:
     )
 
 
-def test_roles_travel_in_the_accept_body_and_are_bounded(harness: Harness) -> None:
+def test_the_accept_body_carries_no_roles(harness: Harness) -> None:
+    """P1-SEC1: the accepting person's workflow roles come from the account, never the body."""
     proposal = propose_create(harness)
     path = f"/proposals/{proposal.proposal_id}/accept"
-    assert harness.client.post(path, json={"roles": ["a"] * 21}).status_code == 422
-    assert harness.client.post(path, json={"roles": ["x" * 65]}).status_code == 422
+    for body in ({"roles": ["manager"]}, {"roles": []}, {"actor_roles": ["manager"]}):
+        refused = harness.client.post(path, json=body)
+        assert refused.status_code == 422, (body, refused.text)
+        assert refused.json()["error"] == "role_claim_refused"
     assert harness.client.post(path, json={"actor": BOB}).status_code == 422
-    assert harness.client.post(path, json={"roles": ["manager"]}).json()["status"] == "accepted"
+    assert harness.client.post(path, json={}).json()["status"] == "accepted"
 
 
 def test_the_queue_needs_a_token(harness: Harness) -> None:
@@ -228,9 +231,7 @@ def test_an_agent_token_cannot_run_any_record_changing_command(harness: Harness)
         assert refused, (spec.name, response.status_code, response.text)
         assert response.json()["message"] == MESSAGE
         seen.add(spec.name)
-    assert (
-        len(seen) == len(COMMANDS) - len(FEED_COMMANDS) == 64 + 4 + 3 + 5 + 6 + 1
-    )  # + rules and actions (P1-I7 WS-A)
+    assert len(seen) == len(COMMANDS) - len(FEED_COMMANDS) == 118  # incl. P1-I5 and P1-I7 WS-A
 
 
 def test_an_agent_token_can_still_post_and_read_and_a_person_can_still_change_records(

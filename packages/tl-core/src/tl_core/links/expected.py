@@ -18,6 +18,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from sqlalchemy import text
 from tl_schema.registry import default_schema_dir
 
+from tl_core import confidentiality
 from tl_core.services.errors import RecordNotFoundError
 from tl_core.uow import UnitOfWork
 
@@ -242,7 +243,7 @@ def missing_expected_links(
         .execute(text("SELECT type FROM cur_core_record WHERE id = :id"), {"id": record_id})
         .first()
     )
-    if row is None:
+    if row is None or confidentiality.is_hidden(uow.conn(), record_id):
         raise RecordNotFoundError(f"no record {record_id!r}")
     record_type = cast(str, row[0])
     if registry is None:

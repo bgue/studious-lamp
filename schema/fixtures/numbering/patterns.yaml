@@ -16,3 +16,17 @@ patterns:
     template: "{project}-{type}-{seq:4}"
     type_code: TRN
     gap_free: true
+  # Correspondence (brief 9 M10): items P123-COR-0001 and threads P123-THR-0001, allocated by the
+  # numbering allocator in the transaction that creates the record.
+  - id: correspondence.Correspondence
+    record_type: correspondence.Correspondence
+    scope: "project:*"
+    template: "{project}-{type}-{seq:4}"
+    type_code: COR
+    gap_free: true
+  - id: correspondence.CorrespondenceThread
+    record_type: correspondence.CorrespondenceThread
+    scope: "project:*"
+    template: "{project}-{type}-{seq:4}"
+    type_code: THR
+    gap_free: true

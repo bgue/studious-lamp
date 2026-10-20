@@ -17,7 +17,7 @@ from tl_core.extypes.types import TypeStatus
 from tl_core.ledger import Event
 from tl_core.links.expected import MissingLink
 from tl_core.numbering.detect import KeyChip
-from tl_core.services.commands import CommandResult, CreateRecord, UpdateRecord
+from tl_core.services.commands import Command, CommandResult, CreateRecord, UpdateRecord
 from tl_core.services.edit import EditRecord
 from tl_core.services.feed import EditPost, PostToFeed
 from tl_core.services.feed_actions import ReactToPost, RetractPost
@@ -42,6 +42,8 @@ from tl_core.threads.dispatch import DispatchFromThread
 from tl_core.threads.messages import EditThreadMessage, PostThreadMessage, RetractThreadMessage
 from tl_core.threads.planner import PreviewResult
 from tl_core.threads.queries import ThreadPage
+from tl_mod_correspondence import views as correspondence_views
+from tl_mod_cost import views as cost_views
 from tl_mod_documents import reports as document_reports
 from tl_mod_documents import views as document_views
 from tl_mod_documents.derivation import views as derivation_views
@@ -64,6 +66,12 @@ from tl_mod_documents.derivation.validation import ValidationReport
 from tl_mod_documents.handlers.transmittals import CreateTransmittal, IssueTransmittal
 from tl_mod_documents.resolver import RepinDocumentLink
 from tl_mod_engineering.views import TagView
+from tl_mod_schedule import views as schedule_views
+from tl_mod_schedule.compare import Comparison
+from tl_mod_schedule.handlers.activity import LinkActivity
+from tl_mod_schedule.handlers.publish import PublishScheduleSnapshot
+from tl_mod_schedule.lookahead import LookAhead
+from tl_mod_schedule.resolver import ActivityLink, OrphanedLink, Resolution
 from tl_schema.forms import ConformanceReport, FormMetadata
 
 
@@ -232,12 +240,20 @@ class ClientInterface(Protocol):
 
     # --- workflow (P0-I3; brief 8) ------------------------------------------------------------
 
-    def workflow_status(self, record_id: str, *, roles: Sequence[str] = ()) -> WorkflowStatus:
-        """State, state-entered time and every transition with its guard results."""
+    def workflow_status(self, record_id: str) -> WorkflowStatus:
+        """State, state-entered time and every transition with its guard results.
+
+        Role guards are judged for the signed-in account: the roles are derived from it, never
+        chosen by the caller (ADR-0013, addendum P1-SEC1).
+        """
         ...
 
     def transition(self, cmd: TransitionWorkflow) -> CommandResult:
-        """Run a transition; raises ``GuardFailedError`` (with ``results``) when blocked."""
+        """Run a transition; raises ``GuardFailedError`` (with ``results``) when blocked.
+
+        The command carries no roles: the server (or the embedded client) derives them from the
+        signed-in account.
+        """
         ...
 
     # --- feed (P0-I6; brief 21) ---------------------------------------------------------------
@@ -399,6 +415,97 @@ class ClientInterface(Protocol):
         """Issue a draft transmittal (a controller's act: ``ForbiddenError`` for anyone else)."""
         ...
 
+    # --- correspondence (P1-I5; brief 9 M10) -------------------------------------------------
+    #
+    # The same names and signatures as ``tl_api.client.ApiClient``. ``project`` is the project id.
+    # An item the person may not read is not in a list and raises ``ItemNotFoundError`` by number,
+    # with the text of an item that does not exist (ADR-0016). ``correspondence_command`` runs a
+    # command of ``tl_mod_correspondence.commands`` by name; issuing, setting a class, voiding a
+    # received item, replacing an item, parties, clauses and the sweep are a document
+    # controller's (``ForbiddenError`` for anyone else).
+
+    def list_correspondence(
+        self,
+        project: str,
+        *,
+        state: str | None = None,
+        direction: str | None = None,
+        domain: str | None = None,
+        subtype: str | None = None,
+        awaiting_response: bool = False,
+        include_void: bool = False,
+        sources: bool = True,
+        limit: int = 500,
+        offset: int = 0,
+    ) -> list[correspondence_views.RegisterLineView]:
+        """The master register: items plus the lines of the domains' register sources."""
+        ...
+
+    def get_correspondence(self, project: str, number: str) -> correspondence_views.ItemView:
+        """One item with its clocks."""
+        ...
+
+    def get_correspondence_suggestion(
+        self, project: str, number: str
+    ) -> correspondence_views.SuggestionView:
+        """The domain and subtype the suggestion engine proposes for an item."""
+        ...
+
+    def suggest_domain(
+        self, project: str, subject: str, body: str | None = None
+    ) -> correspondence_views.SuggestionView:
+        """The proposal of the suggestion engine for a text."""
+        ...
+
+    def list_threads(
+        self, project: str, *, state: str | None = None
+    ) -> list[correspondence_views.ThreadView]:
+        """A project's threads, newest first."""
+        ...
+
+    def get_thread(self, project: str, number: str) -> correspondence_views.ThreadView:
+        """One thread with the items the person may read."""
+        ...
+
+    def list_clocks(
+        self,
+        project: str,
+        *,
+        open_only: bool = True,
+        overdue_only: bool = False,
+        due_to: date | None = None,
+    ) -> list[correspondence_views.ClockView]:
+        """Response clocks, soonest due first, with days left as of today."""
+        ...
+
+    def get_clock(self, project: str, clock_id: str) -> correspondence_views.ClockView:
+        """One clock."""
+        ...
+
+    def list_parties(
+        self, project: str, *, include_inactive: bool = False
+    ) -> list[correspondence_views.PartyView]:
+        """A project's parties with their contacts."""
+        ...
+
+    def get_party(self, project: str, code: str) -> correspondence_views.PartyView:
+        """One party with its contacts."""
+        ...
+
+    def list_clauses(
+        self, project: str, *, include_inactive: bool = False
+    ) -> list[correspondence_views.ClauseView]:
+        """A project's contract clauses."""
+        ...
+
+    def list_correspondence_domains(self, project: str) -> list[correspondence_views.DomainView]:
+        """The domain definitions in force for a project."""
+        ...
+
+    def correspondence_command(self, name: str, cmd: Command) -> CommandResult:
+        """Run a correspondence command by name (the token's or the signed-in person's actor)."""
+        ...
+
     # --- derivation (P1-I3; ADR-0014) --------------------------------------------------------
     #
     # The same names and signatures as ``tl_api.client.ApiClient``. ``project`` is the project id;
@@ -512,6 +619,124 @@ class ClientInterface(Protocol):
 
     def compensate_publication(self, cmd: CompensatePublication) -> CommandResult:
         """Roll back the publication in force (admin; all or nothing)."""
+        ...
+
+    # --- schedules and cost (P1-I4; brief 9 M11) ---------------------------------------------
+    #
+    # The same names and signatures as ``tl_api.client.ApiClient``. ``project`` is the project id,
+    # ``code`` a schedule's code, snapshots are named by their number within the schedule (left
+    # out: the current one). A missing schedule, snapshot, activity or cost code raises the
+    # module's ``ScheduleNotFoundError`` / ``SnapshotNotFoundError`` / ``ActivityNotFoundError`` /
+    # ``CostCodeNotFoundError``; a snapshot that is not built has no activities
+    # (``SnapshotStateError``). Publishing is a document controller's act (``ForbiddenError`` for
+    # anyone else); linking is any signed-in person's. Uploading, building and importing are CLI
+    # operations (``tl xer``, ``tl cost``).
+
+    def list_schedules(self, project: str) -> list[schedule_views.ScheduleView]:
+        """A project's schedules by code, without snapshots."""
+        ...
+
+    def get_schedule(
+        self,
+        project: str,
+        code: str,
+        *,
+        limit: int = schedule_views.DEFAULT_SNAPSHOT_PAGE,
+        offset: int = 0,
+    ) -> schedule_views.ScheduleDetailView:
+        """One schedule with a page of its snapshots, newest first (`snapshot_count`: all)."""
+        ...
+
+    def get_schedule_snapshot(
+        self, project: str, code: str, number: int
+    ) -> schedule_views.SnapshotView:
+        """One snapshot by number."""
+        ...
+
+    def list_activities(
+        self,
+        project: str,
+        code: str,
+        *,
+        snapshot: int | None = None,
+        critical: bool | None = None,
+        status: str | None = None,
+        q: str | None = None,
+        limit: int = 200,
+        offset: int = 0,
+    ) -> schedule_views.ActivityPage:
+        """A page of a built snapshot's activities in file order, and how many matched."""
+        ...
+
+    def compare_snapshots(
+        self,
+        project: str,
+        code: str,
+        *,
+        new: int | None = None,
+        old: int | None = None,
+        limit: int = schedule_views.DEFAULT_COMPARE_LIMIT,
+    ) -> Comparison:
+        """What changed between two built snapshots (default: the current and the one before)."""
+        ...
+
+    def get_look_ahead(
+        self, project: str, code: str, *, snapshot: int | None = None, weeks: int = 4
+    ) -> LookAhead:
+        """What is under way and what starts in the next ``weeks`` (1 to 26) of the data date."""
+        ...
+
+    def list_orphaned_links(self, project: str, code: str) -> list[OrphanedLink]:
+        """Links the last publication flagged because their activity left the schedule."""
+        ...
+
+    def get_schedule_activity(
+        self, project: str, code: str, activity_id: str, *, snapshot: int | None = None
+    ) -> schedule_views.ActivityDetail:
+        """One activity with the relationships that name it."""
+        ...
+
+    def get_activity_trend(
+        self, project: str, code: str, activity_id: str
+    ) -> list[schedule_views.TrendPoint]:
+        """The activity's float and dates in every published snapshot, oldest first."""
+        ...
+
+    def resolve_activity(
+        self, project: str, code: str, activity_id: str, *, as_of: str | None = None
+    ) -> Resolution:
+        """What the activity is now, or as of a snapshot number or a date (``state`` says which)."""
+        ...
+
+    def list_activity_links(self, project: str, record_id: str) -> list[ActivityLink]:
+        """The activity links of a record and what each resolves to now."""
+        ...
+
+    def link_activity(self, cmd: LinkActivity) -> CommandResult:
+        """Link a record to an activity by its stable id (any signed-in person)."""
+        ...
+
+    def publish_schedule_snapshot(self, cmd: PublishScheduleSnapshot) -> CommandResult:
+        """Make a valid snapshot the current one (controller or admin)."""
+        ...
+
+    def list_cost_snapshots(self, project: str) -> list[cost_views.CostSnapshotView]:
+        """A project's cost snapshots, newest period and revision first."""
+        ...
+
+    def list_cost_codes(
+        self,
+        project: str,
+        *,
+        parent: str | None = None,
+        q: str | None = None,
+        limit: int = 1000,
+    ) -> list[cost_views.CostCodeView]:
+        """A project's cost codes by code with the latest figures stated for each."""
+        ...
+
+    def get_cost_code(self, project: str, code: str) -> cost_views.CostCodeDetailView:
+        """One cost code with its children and the figures of every snapshot."""
         ...
 
     # --- settings (P0-I8; brief 30) -----------------------------------------------------------

@@ -26,8 +26,9 @@ context manager that yields an entered unit of work.
 
 Not a permission model (human gate, ADR-0005): the only rule here is the meaning of "accept". An
 ``agent:<id>`` never accepts, rejects or fails a proposal, and an agent cannot claim workflow roles
-(``TransitionWorkflow.actor_roles`` is trusted input, so a proposal carries none; the accepting
-person supplies them).
+(a ``TransitionWorkflow`` has no roles field: the accepting person's roles are an argument of
+``accept_proposal``, derived by the entry point from the authenticated account,
+``tl_core.workflow.roles.workflow_roles``).
 """
 
 from __future__ import annotations
@@ -43,6 +44,7 @@ from typing import Any, Protocol, cast
 from pydantic import ValidationError
 from sqlalchemy import Connection, text
 
+from tl_core import confidentiality
 from tl_core.integration.contract import CommandRunner, InvokeAction
 from tl_core.ledger import ConcurrencyError, NewEvent
 from tl_core.modules import module_proposables
@@ -314,13 +316,48 @@ def _view(row: Any, conn: Connection | None = None) -> ProposalView:
     )
 
 
+_ULID = re.compile(r"[0-9A-HJKMNP-TV-Z]{26}")
+
+
+def _carried_ids(value: Any, found: set[str], depth: int = 0) -> None:
+    """Record-id shaped strings anywhere in a proposed command (bounded depth and count)."""
+    if depth > 8 or len(found) > 200:
+        return
+    if isinstance(value, str):
+        if _ULID.fullmatch(value):
+            found.add(value)
+    elif isinstance(value, dict):
+        for item in cast("dict[str, Any]", value).values():
+            _carried_ids(item, found, depth + 1)
+    elif isinstance(value, list):
+        for item in cast("list[Any]", value):
+            _carried_ids(item, found, depth + 1)
+
+
+def _readable(conn: Connection, views: list[ProposalView]) -> list[ProposalView]:
+    """The proposals that carry no id of a record the viewer may not read (ADR-0016)."""
+    carried: dict[str, set[str]] = {}
+    for view in views:
+        ids: set[str] = set()
+        _carried_ids(view.command, ids)
+        carried[view.proposal_id] = ids
+    every: set[str] = set()
+    for ids in carried.values():
+        every |= ids
+    hidden = confidentiality.hidden_among(conn, sorted(every))
+    return [v for v in views if not (carried[v.proposal_id] & hidden)]
+
+
 def get_proposal(conn: Connection, proposal_id: str, *, scope: str | None = None) -> ProposalView:
     """One proposal. Raises ``ProposalNotFoundError`` for an unknown id, or one of another scope
-    when ``scope`` is given."""
+    when ``scope`` is given, or one that carries a record the viewer may not read (ADR-0016)."""
     row = conn.execute(_BY_ID_SQL, {"proposal_id": proposal_id}).first()
     if row is None or (scope is not None and row.scope != scope):
         raise ProposalNotFoundError(f"no proposal {proposal_id!r}")
-    return _view(row, conn)
+    shown = _readable(conn, [_view(row, conn)])
+    if not shown:
+        raise ProposalNotFoundError(f"no proposal {proposal_id!r}")
+    return shown[0]
 
 
 def list_proposals(
@@ -342,7 +379,7 @@ def list_proposals(
         clauses.append("agent = :agent")
         params["agent"] = agent
     sql = f"{_COLUMNS} WHERE {' AND '.join(clauses)} ORDER BY seq ASC LIMIT :limit"
-    return [_view(row, conn) for row in conn.execute(text(sql), params).all()]
+    return _readable(conn, [_view(row, conn) for row in conn.execute(text(sql), params).all()])
 
 
 def proposals_today(conn: Connection, agent: str, *, now: datetime | None = None) -> int:
@@ -370,10 +407,6 @@ def _check_proposal(tool: str, agent: str, command: Command, summary: str) -> st
     clean = summary.strip()
     if not clean or len(clean) > MAX_SUMMARY:
         raise InvalidProposalError(f"summary must be 1 to {MAX_SUMMARY} characters")
-    if isinstance(command, TransitionWorkflow) and command.actor_roles:
-        raise InvalidProposalError(
-            "an agent cannot claim workflow roles; the person who accepts supplies them"
-        )
     if isinstance(command, ChangeSetting) and command.accept_risk:
         raise InvalidProposalError(
             "an agent cannot accept a risk; the person who accepts the proposal decides"
@@ -477,10 +510,6 @@ def propose_for_rule(
     clean = summary.strip()
     if not clean or len(clean) > MAX_SUMMARY:
         raise InvalidProposalError(f"summary must be 1 to {MAX_SUMMARY} characters")
-    if isinstance(command, TransitionWorkflow) and command.actor_roles:
-        raise InvalidProposalError(
-            "a rule cannot claim workflow roles; the person who accepts supplies them"
-        )
     if isinstance(command, AddLink) and command.link_source != "rule":
         raise InvalidProposalError("a link a rule proposes has the link source 'rule'")
     source = source_for(proposer)
@@ -730,11 +759,13 @@ def accept_proposal(
     ``by`` must be a person (``ProposalDeciderError``); the proposal must be pending
     (``ProposalNotPendingError``). The command runs with ``actor`` = ``by``, ``source`` =
     ``mcp:<agent>``, ``causation_id`` = the ``Proposal.Created`` event and ``correlation_id`` = the
-    proposal id. ``roles`` are the workflow roles ``by`` holds, used by a transition (a stub until
-    auth exists, brief 8). ``accept_risk`` is the person's "I accept the risk" for a setting change
-    on a ``dangerous`` key (the stored command never carries it). If the command is refused its
-    error propagates and the caller's block rolls back; callers use :func:`accept_or_fail`, which
-    then records ``Proposal.Failed``. ``source`` labels the decision event (``cli``, ``api``).
+    proposal id. ``roles`` are the workflow roles ``by`` holds, used by a transition: the caller
+    derives them from the authenticated account (``tl_core.workflow.roles.workflow_roles``), never
+    from what the person typed, and a stored command carries none. ``accept_risk`` is the person's
+    "I accept the risk" for a setting change on a ``dangerous`` key (the stored command never
+    carries it). If the command is refused its error propagates and the caller's block rolls back;
+    callers use :func:`accept_or_fail`, which then records ``Proposal.Failed``. ``source`` labels
+    the decision event (``cli``, ``api``).
 
     ``holds(level)`` tells whether ``by`` holds the ``controller`` or ``admin`` access a command may
     need (ADR-0014): the command runs as ``by`` and gets no more rights through a proposal than
@@ -767,12 +798,13 @@ def accept_proposal(
 
         if wants_current_version(model):
             data["expected_version"] = stream_version_now(uow.conn(), str(data["stream_id"]))
-    if model is TransitionWorkflow:
-        data["actor_roles"] = list(roles)
+    data.pop("actor_roles", None)  # a stored command never carries roles; none is honoured
     if model is ChangeSetting:
         data["accept_risk"] = accept_risk
     command = model.model_validate(data)
-    if isinstance(command, DispatchFromThread):
+    if isinstance(command, TransitionWorkflow):
+        result = handle_transition_workflow(uow, command, roles=roles)
+    elif isinstance(command, DispatchFromThread):
         if runner is None or holds is None:
             raise ProposalAccessError(
                 "a dispatch proposal is accepted where commands can run, with the accepting "

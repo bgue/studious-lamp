@@ -74,6 +74,27 @@ def held_access(conn: Connection, actor: str) -> Access | None:
     return None
 
 
+def workflow_roles_of(conn: Connection, actor: str) -> tuple[str, ...]:
+    """The workflow roles ``actor`` holds (ADR-0013, addendum P1-SEC1): those of its account when it
+    is a person, none for an agent and none for a service actor, so a rule or a mapping that
+    transitions a workflow passes no ``roles`` guard (it fails closed, as intended)."""
+    from tl_core.workflow.roles import workflow_roles
+
+    if not actor.startswith("user:"):
+        return ()
+    try:
+        account = find_account(conn, username=actor.split(":", 1)[1])
+    except Exception:  # an unusable name is no account
+        return ()
+    if (
+        account is None
+        or account.status != "active"
+        or actor != actor_for(account.kind, account.username)
+    ):
+        return ()
+    return workflow_roles(account)
+
+
 def require_access(conn: Connection, actor: str, needed: Access | None, what: str) -> Access:
     """The access ``actor`` holds when it covers ``needed``; else :class:`CommandAccessError`."""
     held = held_access(conn, actor)
@@ -91,4 +112,4 @@ def holds_for(held: Access) -> Callable[[Access], bool]:
     return holds
 
 
-__all__ = ["held_access", "holds_for", "require_access"]
+__all__ = ["held_access", "holds_for", "require_access", "workflow_roles_of"]

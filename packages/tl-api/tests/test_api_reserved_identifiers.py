@@ -22,6 +22,8 @@ BODY = {"scope": SCOPE, "number": "ISO-9001", "title": "A document"}
         {"causation_id": "derive:anything"},
         {"source": "import:derived-01J9Z6Q4W3X2Y1V0T9S8R7Q6PB"},
         {"source": "compensation:01J9Z6Q4W3X2Y1V0T9S8R7Q6PB"},
+        {"source": "svc:schedule"},
+        {"source": "svc:anything"},
     ],
 )
 def test_a_client_command_with_a_reserved_identifier_is_refused_and_writes_nothing(
@@ -77,6 +79,7 @@ RESERVED_VALUES = [
         {"causation_id": f"{prefix}:01J9Z6Q4W3X2Y1V0T9S8R7Q6PB"}
         for prefix in ("inbound", "rule", "action", "dispatch")
     ),
+    {"source": "svc:schedule"},
 ]
 
 

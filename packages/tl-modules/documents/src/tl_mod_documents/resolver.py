@@ -33,6 +33,7 @@ from typing import Literal
 
 from pydantic import ConfigDict, Field
 from sqlalchemy import Connection, text
+from tl_core import confidentiality
 from tl_core.ledger import Event
 from tl_core.services.commands import Command, CommandResult
 from tl_core.services.errors import RecordNotFoundError
@@ -43,6 +44,7 @@ from tl_core.services.links import (
     handle_add_link,
     handle_flag_link,
     handle_repin_link,
+    require_link_visible,
 )
 from tl_core.uow import UnitOfWork
 
@@ -182,6 +184,11 @@ def links_to_documents(
     if document_id is not None:
         sql += " AND l.to_id = :document_id"
         params["document_id"] = document_id
+    # both ends must be readable (ADR-0016): the document, and the record that links to it
+    for end in ("d.id", "x.id"):
+        visible, visible_params = confidentiality.not_hidden(end)
+        sql += f" AND {visible}"
+        params.update(visible_params)
     sql += " ORDER BY d.key, x.key, l.link_id LIMIT :limit"
     found: list[PinnedLink] = []
     for row in conn.execute(text(sql), params).all():
@@ -478,6 +485,9 @@ def handle_repin_document_link(uow: UnitOfWork, cmd: RepinDocumentLink) -> Comma
     link = uow.conn().execute(_LINK_SQL, {"id": cmd.link_id}).first()
     if link is None or link.scope != cmd.scope:
         raise RecordNotFoundError(f"no link {cmd.link_id!r} in scope {cmd.scope!r}")
+    require_link_visible(
+        uow, link, cmd.link_id, cmd.scope, RecordNotFoundError
+    )  # a link to a hidden record: none
     document = registry.get_document(uow.conn(), link.to_id)
     if document is None:
         raise InvalidPinError("this link does not point to a document")

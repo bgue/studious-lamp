@@ -15,6 +15,7 @@ from mcp.server.mcpserver.exceptions import ResourceError, ToolError
 from pydantic import ValidationError
 from tl_api.auth import Forbidden
 from tl_api.errors import ApiError
+from tl_core import confidentiality
 from tl_core.ledger import ConcurrencyError
 from tl_core.query import QuerySyntaxError
 from tl_core.services.errors import ServiceError
@@ -95,7 +96,10 @@ def guarded(
     try:
         check_parts(parts)
         ctx.authorize(ctx.actor, f"mcp.{tool}", resource)
-        yield
+        # An agent reads as the lowest clearance (ADR-0016 section 3): set here, on every call,
+        # not left to the default of the context variable.
+        with confidentiality.use_viewer(confidentiality.LOWEST):
+            yield
     except (ToolError, ResourceError):
         raise
     except Forbidden as exc:

@@ -1,0 +1,33 @@
+id: https://example.org/throughline/modules/correspondence
+name: tl_mod_correspondence
+title: "The correspondence module (M10, correspondence core and domain layer)"
+description: >-
+  Formal correspondence (brief 9, M10): a `Correspondence` item is a letter, email, portal message or
+  minute that is received or issued, sits in one thread, belongs to a domain (General, Document control,
+  later Technical, Commercial, Legal ...) and carries `ResponseClock`s that count calendar or working days
+  on a project calendar. `Party` and `ContactRole` say who the senders and recipients are, `ContractClause`
+  where a time bar comes from, and `CorrespondenceDomain` (a stand-alone definition format, not a table)
+  says what each domain configures.
+
+  Storage rule (ADR-0010): every record of this module is a row of `cur_core_record` and also a row of the
+  module's own current-state table, joined on `id`. The tables are generated from the classes below that
+  carry `tl:current_state`; the projectors in `packages/tl-modules/correspondence` write them.
+  Confidentiality (ADR-0016): the `confidentiality` column of `Correspondence` is read by the core
+  confidentiality filters; an unknown class is hidden. Module spec: docs/modules/correspondence/README.md.
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+  - ../../core/annotations
+  - ../../core/record
+  - correspondence
+  - thread
+  - response_clock
+  - contract_clause
+  - party
+  - events
+default_range: string
+annotations:
+  tl:module: correspondence

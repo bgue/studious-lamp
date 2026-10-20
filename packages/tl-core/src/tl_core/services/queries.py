@@ -12,6 +12,7 @@ from typing import Any, Literal
 from sqlalchemy import text
 from sqlalchemy.engine import RowMapping
 
+from tl_core import confidentiality
 from tl_core.ledger import Event
 from tl_core.uow import UnitOfWork
 
@@ -21,8 +22,15 @@ _SELECT = (
     "FROM cur_core_record"
 )
 
-_GET_SQL = text(_SELECT + " WHERE scope = :scope AND key = :key")
-_GET_BY_ID_SQL = text(_SELECT + " WHERE id = :id")
+_GET_SQL = " WHERE scope = :scope AND key = :key"
+_GET_BY_ID_SQL = " WHERE id = :id"
+
+
+def _readable(where: str, params: dict[str, Any]) -> Any:
+    """``SELECT ... where`` with the viewer's hidden records left out (ADR-0016)."""
+    clause, extra = confidentiality.not_hidden("id")
+    params.update(extra)
+    return text(f"{_SELECT}{where} AND {clause}")
 
 
 def _envelope(row: RowMapping) -> dict[str, Any]:
@@ -53,7 +61,8 @@ def envelope_from_row(row: RowMapping) -> dict[str, Any]:
 
 def get_record(uow: UnitOfWork, scope: str, key: str) -> dict[str, Any] | None:
     """The record with this ``(scope, key)``, voided or not; ``None`` when no row matches."""
-    row = uow.conn().execute(_GET_SQL, {"scope": scope, "key": key}).mappings().first()
+    params: dict[str, Any] = {"scope": scope, "key": key}
+    row = uow.conn().execute(_readable(_GET_SQL, params), params).mappings().first()
     if row is None:
         return None
     return _envelope(row)
@@ -61,15 +70,21 @@ def get_record(uow: UnitOfWork, scope: str, key: str) -> dict[str, Any] | None:
 
 def get_record_by_id(uow: UnitOfWork, record_id: str) -> dict[str, Any] | None:
     """The record with this ``id`` (its stream id), voided or not; ``None`` when no row matches."""
-    row = uow.conn().execute(_GET_BY_ID_SQL, {"id": record_id}).mappings().first()
+    params: dict[str, Any] = {"id": record_id}
+    row = uow.conn().execute(_readable(_GET_BY_ID_SQL, params), params).mappings().first()
     if row is None:
         return None
     return _envelope(row)
 
 
 def record_history(uow: UnitOfWork, record_id: str) -> list[Event]:
-    """Every event of a record's stream in version order; empty when the record is unknown."""
-    return uow.ledger.read_stream(record_id)
+    """Every event of a stream in version order; empty when the stream is unknown or the viewer
+    may not read it (ADR-0016)."""
+    if confidentiality.is_hidden(uow.conn(), record_id):
+        return []
+    # the id may also be a file, a link or a feed item: the events of those about a hidden record
+    # are hidden too (the walking test of the routes found this)
+    return confidentiality.filter_events(uow.conn(), uow.ledger.read_stream(record_id))
 
 
 SORTABLE_COLUMNS = frozenset(
@@ -108,6 +123,9 @@ def list_records(
         raise ValueError(f"offset must not be negative, got {offset}")
     clauses: list[str] = ["scope = :scope"]
     params: dict[str, Any] = {"scope": scope}
+    visible, visible_params = confidentiality.not_hidden("id")
+    clauses.append(visible)
+    params.update(visible_params)
     if status is not None:
         clauses.append("status = :status")
         params["status"] = status

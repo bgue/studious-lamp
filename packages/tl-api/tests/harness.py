@@ -18,7 +18,8 @@ from typing import Any, cast
 import uvicorn
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from tl_adapters.db import DbTarget, make_uow_factory
+from tl_adapters.backend import open_backend
+from tl_adapters.db import DbTarget
 from tl_adapters.objectstore.fs import FsObjectStore
 from tl_adapters.sqlite.factory import SqliteUowFactory
 from tl_adapters.sqlite.uow import create_schema
@@ -53,6 +54,7 @@ class Harness:
     tokens: dict[str, str]  # actor -> token
     settings: ApiSettings
     _clients: list[TestClient] = field(default_factory=list[TestClient])
+    target: DbTarget | None = None  # the database as the adapters name it (Postgres: its URL)
 
     @staticmethod
     def build(
@@ -73,9 +75,9 @@ class Harness:
             create_schema(db)
             backend = SqliteUowFactory(db)
         else:
-            # PostgresUowFactory has the same call shape; only the app's `Backend` protocol (which
-            # asks for `close`) tells them apart, and the API does not serve Postgres yet.
-            backend = cast(SqliteUowFactory, make_uow_factory(target))
+            # The backend `tl serve` opens: it has the same call shape as the SQLite factory and
+            # the `ledger` and `close` the app's `Backend` protocol asks for.
+            backend = cast(SqliteUowFactory, open_backend(target))
         tokens_path = root / "tokens.json"
         tokens = {ALICE: add_token(tokens_path, ALICE), BOB: add_token(tokens_path, BOB)}
         store = FsObjectStore(root / "objects", secret=b"k")
@@ -94,12 +96,15 @@ class Harness:
             files_service=service if files else None,
             object_store=store,
         )
-        return Harness(root, db, backend, app, service, store, tokens, settings)
+        return Harness(
+            root, db, backend, app, service, store, tokens, settings, target=target or db
+        )
 
     def close(self) -> None:
         for client in self._clients:
             client.close()
-        self.backend.dispose()
+        closer = getattr(self.backend, "close", None) or self.backend.dispose
+        closer()
 
     # --- calling the app -----------------------------------------------------------------
 

@@ -118,6 +118,24 @@
       "version": 1
     },
     {
+      "ce_type": "tl.core.ActivityRef.Defined.v1",
+      "event_type": "ActivityRef.Defined",
+      "payload_class": "ActivityRefDefinedPayload",
+      "sample": "samples/ActivityRef.Defined.v1.json",
+      "schema": "schemas/ActivityRef.Defined.v1.json",
+      "title": "The first link to an activity made its reference.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.ActivityRef.PresenceChanged.v1",
+      "event_type": "ActivityRef.PresenceChanged",
+      "payload_class": "ActivityRefPresencePayload",
+      "sample": "samples/ActivityRef.PresenceChanged.v1.json",
+      "schema": "schemas/ActivityRef.PresenceChanged.v1.json",
+      "title": "A publication found the activity gone from the schedule (present false) or back (present true).",
+      "version": 1
+    },
+    {
       "ce_type": "tl.core.AgentToken.Issued.v1",
       "event_type": "AgentToken.Issued",
       "payload_class": "AgentTokenIssuedPayload",
@@ -151,6 +169,186 @@
       "sample": "samples/CodeValue.Defined.v1.json",
       "schema": "schemas/CodeValue.Defined.v1.json",
       "title": "A value was added to a code list.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.ContractClause.Defined.v1",
+      "event_type": "ContractClause.Defined",
+      "payload_class": "ContractClauseDefinedPayload",
+      "sample": "samples/ContractClause.Defined.v1.json",
+      "schema": "schemas/ContractClause.Defined.v1.json",
+      "title": "A contract clause was entered.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.ContractClause.Retired.v1",
+      "event_type": "ContractClause.Retired",
+      "payload_class": "ContractClauseRetiredPayload",
+      "sample": "samples/ContractClause.Retired.v1.json",
+      "schema": "schemas/ContractClause.Retired.v1.json",
+      "title": "A clause was retired; clocks that cited it keep their reference.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Correspondence.ClearanceGranted.v1",
+      "event_type": "Correspondence.ClearanceGranted",
+      "payload_class": "CorrespondenceClearanceGrantedPayload",
+      "sample": "samples/Correspondence.ClearanceGranted.v1.json",
+      "schema": "schemas/Correspondence.ClearanceGranted.v1.json",
+      "title": "An account was named as able to read a privileged item (ADR-0016).",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Correspondence.ClearanceWithdrawn.v1",
+      "event_type": "Correspondence.ClearanceWithdrawn",
+      "payload_class": "CorrespondenceClearanceWithdrawnPayload",
+      "sample": "samples/Correspondence.ClearanceWithdrawn.v1.json",
+      "schema": "schemas/Correspondence.ClearanceWithdrawn.v1.json",
+      "title": "An account was removed from the readers of a privileged item.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Correspondence.ConfidentialityChanged.v1",
+      "event_type": "Correspondence.ConfidentialityChanged",
+      "payload_class": "CorrespondenceConfidentialityChangedPayload",
+      "sample": "samples/Correspondence.ConfidentialityChanged.v1.json",
+      "schema": "schemas/Correspondence.ConfidentialityChanged.v1.json",
+      "title": "The confidentiality class of an item changed (a controller's act, ADR-0016).",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Correspondence.Defined.v1",
+      "event_type": "Correspondence.Defined",
+      "payload_class": "CorrespondenceDefinedPayload",
+      "sample": "samples/Correspondence.Defined.v1.json",
+      "schema": "schemas/Correspondence.Defined.v1.json",
+      "title": "A correspondence item was received, drafted or logged.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Correspondence.Issued.v1",
+      "event_type": "Correspondence.Issued",
+      "payload_class": "CorrespondenceIssuedPayload",
+      "sample": "samples/Correspondence.Issued.v1.json",
+      "schema": "schemas/Correspondence.Issued.v1.json",
+      "title": "An outgoing item was issued: its text was rendered to a PDF (stored in the slot `rendition`) and sent.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Correspondence.Reclassified.v1",
+      "event_type": "Correspondence.Reclassified",
+      "payload_class": "CorrespondenceReclassifiedPayload",
+      "sample": "samples/Correspondence.Reclassified.v1.json",
+      "schema": "schemas/Correspondence.Reclassified.v1.json",
+      "title": "The domain or subtype of an item changed before it was issued.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Correspondence.Responded.v1",
+      "event_type": "Correspondence.Responded",
+      "payload_class": "CorrespondenceRespondedPayload",
+      "sample": "samples/Correspondence.Responded.v1.json",
+      "schema": "schemas/Correspondence.Responded.v1.json",
+      "title": "An answer to an item was issued or received.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Correspondence.Superseded.v1",
+      "event_type": "Correspondence.Superseded",
+      "payload_class": "CorrespondenceSupersededPayload",
+      "sample": "samples/Correspondence.Superseded.v1.json",
+      "schema": "schemas/Correspondence.Superseded.v1.json",
+      "title": "An item was replaced by another item; it stays in the ledger.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Correspondence.ThreadAssigned.v1",
+      "event_type": "Correspondence.ThreadAssigned",
+      "payload_class": "CorrespondenceThreadAssignedPayload",
+      "sample": "samples/Correspondence.ThreadAssigned.v1.json",
+      "schema": "schemas/Correspondence.ThreadAssigned.v1.json",
+      "title": "An item joined a thread, and optionally answers another item.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Correspondence.Triaged.v1",
+      "event_type": "Correspondence.Triaged",
+      "payload_class": "CorrespondenceTriagedPayload",
+      "sample": "samples/Correspondence.Triaged.v1.json",
+      "schema": "schemas/Correspondence.Triaged.v1.json",
+      "title": "A person confirmed the domain and subtype of a received item, with the records it refers to and the clocks that were started.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Correspondence.Updated.v1",
+      "event_type": "Correspondence.Updated",
+      "payload_class": "CorrespondenceUpdatedPayload",
+      "sample": "samples/Correspondence.Updated.v1.json",
+      "schema": "schemas/Correspondence.Updated.v1.json",
+      "title": "The register fields of a draft or received item changed (the subject changes through the core `Record.Updated`).",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.CorrespondenceThread.Defined.v1",
+      "event_type": "CorrespondenceThread.Defined",
+      "payload_class": "CorrespondenceThreadDefinedPayload",
+      "sample": "samples/CorrespondenceThread.Defined.v1.json",
+      "schema": "schemas/CorrespondenceThread.Defined.v1.json",
+      "title": "A thread was opened by its first item.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.CorrespondenceThread.ItemAdded.v1",
+      "event_type": "CorrespondenceThread.ItemAdded",
+      "payload_class": "CorrespondenceThreadItemAddedPayload",
+      "sample": "samples/CorrespondenceThread.ItemAdded.v1.json",
+      "schema": "schemas/CorrespondenceThread.ItemAdded.v1.json",
+      "title": "An item joined the thread.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.CorrespondenceThread.StateChanged.v1",
+      "event_type": "CorrespondenceThread.StateChanged",
+      "payload_class": "CorrespondenceThreadStateChangedPayload",
+      "sample": "samples/CorrespondenceThread.StateChanged.v1.json",
+      "schema": "schemas/CorrespondenceThread.StateChanged.v1.json",
+      "title": "A thread was closed or reopened.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.CostCode.Defined.v1",
+      "event_type": "CostCode.Defined",
+      "payload_class": "CostCodeDefinedPayload",
+      "sample": "samples/CostCode.Defined.v1.json",
+      "schema": "schemas/CostCode.Defined.v1.json",
+      "title": "A cost code was registered (by the first snapshot that names it).",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.CostCode.MeasuresRecorded.v1",
+      "event_type": "CostCode.MeasuresRecorded",
+      "payload_class": "CostCodeMeasuresRecordedPayload",
+      "sample": "samples/CostCode.MeasuresRecorded.v1.json",
+      "schema": "schemas/CostCode.MeasuresRecorded.v1.json",
+      "title": "A snapshot stated the figures of a cost code.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.CostCode.Revised.v1",
+      "event_type": "CostCode.Revised",
+      "payload_class": "CostCodeRevisedPayload",
+      "sample": "samples/CostCode.Revised.v1.json",
+      "schema": "schemas/CostCode.Revised.v1.json",
+      "title": "A snapshot changed the description, parent or unit of measure of an existing cost code.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.CostSnapshot.Defined.v1",
+      "event_type": "CostSnapshot.Defined",
+      "payload_class": "CostSnapshotDefinedPayload",
+      "sample": "samples/CostSnapshot.Defined.v1.json",
+      "schema": "schemas/CostSnapshot.Defined.v1.json",
+      "title": "A period of figures was imported.",
       "version": 1
     },
     {
@@ -577,6 +775,42 @@
       "version": 1
     },
     {
+      "ce_type": "tl.core.Party.ContactAdded.v1",
+      "event_type": "Party.ContactAdded",
+      "payload_class": "PartyContactAddedPayload",
+      "sample": "samples/Party.ContactAdded.v1.json",
+      "schema": "schemas/Party.ContactAdded.v1.json",
+      "title": "A contact was added to a party.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Party.ContactEnded.v1",
+      "event_type": "Party.ContactEnded",
+      "payload_class": "PartyContactEndedPayload",
+      "sample": "samples/Party.ContactEnded.v1.json",
+      "schema": "schemas/Party.ContactEnded.v1.json",
+      "title": "A contact was ended.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Party.Defined.v1",
+      "event_type": "Party.Defined",
+      "payload_class": "PartyDefinedPayload",
+      "sample": "samples/Party.Defined.v1.json",
+      "schema": "schemas/Party.Defined.v1.json",
+      "title": "A party was entered, with its first contacts.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Party.Retired.v1",
+      "event_type": "Party.Retired",
+      "payload_class": "PartyRetiredPayload",
+      "sample": "samples/Party.Retired.v1.json",
+      "schema": "schemas/Party.Retired.v1.json",
+      "title": "A party was retired.",
+      "version": 1
+    },
+    {
       "ce_type": "tl.core.ProcessingJob.Cancelled.v1",
       "event_type": "ProcessingJob.Cancelled",
       "payload_class": "ProcessingJobCancelledPayload",
@@ -730,6 +964,78 @@
       "version": 1
     },
     {
+      "ce_type": "tl.core.ResponseClock.Cancelled.v1",
+      "event_type": "ResponseClock.Cancelled",
+      "payload_class": "ResponseClockCancelledPayload",
+      "sample": "samples/ResponseClock.Cancelled.v1.json",
+      "schema": "schemas/ResponseClock.Cancelled.v1.json",
+      "title": "The clock was cancelled: no answer is needed any more.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.ResponseClock.Expired.v1",
+      "event_type": "ResponseClock.Expired",
+      "payload_class": "ResponseClockExpiredPayload",
+      "sample": "samples/ResponseClock.Expired.v1.json",
+      "schema": "schemas/ResponseClock.Expired.v1.json",
+      "title": "The sweep found a running clock past its due date.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.ResponseClock.Met.v1",
+      "event_type": "ResponseClock.Met",
+      "payload_class": "ResponseClockMetPayload",
+      "sample": "samples/ResponseClock.Met.v1.json",
+      "schema": "schemas/ResponseClock.Met.v1.json",
+      "title": "The clock was met: the answer came in time (or late; the date says which).",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.ResponseClock.Paused.v1",
+      "event_type": "ResponseClock.Paused",
+      "payload_class": "ResponseClockPausedPayload",
+      "sample": "samples/ResponseClock.Paused.v1.json",
+      "schema": "schemas/ResponseClock.Paused.v1.json",
+      "title": "A clock was paused; the days of the pause do not count.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.ResponseClock.Restarted.v1",
+      "event_type": "ResponseClock.Restarted",
+      "payload_class": "ResponseClockRestartedPayload",
+      "sample": "samples/ResponseClock.Restarted.v1.json",
+      "schema": "schemas/ResponseClock.Restarted.v1.json",
+      "title": "A clock started its count again from a new day zero, with the same parameters.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.ResponseClock.Resumed.v1",
+      "event_type": "ResponseClock.Resumed",
+      "payload_class": "ResponseClockResumedPayload",
+      "sample": "samples/ResponseClock.Resumed.v1.json",
+      "schema": "schemas/ResponseClock.Resumed.v1.json",
+      "title": "A paused clock ran again; the due date moved by the days of the pause.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.ResponseClock.Started.v1",
+      "event_type": "ResponseClock.Started",
+      "payload_class": "ResponseClockStartedPayload",
+      "sample": "samples/ResponseClock.Started.v1.json",
+      "schema": "schemas/ResponseClock.Started.v1.json",
+      "title": "A response clock started.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.ResponseClock.Warned.v1",
+      "event_type": "ResponseClock.Warned",
+      "payload_class": "ResponseClockWarnedPayload",
+      "sample": "samples/ResponseClock.Warned.v1.json",
+      "schema": "schemas/ResponseClock.Warned.v1.json",
+      "title": "The sweep found a running clock at or inside a warning threshold smaller than the last one raised.",
+      "version": 1
+    },
+    {
       "ce_type": "tl.core.ReviewCycle.Closed.v1",
       "event_type": "ReviewCycle.Closed",
       "payload_class": "ReviewCycleClosedPayload",
@@ -826,6 +1132,96 @@
       "sample": "samples/Rule.Revised.v1.json",
       "schema": "schemas/Rule.Revised.v1.json",
       "title": "A rule was revised; the event carries the whole new rule.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Schedule.Defined.v1",
+      "event_type": "Schedule.Defined",
+      "payload_class": "ScheduleDefinedPayload",
+      "sample": "samples/Schedule.Defined.v1.json",
+      "schema": "schemas/Schedule.Defined.v1.json",
+      "title": "A schedule was registered.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Schedule.OrphansChecked.v1",
+      "event_type": "Schedule.OrphansChecked",
+      "payload_class": "ScheduleOrphansCheckedPayload",
+      "sample": "samples/Schedule.OrphansChecked.v1.json",
+      "schema": "schemas/Schedule.OrphansChecked.v1.json",
+      "title": "One run of the job that makes the links to a schedule's activities agree with its current snapshot (ADR-0015 section 5): activity references whose presence changed, links flagged stale (their activity is gone) and links restored (it came back).",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Schedule.SnapshotPublished.v1",
+      "event_type": "Schedule.SnapshotPublished",
+      "payload_class": "ScheduleSnapshotPublishedPayload",
+      "sample": "samples/Schedule.SnapshotPublished.v1.json",
+      "schema": "schemas/Schedule.SnapshotPublished.v1.json",
+      "title": "A snapshot became the schedule's current one.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.ScheduleSnapshot.BuildFailed.v1",
+      "event_type": "ScheduleSnapshot.BuildFailed",
+      "payload_class": "ScheduleSnapshotBuildFailedPayload",
+      "sample": "samples/ScheduleSnapshot.BuildFailed.v1.json",
+      "schema": "schemas/ScheduleSnapshot.BuildFailed.v1.json",
+      "title": "A build attempt failed (a limit breach, a crash, a lease that ran out).",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.ScheduleSnapshot.BuildStarted.v1",
+      "event_type": "ScheduleSnapshot.BuildStarted",
+      "payload_class": "ScheduleSnapshotBuildStartedPayload",
+      "sample": "samples/ScheduleSnapshot.BuildStarted.v1.json",
+      "schema": "schemas/ScheduleSnapshot.BuildStarted.v1.json",
+      "title": "A worker claimed the build.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.ScheduleSnapshot.Built.v1",
+      "event_type": "ScheduleSnapshot.Built",
+      "payload_class": "ScheduleSnapshotBuiltPayload",
+      "sample": "samples/ScheduleSnapshot.Built.v1.json",
+      "schema": "schemas/ScheduleSnapshot.Built.v1.json",
+      "title": "The file was read and passed the XER document schema; the typed rows were written.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.ScheduleSnapshot.Defined.v1",
+      "event_type": "ScheduleSnapshot.Defined",
+      "payload_class": "ScheduleSnapshotDefinedPayload",
+      "sample": "samples/ScheduleSnapshot.Defined.v1.json",
+      "schema": "schemas/ScheduleSnapshot.Defined.v1.json",
+      "title": "A snapshot was opened for a schedule; the XER file is attached next.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.ScheduleSnapshot.MadeCurrent.v1",
+      "event_type": "ScheduleSnapshot.MadeCurrent",
+      "payload_class": "ScheduleSnapshotMadeCurrentPayload",
+      "sample": "samples/ScheduleSnapshot.MadeCurrent.v1.json",
+      "schema": "schemas/ScheduleSnapshot.MadeCurrent.v1.json",
+      "title": "A snapshot was made the schedule's current one.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.ScheduleSnapshot.Queued.v1",
+      "event_type": "ScheduleSnapshot.Queued",
+      "payload_class": "ScheduleSnapshotQueuedPayload",
+      "sample": "samples/ScheduleSnapshot.Queued.v1.json",
+      "schema": "schemas/ScheduleSnapshot.Queued.v1.json",
+      "title": "The build of a snapshot was queued: the XER file is fixed.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.ScheduleSnapshot.Rejected.v1",
+      "event_type": "ScheduleSnapshot.Rejected",
+      "payload_class": "ScheduleSnapshotRejectedPayload",
+      "sample": "samples/ScheduleSnapshot.Rejected.v1.json",
+      "schema": "schemas/ScheduleSnapshot.Rejected.v1.json",
+      "title": "The file was read and is not a valid schedule snapshot (or could not be read): the snapshot is Invalid and no rows were written.",
       "version": 1
     },
     {
