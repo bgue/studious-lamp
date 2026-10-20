@@ -36,8 +36,9 @@ def diff(ctx: typer.Context, ref: _Ref) -> None:
 
     The base is the version `analyse` compared with, so before `analyse` it prints
     `not analysed: run tl schema package analyse <ref>`; a first version prints
-    `no base to compare with (first version)`; a version with the same content as its base prints
-    `no differences from <base>`. A diff that was cut ends with the line `(diff cut)`.
+    `no base to compare with (first version)`. A later version always differs from its base (the
+    version line at least), so an empty diff after `analyse` can only be a first version. A diff
+    that was cut ends with the line `(diff cut)`.
     """
     db: DbTarget = ctx.obj
     require_session(db)
@@ -46,10 +47,8 @@ def diff(ctx: typer.Context, ref: _Ref) -> None:
     if not detail.diff:
         if detail.classification is None:
             typer.echo(f"not analysed: run tl schema package analyse {ref}")
-        elif detail.base_ref is None:
-            typer.echo("no base to compare with (first version)")
         else:
-            typer.echo(f"no differences from {detail.base_ref}")
+            typer.echo("no base to compare with (first version)")
         return
     typer.echo(detail.diff.rstrip("\n"))
     if detail.diff_truncated:

@@ -71,15 +71,6 @@ def long_edit(data: dict[str, Any]) -> None:
         properties[f"extra_{n:03d}"] = {"description": f"Extra property {n}.", "range": "string"}
 
 
-def test_a_version_with_the_content_of_its_base_has_no_differences(
-    env: dict[str, str], tmp_path: Path
-) -> None:
-    as_admin(env)
-    ref = draft(env, tmp_path, "3.3.0", lambda data: None)
-    pkg(env, "analyse", ref)
-    assert pkg(env, "diff", ref).stdout.strip() == f"no differences from {NAME}@3.2.0"
-
-
 def test_a_long_diff_is_cut_and_says_so(env: dict[str, str], tmp_path: Path) -> None:
     as_admin(env)
     ref = draft(env, tmp_path, "3.3.0", long_edit)
