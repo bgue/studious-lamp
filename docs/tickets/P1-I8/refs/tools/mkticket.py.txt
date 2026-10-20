@@ -7,7 +7,7 @@ out, spec = sys.argv[1], sys.argv[2]
 T = runpy.run_path(spec)["T"]
 def fence(lang, text): return f"```{lang}\n{text.rstrip()}\n```"
 parts = [f"# {T['id']} — {T['title']}", "",
- "Status: ready", "Tier: haiku", f"Labels: {T['labels']}", f"Depends on: {T['depends']}", f"Branch: `{T['branch']}`", "",
+ "Status: ready", "Tier: haiku", f"Review: {T['review']}", f"Labels: {T['labels']}", f"Depends on: {T['depends']}", f"Branch: `{T['branch']}`", "",
  "## Goal", T['goal'].strip(), "",
  "## Brief references (pasted)", T['brief'].strip(), ""]
 if T.get('spec'):

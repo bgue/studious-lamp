@@ -1,5 +1,5 @@
 import runpy
-COMMON = runpy.run_path("/tmp/claude-0/-home-user-studious-lamp/c1e9f617-74c2-581f-aa0c-d2601bd9e1da/scratchpad/i8/t05a1_spec.py")["COMMON_LEARNINGS"]
+COMMON = runpy.run_path("/home/user/wt/p1-i8/docs/tickets/P1-I8/refs/tools/t05a1_spec.py.txt")["COMMON_LEARNINGS"]
 T = dict(
  id="P1-I8-T05a2",
  title="`tl schema package publish|deprecate|retire` and `tl schema adopt|adoptions|drift`",

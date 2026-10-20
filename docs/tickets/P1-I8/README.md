@@ -24,6 +24,7 @@ A schema steward drafts a package, sees its classification and impact, has it re
 | S6 | T06: module `legacy` (`LoadRun`), the stage framework (extract in the envelope, bronze, profile, plan, load, reconcile, compensate), `tl load`, the reserved `legacy:` and `load:` prefixes | Untrusted files, bulk writes, compensation | security pass + orchestrator review | done (c65c7ab) |
 | S7 | References, stubs, provided tests and tickets, batch by batch (T05a1, T07a first) | Ticket scaffolding | — | in-progress |
 | S8 | Demo wiring, docs, runbooks, report | — | — | planned |
+| S9 | Conformance dashboard `conformance_dashboard()` and `tl schema conformance` (was T05b: it counts records as the viewer) | Access path over `cur_core_record` | orchestrator review | dispatched r2 |
 
 ## Tickets
 | ID | Title | Tier | Depends | Status | Outcome |
@@ -33,21 +34,21 @@ A schema steward drafts a package, sees its classification and impact, has it re
 | T03 | Impact report: records, columns, views, mappings, reports, MCP schemas | H | S1, S2 | merged (07c7bb7) | passed first review; dotted pset names fixed after (see report) |
 | T04a | Workbench TUI: package tree, property table, lint, diff | H | S5 | draft | |
 | T04b | Workbench TUI: impact, test on sample, review and publish | H | S5, T03, T04a | draft | |
-| T05a1 | `tl schema package diff\|classify\|impact\|test` | H | S5, T03 | ready | |
-| T05a2 | `tl schema package publish\|deprecate\|retire` and `tl schema adopt\|adoptions\|drift` | H | S5, T05a1 | ready (after T05a1 merges) | |
-| T05a3 | `tl schema waiver request\|approve\|revoke\|ls` | H | S5 | draft | |
+| T05a1 | `tl schema package diff\|classify\|impact\|test` | H | S5, T03 | merged | |
+| T05a2 | `tl schema package publish\|deprecate\|retire` and `tl schema adopt\|adoptions\|drift` | H | S5, T05a1 | merged (538cdff) | |
+| T05a3 | `tl schema waiver request\|approve\|revoke\|ls` | H | S5 | dispatched r2 | |
 | T05a4 | `tl schema crosswalk\|export-git\|import-git` | H | S5 | draft | |
-| T05b | Conformance dashboard (report function, `tl schema conformance`) | H | S5 | draft | |
+| T05b | Conformance dashboard | — | — | folded into S9 | a read over records as the viewer: a piece, not a ticket |
 | T06 | Loader framework: `legacy.LoadRun` and the stages | S | — | done (S6) | built by supervisor |
-| T07a | Loader `dms-register`: document register CSV or workbook | H | S6 | ready | the reconciliation report stays a file of the run (see Risks) |
-| T07b | Loaders `instrument-index` (workbook or CSV) and `equipment-list` (workbook) | H | S6, T07a | ready (after T07a merges) | line list: see Risks |
+| T07a | Loader `dms-register`: document register CSV or workbook | H | S6 | merged | the reconciliation report stays a file of the run (see Risks) |
+| T07b | Loaders `instrument-index` (workbook or CSV) and `equipment-list` (workbook) | H | S6, T07a | merged | line list: see Risks |
 | T08 | Lake marts: documents (status, turnaround, issues) and schedule history | H | S1, S2 | merged (3fb9c0a) | passed first review; empty snapshots are skipped as the snapshot before (decision, test added) |
 | T09 | Phase-exit demo script: PDF, derived, published, feed, webhook receiver; `just demo P1-I8` | H | all | draft | |
 | T10 | Phase report, risk register, ADRs | O | T09 | orchestrator | not written here |
 
 ## Order of work
 1. Done: S1 to S6, batch 1 (T03, T08).
-2. Batch 2: T05a1 and T07a. Then, as each pair merges: T07b and T05a2; T05a3 and T05b; T05a4 and T04a; T04b; T09; the gates, the demo, the report.
+2. Merged: T05a1, T05a2, T07a, T07b. Batch r2: T05a3 and S9 (T05b). Then T05a4 and T04a; T04b; T09; the gates, the demo, the report.
 
 ## Risks and escalation triggers
 - **Effective-hash churn.** Every change under `schema/core` moves the core digest and so every effective schema hash; tests that pin a hash or the list of generated files move with it. Run the shards after each schema change.
