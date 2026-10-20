@@ -1,10 +1,4 @@
-# ruff: noqa: F401
-# pyright: reportUnusedImport=false
-"""The loader `dms-register`: the document register export of the incumbent DMS (P1-I8-T07a).
-
-STUB: this file is the interface P1-I8-T07a implements. Remove this paragraph, the two directive
-lines above and every STEPS comment when you implement it.
-"""
+"""The loader `dms-register`: the document register export of the incumbent DMS (P1-I8-T07a)."""
 
 from __future__ import annotations
 
@@ -18,9 +12,12 @@ def loader() -> LoaderDef:
 
     The mapping template is the data file ``mappings/dms-register.yaml`` of this package.
     """
-    # STEPS
-    # 1. Return a LoaderDef with name "dms-register", system "dms", table "register", target
-    #    "documents", description "Document register export of the incumbent DMS (CSV or XLSX).",
-    #    mapping_text read_mapping("dms-register.yaml"), file_types ("csv", "xlsx"). Leave the
-    #    other fields at their defaults.
-    raise NotImplementedError("STEPS: see the comments")
+    return LoaderDef(
+        name="dms-register",
+        system="dms",
+        table="register",
+        target="documents",
+        description="Document register export of the incumbent DMS (CSV or XLSX).",
+        mapping_text=read_mapping("dms-register.yaml"),
+        file_types=("csv", "xlsx"),
+    )
