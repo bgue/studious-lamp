@@ -242,29 +242,46 @@ def test_the_rfi_and_commercial_routes_show_each_reader_only_what_they_may_read(
         assert (secret in trail.text) is False, reader
 
 
+def feed_cards(client: Any, token: str) -> list[dict[str, Any]]:
+    """Every card of the project's feed that the token's reader is given, page by page."""
+    cards: list[dict[str, Any]] = []
+    before_seq: int | None = None
+    for _ in range(20):
+        query: dict[str, Any] = {"scope": SCOPE, "item_type": "card", "limit": 200}
+        if before_seq is not None:
+            query["before_seq"] = before_seq
+        page = client.get(
+            "/feed", params=query, headers={"Authorization": f"Bearer {token}"}
+        ).json()
+        cards += page["items"]
+        before_seq = page.get("next_before")
+        if before_seq is None:
+            break
+    return cards
+
+
 @pytest.mark.parametrize("reader", sorted(MAY_READ))
 def test_the_feed_cards_do_not_tell_a_reader_what_happened_to_what_they_may_not_read(
     harness: Harness, seeded: Seed, reader: str
 ) -> None:
     """A card's summary names the kind of record and the act, not a token: "ctl defined a
-    commercial" or "ctl clearancegranted 2 correspondence" says that a hidden item exists."""
+    commercial" or "ctl clearancegranted 2 correspondence" says that a hidden item exists, and so
+    does "svc:scanner processed a file" for the file of a restricted item."""
     client = harness.client_for(None)
-    headers = {"Authorization": f"Bearer {seeded.tokens[reader]}"}
-    cards = []
-    before_seq: int | None = None
-    for _ in range(20):  # every page of the project's feed
-        query: dict[str, Any] = {"scope": SCOPE, "item_type": "card", "limit": 200}
-        if before_seq is not None:
-            query["before_seq"] = before_seq
-        page = client.get("/feed", params=query, headers=headers).json()
-        cards += page["items"]
-        before_seq = page.get("next_before")
-        if before_seq is None:
-            break
+    cards = feed_cards(client, seeded.tokens[reader])
     assert cards, reader  # the open items make cards for everybody
     said = " ".join(str(card["summary"]) for card in cards).lower()
     assert ("commercial" in said) == ("commercial" in MAY_READ[reader]), (reader, said)
     assert ("clearancegranted" in said) == ("secret_rfi" in MAY_READ[reader]), (reader, said)
+
+    def scans(found: list[dict[str, Any]]) -> int:
+        return sum(1 for card in found if "processed" in str(card["summary"]).lower())
+
+    plain = scans(feed_cards(client, seeded.tokens["bob"]))
+    mine = scans(cards)
+    assert plain > 0
+    # the readers of the restricted file are given its scan card, nobody else
+    assert (mine > plain) if "file" in MAY_READ[reader] else (mine == plain), (reader, mine, plain)
 
 
 @pytest.mark.parametrize("reader", sorted(MAY_READ))

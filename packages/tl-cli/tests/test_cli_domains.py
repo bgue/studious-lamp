@@ -250,8 +250,10 @@ def test_the_export_file_is_private_and_is_never_replaced_or_followed_by_acciden
     out.write_text("keep me")
     refused = run(cast.dora, "comm", "export", *PROJECT, "--out", str(out), ok=False)
     assert "exists already; use --force" in refused.stderr and out.read_text() == "keep me"
+    out.chmod(0o644)  # an older, looser file
     run(cast.dora, "comm", "export", *PROJECT, "--out", str(out), "--force")
     assert out.read_text().startswith("number,kind,title")
+    assert out.stat().st_mode & 0o777 == 0o600  # replaced, and private again
     elsewhere = tmp_path / "elsewhere.txt"
     elsewhere.write_text("not mine")
     link = tmp_path / "link.csv"

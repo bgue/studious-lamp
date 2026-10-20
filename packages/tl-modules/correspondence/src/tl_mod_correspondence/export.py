@@ -35,7 +35,7 @@ from tl_core import confidentiality
 from tl_core.auth.errors import ForbiddenError
 
 from tl_mod_correspondence import registry, registry_domain, views
-from tl_mod_correspondence.errors import ExportClassError
+from tl_mod_correspondence.errors import ExportClassError, ExportTooLargeError
 from tl_mod_correspondence.handlers.common import today as module_today
 from tl_mod_correspondence.names import (
     ST_AWAITING_ASSESSMENT,
@@ -123,8 +123,9 @@ def commercial_export(
 ) -> ExportResult:
     """The pending and approved changes of ``scope`` for the classes named.
 
-    Raises ``ExportClassError`` (``privileged``, or a class that is none) and ``ForbiddenError``
-    (``restricted`` for a viewer below a document controller).
+    Raises ``ExportClassError`` (``privileged``, or a class that is none), ``ForbiddenError``
+    (``restricted`` for a viewer below a document controller) and ``ExportTooLargeError`` (more
+    than ``MAX_ROWS`` items).
     """
     named = _check_classes(classes)
     day = date.fromisoformat(today or module_today())
@@ -132,7 +133,7 @@ def commercial_export(
     left_out: dict[str, int] = {}
     found = registry_domain.list_commercial(conn, scope, limit=MAX_ROWS + 1)
     if len(found) > MAX_ROWS:
-        raise ExportClassError(
+        raise ExportTooLargeError(
             f"the register holds more than {MAX_ROWS} Commercial items; an export of this size "
             "is not supported in one file, narrow the scope or export in parts"
         )

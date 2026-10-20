@@ -10,7 +10,7 @@ from tl_adapters.db import open_uow
 from tl_core import confidentiality as cf
 from tl_core.auth.errors import ForbiddenError
 from tl_mod_correspondence import export as ex
-from tl_mod_correspondence.errors import ExportClassError
+from tl_mod_correspondence.errors import ExportClassError, ExportTooLargeError
 from tl_mod_correspondence.testing import (
     CONTROLLER,
     PROJECT,
@@ -233,7 +233,7 @@ def test_a_register_too_big_for_one_file_is_refused_not_cut_short(
     monkeypatch.setattr(ex, "MAX_ROWS", 2)
     for n in range(1, 4):
         world.forge_commercial(f"P123-EW-000{n}", state="Awaiting assessment")
-    with pytest.raises(ExportClassError, match="more than 2"):
+    with pytest.raises(ExportTooLargeError, match="more than 2"):
         export(world)
     monkeypatch.setattr(ex, "MAX_ROWS", 3)
     assert len(export(world).rows) == 3

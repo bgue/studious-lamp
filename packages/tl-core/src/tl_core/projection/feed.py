@@ -58,6 +58,7 @@ _INSERT_ITEM_SQL = text(
     ":event_type, :event_count, :first_us, :first_seq, :open_scope, :retracted, "
     ":retract_reason, :edit_count, :reactions_json, :version)"
 )
+_FILE_RECORD_SQL = text("SELECT record_id FROM cur_files WHERE file_id = :file_id")
 _INSERT_TAG_SQL = text(
     "INSERT INTO cur_feed_tags (tag_row_id, item_id, scope, kind, tag_text, tag_key, namespace, "
     "record_id, start_pos, end_pos, seq) VALUES (:tag_row_id, :item_id, :scope, :kind, "
@@ -271,6 +272,18 @@ class FeedProjector:
 
     # --- cards ------------------------------------------------------------------------------
 
+    @staticmethod
+    def _subjects(conn: Connection, event: Event) -> list[str]:
+        """The records the card of ``event`` is about: ``subjects_of``, and for a file event that
+        names none (``File.Processed`` and ``File.Rejected`` carry the file, not the record) the
+        record the file belongs to, so that a card about a file of a hidden record is hidden with
+        it (ADR-0016; the P1-I6 security re-check)."""
+        found = subjects_of(event)
+        if found or not event.event_type.startswith("File."):
+            return found
+        row = conn.execute(_FILE_RECORD_SQL, {"file_id": event.stream_id}).first()
+        return [str(row.record_id)] if row is not None and row.record_id else []
+
     def _cards(self, conn: Connection, event: Event) -> None:
         found = conn.execute(_OPEN_CARD_SQL, {"scope": event.scope, "seq": event.seq}).first()
         open_card = (
@@ -333,7 +346,7 @@ class FeedProjector:
                     "version": None,
                 },
             )
-        for record_id in subjects_of(event):
+        for record_id in self._subjects(conn, event):
             params = _tag_params(
                 card_id,
                 event.scope,

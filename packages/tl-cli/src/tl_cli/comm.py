@@ -471,6 +471,7 @@ def _write_private(path: Path, text: str, *, force: bool) -> None:
     except OSError as exc:
         raise typer.BadParameter(f"cannot write {path}: {exc.strerror}") from None
     with os.fdopen(fd, "w", encoding="utf-8", newline="") as handle:
+        os.fchmod(handle.fileno(), 0o600)  # a file replaced with --force keeps no looser mode
         handle.write(text)
 
 
