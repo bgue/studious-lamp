@@ -13,9 +13,12 @@
 #      at depth 3;
 #   3  doc_classifier proposes a doc_type for a registered document; a person accepts it from the
 #      review queue and it reads back from psets.enrich.doc_classifier.doc_type;
+#   4  the same action runs from a record thread: `/dispatch send_to_nde method=UT` on V-1001, as
+#      a person, previewed and confirmed (workstream B's /dispatch); the receiver verifies a
+#      second signed POST and the invocation is by the person who dispatched it. (It runs after
+#      clause 5 in this script because it needs the action that clause defines.)
 #   5  action send_to_nde (a signed webhook to the loopback receiver, allow-listed) is invoked and
-#      the receiver verifies it. Workstream B's clause 4 runs the same action from a thread's
-#      /dispatch; it is added to this script when that workstream is merged.
+#      the receiver verifies it;
 #   6  a user cannot author anything here; no signing secret is in the ledger; the kill switch stops
 #      the layer at once.
 #
@@ -206,6 +209,19 @@ run_backend() {
   out="$(as amy tl action invocations)"; echo "$out"
   expect "completed" "$out"
   driver action "$workdir"
+
+  step "[$backend] clause 4: the same action, run from a record thread's /dispatch"
+  refuse "threads are not switched on" as amy tl thread post --project P123 V-1001 "too early"
+  as demo tl config set threads.enabled true --company --reason "the demo" >/dev/null
+  as demo tl config set threads.enabled_types core.Record --company --reason "the demo" >/dev/null
+  out="$(as amy tl thread preview --project P123 V-1001 "/dispatch send_to_nde method=UT")"; echo "$out"
+  expect "send_to_nde" "$out"
+  out="$(as amy tl thread dispatch --project P123 V-1001 "/dispatch send_to_nde method=UT" --yes)"; echo "$out"
+  expect "dispatched" "$out"
+  as demo tl integration serve --once >/dev/null
+  for _ in $(seq 1 50); do [ "$(wc -l <"$workdir/receiver.log")" -ge 2 ] && break; sleep 0.1; done
+  driver thread-action "$workdir"
+  echo "PASS 4: an action ran from a thread's /dispatch and the receiver verified it"
 
   step "[$backend] clause 6: no secret in the ledger; the kill switch stops the layer"
   driver secrets "$workdir"

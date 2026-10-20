@@ -280,6 +280,22 @@ def action(directory: str) -> None:
     passed("5a", "the receiver verified the signature of one POST naming send_to_nde and V-1001")
 
 
+def thread_action(directory: str) -> None:
+    log = [json.loads(line) for line in (Path(directory) / "receiver.log").read_text().splitlines()]
+    assert len(log) == 2, log
+    entry = log[1]
+    assert entry["verified"] and entry["path"] == "/hook", entry
+    event = entry["event"]
+    assert event["action"] == "send_to_nde" and event["parameters"] == {"method": "UT"}, event
+    assert [t["key"] for t in event["targets"]] == ["V-1001"], event
+    runs = rows(
+        "SELECT invoked_by, status, parameters_json FROM cur_action_invocation ORDER BY seq"
+    )
+    assert [r["status"] for r in runs] == ["completed", "completed"], runs
+    assert runs[0]["invoked_by"] == runs[1]["invoked_by"] == "user:amy", runs
+    passed("4a", "the thread's /dispatch ran send_to_nde as user:amy and the receiver verified it")
+
+
 def secrets(directory: str) -> None:
     """No signing secret is in any event payload or operational row the demo made."""
     needles = [
@@ -318,6 +334,8 @@ def main(argv: list[str]) -> None:
         enrichment()
     elif mode == "action":
         action(argv[1])
+    elif mode == "thread-action":
+        thread_action(argv[1])
     elif mode == "secrets":
         secrets(argv[1])
     else:

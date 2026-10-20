@@ -23,8 +23,13 @@ of work, with the server-set source `thread:<record id>` and correlation id `dis
    request: `holds(level)` comes from the client layer (ADR-0014 section 8). `threads.agents.can_dispatch = none`
    refuses `propose_dispatch`.
 2. **Visibility is the record's.** Every thread read and write loads the record through
-   `tl_core.threads.visibility.readable_record`; an unreadable record is the record route's 404. P1-I5's
-   confidentiality filters plug in at that one function when the workstreams integrate.
+   `tl_core.threads.visibility.readable_record`; an unreadable record is the record route's 404. ADR-0016
+   confidentiality is that function's default filter (`confidential_read`, the caller's viewer from its account):
+   a thread of a restricted or privileged record the caller cannot read answers as a record that is not there,
+   on read, post, preview, dispatch and the thread webhooks, and its events are hidden from the change feed
+   (`hidden_event_streams`). `resolve_keys` treats such a record as an unknown key and `resolve_mentions` treats
+   an account that cannot read the thread's record as an unknown account, so neither is an existence oracle; a
+   dispatch proposal is listed only to those who can read its record.
 3. **Messages never dispatch.** `PostThreadMessage` stores a body that starts with `/` as the text it is.
    Dispatch is `DispatchFromThread`, reached only through the preview and confirm routes (no entry in the generic
    command table) and, for agents, through a proposal. Edit and retract are the author's, and only for messages of
