@@ -1,0 +1,45 @@
+# Append to packages/tl-api/tests/test_rfi_escalation_rule.py after T05b is merged.
+
+
+def test_raise_rfi_in_a_thread_previews_a_real_rfi_of_the_module(
+    harness: Harness, corr: CorrWorld, parity_accounts: None
+) -> None:
+    """With the module installed the core placeholder is replaced (T05b): `/raise rfi` plans a
+    `RaiseTechnical`, not a labelled core record."""
+    from tl_adapters.db import open_uow
+    from tl_api.commands import command_runner
+    from tl_core import settings
+    from tl_core.threads.contract import DispatchPreview
+    from tl_core.threads.planner import ThreadPlanner
+
+    with harness.backend(False) as uow, cf.system_view():
+        for key, value in (
+            ("threads.enabled", True),
+            ("threads.enabled_types", ["correspondence.TechnicalItem"]),
+        ):
+            settings.set_setting(
+                uow,
+                key=key,
+                layer="company",
+                value=value,
+                actor="user:boss",
+                source="t",
+                reason="t",
+            )
+    with frozen_today(MONDAY):
+        first = corr.raise_technical()
+    planner = ThreadPlanner(
+        factory=lambda readonly=False: open_uow(harness.target or harness.db, readonly=readonly)
+    )
+    with open_uow(harness.target or harness.db, readonly=True) as uow:
+        found = planner.preview(
+            uow,
+            record_id=first.stream_id,
+            text=f"/raise rfi #{first.key} Clash with line 47",
+            actor="user:bob",
+            holds={"user"}.__contains__,
+            runner=command_runner(),
+        )
+    assert isinstance(found, DispatchPreview), found
+    assert found.problems == [] and found.can_dispatch
+    assert [p.command_type for p in found.planned] == ["RaiseTechnical"]
