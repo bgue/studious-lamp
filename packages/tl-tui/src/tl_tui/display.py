@@ -170,4 +170,5 @@ def find_technical(text: str, labels: Labels | None = None) -> list[str]:
         for match in DOMAIN_KEY_PATTERN.finditer(text):
             if match.group(1) in labels.domains:
                 hits.append((match.start(), match.group(0)))
-    return [token for _, token in sorted(hits)]
+    # Two patterns can match the same span (foo@1.2.3 is both a package and a calendar ref).
+    return [token for _, token in sorted(set(hits))]

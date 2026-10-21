@@ -239,3 +239,17 @@ def test_find_technical_ignores_plain_sentences() -> None:
     for text in plain:
         assert find_technical(text, labels) == [], text
         assert find_technical(text) == [], text
+
+
+def test_find_technical_reports_a_dotless_package_ref_once() -> None:
+    # PACKAGE_PATTERN and CALENDAR_REF_PATTERN both match foo@1.2.3 at the same place
+    assert find_technical("foo@1.2.3") == ["foo@1.2.3"]
+
+
+def test_find_technical_reports_a_dotted_package_ref_once() -> None:
+    assert find_technical("co.acme.engineering@3.2.0") == ["co.acme.engineering@3.2.0"]
+
+
+def test_find_technical_keeps_a_repeated_token_at_each_place() -> None:
+    # dedupe is by (start, token), not by token: the same ULID twice is two hits
+    assert find_technical(f"{ULID} then {ULID}") == [ULID, ULID]
