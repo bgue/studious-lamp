@@ -55,7 +55,8 @@ def test_the_preview_shows_the_counts_the_rows_and_what_it_asks() -> None:
     async def steps(pilot: Pilot[None], app: TlApp, screen: PublishPreviewScreen) -> None:
         text = screen_text(app)
         assert f"Publish {GOOD}" in text
-        assert f"{GOOD} pass 2 to tags (instrument-index@1.0.0)" in text
+        assert f"{GOOD} pass 2 to tags (Instrument index)" in text
+        assert "instrument-index@1.0.0" not in text
         assert "create 2  exists 1  differs 0  invalid 0" in text
         assert "rows exist already: publishing needs 'skip existing'" in text
         assert screen.query_one("#pp-table", DataTable).row_count == 3

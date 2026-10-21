@@ -29,6 +29,7 @@ from tl_mod_documents.derivation.publish import (
 )
 
 from tl_tui.client import ClientInterface
+from tl_tui.display import mode_of
 from tl_tui.derive_text import (
     PLAN_COLUMNS,
     can_apply,
@@ -135,7 +136,7 @@ class PublishPreviewScreen(ModalScreen[bool]):
             header.update("")
             detail.update("")
             return
-        header.update("\n".join(plan_header_lines(plan)))
+        header.update("\n".join(plan_header_lines(plan, technical=mode_of(self.app).technical)))
         for cells in plan_cells(plan, MAX_PLAN_ROWS):
             table.add_row(*(Text(cell) for cell in cells))
         if self.show_compensation and self.compensation is not None:
