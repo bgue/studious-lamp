@@ -14,6 +14,7 @@ from textual.app import ComposeResult
 from textual.pilot import Pilot
 from textual.screen import ModalScreen
 from textual.widget import Widget
+from textual.widgets import Input, TextArea
 from tl_tui.app import TlApp
 from tl_tui.display import REFUSAL
 from tl_tui.widgets.footer import TlFooter
@@ -53,6 +54,14 @@ class ProbeScreen(ModalScreen[None]):
 
     def refresh_for_display_mode(self) -> None:
         self.own_calls += 1
+
+
+class FieldScreen(ModalScreen[None]):
+    """A modal with one text field of each kind; the test focuses the one it needs."""
+
+    def compose(self) -> ComposeResult:
+        yield Input(value="abcd", id="field")
+        yield TextArea("abcd", id="area")
 
 
 def test_admin_ctrl_d_switches_technical_mode_on_and_off() -> None:
@@ -170,3 +179,79 @@ def test_mode_is_off_at_start_and_not_remembered() -> None:
     second = app_for(is_admin=True)
     assert second.display_mode.technical is False
     assert first.display_mode is not second.display_mode
+
+
+def test_ctrl_d_in_an_input_deletes_a_character_and_the_mode_stays() -> None:
+    app = app_for(is_admin=True)
+
+    async def scenario(pilot: Pilot[Any]) -> None:
+        await pilot.pause()
+        app.push_screen(FieldScreen())
+        await pilot.pause()
+        field = app.screen.query_one("#field", Input)
+        field.focus()
+        await pilot.pause()
+        field.cursor_position = 0
+        await pilot.press("ctrl+d")
+        await pilot.pause()
+        assert field.value == "bcd"
+        assert app.display_mode.technical is False
+        assert "Technical details on" not in screen_text(app)
+
+    run_pilot(app, scenario)
+
+
+def test_ctrl_d_in_a_text_area_deletes_a_character_and_the_mode_stays() -> None:
+    app = app_for(is_admin=True)
+
+    async def scenario(pilot: Pilot[Any]) -> None:
+        await pilot.pause()
+        app.push_screen(FieldScreen())
+        await pilot.pause()
+        area = app.screen.query_one("#area", TextArea)
+        area.focus()
+        await pilot.pause()
+        area.move_cursor((0, 0))
+        await pilot.press("ctrl+d")
+        await pilot.pause()
+        assert area.text == "bcd"
+        assert app.display_mode.technical is False
+
+    run_pilot(app, scenario)
+
+
+def test_a_plain_user_gets_the_refusal_under_a_modal() -> None:
+    app = app_for(is_admin=False)
+
+    async def scenario(pilot: Pilot[Any]) -> None:
+        await pilot.pause()
+        await pilot.press("f1")
+        await pilot.pause()
+        assert isinstance(app.screen, HelpScreen)
+        await pilot.press("ctrl+d")
+        await pilot.pause()
+        assert isinstance(app.screen, HelpScreen)
+        assert app.display_mode.technical is False
+        assert app.query_one("#footer", TlFooter).status == REFUSAL
+
+    run_pilot(app, scenario)
+
+
+def test_the_palette_entry_works_when_the_palette_was_opened_from_a_text_field() -> None:
+    app = app_for(is_admin=True)
+
+    async def scenario(pilot: Pilot[Any]) -> None:
+        await pilot.pause()
+        await pilot.press("slash")
+        await pilot.pause()
+        assert app.focused is not None and isinstance(app.focused, Input)
+        await pilot.press("ctrl+p")
+        await pilot.pause()
+        await pilot.press(*"technical")
+        await pilot.pause()
+        await pilot.press("enter")
+        await pilot.pause()
+        await pilot.pause()
+        assert app.display_mode.technical is True
+
+    run_pilot(app, scenario)

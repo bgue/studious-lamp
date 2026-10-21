@@ -16,6 +16,7 @@ from textual.binding import Binding, BindingType
 from textual.containers import Horizontal
 from textual.screen import ModalScreen
 from textual.widget import Widget
+from textual.widgets import Input, TextArea
 from tl_core.ledger import Event
 
 from tl_tui.client import ClientInterface
@@ -102,7 +103,9 @@ class TlApp(App[None]):
         Binding("ctrl+o", "schema", "Schema workbench", show=False),
         Binding("f12", "schedules", "Schedules", show=False),
         Binding("ctrl+g", "domains", "RFIs and notices", show=False),
-        Binding("ctrl+d", "toggle_technical", "Technical details", show=False),
+        # priority: reaches the app under a modal. The key has its own action so that check_action
+        # can step aside in text fields without silencing the palette entry (D18).
+        Binding("ctrl+d", "toggle_technical_key", "Technical details", show=False, priority=True),
         Binding("alt+left", "back", "Back", show=False),
         Binding("alt+right", "forward", "Forward", show=False),
     ]
@@ -316,6 +319,13 @@ class TlApp(App[None]):
         )
 
     # --- palette, links, tray, workflow, trace, history ---------------------------
+
+    def check_action(self, action: str, parameters: tuple[object, ...]) -> bool | None:
+        # Ctrl+D is Input's and TextArea's delete-right. A False here makes the priority binding
+        # fall through to the focused text field (Textual's _check_bindings then forwards the key).
+        if action == "toggle_technical_key" and isinstance(self.focused, (Input, TextArea)):
+            return False
+        return True
 
     def _modal_open(self) -> bool:
         # App-level keys stay live under a modal; they must not open a second one on top.
@@ -681,6 +691,10 @@ class TlApp(App[None]):
         from tl_tui.widgets.schema_screen import SchemaWorkbenchScreen
 
         self.push_screen(SchemaWorkbenchScreen(self.client, self.scope, self.actor))
+
+    def action_toggle_technical_key(self) -> None:
+        """The Ctrl+D key: the same toggle, but check_action lets it fall through in text fields."""
+        self.action_toggle_technical()
 
     def action_toggle_technical(self) -> None:
         """Technical details on or off (admins). Works under a modal and never opens one."""
