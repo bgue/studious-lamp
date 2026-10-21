@@ -63,7 +63,7 @@ def test_the_detail_lists_what_matters_and_leaves_out_what_does_not(client: Fake
     plain = detail_lines(client.get_setting("feed.reactions.enabled"), "project:P1")
     assert plain[0] == "key feed.reactions.enabled"
     assert "type bool (true or false)" in plain
-    assert "change goes to project:P1" in plain
+    assert "change goes to Project P1" in plain
     assert not any(line.startswith(("risk", "effect", "locked", "bounds")) for line in plain)
     danger = detail_lines(client.get_setting("webhooks.egress.allowlist"), None)
     assert "risk dangerous: a reason is required; you must accept the risk" in danger

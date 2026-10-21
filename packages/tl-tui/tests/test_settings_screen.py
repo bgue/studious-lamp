@@ -80,7 +80,7 @@ def test_editing_a_value_sets_it_at_the_project_and_marks_it() -> None:
         await filter_to(pilot, app, KEY)
         await pilot.press("e")
         await pilot.pause()
-        assert "at project:P123" in screen_text(app)
+        assert "at Project P123" in screen_text(app)
         form(app).query_one("#form-value", Input).value = "false"
         await pilot.press("ctrl+s")
         await pilot.pause()
@@ -119,7 +119,7 @@ def test_a_dangerous_key_asks_for_a_reason_and_the_risk() -> None:
         await filter_to(pilot, app, "webhooks.egress")
         await pilot.press("e")
         await pilot.pause()
-        assert "at company" in screen_text(app)  # the key has no project layer
+        assert "at Company" in screen_text(app)  # the key has no project layer
         f = form(app)
         f.query_one("#form-value", Input).value = "a.example.com"
         await pilot.press("ctrl+s")
@@ -194,7 +194,7 @@ def test_the_layer_key_sends_changes_to_the_company_and_back() -> None:
         assert "changes go to the company" in screen_text(app)
         await pilot.press("e")
         await pilot.pause()
-        assert "at company" in screen_text(app)
+        assert "at Company" in screen_text(app)
         await pilot.press("escape")
         await pilot.pause()
         await pilot.press("L")
