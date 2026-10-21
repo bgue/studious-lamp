@@ -28,12 +28,14 @@ from tl_core.util import utcnow
 
 from tl_tui.admin_text import (
     ACCOUNT_COLUMNS,
+    TECHNICAL_TOKEN_COLUMNS,
     TOKEN_COLUMNS,
     account_cells,
     detail_lines,
     token_cells,
 )
 from tl_tui.client import ClientInterface
+from tl_tui.display import mode_of
 from tl_tui.errors import CLIENT_ERRORS, describe_error
 from tl_tui.widgets.account_forms import AccountForm, PasswordForm, TokenForm, TokenShown
 from tl_tui.widgets.prompt import PromptScreen
@@ -96,15 +98,30 @@ class AdminScreen(ModalScreen[None]):
     def on_mount(self) -> None:
         self.query_one("#admin-accounts", DataTable).add_columns(*ACCOUNT_COLUMNS)
         tokens = self.query_one("#admin-tokens", DataTable)
-        tokens.add_columns(*TOKEN_COLUMNS)
+        self._token_columns(tokens)
         tokens.display = False
         self.reload()
         self.query_one("#admin-accounts", DataTable).focus()
+
+    def refresh_for_display_mode(self) -> None:
+        """Show or hide the technical columns for the mode now, keeping the highlighted rows."""
+        tokens = self.query_one("#admin-tokens", DataTable)
+        row = tokens.cursor_row
+        keep = self.current_account()
+        self._fill(keep.account_id if keep is not None else None)
+        if self.tokens:
+            tokens.move_cursor(row=min(row, len(self.tokens) - 1))
 
     # --- data ----------------------------------------------------------------------------
 
     def _stamp(self) -> str:
         return self.now().strftime("%Y-%m-%dT%H:%M:%S.000000Z")
+
+    def _token_columns(self, tokens: DataTable[str]) -> None:
+        """The token table's columns for the mode now; the token id is technical only."""
+        tokens.clear(columns=True)
+        technical = mode_of(self.app).technical
+        tokens.add_columns(*(TECHNICAL_TOKEN_COLUMNS if technical else TOKEN_COLUMNS))
 
     def reload(self) -> None:
         """Read both lists again and keep the highlighted account where it is."""
@@ -131,10 +148,11 @@ class AdminScreen(ModalScreen[None]):
             accounts.move_cursor(row=ids.index(keep) if keep in ids else 0)
         names = {view.account_id: view.username for view in self.accounts}
         tokens = self.query_one("#admin-tokens", DataTable)
-        tokens.clear()
+        self._token_columns(tokens)  # clears the rows too
         now = self._stamp()
+        technical = mode_of(self.app).technical
         for token in self.tokens:
-            cells = token_cells(token, names, now)
+            cells = token_cells(token, names, now, technical=technical)
             tokens.add_row(*(Text(cell) for cell in cells), key=token.token_id)
         self._title()
         self._describe()

@@ -5,6 +5,7 @@ from __future__ import annotations
 from tl_core.auth.types import AccountView, AgentTokenView
 from tl_tui.admin_text import (
     ACCOUNT_COLUMNS,
+    TECHNICAL_TOKEN_COLUMNS,
     TOKEN_COLUMNS,
     account_cells,
     detail_lines,
@@ -82,9 +83,16 @@ def test_a_token_is_revoked_expired_or_active() -> None:
 
 
 def test_a_token_row_names_the_agent_and_never_holds_a_secret() -> None:
-    assert len(TOKEN_COLUMNS) == 5
+    assert len(TOKEN_COLUMNS) == 4  # the id is technical only
+    assert TECHNICAL_TOKEN_COLUMNS == (*TOKEN_COLUMNS, "Id")
     names = {"A1": "triage"}
     assert token_cells(token(), names, NOW) == (
+        "triage",
+        "mcp",
+        "2026-12-01 00:00",
+        "✓ active",
+    )
+    assert token_cells(token(), names, NOW, technical=True) == (
         "triage",
         "mcp",
         "2026-12-01 00:00",

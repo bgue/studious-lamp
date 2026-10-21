@@ -23,6 +23,7 @@ from tl_core.settings.layers import project_of_scope
 from tl_core.settings.views import SettingView
 
 from tl_tui.client import ClientInterface
+from tl_tui.display import mode_of
 from tl_tui.errors import CLIENT_ERRORS, describe_error
 from tl_tui.settings_text import (
     Preference,
@@ -139,6 +140,10 @@ class SettingsScreen(ModalScreen[None]):
             table.move_cursor(row=keys.index(keep) if keep in keys else 0)
         self._describe()
 
+    def refresh_for_display_mode(self) -> None:
+        """Re-fill the list and the detail for the mode now, keeping the highlighted setting."""
+        self._fill(self._key())
+
     def _key(self) -> str | None:
         view = self.current()
         return view.effective.key if view is not None else None
@@ -158,7 +163,8 @@ class SettingsScreen(ModalScreen[None]):
         if view is None:
             detail.update("No setting matches.")
             return
-        detail.update("\n".join(detail_lines(view, self.target(view))))
+        technical = mode_of(self.app).technical
+        detail.update("\n".join(detail_lines(view, self.target(view), technical=technical)))
 
     def _say(self, text: str, *, error: bool = False) -> None:
         self.query_one("#settings-status", Static).update(("! " if error else "") + text)

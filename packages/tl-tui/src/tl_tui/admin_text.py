@@ -12,7 +12,8 @@ from datetime import datetime
 from tl_core.auth.types import AccountView, AgentTokenView
 
 ACCOUNT_COLUMNS = ("Name", "Kind", "Roles", "Status", "Lock")
-TOKEN_COLUMNS = ("Agent", "Label", "Expires", "State", "Id")
+TOKEN_COLUMNS = ("Agent", "Label", "Expires", "State")
+TECHNICAL_TOKEN_COLUMNS = (*TOKEN_COLUMNS, "Id")
 
 
 def moment(stamp: str) -> str:
@@ -53,17 +54,20 @@ def token_state(token: AgentTokenView, now: str) -> str:
 
 
 def token_cells(
-    token: AgentTokenView, names: dict[str, str], now: str
-) -> tuple[str, str, str, str, str]:
-    """The five cells of a token row, in the order of `TOKEN_COLUMNS` (``?``: unknown agent)."""
+    token: AgentTokenView, names: dict[str, str], now: str, *, technical: bool = False
+) -> tuple[str, ...]:
+    """The cells of a token row, in the order of `TOKEN_COLUMNS` (``?``: unknown agent).
+
+    The token id is a fifth cell, shown only in technical mode (`TECHNICAL_TOKEN_COLUMNS`).
+    """
     expires = "never" if token.expires_at is None else moment(token.expires_at)
-    return (
+    cells = (
         names.get(token.account_id, "?"),
         token.label,
         expires,
         token_state(token, now),
-        token.token_id,
     )
+    return (*cells, token.token_id) if technical else cells
 
 
 def detail_lines(view: AccountView, tokens: Sequence[AgentTokenView], now: str) -> list[str]:
