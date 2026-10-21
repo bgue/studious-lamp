@@ -22,6 +22,7 @@ from textual.widgets import DataTable, Input, Static
 from tl_mod_documents.views import DocumentView
 
 from tl_tui.client import ClientInterface
+from tl_tui.display import Labels, mode_of
 from tl_tui.document_text import (
     COLUMNS,
     detail_lines,
@@ -31,6 +32,8 @@ from tl_tui.document_text import (
     summary_line,
 )
 from tl_tui.errors import CLIENT_ERRORS, describe_error
+from tl_tui.labels_load import load_labels
+from tl_tui.widgets.record_screen import open_record
 from tl_tui.widgets.repin_dialog import RepinScreen
 from tl_tui.widgets.transmittal_composer import TransmittalComposerScreen
 
@@ -81,6 +84,7 @@ class DocumentRegisterScreen(ModalScreen[None]):
         self.views: list[DocumentView] = []  # as listed, before the screen's own filters
         self.shown: list[DocumentView] = []
         self.detail: DocumentView | None = None  # the highlighted document, in full
+        self.labels: Labels = Labels()  # the code and type labels, loaded on mount
 
     # --- layout --------------------------------------------------------------------------
 
@@ -94,6 +98,7 @@ class DocumentRegisterScreen(ModalScreen[None]):
             yield Static(self.KEY_HINTS, markup=False, id="docs-hints")
 
     def on_mount(self) -> None:
+        self.labels = load_labels(self.client, f"project:{self.project}", ("documents.Document",))
         self.query_one("#docs-table", DataTable).add_columns(*COLUMNS)
         self.reload()
         self.query_one("#docs-table", DataTable).focus()
@@ -126,7 +131,7 @@ class DocumentRegisterScreen(ModalScreen[None]):
         table.clear()
         for view in self.shown:
             # Text, not str: a cell is read as markup, and a title such as [a, b] is not markup
-            table.add_row(*(Text(cell) for cell in row_cells(view)), key=view.number)
+            table.add_row(*(Text(cell) for cell in row_cells(view, self.labels)), key=view.number)
         if self.shown:
             numbers = [v.number for v in self.shown]
             table.move_cursor(row=numbers.index(keep) if keep in numbers else 0)
@@ -138,6 +143,7 @@ class DocumentRegisterScreen(ModalScreen[None]):
                 doc_type=self.doc_type,
                 include_void=self.include_void,
                 text=self.text,
+                labels=self.labels,
             )
         )
         self._describe()
@@ -166,7 +172,8 @@ class DocumentRegisterScreen(ModalScreen[None]):
             full = view  # the listing's copy: no revisions
             self._say(describe_error(exc), error=True)
         self.detail = full
-        detail.update("\n".join(detail_lines(full)))
+        technical = mode_of(self.app).technical
+        detail.update("\n".join(detail_lines(full, self.labels, technical=technical)))
 
     def _say(self, text: str, *, error: bool = False) -> None:
         self.query_one("#docs-status", Static).update(("! " if error else "") + text)
@@ -185,6 +192,18 @@ class DocumentRegisterScreen(ModalScreen[None]):
     def on_input_submitted(self, event: Input.Submitted) -> None:
         event.stop()
         self.query_one("#docs-table", DataTable).focus()
+
+    def on_data_table_row_selected(self, event: DataTable.RowSelected) -> None:
+        """Enter on a row opens the full record screen; Esc there returns to this row."""
+        event.stop()
+        if not 0 <= event.cursor_row < len(self.shown):
+            return
+        view = self.shown[event.cursor_row]
+        open_record(self, self.client, f"project:{self.project}", self.project, self.actor, view.id)
+
+    def refresh_for_display_mode(self) -> None:
+        """The technical toggle changed: rebuild the rows and the panel, keeping the row."""
+        self._fill(self._number())
 
     # --- actions -------------------------------------------------------------------------
 

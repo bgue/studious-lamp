@@ -35,7 +35,7 @@ def test_r_opens_the_dialog_and_a_yes_clears_the_stale_mark() -> None:
         assert app.screen is register
         text = screen_text(app)
         assert "Link re-pinned." in text and "links (1 stale)" not in text
-        assert "47-FV-1001 (core.Record) pin B" in text
+        assert "47-FV-1001 (Record) pin B" in text
         await pilot.press("r")
         await pilot.pause()
         assert "has no stale link to re-pin" in str(
