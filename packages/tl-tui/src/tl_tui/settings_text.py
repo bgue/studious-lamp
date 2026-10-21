@@ -104,6 +104,13 @@ def hint_for(defn: SettingDefinition) -> str:
     return "text"
 
 
+def _where(target: str | None, *, technical: bool) -> str:
+    """The layer a change goes to, in words (`layer_label`); the raw id in technical mode."""
+    if target is None:
+        return "nowhere: platform default only"
+    return target if technical else layer_label(target)
+
+
 def detail_lines(view: SettingView, target: str | None, *, technical: bool = False) -> list[str]:
     """Everything about one setting, a line each (``name text``), the way ``tl config get --long``
     prints it, plus the hint for typing a value and the layer a change would go to.
@@ -119,7 +126,7 @@ def detail_lines(view: SettingView, target: str | None, *, technical: bool = Fal
         f"default {format_value(defn.default)}",
         f"type {defn.type} ({hint_for(defn)})",
         f"origin {origin_text(view)}",
-        f"change goes to {target if target is not None else 'nowhere: platform default only'}",
+        f"change goes to {_where(target, technical=technical)}",
     ]
     if defn.docs:
         lines.append(f"docs {' '.join(defn.docs.split())}")

@@ -20,8 +20,9 @@ from tl_core.settings.values import format_value, parse_text
 from tl_core.settings.views import SettingView
 
 from tl_tui.client import ClientInterface
+from tl_tui.display import mode_of
 from tl_tui.errors import CLIENT_ERRORS, describe_error
-from tl_tui.settings_text import hint_for
+from tl_tui.settings_text import hint_for, layer_label
 
 Action = Literal["set", "reset", "lock", "unlock", "revert"]
 
@@ -80,6 +81,8 @@ class SettingForm(ModalScreen[bool]):
     def compose(self) -> ComposeResult:
         defn = self.view.definition
         where = "company" if self.action in ("lock", "unlock") else self.target
+        if not mode_of(self.app).technical:
+            where = layer_label(where)
         with Vertical():
             yield Static(f"{_VERBS[self.action]} {self.key}", markup=False, id="form-title")
             yield Static(f"at {where}", markup=False, id="form-layer")
