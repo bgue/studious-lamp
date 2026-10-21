@@ -99,9 +99,17 @@ assert hashes == {expected}, hashes
 PY
 
 step "the TUI client over the same real services (EmbeddedClient, form metadata, conformance, save)"
-tui="$(quiet uv run pytest packages/tl-tui/tests/test_embedded_real_services.py -q 2>&1 | tail -1)" || true
+# Checked by outcome, not by a fixed count: this file grows as tests are added (P0-I3-T00 added two).
+# The run must exit 0 and pass every test it collects: no failed, error or skipped test.
+tui_log="$(quiet uv run pytest packages/tl-tui/tests/test_embedded_real_services.py -q 2>&1)" && tui_rc=0 || tui_rc=$?
+tui="$(tail -1 <<<"$tui_log")"
 echo "$tui"
-expect "$tui" '^5 passed'
+[ "$tui_rc" -eq 0 ] || { echo "$tui_log" >&2; echo "DEMO FAILED: the TUI service tests exited $tui_rc" >&2; exit 1; }
+expect "$tui" '^[0-9]+ passed'
+if grep -Eq 'failed|error|skipped' <<<"$tui"; then
+  echo "DEMO FAILED: the TUI service tests did not all pass: $tui" >&2
+  exit 1
+fi
 
 step "TUI snapshots: shell, grid, record view, psets tab, forms, narrow mode (120x40 and 80x24)"
 snaps="$(quiet uv run pytest packages/tl-tui/tests/test_snapshots.py -q 2>&1 | tail -1)" || true
