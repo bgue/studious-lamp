@@ -22,12 +22,14 @@ from tl_mod_schedule.registry import ActivityRow
 from tl_mod_schedule.views import ActivityPage
 
 from tl_tui.client import ClientInterface
+from tl_tui.display import mode_of
 from tl_tui.errors import CLIENT_ERRORS, describe_error
 from tl_tui.schedule_text import (
     ACTIVITY_COLUMNS,
     activity_cells,
     activity_detail_lines,
     page_line,
+    snapshot_name,
     trend_lines,
 )
 
@@ -120,17 +122,20 @@ class ActivityScreen(ModalScreen[None]):
         page = self.page
         if page is None:
             return
+        technical = mode_of(self.app).technical
         self.shown = list(page.rows)
         table = self.query_one("#ac-table", DataTable)
         table.clear()
         for a in self.shown:
             # Text, not str: a cell is read as markup, and a name such as [a, b] is not markup
-            table.add_row(*(Text(cell) for cell in activity_cells(a)), key=a.activity_id)
+            cells = activity_cells(a, technical=technical)
+            table.add_row(*(Text(cell) for cell in cells), key=a.activity_id)
         if self.shown:
             ids = [a.activity_id for a in self.shown]
             table.move_cursor(row=ids.index(keep) if keep in ids else 0)
-        self.query_one("#ac-title", Static).update(f"Activities of {page.snapshot_key}")
-        self._say(page_line(page, critical=self.critical_only, text=self.text))
+        name = snapshot_name(page.snapshot_key, technical=technical)
+        self.query_one("#ac-title", Static).update(f"Activities of {name}")
+        self._say(page_line(page, critical=self.critical_only, text=self.text, technical=technical))
         self._describe()
 
     def _current_id(self) -> str | None:
@@ -159,7 +164,7 @@ class ActivityScreen(ModalScreen[None]):
             panel.update(message)
             self._say(message, error=True)
             return
-        lines = activity_detail_lines(detail)
+        lines = activity_detail_lines(detail, technical=mode_of(self.app).technical)
         try:
             trend = self.client.get_activity_trend(self.project, self.code, row.activity_id)
             lines.append("")
@@ -171,6 +176,10 @@ class ActivityScreen(ModalScreen[None]):
 
     def _say(self, text: str, *, error: bool = False) -> None:
         self.query_one("#ac-status", Static).update(("! " if error else "") + text)
+
+    def refresh_for_display_mode(self) -> None:
+        """Redraw the table, the status line and the panel from the held page, keeping the row."""
+        self._fill(self._current_id())
 
     # --- events --------------------------------------------------------------------------
 

@@ -166,3 +166,37 @@ def test_grid_refreshes_on_the_mode_switch() -> None:
         assert "core.Record" not in screen_text(app)
 
     run_pilot(app, scenario)
+
+
+def _relabel_size(client: FakeClient, label: str) -> None:
+    """Give size_in the label the schema carries (co.acme.engineering: Nominal size)."""
+    meta = client.form_metadata(SCOPE, "core.Record")
+    group = meta.psets[0]
+    fields = [
+        f.model_copy(update={"label": label}) if f.path == "psets.valve_data.size_in" else f
+        for f in group.fields
+    ]
+    group_copy = group.model_copy(update={"fields": fields})
+    client.metadata = meta.model_copy(update={"psets": [group_copy, *meta.psets[1:]]})
+
+
+def test_the_chooser_shows_the_schema_label_in_plain_and_the_path_in_technical() -> None:
+    client = FakeClient.with_valve_example()
+    _relabel_size(client, "Nominal size")
+    app = Host(client)
+
+    async def scenario(pilot: Pilot[Any]) -> None:
+        await pilot.pause()
+        await pilot.press("c")
+        await pilot.pause()
+        assert isinstance(app.screen, ColumnChooser)
+        text = screen_text(app)
+        assert "Nominal size" in text and "size_in" not in text
+        await pilot.press("escape")
+        await pilot.pause()
+        app.display_mode.technical = True
+        await pilot.press("c")
+        await pilot.pause()
+        assert "valve_data.size_in" in screen_text(app)
+
+    run_pilot(app, scenario, size=(120, 40))

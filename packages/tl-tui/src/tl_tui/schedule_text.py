@@ -11,7 +11,7 @@ P6 writes.
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 
 from tl_mod_schedule.compare import Comparison
 from tl_mod_schedule.lookahead import LookAhead
@@ -70,6 +70,64 @@ def days(value: float | int | None) -> str:
 def shift(value: int | None) -> str:
     """A shift in calendar days with its sign: ``+7d``, ``-2d``, ``+0d``; ``-`` for none."""
     return "-" if value is None else f"{value:+d}d"
+
+
+def snapshot_name(key: str, *, technical: bool) -> str:
+    """A snapshot's key as shown: ``MAIN#2`` in technical mode, ``Snapshot 2`` in plain mode."""
+    if technical:
+        return key
+    code, sep, number = key.rpartition("#")
+    if sep and code and number.isdigit():
+        return f"Snapshot {number}"
+    return key
+
+
+_STATUS_PREFIXES = ("TK_", "TT_", "PCT_", "CS_")
+
+
+def status_words(code: str | None) -> str:
+    """A P6 status code as words: ``TK_Active`` is ``Active``; ``-`` for none."""
+    if not code:
+        return "-"
+    for prefix in _STATUS_PREFIXES:
+        if code.startswith(prefix):
+            code = code[len(prefix) :]
+            break
+    return humanize(code) or "-"
+
+
+def _status(code: str | None, technical: bool) -> str:
+    """The raw P6 code in technical mode, its words in plain mode."""
+    return f"{code}" if technical else status_words(code)
+
+
+#: Plain words for a look-ahead phase, a Primavera percent-complete type and a relationship type.
+#: The one place these words live; a code that is not listed shows as it is, in both modes.
+PHASE_WORDS: dict[str, str] = {
+    "in_progress": "In progress",
+    "late_start": "Late start",
+    "starting": "Starting",
+    "not_started": "Not started",
+    "completed": "Completed",
+}
+PERCENT_TYPE_WORDS: dict[str, str] = {
+    "CP_Drtn": "Duration",
+    "CP_Phys": "Physical",
+    "CP_Units": "Units",
+}
+RELATIONSHIP_WORDS: dict[str, str] = {
+    "FS": "Finish to start",
+    "SS": "Start to start",
+    "FF": "Finish to finish",
+    "SF": "Start to finish",
+}
+
+
+def _coded(table: Mapping[str, str], code: str | None, technical: bool) -> str:
+    """The raw code in technical mode, its words from ``table`` in plain mode; ``-`` for none."""
+    if not code:
+        return "-"
+    return short(code if technical else table.get(code, code))
 
 
 # --- schedules and snapshots -------------------------------------------------------------------
@@ -183,46 +241,56 @@ def schedules_summary(shown: int, total: int, *, text: str) -> str:
     return "  ".join(parts)
 
 
-def look_ahead_lines(answer: LookAhead) -> list[str]:
+def look_ahead_lines(answer: LookAhead, *, technical: bool = True) -> list[str]:
     """The look-ahead: the window, the counts, then one line per activity."""
     counts = answer.counts
+    key = snapshot_name(answer.snapshot_key, technical=technical)
     lines = [
-        f"look-ahead {answer.snapshot_key}: {answer.window_start} to {answer.window_end} "
-        f"({answer.weeks} weeks)",
+        f"look-ahead {key}: {answer.window_start} to {answer.window_end} ({answer.weeks} weeks)",
         f"in progress {counts.get('in_progress', 0)}  late start {counts.get('late_start', 0)}  "
         f"starting {counts.get('starting', 0)}  critical {counts.get('critical', 0)}  "
         f"total {counts.get('total', 0)}",
     ]
     for r in answer.rows:
         lines.append(
-            f"  {r.activity_id}  {r.phase}  {date_only(r.early_start)} to "
+            f"  {r.activity_id}  {_coded(PHASE_WORDS, r.phase, technical)}  "
+            f"{date_only(r.early_start)} to "
             f"{date_only(r.early_finish)}  float {days(r.total_float_days)}  "
             f"{r.percent_complete:g}%{'  CRITICAL' if r.critical else ''}  {short(r.name)}"
         )
     return lines
 
 
-def orphan_lines(links: Sequence[OrphanedLink]) -> list[str]:
-    """The links the last publication flagged because their activity left the schedule."""
+def orphan_lines(links: Sequence[OrphanedLink], *, technical: bool = True) -> list[str]:
+    """The links the last publication flagged because their activity left the schedule.
+
+    Plain mode drops the record and link ids; technical mode keeps them.
+    """
     if not links:
         return ["no orphaned links: every activity that is linked to is in the current snapshot"]
     lines = [f"orphaned links: {len(links)}"]
-    lines.extend(
-        f"  {o.activity_id}  last seen in snapshot {short(o.last_seen_number)}  "
-        f"record {o.from_id}  link {o.link_id}"
-        for o in links
-    )
+    if technical:
+        lines.extend(
+            f"  {o.activity_id}  last seen in snapshot {short(o.last_seen_number)}  "
+            f"record {o.from_id}  link {o.link_id}"
+            for o in links
+        )
+    else:
+        lines.extend(
+            f"  {o.activity_id}  last seen in snapshot {short(o.last_seen_number)}" for o in links
+        )
     return lines
 
 
 # --- comparison --------------------------------------------------------------------------------
 
 
-def compare_header_lines(c: Comparison) -> list[str]:
+def compare_header_lines(c: Comparison, *, technical: bool = True) -> list[str]:
     """What the comparison is of, the shift of the data date and of the project finish."""
+    new = snapshot_name(c.new.key, technical=technical)
+    old = snapshot_name(c.old.key, technical=technical)
     return [
-        f"{c.new.key} ({date_only(c.new.data_date)}) against {c.old.key} "
-        f"({date_only(c.old.data_date)})",
+        f"{new} ({date_only(c.new.data_date)}) against {old} ({date_only(c.old.data_date)})",
         f"data date {shift(c.data_date_shift_days)}  |  latest finish "
         f"{date_only(c.latest_finish_old)} to {date_only(c.latest_finish_new)} "
         f"({shift(c.finish_shift_days)})",
@@ -234,8 +302,13 @@ def compare_tabs(c: Comparison) -> list[str]:
     return [f"{title} {c.totals.get(name, 0)}" for name, title in COMPARE_SECTIONS]
 
 
-def compare_section_lines(c: Comparison, name: str, limit: int = MAX_SECTION_LINES) -> list[str]:
-    """The rows of one list of the comparison, and a line saying how many were cut."""
+def compare_section_lines(
+    c: Comparison, name: str, limit: int = MAX_SECTION_LINES, *, technical: bool = True
+) -> list[str]:
+    """The rows of one list of the comparison, and a line saying how many were cut.
+
+    Progress rows show P6 status words in plain mode and the raw codes in technical mode.
+    """
     rows: Sequence[str]
     if name == "added":
         rows = [f"+ {r.activity_id}  {short(r.name)}  ({short(r.wbs_path)})" for r in c.added]
@@ -256,13 +329,15 @@ def compare_section_lines(c: Comparison, name: str, limit: int = MAX_SECTION_LIN
     elif name == "logic_changes":
         rows = [
             f"{r.kind:<7} {r.pred_activity_id} -> {r.succ_activity_id}  "
-            f"{short(r.old_type)} to {short(r.new_type)}"
+            f"{_coded(RELATIONSHIP_WORDS, r.old_type, technical)} to "
+            f"{_coded(RELATIONSHIP_WORDS, r.new_type, technical)}"
             for r in c.logic_changes
         ]
     elif name == "progress_changes":
         rows = [
             f"~ {r.activity_id}  {r.old_percent:g}% to {r.new_percent:g}%  "
-            f"{r.old_status} to {r.new_status}  {short(r.name)}"
+            f"{_status(r.old_status, technical)} to {_status(r.new_status, technical)}  "
+            f"{short(r.name)}"
             for r in c.progress_changes
         ]
     elif name == "duration_changes":
@@ -291,11 +366,11 @@ def compare_section_lines(c: Comparison, name: str, limit: int = MAX_SECTION_LIN
 # --- activities --------------------------------------------------------------------------------
 
 
-def activity_cells(a: ActivityRow) -> tuple[str, ...]:
+def activity_cells(a: ActivityRow, *, technical: bool = True) -> tuple[str, ...]:
     """The eight cells of an activity row, in the order of ``ACTIVITY_COLUMNS``."""
     return (
         a.activity_id,
-        a.status,
+        _status(a.status, technical),
         date_only(a.early_start),
         date_only(a.early_finish),
         hours(a.total_float_hr),
@@ -305,11 +380,12 @@ def activity_cells(a: ActivityRow) -> tuple[str, ...]:
     )
 
 
-def page_line(page: ActivityPage, *, critical: bool, text: str) -> str:
+def page_line(page: ActivityPage, *, critical: bool, text: str, technical: bool = True) -> str:
     """The status line under the activity table."""
     first = page.offset + 1 if page.rows else 0
+    name = snapshot_name(page.snapshot_key, technical=technical)
     parts = [
-        f"{page.snapshot_key}  data date {date_only(page.data_date)}",
+        f"{name}  data date {date_only(page.data_date)}",
         f"{first}-{page.offset + len(page.rows)} of {page.total} activities",
     ]
     if critical:
@@ -320,12 +396,15 @@ def page_line(page: ActivityPage, *, critical: bool, text: str) -> str:
     return "  |  ".join(parts)
 
 
-def activity_detail_lines(detail: ActivityDetail) -> list[str]:
+def activity_detail_lines(detail: ActivityDetail, *, technical: bool = True) -> list[str]:
     """One activity: its dates, float and the relationships that name it."""
     a = detail.activity
+    name = snapshot_name(detail.snapshot_key, technical=technical)
+    task_type = _status(a.task_type, technical)
     lines = [
-        f"{a.activity_id}  {short(a.name, 80)}  |  {detail.snapshot_key}",
-        f"{a.task_type}  {a.status}  {a.percent_complete:g}% ({short(a.percent_type)})  |  "
+        f"{a.activity_id}  {short(a.name, 80)}  |  {name}",
+        f"{task_type}  {_status(a.status, technical)}  {a.percent_complete:g}% "
+        f"({_coded(PERCENT_TYPE_WORDS, a.percent_type, technical)})  |  "
         f"WBS {short(a.wbs_path, 80)}",
         f"early {date_only(a.early_start)} to {date_only(a.early_finish)}  |  "
         f"late {date_only(a.late_start)} to {date_only(a.late_finish)}  |  "
@@ -340,12 +419,14 @@ def activity_detail_lines(detail: ActivityDetail) -> list[str]:
         f"predecessors {len(detail.predecessors)}",
     ]
     lines.extend(
-        f"  {r.pred_activity_id}  {r.relationship_type}  lag {hours(r.lag_hr)}"
+        f"  {r.pred_activity_id}  {_coded(RELATIONSHIP_WORDS, r.relationship_type, technical)}"
+        f"  lag {hours(r.lag_hr)}"
         for r in detail.predecessors
     )
     lines.append(f"successors {len(detail.successors)}")
     lines.extend(
-        f"  {r.succ_activity_id}  {r.relationship_type}  lag {hours(r.lag_hr)}"
+        f"  {r.succ_activity_id}  {_coded(RELATIONSHIP_WORDS, r.relationship_type, technical)}"
+        f"  lag {hours(r.lag_hr)}"
         for r in detail.successors
     )
     return lines

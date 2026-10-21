@@ -210,10 +210,10 @@ class ScheduleScreen(ModalScreen[None]):
         try:
             if self.panel == "look_ahead" and snap is not None:
                 answer = self.client.get_look_ahead(self.project, detail.code, snapshot=snap.number)
-                lines += ["", *look_ahead_lines(answer)]
+                lines += ["", *look_ahead_lines(answer, technical=technical)]
             elif self.panel == "orphans":
                 links = self.client.list_orphaned_links(self.project, detail.code)
-                lines += ["", *orphan_lines(links)]
+                lines += ["", *orphan_lines(links, technical=technical)]
             elif snap is not None:
                 lines += ["", *snapshot_detail_lines(snap, self.labels, technical=technical)]
         except CLIENT_ERRORS as exc:

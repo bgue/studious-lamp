@@ -18,7 +18,9 @@ from textual.widgets import Static
 from tl_core.threads.queries import ThreadPage
 
 from tl_tui.client import ClientInterface
+from tl_tui.display import Labels, mode_of
 from tl_tui.errors import CLIENT_ERRORS, describe_error
+from tl_tui.labels_load import load_labels
 from tl_tui.messages import RecordChanged, StatusMessage
 from tl_tui.thread_text import header_text, message_lines
 
@@ -48,12 +50,21 @@ class ThreadTab(Vertical, can_focus=True):
         self.record: dict[str, Any] | None = None
         self.page: ThreadPage | None = None
         self._older: list[ThreadPage] = []
+        self.labels = Labels()
 
     def compose(self) -> ComposeResult:
         yield Static("", id="thread-header", markup=False)
         with VerticalScroll():
             yield Static("", id="thread-body", markup=False)
         yield Static("", id="thread-hint", markup=False)
+
+    def on_mount(self) -> None:
+        """The service labels once per tab; a failed read leaves the labels empty."""
+        self.labels = load_labels(self.client, self.scope, ())
+
+    def refresh_for_display_mode(self) -> None:
+        """Draw the header and the messages again in the current mode."""
+        self._draw()
 
     def show_record(self, record: dict[str, Any]) -> None:
         """Load the newest page of the record's thread and draw it."""
@@ -86,9 +97,10 @@ class ThreadTab(Vertical, can_focus=True):
             body.update("")
             hint.update("")
             return
-        header.update(header_text(page))
+        technical = mode_of(self.app).technical
+        header.update(header_text(page, self.labels, technical=technical))
         pages = [*reversed(self._older), page]
-        lines = [line for p in pages for line in message_lines(p)]
+        lines = [line for p in pages for line in message_lines(p, self.labels, technical=technical)]
         if not lines:
             lines = (
                 ["No messages yet."]

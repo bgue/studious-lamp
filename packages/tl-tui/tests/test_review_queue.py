@@ -60,8 +60,8 @@ def test_ctrl_r_lists_the_values_waiting_and_closes_with_escape() -> None:
         text = screen_text(app)
         assert "Values waiting for review (2)" in text
         assert table(screen).row_count == 2
-        assert "DOC-0001" in text and "enrich.doc_classifier.doc_type" in text
-        assert "Enricher    doc_classifier@1" in text  # the detail of the first row
+        assert "DOC-0001" in text and "Doc type" in text  # plain: the words, not the path
+        assert "Enricher    Doc classifier" in text  # the detail of the first row, plain
         assert "Confidence  0.80" in text
         await pilot.press("escape")
         await pilot.pause()
@@ -105,10 +105,10 @@ def test_a_accepts_the_highlighted_value_and_it_leaves_the_queue() -> None:
             ("AcceptEnrichment", SCOPE, {"value_id": "01JVALUEAAAAAAAAAA1"})
         ]
         assert table(screen).row_count == 1
-        assert "Accepted enrich.doc_classifier.doc_type" in screen_text(app)
+        assert "Accepted Doc type" in screen_text(app)
         await pilot.press("s")  # the accepted value is in the full list
         await pilot.pause()
-        assert "✓ accepted" in screen_text(app)
+        assert "✓ Accepted" in screen_text(app)
 
     scenario(client, steps)
 
@@ -136,7 +136,7 @@ def test_x_asks_for_a_reason_and_rejects_with_it() -> None:
             )
         ]
         assert table(app.screen).row_count == 1
-        assert "Rejected enrich.doc_classifier.discipline" in screen_text(app)
+        assert "Rejected Discipline" in screen_text(app)
 
     scenario(client, steps)
 
@@ -161,7 +161,7 @@ def test_a_decided_value_is_not_decided_again() -> None:
     async def steps(pilot: Pilot[Any], app: TlApp, screen: ReviewQueueScreen) -> None:
         await pilot.press("s", "down", "down", "a")  # the third row is accepted already
         await pilot.pause()
-        assert "This value is already accepted." in screen_text(app)
+        assert "This value is already Accepted." in screen_text(app)
         await pilot.press("x")
         await pilot.pause()
         assert isinstance(app.screen, ReviewQueueScreen)
