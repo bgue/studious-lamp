@@ -19,9 +19,13 @@ from tl_core.settings.types import SettingChange, SettingDefinition
 from tl_core.settings.values import format_value
 from tl_core.settings.views import SettingView
 
+from tl_tui.display import Labels, actor_label
+
 MARK = "●"  # set at the layer being viewed (about:config's "modified")
 MAX_VALUE = 36
 Preference = Literal["project", "company"]
+HISTORY_COLUMNS = ("Layer", "When (UTC)", "By", "Change", "Reason")
+TECHNICAL_HISTORY_COLUMNS = ("#", *HISTORY_COLUMNS)
 
 
 def user_of(actor: str) -> str | None:
@@ -100,9 +104,12 @@ def hint_for(defn: SettingDefinition) -> str:
     return "text"
 
 
-def detail_lines(view: SettingView, target: str | None) -> list[str]:
+def detail_lines(view: SettingView, target: str | None, *, technical: bool = False) -> list[str]:
     """Everything about one setting, a line each (``name text``), the way ``tl config get --long``
-    prints it, plus the hint for typing a value and the layer a change would go to."""
+    prints it, plus the hint for typing a value and the layer a change would go to.
+
+    The sequence number of a scheduled change is shown only in technical mode.
+    """
     defn = view.definition
     e = view.effective
     lines = [
@@ -128,26 +135,40 @@ def detail_lines(view: SettingView, target: str | None) -> list[str]:
     if e.bounds:
         lines.append(f"bounds {json.dumps(e.bounds, sort_keys=True, ensure_ascii=False)}")
     for change in e.scheduled:
-        lines.append(
-            f"scheduled {change.applies_at} {format_value(change.new_value)} (seq {change.seq})"
-        )
+        line = f"scheduled {change.applies_at} {format_value(change.new_value)}"
+        lines.append(f"{line} (seq {change.seq})" if technical else line)
     if e.pending_effect is not None:
         lines.append(f"pending {e.pending_effect}: the change is not fully in force yet")
     return lines
 
 
-def history_cells(change: SettingChange) -> tuple[str, str, str, str, str, str]:
-    """seq, layer, time, actor, ``old -> new`` (or ``reset``) and the reason."""
+def history_cells(
+    change: SettingChange,
+    labels: Labels | None = None,
+    *,
+    technical: bool = False,
+) -> tuple[str, ...]:
+    """Layer, time, actor, ``old -> new`` (or ``reset``) and the reason, in the order of
+    `HISTORY_COLUMNS`. Technical mode puts the sequence number first (`TECHNICAL_HISTORY_COLUMNS`)
+    and shows the raw actor id (``svc:...``); plain mode names a service by its label."""
     if change.reset:
         moved = "reset"
     else:
         before = _cut(format_value(change.old_value), 18)
         moved = f"{before} -> {_cut(format_value(change.new_value), 18)}"
+    if technical:
+        return (
+            str(change.seq),
+            change.layer,
+            change.recorded_at[:16].replace("T", " "),
+            change.actor,
+            moved,
+            change.reason or "",
+        )
     return (
-        str(change.seq),
         change.layer,
         change.recorded_at[:16].replace("T", " "),
-        change.actor,
+        actor_label(labels or Labels(), change.actor),
         moved,
         change.reason or "",
     )

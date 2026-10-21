@@ -5,6 +5,8 @@ from __future__ import annotations
 import pytest
 from fakes import FakeClient
 from tl_core.settings import get_definition
+from tl_core.settings.types import ScheduledChange
+from tl_tui.display import Labels
 from tl_tui.settings_text import (
     detail_lines,
     hint_for,
@@ -84,6 +86,13 @@ def test_a_history_row_shows_the_move_and_the_reason(client: FakeClient) -> None
     client.reset_setting("feed.signal_tags", layer="company")
     first, _, last = client.setting_history("feed.signal_tags")
     assert history_cells(first) == (
+        "company",
+        "2026-10-09 09:01",
+        "dev",
+        "null -> [a]",
+        "",
+    )
+    assert history_cells(first, technical=True) == (
         "1",
         "company",
         "2026-10-09 09:01",
@@ -91,4 +100,28 @@ def test_a_history_row_shows_the_move_and_the_reason(client: FakeClient) -> None
         "null -> [a]",
         "",
     )
-    assert history_cells(last)[4] == "reset"
+    assert history_cells(last)[3] == "reset"
+
+
+def test_a_service_actor_reads_as_a_service_and_its_id_is_technical_only(
+    client: FakeClient,
+) -> None:
+    client.setting_actor = "svc:enricher"
+    client.set_setting("feed.signal_tags", layer="company", value=["a"])
+    (change,) = client.setting_history("feed.signal_tags")
+    assert history_cells(change)[2] == "a service"
+    assert history_cells(change, Labels(services={"svc:enricher": "Enricher"}))[2] == "Enricher"
+    assert history_cells(change, technical=True)[3] == "svc:enricher"
+
+
+def test_a_scheduled_change_ends_with_its_sequence_number_only_when_technical(
+    client: FakeClient,
+) -> None:
+    view = client.get_setting("feed.signal_tags")
+    later = ScheduledChange(applies_at="2026-11-01T00:00:00Z", new_value=["b"], seq=7)
+    effective = view.effective.model_copy(update={"scheduled": [later]})
+    scheduled = view.model_copy(update={"effective": effective})
+    assert "scheduled 2026-11-01T00:00:00Z [b]" in detail_lines(scheduled, None)
+    assert "scheduled 2026-11-01T00:00:00Z [b] (seq 7)" in detail_lines(
+        scheduled, None, technical=True
+    )

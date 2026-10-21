@@ -273,7 +273,7 @@ def test_history_lists_the_changes_and_undoes_only_the_latest() -> None:
         assert "[a] -> [b]" in text
         await pilot.press("up", "u")  # the cursor starts on the latest; move to the first
         await pilot.pause()
-        assert "Only the latest change at project:P123 can be undone (#2)" in screen_text(app)
+        assert "Only the latest change at project:P123 can be undone." in screen_text(app)
         await pilot.press("down", "u")
         await pilot.pause()
         assert isinstance(app.screen, SettingForm)
@@ -312,7 +312,9 @@ def test_history_and_undo_through_the_real_embedded_client(tmp_path: Path) -> No
         await pilot.pause()
         assert isinstance(app.screen, SettingHistory)
         text = screen_text(app)
-        assert "user:kim" in text and "null -> [a]" in text and "[a] -> [b]" in text
+        # plain mode names the person by name, and has no change numbers (test_admin_plain)
+        assert "kim" in text and "user:kim" not in text
+        assert "null -> [a]" in text and "[a] -> [b]" in text
         await pilot.press("up", "u")
         await pilot.pause()
         assert "Only the latest change at project:P123 can be undone" in screen_text(app)

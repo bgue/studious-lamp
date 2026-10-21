@@ -48,6 +48,12 @@ def text(widget_id: str, app: Host) -> str:
     return str(screen(app).query_one(widget_id, Static).render())
 
 
+def column_labels(app: Host) -> list[str]:
+    """The header of the token table, as the screen draws it."""
+    table = screen(app).query_one("#admin-tokens", DataTable)
+    return [str(column.label) for column in table.columns.values()]
+
+
 def calls(client: FakeClient, name: str) -> list[dict[str, Any]]:
     return [args for method, args in client.admin_calls if method == name]
 
@@ -230,8 +236,9 @@ def test_t_switches_to_the_agent_tokens_and_back() -> None:
         await pilot.pause()
         shown = screen_text(app)
         assert "Agent tokens (3)" in shown
-        for column in ("Agent", "Label", "Expires", "State", "Id"):
+        for column in ("Agent", "Label", "Expires", "State"):
             assert column in shown
+        assert "Id" not in column_labels(app)  # the token id is technical only (test_admin_plain)
         assert shown.count("triage") == 3
         assert "✓ active" in shown and "✗ revoked" in shown and "! expired" in shown
         assert "Tokens cannot be read back" in text("#admin-detail", app)
