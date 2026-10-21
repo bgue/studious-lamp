@@ -11,6 +11,7 @@ from tl_tui.settings_text import (
     detail_lines,
     hint_for,
     history_cells,
+    layer_label,
     row_cells,
     target_layer,
     user_of,
@@ -86,7 +87,7 @@ def test_a_history_row_shows_the_move_and_the_reason(client: FakeClient) -> None
     client.reset_setting("feed.signal_tags", layer="company")
     first, _, last = client.setting_history("feed.signal_tags")
     assert history_cells(first) == (
-        "company",
+        "Company",
         "2026-10-09 09:01",
         "dev",
         "null -> [a]",
@@ -101,6 +102,13 @@ def test_a_history_row_shows_the_move_and_the_reason(client: FakeClient) -> None
         "",
     )
     assert history_cells(last)[3] == "reset"
+    assert history_cells(first, technical=True)[1] == "company"
+
+
+def test_the_layer_reads_in_plain_words_and_by_its_key_only_when_technical() -> None:
+    assert layer_label("company") == "Company"
+    assert layer_label("project:P123") == "Project P123"
+    assert layer_label("user:kim") == "User"
 
 
 def test_a_service_actor_reads_as_a_service_and_its_id_is_technical_only(

@@ -18,6 +18,7 @@ from tl_tui.admin_text import TECHNICAL_TOKEN_COLUMNS, TOKEN_COLUMNS
 from tl_tui.display import DisplayMode, find_technical
 from tl_tui.settings_text import HISTORY_COLUMNS, TECHNICAL_HISTORY_COLUMNS
 from tl_tui.widgets.admin_screen import AdminScreen
+from tl_tui.widgets.setting_form import SettingForm
 from tl_tui.widgets.setting_history import SettingHistory
 
 NOW = datetime(2026, 10, 11, 12, 0, 0, tzinfo=UTC)
@@ -140,11 +141,71 @@ def test_the_undo_message_has_no_sequence_number_in_plain_mode() -> None:
         await pilot.pause()
         await pilot.press("up", "u")  # the cursor starts on the latest; move to the first
         await pilot.pause()
-        assert "Only the latest change at project:P123 can be undone." in screen_text(app)
+        assert "Only the latest change at Project P123 can be undone." in screen_text(app)
         assert "(#" not in screen_text(app)
         app.display_mode.technical = True
         await pilot.press("u")
         await pilot.pause()
         assert "Only the latest change at project:P123 can be undone (#2)." in screen_text(app)
+
+    run_pilot(app, scenario)
+
+
+def test_the_undo_reports_the_change_plainly_and_with_its_number_in_technical_mode() -> None:
+    client = FakeClient()
+    client.set_setting(KEY, layer="project:P123", value=["a"])
+    client.set_setting(KEY, layer="project:P123", value=["b"])
+    app = HistoryHost(client)
+
+    async def scenario(pilot: Pilot[Any]) -> None:
+        await pilot.pause()
+        assert isinstance(app.screen, SettingHistory)
+        await pilot.press("u")  # the cursor starts on the latest change, which is undoable
+        await pilot.pause()
+        assert isinstance(app.screen, SettingForm)
+        await pilot.press("ctrl+s")
+        await pilot.pause()
+        assert isinstance(app.screen, SettingHistory)
+        shown = screen_text(app)
+        assert "Undid the change." in shown
+        assert "Undid #" not in shown and "(#" not in shown
+
+    run_pilot(app, scenario)
+
+    technical_client = FakeClient()
+    technical_client.set_setting(KEY, layer="project:P123", value=["a"])
+    technical_client.set_setting(KEY, layer="project:P123", value=["b"])
+    seq = technical_client.setting_history(KEY)[-1].seq
+    technical_app = HistoryHost(technical_client, technical=True)
+
+    async def technical_scenario(pilot: Pilot[Any]) -> None:
+        await pilot.pause()
+        await pilot.press("u")
+        await pilot.pause()
+        await pilot.press("ctrl+s")
+        await pilot.pause()
+        assert isinstance(technical_app.screen, SettingHistory)
+        shown = screen_text(technical_app)
+        assert f"Undid #{seq}." in shown
+        assert "Undid the change." not in shown
+
+    run_pilot(technical_app, technical_scenario)
+
+
+def test_the_layer_cell_reads_in_plain_words_and_by_its_key_in_technical_mode() -> None:
+    client = FakeClient()
+    client.set_setting(KEY, layer="project:P123", value=["a"])
+    app = HistoryHost(client)
+
+    async def scenario(pilot: Pilot[Any]) -> None:
+        await pilot.pause()
+        assert isinstance(app.screen, SettingHistory)
+        table = app.screen.query_one("#history-table", DataTable)
+        assert str(table.get_row_at(0)[0]) == "Project P123"
+        assert "project:" not in screen_text(app)
+        app.display_mode.technical = True
+        app.screen.refresh_for_display_mode()
+        await pilot.pause()
+        assert str(table.get_row_at(0)[1]) == "project:P123"
 
     run_pilot(app, scenario)

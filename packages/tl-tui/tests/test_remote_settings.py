@@ -94,7 +94,8 @@ def test_the_screen_edits_and_undoes_through_the_server(harness: Harness) -> Non
             await pilot.press("h")
             await pilot.pause()
             assert isinstance(app.screen, SettingHistory)
-            assert "alice" in screen_text(app)
+            text = screen_text(app)
+            assert "alice" in text and "user:alice" not in text
             await pilot.press("u")
             await pilot.pause()
             await pilot.press("ctrl+s")

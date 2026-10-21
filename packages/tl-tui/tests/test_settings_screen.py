@@ -273,14 +273,14 @@ def test_history_lists_the_changes_and_undoes_only_the_latest() -> None:
         assert "[a] -> [b]" in text
         await pilot.press("up", "u")  # the cursor starts on the latest; move to the first
         await pilot.pause()
-        assert "Only the latest change at project:P123 can be undone." in screen_text(app)
+        assert "Only the latest change at Project P123 can be undone." in screen_text(app)
         await pilot.press("down", "u")
         await pilot.pause()
         assert isinstance(app.screen, SettingForm)
         await pilot.press("ctrl+s")
         await pilot.pause()
         assert isinstance(app.screen, SettingHistory)
-        assert "Undid #2." in screen_text(app)
+        assert "Undid the change." in screen_text(app)
         table = app.screen.query_one("#history-table", DataTable)
         assert table.row_count == 3  # the undo is a change of its own, as in the service
         assert "[b] -> [a]" in screen_text(app)
@@ -317,7 +317,7 @@ def test_history_and_undo_through_the_real_embedded_client(tmp_path: Path) -> No
         assert "null -> [a]" in text and "[a] -> [b]" in text
         await pilot.press("up", "u")
         await pilot.pause()
-        assert "Only the latest change at project:P123 can be undone" in screen_text(app)
+        assert "Only the latest change at Project P123 can be undone" in screen_text(app)
         await pilot.press("down", "u")
         await pilot.pause()
         assert isinstance(app.screen, SettingForm)

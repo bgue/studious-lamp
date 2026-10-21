@@ -142,6 +142,21 @@ def detail_lines(view: SettingView, target: str | None, *, technical: bool = Fal
     return lines
 
 
+_LAYER_WORDS: dict[str, str] = {"company": "Company", "project": "Project", "user": "User"}
+
+
+def layer_label(layer: str) -> str:
+    """The plain words for a layer: ``Company``, ``Project P123``, ``User``.
+
+    The stored prefix (``project:``, ``user:``) is an internal key and never shows in plain mode;
+    the project code does. A layer of an unknown kind shows as stored.
+    """
+    kind, _, code = layer.partition(":")
+    if kind == "project" and code:
+        return f"Project {code}"
+    return _LAYER_WORDS.get(kind, layer)
+
+
 def history_cells(
     change: SettingChange,
     labels: Labels | None = None,
@@ -150,7 +165,8 @@ def history_cells(
 ) -> tuple[str, ...]:
     """Layer, time, actor, ``old -> new`` (or ``reset``) and the reason, in the order of
     `HISTORY_COLUMNS`. Technical mode puts the sequence number first (`TECHNICAL_HISTORY_COLUMNS`)
-    and shows the raw actor id (``svc:...``); plain mode names a service by its label."""
+    and shows the raw actor id (``svc:...``); plain mode names the layer in words (`layer_label`)
+    and a service by its label."""
     if change.reset:
         moved = "reset"
     else:
@@ -166,7 +182,7 @@ def history_cells(
             change.reason or "",
         )
     return (
-        change.layer,
+        layer_label(change.layer),
         change.recorded_at[:16].replace("T", " "),
         actor_label(labels or Labels(), change.actor),
         moved,

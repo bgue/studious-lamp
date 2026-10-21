@@ -25,6 +25,7 @@ from tl_tui.settings_text import (
     HISTORY_COLUMNS,
     TECHNICAL_HISTORY_COLUMNS,
     history_cells,
+    layer_label,
 )
 from tl_tui.widgets.setting_form import SettingForm
 
@@ -121,7 +122,7 @@ class SettingHistory(ModalScreen[bool]):
                     f"Only the latest change at {change.layer} can be undone (#{latest.seq})."
                 )
             else:
-                self._say(f"Only the latest change at {change.layer} can be undone.")
+                self._say(f"Only the latest change at {layer_label(change.layer)} can be undone.")
             return
         try:
             view = self.client.get_setting(self.key)
@@ -133,11 +134,17 @@ class SettingHistory(ModalScreen[bool]):
             if result:
                 self.changed = True
                 self.reload()
-                self._say(f"Undid #{change.seq}.")
+                self._say(self._undone_text(change))
 
         self.app.push_screen(
             SettingForm(self.client, view, "revert", change.layer, seq=change.seq), done
         )
+
+    def _undone_text(self, change: SettingChange) -> str:
+        """The change number is technical only; plain mode says what happened."""
+        if mode_of(self.app).technical:
+            return f"Undid #{change.seq}."
+        return "Undid the change."
 
     def action_close(self) -> None:
         self.dismiss(self.changed)
