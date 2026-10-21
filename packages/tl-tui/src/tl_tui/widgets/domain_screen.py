@@ -31,6 +31,7 @@ from tl_tui.commercial_text import (
     commercial_lines,
     commercial_summary,
 )
+from tl_tui.display import Labels, mode_of
 from tl_tui.errors import CLIENT_ERRORS, describe_error
 from tl_tui.evidence_text import (
     EVIDENCE_COLUMNS,
@@ -39,7 +40,9 @@ from tl_tui.evidence_text import (
     node_lines,
     step_day,
 )
+from tl_tui.labels_load import load_labels
 from tl_tui.rfi_text import RFI_COLUMNS, rfi_cells, rfi_lines, rfi_summary
+from tl_tui.widgets.record_screen import open_record
 
 MODES = ("rfi", "commercial", "evidence")
 MODE_TITLES = {"rfi": "RFI log", "commercial": "Commercial register", "evidence": "Evidence"}
@@ -105,6 +108,7 @@ class DomainScreen(ModalScreen[None]):
         self.rfi_log: RfiLog | None = None
         self.notices: CommercialRegister | None = None
         self.trail: EvidenceTrail | None = None
+        self.labels = Labels()
 
     # --- layout --------------------------------------------------------------------------
 
@@ -117,6 +121,11 @@ class DomainScreen(ModalScreen[None]):
             yield Static(self.KEY_HINTS, markup=False, id="dom-hints")
 
     def on_mount(self) -> None:
+        self.labels = load_labels(
+            self.client,
+            f"project:{self.project}",
+            ("correspondence.TechnicalItem", "correspondence.CommercialItem"),
+        )
         self.reload()
         self.query_one("#dom-table", DataTable).focus()
 
@@ -125,6 +134,7 @@ class DomainScreen(ModalScreen[None]):
     def reload(self) -> None:
         """Read the current view again and keep the highlighted row where it is."""
         keep = self._key()
+        technical = mode_of(self.app).technical
         table = self.query_one("#dom-table", DataTable)
         table.clear(columns=True)
         columns = {
@@ -145,7 +155,10 @@ class DomainScreen(ModalScreen[None]):
                     only_impact=self.impact,
                     limit=MAX_LINES,
                 )
-                rows = [(x.id, rfi_cells(x)) for x in self.rfi_log.lines]
+                rows = [
+                    (x.id, rfi_cells(x, self.labels, technical=technical))
+                    for x in self.rfi_log.lines
+                ]
                 summary = rfi_summary(
                     self.rfi_log,
                     only_open=self.only_open,
@@ -159,7 +172,10 @@ class DomainScreen(ModalScreen[None]):
                     time_bars_only=self.narrow,
                     limit=MAX_LINES,
                 )
-                rows = [(x.id, commercial_cells(x)) for x in self.notices.lines]
+                rows = [
+                    (x.id, commercial_cells(x, self.labels, technical=technical))
+                    for x in self.notices.lines
+                ]
                 summary = commercial_summary(
                     self.notices, only_open=self.only_open, time_bars_only=self.narrow
                 )
@@ -175,7 +191,10 @@ class DomainScreen(ModalScreen[None]):
                         self.project, self.number, as_of=self.as_of
                     )
                     title = evidence_title(self.number, self.trail.as_of)
-                    rows = [(n.record_id, node_cells(n)) for n in self.trail.nodes]
+                    rows = [
+                        (n.record_id, node_cells(n, self.labels, technical=technical))
+                        for n in self.trail.nodes
+                    ]
                     summary = f"{len(rows)} record{'s' if len(rows) != 1 else ''} in the trail" + (
                         " (cut short by a bound)" if self.trail.truncated else ""
                     )
@@ -221,10 +240,13 @@ class DomainScreen(ModalScreen[None]):
         """Show the highlighted row in full (one read per row)."""
         detail = self.query_one("#dom-detail", Static)
         table = self.query_one("#dom-table", DataTable)
+        technical = mode_of(self.app).technical
         if self.mode == "evidence":
             nodes = self.trail.nodes if self.trail is not None else []
             if 0 <= table.cursor_row < len(nodes):
-                detail.update("\n".join(node_lines(nodes[table.cursor_row])))
+                detail.update(
+                    "\n".join(node_lines(nodes[table.cursor_row], self.labels, technical=technical))
+                )
             else:
                 detail.update("Nothing here.")
             return
@@ -234,11 +256,11 @@ class DomainScreen(ModalScreen[None]):
             return
         try:
             if self.mode == "rfi":
-                detail.update("\n".join(rfi_lines(self.client.get_rfi(self.project, number))))
+                view = self.client.get_rfi(self.project, number)
+                detail.update("\n".join(rfi_lines(view, self.labels, technical=technical)))
             else:
-                detail.update(
-                    "\n".join(commercial_lines(self.client.get_commercial(self.project, number)))
-                )
+                view = self.client.get_commercial(self.project, number)
+                detail.update("\n".join(commercial_lines(view, self.labels, technical=technical)))
         except CLIENT_ERRORS as exc:
             detail.update(describe_error(exc))
 
@@ -250,6 +272,28 @@ class DomainScreen(ModalScreen[None]):
     def on_data_table_row_highlighted(self, event: DataTable.RowHighlighted) -> None:
         event.stop()
         self._describe()
+
+    def on_data_table_row_selected(self, event: DataTable.RowSelected) -> None:
+        """Enter opens the row's full record; Esc there comes back to this row (SCOPE clause 1)."""
+        event.stop()
+        record_id = self._record_id_at(event.cursor_row)
+        if record_id is None:
+            return
+        open_record(
+            self, self.client, f"project:{self.project}", self.project, self.actor, record_id
+        )
+
+    def _record_id_at(self, row: int) -> str | None:
+        """The record id of the row at ``row`` in the view on screen (``None`` if there is none)."""
+        rows = self._rows()
+        if not 0 <= row < len(rows):
+            return None
+        item = rows[row]
+        return item if isinstance(item, str) else item.id
+
+    def refresh_for_display_mode(self) -> None:
+        """Technical details toggled: read the view again so the cells and panel follow it."""
+        self.reload()
 
     # --- actions -------------------------------------------------------------------------
 

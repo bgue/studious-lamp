@@ -66,8 +66,9 @@ def node_lines(
     lines = [f"{key}  created {node.created_on}  state that day: {state}"]
     if node.via is not None:
         pin = f", pinned {node.via.pin}" if technical and node.via.pin else ""
+        label = node.via.label if technical else humanize(node.via.label)
         lines.append(
-            f"reached by {node.via.label} ({node.via.status}{pin}) since {node.via.since}"
+            f"reached by {label} ({node.via.status}{pin}) since {node.via.since}"
             + (f": {node.via.note}" if node.via.note else "")
         )
     lines.extend(f"{k if technical else humanize(k)}: {v}" for k, v in node.facts.items())
@@ -81,7 +82,8 @@ def node_line(node: EvidenceNode, labels: Labels | None = None, *, technical: bo
     via = ""
     if node.via is not None:
         pin = f" pinned {node.via.pin}" if technical and node.via.pin else ""
-        via = f" <- {node.via.label} ({node.via.status}{pin}, since {node.via.since})"
+        label = node.via.label if technical else humanize(node.via.label)
+        via = f" <- {label} ({node.via.status}{pin}, since {node.via.since})"
     voided = " VOID" if node.voided else ""
     key = node.key or (node.record_id if technical else "(no number)")
     kind = f"[{node.type}]" if technical else f"[{type_label(_labels(labels), node.type)}]"
