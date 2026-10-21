@@ -58,8 +58,8 @@ def test_f8_lists_the_tags_in_service_by_number_and_describes_the_first() -> Non
         assert "Tags of P123" in text
         assert numbers(screen) == ["47-FV-1001", "47-FV-1002", "47-HV-1003", "LEGACY-1"]
         assert screen.query_one("#tags-table", DataTable).row_count == 4
-        assert "BAD" in text and "nonconformant" in text
-        assert "lacks:" in text and "psets.valve_data" in text  # the detail of the first tag
+        assert "does not fit" in text and "✗ nonconformant" in text
+        assert "lacks:" in text and "Valve data" in text  # the detail of the first tag
         assert "4 of 4 tags" in text
         await pilot.press("escape")
         await pilot.pause()
@@ -74,7 +74,8 @@ def test_moving_the_cursor_describes_the_tag_it_lands_on() -> None:
         await pilot.pause()
         assert screen.detail is not None and screen.detail.number == "LEGACY-1"
         text = screen_text(app)
-        assert "number violation: -" in text and "! number: does not fit the pattern" in text
+        assert "number does not fit the pattern" in text
+        assert "! number: does not fit the pattern" in text
 
     scenario(world(), steps)
 
@@ -85,7 +86,7 @@ def test_c_walks_the_classes_v_shows_the_violations_and_a_shows_the_ended() -> N
         await pilot.pause()
         assert screen.class_code == "ControlValve"
         assert numbers(screen) == ["47-FV-1001", "47-FV-1002"]
-        assert "class ControlValve" in status(screen)
+        assert "class Control valve" in status(screen)
         await pilot.press("c", "c")
         await pilot.pause()
         assert screen.class_code is None and len(numbers(screen)) == 4
