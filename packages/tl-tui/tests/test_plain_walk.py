@@ -13,11 +13,13 @@ from typing import Any, NamedTuple
 
 import rows_integration as rows
 from fakes import SCOPE, FakeClient
-from fakes_correspondence import seed_correspondence
+from fakes_correspondence import seed_correspondence, seed_domains
+from fakes_schemareg import make_package
 from helpers import run_pilot, screen_text
 from textual.binding import Binding
 from textual.pilot import Pilot
 from tl_tui.app import TlApp
+from tl_tui.client import ClientInterface
 from tl_tui.display import Labels, find_technical
 from tl_tui.keymap import KEYMAP, KeyEntry, help_text
 from tl_tui.labels_load import load_labels
@@ -55,14 +57,14 @@ MUST_CHANGE: dict[str, str] = {
     "f9": "settings: the layer key",
     "f11": "derived documents: the schema package and version",
     "f12": "schedule: the snapshot code",
+    "ctrl+g": "domain: RFI, commercial and evidence rows with clocks (calendar P123-default@1)",
+    "ctrl+o": "schema workbench: the package and version",
 }
 
 # Screens that may stay unchanged under Ctrl+D (one-line reason each). Any other reading that
 # Ctrl+D leaves unchanged fails the admin walk, so a new unchanged screen gets a decision.
 UNCHANGED_OK: dict[str, str] = {
     "f1": "help is the static key map text (help_text); nothing technical is on it",
-    "ctrl+g": "domain: no RFI, commercial or evidence rows in the walk world (RFI log is empty)",
-    "ctrl+o": "schema workbench: the walk world has no schema package versions",
 }
 
 # The view-only keys a walk presses: digits, t, m, h. Any other key a screen lists is not pressed.
@@ -116,6 +118,8 @@ def world() -> FakeClient:
         tag = client.add_tag("P123", number, class_code=class_code, conformance=conformance)
         client.add_stored_record(tag.id, tag.number, "engineering.Tag", tag.title or number)
     seed_correspondence(client, "P123")
+    seed_domains(client)  # RFI log, Commercial and Evidence rows, with clocks on P123-default@1
+    client.seed_schema_package(make_package("co.acme.engineering", "3.2.0", "Published"))
     client.seed_schedule("P123")
     # The registers open these records on Enter; without them the record screen reads "No record".
     client.add_stored_record("SCHED-MAIN", "MAIN", "schedule.Schedule", "MAIN schedule")
@@ -231,12 +235,42 @@ def content(text: str) -> str:
     return " ".join(MODE_STATUS.sub("", text).split())
 
 
-def unexpected_hits(seen: list[Seen], labels: Labels) -> list[str]:
-    """Technical tokens in the walk that no KNOWN_LEAKS entry explains."""
+def schema_keys(client: ClientInterface, labels: Labels) -> list[str]:
+    """The record-type keys and dotted property keys the labels and schema of this world know.
+
+    Type keys are every key of ``labels.type_titles`` (``core.Record``, ``engineering.Tag``).
+    Property keys are ``<set>.<property>`` (``valve_data.body_material``) and the full field path
+    (``psets.valve_data.body_material``), read from the form metadata of every labelled type. Only
+    keys the schema names are listed, so ``m/s`` or a sentence with a full stop cannot match.
+    """
+    keys: set[str] = set(labels.type_titles)
+    for record_type in labels.type_titles:
+        try:
+            meta = client.form_metadata(SCOPE, record_type)
+        except Exception:  # a type with no form in the fake has no property keys
+            continue
+        for group in meta.psets:
+            for field in group.fields:
+                keys.add(field.path)
+                keys.add(field.path.removeprefix("psets."))
+    return sorted(keys, key=lambda key: (-len(key), key))
+
+
+def key_hits(text: str, keys: list[str]) -> list[str]:
+    """Every schema key in ``text`` as a whole dotted name (not inside a longer name)."""
+    found: dict[str, None] = {}
+    for key in keys:
+        if re.search(rf"(?<![\w.]){re.escape(key)}(?![\w])", text):
+            found[key] = None
+    return list(found)
+
+
+def unexpected_hits(seen: list[Seen], labels: Labels, keys: list[str]) -> list[str]:
+    """Technical tokens and schema keys in the walk that no KNOWN_LEAKS entry explains."""
     problems: dict[str, None] = {}
     for step in seen:
         known = KNOWN_LEAKS.get(step.binding)
-        for token in find_technical(step.text, labels):
+        for token in [*find_technical(step.text, labels), *key_hits(step.text, keys)]:
             if token != known:
                 problems[f"{step.binding} on {step.screen}: {token!r}"] = None
     return list(problems)
@@ -259,7 +293,7 @@ def test_plain_user_walk_has_no_technical_text() -> None:
     async def scenario(pilot: Pilot[Any]) -> None:
         await settle(pilot)
         seen = await walk(pilot, app)
-        problems = unexpected_hits(seen, labels)
+        problems = unexpected_hits(seen, labels, schema_keys(client, labels))
         assert problems == [], "technical text in the plain walk:\n" + "\n".join(problems)
         for binding, token in KNOWN_LEAKS.items():
             present = [s for s in seen if s.binding == binding]
@@ -295,14 +329,16 @@ def keys_of(seen: list[Seen]) -> list[str]:
 
 
 def test_admin_ctrl_d_walk_shows_technical_text_then_hides_it() -> None:
-    labels = load_labels(world(), SCOPE)
+    client = world()
+    labels = load_labels(client, SCOPE)
+    keys = schema_keys(client, labels)
     plain, plain_mode = walk_after(0)
     technical, technical_mode = walk_after(1)
     back, back_mode = walk_after(2)
     assert (plain_mode, technical_mode, back_mode) == (False, True, False)
 
-    assert unexpected_hits(plain, labels) == [], "technical text in the plain walk"
-    assert unexpected_hits(back, labels) == [], "technical text after Ctrl+D is off again"
+    assert unexpected_hits(plain, labels, keys) == [], "technical text in the plain walk"
+    assert unexpected_hits(back, labels, keys) == [], "technical text after Ctrl+D is off again"
     keys = [(s.binding, s.screen) for s in plain]
     assert [(s.binding, s.screen) for s in technical] == keys, "walk on reached other screens"
     assert [(s.binding, s.screen) for s in back] == keys, "walk back off reached other screens"
@@ -345,6 +381,47 @@ def test_admin_ctrl_d_walk_shows_technical_text_then_hides_it() -> None:
     # The record screen shows its version in the header only with technical details on.
     assert any("· v1" in s.text for s in technical if s.screen == "RecordScreen"), "record header"
     assert not any("· v1" in s.text for s in plain + back if s.screen == "RecordScreen")
+
+
+def test_schema_keys_come_from_the_labels_and_the_schema() -> None:
+    client = world()
+    keys = schema_keys(client, load_labels(client, SCOPE))
+    assert {"core.Record", "engineering.Tag", "valve_data.body_material"} <= set(keys)
+    assert "psets.valve_data.body_material" in keys
+    assert all("." in key for key in keys)
+
+
+def test_key_check_finds_a_type_key_and_a_property_key_in_plain_text() -> None:
+    client = world()
+    keys = schema_keys(client, load_labels(client, SCOPE))
+    clean = "Valve data: body material SS316L, flow 2 m/s. Done. Type: Tag"
+    assert key_hits(clean, keys) == []
+    assert key_hits(f"{clean} core.Record", keys) == ["core.Record"]
+    assert key_hits("Type engineering.Tag here", keys) == ["engineering.Tag"]
+    assert key_hits("valve_data.body_material = CS", keys) == ["valve_data.body_material"]
+    assert key_hits("xcore.Record", keys) == []  # inside a longer name
+    assert key_hits("core.Records", keys) == []
+    assert key_hits("my.core.Record", keys) == []
+
+
+def test_walk_fails_when_a_plain_screen_shows_a_type_key() -> None:
+    client = world()
+    labels = load_labels(client, SCOPE)
+    keys = schema_keys(client, labels)
+    app = TlApp(client, scope=SCOPE, actor="user:kim", is_admin=False)
+
+    async def scenario(pilot: Pilot[Any]) -> None:
+        await settle(pilot)
+        await pilot.press("f7")
+        await settle(pilot)
+        step = read(app, "f7")
+        assert unexpected_hits([step], labels, keys) == []
+        leaked = Seen(step.binding, step.screen, step.text + "\ncore.Record")
+        assert unexpected_hits([leaked], labels, keys) == [
+            "f7 on DocumentRegisterScreen: 'core.Record'"
+        ]
+
+    run_pilot(app, scenario)
 
 
 def test_walk_reaches_the_screens() -> None:
