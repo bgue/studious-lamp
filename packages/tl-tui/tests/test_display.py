@@ -6,10 +6,12 @@ import hashlib
 from typing import Any
 
 import pytest
+from textual.app import App
 from tl_core.util import new_ulid
 from tl_schema.forms import FieldMeta, PsetGroupMeta
 from tl_tui.display import (
     CALENDAR_ID_PATTERN,
+    CALENDAR_REF_PATTERN,
     CALENDAR_VERSION_PATTERN,
     DIGEST_PATTERN,
     DOMAIN_KEY_PATTERN,
@@ -147,6 +149,19 @@ def test_mode_of_defaults_to_plain_without_an_app() -> None:
     assert mode.technical is False
 
 
+def test_display_mode_lives_on_display_mode_and_not_on_textuals_display() -> None:
+    app = App()
+    display_before = app.display  # Textual's own CSS property
+    assert mode_of(app).technical is False  # no mode set yet: a plain default
+    mode = DisplayMode()
+    app.display_mode = mode  # pyright: ignore[reportAttributeAccessIssue]  # App does not declare it
+    assert mode_of(app) is mode
+    assert mode_of(app).toggle(is_admin=True) == ""
+    assert mode.technical is True
+    assert app.display_mode is mode  # pyright: ignore[reportAttributeAccessIssue]
+    assert app.display == display_before
+
+
 @pytest.mark.parametrize(
     ("pattern", "text", "expected"),
     [
@@ -174,6 +189,12 @@ def test_mode_of_defaults_to_plain_without_an_app() -> None:
         ),
         pytest.param(CALENDAR_ID_PATTERN, "cal:P123", ["cal:P123"], id="calendar-cal"),
         pytest.param(CALENDAR_VERSION_PATTERN, "clock uses @v3 rules", ["@v3"], id="version"),
+        pytest.param(
+            CALENDAR_REF_PATTERN,
+            "clock uses calendar P123-default@1 today",
+            ["P123-default@1"],
+            id="calendar-ref",
+        ),
     ],
 )
 def test_find_technical_matches_each_pattern(
@@ -181,6 +202,15 @@ def test_find_technical_matches_each_pattern(
 ) -> None:
     assert pattern in TECHNICAL_PATTERNS
     assert find_technical(text) == expected
+
+
+def test_calendar_ref_matches_code_at_version_and_not_an_email() -> None:
+    assert find_technical("clock uses calendar P123-default@1") == ["P123-default@1"]
+    assert find_technical("on co.acme.engineering@3.2.0 rules") == ["co.acme.engineering@3.2.0"]
+    # the package form is one token, reported once (the calendar pattern does not split it)
+    assert CALENDAR_REF_PATTERN.search("co.acme.engineering@3.2.0") is None
+    assert CALENDAR_REF_PATTERN.search("Ask amy@acme.com") is None
+    assert find_technical("Ask amy@acme.com") == []
 
 
 def test_find_technical_matches_a_domain_key_only_when_the_labels_know_the_domain() -> None:
@@ -204,6 +234,7 @@ def test_find_technical_ignores_plain_sentences() -> None:
         "kg/m3",
         "N/A",
         "2026/10/21",
+        "P123-RFI-0001",
     ]
     for text in plain:
         assert find_technical(text, labels) == [], text

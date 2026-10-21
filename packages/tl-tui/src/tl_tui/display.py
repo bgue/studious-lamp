@@ -32,6 +32,9 @@ REQUIRED_RULE_PATTERN = re.compile(r"(?<!\w)required@\w[\w/]*")
 SHA256_PATTERN = re.compile(r"(?<!\w)sha256:\w+")
 CALENDAR_ID_PATTERN = re.compile(r"(?<!\w)cal:[\w.-]+|(?<!\w)calendar C-[\w-]+")
 CALENDAR_VERSION_PATTERN = re.compile(r"(?<![\w@])@v\d+(?!\w)")
+# The code@version form clock text writes (calendars.py: Calendar.ref), for example P123-default@1.
+# The lookbehind keeps the tail of a package name (co.acme.engineering@3.2.0) from matching here.
+CALENDAR_REF_PATTERN = re.compile(r"(?<![A-Za-z0-9_.@-])[A-Za-z0-9][A-Za-z0-9_-]*@\d+(\.\d+)*\b")
 DOMAIN_KEY_PATTERN = re.compile(r"(?<![\w/])([a-z][a-z0-9_]*)/([a-z][a-z0-9_]*)(?![\w/])")
 
 # Patterns that match on their own. DOMAIN_KEY_PATTERN needs a Labels value and is checked apart.
@@ -45,6 +48,7 @@ TECHNICAL_PATTERNS: tuple[re.Pattern[str], ...] = (
     SHA256_PATTERN,
     CALENDAR_ID_PATTERN,
     CALENDAR_VERSION_PATTERN,
+    CALENDAR_REF_PATTERN,
 )
 
 
@@ -147,8 +151,11 @@ class DisplayMode:
 
 
 def mode_of(widget_or_app: object) -> DisplayMode:
-    """The app's ``display`` mode when it has one, else a plain-mode default."""
-    mode = getattr(widget_or_app, "display", None)
+    """The app's ``display_mode`` when it has one, else a plain-mode default.
+
+    The attribute is ``display_mode``, not ``display``: Textual's App and Widget own ``display``.
+    """
+    mode = getattr(widget_or_app, "display_mode", None)
     if isinstance(mode, DisplayMode):
         return mode
     return DisplayMode()
