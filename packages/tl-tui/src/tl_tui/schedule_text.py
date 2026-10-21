@@ -11,7 +11,7 @@ P6 writes.
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 
 from tl_mod_schedule.compare import Comparison
 from tl_mod_schedule.lookahead import LookAhead
@@ -99,6 +99,35 @@ def status_words(code: str | None) -> str:
 def _status(code: str | None, technical: bool) -> str:
     """The raw P6 code in technical mode, its words in plain mode."""
     return f"{code}" if technical else status_words(code)
+
+
+#: Plain words for a look-ahead phase, a Primavera percent-complete type and a relationship type.
+#: The one place these words live; a code that is not listed shows as it is, in both modes.
+PHASE_WORDS: dict[str, str] = {
+    "in_progress": "In progress",
+    "late_start": "Late start",
+    "starting": "Starting",
+    "not_started": "Not started",
+    "completed": "Completed",
+}
+PERCENT_TYPE_WORDS: dict[str, str] = {
+    "CP_Drtn": "Duration",
+    "CP_Phys": "Physical",
+    "CP_Units": "Units",
+}
+RELATIONSHIP_WORDS: dict[str, str] = {
+    "FS": "Finish to start",
+    "SS": "Start to start",
+    "FF": "Finish to finish",
+    "SF": "Start to finish",
+}
+
+
+def _coded(table: Mapping[str, str], code: str | None, technical: bool) -> str:
+    """The raw code in technical mode, its words from ``table`` in plain mode; ``-`` for none."""
+    if not code:
+        return "-"
+    return short(code if technical else table.get(code, code))
 
 
 # --- schedules and snapshots -------------------------------------------------------------------
@@ -224,7 +253,8 @@ def look_ahead_lines(answer: LookAhead, *, technical: bool = True) -> list[str]:
     ]
     for r in answer.rows:
         lines.append(
-            f"  {r.activity_id}  {r.phase}  {date_only(r.early_start)} to "
+            f"  {r.activity_id}  {_coded(PHASE_WORDS, r.phase, technical)}  "
+            f"{date_only(r.early_start)} to "
             f"{date_only(r.early_finish)}  float {days(r.total_float_days)}  "
             f"{r.percent_complete:g}%{'  CRITICAL' if r.critical else ''}  {short(r.name)}"
         )
@@ -299,7 +329,8 @@ def compare_section_lines(
     elif name == "logic_changes":
         rows = [
             f"{r.kind:<7} {r.pred_activity_id} -> {r.succ_activity_id}  "
-            f"{short(r.old_type)} to {short(r.new_type)}"
+            f"{_coded(RELATIONSHIP_WORDS, r.old_type, technical)} to "
+            f"{_coded(RELATIONSHIP_WORDS, r.new_type, technical)}"
             for r in c.logic_changes
         ]
     elif name == "progress_changes":
@@ -373,7 +404,7 @@ def activity_detail_lines(detail: ActivityDetail, *, technical: bool = True) -> 
     lines = [
         f"{a.activity_id}  {short(a.name, 80)}  |  {name}",
         f"{task_type}  {_status(a.status, technical)}  {a.percent_complete:g}% "
-        f"({short(a.percent_type)})  |  "
+        f"({_coded(PERCENT_TYPE_WORDS, a.percent_type, technical)})  |  "
         f"WBS {short(a.wbs_path, 80)}",
         f"early {date_only(a.early_start)} to {date_only(a.early_finish)}  |  "
         f"late {date_only(a.late_start)} to {date_only(a.late_finish)}  |  "
@@ -388,12 +419,14 @@ def activity_detail_lines(detail: ActivityDetail, *, technical: bool = True) -> 
         f"predecessors {len(detail.predecessors)}",
     ]
     lines.extend(
-        f"  {r.pred_activity_id}  {r.relationship_type}  lag {hours(r.lag_hr)}"
+        f"  {r.pred_activity_id}  {_coded(RELATIONSHIP_WORDS, r.relationship_type, technical)}"
+        f"  lag {hours(r.lag_hr)}"
         for r in detail.predecessors
     )
     lines.append(f"successors {len(detail.successors)}")
     lines.extend(
-        f"  {r.succ_activity_id}  {r.relationship_type}  lag {hours(r.lag_hr)}"
+        f"  {r.succ_activity_id}  {_coded(RELATIONSHIP_WORDS, r.relationship_type, technical)}"
+        f"  lag {hours(r.lag_hr)}"
         for r in detail.successors
     )
     return lines

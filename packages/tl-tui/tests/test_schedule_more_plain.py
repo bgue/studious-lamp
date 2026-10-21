@@ -14,7 +14,7 @@ from fakes import SCOPE, FakeClient
 from helpers import run_pilot, screen_text
 from textual.pilot import Pilot
 from textual.screen import ModalScreen
-from tl_mod_schedule.compare import ProgressChange
+from tl_mod_schedule.compare import LogicChange, ProgressChange
 from tl_mod_schedule.lookahead import LookAhead, LookAheadRow
 from tl_mod_schedule.resolver import OrphanedLink
 from tl_tui import schedule_text as st
@@ -160,3 +160,88 @@ def test_both_screens_redraw_on_the_mode_switch() -> None:
         assert "Activities of Snapshot 2" in text and "MAIN#" not in text
 
     scenario(client, lambda c: ActivityScreen(c, "P123", "MAIN"), activity_steps)
+
+
+def _look_ahead(phase: str) -> LookAhead:
+    """A look-ahead of snapshot 2 with one critical activity in the given phase."""
+    row = LookAheadRow(
+        "A1110", "Fabricate valves", "P > W", "in_progress", phase,
+        "2026-08-24T08:00", "2026-11-09T16:00", -1.0, True, 65.0,
+    )  # fmt: skip
+    return LookAhead(
+        "MAIN#2", 2, "2026-10-12T08:00", "2026-10-12", "2026-11-09", 4, (row,),
+        {"total": 1},
+    )  # fmt: skip
+
+
+def test_look_ahead_phase_words_plain_and_raw_technical() -> None:
+    phases = {
+        "in_progress": "In progress",
+        "late_start": "Late start",
+        "starting": "Starting",
+        "not_started": "Not started",
+        "completed": "Completed",
+    }
+    for code, words in phases.items():
+        plain = st.look_ahead_lines(_look_ahead(code), technical=False)
+        assert f"  A1110  {words}  2026-08-24 to 2026-11-09  float -1d  65%  CRITICAL" in plain[2]
+        raw = st.look_ahead_lines(_look_ahead(code))
+        assert f"  A1110  {code}  2026-08-24 to 2026-11-09  float -1d  65%  CRITICAL" in raw[2]
+
+
+def test_percent_type_words_plain_and_raw_technical() -> None:
+    detail = world().get_schedule_activity("P123", "MAIN", "A1230")
+    for code, words in {"CP_Drtn": "Duration", "CP_Phys": "Physical", "CP_Units": "Units"}.items():
+        changed = replace(detail, activity=replace(detail.activity, percent_type=code))
+        plain = st.activity_detail_lines(changed, technical=False)
+        assert plain[1] == f"Task  Not started  0% ({words})  |  WBS P > W"
+        raw = st.activity_detail_lines(changed)
+        assert raw[1] == f"task  not_started  0% ({code})  |  WBS P > W"
+
+
+def test_relationship_words_plain_and_raw_technical() -> None:
+    detail = world().get_schedule_activity("P123", "MAIN", "A1230")
+    words = {
+        "FS": "Finish to start",
+        "SS": "Start to start",
+        "FF": "Finish to finish",
+        "SF": "Start to finish",
+    }
+    for code, label in words.items():
+        changed = replace(
+            detail,
+            predecessors=[replace(detail.predecessors[0], relationship_type=code)],
+        )
+        plain = st.activity_detail_lines(changed, technical=False)
+        assert f"  A1220  {label}  lag 0h" in plain
+        assert f"  A1220  {code}  lag 0h" in st.activity_detail_lines(changed)
+        cmp = world().compare_snapshots("P123", "MAIN")
+        moved = LogicChange("changed", "A1230", "A2500", code, "SS", 0.0, 0.0)
+        marked = replace(cmp, logic_changes=(moved,), totals={**cmp.totals, "logic_changes": 1})
+        assert st.compare_section_lines(marked, "logic_changes", technical=False) == [
+            f"changed A1230 -> A2500  {label} to Start to start"
+        ]
+        assert st.compare_section_lines(marked, "logic_changes") == [
+            f"changed A1230 -> A2500  {code} to SS"
+        ]
+
+
+def test_schedule_screen_look_ahead_header_plain_then_technical() -> None:
+    client = world()
+    client.put_look_ahead("P123", "MAIN", _look_ahead("in_progress"))
+    app = TlApp(client, scope=SCOPE, actor="user:kim", is_admin=True)
+
+    async def go(pilot: Pilot[None]) -> None:
+        await pilot.press("f12")
+        await pilot.pause()
+        await pilot.press("l")
+        await pilot.pause()
+        text = screen_text(app)
+        assert "look-ahead Snapshot 2: 2026-10-12 to 2026-11-09 (4 weeks)" in text
+        assert "A1110  In progress" in text
+        await pilot.press("ctrl+d")
+        await pilot.pause()
+        assert "look-ahead MAIN#2: 2026-10-12 to 2026-11-09 (4 weeks)" in screen_text(app)
+        assert "A1110  in_progress" in screen_text(app)
+
+    run_pilot(app, go)

@@ -56,7 +56,8 @@ def test_it_lists_the_current_snapshots_activities_and_describes_the_first() -> 
         assert "Set rack foundations" in text and "critical" in text
         assert status(screen) == "Snapshot 2  data date 2026-10-12  |  1-4 of 4 activities"
         assert "A1220  Set rack foundations  |  Snapshot 2" in text
-        assert "predecessors 0" in text and "successors 1" in text and "  A1230  FS  lag 0h" in text
+        assert "predecessors 0" in text and "successors 1" in text
+        assert "  A1230  Finish to start  lag 0h" in text
         await pilot.press("escape")
         await pilot.pause()
         assert not isinstance(app.screen, ActivityScreen)
@@ -71,8 +72,8 @@ def test_moving_to_an_activity_shows_its_neighbours_and_its_float_trend() -> Non
         text = screen_text(app)
         assert "A1230  Install pipe rack supports  |  Snapshot 2" in text
         assert "float total 32h  free 40h" in text
-        assert "predecessors 1" in text and "  A1220  FS  lag 0h" in text
-        assert "successors 2" in text and "  A2500  FS  lag 0h" in text
+        assert "predecessors 1" in text and "  A1220  Finish to start  lag 0h" in text
+        assert "successors 2" in text and "  A2500  Finish to start  lag 0h" in text
         assert "float trend:" in text
         assert "#1  2026-10-05  Superseded  float 9d" in text
         assert "#2  2026-10-12  Published  float 4d" in text
