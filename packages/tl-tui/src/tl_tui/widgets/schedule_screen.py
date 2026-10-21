@@ -23,7 +23,9 @@ from tl_mod_schedule.handlers.publish import PublishScheduleSnapshot
 from tl_mod_schedule.views import ScheduleDetailView, ScheduleView, SnapshotView
 
 from tl_tui.client import ClientInterface
+from tl_tui.display import Labels, mode_of
 from tl_tui.errors import CLIENT_ERRORS, describe_error
+from tl_tui.labels_load import load_labels
 from tl_tui.schedule_text import (
     SCHEDULE_COLUMNS,
     SNAPSHOT_COLUMNS,
@@ -38,9 +40,11 @@ from tl_tui.schedule_text import (
 )
 from tl_tui.widgets.activity_screen import ActivityScreen
 from tl_tui.widgets.compare_screen import CompareScreen
+from tl_tui.widgets.record_screen import open_record
 
 PANELS = ("snapshot", "look_ahead", "orphans")
 SNAPSHOT_PAGE = 50  # snapshots read at a time (the service allows 200)
+LABEL_TYPES = ("schedule.Schedule", "schedule.ScheduleSnapshot")
 
 
 class ScheduleScreen(ModalScreen[None]):
@@ -87,6 +91,7 @@ class ScheduleScreen(ModalScreen[None]):
         self.views: list[ScheduleView] = []  # as listed, before the filter
         self.shown: list[ScheduleView] = []
         self.detail: ScheduleDetailView | None = None  # the highlighted schedule, in full
+        self.labels = Labels()  # the plain words of the types and people, loaded on mount
 
     # --- layout --------------------------------------------------------------------------
 
@@ -101,6 +106,7 @@ class ScheduleScreen(ModalScreen[None]):
             yield Static(self.KEY_HINTS, markup=False, id="sc-hints")
 
     def on_mount(self) -> None:
+        self.labels = load_labels(self.client, f"project:{self.project}", LABEL_TYPES)
         self.query_one("#sc-schedules", DataTable).add_columns(*SCHEDULE_COLUMNS)
         self.query_one("#sc-snapshots", DataTable).add_columns(*SNAPSHOT_COLUMNS)
         self.reload()
@@ -196,7 +202,8 @@ class ScheduleScreen(ModalScreen[None]):
             panel.update("No schedule matches.")
             return
         snap = self.current_snapshot()
-        lines = schedule_detail_lines(detail)
+        technical = mode_of(self.app).technical
+        lines = schedule_detail_lines(detail, self.labels, technical=technical)
         page = snapshot_page_line(self.page_start, len(detail.snapshots), detail.snapshot_count)
         if page is not None:
             lines.append(page)
@@ -208,7 +215,7 @@ class ScheduleScreen(ModalScreen[None]):
                 links = self.client.list_orphaned_links(self.project, detail.code)
                 lines += ["", *orphan_lines(links)]
             elif snap is not None:
-                lines += ["", *snapshot_detail_lines(snap)]
+                lines += ["", *snapshot_detail_lines(snap, self.labels, technical=technical)]
         except CLIENT_ERRORS as exc:
             lines += ["", describe_error(exc)]
         panel.update("\n".join(lines))
@@ -228,6 +235,26 @@ class ScheduleScreen(ModalScreen[None]):
         view = self.current_schedule()
         if view is not None and (self.detail is None or view.code != self.detail.code):
             self._load_schedule()
+
+    def on_data_table_row_selected(self, event: DataTable.RowSelected) -> None:
+        """Enter on a schedule or a snapshot opens its full record; Esc there comes back here."""
+        event.stop()
+        row = event.cursor_row
+        record_id: str | None = None
+        if event.data_table.id == "sc-schedules":
+            if 0 <= row < len(self.shown):
+                record_id = self.shown[row].id
+        elif self.detail is not None and 0 <= row < len(self.detail.snapshots):
+            record_id = self.detail.snapshots[row].id
+        if record_id is None:
+            return
+        open_record(
+            self, self.client, f"project:{self.project}", self.project, self.actor, record_id
+        )
+
+    def refresh_for_display_mode(self) -> None:
+        """The tables do not depend on the mode; the panel does."""
+        self._describe()
 
     def on_input_changed(self, event: Input.Changed) -> None:
         event.stop()

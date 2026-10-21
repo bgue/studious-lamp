@@ -26,6 +26,8 @@ from tl_mod_schedule.views import (
     TrendPoint,
 )
 
+from tl_tui.display import Labels, actor_label, humanize
+
 SCHEDULE_COLUMNS = ("Code", "Type", "Current", "Data date", "Snapshots", "Title")
 SNAPSHOT_COLUMNS = ("No", "State", "Data date", "Activities", "Errors", "Warnings", "File")
 ACTIVITY_COLUMNS = ("Id", "Status", "Start", "Finish", "Float", "%", "Critical", "Name")
@@ -77,7 +79,7 @@ def schedule_cells(view: ScheduleView) -> tuple[str, ...]:
     """The six cells of a schedule row, in the order of ``SCHEDULE_COLUMNS``."""
     return (
         view.code,
-        view.schedule_type,
+        humanize(view.schedule_type),
         short(view.current_snapshot_number),
         date_only(view.current_data_date),
         str(view.snapshot_count),
@@ -102,11 +104,23 @@ def snapshot_cells(view: SnapshotView) -> tuple[str, ...]:
     )
 
 
-def schedule_detail_lines(detail: ScheduleDetailView) -> list[str]:
-    """The facts of a schedule, and a warning while its links are still being checked."""
+def _who(labels: Labels, actor: str | None) -> str:
+    """A person by name, a service by its label, ``-`` for none; never an actor id."""
+    return short(None if not actor else actor_label(labels, actor))
+
+
+def schedule_detail_lines(
+    detail: ScheduleDetailView, labels: Labels | None = None, *, technical: bool = False
+) -> list[str]:
+    """The facts of a schedule, and a warning while its links are still being checked.
+
+    The same lines in both modes: ``technical`` is accepted so that every detail function takes
+    the same arguments.
+    """
+    labels = Labels() if labels is None else labels
     lines = [
         f"{detail.code}  {detail.title}",
-        f"type {detail.schedule_type}  |  owner {short(detail.owner)}  |  "
+        f"type {humanize(detail.schedule_type)}  |  owner {_who(labels, detail.owner)}  |  "
         f"P6 project {short(detail.p6_project)}",
         f"current snapshot {short(detail.current_snapshot_number)}  |  "
         f"data date {date_only(detail.current_data_date)}  |  {detail.snapshot_count} snapshots",
@@ -130,21 +144,31 @@ def snapshot_page_line(first: int, shown: int, total: int) -> str | None:
     ).replace("  )", ")")
 
 
-def snapshot_detail_lines(view: SnapshotView) -> list[str]:
-    """The facts of a snapshot: counts, the file, who asked, and why it failed if it did."""
+def snapshot_detail_lines(
+    view: SnapshotView, labels: Labels | None = None, *, technical: bool = False
+) -> list[str]:
+    """The facts of a snapshot: counts, the file, who asked, and why it failed if it did.
+
+    Plain mode names it ``Snapshot 2``; technical mode shows its key ``MAIN#2`` and the command
+    the worker runs.
+    """
+    labels = Labels() if labels is None else labels
+    name = view.key if technical else f"Snapshot {view.number}"
     lines = [
-        f"{view.key}  {view.state}{' (current)' if view.is_current else ''}  |  "
+        f"{name}  {view.state}{' (current)' if view.is_current else ''}  |  "
         f"data date {short(view.data_date)}  |  P6 {short(view.p6_version)}",
         f"activities {short(view.activity_count)}  relationships {short(view.relationship_count)}"
         f"  WBS {short(view.wbs_count)}  calendars {short(view.calendar_count)}  "
         f"codes {short(view.code_count)}  user fields {short(view.udf_count)}",
         f"errors {short(view.error_count)}  warnings {short(view.warning_count)}  |  "
-        f"file {short(view.source_name)}  |  requested by {short(view.requested_by)}",
+        f"file {short(view.source_name)}  |  requested by {_who(labels, view.requested_by)}",
     ]
     if view.previous_number is not None:
         lines.append(f"compares with snapshot {view.previous_number}")
     if view.state in ("Uploaded", "Processing"):
-        lines.append("waiting for the worker (`tl xer worker`)")
+        lines.append(
+            "waiting for the worker (`tl xer worker`)" if technical else "waiting to be processed"
+        )
     if view.last_error:
         lines.append(f"last error: {short(view.last_error, 200)}")
     return lines

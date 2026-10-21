@@ -66,7 +66,7 @@ def test_f12_lists_the_schedules_and_the_snapshots_and_describes_the_current_one
         assert screen.query_one("#sc-snapshots", DataTable).row_count == 2
         assert "2*" in text and "Published (current)" in text and "Superseded" in text
         assert "MAIN schedule" in text and "2026-10-12" in text
-        assert "MAIN#2  Published (current)" in text and "compares with snapshot 1" in text
+        assert "Snapshot 2  Published (current)" in text and "compares with snapshot 1" in text
         assert screen.detail is not None and screen.detail.code == "MAIN"
         snap = screen.current_snapshot()
         assert snap is not None and snap.number == 2
@@ -84,7 +84,7 @@ def test_moving_to_the_older_snapshot_describes_it() -> None:
         snap = screen.current_snapshot()
         assert snap is not None and snap.number == 1
         text = screen_text(app)
-        assert "MAIN#1  Superseded" in text and "(current)" not in text.split("MAIN#1")[1]
+        assert "Snapshot 1  Superseded" in text and "(current)" not in text.split("Snapshot 1")[1]
         assert "compares with snapshot" not in text  # the first snapshot has none
 
     scenario(world(), steps)
