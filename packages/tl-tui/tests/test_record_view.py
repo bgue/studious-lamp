@@ -1,4 +1,7 @@
-"""Record view: header, Details and History tabs, keys (P0-I2-T14). Provided; do not edit."""
+"""Record view: header, Details and History tabs, keys (P0-I2-T14).
+
+Provided; the Details and Properties words changed in P1-UX-S2.
+"""
 
 from __future__ import annotations
 
@@ -12,10 +15,12 @@ from textual.pilot import Pilot
 from textual.widgets import DataTable, TabbedContent
 from tl_core.services.commands import UpdateRecord
 from tl_tui.app import TlApp
+from tl_tui.details import details_for
+from tl_tui.display import DisplayMode, Labels
 from tl_tui.messages import CloseRecord, RecordChanged, StatusMessage, StepRecord
 from tl_tui.widgets.main_area import MainArea
 from tl_tui.widgets.psets_tab import PsetsTab
-from tl_tui.widgets.record_view import RecordView, details_text, event_summary
+from tl_tui.widgets.record_view import RecordView, details_lines, event_summary
 
 
 class Host(App[None]):
@@ -38,23 +43,28 @@ class Host(App[None]):
         self.seen.append(message)
 
 
-def test_details_text_lists_the_envelope_with_aligned_values() -> None:
+def test_details_lists_the_labelled_envelope_with_aligned_values() -> None:
     client = FakeClient.with_valve_example()
     record = client.get_record(SCOPE, "FV-1001")
     assert record is not None
-    lines = details_text(record).splitlines()
-    assert lines[0] == "Key          FV-1001"
-    assert lines[1] == "Type         core.Record"
-    assert lines[2] == "Title        Control valve FCV on 6in discharge"
-    assert lines[3] == "Description  —"
-    assert lines[4] == "Status       Design"
-    assert lines[5] == "Scope        project:P123"
-    assert lines[6] == "Version      3"
-    assert lines[7].startswith("Created      2026-10-09 09:")
-    assert lines[8].startswith("Updated      2026-10-09 09:")
-    assert lines[9] == "Conformance  ✓ ok"
-    assert lines[10] == "Schema       #a91f…3c"
-    assert len(lines) == 11
+    labels = Labels(type_titles={"core.Record": "Record"})
+    plain = details_lines(details_for(client, "P123", record, labels, DisplayMode())).splitlines()
+    assert plain[0] == "Type         Record"
+    assert plain[1] == "Title        Control valve FCV on 6in discharge"
+    assert plain[2] == "Status       Design"
+    assert plain[3].startswith("Created      2026-10-09 09:")
+    assert plain[4].startswith("Updated      2026-10-09 09:")
+    assert plain[5] == "Conformance  ✓ ok"
+    assert len(plain) == 6
+    mode = DisplayMode()
+    mode.technical = True
+    full = details_lines(details_for(client, "P123", record, labels, mode)).splitlines()
+    assert full[6:] == [
+        "Key          FV-1001",
+        "Version      3",
+        "Scope        project:P123",
+        "Schema hash  #a91f…3c",
+    ]
 
 
 def test_event_summary_per_event_type() -> None:
@@ -90,9 +100,9 @@ def test_view_shows_header_tabs_details_and_history_newest_first() -> None:
         text = screen_text(app)
         assert "FV-1001 · Control valve FCV on 6in discharge" in text
         assert "Design · v3 · ✓ ok" in text
-        for title in ("Details", "Psets", "History"):
+        for title in ("Details", "Properties", "History"):
             assert title in text
-        assert "Description  —" in text
+        assert "Conformance  ✓ ok" in text
         tabs = app.query_one("#rv-tabs", TabbedContent)
         assert tabs.active == "tab-details"
         assert isinstance(app.query_one("#psets-tab"), PsetsTab)

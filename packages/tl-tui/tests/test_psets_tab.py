@@ -16,30 +16,30 @@ from tl_tui.widgets.psets_tab import PsetsTab, psets_text, rule_text, value_text
 
 FV_1001 = [
     "Property                    Value                   Layer       Rule",
-    "▾ valve_data   co.acme.engineering 3.2.0 · required",
+    "▾ valve_data · required",
     "  size_in                   6 in                    standard    "
-    "● required@Design/Installed  ✓",
-    "  body_material             SS316L                  standard    ● required@Design  ✓",
+    "● required at Design or Installed  ✓",
+    "  body_material             SS316L                  standard    ● required at Design  ✓",
     "  fail_action               FC                      standard    ■ locked  ✓",
     "  seat_leakage              IV                      standard    ○ advisory  ✓",
     "  x.fat_witness_by          @party:client-acme      custom      optional  ✓",
     "  x.tie_in_window           —                       custom      optional",
-    "▾ prj.shutdown_tie_in   prj.P123 1.4.0 · optional",
+    "▾ prj.shutdown_tie_in · optional",
     "  window                    —                       project     optional",
     "  isolation                 —                       project     optional",
-    "▾ enrich.ai_classifier   enrich.ai_classifier 0.1.0 · optional",
+    "▾ enrich.ai_classifier · optional",
     "  valve_type                —                       enrichment  optional (read-only)",
     "",
     "● required  ○ advisory  ■ locked  ! warning  ✗ nonconformant  ✓ ok  x. project custom section",
-    "Conformance: ✓ ok   Effective schema #a91f…3c",
+    "Conformance: ✓ ok",
 ]
 
 
-def _text(client: FakeClient, key: str) -> str:
+def _text(client: FakeClient, key: str, *, technical: bool = False) -> str:
     record = client.get_record(SCOPE, key)
     assert record is not None
     meta = client.form_metadata(SCOPE, "core.Record")
-    return psets_text(meta, record, client.conformance(record["id"]))
+    return psets_text(meta, record, client.conformance(record["id"]), technical=technical)
 
 
 def test_psets_text_for_a_conformant_record_matches_the_layout_exactly() -> None:
@@ -48,10 +48,12 @@ def test_psets_text_for_a_conformant_record_matches_the_layout_exactly() -> None
 
 def test_psets_text_marks_issues_with_symbols() -> None:
     lines = _text(FakeClient.with_valve_example(), "FV-1003").splitlines()
-    assert lines[2].endswith("● required@Design/Installed  ✗")
+    assert lines[2].endswith("● required at Design or Installed  ✗")
     assert lines[5].endswith("○ advisory  !")
-    assert lines[3].endswith("● required@Design")  # not required in state Installed, no issue
-    assert lines[-1] == "Conformance: ✗ nonconformant   Effective schema #a91f…3c"
+    assert lines[3].endswith("● required at Design")  # not required in state Installed, no issue
+    assert lines[-1] == "Conformance: ✗ nonconformant"
+    technical = _text(FakeClient.with_valve_example(), "FV-1003", technical=True)
+    assert technical.splitlines()[-1] == "Conformance: ✗ nonconformant   Effective schema #a91f…3c"
 
 
 def _field(**extra: Any) -> FieldMeta:
@@ -73,9 +75,9 @@ def test_rule_text_variants() -> None:
     assert rule_text(_field(enforcement="advisory")) == "○ advisory"
     assert rule_text(_field(enforcement="locked")) == "■ locked"
     assert rule_text(_field(enforcement="required", required_in_states=["A", "B"])) == (
-        "● required@A/B"
+        "● required at A or B"
     )
-    assert rule_text(_field(required_in_states=["A"])) == "optional@A"
+    assert rule_text(_field(required_in_states=["A"])) == "optional at A"
     assert rule_text(_field(readonly=True, layer="enrichment")) == "optional (read-only)"
 
 
@@ -117,7 +119,7 @@ def test_tab_renders_the_text_literally_and_follows_show_record() -> None:
         await pilot.pause()
         text = screen_text(app)
         assert tab.text.splitlines() == FV_1001
-        assert "size_in" in text and "6 in" in text and "● required@Design/Installed" in text
+        assert "size_in" in text and "6 in" in text and "● required at Design or Installed" in text
         second = client.get_record(SCOPE, "FV-1003")
         assert second is not None
         tab.show_record(second)
@@ -130,7 +132,7 @@ def test_tab_renders_the_text_literally_and_follows_show_record() -> None:
 
 def test_tab_reports_missing_services_and_client_errors() -> None:
     class NoServices(FakeClient):
-        def form_metadata(self, scope: str, record_type: str):  # noqa: ANN202
+        def form_metadata(self, scope: str, record_type: str, record_id: str | None = None):  # noqa: ANN202
             raise NotImplementedError
 
     class Broken(FakeClient):
@@ -138,8 +140,8 @@ def test_tab_reports_missing_services_and_client_errors() -> None:
             raise ServiceError("schema unavailable")
 
     for client_type, expected in (
-        (NoServices, "Psets unavailable: the pset services are not installed yet"),
-        (Broken, "Psets unavailable: schema unavailable"),
+        (NoServices, "Properties unavailable: the property services are not installed yet"),
+        (Broken, "Properties unavailable: schema unavailable"),
     ):
         client = client_type.with_valve_example()
         app = Host(client)

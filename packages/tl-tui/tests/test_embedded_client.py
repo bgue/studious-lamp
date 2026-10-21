@@ -116,7 +116,7 @@ def test_pset_methods_delegate_to_the_pset_services(
         return CommandResult(stream_id=cmd.stream_id, key=None, version=2, events=[])
 
     monkeypatch.setattr(psets, "handle_set_pset_values", fake_set)
-    monkeypatch.setattr(psets, "form_metadata", lambda uow, scope, rt: meta)
+    monkeypatch.setattr(psets, "form_metadata", lambda uow, scope, rt, rid=None: meta)
     monkeypatch.setattr(psets, "conformance", lambda uow, rid: report)
 
     result = client.set_pset_values(

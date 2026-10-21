@@ -1,4 +1,4 @@
-"""Record view: header, Details, Psets, History tabs (brief 10.2, sketch 2).
+"""Record view: header, Details, Properties, Links, History, Trace and Thread tabs (brief 10.2).
 
 Esc posts `CloseRecord`, [ and ] post `StepRecord`, h opens the History tab. The view reads only
 through `ClientInterface`; it never touches the ledger or services directly.
@@ -15,11 +15,15 @@ from textual.binding import Binding, BindingType
 from textual.containers import Vertical, VerticalScroll
 from textual.widgets import DataTable, Static, TabbedContent, TabPane
 from tl_core.ledger import Event
+from tl_core.settings.layers import project_of_scope
 
 from tl_tui.client import ClientInterface
+from tl_tui.details import DetailRow, details_for
+from tl_tui.display import Labels, mode_of
 from tl_tui.errors import CLIENT_ERRORS, describe_error
+from tl_tui.labels_load import load_labels
 from tl_tui.messages import CloseRecord, RecordChanged, StatusMessage, StepRecord
-from tl_tui.text import EMPTY, conformance_mark, short_hash, timestamp
+from tl_tui.text import EMPTY, conformance_mark, timestamp
 from tl_tui.widgets.links_tab import LinksTab
 from tl_tui.widgets.psets_tab import PsetsTab
 from tl_tui.widgets.thread_tab import ThreadTab
@@ -43,22 +47,10 @@ def _sorted_keys(value: Any) -> str:
     return ", ".join(sorted(str(k) for k in value)) if isinstance(value, dict) else ""
 
 
-def details_text(record: dict[str, Any]) -> str:
-    """The envelope fields, one labelled line each, in the order of sketch 2."""
-    rows = [
-        ("Key", _or_empty(record.get("key"))),
-        ("Type", _or_empty(record.get("type"))),
-        ("Title", _or_empty(record.get("title"))),
-        ("Description", _or_empty(record.get("description"))),
-        ("Status", _or_empty(record.get("status"))),
-        ("Scope", _or_empty(record.get("scope"))),
-        ("Version", _or_empty(record.get("version"))),
-        ("Created", timestamp(record.get("created_at"))),
-        ("Updated", timestamp(record.get("updated_at"))),
-        ("Conformance", conformance_mark(record.get("conformance"))),
-        ("Schema", short_hash(record.get("effective_schema_hash"))),
-    ]
-    return "\n".join(f"{label:<13}{value}" for label, value in rows)
+def details_lines(rows: list[DetailRow]) -> str:
+    """The Details rows, one labelled line each, values lined up after the longest label."""
+    width = max((len(row.label) for row in rows), default=0) + 2
+    return "\n".join(f"{row.label:<{width}}{row.value}" for row in rows)
 
 
 def event_summary(event: Event) -> str:
@@ -118,6 +110,8 @@ class RecordView(Vertical, can_focus=True):
         self.scope = scope
         self.key = key
         self.record: dict[str, Any] | None = None
+        self._labels: Labels | None = None
+        self.details: str = ""  # the Details tab as text (for tests and the screen tickets)
 
     def compose(self) -> ComposeResult:
         yield Static("", id="rv-header", markup=False)
@@ -126,7 +120,7 @@ class RecordView(Vertical, can_focus=True):
             with TabPane("Details", id="tab-details"):
                 with VerticalScroll():
                     yield Static("", id="rv-details", markup=False)
-            with TabPane("Psets", id="tab-psets"):
+            with TabPane("Properties", id="tab-psets"):
                 yield PsetsTab(self.client, self.scope, id="psets-tab")
             with TabPane("Links", id="tab-links"):
                 yield LinksTab(self.client, self.scope, actor=self._actor(), id="links-tab")
@@ -155,7 +149,7 @@ class RecordView(Vertical, can_focus=True):
             return
         self.record = record
         self._draw_header(record, self._badges(record))
-        self.query_one("#rv-details", Static).update("" if record is None else details_text(record))
+        self._draw_details(record)
         self._draw_history(events)
         if record is None:
             self.post_message(StatusMessage(f"No record {self.key}", "error"))
@@ -164,6 +158,36 @@ class RecordView(Vertical, can_focus=True):
             self.query_one("#links-tab", LinksTab).show_record(record)
             self.query_one("#trace-tab", TraceTab).show_record(record)
             self.query_one("#thread-tab", ThreadTab).show_record(record)
+
+    def _labels_for(self, record: dict[str, Any]) -> Labels:
+        """The labels, loaded once per view (a retarget makes a new view)."""
+        if self._labels is None:
+            self._labels = load_labels(self.client, self.scope, ("core.Record", record["type"]))
+        return self._labels
+
+    def _draw_details(self, record: dict[str, Any] | None) -> None:
+        """The Details tab: the type's rows, technical rows only in technical mode."""
+        body = self.query_one("#rv-details", Static)
+        if record is None:
+            self.details = ""
+            body.update("")
+            return
+        rows = details_for(
+            self.client,
+            project_of_scope(self.scope) or "",
+            record,
+            self._labels_for(record),
+            mode_of(self.app),
+        )
+        self.details = details_lines(rows)
+        body.update(self.details)
+
+    def refresh_for_display_mode(self) -> None:
+        """Draw Details and Properties again with the current display mode; the tab stays."""
+        if self.record is None:
+            return
+        self._draw_details(self.record)
+        self.query_one("#psets-tab", PsetsTab).refresh_for_display_mode()
 
     def _badges(self, record: dict[str, Any] | None) -> str:
         """``since <time>`` (workflow state) and link counts for the header; empty when unknown.
