@@ -54,6 +54,23 @@ The Textual application shell, grid, record view, and forms; every screen reads 
 | `tl_tui.widgets.schedule_screen.ScheduleScreen`, `compare_screen.CompareScreen`, `activity_screen.ActivityScreen`, `tl_tui.schedule_text` | modals, module | Schedules (`F12`, P1-I4): the schedules and the snapshots of the highlighted one (the current one marked `*` and "(current)"), the panel with the snapshot, the look-ahead (`l`) or the orphaned links (`o`); `c` opens the comparison (sections added, removed, date shifts, float, logic, progress, durations, critical, `Right`/`Left` to move), `a` the activities (paged, `c` critical only, `/` filter) with the relationships and float trend of the highlighted one, `p` publishes the highlighted snapshot (the service decides who may). A short note shows while the links are still being checked. The text is pure functions in `schedule_text` |
 | `tl_tui.widgets.domain_screen.DomainScreen`, `tl_tui.rfi_text`, `tl_tui.commercial_text`, `tl_tui.evidence_text` | modal, module | RFIs, Commercial notices and the evidence trail (`Ctrl+G`, P1-I6): `1` the RFI log (response days, timing, impact flags), `2` the Commercial register (time bars with `LATE`, values by currency), `3` the evidence trail of the highlighted item (`e`) as the ledger knew it at the end of a day (`[` and `]` step the day, `0` is today). `o` open only, `v` overdue RFIs or running and late bars, `i` impact (RFI log). A person below a controller gets an empty register and is told why; the trail leaves out what the person may not read today. Reads only: `list_rfis`, `get_rfi`, `list_commercial`, `get_commercial`, `get_evidence_trail`. The text is pure functions |
 
+## Plain and technical display (P1-UX)
+Every screen speaks plain language by default and an admin can switch the technical detail on with `Ctrl+D`
+(palette "Technical details"; a plain user gets "Technical details are for admins"). New screens follow this:
+- Labels come from `tl_tui.display` (`Labels`, `type_label`, `code_label`, `domain_label`, `actor_label`, `quantity`,
+  `humanize`), loaded once with `tl_tui.labels_load.load_labels(client, scope, types)`. No per-screen string tables.
+- The mode lives on the app as `app.display_mode` (a `DisplayMode`, off at start, not remembered). Read it with
+  `mode_of(self.app).technical`; `mode_of` takes the app, never a widget. Never name an attribute `display`.
+- Text modules take `technical` and `labels` arguments: `fn(x, labels=None, *, technical=...)`. A function another
+  screen still calls keeps raw output as its default.
+- A widget whose text depends on the mode defines `refresh_for_display_mode()`; the toggle calls it on every widget of
+  every stacked screen.
+- A register opens `widgets.record_screen.open_record` on `DataTable.RowSelected` (not a priority Enter binding).
+- `tests/test_plain_walk.py` walks every key-map screen as a plain user and as an admin, and fails on ids, hashes,
+  package refs, internal keys and record-type or property keys (`display.find_technical`). A new screen or key either
+  gets walked or is listed in the test's exclusions. `KNOWN_LEAKS` stays empty.
+- `dev/tour/tourkit.py` runs the same check on every TUI screenshot and prints `LEAK <shot> <tokens>`.
+
 ## Depends on / used by
 - Depends on: `textual`, `tl_core` (services, query language, change feed), `tl_schema` (form metadata models), `tl_adapters` (only `tl_adapters.backend` / `tl_adapters.db`, in `embedded.py` and `main.py`), `tl_api` and `httpx2` (only `remote.py`).
 - Used by: `just tui`, `tl tui`, `dev/demos/P0-I2.sh`, `P0-I3.sh`, `P0-I4.sh`. Runbook: `docs/runbooks/tui-dev.md`.

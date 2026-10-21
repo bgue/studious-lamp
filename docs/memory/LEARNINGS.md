@@ -208,3 +208,19 @@ The impact report of a package is stored in an event the whole company can read,
 - **L-P1-I6-6** · 2026-10-20 · tags: security, ledger
   A feed card made by the generic rules is hidden only through the records it is tagged with, so an event that names no record in its payload makes a card that nobody can hide: the correspondence events (`Correspondence.Defined`, `ClearanceGranted`) and `File.Processed` (it carries the file, not the record) leaked "ctl defined a commercial" and "svc:scanner processed 2 files". Tag a confidential stream's events with the stream, look the record of a file event up in `cur_files`, and test per reader by comparing counts with a reader who may read nothing: a summary holds no token to search for. Cards projected earlier need `just rebuild-projections feed`.
   Evidence: `tl_core/feed/cards.py` (`subjects_of`), `tl_core/projection/feed.py` (`_subjects`), `test_the_feed_cards_do_not_tell_a_reader_what_happened_to_what_they_may_not_read`. Status: active
+
+- **L-P1-UX-1** · 2026-10-21 · tags: process
+  Narrow Allowed paths plus a consequential pin cost the most time in P1-UX: a test or snapshot outside the paths broke only because the screen now showed the intended words, and each one cost a block, decide, respawn, regate, review loop of 20-50 minutes. Skill rule 12 now lets the author update such a pin, keep a technical-mode counterpart and list it in the report; size work by coherence (a builder piece per area), not many tickets with narrow paths.
+  Evidence: T05, T08c, T09b, T10 reports; `5a05125`. Status: active
+
+- **L-P1-UX-2** · 2026-10-21 · tags: tui, tooling
+  Never name a Textual `App` attribute `display`: it is a CSS property, so the display mode lives on `app.display_mode` and `mode_of` takes the app (or any object with `display_mode`), never a widget; a widget gives plain mode silently. A `DataTable` consumes Enter, so a register opens records on `RowSelected`, not a priority Enter binding. A widget whose text depends on the mode defines `refresh_for_display_mode()`.
+  Evidence: D10, D22; `tl_tui/display.py`; S2 and T00 reports. Status: active
+
+- **L-P1-UX-3** · 2026-10-21 · tags: tests
+  A fixed-date fake world needs a pinned today: tests that read the wall clock broke on trunk in October 2026 (domain_screen, fixed in `2e8285c`) and the same class will break again. Pass a clock or pin `today` in the world builder instead of reading the system date. Seed a fake with the shape the screen needs (`add_stored_record`, `metadata_by_type`, a labelled `Labels`), or a plain-word test passes for the wrong reason.
+  Evidence: STATE TRAPS; T01, T05, T08c reports. Status: active
+
+- **L-P1-UX-4** · 2026-10-21 · tags: process
+  Verify every gate path exists before dispatch: `just gate` with a missing test path exits 4 and reads red (T10 named `test_help_screen.py`, which did not exist). A tl-tui ticket is always `review: full`: `reviewer-lite` excludes tl-tui, and T05 and T09e merged as lite before this was learned (D32).
+  Evidence: T10 Q1; D32. Status: active

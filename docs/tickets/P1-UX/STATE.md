@@ -1,33 +1,32 @@
-# P1-UX STATE  r=7 base=2bcedda C=C2 ck=0 gate=n/a wt=/home/user/wt/p1-ux
-Read first: README.md (plan, tickets, waves), SCOPE.md, specs of the items you dispatch, S2 report (getter table). Branch p1/ux @c52873d (trunk claude/wizardly-allen-m2v96s @2bcedda merged in).
-r7: verified board vs git log (T04 T13 T08 T07 T06b T08b T09d merged). Wrote T11 T11b T11c T12 T12b, all staged (T11 split by the 400-line/5-file rule, T12 likewise). No code, stubs or held tests by the supervisor.
+# P1-UX STATE  r=final base=2bcedda C=C4 ck=0 gate=n/a wt=/home/user/wt/p1-ux
+Read first: docs/reports/P1-UX.md (final report), SCOPE.md. Branch p1/ux @ed025b8 plus the final-round docs commits. Final round: report, learnings, tl-tui README/AGENTS written; no code.
 ## BOARD
 T00 t mrg f 369b72f display helper
 S3 p mrg f 6a0c7ae example sets (D12), TYPE_LABELS
 S2 p mrg f 16d2e11 RecordScreen, open_record, details registry
-T09b t mrg f 893dd7d accounts, about:config plain
-T09c t mrg f 4007e29 schema workbench and review plain
-T10 t mrg f 4793a7c Ctrl+D toggle, help/palette scroll
 T01 t mrg f 4250f0d documents register Enter + plain
 T02 t mrg f e4ee157 tag register Enter + plain
 T03 t mrg f a09aad7 correspondence register/inbox/clocks
-T06 t mrg f 55a8205 schedule screen Enter + plain
-T09e t mrg l 34fc72d settings layer words
-T05 t mrg l 806c519 commercial/evidence/RFI text; D30
 T04 t mrg f 739b084 domain_screen wiring, Enter, RFI Details
-T13 t mrg f e303567 feed pane, header, ref tray plain
-T08 t mrg f 85ed991 record header, History, context panel (D36)
-T07 t mrg f a3eab29 review queue Enter via target
+T05 t mrg l 806c519 commercial/evidence/RFI text; D30
+T06 t mrg f 55a8205 schedule screen Enter + plain
 T06b t mrg f ec9af6d compare, activity, look-ahead plain (D37)
+T07 t mrg f a3eab29 review queue Enter via target
+T08 t mrg f 85ed991 record header, History, context panel (D36)
 T08b t mrg f 0f697ef links_tab, thread_tab plain
+T08c t mrg f 2a7c34a grid type column + headers (D38)
+T09a t mrg f c34c7e5 integration registry plain, no Enter
+T09b t mrg f 893dd7d accounts, about:config plain
+T09c t mrg f 4007e29 schema workbench and review plain
 T09d t mrg f c52873d Enter on schema package rows
-T08c t blk f - grid type column + headers; D38; implementer finishing; p1/ux-t08c-grid-plain (wt /home/user/wt/t08c)
-T09a t disp f - integration registry plain, no Enter; p1/ux-t09a-integration-registry-plain (wt /home/user/wt/t09a)
-T11 t stg f - walking test from KEYMAP (plain + admin Ctrl+D); after T08c T09a
-T11b t stg f - carries: palette refusal, remote hidden=missing, grid Ver (Q6), settings kinds (Q7); after T08c; disjoint from T11
-T11c t stg f - dev/demos/P1-UX.sh + p1_ux_demo.py, clauses 1-4; after T08c T09a (clause 2 runs T11's test)
-T12 t stg f - both tours regenerated, needles, narratives; after T11 T11b
-T12b t stg f - tour section 23 + PHASE-1-TOUR.md section; after T12
+T09e t mrg l 34fc72d settings layer words
+T10 t mrg f 4793a7c Ctrl+D toggle, help/palette scroll
+T11 t mrg f aca2ec5 plain walk test, plain + admin
+T11b t mrg f 7b0ce59 carries: Ver, settings kinds, palette refusal, remote hidden
+T13 t mrg f e303567 feed pane, header, ref tray plain
+S4 p mrg f 8a74f75 demo 4/4, both tours, leak check in tour (D45)
+T11c,T12,T12b - abn - - replaced by S4 (D45)
+S5 p disp f - final polish (D46); p1/ux-s5-final-polish (wt /home/user/wt/s5)
 ## DEC
 D1 2026-10-21 record screen from a register = modal RecordScreen; Esc dismisses; README.
 D2 2026-10-21 Details per type from typed views in tl_tui/details/<area>.py; no new route.
@@ -69,24 +68,27 @@ D37 2026-10-21 look-ahead header, phases, percent and relationship types read as
 D38 2026-10-21 grid: approved needle stands; the column chooser shows the property label, not the key (T08c, Blocked cleared by orch).
 D39 2026-10-21 (orch) Q6: grid `Ver` only in technical mode; Q7: layer kind words capitalised in plain (`Company ●`). Both in T11b.
 D40 2026-10-21 r7: T11 split (T11 walk, T11b carries, T11c demo) and T12 split (T12 regen, T12b new section 23): the 400-line/5-file rule. New section numbered 23 in the Phase 1 tour; tour world sets the three data sets inside it so sections 1-22 change only by plain language.
+D41 2026-10-21 derived-documents schema column reads as plain label (T11).
+D42 2026-10-21 grid Ver technical-only on all grids; settings kinds in plain words (T11b).
+D43 2026-10-21 admin walk rules: plain clean on and after toggle; MUST_CHANGE screens differ under Ctrl+D; round trip restores plain; UNCHANGED_OK is f1 only (T11).
+D44 2026-10-21 extension grids, chooser name and settings list rows follow plain mode (T11b).
+D45 2026-10-21 S4 replaces T11c, T12, T12b: one builder does demo and both tours; the tour checks its own screens for technical text.
+D46 2026-10-21 S5 final polish: Properties tab labels and unit placeholder, workbench drafter, SERVICE_PATTERN hyphen, tour key_hits with a test, review-queue row in the demo.
+PROC 2026-10-21 skill rule 12 (owner request) on trunk 5a05125: consequential pins, size by coherence, one pass, orchestrator fixes trivia, builders run only what is named.
 ## SEC
-(none yet; DONE review: Sec S2 (routes/reference.py record_id, record_screen hidden=missing), S3; range 4b2cda0..<head>; one reviewer per item)
+9 reviews, range 4b2cda0..aca2ec5: record screen P, property sets P.
+F1 LO fixed@09461d6 record_id max_length=64 (GET /schema/forms)
+F2 LO fixed@09461d6 document_data confidentiality_note says it does not restrict
+F3 LO accepted reload-after-reclassification, ADR-0016 section 6
+S4 review F1 F2 (demo review-queue row, tour key_hits) -> S5
 ## OPEN
-Q5 CLOSED r6: placed as T06b.
-Q6 CLOSED r7: D39, in T11b.
-Q7 CLOSED r7: D39, in T11b.
+Q8 web client (Phase 5) timing probe on hidden = missing: wanted in its review? needs owner raised final report
 ## NEXT
-1. Orchestrator: when T08c and T09a are merged, dispatch T11, T11b, T11c (disjoint: tests+*_text.py except settings_text / grid+settings tests / dev/demos). T11b needs only T08c; T11 and T11c need T09a too. 3 slots.
-2. After T11 and T11b merge: dispatch T12 (tours regenerate; long run, background, no polling). After T12 merges: T12b. T11c should be merged before DONE (the demo is clause 1-4 evidence).
-3. r8 supervisor: verify board; decide any 2s/gr/blk (T11 lists follow-up leaks it could not fix: place them as tickets if any); then DONE round: report, learnings, README/AGENTS (see 5), 88.
-4. Re-read each ticket's Interfaces against the tree at dispatch (grid.py changes with T08c; T11b pastes it abridged).
-5. DONE round: report, learnings (mode_of takes the app; DataTable Enter/RowSelected; wrong gate paths cost a gate; kwargs default raw when the screen is another ticket's; tl-tui never lite D32; Context must list files the Interfaces pin; a snapshot .raw changed by two tickets conflicts: order merges, regenerate; a ticket over 400 lines/5 files is split at planning, as T11/T12 were), tl-tui README/AGENTS (display.py, details/, record_screen, walk test), APPROVALS check, security review Sec S2 S3 range 4b2cda0..<head>, 88.
-6. Every screen ticket regenerates only the snapshots it names (L-P1-I8-13) and adds refresh_for_display_mode (D14).
-7. Open nits not placed: record screen does not reload the register after an edit (F5 reloads); `schedule_detail_lines(technical=)` unused (T06 report): DONE nit.
+1. Orchestrator: merge S5 (D46), then DONE gate: just check, just gate (parts as separate background runs, L-P1-I8-14), gate-pg touched dirs, just demo P1-UX.
+2. Fill the <<fill>> cells in docs/reports/P1-UX.md (check, gate, gate-pg, S5 line); S5 narrative and screenshots come from its report.
+3. Merge p1/ux to trunk; STATUS.md line; APPROVALS already has the 2026-10-21 line.
+4. Phase 2 owner questions stay in docs/build-spec/phase2-owner-questions.md.
 ## REFS
-Specs: docs/tickets/P1-UX/{T00..T13 incl. T06b T08b T08c T09d T11b T11c T12b}-*.md; no stubs or provided tests (tickets list tests by name; new test files marked "(new)" in each Acceptance). Reports in docs/reports/P1-UX/.
-Survey facts: registers are ModalScreens (document_register, tag_register, correspondence_screen, domain_screen, schedule_screen, review_queue, integration_screen), each holds client/project/actor; record view = widgets/record_view.py (tabs details, psets, links, history, trace, thread); app.is_admin exists; tour = dev/tour/phase0.py phase1.py tourkit.py, output docs/reports/tour/phase-{0,1}, narrative docs/reports/PHASE-1-TOUR.md; p1_i8_demo.py anchors on the fixture ('version: 3.2.0', '\n\n  safety_data:', one 'range: decimal'). Snapshots: tests/__snapshots__/<module>/<test>.raw, one file per test; the context panel shows in most; header badges test is in test_snapshots_links.
-Text pattern (copy for new work): `fn(x, labels=None, *, technical=...)`; widget reads `mode_of(self.app).technical`, loads `load_labels(client, scope, types)` on mount, defines refresh_for_display_mode.
-Learnings that apply: L-P1-I8-13 L-P1-I8-15 L-P1-I5-1 L-P1-I5-2 L-P1-I3-7 L-P1-I8-4 L-P1-I7B-9.
+Report docs/reports/P1-UX.md; specs docs/tickets/P1-UX/*.md; reports docs/reports/P1-UX/; tour section 23 in docs/reports/PHASE-1-TOUR.md; tl-tui README/AGENTS "Plain and technical display".
 ## TRAPS
-Trunk time-bomb: tests reading the wall clock (domain_screen fixed 2e8285c); expect others. A gate with a nonexistent test path exits 4 and reads red. `just check` takes over 2 min here; run in background. Haiku implementers name their own model in the trailer; the orchestrator's trailer rule wins at merge.
+Trunk time-bomb: tests reading the wall clock; a fixed-date fake world needs a pinned today. A gate with a nonexistent test path exits 4 and reads red. `just check` takes over 2 min; run in background. Demo takes about 15 min. Full tl-tui suite about 10 min.
