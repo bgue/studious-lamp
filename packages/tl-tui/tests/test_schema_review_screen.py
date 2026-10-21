@@ -105,18 +105,19 @@ def test_the_screen_shows_the_title_the_next_step_and_the_reports() -> None:
         assert "Engineering, version 3.3.0  Draft  class constraining" in text
         assert "Next: analyse (a), then submit (s)." in text
         assert "Worst constraining  auto-adoptable no  blocks submit no" in text
-        assert "constraining  psets.a.c  c is required." in text
+        assert "constraining  A: c  c is required." in text
         assert "Impact (stored)" in text and "Scope company" in text
         assert "Digest" not in text
         assert (
-            "records  psets.valve_data.size_in  property_removed  12  12 records hold a value."
-            in text
+            "records  Valve data: size in  property_removed  12  12 records hold a value." in text
         )
         assert "Not run: press t to test on a sample of records." in text
         show_technical(app, screen, True)
         text = screen_text(app)
         assert "co.acme.engineering@3.3.0  Draft  class constraining" in text
         assert "Base co.acme.engineering@3.2.0" in text and "Digest " in text
+        assert "constraining  psets.a.c  c is required." in text
+        assert "records  psets.valve_data.size_in  property_removed" in text
         show_technical(app, screen, False)
         assert "co.acme.engineering@3.3.0" not in screen_text(app)
         await pilot.press("escape")
@@ -257,7 +258,7 @@ def test_t_runs_the_sample_test_and_a_command_clears_it() -> None:
         text = screen_text(app)
         assert "Tested Engineering, version 3.3.0  scope company  sample 1000  checked 40" in text
         assert "Newly nonconformant 2  newly warning 1  fixed 3" in text
-        assert "V-101  psets.a.c  required  Missing." in text
+        assert "V-101  A: c  required  Missing." in text
         show_technical(app, screen, True)
         assert "Tested co.acme.engineering@3.3.0  scope company  sample 1000  checked 40" in (
             screen_text(app)

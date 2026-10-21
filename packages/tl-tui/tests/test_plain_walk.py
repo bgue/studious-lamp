@@ -19,10 +19,9 @@ from helpers import run_pilot, screen_text
 from textual.binding import Binding
 from textual.pilot import Pilot
 from tl_tui.app import TlApp
-from tl_tui.client import ClientInterface
-from tl_tui.display import Labels, find_technical
+from tl_tui.display import Labels, find_technical, key_hits
 from tl_tui.keymap import KEYMAP, KeyEntry, help_text
-from tl_tui.labels_load import load_labels
+from tl_tui.labels_load import load_labels, schema_keys
 from tl_tui.widgets.grid import RecordGrid
 from tl_tui.widgets.help_screen import HelpScreen
 from tl_tui.widgets.record_view import RecordView
@@ -235,36 +234,6 @@ def content(text: str) -> str:
     return " ".join(MODE_STATUS.sub("", text).split())
 
 
-def schema_keys(client: ClientInterface, labels: Labels) -> list[str]:
-    """The record-type keys and dotted property keys the labels and schema of this world know.
-
-    Type keys are every key of ``labels.type_titles`` (``core.Record``, ``engineering.Tag``).
-    Property keys are ``<set>.<property>`` (``valve_data.body_material``) and the full field path
-    (``psets.valve_data.body_material``), read from the form metadata of every labelled type. Only
-    keys the schema names are listed, so ``m/s`` or a sentence with a full stop cannot match.
-    """
-    keys: set[str] = set(labels.type_titles)
-    for record_type in labels.type_titles:
-        try:
-            meta = client.form_metadata(SCOPE, record_type)
-        except Exception:  # a type with no form in the fake has no property keys
-            continue
-        for group in meta.psets:
-            for field in group.fields:
-                keys.add(field.path)
-                keys.add(field.path.removeprefix("psets."))
-    return sorted(keys, key=lambda key: (-len(key), key))
-
-
-def key_hits(text: str, keys: list[str]) -> list[str]:
-    """Every schema key in ``text`` as a whole dotted name (not inside a longer name)."""
-    found: dict[str, None] = {}
-    for key in keys:
-        if re.search(rf"(?<![\w.]){re.escape(key)}(?![\w])", text):
-            found[key] = None
-    return list(found)
-
-
 def unexpected_hits(seen: list[Seen], labels: Labels, keys: list[str]) -> list[str]:
     """Technical tokens and schema keys in the walk that no KNOWN_LEAKS entry explains."""
     problems: dict[str, None] = {}
@@ -293,7 +262,7 @@ def test_plain_user_walk_has_no_technical_text() -> None:
     async def scenario(pilot: Pilot[Any]) -> None:
         await settle(pilot)
         seen = await walk(pilot, app)
-        problems = unexpected_hits(seen, labels, schema_keys(client, labels))
+        problems = unexpected_hits(seen, labels, schema_keys(client, SCOPE, labels))
         assert problems == [], "technical text in the plain walk:\n" + "\n".join(problems)
         for binding, token in KNOWN_LEAKS.items():
             present = [s for s in seen if s.binding == binding]
@@ -331,7 +300,7 @@ def keys_of(seen: list[Seen]) -> list[str]:
 def test_admin_ctrl_d_walk_shows_technical_text_then_hides_it() -> None:
     client = world()
     labels = load_labels(client, SCOPE)
-    keys = schema_keys(client, labels)
+    keys = schema_keys(client, SCOPE, labels)
     plain, plain_mode = walk_after(0)
     technical, technical_mode = walk_after(1)
     back, back_mode = walk_after(2)
@@ -385,7 +354,7 @@ def test_admin_ctrl_d_walk_shows_technical_text_then_hides_it() -> None:
 
 def test_schema_keys_come_from_the_labels_and_the_schema() -> None:
     client = world()
-    keys = schema_keys(client, load_labels(client, SCOPE))
+    keys = schema_keys(client, SCOPE, load_labels(client, SCOPE))
     assert {"core.Record", "engineering.Tag", "valve_data.body_material"} <= set(keys)
     assert "psets.valve_data.body_material" in keys
     assert all("." in key for key in keys)
@@ -393,7 +362,7 @@ def test_schema_keys_come_from_the_labels_and_the_schema() -> None:
 
 def test_key_check_finds_a_type_key_and_a_property_key_in_plain_text() -> None:
     client = world()
-    keys = schema_keys(client, load_labels(client, SCOPE))
+    keys = schema_keys(client, SCOPE, load_labels(client, SCOPE))
     clean = "Valve data: body material SS316L, flow 2 m/s. Done. Type: Tag"
     assert key_hits(clean, keys) == []
     assert key_hits(f"{clean} core.Record", keys) == ["core.Record"]
@@ -407,7 +376,7 @@ def test_key_check_finds_a_type_key_and_a_property_key_in_plain_text() -> None:
 def test_walk_fails_when_a_plain_screen_shows_a_type_key() -> None:
     client = world()
     labels = load_labels(client, SCOPE)
-    keys = schema_keys(client, labels)
+    keys = schema_keys(client, SCOPE, labels)
     app = TlApp(client, scope=SCOPE, actor="user:kim", is_admin=False)
 
     async def scenario(pilot: Pilot[Any]) -> None:

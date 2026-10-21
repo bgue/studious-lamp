@@ -2114,7 +2114,9 @@ def section_plain_record_screen(ws: Workspace) -> None:
         "P123-RFI-0001",
         "RFI data",
         "Trade",
-        "structural",
+        "Structural",
+        "12500 USD",
+        "US dollar",
     )
     from_register(
         "23d-correspondence-properties",

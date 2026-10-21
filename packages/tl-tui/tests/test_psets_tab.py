@@ -19,8 +19,8 @@ FV_1001 = [
     "▾ valve_data · required",
     "  size_in                   6 in                    standard    "
     "● required at Design or Installed  ✓",
-    "  body_material             SS316L                  standard    ● required at Design  ✓",
-    "  fail_action               FC                      standard    ■ locked  ✓",
+    "  body_material             316L stainless          standard    ● required at Design  ✓",
+    "  fail_action               Fail closed             standard    ■ locked  ✓",
     "  seat_leakage              IV                      standard    ○ advisory  ✓",
     "  x.fat_witness_by          @party:client-acme      custom      optional  ✓",
     "  x.tie_in_window           —                       custom      optional",
@@ -44,6 +44,12 @@ def _text(client: FakeClient, key: str, *, technical: bool = False) -> str:
 
 def test_psets_text_for_a_conformant_record_matches_the_layout_exactly() -> None:
     assert _text(FakeClient.with_valve_example(), "FV-1001").splitlines() == FV_1001
+
+
+def test_technical_mode_keeps_the_stored_codes() -> None:
+    lines = _text(FakeClient.with_valve_example(), "FV-1001", technical=True).splitlines()
+    assert lines[3].startswith("  body_material             SS316L ")
+    assert lines[4].startswith("  fail_action               FC ")
 
 
 def test_psets_text_marks_issues_with_symbols() -> None:
@@ -91,6 +97,71 @@ def test_value_text_units_and_missing_values() -> None:
     assert value_text(_field(path="psets.p.none"), psets) == "—"
     flat = {"p": {"x.f": "v"}}
     assert value_text(_field(path="psets.p.x.f"), flat) == "v"
+
+
+def _codes() -> dict[str, Any]:
+    return {
+        "enum_values": [
+            {"code": "structural", "label": "Structural"},
+            {"code": "USD", "label": "US dollar"},
+            {"code": "XTS", "label": ""},
+        ]
+    }
+
+
+def test_a_code_list_value_shows_its_label_and_technical_mode_the_stored_code() -> None:
+    psets = {"p": {"f": "structural", "g": "XTS", "h": "unlisted"}}
+    field = _field(**_codes())
+    assert value_text(field, psets) == "Structural"
+    assert value_text(field, psets, technical=True) == "structural"
+    assert value_text(_field(path="psets.p.g", **_codes()), psets) == "XTS"  # no label: the code
+    assert value_text(_field(path="psets.p.h", **_codes()), psets) == "unlisted"
+    assert value_text(_field(path="psets.p.none", **_codes()), psets) == "—"
+
+
+def test_a_currency_placeholder_is_the_sibling_currency_then_the_record_then_nothing() -> None:
+    cost = _field(path="psets.p.cost_estimate", unit="{currency}", kind="decimal")
+    cur = _field(path="psets.p.cost_currency", **_codes())
+    psets = {"p": {"cost_estimate": 1200, "cost_currency": "USD"}}
+    assert value_text(cost, psets, siblings=[cost, cur]) == "1200 USD"
+    assert value_text(cost, psets, siblings=[cost, cur], technical=True) == "1200 USD"
+    assert value_text(cur, psets, siblings=[cost, cur]) == "US dollar"
+    assert value_text(cur, psets, siblings=[cost, cur], technical=True) == "USD"
+    no_sibling = {"p": {"cost_estimate": 1200}}
+    assert value_text(cost, no_sibling, siblings=[cost, cur], record={"currency": "EUR"}) == (
+        "1200 EUR"
+    )
+    assert value_text(cost, no_sibling, siblings=[cost, cur]) == "1200"
+    assert value_text(cost, no_sibling) == "1200"
+    other = _field(path="psets.p.x", unit="{count}")
+    assert value_text(other, {"p": {"x": 3}}) == "3"  # a placeholder with no value never shows
+
+
+def test_the_tab_shows_labels_and_resolved_units_in_plain_mode_only() -> None:
+    client = FakeClient.with_valve_example()
+    record = client.get_record(SCOPE, "FV-1001")
+    assert record is not None
+    meta = client.form_metadata(SCOPE, "core.Record")
+    group = meta.psets[0]
+    group.fields.append(
+        _field(
+            path=f"psets.{group.name}.cost_estimate",
+            label="Cost estimate",
+            unit="{currency}",
+            kind="decimal",
+        )
+    )
+    group.fields.append(
+        _field(path=f"psets.{group.name}.cost_currency", label="Cost currency", **_codes())
+    )
+    record["psets"].setdefault(group.name, {}).update({"cost_estimate": 90, "cost_currency": "USD"})
+    report = client.conformance(record["id"])
+    plain = psets_text(meta, record, report)
+    technical = psets_text(meta, record, report, technical=True)
+    assert "Cost estimate             90 USD" in plain
+    assert "Cost currency             US dollar" in plain
+    assert "Cost currency             USD" in technical
+    assert "{" not in plain
 
 
 class Host(App[None]):

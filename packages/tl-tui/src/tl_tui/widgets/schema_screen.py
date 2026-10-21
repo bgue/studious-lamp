@@ -161,9 +161,9 @@ class SchemaWorkbenchScreen(ModalScreen[None]):
             self.details[row.id] = detail
         header.update("\n".join(header_lines(detail, technical=technical)))
         if self.tab == 0:
-            lines = property_lines(detail.content)
+            lines = property_lines(detail.content, technical=technical)
         elif self.tab == 1:
-            lines = lint_lines(detail.lint)
+            lines = lint_lines(detail.lint, technical=technical)
         else:
             lines = diff_lines(detail)
         panel.update("\n".join(lines))

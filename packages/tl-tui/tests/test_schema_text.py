@@ -23,9 +23,9 @@ def test_the_versions_of_a_package_read_as_a_tree() -> None:
     ]
     assert COLUMNS == ("Package", "Version", "State", "Class", "Scope", "Drafted by")
     assert tree_cells(rows) == [
-        ("P123", "1.4.0", "Draft", "-", "project:P123", "user:dev"),
-        ("Engineering", "3.3.0", "Draft", "additive", "company", "user:dev"),
-        ("", "3.2.0", "Published", "additive (stale)", "company", "user:dev"),
+        ("P123", "1.4.0", "Draft", "-", "project:P123", "dev"),
+        ("Engineering", "3.3.0", "Draft", "additive", "company", "dev"),
+        ("", "3.2.0", "Published", "additive (stale)", "company", "dev"),
     ]
     assert tree_cells(rows, technical=True) == [
         ("x.P123", "1.4.0", "Draft", "-", "project:P123", "user:dev"),
@@ -77,24 +77,38 @@ def test_a_company_package_lists_its_code_lists_psets_and_properties() -> None:
         "list DeliveryMethod  extensible  5 values",
     ]
     assert lines[6:12] == [
-        "pset valve_data  required  mandatory  applies to core.Record",
+        "pset valve_data  required  mandatory  applies to Record",
         "  size_in  decimal  required  req Design,Installed  -",
         "  body_material  MaterialCode  required  req -  extensible",
         "  fail_action  FailAction  locked  req -  closed",
         "  tag_no  string  advisory  req -  -",
         "  manufacturer  string  advisory  req *  -",
     ]
+    assert "pset provenance  advisory  mandatory  applies to Tag, Document" in lines
+    assert "pset rfi_data  advisory  mandatory  applies to Technical item" in lines
+    assert "  schedule_impact_days  int  advisory  req -  -" in lines
+    assert len(lines) == 36
+
+
+def test_technical_mode_lists_the_record_type_keys() -> None:
+    lines = property_lines(fixture_text("co.acme.engineering"), technical=True)
+    assert "pset valve_data  required  mandatory  applies to core.Record" in lines
     assert (
         "pset provenance  advisory  mandatory  applies to engineering.Tag, documents.Document"
         in lines
     )
     assert "pset rfi_data  advisory  mandatory  applies to correspondence.TechnicalItem" in lines
-    assert "  schedule_impact_days  int  advisory  req -  -" in lines
-    assert len(lines) == 36
 
 
 def test_an_extension_lists_what_it_tightens_adds_and_customises() -> None:
     assert property_lines(fixture_text("x.P123")) == [
+        "extends Engineering, version 3.2.0, Valve data",
+        "  tighten body_material  required_in_states=Design",
+        "  add MaterialCode  SS316L-NACE  -> SS316L",
+        "  custom x.fat_witness_by  string",
+        "  custom x.tie_in_window  string",
+    ]
+    assert property_lines(fixture_text("x.P123"), technical=True) == [
         "extends co.acme.engineering@3.2.0#valve_data",
         "  tighten body_material  required_in_states=Design",
         "  add MaterialCode  SS316L-NACE  -> SS316L",
@@ -105,7 +119,7 @@ def test_an_extension_lists_what_it_tightens_adds_and_customises() -> None:
 
 def test_a_project_package_lists_its_own_psets() -> None:
     assert property_lines(fixture_text("prj.P123")) == [
-        "pset shutdown_tie_in  advisory  optional  applies to core.Record",
+        "pset shutdown_tie_in  advisory  optional  applies to Record",
         "  window  string  advisory  req -  -",
         "  approved  bool  advisory  req -  -",
     ]
@@ -124,6 +138,12 @@ def test_lint_findings_are_counted_then_listed() -> None:
         LintIssueView(severity="warning", rule="L2", path="psets.b.d", message="Unit missing."),
     ]
     assert lint_lines(issues) == [
+        "Lint: 1 errors, 2 warnings",
+        "error  L1  psets.a  No description.",
+        "warning  L2  B: c  Unit missing.",
+        "warning  L2  B: d  Unit missing.",
+    ]
+    assert lint_lines(issues, technical=True) == [
         "Lint: 1 errors, 2 warnings",
         "error  L1  psets.a  No description.",
         "warning  L2  psets.b.c  Unit missing.",
