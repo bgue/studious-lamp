@@ -1,6 +1,6 @@
 # Increment plan — P1-UX usability: one record screen, plain language, property sets
 
-Status: in-progress (round 4: wave 3 = T01, T02, T03; T00 T09b T09c T10 S3 S2 merged)
+Status: in-progress (round 5: T01-T03 merged; wave 4 = T05, T06, T09e dispatched)
 Supervisor session: 2026-10-21 (rounds 1-4)
 Brief sections: §6.3 (psets), §9 M2/M10, §10 (TUI), ADR-0010, ADR-0016
 Branch: `p1/ux`
@@ -73,9 +73,9 @@ Specs: `T00-display-helper.md` (a ticket since r2), `S2-record-screen.md`, `S3-f
 | T01 | Documents register: Enter, plain text (document Details exist since S2) | T00 S2 S3 | full | document_register.py, document_text.py |
 | T02 | Tag register: Enter, plain text, tag Details | T00 S2 S3 | full | tag_register.py, tag_text.py, details/tags.py |
 | T03 | Correspondence register, inbox, clocks: Enter, plain text, item and clock Details | T00 S2 S3 | full | correspondence_screen.py, correspondence_text.py, details/correspondence.py |
-| T04 | Domain screen and RFI log: Enter on all three modes, plain RFI text, RFI Details; wires T05's text into domain_screen (r4: domain_screen imports commercial_text, evidence_text, rfi_text) | T00 S2 S3 T05 | full | domain_screen.py, rfi_text.py, details/technical.py |
-| T05 | Commercial and evidence views: plain text only (optional labels/technical kwargs, constants carry the dropped column), commercial Details; no screen change | T00 S2 | lite | commercial_text.py, evidence_text.py, details/commercial.py |
-| T06 | Schedule and cost lists: Enter, plain text, schedule and snapshot Details | T00 S2 | full | schedule_screen.py, schedule_text.py, details/schedule.py |
+| T04 | Domain screen and RFI log: Enter on all three modes, plain RFI text, RFI Details; wires T05's text into domain_screen (r4: domain_screen imports commercial_text, evidence_text, rfi_text) | T00 S2 S3 T05 | full | domain_screen.py, details/technical.py |
+| T05 | Commercial, RFI and evidence text: plain words (optional labels/technical kwargs, `Status` column dropped D26), RFI clock pin fix, commercial Details; no screen change | T00 S2 T03 | lite | commercial_text.py, rfi_text.py, evidence_text.py, details/commercial.py |
+| T06 | Schedule screen (no cost screen exists): Enter, plain text, schedule and snapshot Details | T00 S2 | full | schedule_screen.py, schedule_text.py, details/schedule.py |
 | T07 | Review queue: Enter on a proposal; review values carry `target` RecordRef so Enter has an id | T00 S2 | full | review_queue.py (+ its text) |
 | T08 | Record tabs and shared panels: context panel, record grid type column, links tab, thread tab | T00 S2 | full | context_panel.py, grid.py, links_tab.py, thread_tab.py |
 | T09a | Integration registry: Enter on rows, service labels, no ids (with T07) | T00 S2 | full | integration_screen.py, integration_text.py |
