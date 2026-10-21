@@ -90,6 +90,20 @@ negligible (0.5 M). So the levers are, in order: **smaller contexts, fewer calls
 11. **Read order and caching.** Every agent reads its definition, `AGENTS.md`, the spec sections it is told, then
     the file that changes every round (STATE.md, the ticket), in that order, so the stable prefix is cached across
     rounds and across the agents of a batch. Learnings are fetched by id (`grep -n -A6 <id>`), never the whole file.
+12. **No stop-and-ask loops** (owner, 2026-10-21; measured on P1-UX, where most tickets cost an extra
+    block → decide → respawn → regate → review cycle of 20–50 minutes):
+    - **Consequential pins.** A test or snapshot outside a ticket's Allowed paths that breaks only because the
+      screen or output now shows what the ticket intends is updated in that ticket, with a counterpart that pins
+      the old form where the old form still exists (e.g. technical mode), and listed in the report. The author
+      does not stop for it; the reviewer checks the list. Anything else outside Allowed paths still stops.
+    - **Size by coherence.** Work that touches many small files the same way (a wording pass, a mode switch across
+      screens) is one builder piece per area, not many Haiku tickets with narrow paths. Haiku tickets stay for
+      isolated pure functions, fixtures, docs and loaders with a provided test.
+    - **One pass where two would read the same screens.** A check that has to look at every screen runs inside the
+      generator that already visits them (the tour), not as a second walk.
+    - **The orchestrator fixes trivial blockers itself**: a one-line caller fix, a report line, an import order.
+      It spawns an agent only for judgement or for more than a few lines.
+    - **Builders run what their brief names**, nothing more: the named gate paths, the named demos, once.
 
 ## STATE.md format (at most 150 lines)
 
