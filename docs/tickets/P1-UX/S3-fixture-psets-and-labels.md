@@ -7,9 +7,9 @@ Review: full
 Labels: schema, tests
 Depends on: —
 Branch: `p1/ux-s3-fixture-psets-and-labels`
-Approver (schema): the owner approved the example sets on 2026-10-21 (orchestrator records APPROVALS).
-The `title` annotations on module classes and the generated labels file are metadata only; the orchestrator lists
-them with the same approval line (95).
+Approver (schema): the owner approved the example sets on 2026-10-21 (orchestrator records APPROVALS). The
+`title` annotations on module classes and the generated labels file are additive display metadata and are covered by
+the same approval (decision Q2, answered in r2); the `95` line still lists the paths.
 
 ## Goal
 The fixture company standard has example property sets for documents, RFIs and correspondence; every record-type
@@ -57,6 +57,8 @@ files. Core types keep their names: `core.Record` -> "Record".
 - `packages/tl-schema/src/tl_schema/generate.py`, `packages/tl-schema/src/tl_schema/generators/**`,
   `packages/tl-schema/src/tl_schema/generated/**` (by `just gen` only)
 - `packages/tl-schema/tests/**` (pins that move; new test file below)
+- `packages/tl-tui/tests/**` pins and snapshots that render 3.2.0: `__snapshots__/test_psets_tab_*.raw`,
+  `test_new_record_form.raw`, `test_edit_form.raw`, `fakes.py`, and `test_schema_text.py` (plan check F6)
 - `dev/demos/p1_i8_demo.py` (anchors only, if a new set breaks one)
 - `dev/seed/**` (values only)
 - `docs/reports/P1-UX/S3.md` (create)

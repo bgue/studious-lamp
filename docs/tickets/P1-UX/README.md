@@ -1,7 +1,7 @@
 # Increment plan — P1-UX usability: one record screen, plain language, property sets
 
-Status: planning
-Supervisor session: 2026-10-21 (round 1)
+Status: in-progress (plan check applied, round 2)
+Supervisor session: 2026-10-21 (rounds 1 and 2)
 Brief sections: §6.3 (psets), §9 M2/M10, §10 (TUI), ADR-0010, ADR-0016
 Branch: `p1/ux`
 Input: `SCOPE.md` (owner request 2026-10-21). Owner decision 2026-10-21: scope is SCOPE clauses 1-5; the
@@ -45,6 +45,9 @@ Documents, RFIs and correspondence get example property sets in the fixture comp
 | D4 | Fixture sets are added **in place** to 3.2.0, additive, not a new version (3.3.0 is used by the P1-I8 demo). |
 | D5 | Technical mode is in-memory state on the app (`DisplayMode`), off at start, admin-only toggle, not remembered. A "remember" setting is not built. |
 | D6 | `GET /schema/forms` gains an optional `record_id`; the answer only differs for a visible record. The API/MCP/CLI output otherwise stays as is. |
+| D7 | Toggle key is `Ctrl+D` (palette entry "Technical details"); T10 binds it (owner/orchestrator answer to Q3, 2026-10-21). |
+| D8 | `title` on module classes and generated `type_labels.py` are additive display metadata covered by the owner approval of 2026-10-21 (answer to Q2; orchestrator records APPROVALS). |
+| D9 | S1 became Haiku ticket T00 (plan check F10): same spec, id and branch renamed `T00-display-helper`, `p1/ux-t00-display-helper`. |
 
 ## Demo `just demo P1-UX` (SQLite and Postgres) — clauses
 1. From each register (documents, tags, correspondence register/inbox/clocks, RFI log, commercial, schedule/cost
@@ -58,39 +61,41 @@ Documents, RFIs and correspondence get example property sets in the fixture comp
 ## Builder pieces (in order)
 | # | Piece | Why builder | Reviewer | Status |
 |---|---|---|---|---|
-| S1 | `tl_tui/display.py`: labels, plain-language rules, `DisplayMode`, leak finder | One shared helper every screen uses; its rules decide what the whole TUI hides | full | spec written |
-| S3 | Schema: example sets in the fixture, `title` on record-type classes, generated `type_labels.py` | `schema/**` and the generator; human gate | full | spec written |
-| S2 | Record screen for module types: `RecordScreen`, `open_record` helper, Details registry, `form_metadata(record_id)` through client, embedded, remote, fakes and the API route, Properties tab, `load_labels` | Touches the client contract and a route that can carry record text (ADR-0016 walking test) | full | spec written |
+| S3 | Schema: example sets in the fixture, `title` on record-type classes, generated `type_labels.py` (also fixes the tl-tui pins and snapshots that render 3.2.0) | `schema/**` and the generator; human gate | full | dispatched r2 |
+| S2 | Record screen for module types: `RecordScreen`, `open_record`, Details registry (documents the only bespoke renderer), `form_metadata(record_id)` through client, `tl_api` client, embedded, fakes and the API route, Properties tab with plain rule words | Client contract and a route that can carry record text (ADR-0016 walking test) | full | spec written; dep T00 S3 |
 
-Specs: `S1-display-helper.md`, `S2-record-screen.md`, `S3-fixture-psets-and-labels.md`.
+Specs: `T00-display-helper.md` (a ticket since r2), `S2-record-screen.md`, `S3-fixture-psets-and-labels.md`.
 
-## Tickets (all `tier haiku`; written after the plan check, in round 2)
+## Tickets (all `tier haiku`; T00 written, the rest written one batch ahead from the tree after S2 merges)
 | ID | Title | Depends | Review | Allowed area |
 |---|---|---|---|---|
-| T01 | Documents register: Enter, plain text, document Details | S1 S2 S3 | full | document_register.py, document_text.py, details/documents.py |
-| T02 | Tag register: Enter, plain text, tag Details | S1 S2 S3 | full | tag_register.py, tag_text.py, details/tags.py |
-| T03 | Correspondence register, inbox, clocks: Enter, plain text, item and clock Details | S1 S2 S3 | full | correspondence_screen.py, correspondence_text.py, details/correspondence.py |
-| T04 | Domain screen and RFI log: Enter on all three modes, plain RFI text, RFI Details | S1 S2 S3 | full | domain_screen.py, rfi_text.py, details/technical.py |
-| T05 | Commercial and evidence views: plain text, commercial Details | T04 | lite | commercial_text.py, evidence_text.py, details/commercial.py |
-| T06 | Schedule and cost lists: Enter, plain text, schedule and snapshot Details | S1 S2 | full | schedule_screen.py, schedule_text.py, details/schedule.py |
-| T07 | Review queue: Enter on a proposal that names a record, plain text | S1 S2 | full | review_queue.py (+ its text) |
-| T08 | Shared screens: record view header and History, Properties tab (rule words, set labels, no schema line), context panel, record grid type column | S1 S2 | full | record_view.py, psets_tab.py, context_panel.py, grid.py |
-| T09 | Other screens plain: integration registry, accounts, settings, schema workbench and review (service labels, no ids) | S1 | full | integration_*.py, admin_*.py, settings_*.py, schema_*.py |
-| T10 | Toggle key, help screen, palette entry, keymap and snapshot tests | S1 S2 | full | app.py, keymap.py, help_screen.py, palette.py |
-| T11 | Walking test (plain user greps every screen; hidden = missing) and `dev/demos/P1-UX.sh` | T01-T10 | full | tests, dev/demos/ |
-| T12 | Tour re-shot (phase0, phase1, new section), narratives, PHASE-1-TOUR.md | T11 | lite | dev/tour/, docs/reports/ |
+| T00 | Display helper: labels, plain-language rules, `DisplayMode`, `find_technical(text, labels=None)` (was S1) | none | full | tl_tui/display.py, text.py (units), test_display.py |
+| T01 | Documents register: Enter, plain text, document Details | T00 S2 S3 | full | document_register.py, document_text.py, details/documents.py |
+| T02 | Tag register: Enter, plain text, tag Details | T00 S2 S3 | full | tag_register.py, tag_text.py, details/tags.py |
+| T03 | Correspondence register, inbox, clocks: Enter, plain text, item and clock Details | T00 S2 S3 | full | correspondence_screen.py, correspondence_text.py, details/correspondence.py |
+| T04 | Domain screen and RFI log: Enter on all three modes, plain RFI text, RFI Details | T00 S2 S3 | full | domain_screen.py, rfi_text.py, details/technical.py |
+| T05 | Commercial and evidence views: plain text, drop the duplicate State/Status column, commercial Details | T00 S2 | lite | commercial_text.py, evidence_text.py, details/commercial.py |
+| T06 | Schedule and cost lists: Enter, plain text, schedule and snapshot Details | T00 S2 | full | schedule_screen.py, schedule_text.py, details/schedule.py |
+| T07 | Review queue: Enter on a proposal; review values carry `target` RecordRef so Enter has an id | T00 S2 | full | review_queue.py (+ its text) |
+| T08 | Record tabs and shared panels: context panel, record grid type column, links tab, thread tab | T00 S2 | full | context_panel.py, grid.py, links_tab.py, thread_tab.py |
+| T09a | Integration registry: Enter on rows, service labels, no ids (with T07) | T00 S2 | full | integration_screen.py, integration_text.py |
+| T09b | Accounts, settings, schema workbench and review plain | T00 | full | admin_*.py, settings_*.py, schema_*.py |
+| T10 | Toggle key `Ctrl+D`, help screen, palette entry, keymap and snapshot tests | T00 | full | app.py, keymap.py, help_screen.py, palette.py |
+| T11 | Walking test (screen list generated from keymap.py, plain user greps each; hidden = missing) and `dev/demos/P1-UX.sh` (sets document/RFI/correspondence values) | T01-T10, T13 | full | tests, dev/demos/ |
+| T12 | Tour re-shot (phase0, phase1, new section), narratives, PHASE-1-TOUR.md; tour world sets `document_data`, `rfi_data`, `correspondence_data` values (dev/tour/tourkit.py, phase1.py `update_psets`) | T11 | lite | dev/tour/, docs/reports/ |
+| T13 | Main screen plain (`t f`): feed pane, header, main area, ref tray, link picker | T00 S2 | full | feed_pane.py, header.py, main_area.py, ref_tray.py, link_picker.py |
 
-12 tickets plus 3 pieces is above the ten-ticket line, so round 1 asks for the plan check (`4 PLANCHK`) and
-dispatches nothing. Hooks for trimming if the check asks: merge T07 into T09; merge T05 into T04.
+15 tickets plus 2 pieces; the plan check (below) is applied. Record tabs other than Details and Properties are T08;
+the screens T11 walks are every entry the keymap opens (generated, not hand-written).
 
 ## Order of work
-1. Batch 1: S1 and S3 in parallel (disjoint: `tl_tui/display.py` vs `schema/`, `generated/`, `dev/seed`).
-2. Batch 2: S2 (needs S1 interface and S3 type labels).
-3. Batch 3: T01, T02, T03. Batch 4: T04, T06, T07. Batch 5: T05, T08, T10 (T08 and T10 touch different files).
-   T09 can join any batch after S1 (no overlap with the others).
-4. Batch 6: T11 once every screen ticket is merged. Batch 7: T12. DONE round: full gate, `gate-pg` on touched
-   directories, security review scoped to S2 (route, confidentiality) and S3 (schema).
-Checkpoints: C1 S1+S3 merged; C2 S2 merged; C3 T01-T10 merged; C4 T11-T12 merged and DONE.
+1. Wave 1: T00 and S3 in parallel (disjoint: `tl_tui/display.py` vs `schema/`, `generated/`, `dev/seed`, tl-tui pins).
+2. Wave 2: S2, T09b, T10 (S2 needs T00 and S3; T09b and T10 need T00 only).
+3. Wave 3: T01 T02 T03. Wave 4: T04 T05 T06. Wave 5: T07 with T09a, T08 with T13 (two workflows).
+4. Wave 6: T11. Wave 7: T12.
+5. DONE: full gate, `gate-pg` on touched directories, security review `Sec: S2 (routes/reference.py record_id,
+   record_screen hidden=missing), S3`, range `4b2cda0..<head>`, one reviewer per item.
+Checkpoints: C1 T00+S3 merged; C2 S2 merged; C3 T01-T10 and T13 merged; C4 T11-T12 merged and DONE.
 
 ## Risks and escalation triggers
 - Snapshot churn: every screen ticket regenerates its own TUI snapshots and names the snapshot test in its gate
@@ -108,7 +113,7 @@ Checkpoints: C1 S1+S3 merged; C2 S2 merged; C3 T01-T10 merged; C4 T11-T12 merged
 - Detail renderers need the typed view for a record id; the documents, correspondence and schedule clients take
   project plus number, not an id. S2 proves one renderer end to end; a missing id-keyed client method is an
   escalation (a contract change), not a ticket.
-- Hidden text is a moving target; the leak finder (S1) and the walking test (T11) are the guard.
+- Hidden text is a moving target; the leak finder (T00) and the walking test (T11) are the guard.
 - Escalate to the orchestrator if: a screen needs text that no schema label provides and S3 cannot add it; the
   admin-only toggle needs a role the client cannot report; Postgres parity fails on a detail view.
 
@@ -116,4 +121,17 @@ Checkpoints: C1 S1+S3 merged; C2 S2 merged; C3 T01-T10 merged; C4 T11-T12 merged
 (filled during escalation)
 
 ## Plan check
-(written by the plan-check agent: `4 PLANCHK docs/tickets/P1-UX/README.md | F1 ... | 30`)
+`4 PLANCHK` answered by the orchestrator (r2). Go with fixes; every finding accepted and applied.
+- F1 HI applied: S2 Allowed paths add `tl_api/client/links.py` and its client test (remote `form_metadata` sends `record_id`).
+- F2 MD applied: rule words, set label and the `Effective schema #…` line go to S2; T08 = context_panel, grid, links_tab, thread_tab.
+- F3 MD applied: T11 lists the walked screens (generated from keymap); record tabs to T08; new T13 for the main screen.
+- F4 MD applied: T09 split into T09a (integration, with T07) and T09b (admin, settings, schema); Q1 rejected; T05 stays lite, drops its T04 dependency.
+- F5 MD applied: `find_technical(text, labels=None)`; domain keys only for domains the labels know; ignore test adds `m/s`, `kg/m3`, `N/A`, `2026/10/21`.
+- F6 MD applied: S3 Allowed paths add the tl-tui pins, snapshots and `test_schema_text.py` that render 3.2.0.
+- F7 LO applied: T12 sets the three data sets' values in the tour world; T11 does the same in `P1-UX.sh`.
+- F8 LO applied: integration registry rows get Enter (T09a); T05 names the commercial State/Status duplicate column drop.
+- F9 LO applied: waves as in Order of work.
+- F10 LO applied: S1 is Haiku ticket T00 (sentinel and 4 mutants kept), id renamed (D9).
+- F11 LO applied: DONE security review rows and range in Order of work.
+- F12 LO applied: T11 generates its screen list from keymap.py; S2 keeps documents the only bespoke renderer, others generic, getters escalated.
+Q2 and Q3 answered: D8, D7.

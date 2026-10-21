@@ -5,7 +5,7 @@ Tier: sonnet
 Kind: piece
 Review: full
 Labels: tui, api, tests
-Depends on: S1 (display helper), S3 (type labels, example sets)
+Depends on: T00 (display helper), S3 (type labels, example sets)
 Branch: `p1/ux-s2-record-screen`
 
 ## Goal
@@ -43,8 +43,8 @@ def details_for(client, project, record, labels, mode: DisplayMode) -> list[Deta
     # imports every module of the package once (pkgutil), picks by record["type"], else generic_rows(record, labels)
 # tl_tui/details/generic.py (new): envelope rows with labels: Type (type_label), Title, Status, Created, Updated,
 #   Conformance; technical rows: Key, Version, Scope, Schema hash.
-# tl_tui/details/documents.py (new, the one worked example, replaced/extended by T01): Document rows from
-#   client.get_document(project, record["key"]) with labels.
+# tl_tui/details/documents.py (new, the one bespoke renderer, extended by T01): Document rows from
+#   client.get_document(project, record["key"]) with labels. Every other type stays on generic rows here (F12).
 
 # Labels loader (new, in tl_tui/labels_load.py): load_labels(client, scope) -> Labels
 #   type_titles from tl_schema.generated.type_labels.TYPE_LABELS; code_labels from the effective schema's
@@ -56,18 +56,21 @@ def form_metadata(self, scope: str, record_type: str, record_id: str | None = No
 ```
 API: `GET /schema/forms` (routes/reference.py `get_form_metadata`, operation `get_form_metadata`) gains optional
 query `record_id`; it calls `psets.form_metadata(uow, scope, record_type, record_id)` only when the record is
-visible to the viewer, otherwise exactly as without. Response shape unchanged. The remote client sends the
-parameter; embedded passes it; `tests/fakes.py` accept it.
+visible to the viewer, otherwise exactly as without. Response shape unchanged. The remote client (`tl_api/client/links.py`, reached by `RemoteClient` via `__getattr__`) sends the
+parameter, with a client test that the query carries `record_id`; embedded passes it; `tests/fakes.py` accept it.
 
 Record view changes (`widgets/record_view.py`): the tab label "Psets" becomes "Properties"; `PsetsTab` passes
 `record["id"]`; `details_text` is replaced by `details_for` rows (plain by default, technical rows only when
-`mode_of(self).technical`); `TABS` keys stay (`psets`) so key bindings and tests keep working.
+`mode_of(self).technical`); the Properties tab also takes over the words that belong to it (plan check F2): the rule
+column uses `rule_phrase` (no `required@Design/Installed`), the group header uses `pset_label` (no `name@version`),
+and the `Effective schema #…` line (psets_tab.py:84) shows only in technical mode; `TABS` keys stay (`psets`) so key bindings and tests keep working.
 
 ## Context (≤ 10 files)
 - `packages/tl-tui/src/tl_tui/widgets/record_view.py`, `psets_tab.py`
 - `packages/tl-tui/src/tl_tui/client.py` (form_metadata, get_record_by_id), `embedded.py`, `remote.py`
+- `packages/tl-api/src/tl_api/client/links.py` (`form_metadata`, line ~148; `RemoteClient` reaches it through `__getattr__`, remote.py:240)
 - `packages/tl-api/src/tl_api/routes/reference.py` (lines 70-100)
-- `packages/tl-tui/src/tl_tui/display.py` (S1), `packages/tl-schema/src/tl_schema/generated/type_labels.py` (S3)
+- `packages/tl-tui/src/tl_tui/display.py` (T00), `packages/tl-schema/src/tl_schema/generated/type_labels.py` (S3)
 - `packages/tl-tui/src/tl_tui/widgets/document_register.py` (how a register holds `project`, `client`, `actor`)
 - `packages/tl-api/tests/test_confidentiality_walk.py` (the five-reader walk to extend)
 may explore: `packages/tl-tui/tests/fakes*.py`, `packages/tl-tui/tests/test_record_view*.py`
@@ -76,13 +79,13 @@ may explore: `packages/tl-tui/tests/fakes*.py`, `packages/tl-tui/tests/test_reco
 - `packages/tl-tui/src/tl_tui/widgets/record_screen.py` (create), `record_view.py`, `psets_tab.py`
 - `packages/tl-tui/src/tl_tui/details/**` (create), `labels_load.py` (create)
 - `packages/tl-tui/src/tl_tui/client.py`, `embedded.py`, `remote.py`
-- `packages/tl-api/src/tl_api/routes/reference.py`
+- `packages/tl-api/src/tl_api/client/links.py`, `packages/tl-api/src/tl_api/routes/reference.py`
 - `packages/tl-tui/tests/**` (new tests, fakes, and snapshots of the record view and psets tab)
 - `packages/tl-api/tests/test_confidentiality_walk.py`, `packages/tl-api/tests/test_schema_forms*.py`
 - `docs/reports/P1-UX/S2.md` (create)
 
 ## Steps
-1. `form_metadata(record_id)` end to end (interface, embedded, remote, route, fakes), with its tests on both adapters.
+1. `form_metadata(record_id)` end to end (interface, embedded, `tl_api` client, route, fakes), with its tests on both adapters.
 2. `details` package with `generic` and `documents`; `labels_load`.
 3. `RecordScreen`, `open_record`; wire `RecordView` to details and the Properties name.
 4. A test register stand-in (a minimal ModalScreen in the test) proves: Enter-equivalent call opens the screen on
@@ -120,7 +123,8 @@ Standard report. List the record types that fall back to generic rows. State for
 number; this is the table the screen tickets rely on.
 
 ## Escalation triggers
-- A detail getter cannot be called from `(scope, key)` without a new client or API method (contract change).
+- A detail getter cannot be called from `(scope, key)` without a new client or API method (contract change): write the
+  mapping in the report and escalate; do not build the other renderers (F12: getters are escalated, not guessed).
 - The route change needs more than the optional parameter, or `psets.form_metadata` needs a change.
 - Postgres and SQLite disagree on any new read (L-P1-I5-1).
 

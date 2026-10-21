@@ -1,12 +1,14 @@
-# P1-UX-S1 — Shared display helper (plain language, technical toggle, leak finder)
+# P1-UX-T00 — Shared display helper (plain language, technical toggle, leak finder)
 
-Status: draft
-Tier: sonnet
-Kind: piece
+Status: ready
+Tier: haiku
+Kind: ticket
 Review: full
 Labels: tui, tests
 Depends on: —
-Branch: `p1/ux-s1-display-helper`
+Branch: `p1/ux-t00-display-helper`
+
+(Was piece S1 until plan check F10: the module is pure functions with a pinned spec, so a Haiku ticket with a full reviewer.)
 
 ## Goal
 One module, `packages/tl-tui/src/tl_tui/display.py`, that every screen uses to turn stored values into plain
@@ -49,18 +51,19 @@ class DisplayMode:                                              # per app, in me
         # refusal text, exactly: "Technical details are for admins"
 def mode_of(widget_or_app: object) -> DisplayMode               # app.display if present, else a plain-mode default
 
-def find_technical(text: str) -> list[str]                      # every token a plain user must not see
+def find_technical(text: str, labels: Labels | None = None) -> list[str]   # every token a plain user must not see
 ```
-`find_technical` matches: a 26-character Crockford ULID; a 64-hex digest; the short hash form `#abcd…ef`; a package
-reference `name@x.y.z`; `svc:` followed by a word; `required@`; `general/letter`-style `domain/subtype` keys;
-`sha256:`; a calendar id or version token as the clock text writes it (`cal:`, `calendar C-...`, `@v3`). Each
-pattern is a named constant with one test; the list is the contract T11 greps with.
+`find_technical` matches: a 26-character Crockford ULID (`[0-9A-HJKMNP-TV-Z]{26}`); a 64-hex digest; the short
+hash form `#abcd…ef`; a package reference `name@x.y.z`; `svc:` followed by a word; `required@`; `sha256:`; a
+calendar id or version token as the clock text writes it (`cal:`, `calendar C-...`, `@v3`); and a `domain/subtype`
+key only when `labels` is given and `domain` is a key of `labels.domains` (with no labels no `a/b` text matches).
+Each pattern is a named constant with one test; the list is the contract the walking test (T11) greps with.
 
 Existing helpers stay where they are: `tl_tui/text.py` (`unit_label`, `format_value`, `short_hash`, `timestamp`)
 and `FieldMeta`, `PsetGroupMeta` from `tl_schema.forms`. `display.py` imports them; it does not copy them.
 Extend `UNIT_LABELS` in `text.py` only if a test needs a unit (currency codes `USD`, `EUR`, `d` for days).
 
-## Context (≤ 10 files)
+## Context (read these, nothing else)
 - `packages/tl-tui/src/tl_tui/text.py`
 - `packages/tl-tui/src/tl_tui/widgets/psets_tab.py` (`rule_text`, `value_text`: what `rule_phrase` replaces)
 - `packages/tl-tui/src/tl_tui/correspondence_text.py` (`clock_line`, `suggestion_text`: examples of leaks)
@@ -72,7 +75,7 @@ Extend `UNIT_LABELS` in `text.py` only if a test needs a unit (currency codes `U
 - `packages/tl-tui/src/tl_tui/display.py` (create)
 - `packages/tl-tui/src/tl_tui/text.py` (units only)
 - `packages/tl-tui/tests/test_display.py` (create)
-- `docs/reports/P1-UX/S1.md` (create)
+- `docs/reports/P1-UX/T00.md` (create)
 
 ## Tests to add (`packages/tl-tui/tests/test_display.py`)
 - `test_humanize_splits_camel_case_and_drops_the_module_prefix`
@@ -88,23 +91,26 @@ Extend `UNIT_LABELS` in `text.py` only if a test needs a unit (currency codes `U
 - `test_mode_of_defaults_to_plain_without_an_app`
 - `test_find_technical_matches_each_pattern` (one parametrised case per pattern; a ULID built with
   `tl_core` ids, a real `short_hash`, `co.acme.engineering@3.2.0`, `svc:intake`, `required@Design/Inst`)
+- `test_find_technical_matches_a_domain_key_only_when_the_labels_know_the_domain` (`general/letter` with
+  `Labels(domains={"general": "General"})` matches; without labels, or with `m/s`, does not)
 - `test_find_technical_ignores_plain_sentences` (titles with `@` in an email address, a part number of 26
-  letters that is not Crockford, `Letter`, `Control valve`)
+  letters that is not Crockford, `Letter`, `Control valve`, and the units/dates `m/s`, `kg/m3`, `N/A`, `2026/10/21`)
 
 ## Acceptance
 ```
 just check
+uv run pytest packages/tl-tui/tests/test_display.py -q
 just gate packages/tl-tui/tests/test_display.py packages/tl-tui/tests/test_psets_tab.py packages/tl-tui/tests/test_text.py
 ```
 Expected: pass; `just check` clean.
 
-## Guards the sentinel and targeted mutants must cover (run by the builder, 3 lines in the report)
+## Mutants (run by the implementer in its worktree, one line each in the report: killed or survived)
 Sentinel: flip `DisplayMode.technical` default to `True`. Targeted: (1) the admin test in `toggle` inverted;
 (2) the ULID pattern loosened to any 26 characters; (3) `actor_label` returning the raw `svc:` id;
-(4) `rule_phrase` keeping `@`. Each must fail a test.
+(4) `rule_phrase` keeping `@`. Each must fail a test; revert each before committing.
 
 ## Report requirements
-Standard report. List each `find_technical` pattern with its test name. Say which existing `text.py` helper each
+Standard report (`docs/templates/haiku-report.md`). List each `find_technical` pattern with its test name. Say which existing `text.py` helper each
 function reuses.
 
 ## Escalation triggers
@@ -113,7 +119,7 @@ function reuses.
 - Stop if a pattern would hide plain text in the existing snapshots (the leak finder only reports; it never edits).
 
 ## Blocked
-(builder writes here)
+(implementer writes here)
 
 ## Decision
 (supervisor or orchestrator writes here)
