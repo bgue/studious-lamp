@@ -20,6 +20,7 @@ from textual.binding import Binding, BindingType
 from textual.containers import Vertical, VerticalScroll
 from textual.screen import ModalScreen
 from textual.widgets import DataTable, Static
+from tl_core.settings.layers import project_of_scope
 from tl_mod_schemareg.views import PackageDetail, PackageSummary
 
 from tl_tui.client import ClientInterface
@@ -34,6 +35,7 @@ from tl_tui.schema_text import (
     property_lines,
     tree_cells,
 )
+from tl_tui.widgets.record_screen import open_record
 
 TABS = ("Properties", "Lint", "Diff")
 
@@ -179,6 +181,20 @@ class SchemaWorkbenchScreen(ModalScreen[None]):
     def on_data_table_row_highlighted(self, event: DataTable.RowHighlighted) -> None:
         event.stop()
         self._describe()
+
+    def on_data_table_row_selected(self, event: DataTable.RowSelected) -> None:
+        """Enter on a version opens its full record; Esc there returns to this row."""
+        event.stop()
+        if not 0 <= event.cursor_row < len(self.rows):
+            return
+        open_record(
+            self,
+            self.client,
+            self.scope,
+            project_of_scope(self.scope) or "",
+            self.actor,
+            self.rows[event.cursor_row].id,
+        )
 
     # --- actions -------------------------------------------------------------------------
 
