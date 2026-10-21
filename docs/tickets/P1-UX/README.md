@@ -1,6 +1,6 @@
 # Increment plan — P1-UX usability: one record screen, plain language, property sets
 
-Status: in-progress (plan check applied, round 2)
+Status: in-progress (round 3: wave 2 = T09b, T09c, T10; S2 waits for S3)
 Supervisor session: 2026-10-21 (rounds 1 and 2)
 Brief sections: §6.3 (psets), §9 M2/M10, §10 (TUI), ADR-0010, ADR-0016
 Branch: `p1/ux`
@@ -79,13 +79,15 @@ Specs: `T00-display-helper.md` (a ticket since r2), `S2-record-screen.md`, `S3-f
 | T07 | Review queue: Enter on a proposal; review values carry `target` RecordRef so Enter has an id | T00 S2 | full | review_queue.py (+ its text) |
 | T08 | Record tabs and shared panels: context panel, record grid type column, links tab, thread tab | T00 S2 | full | context_panel.py, grid.py, links_tab.py, thread_tab.py |
 | T09a | Integration registry: Enter on rows, service labels, no ids (with T07) | T00 S2 | full | integration_screen.py, integration_text.py |
-| T09b | Accounts, settings, schema workbench and review plain | T00 | full | admin_*.py, settings_*.py, schema_*.py |
-| T10 | Toggle key `Ctrl+D`, help screen, palette entry, keymap and snapshot tests | T00 | full | app.py, keymap.py, help_screen.py, palette.py |
+| T09b | Accounts and about:config screens plain (r3: schema part split to T09c) | T00 | full | admin_text.py, settings_text.py, admin_screen.py, setting_history.py, settings_screen.py |
+| T09c | Schema workbench and review plain (split from T09b, r3) | T00 | full | schema_text.py, schema_review_text.py, schema_screen.py, schema_review_screen.py |
+| T09d | Enter on schema package rows opens the record screen (after S2; written then) | S2 T09c | full | schema_screen.py |
+| T10 | Toggle key `Ctrl+D`, help (from keymap), palette entry, refresh hook, T00 LO nit F1 (find_technical dedupe) | T00 | full | app.py, keymap.py, commands.py, display.py |
 | T11 | Walking test (screen list generated from keymap.py, plain user greps each; hidden = missing) and `dev/demos/P1-UX.sh` (sets document/RFI/correspondence values) | T01-T10, T13 | full | tests, dev/demos/ |
 | T12 | Tour re-shot (phase0, phase1, new section), narratives, PHASE-1-TOUR.md; tour world sets `document_data`, `rfi_data`, `correspondence_data` values (dev/tour/tourkit.py, phase1.py `update_psets`) | T11 | lite | dev/tour/, docs/reports/ |
 | T13 | Main screen plain (`t f`): feed pane, header, main area, ref tray, link picker | T00 S2 | full | feed_pane.py, header.py, main_area.py, ref_tray.py, link_picker.py |
 
-15 tickets plus 2 pieces; the plan check (below) is applied. Record tabs other than Details and Properties are T08;
+17 tickets plus 2 pieces (r3: T09c, T09d added); the plan check (below) is applied. Record tabs other than Details and Properties are T08;
 the screens T11 walks are every entry the keymap opens (generated, not hand-written).
 
 ## Order of work

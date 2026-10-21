@@ -1,6 +1,6 @@
 # P1-UX-S2 — Record screen for module types, Details registry, Properties for every type
 
-Status: draft
+Status: ready (dispatch after S3 merged: needs generated type_labels.py)
 Tier: sonnet
 Kind: piece
 Review: full
@@ -59,6 +59,13 @@ query `record_id`; it calls `psets.form_metadata(uow, scope, record_type, record
 visible to the viewer, otherwise exactly as without. Response shape unchanged. The remote client (`tl_api/client/links.py`, reached by `RemoteClient` via `__getattr__`) sends the
 parameter, with a client test that the query carries `record_id`; embedded passes it; `tests/fakes.py` accept it.
 
+Display mode (D10, r3): technical mode is read with `mode_of(widget)` from `tl_tui.display`, which reads `app.display_mode`
+(never `app.display`: Textual owns it). T00 is merged; T10 adds the app attribute and the key. Any widget that renders
+mode-dependent text defines `refresh_for_display_mode(self) -> None` (re-render with the current mode, keep the cursor/tab);
+T10's toggle calls it on every widget of every screen in the stack that has it. `RecordView` and `RecordScreen` define it
+(Details and Properties re-render). Tests set `app.display_mode = DisplayMode()` and `.technical = True` directly.
+`display.py` is not touched by S2 (the T00 LO nit F1, find_technical dedupe, rides T10).
+
 Record view changes (`widgets/record_view.py`): the tab label "Psets" becomes "Properties"; `PsetsTab` passes
 `record["id"]`; `details_text` is replaced by `details_for` rows (plain by default, technical rows only when
 `mode_of(self).technical`); the Properties tab also takes over the words that belong to it (plan check F2): the rule
@@ -103,7 +110,7 @@ Expected: pass on both adapters; snapshots regenerated in this piece, no other s
 - `packages/tl-tui/tests/test_record_screen.py`: `test_open_record_shows_details_with_labels_not_ids`,
   `test_escape_dismisses_and_the_register_keeps_its_row`, `test_a_hidden_record_reads_exactly_like_a_missing_one`
   (same rendered text for a restricted id as a user and a random id; run inside `use_viewer`, L-P1-I5-2),
-  `test_following_a_link_inside_the_screen_retargets_it`, `test_technical_rows_appear_only_in_technical_mode`.
+  `test_following_a_link_inside_the_screen_retargets_it`, `test_technical_rows_appear_only_in_technical_mode`, `test_refresh_for_display_mode_rerenders_details_and_properties`.
 - `packages/tl-tui/tests/test_details_registry.py`: unknown type uses the generic rows; a renderer error shows the
   generic rows plus one status line, never a traceback; every renderer module is imported once.
 - `packages/tl-tui/tests/test_properties_tab.py`: the tab is named Properties; a tag shows its class-bound sets
