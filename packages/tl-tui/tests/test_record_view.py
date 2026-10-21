@@ -28,6 +28,7 @@ class Host(App[None]):
         super().__init__()
         self.client = client
         self.key = key
+        self.display_mode = DisplayMode()
         self.seen: list[Message] = []
 
     def compose(self) -> ComposeResult:
@@ -99,7 +100,7 @@ def test_view_shows_header_tabs_details_and_history_newest_first() -> None:
         assert view.record is not None and view.record["key"] == "FV-1001"
         text = screen_text(app)
         assert "FV-1001 · Control valve FCV on 6in discharge" in text
-        assert "Design · v3 · ✓ ok" in text
+        assert "Design · ✓ ok" in text  # plain: no version (D20)
         for title in ("Details", "Properties", "History"):
             assert title in text
         assert "Conformance  ✓ ok" in text
@@ -108,12 +109,13 @@ def test_view_shows_header_tabs_details_and_history_newest_first() -> None:
         assert isinstance(app.query_one("#psets-tab"), PsetsTab)
         table = app.query_one("#rv-history", DataTable)
         assert table.row_count == 3
-        assert [str(c) for c in table.get_row_at(0)][0:3] == [
-            "3",
+        assert [str(c) for c in table.get_row_at(0)] == [
             "2026-10-09 09:03:00",
-            "Pset.ValuesSet",
+            "Properties set",
+            "seed",
+            "Valve data: Fat witness by",
         ]
-        assert str(table.get_row_at(2)[2]) == "Record.Created"
+        assert str(table.get_row_at(2)[1]) == "Created"
 
     run_pilot(app, scenario, size=(120, 40))
 
@@ -184,8 +186,12 @@ def test_record_changed_reloads_the_view_and_literal_brackets_survive() -> None:
         await pilot.pause()
         text = screen_text(app)
         assert "FV-1001 · [bold]Renamed[/bold]" in text
-        assert "v4" in text
+        assert "v4" not in text  # plain: the version is technical only
         assert app.query_one("#rv-history", DataTable).row_count == 4
+        app.display_mode.technical = True
+        app.query_one(RecordView).refresh_for_display_mode()
+        await pilot.pause()
+        assert "v4" in screen_text(app)
 
     run_pilot(app, scenario, size=(120, 40))
 
