@@ -1,7 +1,7 @@
 # Increment plan — P1-UX usability: one record screen, plain language, property sets
 
-Status: in-progress (round 3: wave 2 = T09b, T09c, T10; S2 waits for S3)
-Supervisor session: 2026-10-21 (rounds 1 and 2)
+Status: in-progress (round 4: wave 3 = T01, T02, T03; T00 T09b T09c T10 S3 S2 merged)
+Supervisor session: 2026-10-21 (rounds 1-4)
 Brief sections: §6.3 (psets), §9 M2/M10, §10 (TUI), ADR-0010, ADR-0016
 Branch: `p1/ux`
 Input: `SCOPE.md` (owner request 2026-10-21). Owner decision 2026-10-21: scope is SCOPE clauses 1-5; the
@@ -70,11 +70,11 @@ Specs: `T00-display-helper.md` (a ticket since r2), `S2-record-screen.md`, `S3-f
 | ID | Title | Depends | Review | Allowed area |
 |---|---|---|---|---|
 | T00 | Display helper: labels, plain-language rules, `DisplayMode`, `find_technical(text, labels=None)` (was S1) | none | full | tl_tui/display.py, text.py (units), test_display.py |
-| T01 | Documents register: Enter, plain text, document Details | T00 S2 S3 | full | document_register.py, document_text.py, details/documents.py |
+| T01 | Documents register: Enter, plain text (document Details exist since S2) | T00 S2 S3 | full | document_register.py, document_text.py |
 | T02 | Tag register: Enter, plain text, tag Details | T00 S2 S3 | full | tag_register.py, tag_text.py, details/tags.py |
 | T03 | Correspondence register, inbox, clocks: Enter, plain text, item and clock Details | T00 S2 S3 | full | correspondence_screen.py, correspondence_text.py, details/correspondence.py |
-| T04 | Domain screen and RFI log: Enter on all three modes, plain RFI text, RFI Details | T00 S2 S3 | full | domain_screen.py, rfi_text.py, details/technical.py |
-| T05 | Commercial and evidence views: plain text, drop the duplicate State/Status column, commercial Details | T00 S2 | lite | commercial_text.py, evidence_text.py, details/commercial.py |
+| T04 | Domain screen and RFI log: Enter on all three modes, plain RFI text, RFI Details; wires T05's text into domain_screen (r4: domain_screen imports commercial_text, evidence_text, rfi_text) | T00 S2 S3 T05 | full | domain_screen.py, rfi_text.py, details/technical.py |
+| T05 | Commercial and evidence views: plain text only (optional labels/technical kwargs, constants carry the dropped column), commercial Details; no screen change | T00 S2 | lite | commercial_text.py, evidence_text.py, details/commercial.py |
 | T06 | Schedule and cost lists: Enter, plain text, schedule and snapshot Details | T00 S2 | full | schedule_screen.py, schedule_text.py, details/schedule.py |
 | T07 | Review queue: Enter on a proposal; review values carry `target` RecordRef so Enter has an id | T00 S2 | full | review_queue.py (+ its text) |
 | T08 | Record tabs and shared panels: context panel, record grid type column, links tab, thread tab | T00 S2 | full | context_panel.py, grid.py, links_tab.py, thread_tab.py |
@@ -82,6 +82,7 @@ Specs: `T00-display-helper.md` (a ticket since r2), `S2-record-screen.md`, `S3-f
 | T09b | Accounts and about:config screens plain (r3: schema part split to T09c) | T00 | full | admin_text.py, settings_text.py, admin_screen.py, setting_history.py, settings_screen.py |
 | T09c | Schema workbench and review plain (split from T09b, r3) | T00 | full | schema_text.py, schema_review_text.py, schema_screen.py, schema_review_screen.py |
 | T09d | Enter on schema package rows opens the record screen (after S2; written then) | S2 T09c | full | schema_screen.py |
+| T09e | about:config layer words in the panel line and the edit form (T09b review leftovers, r4) | T09b | lite | settings_text.py, setting_form.py |
 | T10 | Toggle key `Ctrl+D`, help (from keymap), palette entry, refresh hook, T00 LO nit F1 (find_technical dedupe) | T00 | full | app.py, keymap.py, commands.py, display.py |
 | T11 | Walking test (screen list generated from keymap.py, plain user greps each; hidden = missing) and `dev/demos/P1-UX.sh` (sets document/RFI/correspondence values) | T01-T10, T13 | full | tests, dev/demos/ |
 | T12 | Tour re-shot (phase0, phase1, new section), narratives, PHASE-1-TOUR.md; tour world sets `document_data`, `rfi_data`, `correspondence_data` values (dev/tour/tourkit.py, phase1.py `update_psets`) | T11 | lite | dev/tour/, docs/reports/ |

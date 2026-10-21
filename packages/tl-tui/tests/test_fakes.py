@@ -72,3 +72,12 @@ def test_conformance_levels_follow_the_fake_rules() -> None:
     bad = client.conformance(bare["id"])
     assert bad.status == "nonconformant"
     assert {i.rule for i in bad.issues} == {"required_in_state"}
+
+
+def test_a_stored_record_is_found_by_id_and_by_key() -> None:
+    client = FakeClient()
+    client.add_stored_record("DOC-1", "ISO-1", "documents.Document", "Sheet one")
+    by_id = client.get_record_by_id("DOC-1")
+    assert by_id is not None and by_id["type"] == "documents.Document"
+    assert client.get_record(SCOPE, "ISO-1") == by_id
+    assert client.get_record_by_id("DOC-2") is None

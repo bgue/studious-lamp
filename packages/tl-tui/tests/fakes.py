@@ -407,6 +407,38 @@ class FakeClient(
         record = self._records.get(record_id)
         return None if record is None else deepcopy(record)
 
+    def add_stored_record(
+        self,
+        record_id: str,
+        key: str,
+        record_type: str,
+        title: str,
+        *,
+        scope: str | None = None,
+        status: str | None = None,
+    ) -> dict[str, Any]:
+        """A record under an id a module fake chose (a document view's ``id``), so that a register
+        row can open it: ``get_record_by_id``, ``get_record`` and the record view then find it."""
+        record: dict[str, Any] = {
+            "id": record_id,
+            "key": key,
+            "type": record_type,
+            "scope": scope or self.scope,
+            "title": title,
+            "description": None,
+            "status": status,
+            "psets": {},
+            "voided": False,
+            "version": 1,
+            "last_seq": 0,
+            "effective_schema_hash": None,
+            "conformance": "ok",
+            "created_at": _T0.isoformat(),
+            "updated_at": "",
+        }
+        self._records[record_id] = record
+        return deepcopy(record)
+
     def history(self, record_id: str) -> list[Event]:
         self.calls.append("history")
         return list(self._events.get(record_id, []))
