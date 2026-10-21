@@ -100,7 +100,7 @@ def test_record_view_details(snap_compare: Any) -> None:
 
 def test_record_view_history(snap_compare: Any) -> None:
     app = _app()
-    step = _expect(app, "Pset.ValuesSet", "Record.Created", keys=("enter", "h"))
+    step = _expect(app, "Properties set", "Created", keys=("enter", "h"))
     assert snap_compare(app, terminal_size=WIDE, run_before=step)
 
 

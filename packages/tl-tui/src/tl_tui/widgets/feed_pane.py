@@ -26,7 +26,9 @@ from tl_core.services.feed_actions import ReactToPost
 from tl_core.services.feed_queries import FeedPage, FeedSuggestion
 
 from tl_tui.client import ClientInterface
+from tl_tui.display import Labels, actor_label, mode_of
 from tl_tui.errors import CLIENT_ERRORS, describe_error
+from tl_tui.labels_load import load_labels
 from tl_tui.messages import OpenRecord, StatusMessage
 
 Filter = Literal["all", "posts", "events", "hold"]
@@ -48,10 +50,20 @@ TAG_STYLES: dict[str, str] = {
 }
 
 
-def author_text(actor: str) -> str:
-    """``mlee`` for ``user:mlee``; agents read ``agent:triage ⚙``; other actors as they are."""
+def author_text(actor: str, labels: Labels | None = None, *, technical: bool = True) -> str:
+    """``mlee`` for ``user:mlee``; agents read ``agent:triage ⚙``; other actors as they are.
+
+    Plain mode (``technical=False``) drops the ``agent:`` prefix (``triage ⚙``) and shows a service
+    by its label (``actor_label``, ``a service`` when unknown) instead of ``svc:<id>``.
+    """
     if actor.startswith("user:"):
         return actor.removeprefix("user:")
+    if not technical:
+        if actor.startswith("svc:"):
+            return actor_label(labels or Labels(), actor)
+        if actor.startswith("agent:"):
+            return f"{actor.removeprefix('agent:')} ⚙"
+        return actor
     if actor.startswith("agent:"):
         return f"{actor} ⚙"
     return actor
@@ -80,19 +92,32 @@ def labels_suffix(item: FeedItem, labels: dict[str, str]) -> str:
     return f" ({text})"
 
 
-def reactions_line(item: FeedItem, suggestions: list[FeedSuggestion]) -> str:
+def reactions_line(
+    item: FeedItem, suggestions: list[FeedSuggestion], *, technical: bool = True
+) -> str:
     """``+1 1 · ack 3 · proposal: constraint on FV-1001 [a]``.
 
     Parts joined by `` · ``: ``<reaction> <count>`` for each reaction, sorted by reaction name, then
     ``proposal: constraint on <record_key or record_id> [a]`` for each suggestion. ``""`` when
-    there are none.
+    there are none. Plain mode names a suggestion's record by its key only (``a record`` without
+    one).
     """
     parts = [f"{name} {count}" for name, count in sorted(item.reactions.items())]
-    parts += [f"proposal: constraint on {s.record_key or s.record_id} [a]" for s in suggestions]
+    if technical:
+        parts += [f"proposal: constraint on {s.record_key or s.record_id} [a]" for s in suggestions]
+    else:
+        parts += [f"proposal: constraint on {s.record_key or 'a record'} [a]" for s in suggestions]
     return " · ".join(parts)
 
 
-def item_text(item: FeedItem, labels: dict[str, str], suggestions: list[FeedSuggestion]) -> Text:
+def item_text(
+    item: FeedItem,
+    labels: dict[str, str],
+    suggestions: list[FeedSuggestion],
+    people: Labels | None = None,
+    *,
+    technical: bool = True,
+) -> Text:
     """The option text of one item (a `rich.text.Text`, so brackets are never markup).
 
     A card is one line, dim: ``▤ <summary><labels_suffix> · <clock>``.
@@ -106,7 +131,7 @@ def item_text(item: FeedItem, labels: dict[str, str], suggestions: list[FeedSugg
     if item.item_type == "card":
         line = f"▤ {item.summary}{labels_suffix(item, labels)} · {clock(item)}"
         return Text(line, style="dim")
-    head = f"{author_text(item.actor)} · {clock(item)}"
+    head = f"{author_text(item.actor, people, technical=technical)} · {clock(item)}"
     if item.importance == "high" and not item.retracted:
         head += " !"
     text = Text(head)
@@ -119,7 +144,7 @@ def item_text(item: FeedItem, labels: dict[str, str], suggestions: list[FeedSugg
         text.append(item.summary)
         for tag in item.tags:
             text.stylize(TAG_STYLES[tag.kind], body + tag.start, body + tag.end)
-    reactions = reactions_line(item, suggestions)
+    reactions = reactions_line(item, suggestions, technical=technical)
     if reactions:
         text.append(f"\n  {reactions}", style="dim")
     return text
@@ -183,6 +208,7 @@ class FeedPane(Vertical):
         self.include_linked = False
         self.items: list[FeedItem] = []
         self.labels: dict[str, str] = {}
+        self.people = Labels()
         self.suggestions: dict[str, list[FeedSuggestion]] = {}
         self.next_before: int | None = None
 
@@ -194,8 +220,13 @@ class FeedPane(Vertical):
         yield OptionList(id="feed-list")
 
     def on_mount(self) -> None:
-        """``reload``."""
+        """Load the people labels, then ``reload``."""
+        self.people = load_labels(self.client, self.scope, ())
         self.reload()
+
+    def refresh_for_display_mode(self) -> None:
+        """Redraw for the current display mode (plain or technical), keeping the highlight."""
+        self._show(self._highlight_id())
 
     def focus(self, scroll_visible: bool = True) -> FeedPane:
         """Focus the option list (the pane itself takes no focus) and return the pane."""
@@ -235,9 +266,11 @@ class FeedPane(Vertical):
         return None if item is None else item.id
 
     def _title(self) -> str:
+        technical = mode_of(self.app).technical
         title = f"Feed · {self.scope.removeprefix('project:')}"
         if self.record_id is not None:
-            title += f" · record {self.record_key or self.record_id}"
+            shown = (self.record_key or self.record_id) if technical else self.record_key
+            title += f" · record {shown or 'this record'}"
             if self.include_linked:
                 title += " · + linked"
         if self.tag:
@@ -246,6 +279,7 @@ class FeedPane(Vertical):
 
     def _show(self, keep: str | None) -> None:
         """Redraw title, tabs and list; the highlight goes to item ``keep`` when it is listed."""
+        technical = mode_of(self.app).technical
         self.query_one("#feed-title", Static).update(self._title())
         self.query_one("#feed-tabs", Static).update(tabs_text(self.active))
         options = self.query_one("#feed-list", OptionList)
@@ -254,7 +288,16 @@ class FeedPane(Vertical):
             return
         options.set_options(
             [
-                Option(item_text(i, self.labels, self.suggestions.get(i.id, [])), id=i.id)
+                Option(
+                    item_text(
+                        i,
+                        self.labels,
+                        self.suggestions.get(i.id, []),
+                        self.people,
+                        technical=technical,
+                    ),
+                    id=i.id,
+                )
                 for i in self.items
             ]
         )
