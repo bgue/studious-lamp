@@ -94,14 +94,14 @@ def test_grid_c_opens_the_chooser_with_pset_columns_and_applies_the_result() -> 
         await pilot.press("c")
         await pilot.pause()
         assert isinstance(app.screen, ColumnChooser)
-        assert "valve_data.size_in" in screen_text(app)
+        assert "size_in" in screen_text(app) and "valve_data.size_in" not in screen_text(app)
         # CORE_COLUMNS has 8 entries; the first pset property (size_in) is the 9th item.
         await pilot.press(*["down"] * len(CORE_COLUMNS), "space", "ctrl+s")
         await pilot.pause()
         assert not isinstance(app.screen, ColumnChooser)
         keys = [c.key for c in grid.columns]
         assert keys == [*[c.key for c in DEFAULT_COLUMNS], "psets.valve_data.size_in"]
-        assert "valve_data.si" in screen_text(app)  # the header is cut to the column width
+        assert "size_in" in screen_text(app)  # plain header: the property label, not the path
 
     run_pilot(app, scenario, size=(120, 40))
 
