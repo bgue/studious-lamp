@@ -96,3 +96,28 @@ def test_next_choice_cycles_through_all_then_each() -> None:
     assert text.next_choice(None, ["Valid", "Invalid", "Valid"]) == "Invalid"
     assert text.next_choice("Invalid", ["Valid", "Invalid"]) == "Valid"
     assert text.next_choice("Valid", ["Valid", "Invalid"]) is None
+
+
+def test_plain_schema_text_has_no_package_name_or_version() -> None:
+    """The Schema column, the detail line and the report header: plain words, technical keeps it."""
+    summaries = {d.key: d for d in client().list_derived_documents(P)}
+    plain = text.derived_cells(summaries[GOOD], technical=False)
+    assert plain[-1] == "Instrument index"
+    assert text.derived_cells(summaries[GOOD])[-1] == "instrument-index@1.0.0"
+    assert "@" not in plain[-1]
+    detail = text.derived_detail_lines(client().get_derived_document(P, GOOD), technical=False)
+    assert any(line.startswith("schema Instrument index  |  validation ") for line in detail)
+    assert not any("instrument-index@" in line for line in detail)
+    report = text.report_lines(client().get_derived_report(P, BAD), technical=False)
+    assert report[0] == "Instrument index: invalid"
+    assert text.report_lines(client().get_derived_report(P, BAD))[0] == (
+        "instrument-index@1.0.0: invalid"
+    )
+
+
+def test_plain_publish_header_names_the_schema_without_its_version() -> None:
+    plan = client().get_publish_preview(P, GOOD)
+    assert text.plan_header_lines(plan)[0] == f"{GOOD} pass 2 to tags (instrument-index@1.0.0)"
+    plain = text.plan_header_lines(plan, technical=False)
+    assert plain[0] == f"{GOOD} pass 2 to tags (Instrument index)"
+    assert "@1.0.0" not in plain[0]

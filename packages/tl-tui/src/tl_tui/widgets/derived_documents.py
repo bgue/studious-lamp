@@ -31,6 +31,7 @@ from tl_tui.derive_text import (
     report_lines,
     summary_line,
 )
+from tl_tui.display import mode_of
 from tl_tui.errors import CLIENT_ERRORS, describe_error
 from tl_tui.widgets.job_monitor import JobMonitorScreen
 from tl_tui.widgets.publish_preview import PublishPreviewScreen
@@ -130,9 +131,11 @@ class DerivedDocumentsScreen(ModalScreen[None]):
         ]
         table = self.query_one("#dd-table", DataTable)
         table.clear()
+        technical = mode_of(self.app).technical
         for view in self.shown:
             # Text, not str: a cell is read as markup, and a title such as [a, b] is not markup
-            table.add_row(*(Text(cell) for cell in derived_cells(view)), key=view.key)
+            cells = derived_cells(view, technical=technical)
+            table.add_row(*(Text(cell) for cell in cells), key=view.key)
         if self.shown:
             keys = [v.key for v in self.shown]
             table.move_cursor(row=keys.index(keep) if keep in keys else 0)
@@ -168,7 +171,7 @@ class DerivedDocumentsScreen(ModalScreen[None]):
             self._say(message, error=True)
             return
         self.detail = full
-        lines = derived_detail_lines(full)
+        lines = derived_detail_lines(full, technical=mode_of(self.app).technical)
         if full.content_rev > 0:
             lines.append("")
             lines.extend(self._body(full))
@@ -186,9 +189,10 @@ class DerivedDocumentsScreen(ModalScreen[None]):
                 c.report_file_id for c in full.contents if c.content_rev == full.content_rev
             ):
                 return ["not validated yet"]
+            report = self.client.get_derived_report(self.project, full.key)
             return [
                 "report:",
-                *report_lines(self.client.get_derived_report(self.project, full.key)),
+                *report_lines(report, technical=mode_of(self.app).technical),
             ]
         except CLIENT_ERRORS as exc:
             return [describe_error(exc)]
@@ -197,6 +201,10 @@ class DerivedDocumentsScreen(ModalScreen[None]):
         self.query_one("#dd-status", Static).update(("! " if error else "") + text)
 
     # --- events --------------------------------------------------------------------------
+
+    def refresh_for_display_mode(self) -> None:
+        """Technical details on or off: the table and the panel are built again in the new mode."""
+        self._fill(self._key())
 
     def on_data_table_row_highlighted(self, event: DataTable.RowHighlighted) -> None:
         event.stop()

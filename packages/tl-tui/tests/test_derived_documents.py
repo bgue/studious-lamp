@@ -55,10 +55,10 @@ def test_f11_lists_the_derived_documents_and_describes_the_first() -> None:
         assert "Derived documents of P123" in text
         assert keys(screen) == [GOOD, BAD, BUSY]
         assert screen.query_one("#dd-table", DataTable).row_count == 3
-        assert "Valid" in text and "instrument-index@1.0.0" in text
+        assert "Valid" in text and "Instrument index" in text and "@1.0.0" not in text
         assert "3 of 3 derived documents" in text
         assert "passes:" in text and "report:" in text
-        assert "instrument-index@1.0.0: valid" in text and "rows checked 3" in text
+        assert "Instrument index: valid" in text and "rows checked 3" in text
         await pilot.press("escape")
         await pilot.pause()
         assert not isinstance(app.screen, DerivedDocumentsScreen)
@@ -241,3 +241,34 @@ def test_a_client_failure_is_shown_and_does_not_crash_the_screen() -> None:
         assert isinstance(app.screen, DerivedDocumentsScreen)
 
     scenario(client, steps)
+
+
+def test_f11_schema_shows_the_package_and_version_only_with_technical_details() -> None:
+    """Plain: the schema label. Admin with Ctrl+D on: the package and version, and back again."""
+    client = world()
+    app = TlApp(client, scope=SCOPE, actor="user:kim", is_admin=True)
+
+    async def steps(pilot: Pilot[None], app: TlApp, screen: DerivedDocumentsScreen) -> None:
+        assert "Instrument index" in screen_text(app) and "@1.0.0" not in screen_text(app)
+        await pilot.press("ctrl+d")
+        await pilot.pause()
+        assert "instrument-index@1.0.0" in screen_text(app)
+        assert "instrument-index@1.0.0: valid" in screen_text(app)
+        await pilot.press("ctrl+d")
+        await pilot.pause()
+        assert "@1.0.0" not in screen_text(app)
+
+    run_pilot_scenario(app, steps)
+
+
+def run_pilot_scenario(
+    app: TlApp,
+    steps: Callable[[Pilot[None], TlApp, DerivedDocumentsScreen], Awaitable[None]],
+) -> None:
+    async def go(pilot: Pilot[None]) -> None:
+        await pilot.press("f11")
+        await pilot.pause()
+        assert isinstance(app.screen, DerivedDocumentsScreen)
+        await steps(pilot, app, app.screen)
+
+    run_pilot(app, go)

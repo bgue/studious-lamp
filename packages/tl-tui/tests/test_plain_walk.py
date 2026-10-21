@@ -38,10 +38,31 @@ EXCLUDED: dict[str, str] = {
 }
 
 # Leaks found in merged screens that a follow-up will fix: binding -> the token it shows.
-KNOWN_LEAKS: dict[str, str] = {
-    # follow-up: derived_documents.py passes no display mode to derive_text.derived_cells, so the
-    # Schema column shows the schema code and version in plain mode too.
-    "f11": "instrument-index@1.0.0",
+# Empty: the F11 Schema column is plain in plain mode since T11 (D41). Add an entry only with a
+# follow-up named in the report, never to get a run green.
+KNOWN_LEAKS: dict[str, str] = {}
+
+# The footer line that says the Ctrl+D mode. It changes on every toggle, so the admin walk compares
+# the screens without it.
+MODE_STATUS = re.compile(r"Technical details (?:on|off)")
+
+# Screens whose world shows technical details: each differs under Ctrl+D in at least one reading.
+MUST_CHANGE: dict[str, str] = {
+    "f2": "grid: the Type and Ver cells",
+    "f5": "correspondence: record id and clocks",
+    "f7": "document register: the record id",
+    "f8": "tag register: area=47 mnemonic=FV segments",
+    "f9": "settings: the layer key",
+    "f11": "derived documents: the schema package and version",
+    "f12": "schedule: the snapshot code",
+}
+
+# Screens that may stay unchanged under Ctrl+D (one-line reason each). Any other reading that
+# Ctrl+D leaves unchanged fails the admin walk, so a new unchanged screen gets a decision.
+UNCHANGED_OK: dict[str, str] = {
+    "f1": "help is the static key map text (help_text); nothing technical is on it",
+    "ctrl+g": "domain: no RFI, commercial or evidence rows in the walk world (RFI log is empty)",
+    "ctrl+o": "schema workbench: the walk world has no schema package versions",
 }
 
 # The view-only keys a walk presses: digits, t, m, h. Any other key a screen lists is not pressed.
@@ -96,6 +117,11 @@ def world() -> FakeClient:
         client.add_stored_record(tag.id, tag.number, "engineering.Tag", tag.title or number)
     seed_correspondence(client, "P123")
     client.seed_schedule("P123")
+    # The registers open these records on Enter; without them the record screen reads "No record".
+    client.add_stored_record("SCHED-MAIN", "MAIN", "schedule.Schedule", "MAIN schedule")
+    client.add_stored_record(
+        "ID-P123-COR-0001", "P123-COR-0001", "correspondence.Correspondence", "Revised programme"
+    )
     client.seed_derivation("P123")
     client.seed_integration("apps", **rows.app())
     client.seed_integration("endpoints", **rows.endpoint())
@@ -200,6 +226,11 @@ async def walk(pilot: Pilot[Any], app: TlApp) -> list[Seen]:
     return seen
 
 
+def content(text: str) -> str:
+    """The screen as the toggle sees it: the mode's status line and the whitespace taken out."""
+    return " ".join(MODE_STATUS.sub("", text).split())
+
+
 def unexpected_hits(seen: list[Seen], labels: Labels) -> list[str]:
     """Technical tokens in the walk that no KNOWN_LEAKS entry explains."""
     problems: dict[str, None] = {}
@@ -239,40 +270,81 @@ def test_plain_user_walk_has_no_technical_text() -> None:
     run_pilot(app, scenario)
 
 
-def test_admin_ctrl_d_walk_shows_technical_text_then_hides_it() -> None:
-    client = world()
-    labels = load_labels(client, SCOPE)
-    app = TlApp(client, scope=SCOPE, actor="user:kim", is_admin=True)
+def walk_after(toggles: int) -> tuple[list[Seen], bool]:
+    """The whole walk on a fresh admin app, after Ctrl+D is pressed ``toggles`` times.
+
+    Each walk starts from the same screen (a new app on the same world), so the readings of two
+    walks differ only by what Ctrl+D did. Returns the readings and the mode at the end.
+    """
+    app = TlApp(world(), scope=SCOPE, actor="user:kim", is_admin=True)
+    out: list[Seen] = []
 
     async def scenario(pilot: Pilot[Any]) -> None:
         await settle(pilot)
-        await pilot.press("ctrl+d")
-        await settle(pilot)
-        assert app.display_mode.technical is True
-
-        await pilot.press("f7")
-        await settle(pilot)
-        assert find_technical(screen_text(app), labels) != [], "documents register"
-        await to_grid(pilot, app, "f7")
-
-        await pilot.press("f8")
-        await settle(pilot)
-        assert find_technical(screen_text(app), labels) != [], "tag register"
-        await to_grid(pilot, app, "f8")
-
-        await pilot.press("home", "enter")
-        await settle(pilot)
-        assert find_technical(screen_text(app), labels) != [], "record screen Details"
-        await to_grid(pilot, app, "record details")
-
-        await pilot.press("ctrl+d")
-        await settle(pilot)
-        assert app.display_mode.technical is False
-        seen = await walk(pilot, app)
-        problems = unexpected_hits(seen, labels)
-        assert problems == [], "technical text after Ctrl+D is off:\n" + "\n".join(problems)
+        for _ in range(toggles):
+            await pilot.press("ctrl+d")
+            await settle(pilot)
+        out.extend(await walk(pilot, app))
 
     run_pilot(app, scenario)
+    return out, app.display_mode.technical
+
+
+def keys_of(seen: list[Seen]) -> list[str]:
+    return sorted({s.binding for s in seen})
+
+
+def test_admin_ctrl_d_walk_shows_technical_text_then_hides_it() -> None:
+    labels = load_labels(world(), SCOPE)
+    plain, plain_mode = walk_after(0)
+    technical, technical_mode = walk_after(1)
+    back, back_mode = walk_after(2)
+    assert (plain_mode, technical_mode, back_mode) == (False, True, False)
+
+    assert unexpected_hits(plain, labels) == [], "technical text in the plain walk"
+    assert unexpected_hits(back, labels) == [], "technical text after Ctrl+D is off again"
+    keys = [(s.binding, s.screen) for s in plain]
+    assert [(s.binding, s.screen) for s in technical] == keys, "walk on reached other screens"
+    assert [(s.binding, s.screen) for s in back] == keys, "walk back off reached other screens"
+
+    # Ctrl+D on then off gives back the plain screens, reading for reading.
+    mismatched = [
+        f"{a.binding} on {a.screen}"
+        for a, b in zip(plain, back, strict=True)
+        if content(a.text) != content(b.text)
+    ]
+    assert mismatched == [], "Ctrl+D off does not give back the plain screens:\n" + "\n".join(
+        mismatched
+    )
+
+    # Each MUST_CHANGE screen differs under Ctrl+D in at least one reading.
+    changed = {
+        t.binding
+        for t, a in zip(technical, plain, strict=True)
+        if content(t.text) != content(a.text)
+    }
+    missing = [f"{key} ({why})" for key, why in MUST_CHANGE.items() if key not in changed]
+    assert missing == [], "Ctrl+D does not change these screens:\n" + "\n".join(missing)
+
+    # A screen (binding) that no reading of Ctrl+D changes must be listed in UNCHANGED_OK, and a
+    # listed screen must stay unchanged. A single reading that is the same in both modes is fine:
+    # a panel open at 120 columns has no room for a technical cell, for example.
+    changed_keys = {
+        t.binding
+        for t, a in zip(technical, plain, strict=True)
+        if content(t.text) != content(a.text)
+    }
+    unlisted = sorted(set(keys_of(plain)) - changed_keys - set(UNCHANGED_OK))
+    assert unlisted == [], "no reading changes under Ctrl+D, and not in UNCHANGED_OK: " + ", ".join(
+        unlisted
+    )
+    stale = sorted(set(UNCHANGED_OK) & changed_keys)
+    assert stale == [], "UNCHANGED_OK lists screens that Ctrl+D changes now: " + ", ".join(stale)
+    assert not set(MUST_CHANGE) & set(UNCHANGED_OK), "a screen is in both lists"
+
+    # The record screen shows its version in the header only with technical details on.
+    assert any("· v1" in s.text for s in technical if s.screen == "RecordScreen"), "record header"
+    assert not any("· v1" in s.text for s in plain + back if s.screen == "RecordScreen")
 
 
 def test_walk_reaches_the_screens() -> None:
