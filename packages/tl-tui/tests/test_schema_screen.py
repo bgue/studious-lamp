@@ -23,6 +23,7 @@ from tl_mod_schemareg.testing import fixture_text
 from tl_mod_schemareg.views import LintIssueView
 from tl_tui.app import TlApp
 from tl_tui.client import ClientInterface
+from tl_tui.display import DisplayMode
 from tl_tui.widgets import schema_review_screen
 from tl_tui.widgets.schema_screen import SchemaWorkbenchScreen
 
@@ -81,13 +82,27 @@ def table(screen: SchemaWorkbenchScreen) -> DataTable[str]:
     return screen.query_one("#schema-table", DataTable)
 
 
+def show_technical(app: TlApp, screen: SchemaWorkbenchScreen, on: bool) -> None:
+    """Switch the app's display mode and draw the workbench again, as the toggle will."""
+    mode = DisplayMode()
+    mode.technical = on
+    app.display_mode = mode  # pyright: ignore[reportAttributeAccessIssue]  # App does not declare it
+    screen.refresh_for_display_mode()
+
+
 def test_ctrl_o_lists_the_versions_as_a_tree_and_escape_closes() -> None:
     async def steps(pilot: Pilot[Any], app: TlApp, screen: SchemaWorkbenchScreen) -> None:
         text = screen_text(app)
         assert "Schema packages (3)" in text and f"scope {SCOPE}" in text
-        assert "x.P123" in text and "co.acme.engineering" in text
+        assert "P123" in text and "Engineering" in text
         names = [str(table(screen).get_row_at(i)[0]) for i in range(3)]
-        assert names == ["x.P123", "co.acme.engineering", ""]  # the second 3.x row has no name
+        assert names == ["P123", "Engineering", ""]  # the second 3.x row has no name
+        show_technical(app, screen, True)
+        names = [str(table(screen).get_row_at(i)[0]) for i in range(3)]
+        assert names == ["x.P123", "co.acme.engineering", ""]
+        assert table(screen).cursor_row == 0
+        show_technical(app, screen, False)
+        assert "x.P123" not in screen_text(app)
         await pilot.press("escape")
         await pilot.pause()
         assert not isinstance(app.screen, SchemaWorkbenchScreen)
@@ -98,15 +113,19 @@ def test_ctrl_o_lists_the_versions_as_a_tree_and_escape_closes() -> None:
 def test_the_highlighted_version_shows_its_header_and_what_it_defines() -> None:
     async def steps(pilot: Pilot[Any], app: TlApp, screen: SchemaWorkbenchScreen) -> None:
         text = screen_text(app)
-        assert "x.P123@1.4.0  Draft" in text and "Project P123" in text
+        assert "P123, version 1.4.0  Draft" in text and "Project P123" in text
         assert "[1 Properties]  2 Lint  3 Diff" in text
         assert "extends co.acme.engineering@3.2.0#valve_data" in text
         assert "add MaterialCode  SS316L-NACE  -> SS316L" in text
         await pilot.press("down")
         await pilot.pause()
         text = screen_text(app)
-        assert "co.acme.engineering@3.3.0  Draft" in text
+        assert "Engineering, version 3.3.0  Draft" in text
         assert "pset valve_data  required  mandatory  applies to core.Record" in text
+        show_technical(app, screen, True)
+        assert "co.acme.engineering@3.3.0  Draft" in screen_text(app)
+        show_technical(app, screen, False)
+        assert "co.acme.engineering@3.3.0  Draft" not in screen_text(app)
 
     scenario(full_client(), steps)
 

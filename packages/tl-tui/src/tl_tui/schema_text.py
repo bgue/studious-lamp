@@ -13,20 +13,36 @@ from tl_mod_schemareg.views import LintIssueView, PackageDetail, PackageSummary
 from tl_schema.packages import PropertyDef
 from tl_schema.registry import PackageError, parse_package
 
+from tl_tui.display import Labels, actor_label, humanize
+
 COLUMNS = ("Package", "Version", "State", "Class", "Scope", "Drafted by")
 
 
-def tree_cells(rows: Sequence[PackageSummary]) -> list[tuple[str, ...]]:
+def plain_ref(ref: str) -> str:
+    """A `name@version` reference in words: `Engineering, version 3.2.0`.
+
+    Split on the last `@`; a reference without one is just its humanized name.
+    """
+    name, sep, version = ref.rpartition("@")
+    if not sep:
+        return humanize(ref)
+    return f"{humanize(name)}, version {version}"
+
+
+def tree_cells(rows: Sequence[PackageSummary], *, technical: bool = False) -> list[tuple[str, ...]]:
     """One tuple of cells per row, in the order given.
 
     The package name is shown on the first row of a run of rows with that name and is empty on the
-    others, so the versions of a package read as a tree. `Class` is the worst class of change, `-`
-    when none, with ` (stale)` after it when the content changed since `analysed`.
+    others, so the versions of a package read as a tree. In plain mode the name is the row's title,
+    else its humanized package name; technical mode shows the package name. `Class` is the worst
+    class of change, `-` when none, with ` (stale)` after it when the content changed since
+    `analysed`.
     """
     cells: list[tuple[str, ...]] = []
     previous: str | None = None
     for row in rows:
-        name = "" if row.package == previous else row.package
+        shown = row.package if technical else (row.title or humanize(row.package))
+        name = "" if row.package == previous else shown
         previous = row.package
         worst = row.worst_class or "-"
         if row.worst_class and not row.analysed:
@@ -35,13 +51,27 @@ def tree_cells(rows: Sequence[PackageSummary]) -> list[tuple[str, ...]]:
     return cells
 
 
-def header_lines(detail: PackageDetail) -> list[str]:
-    """Five lines above the tabs: who and where the version is."""
+def header_lines(detail: PackageDetail, *, technical: bool = False) -> list[str]:
+    """Five lines above the tabs: who and where the version is.
+
+    Plain mode names the version in words and the people by their short labels; technical mode
+    shows the `name@version` key and the raw actor references.
+    """
+    if technical:
+        drafted = detail.drafted_by
+        submitted = detail.submitted_by or "-"
+        approved = detail.approved_by or "-"
+        key = detail.key
+    else:
+        labels = Labels()
+        drafted = actor_label(labels, detail.drafted_by)
+        submitted = actor_label(labels, detail.submitted_by) if detail.submitted_by else "-"
+        approved = actor_label(labels, detail.approved_by) if detail.approved_by else "-"
+        key = plain_ref(detail.key)
     return [
-        f"{detail.key}  {detail.state}",
+        f"{key}  {detail.state}",
         f"Kind {detail.kind}  Scope {detail.scope}  Project {detail.project or '-'}",
-        f"Drafted by {detail.drafted_by}  Submitted by {detail.submitted_by or '-'}  "
-        f"Approved by {detail.approved_by or '-'}",
+        f"Drafted by {drafted}  Submitted by {submitted}  Approved by {approved}",
         f"Class {detail.worst_class or '-'}  Analysed {'yes' if detail.analysed else 'no'}  "
         f"Published {detail.published_at or '-'}",
         f"Changelog {detail.changelog or '-'}",

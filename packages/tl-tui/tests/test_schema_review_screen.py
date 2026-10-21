@@ -26,6 +26,7 @@ from tl_mod_schemareg.impact_types import ImpactEntry, ImpactReport
 from tl_mod_schemareg.views import SampleExample, SampleTestView
 from tl_schema.classify import Change, build_report
 from tl_tui.app import TlApp
+from tl_tui.display import DisplayMode
 from tl_tui.widgets.prompt import PromptScreen
 from tl_tui.widgets.schema_review_screen import SchemaReviewScreen
 
@@ -72,6 +73,14 @@ def client_with(state: str = "Draft", *, analysed: bool = True) -> FakeClient:
     return client
 
 
+def show_technical(app: TlApp, screen: SchemaReviewScreen, on: bool) -> None:
+    """Switch the app's display mode and draw the review again, as the toggle will."""
+    mode = DisplayMode()
+    mode.technical = on
+    app.display_mode = mode  # pyright: ignore[reportAttributeAccessIssue]  # App does not declare it
+    screen.refresh_for_display_mode()
+
+
 def scenario(
     client: FakeClient,
     steps: Callable[[Pilot[Any], TlApp, SchemaReviewScreen], Awaitable[None]],
@@ -93,16 +102,23 @@ def scenario(
 def test_the_screen_shows_the_title_the_next_step_and_the_reports() -> None:
     async def steps(pilot: Pilot[Any], app: TlApp, screen: SchemaReviewScreen) -> None:
         text = screen_text(app)
-        assert "co.acme.engineering@3.3.0  Draft  class constraining" in text
+        assert "Engineering, version 3.3.0  Draft  class constraining" in text
         assert "Next: analyse (a), then submit (s)." in text
         assert "Worst constraining  auto-adoptable no  blocks submit no" in text
         assert "constraining  psets.a.c  c is required." in text
         assert "Impact (stored)" in text and "Scope company" in text
+        assert "Digest" not in text
         assert (
             "records  psets.valve_data.size_in  property_removed  12  12 records hold a value."
             in text
         )
         assert "Not run: press t to test on a sample of records." in text
+        show_technical(app, screen, True)
+        text = screen_text(app)
+        assert "co.acme.engineering@3.3.0  Draft  class constraining" in text
+        assert "Base co.acme.engineering@3.2.0" in text and "Digest " in text
+        show_technical(app, screen, False)
+        assert "co.acme.engineering@3.3.0" not in screen_text(app)
         await pilot.press("escape")
         await pilot.pause()
         assert not isinstance(app.screen, SchemaReviewScreen)
@@ -225,9 +241,14 @@ def test_t_runs_the_sample_test_and_a_command_clears_it() -> None:
         await pilot.press("t")
         await pilot.pause()
         text = screen_text(app)
-        assert "Tested co.acme.engineering@3.3.0  scope company  sample 1000  checked 40" in text
+        assert "Tested Engineering, version 3.3.0  scope company  sample 1000  checked 40" in text
         assert "Newly nonconformant 2  newly warning 1  fixed 3" in text
         assert "V-101  psets.a.c  required  Missing." in text
+        show_technical(app, screen, True)
+        assert "Tested co.acme.engineering@3.3.0  scope company  sample 1000  checked 40" in (
+            screen_text(app)
+        )
+        show_technical(app, screen, False)
         await pilot.press("s")  # a sample belongs to the content it was made for
         await pilot.pause()
         assert "Not run: press t to test on a sample of records." in screen_text(app)

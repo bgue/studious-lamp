@@ -23,6 +23,11 @@ def test_the_versions_of_a_package_read_as_a_tree() -> None:
     ]
     assert COLUMNS == ("Package", "Version", "State", "Class", "Scope", "Drafted by")
     assert tree_cells(rows) == [
+        ("P123", "1.4.0", "Draft", "-", "project:P123", "user:dev"),
+        ("Engineering", "3.3.0", "Draft", "additive", "company", "user:dev"),
+        ("", "3.2.0", "Published", "additive (stale)", "company", "user:dev"),
+    ]
+    assert tree_cells(rows, technical=True) == [
         ("x.P123", "1.4.0", "Draft", "-", "project:P123", "user:dev"),
         ("co.acme.engineering", "3.3.0", "Draft", "additive", "company", "user:dev"),
         ("", "3.2.0", "Published", "additive (stale)", "company", "user:dev"),
@@ -42,6 +47,13 @@ def test_the_header_names_who_did_what() -> None:
         changelog="Adds seat leakage.",
     )
     assert header_lines(detail) == [
+        "Engineering, version 3.3.0  Approved",
+        "Kind company  Scope company  Project -",
+        "Drafted by dev  Submitted by kim  Approved by boss",
+        "Class constraining  Analysed yes  Published -",
+        "Changelog Adds seat leakage.",
+    ]
+    assert header_lines(detail, technical=True) == [
         "co.acme.engineering@3.3.0  Approved",
         "Kind company  Scope company  Project -",
         "Drafted by user:dev  Submitted by user:kim  Approved by user:boss",
