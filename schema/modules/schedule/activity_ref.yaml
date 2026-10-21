@@ -21,6 +21,7 @@ annotations:
 
 classes:
   ActivityRef:
+    title: Activity reference
     description: >-
       The reference to one activity of one schedule. Record type `schedule.ActivityRef`; its key is
       `<schedule code>/<activity id>` (`MAIN/A1230`).

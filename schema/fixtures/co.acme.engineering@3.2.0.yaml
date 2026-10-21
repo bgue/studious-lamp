@@ -25,6 +25,44 @@ code_lists:
       - {code: FO, label: Fail open}
       - {code: FL, label: Fail last position}
 
+  DocumentFormat:
+    description: Native file format a controlled document is authored in.
+    value_list_policy: extensible
+    values:
+      - {code: PDF, label: PDF}
+      - {code: DWG, label: AutoCAD drawing}
+      - {code: DOCX, label: Word document}
+      - {code: XLSX, label: Excel workbook}
+      - {code: other, label: Other (see description)}
+  Trade:
+    description: Trade or discipline an RFI is addressed to.
+    value_list_policy: extensible
+    values:
+      - {code: civil, label: Civil}
+      - {code: structural, label: Structural}
+      - {code: mechanical, label: Mechanical}
+      - {code: piping, label: Piping}
+      - {code: electrical, label: Electrical}
+      - {code: instrumentation, label: Instrumentation}
+  Currency:
+    description: Currency of a money amount (ISO 4217 code).
+    value_list_policy: closed
+    values:
+      - {code: USD, label: US dollar}
+      - {code: EUR, label: Euro}
+      - {code: GBP, label: Pound sterling}
+      - {code: CAD, label: Canadian dollar}
+      - {code: AUD, label: Australian dollar}
+  DeliveryMethod:
+    description: How a piece of correspondence was delivered.
+    value_list_policy: extensible
+    values:
+      - {code: email, label: Email}
+      - {code: courier, label: Courier}
+      - {code: hand, label: By hand}
+      - {code: portal, label: Portal upload}
+      - {code: post, label: Registered post}
+
 psets:
   valve_data:
     label: Valve data
@@ -107,3 +145,107 @@ psets:
         description: Key of the derived document the values were published from.
         range: string
 
+  document_data:
+    label: Document data
+    description: Register data that every controlled document carries (example set, P1-UX).
+    applies_to: [documents.Document]
+    enforcement: advisory
+    adoption: mandatory
+    custom_section: {allowed: true, max_properties: 10}
+    properties:
+      originator:
+        label: Originator
+        description: Organisation or person that produced the document.
+        range: string
+        required_in_states: [Issued]
+        enforcement: advisory
+      area:
+        label: Area
+        description: Plant or site area the document covers, for example Unit 47.
+        range: string
+      system:
+        label: System
+        description: Process or engineering system the document belongs to.
+        range: string
+      confidentiality_note:
+        label: Confidentiality note
+        description: Handling note for readers, for example the reason a document is restricted.
+        range: text
+      native_format:
+        label: Native file format
+        description: File format the document is authored in.
+        range: DocumentFormat
+        value_list_policy: extensible
+      review_due:
+        label: Review due
+        description: Date by which the document is due for its next review.
+        range: date
+
+  rfi_data:
+    label: RFI data
+    description: Request-for-information data (example set, P1-UX).
+    applies_to: [correspondence.TechnicalItem]
+    enforcement: advisory
+    adoption: mandatory
+    custom_section: {allowed: true, max_properties: 10}
+    properties:
+      location:
+        label: Location or grid line
+        description: Where the question applies, a location or a grid line such as C-4.
+        range: string
+      drawing_ref:
+        label: Drawing reference
+        description: Number of the drawing the question is about.
+        range: string
+        required_in_states: [Issued]
+        enforcement: advisory
+      trade:
+        label: Trade
+        description: Trade the question is addressed to.
+        range: Trade
+        value_list_policy: extensible
+      cost_estimate:
+        label: Cost estimate
+        description: Estimated cost of the change the question may cause, in the currency named beside it.
+        range: decimal
+        unit: {ucum: "{currency}"}
+        minimum: 0
+      cost_currency:
+        label: Cost currency
+        description: Currency of the cost estimate.
+        range: Currency
+        value_list_policy: closed
+      schedule_impact_days:
+        label: Schedule impact
+        description: Days of delay the answer may cause.
+        range: int
+        unit: {ucum: d}
+        minimum: 0
+
+  correspondence_data:
+    label: Correspondence data
+    description: Contract-correspondence data (example set, P1-UX).
+    applies_to: [correspondence.Correspondence, correspondence.CommercialItem]
+    enforcement: advisory
+    adoption: mandatory
+    custom_section: {allowed: true, max_properties: 10}
+    properties:
+      contract_clause:
+        label: Contract clause
+        description: Clause of the contract the letter relies on, for example 14.2.
+        range: string
+        required_in_states: [Issued]
+        enforcement: advisory
+      other_party_ref:
+        label: Other party reference
+        description: The reference number the other party gave the item.
+        range: string
+      response_required_by:
+        label: Response required by
+        description: Date by which a response is required.
+        range: date
+      delivery_method:
+        label: Delivery method
+        description: How the item was delivered.
+        range: DeliveryMethod
+        value_list_policy: extensible

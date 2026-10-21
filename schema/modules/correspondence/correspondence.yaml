@@ -21,6 +21,7 @@ annotations:
 
 classes:
   Correspondence:
+    title: Correspondence
     description: >-
       One correspondence item. Record type `correspondence.Correspondence`.
     annotations:

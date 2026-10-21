@@ -20,6 +20,7 @@ annotations:
 
 classes:
   CostCode:
+    title: Cost code
     description: >-
       One cost code of a project. Record type `cost.CostCode`; its key is the code (`4210-PIP-WLD`) and its
       title the description the cost system gives it. The measure matrix is {hours, quantity, amount} x

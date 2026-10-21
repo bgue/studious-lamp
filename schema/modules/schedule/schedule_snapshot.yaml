@@ -21,6 +21,7 @@ annotations:
 
 classes:
   ScheduleSnapshot:
+    title: Schedule snapshot
     description: >-
       One snapshot. Record type `schedule.ScheduleSnapshot`; its key is `<schedule code>#<number>`
       (`MAIN#2`). The workflow state is the envelope `status`.

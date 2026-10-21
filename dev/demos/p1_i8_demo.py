@@ -62,7 +62,11 @@ def prepare(directory: Path) -> None:
     (directory / "pkg-3.3.0.yaml").write_text(additive, encoding="utf-8")
 
     retyped = replace_once(text, "version: 3.2.0\n", "version: 4.0.0\n")
-    retyped = replace_once(retyped, "        range: decimal\n", "        range: int\n")
+    retyped = replace_once(
+        retyped,
+        '        range: decimal\n        unit: {ucum: "[in_i]"}\n',
+        '        range: int\n        unit: {ucum: "[in_i]"}\n',
+    )
     (directory / "pkg-4.0.0.yaml").write_text(retyped, encoding="utf-8")
 
 

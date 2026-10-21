@@ -22,6 +22,7 @@ annotations:
 
 classes:
   CommercialItem:
+    title: Commercial item
     description: >-
       The domain data of a Commercial item. Record type `correspondence.CommercialItem`, numbered
       `<project>-EW-nnnn` (early warning), `-CN-` (change notice), `-SI-` (site instruction), `-QT-`

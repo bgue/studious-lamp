@@ -872,6 +872,7 @@ class Record(RecordEnvelope):
                                                         'value': 'scope, voided, '
                                                                  'updated_at, id'}},
          'from_schema': 'https://example.org/throughline/core/record',
+         'title': 'Record',
          'unique_keys': {'scope_key': {'description': 'A key is unique within its '
                                                       'scope.',
                                        'unique_key_name': 'scope_key',
