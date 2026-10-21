@@ -1,6 +1,6 @@
 # Increment plan — P1-UX usability: one record screen, plain language, property sets
 
-Status: in-progress (round 6: T05 T06 T09e merged; wave 5 = T04, T08, T13 dispatched; the rest staged, see STATE.md)
+Status: in-progress (round 7: T01-T10, T13, T06b, T08b, T09d merged except T08c and T09a; T11, T11b, T11c, T12, T12b staged, see STATE.md)
 Supervisor session: 2026-10-21 (rounds 1-4)
 Brief sections: §6.3 (psets), §9 M2/M10, §10 (TUI), ADR-0010, ADR-0016
 Branch: `p1/ux`
@@ -86,8 +86,11 @@ Specs: `T00-display-helper.md` (a ticket since r2), `S2-record-screen.md`, `S3-f
 | T09d | Enter on schema package rows opens the record screen (after S2; written then) | S2 T09c | full | schema_screen.py |
 | T09e | about:config layer words in the panel line and the edit form (T09b review leftovers, r4) | T09b | full (was lite; D32) | settings_text.py, setting_form.py |
 | T10 | Toggle key `Ctrl+D`, help (from keymap), palette entry, refresh hook, T00 LO nit F1 (find_technical dedupe) | T00 | full | app.py, keymap.py, commands.py, display.py |
-| T11 | Walking test (screen list generated from keymap.py, plain user greps each; hidden = missing) and `dev/demos/P1-UX.sh` (sets document/RFI/correspondence values) | T01-T10, T13 | full | tests, dev/demos/ |
-| T12 | Tour re-shot (phase0, phase1, new section), narratives, PHASE-1-TOUR.md; tour world sets `document_data`, `rfi_data`, `correspondence_data` values (dev/tour/tourkit.py, phase1.py `update_psets`) | T11 | full (was lite; D32) | dev/tour/, docs/reports/ |
+| T11 | Walking test: screens generated from `KEYMAP`, plain user `find_technical == []`, admin Ctrl+D on/off (r7: split from the demo and carries) | T01-T10, T13, T08b, T06b, T09d, T08c, T09a | full | tests/test_plain_walk.py; `*_text.py` label fixes |
+| T11b | Carry-overs: palette refusal for a plain user (T10 F1), remote hidden=missing on the record screen (S2 F1), grid `Ver` only technical (Q6), settings kinds capitalised in plain (Q7; D39) | T10 S2 T09e T08c | full | grid.py, settings_text.py, tests |
+| T11c | `dev/demos/P1-UX.sh` + `p1_ux_demo.py`, SCOPE demo clauses 1-4 on SQLite and Postgres, seeds the three data sets (F7) | T01-T10, T13, T11 | full | dev/demos/ |
+| T12 | Tours regenerated (phase0, phase1), needles and narrative text updated, deterministic (r7: split from T12b) | T11 T11b | full (was lite; D32) | dev/tour/, docs/reports/ |
+| T12b | Tour section 23 "Plain language and the record screen" (record screen from each register with Properties; Ctrl+D on/off as admin), tour world sets the three data sets (F7) | T12 | full | dev/tour/phase1.py, PHASE-1-TOUR.md |
 | T13 | Main screen plain: feed pane, header, ref tray (main_area and link_picker print no ids: reviewed r6) | T00 S2 | full | feed_pane.py, header.py, ref_tray.py |
 
 17 tickets plus 2 pieces (r3: T09c, T09d added); the plan check (below) is applied. Record tabs other than Details and Properties are T08;
@@ -97,10 +100,10 @@ the screens T11 walks are every entry the keymap opens (generated, not hand-writ
 1. Wave 1: T00 and S3 in parallel (disjoint: `tl_tui/display.py` vs `schema/`, `generated/`, `dev/seed`, tl-tui pins).
 2. Wave 2: S2, T09b, T10 (S2 needs T00 and S3; T09b and T10 need T00 only).
 3. Wave 3: T01 T02 T03. Wave 4: T04 T05 T06. Wave 5: T07 with T09a, T08 with T13 (two workflows).
-4. Wave 6: T11. Wave 7: T12.
+4. Wave 6: T11, T11b, T11c (disjoint). Wave 7: T12. Wave 8: T12b.
 5. DONE: full gate, `gate-pg` on touched directories, security review `Sec: S2 (routes/reference.py record_id,
    record_screen hidden=missing), S3`, range `4b2cda0..<head>`, one reviewer per item.
-Checkpoints: C1 T00+S3 merged; C2 S2 merged; C3 T01-T10 and T13 merged; C4 T11-T12 merged and DONE.
+Checkpoints: C1 T00+S3 merged; C2 S2 merged; C3 T01-T10 and T13 merged; C4 T11-T12b merged and DONE.
 
 ## Risks and escalation triggers
 - Snapshot churn: every screen ticket regenerates its own TUI snapshots and names the snapshot test in its gate
