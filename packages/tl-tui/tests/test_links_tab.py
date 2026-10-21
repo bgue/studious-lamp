@@ -146,7 +146,10 @@ def test_the_tab_lists_links_both_ways_and_the_missing_expected_link() -> None:
         text = screen_text(app)
         assert "▾ raised against (1)" in text and "FV-1002" in text and "▪ B" in text
         assert "▾ blocked by (1)" in text and "FV-1003" in text
-        assert "! expected but missing: data sheet (rule: references@Installed)" in text
+        assert "! expected but missing: data sheet" in text
+        assert (
+            "rule:" not in text and "@Installed" not in text
+        )  # plain words; see test_links_thread_plain
 
     run_pilot(app, scenario, size=(130, 40))
 

@@ -59,7 +59,8 @@ def test_the_header_and_the_messages_are_drawn_oldest_first() -> None:
         await pilot.pause()
         text = screen_text(app)
         assert "FV-1001 · Thread · 2 participants · dispatch on" in text
-        assert text.index("Crew P-07 starting tie-ins") < text.index("agent:planner ⚙  On it")
+        assert text.index("Crew P-07 starting tie-ins") < text.index("planner ⚙  On it")
+        assert "agent:planner" not in text  # plain mode; the raw actor id is technical only
         assert "      Flanges short" in text
         assert "c compose" in text
 
@@ -82,7 +83,8 @@ def test_a_dispatch_message_shows_its_result_card() -> None:
     async def scenario(pilot: Pilot[Any]) -> None:
         await pilot.pause()
         text = screen_text(app)
-        assert "▤ raise: Create record: Clash" in text and "CreateRecord NEW-1 v1" in text
+        assert "▤ raise: Create record: Clash" in text and "Create record NEW-1" in text
+        assert "v1" not in text  # plain mode: no version on the card
 
     run_pilot(app, scenario)
 
