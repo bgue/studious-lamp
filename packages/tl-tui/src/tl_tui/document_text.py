@@ -17,7 +17,9 @@ from tl_mod_documents.views import (
     RevisionView,
 )
 
-COLUMNS = ("Number", "State", "Current", "Type", "Disc", "Title")
+from tl_tui.display import Labels, code_label, humanize, type_label
+
+COLUMNS = ("Number", "State", "Current", "Type", "Discipline", "Title")
 ALL = "all"
 
 
@@ -28,14 +30,16 @@ def current_text(view: DocumentView) -> str:
     return f"{view.current_revision_code}({view.current_revision_status or '-'})"
 
 
-def row_cells(view: DocumentView) -> tuple[str, ...]:
-    """The six cells of a table row, in the order of ``COLUMNS``."""
+def row_cells(view: DocumentView, labels: Labels | None = None) -> tuple[str, ...]:
+    """The six cells of a table row, in the order of ``COLUMNS``: labels, not codes."""
+    if labels is None:
+        labels = Labels()
     return (
         view.number,
-        view.state,
+        humanize(view.state),
         current_text(view),
-        view.doc_type or "-",
-        view.discipline or "-",
+        code_label(labels, "doc_type", view.doc_type),
+        code_label(labels, "discipline", view.discipline),
         view.title,
     )
 
@@ -55,12 +59,14 @@ def revision_line(rev: RevisionView) -> str:
     return "  ".join(parts)
 
 
-def link_line(link: DocumentLinkView) -> str:
-    """One link: ``! 47-FV-1001 (core.Record) pin A, current B`` (``!`` marks a stale link)."""
+def link_line(link: DocumentLinkView, labels: Labels | None = None) -> str:
+    """One link: ``! 47-FV-1001 (Record) pin A, current B`` (``!`` marks a stale link)."""
+    if labels is None:
+        labels = Labels()
     mark = "!" if link.link_status == "stale" or link.pin_state == "stale" else " "
     who = link.from_key or link.from_title
     pin = f"pin {link.pin}" if link.pin else "floats"
-    line = f"{mark} {who} ({link.from_type}) {pin}"
+    line = f"{mark} {who} ({type_label(labels, link.from_type)}) {pin}"
     if link.pin_state == "stale":
         newer = ", ".join(link.newer_codes)
         line += f", current {link.current_code or '-'} (newer {newer})" if newer else ""
@@ -78,15 +84,29 @@ def stale_links(view: DocumentView) -> list[DocumentLinkView]:
     ]
 
 
-def detail_lines(view: DocumentView) -> list[str]:
-    """The panel under the table for the highlighted document."""
-    lines = [
-        f"{view.number}  {view.title}",
-        f"state {view.state}  |  type {view.doc_type or '-'}  |  discipline "
-        f"{view.discipline or '-'}  |  scheme {view.revision_scheme}",
+def detail_lines(
+    view: DocumentView, labels: Labels | None = None, *, technical: bool = False
+) -> list[str]:
+    """The panel under the table for the highlighted document.
+
+    The scheme, the record id and the version are technical: they show only when ``technical``.
+    """
+    if labels is None:
+        labels = Labels()
+    head = (
+        f"state {humanize(view.state)}  |  type {code_label(labels, 'doc_type', view.doc_type)}"
+        f"  |  discipline {code_label(labels, 'discipline', view.discipline)}"
+    )
+    if technical:
+        head += f"  |  scheme {view.revision_scheme}"
+    lines = [f"{view.number}  {view.title}", head]
+    if technical:
+        lines.append(f"record {view.id}")
+        lines.append(f"version {view.version}")
+    lines.append(
         f"current {current_text(view)}"
-        + (f"  |  replaced by {view.superseded_by}" if view.superseded_by else ""),
-    ]
+        + (f"  |  replaced by {view.superseded_by}" if view.superseded_by else "")
+    )
     if view.revisions:
         lines.append("revisions:")
         lines.extend(f"  {revision_line(rev)}" for rev in view.revisions)
@@ -95,7 +115,7 @@ def detail_lines(view: DocumentView) -> list[str]:
     if view.links:
         stale = len(stale_links(view))
         lines.append(f"links ({stale} stale):" if stale else "links:")
-        lines.extend(f"  {link_line(link)}" for link in view.links)
+        lines.extend(f"  {link_line(link, labels)}" for link in view.links)
     return lines
 
 
@@ -157,13 +177,16 @@ def summary_line(
     doc_type: str | None,
     include_void: bool,
     text: str,
+    labels: Labels | None = None,
 ) -> str:
-    """The status line under the table."""
+    """The status line under the table. The type shows its label; the filter compares codes."""
+    if labels is None:
+        labels = Labels()
     parts = [f"{shown} of {total} documents"]
     if state is not None:
         parts.append(f"state {state}")
     if doc_type is not None:
-        parts.append(f"type {doc_type}")
+        parts.append(f"type {code_label(labels, 'doc_type', doc_type)}")
     if include_void:
         parts.append("incl. void")
     stripped = text.strip()
