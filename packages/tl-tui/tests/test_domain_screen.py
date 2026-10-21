@@ -152,7 +152,7 @@ def test_e_opens_the_evidence_trail_of_the_highlighted_item_as_of_today() -> Non
         assert "2 records in the trail" in text
         await pilot.press("down")
         await pilot.pause()
-        assert "reached by derived from (active) since 2026-10-12" in screen_text(app)
+        assert "reached by Derived from (active) since 2026-10-12" in screen_text(app)
         assert "Cost impact: yes" in screen_text(app)
         assert client.trail_requests == [("P123-EW-0001", screen.today)]
 
