@@ -20,11 +20,14 @@ from textual.binding import Binding, BindingType
 from textual.containers import Vertical
 from textual.screen import ModalScreen
 from textual.widgets import DataTable, Static
+from tl_core.settings.layers import project_of_scope
 
 from tl_tui.client import ClientInterface
+from tl_tui.display import humanize, mode_of
 from tl_tui.errors import CLIENT_ERRORS, describe_error
-from tl_tui.integration_text import COLUMNS, cells, detail_lines
+from tl_tui.integration_text import cells, columns, detail_lines, property_words
 from tl_tui.widgets.prompt import PromptScreen
+from tl_tui.widgets.record_screen import open_record
 
 WAITING = "proposed"
 
@@ -71,7 +74,6 @@ class ReviewQueueScreen(ModalScreen[None]):
             yield Static(self.KEY_HINTS, markup=False, id="review-hints")
 
     def on_mount(self) -> None:
-        self.query_one("#review-table", DataTable).add_columns(*COLUMNS["enrichments"])
         self.reload()
         self.query_one("#review-table", DataTable).focus()
 
@@ -92,11 +94,13 @@ class ReviewQueueScreen(ModalScreen[None]):
         self._fill(keep["value_id"] if keep is not None else None)
 
     def _fill(self, keep: str | None) -> None:
-        """Show `self.values` in the table, the title and the detail panel."""
+        """Show `self.values` in the table, the title and the detail panel, in the display mode."""
+        technical = mode_of(self.app).technical
         table = self.query_one("#review-table", DataTable)
-        table.clear()
+        table.clear(columns=True)
+        table.add_columns(*columns("enrichments", technical=technical))
         for value in self.values:
-            row = (Text(cell) for cell in cells("enrichments", value))
+            row = (Text(cell) for cell in cells("enrichments", value, technical=technical))
             table.add_row(*row, key=value["value_id"])
         if self.values:
             ids = [value["value_id"] for value in self.values]
@@ -119,16 +123,45 @@ class ReviewQueueScreen(ModalScreen[None]):
         if value is None:
             detail.update("No values." if self.show_all else "Nothing is waiting for review.")
             return
-        detail.update("\n".join(detail_lines("enrichments", value)))
+        technical = mode_of(self.app).technical
+        detail.update("\n".join(detail_lines("enrichments", value, technical=technical)))
 
     def _say(self, text: str, *, error: bool = False) -> None:
         self.query_one("#review-status", Static).update(("! " if error else "") + text)
+
+    def _property(self, value: dict[str, Any]) -> str:
+        """The property as the display mode shows it: its words in plain, the path in technical."""
+        if mode_of(self.app).technical:
+            return value["property_path"]
+        return property_words(value["property_path"])
 
     # --- events --------------------------------------------------------------------------
 
     def on_data_table_row_highlighted(self, event: DataTable.RowHighlighted) -> None:
         event.stop()
         self._describe()
+
+    def on_data_table_row_selected(self, event: DataTable.RowSelected) -> None:
+        """Enter opens the full record the value is about; Esc there comes back to this row."""
+        event.stop()
+        if not 0 <= event.cursor_row < len(self.values):
+            return
+        target = self.values[event.cursor_row].get("target")
+        if not isinstance(target, dict) or not target.get("id"):
+            return  # a value with no record to open (guarded; reported)
+        open_record(
+            self,
+            self.client,
+            self.scope,
+            project_of_scope(self.scope) or "",
+            self.actor,
+            str(target["id"]),
+        )
+
+    def refresh_for_display_mode(self) -> None:
+        """The technical toggle changed: rebuild the columns, rows and panel, keeping the row."""
+        value = self.current()
+        self._fill(value["value_id"] if value is not None else None)
 
     # --- actions -------------------------------------------------------------------------
 
@@ -137,8 +170,10 @@ class ReviewQueueScreen(ModalScreen[None]):
         value = self.current()
         if value is None:
             return None
-        if value["acceptance_state"] != WAITING:
-            self._say(f"This value is already {value['acceptance_state']}.")
+        state = value["acceptance_state"]
+        if state != WAITING:
+            shown = state if mode_of(self.app).technical else humanize(state)
+            self._say(f"This value is already {shown}.")
             return None
         return value
 
@@ -156,7 +191,7 @@ class ReviewQueueScreen(ModalScreen[None]):
             self._say(describe_error(exc), error=True)
             return
         self.reload()
-        self._say(f"Accepted {value['property_path']}")
+        self._say(f"Accepted {self._property(value)}")
 
     def action_reject(self) -> None:
         """Reject the highlighted value after asking for a reason."""
@@ -176,10 +211,10 @@ class ReviewQueueScreen(ModalScreen[None]):
                 self._say(describe_error(exc), error=True)
                 return
             self.reload()
-            self._say(f"Rejected {value['property_path']}")
+            self._say(f"Rejected {self._property(value)}")
 
         self.app.push_screen(
-            PromptScreen(f"Reject {value['property_path']}", "Reason", required=True), apply
+            PromptScreen(f"Reject {self._property(value)}", "Reason", required=True), apply
         )
 
     def action_toggle_all(self) -> None:
