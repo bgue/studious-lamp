@@ -88,9 +88,27 @@ DEFAULT_COLUMNS: tuple[GridColumn, ...] = (
     GridColumn("key", "Key", 12),
     GridColumn("title", "Title", 18),
     GridColumn("status", "Status", 9),
-    GridColumn("version", "Ver", 3, "right"),
+    GridColumn("version", "Ver", 3, "right", plain_label="Version"),
     GridColumn("conformance", "Conformance", 15),
 )
+
+
+def plain_version(column: GridColumn) -> GridColumn:
+    """The version column is named "Version" in plain words, whatever set it came in (D44)."""
+    if column.key == "version" and column.plain_label is None:
+        return replace(column, plain_label="Version")
+    return column
+
+
+def default_columns(
+    technical: bool, base: tuple[GridColumn, ...] = DEFAULT_COLUMNS
+) -> tuple[GridColumn, ...]:
+    """The columns a grid shows until the person chooses a set: ``Ver`` only in technical mode
+    (D39, Q6). ``base`` is the grid's own default set (an extension type's columns, or the core)."""
+    if technical:
+        return base
+    return tuple(c for c in base if c.key != "version")
+
 
 CORE_COLUMNS: tuple[GridColumn, ...] = (
     *DEFAULT_COLUMNS,
@@ -235,7 +253,13 @@ class RecordGrid(ScrollView, can_focus=True):
         self.client = client
         self.scope = scope
         self.record_type = record_type
-        self.columns: list[GridColumn] = list(columns or DEFAULT_COLUMNS)
+        # The grid's default set (its type's columns, or the core ones). Until a set is chosen the
+        # shown columns follow the display mode: `Ver` is left out in plain (`default_columns`).
+        self._defaults: tuple[GridColumn, ...] = tuple(
+            plain_version(c) for c in (columns or DEFAULT_COLUMNS)
+        )
+        self._chosen = False  # True once `set_columns` got a non-empty set
+        self.columns: list[GridColumn] = list(self._defaults)
         self.page_size = page_size
         self.rows: list[dict[str, Any]] = []
         self.exhausted = False
@@ -258,6 +282,7 @@ class RecordGrid(ScrollView, can_focus=True):
     # --- data --------------------------------------------------------------------------------
 
     def on_mount(self) -> None:
+        self._sync_default_columns()
         self.labels = load_labels(self.client, self.scope, ())
         self.load()
 
@@ -557,11 +582,25 @@ class RecordGrid(ScrollView, can_focus=True):
         return column.label
 
     def refresh_for_display_mode(self) -> None:
-        """The technical toggle changed: redraw the header and the rows."""
+        """The technical toggle changed: redraw the header, the rows and the default columns."""
+        self._sync_default_columns()
         self.refresh()
 
+    def _sync_default_columns(self) -> None:
+        """While no set was chosen, the shown columns are the defaults for the current mode."""
+        if self._chosen:
+            return
+        self._apply_columns(list(default_columns(mode_of(self.app).technical, self._defaults)))
+
     def set_columns(self, columns: list[GridColumn]) -> None:
-        self.columns = list(columns) or list(DEFAULT_COLUMNS)
+        """Show ``columns`` as chosen; an empty list means the defaults for the current mode."""
+        self._chosen = bool(columns)
+        self._apply_columns(
+            list(columns) or list(default_columns(mode_of(self.app).technical, self._defaults))
+        )
+
+    def _apply_columns(self, columns: list[GridColumn]) -> None:
+        self.columns = [plain_version(c) for c in columns]
         self.column_cursor = min(self.column_cursor, len(self.columns) - 1)
         if self.sort_key not in {c.key for c in self.columns}:
             self.sort_key = None

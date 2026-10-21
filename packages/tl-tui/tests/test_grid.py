@@ -13,6 +13,8 @@ from textual.app import App, ComposeResult
 from textual.message import Message
 from textual.pilot import Pilot
 from tl_core.services.errors import ServiceError
+from tl_tui.display import DisplayMode
+from tl_tui.extension_columns import columns_for_type
 from tl_tui.messages import OpenRecord, RecordHighlighted, SelectionChanged, StatusMessage
 from tl_tui.widgets import grid as grid_module
 from tl_tui.widgets.grid import (
@@ -51,6 +53,9 @@ class Host(App[None]):
 
 def _keys(grid: RecordGrid) -> list[str]:
     return [str(r["key"]) for r in grid.rows]
+
+
+LIFT = "co.acme.LiftPlan"  # an extension type with a grid form (test_extension_columns.py)
 
 
 def test_pure_helpers() -> None:
@@ -269,6 +274,58 @@ def test_set_columns_shows_pset_columns() -> None:
         await pilot.pause()
         text = screen_text(host)
         assert "size_in" in text and "     6" in text
+
+    run_pilot(host, scenario)
+
+
+def _keys_of(grid: RecordGrid) -> list[str]:
+    return [c.key for c in grid.columns]
+
+
+def test_ver_column_only_in_technical_mode() -> None:
+    host = Host(FakeClient.with_valve_example())
+    mode = DisplayMode()
+    host.display_mode = mode  # pyright: ignore[reportAttributeAccessIssue]  # App does not declare it yet
+
+    async def scenario(pilot: Pilot[Any]) -> None:
+        await pilot.pause()
+        grid = host.query_one(RecordGrid)
+        assert "version" not in _keys_of(grid)  # plain: the default set without Ver (D39, Q6)
+        assert mode.toggle(is_admin=True) == ""
+        grid.refresh_for_display_mode()
+        await pilot.pause()
+        assert _keys_of(grid) == [c.key for c in DEFAULT_COLUMNS]
+        assert mode.toggle(is_admin=True) == ""
+        grid.refresh_for_display_mode()
+        await pilot.pause()
+        assert "version" not in _keys_of(grid)
+
+    run_pilot(host, scenario)
+
+
+def test_extension_grid_keeps_ver_only_in_technical_mode() -> None:
+    client = FakeClient()
+    client.add_example_type(LIFT)
+    extension = columns_for_type(client, LIFT)
+    assert extension is not None and "version" in [c.key for c in extension]
+    host = Host(client, columns=extension)
+    mode = DisplayMode()
+    host.display_mode = mode  # pyright: ignore[reportAttributeAccessIssue]  # App does not declare it yet
+
+    async def scenario(pilot: Pilot[Any]) -> None:
+        await pilot.pause()
+        grid = host.query_one(RecordGrid)
+        plain = [c.key for c in extension if c.key != "version"]
+        assert _keys_of(grid) == plain
+        assert mode.toggle(is_admin=True) == ""
+        grid.refresh_for_display_mode()
+        await pilot.pause()
+        assert _keys_of(grid) == [c.key for c in extension]
+        grid.set_columns([c for c in extension if c.key != "version"])  # a chosen set is kept
+        assert mode.toggle(is_admin=True) == ""
+        grid.refresh_for_display_mode()
+        await pilot.pause()
+        assert "version" not in _keys_of(grid)
 
     run_pilot(host, scenario)
 

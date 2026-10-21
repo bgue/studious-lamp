@@ -90,7 +90,7 @@ def test_the_screen_edits_and_undoes_through_the_server(harness: Harness) -> Non
             app.screen.query_one("#form-value", Input).value = "false"
             await pilot.press("ctrl+s")
             await pilot.pause()
-            assert isinstance(app.screen, SettingsScreen) and "project ●" in screen_text(app)
+            assert isinstance(app.screen, SettingsScreen) and "Project ●" in screen_text(app)
             await pilot.press("h")
             await pilot.pause()
             assert isinstance(app.screen, SettingHistory)
@@ -103,7 +103,7 @@ def test_the_screen_edits_and_undoes_through_the_server(harness: Harness) -> Non
             assert isinstance(app.screen, SettingHistory)
             await pilot.press("escape")
             await pilot.pause()
-            assert "project ●" not in screen_text(app)
+            assert "Project ●" not in screen_text(app)
 
         run_pilot(app, go)
         assert remote.get_setting(KEY, project="P123").effective.value is True
@@ -111,6 +111,26 @@ def test_the_screen_edits_and_undoes_through_the_server(harness: Harness) -> Non
             (False, False),
             (None, True),
         ]
+        remote.close()
+
+
+def test_the_remote_list_shows_the_raw_layer_kind_only_in_technical_mode(harness: Harness) -> None:
+    with restartable(harness) as server:
+        remote = RemoteClient.connect(server.base_url, server.token, timeout=LIVE_TIMEOUT_S)
+        remote.set_setting(KEY, layer="project:P123", value=False)
+        client = remote.as_client()
+        app = TlApp(client, scope=SCOPE, actor="user:alice", mode="remote")
+        mode = DisplayMode()
+        assert mode.toggle(is_admin=True) == ""
+        app.display_mode = mode  # pyright: ignore[reportAttributeAccessIssue]  # App does not declare it yet
+
+        async def go(pilot: Pilot[None]) -> None:
+            await pilot.press("f9")
+            await pilot.pause()
+            assert isinstance(app.screen, SettingsScreen)
+            assert "project ●" in screen_text(app) and "Project ●" not in screen_text(app)
+
+        run_pilot(app, go)
         remote.close()
 
 

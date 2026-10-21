@@ -59,11 +59,15 @@ def _cut(text: str, width: int) -> str:
     return text if len(text) <= width else text[: width - 1] + "…"
 
 
+_ORIGIN_WORDS: dict[str, str] = {"default": "Default"}  # an origin that is not a layer
+
+
 def origin_text(view: SettingView, *, technical: bool = True) -> str:
-    """Where the value came from: the stored layer kind (``company``) in technical mode, its plain
-    word (``Company``, see `layer_label`) otherwise; ``●`` when this layer sets it."""
+    """Where the value came from: the stored origin (``company``, ``default``) in technical mode,
+    its plain word (``Company``, ``Default``; see `layer_label`) otherwise; ``●`` when this layer
+    sets it."""
     e = view.effective
-    origin = e.origin if technical else layer_label(e.origin)
+    origin = e.origin if technical else _ORIGIN_WORDS.get(e.origin) or layer_label(e.origin)
     return f"{origin} {MARK}" if e.modified_here else origin
 
 

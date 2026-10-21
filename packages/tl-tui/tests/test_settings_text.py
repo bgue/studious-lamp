@@ -50,7 +50,8 @@ def test_the_origin_word_is_capitalised_in_plain_and_raw_in_technical(client: Fa
     assert row_cells(reactions, technical=False)[3] == "Project ●"
     assert row_cells(reactions, technical=True)[3] == "project ●"
     tags = client.get_setting("feed.signal_tags", project="P1")
-    assert row_cells(tags, technical=False)[3] == "default"
+    assert row_cells(tags, technical=False)[3] == "Default"
+    assert row_cells(tags, technical=True)[3] == "default"
     assert detail_lines(reactions, "project:P1")[5] == "origin Project ●"
     assert detail_lines(reactions, "project:P1", technical=True)[5] == "origin project ●"
 

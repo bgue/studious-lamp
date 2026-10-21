@@ -60,7 +60,6 @@ def test_the_grid_of_an_extension_type_shows_the_columns_of_its_form() -> None:
             f"psets.{LIFT_PSET}.load_tonnes",
             f"psets.{LIFT_PSET}.risk_class",
             "status",
-            "version",
         ]
         text = screen_text(app)
         assert "LP-1" in text and "CR-12" in text and "Crane" in text
@@ -72,6 +71,19 @@ def test_core_records_keep_the_default_columns() -> None:
     app = TlApp(FakeClient.with_valve_example(), scope=SCOPE)
 
     async def scenario(pilot: Pilot[Any]) -> None:
+        await pilot.pause()
+        keys = [c.key for c in app.query_one("#grid", RecordGrid).columns]
+        assert keys == ["key", "title", "status", "conformance"]  # plain: no Ver (D39, Q6)
+
+    run_pilot(app, scenario, size=(120, 40))
+
+
+def test_technical_mode_puts_ver_back_on_the_core_grid() -> None:
+    app = TlApp(FakeClient.with_valve_example(), scope=SCOPE, is_admin=True)
+
+    async def scenario(pilot: Pilot[Any]) -> None:
+        await pilot.pause()
+        await pilot.press("ctrl+d")  # an admin turns technical details on (D39, Q6)
         await pilot.pause()
         keys = [c.key for c in app.query_one("#grid", RecordGrid).columns]
         assert keys == ["key", "title", "status", "version", "conformance"]
