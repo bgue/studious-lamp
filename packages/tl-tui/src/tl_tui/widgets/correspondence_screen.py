@@ -29,6 +29,7 @@ from tl_tui.correspondence_text import (
     CLOCK_COLUMNS,
     MODE_TITLES,
     MODES,
+    PLAIN_CLOCK_COLUMNS,
     REGISTER_COLUMNS,
     clock_cells,
     clock_lines,
@@ -38,7 +39,10 @@ from tl_tui.correspondence_text import (
     suggestion_text,
     summary_line,
 )
+from tl_tui.display import Labels, mode_of
 from tl_tui.errors import CLIENT_ERRORS, describe_error
+from tl_tui.labels_load import load_labels
+from tl_tui.widgets.record_screen import open_record
 
 MAX_LINES = 500
 
@@ -92,6 +96,7 @@ class CorrespondenceScreen(ModalScreen[None]):
         self.lines: list[RegisterLineView] = []  # the register or the inbox, as listed
         self.clocks: list[ClockView] = []
         self.suggestion: SuggestionView | None = None  # for the highlighted inbox item
+        self.labels: Labels = Labels()  # the domain and code labels, loaded on mount
 
     # --- layout --------------------------------------------------------------------------
 
@@ -104,6 +109,9 @@ class CorrespondenceScreen(ModalScreen[None]):
             yield Static(self.KEY_HINTS, markup=False, id="corr-hints")
 
     def on_mount(self) -> None:
+        self.labels = load_labels(
+            self.client, f"project:{self.project}", ("correspondence.Correspondence",)
+        )
         self.reload()
         self.query_one("#corr-table", DataTable).focus()
 
@@ -112,16 +120,20 @@ class CorrespondenceScreen(ModalScreen[None]):
     def reload(self) -> None:
         """Read the current view again and keep the highlighted row where it is."""
         keep = self._key()
+        technical = mode_of(self.app).technical
         table = self.query_one("#corr-table", DataTable)
         table.clear(columns=True)
-        table.add_columns(*(CLOCK_COLUMNS if self.mode == "clocks" else REGISTER_COLUMNS))
+        if self.mode == "clocks":
+            table.add_columns(*(CLOCK_COLUMNS if technical else PLAIN_CLOCK_COLUMNS))
+        else:
+            table.add_columns(*REGISTER_COLUMNS)
         self.query_one("#corr-title", Static).update(
             f"{MODE_TITLES[self.mode]} of {self.project}   [1 2 3]"
         )
         try:
             if self.mode == "clocks":
                 self.clocks = self.client.list_clocks(self.project, open_only=not self.closed_too)
-                rows = [(c.id, clock_cells(c)) for c in self.clocks]
+                rows = [(c.id, clock_cells(c, technical=technical)) for c in self.clocks]
             else:
                 inbox = self.mode == "inbox"
                 self.lines = self.client.list_correspondence(
@@ -130,7 +142,7 @@ class CorrespondenceScreen(ModalScreen[None]):
                     sources=not inbox,
                     limit=MAX_LINES,
                 )
-                rows = [(line.id, register_cells(line)) for line in self.lines]
+                rows = [(line.id, register_cells(line, self.labels)) for line in self.lines]
         except CLIENT_ERRORS as exc:
             self._say(describe_error(exc), error=True)
             return
@@ -165,9 +177,10 @@ class CorrespondenceScreen(ModalScreen[None]):
         """Show the highlighted row in full (one read per row)."""
         detail = self.query_one("#corr-detail", Static)
         self.suggestion = None
+        technical = mode_of(self.app).technical
         clock = self.current_clock()
         if clock is not None:
-            detail.update("\n".join(clock_lines(clock)))
+            detail.update("\n".join(clock_lines(clock, self.labels, technical=technical)))
             return
         line = self.current_line()
         if line is None:
@@ -187,7 +200,9 @@ class CorrespondenceScreen(ModalScreen[None]):
         except CLIENT_ERRORS as exc:
             detail.update(describe_error(exc))
             return
-        detail.update("\n".join(item_lines(item, self.suggestion)))
+        detail.update(
+            "\n".join(item_lines(item, self.suggestion, self.labels, technical=technical))
+        )
 
     def _say(self, text: str, *, error: bool = False) -> None:
         self.query_one("#corr-status", Static).update(("! " if error else "") + text)
@@ -197,6 +212,17 @@ class CorrespondenceScreen(ModalScreen[None]):
     def on_data_table_row_highlighted(self, event: DataTable.RowHighlighted) -> None:
         event.stop()
         self._describe()
+
+    def on_data_table_row_selected(self, event: DataTable.RowSelected) -> None:
+        """Enter on a row opens its full record; Esc on that screen comes back to this row."""
+        event.stop()
+        rows: list[RegisterLineView] | list[ClockView] = (
+            self.clocks if self.mode == "clocks" else self.lines
+        )
+        if not 0 <= event.cursor_row < len(rows):
+            return
+        row = rows[event.cursor_row]
+        open_record(self, self.client, f"project:{self.project}", self.project, self.actor, row.id)
 
     # --- actions -------------------------------------------------------------------------
 
@@ -233,7 +259,7 @@ class CorrespondenceScreen(ModalScreen[None]):
             self._say(describe_error(exc), error=True)
             return
         self.reload()
-        self._say(f"Triaged {line.number} as {suggestion_text(found).split(' (')[0]}.")
+        self._say(f"Triaged {line.number} as {suggestion_text(found, self.labels).split(' (')[0]}.")
 
     def action_closed(self) -> None:
         """Show the met and cancelled clocks too, or hide them again (clocks view)."""
@@ -260,3 +286,7 @@ class CorrespondenceScreen(ModalScreen[None]):
 
     def action_close(self) -> None:
         self.dismiss(None)
+
+    def refresh_for_display_mode(self) -> None:
+        """Technical details came on or off: read the view again (the row is kept)."""
+        self.reload()
