@@ -1393,13 +1393,14 @@ def section_correspondence(ws: Workspace) -> None:
         await tk.until(pilot, lambda: len(app.query("RecordGrid")) > 0, "the shell")
         await open_screen(pilot, app, "f5", letter, "the register")
         await pilot.press("3")
-        await tk.until(pilot, lambda: f"{reply}-C01" in tk.screen_text(app), "the clocks")
+        await tk.until(pilot, lambda: "Reply expected" in tk.screen_text(app), "the clocks")
         tk.shot_tui(
             ws,
             app,
             "17e-clocks",
             "F5, 3: the clocks: reply due in 14 calendar days, with the days left",
-            f"{reply}-C01",
+            reply,
+            "Reply expected",
         )
 
     tk.run_tui(ws, app, clocks, size=(170, 44))
@@ -1708,13 +1709,13 @@ def section_integration(ws: Workspace) -> None:
         )
         await pilot.press("escape")
         await tk.settle(pilot, 3)
-        await open_screen(pilot, app, "ctrl+r", "doc_classifier", "the review queue")
+        await open_screen(pilot, app, "ctrl+r", "Doc classifier", "the review queue")
         tk.shot_tui(
             ws,
             app,
             "19d-review-queue",
             "Ctrl+R: the review queue: what the classifier proposes, with its evidence",
-            "doc_classifier",
+            "Doc classifier",
         )
 
     tk.run_tui(ws, app, registry, size=(170, 44))
@@ -1999,6 +2000,175 @@ def section_legacy_load(ws: Workspace) -> None:
     ws.save("22c-compensate", sh.transcript.svg())
 
 
+# --- 23 plain language and the record screen (P1-UX) -----------------------------------------
+
+# Values for the three example sets of the company standard (codes from its lists), set on records
+# the earlier sections made: key, set, name=value pairs. A string that is also a JSON number is
+# quoted for `tl pset set`.
+PLAIN_VALUES: tuple[tuple[str, str, tuple[str, ...]], ...] = (
+    (
+        "ISO-1234",
+        "document_data",
+        (
+            "originator=Acme Piping",
+            "area=Unit 47",
+            "system=Fuel gas",
+            "confidentiality_note=Vendor data, share with the owner only",
+            "native_format=DWG",
+            "review_due=2027-01-15",
+        ),
+    ),
+    (
+        "P123-RFI-0001",
+        "rfi_data",
+        (
+            "location=Grid C-4",
+            "drawing_ref=DWG-4711",
+            "trade=structural",
+            "cost_estimate=12500",
+            "cost_currency=USD",
+            "schedule_impact_days=3",
+        ),
+    ),
+    (
+        "P123-COR-0001",
+        "correspondence_data",
+        (
+            'contract_clause="14.2"',
+            "other_party_ref=ACME-LTR-0042",
+            "response_required_by=2027-02-01",
+            "delivery_method=email",
+        ),
+    ),
+)
+
+
+def row_with(table: DataTable[Any], text: str) -> int:
+    """The index of the row of ``table`` that shows ``text`` in some cell."""
+    for index in range(table.row_count):
+        if any(text in str(cell) for cell in table.get_row_at(index)):
+            return index
+    raise tk.TourFailed(f"no row shows {text!r}")
+
+
+async def open_row_record(pilot: Pilot[Any], app: Any, key: str, number: str, what: str) -> None:
+    """Open the register on ``key``, put the cursor on the row of ``number`` and press Enter."""
+    from tl_tui.widgets.record_screen import RecordScreen
+
+    await open_screen(pilot, app, key, number, what)
+    table = next(iter(app.screen.query(DataTable)))
+    table.move_cursor(row=row_with(table, number))
+    await tk.settle(pilot, 3)
+    await pilot.press("enter")
+    await tk.until(pilot, lambda: isinstance(app.screen, RecordScreen), f"the record of {number}")
+    await tk.settle(pilot, 4)
+
+
+def section_plain_record_screen(ws: Workspace) -> None:
+    """The record screen opened from each register, its Properties tab, and the Ctrl+D toggle."""
+    renew_sessions(ws)
+    for record, pset, pairs in PLAIN_VALUES:
+        out = ws.tl("pset", "set", *P, record, pset, *pairs, who="demo")
+        expect("conformance" in out, f"{record} {pset}: no conformance line:\n{out}")
+
+    def from_register(
+        name: str,
+        title: str,
+        key: str,
+        number: str,
+        *needles: str,
+        actor: str = "user:amy",
+    ) -> None:
+        app = build_app(ws, actor=actor)
+
+        async def scenario(pilot: Pilot[Any]) -> None:
+            await tk.until(pilot, lambda: len(app.query("RecordGrid")) > 0, "the shell")
+            await open_row_record(pilot, app, key, number, f"the register of {number}")
+            await pilot.press("2")
+            await tk.until(pilot, lambda: needles[0] in tk.screen_text(app), "the Properties tab")
+            tk.shot_tui(ws, app, name, title, number, *needles)
+
+        tk.run_tui(ws, app, scenario, size=(160, 48))
+
+    from_register(
+        "23a-document-properties",
+        "F7, Enter, 2: a document's own properties, as a plain user sees them",
+        "f7",
+        "ISO-1234",
+        "Document data",
+        "Originator",
+        "Acme Piping",
+    )
+    from_register(
+        "23b-tag-properties",
+        "F8, Enter, 2: a tag's properties, with the class's set",
+        "f8",
+        "47-FV-1001",
+        "Valve data",
+        "Body material",
+    )
+    from_register(
+        "23c-rfi-properties",
+        "Ctrl+G, Enter, 2: an RFI's properties",
+        "ctrl+g",
+        "P123-RFI-0001",
+        "RFI data",
+        "Trade",
+        "structural",
+    )
+    from_register(
+        "23d-correspondence-properties",
+        "F5, Enter, 2: a letter's properties",
+        "f5",
+        "P123-COR-0001",
+        "Correspondence data",
+        "Contract clause",
+        "14.2",
+    )
+
+    admin = build_app(ws, admin=True)
+
+    async def toggle(pilot: Pilot[Any]) -> None:
+        await tk.until(pilot, lambda: len(app_rows(admin)) > 0, "the shell")
+        await open_row_record(pilot, admin, "f7", "ISO-1234", "the document register")
+        tk.shot_tui(
+            ws,
+            admin,
+            "23e-record-plain",
+            "The record screen as an admin sees it by default: plain words",
+            "ISO-1234",
+        )
+        await pilot.press("ctrl+d")
+        await tk.until(pilot, lambda: "Schema hash" in tk.screen_text(admin), "details on")
+        tk.shot_tui(
+            ws,
+            admin,
+            "23f-record-technical",
+            "Ctrl+D: the same record with ids, versions and keys (admins only)",
+            "Schema hash",
+            "Version",
+            technical=True,
+        )
+        await pilot.press("ctrl+d")
+        await tk.until(pilot, lambda: "Schema hash" not in tk.screen_text(admin), "details off")
+        tk.shot_tui(
+            ws,
+            admin,
+            "23g-record-plain-again",
+            "Ctrl+D again: back to plain words",
+            "Originator",
+            "ISO-1234",
+        )
+
+    tk.run_tui(ws, admin, toggle, size=(160, 48))
+
+
+def app_rows(app: Any) -> list[Any]:
+    from tl_tui.widgets.grid import RecordGrid
+
+    return list(app.query(RecordGrid))
+
+
 # --- the tour --------------------------------------------------------------------------------
 
 
@@ -2048,10 +2218,12 @@ def main(argv: list[str] | None = None) -> int:
         section_schema_registry(ws)
         section_conformance(ws)
         section_legacy_load(ws)
+        print("P1-UX: plain language and the record screen", flush=True)
+        section_plain_record_screen(ws)
     finally:
         ws.close()
     print(f"wrote {len(ws.written)} screenshots to {out}")
-    return 0
+    return tk.report_leaks()
 
 
 if __name__ == "__main__":

@@ -5,110 +5,110 @@
     
     
 
-    .terminal-1405297463-matrix {
+    .terminal-1385636663-matrix {
         font-family: Fira Code, monospace;
         font-size: 20px;
         line-height: 24.4px;
         font-variant-east-asian: full-width;
     }
 
-    .terminal-1405297463-title {
+    .terminal-1385636663-title {
         font-size: 18px;
         font-weight: bold;
         font-family: arial;
     }
 
-    .terminal-1405297463-r1 { fill: #98a84b;font-weight: bold }
-.terminal-1405297463-r2 { fill: #c5c8c6;font-weight: bold }
-.terminal-1405297463-r3 { fill: #c5c8c6 }
-.terminal-1405297463-r4 { fill: #cc555a }
+    .terminal-1385636663-r1 { fill: #98a84b;font-weight: bold }
+.terminal-1385636663-r2 { fill: #c5c8c6;font-weight: bold }
+.terminal-1385636663-r3 { fill: #c5c8c6 }
+.terminal-1385636663-r4 { fill: #cc555a }
     </style>
 
     <defs>
-    <clipPath id="terminal-1405297463-clip-terminal">
+    <clipPath id="terminal-1385636663-clip-terminal">
       <rect x="0" y="0" width="1438.6" height="438.2" />
     </clipPath>
-    <clipPath id="terminal-1405297463-line-0">
+    <clipPath id="terminal-1385636663-line-0">
     <rect x="0" y="1.5" width="1439.6" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-1405297463-line-1">
+<clipPath id="terminal-1385636663-line-1">
     <rect x="0" y="25.9" width="1439.6" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-1405297463-line-2">
+<clipPath id="terminal-1385636663-line-2">
     <rect x="0" y="50.3" width="1439.6" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-1405297463-line-3">
+<clipPath id="terminal-1385636663-line-3">
     <rect x="0" y="74.7" width="1439.6" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-1405297463-line-4">
+<clipPath id="terminal-1385636663-line-4">
     <rect x="0" y="99.1" width="1439.6" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-1405297463-line-5">
+<clipPath id="terminal-1385636663-line-5">
     <rect x="0" y="123.5" width="1439.6" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-1405297463-line-6">
+<clipPath id="terminal-1385636663-line-6">
     <rect x="0" y="147.9" width="1439.6" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-1405297463-line-7">
+<clipPath id="terminal-1385636663-line-7">
     <rect x="0" y="172.3" width="1439.6" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-1405297463-line-8">
+<clipPath id="terminal-1385636663-line-8">
     <rect x="0" y="196.7" width="1439.6" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-1405297463-line-9">
+<clipPath id="terminal-1385636663-line-9">
     <rect x="0" y="221.1" width="1439.6" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-1405297463-line-10">
+<clipPath id="terminal-1385636663-line-10">
     <rect x="0" y="245.5" width="1439.6" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-1405297463-line-11">
+<clipPath id="terminal-1385636663-line-11">
     <rect x="0" y="269.9" width="1439.6" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-1405297463-line-12">
+<clipPath id="terminal-1385636663-line-12">
     <rect x="0" y="294.3" width="1439.6" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-1405297463-line-13">
+<clipPath id="terminal-1385636663-line-13">
     <rect x="0" y="318.7" width="1439.6" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-1405297463-line-14">
+<clipPath id="terminal-1385636663-line-14">
     <rect x="0" y="343.1" width="1439.6" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-1405297463-line-15">
+<clipPath id="terminal-1385636663-line-15">
     <rect x="0" y="367.5" width="1439.6" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-1405297463-line-16">
+<clipPath id="terminal-1385636663-line-16">
     <rect x="0" y="391.9" width="1439.6" height="24.65"/>
             </clipPath>
     </defs>
 
-    <rect fill="#292929" stroke="rgba(255,255,255,0.35)" stroke-width="1" x="1" y="1" width="1456" height="487.2" rx="8"/><text class="terminal-1405297463-title" fill="#c5c8c6" text-anchor="middle" x="728" y="27">A&#160;time-limited&#160;waiver:&#160;asked&#160;for,&#160;approved&#160;by&#160;an&#160;admin,&#160;counted&#160;apart</text>
+    <rect fill="#292929" stroke="rgba(255,255,255,0.35)" stroke-width="1" x="1" y="1" width="1456" height="487.2" rx="8"/><text class="terminal-1385636663-title" fill="#c5c8c6" text-anchor="middle" x="728" y="27">A&#160;time-limited&#160;waiver:&#160;asked&#160;for,&#160;approved&#160;by&#160;an&#160;admin,&#160;counted&#160;apart</text>
             <g transform="translate(26,22)">
             <circle cx="0" cy="0" r="7" fill="#ff5f57"/>
             <circle cx="22" cy="0" r="7" fill="#febc2e"/>
             <circle cx="44" cy="0" r="7" fill="#28c840"/>
             </g>
         
-    <g transform="translate(9, 41)" clip-path="url(#terminal-1405297463-clip-terminal)">
+    <g transform="translate(9, 41)" clip-path="url(#terminal-1385636663-clip-terminal)">
     
-    <g class="terminal-1405297463-matrix">
-    <text class="terminal-1405297463-r1" x="0" y="20" textLength="61" clip-path="url(#terminal-1405297463-line-0)">amy$&#160;</text><text class="terminal-1405297463-r2" x="61" y="20" textLength="1305.4" clip-path="url(#terminal-1405297463-line-0)">tl&#160;schema&#160;waiver&#160;request&#160;P999&#160;psets.valve_data.size_in&#160;--reason&#160;&#x27;Legacy&#160;valves&#160;keep&#160;the&#160;old&#160;nominal&#160;size.&#x27;&#160;</text><text class="terminal-1405297463-r3" x="1439.6" y="20" textLength="12.2" clip-path="url(#terminal-1405297463-line-0)">
-</text><text class="terminal-1405297463-r2" x="0" y="44.4" textLength="244" clip-path="url(#terminal-1405297463-line-1)">--expires&#160;2026-11-11</text><text class="terminal-1405297463-r3" x="1439.6" y="44.4" textLength="12.2" clip-path="url(#terminal-1405297463-line-1)">
-</text><text class="terminal-1405297463-r3" x="0" y="68.8" textLength="829.6" clip-path="url(#terminal-1405297463-line-2)">requested&#160;P999/psets.valve_data.size_in@1&#160;01M4S27XH000000000000001EK</text><text class="terminal-1405297463-r3" x="1439.6" y="68.8" textLength="12.2" clip-path="url(#terminal-1405297463-line-2)">
-</text><text class="terminal-1405297463-r1" x="0" y="93.2" textLength="61" clip-path="url(#terminal-1405297463-line-3)">amy$&#160;</text><text class="terminal-1405297463-r2" x="61" y="93.2" textLength="683.2" clip-path="url(#terminal-1405297463-line-3)">tl&#160;schema&#160;waiver&#160;approve&#160;P999/psets.valve_data.size_in@1</text><text class="terminal-1405297463-r3" x="1439.6" y="93.2" textLength="12.2" clip-path="url(#terminal-1405297463-line-3)">
-</text><text class="terminal-1405297463-r4" x="0" y="117.6" textLength="622.2" clip-path="url(#terminal-1405297463-line-4)">error:&#160;forbidden:&#160;this&#160;command&#160;needs&#160;the&#160;admin&#160;role</text><text class="terminal-1405297463-r3" x="1439.6" y="117.6" textLength="12.2" clip-path="url(#terminal-1405297463-line-4)">
-</text><text class="terminal-1405297463-r1" x="0" y="142" textLength="73.2" clip-path="url(#terminal-1405297463-line-5)">demo$&#160;</text><text class="terminal-1405297463-r2" x="73.2" y="142" textLength="976" clip-path="url(#terminal-1405297463-line-5)">tl&#160;schema&#160;waiver&#160;approve&#160;P999/psets.valve_data.size_in@1&#160;--comment&#160;&#x27;for&#160;30&#160;days&#x27;</text><text class="terminal-1405297463-r3" x="1439.6" y="142" textLength="12.2" clip-path="url(#terminal-1405297463-line-5)">
-</text><text class="terminal-1405297463-r3" x="0" y="166.4" textLength="488" clip-path="url(#terminal-1405297463-line-6)">approved&#160;P999/psets.valve_data.size_in@1</text><text class="terminal-1405297463-r3" x="1439.6" y="166.4" textLength="12.2" clip-path="url(#terminal-1405297463-line-6)">
-</text><text class="terminal-1405297463-r1" x="0" y="190.8" textLength="61" clip-path="url(#terminal-1405297463-line-7)">amy$&#160;</text><text class="terminal-1405297463-r2" x="61" y="190.8" textLength="414.8" clip-path="url(#terminal-1405297463-line-7)">tl&#160;schema&#160;waiver&#160;ls&#160;--project&#160;P999</text><text class="terminal-1405297463-r3" x="1439.6" y="190.8" textLength="12.2" clip-path="url(#terminal-1405297463-line-7)">
-</text><text class="terminal-1405297463-r3" x="0" y="215.2" textLength="1122.4" clip-path="url(#terminal-1405297463-line-8)">P999/psets.valve_data.size_in@1&#160;&#160;Approved&#160;&#160;until&#160;2026-11-11&#160;&#160;by&#160;user:amy&#160;&#160;approver&#160;user:demo</text><text class="terminal-1405297463-r3" x="1439.6" y="215.2" textLength="12.2" clip-path="url(#terminal-1405297463-line-8)">
-</text><text class="terminal-1405297463-r1" x="0" y="239.6" textLength="61" clip-path="url(#terminal-1405297463-line-9)">amy$&#160;</text><text class="terminal-1405297463-r2" x="61" y="239.6" textLength="439.2" clip-path="url(#terminal-1405297463-line-9)">tl&#160;schema&#160;conformance&#160;--project&#160;P999</text><text class="terminal-1405297463-r3" x="1439.6" y="239.6" textLength="12.2" clip-path="url(#terminal-1405297463-line-9)">
-</text><text class="terminal-1405297463-r3" x="0" y="264" textLength="439.2" clip-path="url(#terminal-1405297463-line-10)">P999&#160;&#160;schema&#160;0a5a85836692&#160;&#160;records&#160;2</text><text class="terminal-1405297463-r3" x="1439.6" y="264" textLength="12.2" clip-path="url(#terminal-1405297463-line-10)">
-</text><text class="terminal-1405297463-r3" x="0" y="288.4" textLength="976" clip-path="url(#terminal-1405297463-line-11)">schemareg.Adoption&#160;&#160;total&#160;1&#160;&#160;ok&#160;1&#160;&#160;warning&#160;0&#160;&#160;nonconformant&#160;0&#160;&#160;waived&#160;0&#160;&#160;stale&#160;1</text><text class="terminal-1405297463-r3" x="1439.6" y="288.4" textLength="12.2" clip-path="url(#terminal-1405297463-line-11)">
-</text><text class="terminal-1405297463-r3" x="0" y="312.8" textLength="951.6" clip-path="url(#terminal-1405297463-line-12)">schemareg.Waiver&#160;&#160;total&#160;1&#160;&#160;ok&#160;1&#160;&#160;warning&#160;0&#160;&#160;nonconformant&#160;0&#160;&#160;waived&#160;0&#160;&#160;stale&#160;1</text><text class="terminal-1405297463-r3" x="1439.6" y="312.8" textLength="12.2" clip-path="url(#terminal-1405297463-line-12)">
-</text><text class="terminal-1405297463-r3" x="0" y="337.2" textLength="854" clip-path="url(#terminal-1405297463-line-13)">waiver&#160;P999/psets.valve_data.size_in@1&#160;&#160;until&#160;2026-11-11&#160;&#160;30&#160;days&#160;left</text><text class="terminal-1405297463-r3" x="1439.6" y="337.2" textLength="12.2" clip-path="url(#terminal-1405297463-line-13)">
-</text><text class="terminal-1405297463-r1" x="0" y="361.6" textLength="73.2" clip-path="url(#terminal-1405297463-line-14)">demo$&#160;</text><text class="terminal-1405297463-r2" x="73.2" y="361.6" textLength="1061.4" clip-path="url(#terminal-1405297463-line-14)">tl&#160;schema&#160;waiver&#160;revoke&#160;P999/psets.valve_data.size_in@1&#160;--reason&#160;&#x27;Fixed&#160;at&#160;the&#160;source.&#x27;</text><text class="terminal-1405297463-r3" x="1439.6" y="361.6" textLength="12.2" clip-path="url(#terminal-1405297463-line-14)">
-</text><text class="terminal-1405297463-r3" x="0" y="386" textLength="475.8" clip-path="url(#terminal-1405297463-line-15)">revoked&#160;P999/psets.valve_data.size_in@1</text><text class="terminal-1405297463-r3" x="1439.6" y="386" textLength="12.2" clip-path="url(#terminal-1405297463-line-15)">
-</text><text class="terminal-1405297463-r1" x="0" y="410.4" textLength="61" clip-path="url(#terminal-1405297463-line-16)">amy$&#160;</text><text class="terminal-1405297463-r2" x="61" y="410.4" textLength="414.8" clip-path="url(#terminal-1405297463-line-16)">tl&#160;schema&#160;waiver&#160;ls&#160;--project&#160;P999</text><text class="terminal-1405297463-r3" x="1439.6" y="410.4" textLength="12.2" clip-path="url(#terminal-1405297463-line-16)">
-</text><text class="terminal-1405297463-r3" x="0" y="434.8" textLength="1110.2" clip-path="url(#terminal-1405297463-line-17)">P999/psets.valve_data.size_in@1&#160;&#160;Revoked&#160;&#160;until&#160;2026-11-11&#160;&#160;by&#160;user:amy&#160;&#160;approver&#160;user:demo</text><text class="terminal-1405297463-r3" x="1439.6" y="434.8" textLength="12.2" clip-path="url(#terminal-1405297463-line-17)">
+    <g class="terminal-1385636663-matrix">
+    <text class="terminal-1385636663-r1" x="0" y="20" textLength="61" clip-path="url(#terminal-1385636663-line-0)">amy$&#160;</text><text class="terminal-1385636663-r2" x="61" y="20" textLength="1305.4" clip-path="url(#terminal-1385636663-line-0)">tl&#160;schema&#160;waiver&#160;request&#160;P999&#160;psets.valve_data.size_in&#160;--reason&#160;&#x27;Legacy&#160;valves&#160;keep&#160;the&#160;old&#160;nominal&#160;size.&#x27;&#160;</text><text class="terminal-1385636663-r3" x="1439.6" y="20" textLength="12.2" clip-path="url(#terminal-1385636663-line-0)">
+</text><text class="terminal-1385636663-r2" x="0" y="44.4" textLength="244" clip-path="url(#terminal-1385636663-line-1)">--expires&#160;2026-11-11</text><text class="terminal-1385636663-r3" x="1439.6" y="44.4" textLength="12.2" clip-path="url(#terminal-1385636663-line-1)">
+</text><text class="terminal-1385636663-r3" x="0" y="68.8" textLength="829.6" clip-path="url(#terminal-1385636663-line-2)">requested&#160;P999/psets.valve_data.size_in@1&#160;01M4S27XH000000000000001EK</text><text class="terminal-1385636663-r3" x="1439.6" y="68.8" textLength="12.2" clip-path="url(#terminal-1385636663-line-2)">
+</text><text class="terminal-1385636663-r1" x="0" y="93.2" textLength="61" clip-path="url(#terminal-1385636663-line-3)">amy$&#160;</text><text class="terminal-1385636663-r2" x="61" y="93.2" textLength="683.2" clip-path="url(#terminal-1385636663-line-3)">tl&#160;schema&#160;waiver&#160;approve&#160;P999/psets.valve_data.size_in@1</text><text class="terminal-1385636663-r3" x="1439.6" y="93.2" textLength="12.2" clip-path="url(#terminal-1385636663-line-3)">
+</text><text class="terminal-1385636663-r4" x="0" y="117.6" textLength="622.2" clip-path="url(#terminal-1385636663-line-4)">error:&#160;forbidden:&#160;this&#160;command&#160;needs&#160;the&#160;admin&#160;role</text><text class="terminal-1385636663-r3" x="1439.6" y="117.6" textLength="12.2" clip-path="url(#terminal-1385636663-line-4)">
+</text><text class="terminal-1385636663-r1" x="0" y="142" textLength="73.2" clip-path="url(#terminal-1385636663-line-5)">demo$&#160;</text><text class="terminal-1385636663-r2" x="73.2" y="142" textLength="976" clip-path="url(#terminal-1385636663-line-5)">tl&#160;schema&#160;waiver&#160;approve&#160;P999/psets.valve_data.size_in@1&#160;--comment&#160;&#x27;for&#160;30&#160;days&#x27;</text><text class="terminal-1385636663-r3" x="1439.6" y="142" textLength="12.2" clip-path="url(#terminal-1385636663-line-5)">
+</text><text class="terminal-1385636663-r3" x="0" y="166.4" textLength="488" clip-path="url(#terminal-1385636663-line-6)">approved&#160;P999/psets.valve_data.size_in@1</text><text class="terminal-1385636663-r3" x="1439.6" y="166.4" textLength="12.2" clip-path="url(#terminal-1385636663-line-6)">
+</text><text class="terminal-1385636663-r1" x="0" y="190.8" textLength="61" clip-path="url(#terminal-1385636663-line-7)">amy$&#160;</text><text class="terminal-1385636663-r2" x="61" y="190.8" textLength="414.8" clip-path="url(#terminal-1385636663-line-7)">tl&#160;schema&#160;waiver&#160;ls&#160;--project&#160;P999</text><text class="terminal-1385636663-r3" x="1439.6" y="190.8" textLength="12.2" clip-path="url(#terminal-1385636663-line-7)">
+</text><text class="terminal-1385636663-r3" x="0" y="215.2" textLength="1122.4" clip-path="url(#terminal-1385636663-line-8)">P999/psets.valve_data.size_in@1&#160;&#160;Approved&#160;&#160;until&#160;2026-11-11&#160;&#160;by&#160;user:amy&#160;&#160;approver&#160;user:demo</text><text class="terminal-1385636663-r3" x="1439.6" y="215.2" textLength="12.2" clip-path="url(#terminal-1385636663-line-8)">
+</text><text class="terminal-1385636663-r1" x="0" y="239.6" textLength="61" clip-path="url(#terminal-1385636663-line-9)">amy$&#160;</text><text class="terminal-1385636663-r2" x="61" y="239.6" textLength="439.2" clip-path="url(#terminal-1385636663-line-9)">tl&#160;schema&#160;conformance&#160;--project&#160;P999</text><text class="terminal-1385636663-r3" x="1439.6" y="239.6" textLength="12.2" clip-path="url(#terminal-1385636663-line-9)">
+</text><text class="terminal-1385636663-r3" x="0" y="264" textLength="439.2" clip-path="url(#terminal-1385636663-line-10)">P999&#160;&#160;schema&#160;522f1956b673&#160;&#160;records&#160;2</text><text class="terminal-1385636663-r3" x="1439.6" y="264" textLength="12.2" clip-path="url(#terminal-1385636663-line-10)">
+</text><text class="terminal-1385636663-r3" x="0" y="288.4" textLength="976" clip-path="url(#terminal-1385636663-line-11)">schemareg.Adoption&#160;&#160;total&#160;1&#160;&#160;ok&#160;1&#160;&#160;warning&#160;0&#160;&#160;nonconformant&#160;0&#160;&#160;waived&#160;0&#160;&#160;stale&#160;1</text><text class="terminal-1385636663-r3" x="1439.6" y="288.4" textLength="12.2" clip-path="url(#terminal-1385636663-line-11)">
+</text><text class="terminal-1385636663-r3" x="0" y="312.8" textLength="951.6" clip-path="url(#terminal-1385636663-line-12)">schemareg.Waiver&#160;&#160;total&#160;1&#160;&#160;ok&#160;1&#160;&#160;warning&#160;0&#160;&#160;nonconformant&#160;0&#160;&#160;waived&#160;0&#160;&#160;stale&#160;1</text><text class="terminal-1385636663-r3" x="1439.6" y="312.8" textLength="12.2" clip-path="url(#terminal-1385636663-line-12)">
+</text><text class="terminal-1385636663-r3" x="0" y="337.2" textLength="854" clip-path="url(#terminal-1385636663-line-13)">waiver&#160;P999/psets.valve_data.size_in@1&#160;&#160;until&#160;2026-11-11&#160;&#160;30&#160;days&#160;left</text><text class="terminal-1385636663-r3" x="1439.6" y="337.2" textLength="12.2" clip-path="url(#terminal-1385636663-line-13)">
+</text><text class="terminal-1385636663-r1" x="0" y="361.6" textLength="73.2" clip-path="url(#terminal-1385636663-line-14)">demo$&#160;</text><text class="terminal-1385636663-r2" x="73.2" y="361.6" textLength="1061.4" clip-path="url(#terminal-1385636663-line-14)">tl&#160;schema&#160;waiver&#160;revoke&#160;P999/psets.valve_data.size_in@1&#160;--reason&#160;&#x27;Fixed&#160;at&#160;the&#160;source.&#x27;</text><text class="terminal-1385636663-r3" x="1439.6" y="361.6" textLength="12.2" clip-path="url(#terminal-1385636663-line-14)">
+</text><text class="terminal-1385636663-r3" x="0" y="386" textLength="475.8" clip-path="url(#terminal-1385636663-line-15)">revoked&#160;P999/psets.valve_data.size_in@1</text><text class="terminal-1385636663-r3" x="1439.6" y="386" textLength="12.2" clip-path="url(#terminal-1385636663-line-15)">
+</text><text class="terminal-1385636663-r1" x="0" y="410.4" textLength="61" clip-path="url(#terminal-1385636663-line-16)">amy$&#160;</text><text class="terminal-1385636663-r2" x="61" y="410.4" textLength="414.8" clip-path="url(#terminal-1385636663-line-16)">tl&#160;schema&#160;waiver&#160;ls&#160;--project&#160;P999</text><text class="terminal-1385636663-r3" x="1439.6" y="410.4" textLength="12.2" clip-path="url(#terminal-1385636663-line-16)">
+</text><text class="terminal-1385636663-r3" x="0" y="434.8" textLength="1110.2" clip-path="url(#terminal-1385636663-line-17)">P999/psets.valve_data.size_in@1&#160;&#160;Revoked&#160;&#160;until&#160;2026-11-11&#160;&#160;by&#160;user:amy&#160;&#160;approver&#160;user:demo</text><text class="terminal-1385636663-r3" x="1439.6" y="434.8" textLength="12.2" clip-path="url(#terminal-1385636663-line-17)">
 </text>
     </g>
     </g>

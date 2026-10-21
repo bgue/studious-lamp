@@ -137,7 +137,21 @@ def test_a_version_not_analysed_says_so_and_analyse_is_one_command_as_the_person
         command = client.schemareg_commands[0]
         assert isinstance(command, AnalyseSchemaPackage)
         assert (command.actor, command.source, command.package_id) == ("user:boss", "tui", ID)
-        assert "Analysed co.acme.engineering@3.3.0." in screen_text(app)
+        assert "Analysed Engineering, version 3.3.0." in screen_text(app)
+
+    scenario(client, steps)
+
+
+def test_a_status_line_names_the_package_in_technical_mode_only() -> None:
+    client = client_with(analysed=False)
+
+    async def steps(pilot: Pilot[Any], app: TlApp, screen: SchemaReviewScreen) -> None:
+        show_technical(app, screen, True)
+        await pilot.press("a")
+        await pilot.pause()
+        text = screen_text(app)
+        assert "Analysed co.acme.engineering@3.3.0." in text
+        assert "Engineering, version" not in text.split("Analysed", 1)[1].split("\n", 1)[0]
 
     scenario(client, steps)
 
@@ -149,10 +163,10 @@ def test_submit_and_approve_each_run_their_command() -> None:
         assert "Next: approve (y) or ask for changes (c)." in screen_text(app)
         await pilot.press("s")
         await pilot.pause()
-        assert "Submitted co.acme.engineering@3.3.0 for review." in screen_text(app)
+        assert "Submitted Engineering, version 3.3.0 for review." in screen_text(app)
         await pilot.press("y")
         await pilot.pause()
-        assert "Approved co.acme.engineering@3.3.0." in screen_text(app)
+        assert "Approved Engineering, version 3.3.0." in screen_text(app)
         kinds = [type(c) for c in client.schemareg_commands]
         assert kinds == [SubmitSchemaPackage, ApproveSchemaPackage]
         assert all(c.package_id == ID for c in client.schemareg_commands)  # type: ignore[attr-defined]
@@ -191,7 +205,7 @@ def test_sending_back_asks_for_a_reason_and_escape_sends_nothing() -> None:
         await pilot.pause()
         sent = client.schemareg_commands[0]
         assert isinstance(sent, RequestSchemaChanges) and sent.reason == "Too wide"
-        assert "Sent co.acme.engineering@3.3.0 back to its author." in screen_text(app)
+        assert "Sent Engineering, version 3.3.0 back to its author." in screen_text(app)
 
     scenario(client, steps)
 
@@ -214,7 +228,7 @@ def test_publishing_needs_the_word_typed() -> None:
         published = client.schemareg_commands[0]
         assert isinstance(published, PublishSchemaPackage) and published.package_id == ID
         assert published.auto_adopt is False
-        assert "Published co.acme.engineering@3.3.0." in screen_text(app)
+        assert "Published Engineering, version 3.3.0." in screen_text(app)
 
     scenario(client, steps)
 

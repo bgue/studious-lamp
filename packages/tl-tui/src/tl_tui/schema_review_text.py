@@ -7,12 +7,17 @@ ends with `... <n> more`. Nothing here changes anything.
 
 from __future__ import annotations
 
+import re
+
 from tl_mod_schemareg.impact_types import ImpactReport
 from tl_mod_schemareg.views import PackageDetail, SampleTestView
 
 from tl_tui.schema_text import plain_ref
 
 MAX_LINES = 30
+
+# A package reference as the service writes it in a message: `co.acme.engineering@4.0.0`.
+_PACKAGE_REF = re.compile(r"[A-Za-z][\w.-]*@\d+\.\d+\.\d+(?![\w]|\.\d)")
 
 #: state -> what comes next, for the line under the title.
 NEXT_STEPS = {
@@ -29,6 +34,16 @@ def title_line(detail: PackageDetail, *, technical: bool = False) -> str:
     """`<key>  <state>  class <worst class or ->`; the key in words unless `technical`."""
     key = detail.key if technical else plain_ref(detail.key)
     return f"{key}  {detail.state}  class {detail.worst_class or '-'}"
+
+
+def plain_message(text: str, *, technical: bool = False) -> str:
+    """A status or refusal line with each package reference in words (`Engineering, version 4.0.0`).
+
+    Technical mode keeps the line as it came.
+    """
+    if technical:
+        return text
+    return _PACKAGE_REF.sub(lambda found: plain_ref(found.group(0)), text)
 
 
 def next_step(state: str) -> str:
