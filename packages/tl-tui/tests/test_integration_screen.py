@@ -64,7 +64,7 @@ def test_ctrl_e_opens_on_the_endpoints_and_escape_closes() -> None:
         assert "Endpoints (2)" in text and "[1 Endpoints]" in text
         assert "acme-nde/results" in text and "acme-nde/photos" in text
         assert "Path        /in/acme-nde/results" in text  # the detail of the first row
-        assert "Acts as     svc:inbound-acme-nde.results" in text
+        assert "Acts as     a service" in text  # plain: no service label is known here
         await pilot.press("escape")
         await pilot.pause()
         assert not isinstance(app.screen, IntegrationScreen)
@@ -92,7 +92,7 @@ def test_the_keys_switch_the_table() -> None:
             "4": ("Enrichers (1)", "doc_classifier"),
             "5": ("Apps (1)", "Acme NDE"),
             "6": ("Invocations (1)", "send_to_nde"),
-            "7": ("Error queue (2)", "mapping_failed"),
+            "7": ("Error queue (2)", "Mapping failed"),
             "1": ("Endpoints (2)", "acme-nde/results"),
         }
         for key, (title, cell) in expected.items():
@@ -113,7 +113,12 @@ def test_the_error_queue_names_each_endpoint_by_its_path() -> None:
         await pilot.press("7")
         await pilot.pause()
         text = screen_text(app)
-        assert "acme-nde/results" in text and "! failed" in text and "✓ completed" in text
+        assert "acme-nde/results" in text and "! Failed" in text and "✓ Completed" in text
+        assert "Mapping failed: no weld in the payload" in text
+        assert "Endpoint    acme-nde/results" in text and "v2" not in text
+        await pilot.press("ctrl+d")  # technical details on: the id, version and error code again
+        await pilot.pause()
+        text = screen_text(app)
         assert "mapping_failed: no weld in the payload" in text
         assert "Endpoint    acme-nde/results v2" in text
 
@@ -198,7 +203,7 @@ def test_y_retries_a_failed_delivery_and_only_on_the_error_queue() -> None:
             ("RetryInboundDelivery", SCOPE, {"delivery_id": "01JDELIVERYAAAAAAA1"})
         ]
         text = screen_text(app)
-        assert "Queued the delivery again." in text and "… queued" in text
+        assert "Queued the delivery again." in text and "… Queued" in text
 
     scenario(client, steps)
 
