@@ -169,7 +169,7 @@ psets:
         range: string
       confidentiality_note:
         label: Confidentiality note
-        description: Handling note for readers, for example the reason a document is restricted.
+        description: Handling note for readers. It does not change who can read the document; set the document's class for that.
         range: text
       native_format:
         label: Native file format

@@ -87,7 +87,7 @@ def get_form_metadata(
     actor: Reader,
     scope: Annotated[str, Query()],
     record_type: Annotated[str, Query()],
-    record_id: Annotated[str | None, Query()] = None,
+    record_id: Annotated[str | None, Query(max_length=64)] = None,
 ) -> FormMetadata:
     """Form and grid metadata for a record type under the scope's effective schema.
 
