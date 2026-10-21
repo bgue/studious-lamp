@@ -383,7 +383,7 @@ Amy drafts `co.acme.engineering@3.3.0` from a YAML file, with a changelog. `anal
 
 ![Ctrl+O: the schema workbench: each version of each package, with its state and class](tour/phase-1/20b-workbench-tree.svg)
 
-`Ctrl+O` opens the schema workbench as the admin. The table lists every version of every package, newest on top, with its state, class and author; under it the highlighted version's properties, code lists and property sets. Nothing here edits the package: the workbench reads, and every step of the review is one command as the signed-in person.
+`Ctrl+O` opens the schema workbench as the admin. The table lists every version of every package, newest on top, with its state, class and author; under it the highlighted version's properties, code lists and property sets. Nothing here edits the package: the workbench reads, and every step of the review is one command as the signed-in person. Without Ctrl+D it names people (`demo`, not `user:demo`), record types by title (`applies to Record`) and a property as its set and name (`Valve data: size in`); Ctrl+D brings the keys back.
 
 ![Ctrl+O, 3: the diff of the published 3.3.0 against 3.2.0, scrolled to the added property](tour/phase-1/20c-workbench-diff.svg)
 
@@ -459,11 +459,11 @@ Enter on a row of any register opens the **full record**: Details (the module's 
 
 ![Ctrl+D again: back to plain words](tour/phase-1/23g-record-plain-again.svg)
 
-**Technical details** are one key, `Ctrl+D`, offered to admins only: it adds what the plain screens hide (ids, versions, hashes, internal keys), and pressing it again hides them. It is off at the start of every session and a plain user who presses it gets one line, `Technical details are for admins`. The one technical shot (`23f`) is the only one the tour does not check for technical text.
+**Technical details** are one key, `Ctrl+D`, offered to admins only: it adds what the plain screens hide (ids, versions, hashes, internal keys), and pressing it again hides them. It is off at the start of every session and a plain user who presses it gets one line, `Technical details are for admins`. The tour also looks for the record-type and property keys of the schema (`core.Record`, `valve_data.body_material`), as the plain-user walking test does. The one technical shot (`23f`) is the only one in this phase that the tour does not check for technical text.
 
 **Reproduce:** `just demo P1-UX` (both backends; four clauses). By hand: `uv run tl pset set --project P123 ISO-1234 document_data originator="Acme Piping" native_format=DWG`, then open `tl tui`, press `F7`, `Enter`, `2`; as an admin press `Ctrl+D`.
 
-**Standard activity.** A register is a list; the full record is another tool, and the property data sits in a spreadsheet beside it. Staff read internal codes (`PIP`, `ControlValve`, `general/letter`) and ids that mean nothing to them. **Novel approach.** One record screen serves every type, and its tabs read the same schema the forms and the checks use, so a document, a tag, an RFI and a letter show their sets alike; one shared helper turns codes, types, domains and rule markers into words, and the toggle brings the raw view back for those who need it (P1-UX). **Honest limits.** This is display only: the CLI, API and MCP keep their output. The three sets are examples in the fixture standard, not a model for a real company. The toggle is for admins and is not remembered between sessions. Values from code lists show their code today (`structural`, `USD`), not their label.
+**Standard activity.** A register is a list; the full record is another tool, and the property data sits in a spreadsheet beside it. Staff read internal codes (`PIP`, `ControlValve`, `general/letter`) and ids that mean nothing to them. **Novel approach.** One record screen serves every type, and its tabs read the same schema the forms and the checks use, so a document, a tag, an RFI and a letter show their sets alike; one shared helper turns codes, types, domains and rule markers into words, and the toggle brings the raw view back for those who need it (P1-UX). **Honest limits.** This is display only: the CLI, API and MCP keep their output. The three sets are examples in the fixture standard, not a model for a real company. The toggle is for admins and is not remembered between sessions. A value from a code list shows its label (`Structural`, `US dollar`); a money amount carries its currency code (`12500 USD`), taken from the currency property beside it; Ctrl+D shows the stored codes.
 
 ## What Phase 1 did not do
 

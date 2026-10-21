@@ -115,15 +115,16 @@ def test_the_highlighted_version_shows_its_header_and_what_it_defines() -> None:
         text = screen_text(app)
         assert "P123, version 1.4.0  Draft" in text and "Project P123" in text
         assert "[1 Properties]  2 Lint  3 Diff" in text
-        assert "extends co.acme.engineering@3.2.0#valve_data" in text
+        assert "extends Engineering, version 3.2.0, Valve data" in text
         assert "add MaterialCode  SS316L-NACE  -> SS316L" in text
         await pilot.press("down")
         await pilot.pause()
         text = screen_text(app)
         assert "Engineering, version 3.3.0  Draft" in text
-        assert "pset valve_data  required  mandatory  applies to core.Record" in text
+        assert "pset valve_data  required  mandatory  applies to Record" in text
         show_technical(app, screen, True)
         assert "co.acme.engineering@3.3.0  Draft" in screen_text(app)
+        assert "pset valve_data  required  mandatory  applies to core.Record" in screen_text(app)
         show_technical(app, screen, False)
         assert "co.acme.engineering@3.3.0  Draft" not in screen_text(app)
 

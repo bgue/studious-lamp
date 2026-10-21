@@ -253,3 +253,23 @@ def test_find_technical_reports_a_dotted_package_ref_once() -> None:
 def test_find_technical_keeps_a_repeated_token_at_each_place() -> None:
     # dedupe is by (start, token), not by token: the same ULID twice is two hits
     assert find_technical(f"{ULID} then {ULID}") == [ULID, ULID]
+
+
+def test_service_pattern_takes_hyphens_and_dots_but_not_the_sentence_stop() -> None:
+    assert find_technical("by svc:inbound-acme-nde.results now") == ["svc:inbound-acme-nde.results"]
+    assert find_technical("by svc:rule-x") == ["svc:rule-x"]
+    assert find_technical("sent by svc:intake.") == ["svc:intake"]
+    assert find_technical("svc:") == []
+
+
+def test_plain_keys_puts_type_keys_and_property_paths_in_words() -> None:
+    from tl_tui.display import plain_keys
+
+    labels = Labels(type_titles={"core.Record": "Record", "engineering.Tag": "Control valve"})
+    text = "psets.valve_data.size_in changed on engineering.Tag and core.Record"
+    assert plain_keys(text, labels) == "Valve data: size in changed on Control valve and Record"
+    assert plain_keys("core.Records, xcore.Record, my.core.Record", labels) == (
+        "core.Records, xcore.Record, my.core.Record"
+    )
+    assert plain_keys("psets.prj.shutdown_tie_in.window", labels) == "Shutdown tie in: window"
+    assert plain_keys("nothing to change", Labels()) == "nothing to change"

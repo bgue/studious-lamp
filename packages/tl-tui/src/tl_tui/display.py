@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import dataclasses
 import re
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any
 
@@ -27,7 +27,7 @@ ULID_PATTERN = re.compile(r"(?<![0-9A-Za-z])[0-9A-HJKMNP-TV-Z]{26}(?![0-9A-Za-z]
 DIGEST_PATTERN = re.compile(r"(?<![0-9A-Za-z])[0-9a-f]{64}(?![0-9A-Za-z])")
 SHORT_HASH_PATTERN = re.compile(r"#[0-9a-f]{4}…[0-9a-f]{2}(?![0-9A-Za-z])")
 PACKAGE_PATTERN = re.compile(r"(?<![\w.@-])[A-Za-z][\w.-]*@\d+\.\d+\.\d+(?![\w]|\.\d)")
-SERVICE_PATTERN = re.compile(r"(?<!\w)svc:\w+")
+SERVICE_PATTERN = re.compile(r"(?<!\w)svc:\w+(?:[-.]\w+)*")
 REQUIRED_RULE_PATTERN = re.compile(r"(?<!\w)required@\w[\w/]*")
 SHA256_PATTERN = re.compile(r"(?<!\w)sha256:\w+")
 CALENDAR_ID_PATTERN = re.compile(r"(?<!\w)cal:[\w.-]+|(?<!\w)calendar C-[\w-]+")
@@ -35,6 +35,7 @@ CALENDAR_VERSION_PATTERN = re.compile(r"(?<![\w@])@v\d+(?!\w)")
 # The code@version form clock text writes (calendars.py: Calendar.ref), for example P123-default@1.
 # The lookbehind keeps the tail of a package name (co.acme.engineering@3.2.0) from matching here.
 CALENDAR_REF_PATTERN = re.compile(r"(?<![A-Za-z0-9_.@-])[A-Za-z0-9][A-Za-z0-9_-]*@\d+(\.\d+)*\b")
+_PSET_PATH = re.compile(r"(?<![\w.])psets\.(\w+(?:\.\w+)?)\.(\w+)(?![\w])")
 DOMAIN_KEY_PATTERN = re.compile(r"(?<![\w/])([a-z][a-z0-9_]*)/([a-z][a-z0-9_]*)(?![\w/])")
 
 # Patterns that match on their own. DOMAIN_KEY_PATTERN needs a Labels value and is checked apart.
@@ -50,6 +51,19 @@ TECHNICAL_PATTERNS: tuple[re.Pattern[str], ...] = (
     CALENDAR_VERSION_PATTERN,
     CALENDAR_REF_PATTERN,
 )
+
+
+def key_hits(text: str, keys: Sequence[str]) -> list[str]:
+    """Every schema key in ``text`` as a whole dotted name (not inside a longer name).
+
+    ``keys`` come from ``labels_load.schema_keys``; ``core.Record`` matches, ``xcore.Record`` and
+    ``core.Records`` do not.
+    """
+    found: dict[str, None] = {}
+    for key in keys:
+        if re.search(rf"(?<![\w.]){re.escape(key)}(?![\w])", text):
+            found[key] = None
+    return list(found)
 
 
 @dataclass(frozen=True)
@@ -87,6 +101,24 @@ def code_label(labels: Labels, list_name: str, code: str | None) -> str:
     if not code:
         return EMPTY
     return labels.code_labels.get(list_name, {}).get(code) or code
+
+
+def plain_keys(text: str, labels: Labels) -> str:
+    """Free text from a service with its schema keys in words.
+
+    A record-type key becomes the type's label (``core.Record`` -> ``Record``) and a property path
+    becomes its set and property (``psets.valve_data.size_in`` -> ``Valve data: size in``). Text
+    that holds no key comes back as it was; ``key_hits`` finds what is left.
+    """
+    if labels.type_titles:
+        names = sorted(labels.type_titles, key=lambda name: (-len(name), name))
+        keys = re.compile(r"(?<![\w.])(" + "|".join(re.escape(name) for name in names) + r")(?!\w)")
+        text = keys.sub(lambda found: type_label(labels, found.group(1)), text)
+
+    def path(found: re.Match[str]) -> str:
+        return f"{humanize(found.group(1))}: {humanize(found.group(2)).lower()}"
+
+    return _PSET_PATH.sub(path, text)
 
 
 def domain_label(labels: Labels, domain: str | None, subtype: str | None = None) -> str:

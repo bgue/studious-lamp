@@ -4,9 +4,10 @@
 #
 # The four clauses (SCOPE.md), each ending in a PASS line, once on SQLite and once on Postgres:
 #   1  from each register (documents, tags, correspondence register, triage inbox, clocks, RFI log,
-#      commercial, schedule list, review queue) Enter opens the record screen; its Properties tab
-#      lists the set for that type with labels (Document data, RFI data, Correspondence data), and
-#      Esc returns to the same row. The ledger holds values for the three new example sets;
+#      commercial, schedule list, review queue with two enrichment values waiting) Enter opens the
+#      record screen; its Properties tab lists the set for that type with labels (Document data,
+#      RFI data, Correspondence data), and Esc returns to the same row. The ledger holds values for
+#      the three new example sets;
 #   2  as a plain user no screen shows a ULID, hash, schema version, internal key, or clock or
 #      calendar id (the T11 walking test, and every register and record screen of this ledger read
 #      through the same leak finder), and the toggle key answers with a one-line refusal;
@@ -114,7 +115,12 @@ run_backend() {
   as demo tl xer define MAIN --project P123 --name "Pipe rack schedule" --type current >/dev/null
   as amy tl xer upload "$workdir/update-1.xer" --project P123 --schedule MAIN >/dev/null
   as demo tl xer worker --once >/dev/null
-  echo "seeded: $letter (triaged), $inbox (inbox), $rfi, $notice (restricted), schedule MAIN"
+  as demo tl enricher register doc_classifier --file "$workdir/enricher.json" --project P123 >/dev/null
+  as demo tl enricher enable doc_classifier --project P123 >/dev/null
+  as amy tl doc register ISO-1235 --project P123 --title "Piping isometric drawing, unit 47" --type ISO --discipline PIP --originator "Acme Piping" >/dev/null
+  as demo tl integration serve --once >/dev/null
+  expect "enrich.doc_classifier.doc_type" "$(as amy tl enrich ls --project P123)"
+  echo "seeded: $letter (triaged), $inbox (inbox), $rfi, $notice (restricted), schedule MAIN, ISO-1235 (two values to review)"
 
   step "[$backend] the three new sets get values on those records (each set prints a conformance line)"
   setvalues amy ISO-1234 document_data originator="Acme Piping" area="Unit 47" system="Fuel gas" \

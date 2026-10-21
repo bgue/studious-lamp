@@ -12,9 +12,15 @@ import re
 from tl_mod_schemareg.impact_types import ImpactReport
 from tl_mod_schemareg.views import PackageDetail, SampleTestView
 
-from tl_tui.schema_text import plain_ref
+from tl_tui.display import plain_keys
+from tl_tui.schema_text import TYPES, plain_ref
 
 MAX_LINES = 30
+
+
+def _plain(text: str, technical: bool) -> str:
+    return text if technical else plain_keys(text, TYPES)
+
 
 # A package reference as the service writes it in a message: `co.acme.engineering@4.0.0`.
 _PACKAGE_REF = re.compile(r"[A-Za-z][\w.-]*@\d+\.\d+\.\d+(?![\w]|\.\d)")
@@ -43,7 +49,7 @@ def plain_message(text: str, *, technical: bool = False) -> str:
     """
     if technical:
         return text
-    return _PACKAGE_REF.sub(lambda found: plain_ref(found.group(0)), text)
+    return plain_keys(_PACKAGE_REF.sub(lambda found: plain_ref(found.group(0)), text), TYPES)
 
 
 def next_step(state: str) -> str:
@@ -77,7 +83,10 @@ def classification_lines(detail: PackageDetail, *, technical: bool = False) -> l
         f"  blocks submit {_yes_no(report.blocks_submit)}",
         f"Base {base}",
     ]
-    changes = [f"{c.cls}  {c.path}  {c.detail}" for c in report.changes]
+    changes = [
+        f"{c.cls}  {_plain(c.path, technical)}  {_plain(c.detail, technical)}"
+        for c in report.changes
+    ]
     return [*head, *_cut(changes)]
 
 
@@ -93,7 +102,8 @@ def impact_lines(report: ImpactReport | None, *, technical: bool = False) -> lis
         return ["No impact report: press a to analyse."]
     counts = ", ".join(f"{section} {n}" for section, n in report.counts.items()) or "-"
     entries = [
-        f"{e.section}  {e.target}  {e.change}  {'-' if e.count is None else e.count}  {e.detail}"
+        f"{e.section}  {_plain(e.target, technical)}  {e.change}"
+        f"  {'-' if e.count is None else e.count}  {_plain(e.detail, technical)}"
         for e in report.entries
     ]
     lines = [f"Scope {report.scope}"]
@@ -121,5 +131,8 @@ def sample_lines(view: SampleTestView | None, *, technical: bool = False) -> lis
         f"Tested {package}  scope {view.scope}  sample {view.sample}  checked {view.checked}",
         f"Newly nonconformant {view.newly_nonconformant}  newly warning {view.newly_warning}"
         f"  fixed {view.fixed}",
-        *(f"{e.key}  {e.path}  {e.rule}  {e.message}" for e in view.examples),
+        *(
+            f"{e.key}  {_plain(e.path, technical)}  {e.rule}  {_plain(e.message, technical)}"
+            for e in view.examples
+        ),
     ]

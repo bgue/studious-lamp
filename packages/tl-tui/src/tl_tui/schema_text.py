@@ -10,10 +10,14 @@ from __future__ import annotations
 from collections.abc import Sequence
 
 from tl_mod_schemareg.views import LintIssueView, PackageDetail, PackageSummary
+from tl_schema.generated.type_labels import TYPE_LABELS
 from tl_schema.packages import PropertyDef
 from tl_schema.registry import PackageError, parse_package
 
-from tl_tui.display import Labels, actor_label, humanize
+from tl_tui.display import Labels, actor_label, humanize, plain_keys, type_label
+
+# Type titles for the keys a package or a service writes into a line (`core.Record`); no client.
+TYPES = Labels(type_titles=dict(TYPE_LABELS))
 
 COLUMNS = ("Package", "Version", "State", "Class", "Scope", "Drafted by")
 
@@ -34,9 +38,10 @@ def tree_cells(rows: Sequence[PackageSummary], *, technical: bool = False) -> li
 
     The package name is shown on the first row of a run of rows with that name and is empty on the
     others, so the versions of a package read as a tree. In plain mode the name is the row's title,
-    else its humanized package name; technical mode shows the package name. `Class` is the worst
-    class of change, `-` when none, with ` (stale)` after it when the content changed since
-    `analysed`.
+    else its humanized package name; technical mode shows the package name. The drafter is a
+    name (`demo`) in plain mode and the actor reference (`user:demo`) in technical mode. `Class` is
+    the worst class of change, `-` when none, with ` (stale)` after it when the content changed
+    since `analysed`.
     """
     cells: list[tuple[str, ...]] = []
     previous: str | None = None
@@ -47,8 +52,15 @@ def tree_cells(rows: Sequence[PackageSummary], *, technical: bool = False) -> li
         worst = row.worst_class or "-"
         if row.worst_class and not row.analysed:
             worst += " (stale)"
-        cells.append((name, row.version, row.state, worst, row.scope, row.drafted_by))
+        drafted = row.drafted_by if technical else actor_label(Labels(), row.drafted_by)
+        cells.append((name, row.version, row.state, worst, row.scope, drafted))
     return cells
+
+
+def _plain_extends(ref: str) -> str:
+    """`co.acme.engineering@3.2.0#valve_data` as `Engineering, version 3.2.0, Valve data`."""
+    package, _, part = ref.partition("#")
+    return plain_ref(package) + (f", {humanize(part)}" if part else "")
 
 
 def header_lines(detail: PackageDetail, *, technical: bool = False) -> list[str]:
@@ -84,7 +96,7 @@ def _required(prop: PropertyDef) -> str:
     return ",".join(prop.required_in_states) or "-"
 
 
-def property_lines(content: str) -> list[str]:
+def property_lines(content: str, *, technical: bool = False) -> list[str]:
     """The package YAML as a list of what it defines; `! ...` when it does not parse.
 
     Code lists first (`list <Name>  <policy>  <n> values`), then each pset
@@ -102,7 +114,8 @@ def property_lines(content: str) -> list[str]:
     for name, code_list in doc.code_lists.items():
         lines.append(f"list {name}  {code_list.value_list_policy}  {len(code_list.values)} values")
     for pset_name, pset in doc.psets.items():
-        types = ", ".join(pset.applies_to) or "-"
+        shown = pset.applies_to if technical else [type_label(TYPES, t) for t in pset.applies_to]
+        types = ", ".join(shown) or "-"
         lines.append(f"pset {pset_name}  {pset.enforcement}  {pset.adoption}  applies to {types}")
         for prop_name, prop in pset.properties.items():
             lines.append(
@@ -110,7 +123,7 @@ def property_lines(content: str) -> list[str]:
                 f"  req {_required(prop)}  {prop.value_list_policy or '-'}"
             )
     for ext in doc.extends:
-        lines.append(f"extends {ext.ref}")
+        lines.append(f"extends {ext.ref if technical else _plain_extends(ext.ref)}")
         for prop_name, tight in ext.tighten.items():
             fields = " ".join(
                 f"{key}={','.join(value) if isinstance(value, list) else value}"
@@ -125,7 +138,7 @@ def property_lines(content: str) -> list[str]:
     return lines or ["Nothing defined."]
 
 
-def lint_lines(issues: Sequence[LintIssueView]) -> list[str]:
+def lint_lines(issues: Sequence[LintIssueView], *, technical: bool = False) -> list[str]:
     """`Lint: <e> errors, <w> warnings`, then one line per finding.
 
     A finding is `<severity>  <rule>  <path>  <message>`.
@@ -133,7 +146,10 @@ def lint_lines(issues: Sequence[LintIssueView]) -> list[str]:
     errors = sum(1 for issue in issues if issue.severity == "error")
     warnings = sum(1 for issue in issues if issue.severity == "warning")
     lines = [f"Lint: {errors} errors, {warnings} warnings"]
-    lines.extend(f"{i.severity}  {i.rule}  {i.path}  {i.message}" for i in issues)
+    for i in issues:
+        path = i.path if technical else plain_keys(i.path, TYPES)
+        message = i.message if technical else plain_keys(i.message, TYPES)
+        lines.append(f"{i.severity}  {i.rule}  {path}  {message}")
     return lines
 
 

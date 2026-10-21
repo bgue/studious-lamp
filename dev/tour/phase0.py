@@ -371,6 +371,7 @@ async def tui_tour(ws: Workspace, pilot: Pilot[Any], app: Any) -> None:
         "The filter bar speaks the query language",
         "psets.valve_data.size_in>=3",
         "2 matches",
+        technical=True,  # the bar echoes the query text the person typed, with its field paths
     )
     await pilot.press("slash")  # focus the bar, clear it, apply, then close it
     await tk.settle(pilot, 2)

@@ -73,3 +73,25 @@ def load_labels(
         subtypes=subtypes,
         services=services,
     )
+
+
+def schema_keys(client: ClientInterface, scope: str, labels: Labels) -> list[str]:
+    """The record-type keys and dotted property keys that a plain screen must never show.
+
+    Type keys are every key of ``labels.type_titles`` (``core.Record``, ``engineering.Tag``).
+    Property keys are ``<set>.<property>`` (``valve_data.body_material``) and the full field path
+    (``psets.valve_data.body_material``), read from the form metadata of every labelled type. Only
+    keys the schema names are listed, so ``m/s`` or a sentence with a full stop cannot match.
+    Longest first; ``display.key_hits`` finds them in text.
+    """
+    keys: set[str] = set(labels.type_titles)
+    for record_type in labels.type_titles:
+        try:
+            meta = client.form_metadata(scope, record_type)
+        except _SKIPPED:  # a type with no form has no property keys
+            continue
+        for group in meta.psets:
+            for field in group.fields:
+                keys.add(field.path)
+                keys.add(field.path.removeprefix("psets."))
+    return sorted(keys, key=lambda key: (-len(key), key))

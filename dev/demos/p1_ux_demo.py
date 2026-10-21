@@ -2,7 +2,8 @@
 
 Modes (first argument), each ending in a PASS line for its clause:
 
-* ``prepare DIR``: write a synthetic XER schedule update into DIR (seed for the schedule list).
+* ``prepare DIR``: write a synthetic XER schedule update and the enricher registration into DIR
+  (seed for the schedule list and the review queue).
 * ``registers``: clause 1. As a controller, Enter on the first row of each register opens the
   record screen; its Properties tab lists the set for that type with labels; Esc returns to the
   same row.
@@ -62,7 +63,7 @@ REGISTERS = (
     Register("RFI log (Ctrl+G, 1)", ("ctrl+g", "1"), True, "RFI data", "Trade"),
     Register("commercial register (Ctrl+G, 2)", ("ctrl+g", "2"), True, None, None),
     Register("schedule list (F12)", ("f12",), False, None, None),
-    Register("review queue (Ctrl+R)", ("ctrl+r",), False, None, None),
+    Register("review queue (Ctrl+R)", ("ctrl+r",), True, None, None),
 )
 
 
@@ -391,12 +392,27 @@ def hidden() -> None:
 # --- seed -------------------------------------------------------------------------------------
 
 
+# The doc_classifier enricher of the P1-I7 demo: it proposes a document type and a discipline for
+# a new document, and both wait in the review queue (Ctrl+R) for a person.
+ENRICHER = {
+    "when": {"event_types": ["Document.Defined"]},
+    "properties": [
+        {"name": "doc_type", "kind": "string", "policy": "propose", "threshold": 0.9},
+        {"name": "discipline", "kind": "string", "policy": "propose", "threshold": 0.9},
+    ],
+}
+
+
 def prepare(directory: str) -> None:
+    import json
+
     from tl_xer.synth import make_xer, week_pair
+
+    (Path(directory) / "enricher.json").write_text(json.dumps(ENRICHER, indent=1) + "\n")
 
     first, _second = week_pair()
     (Path(directory) / "update-1.xer").write_bytes(make_xer(first))
-    say("wrote update-1.xer")
+    say("wrote update-1.xer and enricher.json")
 
 
 def main() -> None:
