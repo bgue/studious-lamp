@@ -195,7 +195,7 @@ TECHNICAL_DETAIL: dict[str, list[str]] = {
 }
 
 
-def test_technical_detail_lines_and_cells_are_unchanged() -> None:
+def test_technical_detail_lines_are_unchanged() -> None:
     assert set(TECHNICAL_CELLS) == set(TECHNICAL_DETAIL) == set(MAKERS)
     for kind, make in MAKERS.items():
         assert cells(kind, make(), NAMES) == TECHNICAL_CELLS[kind], kind
