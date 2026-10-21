@@ -14,10 +14,10 @@ def seeded() -> FakeClient:
     return client
 
 
-def test_a_register_row_has_twelve_cells_in_the_order_of_the_columns() -> None:
+def test_a_register_row_has_eleven_cells_in_the_order_of_the_columns() -> None:
     register = seeded().list_commercial("P123")
     cells = {line.number: ct.commercial_cells(line) for line in register.lines}
-    assert all(len(c) == len(ct.COMMERCIAL_COLUMNS) for c in cells.values())
+    assert all(len(c) == len(ct.COMMERCIAL_COLUMNS) == 11 for c in cells.values())
     assert ct.COMMERCIAL_COLUMNS[:3] == ("Number", "State", "Kind")
     assert cells["P123-EW-0001"] == (
         "P123-EW-0001",
@@ -30,7 +30,6 @@ def test_a_register_row_has_twelve_cells_in_the_order_of_the_columns() -> None:
         "USD",
         "12500.00",
         "-",
-        "-",
         "Early warning: routing change",
     )
     assert cells["P123-CN-0001"][5:] == (
@@ -39,7 +38,6 @@ def test_a_register_row_has_twelve_cells_in_the_order_of_the_columns() -> None:
         "USD",
         "12500.00",
         "9000.00",
-        "agreed",
         "Change notice: cable tray",
     )
 
@@ -55,12 +53,20 @@ def test_the_bar_is_late_before_anything_else_and_a_missing_bar_is_a_dash() -> N
     assert ct.bar_text(late) == "LATE"
 
 
-def test_a_partly_agreed_status_reads_with_a_space_and_an_unassessed_one_is_a_dash() -> None:
+def test_the_status_has_no_column_and_the_panel_carries_it_with_a_space() -> None:
     line = seeded().list_commercial("P123").lines[0]
     part = line.model_copy(update={"assessment_status": "partially_agreed", "currency": None})
     cells = ct.commercial_cells(part)
-    assert cells[10] == "partially agreed" and cells[7] == "-"
-    assert ct.commercial_cells(line)[10] == "-"
+    assert len(cells) == 11 and cells[7] == "-"
+    assert not any("partially" in cell for cell in cells)
+    view = (
+        seeded()
+        .get_commercial("P123", "P123-CN-0001")
+        .model_copy(update={"assessment_status": "partially_agreed"})
+    )
+    assert "assessment (2026-10-20): Partially agreed USD 9000.00 (as stated)" in (
+        ct.commercial_lines(view)
+    )
 
 
 def test_the_summary_counts_the_bars_and_shows_each_currency_on_its_own_part() -> None:
@@ -90,7 +96,7 @@ def test_the_summary_counts_the_bars_and_shows_each_currency_on_its_own_part() -
 def test_the_panel_shows_the_figures_the_basis_the_origin_and_the_assessment() -> None:
     client = seeded()
     warning = ct.commercial_lines(client.get_commercial("P123", "P123-EW-0001"))
-    assert warning[0] == "P123-EW-0001  Awaiting assessment  early_warning  class restricted"
+    assert warning[0] == "P123-EW-0001  Awaiting assessment  Early warning  class restricted"
     assert warning[1] == "subject: Early warning: routing change"
     assert warning[2] == "clause CT-1/20.1  aware on 2026-10-12  issued 2026-10-30"
     assert warning[3] == "estimated USD 12500.00  hours 240.0  schedule 3 days"
@@ -99,7 +105,7 @@ def test_the_panel_shows_the_figures_the_basis_the_origin_and_the_assessment() -
     assert "escalated from P123-RFI-0001" in warning
     assert not any(x.startswith(("assessment", "clocks")) for x in warning)
     agreed = ct.commercial_lines(client.get_commercial("P123", "P123-CN-0001"))
-    assert "assessment (2026-10-20): agreed USD 9000.00 (as stated)" in agreed
+    assert "assessment (2026-10-20): Agreed USD 9000.00 (as stated)" in agreed
     assert not any(x.startswith("escalated") for x in agreed)
 
 
@@ -145,7 +151,7 @@ def test_a_row_with_nothing_stated_shows_a_dash_in_every_empty_cell() -> None:
         )
     )
     cells = ct.commercial_cells(line)
-    assert cells[3:11] == ("-",) * 8
+    assert cells[3:10] == ("-",) * 7
 
 
 def test_an_item_with_no_clause_says_so() -> None:

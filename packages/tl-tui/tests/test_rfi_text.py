@@ -77,7 +77,7 @@ def test_the_summary_counts_and_names_the_filters_that_are_on() -> None:
 def test_the_panel_shows_the_question_the_answer_the_escalation_and_the_clocks() -> None:
     client = seeded()
     answered = rt.rfi_lines(client.get_rfi("P123", "P123-RFI-0001"))
-    assert answered[0] == "P123-RFI-0001  Answered  rfi  class internal"
+    assert answered[0] == "P123-RFI-0001  Answered  Rfi  class internal"
     assert "question: Please confirm: Beam B12 clashes with line 47" in answered
     assert "proposed: -" in answered
     assert "discipline structural  needed by 2026-10-19  issued 2026-10-05" in answered
@@ -89,7 +89,10 @@ def test_the_panel_shows_the_question_the_answer_the_escalation_and_the_clocks()
     waiting = rt.rfi_lines(client.get_rfi("P123", "P123-RFI-0002"))
     assert not any(x.startswith(("answer", "escalated")) for x in waiting)
     assert waiting[-2] == "clocks:"
-    assert waiting[-1].startswith("  P123-RFI-0002-C01 expired due 2026-10-19 left -1")
+    assert waiting[-1].startswith("  expired due 2026-10-19 left -1 ")
+    technical = rt.rfi_lines(client.get_rfi("P123", "P123-RFI-0002"), technical=True)
+    assert technical[-1].startswith("  P123-RFI-0002-C01 expired due 2026-10-19 left -1 ")
+    assert "calendar " in technical[-1]
 
 
 def test_a_review_and_the_item_that_carried_the_answer_are_shown_when_there_are_any() -> None:
@@ -107,14 +110,14 @@ def test_a_review_and_the_item_that_carried_the_answer_are_shown_when_there_are_
     )
     lines = rt.rfi_lines(view)
     assert "answered by item P123-COR-0007" in lines
-    assert "reviewed 2026-10-13: rejected (does not answer the clash)" in lines
+    assert "reviewed 2026-10-13: Rejected (does not answer the clash)" in lines
     bare = view.model_copy(update={"review_note": None})
-    assert "reviewed 2026-10-13: rejected" in rt.rfi_lines(bare)
+    assert "reviewed 2026-10-13: Rejected" in rt.rfi_lines(bare)
 
 
 def test_a_draft_shows_dashes_for_what_it_does_not_have_yet() -> None:
     lines = rt.rfi_lines(seeded().get_rfi("P123", "P123-RFI-0003"))
-    assert lines[0] == "P123-RFI-0003  Draft  rfi  class internal"
+    assert lines[0] == "P123-RFI-0003  Draft  Rfi  class internal"
     assert "discipline -  needed by -  issued -" in lines
     assert len(lines) == 6  # no answer, review, escalation or clocks
 
