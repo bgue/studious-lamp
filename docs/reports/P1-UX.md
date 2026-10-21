@@ -29,13 +29,13 @@ behaviour, no change to commands, events or stored data.
 ## Gates
 | Gate | Result |
 |---|---|
-| `just check` at DONE | `<<fill>>` |
-| `just gate` whole suite | `<<fill>>` |
-| `just gate-pg` touched dirs  | `<<fill>>` |
+| `just check` at DONE | clean (tree = p1/ux with S5, 6c73f48) |
+| `just gate` whole suite | 6061 + 3677 + 1228 + 1341 passed, 1 skipped, in four parts run one at a time; `test_walk_reaches_the_screens` failed once under two parallel parts and passed alone (timing under load; follow-up) |
+| `just gate-pg` touched dirs  | 350 passed on SQLite and Postgres (schema forms, confidentiality walk, tests/schema, schemareg) |
 | tl-tui suite at S4 | 1304 passed |
 | `just demo P1-UX` (S4) | 4/4 clauses on SQLite and Postgres (about 15 min; the walk is 7 of them) |
 | `just tour-all` x2 (S4) | exit 0, no `LEAK`, second run identical; 27 + 74 shots |
-| S5 final polish | `<<fill>>` |
+| S5 final polish | P, full review; demo P1-UX 4/4 on SQLite and Postgres; `just tour-all` twice, no LEAK, second run byte-identical |
 
 ## Security
 Nine reviews, stronger tier, range `4b2cda0..aca2ec5`.
