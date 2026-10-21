@@ -82,7 +82,7 @@ F2 LO fixed@09461d6 document_data confidentiality_note says it does not restrict
 F3 LO accepted reload-after-reclassification, ADR-0016 section 6
 S4 review F1 F2 (demo review-queue row, tour key_hits) -> S5
 ## OPEN
-Q8 web client (Phase 5) timing probe on hidden = missing: wanted in its review? needs owner raised final report
+Q8 owner: move the full web client earlier than Phase 5 I6 for mainstream AEC users? (raised 2026-10-21) needs owner raised orch
 ## NEXT
 1. Orchestrator: merge S5 (D46), then DONE gate: just check, just gate (parts as separate background runs, L-P1-I8-14), gate-pg touched dirs, just demo P1-UX.
 2. Fill the <<fill>> cells in docs/reports/P1-UX.md (check, gate, gate-pg, S5 line); S5 narrative and screenshots come from its report.

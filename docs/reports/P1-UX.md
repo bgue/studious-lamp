@@ -56,7 +56,7 @@ Nine reviews, stronger tier, range `4b2cda0..aca2ec5`.
 3. `setting_form.py` still says `at project:P123` in plain mode (T09b); workbench key hints omit Enter (T09d); `schedule_detail_lines(technical=)` unused (T06); record screen does not reload the register after an edit (F5 does).
 4. `CALENDAR_REF_PATTERN` matches a numeric e-mail domain (`amy@123.example.com`): a false positive in the leak finder, never a leak (T00).
 5. `KNOWN_LEAKS` in the plain walk is empty. Server-written text (`FeedItem.summary`, card text) was not audited for ids (T13).
-6. Question for the owner: the TUI and API keep hidden = missing in the same timing class (reviewed). The future web client (Phase 5) will read the same routes; do you want its review to include a timing probe, or is the TUI/API result enough?
+6. Question for the owner (raised 2026-10-21): mainstream AEC users expect a browser application, and the full web client is planned for Phase 5, increment 6. Should it move earlier? It would reuse this increment's display helper, labels and record screen contract. To be added to the Phase 2 owner questions.
 
 ## Process notes
 - Cost: most tickets ran a block, decide, respawn, regate, review loop of 20-50 minutes, because Allowed paths were narrow and a consequential pin or a missing gate path stopped the author. Owner request ended it: skill rule 12 (pins updated in the ticket and listed, size by coherence, one pass, orchestrator fixes trivia, builders run only what is named), trunk `5a05125`.
