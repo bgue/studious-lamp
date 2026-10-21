@@ -14,6 +14,7 @@ from tl_core.links.provider import get_vocabulary
 from tl_core.links.vocabulary import default_relation
 from tl_core.numbering.detect import KeyChip, suggest_chips
 from tl_core.services import psets
+from tl_core.services.queries import get_record_by_id
 from tl_core.services.workflow import WorkflowStatus, workflow_status
 from tl_core.workflow.roles import workflow_roles
 from tl_schema.forms import ConformanceReport, FormMetadata
@@ -86,10 +87,17 @@ def get_form_metadata(
     actor: Reader,
     scope: Annotated[str, Query()],
     record_type: Annotated[str, Query()],
+    record_id: Annotated[str | None, Query()] = None,
 ) -> FormMetadata:
-    """Form and grid metadata for a record type under the scope's effective schema."""
+    """Form and grid metadata for a record type under the scope's effective schema.
+
+    With ``record_id`` of a record the caller may read, the form also lists the sets the record's
+    class binds to it (ADR-0010). A hidden or unknown id answers exactly as no id (ADR-0016).
+    """
     with ctx.backend(True) as uow:
-        return psets.form_metadata(uow, scope, record_type)
+        if record_id is not None and get_record_by_id(uow, record_id) is None:
+            record_id = None
+        return psets.form_metadata(uow, scope, record_type, record_id)
 
 
 @router.get("/records/{record_id}/conformance", operation_id="get_conformance")

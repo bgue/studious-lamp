@@ -422,9 +422,13 @@ class EmbeddedClient:
         with self._uow(False) as uow:
             return self.own_writes.note(handle_edit_record(uow, cmd))
 
-    def form_metadata(self, scope: str, record_type: str) -> FormMetadata:
+    def form_metadata(
+        self, scope: str, record_type: str, record_id: str | None = None
+    ) -> FormMetadata:
         with self._uow(True) as uow:
-            return psets.form_metadata(uow, scope, record_type)
+            if record_id is not None and queries.get_record_by_id(uow, record_id) is None:
+                record_id = None  # hidden reads as missing (ADR-0016)
+            return psets.form_metadata(uow, scope, record_type, record_id)
 
     def conformance(self, record_id: str) -> ConformanceReport:
         with self._uow(True) as uow:

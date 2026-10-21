@@ -208,6 +208,8 @@ def test_the_walk_finds_the_routes_and_the_seed_is_what_the_walk_assumes(
     paths = {p for p, _, _ in routes}
     assert {"/records/{record_id}", "/feed", "/events", "/files/{file_id}/content"} <= paths
     assert "/projects/{project}/correspondence/{number}" in paths and set(NOT_WALKED) <= paths
+    forms_query = next(q for p, _, q in routes if p == "/schema/forms")
+    assert "record_id" in forms_query  # P1-UX-S2: the parameter is walked by the test below
     # the seed: a controller sees all but the unknown class; a user sees the internal item only
     ctl = harness.client_for(None)
     ok = ctl.get(
@@ -352,6 +354,41 @@ def test_no_get_route_shows_a_reader_what_they_may_not_read(
                     allowed_seen += 1
     assert walked > 300  # the walk really made the calls
     assert allowed_seen > 5  # and the reader did see what they may read, so the check can fail
+
+
+@pytest.mark.parametrize("reader", sorted(MAY_READ))
+def test_form_metadata_with_a_record_id_answers_a_hidden_record_as_no_record(
+    harness: Harness, seeded: Seed, reader: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """P1-UX-S2: ``record_id`` on ``/schema/forms`` binds sets for a record the reader may read,
+    and for a record they may not read it is as if it had not been sent (ADR-0016)."""
+    from tl_core.services import psets
+
+    handed: list[str | None] = []
+    real = psets.form_metadata
+
+    def spy(uow: Any, scope: str, record_type: str, record_id: str | None = None) -> Any:
+        handed.append(record_id)
+        return real(uow, scope, record_type, record_id)
+
+    monkeypatch.setattr(psets, "form_metadata", spy)
+    client = harness.client_for(None)
+    headers = {"Authorization": f"Bearer {seeded.tokens[reader]}"}
+    base = {"scope": SCOPE, "record_type": "engineering.Tag"}
+    bare = client.get("/schema/forms", params=base, headers=headers)
+    assert bare.status_code == 200
+    hidden = {"restricted", "privileged", "bogus", "document", "commercial", "secret_rfi"}
+    for kind in sorted(hidden - MAY_READ[reader]):
+        handed.clear()
+        asked = client.get(
+            "/schema/forms", params={**base, "record_id": seeded.ids[kind]}, headers=headers
+        )
+        assert asked.content == bare.content, (reader, kind)
+        assert handed == [None], (reader, kind)
+    for kind in sorted(hidden & MAY_READ[reader]):
+        handed.clear()
+        client.get("/schema/forms", params={**base, "record_id": seeded.ids[kind]}, headers=headers)
+        assert handed == [seeded.ids[kind]], (reader, kind)
 
 
 def test_a_post_that_names_a_hidden_item_does_not_resolve_the_tag(

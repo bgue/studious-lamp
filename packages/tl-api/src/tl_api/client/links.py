@@ -145,9 +145,17 @@ class LinksApi(ApiClientBase):
         """Run a transition; raises ``GuardFailedError`` (with ``results``) when blocked."""
         return self._command("TransitionWorkflow", cmd)
 
-    def form_metadata(self, scope: str, record_type: str) -> FormMetadata:
-        """Form and grid metadata for a record type under the scope's effective schema."""
-        data = self._get_json("/schema/forms", {"scope": scope, "record_type": record_type})
+    def form_metadata(
+        self, scope: str, record_type: str, record_id: str | None = None
+    ) -> FormMetadata:
+        """Form and grid metadata for a record type under the scope's effective schema.
+
+        With ``record_id`` the form also lists the sets the record's class binds to it.
+        """
+        query = {"scope": scope, "record_type": record_type}
+        if record_id is not None:
+            query["record_id"] = record_id
+        data = self._get_json("/schema/forms", query)
         return self._model(FormMetadata, data)
 
     def conformance(self, record_id: str) -> ConformanceReport:

@@ -234,6 +234,9 @@ class FakeClient(
     def __init__(self, scope: str = SCOPE) -> None:
         self.scope = scope
         self.metadata = valve_form_metadata()
+        self.metadata_by_type: dict[str, FormMetadata] = {}  # form metadata of other record types
+        self.form_metadata_ids: list[str | None] = []  # the record id of each form_metadata call
+        self.bound_groups: dict[str, list[PsetGroupMeta]] = {}  # sets a record's class binds
         self.calls: list[str] = []  # method names in call order, for assertions
         self.set_pset_commands: list[SetPsetValues] = []
         self.edit_commands: list[EditRecord] = []
@@ -520,9 +523,16 @@ class FakeClient(
             stream_id=record["id"], key=record["key"], version=record["version"], events=events
         )
 
-    def form_metadata(self, scope: str, record_type: str) -> FormMetadata:
+    def form_metadata(
+        self, scope: str, record_type: str, record_id: str | None = None
+    ) -> FormMetadata:
         self.calls.append("form_metadata")
-        return self.metadata
+        self.form_metadata_ids.append(record_id)
+        base = self.metadata_by_type.get(record_type, self.metadata)
+        extra = self.bound_groups.get(record_id or "")
+        if extra:
+            return base.model_copy(update={"psets": [*base.psets, *extra]})
+        return base
 
     def conformance(self, record_id: str) -> ConformanceReport:
         self.calls.append("conformance")
