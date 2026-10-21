@@ -13,6 +13,8 @@ from collections.abc import Mapping
 from datetime import datetime
 from typing import Any
 
+from tl_tui.display import humanize
+
 KINDS = (
     "endpoints",
     "rules",
@@ -43,6 +45,9 @@ COLUMNS: dict[str, tuple[str, ...]] = {
     "deliveries": ("Id", "State", "Endpoint", "Received", "Error"),
     "enrichments": ("Id", "State", "Record", "Property", "Value", "Conf"),
 }
+PLAIN_ENRICHMENT_COLUMNS = ("State", "Record", "Property", "Value", "Confidence")
+# Plain words for the stored states that do not humanize to the words people use (P1-UX-T07).
+PLAIN_STATE_WORDS = {"proposed": "Waiting", "auto_accepted": "Accepted automatically"}
 MAX_VALUE_CHARS = 30
 
 
@@ -76,26 +81,58 @@ def short_id(value: object) -> str:
     return str(value)[-8:]
 
 
+def state_words(state: object, *, technical: bool) -> str:
+    """Technical: ``run_state``. Plain: the same mark with words (``✓ Accepted``, ``… Waiting``)."""
+    if technical:
+        return run_state(state)
+    symbol = run_state(state).split(" ", 1)[0]
+    word = PLAIN_STATE_WORDS.get(str(state)) or humanize(str(state))
+    return f"{symbol} {word}"
+
+
+def property_words(path: str) -> str:
+    """The property's last segment in words: ``enrich.doc_classifier.doc_type`` is ``Doc type``."""
+    return humanize(path.rpartition(".")[2])
+
+
 def shown_value(value: object) -> str:
     """The value as JSON (``ensure_ascii=False``), cut to ``MAX_VALUE_CHARS`` with ``…``."""
     text = json.dumps(value, ensure_ascii=False)
     return text if len(text) <= MAX_VALUE_CHARS else text[: MAX_VALUE_CHARS - 1] + "…"
 
 
-def record_name(ref: object) -> str:
-    """The key of a record reference (``RecordRef`` as a dict), else its id; ``?`` for nothing."""
+def record_name(ref: object, *, technical: bool = True) -> str:
+    """The key of a record reference (``RecordRef`` as a dict), else its id; ``?`` for nothing.
+
+    Plain: the key, else ``(no number)``; the id never shows.
+    """
+    if not technical:
+        key = ref.get("key") if isinstance(ref, Mapping) else None
+        return str(key) if key else "(no number)"
     if not isinstance(ref, Mapping):
         return "?"
     return str(ref.get("key") or ref.get("id") or "?")
 
 
+def columns(kind: str, *, technical: bool = True) -> tuple[str, ...]:
+    """The table headings of a kind. Only the enrichments table has plain headings for now."""
+    if technical or kind != "enrichments":
+        return COLUMNS[kind]
+    return PLAIN_ENRICHMENT_COLUMNS
+
+
 def cells(
-    kind: str, row: Mapping[str, Any], names: Mapping[str, str] | None = None
+    kind: str,
+    row: Mapping[str, Any],
+    names: Mapping[str, str] | None = None,
+    *,
+    technical: bool = True,
 ) -> tuple[str, ...]:
-    """The cells of a row, in the order of ``COLUMNS[kind]``.
+    """The cells of a row, in the order of ``columns(kind, technical=...)``.
 
     ``names`` maps an endpoint id to its path for the error queue (a deliveries row holds only the
-    id); an id it does not know shows as ``?``.
+    id); an id it does not know shows as ``?``. ``technical=False`` gives plain words; only the
+    enrichments kind reads it so far (the other kinds follow in P1-UX-T09a).
     """
     if kind == "apps":
         return (row["name"], on_off(row), str(row["owner"]), row["label"])
@@ -136,6 +173,12 @@ def cells(
             moment(row["received_at"]), row["error_code"] or "-",
         )  # fmt: skip
     if kind == "enrichments":
+        if not technical:
+            return (
+                state_words(row["acceptance_state"], technical=False),
+                record_name(row["target"], technical=False), property_words(row["property_path"]),
+                shown_value(row["value"]), f"{row['confidence']:.2f}",
+            )  # fmt: skip
         return (
             short_id(row["value_id"]), run_state(row["acceptance_state"]),
             record_name(row["target"]), row["property_path"], shown_value(row["value"]),
@@ -145,9 +188,17 @@ def cells(
 
 
 def detail_lines(
-    kind: str, row: Mapping[str, Any], names: Mapping[str, str] | None = None
+    kind: str,
+    row: Mapping[str, Any],
+    names: Mapping[str, str] | None = None,
+    *,
+    technical: bool = True,
 ) -> list[str]:
-    """The panel under the table: one ``Label       value`` line per fact (label padded to 12)."""
+    """The panel under the table: one ``Label       value`` line per fact (label padded to 12).
+
+    Plain (``technical=False``) is only given for the enrichments kind so far: no value id, no
+    enricher version, no property path.
+    """
     pairs: list[tuple[str, str]]
     if kind == "apps":
         pairs = [("App", row["name"]), ("State", on_off(row)), ("Owner", str(row["owner"])),
@@ -205,6 +256,18 @@ def detail_lines(
             ("Size", f"{row['payload_size']} bytes"), ("Attempts", str(row["attempts"])),
             ("Error", f"{row['error_code']}: {row['error_message']}" if row["error_code"] else "-"),
         ]  # fmt: skip
+    elif kind == "enrichments" and not technical:
+        pairs = [
+            ("State", state_words(row["acceptance_state"], technical=False)),
+            ("Record", record_name(row["target"], technical=False)),
+            ("Property", property_words(row["property_path"])),
+            ("Proposed", shown_value(row["value"])),
+            ("Confidence", f"{row['confidence']:.2f}"),
+            ("Enricher", humanize(row["enricher"])),
+            ("Produced", moment(row["produced_at"])),
+        ]  # fmt: skip
+        if row.get("reason"):
+            pairs.append(("Reason", row["reason"]))
     elif kind == "enrichments":
         pairs = [
             ("Value", row["value_id"]), ("State", run_state(row["acceptance_state"])),
