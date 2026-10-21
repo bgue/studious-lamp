@@ -1,6 +1,6 @@
-# P1-UX STATE  r=4 base=2bcedda C=C2 ck=0 gate=n/a wt=/home/user/wt/p1-ux
-Read first: README.md (plan, tickets, waves), SCOPE.md, specs T01 T02 T03 T09e, S2 report docs/reports/P1-UX/S2.md (getter table). Branch p1/ux @d87534c+st (trunk claude/wizardly-allen-m2v96s @2bcedda merged in).
-r4: T00 S3 S2 T09b T09c T10 merged (C1, C2 done); wave 3 = T01 T02 T03 written and dispatched; T09e (T09b leftovers) staged; tests-support FakeClient.add_stored_record added by supervisor (tests/fakes.py, 32 lines + 1 test).
+# P1-UX STATE  r=5 base=2bcedda C=C2 ck=0 gate=n/a wt=/home/user/wt/p1-ux
+Read first: README.md (plan, tickets, waves), SCOPE.md, specs T05 T06 T09e, S2 report docs/reports/P1-UX/S2.md (getter table), T03 report (model screen). Branch p1/ux @93be815+st (trunk claude/wizardly-allen-m2v96s @2bcedda merged in).
+r5: wave 3 T01 T02 T03 merged (93be815, ck0); orch gate on 93be815: 1209 P 1 F (test_rfi_text clock pin, owned by T05). Wrote T05 T06, dispatching with T09e (3 slots). No cost list exists in the TUI (no screen), so T06 is schedule only.
 ## BOARD
 T00 t mrg f 369b72f display helper; LO F1 F2 done in T10
 S3 p mrg f 6a0c7ae example sets (D12), TYPE_LABELS; units numbers only
@@ -8,14 +8,13 @@ S2 p mrg f 16d2e11 RecordScreen, open_record, details registry, form_metadata(re
 T09b t mrg f 893dd7d accounts, about:config plain (D16 D19)
 T09c t mrg f 4007e29 schema workbench and review plain
 T10 t mrg f 4793a7c Ctrl+D toggle, help/palette scroll (D17 D18)
-T01 t disp f - documents register Enter + plain; gate: tests listed in ticket
-T02 t disp f - tag register Enter + plain + details/tags.py
-T03 t disp f - correspondence register/inbox/clocks + details/correspondence.py
-T09e t stg l - settings layer words (b); dispatch wave 4
-T05 t todo l - commercial/evidence TEXT ONLY, kwargs optional; before T04
-T06 t todo f - schedule and cost lists; independent; wave 4
-T09d t todo f - Enter on schema package rows; unblocked (S2 T09c merged); wave 5
-T04 t todo f - domain screen wires T05 text; RFI details; after T05
+T01 t mrg f 4250f0d documents register Enter + plain
+T02 t mrg f e4ee157 tag register Enter + plain + details/tags.py
+T03 t mrg f a09aad7 correspondence register/inbox/clocks + details/correspondence.py
+T09e t disp l - settings layer words (b); gate paths ls-verified
+T05 t disp l - commercial/evidence/RFI TEXT only + pin fix + commercial Details; no screen change
+T06 t disp f - schedule screen: Enter on schedules and snapshots, plain, details/schedule.py
+T04 t todo f - domain_screen wires T05 text (mode, labels, 11 commercial cols); RFI Details details/technical.py; r6 after T05 merges
 T07 t todo f - review queue Enter via row target RecordRef; wave 5 with T09a
 T09a t todo f - integration registry Enter; wave 5
 T08 t todo f - context panel, grid, links tab, thread tab; + D20 (d) + (e)
@@ -48,21 +47,26 @@ D22 2026-10-21 registers open records on DataTable.RowSelected (never a priority
 D23 2026-10-21 FakeClient.add_stored_record(record_id, key, type, title) registers a record under a module fake's view id so a register row opens it (supervisor, tests/fakes.py).
 D24 2026-10-21 T05 is text-only (optional labels/technical kwargs; dropped State/Status column via the constants); T04 owns all domain_screen wiring: domain_screen imports commercial_text, evidence_text, rfi_text, so T04 and T05 never share a wave.
 D25 2026-10-21 carry-overs: (a) (c) -> T11; (b) -> T09e; (d) (e) -> T08. See NEXT.
+D26 2026-10-21 commercial `Status` (assessment) column dropped in both modes: an assessment moves the item to Agreed/Disputed/Partially agreed, so State already says it; the panel keeps the assessment line. COMMERCIAL_COLUMNS is 11 wide. In T05 (F8).
+D27 2026-10-21 T05 kwargs: cell functions default `technical=True` (raw, today's output) so unchanged domain_screen works; lines functions default plain (forced by clock_line, D21). T04 passes labels and mode explicitly to every call.
+D28 2026-10-21 T03 open questions answered: register Domain has no technical form (key shown in neither mode); clock_line keeps stored state raw (`expired` is a word); `as Letter` in triage status accepted.
+D29 2026-10-21 T06 schedule snapshot plain name `Snapshot N`, technical `CODE#N`; snapshot record key is `CODE#N` (rpartition). Cost lists have no screen (client only): no cost ticket.
 ## SEC
 (none yet; DONE review: Sec S2 (routes/reference.py record_id, record_screen hidden=missing), S3; range 4b2cda0..<head>; one reviewer per item)
 ## OPEN
+Q5 nit: CompareScreen and ActivityScreen (compare_screen.py, activity_screen.py; text in schedule_text.py compare_*/activity_*) are in no ticket and will leak snapshot keys/float units to T11's walk; place as T06b in r6 (Haiku, full) or accept. needs orch/self raised r5
 Q4 CLOSED r3 by grep: enrichment rows are `EnrichmentValue` dumps with `target` RecordRef dict {id,key,record_type,version,seq} (contract.py:780, integration_text.py:141,211); no client change. T07/T09a use row["target"]["id"].
 ## NEXT
-1. Orchestrator dispatches T01 T02 T03 (one workflow, gate lists in the tickets), merges after gate + review.
-2. r5: verify board; write T05 (text only), T06 from the tree after T01-T03 merge; dispatch T05 T06 T09e (3 slots). T04 after T05 merges.
-3. r6: T04, T09d, then T07+T09a, T08+T13. T08 carries D20 (record_view.py:186 v{version} plain-hidden) and (e) History tab scanned by find_technical.
+1. Orchestrator dispatches T05 T06 T09e (one workflow, gates in tickets), merges after gate + review. p1/ux full gate stays red on test_rfi_text until T05 merges (D27 pin).
+2. r6: verify board; write T04 (domain_screen: labels, mode, 11 commercial cols, Enter on RFI/commercial/evidence, refresh_for_display_mode, details/technical.py RFI Details), T09d (Enter on schema package rows), T06b if Q5 placed; dispatch 3 with disjoint paths.
+3. r7: T07+T09a (review queue / integration Enter), then T08+T13. T08 carries D20 (record_view.py:186 v{version} plain-hidden) and (e) History tab scanned by find_technical.
 4. T11 carries (a) a plain user is refused via the palette entry (T10 rev F1 LO), (c) remote-client hidden=missing on the record screen (S2 rev F1 LO). T11 and T12 set document_data/rfi_data/correspondence_data values.
-5. DONE round: report, learnings (mode_of takes the app; DataTable Enter/RowSelected; wrong gate paths cost a gate), tl-tui README/AGENTS (display.py, details/, record_screen), APPROVALS check, 88.
-6. Before each DISPATCH: `ls` every test path in the gate list (a wrong path cost one red gate); grep each function a ticket cites.
-7. Screen tickets regenerate only their own snapshots (L-P1-I8-13); registers T01-T03 have no snapshot test. Every screen ticket adds refresh_for_display_mode (D14).
+5. DONE round: report, learnings (mode_of takes the app; DataTable Enter/RowSelected; wrong gate paths cost a gate; kwargs default raw when the screen is another ticket's), tl-tui README/AGENTS (display.py, details/, record_screen), APPROVALS check, 88.
+6. Before each DISPATCH: `ls` every test path in the gate list (done r5 for T05 T06 T09e; new files marked); grep each function a ticket cites.
+7. Screen tickets regenerate only their own snapshots (L-P1-I8-13); registers T01-T03, T05, T06 have no snapshot test. Every screen ticket adds refresh_for_display_mode (D14).
 8. Open nits not placed: record screen does not reload the register after an edit (F5 reloads); revisit in T11 if the walk shows it.
 ## REFS
-Specs: docs/tickets/P1-UX/{T00,S2,S3,T01,T02,T03,T09b,T09c,T09e,T10}-*.md. Stub this round: tests/fakes.py add_stored_record (+test_fakes.py). Tickets list tests by name; gate paths verified by ls at r4.
+Specs: docs/tickets/P1-UX/{T00,S2,S3,T01,T02,T03,T05,T06,T09b,T09c,T09e,T10}-*.md. No stubs or provided tests this round (tickets list tests by name). Gate paths verified by ls at r5.
 Survey facts: registers are ModalScreens (document_register, tag_register, correspondence_screen, domain_screen, schedule_screen, review_queue, integration_screen), each holds client/project/actor, rows carry record `id`; record view = widgets/record_view.py (tabs details, psets, links, history, trace, thread); psets_tab.py:84 prints `Effective schema #…` (S2 owns); form_metadata: client.py:142, tl_api/client/links.py:148 (remote via __getattr__ remote.py:240); app.is_admin exists; client getters take (project, number): get_document, get_tag, get_correspondence, get_rfi, get_commercial, get_clock, get_schedule, get_schedule_snapshot; tour = dev/tour/phase0.py phase1.py tourkit.py, output docs/reports/tour/phase-{0,1}, narrative docs/reports/PHASE-1-TOUR.md; p1_i8_demo.py anchors on the fixture ('version: 3.2.0', '\n\n  safety_data:', one 'range: decimal'). Only the palette renders the keymap in a snapshot (test_snapshots_links::test_command_palette). Textual Input binds ctrl+d (delete right): T10 escalates if the app binding does not fire from grid/record focus.
 Learnings that apply: L-P1-I8-13 L-P1-I8-15 L-P1-I5-1 L-P1-I5-2 L-P1-I3-7 L-P1-I8-4 L-P1-I7B-9.
 ## TRAPS
