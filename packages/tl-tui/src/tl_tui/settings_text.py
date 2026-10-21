@@ -59,19 +59,22 @@ def _cut(text: str, width: int) -> str:
     return text if len(text) <= width else text[: width - 1] + "…"
 
 
-def origin_text(view: SettingView) -> str:
+def origin_text(view: SettingView, *, technical: bool = True) -> str:
+    """Where the value came from: the stored layer kind (``company``) in technical mode, its plain
+    word (``Company``, see `layer_label`) otherwise; ``●`` when this layer sets it."""
     e = view.effective
-    return f"{e.origin} {MARK}" if e.modified_here else e.origin
+    origin = e.origin if technical else layer_label(e.origin)
+    return f"{origin} {MARK}" if e.modified_here else origin
 
 
-def row_cells(view: SettingView) -> tuple[str, str, str, str, str]:
+def row_cells(view: SettingView, *, technical: bool = True) -> tuple[str, str, str, str, str]:
     """The cells of a list row: key, value, type, origin and ``locked`` or an empty text."""
     e = view.effective
     return (
         e.key,
         _cut(format_value(e.value, max_items=3), MAX_VALUE),
         view.definition.type,
-        origin_text(view),
+        origin_text(view, technical=technical),
         "locked" if e.locked else "",
     )
 
@@ -125,7 +128,7 @@ def detail_lines(view: SettingView, target: str | None, *, technical: bool = Fal
         f"value {format_value(e.value)}",
         f"default {format_value(defn.default)}",
         f"type {defn.type} ({hint_for(defn)})",
-        f"origin {origin_text(view)}",
+        f"origin {origin_text(view, technical=technical)}",
         f"change goes to {_where(target, technical=technical)}",
     ]
     if defn.docs:

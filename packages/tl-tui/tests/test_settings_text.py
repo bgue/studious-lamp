@@ -44,6 +44,17 @@ def test_the_target_layer_follows_the_key_and_the_preference() -> None:
     assert target_layer(mode, "company", None, "kim") is None
 
 
+def test_the_origin_word_is_capitalised_in_plain_and_raw_in_technical(client: FakeClient) -> None:
+    client.seed_setting("feed.reactions.enabled", "project:P1", False)
+    reactions = client.get_setting("feed.reactions.enabled", project="P1")
+    assert row_cells(reactions, technical=False)[3] == "Project ●"
+    assert row_cells(reactions, technical=True)[3] == "project ●"
+    tags = client.get_setting("feed.signal_tags", project="P1")
+    assert row_cells(tags, technical=False)[3] == "default"
+    assert detail_lines(reactions, "project:P1")[5] == "origin Project ●"
+    assert detail_lines(reactions, "project:P1", technical=True)[5] == "origin project ●"
+
+
 def test_a_row_shows_key_value_type_origin_and_lock(client: FakeClient) -> None:
     client.seed_setting("feed.reactions.enabled", "project:P1", False)
     client.lock_setting("feed.signal_tags", locked=True, reason="policy")

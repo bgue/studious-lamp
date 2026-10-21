@@ -71,3 +71,24 @@ def test_technical_mode_shows_the_raw_layer_in_both_places() -> None:
         assert "at project:P123" in screen_text(app)
 
     run_pilot(app, go)
+
+
+def test_layer_kind_words_are_capitalised_in_plain_and_raw_in_technical() -> None:
+    client = FakeClient()
+    client.seed_setting(KEY, "project:P123", False)  # origin project, set here
+    app = TlApp(client, scope=SCOPE, actor="user:kim")
+
+    async def go(pilot: Pilot[Any]) -> None:
+        await pilot.press("f9")
+        await pilot.pause()
+        await filter_to(pilot, app, KEY)
+        assert "origin Project ●" in screen_text(app)
+        assert "origin project" not in screen_text(app)
+        app.display_mode.technical = True
+        screen = app.screen
+        assert isinstance(screen, SettingsScreen)
+        screen.refresh_for_display_mode()
+        await pilot.pause()
+        assert "origin project ●" in screen_text(app)
+
+    run_pilot(app, go)
