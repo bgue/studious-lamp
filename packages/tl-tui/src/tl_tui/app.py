@@ -20,6 +20,7 @@ from tl_core.ledger import Event
 
 from tl_tui.client import ClientInterface
 from tl_tui.commands import command_by_id
+from tl_tui.display import DisplayMode
 from tl_tui.extension_columns import columns_for_type, form_for_type, type_warning
 from tl_tui.live import (
     ChangeFeed,
@@ -101,6 +102,7 @@ class TlApp(App[None]):
         Binding("ctrl+o", "schema", "Schema workbench", show=False),
         Binding("f12", "schedules", "Schedules", show=False),
         Binding("ctrl+g", "domains", "RFIs and notices", show=False),
+        Binding("ctrl+d", "toggle_technical", "Technical details", show=False),
         Binding("alt+left", "back", "Back", show=False),
         Binding("alt+right", "forward", "Forward", show=False),
     ]
@@ -128,6 +130,8 @@ class TlApp(App[None]):
         self.is_admin = is_admin  # the person signed in holds the admin role (F10 accounts screen)
         # an admin or a document controller: the document screens offer the controlling acts
         self.is_controller = is_controller or is_admin
+        # Technical details: in memory only, off at start, per app (brief SCOPE clause 3; D5, D7)
+        self.display_mode = DisplayMode()
         self.tray = ReferenceTray()
         self.history = NavHistory()
         self._open_key: str | None = None
@@ -677,6 +681,26 @@ class TlApp(App[None]):
         from tl_tui.widgets.schema_screen import SchemaWorkbenchScreen
 
         self.push_screen(SchemaWorkbenchScreen(self.client, self.scope, self.actor))
+
+    def action_toggle_technical(self) -> None:
+        """Technical details on or off (admins). Works under a modal and never opens one."""
+        text = self.display_mode.toggle(is_admin=self.is_admin)
+        if text:
+            self._say(text, "warning")
+            return
+        self._say(
+            "Technical details on" if self.display_mode.technical else "Technical details off"
+        )
+        for screen in self.screen_stack:
+            for widget in [screen, *screen.walk_children()]:
+                hook = getattr(widget, "refresh_for_display_mode", None)
+                if not callable(hook):
+                    continue
+                try:
+                    hook()
+                except Exception:
+                    # one broken hook must not stop the others; the next open renders correctly
+                    pass
 
     def action_help(self) -> None:
         # The app-level `F1` and `?` bindings stay live under a modal; help must not open over
