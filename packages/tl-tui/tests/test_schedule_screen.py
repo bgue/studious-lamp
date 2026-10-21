@@ -98,8 +98,8 @@ def test_l_shows_the_look_ahead_and_o_the_orphaned_links_and_each_goes_back() ->
         await pilot.pause()
         text = screen_text(app)
         assert screen.panel == "look_ahead"
-        assert "look-ahead MAIN#2: 2026-10-12 to 2026-11-09 (4 weeks)" in text
-        assert "A1230  in_progress" in text
+        assert "look-ahead Snapshot 2: 2026-10-12 to 2026-11-09 (4 weeks)" in text
+        assert "A1230  In progress" in text
         await pilot.press("l")
         await pilot.pause()
         assert screen.panel == "snapshot" and "look-ahead MAIN#2:" not in screen_text(app)
