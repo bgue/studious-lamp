@@ -7,16 +7,35 @@ person's empty register and the day stepping of the evidence view.
 
 from __future__ import annotations
 
-from collections.abc import Awaitable, Callable
-from datetime import timedelta
+from collections.abc import Awaitable, Callable, Iterator
+from datetime import date, timedelta
 
+import pytest
 from fakes import SCOPE, FakeClient
 from fakes_correspondence import seed_domains
 from helpers import run_pilot, screen_text
 from textual.pilot import Pilot
 from textual.widgets import DataTable, Static
 from tl_tui.app import TlApp
+from tl_tui.widgets import domain_screen
 from tl_tui.widgets.domain_screen import DomainScreen
+
+WORLD_DAY = date(2026, 10, 20)  # the day `seed_domains` is as of (its trail, its last day)
+
+
+class _WorldDay(date):
+    """``date`` whose ``today()`` is the day the fake world was seeded for, not the wall clock."""
+
+    @classmethod
+    def today(cls) -> date:
+        return WORLD_DAY
+
+
+@pytest.fixture(autouse=True)
+def world_today(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
+    """The screen's "today" is ``WORLD_DAY``: the fakes answer up to that day, refuse later ones."""
+    monkeypatch.setattr(domain_screen, "date", _WorldDay)
+    yield
 
 
 def world(*, controller: bool = True) -> FakeClient:
@@ -126,6 +145,7 @@ def test_e_opens_the_evidence_trail_of_the_highlighted_item_as_of_today() -> Non
         await pilot.press("2", "e")
         await pilot.pause()
         text = screen_text(app)
+        assert screen.today == WORLD_DAY and screen.as_of == WORLD_DAY
         assert screen.mode == "evidence" and screen.number == "P123-EW-0001"
         assert "Evidence for P123-EW-0001 as of 2026-10-20 (Tuesday)" in text
         assert numbers(screen) == ["P123-EW-0001", "  P123-RFI-0001"]
