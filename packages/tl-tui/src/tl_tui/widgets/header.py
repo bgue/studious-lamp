@@ -10,19 +10,32 @@ from rich.cells import cell_len, set_cell_size
 from textual import events
 from textual.widgets import Static
 
+from tl_tui.display import Labels, actor_label, mode_of
+
 FALLBACK_WIDTH = 80
 
 
-def header_line(company: str, scope: str, view: str, mode: str, actor: str, width: int) -> str:
+def header_line(
+    company: str,
+    scope: str,
+    view: str,
+    mode: str,
+    actor: str,
+    width: int,
+    *,
+    technical: bool = True,
+) -> str:
     """Return the header line, exactly ``width`` terminal cells wide.
 
     The right part (``● mode · user``) is kept when it fits beside the breadcrumb, dropped when it
-    does not, and the breadcrumb is cut with an ellipsis when even it does not fit.
+    does not, and the breadcrumb is cut with an ellipsis when even it does not fit. Plain mode
+    (``technical=False``) shows the person's name or a service's label (``actor_label``), never
+    ``svc:<id>``.
     """
     if width <= 0:
         return ""
     project = scope.removeprefix("project:")
-    user = actor.removeprefix("user:")
+    user = actor.removeprefix("user:") if technical else actor_label(Labels(), actor)
     left = f" {company} ▸ {project} ▸ {view}"
     right = f"● {mode} · {user} "
     if cell_len(left) + 1 + cell_len(right) <= width:
@@ -64,6 +77,21 @@ class TlHeader(Static):
         self.view = view
         self._redraw()
 
+    def refresh_for_display_mode(self) -> None:
+        """Redraw for the current display mode (plain or technical)."""
+        self._redraw()
+
     def _redraw(self) -> None:
         width = self.size.width or FALLBACK_WIDTH
-        self.update(header_line(self.company, self.scope, self.view, self.mode, self.actor, width))
+        technical = mode_of(self.app).technical
+        self.update(
+            header_line(
+                self.company,
+                self.scope,
+                self.view,
+                self.mode,
+                self.actor,
+                width,
+                technical=technical,
+            )
+        )

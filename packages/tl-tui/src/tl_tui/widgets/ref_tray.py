@@ -24,21 +24,35 @@ from textual.widgets.option_list import Option
 from tl_core.services.links import AddLink
 
 from tl_tui.client import ClientInterface
+from tl_tui.display import Labels, mode_of, type_label
 from tl_tui.errors import CLIENT_ERRORS, describe_error
+from tl_tui.labels_load import load_labels
 from tl_tui.text import EMPTY
 from tl_tui.tray import ReferenceTray, TrayItem
 
 
-def tray_line(item: TrayItem, checked: bool, highlighted: bool, width: int) -> str:
+def tray_line(
+    item: TrayItem,
+    checked: bool,
+    highlighted: bool,
+    width: int,
+    labels: Labels | None = None,
+    *,
+    technical: bool = True,
+) -> str:
     """One row of exactly ``width`` cells: ``▶ [x] KEY  Title`` and the record type on the right.
 
     ``▶`` marks the highlighted row (a space otherwise); ``[x]`` a ticked one (``[ ]`` otherwise).
     The left part is cut with ``…`` to leave room for the type and one space; an empty type
-    shows as ``—``.
+    shows as ``—``. Plain mode (``technical=False``) shows the type's label (``type_label``)
+    instead of the raw record type.
     """
     mark = f"{'▶' if highlighted else ' '} [{'x' if checked else ' '}]"
     left = f"{mark} {item.key}  {item.title}"
-    right = item.type or EMPTY
+    if technical or not item.type:
+        right = item.type or EMPTY
+    else:
+        right = type_label(labels or Labels(), item.type)
     room = width - cell_len(right) - 1
     if cell_len(left) > room:
         left = set_cell_size(left, room - 1) + "…" if room > 0 else ""
@@ -147,6 +161,7 @@ class ReferenceTrayScreen(ModalScreen[int | None]):
         self.tray = tray
         self.target = target
         self.actor = actor
+        self.labels = Labels()
         self._created = 0  # links made so far, including before a refusal kept the screen open
 
     def compose(self) -> ComposeResult:
@@ -181,6 +196,7 @@ class ReferenceTrayScreen(ModalScreen[int | None]):
 
     def on_mount(self) -> None:
         self.query_one("#tray-list", OptionList).focus()
+        self.labels = load_labels(self.client, self.scope, ())
         self._draw()
 
     def _say(self, text: str) -> None:
@@ -189,6 +205,7 @@ class ReferenceTrayScreen(ModalScreen[int | None]):
     def _draw(self, keep: int = 0) -> None:
         results = self.query_one("#tray-list", OptionList)
         width = max(results.size.width, 60)
+        technical = mode_of(self.app).technical
         highlighted = results.highlighted if results.highlighted is not None else keep
         items = self.tray.items
         results.clear_options()
@@ -201,6 +218,8 @@ class ReferenceTrayScreen(ModalScreen[int | None]):
                             self.tray.is_checked(item.record_id),
                             n == highlighted,
                             width,
+                            self.labels,
+                            technical=technical,
                         )
                     ),
                     id=item.record_id,
@@ -216,6 +235,11 @@ class ReferenceTrayScreen(ModalScreen[int | None]):
         )
         if not items:
             self._say("The tray is empty. Press R on a record to add it.")
+
+    def refresh_for_display_mode(self) -> None:
+        """Redraw for the current display mode (plain or technical), keeping the highlighted row."""
+        results = self.query_one("#tray-list", OptionList)
+        self._draw(results.highlighted or 0)
 
     def _highlighted(self) -> TrayItem | None:
         index = self.query_one("#tray-list", OptionList).highlighted
