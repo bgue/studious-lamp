@@ -37,6 +37,7 @@ from tl_core.services.links import AddLink, handle_add_link
 from tl_core.uow import UnitOfWork
 
 from tl_mod_correspondence import catalog, registry
+from tl_mod_correspondence.actions import states_for
 from tl_mod_correspondence.domains import DomainDefinition
 from tl_mod_correspondence.errors import InvalidItemError
 from tl_mod_correspondence.handlers.common import (
@@ -80,7 +81,6 @@ from tl_mod_correspondence.names import (
     DOMAIN_COMMERCIAL,
     ST_COMMERCIAL_REVIEW,
     ST_DRAFT,
-    ST_PM_APPROVAL,
 )
 from tl_mod_correspondence.textcheck import clean_body, clean_optional_text, clean_text
 
@@ -496,7 +496,7 @@ def handle_submit_commercial(uow: UnitOfWork, cmd: SubmitCommercial) -> CommandR
     cmd = correlated(cmd)
     row = open_commercial(uow, cmd, cmd.stream_id)
     item, data = row.item, row.data
-    require_state(item, ST_DRAFT)
+    require_state(item, *states_for("SubmitCommercial", COMMERCIAL))
     missing: list[str] = []
     if item.direction == "out" and not item.to:
         missing.append("a recipient")
@@ -516,7 +516,7 @@ def handle_review_commercial(uow: UnitOfWork, cmd: ReviewCommercial) -> CommandR
     require_controller_viewer()
     cmd = correlated(cmd)
     row = open_commercial(uow, cmd, cmd.stream_id)
-    require_state(row.item, ST_COMMERCIAL_REVIEW)
+    require_state(row.item, *states_for("ReviewCommercial", COMMERCIAL))
     return transition(
         uow, cmd, row.item.id, "review", reason=cmd.note, expected=cmd.expected_version
     )
@@ -530,7 +530,7 @@ def handle_return_commercial(uow: UnitOfWork, cmd: ReturnCommercial) -> CommandR
     require_controller_viewer()
     cmd = correlated(cmd)
     row = open_commercial(uow, cmd, cmd.stream_id)
-    require_state(row.item, ST_COMMERCIAL_REVIEW, ST_PM_APPROVAL)
+    require_state(row.item, *states_for("ReturnCommercial", COMMERCIAL))
     return transition(
         uow, cmd, row.item.id, "return", reason=cmd.reason, expected=cmd.expected_version
     )

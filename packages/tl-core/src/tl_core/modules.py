@@ -46,6 +46,7 @@ from tl_core.services.commands import Command, CommandResult
 from tl_core.uow import UnitOfWork
 
 if TYPE_CHECKING:
+    from tl_core.actions import ActionsHook
     from tl_core.extypes.registry import UowFactory
     from tl_core.schema_provider import RegistrySource
 
@@ -185,6 +186,10 @@ def _no_guards() -> dict[tuple[str, str], GenericGuard]:
     return {}
 
 
+def _no_actions() -> dict[str, ActionsHook]:
+    return {}
+
+
 @dataclass(frozen=True)
 class ModuleSpec:
     name: str  # ``engineering``; equal to the directory under ``schema/modules`` and the tl:module
@@ -211,6 +216,12 @@ class ModuleSpec:
     #: where it opens its ledger (``tl_core.extypes.provider.attach``). Module-less processes and
     #: modules without one are unaffected.
     schema_source: Callable[[UowFactory], RegistrySource] | None = None
+    #: Per record type, the hook that says which of the module's commands the viewer may run on a
+    #: record now (``tl_core.actions``, P1-UX2). A pure function over the module's own rows and the
+    #: ``holds`` the caller passes; the table it reads (command, record types, states, level) is the
+    #: one the command handlers read, so the offer and the refusal cannot drift. A type that is not
+    #: a key is offered nothing.
+    actions: Mapping[str, ActionsHook] = field(default_factory=_no_actions)
 
     def __post_init__(self) -> None:
         for record_type, commands in self.generic_commands.items():
@@ -229,6 +240,12 @@ class ModuleSpec:
                 raise ModuleLoadError(
                     f"module {self.name!r}: generic_guards names ({record_type!r}, {command!r}), "
                     "which is not one of its record types and a generic command"
+                )
+        for record_type in self.actions:
+            if record_type not in self.record_types:
+                raise ModuleLoadError(
+                    f"module {self.name!r}: actions names {record_type!r}, "
+                    "which is not one of its record types"
                 )
         for source in self.confidential:
             claimed = set(source.record_types)

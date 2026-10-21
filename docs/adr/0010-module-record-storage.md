@@ -139,3 +139,22 @@ has a life of its own after it is made.
 
 Consequences. Whoever adds a module record type decides its allow-list and, if the commands it allows depend on state, its
 guards; the default stays closed. Learning L-P1-I2-8 records the pattern.
+
+## Addendum 2026-10-21: which actions a viewer may take on a record (P1-UX2-S1)
+
+`ModuleSpec.actions` maps a record type of the module to a hook `(conn, record_id, holds) -> list[ActionOffer]`. The core
+asks it through `tl_core.actions.allowed_actions` (`GET /records/{id}/actions`; `ClientInterface.allowed_actions`).
+
+1. **Visibility first.** A record the viewer may not read answers `RecordNotFoundError` with the text of a missing one, before
+   any hook runs. An actor `agent:*` is then offered nothing (agents propose, they never change a record). A type with no
+   hook is offered nothing.
+2. **A hook is pure.** It reads the module's own rows and the caller's `holds(level)` (`user`, `controller`, `admin`: the
+   decision the API authorizer and the embedded gates make) and answers command names of the module's own table with a
+   label in plain words. It writes nothing and calls no handler.
+3. **One table.** Each module keeps `actions.py` with the rows (command, label, level, record types, states). The handlers'
+   `require_state` calls read the same rows (`states_for`), and a test holds each row's level equal to the `access` of
+   `commands.API_COMMANDS`, so the offer and the refusal cannot drift. A Commercial item asks for a controller whatever
+   the command's access word (ADR-0019 section 3).
+4. **An offer is advice.** The command still checks its state and its access when it runs, and a refusal is shown as it is.
+   What the table cannot say (a letter we received is never issued; an RFI is escalated once, after an answer) is a check
+   on the row, read from the rows the handler reads. Commands that need no record (register, create) are never offered.

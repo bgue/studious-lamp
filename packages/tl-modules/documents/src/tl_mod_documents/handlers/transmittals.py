@@ -33,6 +33,7 @@ from tl_core.services.records import create_module_record
 from tl_core.uow import UnitOfWork
 
 from tl_mod_documents import registry
+from tl_mod_documents.actions import states_for
 from tl_mod_documents.errors import (
     InvalidTransmittalError,
     RevisionNotFoundError,
@@ -58,6 +59,7 @@ from tl_mod_documents.limits import (
     MAX_TEXT,
 )
 from tl_mod_documents.names import (
+    REVISION,
     TRANSMITTAL,
     TRANSMITTAL_DEFINED,
     TRANSMITTAL_ISSUED,
@@ -75,7 +77,7 @@ Purpose = Literal[
 ]
 ResponseCode = Literal["approved", "approved_with_comments", "rejected", "noted"]
 #: Revision states a transmittal may carry: issued, current or since superseded.
-CARRIABLE = ("Issued", "Superseded")
+CARRIABLE = states_for("CreateTransmittal", REVISION)
 
 
 def _non_blank(value: str) -> str:
@@ -306,7 +308,7 @@ def handle_issue_transmittal(uow: UnitOfWork, cmd: IssueTransmittal) -> CommandR
     """
     cmd = correlated(cmd)
     row = _load(uow, cmd, cmd.stream_id)
-    _require_state(row, "Draft", doing="issued")
+    _require_state(row, *states_for("IssueTransmittal", TRANSMITTAL), doing="issued")
     revisions: list[registry.RevisionRow] = []
     for item in registry.transmittal_items(uow.conn(), row.id):
         rev = registry.get_revision(uow.conn(), item.revision_id)
@@ -347,7 +349,7 @@ def handle_record_transmittal_response(
     """
     cmd = correlated(cmd)
     row = _load(uow, cmd, cmd.stream_id)
-    _require_state(row, "Issued", doing="answered")
+    _require_state(row, *states_for("RecordTransmittalResponse", TRANSMITTAL), doing="answered")
     responded_on, date_reason = resolve_date(cmd.responded_on, cmd.date_reason, "the answer date")
     done = append(
         uow,
@@ -383,7 +385,7 @@ def handle_close_transmittal(uow: UnitOfWork, cmd: CloseTransmittal) -> CommandR
     """
     cmd = correlated(cmd)
     row = _load(uow, cmd, cmd.stream_id)
-    _require_state(row, "Issued", "Acknowledged", doing="closed")
+    _require_state(row, *states_for("CloseTransmittal", TRANSMITTAL), doing="closed")
     return transition(
         uow, cmd, row.id, "close", reason=cmd.reason, expected=cmd.expected_version
     ).model_copy(update={"key": row.number})
@@ -397,7 +399,7 @@ def handle_void_transmittal(uow: UnitOfWork, cmd: VoidTransmittal) -> CommandRes
     """
     cmd = correlated(cmd)
     row = _load(uow, cmd, cmd.stream_id)
-    _require_state(row, "Draft", doing="voided")
+    _require_state(row, *states_for("VoidTransmittal", TRANSMITTAL), doing="voided")
     moved = transition(uow, cmd, row.id, "void", reason=cmd.reason, expected=cmd.expected_version)
     voided = append(
         uow,

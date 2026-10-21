@@ -47,6 +47,7 @@ from tl_api.feed import FeedHub
 from tl_api.inbound import InboundMiddleware
 from tl_api.ratelimit import RateLimitMiddleware, SourceLimiter
 from tl_api.routes import (
+    actions,
     admin,
     auth,
     correspondence,
@@ -273,6 +274,7 @@ def create_app(
         auth,
         admin,
         records,
+        actions,  # P1-UX2: what the caller may do on a record
         links,
         reference,
         events,

@@ -11,11 +11,15 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
+from tl_core.actions import RecordActions
+from tl_core.auth.errors import ForbiddenError
 from tl_core.ledger import Event
-from tl_core.services.commands import CommandResult, CreateRecord, UpdateRecord
+from tl_core.services.commands import Command, CommandResult, CreateRecord, UpdateRecord
 from tl_core.services.edit import EditRecord
 from tl_core.services.errors import RecordNotFoundError
 from tl_core.services.psets import SetPsetValues
+from tl_mod_documents.commands import API_COMMANDS as DOCUMENT_COMMANDS
+from tl_mod_engineering.commands import API_COMMANDS as ENGINEERING_COMMANDS
 
 from tl_api.client.base import ApiClientBase, quote
 
@@ -113,3 +117,32 @@ class RecordsApi(ApiClientBase):
     def edit_record(self, cmd: EditRecord) -> CommandResult:
         """Field changes and pset edits as one atomic save: all of them are applied or none."""
         return self._command("EditRecord", cmd)
+
+    def allowed_actions(self, record_id: str) -> RecordActions:
+        """What the caller may do on the record now (``GET /records/{id}/actions``).
+
+        Raises ``RecordNotFoundError`` for a record that is missing or that the caller may not
+        read, as the embedded client does. An agent token is offered nothing.
+        """
+        return self._model(RecordActions, self._get_json(f"/records/{quote(record_id)}/actions"))
+
+    def document_command(self, name: str, cmd: Command) -> CommandResult:
+        """Run a documents command by name (``POST /commands/{name}``); the token's actor is used.
+
+        A name that is not in the documents module's command table is refused here, as the
+        embedded client refuses it (``ForbiddenError``); the server then checks the access.
+        """
+        _require_listed(name, cmd, DOCUMENT_COMMANDS, "documents")
+        return self._command(name, cmd)
+
+    def engineering_command(self, name: str, cmd: Command) -> CommandResult:
+        """Run an engineering command by name; the same rules as :meth:`document_command`."""
+        _require_listed(name, cmd, ENGINEERING_COMMANDS, "engineering")
+        return self._command(name, cmd)
+
+
+def _require_listed(name: str, cmd: Command, table: Any, module: str) -> None:
+    """Refuse a command that is not a row of the module's table, or whose class is not the row's."""
+    spec = next((row for row in table if row.model.__name__ == name), None)
+    if spec is None or type(cmd) is not spec.model:
+        raise ForbiddenError(f"{name} is not a {module} command")

@@ -25,6 +25,7 @@ from tl_core.services.records import create_module_record
 from tl_core.uow import UnitOfWork
 
 from tl_mod_documents import registry
+from tl_mod_documents.actions import states_for
 from tl_mod_documents.errors import (
     InvalidRevisionCodeError,
     NoRenditionError,
@@ -250,7 +251,7 @@ def handle_issue_revision(uow: UnitOfWork, cmd: IssueRevision) -> CommandResult:
     rev = load_revision(uow, cmd, cmd.stream_id)
     doc = open_document(uow, cmd, rev.document_id)
     conn = uow.conn()
-    if rev.voided or rev.state != "Draft":
+    if rev.voided or rev.state not in states_for("IssueRevision", REVISION):
         raise RevisionStateError(
             f"revision {rev.code} of {doc.number} is {rev.state}; only a draft can be issued"
             + ("; close its review first" if rev.state == "In Review" else "")
@@ -331,7 +332,7 @@ def handle_supersede_revision(uow: UnitOfWork, cmd: SupersedeRevision) -> Comman
     rev = load_revision(uow, cmd, cmd.stream_id)
     doc = open_document(uow, cmd, rev.document_id)
     by = load_revision(uow, cmd, cmd.superseded_by_id)
-    if rev.state != "Issued" or not rev.is_current:
+    if rev.state not in states_for("SupersedeRevision", REVISION) or not rev.is_current:
         raise RevisionStateError(
             f"revision {rev.code} of {doc.number} is {rev.state}; only an issued, current "
             "revision can be superseded"
@@ -375,7 +376,7 @@ def handle_void_revision(uow: UnitOfWork, cmd: VoidRevision) -> CommandResult:
     cmd = correlated(cmd)
     rev = load_revision(uow, cmd, cmd.stream_id)
     open_document(uow, cmd, rev.document_id)
-    if rev.voided or rev.state != "Draft":
+    if rev.voided or rev.state not in states_for("VoidRevision", REVISION):
         raise RevisionStateError(
             f"revision {rev.code} of {rev.document_number} is {rev.state}; "
             "only a draft can be voided"

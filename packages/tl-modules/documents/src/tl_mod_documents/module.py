@@ -10,6 +10,7 @@ from tl_core.modules import ChildSource, ConfidentialSource, ModuleSpec, Proposa
 from tl_core.projection.types import Projector
 
 from tl_mod_documents import MODULE
+from tl_mod_documents.actions import document_actions, revision_actions, transmittal_actions
 from tl_mod_documents.derivation.derived import StartExtraction, handle_start_extraction
 from tl_mod_documents.derivation.publish import (
     PublishDerivedDocuments,
@@ -158,4 +159,10 @@ def spec() -> ModuleSpec:
         },
         proposable=PROPOSABLE,
         confidential=CONFIDENTIAL,
+        # which of the commands a viewer may run on a record now (P1-UX2); one table, actions.py
+        actions={
+            DOCUMENT: document_actions,
+            REVISION: revision_actions,
+            TRANSMITTAL: transmittal_actions,
+        },
     )

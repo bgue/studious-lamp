@@ -230,6 +230,25 @@
         "title": "AccountView",
         "type": "object"
       },
+      "ActionOffer": {
+        "description": "One thing the viewer may do: the module command to run and its label in plain words.",
+        "properties": {
+          "command": {
+            "title": "Command",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "command",
+          "label"
+        ],
+        "title": "ActionOffer",
+        "type": "object"
+      },
       "ActivityDetail": {
         "description": "One activity with the relationships that name it.",
         "properties": {
@@ -16875,6 +16894,40 @@
           "reason"
         ],
         "title": "ReclassifyTagBody",
+        "type": "object"
+      },
+      "RecordActions": {
+        "description": "The actions offered on one record. ``state`` is the workflow state the record is in now\n(``Void`` once voided; ``None`` while a record has not moved from its initial state).",
+        "properties": {
+          "actions": {
+            "items": {
+              "$ref": "#/components/schemas/ActionOffer"
+            },
+            "title": "Actions",
+            "type": "array"
+          },
+          "record_id": {
+            "title": "Record Id",
+            "type": "string"
+          },
+          "state": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "State"
+          }
+        },
+        "required": [
+          "record_id",
+          "state",
+          "actions"
+        ],
+        "title": "RecordActions",
         "type": "object"
       },
       "RecordOut": {
@@ -57586,6 +57639,94 @@
           }
         ],
         "summary": "Get Record",
+        "tags": [
+          "records"
+        ]
+      }
+    },
+    "/records/{record_id}/actions": {
+      "get": {
+        "description": "The commands of the record's module that the caller may run on it now, with plain labels.\n\n404 `record_not_found` when the record is missing or the caller may not read it; an agent token\ngets an empty list.",
+        "operationId": "get_record_actions",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "record_id",
+            "required": true,
+            "schema": {
+              "title": "Record Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecordActions"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Record Actions",
         "tags": [
           "records"
         ]

@@ -26,6 +26,7 @@ from tl_core.services.links import AddLink, handle_add_link
 from tl_core.uow import UnitOfWork
 
 from tl_mod_correspondence import catalog, registry
+from tl_mod_correspondence.actions import states_for
 from tl_mod_correspondence.domains import DomainDefinition
 from tl_mod_correspondence.errors import InvalidClockError, InvalidItemError
 from tl_mod_correspondence.handlers.clocks import start_clock
@@ -45,6 +46,7 @@ from tl_mod_correspondence.names import (
     CORR_RECLASSIFIED,
     CORR_TRIAGED,
     CORR_UPDATED,
+    CORRESPONDENCE,
     ST_DRAFT,
     ST_RECEIVED,
     ST_TRIAGED,
@@ -171,7 +173,7 @@ def handle_confirm_triage(uow: UnitOfWork, cmd: ConfirmTriage) -> CommandResult:
     cmd = correlated(cmd)
     item = open_item(uow, cmd, cmd.stream_id)
     require_core(item)
-    require_state(item, ST_RECEIVED)
+    require_state(item, *states_for("ConfirmTriage", CORRESPONDENCE))
     definition = catalog.check_core_subtype(cmd.scope, cmd.domain, cmd.subtype)
     references = _check_references(uow, cmd, cmd.referenced_ids, item.id)
     try:
