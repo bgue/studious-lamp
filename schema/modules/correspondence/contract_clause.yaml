@@ -19,6 +19,7 @@ annotations:
 
 classes:
   ContractClause:
+    title: Contract clause
     description: >-
       One clause. Record type `correspondence.ContractClause`; its key is `<contract>/<clause number>` and the
       title is the clause title.

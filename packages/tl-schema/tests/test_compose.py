@@ -34,7 +34,14 @@ def test_project_scope_composes_all_layers(build_docs: Build) -> None:
 def test_company_scope_keeps_every_company_pset(build_docs: Build) -> None:
     company = [d for d in build_docs() if d.kind == "company"]
     schema = compose(company, "company")
-    assert list(schema.psets) == ["provenance", "safety_data", "valve_data"]
+    assert list(schema.psets) == [
+        "correspondence_data",
+        "document_data",
+        "provenance",
+        "rfi_data",
+        "safety_data",
+        "valve_data",
+    ]
     assert schema.psets["valve_data"].extension is None
     assert schema.psets["valve_data"].custom == {}
 

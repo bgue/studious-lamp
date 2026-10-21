@@ -23,6 +23,7 @@ annotations:
 
 classes:
   DerivedDocument:
+    title: Derived document
     description: >-
       One derived document. Record type `documents.DerivedDocument`; its key is `<number>@<revision>/<schema code>`
       (`ISD-001@A/instrument-index`), so a source revision has at most one derived document per schema code. The

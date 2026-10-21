@@ -20,6 +20,7 @@ annotations:
 
 classes:
   ReviewCycle:
+    title: Review cycle
     description: >-
       One review round of a revision. Record type `documents.ReviewCycle`; its key is `<number>@<code>/RC<n>`.
     annotations:

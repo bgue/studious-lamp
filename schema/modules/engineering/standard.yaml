@@ -55,6 +55,7 @@ enums:
 
 classes:
   Standard:
+    title: Registry entry
     description: >-
       One registry entry (a code list, a mnemonic or a numbering pattern) of a scope. The stream is the
       record (`id`); the envelope fields (key, title, voided, version) are in `cur_core_record`. `data`
@@ -131,11 +132,14 @@ classes:
         description: Ledger `seq` of the last event applied to this row.
 
   CodeList:
+    title: Code list
     is_a: Standard
     description: A registry entry of kind `code_list`. Record type `engineering.CodeList`.
   Mnemonic:
+    title: Mnemonic
     is_a: Standard
     description: A registry entry of kind `mnemonic`. Record type `engineering.Mnemonic`.
   NumberingPattern:
+    title: Numbering pattern
     is_a: Standard
     description: A registry entry of kind `numbering_pattern`. Record type `engineering.NumberingPattern`.

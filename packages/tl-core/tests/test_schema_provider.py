@@ -34,7 +34,10 @@ def test_effective_schema_for_a_project(directory: Path) -> None:
     assert provider.effective("project:P123") is schema  # cached
     assert provider.scopes() == ["company", "project:P123"]
     assert list(provider.effective("company").psets) == [
+        "correspondence_data",
+        "document_data",
         "provenance",
+        "rfi_data",
         "safety_data",
         "valve_data",
     ]

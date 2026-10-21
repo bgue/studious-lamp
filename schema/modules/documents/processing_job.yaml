@@ -21,6 +21,7 @@ annotations:
 
 classes:
   ProcessingJob:
+    title: Processing job
     description: >-
       One job. Record type `documents.ProcessingJob`; its key is `JOB-<id>`. It has no workflow: `state` is a
       column moved by the job events (queued, running, succeeded, failed, cancelled), so a retry is not a

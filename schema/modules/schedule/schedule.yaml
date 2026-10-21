@@ -31,6 +31,7 @@ enums:
 
 classes:
   Schedule:
+    title: Schedule
     description: >-
       One schedule of a project. Record type `schedule.Schedule`; its key is its code (`MAIN`) and its title
       its name. `p6_project` names the P6 project (`proj_short_name`) to read when an XER file holds more than one.

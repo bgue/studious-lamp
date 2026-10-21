@@ -20,6 +20,7 @@ annotations:
 
 classes:
   CorrespondenceThread:
+    title: Correspondence thread
     description: >-
       One thread. Record type `correspondence.CorrespondenceThread`; its key is the thread number and the
       title is the normalised subject.

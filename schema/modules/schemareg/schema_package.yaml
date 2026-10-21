@@ -20,6 +20,7 @@ annotations:
 
 classes:
   SchemaPackage:
+    title: Schema package
     description: >-
       One version of a company, extension or project package, with the reports a reviewer reads and
       the approvals it passed. The workflow states are Draft, InReview, Approved, Published,
