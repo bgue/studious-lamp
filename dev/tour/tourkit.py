@@ -460,11 +460,53 @@ def screen_text(app: App[Any]) -> str:
     return "\n".join(strip.text.rstrip() for strip in strips)
 
 
-def shot_tui(ws: Workspace, app: App[Any], name: str, title: str, *needles: str) -> None:
-    """Save the current screen as an SVG after checking each needle is on it."""
+LEAKS: list[str] = []  # one "<shot> <tokens>" per plain screenshot that carries technical text
+
+
+def leaks_in(text: str, labels: Any = None) -> list[str]:
+    """The technical tokens (ids, hashes, versions, internal keys) in a captured screen's text."""
+    from tl_tui.display import find_technical
+
+    return find_technical(text, labels)
+
+
+def check_plain(name: str, text: str, labels: Any = None) -> list[str]:
+    """Record a screenshot whose text carries technical text; return its tokens (none is clean)."""
+    found = leaks_in(text, labels)
+    if found:
+        LEAKS.append(f"{name} {' '.join(repr(token) for token in found)}")
+    return found
+
+
+def report_leaks() -> int:
+    """Print one ``LEAK <shot> <tokens>`` line per leak; return the tour's exit code."""
+    for line in LEAKS:
+        print(f"LEAK {line}", flush=True)
+    return 1 if LEAKS else 0
+
+
+def _labels_of(app: App[Any]) -> Any:
+    from tl_tui.labels_load import load_labels
+
+    client, scope = getattr(app, "client", None), getattr(app, "scope", None)
+    if client is None or scope is None:
+        return None
+    return load_labels(client, scope)
+
+
+def shot_tui(
+    ws: Workspace, app: App[Any], name: str, title: str, *needles: str, technical: bool = False
+) -> None:
+    """Save the current screen as an SVG after checking each needle is on it.
+
+    The screen's text also goes through the leak finder (``check_plain``); ``technical=True``
+    marks a shot that shows technical details on purpose (Ctrl+D on), which is not checked.
+    """
     text = screen_text(app)
     for needle in needles:
         expect(needle in text, f"{name}: {needle!r} is not on the screen:\n{text}")
+    if not technical:
+        check_plain(name, text, _labels_of(app))
     ws.save(name, clean_svg(app.export_screenshot(title=title)))
 
 

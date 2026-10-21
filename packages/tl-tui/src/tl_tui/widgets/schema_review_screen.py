@@ -36,6 +36,7 @@ from tl_tui.schema_review_text import (
     classification_lines,
     impact_lines,
     next_step,
+    plain_message,
     sample_lines,
     title_line,
 )
@@ -153,6 +154,7 @@ class SchemaReviewScreen(ModalScreen[None]):
         self._show()
 
     def _say(self, text: str, *, error: bool = False) -> None:
+        text = plain_message(text, technical=mode_of(self.app).technical)
         self.query_one("#review-status", Static).update(("! " if error else "") + text)
 
     # --- steps ---------------------------------------------------------------------------

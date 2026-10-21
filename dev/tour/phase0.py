@@ -246,10 +246,9 @@ async def tui_tour(ws: Workspace, pilot: Pilot[Any], app: Any) -> None:
         app,
         "02a-psets-conforming",
         "Psets of FV-1001: company standard, project extension",
-        "valve_data",
-        "co.acme.engineering 3.2.0",
+        "Valve data",
+        "Body material",
         "FAT witness",
-        "Effective schema",
     )
     await back_to_grid(pilot, app)
     await open_record(pilot, app, "FV-1002")
@@ -340,7 +339,7 @@ async def tui_tour(ws: Workspace, pilot: Pilot[Any], app: Any) -> None:
     await pilot.press("enter")
     await tk.until(pilot, lambda: "Approved" in tk.screen_text(app), "the transition")
     await tk.settle(pilot, 4)
-    await open_tab(pilot, "4", app, "Workflow")
+    await open_tab(pilot, "4", app, "Transitioned")
     tk.shot_tui(
         ws,
         app,
@@ -976,7 +975,7 @@ def main(argv: list[str] | None = None) -> int:
     finally:
         ws.close()
     print(f"wrote {len(ws.written)} screenshots to {out}")
-    return 0
+    return tk.report_leaks()
 
 
 if __name__ == "__main__":
