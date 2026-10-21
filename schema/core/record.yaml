@@ -101,6 +101,7 @@ classes:
         description: Timestamp of the last applied event (system time).
 
   Record:
+    title: Record
     is_a: RecordEnvelope
     description: The generic Phase 0 record type, `core.Record`.
     annotations:

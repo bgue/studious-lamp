@@ -50,13 +50,14 @@ def status(screen: ActivityScreen) -> str:
 def test_it_lists_the_current_snapshots_activities_and_describes_the_first() -> None:
     async def steps(pilot: Pilot[None], app: TlApp, screen: ActivityScreen) -> None:
         text = screen_text(app)
-        assert "Activities of MAIN#2" in text
+        assert "Activities of Snapshot 2" in text
         assert ids(screen) == ["A1220", "A1230", "A1240", "A2500"]
         assert screen.query_one("#ac-table", DataTable).row_count == 4
         assert "Set rack foundations" in text and "critical" in text
-        assert status(screen) == "MAIN#2  data date 2026-10-12  |  1-4 of 4 activities"
-        assert "A1220  Set rack foundations  |  MAIN#2" in text
-        assert "predecessors 0" in text and "successors 1" in text and "  A1230  FS  lag 0h" in text
+        assert status(screen) == "Snapshot 2  data date 2026-10-12  |  1-4 of 4 activities"
+        assert "A1220  Set rack foundations  |  Snapshot 2" in text
+        assert "predecessors 0" in text and "successors 1" in text
+        assert "  A1230  Finish to start  lag 0h" in text
         await pilot.press("escape")
         await pilot.pause()
         assert not isinstance(app.screen, ActivityScreen)
@@ -69,10 +70,10 @@ def test_moving_to_an_activity_shows_its_neighbours_and_its_float_trend() -> Non
         await pilot.press("down")
         await pilot.pause()
         text = screen_text(app)
-        assert "A1230  Install pipe rack supports  |  MAIN#2" in text
+        assert "A1230  Install pipe rack supports  |  Snapshot 2" in text
         assert "float total 32h  free 40h" in text
-        assert "predecessors 1" in text and "  A1220  FS  lag 0h" in text
-        assert "successors 2" in text and "  A2500  FS  lag 0h" in text
+        assert "predecessors 1" in text and "  A1220  Finish to start  lag 0h" in text
+        assert "successors 2" in text and "  A2500  Finish to start  lag 0h" in text
         assert "float trend:" in text
         assert "#1  2026-10-05  Superseded  float 9d" in text
         assert "#2  2026-10-12  Published  float 4d" in text
@@ -85,7 +86,7 @@ def test_an_activity_that_is_in_one_snapshot_only_has_a_one_line_trend() -> None
         await pilot.press("down", "down", "down")  # A2500, new in snapshot 2
         await pilot.pause()
         text = screen_text(app)
-        assert "A2500  Weld inspection hold point  |  MAIN#2" in text
+        assert "A2500  Weld inspection hold point  |  Snapshot 2" in text
         assert "#2  2026-10-12  Published  float 2d" in text and "#1  2026-10-05" not in text
 
     scenario(world(), steps)
@@ -94,11 +95,11 @@ def test_an_activity_that_is_in_one_snapshot_only_has_a_one_line_trend() -> None
 def test_a_named_snapshot_is_listed_and_an_activity_it_lacks_is_not() -> None:
     async def steps(pilot: Pilot[None], app: TlApp, screen: ActivityScreen) -> None:
         assert ids(screen) == ["A1220", "A1230", "A1240", "A1990"]
-        assert "Activities of MAIN#1" in screen_text(app)
+        assert "Activities of Snapshot 1" in screen_text(app)
         await pilot.press("down", "down", "down")  # A1990, which snapshot 2 lacks
         await pilot.pause()
         text = screen_text(app)
-        assert "A1990  Temporary fencing  |  MAIN#1" in text
+        assert "A1990  Temporary fencing  |  Snapshot 1" in text
         assert "#1  2026-10-05  Superseded  float 12d" in text
 
     scenario(world(), steps, number=1)
@@ -258,7 +259,7 @@ def test_an_activity_in_no_published_snapshot_still_shows_its_facts_and_says_so(
 
     async def steps(pilot: Pilot[None], app: TlApp, screen: ActivityScreen) -> None:
         text = screen_text(app)
-        assert "S1  Lone activity  |  SIDE#1" in text  # the facts are there
+        assert "S1  Lone activity  |  Snapshot 1" in text  # the facts are there
         assert "no published snapshot of SIDE has 'S1'" in text  # and why there is no trend
         assert "float trend:" not in text
 

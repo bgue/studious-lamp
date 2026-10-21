@@ -19,16 +19,17 @@ def test_a_register_row_has_eight_cells_and_marks_a_source_line() -> None:
     cells = {line.number: ct.register_cells(line) for line in lines}
     assert all(len(c) == len(ct.REGISTER_COLUMNS) for c in cells.values())
     assert cells["P123-TRN-0001"][-1] == "Isometrics [transmittal]"
-    assert cells["P123-TRN-0001"][3] == "document_control/transmittal"
+    assert cells["P123-TRN-0001"][3] == "Transmittal"  # the domain label, not its key
     assert cells["P123-COR-0001"][2:4] == ("in", "-")
 
 
 def test_a_clock_row_shows_the_days_left_and_its_length() -> None:
     [clock] = seeded().list_clocks("P123")
     assert ct.clock_cells(clock) == (
-        "P123-COR-0003-C01", "running", "2026-11-02", "14", "14 cal", "response from them",
+        "P123-COR-0003", "Running", "2026-11-02", "14", "14 cal", "response from them",
         "Reply expected",
     )  # fmt: skip
+    assert ct.clock_cells(clock, technical=True)[0] == "P123-COR-0003-C01"
     over = clock.model_copy(update={"days_left": -3, "effective_state": "expired"})
     assert ct.left_text(over) == "-3"
     assert ct.left_text(clock.model_copy(update={"days_left": None})) == "-"
@@ -39,15 +40,16 @@ def test_the_item_panel_lists_clocks_and_the_suggestion_of_a_received_item() -> 
     issued = ct.item_lines(client.get_correspondence("P123", "P123-COR-0003"))
     assert issued[0].startswith("P123-COR-0003  Issued  out")
     assert "delivery: stub" in issued
-    assert any("P123-COR-0003-C01 running due 2026-11-02 left 14" in x for x in issued)
+    assert any("running due 2026-11-02 left 14 (14 calendar days)" in x for x in issued)
+    assert not any("P123-COR-0003-C01" in x or "P123-default@1" in x for x in issued)
     received = ct.item_lines(
         client.get_correspondence("P123", "P123-COR-0001"),
         client.get_correspondence_suggestion("P123", "P123-COR-0001"),
     )
-    assert (
-        received[-1]
-        == "suggestion: general/letter (score 0): no keyword matched; the default domain"
-    )
+    assert received[-1] == "suggestion: Letter (score 0): no keyword matched; the default domain"
+    shown = ct.item_lines(client.get_correspondence("P123", "P123-COR-0003"), technical=True)
+    assert any(x.strip().startswith("P123-COR-0003-C01 running due") for x in shown)
+    assert "P123-default@1" in " ".join(shown) and "record ID-P123-COR-0003" in shown
 
 
 def test_the_summary_and_the_mode_order() -> None:

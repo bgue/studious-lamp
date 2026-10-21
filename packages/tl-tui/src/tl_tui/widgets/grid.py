@@ -18,7 +18,7 @@ import json
 import logging
 import time
 from collections.abc import Collection
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from functools import partial
 from typing import Any, ClassVar, Literal
 
@@ -34,7 +34,9 @@ from tl_core.query import QuerySyntaxError
 from tl_schema.forms import FormMetadata
 
 from tl_tui.client import ClientInterface
+from tl_tui.display import Labels, humanize, mode_of, type_label
 from tl_tui.errors import CLIENT_ERRORS, describe_error
+from tl_tui.labels_load import load_labels
 from tl_tui.messages import OpenRecord, RecordHighlighted, SelectionChanged, StatusMessage
 from tl_tui.paths import pset_value
 from tl_tui.text import CONFORMANCE_MARK, format_value, timestamp
@@ -69,21 +71,44 @@ class FilterResult:
 
 @dataclass(frozen=True)
 class GridColumn:
-    """One grid column. ``key`` is a record envelope key or a ``psets.…`` path."""
+    """One grid column. ``key`` is a record envelope key or a ``psets.…`` path.
+
+    ``label`` is the technical header; ``plain_label`` is the plain-words header
+    (``None``: the header is ``label`` in both modes).
+    """
 
     key: str
     label: str
     width: int
     align: Align = "left"
+    plain_label: str | None = None
 
 
 DEFAULT_COLUMNS: tuple[GridColumn, ...] = (
     GridColumn("key", "Key", 12),
     GridColumn("title", "Title", 18),
     GridColumn("status", "Status", 9),
-    GridColumn("version", "Ver", 3, "right"),
+    GridColumn("version", "Ver", 3, "right", plain_label="Version"),
     GridColumn("conformance", "Conformance", 15),
 )
+
+
+def plain_version(column: GridColumn) -> GridColumn:
+    """The version column is named "Version" in plain words, whatever set it came in (D44)."""
+    if column.key == "version" and column.plain_label is None:
+        return replace(column, plain_label="Version")
+    return column
+
+
+def default_columns(
+    technical: bool, base: tuple[GridColumn, ...] = DEFAULT_COLUMNS
+) -> tuple[GridColumn, ...]:
+    """The columns a grid shows until the person chooses a set: ``Ver`` only in technical mode
+    (D39, Q6). ``base`` is the grid's own default set (an extension type's columns, or the core)."""
+    if technical:
+        return base
+    return tuple(c for c in base if c.key != "version")
+
 
 CORE_COLUMNS: tuple[GridColumn, ...] = (
     *DEFAULT_COLUMNS,
@@ -100,15 +125,33 @@ def available_columns(meta: FormMetadata | None) -> list[GridColumn]:
     if meta is not None:
         for group in meta.psets:
             for fld in group.fields:
-                columns.append(GridColumn(fld.path, fld.path.removeprefix("psets."), 14))
+                columns.append(
+                    GridColumn(
+                        fld.path,
+                        fld.path.removeprefix("psets."),
+                        14,
+                        plain_label=fld.label or humanize(fld.path.rpartition(".")[2]),
+                    )
+                )
     return columns
 
 
-def cell_text(record: dict[str, Any], column: GridColumn) -> str:
-    """The display text of one cell. No colour carries meaning; status also reads as a symbol."""
+def cell_text(
+    record: dict[str, Any],
+    column: GridColumn,
+    labels: Labels | None = None,
+    *,
+    technical: bool = True,
+) -> str:
+    """The display text of one cell. No colour carries meaning; status also reads as a symbol.
+
+    Plain (``technical=False``) shows a record type as its label; technical keeps the stored type.
+    """
     if column.key.startswith("psets."):
         return format_value(pset_value(record.get("psets") or {}, column.key))
     value = record.get(column.key)
+    if column.key == "type" and not technical and isinstance(value, str) and value:
+        return type_label(labels or Labels(), value)
     if column.key == "conformance":
         return CONFORMANCE_MARK.get(str(value), format_value(value))
     if column.key in ("updated_at", "created_at") and isinstance(value, str) and value:
@@ -210,7 +253,13 @@ class RecordGrid(ScrollView, can_focus=True):
         self.client = client
         self.scope = scope
         self.record_type = record_type
-        self.columns: list[GridColumn] = list(columns or DEFAULT_COLUMNS)
+        # The grid's default set (its type's columns, or the core ones). Until a set is chosen the
+        # shown columns follow the display mode: `Ver` is left out in plain (`default_columns`).
+        self._defaults: tuple[GridColumn, ...] = tuple(
+            plain_version(c) for c in (columns or DEFAULT_COLUMNS)
+        )
+        self._chosen = False  # True once `set_columns` got a non-empty set
+        self.columns: list[GridColumn] = list(self._defaults)
         self.page_size = page_size
         self.rows: list[dict[str, Any]] = []
         self.exhausted = False
@@ -224,6 +273,7 @@ class RecordGrid(ScrollView, can_focus=True):
         self.filter_text = ""  # the filter text in force ("" = none)
         self.match_count: int | None = None  # count_records for `query` as of the last load
         self.highlight_seconds = highlight_seconds
+        self.labels = Labels()  # type titles and code labels for the plain mode, set on mount
         self.changed_until: dict[str, float] = {}  # record id -> monotonic time the mark ends
         self._live_running = False
         self._live_again = False
@@ -232,6 +282,8 @@ class RecordGrid(ScrollView, can_focus=True):
     # --- data --------------------------------------------------------------------------------
 
     def on_mount(self) -> None:
+        self._sync_default_columns()
+        self.labels = load_labels(self.client, self.scope, ())
         self.load()
 
     def _order(self) -> list[tuple[str, Literal["asc", "desc"]]] | None:
@@ -515,14 +567,40 @@ class RecordGrid(ScrollView, can_focus=True):
         more = "+" if not self.exhausted else ""
         parts = [f"{len(self.rows)}{more} rows"]
         if self.sort_key is not None:
-            label = next((c.label for c in self.columns if c.key == self.sort_key), self.sort_key)
+            label = next(
+                (self._label_of(c) for c in self.columns if c.key == self.sort_key), self.sort_key
+            )
             parts.append(f"sorted {label} {'▼' if self.sort_descending else '▲'}")
         if self.selected_ids:
             parts.append(f"{len(self.selected_ids)} selected")
         return " · ".join(parts)
 
+    def _label_of(self, column: GridColumn) -> str:
+        """The header text of ``column``: the plain label in plain mode, else the technical one."""
+        if column.plain_label is not None and not mode_of(self.app).technical:
+            return column.plain_label
+        return column.label
+
+    def refresh_for_display_mode(self) -> None:
+        """The technical toggle changed: redraw the header, the rows and the default columns."""
+        self._sync_default_columns()
+        self.refresh()
+
+    def _sync_default_columns(self) -> None:
+        """While no set was chosen, the shown columns are the defaults for the current mode."""
+        if self._chosen:
+            return
+        self._apply_columns(list(default_columns(mode_of(self.app).technical, self._defaults)))
+
     def set_columns(self, columns: list[GridColumn]) -> None:
-        self.columns = list(columns) or list(DEFAULT_COLUMNS)
+        """Show ``columns`` as chosen; an empty list means the defaults for the current mode."""
+        self._chosen = bool(columns)
+        self._apply_columns(
+            list(columns) or list(default_columns(mode_of(self.app).technical, self._defaults))
+        )
+
+    def _apply_columns(self, columns: list[GridColumn]) -> None:
+        self.columns = [plain_version(c) for c in columns]
         self.column_cursor = min(self.column_cursor, len(self.columns) - 1)
         if self.sort_key not in {c.key for c in self.columns}:
             self.sort_key = None
@@ -639,9 +717,8 @@ class RecordGrid(ScrollView, can_focus=True):
             if keys:
                 self.set_columns([mapping[key] for key in keys])
 
-        self.app.push_screen(
-            ColumnChooser(list(mapping.values()), [c.key for c in self.columns]), apply
-        )
+        offered = [replace(c, label=self._label_of(c)) for c in mapping.values()]
+        self.app.push_screen(ColumnChooser(offered, [c.key for c in self.columns]), apply)
 
     def action_copy(self) -> None:
         count = len(self.selected_records()) or (1 if self.cursor_record is not None else 0)
@@ -665,7 +742,9 @@ class RecordGrid(ScrollView, can_focus=True):
             self.post_message(StatusMessage("Sort on pset columns arrives with the query language"))
             return
         if key not in SORTABLE_KEYS:
-            self.post_message(StatusMessage(f"Sorting by {column.label} is not available"))
+            self.post_message(
+                StatusMessage(f"Sorting by {self._label_of(column)} is not available")
+            )
             return
         previous = (self.sort_key, self.sort_descending)
         if self.sort_key != key:
@@ -726,7 +805,7 @@ class RecordGrid(ScrollView, can_focus=True):
         active = self.get_component_rich_style("grid--column")
         segments = [Segment(" " * MARKER_WIDTH, header)]
         for index, column in enumerate(self.columns):
-            label = column.label
+            label = self._label_of(column)
             if column.key == self.sort_key:
                 label += " ▼" if self.sort_descending else " ▲"
             style = active if index == self.column_cursor and self.has_focus else header
@@ -751,9 +830,9 @@ class RecordGrid(ScrollView, can_focus=True):
             f"{CHANGED_MARK if is_marked else ' '}"
         )
         segments = [Segment(marker, style)]
+        technical = mode_of(self.app).technical
         for column in self.columns:
-            segments.append(
-                Segment(fit_cell(cell_text(record, column), column.width, column.align), style)
-            )
+            text = cell_text(record, column, self.labels, technical=technical)
+            segments.append(Segment(fit_cell(text, column.width, column.align), style))
             segments.append(Segment(GAP, style))
         return segments

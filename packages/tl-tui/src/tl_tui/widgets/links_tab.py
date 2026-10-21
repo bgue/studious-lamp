@@ -30,6 +30,7 @@ from tl_core.services.links import (
 )
 
 from tl_tui.client import ClientInterface
+from tl_tui.display import mode_of
 from tl_tui.errors import CLIENT_ERRORS, describe_error
 from tl_tui.messages import OpenRecord, RecordChanged, StatusMessage
 from tl_tui.text import EMPTY
@@ -73,13 +74,19 @@ def group_title(label: str, count: int) -> str:
     return f"▾ {label} ({count})"
 
 
-def missing_line(missing: MissingLink) -> str:
+def missing_line(missing: MissingLink, *, technical: bool = True) -> str:
     """``! expected but missing: supporting record (rule: references@Approved)``.
 
     The rule shows the relation, then ``@<state>`` when the expectation has a ``by_state``, then
-    ``, <found> of <needed>`` when more than one link is needed.
+    ``, <found> of <needed>`` when more than one link is needed. Plain mode (``technical=False``)
+    drops the rule and reads ``! expected but missing: supporting record (1 of 2 needed)``.
     """
     expectation = missing.expectation
+    if not technical:
+        text = f"! expected but missing: {expectation.display}"
+        if missing.needed > 1:
+            text += f" ({missing.found} of {missing.needed} needed)"
+        return text
     rule = expectation.relation
     if expectation.by_state is not None:
         rule += f"@{expectation.by_state}"
@@ -171,6 +178,7 @@ class LinksTab(Vertical, can_focus=True):
         self.record: dict[str, Any] | None = None
         self.views: dict[str, LinkView] = {}
         self.text = ""  # the last "empty" or "unavailable" note
+        self._missing: list[MissingLink] = []  # the last read, redrawn on a mode switch
 
     def compose(self) -> ComposeResult:
         yield DataTable(id="links-table", cursor_type="row")
@@ -213,10 +221,19 @@ class LinksTab(Vertical, can_focus=True):
             )
         if views and keep < len(rows):
             table.move_cursor(row=keep)
-        self.query_one("#links-missing", Static).update(
-            "\n".join(missing_line(item) for item in missing)
-        )
+        self._missing = list(missing)
+        self._draw_missing()
         self._note("" if views else "No links yet. Press l to link this record.")
+
+    def refresh_for_display_mode(self) -> None:
+        """Redraw the expected-but-missing lines in the current mode; the table stays."""
+        self._draw_missing()
+
+    def _draw_missing(self) -> None:
+        technical = mode_of(self.app).technical
+        self.query_one("#links-missing", Static).update(
+            "\n".join(missing_line(item, technical=technical) for item in self._missing)
+        )
 
     def _note(self, text: str) -> None:
         self.text = text

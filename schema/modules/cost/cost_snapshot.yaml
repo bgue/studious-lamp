@@ -20,6 +20,7 @@ annotations:
 
 classes:
   CostSnapshot:
+    title: Cost snapshot
     description: >-
       One imported period. Record type `cost.CostSnapshot`; its key is `<period>@<revision>`
       (`2026-09@1`). The most recent as-of date decides which snapshot's figures a code's matrix holds.

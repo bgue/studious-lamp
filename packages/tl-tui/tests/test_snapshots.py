@@ -88,7 +88,7 @@ def test_grid_selection_and_sort(snap_compare: Any) -> None:
 
 def test_column_chooser(snap_compare: Any) -> None:
     app = _app()
-    step = _expect(app, "Choose columns", "valve_data.size_in", keys=("c",))
+    step = _expect(app, "Choose columns", "▐X▌ size_in", keys=("c",))
     assert snap_compare(app, terminal_size=WIDE, run_before=step)
 
 
@@ -100,7 +100,7 @@ def test_record_view_details(snap_compare: Any) -> None:
 
 def test_record_view_history(snap_compare: Any) -> None:
     app = _app()
-    step = _expect(app, "Pset.ValuesSet", "Record.Created", keys=("enter", "h"))
+    step = _expect(app, "Properties set", "Created", keys=("enter", "h"))
     assert snap_compare(app, terminal_size=WIDE, run_before=step)
 
 

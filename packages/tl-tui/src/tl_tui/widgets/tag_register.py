@@ -1,11 +1,12 @@
 """The tag register: a project's engineering tags, their class, state and conformance (P1-I1-T09d).
 
-A full-size modal opened with ``F8``. The table lists the project's tags by number; ``BAD`` in the
-``No.`` column marks a number that breaks the registry pattern, ``Conf`` is the stored conformance
-level. The panel under the table describes the highlighted tag: its parts, why its number is
-refused or accepted, and what it still lacks. Everything is read through the client; nothing here
-changes a tag. The filter keys narrow the list on the screen (class, violations only, text);
-``a`` asks the client for the ended tags too.
+A full-size modal opened with ``F8``. The table lists the project's tags by number; ``does not fit``
+in the ``Number check`` column marks a number that breaks the registry pattern, ``Conformance`` is
+the stored conformance level. The panel under the table describes the highlighted tag: its parts,
+why its number is refused or accepted, and what it still lacks. Enter on a row opens the full
+record screen (P1-UX-T02); Esc returns to the same row. Everything is read through the client;
+nothing here changes a tag. The filter keys narrow the list on the screen (class, violations only,
+text); ``a`` asks the client for the ended tags too.
 """
 
 from __future__ import annotations
@@ -21,8 +22,11 @@ from textual.widgets import DataTable, Input, Static
 from tl_mod_engineering.views import TagView
 
 from tl_tui.client import ClientInterface
+from tl_tui.display import Labels, mode_of
 from tl_tui.errors import CLIENT_ERRORS, describe_error
+from tl_tui.labels_load import load_labels
 from tl_tui.tag_text import COLUMNS, detail_lines, next_class, row_cells, summary_line
+from tl_tui.widgets.record_screen import open_record
 
 MAX_TAGS = 5000
 
@@ -65,6 +69,7 @@ class TagRegisterScreen(ModalScreen[None]):
         self.views: list[TagView] = []  # as listed, before the screen's own filters
         self.shown: list[TagView] = []
         self.detail: TagView | None = None  # the highlighted tag with its issues
+        self.labels = Labels()  # the labels of the tag screen, loaded on mount
 
     # --- layout --------------------------------------------------------------------------
 
@@ -78,6 +83,7 @@ class TagRegisterScreen(ModalScreen[None]):
             yield Static(self.KEY_HINTS, markup=False, id="tags-hints")
 
     def on_mount(self) -> None:
+        self.labels = load_labels(self.client, f"project:{self.project}", ("engineering.Tag",))
         self.query_one("#tags-table", DataTable).add_columns(*COLUMNS)
         self.reload()
         self.query_one("#tags-table", DataTable).focus()
@@ -110,7 +116,7 @@ class TagRegisterScreen(ModalScreen[None]):
         table.clear()
         for view in self.shown:
             # Text, not str: a cell is read as markup, and a title such as [a, b] is not markup
-            table.add_row(*(Text(cell) for cell in row_cells(view)), key=view.number)
+            table.add_row(*(Text(cell) for cell in row_cells(view, self.labels)), key=view.number)
         if self.shown:
             numbers = [v.number for v in self.shown]
             table.move_cursor(row=numbers.index(keep) if keep in numbers else 0)
@@ -122,6 +128,7 @@ class TagRegisterScreen(ModalScreen[None]):
                 violations_only=self.violations_only,
                 include_ended=self.include_ended,
                 text=self.text,
+                labels=self.labels,
             )
         )
         self._describe()
@@ -150,7 +157,8 @@ class TagRegisterScreen(ModalScreen[None]):
             full = view  # the listing's copy: no issues
             self._say(describe_error(exc), error=True)
         self.detail = full
-        detail.update("\n".join(detail_lines(full)))
+        technical = mode_of(self.app).technical
+        detail.update("\n".join(detail_lines(full, self.labels, technical=technical)))
 
     def _say(self, text: str, *, error: bool = False) -> None:
         self.query_one("#tags-status", Static).update(("! " if error else "") + text)
@@ -160,6 +168,15 @@ class TagRegisterScreen(ModalScreen[None]):
     def on_data_table_row_highlighted(self, event: DataTable.RowHighlighted) -> None:
         event.stop()
         self._describe()
+
+    def on_data_table_row_selected(self, event: DataTable.RowSelected) -> None:
+        """Enter on a row opens its full record; Esc on that screen returns to this row."""
+        event.stop()
+        if not 0 <= event.cursor_row < len(self.shown):
+            return
+        view = self.shown[event.cursor_row]
+        actor = str(getattr(self.app, "actor", "user:dev"))
+        open_record(self, self.client, f"project:{self.project}", self.project, actor, view.id)
 
     def on_input_changed(self, event: Input.Changed) -> None:
         event.stop()
@@ -206,3 +223,7 @@ class TagRegisterScreen(ModalScreen[None]):
             self.query_one("#tags-table", DataTable).focus()
             return
         self.dismiss(None)
+
+    def refresh_for_display_mode(self) -> None:
+        """Technical details on or off: the panel is built again in the new mode."""
+        self._fill(self._number())

@@ -26,6 +26,7 @@ from tl_mod_schemareg.impact_types import ImpactEntry, ImpactReport
 from tl_mod_schemareg.views import SampleExample, SampleTestView
 from tl_schema.classify import Change, build_report
 from tl_tui.app import TlApp
+from tl_tui.display import DisplayMode
 from tl_tui.widgets.prompt import PromptScreen
 from tl_tui.widgets.schema_review_screen import SchemaReviewScreen
 
@@ -72,6 +73,14 @@ def client_with(state: str = "Draft", *, analysed: bool = True) -> FakeClient:
     return client
 
 
+def show_technical(app: TlApp, screen: SchemaReviewScreen, on: bool) -> None:
+    """Switch the app's display mode and draw the review again, as the toggle will."""
+    mode = DisplayMode()
+    mode.technical = on
+    app.display_mode = mode  # pyright: ignore[reportAttributeAccessIssue]  # App does not declare it
+    screen.refresh_for_display_mode()
+
+
 def scenario(
     client: FakeClient,
     steps: Callable[[Pilot[Any], TlApp, SchemaReviewScreen], Awaitable[None]],
@@ -93,16 +102,24 @@ def scenario(
 def test_the_screen_shows_the_title_the_next_step_and_the_reports() -> None:
     async def steps(pilot: Pilot[Any], app: TlApp, screen: SchemaReviewScreen) -> None:
         text = screen_text(app)
-        assert "co.acme.engineering@3.3.0  Draft  class constraining" in text
+        assert "Engineering, version 3.3.0  Draft  class constraining" in text
         assert "Next: analyse (a), then submit (s)." in text
         assert "Worst constraining  auto-adoptable no  blocks submit no" in text
-        assert "constraining  psets.a.c  c is required." in text
+        assert "constraining  A: c  c is required." in text
         assert "Impact (stored)" in text and "Scope company" in text
+        assert "Digest" not in text
         assert (
-            "records  psets.valve_data.size_in  property_removed  12  12 records hold a value."
-            in text
+            "records  Valve data: size in  property_removed  12  12 records hold a value." in text
         )
         assert "Not run: press t to test on a sample of records." in text
+        show_technical(app, screen, True)
+        text = screen_text(app)
+        assert "co.acme.engineering@3.3.0  Draft  class constraining" in text
+        assert "Base co.acme.engineering@3.2.0" in text and "Digest " in text
+        assert "constraining  psets.a.c  c is required." in text
+        assert "records  psets.valve_data.size_in  property_removed" in text
+        show_technical(app, screen, False)
+        assert "co.acme.engineering@3.3.0" not in screen_text(app)
         await pilot.press("escape")
         await pilot.pause()
         assert not isinstance(app.screen, SchemaReviewScreen)
@@ -121,7 +138,21 @@ def test_a_version_not_analysed_says_so_and_analyse_is_one_command_as_the_person
         command = client.schemareg_commands[0]
         assert isinstance(command, AnalyseSchemaPackage)
         assert (command.actor, command.source, command.package_id) == ("user:boss", "tui", ID)
-        assert "Analysed co.acme.engineering@3.3.0." in screen_text(app)
+        assert "Analysed Engineering, version 3.3.0." in screen_text(app)
+
+    scenario(client, steps)
+
+
+def test_a_status_line_names_the_package_in_technical_mode_only() -> None:
+    client = client_with(analysed=False)
+
+    async def steps(pilot: Pilot[Any], app: TlApp, screen: SchemaReviewScreen) -> None:
+        show_technical(app, screen, True)
+        await pilot.press("a")
+        await pilot.pause()
+        text = screen_text(app)
+        assert "Analysed co.acme.engineering@3.3.0." in text
+        assert "Engineering, version" not in text.split("Analysed", 1)[1].split("\n", 1)[0]
 
     scenario(client, steps)
 
@@ -133,10 +164,10 @@ def test_submit_and_approve_each_run_their_command() -> None:
         assert "Next: approve (y) or ask for changes (c)." in screen_text(app)
         await pilot.press("s")
         await pilot.pause()
-        assert "Submitted co.acme.engineering@3.3.0 for review." in screen_text(app)
+        assert "Submitted Engineering, version 3.3.0 for review." in screen_text(app)
         await pilot.press("y")
         await pilot.pause()
-        assert "Approved co.acme.engineering@3.3.0." in screen_text(app)
+        assert "Approved Engineering, version 3.3.0." in screen_text(app)
         kinds = [type(c) for c in client.schemareg_commands]
         assert kinds == [SubmitSchemaPackage, ApproveSchemaPackage]
         assert all(c.package_id == ID for c in client.schemareg_commands)  # type: ignore[attr-defined]
@@ -175,7 +206,7 @@ def test_sending_back_asks_for_a_reason_and_escape_sends_nothing() -> None:
         await pilot.pause()
         sent = client.schemareg_commands[0]
         assert isinstance(sent, RequestSchemaChanges) and sent.reason == "Too wide"
-        assert "Sent co.acme.engineering@3.3.0 back to its author." in screen_text(app)
+        assert "Sent Engineering, version 3.3.0 back to its author." in screen_text(app)
 
     scenario(client, steps)
 
@@ -198,7 +229,7 @@ def test_publishing_needs_the_word_typed() -> None:
         published = client.schemareg_commands[0]
         assert isinstance(published, PublishSchemaPackage) and published.package_id == ID
         assert published.auto_adopt is False
-        assert "Published co.acme.engineering@3.3.0." in screen_text(app)
+        assert "Published Engineering, version 3.3.0." in screen_text(app)
 
     scenario(client, steps)
 
@@ -225,9 +256,14 @@ def test_t_runs_the_sample_test_and_a_command_clears_it() -> None:
         await pilot.press("t")
         await pilot.pause()
         text = screen_text(app)
-        assert "Tested co.acme.engineering@3.3.0  scope company  sample 1000  checked 40" in text
+        assert "Tested Engineering, version 3.3.0  scope company  sample 1000  checked 40" in text
         assert "Newly nonconformant 2  newly warning 1  fixed 3" in text
-        assert "V-101  psets.a.c  required  Missing." in text
+        assert "V-101  A: c  required  Missing." in text
+        show_technical(app, screen, True)
+        assert "Tested co.acme.engineering@3.3.0  scope company  sample 1000  checked 40" in (
+            screen_text(app)
+        )
+        show_technical(app, screen, False)
         await pilot.press("s")  # a sample belongs to the content it was made for
         await pilot.pause()
         assert "Not run: press t to test on a sample of records." in screen_text(app)

@@ -19,11 +19,15 @@ from textual.widgets import DataTable, Static
 from tl_core.settings.types import SettingChange
 
 from tl_tui.client import ClientInterface
+from tl_tui.display import mode_of
 from tl_tui.errors import CLIENT_ERRORS, describe_error
-from tl_tui.settings_text import history_cells
+from tl_tui.settings_text import (
+    HISTORY_COLUMNS,
+    TECHNICAL_HISTORY_COLUMNS,
+    history_cells,
+    layer_label,
+)
 from tl_tui.widgets.setting_form import SettingForm
-
-COLUMNS = ("#", "Layer", "When (UTC)", "By", "Change", "Reason")
 
 
 class SettingHistory(ModalScreen[bool]):
@@ -61,10 +65,25 @@ class SettingHistory(ModalScreen[bool]):
             yield Static(self.KEY_HINTS, markup=False, id="history-status")
 
     def on_mount(self) -> None:
-        table = self.query_one("#history-table", DataTable)
-        table.add_columns(*COLUMNS)
+        self._columns()
         self.reload()
-        table.focus()
+        self.query_one("#history-table", DataTable).focus()
+
+    def _columns(self) -> None:
+        """The columns for the mode now: the change number is technical only."""
+        table = self.query_one("#history-table", DataTable)
+        table.clear(columns=True)
+        technical = mode_of(self.app).technical
+        table.add_columns(*(TECHNICAL_HISTORY_COLUMNS if technical else HISTORY_COLUMNS))
+
+    def refresh_for_display_mode(self) -> None:
+        """Show or hide the change numbers for the mode now, keeping the highlighted change."""
+        table = self.query_one("#history-table", DataTable)
+        row = table.cursor_row
+        self._columns()
+        self.reload()
+        if self.changes:
+            table.move_cursor(row=min(row, len(self.changes) - 1))
 
     def reload(self) -> None:
         table = self.query_one("#history-table", DataTable)
@@ -74,8 +93,10 @@ class SettingHistory(ModalScreen[bool]):
         except CLIENT_ERRORS as exc:
             self._say(describe_error(exc))
             return
+        technical = mode_of(self.app).technical
         for change in self.changes:
-            table.add_row(*(Text(c) for c in history_cells(change)), key=str(change.seq))
+            cells = history_cells(change, technical=technical)
+            table.add_row(*(Text(c) for c in cells), key=str(change.seq))
         if not self.changes:
             self._say("No changes yet: the value is the platform default.")
         else:
@@ -96,7 +117,12 @@ class SettingHistory(ModalScreen[bool]):
             return
         latest = [c for c in self.changes if c.layer == change.layer][-1]
         if latest.seq != change.seq:
-            self._say(f"Only the latest change at {change.layer} can be undone (#{latest.seq}).")
+            if mode_of(self.app).technical:
+                self._say(
+                    f"Only the latest change at {change.layer} can be undone (#{latest.seq})."
+                )
+            else:
+                self._say(f"Only the latest change at {layer_label(change.layer)} can be undone.")
             return
         try:
             view = self.client.get_setting(self.key)
@@ -108,11 +134,17 @@ class SettingHistory(ModalScreen[bool]):
             if result:
                 self.changed = True
                 self.reload()
-                self._say(f"Undid #{change.seq}.")
+                self._say(self._undone_text(change))
 
         self.app.push_screen(
             SettingForm(self.client, view, "revert", change.layer, seq=change.seq), done
         )
+
+    def _undone_text(self, change: SettingChange) -> str:
+        """The change number is technical only; plain mode says what happened."""
+        if mode_of(self.app).technical:
+            return f"Undid #{change.seq}."
+        return "Undid the change."
 
     def action_close(self) -> None:
         self.dismiss(self.changed)

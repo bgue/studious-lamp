@@ -7,10 +7,23 @@ ends with `... <n> more`. Nothing here changes anything.
 
 from __future__ import annotations
 
+import re
+
 from tl_mod_schemareg.impact_types import ImpactReport
 from tl_mod_schemareg.views import PackageDetail, SampleTestView
 
+from tl_tui.display import plain_keys
+from tl_tui.schema_text import TYPES, plain_ref
+
 MAX_LINES = 30
+
+
+def _plain(text: str, technical: bool) -> str:
+    return text if technical else plain_keys(text, TYPES)
+
+
+# A package reference as the service writes it in a message: `co.acme.engineering@4.0.0`.
+_PACKAGE_REF = re.compile(r"[A-Za-z][\w.-]*@\d+\.\d+\.\d+(?![\w]|\.\d)")
 
 #: state -> what comes next, for the line under the title.
 NEXT_STEPS = {
@@ -23,9 +36,20 @@ NEXT_STEPS = {
 }
 
 
-def title_line(detail: PackageDetail) -> str:
-    """`<key>  <state>  class <worst class or ->`."""
-    return f"{detail.key}  {detail.state}  class {detail.worst_class or '-'}"
+def title_line(detail: PackageDetail, *, technical: bool = False) -> str:
+    """`<key>  <state>  class <worst class or ->`; the key in words unless `technical`."""
+    key = detail.key if technical else plain_ref(detail.key)
+    return f"{key}  {detail.state}  class {detail.worst_class or '-'}"
+
+
+def plain_message(text: str, *, technical: bool = False) -> str:
+    """A status or refusal line with each package reference in words (`Engineering, version 4.0.0`).
+
+    Technical mode keeps the line as it came.
+    """
+    if technical:
+        return text
+    return plain_keys(_PACKAGE_REF.sub(lambda found: plain_ref(found.group(0)), text), TYPES)
 
 
 def next_step(state: str) -> str:
@@ -43,60 +67,72 @@ def _yes_no(flag: bool) -> str:
     return "yes" if flag else "no"
 
 
-def classification_lines(detail: PackageDetail) -> list[str]:
+def classification_lines(detail: PackageDetail, *, technical: bool = False) -> list[str]:
     """The classification report of the version, or why there is none.
 
     Without a report: `Not analysed: press a to analyse.` Otherwise `Worst <class>  auto-adoptable
-    yes|no  blocks submit yes|no`, `Base <name@version or ->`, then one line per change,
-    `<class>  <path>  <detail>`, cut at `MAX_LINES`.
+    yes|no  blocks submit yes|no`, `Base <name@version or ->` (in words unless `technical`),
+    then one line per change, `<class>  <path>  <detail>`, cut at `MAX_LINES`.
     """
     report = detail.classification
     if report is None:
         return ["Not analysed: press a to analyse."]
+    base = (report.base if technical else plain_ref(report.base)) if report.base else "-"
     head = [
         f"Worst {report.worst}  auto-adoptable {_yes_no(report.auto_adoptable)}"
         f"  blocks submit {_yes_no(report.blocks_submit)}",
-        f"Base {report.base or '-'}",
+        f"Base {base}",
     ]
-    changes = [f"{c.cls}  {c.path}  {c.detail}" for c in report.changes]
+    changes = [
+        f"{c.cls}  {_plain(c.path, technical)}  {_plain(c.detail, technical)}"
+        for c in report.changes
+    ]
     return [*head, *_cut(changes)]
 
 
-def impact_lines(report: ImpactReport | None) -> list[str]:
+def impact_lines(report: ImpactReport | None, *, technical: bool = False) -> list[str]:
     """What the change touches, or why there is no report.
 
     Without a report: `No impact report: press a to analyse.` Otherwise `Scope <scope>`,
-    `Digest <sha256>`, `Counts <section> <n>, ...` (a dash for none), then one line per entry,
-    `<section>  <target>  <change>  <count or ->  <detail>`, cut at `MAX_LINES`; a report that was
-    cut by the module ends with `(report cut)`.
+    `Digest <sha256>` (technical mode only), `Counts <section> <n>, ...` (a dash for none), then one
+    line per entry, `<section>  <target>  <change>  <count or ->  <detail>`, cut at `MAX_LINES`; a
+    report that was cut by the module ends with `(report cut)`.
     """
     if report is None:
         return ["No impact report: press a to analyse."]
     counts = ", ".join(f"{section} {n}" for section, n in report.counts.items()) or "-"
     entries = [
-        f"{e.section}  {e.target}  {e.change}  {'-' if e.count is None else e.count}  {e.detail}"
+        f"{e.section}  {_plain(e.target, technical)}  {e.change}"
+        f"  {'-' if e.count is None else e.count}  {_plain(e.detail, technical)}"
         for e in report.entries
     ]
-    lines = [f"Scope {report.scope}", f"Digest {report.digest}", f"Counts {counts}"]
+    lines = [f"Scope {report.scope}"]
+    if technical:
+        lines.append(f"Digest {report.digest}")
+    lines.append(f"Counts {counts}")
     lines.extend(_cut(entries))
     if report.truncated:
         lines.append("(report cut)")
     return lines
 
 
-def sample_lines(view: SampleTestView | None) -> list[str]:
+def sample_lines(view: SampleTestView | None, *, technical: bool = False) -> list[str]:
     """The test on a sample, or the key that makes it.
 
     Without one: `Not run: press t to test on a sample of records.` Otherwise
-    `Tested <package>  scope <scope>  sample <n>  checked <n>`,
-    `Newly nonconformant <n>  newly warning <n>  fixed <n>`, then one line per example,
-    `<key>  <path>  <rule>  <message>`.
+    `Tested <package>  scope <scope>  sample <n>  checked <n>` (the package in words unless
+    `technical`), `Newly nonconformant <n>  newly warning <n>  fixed <n>`, then one line per
+    example, `<key>  <path>  <rule>  <message>`.
     """
     if view is None:
         return ["Not run: press t to test on a sample of records."]
+    package = view.package if technical else plain_ref(view.package)
     return [
-        f"Tested {view.package}  scope {view.scope}  sample {view.sample}  checked {view.checked}",
+        f"Tested {package}  scope {view.scope}  sample {view.sample}  checked {view.checked}",
         f"Newly nonconformant {view.newly_nonconformant}  newly warning {view.newly_warning}"
         f"  fixed {view.fixed}",
-        *(f"{e.key}  {e.path}  {e.rule}  {e.message}" for e in view.examples),
+        *(
+            f"{e.key}  {_plain(e.path, technical)}  {e.rule}  {_plain(e.message, technical)}"
+            for e in view.examples
+        ),
     ]

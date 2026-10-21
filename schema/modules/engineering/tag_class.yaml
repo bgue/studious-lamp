@@ -34,6 +34,7 @@ enums:
 
 classes:
   TagClass:
+    title: Tag class
     description: >-
       One tag class of a scope. Record type `engineering.TagClass`. `required_psets` lists the
       names of property sets (`valve_data`) that a tag of this class must hold values for;

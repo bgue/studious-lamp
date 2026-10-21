@@ -262,7 +262,7 @@ def test_e_in_the_record_view_opens_the_form_and_a_save_refreshes_the_view() -> 
 
 def test_e_without_pset_services_warns() -> None:
     class NoServices(FakeClient):
-        def form_metadata(self, scope: str, record_type: str):  # noqa: ANN202
+        def form_metadata(self, scope: str, record_type: str, record_id: str | None = None):  # noqa: ANN202
             raise NotImplementedError
 
     client = NoServices.with_valve_example()

@@ -17,6 +17,8 @@ from tl_mod_documents.derivation.publish import CompensationPlan, PublishPlan
 from tl_mod_documents.derivation.validation import ValidationReport
 from tl_mod_documents.derivation.views import DerivedSummary, DerivedView, JobView
 
+from tl_tui.display import humanize
+
 DERIVED_COLUMNS = ("Key", "State", "Pass", "Rows", "Errors", "Schema")
 JOB_COLUMNS = ("Job", "Kind", "State", "Try", "Derived", "Note")
 PLAN_COLUMNS = ("Row", "Key", "Action", "Note")
@@ -33,7 +35,16 @@ def short(value: object, width: int = MAX_CELL) -> str:
 # --- derived documents -----------------------------------------------------------------------
 
 
-def derived_cells(view: DerivedSummary) -> tuple[str, ...]:
+def schema_text(code: str, version: str, *, technical: bool = True) -> str:
+    """The schema as a derived-document screen shows it: ``instrument-index@1.0.0`` when
+    ``technical``, else its plain label (``Instrument index``). Plain text never shows the
+    package name or the version."""
+    if technical:
+        return f"{code}@{version}"
+    return humanize(code.replace("-", " "))
+
+
+def derived_cells(view: DerivedSummary, *, technical: bool = True) -> tuple[str, ...]:
     """The six cells of a table row, in the order of ``DERIVED_COLUMNS``."""
     return (
         view.key,
@@ -41,16 +52,17 @@ def derived_cells(view: DerivedSummary) -> tuple[str, ...]:
         str(view.content_rev),
         short(view.row_count),
         short(view.error_count),
-        f"{view.schema_code}@{view.schema_version}",
+        schema_text(view.schema_code, view.schema_version, technical=technical),
     )
 
 
-def derived_detail_lines(view: DerivedView) -> list[str]:
+def derived_detail_lines(view: DerivedView, *, technical: bool = True) -> list[str]:
     """The panel under the table: facts, the running job, and one line per pass."""
+    schema = schema_text(view.schema_code, view.schema_version, technical=technical)
     lines = [
         f"{view.key}  {view.title}",
         f"state {view.state}  |  method {view.method}  |  source {view.source_ref}",
-        f"schema {view.schema_code}@{view.schema_version}  |  validation {view.validation_status}",
+        f"schema {schema}  |  validation {view.validation_status}",
     ]
     if view.published_count is not None:
         lines.append(f"published {view.published_count} records at {view.published_at}")
@@ -69,10 +81,13 @@ def derived_detail_lines(view: DerivedView) -> list[str]:
     return lines
 
 
-def report_lines(report: ValidationReport, limit: int = MAX_REPORT_LINES) -> list[str]:
+def report_lines(
+    report: ValidationReport, limit: int = MAX_REPORT_LINES, *, technical: bool = True
+) -> list[str]:
     """The report: a header, the counts, then one line per issue (at most ``limit``)."""
+    schema = schema_text(report.schema_code, report.schema_version, technical=technical)
     lines = [
-        f"{report.schema_code}@{report.schema_version}: {report.status}",
+        f"{schema}: {report.status}",
         f"rows checked {report.rows_checked}  with errors {report.rows_with_errors}  "
         f"errors {report.error_count}  warnings {report.warning_count}",
     ]
@@ -169,12 +184,17 @@ def plan_cells(plan: PublishPlan, limit: int | None = None) -> list[tuple[str, .
     return [(str(r.row), short(r.key), r.action, short("; ".join(r.problems), 80)) for r in rows]
 
 
-def plan_header_lines(plan: PublishPlan) -> list[str]:
-    """What the preview says before the table: the target, the counts and what stops it."""
+def plan_header_lines(plan: PublishPlan, *, technical: bool = True) -> list[str]:
+    """What the preview says before the table: the target, the counts and what stops it.
+
+    Plain text names the schema by its label, without the package name or version."""
     counts = plan.counts
+    if technical or plan.schema_key is None:
+        schema = plan.schema_key or "no schema"
+    else:
+        schema = schema_text(plan.schema_key.split("@", 1)[0], "", technical=False)
     lines = [
-        f"{plan.derived_key} pass {plan.content_rev} to {plan.target or '-'} "
-        f"({plan.schema_key or 'no schema'})",
+        f"{plan.derived_key} pass {plan.content_rev} to {plan.target or '-'} ({schema})",
         f"create {counts.get('create', 0)}  exists {counts.get('exists', 0)}  "
         f"differs {counts.get('differs', 0)}  invalid {counts.get('invalid', 0)}",
     ]

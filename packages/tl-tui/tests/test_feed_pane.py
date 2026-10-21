@@ -139,9 +139,7 @@ def test_the_pane_lists_posts_and_cards_newest_first_with_a_title_and_tabs() -> 
         await pilot.pause()
         screen = screen_text(app)
         assert "Feed · P123" in screen and "[All] Posts Events #hold" in screen
-        assert (
-            screen.index("agent:triage ⚙") < screen.index("mlee") < screen.index("▤ jsmith created")
-        )
+        assert screen.index("triage ⚙") < screen.index("mlee") < screen.index("▤ jsmith created")
         assert "Spool arrived #FV-1001 #hold @party:fab-a" in screen
         assert "proposal: constraint on FV-1001 [a]" in screen
 

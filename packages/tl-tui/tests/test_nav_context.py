@@ -8,6 +8,7 @@ from helpers import run_pilot, screen_text
 from textual.app import App, ComposeResult
 from textual.message import Message
 from textual.pilot import Pilot
+from tl_tui.display import DisplayMode
 from tl_tui.messages import NavSelected
 from tl_tui.widgets.context_panel import ContextPanel, context_text, flatten_psets
 from tl_tui.widgets.footer import hints_for
@@ -67,6 +68,7 @@ def test_context_text_for_sparse_and_missing_records() -> None:
 class Host(App[None]):
     def __init__(self) -> None:
         super().__init__()
+        self.display_mode = DisplayMode()
         self.seen: list[Message] = []
 
     def compose(self) -> ComposeResult:
@@ -116,9 +118,16 @@ def test_context_panel_renders_and_updates_the_record_literally() -> None:
         panel.show_record({**RECORD, "title": "[bold]Valve[/bold]"})
         await pilot.pause()
         text = screen_text(app)
-        assert "FV-1001  v3" in text and "[bold]Valve[/bold]" in text
-        assert "valve_data.size_in  6" in text
+        assert "FV-1001" in text and "v3" not in text and "[bold]Valve[/bold]" in text
+        assert "Size in  6" in text and "── Properties ──" in text and "Schema" not in text
         assert panel.record is not None and panel.record["key"] == "FV-1001"
+        assert panel.text == context_text(panel.record, technical=False)
+        app.display_mode.technical = True
+        panel.refresh_for_display_mode()
+        await pilot.pause()
+        text = screen_text(app)
+        assert "FV-1001  v3" in text and "valve_data.size_in  6" in text
+        assert "#a91f…3c" in text
         assert panel.text == context_text(panel.record)
         panel.show_record(None)
         await pilot.pause()

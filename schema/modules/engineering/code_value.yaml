@@ -28,6 +28,7 @@ enums:
 
 classes:
   CodeValue:
+    title: Code value
     description: >-
       One value of a code list, in the scope that defined it. Record type `engineering.CodeValue`.
       `attributes` holds what a list adds to a value (for a unit of measure its UCUM code and

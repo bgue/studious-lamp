@@ -20,18 +20,22 @@ from textual.binding import Binding, BindingType
 from textual.containers import Vertical, VerticalScroll
 from textual.screen import ModalScreen
 from textual.widgets import DataTable, Static
+from tl_core.settings.layers import project_of_scope
 from tl_mod_schemareg.views import PackageDetail, PackageSummary
 
 from tl_tui.client import ClientInterface
+from tl_tui.display import mode_of
 from tl_tui.errors import CLIENT_ERRORS, describe_error
 from tl_tui.schema_text import (
     COLUMNS,
     diff_lines,
     header_lines,
     lint_lines,
+    plain_ref,
     property_lines,
     tree_cells,
 )
+from tl_tui.widgets.record_screen import open_record
 
 TABS = ("Properties", "Lint", "Diff")
 
@@ -112,7 +116,8 @@ class SchemaWorkbenchScreen(ModalScreen[None]):
         table = self.query_one("#schema-table", DataTable)
         table.clear(columns=True)
         table.add_columns(*COLUMNS)
-        for row, cells in zip(self.rows, tree_cells(self.rows), strict=True):
+        technical = mode_of(self.app).technical
+        for row, cells in zip(self.rows, tree_cells(self.rows, technical=technical), strict=True):
             table.add_row(*(Text(c) for c in cells), key=row.id)
         if self.rows:
             ids = [row.id for row in self.rows]
@@ -138,6 +143,7 @@ class SchemaWorkbenchScreen(ModalScreen[None]):
         self.query_one("#schema-tabs", Static).update(tabs)
         header = self.query_one("#schema-header", Static)
         panel = self.query_one("#schema-detail", Static)
+        technical = mode_of(self.app).technical
         row = self.current()
         if row is None:
             header.update("No package versions.")
@@ -148,19 +154,24 @@ class SchemaWorkbenchScreen(ModalScreen[None]):
             try:
                 detail = self.client.get_schema_package(row.id)
             except CLIENT_ERRORS as exc:
-                header.update(row.key)
+                header.update(row.key if technical else plain_ref(row.key))
                 panel.update("")
                 self._say(describe_error(exc), error=True)
                 return
             self.details[row.id] = detail
-        header.update("\n".join(header_lines(detail)))
+        header.update("\n".join(header_lines(detail, technical=technical)))
         if self.tab == 0:
-            lines = property_lines(detail.content)
+            lines = property_lines(detail.content, technical=technical)
         elif self.tab == 1:
-            lines = lint_lines(detail.lint)
+            lines = lint_lines(detail.lint, technical=technical)
         else:
             lines = diff_lines(detail)
         panel.update("\n".join(lines))
+
+    def refresh_for_display_mode(self) -> None:
+        """Draw the table, title and panel again for the display mode; the highlighted row stays."""
+        keep = self.current()
+        self._fill(keep.id if keep is not None else None)
 
     def _say(self, text: str, *, error: bool = False) -> None:
         self.query_one("#schema-status", Static).update(("! " if error else "") + text)
@@ -170,6 +181,20 @@ class SchemaWorkbenchScreen(ModalScreen[None]):
     def on_data_table_row_highlighted(self, event: DataTable.RowHighlighted) -> None:
         event.stop()
         self._describe()
+
+    def on_data_table_row_selected(self, event: DataTable.RowSelected) -> None:
+        """Enter on a version opens its full record; Esc there returns to this row."""
+        event.stop()
+        if not 0 <= event.cursor_row < len(self.rows):
+            return
+        open_record(
+            self,
+            self.client,
+            self.scope,
+            project_of_scope(self.scope) or "",
+            self.actor,
+            self.rows[event.cursor_row].id,
+        )
 
     # --- actions -------------------------------------------------------------------------
 

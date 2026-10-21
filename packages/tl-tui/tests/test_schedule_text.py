@@ -35,7 +35,7 @@ def test_schedule_and_snapshot_rows() -> None:
     [listed] = client.list_schedules("P123")
     assert st.schedule_cells(listed) == (
         "MAIN",
-        "current",
+        "Current",
         "2",
         "2026-10-12",
         "2",
@@ -60,7 +60,7 @@ def test_the_schedule_panel_warns_while_the_links_are_being_checked() -> None:
     detail = world().get_schedule("P123", "MAIN")
     assert st.schedule_detail_lines(detail) == [
         "MAIN  MAIN schedule",
-        "type current  |  owner -  |  P6 project MAIN",
+        "type Current  |  owner -  |  P6 project MAIN",
         "current snapshot 2  |  data date 2026-10-12  |  2 snapshots",
     ]
     checking = st.schedule_detail_lines(detail.model_copy(update={"links_being_checked": True}))
@@ -71,13 +71,17 @@ def test_the_schedule_panel_warns_while_the_links_are_being_checked() -> None:
 def test_the_snapshot_panel_names_the_file_the_previous_snapshot_and_what_failed() -> None:
     current = world().get_schedule("P123", "MAIN").snapshots[0]
     assert st.snapshot_detail_lines(current) == [
-        "MAIN#2  Published (current)  |  data date 2026-10-12T08:00  |  P6 20.12",
+        "Snapshot 2  Published (current)  |  data date 2026-10-12T08:00  |  P6 20.12",
         "activities 5  relationships 4  WBS 2  calendars 1  codes 0  user fields 0",
-        "errors 0  warnings 0  |  file MAIN-2.xer  |  requested by user:dev",
+        "errors 0  warnings 0  |  file MAIN-2.xer  |  requested by dev",
         "compares with snapshot 1",
     ]
     waiting = current.model_copy(update={"state": "Processing", "is_current": False})
-    assert "waiting for the worker (`tl xer worker`)" in st.snapshot_detail_lines(waiting)
+    assert "waiting to be processed" in st.snapshot_detail_lines(waiting)
+    assert not any("tl xer worker" in line for line in st.snapshot_detail_lines(waiting))
+    technical = st.snapshot_detail_lines(waiting, technical=True)
+    assert technical[0].startswith("MAIN#2  Processing  |")
+    assert "waiting for the worker (`tl xer worker`)" in technical
     failed = current.model_copy(update={"state": "Invalid", "last_error": "e\n" * 200})
     last = st.snapshot_detail_lines(failed)[-1]
     assert last.startswith("last error: e e e") and len(last) == len("last error: ") + 200

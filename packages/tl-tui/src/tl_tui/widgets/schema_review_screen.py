@@ -30,11 +30,13 @@ from tl_mod_schemareg.handlers.packages import (
 from tl_mod_schemareg.views import PackageDetail, SampleTestView
 
 from tl_tui.client import ClientInterface
+from tl_tui.display import mode_of
 from tl_tui.errors import CLIENT_ERRORS, describe_error
 from tl_tui.schema_review_text import (
     classification_lines,
     impact_lines,
     next_step,
+    plain_message,
     sample_lines,
     title_line,
 )
@@ -114,8 +116,9 @@ class SchemaReviewScreen(ModalScreen[None]):
         detail = self.detail
         if detail is None:
             return []
+        technical = mode_of(self.app).technical
         if not self.project_view:
-            return ["Impact (stored)", *impact_lines(detail.impact)]
+            return ["Impact (stored)", *impact_lines(detail.impact, technical=technical)]
         project = project_of_scope(self.scope)
         if project is None:
             return ["Impact of a project", "The scope is the company: no project to pin it in."]
@@ -123,7 +126,7 @@ class SchemaReviewScreen(ModalScreen[None]):
             report = self.client.get_project_schema_impact(project, detail.package, detail.version)
         except CLIENT_ERRORS as exc:
             return [f"Impact in {project}", f"! {describe_error(exc)}"]
-        return [f"Impact in {project}", *impact_lines(report)]
+        return [f"Impact in {project}", *impact_lines(report, technical=technical)]
 
     def _show(self) -> None:
         detail = self.detail
@@ -132,20 +135,26 @@ class SchemaReviewScreen(ModalScreen[None]):
             self.query_one("#review-next", Static).update("")
             self.query_one("#review-body", Static).update("This package version could not be read.")
             return
-        self.query_one("#review-title", Static).update(title_line(detail))
+        technical = mode_of(self.app).technical
+        self.query_one("#review-title", Static).update(title_line(detail, technical=technical))
         self.query_one("#review-next", Static).update(next_step(detail.state))
         lines = [
             "Classification",
-            *classification_lines(detail),
+            *classification_lines(detail, technical=technical),
             "",
             *self._impact(),
             "",
             "Test on a sample",
-            *sample_lines(self.sample),
+            *sample_lines(self.sample, technical=technical),
         ]
         self.query_one("#review-body", Static).update("\n".join(lines))
 
+    def refresh_for_display_mode(self) -> None:
+        """Draw the title, the body and the rest again for the display mode."""
+        self._show()
+
     def _say(self, text: str, *, error: bool = False) -> None:
+        text = plain_message(text, technical=mode_of(self.app).technical)
         self.query_one("#review-status", Static).update(("! " if error else "") + text)
 
     # --- steps ---------------------------------------------------------------------------

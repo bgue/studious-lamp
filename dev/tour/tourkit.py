@@ -26,7 +26,7 @@ import re
 import shutil
 import sys
 import tempfile
-from collections.abc import Awaitable, Callable, Iterator
+from collections.abc import Awaitable, Callable, Iterator, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime, timedelta
@@ -460,11 +460,67 @@ def screen_text(app: App[Any]) -> str:
     return "\n".join(strip.text.rstrip() for strip in strips)
 
 
-def shot_tui(ws: Workspace, app: App[Any], name: str, title: str, *needles: str) -> None:
-    """Save the current screen as an SVG after checking each needle is on it."""
+LEAKS: list[str] = []  # one "<shot> <tokens>" per plain screenshot that carries technical text
+
+
+def leaks_in(text: str, labels: Any = None, keys: Sequence[str] = ()) -> list[str]:
+    """The technical tokens in a captured screen's text: ids, hashes, versions, internal keys.
+
+    ``keys`` are the record-type and property keys of the schema (``labels_load.schema_keys``);
+    the plain walk (``test_plain_walk.py``) looks for the same two kinds of token.
+    """
+    from tl_tui.display import find_technical, key_hits
+
+    return [*find_technical(text, labels), *key_hits(text, keys)]
+
+
+def check_plain(name: str, text: str, labels: Any = None, keys: Sequence[str] = ()) -> list[str]:
+    """Record a screenshot whose text carries technical text; return its tokens (none is clean)."""
+    found = leaks_in(text, labels, keys)
+    if found:
+        LEAKS.append(f"{name} {' '.join(repr(token) for token in found)}")
+    return found
+
+
+def report_leaks() -> int:
+    """Print one ``LEAK <shot> <tokens>`` line per leak; return the tour's exit code."""
+    for line in LEAKS:
+        print(f"LEAK {line}", flush=True)
+    return 1 if LEAKS else 0
+
+
+_KEYS: dict[
+    tuple[int, str], tuple[Any, list[str]]
+] = {}  # the client is kept so its id is not reused
+
+
+def _labels_and_keys(app: App[Any]) -> tuple[Any, Sequence[str]]:
+    """The viewer's labels and the schema keys for one app (keys are read once per client)."""
+    from tl_tui.labels_load import load_labels, schema_keys
+
+    client, scope = getattr(app, "client", None), getattr(app, "scope", None)
+    if client is None or scope is None:
+        return None, ()
+    labels = load_labels(client, scope)
+    if (id(client), scope) not in _KEYS:
+        _KEYS[(id(client), scope)] = (client, schema_keys(client, scope, labels))
+    return labels, _KEYS[(id(client), scope)][1]
+
+
+def shot_tui(
+    ws: Workspace, app: App[Any], name: str, title: str, *needles: str, technical: bool = False
+) -> None:
+    """Save the current screen as an SVG after checking each needle is on it.
+
+    The screen's text also goes through the leak finder (``check_plain``); ``technical=True``
+    marks a shot that shows technical details on purpose (Ctrl+D on), which is not checked.
+    """
     text = screen_text(app)
     for needle in needles:
         expect(needle in text, f"{name}: {needle!r} is not on the screen:\n{text}")
+    if not technical:
+        labels, keys = _labels_and_keys(app)
+        check_plain(name, text, labels, keys)
     ws.save(name, clean_svg(app.export_screenshot(title=title)))
 
 

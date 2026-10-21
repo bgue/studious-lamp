@@ -24,8 +24,10 @@ from textual.widgets import DataTable, Static
 from tl_core.settings.layers import project_of_scope
 
 from tl_tui.client import ClientInterface
+from tl_tui.display import Labels, mode_of
 from tl_tui.errors import CLIENT_ERRORS, describe_error
-from tl_tui.integration_text import COLUMNS, LABELS, cells, detail_lines
+from tl_tui.integration_text import LABELS, cells, columns, detail_lines
+from tl_tui.labels_load import load_labels
 
 KINDS = ("endpoints", "rules", "actions", "enrichers", "apps", "invocations", "deliveries")
 KILL_SWITCH = "integration.kill_switch"
@@ -78,6 +80,7 @@ class IntegrationScreen(ModalScreen[None]):
         self.kind = kind if kind in KINDS else KINDS[0]
         self.rows: list[dict[str, Any]] = []
         self.names: dict[str, str] = {}  # endpoint id -> app/name, for the error queue
+        self.labels: Labels = Labels()  # service and people names, for plain text
         self.kill_switch: bool | None = None
 
     # --- layout --------------------------------------------------------------------------
@@ -92,6 +95,7 @@ class IntegrationScreen(ModalScreen[None]):
             yield Static(self.KEY_HINTS, markup=False, id="integration-hints")
 
     def on_mount(self) -> None:
+        self.labels = load_labels(self.client, self.scope, ())
         self.reload()
         self.query_one("#integration-table", DataTable).focus()
 
@@ -137,11 +141,17 @@ class IntegrationScreen(ModalScreen[None]):
     def _fill(self, keep: str | None) -> None:
         """Show `self.rows` in the table, the title and the detail panel."""
         table = self.query_one("#integration-table", DataTable)
+        technical = mode_of(self.app).technical
         table.clear(columns=True)
-        table.add_columns(*COLUMNS[self.kind])
+        table.add_columns(*columns(self.kind, technical=technical))
         for row in self.rows:
             table.add_row(
-                *(Text(c) for c in cells(self.kind, row, self.names)),
+                *(
+                    Text(c)
+                    for c in cells(
+                        self.kind, row, self.names, labels=self.labels, technical=technical
+                    )
+                ),
                 key=self._row_id(row),
             )
         if self.rows:
@@ -181,10 +191,19 @@ class IntegrationScreen(ModalScreen[None]):
         if row is None:
             panel.update(f"No {LABELS[self.kind].lower()}.")
             return
-        panel.update("\n".join(detail_lines(self.kind, row, self.names)))
+        technical = mode_of(self.app).technical
+        panel.update(
+            "\n".join(
+                detail_lines(self.kind, row, self.names, labels=self.labels, technical=technical)
+            )
+        )
 
     def _say(self, text: str, *, error: bool = False) -> None:
         self.query_one("#integration-status", Static).update(("! " if error else "") + text)
+
+    def refresh_for_display_mode(self) -> None:
+        """Redraw the columns and the panel when technical details are switched (D14)."""
+        self._fill(self._row_id(self.current()))
 
     # --- events --------------------------------------------------------------------------
 

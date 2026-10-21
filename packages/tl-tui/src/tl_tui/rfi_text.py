@@ -12,6 +12,7 @@ from tl_mod_correspondence.reports_technical import RfiLog, RfiLogLine
 from tl_mod_correspondence.views_domain import TechnicalView
 
 from tl_tui.correspondence_text import clock_line
+from tl_tui.display import Labels, code_label, domain_label, humanize
 
 RFI_COLUMNS = (
     "Number",
@@ -50,12 +51,21 @@ def impact_text(line: RfiLogLine) -> str:
     return f"C:{cost} S:{schedule}"
 
 
-def rfi_cells(line: RfiLogLine) -> tuple[str, ...]:
-    """The eleven cells of a log row, in the order of ``RFI_COLUMNS``."""
+def rfi_cells(
+    line: RfiLogLine, labels: Labels | None = None, *, technical: bool = True
+) -> tuple[str, ...]:
+    """The eleven cells of a log row, in the order of ``RFI_COLUMNS``. Without ``technical`` the
+    State and Kind cells read as words (``labels`` gives the domain labels)."""
+    if technical:
+        state, kind = line.state, line.subtype
+    else:
+        state = humanize(line.state)
+        lab = labels if labels is not None else Labels()
+        kind = domain_label(lab, "technical", line.subtype) if line.subtype else "-"
     return (
         line.number,
-        line.state,
-        line.subtype,
+        state,
+        kind,
         line.discipline or "-",
         line.raised_on,
         line.required_by or "-",
@@ -91,10 +101,22 @@ def rfi_summary(
     return " | ".join(parts)
 
 
-def rfi_lines(view: TechnicalView) -> list[str]:
-    """The panel under the log: the highlighted RFI, its answer, its review and what it led to."""
-    lines = [
-        f"{view.number}  {view.state}  {view.subtype or '-'}  class {view.confidentiality}",
+def rfi_lines(
+    view: TechnicalView, labels: Labels | None = None, *, technical: bool = False
+) -> list[str]:
+    """The panel under the log: the highlighted RFI, its answer, its review and what it led to.
+    ``technical`` adds the record id and the clock keys, and keeps the raw kind and states."""
+    lab = labels if labels is not None else Labels()
+    if technical:
+        state, kind, klass = view.state, view.subtype or "-", view.confidentiality
+    else:
+        state = humanize(view.state)
+        kind = domain_label(lab, "technical", view.subtype) if view.subtype else "-"
+        klass = code_label(lab, "confidentiality", view.confidentiality)
+    lines = [f"{view.number}  {state}  {kind}  class {klass}"]
+    if technical:
+        lines.append(f"record {view.id}")
+    lines += [
         f"subject: {view.subject}",
         f"question: {view.question}",
         f"proposed: {view.proposed_solution or '-'}",
@@ -112,7 +134,8 @@ def rfi_lines(view: TechnicalView) -> list[str]:
     if view.answer_item_number:
         lines.append(f"answered by item {view.answer_item_number}")
     if view.review_decision:
-        review = f"reviewed {view.reviewed_on or '-'}: {view.review_decision}"
+        decision = view.review_decision if technical else humanize(view.review_decision)
+        review = f"reviewed {view.reviewed_on or '-'}: {decision}"
         if view.review_note:
             review += f" ({view.review_note})"
         lines.append(review)
@@ -122,5 +145,5 @@ def rfi_lines(view: TechnicalView) -> list[str]:
         )
     if view.clocks:
         lines.append("clocks:")
-        lines.extend(f"  {clock_line(c)}" for c in view.clocks)
+        lines.extend(f"  {clock_line(c, technical=technical)}" for c in view.clocks)
     return lines

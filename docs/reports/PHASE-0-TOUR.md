@@ -28,7 +28,7 @@ To open the TUI on a dev ledger yourself run `just tui` (it creates the dev acco
 
 ## 1. Records and gap-free numbering
 
-![The record grid: keys, titles, workflow state, version and a conformance verdict per record](tour/phase-0/01a-record-grid.svg)
+![The record grid: keys, titles, workflow state and a conformance verdict per record](tour/phase-0/01a-record-grid.svg)
 
 ![A key given by the numbering service, in the same transaction as the record](tour/phase-0/01b-numbering-cli.svg)
 
@@ -36,19 +36,19 @@ To open the TUI on a dev ledger yourself run `just tui` (it creates the dev acco
 
 **Standard activity.** A project keeps a register of its items in a spreadsheet or in each tool separately. Whoever adds a row types the next number by hand, copies the last one, or asks a colleague. Numbers get reused, skipped, or typed differently in the drawing, the DMS and the completions list (brief §0.1 calls this identity drift), and a count of records means a count of rows.
 
-**Novel approach.** Every record is a stream in the ledger with a common envelope (key, type, title, status, version, conformance). A numbering pattern (`{project}-{type}-{seq:4}`, `schema/fixtures/numbering/patterns.yaml`) allocates the key inside the transaction that creates the record: the ledger shows a `Numbering.Allocated` event immediately before `Record.Created`, so the sequence has no gaps and two writers cannot get the same number (P0-I3, [report](P0-I3.md)). The grid is a projection of those streams; the right-hand panel and the schema hash come from the same read.
+**Novel approach.** Every record is a stream in the ledger with a common envelope (key, type, title, status, version, conformance). A numbering pattern (`{project}-{type}-{seq:4}`, `schema/fixtures/numbering/patterns.yaml`) allocates the key inside the transaction that creates the record: the ledger shows a `Numbering.Allocated` event immediately before `Record.Created`, so the sequence has no gaps and two writers cannot get the same number (P0-I3, [report](P0-I3.md)). The grid is a projection of those streams; the right-hand panel comes from the same read. Version and schema hash show only in technical details (Ctrl+D, admins).
 
 **Unique value.** A key means one thing everywhere it is shown, and the event list is proof of how it was issued. Honest limits: a key longer than 12 characters is cut in the grid (`P123-REC-00…`, column widths are fixed in Phase 0), and `reserve_range` for pre-reserved number blocks is a stub (see the audit, row 3d).
 
 ## 2. Layered property sets and conformance
 
-![Psets of FV-1001: values by layer, with the rule each property carries](tour/phase-0/02a-psets-conforming.svg)
+![Properties of FV-1001: values by layer, with the rule each property carries in words](tour/phase-0/02a-psets-conforming.svg)
 
 ![FV-1002 has a body material outside the code list: nonconformant, still recorded](tour/phase-0/02b-psets-nonconformant.svg)
 
 ![The edit form is generated from the effective schema, not hand-built](tour/phase-0/02c-edit-form.svg)
 
-**Reproduce:** open a record and press `2` (Psets tab), `e` to edit; on the shell `uv run tl pset set --project P123 FV-1002 valve_data size_in=6 body_material=XX` and `uv run tl pset get --project P123 FV-1002`.
+**Reproduce:** open a record and press `2` (Properties tab), `e` to edit; on the shell `uv run tl pset set --project P123 FV-1002 valve_data size_in=6 body_material=XX` and `uv run tl pset get --project P123 FV-1002`.
 
 **Standard activity.** Engineering data lives in a datasheet per valve (a spreadsheet or a PDF) and in the tag list; the company's standard columns, the project's extra columns and one-off notes are mixed in the same sheet. Whether a value is allowed (a material code, a size range) is checked by eye at review, or by a macro nobody maintains, and a later change to the standard does not tell you which sheets it affects.
 
@@ -80,7 +80,7 @@ To open the TUI on a dev ledger yourself run `just tui` (it creates the dev acco
 
 ![The same menu once the link exists: Approve is allowed](tour/phase-0/04b-workflow-allowed.svg)
 
-![The transition is a ledger event shown in the record's history](tour/phase-0/04c-workflow-history.svg)
+![The transition is shown in the record's history as a change by a named person](tour/phase-0/04c-workflow-history.svg)
 
 **Reproduce:** open a record and press `w`; on the shell `uv run tl wf show --project P123 P123-REC-0001` and `tl wf transition --project P123 P123-REC-0001 approve`.
 
@@ -102,7 +102,7 @@ To open the TUI on a dev ledger yourself run `just tui` (it creates the dev acco
 
 **Standard activity.** A report is a saved filter in one tool, a pivot table over an export in another, and a question to the person who knows the sheet. A person at the site, a script and an AI assistant each need a different way to ask the same question, and they get different answers because each applies the filter its own way.
 
-**Novel approach.** There is one parser and one executor (`tl_core.query`). The TUI filter bar, the API's `q=` parameter and the MCP tool all send the same expression to it, with fields of the envelope, pset values (`psets.valve_data.size_in`), conformance, dates, boolean logic, text search and link terms. A syntax error comes back with the character position, which the filter bar shows under the text. The three screenshots show the same expression answering with the same two records, and the tour checks that the API and MCP results are identical (P0-I4, [report](P0-I4.md)).
+**Novel approach.** There is one parser and one executor (`tl_core.query`). The TUI filter bar, the API's `q=` parameter and the MCP tool all send the same expression to it, with fields of the envelope, pset values (`psets.valve_data.size_in`), conformance, dates, boolean logic, text search and link terms. A syntax error comes back with the character position, which the filter bar shows under the text. The filter bar shot (`05a`) is the one TUI shot the tour does not check for technical text, because the bar shows the query as the person typed it, with its field paths. The three screenshots show the same expression answering with the same two records, and the tour checks that the API and MCP results are identical (P0-I4, [report](P0-I4.md)).
 
 **Unique value.** A question asked once can be reused by people, programs and agents, and the answer does not depend on which door they used. Known gaps: full-text search and the brief's example fields `discipline`, `area` and `due` are not in the envelope, and filters on link counts get slow at 100,000 records (PHASE-0.md §4, D1 to D3).
 

@@ -20,12 +20,14 @@ from textual.widgets import Static
 from tl_mod_schedule.compare import Comparison
 
 from tl_tui.client import ClientInterface
+from tl_tui.display import mode_of
 from tl_tui.errors import CLIENT_ERRORS, describe_error
 from tl_tui.schedule_text import (
     COMPARE_SECTIONS,
     compare_header_lines,
     compare_section_lines,
     compare_tabs,
+    snapshot_name,
 )
 
 
@@ -73,7 +75,7 @@ class CompareScreen(ModalScreen[None]):
 
     def compose(self) -> ComposeResult:
         with Vertical():
-            yield Static(f"Comparison of {self.code}#{self.new}", markup=False, id="cp-title")
+            yield Static(self._title(), markup=False, id="cp-title")
             yield Static("", markup=False, id="cp-header")
             yield Static("", markup=False, id="cp-tabs")
             with VerticalScroll(id="cp-scroll"):
@@ -102,17 +104,26 @@ class CompareScreen(ModalScreen[None]):
             return
         self._show()
 
+    def _title(self) -> str:
+        """The snapshot compared: ``MAIN#2`` in technical mode, ``Snapshot 2`` in plain mode."""
+        technical = mode_of(self.app).technical
+        key = snapshot_name(f"{self.code}#{self.new}", technical=technical)
+        return f"Comparison of {key}"
+
     def _show(self) -> None:
         """The header, the tab line (the section on view in brackets) and the section's rows."""
         c = self.comparison
         if c is None:
             return
-        self.query_one("#cp-header", Static).update("\n".join(compare_header_lines(c)))
+        technical = mode_of(self.app).technical
+        self.query_one("#cp-header", Static).update(
+            "\n".join(compare_header_lines(c, technical=technical))
+        )
         labels = compare_tabs(c)
         labels[self.section] = f"[{labels[self.section]}]"
         self.query_one("#cp-tabs", Static).update("  ".join(labels))
         name, title = COMPARE_SECTIONS[self.section]
-        rows = [f"{title}:", *compare_section_lines(c, name)]
+        rows = [f"{title}:", *compare_section_lines(c, name, technical=technical)]
         self.query_one("#cp-body", Static).update("\n".join(rows))
         position = f"section {self.section + 1} of {len(COMPARE_SECTIONS)}"
         if c.cut:
@@ -121,6 +132,11 @@ class CompareScreen(ModalScreen[None]):
 
     def _say(self, text: str, *, error: bool = False) -> None:
         self.query_one("#cp-status", Static).update(("! " if error else "") + text)
+
+    def refresh_for_display_mode(self) -> None:
+        """Redraw the title and the held comparison in the current mode; nothing is read again."""
+        self.query_one("#cp-title", Static).update(self._title())
+        self._show()
 
     # --- actions -------------------------------------------------------------------------
 

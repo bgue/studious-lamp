@@ -2,17 +2,21 @@
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from fakes import SCOPE, FakeClient
 from helpers import run_pilot, screen_text
 from textual.app import App, ComposeResult
 from textual.pilot import Pilot
+from tl_tui.display import DisplayMode
 from tl_tui.messages import StatusMessage
 from tl_tui.widgets.column_chooser import ColumnChooser
 from tl_tui.widgets.grid import CORE_COLUMNS, DEFAULT_COLUMNS, RecordGrid
 
 VISIBLE = ["key", "title"]
+# The grid's plain default columns: the technical default set without Ver (D39, Q6).
+PLAIN_KEYS = [c.key for c in DEFAULT_COLUMNS if c.key != "version"]
 
 
 class ChooserHost(App[None]):
@@ -89,19 +93,19 @@ def test_grid_c_opens_the_chooser_with_pset_columns_and_applies_the_result() -> 
     async def scenario(pilot: Pilot[Any]) -> None:
         await pilot.pause()
         grid = app.query_one(RecordGrid)
-        assert [c.key for c in grid.columns] == [c.key for c in DEFAULT_COLUMNS]
+        assert [c.key for c in grid.columns] == PLAIN_KEYS
         assert "c columns" in RecordGrid.KEY_HINTS and "y copy" in RecordGrid.KEY_HINTS
         await pilot.press("c")
         await pilot.pause()
         assert isinstance(app.screen, ColumnChooser)
-        assert "valve_data.size_in" in screen_text(app)
+        assert "size_in" in screen_text(app) and "valve_data.size_in" not in screen_text(app)
         # CORE_COLUMNS has 8 entries; the first pset property (size_in) is the 9th item.
         await pilot.press(*["down"] * len(CORE_COLUMNS), "space", "ctrl+s")
         await pilot.pause()
         assert not isinstance(app.screen, ColumnChooser)
         keys = [c.key for c in grid.columns]
-        assert keys == [*[c.key for c in DEFAULT_COLUMNS], "psets.valve_data.size_in"]
-        assert "valve_data.si" in screen_text(app)  # the header is cut to the column width
+        assert keys == [*PLAIN_KEYS, "psets.valve_data.size_in"]
+        assert "size_in" in screen_text(app)  # plain header: the property label, not the path
 
     run_pilot(app, scenario, size=(120, 40))
 
@@ -114,9 +118,50 @@ def test_grid_c_cancel_keeps_the_columns() -> None:
         grid = app.query_one(RecordGrid)
         await pilot.press("c", "escape")
         await pilot.pause()
-        assert [c.key for c in grid.columns] == [c.key for c in DEFAULT_COLUMNS]
+        assert [c.key for c in grid.columns] == PLAIN_KEYS
 
     run_pilot(app, scenario, size=(120, 40))
+
+
+def test_grid_defaults_keep_ver_only_when_technical() -> None:
+    app = GridHost()
+    mode = DisplayMode()  # technical details on, as an admin turns them on (D39, Q6)
+    assert mode.toggle(is_admin=True) == ""
+    app.display_mode = mode  # pyright: ignore[reportAttributeAccessIssue]  # App does not declare it yet
+
+    async def scenario(pilot: Pilot[Any]) -> None:
+        await pilot.pause()
+        grid = app.query_one(RecordGrid)
+        assert [c.key for c in grid.columns] == [c.key for c in DEFAULT_COLUMNS]
+        assert "version" in [c.key for c in grid.columns]
+
+    run_pilot(app, scenario, size=(120, 40))
+
+
+def _chooser_text(app: GridHost) -> str:
+    """The text of the column chooser opened from the grid with ``c``."""
+    seen: list[str] = []
+
+    async def scenario(pilot: Pilot[Any]) -> None:
+        await pilot.pause()
+        await pilot.press("c")
+        await pilot.pause()
+        assert isinstance(app.screen, ColumnChooser)
+        seen.append(screen_text(app))
+
+    run_pilot(app, scenario, size=(120, 40))
+    return seen[0]
+
+
+def test_the_chooser_names_the_version_column_in_plain_and_ver_when_technical() -> None:
+    plain = _chooser_text(GridHost())
+    mode = DisplayMode()
+    assert mode.toggle(is_admin=True) == ""
+    technical_host = GridHost()
+    technical_host.display_mode = mode  # pyright: ignore[reportAttributeAccessIssue]  # App does not declare it yet
+    technical = _chooser_text(technical_host)
+    assert "Version" in plain and not re.search(r"\bVer\b", plain)
+    assert "Version" not in technical and re.search(r"\bVer\b", technical)
 
 
 def test_grid_y_copies_the_selection_as_tsv_to_the_clipboard() -> None:

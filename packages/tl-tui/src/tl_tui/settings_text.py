@@ -19,9 +19,13 @@ from tl_core.settings.types import SettingChange, SettingDefinition
 from tl_core.settings.values import format_value
 from tl_core.settings.views import SettingView
 
+from tl_tui.display import Labels, actor_label
+
 MARK = "●"  # set at the layer being viewed (about:config's "modified")
 MAX_VALUE = 36
 Preference = Literal["project", "company"]
+HISTORY_COLUMNS = ("Layer", "When (UTC)", "By", "Change", "Reason")
+TECHNICAL_HISTORY_COLUMNS = ("#", *HISTORY_COLUMNS)
 
 
 def user_of(actor: str) -> str | None:
@@ -55,19 +59,26 @@ def _cut(text: str, width: int) -> str:
     return text if len(text) <= width else text[: width - 1] + "…"
 
 
-def origin_text(view: SettingView) -> str:
+_ORIGIN_WORDS: dict[str, str] = {"default": "Default"}  # an origin that is not a layer
+
+
+def origin_text(view: SettingView, *, technical: bool = True) -> str:
+    """Where the value came from: the stored origin (``company``, ``default``) in technical mode,
+    its plain word (``Company``, ``Default``; see `layer_label`) otherwise; ``●`` when this layer
+    sets it."""
     e = view.effective
-    return f"{e.origin} {MARK}" if e.modified_here else e.origin
+    origin = e.origin if technical else _ORIGIN_WORDS.get(e.origin) or layer_label(e.origin)
+    return f"{origin} {MARK}" if e.modified_here else origin
 
 
-def row_cells(view: SettingView) -> tuple[str, str, str, str, str]:
+def row_cells(view: SettingView, *, technical: bool = True) -> tuple[str, str, str, str, str]:
     """The cells of a list row: key, value, type, origin and ``locked`` or an empty text."""
     e = view.effective
     return (
         e.key,
         _cut(format_value(e.value, max_items=3), MAX_VALUE),
         view.definition.type,
-        origin_text(view),
+        origin_text(view, technical=technical),
         "locked" if e.locked else "",
     )
 
@@ -100,9 +111,19 @@ def hint_for(defn: SettingDefinition) -> str:
     return "text"
 
 
-def detail_lines(view: SettingView, target: str | None) -> list[str]:
+def _where(target: str | None, *, technical: bool) -> str:
+    """The layer a change goes to, in words (`layer_label`); the raw id in technical mode."""
+    if target is None:
+        return "nowhere: platform default only"
+    return target if technical else layer_label(target)
+
+
+def detail_lines(view: SettingView, target: str | None, *, technical: bool = False) -> list[str]:
     """Everything about one setting, a line each (``name text``), the way ``tl config get --long``
-    prints it, plus the hint for typing a value and the layer a change would go to."""
+    prints it, plus the hint for typing a value and the layer a change would go to.
+
+    The sequence number of a scheduled change is shown only in technical mode.
+    """
     defn = view.definition
     e = view.effective
     lines = [
@@ -111,8 +132,8 @@ def detail_lines(view: SettingView, target: str | None) -> list[str]:
         f"value {format_value(e.value)}",
         f"default {format_value(defn.default)}",
         f"type {defn.type} ({hint_for(defn)})",
-        f"origin {origin_text(view)}",
-        f"change goes to {target if target is not None else 'nowhere: platform default only'}",
+        f"origin {origin_text(view, technical=technical)}",
+        f"change goes to {_where(target, technical=technical)}",
     ]
     if defn.docs:
         lines.append(f"docs {' '.join(defn.docs.split())}")
@@ -128,26 +149,56 @@ def detail_lines(view: SettingView, target: str | None) -> list[str]:
     if e.bounds:
         lines.append(f"bounds {json.dumps(e.bounds, sort_keys=True, ensure_ascii=False)}")
     for change in e.scheduled:
-        lines.append(
-            f"scheduled {change.applies_at} {format_value(change.new_value)} (seq {change.seq})"
-        )
+        line = f"scheduled {change.applies_at} {format_value(change.new_value)}"
+        lines.append(f"{line} (seq {change.seq})" if technical else line)
     if e.pending_effect is not None:
         lines.append(f"pending {e.pending_effect}: the change is not fully in force yet")
     return lines
 
 
-def history_cells(change: SettingChange) -> tuple[str, str, str, str, str, str]:
-    """seq, layer, time, actor, ``old -> new`` (or ``reset``) and the reason."""
+_LAYER_WORDS: dict[str, str] = {"company": "Company", "project": "Project", "user": "User"}
+
+
+def layer_label(layer: str) -> str:
+    """The plain words for a layer: ``Company``, ``Project P123``, ``User``.
+
+    The stored prefix (``project:``, ``user:``) is an internal key and never shows in plain mode;
+    the project code does. A layer of an unknown kind shows as stored.
+    """
+    kind, _, code = layer.partition(":")
+    if kind == "project" and code:
+        return f"Project {code}"
+    return _LAYER_WORDS.get(kind, layer)
+
+
+def history_cells(
+    change: SettingChange,
+    labels: Labels | None = None,
+    *,
+    technical: bool = False,
+) -> tuple[str, ...]:
+    """Layer, time, actor, ``old -> new`` (or ``reset``) and the reason, in the order of
+    `HISTORY_COLUMNS`. Technical mode puts the sequence number first (`TECHNICAL_HISTORY_COLUMNS`)
+    and shows the raw actor id (``svc:...``); plain mode names the layer in words (`layer_label`)
+    and a service by its label."""
     if change.reset:
         moved = "reset"
     else:
         before = _cut(format_value(change.old_value), 18)
         moved = f"{before} -> {_cut(format_value(change.new_value), 18)}"
+    if technical:
+        return (
+            str(change.seq),
+            change.layer,
+            change.recorded_at[:16].replace("T", " "),
+            change.actor,
+            moved,
+            change.reason or "",
+        )
     return (
-        str(change.seq),
-        change.layer,
+        layer_label(change.layer),
         change.recorded_at[:16].replace("T", " "),
-        change.actor,
+        actor_label(labels or Labels(), change.actor),
         moved,
         change.reason or "",
     )

@@ -34,7 +34,15 @@ def _expect(build: Build, mutate: Callable[[Raw], None], rule: str) -> SchemaCom
 
 def test_fixtures_compile_into_three_layers(build_docs: Build) -> None:
     psets = compile_psets(build_docs())
-    assert list(psets) == ["prj.shutdown_tie_in", "provenance", "safety_data", "valve_data"]
+    assert list(psets) == [
+        "correspondence_data",
+        "document_data",
+        "prj.shutdown_tie_in",
+        "provenance",
+        "rfi_data",
+        "safety_data",
+        "valve_data",
+    ]
     valve = psets["valve_data"]
     assert valve.layer == "standard"
     assert valve.extension == "x.P123@1.4.0"

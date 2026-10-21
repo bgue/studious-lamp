@@ -23,6 +23,7 @@ annotations:
 
 classes:
   ResponseClock:
+    title: Response clock
     description: >-
       One clock of one item. Record type `correspondence.ResponseClock`; its key is `<item number>/CLK<n>`
       and the title is its label. The row keeps the figures the register and the clocks screen need; the

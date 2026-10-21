@@ -22,6 +22,7 @@ annotations:
 
 classes:
   TechnicalItem:
+    title: Technical item
     description: >-
       The domain data of a Technical item. Record type `correspondence.TechnicalItem`, numbered
       `<project>-RFI-nnnn`, `<project>-TQ-nnnn` or `<project>-DEV-nnnn` by subtype. The question is the

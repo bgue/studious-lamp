@@ -7,6 +7,7 @@ from typing import Any
 from fakes import FakeClient
 from helpers import run_pilot, screen_text
 from textual.binding import Binding
+from textual.containers import VerticalScroll
 from textual.pilot import Pilot
 from tl_tui.app import TlApp
 from tl_tui.keymap import CONTEXTS, KEYMAP, KeyEntry, help_text
@@ -119,7 +120,13 @@ def test_f1_and_question_mark_open_the_help_screen_and_escape_closes_it() -> Non
             await pilot.pause()
             assert isinstance(app.screen, HelpScreen)
             text = screen_text(app)
-            assert "Key map" in text and "Select all loaded rows" in text
+            assert "Key map" in text
+            # the key map is longer than the box: scroll the box to the row, then it is on screen
+            lines = help_text().splitlines()
+            row = next(i for i, line in enumerate(lines) if "Select all loaded rows" in line)
+            app.screen.query_one("#help-scroll", VerticalScroll).scroll_to(y=row, animate=False)
+            await pilot.pause()
+            assert "Select all loaded rows" in screen_text(app)
             await pilot.press("escape")
             await pilot.pause()
             assert not isinstance(app.screen, HelpScreen)

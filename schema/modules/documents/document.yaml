@@ -22,6 +22,7 @@ annotations:
 
 classes:
   Document:
+    title: Document
     description: >-
       One controlled document of a project. Record type `documents.Document`. The envelope (key =
       document number, title, status = the document workflow state, psets) is in `cur_core_record`;

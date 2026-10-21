@@ -20,6 +20,7 @@ annotations:
 
 classes:
   Transmittal:
+    title: Transmittal
     description: >-
       One transmittal. Record type `documents.Transmittal`; its key is the transmittal number and the title
       is the subject. The workflow state (Draft, Issued, Acknowledged, Closed, Void) is the envelope `status`.

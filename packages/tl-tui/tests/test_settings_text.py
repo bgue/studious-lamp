@@ -5,10 +5,13 @@ from __future__ import annotations
 import pytest
 from fakes import FakeClient
 from tl_core.settings import get_definition
+from tl_core.settings.types import ScheduledChange
+from tl_tui.display import Labels
 from tl_tui.settings_text import (
     detail_lines,
     hint_for,
     history_cells,
+    layer_label,
     row_cells,
     target_layer,
     user_of,
@@ -41,6 +44,18 @@ def test_the_target_layer_follows_the_key_and_the_preference() -> None:
     assert target_layer(mode, "company", None, "kim") is None
 
 
+def test_the_origin_word_is_capitalised_in_plain_and_raw_in_technical(client: FakeClient) -> None:
+    client.seed_setting("feed.reactions.enabled", "project:P1", False)
+    reactions = client.get_setting("feed.reactions.enabled", project="P1")
+    assert row_cells(reactions, technical=False)[3] == "Project ●"
+    assert row_cells(reactions, technical=True)[3] == "project ●"
+    tags = client.get_setting("feed.signal_tags", project="P1")
+    assert row_cells(tags, technical=False)[3] == "Default"
+    assert row_cells(tags, technical=True)[3] == "default"
+    assert detail_lines(reactions, "project:P1")[5] == "origin Project ●"
+    assert detail_lines(reactions, "project:P1", technical=True)[5] == "origin project ●"
+
+
 def test_a_row_shows_key_value_type_origin_and_lock(client: FakeClient) -> None:
     client.seed_setting("feed.reactions.enabled", "project:P1", False)
     client.lock_setting("feed.signal_tags", locked=True, reason="policy")
@@ -60,7 +75,7 @@ def test_the_detail_lists_what_matters_and_leaves_out_what_does_not(client: Fake
     plain = detail_lines(client.get_setting("feed.reactions.enabled"), "project:P1")
     assert plain[0] == "key feed.reactions.enabled"
     assert "type bool (true or false)" in plain
-    assert "change goes to project:P1" in plain
+    assert "change goes to Project P1" in plain
     assert not any(line.startswith(("risk", "effect", "locked", "bounds")) for line in plain)
     danger = detail_lines(client.get_setting("webhooks.egress.allowlist"), None)
     assert "risk dangerous: a reason is required; you must accept the risk" in danger
@@ -84,6 +99,13 @@ def test_a_history_row_shows_the_move_and_the_reason(client: FakeClient) -> None
     client.reset_setting("feed.signal_tags", layer="company")
     first, _, last = client.setting_history("feed.signal_tags")
     assert history_cells(first) == (
+        "Company",
+        "2026-10-09 09:01",
+        "dev",
+        "null -> [a]",
+        "",
+    )
+    assert history_cells(first, technical=True) == (
         "1",
         "company",
         "2026-10-09 09:01",
@@ -91,4 +113,35 @@ def test_a_history_row_shows_the_move_and_the_reason(client: FakeClient) -> None
         "null -> [a]",
         "",
     )
-    assert history_cells(last)[4] == "reset"
+    assert history_cells(last)[3] == "reset"
+    assert history_cells(first, technical=True)[1] == "company"
+
+
+def test_the_layer_reads_in_plain_words_and_by_its_key_only_when_technical() -> None:
+    assert layer_label("company") == "Company"
+    assert layer_label("project:P123") == "Project P123"
+    assert layer_label("user:kim") == "User"
+
+
+def test_a_service_actor_reads_as_a_service_and_its_id_is_technical_only(
+    client: FakeClient,
+) -> None:
+    client.setting_actor = "svc:enricher"
+    client.set_setting("feed.signal_tags", layer="company", value=["a"])
+    (change,) = client.setting_history("feed.signal_tags")
+    assert history_cells(change)[2] == "a service"
+    assert history_cells(change, Labels(services={"svc:enricher": "Enricher"}))[2] == "Enricher"
+    assert history_cells(change, technical=True)[3] == "svc:enricher"
+
+
+def test_a_scheduled_change_ends_with_its_sequence_number_only_when_technical(
+    client: FakeClient,
+) -> None:
+    view = client.get_setting("feed.signal_tags")
+    later = ScheduledChange(applies_at="2026-11-01T00:00:00Z", new_value=["b"], seq=7)
+    effective = view.effective.model_copy(update={"scheduled": [later]})
+    scheduled = view.model_copy(update={"effective": effective})
+    assert "scheduled 2026-11-01T00:00:00Z [b]" in detail_lines(scheduled, None)
+    assert "scheduled 2026-11-01T00:00:00Z [b] (seq 7)" in detail_lines(
+        scheduled, None, technical=True
+    )

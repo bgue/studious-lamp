@@ -20,6 +20,7 @@ annotations:
 
 classes:
   Adoption:
+    title: Adoption
     description: The version of one company package a project has pinned.
     annotations:
       tl:current_state: true

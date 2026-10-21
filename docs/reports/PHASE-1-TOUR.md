@@ -36,6 +36,7 @@ The demo project is made up: project `P123`, five people (`demo`, an admin; `amy
 | 20 | P1-I8 | [Schema registry and workbench](#20-schema-registry-and-workbench) | `20a` to `20f` |
 | 21 | P1-I8 | [Waivers, conformance dashboard, crosswalk, export and import](#21-waivers-conformance-dashboard-crosswalk-export-and-import) | `21a` to `21c` |
 | 22 | P1-I8 | [Legacy loads and lake marts](#22-legacy-loads-and-lake-marts) | `22a` to `22c` |
+| 23 | P1-UX | [Plain language and the record screen](#23-plain-language-and-the-record-screen) | `23a` to `23g` |
 
 ## Regenerating locally
 
@@ -316,7 +317,7 @@ Dora's register is the same screen over the same ledger, with six lines: the res
 
 ![F5, 3: the clocks, with the days left on the project calendar](tour/phase-1/17e-clocks.svg)
 
-Key `3` turns the screen into the clocks of the project. The reply clock is running, due in 14 calendar days on calendar `P123-default@1`, and the warning days are shown. A working-day clock skips weekends.
+Key `3` turns the screen into the clocks of the project. The reply clock is running, due in 14 calendar days, and the warning days are shown; the clock's id and its calendar (`P123-default@1`) show only with technical details on (`Ctrl+D`, admins). A working-day clock skips weekends.
 
 **Reproduce:** `just demo P1-I5`. By hand: `uv run tl corr receive --project P123 --subject "Revised programme" --from "Acme Construction" --file letter.txt`, `tl corr suggest <no> ...`, `tl corr triage <no> --accept`, `tl corr draft ...`, `tl corr issue <no>` (a controller), `tl corr clock ls`, `tl corr mail ingest reply.eml`, `tl corr class set <no> --to restricted --reason "..."`; in the TUI `F5`, then `1` register, `2` triage inbox, `3` clocks.
 
@@ -364,7 +365,7 @@ A rule is data. Its dry run over the recent events says what it would have done 
 
 ![Ctrl+R: the review queue holds what the classifier proposes, with its confidence](tour/phase-1/19d-review-queue.svg)
 
-A new document was registered and the classifier proposed its type and discipline. Nothing is written to the document's own fields: the values wait in the review queue with the enricher, its version and a confidence, until a person accepts (`a`) or rejects (`x`) them.
+A new document was registered and the classifier proposed its type and discipline. Nothing is written to the document's own fields: the values wait in the review queue with the enricher's name and a confidence, until a person accepts (`a`) or rejects (`x`) them.
 
 ![Record view, T, c: a slash command is previewed with the caller's own access before it runs](tour/phase-1/19e-thread-dispatch-preview.svg)
 
@@ -382,7 +383,7 @@ Amy drafts `co.acme.engineering@3.3.0` from a YAML file, with a changelog. `anal
 
 ![Ctrl+O: the schema workbench: each version of each package, with its state and class](tour/phase-1/20b-workbench-tree.svg)
 
-`Ctrl+O` opens the schema workbench as the admin. The table lists every version of every package, newest on top, with its state, class and author; under it the highlighted version's properties, code lists and property sets. Nothing here edits the package: the workbench reads, and every step of the review is one command as the signed-in person.
+`Ctrl+O` opens the schema workbench as the admin. The table lists every version of every package, newest on top, with its state, class and author; under it the highlighted version's properties, code lists and property sets. Nothing here edits the package: the workbench reads, and every step of the review is one command as the signed-in person. Without Ctrl+D it names people (`demo`, not `user:demo`), record types by title (`applies to Record`) and a property as its set and name (`Valve data: size in`); Ctrl+D brings the keys back.
 
 ![Ctrl+O, 3: the diff of the published 3.3.0 against 3.2.0, scrolled to the added property](tour/phase-1/20c-workbench-diff.svg)
 
@@ -439,6 +440,30 @@ A wrong load is taken back with `tl load compensate`, which ends exactly the rec
 **Reproduce:** `just demo P1-I8` (clauses 5 and 6). By hand: `uv run tl load open register.csv --project P123 --loader dms-register`, `tl load extract|profile|plan <run> --project P123`, `tl load load <run> --project P123 --expect-new 3`, `tl load reconcile <run> --project P123`, `tl load compensate <run> --project P123 --reason "..."`; `tl lake sync`, `tl lake mart ls`, `tl lake mart show mart_document_status`.
 
 **Standard activity.** A migration is a one-off script run on a Friday night by a contractor, the first sign of a problem is a project engineer finding a missing document, and "undo" is a restore from backup. **Novel approach.** The file is kept as an immutable run with a profile, the plan is a dry run that names the new, existing and invalid rows, the load must be told the number it expects, every created record carries the run as its correlation, reconcile proves the result against the file, and compensate is a new event, not a rewrite; the analytics copy never holds a row the lowest reader may not read (P1-I8, ADR-0016, [report](P1-I8.md); runbooks `legacy-load.md` and `lake-sync.md`). **Honest limits.** Three loaders (`dms-register`, `instrument-index`, `equipment-list`); no line-list loader, because piping lines are not a tag class in the company standards; `TagTarget` ignores the run's class (tags carry none); the reconciliation report is a file of the run and not a registered document; the lake marts are for the lowest reader only.
+
+## 23. Plain language and the record screen
+
+![A document opened from the register (F7, Enter, 2): the Properties tab lists the Document data set with labelled properties, as a plain user sees it](tour/phase-1/23a-document-properties.svg)
+
+![A tag opened from the tag register: the Properties tab lists the set its class requires](tour/phase-1/23b-tag-properties.svg)
+
+![An RFI opened from the RFI log (Ctrl+G): the RFI data set, with location, drawing reference, trade, cost estimate and schedule impact](tour/phase-1/23c-rfi-properties.svg)
+
+![A letter opened from the correspondence register (F5): the Correspondence data set, with contract clause and delivery method](tour/phase-1/23d-correspondence-properties.svg)
+
+Enter on a row of any register opens the **full record**: Details (the module's own fields), Properties, Links, History, Trace and Thread, and Esc returns to the same row. The screens say `Control valve`, `Document data` and `Contract clause`; they do not show record or event ids, hashes, schema versions, internal keys, clock or calendar ids, or the rule markers of the property sets (`required at Design`, not a code). Three example property sets of the company standard, `document_data`, `rfi_data` and `correspondence_data`, carry values on records the earlier sections made (`ISO-1234`, `P123-RFI-0001`, `P123-COR-0001`), set with `tl pset set`; the tour checks every screenshot for technical text and fails if one carries any.
+
+![An admin's record screen by default: plain words](tour/phase-1/23e-record-plain.svg)
+
+![Ctrl+D: the same record with its key, version, scope and schema hash](tour/phase-1/23f-record-technical.svg)
+
+![Ctrl+D again: back to plain words](tour/phase-1/23g-record-plain-again.svg)
+
+**Technical details** are one key, `Ctrl+D`, offered to admins only: it adds what the plain screens hide (ids, versions, hashes, internal keys), and pressing it again hides them. It is off at the start of every session and a plain user who presses it gets one line, `Technical details are for admins`. The tour also looks for the record-type and property keys of the schema (`core.Record`, `valve_data.body_material`), as the plain-user walking test does. The one technical shot (`23f`) is the only one in this phase that the tour does not check for technical text.
+
+**Reproduce:** `just demo P1-UX` (both backends; four clauses). By hand: `uv run tl pset set --project P123 ISO-1234 document_data originator="Acme Piping" native_format=DWG`, then open `tl tui`, press `F7`, `Enter`, `2`; as an admin press `Ctrl+D`.
+
+**Standard activity.** A register is a list; the full record is another tool, and the property data sits in a spreadsheet beside it. Staff read internal codes (`PIP`, `ControlValve`, `general/letter`) and ids that mean nothing to them. **Novel approach.** One record screen serves every type, and its tabs read the same schema the forms and the checks use, so a document, a tag, an RFI and a letter show their sets alike; one shared helper turns codes, types, domains and rule markers into words, and the toggle brings the raw view back for those who need it (P1-UX). **Honest limits.** This is display only: the CLI, API and MCP keep their output. The three sets are examples in the fixture standard, not a model for a real company. The toggle is for admins and is not remembered between sessions. A value from a code list shows its label (`Structural`, `US dollar`); a money amount carries its currency code (`12500 USD`), taken from the currency property beside it; Ctrl+D shows the stored codes.
 
 ## What Phase 1 did not do
 

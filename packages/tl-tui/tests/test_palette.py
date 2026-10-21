@@ -210,8 +210,13 @@ def test_it_opens_with_the_commands_listed() -> None:
         await pilot.pause()
         text = screen_text(app)
         assert "Commands" in text
-        assert "New record" in text and "Show the key map" in text
+        assert "New record" in text
         assert "Records" not in text.replace("Link the selection", "")  # no record section yet
+        # the list is taller than its box: move to the last command, which scrolls it into view
+        option_list = app.screen.query_one("#palette-list", OptionList)
+        option_list.highlighted = option_list.option_count - 1
+        await pilot.pause()
+        assert "Show the key map" in screen_text(app)
 
     run_pilot(app, scenario, size=(110, 36))
 

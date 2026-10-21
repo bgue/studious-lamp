@@ -21,6 +21,7 @@ annotations:
 
 classes:
   Waiver:
+    title: Waiver
     description: A time-limited relaxation of one property for one project, with a reason and an approver.
     annotations:
       tl:current_state: true

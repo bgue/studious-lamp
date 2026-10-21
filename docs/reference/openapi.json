@@ -59078,7 +59078,7 @@
     },
     "/schema/forms": {
       "get": {
-        "description": "Form and grid metadata for a record type under the scope's effective schema.",
+        "description": "Form and grid metadata for a record type under the scope's effective schema.\n\nWith ``record_id`` of a record the caller may read, the form also lists the sets the record's\nclass binds to it (ADR-0010). A hidden or unknown id answers exactly as no id (ADR-0016).",
         "operationId": "get_form_metadata",
         "parameters": [
           {
@@ -59097,6 +59097,23 @@
             "schema": {
               "title": "Record Type",
               "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "record_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 64,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Record Id"
             }
           }
         ],

@@ -124,6 +124,7 @@ KEYMAP: tuple[KeyEntry, ...] = (
         "TlApp",
         "ctrl+o",
     ),
+    KeyEntry("App", "Ctrl+D", "Technical details on or off (admins)", "TlApp", "ctrl+d"),
     KeyEntry(
         "App",
         "Ctrl+G",

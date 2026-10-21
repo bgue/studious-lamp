@@ -20,6 +20,7 @@ annotations:
 
 classes:
   Party:
+    title: Party
     description: >-
       One organisation. Record type `correspondence.Party`; its key is a short code typed in (`CLIENT`,
       `ENG-1`) and the title is the organisation's name.

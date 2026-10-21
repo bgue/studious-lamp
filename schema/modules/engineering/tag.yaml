@@ -44,6 +44,7 @@ enums:
 
 classes:
   Tag:
+    title: Tag
     description: >-
       One tag of a project. Record type `engineering.Tag`. The envelope (key = tag number, title,
       description = service description, status, psets) is in `cur_core_record`; this table holds the

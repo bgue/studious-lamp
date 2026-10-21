@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from fakes import FakeClient
 from tl_mod_documents.views import DocumentView
+from tl_tui.display import Labels
 from tl_tui.document_text import (
     COLUMNS,
     current_text,
@@ -18,6 +19,9 @@ from tl_tui.document_text import (
     summary_line,
 )
 
+# The code lists of the document type and the discipline, as load_labels reads them from the form.
+LABELS = Labels(code_labels={"doc_type": {"ISO": "Isometric"}, "discipline": {"PIP": "Piping"}})
+
 
 def docs() -> dict[str, DocumentView]:
     client = FakeClient()
@@ -27,24 +31,41 @@ def docs() -> dict[str, DocumentView]:
 
 def test_a_row_has_one_cell_per_column() -> None:
     found = docs()
-    assert len(COLUMNS) == 6
+    assert len(COLUMNS) == 6 and COLUMNS[4] == "Discipline"
+    # Without labels a code is the fallback; with the code lists the plain words show.
     assert row_cells(found["ISO-1234"]) == (
         "ISO-1234", "Issued", "B(IFC)", "ISO", "PIP", "Isometric, line 47-P-101"
+    )  # fmt: skip
+    assert row_cells(found["ISO-1234"], LABELS) == (
+        "ISO-1234", "Issued", "B(IFC)", "Isometric", "Piping", "Isometric, line 47-P-101"
     )  # fmt: skip
     assert row_cells(found["ISO-2000"])[2] == "-" and current_text(found["ISO-2000"]) == "-"
 
 
 def test_the_detail_lists_revisions_files_and_the_links_with_the_stale_one_marked() -> None:
-    lines = detail_lines(docs()["ISO-1234"])
+    lines = detail_lines(docs()["ISO-1234"], LABELS)
     assert lines[0] == "ISO-1234  Isometric, line 47-P-101"
-    assert lines[1] == "state Issued  |  type ISO  |  discipline PIP  |  scheme alpha"
+    assert lines[1] == "state Issued  |  type Isometric  |  discipline Piping"
     assert lines[2] == "current B(IFC)"
     assert "revisions:" in lines
     assert "  A  Issued  IFR review 2026-10-01  pdf" in lines
     assert "  B  Issued  IFC construction 2026-10-10  current  pdf" in lines
     assert "links (1 stale):" in lines
-    assert "  ! 47-FV-1001 (core.Record) pin A, current B (newer B)" in lines
-    assert "    47-FV-1002 (core.Record) floats" in lines
+    assert "  ! 47-FV-1001 (Record) pin A, current B (newer B)" in lines
+    assert "    47-FV-1002 (Record) floats" in lines
+    assert not any("core.Record" in line or "scheme" in line for line in lines)
+
+
+def test_the_technical_lines_show_the_scheme_the_record_and_the_version_only_when_asked() -> None:
+    view = docs()["ISO-1234"]
+    plain = detail_lines(view, LABELS)
+    technical = detail_lines(view, LABELS, technical=True)
+    assert [line for line in technical if line not in plain] == [
+        "state Issued  |  type Isometric  |  discipline Piping  |  scheme alpha",
+        "record DOC-ISO-1234",
+        "version 9",
+    ]
+    assert not any("scheme" in line or line.startswith(("record ", "version ")) for line in plain)
 
 
 def test_a_document_with_no_revision_says_so() -> None:
@@ -107,3 +128,6 @@ def test_the_summary_line_names_each_filter() -> None:
     assert summary_line(1, 3, state="Issued", doc_type="ISO", include_void=True, text=" x ") == (
         '1 of 3 documents  state Issued  type ISO  incl. void  filter "x"'
     )
+    assert summary_line(
+        1, 3, state=None, doc_type="ISO", include_void=False, text="", labels=LABELS
+    ) == ("1 of 3 documents  type Isometric")  # the filter still compares the code 'ISO'

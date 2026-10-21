@@ -21,6 +21,7 @@ annotations:
 
 classes:
   DocumentSchema:
+    title: Document schema
     description: >-
       One version of a document schema. Record type `documents.DocumentSchema`; its key is `<code>@<semver>`
       (`instrument-index@1.0.0`). The title is the envelope title. It lives in the `company` scope (a company

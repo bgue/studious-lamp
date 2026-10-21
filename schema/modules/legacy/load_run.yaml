@@ -19,6 +19,7 @@ annotations:
 
 classes:
   LoadRun:
+    title: Load run
     description: One load of one legacy file into a project, from the file to the reconciliation.
     annotations:
       tl:current_state: true

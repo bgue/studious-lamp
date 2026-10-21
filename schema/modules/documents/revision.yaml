@@ -23,6 +23,7 @@ annotations:
 
 classes:
   Revision:
+    title: Revision
     description: >-
       One revision of a document. Record type `documents.Revision`; its key is `<number>@<code>`.
       The workflow state (Draft, In Review, Issued, Superseded, Void) is the envelope `status`.
@@ -93,6 +94,7 @@ classes:
         description: Ledger `seq` of the last event applied to this row.
 
   Rendition:
+    title: Rendition
     description: >-
       One file of a revision. Record type `documents.Rendition`; its key is `<number>@<code>/<kind>-<n>`.
       A newer rendition of the same kind supersedes the older one (`is_current` false).

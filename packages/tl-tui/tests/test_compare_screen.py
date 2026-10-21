@@ -49,8 +49,8 @@ def body(screen: CompareScreen) -> str:
 def test_it_opens_on_the_first_section_with_the_header_and_every_count() -> None:
     async def steps(pilot: Pilot[None], app: TlApp, screen: CompareScreen) -> None:
         text = screen_text(app)
-        assert "Comparison of MAIN#2" in text
-        assert "MAIN#2 (2026-10-12) against MAIN#1 (2026-10-05)" in text
+        assert "Comparison of Snapshot 2" in text
+        assert "Snapshot 2 (2026-10-12) against Snapshot 1 (2026-10-05)" in text
         assert "data date +7d  |  latest finish 2026-10-16 to 2026-10-23 (+7d)" in text
         assert (
             "[Added 1]  Removed 1  Date shifts 1  Float 1  Logic 1  Progress 0  Durations 0  "
@@ -91,7 +91,7 @@ def test_a_named_older_snapshot_is_compared_and_a_reload_reads_again() -> None:
     client = world()
 
     async def steps(pilot: Pilot[None], app: TlApp, screen: CompareScreen) -> None:
-        assert "MAIN#2 (2026-10-12) against MAIN#1 (2026-10-05)" in screen_text(app)
+        assert "Snapshot 2 (2026-10-12) against Snapshot 1 (2026-10-05)" in screen_text(app)
         await pilot.press("f5")
         await pilot.pause()
         assert screen.comparison is not None and screen.comparison.old.number == 1
@@ -148,7 +148,7 @@ def three_snapshots() -> FakeClient:
 
 def test_the_older_snapshot_it_was_given_is_the_one_compared_with() -> None:
     async def steps(pilot: Pilot[None], app: TlApp, screen: CompareScreen) -> None:
-        assert "MAIN#3 (2026-10-19) against MAIN#1 (2026-10-05)" in screen_text(app)
+        assert "Snapshot 3 (2026-10-19) against Snapshot 1 (2026-10-05)" in screen_text(app)
         assert "Added 2" in screen_text(app)
         assert body(screen).splitlines()[1:] == [
             "+ A2  Activity A2  (P > W)",
@@ -160,7 +160,7 @@ def test_the_older_snapshot_it_was_given_is_the_one_compared_with() -> None:
 
 def test_without_an_older_snapshot_the_one_before_is_used() -> None:
     async def steps(pilot: Pilot[None], app: TlApp, screen: CompareScreen) -> None:
-        assert "MAIN#3 (2026-10-19) against MAIN#2 (2026-10-12)" in screen_text(app)
+        assert "Snapshot 3 (2026-10-19) against Snapshot 2 (2026-10-12)" in screen_text(app)
         assert body(screen).splitlines()[1:] == ["+ A3  Activity A3  (P > W)"]
 
     scenario(three_snapshots(), steps, new=3)

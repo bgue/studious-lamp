@@ -60,8 +60,14 @@ def test_the_clocks_view_shows_the_reply_clock_with_fourteen_days_left() -> None
         await pilot.pause()
         text = screen_text(app)
         assert "Response clocks of P123" in text
-        assert "P123-COR-0003-C01" in text and "2026-11-02" in text and "14 cal" in text
-        assert "1 open clock" in text and "calendar P123-default@1" in text
+        assert "P123-COR-0003" in text and "2026-11-02" in text and "14 cal" in text
+        assert "1 open clock" in text and "Item" in text
+        assert "P123-COR-0003-C01" not in text and "P123-default@1" not in text
+        app.display_mode.technical = True  # technical mode puts the clock key and calendar back
+        screen.refresh_for_display_mode()
+        await pilot.pause()
+        text = screen_text(app)
+        assert "P123-COR-0003-C01" in text and "calendar P123-default@1" in text
 
     scenario(world(), steps)
 
@@ -72,7 +78,7 @@ def test_the_inbox_lists_received_items_and_shows_the_suggestion() -> None:
         await pilot.pause()
         assert [x.number for x in screen.lines] == ["P123-COR-0001", "P123-COR-0002"]
         assert screen.query_one("#corr-table", DataTable).row_count == 2
-        assert "suggestion: general/letter" in screen_text(app)
+        assert "suggestion: Letter" in screen_text(app)
         assert "2 items awaiting triage" in screen_text(app)
 
     scenario(world(), steps)
@@ -90,7 +96,7 @@ def test_a_accepts_the_suggestion_with_the_expected_version() -> None:
         assert name == "ConfirmTriage" and isinstance(cmd, ConfirmTriage)
         assert (cmd.domain, cmd.subtype, cmd.stream_id) == ("general", "letter", "ID-P123-COR-0001")
         assert cmd.expected_version == 1 and cmd.actor == "user:kim" and cmd.source == "tui"
-        assert "Triaged P123-COR-0001 as general/letter" in status(screen)
+        assert "Triaged P123-COR-0001 as Letter" in status(screen)
 
     scenario(client, steps)
 
