@@ -81,8 +81,14 @@ def test_a_record_type_without_a_title_stops_the_generator(tmp_path: Path) -> No
 
 @pytest.fixture
 def effective(build_docs: Callable[..., list[PackageDoc]]) -> EffectiveSchema:
-    """The company standard alone, in company scope (an optional set is dropped from projects)."""
+    """The company standard alone, in company scope."""
     return compose([d for d in build_docs() if d.kind == "company"], "company")
+
+
+@pytest.fixture
+def project(build_docs: Callable[..., list[PackageDoc]]) -> EffectiveSchema:
+    """A project's effective schema, composed over the company standard."""
+    return compose(build_docs(), "project:P123")
 
 
 def _set(schema: EffectiveSchema, name: str) -> EffectivePset:
@@ -94,10 +100,10 @@ def test_the_three_new_sets_have_labels_units_a_required_property_and_a_code_lis
 ) -> None:
     for name in NEW_SETS:
         pset = _set(effective, name)
-        assert pset.label and pset.enforcement == "advisory" and pset.adoption == "optional"
+        assert pset.label and pset.enforcement == "advisory" and pset.adoption == "mandatory"
         props = list(pset.properties.values())
         assert all(p.label and p.description for p in props), name
-        required = [p for p in props if "*" in p.required_in_states]
+        required = [p for p in props if "Issued" in p.required_in_states]
         assert required and all(p.enforcement == "advisory" for p in required), name
         assert any(p.code_list and p.enum_values for p in props), name
     days = _set(effective, "rfi_data").properties["schedule_impact_days"]
@@ -120,32 +126,49 @@ def test_the_new_sets_apply_to_the_module_record_types(effective: EffectiveSchem
 
 
 def test_an_existing_demo_record_stays_conformant_with_the_new_sets(
-    effective: EffectiveSchema,
+    effective: EffectiveSchema, project: EffectiveSchema
 ) -> None:
     # a document with the provenance values a publication wrote, and none of the new sets
     existing: dict[str, Any] = {"provenance": {"source": "src.doc.ISO-0101@C"}}
-    for record_type in APPLIES_TO["document_data"]:
-        report = evaluate(effective, record_type, existing, on=TODAY)
-        assert report.status == "ok", report.issues
-    for record_type in APPLIES_TO["rfi_data"] | APPLIES_TO["correspondence_data"]:
-        assert evaluate(effective, record_type, {}, on=TODAY).status == "ok"
+    every = APPLIES_TO["document_data"] | APPLIES_TO["rfi_data"] | APPLIES_TO["correspondence_data"]
+    for schema in (effective, project):
+        for record_type in sorted(every):
+            values = existing if record_type == "documents.Document" else {}
+            # before issue (and with no state) the empty sets ask for nothing
+            assert evaluate(schema, record_type, values, on=TODAY).status == "ok", record_type
+            drafting = evaluate(schema, record_type, values, state="Draft", on=TODAY)
+            assert drafting.status == "ok", record_type
+            # once issued, the missing required value is an advisory warning, never nonconformant
+            issued = evaluate(schema, record_type, values, state="Issued", on=TODAY)
+            assert issued.status != "nonconformant", record_type
+            assert [i.level for i in issued.issues] == ["warning"], record_type
+
+
+def test_the_new_sets_reach_a_project_scope(project: EffectiveSchema) -> None:
+    for name, types in APPLIES_TO.items():
+        assert name in project.psets
+        assert project.psets[name].adoption == "mandatory"
+        for record_type in types:
+            assert name in {p.name for p in project.psets_for(record_type)}, record_type
+    assert "documents.Document" in APPLIES_TO["document_data"]
+    assert "correspondence.TechnicalItem" in APPLIES_TO["rfi_data"]
+    assert "correspondence.Correspondence" in APPLIES_TO["correspondence_data"]
 
 
 def test_a_partly_filled_example_set_warns_and_never_blocks(effective: EffectiveSchema) -> None:
     report = evaluate(
-        effective, "documents.Document", {"document_data": {"area": "Unit 47"}}, on=TODAY
+        effective,
+        "documents.Document",
+        {"document_data": {"area": "Unit 47"}},
+        state="Issued",
+        on=TODAY,
     )
     assert [(i.path, i.level) for i in report.issues] == [
         ("psets.document_data.originator", "warning")
     ]
     filled = {"document_data": {"originator": "ACME", "native_format": "DWG"}}
-    assert evaluate(effective, "documents.Document", filled, on=TODAY).status == "ok"
+    assert (
+        evaluate(effective, "documents.Document", filled, state="Issued", on=TODAY).status == "ok"
+    )
     bad = {"document_data": {"originator": "ACME", "native_format": "ZZZ"}}
     assert evaluate(effective, "documents.Document", bad, on=TODAY).status != "ok"
-
-
-def test_an_optional_set_is_left_out_of_a_project_that_does_not_adopt_it(
-    build_docs: Callable[..., list[PackageDoc]],
-) -> None:
-    project = compose(build_docs(), "project:P123")
-    assert not set(NEW_SETS) & set(project.psets)

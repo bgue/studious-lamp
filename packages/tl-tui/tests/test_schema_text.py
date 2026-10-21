@@ -76,7 +76,7 @@ def test_a_company_package_lists_its_code_lists_psets_and_properties() -> None:
         "pset provenance  advisory  mandatory  applies to engineering.Tag, documents.Document"
         in lines
     )
-    assert "pset rfi_data  advisory  optional  applies to correspondence.TechnicalItem" in lines
+    assert "pset rfi_data  advisory  mandatory  applies to correspondence.TechnicalItem" in lines
     assert "  schedule_impact_days  int  advisory  req -  -" in lines
     assert len(lines) == 36
 

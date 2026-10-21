@@ -150,14 +150,14 @@ psets:
     description: Register data that every controlled document carries (example set, P1-UX).
     applies_to: [documents.Document]
     enforcement: advisory
-    adoption: optional
+    adoption: mandatory
     custom_section: {allowed: true, max_properties: 10}
     properties:
       originator:
         label: Originator
         description: Organisation or person that produced the document.
         range: string
-        required: true
+        required_in_states: [Issued]
         enforcement: advisory
       area:
         label: Area
@@ -186,7 +186,7 @@ psets:
     description: Request-for-information data (example set, P1-UX).
     applies_to: [correspondence.TechnicalItem]
     enforcement: advisory
-    adoption: optional
+    adoption: mandatory
     custom_section: {allowed: true, max_properties: 10}
     properties:
       location:
@@ -197,7 +197,7 @@ psets:
         label: Drawing reference
         description: Number of the drawing the question is about.
         range: string
-        required: true
+        required_in_states: [Issued]
         enforcement: advisory
       trade:
         label: Trade
@@ -227,14 +227,14 @@ psets:
     description: Contract-correspondence data (example set, P1-UX).
     applies_to: [correspondence.Correspondence, correspondence.CommercialItem]
     enforcement: advisory
-    adoption: optional
+    adoption: mandatory
     custom_section: {allowed: true, max_properties: 10}
     properties:
       contract_clause:
         label: Contract clause
         description: Clause of the contract the letter relies on, for example 14.2.
         range: string
-        required: true
+        required_in_states: [Issued]
         enforcement: advisory
       other_party_ref:
         label: Other party reference
