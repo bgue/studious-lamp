@@ -129,8 +129,9 @@ class SettingsScreen(ModalScreen[None]):
         ]
         table = self.query_one("#settings-table", DataTable)
         table.clear()
+        technical = mode_of(self.app).technical
         for view in self.shown:
-            cells = row_cells(view)
+            cells = row_cells(view, technical=technical)
             mark = "●" if view.effective.modified_here else " "
             # Text, not str: a cell is read as markup, and a value such as [a, b] is not markup
             table.add_row(*(Text(c) for c in (mark, *cells)), key=cells[0])

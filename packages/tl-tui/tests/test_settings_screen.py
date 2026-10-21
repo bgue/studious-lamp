@@ -11,6 +11,7 @@ from textual.pilot import Pilot
 from textual.widgets import Checkbox, DataTable, Input
 from tl_adapters.sqlite.uow import create_schema
 from tl_tui.app import TlApp
+from tl_tui.display import DisplayMode
 from tl_tui.embedded import EmbeddedClient
 from tl_tui.widgets.setting_form import SettingForm
 from tl_tui.widgets.setting_history import SettingHistory
@@ -85,7 +86,7 @@ def test_editing_a_value_sets_it_at_the_project_and_marks_it() -> None:
         await pilot.press("ctrl+s")
         await pilot.pause()
         assert isinstance(app.screen, SettingsScreen)
-        assert "project ●" in screen_text(app)
+        assert "Project ●" in screen_text(app)
         assert "Set: feed.reactions.enabled" in screen_text(app)
 
     scenario(client, steps)
@@ -93,6 +94,23 @@ def test_editing_a_value_sets_it_at_the_project_and_marks_it() -> None:
         ("set_setting", {"key": KEY, "layer": "project:P123", "value": False}),
         ("list_settings", {"project": "P123", "prefix": None}),
     ]
+
+
+def test_the_list_origin_is_the_raw_layer_kind_only_in_technical_mode() -> None:
+    client = FakeClient()
+    client.seed_setting(KEY, "project:P123", False)
+    app = TlApp(client, scope=SCOPE, actor="user:kim")
+    mode = DisplayMode()  # an admin turns technical details on before the list opens (D39)
+    assert mode.toggle(is_admin=True) == ""
+    app.display_mode = mode  # pyright: ignore[reportAttributeAccessIssue]  # App does not declare it yet
+
+    async def go(pilot: Pilot[None]) -> None:
+        await pilot.press("f9")
+        await pilot.pause()
+        await filter_to(pilot, app, KEY)
+        assert "project ●" in screen_text(app) and "Project ●" not in screen_text(app)
+
+    run_pilot(app, go)
 
 
 def test_a_refused_value_stays_in_the_form_with_the_message() -> None:
@@ -146,13 +164,13 @@ def test_reset_takes_the_value_away_and_with_nothing_set_changes_nothing() -> No
 
     async def steps(pilot: Pilot[None], app: TlApp) -> None:
         await filter_to(pilot, app, KEY)
-        assert "project ●" in screen_text(app)
+        assert "Project ●" in screen_text(app)
         await pilot.press("r")
         await pilot.pause()
         await pilot.press("ctrl+s")
         await pilot.pause()
         text = screen_text(app)
-        assert "project ●" not in text and "Reset: feed.reactions.enabled" in text
+        assert "Project ●" not in text and "Reset: feed.reactions.enabled" in text
         await pilot.press("r")  # nothing is set here now: the service has nothing to do
         await pilot.pause()
         await pilot.press("ctrl+s")

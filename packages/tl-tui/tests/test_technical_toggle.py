@@ -166,6 +166,24 @@ def test_palette_entry_runs_the_toggle() -> None:
     run_pilot(app, scenario)
 
 
+def test_plain_user_is_refused_through_the_palette_entry() -> None:
+    app = app_for(is_admin=False)
+
+    async def scenario(pilot: Pilot[Any]) -> None:
+        await pilot.pause()
+        await pilot.press("ctrl+p")
+        await pilot.pause()
+        await pilot.press(*"technical")
+        await pilot.pause()
+        await pilot.press("enter")
+        await pilot.pause()
+        await pilot.pause()
+        assert REFUSAL in screen_text(app)
+        assert app.display_mode.technical is False
+
+    run_pilot(app, scenario)
+
+
 def test_mode_is_off_at_start_and_not_remembered() -> None:
     first = app_for(is_admin=True)
 
