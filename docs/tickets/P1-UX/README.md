@@ -1,6 +1,6 @@
 # Increment plan — P1-UX usability: one record screen, plain language, property sets
 
-Status: in-progress (round 7: T01-T10, T13, T06b, T08b, T09d merged except T08c and T09a; T11, T11b, T11c, T12, T12b staged, see STATE.md)
+Status: done except S5 (final round; see STATE.md and docs/reports/P1-UX.md)
 Supervisor session: 2026-10-21 (rounds 1-4)
 Brief sections: §6.3 (psets), §9 M2/M10, §10 (TUI), ADR-0010, ADR-0016
 Branch: `p1/ux`
