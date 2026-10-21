@@ -29,7 +29,6 @@ from tl_mod_documents.derivation.publish import (
 )
 
 from tl_tui.client import ClientInterface
-from tl_tui.display import mode_of
 from tl_tui.derive_text import (
     PLAN_COLUMNS,
     can_apply,
@@ -37,6 +36,7 @@ from tl_tui.derive_text import (
     plan_cells,
     plan_header_lines,
 )
+from tl_tui.display import mode_of
 from tl_tui.errors import CLIENT_ERRORS, describe_error
 
 MAX_PLAN_ROWS = 2000
