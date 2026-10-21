@@ -38,7 +38,7 @@ def test_a_row_is_indented_by_depth_and_says_how_it_was_reached() -> None:
 
 
 def test_a_line_reads_like_the_one_the_command_line_tool_prints() -> None:
-    assert et.node_line(trail().nodes[1]) == (
+    assert et.node_line(trail().nodes[1], technical=True) == (
         "  P123-RFI-0001 [correspondence.TechnicalItem] Answered Beam B12 clashes with line 47"
         " <- derived from (active, since 2026-10-12) | cost_impact=yes"
     )
@@ -59,7 +59,7 @@ def test_the_panel_gives_the_link_and_the_facts_of_the_day() -> None:
     assert lines[1] == (
         "reached by derived from (active) since 2026-10-12: escalated from P123-RFI-0001"
     )
-    assert lines[2] == "cost_impact: yes"
+    assert lines[2] == "Cost impact: yes"
 
 
 def test_the_title_names_the_day_of_the_week_and_a_step_never_passes_today() -> None:
