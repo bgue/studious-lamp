@@ -435,8 +435,16 @@ async def call_tool(server: Any, name: str, **arguments: Any) -> dict[str, Any]:
 
 
 async def settle(pilot: Pilot[Any], rounds: int = 4) -> None:
+    """Let the app redraw ``rounds`` times and wait for its workers: a log reads its rows, its
+    actions bar and its files off the UI thread, and a shot taken before they finish differs
+    from run to run."""
     for _ in range(rounds):
         await pilot.pause()
+    try:
+        await asyncio.wait_for(pilot.app.workers.wait_for_complete(), timeout=15)
+    except TimeoutError:  # a worker that never ends must not hang the tour
+        pass
+    await pilot.pause()
 
 
 async def until(

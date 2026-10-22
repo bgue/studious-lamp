@@ -25,6 +25,7 @@ import asyncio
 import contextlib
 import importlib
 import io
+import os
 import shutil
 import sys
 from collections.abc import Callable
@@ -1365,7 +1366,7 @@ def section_correspondence(ws: Workspace) -> None:
             await tk.until(pilot, lambda: len(app.query("RecordGrid")) > 0, "the shell")
             await open_screen(pilot, app, "f5", letter, "the register")
             numbers = [line.number for line in app.screen.lines]  # type: ignore[attr-defined]
-            app.screen.query_one("#corr-table", DataTable).move_cursor(row=numbers.index(select))
+            app.screen.query_one("#log-table", DataTable).move_cursor(row=numbers.index(select))
             await tk.settle(pilot, 3)
             tk.shot_tui(ws, app, name, title, letter, reply, select, *needles)
 
@@ -1569,16 +1570,16 @@ def section_rfi(ws: Workspace) -> None:
             "LATE",
         )
         numbers = [line.number for line in app.screen.notices.lines]  # type: ignore[attr-defined]
-        table = app.screen.query_one("#dom-table", DataTable)
+        table = app.screen.query_one("#log-table", DataTable)
         table.move_cursor(row=numbers.index("P123-EW-0001"))
         await tk.settle(pilot, 3)
-        await pilot.press("e")
+        await pilot.press("t")
         await tk.until(pilot, lambda: rfi in tk.screen_text(app), "the evidence trail")
         tk.shot_tui(
             ws,
             app,
             "18e-evidence-trail",
-            "Ctrl+G, e: the evidence trail of the notice, back to the RFI it came from",
+            "Ctrl+G, t: the evidence trail of the notice, back to the RFI it came from",
             rfi,
         )
 
@@ -1835,7 +1836,7 @@ def section_schema_registry(ws: Workspace) -> None:
         )
         await pilot.press("down", "3")
         await tk.settle(pilot, 3)
-        scroll = app.screen.query_one("#schema-scroll")
+        scroll = app.screen.query_one("#log-panel")
         for _ in range(40):  # down to the hunk that adds the property
             if "actuator_make" in tk.screen_text(app):
                 break
@@ -1848,9 +1849,13 @@ def section_schema_registry(ws: Workspace) -> None:
             app,
             "20c-workbench-diff",
             "Ctrl+O, 3: the diff of the highlighted version against the one below it",
-            "Diff",
+            "@@",
         )
-        await pilot.press("up", "v")  # the breaking draft, on top
+        await pilot.press("up")  # the breaking draft, on top
+        await tk.until(
+            pilot, lambda: "Review and publish" in tk.screen_text(app), "the review action"
+        )
+        await pilot.press("v")
         await tk.until(pilot, lambda: "Impact" in tk.screen_text(app), "the review screen")
         tk.shot_tui(
             ws,
@@ -2171,6 +2176,279 @@ def app_rows(app: Any) -> list[Any]:
     return list(app.query(RecordGrid))
 
 
+# --- 24 the log standard, the RFI record and document preview (P1-UX2) -----------------------
+
+QUESTION_24 = (
+    "The piling layout in revision B puts pile P-17 inside the route of the fuel gas line "
+    "47-P-101, and the utilities drawing shows the same corridor for the cooling water return. "
+    "Please confirm which of the two keeps the corridor, whether the pile can move 400 mm to the "
+    "east without a new load calculation, and whether the cooling water line may be re-routed "
+    "above the beam B12 if the pile stays where it is. We need the answer before the pile cap "
+    "formwork is ordered."
+)
+SUBJECT_24 = "Conflict in piling and utilities at AZ203"
+SUBJECT_24B = "Cable tray support spacing in the pipe rack"
+DOCUMENT_24 = "ISO-6100"
+
+
+def make_pdf(path: Path, pages: int) -> None:
+    """A small real PDF (pypdfium2 writes it), so the preview can count its pages."""
+    import pypdfium2 as pdfium
+
+    document = pdfium.PdfDocument.new()
+    for _ in range(pages):
+        document.new_page(300, 400)
+    document.save(str(path))
+
+
+def section_log_standard(ws: Workspace) -> str:
+    """An RFI after an answer round with two files, a document with a 3-page PDF, and six shots:
+    the log wide and stacked, the RFI record and its files, the document log with the page-count
+    fallback (images off), and the same RFI log for a reader. Returns the RFI number."""
+    renew_sessions(ws)
+    ws.tl("admin", "user", "add", "reader", "--kind", "agent", who="demo")
+    make_pdf(ws.root / "iso-6100.pdf", 3)
+    make_pdf(ws.root / "beam-b12-sketch.pdf", 1)
+    (ws.root / "survey-notes.txt").write_text(
+        "Survey of the corridor at AZ203\npile P-17 at grid C-4, east offset to be confirmed\n"
+    )
+    needed = (tk.CLOCK.now.date() + timedelta(days=10)).isoformat()
+    raised = ws.tl(
+        "rfi",
+        "raise",
+        *P,
+        "--subject",
+        SUBJECT_24,
+        "--question",
+        QUESTION_24,
+        "--discipline",
+        "structural",
+        "--required-by",
+        needed,
+        "--to",
+        MERIDIAN,
+        who="amy",
+    )
+    rfi = made(raised, "raised")
+    for name in ("beam-b12-sketch.pdf", "survey-notes.txt"):
+        ws.tl(
+            "file",
+            "put",
+            name,
+            *P,
+            "--record",
+            rfi,
+            "--slot",
+            "attachment",
+            "--actor",
+            "user:amy",
+            who="amy",
+        )
+    ws.tl("rfi", "submit", rfi, *P, who="amy")
+    ws.tl("rfi", "issue", rfi, *P, who="dora")
+    ws.tl(
+        "rfi",
+        "answer",
+        rfi,
+        *P,
+        "--answer",
+        "Use the original routing.",
+        "--cost-impact",
+        "no",
+        "--schedule-impact",
+        "no",
+        who="amy",
+    )
+    ws.tl(
+        "rfi",
+        "review",
+        rfi,
+        *P,
+        "--reject",
+        "--note",
+        "The beam moved in revision C; please check again.",
+        who="dora",
+    )
+    ws.tl("rfi", "reissue", rfi, *P, "--reason", "Revision C attached", who="amy")
+    ws.tl("rfi", "issue", rfi, *P, who="dora")  # a reissued item goes back through the controller
+    waiting = made(
+        ws.tl(
+            "rfi",
+            "raise",
+            *P,
+            "--subject",
+            SUBJECT_24B,
+            "--question",
+            "Confirm 1.5 m support spacing for the cable trays on rack R-2.",
+            "--discipline",
+            "structural",
+            "--required-by",
+            needed,
+            "--to",
+            MERIDIAN,
+            who="amy",
+        ),
+        "raised",
+    )
+    ws.tl("rfi", "submit", waiting, *P, who="amy")
+    ws.tl(
+        "doc",
+        "register",
+        DOCUMENT_24,
+        *P,
+        "--title",
+        "Isometric, line 47-P-103",
+        "--type",
+        "ISO",
+        "--discipline",
+        "PIP",
+        who="amy",
+    )
+    ws.tl("doc", "rev", "create", DOCUMENT_24, *P, "--purpose", "For review", who="amy")
+    ws.tl(
+        "doc", "rendition", "add", DOCUMENT_24, "A", "iso-6100.pdf", *P, "--kind", "pdf", who="amy"
+    )
+    ws.tl("doc", "rev", "issue", DOCUMENT_24, "A", *P, "--status", "IFR", who="demo")
+
+    def rfi_log(
+        actor: str,
+        name: str,
+        title: str,
+        size: tuple[int, int],
+        *needles: str,
+        bar: str,
+        absent: str = "",
+        number: str = "",
+        subject: str = SUBJECT_24,
+        controller: bool = False,
+    ) -> None:
+        number = number or rfi
+        app = build_app(ws, actor=actor, controller=controller)
+
+        async def scenario(pilot: Pilot[Any]) -> None:
+            await tk.until(pilot, lambda: len(app.query("RecordGrid")) > 0, "the shell")
+            await open_screen(pilot, app, "ctrl+g", number, "the RFI log")
+            table = app.screen.query_one("#log-table", DataTable)
+            table.move_cursor(row=row_with(table, number))
+            await tk.until(pilot, lambda: bar in tk.screen_text(app), "the actions bar")
+            tk.expect(
+                not absent or absent not in tk.screen_text(app),
+                f"{name}: {absent!r} is offered to {actor}:\n{tk.screen_text(app)}",
+            )
+            tk.shot_tui(ws, app, name, title, number, subject, bar, *needles)
+
+        tk.run_tui(ws, app, scenario, size=size)
+
+    rfi_log(
+        "user:amy",
+        "24a-rfi-log-wide",
+        "Ctrl+G: the RFI log at 170 columns: crumb, list, the record beside it, the actions bar",
+        (170, 40),
+        "RFI log",
+        "[a] Answer",
+        bar="Open record",
+    )
+    rfi_log(
+        "user:amy",
+        "24b-rfi-log-stacked",
+        "The same log at 100 columns: the record panel moves below the list",
+        (100, 40),
+        "RFI log",
+        bar="Open record",
+    )
+
+    app = build_app(ws, actor="user:amy")
+
+    async def record(pilot: Pilot[Any]) -> None:
+        from tl_tui.widgets.record_screen import RecordScreen
+
+        await tk.until(pilot, lambda: len(app.query("RecordGrid")) > 0, "the shell")
+        await open_screen(pilot, app, "ctrl+g", rfi, "the RFI log")
+        table = app.screen.query_one("#log-table", DataTable)
+        table.move_cursor(row=row_with(table, rfi))
+        await tk.settle(pilot, 3)
+        await pilot.press("enter")
+        await tk.until(pilot, lambda: isinstance(app.screen, RecordScreen), "the record screen")
+        await tk.until(pilot, lambda: "Answer rejected" in tk.screen_text(app), "the timeline")
+        tk.shot_tui(
+            ws,
+            app,
+            "24c-rfi-record",
+            "Enter on the RFI: the question whole, then the timeline of the answer round",
+            "Question",
+            "Answer rejected",
+            "Reissued",
+            "amy",
+        )
+        await pilot.press("6")
+        await tk.until(pilot, lambda: "survey-notes.txt" in tk.screen_text(app), "the Files tab")
+        tk.shot_tui(
+            ws,
+            app,
+            "24d-rfi-files",
+            "6: the Files tab: each attachment with its kind, size and (for a PDF) pages",
+            "beam-b12-sketch.pdf",
+            "survey-notes.txt",
+        )
+
+    tk.run_tui(ws, app, record, size=(150, 62))
+
+    saved = os.environ.get("TL_IMAGES")
+    os.environ["TL_IMAGES"] = "off"  # a terminal without images: the panel gives the page count
+    try:
+        docs = build_app(ws, actor="user:amy")
+
+        async def register(pilot: Pilot[Any]) -> None:
+            await tk.until(pilot, lambda: len(app_rows(docs)) > 0, "the shell")
+            await open_screen(pilot, docs, "f7", DOCUMENT_24, "the document register")
+            table = docs.screen.query_one("#log-table", DataTable)
+            table.move_cursor(row=row_with(table, DOCUMENT_24))
+            await tk.until(pilot, lambda: "3 pages" in tk.screen_text(docs), "the page count")
+            tk.shot_tui(
+                ws,
+                docs,
+                "24e-document-preview-fallback",
+                "F7: the document log: the PDF's kind, size and 3 pages where images are not shown",
+                DOCUMENT_24,
+                "PDF document",
+                "3 pages",
+                "[v] Open file",
+            )
+
+        tk.run_tui(ws, docs, register, size=(170, 44))
+    finally:
+        if saved is None:
+            os.environ.pop("TL_IMAGES", None)
+        else:
+            os.environ["TL_IMAGES"] = saved
+
+    rfi_log(
+        "user:amy",
+        "24f-rfi-log-plain-user",
+        "An RFI waiting to be issued, for a plain user: Return to draft, but no Issue",
+        (170, 40),
+        "RFI log",
+        "[r] Return to draft",
+        bar="Open record",
+        absent="[u] Issue",
+        number=waiting,
+        subject=SUBJECT_24B,
+    )
+    rfi_log(
+        "user:dora",
+        "24g-rfi-log-controller",
+        "The same RFI for a controller: Issue is offered as well",
+        (170, 40),
+        "RFI log",
+        "[u] Issue",
+        bar="Open record",
+        number=waiting,
+        subject=SUBJECT_24B,
+        controller=True,
+    )
+    return rfi
+
+
 # --- the tour --------------------------------------------------------------------------------
 
 
@@ -2222,6 +2500,8 @@ def main(argv: list[str] | None = None) -> int:
         section_legacy_load(ws)
         print("P1-UX: plain language and the record screen", flush=True)
         section_plain_record_screen(ws)
+        print("P1-UX2: the log standard, the RFI record and document preview", flush=True)
+        section_log_standard(ws)
     finally:
         ws.close()
     print(f"wrote {len(ws.written)} screenshots to {out}")
