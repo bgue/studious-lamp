@@ -23,6 +23,8 @@ from typing import NamedTuple
 
 MPL_ALLOWED = frozenset({"certifi", "tqdm", "fqdn", "hypothesis"})
 EXEMPT_PREFIX = "tl-"
+# rich-pixels 3.0.1 declares no licence field; its wheel carries an MIT LICENSE file (P1-UX2-S4, D9)
+MIT_FILE_ONLY = frozenset({"rich-pixels"})
 
 COPYLEFT = re.compile(r"gpl|general public|affero|lesser general", re.IGNORECASE)
 MPL = re.compile(r"\bmpl\b|mpl-|mozilla public", re.IGNORECASE)
@@ -117,6 +119,8 @@ def problems(dists: Iterable[Dist]) -> list[str]:
         if dist.name.lower().replace("_", "-").startswith(EXEMPT_PREFIX):
             continue
         found = statements(dist)
+        if not found and dist.name.lower() in MIT_FILE_ONLY:
+            continue
         if not found:
             refused.append((dist.name, f"{dist.name}: no licence declared"))
         elif not any(statement_ok(s, dist.name) for s in found):

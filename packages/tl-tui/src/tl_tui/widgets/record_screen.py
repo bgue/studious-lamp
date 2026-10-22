@@ -2,9 +2,9 @@
 
 ``open_record`` is the one call a register makes on Enter. The screen finds the record by its id
 through the viewer-filtered read, so a hidden record and a missing one read the same: "No record",
-never an id. It hosts a ``RecordView`` (tabs Details, Properties, Links, History, Thread) and
-closes with ``dismiss(None)`` so the register's callback runs and the register keeps its row
-(``pop_screen`` would not run it).
+never an id. It hosts a ``RecordView`` (tabs Details, Properties, Links, History, Trace, Thread,
+and Files when the record has files) and closes with ``dismiss(None)`` so the register's callback
+runs and the register keeps its row (``pop_screen`` would not run it).
 """
 
 from __future__ import annotations
@@ -27,7 +27,7 @@ NO_RECORD = "No record"
 class RecordScreen(ModalScreen[None]):
     """One record in full. Esc closes it; following a link inside it re-targets the view."""
 
-    KEY_HINTS: ClassVar[str] = "Esc back  1-5 tabs  T thread  e edit  l link  w workflow  t trace"
+    KEY_HINTS: ClassVar[str] = "Esc back  1-6 tabs  T thread  e edit  l link  w workflow  t trace"
 
     BINDINGS: ClassVar[list[BindingType]] = [Binding("escape", "close", "Close", show=False)]
 

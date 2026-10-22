@@ -16,6 +16,7 @@ from tl_tui.widgets.admin_screen import AdminScreen
 from tl_tui.widgets.composer import ComposerScreen
 from tl_tui.widgets.edit_form import EditForm
 from tl_tui.widgets.feed_pane import FeedPane
+from tl_tui.widgets.file_panel import FilePanel
 from tl_tui.widgets.footer import DEFAULT_HINTS
 from tl_tui.widgets.grid import RecordGrid
 from tl_tui.widgets.help_screen import HelpScreen
@@ -43,6 +44,7 @@ OWNERS: dict[str, Any] = {
     "ReferenceTrayScreen": ReferenceTrayScreen,
     "WorkflowMenu": WorkflowMenu,
     "FeedPane": FeedPane,
+    "FilePanel": FilePanel,
     "ComposerScreen": ComposerScreen,
     "SettingsScreen": SettingsScreen,
     "SettingForm": SettingForm,

@@ -138,12 +138,14 @@ async def register(db: str, number: str) -> tuple[list[str], list[str]]:
         async with app.run_test(size=(160, 48)) as pilot:
             await pilot.press("f7")
             await pilot.pause()
+            await app.workers.wait_for_complete()  # the log reads its rows off the UI thread
+            await pilot.pause()
             screen = app.screen
             assert isinstance(screen, DocumentRegisterScreen)
-            assert screen.query_one("#docs-table", DataTable).row_count >= 1
+            assert screen.query_one("#log-table", DataTable).row_count >= 1
             shown = [v.number for v in screen.shown]
             assert number in shown, shown
-            screen.query_one("#docs-table", DataTable).move_cursor(row=shown.index(number))
+            screen.query_one("#log-table", DataTable).move_cursor(row=shown.index(number))
             await pilot.pause()
             from tl_tui.document_text import detail_lines
 
