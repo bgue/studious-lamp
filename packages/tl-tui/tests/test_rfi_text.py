@@ -138,3 +138,16 @@ def test_an_answer_without_text_or_statement_still_shows_its_day() -> None:
 def test_an_average_of_zero_days_is_still_shown() -> None:
     log = seeded().list_rfis("P123").model_copy(update={"average_response_days": 0.0})
     assert rt.rfi_summary(log).endswith("| average answer 0.0 days")
+
+
+def test_the_discipline_reads_as_its_label_in_plain_mode_and_stays_a_code_in_technical() -> None:
+    from tl_tui.display import Labels  # noqa: PLC0415
+
+    line = seeded().list_rfis("P123").lines[0]
+    labels = Labels(code_labels={"discipline": {"structural": "Structural works"}})
+    assert rt.rfi_cells(line, labels, technical=False)[3] == "Structural works"
+    assert rt.rfi_cells(line, labels, technical=True)[3] == "structural"
+    assert rt.rfi_cells(line, Labels(), technical=False)[3] == "structural"  # no list: the code
+    view = seeded().get_rfi("P123", line.number)
+    assert "discipline Structural works" in "\n".join(rt.rfi_lines(view, labels))
+    assert "discipline structural" in "\n".join(rt.rfi_lines(view, labels, technical=True))

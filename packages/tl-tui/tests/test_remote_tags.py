@@ -63,3 +63,10 @@ def test_the_two_calls_round_trip_with_the_modules_error_class(seeded: Harness) 
         with pytest.raises(TagNotFoundError, match="47-FV-9999"):
             client.get_tag("P123", "47-FV-9999")
         client.close()
+
+
+def test_the_code_lists_round_trip_as_the_embedded_client_reads_them(seeded: Harness) -> None:
+    with restartable(seeded) as server:
+        client = RemoteClient.connect(server.base_url, server.token, timeout=LIVE_TIMEOUT_S)
+        assert client.list_code_lists("project:P123") == {"Area": {"10": "10", "47": "47"}}
+        assert client.list_code_lists("company") == {"Area": {"10": "10", "47": "47"}}

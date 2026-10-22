@@ -130,7 +130,7 @@ class RecordView(Vertical, can_focus=True):
     """
 
     KEY_HINTS: ClassVar[str] = (
-        "Esc back  [ ] prev/next  1-5 tabs  T thread  e edit  l link  w workflow  t trace  R tray"
+        "Esc back  [ ] prev/next  1-6 tabs  T thread  e edit  l link  w workflow  t trace  R tray"
     )
 
     BINDINGS: ClassVar[list[BindingType]] = [

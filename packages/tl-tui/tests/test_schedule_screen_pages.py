@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Awaitable, Callable
 
 from fakes import SCOPE, FakeClient
-from helpers import run_pilot, screen_text
+from helpers import run_pilot, screen_text, settle
 from textual.pilot import Pilot
 from textual.widgets import DataTable, Static
 from tl_tui.app import TlApp
@@ -39,7 +39,7 @@ def scenario(
 
     async def go(pilot: Pilot[None]) -> None:
         await pilot.press("f12")
-        await pilot.pause()
+        await settle(pilot)
         assert isinstance(app.screen, ScheduleScreen)
         await steps(pilot, app, app.screen)
 
@@ -67,20 +67,20 @@ def test_the_first_page_is_the_newest_snapshots_and_n_and_b_turn_the_pages() -> 
         assert table.row_count == SNAPSHOT_PAGE and numbers(screen)[0] == TOTAL
         assert "snapshots 1 to 50 of 130" in screen_text(app)
         await pilot.press("n")
-        await pilot.pause()
+        await settle(pilot)
         assert numbers(screen) == list(range(80, 30, -1)) and table.row_count == SNAPSHOT_PAGE
         assert "snapshots 51 to 100 of 130" in screen_text(app)
         await pilot.press("n", "n")
-        await pilot.pause()
+        await settle(pilot)
         assert numbers(screen) == list(range(30, 0, -1))  # the last, short page
-        assert "oldest snapshots" in str(screen.query_one("#sc-status", Static).render())
+        assert "oldest snapshots" in str(screen.query_one("#log-status", Static).render())
         await pilot.press("b")
-        await pilot.pause()
+        await settle(pilot)
         assert numbers(screen)[0] == 80
         await pilot.press("b", "b")
-        await pilot.pause()
+        await settle(pilot)
         assert numbers(screen)[0] == TOTAL and screen.page_start == 0
-        assert "newest snapshots" in str(screen.query_one("#sc-status", Static).render())
+        assert "newest snapshots" in str(screen.query_one("#log-status", Static).render())
 
     scenario(crowded(), steps)
 
@@ -88,9 +88,9 @@ def test_the_first_page_is_the_newest_snapshots_and_n_and_b_turn_the_pages() -> 
 def test_a_reload_keeps_the_page() -> None:
     async def steps(pilot: Pilot[None], app: TlApp, screen: ScheduleScreen) -> None:
         await pilot.press("n")
-        await pilot.pause()
+        await settle(pilot)
         await pilot.press("f5")
-        await pilot.pause()
+        await settle(pilot)
         assert screen.page_start == SNAPSHOT_PAGE and numbers(screen)[0] == 80
 
     scenario(crowded(), steps)
@@ -103,8 +103,8 @@ def test_a_schedule_with_one_page_shows_no_page_line_and_n_says_so() -> None:
     async def steps(pilot: Pilot[None], app: TlApp, screen: ScheduleScreen) -> None:
         assert "snapshots 1 to" not in screen_text(app)
         await pilot.press("n")
-        await pilot.pause()
+        await settle(pilot)
         assert screen.page_start == 0
-        assert "oldest snapshots" in str(screen.query_one("#sc-status", Static).render())
+        assert "oldest snapshots" in str(screen.query_one("#log-status", Static).render())
 
     scenario(client, steps)

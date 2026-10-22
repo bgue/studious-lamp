@@ -121,7 +121,7 @@ class DocumentRegisterScreen(LogScreen[DocumentView]):
         return row.number
 
     def row_cells(self, row: DocumentView) -> Sequence[str]:
-        return row_cells(row, self.labels)
+        return row_cells(row, self.labels, technical=mode_of(self.app).technical)
 
     def row_record(self, row: DocumentView) -> tuple[str, str]:
         return (row.number, row.title)

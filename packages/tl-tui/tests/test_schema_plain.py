@@ -11,7 +11,7 @@ from typing import Any
 
 from fakes import SCOPE, FakeClient
 from fakes_schemareg import make_package
-from helpers import run_pilot, screen_text
+from helpers import run_pilot, screen_text, settle
 from textual.pilot import Pilot
 from textual.widgets import DataTable
 from tl_mod_schemareg.impact_types import ImpactReport
@@ -126,7 +126,7 @@ def test_screen_toggle_refresh() -> None:
 
     async def go(pilot: Pilot[Any]) -> None:
         await pilot.press("ctrl+o")
-        await pilot.pause()
+        await settle(pilot)
         screen = app.screen
         assert isinstance(screen, SchemaWorkbenchScreen)
         text = screen_text(app)
@@ -134,7 +134,7 @@ def test_screen_toggle_refresh() -> None:
         assert "x.P123@1.4.0" not in text
 
         await pilot.press("down")  # the second row is the 3.2.0 version
-        await pilot.pause()
+        await settle(pilot)
         text = screen_text(app)
         assert "Engineering, version 3.2.0  Published" in text
         assert "co.acme.engineering@3.2.0" not in text.split("Properties")[0]
@@ -142,15 +142,15 @@ def test_screen_toggle_refresh() -> None:
         mode.technical = True
         app.display_mode = mode  # pyright: ignore[reportAttributeAccessIssue]  # App does not declare it
         screen.refresh_for_display_mode()
-        await pilot.pause()
+        await settle(pilot)
         assert "co.acme.engineering@3.2.0  Published" in screen_text(app)
-        assert screen.query_one("#schema-table", DataTable).cursor_row == 1  # the cursor is kept
+        assert screen.query_one("#log-table", DataTable).cursor_row == 1  # the cursor is kept
 
         mode.technical = False
         screen.refresh_for_display_mode()
-        await pilot.pause()
+        await settle(pilot)
         assert "co.acme.engineering@3.2.0  Published" not in screen_text(app)
         assert "Engineering, version 3.2.0  Published" in screen_text(app)
-        assert screen.query_one("#schema-table", DataTable).cursor_row == 1
+        assert screen.query_one("#log-table", DataTable).cursor_row == 1
 
     run_pilot(app, go)

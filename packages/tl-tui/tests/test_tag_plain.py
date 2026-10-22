@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Awaitable, Callable
 
 from fakes import SCOPE, FakeClient
-from helpers import run_pilot, screen_text
+from helpers import run_pilot, screen_text, settle
 from textual.pilot import Pilot
 from textual.widgets import Input
 from tl_mod_engineering.views import TagView
@@ -50,7 +50,7 @@ def scenario(
 
     async def go(pilot: Pilot[None]) -> None:
         await pilot.press("f8")
-        await pilot.pause()
+        await settle(pilot)
         assert isinstance(app.screen, TagRegisterScreen)
         await steps(pilot, app, app.screen)
 
@@ -66,24 +66,24 @@ def test_enter_opens_the_record_screen_with_the_tag_details_and_escape_returns_t
 ):  # noqa: E501
     async def steps(pilot: Pilot[None], app: TlApp, screen: TagRegisterScreen) -> None:
         await pilot.press("enter")
-        await pilot.pause()
+        await settle(pilot)
         assert isinstance(app.screen, RecordScreen)
         text = screen_text(app)
         assert "Control valve" in text and "Valve data / Body material" in text
         assert "ControlValve" not in text and "psets." not in text
         await pilot.press("escape")
-        await pilot.pause()
+        await settle(pilot)
         assert isinstance(app.screen, TagRegisterScreen)
         current = screen.current()
         assert current is not None and current.number == "47-FV-1001"
         await pilot.press("down")
-        await pilot.pause()
+        await settle(pilot)
         await pilot.press("enter")
-        await pilot.pause()
+        await settle(pilot)
         assert isinstance(app.screen, RecordScreen)
         assert "Manual valve" in screen_text(app)
         await pilot.press("escape")
-        await pilot.pause()
+        await settle(pilot)
         assert isinstance(app.screen, TagRegisterScreen)
         current = screen.current()
         assert current is not None and current.number == "47-HV-1003"
@@ -94,9 +94,9 @@ def test_enter_opens_the_record_screen_with_the_tag_details_and_escape_returns_t
 def test_enter_in_the_filter_box_does_not_open_a_record() -> None:
     async def steps(pilot: Pilot[None], app: TlApp, screen: TagRegisterScreen) -> None:
         await pilot.press("slash")
-        screen.query_one("#tags-filter", Input).value = "47"
+        screen.query_one("#log-filter", Input).value = "47"
         await pilot.press("enter")
-        await pilot.pause()
+        await settle(pilot)
         assert isinstance(app.screen, TagRegisterScreen)
         assert not any(isinstance(s, RecordScreen) for s in app.screen_stack)
         assert numbers(screen) == ["47-FV-1001", "47-HV-1003"]
@@ -111,11 +111,11 @@ def test_a_tag_the_viewer_cannot_read_opens_as_no_record() -> None:
 
     async def steps(pilot: Pilot[None], app: TlApp, screen: TagRegisterScreen) -> None:
         await pilot.press("down", "down")
-        await pilot.pause()
+        await settle(pilot)
         current = screen.current()
         assert current is not None and current.number == "47-PT-2001"
         await pilot.press("enter")
-        await pilot.pause()
+        await settle(pilot)
         assert isinstance(app.screen, RecordScreen)
         text = screen_text(app)
         assert "No record" in text
@@ -133,7 +133,7 @@ def test_plain_text_names_the_class_and_the_properties_in_words() -> None:
             assert raw not in text, raw
         assert find_technical(text) == []
         await pilot.press("enter")
-        await pilot.pause()
+        await settle(pilot)
         assert isinstance(app.screen, RecordScreen)
         record_text = screen_text(app)
         assert "Control valve" in record_text and "Valve data / Body material" in record_text
@@ -147,14 +147,14 @@ def test_technical_mode_shows_the_raw_path_and_segments_and_back() -> None:
         assert "area=" not in screen_text(app)
         app.display_mode.technical = True
         screen.refresh_for_display_mode()
-        await pilot.pause()
+        await settle(pilot)
         text = screen_text(app)
         assert "psets.valve_data.body_material" in text
         assert "area=47 mnemonic=FV seq=1001" in text
         assert "ControlValve" in text
         app.display_mode.technical = False
         screen.refresh_for_display_mode()
-        await pilot.pause()
+        await settle(pilot)
         text = screen_text(app)
         assert "area=" not in text and "psets." not in text
         assert "Valve data / Body material" in text

@@ -16,7 +16,7 @@ from collections.abc import Sequence
 
 from tl_mod_engineering.views import TagView
 
-from tl_tui.display import Labels, humanize
+from tl_tui.display import Labels, code_label, humanize
 from tl_tui.text import conformance_mark
 
 COLUMNS = ("Number", "Class", "Status", "Number check", "Conformance", "Title")
@@ -57,6 +57,12 @@ def row_cells(view: TagView, labels: Labels | None = None) -> tuple[str, ...]:
     )
 
 
+def _segment_word(labels: Labels | None, name: str, value: str) -> str:
+    """A number part with its code-list label when the standards have one: ``47 (Unit 47, ...)``."""
+    word = code_label(labels, name, value) if labels is not None else value
+    return value if word == value else f"{value} ({word})"
+
+
 def detail_lines(
     view: TagView, labels: Labels | None = None, *, technical: bool = False
 ) -> list[str]:
@@ -66,7 +72,10 @@ def detail_lines(
         number_line = f"number {view.number_status}: {segments or '-'}"
         class_word = view.class_code or "-"
     else:
-        words = ", ".join(f"{humanize(name)} {value}" for name, value in view.segments.items())
+        words = ", ".join(
+            f"{humanize(name)} {_segment_word(labels, name, value)}"
+            for name, value in view.segments.items()
+        )
         check = "ok" if number_fits(view) else "does not fit the pattern"
         number_line = f"number {check}" + (f": {words}" if words else "")
         class_word = class_text(view)

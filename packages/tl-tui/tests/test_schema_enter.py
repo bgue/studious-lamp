@@ -12,7 +12,7 @@ from typing import Any
 import pytest
 from fakes import SCOPE, FakeClient
 from fakes_schemareg import make_package
-from helpers import run_pilot, screen_text
+from helpers import run_pilot, screen_text, settle
 from textual.pilot import Pilot
 from textual.screen import ModalScreen
 from textual.widgets import DataTable
@@ -83,7 +83,7 @@ def scenario(client: FakeClient, steps: Steps) -> None:
 
     async def go(pilot: Pilot[Any]) -> None:
         await pilot.press("ctrl+o")
-        await pilot.pause()
+        await settle(pilot)
         assert isinstance(app.screen, SchemaWorkbenchScreen)
         await steps(pilot, app)
 
@@ -93,22 +93,22 @@ def scenario(client: FakeClient, steps: Steps) -> None:
 def table(app: TlApp) -> DataTable[str]:
     screen = app.screen
     assert isinstance(screen, SchemaWorkbenchScreen)
-    return screen.query_one("#schema-table", DataTable)
+    return screen.query_one("#log-table", DataTable)
 
 
 def test_enter_on_a_package_row_opens_the_record_and_escape_returns_to_the_same_row() -> None:
     async def steps(pilot: Pilot[Any], app: TlApp) -> None:
         await pilot.press("down")  # the second row: co.acme.engineering 3.3.0
-        await pilot.pause()
+        await settle(pilot)
         assert table(app).cursor_row == 1
         await pilot.press("enter")
-        await pilot.pause()
+        await settle(pilot)
         assert isinstance(app.screen, RecordScreen)
         text = screen_text(app)
         assert ENGINEERING_TITLE in text
         assert ENGINEERING_ID not in text
         await pilot.press("escape")
-        await pilot.pause()
+        await settle(pilot)
         assert isinstance(app.screen, SchemaWorkbenchScreen)
         assert table(app).cursor_row == 1
 
@@ -123,13 +123,13 @@ def test_a_package_the_viewer_cannot_read_opens_as_no_record() -> None:
 
     async def steps(pilot: Pilot[Any], app: TlApp) -> None:
         await pilot.press("enter")  # row 0 is x.P123 1.4.0, which has no stored record
-        await pilot.pause()
+        await settle(pilot)
         assert isinstance(app.screen, RecordScreen)
         text = screen_text(app)
         assert "No record" in text
         assert "PKG-x.P123-1.4.0" not in text and "x.P123@1.4.0" not in text
         await pilot.press("escape")
-        await pilot.pause()
+        await settle(pilot)
         assert isinstance(app.screen, SchemaWorkbenchScreen)
 
     scenario(client, steps)
@@ -172,13 +172,13 @@ def test_enter_does_not_steal_the_review_key(monkeypatch: pytest.MonkeyPatch) ->
 
     async def steps(pilot: Pilot[Any], app: TlApp) -> None:
         await pilot.press("enter")  # row 0 opens its record
-        await pilot.pause()
+        await settle(pilot)
         assert isinstance(app.screen, RecordScreen)
         await pilot.press("escape")
-        await pilot.pause()
+        await settle(pilot)
         assert isinstance(app.screen, SchemaWorkbenchScreen)
         await pilot.press("down", "v")  # 3.3.0 is the second row
-        await pilot.pause()
+        await settle(pilot)
         assert isinstance(app.screen, Review)
         assert opened == [(SCOPE, "user:boss", ENGINEERING_ID)]
 

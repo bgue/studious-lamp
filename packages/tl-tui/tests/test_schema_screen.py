@@ -14,7 +14,7 @@ from typing import Any
 import pytest
 from fakes import SCOPE, FakeClient
 from fakes_schemareg import make_package
-from helpers import run_pilot, screen_text
+from helpers import run_pilot, screen_text, settle
 from textual.pilot import Pilot
 from textual.screen import ModalScreen
 from textual.widgets import DataTable
@@ -71,7 +71,7 @@ def scenario(
 
     async def go(pilot: Pilot[Any]) -> None:
         await pilot.press("ctrl+o")
-        await pilot.pause()
+        await settle(pilot)
         assert isinstance(app.screen, SchemaWorkbenchScreen)
         await steps(pilot, app, app.screen)
 
@@ -79,7 +79,7 @@ def scenario(
 
 
 def table(screen: SchemaWorkbenchScreen) -> DataTable[str]:
-    return screen.query_one("#schema-table", DataTable)
+    return screen.query_one("#log-table", DataTable)
 
 
 def show_technical(app: TlApp, screen: SchemaWorkbenchScreen, on: bool) -> None:
@@ -104,7 +104,7 @@ def test_ctrl_o_lists_the_versions_as_a_tree_and_escape_closes() -> None:
         show_technical(app, screen, False)
         assert "x.P123" not in screen_text(app)
         await pilot.press("escape")
-        await pilot.pause()
+        await settle(pilot)
         assert not isinstance(app.screen, SchemaWorkbenchScreen)
 
     scenario(full_client(), steps)
@@ -118,7 +118,7 @@ def test_the_highlighted_version_shows_its_header_and_what_it_defines() -> None:
         assert "extends Engineering, version 3.2.0, Valve data" in text
         assert "add MaterialCode  SS316L-NACE  -> SS316L" in text
         await pilot.press("down")
-        await pilot.pause()
+        await settle(pilot)
         text = screen_text(app)
         assert "Engineering, version 3.3.0  Draft" in text
         assert "pset valve_data  required  mandatory  applies to Record" in text
@@ -135,19 +135,19 @@ def test_the_tabs_show_lint_and_the_diff_and_the_brackets_wrap_round() -> None:
     async def steps(pilot: Pilot[Any], app: TlApp, screen: SchemaWorkbenchScreen) -> None:
         await pilot.press("down")  # 3.3.0, the one with a finding and a diff
         await pilot.press("2")
-        await pilot.pause()
+        await settle(pilot)
         text = screen_text(app)
         assert "1 Properties  [2 Lint]  3 Diff" in text
         assert "Lint: 1 errors, 0 warnings" in text and "error  L1  psets.a  No text." in text
         await pilot.press("3")
-        await pilot.pause()
+        await settle(pilot)
         text = screen_text(app)
         assert "+  seat_leak" in text and "--- co.acme.engineering@3.2.0" in text
         await pilot.press("right_square_bracket")  # wraps to the first tab
-        await pilot.pause()
+        await settle(pilot)
         assert "[1 Properties]" in screen_text(app)
         await pilot.press("left_square_bracket")  # and back to the last
-        await pilot.pause()
+        await settle(pilot)
         assert "[3 Diff]" in screen_text(app)
 
     scenario(full_client(), steps)
@@ -156,7 +156,7 @@ def test_the_tabs_show_lint_and_the_diff_and_the_brackets_wrap_round() -> None:
 def test_the_version_below_has_no_diff_and_says_why() -> None:
     async def steps(pilot: Pilot[Any], app: TlApp, screen: SchemaWorkbenchScreen) -> None:
         await pilot.press("down", "down", "3")  # 3.2.0: analysed, no base
-        await pilot.pause()
+        await settle(pilot)
         assert "Not analysed yet" in screen_text(app) or "No base to compare" in screen_text(app)
 
     scenario(full_client(), steps)
@@ -167,7 +167,7 @@ def test_an_empty_registry_says_so() -> None:
         text = screen_text(app)
         assert "Schema packages (0)" in text and "No package versions." in text
         await pilot.press("v", "2", "3")  # nothing highlighted: nothing happens, nothing breaks
-        await pilot.pause()
+        await settle(pilot)
         assert isinstance(app.screen, SchemaWorkbenchScreen)
 
     scenario(FakeClient(), steps)
@@ -182,9 +182,10 @@ def test_a_refusal_of_the_list_is_shown_in_the_status_line() -> None:
     async def steps(pilot: Pilot[Any], app: TlApp, screen: SchemaWorkbenchScreen) -> None:
         client.list_schema_packages = refuse  # type: ignore[method-assign]
         await pilot.press("f5")
-        await pilot.pause()
+        await settle(pilot)
         text = screen_text(app)
-        assert "! the registry is closed" in text and "Schema packages (0)" in text
+        assert "! the registry is closed" in text
+        assert table(screen).row_count > 0  # the standard log keeps the rows it had
 
     scenario(client, steps)
 
@@ -204,12 +205,12 @@ def test_v_opens_the_review_of_the_highlighted_version_and_the_list_is_read_agai
 
     async def steps(pilot: Pilot[Any], app: TlApp, screen: SchemaWorkbenchScreen) -> None:
         await pilot.press("down", "v")  # 3.3.0
-        await pilot.pause()
+        await settle(pilot)
         assert isinstance(app.screen, Review)
         assert opened == [(SCOPE, "user:boss", "PKG-co.acme.engineering-3.3.0")]
         client.seed_schema_package(make_package("co.acme.standards", "1.0.0"))
         app.screen.dismiss(None)
-        await pilot.pause()
+        await settle(pilot)
         assert isinstance(app.screen, SchemaWorkbenchScreen)
         assert "Schema packages (4)" in screen_text(app)
         assert table(app.screen).cursor_row >= 0

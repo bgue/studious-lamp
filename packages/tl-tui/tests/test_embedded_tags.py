@@ -132,3 +132,11 @@ def test_one_tag_comes_with_its_issues_and_an_unknown_one_is_the_modules_error(
     for client in (embedded, fake):
         with pytest.raises(TagNotFoundError, match="47-FV-9999"):
             client.get_tag("P123", "47-FV-9999")
+
+
+def test_the_code_lists_are_read_as_names_codes_and_labels(
+    both: tuple[ClientInterface, ClientInterface],
+) -> None:
+    embedded, fake = both
+    assert embedded.list_code_lists("project:P123") == {"Area": {"10": "10", "47": "47"}}
+    assert fake.list_code_lists("project:P123") == {}  # a test fills `code_lists`
