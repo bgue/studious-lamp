@@ -29,6 +29,7 @@ from tl_tui.client import ClientInterface
 from tl_tui.display import Labels, mode_of
 from tl_tui.document_text import (
     COLUMNS,
+    DROP,
     document_panel_pages,
     file_revision,
     next_choice,
@@ -106,6 +107,9 @@ class DocumentRegisterScreen(LogScreen[DocumentView]):
 
     def columns(self) -> Sequence[str]:
         return COLUMNS
+
+    def drop_order(self) -> Sequence[str]:
+        return DROP
 
     def load_rows(self) -> Sequence[DocumentView]:
         if self._reread:

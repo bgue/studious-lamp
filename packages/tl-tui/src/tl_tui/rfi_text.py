@@ -8,14 +8,17 @@ report's: this module shows them as they come and decides nothing.
 
 from __future__ import annotations
 
+from datetime import date
+
+from tl_core.util import utcnow
 from tl_mod_correspondence.reports_technical import RfiLog, RfiLogLine
 from tl_mod_correspondence.views_domain import TechnicalView
 
 from tl_tui.client import ClientInterface
 from tl_tui.details import rows_page, since_of
 from tl_tui.details.technical import rfi_content
-from tl_tui.display import Labels, code_label, domain_label, humanize
-from tl_tui.layout import Page, identity_line, plain_lines, state_line
+from tl_tui.display import Labels, category_label, code_label, humanize
+from tl_tui.layout import Page, identity_line, join_facts, plain_lines, state_line
 from tl_tui.text import EMPTY
 
 # The number, the subject and the state come first; the kind shows only when two kinds are listed
@@ -33,6 +36,10 @@ RFI_COLUMNS = (
     "Timing",
     "Impact",
 )
+
+
+# columns left out, least needed first, when the log would not fit without scrolling
+RFI_DROP = ("Kind", "Impact", "Raised", "Answered", "Days")
 
 
 def timing_text(line: RfiLogLine) -> str:
@@ -67,7 +74,7 @@ def rfi_cells(
     else:
         state = humanize(line.state)
         lab = labels if labels is not None else Labels()
-        kind = domain_label(lab, "technical", line.subtype) if line.subtype else EMPTY
+        kind = category_label(lab, "technical", line.subtype) if line.subtype else EMPTY
         discipline = code_label(lab, "discipline", line.discipline) if line.discipline else EMPTY
     return (
         line.number,
@@ -108,6 +115,41 @@ def rfi_summary(
     return " | ".join(parts)
 
 
+def _plural(count: int, unit: str) -> str:
+    return f"{count} {unit}{'' if count == 1 else 's'}"
+
+
+def days_open(view: TechnicalView) -> str:
+    """``12 days open`` from the issue to today, ``answered in 3 days`` once answered; empty
+    before the RFI is issued."""
+    if not view.issued_on:
+        return ""
+    start = date.fromisoformat(view.issued_on)
+    if view.answered_on:
+        return "answered in " + _plural((date.fromisoformat(view.answered_on) - start).days, "day")
+    return _plural((utcnow().date() - start).days, "day") + " open"
+
+
+def overdue_note(view: TechnicalView) -> str:
+    """``overdue 3 days`` for an RFI still waiting past the day it is needed; else empty."""
+    if view.answered_on or not view.required_by or view.state in ("Draft", "Closed", "Void"):
+        return ""
+    late = (utcnow().date() - date.fromisoformat(view.required_by)).days
+    return f"overdue {_plural(late, 'day')}" if late > 0 else ""
+
+
+def rfi_summary_facts(view: TechnicalView, labels: Labels) -> str:
+    """The decision facts of an RFI in one line: ``Structural · needed by 2026-10-22 · to Meridian
+    · 12 days open``."""
+    to = ", ".join(p.name or p.email or EMPTY for p in view.to)
+    return join_facts(
+        code_label(labels, "discipline", view.discipline) if view.discipline else "",
+        f"needed by {view.required_by}" if view.required_by else "",
+        f"to {to}" if to else "",
+        days_open(view),
+    )
+
+
 def rfi_page(
     view: TechnicalView,
     labels: Labels | None = None,
@@ -123,10 +165,12 @@ def rfi_page(
     lab = labels if labels is not None else Labels()
     state = view.state if technical else humanize(view.state)
     since = since_of(client, view.id) if client is not None else None
+    late = overdue_note(view)
     return rows_page(
         rfi_content(view, lab, client=client, project=project),
         identity=identity_line(view.number, view.subject),
-        state=state_line(state, since),
+        state=state_line(state, since) + (f" · {late}" if late else ""),
+        summary=rfi_summary_facts(view, lab),
         technical=technical,
         panel=True,
     )

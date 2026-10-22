@@ -27,9 +27,11 @@ from tl_mod_correspondence.views import ClockView, ItemView, RegisterLineView, S
 from tl_tui.client import ClientInterface
 from tl_tui.correspondence_text import (
     CLOCK_COLUMNS,
+    CLOCK_DROP,
     MODES,
     PLAIN_CLOCK_COLUMNS,
     REGISTER_COLUMNS,
+    REGISTER_DROP,
     clock_cells,
     clock_page,
     item_page,
@@ -115,6 +117,9 @@ class CorrespondenceScreen(LogScreen[RegisterLineView | ClockView]):
         if self.mode == "clocks":
             return CLOCK_COLUMNS if mode_of(self.app).technical else PLAIN_CLOCK_COLUMNS
         return REGISTER_COLUMNS
+
+    def drop_order(self) -> Sequence[str]:
+        return CLOCK_DROP if self.mode == "clocks" else REGISTER_DROP
 
     def load_rows(self) -> Sequence[RegisterLineView | ClockView]:
         if not self._labelled:

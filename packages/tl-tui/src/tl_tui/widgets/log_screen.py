@@ -26,18 +26,21 @@ from textual.screen import ModalScreen
 from textual.widgets import DataTable, Input, Static
 
 from tl_tui.errors import CLIENT_ERRORS, describe_error
+from tl_tui.layout import state_style
 from tl_tui.log_text import (
+    MIN_FLEX,
     SEPARATOR,
     actions_text,
     breadcrumb_text,
     fit_cell,
     flex_index,
-    flex_width,
+    free_width,
     is_wide,
+    plan_columns,
     table_width,
-    visible_columns,
 )
 
+STATE_COLUMNS = frozenset({"State", "Status", "Timing", "Bar"})  # cells that take a state colour
 RESERVED_KEYS: frozenset[str] = frozenset(
     {
         "escape",
@@ -113,9 +116,9 @@ class LogScreen[Row](ModalScreen[None]):
     LogScreen #log-keys { height: 1; color: $text-muted; }
     LogScreen #log-status { height: 1; }
     LogScreen.-wide #log-body { layout: horizontal; }
-    LogScreen.-wide #log-table { width: 3fr; height: 1fr; }
+    LogScreen.-wide #log-table { width: 5fr; height: 1fr; }
     LogScreen.-wide #log-panel {
-        width: 2fr; height: 1fr; border-top: none; border-left: solid $accent;
+        width: 3fr; height: 1fr; border-top: none; border-left: solid $accent;
     }
     """
 
@@ -152,6 +155,15 @@ class LogScreen[Row](ModalScreen[None]):
         names = list(self.columns())
         flex = flex_index(names)
         return [*names[:1], "State", *([names[flex]] if flex is not None else [])]
+
+    def drop_order(self) -> Sequence[str]:
+        """The columns to leave out, least needed first, when the list would otherwise scroll
+        sideways or squeeze the subject."""
+        return []
+
+    def shrink_columns(self) -> Sequence[str]:
+        """The columns that shorten (with ``…``) before the subject does."""
+        return ("With",)
 
     def actions_for(self, row: Row) -> Sequence[LogAction]:
         """What the viewer may do to ``row`` now (called off the UI thread); may raise
@@ -252,15 +264,24 @@ class LogScreen[Row](ModalScreen[None]):
         stays on ``keep``."""
         names = list(self.columns())
         cells = [list(self.row_cells(row)) for row in self.shown]
-        columns = visible_columns(names, cells, self.keep_columns())
-        shown_names = [names[i] for i in columns]
-        shown_cells = [[row[i] for i in columns] for row in cells]
-        flex = flex_index(shown_names)
         width = self.size.width
+        total = table_width(width, wide=is_wide(width)) if width > 0 else 10_000
+        plan = plan_columns(
+            names,
+            cells,
+            self.keep_columns(),
+            total,
+            drop=self.drop_order(),
+            shrink=self.shrink_columns(),
+        )
+        shown_names = [names[i] for i in plan.columns]
+        shown_cells = [
+            [fit_cell(row[i], plan.caps[i]) if i in plan.caps else row[i] for i in plan.columns]
+            for row in cells
+        ]
+        flex = flex_index(shown_names)
         if flex is not None and width > 0:
-            room = flex_width(
-                table_width(width, wide=is_wide(width)), shown_names, shown_cells, flex
-            )
+            room = max(free_width(total, shown_names, shown_cells, flex), MIN_FLEX)
             shown_cells = [
                 [fit_cell(cell, room) if i == flex else cell for i, cell in enumerate(row)]
                 for row in shown_cells
@@ -270,7 +291,13 @@ class LogScreen[Row](ModalScreen[None]):
         table.add_columns(*shown_names)
         for row, row_cells in zip(self.shown, shown_cells, strict=True):
             # Text, not str: a cell is read as markup, and a title such as [a, b] is not markup
-            table.add_row(*(Text(cell) for cell in row_cells), key=self.row_key(row))
+            table.add_row(
+                *(
+                    Text(cell, style=state_style(cell) if name in STATE_COLUMNS else "")
+                    for name, cell in zip(shown_names, row_cells, strict=True)
+                ),
+                key=self.row_key(row),
+            )
         if self.shown:
             keys = [self.row_key(row) for row in self.shown]
             table.move_cursor(row=keys.index(keep) if keep in keys else 0)

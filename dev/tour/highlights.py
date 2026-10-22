@@ -305,7 +305,7 @@ def shots(ws: Workspace, n: dict[str, str]) -> None:
         "F5: the correspondence register: number, subject, state first; the letter beside it",
         "f5",
         n["reply"],
-        (200, 44),  # the register has eight columns: wider than the RFI log needs
+        (170, 44),
         "Revised programme",
         "Correspondence register",
         "Message",

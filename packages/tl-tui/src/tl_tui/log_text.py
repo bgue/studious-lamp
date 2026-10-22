@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import re
 from collections.abc import Sequence
+from dataclasses import dataclass
 from typing import Protocol
 
 from rich.cells import cell_len, set_cell_size
@@ -149,19 +150,96 @@ def fit_cell(text: str, width: int) -> str:
     return set_cell_size(text, max(width - 1, 1)).rstrip() + "…"
 
 
+def column_width(name: str, rows: Sequence[Sequence[str]], index: int) -> int:
+    """The cells a column needs: its widest cell or its heading, and the table's cell padding."""
+    return CELL_PADDING + max([cell_len(name), *(cell_len(row[index]) for row in rows)])
+
+
+def free_width(total: int, names: Sequence[str], rows: Sequence[Sequence[str]], flex: int) -> int:
+    """The cells left for the flexible column in a table ``total`` cells wide, after the other
+    columns (each as wide as its widest cell or its heading). Negative when they do not fit."""
+    used = SCROLLBAR + CELL_PADDING  # the flexible column's own padding
+    for index, name in enumerate(names):
+        if index != flex:
+            used += column_width(name, rows, index)
+    return total - used
+
+
 def flex_width(total: int, names: Sequence[str], rows: Sequence[Sequence[str]], flex: int) -> int:
     """The cells the flexible column may use in a table ``total`` cells wide: what is left after
     the other columns (each as wide as its widest cell or its heading), at least ``MIN_FLEX``."""
-    used = SCROLLBAR + CELL_PADDING  # the flexible column's own padding
-    for index, name in enumerate(names):
-        if index == flex:
-            continue
-        used += CELL_PADDING + max([cell_len(name), *(cell_len(row[index]) for row in rows)])
-    return max(total - used, MIN_FLEX)
+    return max(free_width(total, names, rows, flex), MIN_FLEX)
 
 
 def table_width(screen_width: int, *, wide: bool) -> int:
-    """Roughly the cells the list gets: the screen less its padding, three fifths of that when
-    the panel sits beside it (``log_text.is_wide``)."""
+    """Roughly the cells the list gets: the screen less its padding, and five eighths of that
+    when the panel sits beside it (``log_text.is_wide``)."""
     inner = max(screen_width - CRUMB_PADDING_CELLS, 1)
-    return inner * 3 // 5 if wide else inner
+    return inner * 5 // 8 - 1 if wide else inner
+
+
+MIN_SHRINK = 12  # a shrinkable column (With) never goes below this many cells of text
+GOOD_SUBJECT = 28  # the subject is given this many cells before another column is dropped
+
+
+@dataclass(frozen=True)
+class ColumnPlan:
+    """Which columns a table shows and how wide the shrunk ones are."""
+
+    columns: list[int]  # positions in the log's own column list, in order
+    caps: dict[int, int]  # position -> the most cells of text its column may hold
+
+
+def plan_columns(
+    names: Sequence[str],
+    rows: Sequence[Sequence[str]],
+    keep: Sequence[str],
+    total: int,
+    *,
+    drop: Sequence[str] = (),
+    shrink: Sequence[str] = ("With",),
+) -> ColumnPlan:
+    """Choose the columns of a table ``total`` cells wide so that it never scrolls sideways.
+
+    First the columns that never vary are left out (``visible_columns``). Then, while the subject
+    would get fewer than ``GOOD_SUBJECT`` cells (or fewer than it needs): a column in ``shrink``
+    (``With``) gives up cells down to ``MIN_SHRINK``; when that is not enough the columns named in
+    ``drop`` are left out, the least needed first. If nothing is left to give the subject takes
+    what remains (at least ``MIN_FLEX``) and the table may scroll.
+    """
+    shown = visible_columns(names, rows, keep)
+    caps: dict[int, int] = {}
+    flex = flex_index(names)
+    if flex is None or not rows:
+        return ColumnPlan(shown, caps)
+    wanted = min(GOOD_SUBJECT, max(cell_len(row[flex]) for row in rows))
+
+    def room(columns: list[int]) -> int:
+        """Cells the subject gets with ``columns`` shown and the caps applied."""
+        used = SCROLLBAR + CELL_PADDING
+        for i in columns:
+            if i == flex:
+                continue
+            width = column_width(names[i], rows, i)
+            used += min(width, caps[i] + CELL_PADDING) if i in caps else width
+        return total - used
+
+    while room(shown) < wanted:
+        gave = False
+        for i in shown:
+            if names[i] in shrink and i != flex:
+                have = caps.get(i, column_width(names[i], rows, i) - CELL_PADDING)
+                if have > MIN_SHRINK:
+                    caps[i] = max(MIN_SHRINK, have - (wanted - room(shown)))
+                    gave = True
+                    break
+        if gave:
+            continue
+        victim = next(
+            (i for n in drop for i in shown if names[i] == n and names[i] not in keep), None
+        )
+        if victim is None:
+            break
+        shown = [i for i in shown if i != victim]
+        caps.pop(victim, None)
+    return ColumnPlan(shown, caps)

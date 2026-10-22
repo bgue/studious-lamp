@@ -13,9 +13,11 @@ and both its panel and its Details tab render it, so the two never differ in ord
 
 from __future__ import annotations
 
+import re
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 
+from rich.cells import cell_len
 from rich.text import Text
 
 EMPTY = "—"
@@ -26,6 +28,26 @@ CUT_NOTE = "… (Enter for all)"
 IDENTITY_STYLE = "bold"
 HEADING_STYLE = "bold grey62"
 LABEL_STYLE = "dim"
+SUMMARY_JOIN = " · "
+
+# State colour (skill ``tui-layout``): green done, amber waiting or running, red overdue or refused.
+# The terminal's own palette colours, so a theme sets the exact shade; the word is always there.
+DONE_STYLE = "green"
+WAITING_STYLE = "yellow"
+BAD_STYLE = "red"
+_BAD = re.compile(
+    r"\b(overdue|late|refused|rejected|failed|expired|killed|breached)\b|does not fit", re.I
+)
+_DONE = re.compile(
+    r"\b(answered|closed|done|complete|completed|met|accepted|approved|issued|responded|"
+    r"published|applied|current|ok)\b",
+    re.I,
+)
+_WAITING = re.compile(
+    r"\b(awaiting|waiting|running|review|submitted|received|paused|pending|processing|uploaded|"
+    r"proposed|assessment)\b",
+    re.I,
+)
 
 
 @dataclass(frozen=True)
@@ -36,7 +58,24 @@ class Prop:
     value: str = ""
 
 
-Item = Prop | str  # a str is a line of prose or a list entry, printed as it is
+@dataclass(frozen=True)
+class Cell:
+    """A table cell with a style (a state colour); a plain ``str`` cell has none."""
+
+    text: str
+    style: str = ""
+
+
+@dataclass(frozen=True)
+class TableRow:
+    """One row of a small table. Consecutive rows with the same ``columns`` in one section are
+    drawn as one table: a dim header row, then the rows, cells lined up on the widest."""
+
+    columns: tuple[str, ...]
+    cells: tuple[Cell | str, ...]
+
+
+Item = Prop | str | TableRow  # a str is a line of prose or a list entry, printed as it is
 
 
 @dataclass(frozen=True)
@@ -55,6 +94,7 @@ class Page:
     identity: str = ""
     state: str = ""
     sections: tuple[Section, ...] = ()
+    summary: str = ""  # a panel only: the decision facts joined with `SUMMARY_JOIN`
 
 
 def shown(value: object) -> str:
@@ -68,6 +108,35 @@ def shown(value: object) -> str:
 def prop(label: str, value: object) -> Prop:
     """A property line whose empty value reads ``—``."""
     return Prop(label, shown(value))
+
+
+def join_facts(*facts: object) -> str:
+    """The panel's summary: the facts that are not empty, joined with `` · ``
+    (``Structural · needed by 2026-10-22 · to Meridian``)."""
+    return SUMMARY_JOIN.join(str(f) for f in facts if f is not None and str(f).strip())
+
+
+def state_style(text: str) -> str:
+    """The colour of a state: green done (answered, closed, met, issued), amber waiting or running,
+    red overdue, late or refused; none for a state that is none of these (a draft, void).
+
+    Red wins over green over amber, so ``Answer rejected`` is red. A mark leads some cells
+    (``✓ on``, ``! failed``, ``… waiting``) and decides first.
+    """
+    stripped = text.strip()
+    if stripped.startswith("!"):
+        return BAD_STYLE
+    if stripped.startswith("✓"):
+        return DONE_STYLE
+    if stripped.startswith("…"):
+        return WAITING_STYLE
+    if _BAD.search(stripped):
+        return BAD_STYLE
+    if _DONE.search(stripped):
+        return DONE_STYLE
+    if _WAITING.search(stripped):
+        return WAITING_STYLE
+    return ""
 
 
 def identity_line(number: str, title: str) -> str:
@@ -128,33 +197,104 @@ def _prop_lines(props: Sequence[Prop]) -> list[Line]:
     return lines
 
 
+def _pad(text: str, width: int) -> str:
+    return text + " " * max(width - cell_len(text), 0)
+
+
+def _table_lines(rows: Sequence[TableRow]) -> list[Line]:
+    """A small table: a dim header row, then one line per row; every column but the last as wide as
+    its widest cell, two cells between columns. A cell may carry a state colour."""
+    columns = rows[0].columns
+    body = [[c if isinstance(c, Cell) else Cell(c) for c in row.cells] for row in rows]
+    widths = [cell_len(name) for name in columns]
+    for cells in body:
+        for index, cell in enumerate(cells[: len(widths)]):
+            widths[index] = max(widths[index], cell_len(cell.text))
+    gap = " " * GAP
+    last = len(widths) - 1
+    head: Line = []
+    for index, name in enumerate(columns):
+        head.append((name if index == last else _pad(name, widths[index]) + gap, LABEL_STYLE))
+    lines: list[Line] = [head]
+    for cells in body:
+        line: Line = []
+        for index, cell in enumerate(cells[: len(widths)]):
+            if index == last:
+                line.append((cell.text, cell.style))
+            else:  # colour the word, not the padding after it
+                line.append((cell.text, cell.style))
+                line.append((_pad("", widths[index] - cell_len(cell.text)) + gap, ""))
+        lines.append(line)
+    return lines
+
+
 def _section_lines(section: Section) -> list[Line]:
     lines: list[Line] = []
     if section.heading:
         lines.append([(section.heading, HEADING_STYLE)])
     items = section.items or ((section.note,) if section.note else ())
-    run: list[Prop] = []
+    props: list[Prop] = []
+    table: list[TableRow] = []
+
+    def flush() -> None:
+        nonlocal props, table
+        if props:
+            lines.extend(_prop_lines(props))
+            props = []
+        if table:
+            lines.extend(_table_lines(table))
+            table = []
+
     for item in items:
         if isinstance(item, Prop):
-            run.append(item)
-            continue
-        if run:
-            lines.extend(_prop_lines(run))
-            run = []
-        lines.extend([(text, "")] for text in item.split("\n"))
-    if run:
-        lines.extend(_prop_lines(run))
+            if table:
+                flush()
+            props.append(item)
+        elif isinstance(item, TableRow):
+            if props or (table and table[0].columns != item.columns):
+                flush()
+            table.append(item)
+        else:
+            flush()
+            lines.extend([(text, "")] for text in item.split("\n"))
+    flush()
     return lines
 
 
+def table_text(rows: Sequence[TableRow], selected: int | None = None) -> Text:
+    """A table on its own (no section around it) as styled text; the row ``selected`` (counted
+    from the first row under the header) is shown reversed."""
+    text = Text()
+    for index, line in enumerate(_table_lines(rows)):
+        if index:
+            text.append("\n")
+        for part, style in line:
+            if selected is not None and index == selected + 1:
+                style = f"{style} reverse".strip()
+            text.append(part, style=style or None)
+    return text
+
+
+def state_segments(state: str) -> Line:
+    """The state line as segments: the state in its colour, then what follows it (``since``, an
+    ``overdue 3 days`` in red) in its own."""
+    first, *rest = state.split(SUMMARY_JOIN)
+    line: Line = [(first, state_style(first))]
+    for part in rest:
+        line.append((SUMMARY_JOIN + part, BAD_STYLE if _BAD.search(part) else ""))
+    return line
+
+
 def page_lines(page: Page, *, identity: bool = True) -> list[Line]:
-    """The page as lines of styled segments. ``identity=False`` leaves out the identity and state
-    lines (the Details tab: the record screen's header already shows them)."""
+    """The page as lines of styled segments. ``identity=False`` leaves out the identity, state and
+    summary lines (the Details tab: the record screen's header already shows them)."""
     lines: list[Line] = []
     if identity and page.identity:
         lines.append([(page.identity, IDENTITY_STYLE)])
     if identity and page.state:
-        lines.append([(page.state, "")])
+        lines.append(state_segments(page.state))
+    if identity and page.summary:
+        lines.append([(page.summary, LABEL_STYLE)])
     blocks = [_section_lines(section) for section in page.sections]
     for block in blocks:
         if not block:
@@ -182,17 +322,24 @@ def render(page: Page, *, identity: bool = True) -> Text:
     return text
 
 
+def group_items(entries: Iterable[tuple[str, Item]]) -> tuple[Section, ...]:
+    """Sections from ``(section heading, item)`` pairs, in order of first appearance."""
+    order: list[str] = []
+    items: dict[str, list[Item]] = {}
+    for heading, item in entries:
+        if heading not in items:
+            order.append(heading)
+            items[heading] = []
+        items[heading].append(item)
+    return tuple(Section(heading, tuple(items[heading])) for heading in order)
+
+
 def group_rows(rows: Iterable[tuple[str, str, str]]) -> tuple[Section, ...]:
     """Sections from ``(section heading, label, value)`` rows, in order of first appearance.
 
     A row with an empty label is a line of text under the heading (prose, a list entry); a row
     with a label is a property line.
     """
-    order: list[str] = []
-    items: dict[str, list[Item]] = {}
-    for heading, label, value in rows:
-        if heading not in items:
-            order.append(heading)
-            items[heading] = []
-        items[heading].append(Prop(label, value) if label else value)
-    return tuple(Section(heading, tuple(items[heading])) for heading in order)
+    return group_items(
+        (heading, Prop(label, value) if label else value) for heading, label, value in rows
+    )

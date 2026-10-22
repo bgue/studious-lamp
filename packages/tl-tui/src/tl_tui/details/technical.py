@@ -26,6 +26,7 @@ from tl_tui.details import (
     TECHNICAL_SECTION,
     DetailRow,
     file_rows,
+    link_rows,
     plain_code,
     record_rows,
     register,
@@ -41,6 +42,7 @@ from tl_tui.text import EMPTY
 from tl_tui.timeline_text import person
 
 RFI_TYPE = "correspondence.TechnicalItem"
+RFI_SUBTYPE = "rfi"
 FACTS = "Key facts"
 ANSWER = "Answer"
 
@@ -109,11 +111,12 @@ def rfi_content(
             rows.append(DetailRow("Review", review, section=ANSWER))
     rows += [
         DetailRow("Discipline", code_label(labels, "discipline", view.discipline), section=FACTS),
-        DetailRow(
-            "Kind",
-            domain_label(labels, "technical", view.subtype) if view.subtype else EMPTY,
-            section=FACTS,
-        ),
+    ]
+    if view.subtype and view.subtype != RFI_SUBTYPE:  # the number already says it is an RFI
+        rows.append(
+            DetailRow("Kind", domain_label(labels, "technical", view.subtype), section=FACTS)
+        )
+    rows += [
         DetailRow("Needed by", _or_empty(view.required_by), section=FACTS),
         DetailRow("Issued", _or_empty(view.issued_on), section=FACTS),
         DetailRow("To", _people(view.to), section=FACTS),
@@ -146,6 +149,7 @@ def rfi_content(
         ]
         rows += timeline_detail_rows(client, project, history, view.id, labels, escalations=derived)
         rows += file_rows(client, view.id)
+        rows += link_rows(client, view.id)
     rows += record_rows(record) if record is not None else []
     rows += (
         technical_rows(record)

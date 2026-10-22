@@ -17,10 +17,12 @@ from tl_mod_correspondence.views_domain import CommercialView
 from tl_tui.client import ClientInterface
 from tl_tui.details import rows_page, since_of
 from tl_tui.details.commercial import commercial_content
-from tl_tui.display import Labels, domain_label, humanize
-from tl_tui.layout import Page, identity_line, plain_lines, state_line
+from tl_tui.display import SHORT_COMMERCIAL, Labels, domain_label, humanize
+from tl_tui.layout import Page, identity_line, join_facts, plain_lines, state_line
 from tl_tui.text import EMPTY
 
+# columns left out, least needed first, when the register would not fit without scrolling
+COMMERCIAL_DROP = ("Aware", "Assessed", "Left", "Kind")
 COMMERCIAL_COLUMNS = (
     "Number",
     "Subject",
@@ -66,7 +68,12 @@ def commercial_cells(
         bar = bar_text(line)
     else:
         state = humanize(line.state)
-        kind = domain_label(_labels(labels), "commercial", line.subtype) if line.subtype else EMPTY
+        kind = (
+            SHORT_COMMERCIAL.get(line.subtype)
+            or domain_label(_labels(labels), "commercial", line.subtype)
+            if line.subtype
+            else EMPTY
+        )
         bar = _bar_plain(line)
     return (
         line.number,
@@ -120,6 +127,12 @@ def commercial_page(
         commercial_content(view, _labels(labels), client=client),
         identity=identity_line(view.number, view.subject),
         state=state_line(state, since),
+        summary=join_facts(
+            domain_label(_labels(labels), "commercial", view.subtype) if view.subtype else "",
+            f"aware {view.aware_on}" if view.aware_on else "",
+            f"{view.estimated_value} {view.currency or ''}".strip() if view.estimated_value else "",
+            humanize(view.assessment_status) if view.assessment_status else "",
+        ),
         technical=technical,
         panel=True,
     )

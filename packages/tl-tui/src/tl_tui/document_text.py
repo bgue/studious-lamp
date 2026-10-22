@@ -11,6 +11,8 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import Any
 
+from tl_mod_documents.errors import UnknownSchemeError
+from tl_mod_documents.schemes import load_scheme_file
 from tl_mod_documents.views import (
     DocumentLinkView,
     DocumentView,
@@ -18,23 +20,52 @@ from tl_mod_documents.views import (
     RevisionView,
 )
 
-from tl_tui.details import TECHNICAL_SECTION, DetailRow, plain_code, rows_page
+from tl_tui.details import TECHNICAL_SECTION, DetailRow, plain_code, rows_page, table_rows
 from tl_tui.display import Labels, code_label, humanize, type_label
-from tl_tui.layout import Page, identity_line, plain_lines
+from tl_tui.layout import Cell, Page, identity_line, join_facts, plain_lines, state_style
 from tl_tui.text import EMPTY
 
 COLUMNS = ("Number", "Title", "State", "Current", "Type", "Discipline")
+DROP = ("Discipline", "Type")  # left out, least needed first, when the log would not fit
 FACTS = "Key facts"
 REVISIONS = "Revisions"
+REVISION_COLUMNS = ("Rev", "State", "Purpose", "Date", "Files")
 LINKS = "Links"
+LINK_COLUMNS = ("Record", "Type", "Pin", "Status")
 ALL = "all"
 
 
 def current_text(view: DocumentView) -> str:
-    """``B(IFC)``, or ``—`` while no revision is issued."""
+    """``B(IFC)``, or ``—`` while no revision is issued (the code form, technical mode)."""
     if view.current_revision_code is None:
         return EMPTY
     return f"{view.current_revision_code}({view.current_revision_status or EMPTY})"
+
+
+def status_labels() -> dict[str, str]:
+    """The issue statuses of the revision scheme file in words (``IFR`` is ``Issued for review``).
+    Empty when the file cannot be read: a code then reads as itself."""
+    try:
+        return {code: status.label for code, status in load_scheme_file().statuses.items()}
+    except UnknownSchemeError:
+        return {}
+
+
+def revision_words(code: str | None, status: str | None, words: dict[str, str]) -> str:
+    """``B, Issued for construction``; ``B`` alone for a revision with no issue status; ``—`` for
+    no revision."""
+    if code is None:
+        return EMPTY
+    return f"{code}, {words.get(status, status)}" if status else code
+
+
+def current_words(view: DocumentView, words: dict[str, str] | None = None) -> str:
+    """The current revision in words, ``A, Issued for review``; ``—`` while none is issued."""
+    return revision_words(
+        view.current_revision_code,
+        view.current_revision_status,
+        status_labels() if words is None else words,
+    )
 
 
 def row_cells(
@@ -48,7 +79,7 @@ def row_cells(
         view.number,
         view.title,
         humanize(view.state),
-        current_text(view),
+        current_text(view) if technical else current_words(view),
         code_label(labels, "doc_type", view.doc_type),
         code_label(labels, "discipline", view.discipline),
     )
@@ -112,39 +143,87 @@ def links_heading(view: DocumentView) -> str:
     )
 
 
+def revision_rows(view: DocumentView, words: dict[str, str]) -> list[DetailRow]:
+    """The ``Revisions (n)`` section as a small table: revision, state (the current one reads
+    ``Current``), purpose (the issue status in words, else the stated purpose), date, files."""
+    if not view.revisions:
+        return [DetailRow("", "No revisions yet", section=REVISIONS)]
+    table = []
+    for rev in view.revisions:
+        state = "Current" if rev.is_current else rev.state
+        purpose = (
+            words.get(rev.issue_status, rev.issue_status)
+            if rev.issue_status
+            else rev.purpose or words.get(rev.intended_status or "", rev.intended_status or "")
+        )
+        files = ", ".join(sorted({r.kind for r in rev.renditions if r.is_current}))
+        table.append(
+            (
+                rev.code,
+                Cell(state, state_style(state)),
+                purpose or EMPTY,
+                rev.issued_on or rev.revision_date or EMPTY,
+                files or EMPTY,
+            )
+        )
+    return table_rows(f"{REVISIONS} ({len(view.revisions)})", REVISION_COLUMNS, table)
+
+
 def document_head_rows(view: DocumentView, labels: Labels) -> list[DetailRow]:
     """The sections above the files: the description, the key facts (the current revision first)
     and the revisions."""
+    words = status_labels()
     rows: list[DetailRow] = []
     if view.description:
         rows.append(DetailRow("", view.description, section="Description"))
     rows += [
-        DetailRow("Current revision", current_text(view), section=FACTS),
+        DetailRow("Current revision", current_words(view, words), section=FACTS),
         DetailRow("Document type", code_label(labels, "doc_type", view.doc_type), section=FACTS),
         DetailRow("Discipline", code_label(labels, "discipline", view.discipline), section=FACTS),
-        DetailRow("Originator", view.originator or EMPTY, section=FACTS),
+    ]
+    if view.originator:  # a document whose type has no originator shows no row
+        rows.append(DetailRow("Originator", view.originator, section=FACTS))
+    rows.append(
         DetailRow(
             "Confidentiality",
             plain_code(labels, "confidentiality", view.confidentiality),
             section=FACTS,
-        ),
-    ]
+        )
+    )
     if view.superseded_by:
         rows.append(DetailRow("Replaced by", view.superseded_by, section=FACTS))
-    if view.revisions:
-        heading = f"{REVISIONS} ({len(view.revisions)})"
-        rows += [DetailRow("", revision_line(rev), section=heading) for rev in view.revisions]
-    else:
-        rows.append(DetailRow("", "No revisions yet", section=REVISIONS))
-    return rows
+    return rows + revision_rows(view, words)
+
+
+def link_status(link: DocumentLinkView) -> str:
+    """The link's state in words: ``Current``, ``Floating``, ``! Stale: now B``."""
+    if link.link_status == "stale":
+        return "! Stale: the document was voided or replaced"
+    if link.pin_state == "stale":
+        newer = ", ".join(link.newer_codes)
+        return f"! Stale: now {link.current_code or EMPTY}" + (f" (newer {newer})" if newer else "")
+    if link.pin_state == "current":
+        return "Current"
+    return humanize(link.pin_state)
 
 
 def document_link_rows(view: DocumentView, labels: Labels) -> list[DetailRow]:
-    """The ``Links`` section; a stale link is marked ``!``. ``No links`` when there is none."""
+    """The ``Links (n)`` section as a small table (record, type, pin, status); a stale link is
+    marked ``!`` and red. ``No links`` when there is none."""
     if not view.links:
         return [DetailRow("", "No links", section=LINKS)]
-    heading = links_heading(view)
-    return [DetailRow("", link_line(link, labels), section=heading) for link in view.links]
+    table = []
+    for link in view.links:
+        status = link_status(link)
+        table.append(
+            (
+                link.from_key or link.from_title,
+                type_label(labels, link.from_type),
+                link.pin or "floating",
+                Cell(status, state_style(status)),
+            )
+        )
+    return table_rows(links_heading(view), LINK_COLUMNS, table)
 
 
 def document_technical_rows(
@@ -176,6 +255,11 @@ def document_panel_pages(
         [*document_head_rows(view, labels), *document_technical_rows(view)],
         identity=identity_line(view.number, view.title),
         state=document_state_line(view),
+        summary=join_facts(
+            f"Revision {current_words(view)}" if view.current_revision_code else "",
+            code_label(labels, "doc_type", view.doc_type) if view.doc_type else "",
+            code_label(labels, "discipline", view.discipline) if view.discipline else "",
+        ),
         technical=technical,
         panel=True,
     )

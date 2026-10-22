@@ -1,8 +1,10 @@
 """The files of one record, with the page-1 picture of the selected PDF (P1-UX2-S4).
 
 ``FilePanel.show(record_id)`` lists the record's current files (``list_record_files``, off the UI
-thread) as ``file_line`` rows. ``v`` or Enter opens the selected file: it is fetched into a
-``PrivateTemp`` (size and SHA-256 verified by ``fetch_file``) and handed to the system viewer.
+thread) as a small table (name, type, size, pages; the selected row reversed when there are
+several). ``v`` or Enter opens the selected file (the actions bar says so, the panel does not
+repeat it): it is fetched into a ``PrivateTemp`` (size and SHA-256 verified by ``fetch_file``) and
+handed to the system viewer.
 Where the terminal has colour (``image_protocol(env) != "none"``) the first page of a PDF is drawn
 as half-block cells; elsewhere, or when the drawing fails, the line shows the type, size and page
 count. The picture is made by ``render_first_page`` (a bounded child process, cached by content
@@ -31,11 +33,13 @@ from tl_core.services.errors import UnknownFileError
 
 from tl_tui.client import ClientInterface
 from tl_tui.errors import CLIENT_ERRORS, describe_error
-from tl_tui.file_text import file_kind, file_line
+from tl_tui.file_text import file_kind, file_pages, human_size
+from tl_tui.layout import TableRow, table_text
 from tl_tui.preview import cache, render
 from tl_tui.preview.temp import PrivateTemp
 from tl_tui.preview.terminal import image_protocol
 from tl_tui.preview.viewer import Launcher, open_in_viewer
+from tl_tui.text import EMPTY
 
 if TYPE_CHECKING:
     from textual.worker import Worker
@@ -45,6 +49,7 @@ NO_FILES = "No files."
 THUMB_COLUMNS = 30  # the picture is about this wide (cells)
 THUMB_MAX_ROWS = 20  # and at most this tall (two pixels per row)
 PDF_KIND = "PDF document"
+FILE_COLUMNS = ("Name", "Type", "Size", "Pages")
 
 
 class FilePanel(Widget, can_focus=True):
@@ -287,31 +292,42 @@ class FilePanel(Widget, can_focus=True):
 
     # --- drawing --------------------------------------------------------------------------
 
+    def table(self) -> list[TableRow]:
+        """The file rows: name, type, size and, when some file is a PDF, its page count (``—``
+        until it is known; a file that is not a PDF has none)."""
+        pdf = any(file_kind(i.content_type, i.filename) == PDF_KIND for i in self.files)
+        columns = FILE_COLUMNS if pdf else FILE_COLUMNS[:3]
+        rows = []
+        for info in self.files:
+            kind = file_kind(info.content_type, info.filename)
+            cells = [info.filename, kind, human_size(info.size)]
+            if pdf:
+                known = file_pages(self._page_count(info))
+                cells.append(known or (EMPTY if kind == PDF_KIND else ""))
+            rows.append(TableRow(columns, tuple(cells)))
+        return rows
+
     def lines(self) -> list[str]:
-        """The file rows as shown: ``> `` marks the selected file."""
-        out = []
-        for position, info in enumerate(self.files):
-            mark = ">" if position == self.index else " "
-            row = file_line(info.filename, info.content_type, info.size, self._page_count(info))
-            out.append(f"{mark} {row}")
-        return out
+        """The file table as plain lines: a header row, then one line per file."""
+        rows = self.table()
+        return table_text(rows).plain.split("\n") if rows else []
 
     def _draw(self, *, loading: bool = False) -> None:
         if not self.is_attached:
             return
-        lines = self.lines()
+        rows = self.table()
+        body: Text
         if loading:
-            body = "Loading files..."
-        elif lines:
-            body = "\n".join(lines)
+            body = Text("Loading files...")
+        elif rows:
+            body = table_text(rows, self.index if len(rows) > 1 else None)
         else:
-            body = NO_FILES
-        self.query_one("#fp-lines", Static).update(Text(body))
+            body = Text(NO_FILES)
+        self.query_one("#fp-lines", Static).update(body)
         thumb = self.query_one("#fp-thumb", Static)
         thumb.update(self.thumbnail if self.thumbnail is not None else "")
         thumb.display = self.thumbnail is not None
-        hint = "v or Enter: open in viewer" if lines else ""
-        self.query_one("#fp-note", Static).update(Text(self.note or hint))
+        self.query_one("#fp-note", Static).update(Text(self.note))
 
     # --- open -----------------------------------------------------------------------------
 

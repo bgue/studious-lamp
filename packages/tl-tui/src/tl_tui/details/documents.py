@@ -31,7 +31,7 @@ def document_rows(
     return [
         *document_head_rows(view, labels),
         *(
-            file_rows(client, revision.id)
+            file_rows(client, revision.id, {r.sha256: r.page_count for r in revision.renditions})
             if revision is not None
             else [DetailRow("", "No files", section="Files")]
         ),

@@ -17,6 +17,7 @@ from tl_tui.details import (
     TECHNICAL_SECTION,
     DetailRow,
     file_rows,
+    link_rows,
     plain_code,
     record_rows,
     register,
@@ -95,6 +96,7 @@ def commercial_content(
     rows += clock_rows_of(view.clocks)
     if client is not None:
         rows += file_rows(client, view.id)
+        rows += link_rows(client, view.id)
     rows += record_rows(record) if record is not None else []
     rows += (
         technical_rows(record)

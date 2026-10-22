@@ -27,6 +27,7 @@ from tl_mod_correspondence.reports_technical import RfiLog, RfiLogLine
 from tl_tui.client import ClientInterface
 from tl_tui.commercial_text import (
     COMMERCIAL_COLUMNS,
+    COMMERCIAL_DROP,
     commercial_cells,
     commercial_page,
     commercial_summary,
@@ -43,7 +44,7 @@ from tl_tui.evidence_text import (
 from tl_tui.labels_load import load_labels
 from tl_tui.layout import render
 from tl_tui.log_actions import ACTION_UI, Runner, log_actions, screen_runner, without_keys
-from tl_tui.rfi_text import RFI_COLUMNS, rfi_cells, rfi_page, rfi_summary
+from tl_tui.rfi_text import RFI_COLUMNS, RFI_DROP, rfi_cells, rfi_page, rfi_summary
 from tl_tui.widgets.log_screen import LogAction, LogScreen
 from tl_tui.widgets.record_screen import open_record
 
@@ -120,6 +121,9 @@ class DomainScreen(LogScreen[Row]):
             "commercial": COMMERCIAL_COLUMNS,
             "evidence": EVIDENCE_COLUMNS,
         }[self.mode]
+
+    def drop_order(self) -> Sequence[str]:
+        return {"rfi": RFI_DROP, "commercial": COMMERCIAL_DROP, "evidence": ()}[self.mode]
 
     def load_rows(self) -> Sequence[Row]:
         """Read the current view (off the UI thread) and work out its summary line."""

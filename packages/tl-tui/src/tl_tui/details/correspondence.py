@@ -19,7 +19,15 @@ from tl_core.ledger import Event
 from tl_mod_correspondence.views import ClockView, ItemView, RecipientView
 
 from tl_tui.client import ClientInterface
-from tl_tui.details import TECHNICAL_SECTION, DetailRow, file_rows, plain_code, register
+from tl_tui.details import (
+    TECHNICAL_SECTION,
+    DetailRow,
+    file_rows,
+    link_rows,
+    plain_code,
+    register,
+    table_rows,
+)
 from tl_tui.details.generic import technical_rows
 from tl_tui.display import (
     Labels,
@@ -27,8 +35,9 @@ from tl_tui.display import (
     domain_label,
     humanize,
 )
+from tl_tui.layout import Cell, state_style
 from tl_tui.text import EMPTY
-from tl_tui.timeline_text import timeline_lines, timeline_rows
+from tl_tui.timeline_text import person, timeline_lines, timeline_rows
 
 ITEM_TYPE = "correspondence.Correspondence"
 CLOCK_TYPE = "correspondence.ResponseClock"
@@ -44,6 +53,8 @@ def _people(people: Sequence[RecipientView]) -> str:
 
 
 TIMELINE = "Timeline"
+TIMELINE_COLUMNS = ("Date", "Who", "Event")
+CLOCK_COLUMNS = ("Clock", "State", "Due", "Days left")
 TIMELINE_TIMES = "Timeline times"
 CLOCKS = "Response clocks"
 
@@ -72,10 +83,14 @@ def timeline_detail_rows(
     plain = timeline_rows(events, clocks, labels, technical=False, escalations=escalations)
     if not plain:
         return []
-    rows: list[DetailRow] = []
-    for row in plain:
-        note = f" - {row.note}" if row.note else ""
-        rows.append(DetailRow(row.when, f"{row.who}: {row.what}{note}", section=TIMELINE))
+    rows = table_rows(
+        TIMELINE,
+        TIMELINE_COLUMNS,
+        [
+            (row.when, row.who, f"{row.what} - {row.note}" if row.note else row.what)
+            for row in plain
+        ],
+    )
     full = timeline_rows(events, clocks, labels, technical=True, escalations=escalations)
     rows.append(
         DetailRow(
@@ -87,6 +102,20 @@ def timeline_detail_rows(
         )
     )
     return rows
+
+
+def clock_state(clock: ClockView) -> str:
+    """The state in words: ``Running``, ``Met``, ``Paused``, ``Expired``."""
+    return humanize(clock.effective_state)
+
+
+def clock_left(clock: ClockView) -> str:
+    """The days left as a number, ``-3`` once over, ``10 working`` for working days (calendar days
+    are the default and carry no unit); ``—`` once the clock is closed."""
+    left = clock.days_left
+    if left is None or clock.closed_on:
+        return EMPTY
+    return f"{left}" if clock.day_type == "calendar" else f"{left} {clock.day_type}"
 
 
 def clock_value(clock: ClockView) -> str:
@@ -105,20 +134,52 @@ def clock_value(clock: ClockView) -> str:
     return " · ".join(parts)
 
 
-def clock_rows_of(clocks: Sequence[ClockView]) -> list[DetailRow]:
-    """The ``Response clocks`` section: the clock's label, then its state, date and days left;
-    in technical mode the clock key and calendar follow in the technical section."""
-    rows = [DetailRow(c.label or humanize(c.kind), clock_value(c), section=CLOCKS) for c in clocks]
-    rows += [
-        DetailRow(
-            f"Clock {c.label or humanize(c.kind)}",
-            f"{c.key} · calendar {c.calendar}",
-            True,
-            TECHNICAL_SECTION,
+def clock_names(clocks: Sequence[ClockView]) -> list[str]:
+    """Each clock's name; clocks that share one are told apart by round, oldest first:
+    ``Answer required, round 2``."""
+    names = [c.label or humanize(c.kind) for c in clocks]
+    shown = list(names)
+    for name in set(names):
+        same = sorted(
+            (i for i, other in enumerate(names) if other == name),
+            key=lambda i: (clocks[i].start_on, i),
         )
-        for c in clocks
+        if len(same) > 1:
+            for round_, index in enumerate(same, 1):
+                shown[index] = f"{name}, round {round_}"
+    return shown
+
+
+def clock_rows_of(clocks: Sequence[ClockView]) -> list[DetailRow]:
+    """The ``Response clocks`` section as a small table (clock, state, due, days left); in
+    technical mode the clock key and calendar follow in the technical section."""
+    names = clock_names(clocks)
+    rows = table_rows(
+        CLOCKS,
+        CLOCK_COLUMNS,
+        [
+            (name, Cell(clock_state(c), state_style(clock_state(c))), c.due_on, clock_left(c))
+            for name, c in zip(names, clocks, strict=True)
+        ],
+    )
+    rows += [
+        DetailRow(f"Clock {name}", f"{c.key} · calendar {c.calendar}", True, TECHNICAL_SECTION)
+        for name, c in zip(names, clocks, strict=True)
     ]
     return rows
+
+
+DIRECTIONS = {"in": "Incoming", "out": "Outgoing", "internal": "Internal"}
+
+
+def direction_word(direction: str) -> str:
+    """``Incoming``, ``Outgoing`` or ``Internal`` for a stored direction."""
+    return DIRECTIONS.get(direction, humanize(direction))
+
+
+def drafter_of(events: Sequence[Event], labels: Labels) -> str:
+    """The plain name of whoever made the item (the actor of its first event); else empty."""
+    return person(events[0].actor, labels, technical=False) if events else ""
 
 
 def item_content(
@@ -138,14 +199,16 @@ def item_content(
         history = events
     elif client is not None:
         history = item_history(client, {}, view.id)
-    people = [DetailRow("From", _or_empty(view.from_name), section="People")]
-    people.append(DetailRow("To", _people(view.to), section="People"))
-    if view.cc:
-        people.append(DetailRow("Copy", _people(view.cc), section="People"))
+    outgoing, incoming = view.direction == "out", view.direction == "in"
+    domain = domain_label(labels, view.domain, view.subtype) if view.domain else EMPTY
     facts = [
-        DetailRow("Domain", domain_label(labels, view.domain, view.subtype), section="Key facts"),
-        DetailRow("Direction", humanize(view.direction), section="Key facts"),
-        DetailRow("Medium", humanize(view.medium), section="Key facts"),
+        DetailRow("Direction", direction_word(view.direction), section="Key facts", panel=False),
+        DetailRow("Domain", domain, section="Key facts"),
+    ]
+    medium = humanize(view.medium)
+    if medium.lower() != domain.lower():  # a letter by letter says Letter once
+        facts.append(DetailRow("Medium", medium, section="Key facts"))
+    facts += [
         DetailRow(
             "Confidentiality",
             plain_code(labels, "confidentiality", view.confidentiality),
@@ -154,17 +217,30 @@ def item_content(
         DetailRow("Thread", _or_empty(view.thread_number), section="Key facts"),
         DetailRow("Replies to", _or_empty(view.responds_to_number), section="Key facts"),
     ]
-    dates = [
-        DetailRow("Received", _or_empty(view.received_on), section="Dates"),
-        DetailRow("Sent", _or_empty(view.sent_on), section="Dates"),
-        DetailRow("Issued", _or_empty(view.issued_on), section="Dates"),
-    ]
+    if outgoing:  # from us: the name given, else whoever drafted it
+        sender = view.from_name or drafter_of(history, labels) or EMPTY
+    else:
+        sender = _or_empty(view.from_name)
+    people = [DetailRow("From", sender, section="People")]
+    if view.to or outgoing:  # a received letter is to us: no row unless it names recipients
+        people.append(DetailRow("To", _people(view.to), section="People"))
+    if view.cc:
+        people.append(DetailRow("Copy", _people(view.cc), section="People"))
+    dates: list[DetailRow] = []
+    if incoming:
+        dates.append(DetailRow("Received", _or_empty(view.received_on), section="Dates"))
+    else:
+        dates += [
+            DetailRow("Issued", _or_empty(view.issued_on), section="Dates"),
+            DetailRow("Sent", _or_empty(view.sent_on), section="Dates"),
+        ]
     if view.response_required:
         dates += [
-            DetailRow("Answer expected by", _or_empty(view.response_due), section="Dates"),
-            DetailRow("Answered on", _or_empty(view.responded_on), section="Dates"),
+            DetailRow("Reply due", _or_empty(view.response_due), section="Dates"),
+            DetailRow("Replied on", _or_empty(view.responded_on), section="Dates"),
         ]
-    dates.append(DetailRow("Triaged on", _or_empty(view.triaged_on), section="Dates"))
+    if incoming:
+        dates.append(DetailRow("Triaged on", _or_empty(view.triaged_on), section="Dates"))
     rows = [DetailRow("", _or_empty(view.body), section="Message")]
     if suggestion:
         rows.append(DetailRow("", suggestion, section="Suggestion"))
@@ -172,14 +248,18 @@ def item_content(
     if client is not None:
         rows += timeline_detail_rows(client, project, history, view.id, labels)
         rows += file_rows(client, view.id)
+        rows += link_rows(client, view.id)
     rows += [
         *(
             technical_rows(record)
             if record is not None
             else [DetailRow("Record id", view.id, True, TECHNICAL_SECTION)]
         ),
-        DetailRow("Delivery", _or_empty(view.delivery), True, TECHNICAL_SECTION),
-        DetailRow("Received via", _or_empty(view.received_via), True, TECHNICAL_SECTION),
+        *(
+            [DetailRow("Received via", _or_empty(view.received_via), True, TECHNICAL_SECTION)]
+            if incoming
+            else [DetailRow("Delivery", _or_empty(view.delivery), True, TECHNICAL_SECTION)]
+        ),
         DetailRow("External reference", _or_empty(view.external_ref), True, TECHNICAL_SECTION),
     ]
     return rows
@@ -198,17 +278,17 @@ def clock_content(
     view: ClockView, labels: Labels, *, record: dict[str, Any] | None = None
 ) -> list[DetailRow]:
     """The sections of a response clock (the Details tab, and the clocks panel)."""
+    # the panel's identity, state line and summary hold the item, state, due date and days left
     facts = [
-        DetailRow("Item", view.item_number, section="Key facts"),
-        DetailRow("Kind", humanize(view.kind), section="Key facts"),
-        DetailRow("State", humanize(view.effective_state), section="Key facts"),
+        DetailRow("Item", view.item_number, section="Key facts", panel=False),
+        DetailRow("State", clock_state(view), section="Key facts", panel=False),
+        DetailRow("Due", _or_empty(view.due_on), section="Key facts", panel=False),
+        DetailRow("Days left", clock_left(view), section="Key facts", panel=False),
+    ]
+    if humanize(view.kind).lower() != (view.label or "").lower():
+        facts.append(DetailRow("Kind", humanize(view.kind), section="Key facts"))
+    facts += [
         DetailRow("Started", _or_empty(view.start_on), section="Key facts"),
-        DetailRow("Due", _or_empty(view.due_on), section="Key facts"),
-        DetailRow(
-            "Days left",
-            EMPTY if view.days_left is None else str(view.days_left),
-            section="Key facts",
-        ),
         DetailRow("Length", f"{view.duration_days} {view.day_type} days", section="Key facts"),
         DetailRow(
             "Warns (days before)",

@@ -17,13 +17,23 @@ from __future__ import annotations
 
 import importlib
 import pkgutil
-from collections.abc import Callable
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any
 
 from tl_tui.client import ClientInterface
 from tl_tui.display import DisplayMode, Labels, code_label, humanize
-from tl_tui.layout import Page, Section, cut_text, group_rows, limited
+from tl_tui.layout import (
+    Cell,
+    Item,
+    Page,
+    Prop,
+    Section,
+    TableRow,
+    cut_text,
+    group_items,
+    limited,
+)
 
 NOTE_LABEL = "Note"
 NOTE_TEXT = "More details could not be loaded"
@@ -40,6 +50,8 @@ class DetailRow:
     technical: bool = False  # shown only in technical mode
     section: str = ""  # the heading it sits under; "" is a group without a heading
     panel: bool = True  # False: on the record screen only, not in a panel under a log
+    columns: tuple[str, ...] = ()  # a table row: the headings of its table...
+    cells: tuple[Cell | str, ...] = ()  # ...and its cells (the label and value are then unused)
 
 
 DetailRenderer = Callable[[ClientInterface, str, dict[str, Any], Labels], list[DetailRow]]
@@ -91,11 +103,33 @@ def details_for(
     return [row for row in rows if mode.technical or not row.technical]
 
 
+def table_rows(
+    section: str,
+    columns: tuple[str, ...],
+    rows: Sequence[Sequence[Cell | str]],
+    *,
+    technical: bool = False,
+) -> list[DetailRow]:
+    """The rows of a small table in ``section``: a dim header row, then one line per row."""
+    return [
+        DetailRow("", "", technical, section, columns=columns, cells=tuple(cells)) for cells in rows
+    ]
+
+
+def _item(row: DetailRow, *, panel: bool) -> Item:
+    if row.cells:
+        return TableRow(row.columns, row.cells)
+    if row.label:
+        return Prop(row.label, row.value)
+    return cut_text(row.value, PANEL_TEXT_LIMIT) if panel else row.value
+
+
 def rows_page(
     rows: list[DetailRow],
     *,
     identity: str = "",
     state: str = "",
+    summary: str = "",
     technical: bool = False,
     panel: bool = False,
 ) -> Page:
@@ -106,14 +140,7 @@ def rows_page(
     ``PANEL_LIST_LIMITS`` to their first rows and a ``… n more`` line.
     """
     shown = [row for row in rows if (technical or not row.technical) and (row.panel or not panel)]
-    grouped = group_rows(
-        (
-            row.section,
-            row.label,
-            cut_text(row.value, PANEL_TEXT_LIMIT) if panel and not row.label else row.value,
-        )
-        for row in shown
-    )
+    grouped = group_items((row.section, _item(row, panel=panel)) for row in shown)
     if panel:
         grouped = tuple(
             Section(
@@ -123,14 +150,22 @@ def rows_page(
             )
             for section in grouped
         )
-    return Page(identity, state, grouped)
+    return Page(identity, state, grouped, summary if panel else "")
 
 
-def file_rows(client: ClientInterface, record_id: str) -> list[DetailRow]:
-    """The ``Files (n)`` section: one line per current file (name, kind, size); ``No files`` when
-    there is none or the client cannot say."""
+FILE_COLUMNS = ("Name", "Type", "Size", "Pages")
+FILE_COLUMNS_NO_PAGES = ("Name", "Type", "Size")
+LINK_COLUMNS = ("Relation", "Record", "Title", "Status")
+
+
+def file_rows(
+    client: ClientInterface, record_id: str, pages: Mapping[str, int | None] | None = None
+) -> list[DetailRow]:
+    """The ``Files (n)`` section as a small table (name, type, size, and the page count when some
+    file's is known from ``pages``, a SHA-256 to count map); ``No files`` when there is none or the
+    client cannot say."""
     from tl_tui.errors import CLIENT_ERRORS  # noqa: PLC0415
-    from tl_tui.file_text import file_line  # noqa: PLC0415
+    from tl_tui.file_text import file_kind, file_pages, human_size  # noqa: PLC0415
 
     try:
         files = client.list_record_files(record_id)
@@ -138,11 +173,49 @@ def file_rows(client: ClientInterface, record_id: str) -> list[DetailRow]:
         files = []
     if not files:
         return [DetailRow("", "No files", section="Files")]
-    heading = f"Files ({len(files)})"
-    return [
-        DetailRow("", file_line(info.filename, info.content_type, info.size), section=heading)
-        for info in files
+    known = pages or {}
+    counts = [known.get(info.sha256) for info in files]
+    with_pages = any(count for count in counts)
+    table = [
+        (
+            info.filename,
+            file_kind(info.content_type, info.filename),
+            human_size(info.size),
+            *((file_pages(count),) if with_pages else ()),
+        )
+        for info, count in zip(files, counts, strict=True)
     ]
+    columns = FILE_COLUMNS if with_pages else FILE_COLUMNS_NO_PAGES
+    return table_rows(f"Files ({len(files)})", columns, table)
+
+
+def link_rows(client: ClientInterface, record_id: str) -> list[DetailRow]:
+    """The ``Links (n)`` section as a small table (relation, the record at the other end, its
+    title, the link's status; a stale link in red); ``No links`` when there is none or the client
+    cannot say. A retracted link is not listed."""
+    from tl_tui.errors import CLIENT_ERRORS  # noqa: PLC0415
+    from tl_tui.layout import state_style  # noqa: PLC0415
+    from tl_tui.text import EMPTY  # noqa: PLC0415
+    from tl_tui.widgets.links_tab import status_text  # noqa: PLC0415
+
+    try:
+        links = client.links_of(record_id)
+    except (*CLIENT_ERRORS, NotImplementedError):
+        links = []
+    if not links:
+        return [DetailRow("", "No links", section="Links")]
+    table = []
+    for link in links:
+        status = status_text(link)
+        table.append(
+            (
+                link.label,
+                link.other_key or EMPTY,
+                link.other_title or EMPTY,
+                Cell(status, state_style(status)),
+            )
+        )
+    return table_rows(f"Links ({len(links)})", LINK_COLUMNS, table)
 
 
 def since_of(client: ClientInterface, record_id: str) -> str | None:

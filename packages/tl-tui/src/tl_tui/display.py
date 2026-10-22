@@ -130,6 +130,48 @@ def domain_label(labels: Labels, domain: str | None, subtype: str | None = None)
     return labels.domains.get(domain) or humanize(domain)
 
 
+#: The short name of a kind of item for a list (the long name belongs in the panel), by subtype.
+SHORT_SUBTYPES: dict[str, str] = {
+    "rfi": "RFI",
+    "tq": "TQ",
+    "deviation": "Deviation",
+    "letter": "Letter",
+    "memo": "Memo",
+    "minutes": "Minutes",
+    "notification": "Notice",
+    "transmittal": "Transmittal",
+    "review_return": "Return",
+    "submittal": "Submittal",
+    "early_warning": "Notice",
+    "change_notice": "Notice",
+    "claim_notice": "Notice",
+    "detailed_claim": "Claim",
+    "site_instruction": "Instruction",
+    "quotation": "Quotation",
+}
+#: The commercial register lists notices of one domain, so its kind column tells them apart.
+SHORT_COMMERCIAL: dict[str, str] = {
+    "early_warning": "Early warning",
+    "change_notice": "Change notice",
+    "claim_notice": "Claim notice",
+    "detailed_claim": "Detailed claim",
+    "site_instruction": "Instruction",
+    "quotation": "Quotation",
+}
+UNTRIAGED = "Untriaged"
+
+
+def category_label(labels: Labels, domain: str | None, subtype: str | None = None) -> str:
+    """The short category of an item for a list: ``RFI``, ``Letter``, ``Notice``, ``Transmittal``.
+    An item with no domain yet is ``Untriaged``; a subtype the table does not know reads as its
+    label."""
+    if not domain:
+        return UNTRIAGED
+    if subtype and subtype in SHORT_SUBTYPES:
+        return SHORT_SUBTYPES[subtype]
+    return domain_label(labels, domain, subtype)
+
+
 def actor_label(labels: Labels, actor: str) -> str:
     """A service by its label, a user by name; an unknown service is ``a service``, never its id."""
     if actor.startswith("svc:"):
