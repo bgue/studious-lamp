@@ -50,9 +50,19 @@ def _sorted_keys(value: Any) -> str:
 
 
 def details_lines(rows: list[DetailRow]) -> str:
-    """The Details rows, one labelled line each, values lined up after the longest label."""
+    """The Details rows, one labelled line each, values lined up after the longest label.
+
+    A value of several lines hangs under the first (the timeline times); a long line wraps in the
+    widget, whole.
+    """
     width = max((len(row.label) for row in rows), default=0) + 2
-    return "\n".join(f"{row.label:<{width}}{row.value}" for row in rows)
+    lines: list[str] = []
+    for row in rows:
+        first, *more = row.value.split("\n")
+        line = f"{row.label:<{width}}{first}"
+        lines.append(line if first else line.rstrip())  # a heading row has no value
+        lines.extend(" " * width + line for line in more)
+    return "\n".join(lines)
 
 
 _EVENT_WORDS: dict[str, str] = {
