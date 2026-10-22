@@ -42,6 +42,14 @@ def row_cells(view: TagView, labels: Labels | None = None) -> tuple[str, ...]:
     )
 
 
+CONFORMANCE_STATE = {
+    "ok": "✓ Conforms",
+    "warning": "! Has warnings",
+    "nonconformant": "✗ Does not conform",
+    "waived": "Waived",
+}
+
+
 def tag_page(
     view: TagView,
     labels: Labels | None = None,
@@ -57,7 +65,7 @@ def tag_page(
     return rows_page(
         tag_content(view, lab, client=client),
         identity=identity_line(view.number, view.title),
-        state=conformance_mark(view.conformance),
+        state=CONFORMANCE_STATE.get(view.conformance, conformance_mark(view.conformance)),
         summary=join_facts(
             class_text(view) if view.class_code else "",
             f"area {code_label(lab, 'area', area)}" if area else "",

@@ -121,9 +121,9 @@ class LogScreen[Row](ModalScreen[None]):
     LogScreen #log-keys { height: 1; color: $text-muted; }
     LogScreen #log-status { height: 1; }
     LogScreen.-wide #log-body { layout: horizontal; }
-    LogScreen.-wide #log-table { width: 5fr; height: 1fr; }
+    LogScreen.-wide #log-table { width: 3fr; height: 1fr; }
     LogScreen.-wide #log-panel {
-        width: 3fr; height: 1fr; border-top: none; border-left: solid $accent;
+        width: 2fr; height: 1fr; border-top: none; border-left: solid $accent;
     }
     """
 

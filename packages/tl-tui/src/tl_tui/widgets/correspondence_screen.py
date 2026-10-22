@@ -39,10 +39,11 @@ from tl_tui.correspondence_text import (
     register_cells,
     summary_line,
 )
+from tl_tui.details.correspondence import direction_word
 from tl_tui.display import Labels, humanize, mode_of
 from tl_tui.errors import CLIENT_ERRORS, describe_error
 from tl_tui.labels_load import load_labels
-from tl_tui.layout import Page, Section, identity_line, prop, render, state_line
+from tl_tui.layout import Page, Section, identity_line, join_facts, prop, render, state_line
 from tl_tui.log_actions import (
     ACTION_UI,
     ENVELOPE,
@@ -195,17 +196,14 @@ class CorrespondenceScreen(LogScreen[RegisterLineView | ClockView]):
     @staticmethod
     def _source_page(row: RegisterLineView) -> Page:
         """A register line that is not an item (a transmittal): its few facts."""
-        facts = Section(
-            "Key facts",
-            (
-                prop("Kind", humanize(row.kind)),
-                prop("Direction", humanize(row.direction)),
-                prop("Date", row.on),
-                prop("With", row.counterparty),
-            ),
-        )
+        outgoing = row.direction == "out"
+        with_ = f"{'to' if outgoing else 'from'} {row.counterparty}" if row.counterparty else ""
+        facts = Section("Key facts", (prop("Kind", humanize(row.kind)), prop("Date", row.on)))
         return Page(
-            identity_line(row.number, row.subject), state_line(humanize(row.state)), (facts,)
+            identity_line(row.number, row.subject),
+            state_line(humanize(row.state)),
+            (facts,),
+            join_facts(direction_word(row.direction), with_),
         )
 
     def actions_for(self, row: RegisterLineView | ClockView) -> Sequence[LogAction]:

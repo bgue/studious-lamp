@@ -623,16 +623,18 @@ def section_register_tui(ws: Workspace) -> None:
         expect(isinstance(screen, DocumentRegisterScreen), "F7 did not open the register")
         table = screen.query_one("#log-table", DataTable)
         table.move_cursor(row=[v.number for v in screen.shown].index("ISO-1234"))
-        await tk.until(pilot, lambda: "IFC" in tk.screen_text(app), "the detail panel")
+        await tk.until(
+            pilot, lambda: "Issued for construction" in tk.screen_text(app), "the detail panel"
+        )
         tk.shot_tui(
             ws,
             app,
             "09b-document-register",
             "F7: the register; one current revision per status class",
             "ISO-1234",
-            "IFR",
-            "IFC",
-            "construction",
+            "Issued for review",
+            "Issued for construction",
+            "Current (construction)",
         )
         await pilot.press("r")
         await tk.until(pilot, lambda: "Re-pin a stale link" in tk.screen_text(app), "the dialog")

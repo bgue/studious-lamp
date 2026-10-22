@@ -37,13 +37,13 @@ DONE_STYLE = "green"
 WAITING_STYLE = "yellow"
 BAD_STYLE = "red"
 _BAD = re.compile(
-    r"\b(overdue|late|refused|rejected|failed|expired|killed|breached|nonconformant)\b"
+    r"\b(overdue|late|refused|rejected|failed|expired|killed|breached|nonconformant|disputed)\b"
     r"|does not fit",
     re.I,
 )
 _DONE = re.compile(
     r"\b(answered|closed|done|complete|completed|met|accepted|approved|issued|responded|"
-    r"published|applied|current)\b",
+    r"published|applied|current|agreed)\b",
     re.I,
 )
 _WAITING = re.compile(

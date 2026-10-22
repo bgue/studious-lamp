@@ -123,8 +123,6 @@ def package_page(detail: PackageDetail, tab: Section, *, technical: bool = False
     status = Section(
         "Status",
         (
-            prop_line("Class of change", detail.worst_class),
-            prop_line("Analysed", "yes" if detail.analysed else "no"),
             prop_line("Published", detail.published_at),
             prop_line("Project", detail.project),
         ),
@@ -134,10 +132,14 @@ def package_page(detail: PackageDetail, tab: Section, *, technical: bool = False
         sections.append(Section("Changelog", (detail.changelog,)))
     sections.append(tab)
     return Page(
-        identity_line(key, ""),
+        identity_line(key, detail.title or ""),
         detail.state,
         tuple(sections),
-        join_facts(humanize(detail.kind), f"scope {detail.scope}"),
+        join_facts(
+            f"{humanize(detail.kind)} package",
+            f"{detail.worst_class} change" if detail.worst_class else "",
+            "analysed" if detail.analysed else "not analysed",
+        ),
     )
 
 

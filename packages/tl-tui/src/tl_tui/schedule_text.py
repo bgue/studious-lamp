@@ -285,7 +285,7 @@ def schedule_page(
         f"Current: snapshot {current}" if current is not None else "No snapshot published",
         tuple(sections),
         join_facts(
-            humanize(detail.schedule_type),
+            f"{humanize(detail.schedule_type)} schedule",
             actor_label(labels, detail.owner) if detail.owner else "",
             f"data date {date_only(detail.current_data_date)}" if current is not None else "",
             f"{detail.snapshot_count} snapshot{'s' if detail.snapshot_count != 1 else ''}",

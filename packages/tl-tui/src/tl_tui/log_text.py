@@ -195,10 +195,10 @@ def flex_width(total: int, names: Sequence[str], rows: Sequence[Sequence[str]], 
 
 
 def table_width(screen_width: int, *, wide: bool) -> int:
-    """Roughly the cells the list gets: the screen less its padding, and five eighths of that
+    """Roughly the cells the list gets: the screen less its padding, and three fifths of that
     when the panel sits beside it (``log_text.is_wide``)."""
     inner = max(screen_width - CRUMB_PADDING_CELLS, 1)
-    return inner * 5 // 8 - 1 if wide else inner
+    return inner * 3 // 5 - 1 if wide else inner
 
 
 MIN_SHRINK = 12  # a shrinkable column (With) never goes below this many cells of text

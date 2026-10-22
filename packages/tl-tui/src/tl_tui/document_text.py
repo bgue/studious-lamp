@@ -144,13 +144,14 @@ def links_heading(view: DocumentView) -> str:
 
 
 def revision_rows(view: DocumentView, words: dict[str, str]) -> list[DetailRow]:
-    """The ``Revisions (n)`` section as a small table: revision, state (the current one reads
-    ``Current``), purpose (the issue status in words, else the stated purpose), date, files."""
+    """The ``Revisions (n)`` section as a small table: revision, state (a current one reads
+    ``Current``; there is one per status class, the purpose tells which), purpose (the issue
+    status in words, else the stated purpose), date, files."""
     if not view.revisions:
         return [DetailRow("", "No revisions yet", section=REVISIONS)]
     table = []
     for rev in view.revisions:
-        state = "Current" if rev.is_current else rev.state
+        state = "Current" if rev.is_current else rev.state  # one is current per status class
         purpose = (
             words.get(rev.issue_status, rev.issue_status)
             if rev.issue_status
@@ -196,12 +197,12 @@ def document_head_rows(view: DocumentView, labels: Labels) -> list[DetailRow]:
 
 
 def link_status(link: DocumentLinkView) -> str:
-    """The link's state in words: ``Current``, ``Floating``, ``! Stale: now B``."""
-    if link.link_status == "stale":
-        return "! Stale: the document was voided or replaced"
+    """The link's state in words: ``Current``, ``Floating``, ``! Stale: now B`` (the pin is behind),
+    ``! Stale`` (the document was voided or replaced)."""
     if link.pin_state == "stale":
-        newer = ", ".join(link.newer_codes)
-        return f"! Stale: now {link.current_code or EMPTY}" + (f" (newer {newer})" if newer else "")
+        return f"! Stale: now {link.current_code or EMPTY}"
+    if link.link_status == "stale":
+        return "! Stale"
     if link.pin_state == "current":
         return "Current"
     return humanize(link.pin_state)
