@@ -1385,7 +1385,7 @@ def section_correspondence(ws: Workspace) -> None:
         "17d-register-as-controller",
         "F5 as dora, a cleared controller: the same register, with the restricted email",
         mail,
-        "class restricted",
+        "Restricted",
     )
 
     app = build_app(ws, actor="user:dora", controller=True)

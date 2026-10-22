@@ -103,6 +103,22 @@ log never lays out its own screen and never adds a second standard.
 - **Mode**: Ctrl+D makes the app call `refresh_for_display_mode()` on every screen; the base redraws, so
   `row_cells` and `panel_text` must both read `mode_of(self.app)`.
 - **160-column rule**: the layout is chosen by width alone; a log adds no layout of its own.
+- **Columns (P1-UX3, skill `tui-layout`)**: Number, then Subject (Title), then State, then the fields people scan by.
+  The base hides a column whose value is the same in every shown row when two or more rows are shown (`Kind` in
+  an RFI log of requests for information), and shows it again when a second value appears; `keep_columns()` names
+  the columns that never hide (default: the first, `State` and the subject). Only the Subject column shortens,
+  with `…`, to the width left after the others (`log_text.visible_columns`, `fit_cell`, `flex_width`). Empty cells
+  read `—`.
+- **Panels and the Details tab (P1-UX3)**: one renderer, `tl_tui.layout`. A `Page` is an identity line
+  (`number · subject`), a state line (`Awaiting response · since 2026-10-13`) and named `Section`s: a heading, its
+  lines, one blank line before the next. A `Prop` is a `Label  value` line with the values of a section on one
+  column; prose and lists are plain lines; an empty value in a fixed section is `—`. A record type builds its rows
+  once (`details/technical.py` for an RFI, `details/correspondence.py`, `details/commercial.py`,
+  `document_text.py`; each `DetailRow` names its `section`), and the Details tab and the log's panel both render
+  them with `details.rows_page(...)` and `layout.render(...)` (`panel=True` cuts long text at a word with
+  `… (Enter for all)`, shortens the timeline and file lists, and leaves out the `Record` dates). `panel_text` may
+  return that styled `Text`. Order: narrative, key facts, people, dates, clocks, timeline, files, record, technical
+  details (technical mode only).
 - **Testing a log**: a small `LogScreen` subclass with three rows and fake actions pushed on a bare `App`, driven by
   `helpers.run_pilot`; wait for the workers with `await pilot.app.workers.wait_for_complete()`. See
   `tests/test_log_screen.py` (host pattern, stale answer, refusal, layout switch at 159/160, snapshots at 80 and 170).
