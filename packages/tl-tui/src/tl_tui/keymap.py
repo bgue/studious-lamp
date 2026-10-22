@@ -58,7 +58,7 @@ KEYMAP: tuple[KeyEntry, ...] = (
     KeyEntry(
         "App",
         "F5",
-        "Correspondence: register, triage inbox, response clocks",
+        "Correspondence: register, triage inbox, response clocks (m: closed ones)",
         "TlApp",
         "f5",
     ),

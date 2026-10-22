@@ -9,21 +9,26 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Awaitable, Callable
+from typing import Any
 
 import pytest
 from fakes import SCOPE, FakeClient
 from fakes_correspondence import seed_domains
 from helpers import run_pilot, settle
 from textual.pilot import Pilot
+from textual.screen import Screen
 from textual.widgets import Static
 from tl_core.actions import ActionOffer, RecordActions
 from tl_core.services.errors import RecordNotFoundError
+from tl_mod_correspondence.handlers.commercial import ReviewCommercial
 from tl_mod_correspondence.handlers.technical_flow import AnswerTechnical, CloseTechnical
+from tl_mod_engineering.handlers.tags import RenameTag
 from tl_tui import log_actions
 from tl_tui.app import TlApp
 from tl_tui.log_actions import ACTION_UI, ENVELOPE, ActionUi
 from tl_tui.log_actions import log_actions as present
 from tl_tui.widgets.domain_screen import DomainScreen
+from tl_tui.widgets.tag_register import TagRegisterScreen
 
 RFI1, RFI2 = "ID-P123-RFI-0001", "ID-P123-RFI-0002"
 ANSWERER = (
@@ -55,11 +60,11 @@ def scenario(
     run_pilot(app, go)
 
 
-def bar(screen: DomainScreen) -> str:
+def bar(screen: Screen[Any]) -> str:
     return str(screen.query_one("#log-actions", Static).render())
 
 
-def status(screen: DomainScreen) -> str:
+def status(screen: Screen[Any]) -> str:
     return str(screen.query_one("#log-status", Static).render())
 
 
@@ -216,5 +221,83 @@ def test_a_refusal_from_the_command_lands_in_the_status_line() -> None:
         await settle(pilot)
         assert isinstance(app.screen, DomainScreen)
         assert status(screen).startswith("! ") and "document_controller" in status(screen)
+
+    scenario(client, steps)
+
+
+# --- on the tag register and the Commercial register ----------------------------------------
+
+
+def tag_world() -> FakeClient:
+    client = FakeClient()
+    client.add_tag("P123", "47-FV-1001", class_code="ControlValve", title="Feed gas control")
+    client.add_tag("P123", "47-FV-1002", class_code="ControlValve", title="Vent valve")
+    return client
+
+
+def test_the_tag_bar_is_server_fed_and_a_tag_command_runs_on_the_engineering_table() -> None:
+    client = tag_world()
+    tag = client.get_tag("P123", "47-FV-1001")
+    client.set_actions(tag.id, ("ReclassifyTag", "Reclassify"), ("RenameTag", "Rename"))
+    app = TlApp(client, scope=SCOPE, actor="user:kim")
+
+    async def go(pilot: Pilot[None]) -> None:
+        await pilot.press("f8")
+        await settle(pilot)
+        screen = app.screen
+        assert isinstance(screen, TagRegisterScreen)
+        assert bar(screen) == "[l] Reclassify  [n] Rename  [Enter] Open record"
+        await pilot.press("n")
+        await settle(pilot)
+        assert not isinstance(app.screen, TagRegisterScreen)  # the form is up
+        await pilot.press(*"47-FV-2001")
+        await pilot.press("tab")
+        await pilot.press(*"typo")
+        await pilot.press("ctrl+s")
+        await settle(pilot)
+        assert isinstance(app.screen, TagRegisterScreen)
+        [(module, name, cmd)] = client.module_commands
+        assert (module, name) == ("engineering", "RenameTag") and isinstance(cmd, RenameTag)
+        assert (cmd.stream_id, cmd.new_number, cmd.reason) == (tag.id, "47-FV-2001", "typo")
+        assert (cmd.actor, cmd.source, cmd.scope) == ("user:kim", "tui", "project:P123")
+        assert client.correspondence_commands == []
+        assert not status(screen).startswith("! ")
+
+    run_pilot(app, go)
+
+
+def test_a_tag_that_is_offered_nothing_has_only_the_open_key() -> None:
+    client = tag_world()  # no offers set: the server offers nothing
+
+    async def go(pilot: Pilot[None]) -> None:
+        await pilot.press("f8")
+        await settle(pilot)
+        assert bar(app.screen) == "[Enter] Open record"
+        await pilot.press("l")
+        await settle(pilot)
+        assert client.module_commands == []
+
+    app = TlApp(client, scope=SCOPE, actor="user:kim")
+    run_pilot(app, go)
+
+
+def test_the_commercial_bar_is_server_fed_and_runs_on_the_correspondence_table() -> None:
+    client = world()
+    for number in ("ID-P123-EW-0001", "ID-P123-CN-0001"):
+        client.set_actions(number, ("ReviewCommercial", "Review"))
+
+    async def steps(pilot: Pilot[None], app: TlApp, screen: DomainScreen) -> None:
+        await pilot.press("2")
+        await settle(pilot)
+        assert bar(screen) == "[w] Review  [Enter] Open record"
+        await pilot.press("w")
+        await settle(pilot)
+        await pilot.press("enter")  # yes, approve
+        await settle(pilot)
+        [(name, cmd)] = client.correspondence_commands
+        assert name == "ReviewCommercial" and isinstance(cmd, ReviewCommercial)
+        assert cmd.stream_id in ("ID-P123-EW-0001", "ID-P123-CN-0001")
+        assert (cmd.actor, cmd.source, cmd.scope) == ("user:kim", "tui", "project:P123")
+        assert client.module_commands == []
 
     scenario(client, steps)
