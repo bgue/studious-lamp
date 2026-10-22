@@ -202,7 +202,7 @@ def table_width(screen_width: int, *, wide: bool) -> int:
 
 
 MIN_SHRINK = 12  # a shrinkable column (With) never goes below this many cells of text
-GOOD_SUBJECT = 28  # the subject is given this many cells before another column is dropped
+GOOD_SUBJECT = 26  # the subject is given this many cells before another column is dropped
 
 
 @dataclass(frozen=True)

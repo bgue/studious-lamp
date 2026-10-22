@@ -242,7 +242,6 @@ class Workspace:
                 "TL_TOKENS": str(self.root / "tokens.json"),
                 "HOME": str(self.root / "home"),
                 "XDG_CONFIG_HOME": str(self.root / "home" / ".config"),
-                "NO_COLOR": "1",
                 "COLUMNS": "110",
             }
         )
@@ -275,9 +274,11 @@ class Workspace:
 
         if who:  # each person has their own signed-in session, as on their own machine
             os.environ["TL_SESSION_FILE"] = str(self.root / f"session-{who}.json")
+        os.environ["NO_COLOR"] = "1"  # the command line prints plain text; the screens keep colour
         try:
             result = CliRunner().invoke(app, list(args), input=stdin, catch_exceptions=False)
         finally:
+            os.environ.pop("NO_COLOR", None)
             os.environ["TL_SESSION_FILE"] = str(self.root / "session.json")
         shown = self.clean(result.output)
         if ok and result.exit_code != 0:
