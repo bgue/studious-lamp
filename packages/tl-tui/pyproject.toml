@@ -18,6 +18,8 @@ dependencies = [
   "tl-mod-schemareg",
   "tl-mod-legacy",
   "httpx2",
+  "pypdfium2",
+  "rich-pixels==3.0.1",
 ]
 
 [project.scripts]

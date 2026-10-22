@@ -37,6 +37,7 @@ The demo project is made up: project `P123`, five people (`demo`, an admin; `amy
 | 21 | P1-I8 | [Waivers, conformance dashboard, crosswalk, export and import](#21-waivers-conformance-dashboard-crosswalk-export-and-import) | `21a` to `21c` |
 | 22 | P1-I8 | [Legacy loads and lake marts](#22-legacy-loads-and-lake-marts) | `22a` to `22c` |
 | 23 | P1-UX | [Plain language and the record screen](#23-plain-language-and-the-record-screen) | `23a` to `23g` |
+| 24 | P1-UX2 | [The log standard, the RFI record and document preview](#24-the-log-standard-the-rfi-record-and-document-preview) | `24a` to `24g` |
 
 ## Regenerating locally
 
@@ -341,11 +342,11 @@ The rule watches for an answered RFI with an impact and proposes an early warnin
 
 Behind the screen the controller priced and issued the first notice, raised a second one that became aware of the problem 20 days ago, and assessed both. The register shows the first notice's time bar met, the second marked LATE, and the totals in USD and EUR on separate lines, never added.
 
-![Ctrl+G, e: the evidence trail of the notice, back to the RFI it came from](tour/phase-1/18e-evidence-trail.svg)
+![Ctrl+G, t: the evidence trail of the notice, back to the RFI it came from](tour/phase-1/18e-evidence-trail.svg)
 
-`e` on a notice opens its evidence trail: the notice, the RFI it is derived from, and the state of each as of the chosen day. `[` and `]` step the day back and forward, so the screen can show what the ledger knew on any earlier day.
+`t` on a notice opens its evidence trail: the notice, the RFI it is derived from, and the state of each as of the chosen day. `[` and `]` step the day back and forward, so the screen can show what the ledger knew on any earlier day.
 
-**Reproduce:** `just demo P1-I6`. By hand: `uv run tl rule create --file dev/seed/rules/rfi-escalation.json --project P123` and `tl rule enable rfi-escalation --project P123`; `tl rfi raise ...`, `tl rfi submit <no>`, `tl rfi issue <no>` (a controller), `tl rfi answer <no> --answer "..." --cost-impact yes --schedule-impact no`; `tl integration serve --once`; `tl proposal ls`, `tl proposal accept <id>` (a controller); `tl comm ls --time-bars`, `tl evidence P123-EW-0001`; in the TUI `Ctrl+G`, then `1`, `2`, `3` or `e`.
+**Reproduce:** `just demo P1-I6`. By hand: `uv run tl rule create --file dev/seed/rules/rfi-escalation.json --project P123` and `tl rule enable rfi-escalation --project P123`; `tl rfi raise ...`, `tl rfi submit <no>`, `tl rfi issue <no>` (a controller), `tl rfi answer <no> --answer "..." --cost-impact yes --schedule-impact no`; `tl integration serve --once`; `tl proposal ls`, `tl proposal accept <id>` (a controller); `tl comm ls --time-bars`, `tl evidence P123-EW-0001`; in the TUI `Ctrl+G`, then `1`, `2`, `3` or `t`.
 
 **Standard activity.** An RFI log is a spreadsheet, a claim notice is a letter from the commercial manager, and the link between the two lives in somebody's head until a dispute. **Novel approach.** The answer carries its cost and schedule impact as data, a rule turns an impactful answer into a proposed notice that a controller decides, the notice's time bar is a clock like any other, and the trail between them is a link that the ledger can replay for any past day (P1-I6, [report](P1-I6.md)). **Honest limits.** The delivery of an issued RFI or notice is a stub; the rule only proposes; the Commercial items are all controller acts and restricted by default.
 
@@ -464,6 +465,34 @@ Enter on a row of any register opens the **full record**: Details (the module's 
 **Reproduce:** `just demo P1-UX` (both backends; four clauses). By hand: `uv run tl pset set --project P123 ISO-1234 document_data originator="Acme Piping" native_format=DWG`, then open `tl tui`, press `F7`, `Enter`, `2`; as an admin press `Ctrl+D`.
 
 **Standard activity.** A register is a list; the full record is another tool, and the property data sits in a spreadsheet beside it. Staff read internal codes (`PIP`, `ControlValve`, `general/letter`) and ids that mean nothing to them. **Novel approach.** One record screen serves every type, and its tabs read the same schema the forms and the checks use, so a document, a tag, an RFI and a letter show their sets alike; one shared helper turns codes, types, domains and rule markers into words, and the toggle brings the raw view back for those who need it (P1-UX). **Honest limits.** This is display only: the CLI, API and MCP keep their output. The three sets are examples in the fixture standard, not a model for a real company. The toggle is for admins and is not remembered between sessions. A value from a code list shows its label (`Structural`, `US dollar`); a money amount carries its currency code (`12500 USD`), taken from the currency property beside it; Ctrl+D shows the stored codes.
+
+## 24. The log standard, the RFI record and document preview
+
+![Ctrl+G: the RFI log at 170 columns: breadcrumb, list, the selected record beside it, the actions bar](tour/phase-1/24a-rfi-log-wide.svg)
+
+![The same log at 100 columns: the record panel moves below the list](tour/phase-1/24b-rfi-log-stacked.svg)
+
+Every log (documents, tags, letters, RFIs, notices, schedules, the review queue, the integration registry and the schema workbench) now has the same shape. A line at the top says where you are and which record you are on (`P123 › RFI log › P123-RFI-0002: Conflict in piling and utilities at AZ203`) and follows the highlighted row. The list carries plain words only. The selected record sits below the list, or to its right from 160 columns, and switches when the window is resized. Under it a bar lists the actions the viewer may take on that record in its state (`[a] Answer  [c] Close  [Enter] Open record`), each with its key; the keys row below it holds navigation and filters only. The bar comes from the service that owns the record, so nothing is offered that would be refused.
+
+![An RFI waiting to be issued, for a plain user: Return to draft and Void, but no Issue](tour/phase-1/24f-rfi-log-plain-user.svg)
+
+![The same RFI for a controller: Issue is offered as well](tour/phase-1/24g-rfi-log-controller.svg)
+
+The bar differs by person and by state. The RFI awaiting an answer (24a) shows `[a] Answer`, which opens a small form and sends the existing answer command; once it is answered the bar offers `[w] Review answer` instead. The RFI waiting to be issued shows a plain user `Return to draft` and `Void` (24f), and a controller also `Issue` (24g). An agent account cannot open the TUI at all, so there is no "reader" screen.
+
+![Enter on the RFI: the question in full, then the timeline of the answer round](tour/phase-1/24c-rfi-record.svg)
+
+![6: the Files tab: each attachment with its kind, size and, for a PDF, pages](tour/phase-1/24d-rfi-files.svg)
+
+The RFI record leads with what a person wants to read: subject, the question in full (it wraps, nothing is cut), the proposed solution, then the answer when there is one. A status timeline follows, oldest first, with the date, the person and the note: raised, submitted, issued, answered, the answer rejected with the reviewer's reason, reissued, issued again, and the clock outcome. The metadata comes last. The Files tab (key `6`, present only while the record has files) lists the attachments with kind, size and pages; the third file is the PDF the system made when the RFI was issued.
+
+![F7: the document log; the PDF's kind, size and 3 pages where images are not shown](tour/phase-1/24e-document-preview-fallback.svg)
+
+In the document log `v` (or Enter on the file line) opens the current revision's file in the system viewer: the file is fetched into a private temporary folder, its size and SHA-256 are checked, and the folder is removed when the screen closes. In a terminal that can show images the panel draws page 1 of a PDF as a picture; the tour's terminal cannot (it is run with `TL_IMAGES=off`, like the tests), so the panel gives the fallback: `PDF document  789 B  3 pages`. Rendering page 1 runs in a separate, resource-limited process off the screen's thread and is cached by the file's content hash.
+
+**Reproduce:** `just demo P1-UX2` (both backends; four clauses). By hand: `uv run tl rfi raise ...`, `tl rfi submit|issue|answer|review|reissue <no>`, `tl file put sheet.pdf --project P123 --record <no> --slot attachment` (an RFI takes files only before it is submitted), `tl doc rendition add ISO-6100 A iso-6100.pdf --kind pdf`; in the TUI `Ctrl+G` then `Enter` and `6`, or `F7` and `v`. `TL_IMAGES` and `TL_VIEWER_CMD` are described in `docs/runbooks/tui-dev.md`.
+
+**Standard activity.** A register is a list, the full record is another tool, the thread of who answered what lives in email, and a drawing is opened by finding it in the document system and downloading it. **Novel approach.** One log screen serves every register, so the place, the record and the next step are always in the same positions; the next steps come from the same rules the commands apply, the RFI record reads like the correspondence it replaces (question, answer, history, attachments), and a document can be opened or previewed from the row that names it.
 
 ## What Phase 1 did not do
 

@@ -13,9 +13,9 @@ from typing import Any
 
 import rows_integration as rows
 from fakes import SCOPE, FakeClient
-from helpers import run_pilot, screen_text
+from helpers import run_pilot, screen_text, settle
 from textual.pilot import Pilot
-from textual.widgets import DataTable
+from textual.widgets import DataTable, Static
 from tl_tui.app import TlApp
 from tl_tui.widgets.integration_screen import IntegrationScreen
 
@@ -47,15 +47,19 @@ def scenario(
 
     async def go(pilot: Pilot[Any]) -> None:
         await pilot.press("ctrl+e")
-        await pilot.pause()
+        await settle(pilot)
         assert isinstance(app.screen, IntegrationScreen)
         await steps(pilot, app, app.screen)
 
     run_pilot(app, go)
 
 
+def bar(screen: IntegrationScreen) -> str:
+    return str(screen.query_one("#log-actions", Static).render())
+
+
 def table(screen: IntegrationScreen) -> DataTable[str]:
-    return screen.query_one("#integration-table", DataTable)
+    return screen.query_one("#log-table", DataTable)
 
 
 def test_ctrl_e_opens_on_the_endpoints_and_escape_closes() -> None:
@@ -66,7 +70,7 @@ def test_ctrl_e_opens_on_the_endpoints_and_escape_closes() -> None:
         assert "Path        /in/acme-nde/results" in text  # the detail of the first row
         assert "Acts as     a service" in text  # plain: no service label is known here
         await pilot.press("escape")
-        await pilot.pause()
+        await settle(pilot)
         assert not isinstance(app.screen, IntegrationScreen)
 
     scenario(full_client(), steps)
@@ -77,7 +81,7 @@ def test_only_an_admin_opens_it_and_it_says_why_not() -> None:
 
     async def go(pilot: Pilot[Any]) -> None:
         await pilot.press("ctrl+e")
-        await pilot.pause()
+        await settle(pilot)
         assert not isinstance(app.screen, IntegrationScreen)
         assert "The integration registry needs the admin role" in screen_text(app)
 
@@ -97,12 +101,12 @@ def test_the_keys_switch_the_table() -> None:
         }
         for key, (title, cell) in expected.items():
             await pilot.press(key)
-            await pilot.pause()
+            await settle(pilot)
             text = screen_text(app)
             assert title in text and cell in text, key
         await pilot.press("right_square_bracket")  # 1 -> 2
         await pilot.press("left_square_bracket", "left_square_bracket")  # 2 -> 1 -> 7 (wraps)
-        await pilot.pause()
+        await settle(pilot)
         assert "Error queue (2)" in screen_text(app)
 
     scenario(full_client(), steps)
@@ -111,13 +115,13 @@ def test_the_keys_switch_the_table() -> None:
 def test_the_error_queue_names_each_endpoint_by_its_path() -> None:
     async def steps(pilot: Pilot[Any], app: TlApp, screen: IntegrationScreen) -> None:
         await pilot.press("7")
-        await pilot.pause()
+        await settle(pilot)
         text = screen_text(app)
         assert "acme-nde/results" in text and "! Failed" in text and "✓ Completed" in text
         assert "Mapping failed: no weld in the payload" in text
         assert "Endpoint    acme-nde/results" in text and "v2" not in text
         await pilot.press("ctrl+d")  # technical details on: the id, version and error code again
-        await pilot.pause()
+        await settle(pilot)
         text = screen_text(app)
         assert "mapping_failed: no weld in the payload" in text
         assert "Endpoint    acme-nde/results v2" in text
@@ -144,11 +148,11 @@ def test_e_switches_a_rule_on_with_enable_rule_and_off_with_disable_rule() -> No
 
     async def steps(pilot: Pilot[Any], app: TlApp, screen: IntegrationScreen) -> None:
         await pilot.press("2", "e")
-        await pilot.pause()
+        await settle(pilot)
         assert client.integration_calls == [("EnableRule", SCOPE, {"rule_id": "rule-1"})]
         assert "✓ on" in screen_text(app) and "Enabled hse-notify" in screen_text(app)
         await pilot.press("e")
-        await pilot.pause()
+        await settle(pilot)
         assert client.integration_calls[-1] == ("DisableRule", SCOPE, {"rule_id": "rule-1"})
         assert "✗ off" in screen_text(app)
 
@@ -161,7 +165,7 @@ def test_e_switches_an_endpoint_an_enricher_and_an_app_with_their_commands() -> 
     async def steps(pilot: Pilot[Any], app: TlApp, screen: IntegrationScreen) -> None:
         await pilot.press("down", "e")  # the second endpoint, photos: on -> off
         await pilot.press("4", "e", "5", "e")
-        await pilot.pause()
+        await settle(pilot)
         assert client.integration_calls == [
             ("SetInboundEndpointEnabled", SCOPE, {"endpoint_id": "ep-2", "enabled": False}),
             ("SetEnricherEnabled", SCOPE, {"enricher_id": "enr-1", "enabled": False}),
@@ -178,10 +182,11 @@ def test_actions_invocations_and_retired_rows_are_not_switched() -> None:
 
     async def steps(pilot: Pilot[Any], app: TlApp, screen: IntegrationScreen) -> None:
         await pilot.press("3", "e")
-        await pilot.pause()
-        assert "Actions are not switched here." in screen_text(app)
+        await settle(pilot)
+        assert "[e]" not in bar(screen)  # an action is not switched here: no key is offered
+        assert client.integration_calls == []
         await pilot.press("2", "down", "e")  # the retired rule
-        await pilot.pause()
+        await settle(pilot)
         assert "This one is retired and cannot be switched." in screen_text(app)
         assert "✗ retired" in screen_text(app)
         assert client.integration_calls == []
@@ -194,11 +199,14 @@ def test_y_retries_a_failed_delivery_and_only_on_the_error_queue() -> None:
 
     async def steps(pilot: Pilot[Any], app: TlApp, screen: IntegrationScreen) -> None:
         await pilot.press("y")
-        await pilot.pause()
-        assert "Retry is on the error queue (key 7)." in screen_text(app)
+        await settle(pilot)
+        assert "[y]" not in bar(screen)  # retry is on the error queue only
         assert client.integration_calls == []
-        await pilot.press("7", "y")
-        await pilot.pause()
+        await pilot.press("7")
+        await settle(pilot)
+        assert "[y] Retry delivery" in bar(screen)
+        await pilot.press("y")
+        await settle(pilot)
         assert client.integration_calls == [
             ("RetryInboundDelivery", SCOPE, {"delivery_id": "01JDELIVERYAAAAAAA1"})
         ]
@@ -213,11 +221,11 @@ def test_a_stale_switch_is_refused_shown_and_the_table_read_again() -> None:
 
     async def steps(pilot: Pilot[Any], app: TlApp, screen: IntegrationScreen) -> None:
         await pilot.press("2")
-        await pilot.pause()
+        await settle(pilot)
         assert "✗ off" in screen_text(app)
         client._integration["rules"][0]["enabled"] = True  # pyright: ignore
         await pilot.press("e")  # the screen asks EnableRule; the rule is on already
-        await pilot.pause()
+        await settle(pilot)
         text = screen_text(app)
         assert client.integration_calls == [("EnableRule", SCOPE, {"rule_id": "rule-1"})]
         assert "! already on" in text and "✓ on" in text
@@ -231,10 +239,10 @@ def test_a_non_admin_session_sees_the_services_refusal() -> None:
 
     async def steps(pilot: Pilot[Any], app: TlApp, screen: IntegrationScreen) -> None:
         await pilot.press("2", "e")
-        await pilot.pause()
+        await settle(pilot)
         assert "! EnableRule needs the admin role" in screen_text(app)
         await pilot.press("7")
-        await pilot.pause()
+        await settle(pilot)
         assert "! this needs the admin role" in screen_text(app)
         assert table(screen).row_count == 0
 
@@ -248,7 +256,7 @@ def test_the_selection_survives_a_reload() -> None:
         await pilot.press("down")
         client.seed_integration("endpoints", **rows.endpoint(endpoint_id="ep-3", name="zzz"))
         await pilot.press("f5")
-        await pilot.pause()
+        await settle(pilot)
         assert table(screen).row_count == 3 and table(screen).cursor_row == 1
         assert "Reloaded." in screen_text(app)
 

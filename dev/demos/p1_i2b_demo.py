@@ -201,10 +201,14 @@ async def tui_composer(db: str, actor: str, controller: bool) -> str:
         async with app.run_test(size=(140, 44)) as pilot:
             await pilot.press("f7")
             await pilot.pause()
+            await app.workers.wait_for_complete()  # the log reads its rows off the UI thread
+            await pilot.pause()
             register = app.screen
             assert isinstance(register, DocumentRegisterScreen)
             shown = [v.number for v in register.shown]
-            register.query_one("#docs-table", DataTable).move_cursor(row=shown.index("ISO-1234"))
+            register.query_one("#log-table", DataTable).move_cursor(row=shown.index("ISO-1234"))
+            await pilot.pause()
+            await app.workers.wait_for_complete()  # the bar asks the server what is offered
             await pilot.pause()
             await pilot.press("t")
             await pilot.pause()

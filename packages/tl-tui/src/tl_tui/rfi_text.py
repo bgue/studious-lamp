@@ -57,16 +57,17 @@ def rfi_cells(
     """The eleven cells of a log row, in the order of ``RFI_COLUMNS``. Without ``technical`` the
     State and Kind cells read as words (``labels`` gives the domain labels)."""
     if technical:
-        state, kind = line.state, line.subtype
+        state, kind, discipline = line.state, line.subtype, line.discipline or "-"
     else:
         state = humanize(line.state)
         lab = labels if labels is not None else Labels()
         kind = domain_label(lab, "technical", line.subtype) if line.subtype else "-"
+        discipline = code_label(lab, "discipline", line.discipline) if line.discipline else "-"
     return (
         line.number,
         state,
         kind,
-        line.discipline or "-",
+        discipline,
         line.raised_on,
         line.required_by or "-",
         line.answered_on or "-",
@@ -109,10 +110,12 @@ def rfi_lines(
     lab = labels if labels is not None else Labels()
     if technical:
         state, kind, klass = view.state, view.subtype or "-", view.confidentiality
+        discipline = view.discipline or "-"
     else:
         state = humanize(view.state)
         kind = domain_label(lab, "technical", view.subtype) if view.subtype else "-"
         klass = code_label(lab, "confidentiality", view.confidentiality)
+        discipline = code_label(lab, "discipline", view.discipline) if view.discipline else "-"
     lines = [f"{view.number}  {state}  {kind}  class {klass}"]
     if technical:
         lines.append(f"record {view.id}")
@@ -120,7 +123,7 @@ def rfi_lines(
         f"subject: {view.subject}",
         f"question: {view.question}",
         f"proposed: {view.proposed_solution or '-'}",
-        f"discipline {view.discipline or '-'}  needed by {view.required_by or '-'}  "
+        f"discipline {discipline}  needed by {view.required_by or '-'}  "
         f"issued {view.issued_on or '-'}",
         f"raiser expects: cost {view.potential_cost_impact}, "
         f"schedule {view.potential_schedule_impact}",

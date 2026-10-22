@@ -8,12 +8,15 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from datetime import date, datetime
+from pathlib import Path
 from typing import Any, Literal, Protocol
 
 from pydantic import BaseModel
+from tl_core.actions import RecordActions
 from tl_core.auth.types import AccountKind, AccountView, AgentTokenView
 from tl_core.extypes.service import BodyStoredOut, BodyView, TypeDetail, TypeSummary
 from tl_core.extypes.types import TypeStatus
+from tl_core.files.queries import FileInfo
 from tl_core.ledger import Event
 from tl_core.links.expected import MissingLink
 from tl_core.numbering.detect import KeyChip
@@ -137,6 +140,33 @@ class ClientInterface(Protocol):
 
     def edit_record(self, cmd: EditRecord) -> CommandResult:
         """Field changes and pset edits as one atomic save: all of them are applied or none."""
+        ...
+
+    # --- what a record offers, and its files (P1-UX2) -----------------------------------------
+    #
+    # The same names and signatures as ``tl_api.client.ApiClient``. The offers are advice: the
+    # command still checks the state and the access when it runs, and a refusal is shown as it is.
+
+    def allowed_actions(self, record_id: str) -> RecordActions:
+        """What the signed-in person may do on the record now, as the record's module says.
+
+        Each offer names a command of the module's own table (run it with ``document_command``,
+        ``engineering_command`` or ``correspondence_command``) and a label in plain words. A record
+        the person may not read raises ``RecordNotFoundError`` exactly as a missing one does.
+        """
+        ...
+
+    def list_record_files(self, record_id: str) -> list[FileInfo]:
+        """The current files of the record that the person may read; ``[]`` for a hidden or
+        missing record."""
+        ...
+
+    def fetch_file(self, file_id: str, dest_dir: Path) -> Path:
+        """Write the file (one that ``list_record_files`` returned) into ``dest_dir`` and return its
+        path: the name is made safe, the mode is 0600, nothing is overwritten (a numeric suffix is
+        added), and the size and SHA-256 are verified before the call returns (a mismatch deletes
+        the file and raises). A hidden file and a missing one raise the same ``UnknownFileError``.
+        """
         ...
 
     def form_metadata(
@@ -351,6 +381,11 @@ class ClientInterface(Protocol):
         """One tag with its conformance issues. Raises ``TagNotFoundError`` when unknown."""
         ...
 
+    def list_code_lists(self, scope: str) -> dict[str, dict[str, str]]:
+        """The company's code lists as ``{list name: {code: label}}`` as ``scope`` sees them (usable
+        values only): ``{"Discipline": {"STR": "Structural"}}``. Feeds the plain-mode labels."""
+        ...
+
     # --- documents (P1-I2; brief 9 M1) -------------------------------------------------------
     #
     # The same names and signatures as ``tl_api.client.ApiClient``. ``project`` is the project id.
@@ -511,6 +546,18 @@ class ClientInterface(Protocol):
 
     def correspondence_command(self, name: str, cmd: Command) -> CommandResult:
         """Run a correspondence command by name (the token's or the signed-in person's actor)."""
+        ...
+
+    def document_command(self, name: str, cmd: Command) -> CommandResult:
+        """Run a documents command by name, from the module's own table (P1-UX2).
+
+        A name that is not in the table, or a command of another class, raises ``ForbiddenError``;
+        so does an access the person lacks (a controller's act for a plain user).
+        """
+        ...
+
+    def engineering_command(self, name: str, cmd: Command) -> CommandResult:
+        """Run an engineering command by name from the module's table (as ``document_command``)."""
         ...
 
     # --- Technical and Commercial items (P1-I6; brief 9 M10) ---------------------------------

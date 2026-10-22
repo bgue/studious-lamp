@@ -11,6 +11,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import Any
 
+from tl_core.ledger import Event
 from tl_mod_correspondence.views import RecipientView
 
 from tl_tui.client import ClientInterface
@@ -25,6 +26,7 @@ from tl_tui.display import (
     type_label,
 )
 from tl_tui.text import EMPTY, timestamp
+from tl_tui.timeline_text import timeline_lines, timeline_rows
 
 ITEM_TYPE = "correspondence.Correspondence"
 CLOCK_TYPE = "correspondence.ResponseClock"
@@ -39,15 +41,57 @@ def _people(people: Sequence[RecipientView]) -> str:
     return ", ".join(p.name or p.email or EMPTY for p in people) or EMPTY
 
 
+TIMELINE = "Timeline"
+TIMELINE_TIMES = "Timeline times"
+
+
+def item_history(client: ClientInterface, record: dict[str, Any], item_id: str) -> list[Event]:
+    """The viewer-filtered events of the item (empty when the record has none to show)."""
+    return client.history(str(record.get("id") or item_id))
+
+
+def timeline_detail_rows(
+    client: ClientInterface,
+    project: str,
+    events: Sequence[Event],
+    item_id: str,
+    labels: Labels,
+    *,
+    escalations: Sequence[Event] = (),
+) -> list[DetailRow]:
+    """The status timeline as rows: a ``Timeline`` heading, then one row per state change or clock
+    outcome (label = the date, value = ``who: what - note``), oldest first.
+
+    The technical mode adds one row with the same lines in full (time of day, stored actor). No
+    heading and no row when the record has nothing to show.
+    """
+    clocks = [c for c in client.list_clocks(project, open_only=False) if c.item_id == item_id]
+    plain = timeline_rows(events, clocks, labels, technical=False, escalations=escalations)
+    if not plain:
+        return []
+    rows = [DetailRow(TIMELINE, "")]
+    for row in plain:
+        note = f" - {row.note}" if row.note else ""
+        rows.append(DetailRow(row.when, f"{row.who}: {row.what}{note}"))
+    full = timeline_rows(events, clocks, labels, technical=True, escalations=escalations)
+    rows.append(DetailRow(TIMELINE_TIMES, "\n".join(timeline_lines(full)), technical=True))
+    return rows
+
+
 @register(ITEM_TYPE)
 def item_rows(
     client: ClientInterface, project: str, record: dict[str, Any], labels: Labels
 ) -> list[DetailRow]:
     view = client.get_correspondence(project, str(record["key"]))
+    events = item_history(client, record, view.id)
+    narrative = [DetailRow("Subject", _or_empty(view.subject))]
+    if view.body:
+        narrative.append(DetailRow("Message", view.body))
     rows = [
+        *narrative,
+        *timeline_detail_rows(client, project, events, view.id, labels),
         DetailRow("Type", type_label(labels, ITEM_TYPE)),
         DetailRow("Number", view.number),
-        DetailRow("Subject", _or_empty(view.subject)),
         DetailRow("Domain", domain_label(labels, view.domain, view.subtype)),
         DetailRow("State", humanize(view.state)),
         DetailRow("Direction", humanize(view.direction)),

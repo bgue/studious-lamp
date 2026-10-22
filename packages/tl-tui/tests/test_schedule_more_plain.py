@@ -11,7 +11,7 @@ from collections.abc import Awaitable, Callable
 from dataclasses import replace
 
 from fakes import SCOPE, FakeClient
-from helpers import run_pilot, screen_text
+from helpers import run_pilot, screen_text, settle
 from textual.pilot import Pilot
 from textual.screen import ModalScreen
 from tl_mod_schedule.compare import LogicChange, ProgressChange
@@ -40,7 +40,7 @@ def scenario(
 
     async def go(pilot: Pilot[None]) -> None:
         app.push_screen(screen_for(client))
-        await pilot.pause()
+        await settle(pilot)
         await steps(pilot, app)
 
     run_pilot(app, go)
@@ -96,7 +96,7 @@ def test_activity_screen_plain_title_status_and_detail() -> None:
         assert "Completed" in text and "completed" not in text
         assert "TK_" not in text and "MAIN#" not in text
         await pilot.press("ctrl+d")  # technical on: the key and the raw status come back
-        await pilot.pause()
+        await settle(pilot)
         text = screen_text(app)
         assert "Activities of MAIN#2" in text and "completed" in text
 
@@ -138,11 +138,11 @@ def test_both_screens_redraw_on_the_mode_switch() -> None:
     async def compare_steps(pilot: Pilot[None], app: TlApp) -> None:
         assert "Snapshot 2 (2026-10-12) against Snapshot 1" in screen_text(app)
         await pilot.press("ctrl+d")
-        await pilot.pause()
+        await settle(pilot)
         assert app.display_mode.technical is True
         assert "MAIN#2 (2026-10-12) against MAIN#1 (2026-10-05)" in screen_text(app)
         await pilot.press("ctrl+d")
-        await pilot.pause()
+        await settle(pilot)
         assert "Snapshot 2 (2026-10-12) against Snapshot 1" in screen_text(app)
         assert "MAIN#" not in screen_text(app)
 
@@ -151,11 +151,11 @@ def test_both_screens_redraw_on_the_mode_switch() -> None:
     async def activity_steps(pilot: Pilot[None], app: TlApp) -> None:
         assert "Activities of Snapshot 2" in screen_text(app)
         await pilot.press("ctrl+d")
-        await pilot.pause()
+        await settle(pilot)
         text = screen_text(app)
         assert "Activities of MAIN#2" in text and "A1220  Set rack foundations  |  MAIN#2" in text
         await pilot.press("ctrl+d")
-        await pilot.pause()
+        await settle(pilot)
         text = screen_text(app)
         assert "Activities of Snapshot 2" in text and "MAIN#" not in text
 
@@ -233,14 +233,14 @@ def test_schedule_screen_look_ahead_header_plain_then_technical() -> None:
 
     async def go(pilot: Pilot[None]) -> None:
         await pilot.press("f12")
-        await pilot.pause()
+        await settle(pilot)
         await pilot.press("l")
-        await pilot.pause()
+        await settle(pilot)
         text = screen_text(app)
         assert "look-ahead Snapshot 2: 2026-10-12 to 2026-11-09 (4 weeks)" in text
         assert "A1110  In progress" in text
         await pilot.press("ctrl+d")
-        await pilot.pause()
+        await settle(pilot)
         assert "look-ahead MAIN#2: 2026-10-12 to 2026-11-09 (4 weeks)" in screen_text(app)
         assert "A1110  in_progress" in screen_text(app)
 

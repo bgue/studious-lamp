@@ -10,6 +10,7 @@ from tl_core.modules import ChildSource, ConfidentialSource, ModuleSpec, Proposa
 from tl_core.projection.types import Projector
 
 from tl_mod_correspondence import MODULE
+from tl_mod_correspondence.actions import item_actions
 from tl_mod_correspondence.guards import controller_only, item_upload, not_void
 from tl_mod_correspondence.handlers.escalate import EscalateTechnical, handle_escalate_technical
 from tl_mod_correspondence.handlers.triage import ConfirmTriage, handle_confirm_triage
@@ -139,4 +140,6 @@ def spec() -> ModuleSpec:
         },
         proposable=PROPOSABLE,
         confidential=CONFIDENTIAL,
+        # which of the commands a viewer may run on an item now (P1-UX2); one table, actions.py
+        actions={record_type: item_actions for record_type in ITEM_TYPES},
     )

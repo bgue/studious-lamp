@@ -224,3 +224,15 @@ The impact report of a package is stored in an event the whole company can read,
 - **L-P1-UX-4** · 2026-10-21 · tags: process
   Verify every gate path exists before dispatch: `just gate` with a missing test path exits 4 and reads red (T10 named `test_help_screen.py`, which did not exist). A tl-tui ticket is always `review: full`: `reviewer-lite` excludes tl-tui, and T05 and T09e merged as lite before this was learned (D32).
   Evidence: T10 Q1; D32. Status: active
+
+- **L-P1-UX2-1** · 2026-10-22 · tags: process, licences
+  Read a dependency's licence from its installed metadata (`importlib.metadata`, `dev/tools/check_licences.py`) before an owner decision is framed as "permissive": textual-image was approved on that word and is LGPL-3.0-or-later, so S4 stopped on its first attempt and a replacement (rich-pixels 3.0.1, MIT) needed a second decision. A wheel with no licence field and only a LICENSE file needs a named allow-list entry, not a looser rule.
+  Evidence: S4 report, STATE D9, `dev/tools/check_licences.py` (`MIT_FILE_ONLY`), `caf2a9a`. Status: active
+
+- **L-P1-UX2-2** · 2026-10-22 · tags: process, tooling
+  A container restart ends every running workflow run and agent; the work on disk survives. Resume a lost run by its run id, from its last commit, instead of dispatching the piece again, and check `git status` in the worktree before anything is re-run. P1-UX2 lost work to four restarts this way.
+  Evidence: `docs/reports/P1-UX2.md` (Deviations), STATE TRAPS. Status: active
+
+- **L-P1-UX2-3** · 2026-10-22 · tags: tui, standards
+  The columns of a company standard hold codes (`STR`, `ISO`, `PIP`, `47`). A screen shows plain words only if the standard's code lists are read: `list_code_lists(scope)` gives `{list: {code: label}}` and `labels_load` keys each list by its column and by its list name. A new log that shows a standards column needs one test with a code in the cell (plain shows the label, technical keeps the code).
+  Evidence: S3 report (D10), `labels_load.py`, `test_standard_code_labels.py`. Status: active
