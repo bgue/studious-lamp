@@ -15,6 +15,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import Any, ClassVar
 
+from rich.text import Text
 from textual.binding import Binding, BindingType
 from textual.widgets import DataTable, Input
 from tl_core.services.errors import ServiceError
@@ -26,10 +27,11 @@ from tl_tui.errors import CLIENT_ERRORS, describe_error
 from tl_tui.integration_text import (
     cells,
     columns,
-    detail_lines,
+    detail_page,
     property_words,
     record_name,
 )
+from tl_tui.layout import render
 from tl_tui.widgets.action_form import ActionFormScreen, FormField
 from tl_tui.widgets.log_screen import LogAction, LogScreen
 from tl_tui.widgets.record_screen import open_record
@@ -41,7 +43,11 @@ class ReviewQueueScreen(LogScreen[dict[str, Any]]):
     """The proposed values of an enricher for ``scope``, to accept or reject."""
 
     LOG_NAME: ClassVar[str] = "Review queue"
-    KEY_HINTS: ClassVar[str] = "s waiting/all  / filter  F5 reload  Esc close"
+    KEY_CELLS: ClassVar[tuple[str, ...]] = ("s waiting/all", "/ filter")
+    HELP_KEYS: ClassVar[tuple[tuple[str, str], ...]] = (
+        ("s", "Switch between the values waiting for review and all values"),
+        ("a  x", "Accept or reject the highlighted value (the actions bar)"),
+    )
 
     BINDINGS: ClassVar[list[BindingType]] = [
         Binding("s", "toggle_all", "Waiting or all", show=False),
@@ -80,10 +86,10 @@ class ReviewQueueScreen(LogScreen[dict[str, Any]]):
     def row_record(self, row: dict[str, Any]) -> tuple[str, str]:
         return (record_name(row["target"], technical=False), property_words(row["property_path"]))
 
-    def panel_text(self, row: dict[str, Any] | None) -> str:
+    def panel_text(self, row: dict[str, Any] | None) -> str | Text:
         if row is None:
             return "No values." if self.show_all else "Nothing is waiting for review."
-        return "\n".join(detail_lines("enrichments", row, technical=mode_of(self.app).technical))
+        return render(detail_page("enrichments", row, technical=mode_of(self.app).technical))
 
     def summary_text(self) -> str:
         if self._flash:

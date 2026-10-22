@@ -29,6 +29,7 @@ IDENTITY_STYLE = "bold"
 HEADING_STYLE = "bold grey62"
 LABEL_STYLE = "dim"
 SUMMARY_JOIN = " · "
+SUMMARY_WIDTH = 56  # the longest summary line: a panel beside a log is about 58 cells wide
 
 # State colour (skill ``tui-layout``): green done, amber waiting or running, red overdue or refused.
 # The terminal's own palette colours, so a theme sets the exact shade; the word is always there.
@@ -36,11 +37,13 @@ DONE_STYLE = "green"
 WAITING_STYLE = "yellow"
 BAD_STYLE = "red"
 _BAD = re.compile(
-    r"\b(overdue|late|refused|rejected|failed|expired|killed|breached)\b|does not fit", re.I
+    r"\b(overdue|late|refused|rejected|failed|expired|killed|breached|nonconformant)\b"
+    r"|does not fit",
+    re.I,
 )
 _DONE = re.compile(
     r"\b(answered|closed|done|complete|completed|met|accepted|approved|issued|responded|"
-    r"published|applied|current|ok)\b",
+    r"published|applied|current)\b",
     re.I,
 )
 _WAITING = re.compile(
@@ -116,6 +119,18 @@ def join_facts(*facts: object) -> str:
     return SUMMARY_JOIN.join(str(f) for f in facts if f is not None and str(f).strip())
 
 
+def wrap_facts(summary: str, width: int = SUMMARY_WIDTH) -> list[str]:
+    """The summary in lines of at most ``width`` characters, broken between facts (at `` · ``),
+    never inside one; a fact longer than ``width`` is a line of its own."""
+    lines: list[str] = []
+    for fact in summary.split(SUMMARY_JOIN):
+        if lines and len(lines[-1]) + len(SUMMARY_JOIN) + len(fact) <= width:
+            lines[-1] += SUMMARY_JOIN + fact
+        else:
+            lines.append(fact)
+    return lines
+
+
 def state_style(text: str) -> str:
     """The colour of a state: green done (answered, closed, met, issued), amber waiting or running,
     red overdue, late or refused; none for a state that is none of these (a draft, void).
@@ -124,8 +139,10 @@ def state_style(text: str) -> str:
     (``✓ on``, ``! failed``, ``… waiting``) and decides first.
     """
     stripped = text.strip()
-    if stripped.startswith("!"):
-        return BAD_STYLE
+    if stripped.startswith("!"):  # a warning is amber, a failure red
+        return WAITING_STYLE if re.search(r"\bwarn", stripped, re.I) else BAD_STYLE
+    if stripped.startswith("✗"):  # a cross is a failure, except "off" and "retired" (not a fault)
+        return "" if re.search(r"\b(off|retired)\b", stripped) else BAD_STYLE
     if stripped.startswith("✓"):
         return DONE_STYLE
     if stripped.startswith("…"):
@@ -294,7 +311,7 @@ def page_lines(page: Page, *, identity: bool = True) -> list[Line]:
     if identity and page.state:
         lines.append(state_segments(page.state))
     if identity and page.summary:
-        lines.append([(page.summary, LABEL_STYLE)])
+        lines.extend([(row, LABEL_STYLE)] for row in wrap_facts(page.summary))
     blocks = [_section_lines(section) for section in page.sections]
     for block in blocks:
         if not block:

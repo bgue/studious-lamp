@@ -106,9 +106,32 @@ def actions_text(actions: Sequence[ActionLike], *, can_open: bool) -> str:
     return "  ".join(cells)
 
 
+# --- the keys row (P1-UX3; skill tui-layout, "Screen frame") -------------------------------------
+
+KEYS_GAP = "  "
+KEYS_PADDING = 2  # the screen's one-cell padding each side
+HELP_ENTRY = "F1 more keys"
+CLOSE_ENTRY = "Esc close"
+
+
+def keys_row(own: Sequence[str], width: int) -> str:
+    """The keys row on one line: navigation first, then the log's own filter keys (``own``), then
+    ``Esc close`` and ``F1 more keys``. Every other key is on the help screen. When the line is
+    wider than the screen the last of the log's own keys go first; navigation, ``Esc`` and ``F1``
+    never do."""
+    head = ["Up/Down move"]
+    tail = [CLOSE_ENTRY, HELP_ENTRY]
+    room = max(width - KEYS_PADDING, 1)
+    cells = [*head, *own, *tail]
+    while len(KEYS_GAP.join(cells)) > room and len(cells) > len(head) + len(tail):
+        del cells[len(cells) - len(tail) - 1]
+    return KEYS_GAP.join(cells)
+
+
 # --- columns (P1-UX3; skill tui-layout, "Logs") ---------------------------------------------
 
-FLEX_NAMES = ("Subject", "Title")  # the column that takes the remaining width and shortens
+# the column that takes the remaining width and shortens: the first of these the log has
+FLEX_NAMES = ("Subject", "Title", "Label")
 CELL_PADDING = 2  # a table cell has one cell of padding on each side
 SCROLLBAR = 2  # room kept for the table's vertical scrollbar
 MIN_FLEX = 24  # the flexible column never shortens below this many cells
@@ -201,20 +224,20 @@ def plan_columns(
 ) -> ColumnPlan:
     """Choose the columns of a table ``total`` cells wide so that it never scrolls sideways.
 
-    First the columns that never vary are left out (``visible_columns``). Then, while the subject
-    would get fewer than ``GOOD_SUBJECT`` cells (or fewer than it needs): a column in ``shrink``
-    (``With``) gives up cells down to ``MIN_SHRINK``; when that is not enough the columns named in
-    ``drop`` are left out, the least needed first. If nothing is left to give the subject takes
-    what remains (at least ``MIN_FLEX``) and the table may scroll.
+    First the columns that never vary are left out (``visible_columns``). Then the subject is
+    given ``GOOD_SUBJECT`` cells (or what its longest cell needs): the columns in ``shrink``
+    (``With``) give up cells down to ``MIN_SHRINK``; when that is not enough the columns named in
+    ``drop`` are left out one at a time, the least needed first, and the shrinkable ones take back
+    what they can. If nothing is left to give the subject takes what remains (at least
+    ``MIN_FLEX``) and the table may scroll.
     """
     shown = visible_columns(names, rows, keep)
-    caps: dict[int, int] = {}
     flex = flex_index(names)
     if flex is None or not rows:
-        return ColumnPlan(shown, caps)
+        return ColumnPlan(shown, {})
     wanted = min(GOOD_SUBJECT, max(cell_len(row[flex]) for row in rows))
 
-    def room(columns: list[int]) -> int:
+    def room(columns: list[int], caps: dict[int, int]) -> int:
         """Cells the subject gets with ``columns`` shown and the caps applied."""
         used = SCROLLBAR + CELL_PADDING
         for i in columns:
@@ -224,22 +247,27 @@ def plan_columns(
             used += min(width, caps[i] + CELL_PADDING) if i in caps else width
         return total - used
 
-    while room(shown) < wanted:
-        gave = False
-        for i in shown:
-            if names[i] in shrink and i != flex:
-                have = caps.get(i, column_width(names[i], rows, i) - CELL_PADDING)
-                if have > MIN_SHRINK:
-                    caps[i] = max(MIN_SHRINK, have - (wanted - room(shown)))
-                    gave = True
-                    break
-        if gave:
-            continue
-        victim = next(
-            (i for n in drop for i in shown if names[i] == n and names[i] not in keep), None
-        )
-        if victim is None:
-            break
-        shown = [i for i in shown if i != victim]
-        caps.pop(victim, None)
-    return ColumnPlan(shown, caps)
+    def shrunk(columns: list[int]) -> dict[int, int]:
+        """Caps on the shrinkable columns that give the subject ``wanted`` cells, or as many as
+        they can (down to ``MIN_SHRINK`` cells of text each)."""
+        caps: dict[int, int] = {}
+        for i in columns:
+            if names[i] not in shrink or i == flex:
+                continue
+            missing = wanted - room(columns, caps)
+            if missing <= 0:
+                break
+            have = column_width(names[i], rows, i) - CELL_PADDING
+            if have > MIN_SHRINK:
+                caps[i] = max(MIN_SHRINK, have - missing)
+        return caps
+
+    # Fewest columns left out first; each time the shrinkable columns give what they can.
+    leaving = [i for n in drop for i in shown if names[i] == n and names[i] not in keep]
+    for count in range(len(leaving) + 1):
+        columns = [i for i in shown if i not in leaving[:count]]
+        caps = shrunk(columns)
+        if room(columns, caps) >= wanted:
+            return ColumnPlan(columns, caps)
+    columns = [i for i in shown if i not in leaving]  # nothing more to give: the subject shrinks
+    return ColumnPlan(columns, shrunk(columns))

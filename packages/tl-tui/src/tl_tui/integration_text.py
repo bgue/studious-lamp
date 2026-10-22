@@ -14,6 +14,7 @@ from datetime import datetime
 from typing import Any
 
 from tl_tui.display import Labels, actor_label, humanize
+from tl_tui.layout import EMPTY, Item, Page, Section, TableRow, identity_line, join_facts, prop
 
 KINDS = (
     "endpoints",
@@ -36,10 +37,10 @@ LABELS = {
     "deliveries": "Error queue",
 }
 COLUMNS: dict[str, tuple[str, ...]] = {
-    "apps": ("Name", "State", "Owner", "Label"),
+    "apps": ("Name", "Label", "State", "Owner"),
     "endpoints": ("Path", "State", "Mode", "Auth", "Access", "Ver"),
-    "rules": ("Key", "State", "Mode", "Access", "Ver", "Title"),
-    "actions": ("Name", "State", "Executor", "Access", "Approval", "Ver", "Label"),
+    "rules": ("Key", "Title", "State", "Mode", "Access", "Ver"),
+    "actions": ("Name", "Label", "State", "Executor", "Access", "Approval", "Ver"),
     "enrichers": ("Name", "State", "Access", "Ver", "Code", "Properties"),
     "invocations": ("Id", "Status", "Action", "By", "Requested"),
     "deliveries": ("Id", "State", "Endpoint", "Received", "Error"),
@@ -49,8 +50,8 @@ PLAIN_ENRICHMENT_COLUMNS = ("State", "Record", "Property", "Value", "Confidence"
 # Plain headings without the version, code version or id columns (P1-UX-T09a). Apps keep COLUMNS.
 PLAIN_COLUMNS: dict[str, tuple[str, ...]] = {
     "endpoints": ("Path", "State", "Mode", "Auth", "Access"),
-    "rules": ("Key", "State", "Mode", "Access", "Title"),
-    "actions": ("Name", "State", "Executor", "Access", "Approval", "Label"),
+    "rules": ("Key", "Title", "State", "Mode", "Access"),
+    "actions": ("Name", "Label", "State", "Executor", "Access", "Approval"),
     "enrichers": ("Name", "State", "Access", "Properties"),
     "invocations": ("Status", "Action", "By", "Requested"),
     "deliveries": ("State", "Endpoint", "Received", "Error"),
@@ -149,7 +150,7 @@ def cells(
     who = labels or Labels()
     if kind == "apps":
         owner = str(row["owner"]) if technical else actor_label(who, row["owner"])
-        return (row["name"], on_off(row), owner, row["label"])
+        return (row["name"], row["label"], on_off(row), owner)
     if kind == "endpoints":
         mode = "dry-run" if row["dry_run"] else "live"
         path = f"{row['app']}/{row['name']}"
@@ -158,24 +159,24 @@ def cells(
         return (path, on_off(row), mode, row["auth"], row["access"], f"v{row['version']}")
     if kind == "rules":
         if not technical:
-            return (row["key"], on_off(row), row["mode"], row["access"], row["title"])
+            return (row["key"], row["title"], on_off(row), row["mode"], row["access"])
         return (
             row["key"],
+            row["title"],
             on_off(row),
             row["mode"],
             row["access"],
             f"v{row['version']}",
-            row["title"],
         )
     if kind == "actions":
         approval = "yes" if row["requires_approval"] else "no"
         if not technical:
             return (
-                row["name"], on_off(row), row["executor"], row["access"], approval, row["label"],
+                row["name"], row["label"], on_off(row), row["executor"], row["access"], approval,
             )  # fmt: skip
         return (
-            row["name"], on_off(row), row["executor"], row["access"], approval,
-            f"v{row['version']}", row["label"],
+            row["name"], row["label"], on_off(row), row["executor"], row["access"], approval,
+            f"v{row['version']}",
         )  # fmt: skip
     if kind == "enrichers":
         properties = ",".join(p["name"] for p in row["properties"])
@@ -222,18 +223,19 @@ def cells(
     raise ValueError(f"no integration kind {kind}")
 
 
-def detail_lines(
+def detail_pairs(
     kind: str,
     row: Mapping[str, Any],
     names: Mapping[str, str] | None = None,
     *,
     labels: Labels | None = None,
     technical: bool = True,
-) -> list[str]:
-    """The panel under the table: one ``Label       value`` line per fact (label padded to 12).
+) -> list[tuple[str, str]]:
+    """The facts of a row as ``(label, value)`` pairs, in the order the panel shows them.
 
     Plain (``technical=False``): services and people by name (``labels``), commands and error
     codes as words, and no ids, versions or code versions. Enrichments have their own plain lines.
+    A label that starts with two spaces is one property of an enricher.
     """
     who = labels or Labels()
     pairs: list[tuple[str, str]]
@@ -370,4 +372,94 @@ def detail_lines(
             pairs.append(("Reason", row["reason"]))
     else:
         raise ValueError(f"no integration kind {kind}")
+    return pairs
+
+
+def detail_lines(
+    kind: str,
+    row: Mapping[str, Any],
+    names: Mapping[str, str] | None = None,
+    *,
+    labels: Labels | None = None,
+    technical: bool = True,
+) -> list[str]:
+    """One ``Label       value`` line per fact (label padded to 12)."""
+    pairs = detail_pairs(kind, row, names, labels=labels, technical=technical)
     return [f"{label:<12}{value}" for label, value in pairs]
+
+
+# The facts a panel's summary line names, by kind (they are not repeated under Key facts).
+SUMMARY_LABELS: dict[str, tuple[str, ...]] = {
+    "apps": ("Owner",),
+    "endpoints": ("Mode", "Access", "Acts as"),
+    "rules": ("Mode", "Access", "Acts as"),
+    "actions": ("Executor", "Access", "Approval"),
+    "enrichers": ("Access", "Owner"),
+    "invocations": ("Requested", "By"),
+    "deliveries": ("Received", "Attempts"),
+    "enrichments": ("Proposed", "Confidence", "Enricher"),
+}
+# The facts the heading already holds (an action's name keeps its version in technical mode).
+IDENTITY_LABELS = frozenset(
+    {"App", "Path", "Rule", "Title", "Label", "Enricher", "Endpoint", "Record", "Property"}
+)
+PROPERTY_COLUMNS = ("Property", "Kind", "Policy", "Threshold")
+
+
+def identity_of(
+    kind: str, row: Mapping[str, Any], names: Mapping[str, str] | None = None
+) -> tuple[str, str]:
+    """``(name, title)`` of a row for the heading and the breadcrumb; never an id."""
+    if kind == "endpoints":
+        return (f"{row['app']}/{row['name']}", "")
+    if kind == "rules":
+        return (str(row["key"]), str(row["title"]))
+    if kind in ("actions", "apps"):
+        return (str(row["name"]), str(row["label"]))
+    if kind == "enrichers":
+        return (str(row["name"]), "")
+    if kind == "invocations":
+        return (str(row["action"]), humanize(str(row["status"])))
+    if kind == "enrichments":
+        return (record_name(row["target"], technical=False), property_words(row["property_path"]))
+    return ((names or {}).get(str(row["endpoint_id"]), "?"), humanize(str(row["state"])))
+
+
+def detail_page(
+    kind: str,
+    row: Mapping[str, Any],
+    names: Mapping[str, str] | None = None,
+    *,
+    labels: Labels | None = None,
+    technical: bool = True,
+) -> Page:
+    """The panel under the table (skill ``tui-layout``): the heading, the state, a summary of the
+    decision facts, then the remaining facts as Key facts (an enricher's properties as a table)."""
+    pairs = detail_pairs(kind, row, names, labels=labels, technical=technical)
+    state = next((v for k, v in pairs if k in ("State", "Status")), "")
+    summary_labels = SUMMARY_LABELS.get(kind, ())
+    summary = join_facts(*(f"{k.lower()} {v}" for k, v in pairs if k in summary_labels))
+    facts: list[Item] = []
+    properties: list[TableRow] = []
+    for label, value in pairs:
+        if label.startswith("  "):
+            name = label.strip()
+            kind_, _, rest = value.partition(", ")
+            policy, _, threshold = rest.partition(" (threshold ")
+            properties.append(
+                TableRow(PROPERTY_COLUMNS, (name, kind_, policy, threshold.rstrip(")") or EMPTY))
+            )
+        elif (
+            label in ("State", "Status")
+            or label in summary_labels
+            or label in IDENTITY_LABELS
+            or (label == "Action" and not technical)
+        ):
+            continue
+        else:
+            facts.append(prop(label, value))
+    sections = [Section("Key facts", tuple(facts))]
+    if properties:
+        sections.append(Section(f"Properties ({len(properties)})", tuple(properties)))
+    name, title = identity_of(kind, row, names)
+    return Page(identity_line(name, title), state, tuple(sections), summary)

@@ -5,9 +5,10 @@ else, so the tests check them without a terminal. None of it decides anything: a
 breaks the pattern, a class that lacks a property set and a tag in the wrong state are the
 module's findings, shown here as they come.
 
-Plain mode speaks in words: the class as ``Control valve``, the properties as labels
-(``Valve data / Body material``), the number parts as ``Area 47, Mnemonic FV, Seq 1001``. Technical
-mode shows the raw class code, the property paths and the ``area=47 mnemonic=FV seq=1001`` segments.
+The panel is a ``layout.Page`` built from the rows of ``details.tags.tag_content`` (P1-UX3), the
+same rows as the tag's Details tab. Plain mode speaks in words: the class as ``Control valve``,
+the properties as labels (``Valve data / Body material``), the number parts one per line.
+Technical mode adds the raw class code and the ``area=47 mnemonic=FV seq=1001`` segments.
 """
 
 from __future__ import annotations
@@ -16,88 +17,62 @@ from collections.abc import Sequence
 
 from tl_mod_engineering.views import TagView
 
+from tl_tui.client import ClientInterface
+from tl_tui.details import rows_page
+from tl_tui.details.tags import class_text, number_fits, tag_content
 from tl_tui.display import Labels, code_label, humanize
-from tl_tui.text import conformance_mark
+from tl_tui.layout import Page, identity_line, join_facts, plain_lines
+from tl_tui.text import EMPTY, conformance_mark
 
-COLUMNS = ("Number", "Class", "Status", "Number check", "Conformance", "Title")
+COLUMNS = ("Number", "Title", "Class", "Status", "Number check", "Conformance")
+DROP = ("Number check", "Class")  # left out, least needed first, when the log would not fit
 ALL_CLASSES = "all classes"
 
 
-def number_fits(view: TagView) -> bool:
-    """True when the number keeps the registry pattern."""
-    return view.number_status == "ok"
-
-
-def class_text(view: TagView) -> str:
-    """The class in words (``Control valve``), ``-`` when the tag has none."""
-    return humanize(view.class_code) if view.class_code else "-"
-
-
-def label_path(path: str) -> str:
-    """A property path as its labels: a leading ``psets`` is dropped, the rest humanized.
-
-    ``psets.valve_data.body_material`` reads ``Valve data / Body material``.
-    """
-    parts = path.split(".")
-    if parts and parts[0] == "psets":
-        parts = parts[1:]
-    return " / ".join(humanize(part) for part in parts)
-
-
 def row_cells(view: TagView, labels: Labels | None = None) -> tuple[str, ...]:
-    """The six cells of a table row, in the order of ``COLUMNS``."""
+    """The six cells of a table row, in the order of ``COLUMNS`` (the number and title first)."""
     number_check = "ok" if number_fits(view) else "does not fit"
     return (
         view.number,
+        view.title,
         class_text(view),
-        view.status or "-",
+        humanize(view.status) if view.status else EMPTY,
         number_check,
         conformance_mark(view.conformance),
-        view.title,
     )
 
 
-def _segment_word(labels: Labels | None, name: str, value: str) -> str:
-    """A number part with its code-list label when the standards have one: ``47 (Unit 47, ...)``."""
-    word = code_label(labels, name, value) if labels is not None else value
-    return value if word == value else f"{value} ({word})"
+def tag_page(
+    view: TagView,
+    labels: Labels | None = None,
+    *,
+    technical: bool = False,
+    client: ClientInterface | None = None,
+) -> Page:
+    """The panel under the table (skill ``tui-layout``): the identity line, the conformance as the
+    state, the summary (class, area, status), the key facts, the number in its parts and what the
+    tag lacks. ``technical`` keeps the class code and shows the number's segments as stored."""
+    lab = labels if labels is not None else Labels()
+    area = view.segments.get("area") or view.area
+    return rows_page(
+        tag_content(view, lab, client=client),
+        identity=identity_line(view.number, view.title),
+        state=conformance_mark(view.conformance),
+        summary=join_facts(
+            class_text(view) if view.class_code else "",
+            f"area {code_label(lab, 'area', area)}" if area else "",
+            humanize(view.status) if view.status else "",
+        ),
+        technical=technical,
+        panel=True,
+    )
 
 
 def detail_lines(
     view: TagView, labels: Labels | None = None, *, technical: bool = False
 ) -> list[str]:
-    """The panel under the table for the highlighted tag."""
-    if technical:
-        segments = " ".join(f"{name}={value}" for name, value in view.segments.items())
-        number_line = f"number {view.number_status}: {segments or '-'}"
-        class_word = view.class_code or "-"
-    else:
-        words = ", ".join(
-            f"{humanize(name)} {_segment_word(labels, name, value)}"
-            for name, value in view.segments.items()
-        )
-        check = "ok" if number_fits(view) else "does not fit the pattern"
-        number_line = f"number {check}" + (f": {words}" if words else "")
-        class_word = class_text(view)
-    lines = [
-        f"{view.number}  {view.title}",
-        f"class {class_word}  |  status {view.status or '-'}  |  conformance {view.conformance}",
-        number_line,
-    ]
-    for violation in view.violations:
-        lines.append(
-            f"  ! {violation['segment'] or 'number'}: {violation['message']} ({violation['level']})"
-        )
-    if view.issues:
-        lines.append("lacks:")
-        for issue in view.issues:
-            path = issue.path if technical else label_path(issue.path)
-            lines.append(f"  {issue.level}  {path} {issue.message}")
-    elif view.conformance == "ok":
-        lines.append("nothing lacking")
-    else:
-        lines.append("no detail loaded")
-    return lines
+    """The panel as plain lines."""
+    return plain_lines(tag_page(view, labels, technical=technical))
 
 
 def next_class(current: str | None, classes: Sequence[str]) -> str | None:

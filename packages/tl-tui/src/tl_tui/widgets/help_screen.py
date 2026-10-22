@@ -5,6 +5,7 @@ The screen only renders the key map. `Esc`, `F1` or `?` closes it.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import ClassVar
 
 from textual.app import ComposeResult
@@ -41,11 +42,24 @@ class HelpScreen(ModalScreen[None]):
     HelpScreen #help-scroll { height: 1fr; }
     """
 
+    def __init__(self, title: str = "", keys: Sequence[tuple[str, str]] = ()) -> None:
+        """``keys`` are the keys of the screen it was opened from, listed above the key map."""
+        super().__init__()
+        self.title_text = title
+        self.screen_keys = tuple(keys)
+
     def compose(self) -> ComposeResult:
         with Vertical():
             yield Static("Key map", id="help-title", markup=False)
             with VerticalScroll(id="help-scroll"):
-                yield Static(help_text(), id="help-body", markup=False)
+                yield Static(self.body(), id="help-body", markup=False)
+
+    def body(self) -> str:
+        """The screen's own keys (when there are some), then the key map."""
+        if not self.screen_keys:
+            return help_text()
+        own = "\n".join(f"  {keys:<30}{what}" for keys, what in self.screen_keys)
+        return f"{self.title_text}\n{own}\n\n{help_text()}"
 
     def action_close(self) -> None:
         self.dismiss(None)

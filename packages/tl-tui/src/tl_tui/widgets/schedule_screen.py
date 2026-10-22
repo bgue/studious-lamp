@@ -25,16 +25,16 @@ from tl_tui.client import ClientInterface
 from tl_tui.display import Labels, mode_of
 from tl_tui.errors import CLIENT_ERRORS, describe_error
 from tl_tui.labels_load import load_labels
+from tl_tui.layout import Section, render
 from tl_tui.schedule_text import (
     SCHEDULE_COLUMNS,
     SNAPSHOT_COLUMNS,
-    look_ahead_lines,
-    orphan_lines,
+    look_ahead_sections,
+    orphan_section,
     schedule_cells,
-    schedule_detail_lines,
+    schedule_page,
     schedules_summary,
     snapshot_cells,
-    snapshot_detail_lines,
     snapshot_page_line,
 )
 from tl_tui.widgets.activity_screen import ActivityScreen
@@ -52,8 +52,13 @@ class ScheduleScreen(LogScreen[ScheduleView]):
     """The schedules of ``project`` (the id, not the scope)."""
 
     LOG_NAME: ClassVar[str] = "Schedules"
-    KEY_HINTS: ClassVar[str] = (
-        "Tab table  l look-ahead  o orphans  n/b snapshot pages  / filter  F5 reload  Esc close"
+    KEY_CELLS: ClassVar[tuple[str, ...]] = ("Tab table", "l look-ahead", "o orphans", "/ filter")
+    HELP_KEYS: ClassVar[tuple[tuple[str, str], ...]] = (
+        ("Tab", "Move between the schedules and the snapshots"),
+        ("l", "Look-ahead of the highlighted snapshot"),
+        ("o", "Links whose activity left the schedule"),
+        ("n  b", "Next and previous page of snapshots"),
+        ("c  a  p", "Compare, activities, publish (the actions bar)"),
     )
 
     BINDINGS: ClassVar[list[BindingType]] = [
@@ -187,7 +192,7 @@ class ScheduleScreen(LogScreen[ScheduleView]):
             table.move_cursor(row=numbers.index(keep) if keep in numbers else 0)
         return None
 
-    def panel_text(self, row: ScheduleView | None) -> str:
+    def panel_text(self, row: ScheduleView | None) -> str | Text:
         """The panel: the highlighted snapshot, the look-ahead, or the orphaned links."""
         failed = self._sync(row)
         if failed is not None:
@@ -197,22 +202,25 @@ class ScheduleScreen(LogScreen[ScheduleView]):
             return "No schedule matches."
         snap = self.current_snapshot()
         technical = mode_of(self.app).technical
-        lines = schedule_detail_lines(detail, self.labels, technical=technical)
+        extra: list[Section] = []
         page = snapshot_page_line(self.page_start, len(detail.snapshots), detail.snapshot_count)
         if page is not None:
-            lines.append(page)
+            extra.append(Section("Snapshots", (page,)))
+        shown = snap
         try:
             if self.panel == "look_ahead" and snap is not None:
                 answer = self.client.get_look_ahead(self.project, detail.code, snapshot=snap.number)
-                lines += ["", *look_ahead_lines(answer, technical=technical)]
+                extra += look_ahead_sections(answer, technical=technical)
+                shown = None
             elif self.panel == "orphans":
                 links = self.client.list_orphaned_links(self.project, detail.code)
-                lines += ["", *orphan_lines(links, technical=technical)]
-            elif snap is not None:
-                lines += ["", *snapshot_detail_lines(snap, self.labels, technical=technical)]
+                extra.append(orphan_section(links, technical=technical))
+                shown = None
         except CLIENT_ERRORS as exc:
-            lines += ["", describe_error(exc)]
-        return "\n".join(lines)
+            extra.append(Section("Not available", (describe_error(exc),)))
+        return render(
+            schedule_page(detail, self.labels, snapshot=shown, extra=extra, technical=technical)
+        )
 
     # --- the actions bar: the keys the screen has always enabled ------------------------------
 

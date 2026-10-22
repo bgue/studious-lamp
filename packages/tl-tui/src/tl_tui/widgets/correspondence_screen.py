@@ -68,9 +68,11 @@ class CorrespondenceScreen(LogScreen[RegisterLineView | ClockView]):
     """The correspondence of ``project`` (the id, not the scope)."""
 
     LOG_NAME: ClassVar[str] = LOG_NAMES["register"]
-    KEY_HINTS: ClassVar[str] = (
-        "1 register  2 triage inbox  3 clocks  m closed clocks  s sweep  / filter  F5 reload  "
-        "Esc close"
+    KEY_CELLS: ClassVar[tuple[str, ...]] = ("1-3 view", "m closed clocks", "/ filter")
+    HELP_KEYS: ClassVar[tuple[tuple[str, str], ...]] = (
+        ("1  2  3  Tab", "Register, triage inbox, response clocks"),
+        ("m", "Clocks: show the met and cancelled ones too"),
+        ("s", "Record the warnings and expiries that are due (document controllers)"),
     )
 
     BINDINGS: ClassVar[list[BindingType]] = [

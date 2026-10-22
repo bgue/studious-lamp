@@ -36,11 +36,14 @@ from tl_tui.log_text import (
     flex_index,
     free_width,
     is_wide,
+    keys_row,
     plan_columns,
     table_width,
 )
 
-STATE_COLUMNS = frozenset({"State", "Status", "Timing", "Bar"})  # cells that take a state colour
+STATE_COLUMNS = frozenset(
+    {"State", "Status", "Timing", "Bar", "Conformance", "Number check"}
+)  # cells that take a state colour
 RESERVED_KEYS: frozenset[str] = frozenset(
     {
         "escape",
@@ -96,12 +99,14 @@ class LogScreen[Row](ModalScreen[None]):
     """The base of every log. Esc closes it (it clears the filter first when it has text)."""
 
     LOG_NAME: ClassVar[str] = "Log"
-    KEY_HINTS: ClassVar[str] = "/ filter  F5 reload  Esc back"
+    KEY_CELLS: ClassVar[tuple[str, ...]] = ("/ filter",)  # the keys row after Up/Down move
+    HELP_KEYS: ClassVar[tuple[tuple[str, str], ...]] = ()  # the log's other keys, for F1
 
     BINDINGS: ClassVar[list[BindingType]] = [
         Binding("slash", "filter", "Filter", show=False),
         Binding("f5", "reload", "Reload", show=False),
         Binding("escape", "close", "Close", show=False),
+        Binding("f1", "help", "Help", show=False),
     ]
 
     DEFAULT_CSS = """
@@ -201,24 +206,48 @@ class LogScreen[Row](ModalScreen[None]):
                 with VerticalScroll(id="log-panel"):
                     yield Static("", markup=False, id="log-panel-text")
             yield Static("", markup=False, id="log-actions")
-            yield Static(self.KEY_HINTS, markup=False, id="log-keys")
+            yield Static("", markup=False, id="log-keys")
             yield Static("", markup=False, id="log-status")
 
     def on_mount(self) -> None:
         self.query_one("#log-table", DataTable).add_columns(*self.columns())
         self._set_layout(self.size.width)
+        self._show_keys()
         self._show_row()
         self.reload()
         self.query_one("#log-table", DataTable).focus()
 
     def on_resize(self, event: events.Resize) -> None:
         self._set_layout(event.size.width)
+        self._show_keys()
         self._show_crumb()
         if self._alive():
             self._draw_table(self._key())  # the subject column shortens to the width it has
 
     def _set_layout(self, width: int) -> None:
         self.set_class(is_wide(width), "-wide")
+
+    def _show_keys(self) -> None:
+        """The keys row, cut to one line at the screen's width (the rest is on the help screen)."""
+        width = self.size.width or 80
+        self.query_one("#log-keys", Static).update(keys_row(self.KEY_CELLS, width))
+
+    def action_help(self) -> None:
+        """F1: the key map, with this log's keys first."""
+        from tl_tui.widgets.help_screen import HelpScreen  # noqa: PLC0415
+
+        self.app.push_screen(HelpScreen(f"{self.LOG_NAME} keys", self.help_keys()))
+
+    def help_keys(self) -> tuple[tuple[str, str], ...]:
+        """Every key of this log: the ones every log has, then its own."""
+        return (
+            ("Up  Down  PgUp  PgDn", "Move in the list"),
+            ("Enter", "Open the record"),
+            ("/", "Filter the list by text (Enter or Esc leaves the box)"),
+            ("F5", "Read the list again"),
+            ("Esc", "Clear the filter, then close"),
+            *self.HELP_KEYS,
+        )
 
     # --- rows -----------------------------------------------------------------------------
 

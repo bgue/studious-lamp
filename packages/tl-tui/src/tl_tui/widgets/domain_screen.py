@@ -38,7 +38,7 @@ from tl_tui.evidence_text import (
     EVIDENCE_COLUMNS,
     evidence_title,
     node_cells,
-    node_lines,
+    node_page,
     step_day,
 )
 from tl_tui.labels_load import load_labels
@@ -61,9 +61,21 @@ class DomainScreen(LogScreen[Row]):
     """The Technical and Commercial domains of ``project`` (the id, not the scope)."""
 
     LOG_NAME: ClassVar[str] = MODE_TITLES["rfi"]
-    KEY_HINTS: ClassVar[str] = (
-        "1 RFI log  2 Commercial  3 evidence (t on a row)  o open  v overdue/bars  i impact  "
-        "[ ] day  0 today  / filter  F5 reload  Esc close"
+    KEY_CELLS: ClassVar[tuple[str, ...]] = (
+        "1-3 view",
+        "o open only",
+        "v overdue",
+        "i impact",
+        "/ filter",
+    )
+    HELP_KEYS: ClassVar[tuple[tuple[str, str], ...]] = (
+        ("1  2  3  Tab", "RFI log, Commercial register, evidence trail"),
+        ("o", "Only the items still open"),
+        ("v", "Only overdue RFIs, or the time bars running or late"),
+        ("i", "Only RFIs whose answer says yes to a cost or schedule impact"),
+        ("t", "Evidence trail of the highlighted item"),
+        ("[  ]", "Evidence: read as of a day earlier or later"),
+        ("0", "Evidence: read as of today"),
     )
 
     BINDINGS: ClassVar[list[BindingType]] = [
@@ -194,7 +206,7 @@ class DomainScreen(LogScreen[Row]):
         """The highlighted row in full (one read per row until the rows are read again)."""
         technical = mode_of(self.app).technical
         if isinstance(row, EvidenceNode):
-            return "\n".join(node_lines(row, self.labels, technical=technical))
+            return render(node_page(row, self.labels, technical=technical))
         if row is None:
             return "Nothing here."
         found = self._panels.get((row.id, technical))

@@ -22,7 +22,7 @@ from tl_tui.details import DetailRow, details_for, rows_page
 from tl_tui.display import Labels, actor_label, humanize, mode_of
 from tl_tui.errors import CLIENT_ERRORS, describe_error
 from tl_tui.labels_load import load_labels
-from tl_tui.layout import plain_lines, render
+from tl_tui.layout import plain_lines, render, state_style
 from tl_tui.messages import CloseRecord, RecordChanged, StatusMessage, StepRecord
 from tl_tui.text import EMPTY, conformance_mark, timestamp
 from tl_tui.widgets.file_panel import FilePanel
@@ -281,18 +281,19 @@ class RecordView(Vertical, can_focus=True):
         if record is None:
             header.update(f"{self.key} · not found")
             return
-        line1 = f"{record['key']} · {record['title']}"
         technical = mode_of(self.app).technical
         version = f" · v{record['version']}" if technical else ""  # D20: the version is technical
-        line2 = (
-            f"{_or_empty(record.get('status'))}{version} · "
-            f"{conformance_mark(record.get('conformance'))}"
-        )
-        if record.get("voided"):
-            line2 += " · voided"
-        if badges:
-            line2 += f" · {badges}"
-        header.update(f"{line1}\n{line2}")
+        status = _or_empty(record.get("status"))
+        mark = conformance_mark(record.get("conformance"))
+        text = Text(f"{record['key']} · {record['title']}\n")
+        text.append(
+            status, style=state_style(status) or None
+        )  # the state colour (skill tui-layout)
+        text.append(f"{version} · ")
+        text.append(mark, style=state_style(mark) or None)
+        rest = (" · voided" if record.get("voided") else "") + (f" · {badges}" if badges else "")
+        text.append(rest)
+        header.update(text)
 
     def _draw_history(self, events: list[Event]) -> None:
         """The History table: technical columns in technical mode, plain words otherwise."""

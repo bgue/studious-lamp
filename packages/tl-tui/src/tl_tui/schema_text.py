@@ -15,6 +15,18 @@ from tl_schema.packages import PropertyDef
 from tl_schema.registry import PackageError, parse_package
 
 from tl_tui.display import Labels, actor_label, humanize, plain_keys, type_label
+from tl_tui.layout import (
+    Cell,
+    Page,
+    Section,
+    TableRow,
+    identity_line,
+    join_facts,
+    state_style,
+)
+from tl_tui.layout import (
+    prop as prop_line,
+)
 
 # Type titles for the keys a package or a service writes into a line (`core.Record`); no client.
 TYPES = Labels(type_titles=dict(TYPE_LABELS))
@@ -88,6 +100,64 @@ def header_lines(detail: PackageDetail, *, technical: bool = False) -> list[str]
         f"Published {detail.published_at or '-'}",
         f"Changelog {detail.changelog or '-'}",
     ]
+
+
+LINT_COLUMNS = ("Severity", "Rule", "Path", "Message")
+
+
+def package_page(detail: PackageDetail, tab: Section, *, technical: bool = False) -> Page:
+    """The panel under the package versions (skill ``tui-layout``): the version as the heading, its
+    state, a summary (kind, scope, class of change), who and when, the changelog, then the shown
+    ``tab`` (what it defines, its lint findings or its diff) as a section."""
+    labels = Labels()
+    who = (lambda actor: actor) if technical else (lambda actor: actor_label(labels, actor))
+    key = detail.key if technical else plain_ref(detail.key)
+    people = Section(
+        "People",
+        (
+            prop_line("Drafted by", who(detail.drafted_by)),
+            prop_line("Submitted by", who(detail.submitted_by) if detail.submitted_by else None),
+            prop_line("Approved by", who(detail.approved_by) if detail.approved_by else None),
+        ),
+    )
+    status = Section(
+        "Status",
+        (
+            prop_line("Class of change", detail.worst_class),
+            prop_line("Analysed", "yes" if detail.analysed else "no"),
+            prop_line("Published", detail.published_at),
+            prop_line("Project", detail.project),
+        ),
+    )
+    sections = [people, status]
+    if detail.changelog:
+        sections.append(Section("Changelog", (detail.changelog,)))
+    sections.append(tab)
+    return Page(
+        identity_line(key, ""),
+        detail.state,
+        tuple(sections),
+        join_facts(humanize(detail.kind), f"scope {detail.scope}"),
+    )
+
+
+def lint_section(issues: Sequence[LintIssueView], *, technical: bool = False) -> Section:
+    """The lint findings as a table (severity, rule, path, message); an error in red."""
+    errors = sum(1 for issue in issues if issue.severity == "error")
+    warnings = sum(1 for issue in issues if issue.severity == "warning")
+    rows = tuple(
+        TableRow(
+            LINT_COLUMNS,
+            (
+                Cell(i.severity, state_style("failed" if i.severity == "error" else "waiting")),
+                i.rule,
+                i.path if technical else plain_keys(i.path, TYPES),
+                i.message if technical else plain_keys(i.message, TYPES),
+            ),
+        )
+        for i in issues
+    )
+    return Section(f"Lint: {errors} errors, {warnings} warnings", rows, note="No findings")
 
 
 def _required(prop: PropertyDef) -> str:

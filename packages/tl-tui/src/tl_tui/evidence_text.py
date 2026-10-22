@@ -15,8 +15,9 @@ from datetime import date, timedelta
 from tl_mod_correspondence.evidence import EvidenceNode, EvidenceTrail
 
 from tl_tui.display import Labels, humanize, type_label
+from tl_tui.layout import EMPTY, Page, Section, identity_line, join_facts, prop
 
-EVIDENCE_COLUMNS = ("Record", "Type", "State", "Reached by", "Title")
+EVIDENCE_COLUMNS = ("Record", "Title", "State", "Type", "Reached by")
 
 
 def _labels(labels: Labels | None) -> Labels:
@@ -33,25 +34,59 @@ def _state_text(node: EvidenceNode, *, technical: bool) -> str:
 def node_cells(
     node: EvidenceNode, labels: Labels | None = None, *, technical: bool = True
 ) -> tuple[str, ...]:
-    """The five cells of a row of the trail, in the order of ``EVIDENCE_COLUMNS``: the key is
-    indented by depth; ``Reached by`` is ``derived from (active)`` or ``-`` for the root.
-    Without ``technical`` the type is its label, the state and the link read as words, and a
-    record with no number shows ``(no number)`` rather than its record id."""
+    """The five cells of a row of the trail, in the order of ``EVIDENCE_COLUMNS`` (the title
+    second): the key is indented by depth; ``Reached by`` is ``derived from (active)`` or ``—``
+    for the root. Without ``technical`` the type is its label, the state and the link read as
+    words, and a record with no number shows ``(no number)`` rather than its record id."""
     voided = " VOID" if node.voided else ""
     key = node.key or (node.record_id if technical else "(no number)")
     kind = node.type.rpartition(".")[2] if technical else type_label(_labels(labels), node.type)
     state = _state_text(node, technical=technical)
     if node.via is None:
-        via = "-"
+        via = EMPTY
     else:
         label = node.via.label if technical else humanize(node.via.label)
         via = f"{label} ({node.via.status})"
     return (
         f"{'  ' * node.depth}{key}",
-        kind,
-        state + voided,
-        via,
         node.title,
+        state + voided,
+        kind,
+        via,
+    )
+
+
+def node_page(node: EvidenceNode, labels: Labels | None = None, *, technical: bool = False) -> Page:
+    """The panel under the trail (skill ``tui-layout``): the record, its state that day, a summary
+    (type, the day it was created), how it was reached and what its events said that day.
+    ``technical`` adds the record id when there is no number, the link's pin and the raw keys."""
+    key = node.key or (node.record_id if technical else "(no number)")
+    kind = node.type.rpartition(".")[2] if technical else type_label(_labels(labels), node.type)
+    sections: list[Section] = []
+    if node.via is not None:
+        label = node.via.label if technical else humanize(node.via.label)
+        reached = [
+            prop("Link", label),
+            prop("Status", node.via.status),
+            prop("Since", node.via.since),
+        ]
+        if technical and node.via.pin:
+            reached.append(prop("Pinned", node.via.pin))
+        if node.via.note:
+            reached.append(prop("Note", node.via.note))
+        sections.append(Section("Reached by", tuple(reached)))
+    if node.facts:
+        sections.append(
+            Section(
+                "That day",
+                tuple(prop(k if technical else humanize(k), v) for k, v in node.facts.items()),
+            )
+        )
+    return Page(
+        identity_line(key, node.title),
+        _state_text(node, technical=technical) + (" · VOID" if node.voided else ""),
+        tuple(sections),
+        join_facts(kind, f"created {node.created_on}"),
     )
 
 

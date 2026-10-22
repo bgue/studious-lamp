@@ -56,8 +56,13 @@ class DocumentRegisterScreen(LogScreen[DocumentView]):
     """The documents of ``project`` (the id, not the scope)."""
 
     LOG_NAME = "Documents"
-    KEY_HINTS: ClassVar[str] = (
-        "s state  y type  a void too  / filter  Enter open record  F5 reload  Esc close"
+    KEY_CELLS: ClassVar[tuple[str, ...]] = ("s state", "y type", "a void too", "/ filter")
+    HELP_KEYS: ClassVar[tuple[tuple[str, str], ...]] = (
+        ("s", "Show the next state: all, then each state"),
+        ("y", "Show the next document type: all, then each type"),
+        ("a", "Include the void documents"),
+        ("v", "Open the selected file in the viewer"),
+        ("Up  Down", "In the files list: choose a file"),
     )
 
     BINDINGS: ClassVar[list[BindingType]] = [
@@ -110,6 +115,9 @@ class DocumentRegisterScreen(LogScreen[DocumentView]):
 
     def drop_order(self) -> Sequence[str]:
         return DROP
+
+    def shrink_columns(self) -> Sequence[str]:
+        return ("Type",)  # a long type name shortens before the title does
 
     def load_rows(self) -> Sequence[DocumentView]:
         if self._reread:

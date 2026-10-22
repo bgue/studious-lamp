@@ -15,6 +15,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import ClassVar
 
+from rich.text import Text
 from textual.binding import Binding, BindingType
 from tl_core.settings.layers import project_of_scope
 from tl_mod_schemareg.views import PackageDetail, PackageSummary
@@ -22,11 +23,12 @@ from tl_mod_schemareg.views import PackageDetail, PackageSummary
 from tl_tui.client import ClientInterface
 from tl_tui.display import mode_of
 from tl_tui.errors import CLIENT_ERRORS, describe_error
+from tl_tui.layout import LABEL_STYLE, Section, render
 from tl_tui.schema_text import (
     COLUMNS,
     diff_lines,
-    header_lines,
-    lint_lines,
+    lint_section,
+    package_page,
     plain_ref,
     property_lines,
     tree_cells,
@@ -41,7 +43,11 @@ class SchemaWorkbenchScreen(LogScreen[PackageSummary]):
     """The package versions for ``scope``; ``tab`` is the one shown first."""
 
     LOG_NAME: ClassVar[str] = "Schema packages"
-    KEY_HINTS: ClassVar[str] = "[ ] or 1-3 tab  / filter  F5 reload  Esc close"
+    KEY_CELLS: ClassVar[tuple[str, ...]] = ("[ ] tab", "/ filter")
+    HELP_KEYS: ClassVar[tuple[tuple[str, str], ...]] = (
+        ("[  ]  1-3", "What the version defines, its lint findings, the diff"),
+        ("v", "Review and publish the highlighted version (the actions bar)"),
+    )
 
     BINDINGS: ClassVar[list[BindingType]] = [
         Binding("right_square_bracket", "next_tab(1)", "Next tab", show=False),
@@ -109,7 +115,7 @@ class SchemaWorkbenchScreen(LogScreen[PackageSummary]):
             return flash
         return f"Schema packages ({len(self.rows)})   scope {self.scope}"
 
-    def panel_text(self, row: PackageSummary | None) -> str:
+    def panel_text(self, row: PackageSummary | None) -> str | Text:
         """The header, the tab line and the tab of the highlighted version."""
         tabs = "  ".join(
             f"[{n} {name}]" if n - 1 == self.tab else f"{n} {name}"
@@ -127,12 +133,15 @@ class SchemaWorkbenchScreen(LogScreen[PackageSummary]):
                 return "\n".join([row.key if technical else plain_ref(row.key), "", tabs])
             self.details[row.id] = detail
         if self.tab == 0:
-            lines = property_lines(detail.content, technical=technical)
+            body = Section("Defines", tuple(property_lines(detail.content, technical=technical)))
         elif self.tab == 1:
-            lines = lint_lines(detail.lint, technical=technical)
+            body = lint_section(detail.lint, technical=technical)
         else:
-            lines = diff_lines(detail)
-        return "\n".join([*header_lines(detail, technical=technical), "", tabs, "", *lines])
+            body = Section("Diff", tuple(diff_lines(detail)))
+        text = Text(tabs, style=LABEL_STYLE)
+        text.append("\n\n")
+        text.append_text(render(package_page(detail, body, technical=technical)))
+        return text
 
     def open_row(self, row: PackageSummary) -> None:
         """Enter on a version opens its full record; Esc there returns to this row."""

@@ -27,8 +27,19 @@ from tl_mod_schedule.views import (
 )
 
 from tl_tui.display import Labels, actor_label, humanize
+from tl_tui.layout import (
+    BAD_STYLE,
+    Cell,
+    Page,
+    Prop,
+    Section,
+    TableRow,
+    identity_line,
+    join_facts,
+    prop,
+)
 
-SCHEDULE_COLUMNS = ("Code", "Type", "Current", "Data date", "Snapshots", "Title")
+SCHEDULE_COLUMNS = ("Code", "Title", "Type", "Current", "Data date", "Snapshots")
 SNAPSHOT_COLUMNS = ("No", "State", "Data date", "Activities", "Errors", "Warnings", "File")
 ACTIVITY_COLUMNS = ("Id", "Status", "Start", "Finish", "Float", "%", "Critical", "Name")
 #: The lists of a comparison, in the order the screen cycles through them: (field, title).
@@ -134,14 +145,14 @@ def _coded(table: Mapping[str, str], code: str | None, technical: bool) -> str:
 
 
 def schedule_cells(view: ScheduleView) -> tuple[str, ...]:
-    """The six cells of a schedule row, in the order of ``SCHEDULE_COLUMNS``."""
+    """The six cells of a schedule row, in the order of ``SCHEDULE_COLUMNS`` (the title second)."""
     return (
         view.code,
+        short(view.title),
         humanize(view.schedule_type),
         short(view.current_snapshot_number),
         date_only(view.current_data_date),
         str(view.snapshot_count),
-        short(view.title),
     )
 
 
@@ -239,6 +250,152 @@ def schedules_summary(shown: int, total: int, *, text: str) -> str:
     if stripped:
         parts.append(f'filter "{stripped}"')
     return "  ".join(parts)
+
+
+def schedule_page(
+    detail: ScheduleDetailView,
+    labels: Labels | None = None,
+    *,
+    snapshot: SnapshotView | None = None,
+    extra: Sequence[Section] = (),
+    technical: bool = False,
+) -> Page:
+    """The panel under the schedules (skill ``tui-layout``): the identity line, the current
+    snapshot as the state, the summary (type, owner, data date, snapshots), a warning while the
+    links are being checked, the highlighted snapshot in sections, then ``extra`` (the look-ahead
+    or the orphaned links). The same in both modes except the snapshot's name."""
+    labels = Labels() if labels is None else labels
+    current = detail.current_snapshot_number
+    sections: list[Section] = []
+    if detail.links_being_checked:
+        sections.append(
+            Section(
+                "Warning",
+                (
+                    "Links to activities are being checked: one to an activity that left the "
+                    "schedule may still read as current.",
+                ),
+            )
+        )
+    if snapshot is not None:
+        sections += snapshot_sections(snapshot, labels, technical=technical)
+    sections += extra
+    return Page(
+        identity_line(detail.code, detail.title),
+        f"Current: snapshot {current}" if current is not None else "No snapshot published",
+        tuple(sections),
+        join_facts(
+            humanize(detail.schedule_type),
+            actor_label(labels, detail.owner) if detail.owner else "",
+            f"data date {date_only(detail.current_data_date)}" if current is not None else "",
+            f"{detail.snapshot_count} snapshot{'s' if detail.snapshot_count != 1 else ''}",
+        ),
+    )
+
+
+def snapshot_sections(
+    view: SnapshotView, labels: Labels | None = None, *, technical: bool = False
+) -> list[Section]:
+    """The facts of a snapshot in sections: the snapshot itself, what it holds, what the checks
+    found. Plain mode names it ``Snapshot 2``; technical mode shows its key and the P6 command."""
+    labels = Labels() if labels is None else labels
+    name = view.key if technical else f"Snapshot {view.number}"
+    heading = f"{name} (current)" if view.is_current else name
+    facts: list[Prop] = [
+        prop("State", view.state),
+        prop("Data date", view.data_date),
+        prop("P6 version", view.p6_version),
+        prop("File", view.source_name),
+        prop("Requested by", actor_label(labels, view.requested_by) if view.requested_by else None),
+    ]
+    if view.previous_number is not None:
+        facts.append(prop("Compares with", f"snapshot {view.previous_number}"))
+    holds = [
+        prop("Activities", view.activity_count),
+        prop("Relationships", view.relationship_count),
+        prop("WBS", view.wbs_count),
+        prop("Calendars", view.calendar_count),
+        prop("Codes", view.code_count),
+        prop("User fields", view.udf_count),
+    ]
+    checks: list[Prop | str] = [
+        prop("Errors", view.error_count),
+        prop("Warnings", view.warning_count),
+    ]
+    if view.state in ("Uploaded", "Processing"):
+        checks.append(
+            "Waiting for the worker (`tl xer worker`)." if technical else "Waiting to be processed."
+        )
+    if view.last_error:
+        checks.append(prop("Last error", short(view.last_error, 200)))
+    return [
+        Section(heading, tuple(facts)),
+        Section("Contents", tuple(holds)),
+        Section("Checks", tuple(checks)),
+    ]
+
+
+LOOK_AHEAD_COLUMNS = ("Activity", "Phase", "Starts", "Finishes", "Float", "Done", "Name")
+ORPHAN_COLUMNS = ("Activity", "Last seen in snapshot")
+
+
+def look_ahead_sections(answer: LookAhead, *, technical: bool = False) -> list[Section]:
+    """The look-ahead: the window and counts as properties, then one table row per activity."""
+    counts = answer.counts
+    key = snapshot_name(answer.snapshot_key, technical=technical)
+    rows = tuple(
+        TableRow(
+            LOOK_AHEAD_COLUMNS,
+            (
+                r.activity_id,
+                Cell(
+                    _coded(PHASE_WORDS, r.phase, technical) + (" · critical" if r.critical else ""),
+                    BAD_STYLE if r.phase == "late_start" else "",
+                ),
+                date_only(r.early_start),
+                date_only(r.early_finish),
+                days(r.total_float_days),
+                f"{r.percent_complete:g}%",
+                short(r.name),
+            ),
+        )
+        for r in answer.rows
+    )
+    window = Section(
+        f"Look-ahead, {key}",
+        (
+            prop("Window", f"{answer.window_start} to {answer.window_end} ({answer.weeks} weeks)"),
+            prop(
+                "Counts",
+                f"{counts.get('in_progress', 0)} in progress · {counts.get('late_start', 0)} "
+                f"late start · {counts.get('starting', 0)} starting · "
+                f"{counts.get('critical', 0)} critical · {counts.get('total', 0)} in all",
+            ),
+        ),
+    )
+    return [window, Section("Activities", rows, note="No activities in the window")]
+
+
+def orphan_section(links: Sequence[OrphanedLink], *, technical: bool = False) -> Section:
+    """The links the last publication flagged because their activity left the schedule, as a
+    table; plain mode drops the record and link ids."""
+    columns = (*ORPHAN_COLUMNS, "Record", "Link") if technical else ORPHAN_COLUMNS
+    rows = tuple(
+        TableRow(
+            columns,
+            (
+                o.activity_id,
+                short(o.last_seen_number),
+                *((str(o.from_id), str(o.link_id)) if technical else ()),
+            ),
+        )
+        for o in links
+    )
+    return Section(
+        f"Orphaned links ({len(links)})" if links else "Orphaned links",
+        rows,
+        note="None: every activity that is linked to is in the current snapshot",
+    )
 
 
 def look_ahead_lines(answer: LookAhead, *, technical: bool = True) -> list[str]:
