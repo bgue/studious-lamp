@@ -22,7 +22,7 @@ The Textual application shell, grid, record view, and forms; every screen reads 
 | `tl_tui.widgets.grid.RecordGrid` | widget | Virtualised grid: server-side sort, paging, End loads up to 5,000 rows in a worker, multi-select, column chooser, TSV; `apply_filter(text)` (query language, `FilterResult` with the error position), `refresh_live(ids)` (worker thread; rows changed by others get a `•` for 4 s) |
 | `tl_tui.widgets.filter_bar.FilterBar` | widget | Filter bar (`/`): Enter applies, shows `N matches` or the parser's message with a caret under the bad character, blank clears, Esc leaves |
 | `tl_tui.widgets.connection_banner.ConnectionBanner` | widget | "Server unreachable" / "reconnecting" line under the header; hidden while live |
-| `tl_tui.widgets.record_view.RecordView` | widget | Header with badges (workflow state and time in state, link counts), Details, Psets, Links, History, Trace tabs (`1` to `5`); `e` edit, `[` `]` step, Esc back; "! Updated by X (now vN)" line when someone else changed the record |
+| `tl_tui.widgets.record_view.RecordView` | widget | Header with badges (workflow state and time in state, link counts), Details, Psets, Links, History, Trace, Thread and Files tabs (`1` to `6`; Files only while the record has files); `e` edit, `[` `]` step, Esc back; "! Updated by X (now vN)" line when someone else changed the record |
 | `tl_tui.widgets.psets_tab.PsetsTab` | widget | Layer-grouped pset values with enforcement and conformance marks |
 | `tl_tui.widgets.form_fields.FieldEditor` | widget | One editor per `FieldMeta` kind with inline validation |
 | `tl_tui.widgets.edit_form.EditForm`, `new_record_form.NewRecordForm` | modals | Edit (Ctrl+S saves changed fields; a conflict banner and a blocked save when the record moved under the form) and create (explicit key until numbering) |
@@ -76,7 +76,7 @@ Every screen speaks plain language by default and an admin can switch the techni
 ## Log screens (P1-UX2)
 Every log (a list of records with actions on the highlighted one) is a `widgets.log_screen.LogScreen` subclass. A new
 log never lays out its own screen and never adds a second standard.
-- **Layout**, top to bottom: `#log-crumb` (`P123 › RFI Log › P123-RFI-0328: title`, the record part empty when nothing is
+- **Layout**, top to bottom: `#log-crumb` (`P123 › RFI log › P123-RFI-0328: title`, the record part empty when nothing is
   selected; only the title is shortened), `#log-filter`, the list `#log-table`, the panel `#log-panel` of the
   selected record, `#log-actions`, `#log-keys` (navigation and filters only), `#log-status` (the summary, or a refusal
   as `! text`). Terminals of 160 columns or more (`log_text.is_wide`) put the panel right of the list (class `-wide`,
@@ -106,7 +106,7 @@ log never lays out its own screen and never adds a second standard.
 - **Testing a log**: a small `LogScreen` subclass with three rows and fake actions pushed on a bare `App`, driven by
   `helpers.run_pilot`; wait for the workers with `await pilot.app.workers.wait_for_complete()`. See
   `tests/test_log_screen.py` (host pattern, stale answer, refusal, layout switch at 159/160, snapshots at 80 and 170).
-- Every new log uses `LogScreen`; the existing registers move to it in P1-UX2 S3 and S4.
+- Every log uses `LogScreen`: the document register, tag register, correspondence (register, triage inbox, clocks), RFI log, Commercial register and evidence trail, schedules, review queue, integration registry and schema workbench. `just demo P1-UX2` drives the standard on the RFI log and the document log; PHASE-1-TOUR section 24 shows it.
 
 ## File preview (P1-UX2)
 - `widgets.file_panel.FilePanel` lists a record's current files (`list_record_files`) as `file_text.file_line` rows; Up and
