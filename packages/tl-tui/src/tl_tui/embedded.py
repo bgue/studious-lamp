@@ -158,7 +158,10 @@ from tl_mod_documents.handlers.transmittals import (
     handle_issue_transmittal,
 )
 from tl_mod_documents.resolver import RepinDocumentLink, handle_repin_document_link
+from tl_mod_engineering import codelists as engineering_codelists
+from tl_mod_engineering import registry as engineering_registry
 from tl_mod_engineering.commands import API_COMMANDS as ENGINEERING_COMMANDS
+from tl_mod_engineering.names import COMPANY as ENGINEERING_COMPANY
 from tl_mod_engineering.views import TagView, tag_view, tag_views
 from tl_mod_schedule import views as schedule_views
 from tl_mod_schedule.compare import Comparison
@@ -853,6 +856,20 @@ class EmbeddedClient:
     def get_tag(self, project: str, number: str) -> TagView:
         with self._uow(True) as uow:
             return tag_view(uow, f"project:{project}", number)
+
+    def list_code_lists(self, scope: str) -> dict[str, dict[str, str]]:
+        with self._uow(True) as uow:
+            conn = uow.conn()
+            lists = engineering_registry.find_standards(
+                conn, scope=ENGINEERING_COMPANY, kind="code_list", active_only=True
+            )
+            return {
+                row.code: {
+                    value.code: value.label
+                    for value in engineering_codelists.values(conn, scope, row.code)
+                }
+                for row in lists
+            }
 
     # --- documents (P1-I2) --------------------------------------------------------------------
 

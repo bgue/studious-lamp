@@ -30,9 +30,12 @@ def current_text(view: DocumentView) -> str:
     return f"{view.current_revision_code}({view.current_revision_status or '-'})"
 
 
-def row_cells(view: DocumentView, labels: Labels | None = None) -> tuple[str, ...]:
-    """The six cells of a table row, in the order of ``COLUMNS``: labels, not codes."""
-    if labels is None:
+def row_cells(
+    view: DocumentView, labels: Labels | None = None, *, technical: bool = False
+) -> tuple[str, ...]:
+    """The six cells of a table row, in the order of ``COLUMNS``: labels, not codes; technical
+    mode shows the type and discipline codes."""
+    if labels is None or technical:
         labels = Labels()
     return (
         view.number,

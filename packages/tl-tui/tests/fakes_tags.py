@@ -23,6 +23,8 @@ class FakeTagSupport:
 
     def _init_tags(self) -> None:
         self._tags: dict[str, dict[str, TagView]] = {}  # project -> number -> view
+        # {list name: {code: label}}: what `list_code_lists` answers, empty until a test sets it
+        self.code_lists: dict[str, dict[str, str]] = {}
 
     def add_tag(
         self,
@@ -92,3 +94,6 @@ class FakeTagSupport:
         if view is None:
             raise TagNotFoundError(f"no tag {number!r} in scope 'project:{project}'")
         return view
+
+    def list_code_lists(self, scope: str) -> dict[str, dict[str, str]]:
+        return {name: dict(values) for name, values in self.code_lists.items()}

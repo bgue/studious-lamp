@@ -3,12 +3,16 @@
 Type titles come from the generated ``TYPE_LABELS``. Code labels come from the enum values of the
 effective schema's fields (``form_metadata``), keyed by the field's last path part (``doc_type``)
 and by its full path. Domains and subtypes come from the correspondence domains of the project,
-services from the accounts the signed-in person may list. A read that fails leaves its part empty:
-a label that is missing falls back to the code, never to an error.
+services from the accounts the signed-in person may list. The company's standard code lists
+(``list_code_lists``: ``Discipline``, ``DocumentType``, ``Area``) are keyed by their column name
+(``discipline``, ``doc_type``, ``area``) and by their list name.
+A read that fails leaves its part empty: a label that is missing falls back to the code,
+never to an error.
 """
 
 from __future__ import annotations
 
+import re
 from collections.abc import Iterable
 
 from tl_core.settings.layers import project_of_scope
@@ -43,6 +47,30 @@ def _code_labels(
     return found
 
 
+#: A code list whose plain column is not its snake-case name (``documents.doc_type``).
+_COLUMN_OF_LIST = {"DocumentType": "doc_type"}
+
+
+def _column(list_name: str) -> str:
+    """``Discipline`` -> ``discipline``, ``UnitOfMeasure`` -> ``unit_of_measure``."""
+    if list_name in _COLUMN_OF_LIST:
+        return _COLUMN_OF_LIST[list_name]
+    return re.sub(r"(?<=[a-z0-9])(?=[A-Z])", "_", list_name).lower()
+
+
+def _standard_labels(client: ClientInterface, scope: str) -> dict[str, dict[str, str]]:
+    """The company's code lists (``Discipline``, ``DocumentType``, ``Area``...) by column name."""
+    try:
+        lists = client.list_code_lists(scope)
+    except _SKIPPED:
+        return {}
+    found: dict[str, dict[str, str]] = {}
+    for name, values in lists.items():
+        for key in (_column(name), name):
+            found.setdefault(key, {}).update(values)
+    return found
+
+
 def load_labels(
     client: ClientInterface, scope: str, record_types: Iterable[str] = ("core.Record",)
 ) -> Labels:
@@ -66,9 +94,14 @@ def load_labels(
                 services[f"svc:{account.username}"] = account.display_name
     except _SKIPPED:
         services = {}
+    code_labels = _code_labels(client, scope, record_types)
+    for name, values in _standard_labels(client, scope).items():
+        known = code_labels.setdefault(name, {})
+        for code, label in values.items():
+            known.setdefault(code, label)
     return Labels(
         type_titles=dict(TYPE_LABELS),
-        code_labels=_code_labels(client, scope, record_types),
+        code_labels=code_labels,
         domains=domains,
         subtypes=subtypes,
         services=services,

@@ -35,6 +35,22 @@ class EngineeringApi(ApiClientBase):
         data = self._get_json(f"/projects/{quote(project)}/tags", params)
         return self._models(TagView, data)
 
+    def list_code_lists(self, scope: str) -> dict[str, dict[str, str]]:
+        """The company's code lists as ``{list name: {code: label}}`` as ``scope`` sees them.
+
+        Reads ``GET /standards?kind=code_list`` for the names, then
+        ``GET /code-lists/{name}/values`` (with ``project`` when ``scope`` is ``project:<id>``) for
+        each: usable values only.
+        """
+        project = scope.removeprefix("project:") if scope.startswith("project:") else None
+        names = self._get_json("/standards", {"kind": "code_list"})
+        found: dict[str, dict[str, str]] = {}
+        for item in names:
+            name = str(item["code"])
+            values = self._get_json(f"/code-lists/{quote(name)}/values", {"project": project})
+            found[name] = {str(v["code"]): str(v["label"]) for v in values}
+        return found
+
     def create_tag(self, cmd: CreateTag) -> CommandResult:
         """Create a tag (``POST /commands/CreateTag``); the token's actor is recorded."""
         return self._command("CreateTag", cmd)

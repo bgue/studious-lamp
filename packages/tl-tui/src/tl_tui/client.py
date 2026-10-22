@@ -381,6 +381,11 @@ class ClientInterface(Protocol):
         """One tag with its conformance issues. Raises ``TagNotFoundError`` when unknown."""
         ...
 
+    def list_code_lists(self, scope: str) -> dict[str, dict[str, str]]:
+        """The company's code lists as ``{list name: {code: label}}`` as ``scope`` sees them (usable
+        values only): ``{"Discipline": {"STR": "Structural"}}``. Feeds the plain-mode labels."""
+        ...
+
     # --- documents (P1-I2; brief 9 M1) -------------------------------------------------------
     #
     # The same names and signatures as ``tl_api.client.ApiClient``. ``project`` is the project id.
