@@ -37,3 +37,4 @@ async def settle(pilot: Pilot[Any]) -> None:
     await pilot.pause()
     await pilot.app.workers.wait_for_complete()
     await pilot.pause()
+    await pilot.pause()

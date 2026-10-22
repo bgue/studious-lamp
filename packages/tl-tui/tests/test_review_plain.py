@@ -12,7 +12,7 @@ from typing import Any
 
 import rows_integration as rows
 from fakes import SCOPE, FakeClient
-from helpers import run_pilot, screen_text
+from helpers import run_pilot, screen_text, settle
 from textual.pilot import Pilot
 from textual.widgets import DataTable
 from tl_tui.app import TlApp
@@ -49,7 +49,7 @@ def scenario(
 
     async def go(pilot: Pilot[Any]) -> None:
         await pilot.press("ctrl+r")
-        await pilot.pause()
+        await settle(pilot)
         assert isinstance(app.screen, ReviewQueueScreen)
         await steps(pilot, app, app.screen)
 
@@ -57,7 +57,7 @@ def scenario(
 
 
 def table(screen: ReviewQueueScreen) -> DataTable[str]:
-    return screen.query_one("#review-table", DataTable)
+    return screen.query_one("#log-table", DataTable)
 
 
 def test_enter_on_a_value_opens_the_target_record_and_escape_returns_to_the_same_row() -> None:
@@ -66,11 +66,11 @@ def test_enter_on_a_value_opens_the_target_record_and_escape_returns_to_the_same
 
     async def steps(pilot: Pilot[Any], app: TlApp, screen: ReviewQueueScreen) -> None:
         await pilot.press("down", "enter")  # the second value is about DOC-0002
-        await pilot.pause()
+        await settle(pilot)
         assert isinstance(app.screen, RecordScreen)
         assert "Wiring diagram" in screen_text(app)
         await pilot.press("escape")
-        await pilot.pause()
+        await settle(pilot)
         assert isinstance(app.screen, ReviewQueueScreen)
         assert table(app.screen).cursor_row == 1  # back on the same row
 
@@ -82,7 +82,7 @@ def test_a_target_the_viewer_cannot_read_opens_as_no_record() -> None:
 
     async def steps(pilot: Pilot[Any], app: TlApp, screen: ReviewQueueScreen) -> None:
         await pilot.press("enter")
-        await pilot.pause()
+        await settle(pilot)
         assert isinstance(app.screen, RecordScreen)
         text = screen_text(app)
         assert NO_RECORD in text
@@ -110,7 +110,7 @@ def test_technical_mode_restores_the_id_the_version_and_the_path_and_back() -> N
     async def steps(pilot: Pilot[Any], app: TlApp, screen: ReviewQueueScreen) -> None:
         assert "enrich.doc_classifier" not in screen_text(app)
         await pilot.press("ctrl+d")  # works under the modal; the screen redraws in place
-        await pilot.pause()
+        await settle(pilot)
         assert app.display_mode.technical is True
         assert table(screen).cursor_row == 0
         text = screen_text(app)
@@ -119,7 +119,7 @@ def test_technical_mode_restores_the_id_the_version_and_the_path_and_back() -> N
         assert "AAAAAAA1" in text  # the short id column
         assert "Value       01JVALUEAAAAAAAAAA1" in text  # the detail panel's id line
         await pilot.press("ctrl+d")
-        await pilot.pause()
+        await settle(pilot)
         assert app.display_mode.technical is False
         text = screen_text(app)
         assert "enrich.doc_classifier" not in text and "@" not in text

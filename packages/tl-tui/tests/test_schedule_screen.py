@@ -60,7 +60,9 @@ def status(screen: ScheduleScreen) -> str:
 def test_f12_lists_the_schedules_and_the_snapshots_and_describes_the_current_one() -> None:
     async def steps(pilot: Pilot[None], app: TlApp, screen: ScheduleScreen) -> None:
         text = screen_text(app)
-        assert "P123 › Schedules › MAIN: MAIN schedule" in text and "1 of 1 schedules" in status(screen)
+        assert "P123 › Schedules › MAIN: MAIN schedule" in text and "1 of 1 schedules" in status(
+            screen
+        )
         assert [v.code for v in screen.shown] == ["MAIN"]
         assert screen.query_one("#log-table", DataTable).row_count == 1
         assert screen.query_one("#sc-snapshots", DataTable).row_count == 2

@@ -10,7 +10,7 @@ from typing import Any
 
 import rows_integration as rows
 from fakes import SCOPE, FakeClient
-from helpers import run_pilot, screen_text
+from helpers import run_pilot, screen_text, settle
 from textual.pilot import Pilot
 from textual.widgets import DataTable
 from tl_tui.app import TlApp
@@ -209,22 +209,22 @@ def test_screen_redraws_columns_on_the_mode_switch() -> None:
     app = TlApp(client, scope=SCOPE, actor="user:boss", is_admin=True)
 
     def headings(screen: IntegrationScreen) -> tuple[str, ...]:
-        table = screen.query_one("#integration-table", DataTable)
+        table = screen.query_one("#log-table", DataTable)
         return tuple(str(column.label) for column in table.columns.values())
 
     async def go(pilot: Pilot[Any]) -> None:
         await pilot.press("ctrl+e")
-        await pilot.pause()
+        await settle(pilot)
         screen = app.screen
         assert isinstance(screen, IntegrationScreen)
         assert headings(screen) == ("Path", "State", "Mode", "Auth", "Access")
         assert "acme-nde/results" in screen_text(app) and "v2" not in screen_text(app)
         await pilot.press("ctrl+d")  # technical details on: the version column is back
-        await pilot.pause()
+        await settle(pilot)
         assert headings(screen) == ("Path", "State", "Mode", "Auth", "Access", "Ver")
         assert "v2" in screen_text(app)
         await pilot.press("ctrl+d")  # and off again
-        await pilot.pause()
+        await settle(pilot)
         assert headings(screen) == ("Path", "State", "Mode", "Auth", "Access")
         assert "v2" not in screen_text(app)
 
