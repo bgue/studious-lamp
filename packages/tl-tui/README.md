@@ -90,8 +90,17 @@ log never lays out its own screen and never adds a second standard.
   again. An action that needs words first pushes an `ActionFormScreen(title, fields, confirm=...)` and sends the
   command in the form's callback with `self.attempt(lambda: client.send(...))`; the form knows no command.
 - **Keys**: `/` filter, `F5` reload, `Esc` close (clears the filter first), `Enter` open. An action key never runs
-  while the filter box has focus. Two offered actions on one key, or one on `escape`, `enter`, `slash`, `f5` or a
-  binding of the host, raise `ValueError` in a test run (headless) and are dropped in a real run.
+  while the filter box has focus. Two offered actions on one key, or one on a reserved key (`escape`, `enter`, `slash`,
+  `f5` and the list's navigation: `up`, `down`, `pageup`, `pagedown`, `home`, `end`, `space`, `tab`) or a binding of
+  the host, raise `ValueError` in a test run (headless) and are dropped in a real run.
+- **A log's own keys** (filters and views such as `o` open only, `v` overdue, `i` impact, `1`/`2`/`3` for the views
+  of a multi-view log like the domain screen): declare them in the host's `BINDINGS`; the action sets the host's
+  state and calls `self.reload()`; list them in `KEY_HINTS`. Those keys are then reserved and no action may use them.
+  A multi-view log keeps one `LogScreen` and switches `columns`, `load_rows` and `LOG_NAME` by its view state.
+- **Helpers** the host may call: `say(text, error=...)` (status line), `current()` (the highlighted row or None),
+  `reload()` (read the rows again).
+- **Mode**: Ctrl+D makes the app call `refresh_for_display_mode()` on every screen; the base redraws, so
+  `row_cells` and `panel_text` must both read `mode_of(self.app)`.
 - **160-column rule**: the layout is chosen by width alone; a log adds no layout of its own.
 - **Testing a log**: a small `LogScreen` subclass with three rows and fake actions pushed on a bare `App`, driven by
   `helpers.run_pilot`; wait for the workers with `await pilot.app.workers.wait_for_complete()`. See

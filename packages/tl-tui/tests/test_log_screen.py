@@ -569,3 +569,9 @@ def test_the_log_screen_snapshot_170x30(snap_compare: Any) -> None:
         await settle(pilot)
 
     assert snap_compare(HostApp(Host(Probe())), terminal_size=(170, 30), run_before=run_before)
+
+
+def test_list_navigation_keys_are_reserved() -> None:
+    from tl_tui.widgets.log_screen import RESERVED_KEYS
+
+    assert {"up", "down", "pageup", "pagedown", "home", "end", "space", "tab"} <= RESERVED_KEYS

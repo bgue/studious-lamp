@@ -28,7 +28,22 @@ from textual.widgets import DataTable, Input, Static
 from tl_tui.errors import CLIENT_ERRORS, describe_error
 from tl_tui.log_text import SEPARATOR, actions_text, breadcrumb_text, is_wide
 
-RESERVED_KEYS: frozenset[str] = frozenset({"escape", "enter", "slash", "f5"})
+RESERVED_KEYS: frozenset[str] = frozenset(
+    {
+        "escape",
+        "enter",
+        "slash",
+        "f5",
+        "up",
+        "down",
+        "pageup",
+        "pagedown",
+        "home",
+        "end",
+        "space",
+        "tab",
+    }
+)  # list navigation is never an action key
 CRUMB_PADDING = 2  # the screen's left and right padding
 
 
