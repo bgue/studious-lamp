@@ -104,9 +104,10 @@ bench-rebuild *args:
 demo id:
     bash dev/demos/{{id}}.sh
 
-# Regenerate the screenshot tour (SVGs and transcripts) for a phase, 0 or 1; `out` overrides the output directory
+# Regenerate the screenshot tour (SVGs and transcripts) for a phase, 0 or 1, or the `highlights` tour
+# (only the everyday screens, docs/reports/tour/highlights); `out` overrides the output directory
 tour phase="1" out="":
-    uv run python dev/tour/phase{{phase}}.py {{ if out == "" { "" } else { "--out " + out } }}
+    uv run python dev/tour/{{ if phase == "highlights" { "highlights" } else { "phase" + phase } }}.py {{ if out == "" { "" } else { "--out " + out } }}
 
 # Regenerate both screenshot tours, phase 0 then phase 1
 tour-all:

@@ -22,12 +22,13 @@ from dataclasses import dataclass
 from typing import Any
 
 from tl_tui.client import ClientInterface
-from tl_tui.display import DisplayMode, Labels
+from tl_tui.display import DisplayMode, Labels, code_label, humanize
 from tl_tui.layout import Page, Section, cut_text, group_rows, limited
 
 NOTE_LABEL = "Note"
 NOTE_TEXT = "More details could not be loaded"
 TECHNICAL_SECTION = "Technical details"
+RECORD_SECTION = "Record"  # when the record was made and last changed
 PANEL_TEXT_LIMIT = 300  # characters of a question, an answer or a message in a panel
 PANEL_LIST_LIMITS = {"Timeline": 4, "Files": 3}  # rows of these sections in a panel
 
@@ -154,3 +155,24 @@ def since_of(client: ClientInterface, record_id: str) -> str | None:
     except (*CLIENT_ERRORS, NotImplementedError):
         return None
     return str(entered)[:10] if entered else None
+
+
+def record_rows(record: dict[str, Any]) -> list[DetailRow]:
+    """The ``Record`` section: when the record was created and last updated (not in a panel)."""
+    from tl_tui.text import timestamp  # noqa: PLC0415
+
+    return [
+        DetailRow(
+            "Created", timestamp(record.get("created_at")), section=RECORD_SECTION, panel=False
+        ),
+        DetailRow(
+            "Updated", timestamp(record.get("updated_at")), section=RECORD_SECTION, panel=False
+        ),
+    ]
+
+
+def plain_code(labels: Labels, list_name: str, code: str | None) -> str:
+    """The code's label; a lower-case code the list does not know reads as a word
+    (``internal`` becomes ``Internal``); ``—`` for none."""
+    text = code_label(labels, list_name, code)
+    return humanize(text) if code and text == code and code.isalpha() and code.islower() else text

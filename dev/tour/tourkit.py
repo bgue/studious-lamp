@@ -549,6 +549,10 @@ def shot_tui(
         labels, keys = _labels_and_keys(app)
         check_plain(name, text, labels, keys)
     ws.save(name, clean_svg(app.export_screenshot(title=title)))
+    text_dir = os.environ.get("TL_TOUR_TEXT")  # a folder to also get each screen as plain text
+    if text_dir:
+        Path(text_dir).mkdir(parents=True, exist_ok=True)
+        (Path(text_dir) / f"{name}.txt").write_text(text + "\n", encoding="utf-8")
 
 
 def run_tui(

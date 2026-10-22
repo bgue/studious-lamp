@@ -18,10 +18,10 @@ from tl_mod_documents.views import (
     RevisionView,
 )
 
-from tl_tui.details import TECHNICAL_SECTION, DetailRow, rows_page
+from tl_tui.details import TECHNICAL_SECTION, DetailRow, plain_code, rows_page
 from tl_tui.display import Labels, code_label, humanize, type_label
 from tl_tui.layout import Page, identity_line, plain_lines
-from tl_tui.text import EMPTY, timestamp
+from tl_tui.text import EMPTY
 
 COLUMNS = ("Number", "Title", "State", "Current", "Type", "Discipline")
 FACTS = "Key facts"
@@ -112,11 +112,9 @@ def links_heading(view: DocumentView) -> str:
     )
 
 
-def document_head_rows(
-    view: DocumentView, labels: Labels, *, record: dict[str, Any] | None = None
-) -> list[DetailRow]:
+def document_head_rows(view: DocumentView, labels: Labels) -> list[DetailRow]:
     """The sections above the files: the description, the key facts (the current revision first)
-    and the revisions. ``record`` adds the record dates."""
+    and the revisions."""
     rows: list[DetailRow] = []
     if view.description:
         rows.append(DetailRow("", view.description, section="Description"))
@@ -127,17 +125,12 @@ def document_head_rows(
         DetailRow("Originator", view.originator or EMPTY, section=FACTS),
         DetailRow(
             "Confidentiality",
-            code_label(labels, "confidentiality", view.confidentiality),
+            plain_code(labels, "confidentiality", view.confidentiality),
             section=FACTS,
         ),
     ]
     if view.superseded_by:
         rows.append(DetailRow("Replaced by", view.superseded_by, section=FACTS))
-    if record is not None:
-        rows += [
-            DetailRow("Created", timestamp(record.get("created_at")), section=FACTS, panel=False),
-            DetailRow("Updated", timestamp(record.get("updated_at")), section=FACTS, panel=False),
-        ]
     if view.revisions:
         heading = f"{REVISIONS} ({len(view.revisions)})"
         rows += [DetailRow("", revision_line(rev), section=heading) for rev in view.revisions]

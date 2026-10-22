@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from typing import Any
 
-from tl_tui.details import TECHNICAL_SECTION, DetailRow
+from tl_tui.details import TECHNICAL_SECTION, DetailRow, record_rows
 from tl_tui.display import Labels, type_label
-from tl_tui.text import EMPTY, conformance_mark, short_hash, timestamp
+from tl_tui.text import EMPTY, conformance_mark, short_hash
 
 
 def _or_empty(value: Any) -> str:
@@ -39,7 +39,5 @@ def generic_rows(record: dict[str, Any], labels: Labels) -> list[DetailRow]:
         DetailRow("Type", type_label(labels, str(record.get("type") or "")), section="Summary"),
         DetailRow("Status", _or_empty(record.get("status")), section="Summary"),
         DetailRow("Conformance", conformance_mark(record.get("conformance")), section="Summary"),
-        DetailRow("Created", timestamp(record.get("created_at")), section="Dates"),
-        DetailRow("Updated", timestamp(record.get("updated_at")), section="Dates"),
     ]
-    return rows + technical_rows(record)
+    return rows + record_rows(record) + technical_rows(record)

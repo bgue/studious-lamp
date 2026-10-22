@@ -13,11 +13,18 @@ from typing import Any
 from tl_mod_correspondence.views_domain import CommercialView
 
 from tl_tui.client import ClientInterface
-from tl_tui.details import TECHNICAL_SECTION, DetailRow, file_rows, register
+from tl_tui.details import (
+    TECHNICAL_SECTION,
+    DetailRow,
+    file_rows,
+    plain_code,
+    record_rows,
+    register,
+)
 from tl_tui.details.correspondence import clock_rows_of
 from tl_tui.details.generic import technical_rows
-from tl_tui.display import Labels, code_label, domain_label, humanize
-from tl_tui.text import EMPTY, timestamp
+from tl_tui.display import Labels, domain_label, humanize
+from tl_tui.text import EMPTY
 
 
 def _or_empty(value: Any) -> str:
@@ -57,17 +64,12 @@ def commercial_content(
         DetailRow("Issued", _or_empty(view.issued_on), section=FACTS),
         DetailRow(
             "Confidentiality",
-            code_label(labels, "confidentiality", view.confidentiality),
+            plain_code(labels, "confidentiality", view.confidentiality),
             section=FACTS,
         ),
     ]
     if view.derived_from_number:
         rows.append(DetailRow("Escalated from", view.derived_from_number, section=FACTS))
-    if record is not None:
-        rows += [
-            DetailRow("Created", timestamp(record.get("created_at")), section=FACTS, panel=False),
-            DetailRow("Updated", timestamp(record.get("updated_at")), section=FACTS, panel=False),
-        ]
     rows += [
         DetailRow("Estimated", _money(view.currency, view.estimated_value), section=MONEY),
         DetailRow("Estimated hours", _or_empty(view.estimated_hours), section=MONEY),
@@ -93,6 +95,7 @@ def commercial_content(
     rows += clock_rows_of(view.clocks)
     if client is not None:
         rows += file_rows(client, view.id)
+    rows += record_rows(record) if record is not None else []
     rows += (
         technical_rows(record)
         if record is not None

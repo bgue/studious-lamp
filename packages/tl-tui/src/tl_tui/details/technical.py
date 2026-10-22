@@ -22,7 +22,14 @@ from tl_mod_correspondence.views import RecipientView
 from tl_mod_correspondence.views_domain import TechnicalView
 
 from tl_tui.client import ClientInterface
-from tl_tui.details import TECHNICAL_SECTION, DetailRow, file_rows, register
+from tl_tui.details import (
+    TECHNICAL_SECTION,
+    DetailRow,
+    file_rows,
+    plain_code,
+    record_rows,
+    register,
+)
 from tl_tui.details.correspondence import (
     clock_rows_of,
     item_history,
@@ -30,7 +37,7 @@ from tl_tui.details.correspondence import (
 )
 from tl_tui.details.generic import technical_rows
 from tl_tui.display import Labels, code_label, domain_label, humanize
-from tl_tui.text import EMPTY, timestamp
+from tl_tui.text import EMPTY
 from tl_tui.timeline_text import person
 
 RFI_TYPE = "correspondence.TechnicalItem"
@@ -109,7 +116,6 @@ def rfi_content(
         ),
         DetailRow("Needed by", _or_empty(view.required_by), section=FACTS),
         DetailRow("Issued", _or_empty(view.issued_on), section=FACTS),
-        DetailRow("From", _or_empty(view.from_name), section=FACTS),
         DetailRow("To", _people(view.to), section=FACTS),
         DetailRow(
             "Cost impact",
@@ -123,18 +129,13 @@ def rfi_content(
         ),
         DetailRow(
             "Confidentiality",
-            code_label(labels, "confidentiality", view.confidentiality),
+            plain_code(labels, "confidentiality", view.confidentiality),
             section=FACTS,
         ),
     ]
     if view.escalations:
         escalated = ", ".join(f"{e.number} ({humanize(e.state)})" for e in view.escalations)
         rows.append(DetailRow("Escalated to", escalated, section=FACTS))
-    if record is not None:
-        rows += [
-            DetailRow("Created", timestamp(record.get("created_at")), section=FACTS, panel=False),
-            DetailRow("Updated", timestamp(record.get("updated_at")), section=FACTS, panel=False),
-        ]
     rows += clock_rows_of(view.clocks)
     if client is not None:
         derived = [
@@ -145,6 +146,7 @@ def rfi_content(
         ]
         rows += timeline_detail_rows(client, project, history, view.id, labels, escalations=derived)
         rows += file_rows(client, view.id)
+    rows += record_rows(record) if record is not None else []
     rows += (
         technical_rows(record)
         if record is not None

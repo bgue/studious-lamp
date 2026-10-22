@@ -11,7 +11,7 @@ from __future__ import annotations
 from typing import Any
 
 from tl_tui.client import ClientInterface
-from tl_tui.details import DetailRow, file_rows, register
+from tl_tui.details import DetailRow, file_rows, record_rows, register
 from tl_tui.details.generic import technical_rows
 from tl_tui.display import Labels
 from tl_tui.document_text import (
@@ -29,13 +29,14 @@ def document_rows(
     view = client.get_document(project, str(record["key"]))
     revision = file_revision(view)
     return [
-        *document_head_rows(view, labels, record=record),
+        *document_head_rows(view, labels),
         *(
             file_rows(client, revision.id)
             if revision is not None
             else [DetailRow("", "No files", section="Files")]
         ),
         *document_link_rows(view, labels),
+        *record_rows(record),
         *document_technical_rows(view, record),
         *technical_rows(record),
     ]

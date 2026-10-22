@@ -19,16 +19,15 @@ from tl_core.ledger import Event
 from tl_mod_correspondence.views import ClockView, ItemView, RecipientView
 
 from tl_tui.client import ClientInterface
-from tl_tui.details import TECHNICAL_SECTION, DetailRow, file_rows, register
+from tl_tui.details import TECHNICAL_SECTION, DetailRow, file_rows, plain_code, register
 from tl_tui.details.generic import technical_rows
 from tl_tui.display import (
     Labels,
     actor_label,
-    code_label,
     domain_label,
     humanize,
 )
-from tl_tui.text import EMPTY, timestamp
+from tl_tui.text import EMPTY
 from tl_tui.timeline_text import timeline_lines, timeline_rows
 
 ITEM_TYPE = "correspondence.Correspondence"
@@ -91,21 +90,18 @@ def timeline_detail_rows(
 
 
 def clock_value(clock: ClockView) -> str:
-    """One clock under an item in words: ``Running · due 2026-11-02 · 14 calendar days left``."""
+    """One clock under an item in words: ``Running · due 2026-11-02 · 14 calendar days left``,
+    ``Met on 2026-10-12``."""
+    state = humanize(clock.effective_state)
+    if clock.closed_on:
+        return f"{state} on {clock.closed_on}"
+    parts = [state, f"due {clock.due_on}"]
     left = clock.days_left
-    parts = [humanize(clock.effective_state), f"due {clock.due_on}"]
     if left is not None:
-        parts.append(
-            f"{abs(left)} {clock.day_type} day{'s' if abs(left) != 1 else ''} "
-            + ("over" if left < 0 else "left")
-        )
+        unit = f"{clock.day_type} day{'s' if abs(left) != 1 else ''}"
+        parts.append(f"{abs(left)} {unit} {'over' if left < 0 else 'left'}")
     if clock.paused_on:
         parts.append(f"paused since {clock.paused_on}")
-    if clock.closed_on:
-        parts.append(
-            f"closed {clock.closed_on}"
-            + (f" ({humanize(clock.closed_reason)})" if clock.closed_reason else "")
-        )
     return " · ".join(parts)
 
 
@@ -152,14 +148,12 @@ def item_content(
         DetailRow("Medium", humanize(view.medium), section="Key facts"),
         DetailRow(
             "Confidentiality",
-            code_label(labels, "confidentiality", view.confidentiality),
+            plain_code(labels, "confidentiality", view.confidentiality),
             section="Key facts",
         ),
         DetailRow("Thread", _or_empty(view.thread_number), section="Key facts"),
         DetailRow("Replies to", _or_empty(view.responds_to_number), section="Key facts"),
     ]
-    if view.delivery != "none":
-        facts.append(DetailRow("Delivery", humanize(view.delivery), section="Key facts"))
     dates = [
         DetailRow("Received", _or_empty(view.received_on), section="Dates"),
         DetailRow("Sent", _or_empty(view.sent_on), section="Dates"),
@@ -171,11 +165,6 @@ def item_content(
             DetailRow("Answered on", _or_empty(view.responded_on), section="Dates"),
         ]
     dates.append(DetailRow("Triaged on", _or_empty(view.triaged_on), section="Dates"))
-    if record is not None:
-        dates += [
-            DetailRow("Created", timestamp(record.get("created_at")), section="Dates", panel=False),
-            DetailRow("Updated", timestamp(record.get("updated_at")), section="Dates", panel=False),
-        ]
     rows = [DetailRow("", _or_empty(view.body), section="Message")]
     if suggestion:
         rows.append(DetailRow("", suggestion, section="Suggestion"))
@@ -189,6 +178,7 @@ def item_content(
             if record is not None
             else [DetailRow("Record id", view.id, True, TECHNICAL_SECTION)]
         ),
+        DetailRow("Delivery", _or_empty(view.delivery), True, TECHNICAL_SECTION),
         DetailRow("Received via", _or_empty(view.received_via), True, TECHNICAL_SECTION),
         DetailRow("External reference", _or_empty(view.external_ref), True, TECHNICAL_SECTION),
     ]

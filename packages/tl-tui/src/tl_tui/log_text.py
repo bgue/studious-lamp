@@ -110,7 +110,7 @@ def actions_text(actions: Sequence[ActionLike], *, can_open: bool) -> str:
 FLEX_NAMES = ("Subject", "Title")  # the column that takes the remaining width and shortens
 CELL_PADDING = 2  # a table cell has one cell of padding on each side
 SCROLLBAR = 2  # room kept for the table's vertical scrollbar
-MIN_FLEX = 12  # the flexible column never shortens below this many cells
+MIN_FLEX = 24  # the flexible column never shortens below this many cells
 CRUMB_PADDING_CELLS = 4  # the screen's one-cell padding and the frame, each side
 
 
