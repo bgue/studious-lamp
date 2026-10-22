@@ -13,7 +13,7 @@ D1 2026-10-21 ModuleSpec.actions hook (additive), holds(level) = authorizer deci
 D2 2026-10-21 server returns command+label; key/form table lives in TUI (log_actions.py in S3, own table in S4)
 D3 2026-10-21 Haiku only T01/T02; all tl-tui work review: full (orchestrator r1)
 D4 2026-10-21 PDF render in child process, timeout + size/pixel/memory caps, cache by sha256 (hostile PDFs crash native lib)
-D5 2026-10-21 owner: viewer + thumbnail; pypdfium2 5.14 + textual-image 0.14 (pillow 13); licence check gates; top/bottom, right at 160+
+D5 2026-10-21 owner: viewer + thumbnail; pypdfium2 5.14 + rich-pixels 3.0.1 (MIT; D9 replaces LGPL textual-image) (pillow 13); licence check gates; top/bottom, right at 160+
 D6 2026-10-21 raw code labels fixed in labels_load/display (S3 only owns both); schema/** never edited by these pieces
 D7 2026-10-21 client interface additions all in S1 (allowed_actions, list_record_files, fetch_file, document_command, engineering_command)
 D8 2026-10-21 plan check not asked: 8 items, under the ~10 limit
