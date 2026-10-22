@@ -142,7 +142,9 @@ guards; the default stays closed. Learning L-P1-I2-8 records the pattern.
 
 ## Addendum 2026-10-21: which actions a viewer may take on a record (P1-UX2-S1)
 
-`ModuleSpec.actions` maps a record type of the module to a hook `(conn, record_id, holds) -> list[ActionOffer]`. The core
+`ModuleSpec.actions` maps a record type of the module to a hook `(conn, record_id, holds) -> list[ActionOffer]`. The hook is
+optional and additive: its default is no actions, existing modules and commands are unchanged, and it is not a change to the
+core interfaces of 03 §7. The core
 asks it through `tl_core.actions.allowed_actions` (`GET /records/{id}/actions`; `ClientInterface.allowed_actions`).
 
 1. **Visibility first.** A record the viewer may not read answers `RecordNotFoundError` with the text of a missing one, before
