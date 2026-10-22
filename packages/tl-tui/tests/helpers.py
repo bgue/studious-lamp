@@ -29,3 +29,11 @@ def screen_text(app: App[Any]) -> str:
     """The rendered screen as plain text, one line per terminal row (for assertions)."""
     strips = app.screen._compositor.render_strips()  # pyright: ignore[reportPrivateUsage]
     return "\n".join(strip.text.rstrip() for strip in strips)
+
+
+async def settle(pilot: Pilot[Any]) -> None:
+    """Let a pending key press finish, including the workers a ``LogScreen`` starts to read its
+    rows and the actions of the highlighted row (P1-UX2-S3)."""
+    await pilot.pause()
+    await pilot.app.workers.wait_for_complete()
+    await pilot.pause()

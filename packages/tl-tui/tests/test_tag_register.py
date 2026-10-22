@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Awaitable, Callable
 
 from fakes import SCOPE, FakeClient
-from helpers import run_pilot, screen_text
+from helpers import run_pilot, screen_text, settle
 from textual.pilot import Pilot
 from textual.widgets import DataTable, Input, Static
 from tl_schema.forms import ConformanceIssue
@@ -37,7 +37,7 @@ def scenario(
 
     async def go(pilot: Pilot[None]) -> None:
         await pilot.press("f8")
-        await pilot.pause()
+        await settle(pilot)
         assert isinstance(app.screen, TagRegisterScreen)
         await steps(pilot, app, app.screen)
 
@@ -49,20 +49,20 @@ def numbers(screen: TagRegisterScreen) -> list[str]:
 
 
 def status(screen: TagRegisterScreen) -> str:
-    return str(screen.query_one("#tags-status", Static).render())
+    return str(screen.query_one("#log-status", Static).render())
 
 
 def test_f8_lists_the_tags_in_service_by_number_and_describes_the_first() -> None:
     async def steps(pilot: Pilot[None], app: TlApp, screen: TagRegisterScreen) -> None:
         text = screen_text(app)
-        assert "Tags of P123" in text
+        assert "P123 › Tags › 47-FV-1001: Feed gas control" in text
         assert numbers(screen) == ["47-FV-1001", "47-FV-1002", "47-HV-1003", "LEGACY-1"]
-        assert screen.query_one("#tags-table", DataTable).row_count == 4
+        assert screen.query_one("#log-table", DataTable).row_count == 4
         assert "does not fit" in text and "✗ nonconformant" in text
         assert "lacks:" in text and "Valve data" in text  # the detail of the first tag
         assert "4 of 4 tags" in text
         await pilot.press("escape")
-        await pilot.pause()
+        await settle(pilot)
         assert not isinstance(app.screen, TagRegisterScreen)
 
     scenario(world(), steps)
@@ -71,7 +71,7 @@ def test_f8_lists_the_tags_in_service_by_number_and_describes_the_first() -> Non
 def test_moving_the_cursor_describes_the_tag_it_lands_on() -> None:
     async def steps(pilot: Pilot[None], app: TlApp, screen: TagRegisterScreen) -> None:
         await pilot.press("down", "down", "down")
-        await pilot.pause()
+        await settle(pilot)
         assert screen.detail is not None and screen.detail.number == "LEGACY-1"
         text = screen_text(app)
         assert "number does not fit the pattern" in text
@@ -83,18 +83,18 @@ def test_moving_the_cursor_describes_the_tag_it_lands_on() -> None:
 def test_c_walks_the_classes_v_shows_the_violations_and_a_shows_the_ended() -> None:
     async def steps(pilot: Pilot[None], app: TlApp, screen: TagRegisterScreen) -> None:
         await pilot.press("c")
-        await pilot.pause()
+        await settle(pilot)
         assert screen.class_code == "ControlValve"
         assert numbers(screen) == ["47-FV-1001", "47-FV-1002"]
         assert "class Control valve" in status(screen)
         await pilot.press("c", "c")
-        await pilot.pause()
+        await settle(pilot)
         assert screen.class_code is None and len(numbers(screen)) == 4
         await pilot.press("v")
-        await pilot.pause()
+        await settle(pilot)
         assert numbers(screen) == ["LEGACY-1"] and "violations only" in status(screen)
         await pilot.press("v", "a")
-        await pilot.pause()
+        await settle(pilot)
         assert "47-FV-0999" in numbers(screen) and "incl. ended" in status(screen)
 
     scenario(world(), steps)
@@ -103,13 +103,13 @@ def test_c_walks_the_classes_v_shows_the_violations_and_a_shows_the_ended() -> N
 def test_the_filter_matches_the_number_or_the_title_and_escape_clears_it() -> None:
     async def steps(pilot: Pilot[None], app: TlApp, screen: TagRegisterScreen) -> None:
         await pilot.press("slash")
-        screen.query_one("#tags-filter", Input).value = "feed"
-        await pilot.pause()
+        screen.query_one("#log-filter", Input).value = "feed"
+        await settle(pilot)
         assert numbers(screen) == ["47-FV-1001"]
         await pilot.press("escape")
-        await pilot.pause()
+        await settle(pilot)
         assert isinstance(app.screen, TagRegisterScreen) and len(numbers(screen)) == 4
-        assert screen.query_one("#tags-filter", Input).value == ""
+        assert screen.query_one("#log-filter", Input).value == ""
 
     scenario(world(), steps)
 
@@ -117,7 +117,7 @@ def test_the_filter_matches_the_number_or_the_title_and_escape_clears_it() -> No
 def test_typing_c_in_the_filter_is_text_not_a_command() -> None:
     async def steps(pilot: Pilot[None], app: TlApp, screen: TagRegisterScreen) -> None:
         await pilot.press("slash", "c")
-        await pilot.pause()
+        await settle(pilot)
         assert screen.class_code is None
 
     scenario(world(), steps)
@@ -130,7 +130,7 @@ def test_f5_reads_again_and_keeps_the_highlighted_tag() -> None:
         await pilot.press("down")
         client.add_tag("P123", "10-PT-0001", class_code=None)
         await pilot.press("f5")
-        await pilot.pause()
+        await settle(pilot)
         assert numbers(screen)[0] == "10-PT-0001"
         current = screen.current()
         assert current is not None and current.number == "47-FV-1002"
@@ -143,7 +143,7 @@ def test_a_company_scope_has_no_tag_register() -> None:
 
     async def go(pilot: Pilot[None]) -> None:
         await pilot.press("f8")
-        await pilot.pause()
+        await settle(pilot)
         assert not isinstance(app.screen, TagRegisterScreen)
 
     run_pilot(app, go)
@@ -153,12 +153,12 @@ def test_when_the_filter_matches_nothing_the_panel_says_so_and_no_tag_is_describ
     async def steps(pilot: Pilot[None], app: TlApp, screen: TagRegisterScreen) -> None:
         assert screen.detail is not None  # the first tag is described
         await pilot.press("slash")
-        screen.query_one("#tags-filter", Input).value = "no such tag"
-        await pilot.pause()
+        screen.query_one("#log-filter", Input).value = "no such tag"
+        await settle(pilot)
         assert numbers(screen) == [] and screen.detail is None
         assert "No tag matches." in screen_text(app)
         await pilot.press("escape")
-        await pilot.pause()
+        await settle(pilot)
         assert screen.detail is not None and screen.detail.number == "47-FV-1001"
 
     scenario(world(), steps)
