@@ -26,7 +26,17 @@ from textual.screen import ModalScreen
 from textual.widgets import DataTable, Input, Static
 
 from tl_tui.errors import CLIENT_ERRORS, describe_error
-from tl_tui.log_text import SEPARATOR, actions_text, breadcrumb_text, is_wide
+from tl_tui.log_text import (
+    SEPARATOR,
+    actions_text,
+    breadcrumb_text,
+    fit_cell,
+    flex_index,
+    flex_width,
+    is_wide,
+    table_width,
+    visible_columns,
+)
 
 RESERVED_KEYS: frozenset[str] = frozenset(
     {
@@ -132,8 +142,16 @@ class LogScreen[Row](ModalScreen[None]):
         """``(number, title)`` of the record, for the breadcrumb."""
         raise NotImplementedError
 
-    def panel_text(self, row: Row | None) -> str:
+    def panel_text(self, row: Row | None) -> str | Text:
+        """The panel of ``row``: a plain string, or a styled ``Text`` from ``layout.render``."""
         raise NotImplementedError
+
+    def keep_columns(self) -> Sequence[str]:
+        """The columns that always show. Any other column whose value is the same in every
+        shown row (two or more) is hidden, and comes back when two values appear."""
+        names = list(self.columns())
+        flex = flex_index(names)
+        return [*names[:1], "State", *([names[flex]] if flex is not None else [])]
 
     def actions_for(self, row: Row) -> Sequence[LogAction]:
         """What the viewer may do to ``row`` now (called off the UI thread); may raise
@@ -184,6 +202,8 @@ class LogScreen[Row](ModalScreen[None]):
     def on_resize(self, event: events.Resize) -> None:
         self._set_layout(event.size.width)
         self._show_crumb()
+        if self._alive():
+            self._draw_table(self._key())  # the subject column shortens to the width it has
 
     def _set_layout(self, width: int) -> None:
         self.set_class(is_wide(width), "-wide")
@@ -222,16 +242,38 @@ class LogScreen[Row](ModalScreen[None]):
             for row in self.rows
             if not needle or needle in " ".join(self.row_cells(row)).lower()
         ]
+        self._draw_table(keep)
+        self.say(self.summary_text())
+        self._show_row(force=reread)
+
+    def _draw_table(self, keep: str | None) -> None:
+        """Fill the table from ``self.shown``: the columns that vary (``keep_columns`` always),
+        the subject shortened with ``…`` to the width left after the other columns; the cursor
+        stays on ``keep``."""
+        names = list(self.columns())
+        cells = [list(self.row_cells(row)) for row in self.shown]
+        columns = visible_columns(names, cells, self.keep_columns())
+        shown_names = [names[i] for i in columns]
+        shown_cells = [[row[i] for i in columns] for row in cells]
+        flex = flex_index(shown_names)
+        width = self.size.width
+        if flex is not None and width > 0:
+            room = flex_width(
+                table_width(width, wide=is_wide(width)), shown_names, shown_cells, flex
+            )
+            shown_cells = [
+                [fit_cell(cell, room) if i == flex else cell for i, cell in enumerate(row)]
+                for row in shown_cells
+            ]
         table = self.query_one("#log-table", DataTable)
-        table.clear()
-        for row in self.shown:
+        table.clear(columns=True)
+        table.add_columns(*shown_names)
+        for row, row_cells in zip(self.shown, shown_cells, strict=True):
             # Text, not str: a cell is read as markup, and a title such as [a, b] is not markup
-            table.add_row(*(Text(cell) for cell in self.row_cells(row)), key=self.row_key(row))
+            table.add_row(*(Text(cell) for cell in row_cells), key=self.row_key(row))
         if self.shown:
             keys = [self.row_key(row) for row in self.shown]
             table.move_cursor(row=keys.index(keep) if keep in keys else 0)
-        self.say(self.summary_text())
-        self._show_row(force=reread)
 
     def current(self) -> Row | None:
         table = self.query_one("#log-table", DataTable)

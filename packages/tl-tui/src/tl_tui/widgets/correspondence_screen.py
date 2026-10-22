@@ -17,6 +17,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import ClassVar
 
+from rich.text import Text
 from textual.binding import Binding, BindingType
 from textual.widgets import DataTable, Input
 from tl_mod_correspondence.handlers.clocks import SweepClocks
@@ -30,15 +31,16 @@ from tl_tui.correspondence_text import (
     PLAIN_CLOCK_COLUMNS,
     REGISTER_COLUMNS,
     clock_cells,
-    clock_lines,
-    item_lines,
+    clock_page,
+    item_page,
     next_mode,
     register_cells,
     summary_line,
 )
-from tl_tui.display import Labels, mode_of
+from tl_tui.display import Labels, humanize, mode_of
 from tl_tui.errors import CLIENT_ERRORS, describe_error
 from tl_tui.labels_load import load_labels
+from tl_tui.layout import Page, Section, identity_line, prop, render, state_line
 from tl_tui.log_actions import (
     ACTION_UI,
     ENVELOPE,
@@ -102,6 +104,7 @@ class CorrespondenceScreen(LogScreen[RegisterLineView | ClockView]):
         self._labelled = False
         self._flash = ""  # a note for the status line that the next reload would otherwise replace
         self._items: dict[str, tuple[ItemView, SuggestionView | None]] = {}
+        self._panels: dict[tuple[str, bool], Text] = {}  # panels drawn since the last read
 
     # --- the log's hooks -----------------------------------------------------------------
 
@@ -120,6 +123,7 @@ class CorrespondenceScreen(LogScreen[RegisterLineView | ClockView]):
             )
             self._labelled = True
         self._items = {}
+        self._panels = {}
         if self.mode == "clocks":
             self.clocks = self.client.list_clocks(self.project, open_only=not self.closed_too)
             return self.clocks
@@ -153,21 +157,49 @@ class CorrespondenceScreen(LogScreen[RegisterLineView | ClockView]):
             found = self._items[row.id] = (item, suggestion)
         return found
 
-    def panel_text(self, row: RegisterLineView | ClockView | None) -> str:
-        """The highlighted row in full (one read per row)."""
+    def panel_text(self, row: RegisterLineView | ClockView | None) -> str | Text:
+        """The highlighted row in full (one read per row until the rows are read again)."""
         self.suggestion = None
         technical = mode_of(self.app).technical
-        if isinstance(row, ClockView):
-            return "\n".join(clock_lines(row, self.labels, technical=technical))
         if row is None:
             return "Nothing here." if self.mode != "inbox" else "Nothing is waiting for triage."
+        if isinstance(row, ClockView):
+            return render(clock_page(row, self.labels, technical=technical))
         if row.kind != "item":
-            return f"{row.number}  {row.state}  {row.subject}  ({row.kind})"
+            return render(self._source_page(row))
         try:
             item, self.suggestion = self._detail(row)
+            found = self._panels.get((row.id, technical))
+            if found is None:
+                found = self._panels[(row.id, technical)] = render(
+                    item_page(
+                        item,
+                        self.suggestion,
+                        self.labels,
+                        technical=technical,
+                        client=self.client,
+                        project=self.project,
+                    )
+                )
         except CLIENT_ERRORS as exc:
             return describe_error(exc)
-        return "\n".join(item_lines(item, self.suggestion, self.labels, technical=technical))
+        return found
+
+    @staticmethod
+    def _source_page(row: RegisterLineView) -> Page:
+        """A register line that is not an item (a transmittal): its few facts."""
+        facts = Section(
+            "Key facts",
+            (
+                prop("Kind", humanize(row.kind)),
+                prop("Direction", humanize(row.direction)),
+                prop("Date", row.on),
+                prop("With", row.counterparty),
+            ),
+        )
+        return Page(
+            identity_line(row.number, row.subject), state_line(humanize(row.state)), (facts,)
+        )
 
     def actions_for(self, row: RegisterLineView | ClockView) -> Sequence[LogAction]:
         if isinstance(row, ClockView) or row.kind != "item":

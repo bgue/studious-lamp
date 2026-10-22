@@ -18,10 +18,11 @@ from tl_core.ledger import Event
 from tl_core.settings.layers import project_of_scope
 
 from tl_tui.client import ClientInterface
-from tl_tui.details import DetailRow, details_for
+from tl_tui.details import DetailRow, details_for, rows_page
 from tl_tui.display import Labels, actor_label, humanize, mode_of
 from tl_tui.errors import CLIENT_ERRORS, describe_error
 from tl_tui.labels_load import load_labels
+from tl_tui.layout import plain_lines, render
 from tl_tui.messages import CloseRecord, RecordChanged, StatusMessage, StepRecord
 from tl_tui.text import EMPTY, conformance_mark, timestamp
 from tl_tui.widgets.file_panel import FilePanel
@@ -50,19 +51,10 @@ def _sorted_keys(value: Any) -> str:
 
 
 def details_lines(rows: list[DetailRow]) -> str:
-    """The Details rows, one labelled line each, values lined up after the longest label.
-
-    A value of several lines hangs under the first (the timeline times); a long line wraps in the
-    widget, whole.
-    """
-    width = max((len(row.label) for row in rows), default=0) + 2
-    lines: list[str] = []
-    for row in rows:
-        first, *more = row.value.split("\n")
-        line = f"{row.label:<{width}}{first}"
-        lines.append(line if first else line.rstrip())  # a heading row has no value
-        lines.extend(" " * width + line for line in more)
-    return "\n".join(lines)
+    """The Details rows as text: named sections, each a heading and its lines, one blank line
+    between them; a property line is ``Label  value`` with the values of a section lined up after
+    its longest label (``tl_tui.layout``). The rows are already filtered for the display mode."""
+    return "\n".join(plain_lines(rows_page(rows, technical=True), identity=False))
 
 
 _EVENT_WORDS: dict[str, str] = {
@@ -237,8 +229,9 @@ class RecordView(Vertical, can_focus=True):
             self._labels_for(record),
             mode_of(self.app),
         )
-        self.details = details_lines(rows)
-        body.update(self.details)
+        page = rows_page(rows, technical=True)  # the rows are already filtered for the mode
+        self.details = "\n".join(plain_lines(page, identity=False))
+        body.update(render(page, identity=False))
 
     def _current_labels(self) -> Labels:
         """The labels for the shown record; no labels before a record is read."""

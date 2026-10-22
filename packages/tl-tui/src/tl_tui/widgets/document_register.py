@@ -16,8 +16,9 @@ from __future__ import annotations
 from collections.abc import Callable, Sequence
 from typing import ClassVar
 
+from rich.text import Text
 from textual.binding import Binding, BindingType
-from textual.widgets import Input
+from textual.widgets import Input, Static
 from tl_core.actions import ActionOffer
 from tl_core.services.commands import Command
 from tl_mod_documents.handlers.documents import SupersedeDocument, VoidDocument
@@ -28,7 +29,8 @@ from tl_tui.client import ClientInterface
 from tl_tui.display import Labels, mode_of
 from tl_tui.document_text import (
     COLUMNS,
-    detail_lines,
+    document_panel_pages,
+    file_revision,
     next_choice,
     row_cells,
     stale_links,
@@ -36,6 +38,7 @@ from tl_tui.document_text import (
 )
 from tl_tui.errors import CLIENT_ERRORS, describe_error
 from tl_tui.labels_load import load_labels
+from tl_tui.layout import HEADING_STYLE, render
 from tl_tui.widgets.action_form import ActionFormScreen, FormField
 from tl_tui.widgets.file_panel import FilePanel
 from tl_tui.widgets.log_screen import LogAction, LogScreen
@@ -63,7 +66,8 @@ class DocumentRegisterScreen(LogScreen[DocumentView]):
     ]
 
     DEFAULT_CSS = """
-    DocumentRegisterScreen FilePanel { margin-top: 1; }
+    DocumentRegisterScreen #doc-files-head { margin-top: 1; height: 1; }
+    DocumentRegisterScreen #doc-links { margin-top: 1; height: auto; }
     """
 
     def __init__(
@@ -159,11 +163,13 @@ class DocumentRegisterScreen(LogScreen[DocumentView]):
             self._full[row.number] = found
         return found
 
-    def panel_text(self, row: DocumentView | None) -> str:
-        """The highlighted document with its revisions and links; the files go under it."""
+    def panel_text(self, row: DocumentView | None) -> str | Text:
+        """The highlighted document: identity, state, key facts and revisions. The files list
+        (a widget) follows, then the links."""
         if row is None:
             self.detail = None  # nothing is highlighted, so nothing is described
             self._show_files(None)
+            self._show_links(None)
             return "No document matches."
         try:
             full = self.full(row)
@@ -172,22 +178,37 @@ class DocumentRegisterScreen(LogScreen[DocumentView]):
             self.say(describe_error(exc), error=True)
         self.detail = full
         self._show_files(full)
-        technical = mode_of(self.app).technical
-        return "\n".join(detail_lines(full, self.labels, technical=technical))
+        top, links = document_panel_pages(full, self.labels, technical=mode_of(self.app).technical)
+        self._show_links(render(links))
+        return render(top)
+
+    def _show_links(self, text: Text | None) -> None:
+        for found in self.query(Static).filter("#doc-links"):
+            found.update(text if text is not None else "")
 
     # --- the files of the current revision -------------------------------------------------
 
     def on_mount(self) -> None:
         self.files = FilePanel(self.client, id="doc-files")
-        self.query_one("#log-panel").mount(self.files)
+        panel = self.query_one("#log-panel")
+        panel.mount(
+            Static(Text("Files", style=HEADING_STYLE), markup=False, id="doc-files-head"),
+            self.files,
+        )
+        panel.mount(Static("", markup=False, id="doc-links"))
+
+    def on_file_panel_listed(self, message: FilePanel.Listed) -> None:
+        """The files were read: the heading says how many."""
+        message.stop()
+        count = message.count
+        self.query_one("#doc-files-head", Static).update(
+            Text(f"Files ({count})" if count else "Files", style=HEADING_STYLE)
+        )
 
     @staticmethod
     def file_revision(view: DocumentView) -> RevisionView | None:
         """The revision whose file is shown and opened: the current one, else the newest."""
-        current = [r for r in view.revisions if r.is_current]
-        if current:
-            return current[0]
-        return view.revisions[-1] if view.revisions else None
+        return file_revision(view)
 
     def _show_files(self, view: DocumentView | None) -> None:
         if self.files is None:

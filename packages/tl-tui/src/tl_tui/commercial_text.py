@@ -14,11 +14,16 @@ from __future__ import annotations
 from tl_mod_correspondence.reports_commercial import CommercialLine, CommercialRegister
 from tl_mod_correspondence.views_domain import CommercialView
 
-from tl_tui.correspondence_text import clock_line
-from tl_tui.display import Labels, code_label, domain_label, humanize
+from tl_tui.client import ClientInterface
+from tl_tui.details import rows_page, since_of
+from tl_tui.details.commercial import commercial_content
+from tl_tui.display import Labels, domain_label, humanize
+from tl_tui.layout import Page, identity_line, plain_lines, state_line
+from tl_tui.text import EMPTY
 
 COMMERCIAL_COLUMNS = (
     "Number",
+    "Subject",
     "State",
     "Kind",
     "Aware",
@@ -28,7 +33,6 @@ COMMERCIAL_COLUMNS = (
     "Cur",
     "Estimated",
     "Assessed",
-    "Subject",
 )
 
 
@@ -41,14 +45,14 @@ def bar_text(line: CommercialLine) -> str:
     (``running``, ``met``, ...), ``-`` for an item with no bar."""
     if line.time_bar_late:
         return "LATE"
-    return line.time_bar_state or "-"
+    return line.time_bar_state or EMPTY
 
 
 def _bar_plain(line: CommercialLine) -> str:
-    """``LATE`` as before; otherwise the bar's state in words (``Running``), ``-`` for no bar."""
+    """``LATE`` as before; otherwise the bar's state in words (``Running``), ``—`` for no bar."""
     if line.time_bar_late:
         return "LATE"
-    return humanize(line.time_bar_state) if line.time_bar_state else "-"
+    return humanize(line.time_bar_state) if line.time_bar_state else EMPTY
 
 
 def commercial_cells(
@@ -62,20 +66,20 @@ def commercial_cells(
         bar = bar_text(line)
     else:
         state = humanize(line.state)
-        kind = domain_label(_labels(labels), "commercial", line.subtype) if line.subtype else "-"
+        kind = domain_label(_labels(labels), "commercial", line.subtype) if line.subtype else EMPTY
         bar = _bar_plain(line)
     return (
         line.number,
+        line.subject,
         state,
         kind,
-        line.aware_on or "-",
-        line.time_bar_due or "-",
-        "-" if line.time_bar_days_left is None else str(line.time_bar_days_left),
+        line.aware_on or EMPTY,
+        line.time_bar_due or EMPTY,
+        EMPTY if line.time_bar_days_left is None else str(line.time_bar_days_left),
         bar,
-        line.currency or "-",
-        line.estimated_value or "-",
-        line.assessed_value or "-",
-        line.subject,
+        line.currency or EMPTY,
+        line.estimated_value or EMPTY,
+        line.assessed_value or EMPTY,
     )
 
 
@@ -99,56 +103,30 @@ def commercial_summary(
     return " | ".join(parts)
 
 
+def commercial_page(
+    view: CommercialView,
+    labels: Labels | None = None,
+    *,
+    technical: bool = False,
+    client: ClientInterface | None = None,
+) -> Page:
+    """The panel under the register (skill ``tui-layout``): the identity and state lines, the
+    basis, key facts, cost and schedule figures, assessment, clocks and files. With a ``client``
+    the files and the day the state began are read; ``technical`` keeps the raw state and adds
+    the record id."""
+    state = view.state if technical else humanize(view.state)
+    since = since_of(client, view.id) if client is not None else None
+    return rows_page(
+        commercial_content(view, _labels(labels), client=client),
+        identity=identity_line(view.number, view.subject),
+        state=state_line(state, since),
+        technical=technical,
+        panel=True,
+    )
+
+
 def commercial_lines(
     view: CommercialView, labels: Labels | None = None, *, technical: bool = False
 ) -> list[str]:
-    """The panel under the register: the highlighted notice, its figures, assessment and clocks.
-    ``technical`` adds the record id and the clock keys, and keeps the raw kind and states."""
-    lab = _labels(labels)
-    money = f"{view.currency or '-'} {view.estimated_value or '-'}"
-    days = "-" if view.schedule_impact_days is None else str(view.schedule_impact_days)
-    if technical:
-        state, kind, klass = view.state, view.subtype or "-", view.confidentiality
-    else:
-        state = humanize(view.state)
-        kind = domain_label(lab, "commercial", view.subtype) if view.subtype else "-"
-        klass = code_label(lab, "confidentiality", view.confidentiality)
-    lines = [f"{view.number}  {state}  {kind}  class {klass}"]
-    if technical:
-        lines.append(f"record {view.id}")
-    lines += [
-        f"subject: {view.subject}",
-        f"clause {view.clause or '-'}  aware on {view.aware_on or '-'}  "
-        f"issued {view.issued_on or '-'}",
-        f"estimated {money}  hours {view.estimated_hours or '-'}  schedule {days} days",
-    ]
-    if view.cost_code_impacts:
-        lines.append(
-            "cost codes: "
-            + ", ".join(
-                f"{i['cost_code']}={i.get('amount') or i.get('hours') or '-'}"
-                for i in view.cost_code_impacts
-            )
-        )
-    if view.entitlement_basis:
-        lines.append(f"basis: {view.entitlement_basis}")
-    if view.derived_from_number:
-        lines.append(f"escalated from {view.derived_from_number}")
-    if view.assessment_status:
-        status = (
-            view.assessment_status.replace("_", " ")
-            if technical
-            else humanize(view.assessment_status)
-        )
-        assessment = (
-            f"assessment ({view.assessed_on or '-'}): "
-            f"{status} {view.currency or ''} "
-            f"{view.assessed_value or '-'}"
-        )
-        if view.assessment_note:
-            assessment += f" ({view.assessment_note})"
-        lines.append(assessment)
-    if view.clocks:
-        lines.append("clocks:")
-        lines.extend(f"  {clock_line(c, technical=technical)}" for c in view.clocks)
-    return lines
+    """The panel as plain lines (no client: no files)."""
+    return plain_lines(commercial_page(view, labels, technical=technical))

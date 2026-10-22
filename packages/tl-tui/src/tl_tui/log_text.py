@@ -103,3 +103,65 @@ def actions_text(actions: Sequence[ActionLike], *, can_open: bool) -> str:
     if can_open:
         cells.append(OPEN_ACTION)
     return "  ".join(cells)
+
+
+# --- columns (P1-UX3; skill tui-layout, "Logs") ---------------------------------------------
+
+FLEX_NAMES = ("Subject", "Title")  # the column that takes the remaining width and shortens
+CELL_PADDING = 2  # a table cell has one cell of padding on each side
+SCROLLBAR = 2  # room kept for the table's vertical scrollbar
+MIN_FLEX = 12  # the flexible column never shortens below this many cells
+CRUMB_PADDING_CELLS = 4  # the screen's one-cell padding and the frame, each side
+
+
+def flex_index(names: Sequence[str]) -> int | None:
+    """The position of the Subject (or Title) column, ``None`` when the log has none."""
+    for name in FLEX_NAMES:
+        if name in names:
+            return list(names).index(name)
+    return None
+
+
+def visible_columns(
+    names: Sequence[str], rows: Sequence[Sequence[str]], keep: Sequence[str] = ()
+) -> list[int]:
+    """The positions of the columns to show: every column, except one that holds the same value
+    in every one of two or more rows (``Kind`` when each RFI is a request for information).
+
+    ``keep`` names the columns that always show (the number, the subject, the state). One row, or
+    none, hides nothing: a single row has no variation to report.
+    """
+    everything = list(range(len(names)))
+    if len(rows) < 2:
+        return everything
+    shown_ = [
+        index
+        for index in everything
+        if names[index] in keep or len({row[index] for row in rows}) > 1
+    ]
+    return shown_ or everything
+
+
+def fit_cell(text: str, width: int) -> str:
+    """``text`` shortened to ``width`` cells with a closing ``…``; as it is when it fits."""
+    if cell_len(text) <= width:
+        return text
+    return set_cell_size(text, max(width - 1, 1)).rstrip() + "…"
+
+
+def flex_width(total: int, names: Sequence[str], rows: Sequence[Sequence[str]], flex: int) -> int:
+    """The cells the flexible column may use in a table ``total`` cells wide: what is left after
+    the other columns (each as wide as its widest cell or its heading), at least ``MIN_FLEX``."""
+    used = SCROLLBAR + CELL_PADDING  # the flexible column's own padding
+    for index, name in enumerate(names):
+        if index == flex:
+            continue
+        used += CELL_PADDING + max([cell_len(name), *(cell_len(row[index]) for row in rows)])
+    return max(total - used, MIN_FLEX)
+
+
+def table_width(screen_width: int, *, wide: bool) -> int:
+    """Roughly the cells the list gets: the screen less its padding, three fifths of that when
+    the panel sits beside it (``log_text.is_wide``)."""
+    inner = max(screen_width - CRUMB_PADDING_CELLS, 1)
+    return inner * 3 // 5 if wide else inner
