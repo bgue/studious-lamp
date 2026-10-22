@@ -53,6 +53,7 @@ The Textual application shell, grid, record view, and forms; every screen reads 
 | `tl_tui.widgets.review_queue.ReviewQueueScreen`, `integration_screen.IntegrationScreen`, `tl_tui.integration_text` | modals, module | The integration layer (P1-I7). Review queue (`Ctrl+R`, any person): the values enrichers proposed, `a` accept, `x` reject (asks for a reason), `s` waiting or all. Registry (`Ctrl+E`, admins): endpoints, rules, actions, enrichers, apps, invocations and the inbound error queue (`[` `]` or `1`-`7`), `e` switches an app, endpoint, rule or enricher, `y` retries a failed delivery, the kill switch is in the title (changed in `F9`). Both call the allow-listed commands through `ClientInterface.integration_command` and read with `list_integration`; the service decides every rule |
 | `tl_tui.widgets.schedule_screen.ScheduleScreen`, `compare_screen.CompareScreen`, `activity_screen.ActivityScreen`, `tl_tui.schedule_text` | modals, module | Schedules (`F12`, P1-I4): the schedules and the snapshots of the highlighted one (the current one marked `*` and "(current)"), the panel with the snapshot, the look-ahead (`l`) or the orphaned links (`o`); `c` opens the comparison (sections added, removed, date shifts, float, logic, progress, durations, critical, `Right`/`Left` to move), `a` the activities (paged, `c` critical only, `/` filter) with the relationships and float trend of the highlighted one, `p` publishes the highlighted snapshot (the service decides who may). A short note shows while the links are still being checked. The text is pure functions in `schedule_text` |
 | `tl_tui.widgets.domain_screen.DomainScreen`, `tl_tui.rfi_text`, `tl_tui.commercial_text`, `tl_tui.evidence_text` | modal, module | RFIs, Commercial notices and the evidence trail (`Ctrl+G`, P1-I6): `1` the RFI log (response days, timing, impact flags), `2` the Commercial register (time bars with `LATE`, values by currency), `3` the evidence trail of the highlighted item (`e`) as the ledger knew it at the end of a day (`[` and `]` step the day, `0` is today). `o` open only, `v` overdue RFIs or running and late bars, `i` impact (RFI log). A person below a controller gets an empty register and is told why; the trail leaves out what the person may not read today. Reads only: `list_rfis`, `get_rfi`, `list_commercial`, `get_commercial`, `get_evidence_trail`. The text is pure functions |
+| `tl_tui.widgets.log_screen.LogScreen`, `LogAction`, `widgets.action_form.ActionFormScreen`, `FormField`, `tl_tui.log_text` | base modal, dataclasses, module | The shared log screen (P1-UX2): breadcrumb, list, panel (below, or right of the list from 160 columns), actions bar, keys row, status line. A log subclasses it and fills in its rows, panel and actions; `ActionFormScreen` asks for a reason or an answer before an action runs. See "Log screens" below. Text is pure functions in `log_text` |
 
 ## Plain and technical display (P1-UX)
 Every screen speaks plain language by default and an admin can switch the technical detail on with `Ctrl+D`
@@ -70,6 +71,41 @@ Every screen speaks plain language by default and an admin can switch the techni
   package refs, internal keys and record-type or property keys (`display.find_technical`). A new screen or key either
   gets walked or is listed in the test's exclusions. `KNOWN_LEAKS` stays empty.
 - `dev/tour/tourkit.py` runs the same check on every TUI screenshot and prints `LEAK <shot> <tokens>`.
+
+## Log screens (P1-UX2)
+Every log (a list of records with actions on the highlighted one) is a `widgets.log_screen.LogScreen` subclass. A new
+log never lays out its own screen and never adds a second standard.
+- **Layout**, top to bottom: `#log-crumb` (`P123 › RFI Log › P123-RFI-0328: title`, the record part empty when nothing is
+  selected; only the title is shortened), `#log-filter`, the list `#log-table`, the panel `#log-panel` of the
+  selected record, `#log-actions`, `#log-keys` (navigation and filters only), `#log-status` (the summary, or a refusal
+  as `! text`). Terminals of 160 columns or more (`log_text.is_wide`) put the panel right of the list (class `-wide`,
+  recomputed on every resize; the cursor stays on its row).
+- **Hooks** the log fills in: `LOG_NAME`, `KEY_HINTS`, `log_project`, `columns`, `load_rows`, `row_key`, `row_cells`
+  (plain text; read the mode with `mode_of(self.app)`), `row_record`, `panel_text`, `actions_for`, `summary_text`,
+  `open_row` (normally `open_record(...)`, called on Enter). `load_rows` and `actions_for` run off the UI thread and
+  may raise `CLIENT_ERRORS`; an answer for a row no longer highlighted is dropped.
+- **Actions**: `actions_for(row)` returns `LogAction(key, label, run)` for what the viewer may do to that row in its
+  current state, as the service says; the bar shows exactly those and `[Enter] Open record`. The base runs
+  `LogAction.run` through `attempt()`: a `CLIENT_ERRORS` refusal goes to the status line, a success reads the rows
+  again. An action that needs words first pushes an `ActionFormScreen(title, fields, confirm=...)` and sends the
+  command in the form's callback with `self.attempt(lambda: client.send(...))`; the form knows no command.
+- **Keys**: `/` filter, `F5` reload, `Esc` close (clears the filter first), `Enter` open. An action key never runs
+  while the filter box has focus. Two offered actions on one key, or one on a reserved key (`escape`, `enter`, `slash`,
+  `f5` and the list's navigation: `up`, `down`, `pageup`, `pagedown`, `home`, `end`, `space`, `tab`) or a binding of
+  the host, raise `ValueError` in a test run (headless) and are dropped in a real run.
+- **A log's own keys** (filters and views such as `o` open only, `v` overdue, `i` impact, `1`/`2`/`3` for the views
+  of a multi-view log like the domain screen): declare them in the host's `BINDINGS`; the action sets the host's
+  state and calls `self.reload()`; list them in `KEY_HINTS`. Those keys are then reserved and no action may use them.
+  A multi-view log keeps one `LogScreen` and switches `columns`, `load_rows` and `LOG_NAME` by its view state.
+- **Helpers** the host may call: `say(text, error=...)` (status line), `current()` (the highlighted row or None),
+  `reload()` (read the rows again).
+- **Mode**: Ctrl+D makes the app call `refresh_for_display_mode()` on every screen; the base redraws, so
+  `row_cells` and `panel_text` must both read `mode_of(self.app)`.
+- **160-column rule**: the layout is chosen by width alone; a log adds no layout of its own.
+- **Testing a log**: a small `LogScreen` subclass with three rows and fake actions pushed on a bare `App`, driven by
+  `helpers.run_pilot`; wait for the workers with `await pilot.app.workers.wait_for_complete()`. See
+  `tests/test_log_screen.py` (host pattern, stale answer, refusal, layout switch at 159/160, snapshots at 80 and 170).
+- Every new log uses `LogScreen`; the existing registers move to it in P1-UX2 S3 and S4.
 
 ## Depends on / used by
 - Depends on: `textual`, `tl_core` (services, query language, change feed), `tl_schema` (form metadata models), `tl_adapters` (only `tl_adapters.backend` / `tl_adapters.db`, in `embedded.py` and `main.py`), `tl_api` and `httpx2` (only `remote.py`).
