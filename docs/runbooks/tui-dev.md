@@ -36,6 +36,14 @@ Purpose: start the Textual TUI in embedded mode against the dev ledger (a SQLite
    A dev token still works where the server allows dev tokens (`TL_ENV` dev, test or ci): `export TL_TOKEN="$(uv run tl dev token add user:alice)"` skips the sign-in screen.
    Expected: the same screens, header `● remote`. A record written by someone else (another TUI, `tl record create`, an MCP agent) shows a `•` on its row for a few seconds; an open record shows `! Updated by user:x (now vN)`; an open edit form shows `✗ Conflict` and refuses to save until you cancel and open it again.
 
+6. Open files and see page 1 (the document register `F7`, the Files tab `6` of a record). `v` or Enter opens the chosen file in the system viewer; where the terminal shows colour the first page of a PDF is drawn in the panel. Control both with environment variables:
+   ```
+   TL_IMAGES=off     just tui   # text only: kind, size, page count (also what the tests use)
+   TL_IMAGES=kitty   just tui   # force the picture: kitty, iterm2 or sixel; any other value means off
+   TL_VIEWER_CMD="/path/to/record-path.sh" just tui   # run this instead of xdg-open/open; the file path is added as the last argument
+   ```
+   Without `TL_IMAGES` the terminal is detected from `KITTY_WINDOW_ID`, `TERM`, `TERM_PROGRAM`, `WT_SESSION` (never under tmux or screen). `TL_VIEWER_CMD` is split like a shell line but run without a shell. Pictures are cached in `~/.cache/throughline/preview` (`$XDG_CACHE_HOME`); delete the folder to clear it. Expected: the register's panel lists `sheet-B.pdf  PDF document  1.2 MB  3 pages`, `v` starts the viewer, the status line says `Opened sheet-B.pdf.`
+
 ## Verify
 - After a save, `uv run tl pset get --project P123 V-0001` shows the same values and the conformance level.
 - `uv run tl events tail --project P123 -n 5` shows the `Pset.ValuesSet` events.
