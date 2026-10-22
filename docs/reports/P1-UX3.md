@@ -41,3 +41,35 @@ Not touched, not run: `packages/tl-tui/tests/` `test_rfi_text`, `test_commercial
 - One row shows every column (a single row has nothing to compare). At 170 columns an RFI log whose columns all vary still overflows the list's three fifths and scrolls sideways; the 3:2 split is unchanged.
 - The correspondence highlight is shot at 200 columns for that reason.
 - `State` colour (green, amber, red) from the skill is not applied; headings are bold grey and labels dim.
+
+# Round 2: summary line, relevant fields, tables, short logs, one-line keys, colour
+
+**Deviation first:** again no test was run (owner's instruction); `just check` is clean. Two changes outside the TUI code: `dev/tour/tourkit.py` no longer sets `NO_COLOR` for the whole run (it made every screenshot grey; now only the `tl` command line runs with it), and `dev/tour/phase1.py` has the document-register needles in words. Every shot of both tours was regenerated, so colour shows in all of them. The highlight tour is byte-identical on two runs; no `LEAK` line in any tour.
+
+## What changed, screen by screen (before, after)
+
+| Screen | Before | After |
+|---|---|---|
+| Every log panel | identity and state only | a dim summary line under the state, 3 or 4 facts joined with ` · `, wrapped between facts at 56 cells (`layout.Page.summary`) |
+| RFI panel and Details | Kind row; clocks and timeline as run-on lines; no links | summary (discipline, needed by, to, days open); `Answer required, round 1/2`; clocks, timeline, files as tables; `Links (n)`; red `overdue 3 days` on the state line |
+| Letter panel and Details | `Domain: Letter` and `Medium: Letter`; Received, Sent, Triaged on for every letter; From `—` | summary (direction, with, reply due); Medium only when it differs from the domain; outgoing: Issued, Sent, drafter as From; incoming: Received, Triaged on, no To |
+| Clock panel | State, Due, Item repeated in Key facts | state `Running`, summary (due, days left, owner); Item, State, Due, Days left are Details-only rows |
+| Document panel and Details | `A(IFR)`, run-on revisions and links | `A, Issued for review` (scheme file labels); `Rev State Purpose Date Files` table; files `Name Type Size Pages`; links `Record Type Pin Status`, stale in red with `!`; Originator only when set |
+| Commercial, tag, schedule, review queue, integration, schema workbench, evidence trail panels | own text lines | layout pages with summary, Key facts and tables (tag: Lacks table, Number parts; schedule: snapshot, Contents, Checks, look-ahead and orphans as tables; schema: People, Status, tab section; enrichers: Properties table) |
+| Tag register | Number, Class, Status, Number check, Conformance, Title | Number, Title, Class, Status, Number check, Conformance; the state of a tag is its conformance |
+| Correspondence register | Dir, Domain (`Request for information`), `[kind]` suffix, 200 columns for no scroll | `In/out` (In, Out, Int), `Category` (RFI, Letter, Transmittal, Notice; `Untriaged` when no domain yet), shown at 170 columns without scrolling |
+| All logs | the list scrolled sideways when columns varied | `plan_columns`: constant columns hidden, `With` (and the document `Type`) shorten to 12 cells, then the least needed columns go (`*_DROP` lists), the subject keeps 26 cells; wide split 3:2 as before |
+| File panel | `> name  kind  size` and `v or Enter: open in viewer` | header `Name Type Size Pages`, selected row reversed when there are several, no hint |
+| Keys row | one long line, cut off | `Up/Down move`, the log's own keys, `Esc close`, `F1 more keys` (fits 80 and 100 columns by construction, `log_text.keys_row`); F1 in a log opens the key map with the log's keys on top |
+| State colour | none | green done, amber waiting or running, red overdue, late or refused on the state line, the state cells of every log, the record header and table cells (ANSI colours of the terminal theme, word always written) |
+
+## Stale pins for the next test run
+
+Not run, not edited: in `packages/tl-tui/tests/` the pins of `test_tag_text`, `test_tag_plain`, `test_schedule_text`, `test_schedule_plain`, `test_schedule_more_plain`, `test_schedule_screen_pages`, `test_integration_text`, `test_integration_screen`, `test_integration_plain`, `test_review_plain`, `test_schema_text`, `test_schema_screen`, `test_schema_plain`, `test_schema_enter`, `test_evidence_text`, `test_domain_screen`, `test_domain_plain`, `test_rfi_text`, `test_rfi_record`, `test_commercial_text`, `test_commercial_plain`, `test_correspondence_text`, `test_correspondence_plain`, `test_correspondence_screen`, `test_document_text`, `test_document_register`, `test_document_plain`, `test_document_flow`, `test_file_panel`, `test_log_screen` and `test_log_migration` (`#log-keys` is no longer `KEY_HINTS`; `KEY_HINTS` stays as the full key text), `test_log_text` (`table_width` is 3/5 minus 1, `flex_width` unchanged), `test_record_view` and `test_record_plain` (the header is a styled `Text`), `test_details_registry`, `test_record_files_tab`, `test_plain_walk`, the snapshots under `__snapshots__`, and the demos `dev/demos/p1_i2_demo.py`, `p1_i5_demo.py`, `p1_i6_demo.py`. New tests wanted: `layout.render` with tables, `wrap_facts`, `state_style`; `log_text.plan_columns` and `keys_row`; `document_text.status_labels`; `details.link_rows` and `file_rows`; `clock_names`.
+
+## Not done
+
+- `Email` as a category: the register line carries no medium, so an item with no domain reads `Untriaged`. Adding the medium to `RegisterLineView` changes the API schema (`docs/reference/openapi.json`) and was left alone.
+- A panel does not adapt to its width: a table wider than the panel (the revisions table at 160 columns) wraps its last columns; a summary breaks only between facts.
+- The Details tabs of schedules, schema packages and the other registry rows keep their generic rows; only the panels moved to the shared sections. Evidence facts still show stored codes (`early_warning`).
+- Keys rows of non-log screens (forms, admin, the review screens) are unchanged.

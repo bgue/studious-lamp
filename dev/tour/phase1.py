@@ -634,7 +634,7 @@ def section_register_tui(ws: Workspace) -> None:
             "ISO-1234",
             "Issued for review",
             "Issued for construction",
-            "Current (construction)",
+            "Superseded",
         )
         await pilot.press("r")
         await tk.until(pilot, lambda: "Re-pin a stale link" in tk.screen_text(app), "the dialog")
