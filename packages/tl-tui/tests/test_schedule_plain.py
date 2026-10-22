@@ -10,7 +10,7 @@ from __future__ import annotations
 from collections.abc import Awaitable, Callable
 
 from fakes import SCOPE, FakeClient
-from helpers import run_pilot, screen_text
+from helpers import run_pilot, screen_text, settle
 from textual.pilot import Pilot
 from textual.widgets import DataTable
 from tl_tui.app import TlApp
@@ -45,7 +45,7 @@ def scenario(
 
     async def go(pilot: Pilot[None]) -> None:
         await pilot.press("f12")
-        await pilot.pause()
+        await settle(pilot)
         assert isinstance(app.screen, ScheduleScreen)
         await steps(pilot, app, app.screen)
 
@@ -58,13 +58,13 @@ def test_enter_on_a_schedule_row_opens_the_record_and_escape_returns_to_the_same
 
     async def steps(pilot: Pilot[None], app: TlApp, screen: ScheduleScreen) -> None:
         await pilot.press("enter")
-        await pilot.pause()
+        await settle(pilot)
         assert isinstance(app.screen, RecordScreen)
         assert app.screen.view is not None and "Snapshots" in app.screen.view.details
         await pilot.press("escape")
-        await pilot.pause()
+        await settle(pilot)
         assert isinstance(app.screen, ScheduleScreen)
-        assert screen.query_one("#sc-schedules", DataTable).cursor_row == 0
+        assert screen.query_one("#log-table", DataTable).cursor_row == 0
         schedule = screen.current_schedule()
         assert schedule is not None and schedule.code == "MAIN"
 
@@ -77,13 +77,13 @@ def test_enter_on_a_snapshot_row_opens_the_snapshot_record() -> None:
 
     async def steps(pilot: Pilot[None], app: TlApp, screen: ScheduleScreen) -> None:
         await pilot.press("tab", "enter")  # the snapshot table, its first row: snapshot 2
-        await pilot.pause()
+        await settle(pilot)
         assert isinstance(app.screen, RecordScreen)
         assert app.screen.view is not None
         details = app.screen.view.details
         assert "2 of MAIN" in details and "Requested by" in details and "Current" in details
         await pilot.press("escape")
-        await pilot.pause()
+        await settle(pilot)
         assert isinstance(app.screen, ScheduleScreen)
         snap = screen.current_snapshot()
         assert snap is not None and snap.number == 2
@@ -96,7 +96,7 @@ def test_a_row_the_viewer_cannot_read_opens_as_no_record() -> None:
 
     async def steps(pilot: Pilot[None], app: TlApp, screen: ScheduleScreen) -> None:
         await pilot.press("tab", "enter")
-        await pilot.pause()
+        await settle(pilot)
         assert isinstance(app.screen, RecordScreen)
         text = screen_text(app)
         assert "No record" in text
@@ -122,12 +122,12 @@ def test_technical_mode_restores_the_key_and_the_command_and_back() -> None:
         assert "tl xer worker" not in screen_text(app)
         app.display_mode.technical = True
         screen.refresh_for_display_mode()
-        await pilot.pause()
+        await settle(pilot)
         text = screen_text(app)
         assert "MAIN#2  Processing" in text and "tl xer worker" in text
         app.display_mode.technical = False
         screen.refresh_for_display_mode()
-        await pilot.pause()
+        await settle(pilot)
         text = screen_text(app)
         assert "Snapshot 2  Processing" in text and "tl xer worker" not in text
         assert "MAIN#2" not in text

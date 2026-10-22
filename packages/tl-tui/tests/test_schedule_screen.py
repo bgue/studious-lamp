@@ -6,7 +6,7 @@ from collections.abc import Awaitable, Callable
 
 import pytest
 from fakes import SCOPE, FakeClient
-from helpers import run_pilot, screen_text
+from helpers import run_pilot, screen_text, settle
 from textual.app import ComposeResult
 from textual.pilot import Pilot
 from textual.screen import ModalScreen
@@ -46,7 +46,7 @@ def scenario(
 
     async def go(pilot: Pilot[None]) -> None:
         await pilot.press("f12")
-        await pilot.pause()
+        await settle(pilot)
         assert isinstance(app.screen, ScheduleScreen)
         await steps(pilot, app, app.screen)
 
@@ -54,15 +54,15 @@ def scenario(
 
 
 def status(screen: ScheduleScreen) -> str:
-    return str(screen.query_one("#sc-status", Static).render())
+    return str(screen.query_one("#log-status", Static).render())
 
 
 def test_f12_lists_the_schedules_and_the_snapshots_and_describes_the_current_one() -> None:
     async def steps(pilot: Pilot[None], app: TlApp, screen: ScheduleScreen) -> None:
         text = screen_text(app)
-        assert "Schedules of P123" in text and "1 of 1 schedules" in status(screen)
+        assert "P123 › Schedules › MAIN: MAIN schedule" in text and "1 of 1 schedules" in status(screen)
         assert [v.code for v in screen.shown] == ["MAIN"]
-        assert screen.query_one("#sc-schedules", DataTable).row_count == 1
+        assert screen.query_one("#log-table", DataTable).row_count == 1
         assert screen.query_one("#sc-snapshots", DataTable).row_count == 2
         assert "2*" in text and "Published (current)" in text and "Superseded" in text
         assert "MAIN schedule" in text and "2026-10-12" in text
@@ -71,7 +71,7 @@ def test_f12_lists_the_schedules_and_the_snapshots_and_describes_the_current_one
         snap = screen.current_snapshot()
         assert snap is not None and snap.number == 2
         await pilot.press("escape")
-        await pilot.pause()
+        await settle(pilot)
         assert not isinstance(app.screen, ScheduleScreen)
 
     scenario(world(), steps)
@@ -80,7 +80,7 @@ def test_f12_lists_the_schedules_and_the_snapshots_and_describes_the_current_one
 def test_moving_to_the_older_snapshot_describes_it() -> None:
     async def steps(pilot: Pilot[None], app: TlApp, screen: ScheduleScreen) -> None:
         await pilot.press("tab", "down")
-        await pilot.pause()
+        await settle(pilot)
         snap = screen.current_snapshot()
         assert snap is not None and snap.number == 1
         text = screen_text(app)
@@ -95,24 +95,24 @@ def test_l_shows_the_look_ahead_and_o_the_orphaned_links_and_each_goes_back() ->
 
     async def steps(pilot: Pilot[None], app: TlApp, screen: ScheduleScreen) -> None:
         await pilot.press("l")
-        await pilot.pause()
+        await settle(pilot)
         text = screen_text(app)
         assert screen.panel == "look_ahead"
         assert "look-ahead Snapshot 2: 2026-10-12 to 2026-11-09 (4 weeks)" in text
         assert "A1230  In progress" in text
         await pilot.press("l")
-        await pilot.pause()
+        await settle(pilot)
         assert screen.panel == "snapshot" and "look-ahead MAIN#2:" not in screen_text(app)
         await pilot.press("o")
-        await pilot.pause()
+        await settle(pilot)
         assert screen.panel == "orphans" and "no orphaned links" in screen_text(app)
         client.put_orphans("P123", "MAIN", [OrphanedLink("LNK1", "REC1", "A1990", 1, "gone")])
         await pilot.press("f5")
-        await pilot.pause()
+        await settle(pilot)
         text = screen_text(app)
         assert "orphaned links: 1" in text and "A1990  last seen in snapshot 1" in text
         await pilot.press("o")
-        await pilot.pause()
+        await settle(pilot)
         assert screen.panel == "snapshot"
 
     scenario(client, steps)
@@ -161,27 +161,27 @@ def test_c_opens_the_comparison_and_a_the_activities_of_the_highlighted_snapshot
 
     async def steps(pilot: Pilot[None], app: TlApp, screen: ScheduleScreen) -> None:
         await pilot.press("c")
-        await pilot.pause()
+        await settle(pilot)
         assert isinstance(app.screen, Probe)
         assert Probe.opened[0] == (client, "P123", "MAIN", 2)
         await pilot.press("escape")
-        await pilot.pause()
+        await settle(pilot)
         await pilot.press("a")  # the current snapshot
-        await pilot.pause()
+        await settle(pilot)
         assert Probe.opened[1] == (client, "P123", "MAIN", 2)
         await pilot.press("escape")
-        await pilot.pause()
+        await settle(pilot)
         await pilot.press("tab", "down", "a")  # the older snapshot
-        await pilot.pause()
+        await settle(pilot)
         assert isinstance(app.screen, Probe)
         assert Probe.opened[2] == (client, "P123", "MAIN", 1)
         await pilot.press("escape")
-        await pilot.pause()
+        await settle(pilot)
         await pilot.press("c")  # the older snapshot has nothing before it: still asked for
-        await pilot.pause()
+        await settle(pilot)
         assert Probe.opened[3] == (client, "P123", "MAIN", 1)
         await pilot.press("escape")
-        await pilot.pause()
+        await settle(pilot)
         assert isinstance(app.screen, ScheduleScreen)
 
     scenario(client, steps)
@@ -192,7 +192,7 @@ def test_p_publishes_the_highlighted_snapshot_and_reads_again() -> None:
 
     async def steps(pilot: Pilot[None], app: TlApp, screen: ScheduleScreen) -> None:
         await pilot.press("tab", "down", "p")
-        await pilot.pause()
+        await settle(pilot)
         [cmd] = client.schedule_commands
         assert isinstance(cmd, PublishScheduleSnapshot)
         assert (cmd.snapshot_id, cmd.scope, cmd.actor, cmd.source) == (
@@ -212,7 +212,7 @@ def test_a_person_who_may_not_publish_sees_the_refusal_and_nothing_is_sent() -> 
 
     async def steps(pilot: Pilot[None], app: TlApp, screen: ScheduleScreen) -> None:
         await pilot.press("p")
-        await pilot.pause()
+        await settle(pilot)
         assert status(screen).startswith("! ") and "document_controller or admin" in status(screen)
         assert client.schedule_commands == []
         assert isinstance(app.screen, ScheduleScreen)
@@ -226,14 +226,14 @@ def test_the_filter_box_narrows_the_schedules_and_the_letters_are_text_there() -
     async def steps(pilot: Pilot[None], app: TlApp, screen: ScheduleScreen) -> None:
         await pilot.press("slash")
         await pilot.press(*"clop")  # c, l, o and p are keys of the screen: here they are text
-        await pilot.pause()
-        assert screen.text == "clop" and screen.shown == []
+        await settle(pilot)
+        assert screen.filter_text == "clop" and screen.shown == []
         assert "0 of 1 schedules" in status(screen) and 'filter "clop"' in status(screen)
         assert "No schedule matches." in screen_text(app)
         assert client.schedule_commands == [] and screen.panel == "snapshot"
         await pilot.press("escape")  # the first Escape clears the box
-        await pilot.pause()
-        assert screen.query_one("#sc-filter", Input).value == ""
+        await settle(pilot)
+        assert screen.query_one("#log-filter", Input).value == ""
         assert [v.code for v in screen.shown] == ["MAIN"]
         assert isinstance(app.screen, ScheduleScreen)
 
@@ -249,24 +249,41 @@ def test_a_client_failure_is_shown_and_does_not_crash_the_screen() -> None:
 
         client.list_schedules = broken  # type: ignore[method-assign,assignment]
         await pilot.press("f5")
-        await pilot.pause()
+        await settle(pilot)
         assert status(screen) == "! the project is gone"
         assert isinstance(app.screen, ScheduleScreen)
 
     scenario(client, steps)
 
 
-def test_a_project_with_no_schedule_says_so() -> None:
+def test_a_project_with_no_schedule_says_so_and_offers_no_action() -> None:
     async def steps(pilot: Pilot[None], app: TlApp, screen: ScheduleScreen) -> None:
         assert "0 of 0 schedules" in status(screen) and "No schedule matches." in screen_text(app)
-        for key in ("c", "a", "p"):  # each key says it on its own
-            screen.query_one("#sc-status", Static).update("")
+        assert str(screen.query_one("#log-actions", Static).render()) == ""  # nothing to act on
+        for key in ("c", "a", "p"):  # so the keys do nothing
             await pilot.press(key)
-            await pilot.pause()
-            assert status(screen) == "No snapshot is highlighted.", key
+            await settle(pilot)
+            assert "0 of 0 schedules" in status(screen), key
         assert isinstance(app.screen, ScheduleScreen)
 
     scenario(FakeClient(), steps)
+
+
+def test_a_schedule_with_no_snapshot_answers_each_key_with_a_message() -> None:
+    client = FakeClient()
+    client.add_schedule("P123", "EMPTY", [])
+
+    async def steps(pilot: Pilot[None], app: TlApp, screen: ScheduleScreen) -> None:
+        assert "[c] Compare" in str(screen.query_one("#log-actions", Static).render())
+        for key in ("c", "a", "p"):  # each key says it on its own
+            screen.query_one("#log-status", Static).update("")
+            await pilot.press(key)
+            await settle(pilot)
+            assert status(screen) == "! No snapshot is highlighted.", key
+        assert client.schedule_commands == []
+        assert isinstance(app.screen, ScheduleScreen)
+
+    scenario(client, steps)
 
 
 def two_schedules() -> FakeClient:
@@ -294,11 +311,11 @@ def test_the_filter_looks_at_the_code_and_at_the_title() -> None:
         assert [v.code for v in screen.shown] == ["MAIN", "SIDE"]
         await pilot.press("slash")
         await pilot.press(*"turnaround")  # only SIDE's title holds it
-        await pilot.pause()
+        await settle(pilot)
         assert [v.code for v in screen.shown] == ["SIDE"]
         await pilot.press("ctrl+u")
         await pilot.press(*"main")  # only MAIN's code holds it
-        await pilot.pause()
+        await settle(pilot)
         assert [v.code for v in screen.shown] == ["MAIN"]
 
     scenario(two_schedules(), steps)
@@ -310,17 +327,17 @@ def test_moving_between_schedules_loads_their_snapshots_and_a_reload_keeps_the_p
     async def steps(pilot: Pilot[None], app: TlApp, screen: ScheduleScreen) -> None:
         assert screen.query_one("#sc-snapshots", DataTable).row_count == 2
         await pilot.press("down")  # SIDE
-        await pilot.pause()
+        await settle(pilot)
         schedule = screen.current_schedule()
         assert schedule is not None and schedule.code == "SIDE"
         assert screen.detail is not None and screen.detail.code == "SIDE"
         assert "Invalid" in screen_text(app)
         await pilot.press("tab", "down")  # SIDE's older snapshot
-        await pilot.pause()
+        await settle(pilot)
         snap = screen.current_snapshot()
         assert snap is not None and snap.number == 1
         await pilot.press("f5")
-        await pilot.pause()
+        await settle(pilot)
         schedule, snap = screen.current_schedule(), screen.current_snapshot()
         assert schedule is not None and schedule.code == "SIDE"  # not back on MAIN
         assert snap is not None and snap.number == 1  # not back on the newest
@@ -343,10 +360,10 @@ def test_the_look_ahead_is_asked_for_the_highlighted_snapshot_and_a_refusal_is_i
 
     async def steps(pilot: Pilot[None], app: TlApp, screen: ScheduleScreen) -> None:
         await pilot.press("tab", "down", "l")  # MAIN#1
-        await pilot.pause()
+        await settle(pilot)
         assert asked == [1]
         await pilot.press("shift+tab", "down")  # SIDE, whose newest snapshot is Invalid
-        await pilot.pause()
+        await settle(pilot)
         text = " ".join(screen_text(app).split())
         assert asked[-1] == 2 and "has no activities to read" in text
         assert isinstance(app.screen, ScheduleScreen)
@@ -369,10 +386,10 @@ def test_publishing_reads_again_and_sends_the_project_it_was_opened_for() -> Non
 
     async def go(pilot: Pilot[None]) -> None:
         app.push_screen(ScheduleScreen(client, "ABC", "user:kim"))
-        await pilot.pause()
+        await settle(pilot)
         assert reads == ["ABC"]
         await pilot.press("p")
-        await pilot.pause()
+        await settle(pilot)
         [cmd] = client.schedule_commands
         assert isinstance(cmd, PublishScheduleSnapshot) and cmd.scope == "project:ABC"
         assert reads == ["ABC", "ABC"]  # read again after the command
@@ -384,7 +401,7 @@ def test_escape_in_an_empty_filter_box_closes_the_screen() -> None:
     async def steps(pilot: Pilot[None], app: TlApp, screen: ScheduleScreen) -> None:
         await pilot.press("slash")
         await pilot.press("escape")
-        await pilot.pause()
+        await settle(pilot)
         assert not isinstance(app.screen, ScheduleScreen)
 
     scenario(world(), steps)
