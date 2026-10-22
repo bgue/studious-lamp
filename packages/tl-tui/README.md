@@ -34,7 +34,7 @@ The Textual application shell, grid, record view, and forms; every screen reads 
 | `ClientInterface.list_settings`, `get_setting`, `setting_history`, `set_setting`, `reset_setting`, `lock_setting`, `revert_setting` | methods | The settings calls (P0-I8), with the names and signatures of `tl_api.client.ApiClient`; the embedded client calls `tl_core.settings` and records its `actor` (an `agent:` actor is refused) with source `tui`; the remote client passes them through |
 | `ClientInterface.feed_page`, `feed_post`, `feed_edit`, `feed_retract`, `feed_react`, `feed_complete` | methods | The feed calls; the embedded client uses `tl_core.services.feed*`; a remote client implements the same methods |
 | `tl_tui.widgets.tag_register.TagRegisterScreen`, `tl_tui.tag_text` | modal, module | The tag register (`F8`): the project's tags by number with class, state, number check (`BAD` for a number that breaks the pattern) and conformance; the panel shows the highlighted tag's segments, violations and what it lacks (`get_tag`). `c` walks the classes, `v` violations only, `a` ended tags too, `/` filters, `F5` reloads. A `LogScreen` (P1-UX2-S3): the actions bar shows what `allowed_actions` offers for the highlighted tag (`l` Reclassify, `n` Rename). `ClientInterface.list_tags` / `get_tag` (embedded, remote through `EngineeringApi`, and the fake) |
-| `tl_tui.widgets.document_register.DocumentRegisterScreen`, `tl_tui.document_text` | modal, module | The document register (`F7`): the project's documents with state and the current revision (`B(IFC)`); the panel shows the highlighted document's revisions with their status class and files, and its links, a stale pin marked `!`. `s` walks the states, `y` the types, `a` void too, `/` filters, `F5` reloads. `r` opens the re-pin dialog for the first stale link, `t` the transmittal composer |
+| `tl_tui.widgets.document_register.DocumentRegisterScreen`, `tl_tui.document_text` | `LogScreen`, module | The document register (`F7`), on the shared log screen: breadcrumb, the project's documents with state and the current revision (`B(IFC)`), the panel with the highlighted document's revisions and links (a stale pin marked `!`) and under them the files of its current revision with the page-1 picture (see *File preview*). The actions bar is what the server offers the signed-in person (`allowed_actions` on the document and on its newest draft and current revision): `i` Issue, `u` Supersede revision, `x` Supersede document, `d` Void document, `t` Create transmittal (the composer), each through `document_command`; `r` re-pins the first stale link and is there only while the document has one; `v` opens the current revision's file. `s` walks the states, `y` the types, `a` void too, `/` filters, `F5` reloads |
 | `tl_tui.widgets.schema_screen.SchemaWorkbenchScreen`, `schema_review_screen.SchemaReviewScreen`, `tl_tui.schema_text`, `schema_review_text` | modals, modules | The schema workbench (`Ctrl+O`): package versions with Properties, Lint and Diff tabs (`1`-`3`, `[` `]`, `F5`, `Esc`); `v` opens the review (`a` analyse, `t` sample, `i` project impact, `s` submit, `y` approve, `c` send back, `p` publish with the word typed). Every read and write is a client call (P1-I8) |
 | `tl_tui.widgets.repin_dialog.RepinScreen` | modal | Shows the diff between the pinned revision and the current one; Enter or `y` sends `RepinDocumentLink`, Esc or `n` leaves the link. A refusal stays on screen |
 | `tl_tui.widgets.transmittal_composer.TransmittalComposerScreen` | modal | Tick issued revisions, type a subject, purpose, recipients (`Name:Organisation:email; ...`) and an optional due date; `ctrl+s` drafts the transmittal; a document controller or an admin also gets `ctrl+t`, which drafts and issues it (`issue_transmittal`; the server and the embedded client refuse anyone else, ADR-0013) |
@@ -106,6 +106,26 @@ log never lays out its own screen and never adds a second standard.
   `helpers.run_pilot`; wait for the workers with `await pilot.app.workers.wait_for_complete()`. See
   `tests/test_log_screen.py` (host pattern, stale answer, refusal, layout switch at 159/160, snapshots at 80 and 170).
 - Every new log uses `LogScreen`; the existing registers move to it in P1-UX2 S3 and S4.
+
+## File preview (P1-UX2)
+- `widgets.file_panel.FilePanel` lists a record's current files (`list_record_files`) as `file_text.file_line` rows; Up and
+  Down choose a file, `v` or Enter opens it. It is in the document log's panel and in the **Files** tab (key `6`) of the
+  record view, which is there only while the record has files (RFIs too).
+- **Open**: the file is fetched (`fetch_file`: size and SHA-256 checked) into a private folder (`preview.temp.PrivateTemp`,
+  mode 0700, files 0600, no link followed, removed when the screen closes and at exit) and handed to the system viewer
+  (`preview.viewer`: `xdg-open`, `open` or `os.startfile`; an argument list, never a shell). A hidden file and a missing
+  one both answer `File not available.`
+- **Picture**: where the terminal shows colour (`preview.terminal.image_protocol(env) != "none"`) the first page of a PDF
+  is drawn as half-block cells (`rich-pixels`, MIT), about 30 columns wide and at most 20 rows; elsewhere, and when the
+  drawing fails, the line shows the kind, size and page count (`PDF document  1.2 MB  3 pages`).
+- **Rendering** (`preview.render.render_first_page`) is bounded and off the UI thread (a worker thread): files over
+  50 MB or without `%PDF-` are refused without a child; otherwise `python -I -m tl_tui.preview._worker` (pypdfium2,
+  page 1 only, longer side at most 1200 px and area at most 1.5 MP, 1 GiB address space, CPU limit, no network, no stdin,
+  stripped environment) is killed after 8 s. The PNG is cached by content hash (`preview.cache`: `<sha256>.png` in
+  `$XDG_CACHE_HOME/throughline/preview`, mode 0700, at most 200 files and 64 MB, oldest evicted). Selecting another
+  file cancels the render in flight.
+- **Tests** use the text fallback (`TL_IMAGES=off`) and never need a terminal image; `tests/doc_support.py` has `settle`
+  and `pdf_bytes`. `TL_IMAGES` and `TL_VIEWER_CMD` are in `docs/runbooks/tui-dev.md`.
 
 ## Depends on / used by
 - Depends on: `textual`, `tl_core` (services, query language, change feed), `tl_schema` (form metadata models), `tl_adapters` (only `tl_adapters.backend` / `tl_adapters.db`, in `embedded.py` and `main.py`), `tl_api` and `httpx2` (only `remote.py`).

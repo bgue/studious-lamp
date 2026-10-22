@@ -178,6 +178,17 @@ KEYMAP: tuple[KeyEntry, ...] = (
         "RecordView",
         "1",
     ),
+    KeyEntry(
+        "Record view",
+        "6",
+        "Files tab (only when the record has files)",
+        "RecordView",
+        "6",
+    ),
+    KeyEntry(
+        "Record view", "v  Enter", "Files tab: open the chosen file in the viewer", "FilePanel", "v"
+    ),
+    KeyEntry("Record view", "Up  Down", "Files tab: choose a file", "FilePanel", "up"),
     KeyEntry("Links tab", "Enter", "Open the record at the other end", "LinksTab", "enter"),
     KeyEntry("Links tab", "a", "Accept the highlighted suggestion", "LinksTab", "a"),
     KeyEntry("Links tab", "d", "Decline the highlighted suggestion", "LinksTab", "d"),

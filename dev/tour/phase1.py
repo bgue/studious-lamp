@@ -620,7 +620,7 @@ def section_register_tui(ws: Workspace) -> None:
         await tk.until(pilot, lambda: "ISO-1234" in tk.screen_text(app), "the document register")
         screen = app.screen
         expect(isinstance(screen, DocumentRegisterScreen), "F7 did not open the register")
-        table = screen.query_one("#docs-table", DataTable)
+        table = screen.query_one("#log-table", DataTable)
         table.move_cursor(row=[v.number for v in screen.shown].index("ISO-1234"))
         await tk.until(pilot, lambda: "IFC" in tk.screen_text(app), "the detail panel")
         tk.shot_tui(
@@ -858,7 +858,7 @@ def section_controller(ws: Workspace) -> None:
         await tk.until(pilot, lambda: len(controller_app.query("RecordGrid")) > 0, "the shell")
         await pilot.press("f7")
         await tk.until(pilot, lambda: "ISO-3000" in tk.screen_text(controller_app), "the register")
-        table = controller_app.screen.query_one("#docs-table", DataTable)
+        table = controller_app.screen.query_one("#log-table", DataTable)
         shown = [v.number for v in controller_app.screen.shown]  # type: ignore[attr-defined]
         table.move_cursor(row=shown.index("ISO-3000"))
         await tk.settle(pilot, 4)

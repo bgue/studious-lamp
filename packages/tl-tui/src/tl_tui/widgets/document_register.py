@@ -1,25 +1,28 @@
 """The document register: a project's controlled documents, their revisions and links (P1-I2).
 
-A full-size modal opened with ``F7``. The table lists the project's documents by number with their
-state and current revision (``B(IFC)``). The panel under it describes the highlighted document: its
-revisions with their files, and the links to it, a stale pin marked ``!``. Everything is read
-through the client. The two changes a person makes from here are their own dialogs: ``r`` re-pins
-the first stale link of the highlighted document (after showing what changed) and ``t`` drafts a
-transmittal. The filter keys narrow the list on the screen (state, type, text); ``a`` asks the
-client for the void documents too.
+A full-size log opened with ``F7``, on the shared ``LogScreen`` (P1-UX2): breadcrumb, the table of
+the project's documents by number, the panel of the highlighted document (its revisions and links,
+and under them the files of its current revision with a page-1 picture), the actions bar and the
+keys row. The bar is what the server offers the signed-in person on this document and its
+revisions (``allowed_actions``); each action runs a command of the documents module through
+``document_command`` and a refusal lands in the status line. ``v`` opens the current revision's
+file in the system viewer. ``r`` re-pins the first stale link (after showing what changed) and
+``t`` drafts a transmittal. The filter keys narrow the list on the screen (state, type, text);
+``a`` asks the client for the void documents too.
 """
 
 from __future__ import annotations
 
+from collections.abc import Callable, Sequence
 from typing import ClassVar
 
-from rich.text import Text
-from textual.app import ComposeResult
 from textual.binding import Binding, BindingType
-from textual.containers import Vertical
-from textual.screen import ModalScreen
-from textual.widgets import DataTable, Input, Static
-from tl_mod_documents.views import DocumentView
+from textual.widgets import Input
+from tl_core.actions import ActionOffer
+from tl_core.services.commands import Command
+from tl_mod_documents.handlers.documents import SupersedeDocument, VoidDocument
+from tl_mod_documents.handlers.revisions import IssueRevision, SupersedeRevision
+from tl_mod_documents.views import DocumentView, RevisionView
 
 from tl_tui.client import ClientInterface
 from tl_tui.display import Labels, mode_of
@@ -33,40 +36,34 @@ from tl_tui.document_text import (
 )
 from tl_tui.errors import CLIENT_ERRORS, describe_error
 from tl_tui.labels_load import load_labels
+from tl_tui.widgets.action_form import ActionFormScreen, FormField
+from tl_tui.widgets.file_panel import FilePanel
+from tl_tui.widgets.log_screen import LogAction, LogScreen
 from tl_tui.widgets.record_screen import open_record
 from tl_tui.widgets.repin_dialog import RepinScreen
 from tl_tui.widgets.transmittal_composer import TransmittalComposerScreen
 
 MAX_DOCUMENTS = 5000
+NEEDS_NEWER = "Nothing to replace it with: no other issued revision."
+NEEDS_DOCUMENT = "Nothing to replace it with: no other document has an issued revision."
 
 
-class DocumentRegisterScreen(ModalScreen[None]):
+class DocumentRegisterScreen(LogScreen[DocumentView]):
     """The documents of ``project`` (the id, not the scope)."""
 
+    LOG_NAME = "Documents"
     KEY_HINTS: ClassVar[str] = (
-        "s state  y type  a void too  r re-pin  t transmittal  / filter  F5 reload  Esc close"
+        "s state  y type  a void too  / filter  Enter open record  F5 reload  Esc close"
     )
 
     BINDINGS: ClassVar[list[BindingType]] = [
         Binding("s", "state_filter", "State", show=False),
         Binding("y", "type_filter", "Type", show=False),
         Binding("a", "void", "Void too", show=False),
-        Binding("r", "repin", "Re-pin", show=False),
-        Binding("t", "transmittal", "Transmittal", show=False),
-        Binding("slash", "filter", "Filter", show=False),
-        Binding("f5", "reload", "Reload", show=False),
-        Binding("escape", "close", "Close", show=False),
     ]
 
     DEFAULT_CSS = """
-    DocumentRegisterScreen { background: $surface; }
-    DocumentRegisterScreen > Vertical { padding: 0 1; }
-    DocumentRegisterScreen #docs-title { text-style: bold; height: 1; }
-    DocumentRegisterScreen #docs-filter { height: 3; }
-    DocumentRegisterScreen #docs-table { height: 1fr; min-height: 6; }
-    DocumentRegisterScreen #docs-detail { height: 14; border-top: solid $accent; padding: 0 1; }
-    DocumentRegisterScreen #docs-status { height: 1; }
-    DocumentRegisterScreen #docs-hints { height: 1; color: $text-muted; }
+    DocumentRegisterScreen FilePanel { margin-top: 1; }
     """
 
     def __init__(
@@ -80,166 +77,355 @@ class DocumentRegisterScreen(ModalScreen[None]):
         self.state: str | None = None
         self.doc_type: str | None = None
         self.include_void = False
-        self.text = ""
         self.views: list[DocumentView] = []  # as listed, before the screen's own filters
-        self.shown: list[DocumentView] = []
         self.detail: DocumentView | None = None  # the highlighted document, in full
-        self.labels: Labels = Labels()  # the code and type labels, loaded on mount
+        self._labels: Labels | None = None  # the code and type labels, loaded on first use
+        self._full: dict[str, DocumentView] = {}  # number -> the document in full, per read
+        self._reread = True  # False: the next load reuses ``self.views`` (a filter changed)
+        self._files_for: str | None = None  # the record whose files the panel shows
+        self.files: FilePanel | None = None
+        self._note = ""  # said once, with the next summary (a reload would otherwise wipe it)
 
-    # --- layout --------------------------------------------------------------------------
+    @property
+    def labels(self) -> Labels:
+        """The code and type labels; read on first use."""
+        if self._labels is None:
+            self._labels = load_labels(
+                self.client, f"project:{self.project}", ("documents.Document",)
+            )
+        return self._labels
 
-    def compose(self) -> ComposeResult:
-        with Vertical():
-            yield Static(f"Documents of {self.project}", markup=False, id="docs-title")
-            yield Input(placeholder="Filter by number or title", id="docs-filter")
-            yield DataTable[str](id="docs-table", cursor_type="row", zebra_stripes=True)
-            yield Static("", markup=False, id="docs-detail")
-            yield Static("", markup=False, id="docs-status")
-            yield Static(self.KEY_HINTS, markup=False, id="docs-hints")
+    # --- LogScreen hooks ------------------------------------------------------------------
 
-    def on_mount(self) -> None:
-        self.labels = load_labels(self.client, f"project:{self.project}", ("documents.Document",))
-        self.query_one("#docs-table", DataTable).add_columns(*COLUMNS)
-        self.reload()
-        self.query_one("#docs-table", DataTable).focus()
+    def log_project(self) -> str:
+        return self.project
 
-    # --- data ----------------------------------------------------------------------------
+    def columns(self) -> Sequence[str]:
+        return COLUMNS
 
-    def reload(self) -> None:
-        """Read the list again and keep the highlighted document where it is."""
-        keep = self._number()
-        try:
+    def load_rows(self) -> Sequence[DocumentView]:
+        if self._reread:
             self.views = self.client.list_documents(
                 self.project, include_void=self.include_void, limit=MAX_DOCUMENTS
             )
-        except CLIENT_ERRORS as exc:
-            self._say(describe_error(exc), error=True)
-            return
-        self._fill(keep)
-
-    def _fill(self, keep: str | None = None) -> None:
-        """Apply the screen's filters to ``self.views`` and fill the table."""
-        needle = self.text.strip().lower()
-        self.shown = [
+            self._full = {}
+        self._reread = True
+        return [
             v
             for v in self.views
             if (self.state is None or v.state == self.state)
             and (self.doc_type is None or v.doc_type == self.doc_type)
-            and (not needle or needle in v.number.lower() or needle in v.title.lower())
         ]
-        table = self.query_one("#docs-table", DataTable)
-        table.clear()
-        for view in self.shown:
-            # Text, not str: a cell is read as markup, and a title such as [a, b] is not markup
-            table.add_row(*(Text(cell) for cell in row_cells(view, self.labels)), key=view.number)
-        if self.shown:
-            numbers = [v.number for v in self.shown]
-            table.move_cursor(row=numbers.index(keep) if keep in numbers else 0)
-        self.query_one("#docs-status", Static).update(
-            summary_line(
-                len(self.shown),
-                len(self.views),
-                state=self.state,
-                doc_type=self.doc_type,
-                include_void=self.include_void,
-                text=self.text,
-                labels=self.labels,
-            )
+
+    def row_key(self, row: DocumentView) -> str:
+        return row.number
+
+    def row_cells(self, row: DocumentView) -> Sequence[str]:
+        return row_cells(row, self.labels)
+
+    def row_record(self, row: DocumentView) -> tuple[str, str]:
+        return (row.number, row.title)
+
+    def tell(self, text: str, *, error: bool = False) -> None:
+        """Say ``text`` now and again with the next summary (the reload that follows an action
+        rewrites the status line)."""
+        self._note = ("! " if error else "") + text
+        self.say(text, error=error)
+
+    def summary_text(self) -> str:
+        note, self._note = self._note, ""
+        line = self._summary()
+        return f"{note}  {line}" if note else line
+
+    def _summary(self) -> str:
+        return summary_line(
+            len(self.shown),
+            len(self.views),
+            state=self.state,
+            doc_type=self.doc_type,
+            include_void=self.include_void,
+            text=self.filter_text,
+            labels=self.labels,
         )
-        self._describe()
 
-    def _number(self) -> str | None:
-        view = self.current()
-        return view.number if view is not None else None
+    def open_row(self, row: DocumentView) -> None:
+        open_record(self, self.client, f"project:{self.project}", self.project, self.actor, row.id)
 
-    def current(self) -> DocumentView | None:
-        table = self.query_one("#docs-table", DataTable)
-        if not self.shown or not 0 <= table.cursor_row < len(self.shown):
-            return None
-        return self.shown[table.cursor_row]
+    def full(self, row: DocumentView) -> DocumentView:
+        """The document with its revisions and links (one read per document and listing)."""
+        found = self._full.get(row.number)
+        if found is None:
+            found = self.client.get_document(self.project, row.number)
+            self._full[row.number] = found
+        return found
 
-    def _describe(self) -> None:
-        """Show the highlighted document with its revisions and links (one call per document)."""
-        detail = self.query_one("#docs-detail", Static)
-        view = self.current()
-        if view is None:
+    def panel_text(self, row: DocumentView | None) -> str:
+        """The highlighted document with its revisions and links; the files go under it."""
+        if row is None:
             self.detail = None  # nothing is highlighted, so nothing is described
-            detail.update("No document matches.")
-            return
+            self._show_files(None)
+            return "No document matches."
         try:
-            full = self.client.get_document(self.project, view.number)
+            full = self.full(row)
         except CLIENT_ERRORS as exc:
-            full = view  # the listing's copy: no revisions
-            self._say(describe_error(exc), error=True)
+            full = row  # the listing's copy: no revisions
+            self.say(describe_error(exc), error=True)
         self.detail = full
+        self._show_files(full)
         technical = mode_of(self.app).technical
-        detail.update("\n".join(detail_lines(full, self.labels, technical=technical)))
+        return "\n".join(detail_lines(full, self.labels, technical=technical))
 
-    def _say(self, text: str, *, error: bool = False) -> None:
-        self.query_one("#docs-status", Static).update(("! " if error else "") + text)
+    # --- the files of the current revision -------------------------------------------------
 
-    # --- events --------------------------------------------------------------------------
+    def on_mount(self) -> None:
+        self.files = FilePanel(self.client, id="doc-files")
+        self.query_one("#log-panel").mount(self.files)
 
-    def on_data_table_row_highlighted(self, event: DataTable.RowHighlighted) -> None:
-        event.stop()
-        self._describe()
+    @staticmethod
+    def file_revision(view: DocumentView) -> RevisionView | None:
+        """The revision whose file is shown and opened: the current one, else the newest."""
+        current = [r for r in view.revisions if r.is_current]
+        if current:
+            return current[0]
+        return view.revisions[-1] if view.revisions else None
 
-    def on_input_changed(self, event: Input.Changed) -> None:
-        event.stop()
-        self.text = event.value
-        self._fill(self._number())
-
-    def on_input_submitted(self, event: Input.Submitted) -> None:
-        event.stop()
-        self.query_one("#docs-table", DataTable).focus()
-
-    def on_data_table_row_selected(self, event: DataTable.RowSelected) -> None:
-        """Enter on a row opens the full record screen; Esc there returns to this row."""
-        event.stop()
-        if not 0 <= event.cursor_row < len(self.shown):
+    def _show_files(self, view: DocumentView | None) -> None:
+        if self.files is None:
             return
-        view = self.shown[event.cursor_row]
-        open_record(self, self.client, f"project:{self.project}", self.project, self.actor, view.id)
-
-    def refresh_for_display_mode(self) -> None:
-        """The technical toggle changed: rebuild the rows and the panel, keeping the row."""
-        self._fill(self._number())
-
-    # --- actions -------------------------------------------------------------------------
-
-    def action_state_filter(self) -> None:
-        """Show the next state: all, then each state that has a document in the list, then all."""
-        if isinstance(self.focused, Input):
-            return  # the key is text
-        self.state = next_choice(self.state, [v.state for v in self.views])
-        self._fill(self._number())
-
-    def action_type_filter(self) -> None:
-        """Show the next document type: all, then each type in the list, then all."""
-        if isinstance(self.focused, Input):
-            return  # the key is text
-        self.doc_type = next_choice(
-            self.doc_type, [v.doc_type for v in self.views if v.doc_type is not None]
+        revision = self.file_revision(view) if view is not None else None
+        record = revision.id if revision is not None else None
+        if record == self._files_for:
+            return
+        self._files_for = record
+        pages = (
+            {r.sha256: r.page_count for r in revision.renditions} if revision is not None else {}
         )
-        self._fill(self._number())
+        self.files.show(record, pages)
 
-    def action_void(self) -> None:
-        """Include the void documents, or leave them out again (reads again)."""
-        if isinstance(self.focused, Input):
-            return  # the key is text
-        self.include_void = not self.include_void
-        self.reload()
+    def on_file_panel_note(self, message: FilePanel.Note) -> None:
+        message.stop()
+        self.tell(message.text, error=message.error)
 
-    def action_repin(self) -> None:
+    def _open_file(self) -> None:
+        if self.files is not None:
+            self.files.action_open_file()
+
+    # --- actions (off the UI thread) ---------------------------------------------------------
+
+    def actions_for(self, row: DocumentView) -> Sequence[LogAction]:
+        """What the viewer may do to ``row``: the server's offers on the document and on the
+        revisions that can take one, as actions; plus the re-pin and the file when they apply."""
+        full = self.full(row)
+        offers: list[tuple[ActionOffer, RevisionView | None]] = [
+            (offer, None) for offer in self.client.allowed_actions(full.id).actions
+        ]
+        for revision in self._revisions_asked(full):
+            offers += [(o, revision) for o in self.client.allowed_actions(revision.id).actions]
+        made: list[LogAction] = []
+        seen: set[str] = set()
+        for offer, revision in offers:
+            builder = self._builders().get(offer.command)
+            if builder is None or offer.command in seen:
+                continue  # a command this log has no form for, or one already offered
+            seen.add(offer.command)
+            made.append(builder(offer, full, revision))
+        if stale_links(full):
+            made.append(LogAction("r", "Re-pin", self._repin))
+        revision = self.file_revision(full)
+        if revision is not None and self.client.list_record_files(revision.id):
+            made.append(LogAction("v", "Open file", self._open_file))
+        return made
+
+    @staticmethod
+    def _revisions_asked(view: DocumentView) -> list[RevisionView]:
+        """The revisions worth asking about: the newest draft and the current one."""
+        asked: list[RevisionView] = []
+        drafts = [r for r in view.revisions if r.state == "Draft"]
+        if drafts:
+            asked.append(drafts[-1])
+        current = DocumentRegisterScreen.file_revision(view)
+        if current is not None and current not in asked:
+            asked.append(current)
+        return asked
+
+    Builder = Callable[[ActionOffer, DocumentView, RevisionView | None], LogAction]
+
+    def _builders(self) -> dict[str, Builder]:
+        return {
+            "IssueRevision": self._issue_revision,
+            "SupersedeRevision": self._supersede_revision,
+            "SupersedeDocument": self._supersede_document,
+            "VoidDocument": self._void_document,
+            "CreateTransmittal": self._transmittal,
+        }
+
+    def _send(self, name: str, make: Callable[[], Command]) -> None:
+        """Run a documents command (the person's, so the server checks the access)."""
+        self.client.document_command(name, make())
+
+    def _ask(
+        self,
+        title: str,
+        fields: Sequence[FormField],
+        name: str,
+        make: Callable[[dict[str, str]], Command],
+    ) -> None:
+        """Open the form; when it is sent, run the command built from its answers."""
+
+        def sent(answers: dict[str, str] | None) -> None:
+            if answers is not None:
+                self.attempt(lambda: self._send(name, lambda: make(answers)))
+
+        self.app.push_screen(ActionFormScreen(title, fields), sent)
+
+    @property
+    def _scope(self) -> str:
+        return f"project:{self.project}"
+
+    def _issue_revision(
+        self, offer: ActionOffer, doc: DocumentView, rev: RevisionView | None
+    ) -> LogAction:
+        def run() -> None:
+            assert rev is not None
+            revision_id = rev.id
+            self._ask(
+                f"{offer.label} revision {rev.code} of {doc.number}",
+                [FormField("status", "Issue status (for example IFR, IFC)")],
+                offer.command,
+                lambda a: IssueRevision(
+                    actor=self.actor,
+                    source="tui",
+                    scope=self._scope,
+                    stream_id=revision_id,
+                    issue_status=a["status"],
+                ),
+            )
+
+        return LogAction("i", offer.label, run)
+
+    def _supersede_revision(
+        self, offer: ActionOffer, doc: DocumentView, rev: RevisionView | None
+    ) -> LogAction:
+        def run() -> None:
+            assert rev is not None
+            revision_id = rev.id
+            newer = {
+                f"{r.code} {r.issue_status or ''}".strip(): r.id
+                for r in doc.revisions
+                if r.id != rev.id and r.state == "Issued"
+            }
+            if not newer:
+                self.tell(NEEDS_NEWER, error=True)
+                return
+            self._ask(
+                f"{offer.label} revision {rev.code} of {doc.number}",
+                [
+                    FormField("by", "Replaced by", "choice", tuple(newer)),
+                    FormField("reason", "Reason"),
+                ],
+                offer.command,
+                lambda a: SupersedeRevision(
+                    actor=self.actor,
+                    source="tui",
+                    scope=self._scope,
+                    stream_id=revision_id,
+                    superseded_by_id=newer[a["by"]],
+                    reason=a["reason"],
+                ),
+            )
+
+        return LogAction("u", f"{offer.label} revision", run)
+
+    def _supersede_document(
+        self, offer: ActionOffer, doc: DocumentView, rev: RevisionView | None
+    ) -> LogAction:
+        def run() -> None:
+            others = {
+                v.number: v.id
+                for v in self.views
+                if v.id != doc.id and v.current_revision_code is not None and v.state != "Void"
+            }
+            if not others:
+                self.tell(NEEDS_DOCUMENT, error=True)
+                return
+            self._ask(
+                f"{offer.label} {doc.number}",
+                [
+                    FormField("by", "Replaced by", "choice", tuple(others)),
+                    FormField("reason", "Reason"),
+                ],
+                offer.command,
+                lambda a: SupersedeDocument(
+                    actor=self.actor,
+                    source="tui",
+                    scope=self._scope,
+                    stream_id=doc.id,
+                    expected_version=doc.version,
+                    superseded_by_id=others[a["by"]],
+                    reason=a["reason"],
+                ),
+            )
+
+        return LogAction("x", f"{offer.label} document", run)
+
+    def _void_document(
+        self, offer: ActionOffer, doc: DocumentView, rev: RevisionView | None
+    ) -> LogAction:
+        def run() -> None:
+            self._ask(
+                f"{offer.label} {doc.number}",
+                [FormField("reason", "Reason")],
+                offer.command,
+                lambda a: VoidDocument(
+                    actor=self.actor,
+                    source="tui",
+                    scope=self._scope,
+                    stream_id=doc.id,
+                    expected_version=doc.version,
+                    reason=a["reason"],
+                ),
+            )
+
+        return LogAction("d", f"{offer.label} document", run)
+
+    def _transmittal(
+        self, offer: ActionOffer, doc: DocumentView, rev: RevisionView | None
+    ) -> LogAction:
+        def run() -> None:
+            composer = TransmittalComposerScreen(
+                self.client,
+                self.project,
+                self.actor,
+                document=doc.number,
+                is_controller=self.is_controller,
+            )
+
+            def closed(made: str | None) -> None:
+                self._drafted(made, composer)
+
+            self.app.push_screen(composer, closed)
+
+        return LogAction("t", offer.label, run)
+
+    def _drafted(self, number: str | None, composer: TransmittalComposerScreen) -> None:
+        """The composer closed: say which transmittal was drafted, and whether it was issued."""
+        if not number:
+            return
+        if composer.issued:
+            self.say(f"Drafted and issued transmittal {number}.")
+        elif composer.issue_error:
+            self.say(f"Drafted transmittal {number}; issuing it failed: {composer.issue_error}")
+        else:
+            self.say(f"Drafted transmittal {number}.")
+
+    def _repin(self) -> None:
         """Re-pin the first stale link of the highlighted document, after showing the diff."""
-        if isinstance(self.focused, Input):
-            return  # the key is text
         if self.detail is None:
-            self._say("No document is highlighted.")
+            self.say("No document is highlighted.")
             return
         found = stale_links(self.detail)
         if not found:
-            self._say(f"{self.detail.number} has no stale link to re-pin.")
+            self.say(f"{self.detail.number} has no stale link to re-pin.")
             return
         self.app.push_screen(
             RepinScreen(self.client, self.project, self.detail.number, found[0], self.actor),
@@ -249,47 +435,36 @@ class DocumentRegisterScreen(ModalScreen[None]):
     def _repinned(self, moved: bool | None) -> None:
         """The re-pin dialog closed: read again when a link was moved."""
         if moved:
+            self._full = {}
+            self.tell("Link re-pinned.")
             self.reload()
-            self._say("Link re-pinned.")
 
-    def action_transmittal(self) -> None:
-        """Draft a transmittal, starting from the highlighted document's current revision."""
-        if isinstance(self.focused, Input):
-            return  # the key is text
-        number = self._number()
-        composer = TransmittalComposerScreen(
-            self.client,
-            self.project,
-            self.actor,
-            document=number,
-            is_controller=self.is_controller,
-        )
+    # --- the screen's own filters ----------------------------------------------------------
 
-        def closed(made: str | None) -> None:
-            self._drafted(made, composer)
-
-        self.app.push_screen(composer, closed)
-
-    def _drafted(self, number: str | None, composer: TransmittalComposerScreen) -> None:
-        """The composer closed: say which transmittal was drafted, and whether it was issued."""
-        if not number:
-            return
-        if composer.issued:
-            self._say(f"Drafted and issued transmittal {number}.")
-        elif composer.issue_error:
-            self._say(f"Drafted transmittal {number}; issuing it failed: {composer.issue_error}")
-        else:
-            self._say(f"Drafted transmittal {number}.")
-
-    def action_filter(self) -> None:
-        self.query_one("#docs-filter", Input).focus()
-
-    def action_reload(self) -> None:
+    def _narrow(self) -> None:
+        """Read the rows again from the listing already held (no new read)."""
+        self._reread = False
         self.reload()
 
-    def action_close(self) -> None:
-        if isinstance(self.focused, Input) and self.text:
-            self.query_one("#docs-filter", Input).value = ""
-            self.query_one("#docs-table", DataTable).focus()
-            return
-        self.dismiss(None)
+    def action_state_filter(self) -> None:
+        """Show the next state: all, then each state that has a document in the list, then all."""
+        if isinstance(self.focused, Input):
+            return  # the key is text
+        self.state = next_choice(self.state, [v.state for v in self.views])
+        self._narrow()
+
+    def action_type_filter(self) -> None:
+        """Show the next document type: all, then each type in the list, then all."""
+        if isinstance(self.focused, Input):
+            return  # the key is text
+        self.doc_type = next_choice(
+            self.doc_type, [v.doc_type for v in self.views if v.doc_type is not None]
+        )
+        self._narrow()
+
+    def action_void(self) -> None:
+        """Include the void documents, or leave them out again (reads again)."""
+        if isinstance(self.focused, Input):
+            return  # the key is text
+        self.include_void = not self.include_void
+        self.reload()

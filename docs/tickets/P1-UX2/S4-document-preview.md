@@ -1,5 +1,20 @@
 # P1-UX2-S4 — Documents on LogScreen, open in viewer, page-1 thumbnail, Files tab
 
+> **D9 (orchestrator, 2026-10-22, overrides the rest of this spec where they differ).** textual-image is
+> LGPL-3.0-or-later and refused by the licence check (your first attempt, caf2a9a). Use **rich-pixels 3.0.1 (MIT,
+> by the Textual author; depends on Pillow and Rich)** instead: the page-1 thumbnail is a Rich renderable
+> (`Pixels.from_image(...)`, half-block cells) in the FilePanel, shown when the terminal has colour (use T01's
+> `image_protocol` only to decide colour vs plain; no kitty/iTerm/sixel escapes). Text fallback (type, size, pages,
+> title) when there is no colour or rendering fails. Size the thumbnail to the panel (about 30 columns wide), render it
+> off the UI thread from the cached page-1 PNG. A snapshot of the thumbnail is allowed (it is deterministic).
+> rich-pixels' wheel has no License field (only an MIT LICENSE file): if `dev/tools/check_licences.py` flags it,
+> add an allow-list entry naming the MIT licence file, with a one-line comment. Allowed paths widen by
+> dev/tools/check_licences.py (that entry only), dev/demos/p1_i2_demo.py, dev/demos/p1_i2b_demo.py and
+> dev/tour/phase1.py (only the `#docs-table`/`#docs-status` → `#log-table`/`#log-status` renames the move to
+> LogScreen forces). Testing policy (owner, 2026-10-21): run only the gate paths named for this piece; the whole
+> suite and the demos run once at the end of the increment.
+
+
 Status: draft (dispatch in wave 2, after S1, S2, T01, T02 are merged)
 Tier: sonnet
 Kind: piece

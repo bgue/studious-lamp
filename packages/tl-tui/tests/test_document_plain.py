@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from doc_support import settle
 from fakes import SCOPE, FakeClient, valve_form_metadata
 from helpers import run_pilot, screen_text
 from textual.pilot import Pilot
@@ -54,18 +55,18 @@ def test_enter_opens_the_record_screen_and_escape_returns_to_the_same_row() -> N
 
     async def go(pilot: Pilot[None]) -> None:
         await pilot.press("f7")
-        await pilot.pause()
+        await settle(pilot)
         register = app.screen
         assert isinstance(register, DocumentRegisterScreen)
-        table = register.query_one("#docs-table", DataTable)
+        table = register.query_one("#log-table", DataTable)
         await pilot.press("down")
-        await pilot.pause()
+        await settle(pilot)
         await pilot.press("enter")
-        await pilot.pause()
+        await settle(pilot)
         assert isinstance(app.screen, RecordScreen)
         assert "ISO-2000" in screen_text(app) and "Number" in screen_text(app)
         await pilot.press("escape")
-        await pilot.pause()
+        await settle(pilot)
         assert app.screen is register
         assert table.cursor_row == 1
 
@@ -78,14 +79,14 @@ def test_enter_in_the_filter_box_does_not_open_a_record() -> None:
 
     async def go(pilot: Pilot[None]) -> None:
         await pilot.press("f7")
-        await pilot.pause()
+        await settle(pilot)
         register = app.screen
         assert isinstance(register, DocumentRegisterScreen)
         await pilot.press("slash")
-        await pilot.pause()
+        await settle(pilot)
         assert isinstance(register.focused, Input)
         await pilot.press("enter")
-        await pilot.pause()
+        await settle(pilot)
         assert isinstance(app.screen, DocumentRegisterScreen)
         assert isinstance(register.focused, DataTable)
 
@@ -98,11 +99,11 @@ def test_a_row_the_viewer_cannot_read_opens_as_no_record() -> None:
 
     async def go(pilot: Pilot[None]) -> None:
         await pilot.press("f7")
-        await pilot.pause()
+        await settle(pilot)
         await pilot.press("down")
-        await pilot.pause()
+        await settle(pilot)
         await pilot.press("enter")
-        await pilot.pause()
+        await settle(pilot)
         assert isinstance(app.screen, RecordScreen)
         assert app.screen.view is None
         text = screen_text(app)
@@ -119,12 +120,12 @@ def test_plain_text_has_labels_not_codes_or_class_names() -> None:
 
     async def go(pilot: Pilot[None]) -> None:
         await pilot.press("f7")
-        await pilot.pause()
+        await settle(pilot)
         register = app.screen
         assert isinstance(register, DocumentRegisterScreen)
         text = screen_text(app)
         row = [
-            str(cell) for cell in register.query_one("#docs-table", DataTable).get_row("ISO-1234")
+            str(cell) for cell in register.query_one("#log-table", DataTable).get_row("ISO-1234")
         ]
         assert row == [
             "ISO-1234",
@@ -149,18 +150,18 @@ def test_technical_mode_adds_the_scheme_and_record_lines_and_back() -> None:
 
     async def go(pilot: Pilot[None]) -> None:
         await pilot.press("f7")
-        await pilot.pause()
+        await settle(pilot)
         register = app.screen
         assert isinstance(register, DocumentRegisterScreen)
         assert "scheme alpha" not in screen_text(app)
         assert "record DOC-ISO-1234" not in screen_text(app)
         app.display_mode.technical = True
         register.refresh_for_display_mode()
-        await pilot.pause()
+        await settle(pilot)
         assert "scheme alpha" in screen_text(app) and "record DOC-ISO-1234" in screen_text(app)
         app.display_mode.technical = False
         register.refresh_for_display_mode()
-        await pilot.pause()
+        await settle(pilot)
         assert "scheme alpha" not in screen_text(app)
         assert "record DOC-ISO-1234" not in screen_text(app)
 

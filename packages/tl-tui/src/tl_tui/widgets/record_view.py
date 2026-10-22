@@ -1,4 +1,4 @@
-"""Record view: header, Details, Properties, Links, History, Trace and Thread tabs (brief 10.2).
+"""Record view: header and the Details, Properties, Links, History, Trace, Thread and Files tabs.
 
 Esc posts `CloseRecord`, [ and ] post `StepRecord`, h opens the History tab. The view reads only
 through `ClientInterface`; it never touches the ledger or services directly.
@@ -24,6 +24,7 @@ from tl_tui.errors import CLIENT_ERRORS, describe_error
 from tl_tui.labels_load import load_labels
 from tl_tui.messages import CloseRecord, RecordChanged, StatusMessage, StepRecord
 from tl_tui.text import EMPTY, conformance_mark, timestamp
+from tl_tui.widgets.file_panel import FilePanel
 from tl_tui.widgets.links_tab import LinksTab
 from tl_tui.widgets.psets_tab import PsetsTab
 from tl_tui.widgets.thread_tab import ThreadTab
@@ -36,6 +37,7 @@ TABS: dict[str, str] = {
     "history": "tab-history",
     "trace": "tab-trace",
     "thread": "tab-thread",  # P1-I7 WS-B
+    "files": "tab-files",  # P1-UX2-S4: only while the record has files
 }
 
 
@@ -48,9 +50,19 @@ def _sorted_keys(value: Any) -> str:
 
 
 def details_lines(rows: list[DetailRow]) -> str:
-    """The Details rows, one labelled line each, values lined up after the longest label."""
+    """The Details rows, one labelled line each, values lined up after the longest label.
+
+    A value of several lines hangs under the first (the timeline times); a long line wraps in the
+    widget, whole.
+    """
     width = max((len(row.label) for row in rows), default=0) + 2
-    return "\n".join(f"{row.label:<{width}}{row.value}" for row in rows)
+    lines: list[str] = []
+    for row in rows:
+        first, *more = row.value.split("\n")
+        line = f"{row.label:<{width}}{first}"
+        lines.append(line if first else line.rstrip())  # a heading row has no value
+        lines.extend(" " * width + line for line in more)
+    return "\n".join(lines)
 
 
 _EVENT_WORDS: dict[str, str] = {
@@ -133,6 +145,7 @@ class RecordView(Vertical, can_focus=True):
         Binding("4", "tab('history')", show=False),
         Binding("5", "tab('trace')", show=False),
         Binding("T", "tab('thread')", show=False),
+        Binding("6", "tab('files')", show=False),
     ]
 
     def __init__(
@@ -152,6 +165,7 @@ class RecordView(Vertical, can_focus=True):
         self._events: list[Event] = []  # the last read history, redrawn on a mode switch
         self._badges_text: str = ""  # the last header badges, redrawn on a mode switch
         self.details: str = ""  # the Details tab as text (for tests and the screen tickets)
+        self.has_files = False  # the Files tab is shown only then
 
     def compose(self) -> ComposeResult:
         yield Static("", id="rv-header", markup=False)
@@ -170,11 +184,14 @@ class RecordView(Vertical, can_focus=True):
                 yield TraceTab(self.client, self.scope, id="trace-tab")
             with TabPane("Thread", id="tab-thread"):
                 yield ThreadTab(self.client, self.scope, actor=self._actor(), id="thread-tab")
+            with TabPane("Files", id="tab-files"):  # hidden until the record has files
+                yield FilePanel(self.client, id="files-tab")
 
     def _actor(self) -> str:
         return str(getattr(self.app, "actor", "user:dev"))
 
     def on_mount(self) -> None:
+        self.query_one("#rv-tabs", TabbedContent).hide_tab("tab-files")
         self.reload()
 
     def reload(self) -> None:
@@ -198,6 +215,7 @@ class RecordView(Vertical, can_focus=True):
             self.query_one("#links-tab", LinksTab).show_record(record)
             self.query_one("#trace-tab", TraceTab).show_record(record)
             self.query_one("#thread-tab", ThreadTab).show_record(record)
+            self.query_one("#files-tab", FilePanel).show(str(record["id"]))
 
     def _labels_for(self, record: dict[str, Any]) -> Labels:
         """The labels, loaded once per view (a retarget makes a new view)."""
@@ -347,11 +365,34 @@ class RecordView(Vertical, can_focus=True):
         self.show_tab("history")
 
     def action_tab(self, name: str) -> None:
+        if name == "files" and not self.has_files:
+            return  # the tab is not there while the record has no files
         self.show_tab(name)
+
+    def on_file_panel_listed(self, message: FilePanel.Listed) -> None:
+        """The record's files were read: the Files tab is there when there are any."""
+        message.stop()
+        tabs = self.query_one("#rv-tabs", TabbedContent)
+        self.has_files = message.count > 0
+        if self.has_files:
+            tabs.show_tab("tab-files")
+        else:
+            if tabs.active == "tab-files":
+                tabs.active = "tab-details"
+            tabs.hide_tab("tab-files")
+
+    def on_file_panel_note(self, message: FilePanel.Note) -> None:
+        message.stop()
+        self.post_message(StatusMessage(message.text, "error" if message.error else "info"))
 
     def show_tab(self, name: str) -> None:
         """Make the tab named in ``TABS`` active (``details``, ``psets``, ... ``thread``)."""
         self.query_one("#rv-tabs", TabbedContent).active = TABS[name]
+        if name == "files":  # its keys (Up, Down, v, Enter) are the panel's
+            self.query_one("#files-tab", FilePanel).call_after_refresh(self._focus_files)
+
+    def _focus_files(self) -> None:
+        self.query_one("#files-tab", FilePanel).focus()
 
     def _edit_body(self, record: dict[str, Any]) -> bool:
         """Open the body edit form when ``record`` is an object-backed extension record."""
