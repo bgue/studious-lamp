@@ -43,6 +43,9 @@ class ReviewQueueScreen(LogScreen[dict[str, Any]]):
     """The proposed values of an enricher for ``scope``, to accept or reject."""
 
     LOG_NAME: ClassVar[str] = "Review queue"
+    # every key the log has, in one text (the walking tests read it); the keys row shows KEY_CELLS
+    # and F1 lists the rest (HELP_KEYS)
+    KEY_HINTS: ClassVar[str] = "s waiting/all  / filter  F5 reload  Esc close"
     KEY_CELLS: ClassVar[tuple[str, ...]] = ("s waiting/all", "/ filter")
     HELP_KEYS: ClassVar[tuple[tuple[str, str], ...]] = (
         ("s", "Switch between the values waiting for review and all values"),

@@ -57,6 +57,9 @@ class IntegrationScreen(LogScreen[dict[str, Any]]):
     """The registry for ``scope``; ``kind`` is the table shown first."""
 
     LOG_NAME: ClassVar[str] = LABELS[KINDS[0]]
+    # every key the log has, in one text (the walking tests read it); the keys row shows KEY_CELLS
+    # and F1 lists the rest (HELP_KEYS)
+    KEY_HINTS: ClassVar[str] = "[ ] or 1-7 table  / filter  F5 reload  Esc close"
     KEY_CELLS: ClassVar[tuple[str, ...]] = ("[ ] table", "/ filter")
     HELP_KEYS: ClassVar[tuple[tuple[str, str], ...]] = (
         ("[  ]  1-7", "Endpoints, rules, actions, enrichers, apps, invocations, error queue"),

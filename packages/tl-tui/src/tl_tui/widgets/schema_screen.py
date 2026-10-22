@@ -43,6 +43,9 @@ class SchemaWorkbenchScreen(LogScreen[PackageSummary]):
     """The package versions for ``scope``; ``tab`` is the one shown first."""
 
     LOG_NAME: ClassVar[str] = "Schema packages"
+    # every key the log has, in one text (the walking tests read it); the keys row shows KEY_CELLS
+    # and F1 lists the rest (HELP_KEYS)
+    KEY_HINTS: ClassVar[str] = "[ ] or 1-3 tab  / filter  F5 reload  Esc close"
     KEY_CELLS: ClassVar[tuple[str, ...]] = ("[ ] tab", "/ filter")
     HELP_KEYS: ClassVar[tuple[tuple[str, str], ...]] = (
         ("[  ]  1-3", "What the version defines, its lint findings, the diff"),

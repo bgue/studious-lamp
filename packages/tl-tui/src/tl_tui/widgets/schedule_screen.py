@@ -52,6 +52,11 @@ class ScheduleScreen(LogScreen[ScheduleView]):
     """The schedules of ``project`` (the id, not the scope)."""
 
     LOG_NAME: ClassVar[str] = "Schedules"
+    # every key the log has, in one text (the walking tests read it); the keys row shows KEY_CELLS
+    # and F1 lists the rest (HELP_KEYS)
+    KEY_HINTS: ClassVar[str] = (
+        "Tab table  l look-ahead  o orphans  n/b snapshot pages  / filter  F5 reload  Esc close"
+    )
     KEY_CELLS: ClassVar[tuple[str, ...]] = ("Tab table", "l look-ahead", "o orphans", "/ filter")
     HELP_KEYS: ClassVar[tuple[tuple[str, str], ...]] = (
         ("Tab", "Move between the schedules and the snapshots"),

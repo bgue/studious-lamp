@@ -36,6 +36,11 @@ class TagRegisterScreen(LogScreen[TagView]):
     """The tags of ``project`` (the id, not the scope)."""
 
     LOG_NAME: ClassVar[str] = "Tags"
+    # every key the log has, in one text (the walking tests read it); the keys row shows KEY_CELLS
+    # and F1 lists the rest (HELP_KEYS)
+    KEY_HINTS: ClassVar[str] = (
+        "c class  v violations only  a ended too  / filter  F5 reload  Esc close"
+    )
     KEY_CELLS: ClassVar[tuple[str, ...]] = ("c class", "v violations", "a ended too", "/ filter")
     HELP_KEYS: ClassVar[tuple[tuple[str, str], ...]] = (
         ("c", "Show the next class: all, then each class"),

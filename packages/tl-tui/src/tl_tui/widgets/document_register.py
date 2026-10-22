@@ -56,6 +56,11 @@ class DocumentRegisterScreen(LogScreen[DocumentView]):
     """The documents of ``project`` (the id, not the scope)."""
 
     LOG_NAME = "Documents"
+    # every key the log has, in one text (the walking tests read it); the keys row shows KEY_CELLS
+    # and F1 lists the rest (HELP_KEYS)
+    KEY_HINTS: ClassVar[str] = (
+        "s state  y type  a void too  / filter  Enter open record  F5 reload  Esc close"
+    )
     KEY_CELLS: ClassVar[tuple[str, ...]] = ("s state", "y type", "a void too", "/ filter")
     HELP_KEYS: ClassVar[tuple[tuple[str, str], ...]] = (
         ("s", "Show the next state: all, then each state"),

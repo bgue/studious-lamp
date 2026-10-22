@@ -61,6 +61,12 @@ class DomainScreen(LogScreen[Row]):
     """The Technical and Commercial domains of ``project`` (the id, not the scope)."""
 
     LOG_NAME: ClassVar[str] = MODE_TITLES["rfi"]
+    # every key the log has, in one text (the walking tests read it); the keys row shows KEY_CELLS
+    # and F1 lists the rest (HELP_KEYS)
+    KEY_HINTS: ClassVar[str] = (
+        "1 RFI log  2 Commercial  3 evidence (t on a row)  o open  v overdue/bars  i impact  "
+        "[ ] day  0 today  / filter  F5 reload  Esc close"
+    )
     KEY_CELLS: ClassVar[tuple[str, ...]] = (
         "1-3 view",
         "o open only",

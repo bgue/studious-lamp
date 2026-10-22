@@ -99,6 +99,7 @@ class LogScreen[Row](ModalScreen[None]):
     """The base of every log. Esc closes it (it clears the filter first when it has text)."""
 
     LOG_NAME: ClassVar[str] = "Log"
+    KEY_HINTS: ClassVar[str] = "/ filter  F5 reload  Esc back"  # every key, in one text
     KEY_CELLS: ClassVar[tuple[str, ...]] = ("/ filter",)  # the keys row after Up/Down move
     HELP_KEYS: ClassVar[tuple[tuple[str, str], ...]] = ()  # the log's other keys, for F1
 
