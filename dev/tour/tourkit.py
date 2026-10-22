@@ -38,6 +38,7 @@ from rich.style import Style
 from rich.text import Text
 from textual.app import App
 from textual.pilot import Pilot
+from textual.widgets import DataTable
 from ulid import ULID
 
 # --- the frozen clock ------------------------------------------------------------------------
@@ -434,6 +435,20 @@ async def call_tool(server: Any, name: str, **arguments: Any) -> dict[str, Any]:
 # --- the TUI ---------------------------------------------------------------------------------
 
 
+def fit_tables(app: App[Any]) -> None:
+    """Measure the columns of every table on the screen, and draw the cells again.
+
+    A Textual table measures its cells when the app next goes idle, and keeps what it drew before
+    that: a frame drawn in between stays in its cache with every column as wide as its header
+    (`Path`, `acme` for `acme-nde/results`) and the table never redraws it. Which shots that
+    spoiled differed from run to run. Measuring only ever widens a column, so doing this again
+    changes nothing."""
+    for table in app.screen.query(DataTable):
+        table._update_dimensions(list(table.rows))  # pyright: ignore[reportPrivateUsage]
+        table._clear_caches()  # pyright: ignore[reportPrivateUsage]
+        table.refresh(layout=True)
+
+
 async def settle(pilot: Pilot[Any], rounds: int = 4) -> None:
     """Let the app redraw ``rounds`` times and wait for its workers: a log reads its rows, its
     actions bar and its files off the UI thread, and a shot taken before they finish differs
@@ -444,6 +459,7 @@ async def settle(pilot: Pilot[Any], rounds: int = 4) -> None:
         await asyncio.wait_for(pilot.app.workers.wait_for_complete(), timeout=15)
     except TimeoutError:  # a worker that never ends must not hang the tour
         pass
+    fit_tables(pilot.app)
     await pilot.pause()
 
 
@@ -453,7 +469,10 @@ async def until(
     """Pump the app until ``predicate()`` holds; fail the tour on a timeout."""
     loop = asyncio.get_running_loop()
     started = loop.time()
-    while not predicate():
+    while True:
+        fit_tables(pilot.app)
+        if predicate():
+            break
         if loop.time() - started > timeout:
             raise TourFailed(
                 f"timed out waiting for {what}; the screen shows:\n{screen_text(pilot.app)}"
