@@ -128,7 +128,7 @@ KEYMAP: tuple[KeyEntry, ...] = (
     KeyEntry(
         "App",
         "Ctrl+G",
-        "RFI log, Commercial register and the evidence trail as of a day",
+        "RFI log, Commercial register and the evidence trail as of a day (t on a row)",
         "TlApp",
         "ctrl+g",
     ),
