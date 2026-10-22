@@ -6,7 +6,7 @@ from collections.abc import Awaitable, Callable
 
 from fakes import SCOPE, FakeClient
 from fakes_correspondence import seed_correspondence, seed_domains
-from helpers import run_pilot, screen_text
+from helpers import run_pilot, screen_text, settle
 from textual.pilot import Pilot
 from textual.widgets import DataTable
 from tl_tui.app import TlApp
@@ -35,7 +35,7 @@ def scenario(client: FakeClient, steps: Steps) -> None:
 
     async def go(pilot: Pilot[None]) -> None:
         await pilot.press("f5")
-        await pilot.pause()
+        await settle(pilot)
         screen = app.screen
         assert isinstance(screen, CorrespondenceScreen)
         await steps(pilot, app, screen)
@@ -44,14 +44,14 @@ def scenario(client: FakeClient, steps: Steps) -> None:
 
 
 async def open_row(pilot: Pilot[None], screen: CorrespondenceScreen, row: int) -> None:
-    screen.query_one("#corr-table", DataTable).move_cursor(row=row)
-    await pilot.pause()
+    screen.query_one("#log-table", DataTable).move_cursor(row=row)
+    await settle(pilot)
     await pilot.press("enter")
-    await pilot.pause()
+    await settle(pilot)
 
 
 def headers(screen: CorrespondenceScreen) -> list[str]:
-    table = screen.query_one("#corr-table", DataTable)
+    table = screen.query_one("#log-table", DataTable)
     return [str(column.label) for column in table.columns.values()]
 
 
@@ -71,9 +71,9 @@ def test_enter_on_a_register_row_opens_the_item_and_escape_returns_to_the_same_r
         assert isinstance(record, RecordScreen) and record.record_id == "ID-P123-COR-0003"
         assert record.view is not None and "Letter" in record.view.details
         await pilot.press("escape")
-        await pilot.pause()
+        await settle(pilot)
         assert app.screen is screen
-        assert screen.query_one("#corr-table", DataTable).cursor_row == 2
+        assert screen.query_one("#log-table", DataTable).cursor_row == 2
 
     scenario(client, steps)
 
@@ -85,22 +85,22 @@ def test_enter_in_the_inbox_and_in_the_clocks_view_opens_the_record_screen() -> 
 
     async def steps(pilot: Pilot[None], app: TlApp, screen: CorrespondenceScreen) -> None:
         await pilot.press("2")
-        await pilot.pause()
+        await settle(pilot)
         await open_row(pilot, screen, 0)
         record = app.screen
         assert isinstance(record, RecordScreen) and record.record_id == "ID-P123-COR-0001"
         await pilot.press("escape")
-        await pilot.pause()
+        await settle(pilot)
         assert app.screen is screen
 
         await pilot.press("3")
-        await pilot.pause()
+        await settle(pilot)
         await open_row(pilot, screen, 0)
         record = app.screen
         assert isinstance(record, RecordScreen) and record.record_id == "CLK-1"
         assert record.view is not None and "Days left" in record.view.details
         await pilot.press("escape")
-        await pilot.pause()
+        await settle(pilot)
         assert app.screen is screen
 
     scenario(client, steps)
@@ -126,22 +126,22 @@ def test_plain_text_has_domain_labels_and_no_clock_key_or_calendar() -> None:
     async def steps(pilot: Pilot[None], app: TlApp, screen: CorrespondenceScreen) -> None:
         # the register, with the issued item (and its clock) highlighted: the item panel too
         await pilot.press("1")
-        await pilot.pause()
-        screen.query_one("#corr-table", DataTable).move_cursor(row=2)
-        await pilot.pause()
+        await settle(pilot)
+        screen.query_one("#log-table", DataTable).move_cursor(row=2)
+        await settle(pilot)
         register = screen_text(app)
         assert "Letter" in register and "Transmittal" in register
         assert "running due 2026-11-02 left 14" in register
         assert_plain(register, screen.labels)
 
         await pilot.press("2")  # the triage inbox: the suggestion is a label too
-        await pilot.pause()
+        await settle(pilot)
         inbox = screen_text(app)
         assert "suggestion: Letter" in inbox
         assert_plain(inbox, screen.labels)
 
         await pilot.press("3")  # the clocks view: the item number leads, no calendar
-        await pilot.pause()
+        await settle(pilot)
         clocks = screen_text(app)
         assert "P123-COR-0003" in clocks and "Item" in headers(screen)
         assert_plain(clocks, screen.labels)
@@ -154,19 +154,19 @@ def test_technical_mode_restores_the_clock_key_and_the_calendar_and_back() -> No
 
     async def steps(pilot: Pilot[None], app: TlApp, screen: CorrespondenceScreen) -> None:
         await pilot.press("3")
-        await pilot.pause()
+        await settle(pilot)
         assert "P123-COR-0003-C01" not in screen_text(app) and "Item" in headers(screen)
 
         app.display_mode.technical = True
         screen.refresh_for_display_mode()
-        await pilot.pause()
+        await settle(pilot)
         text = screen_text(app)
         assert "P123-COR-0003-C01" in text and "calendar P123-default@1" in text
         assert "Clock" in headers(screen) and "Item" not in headers(screen)
 
         app.display_mode.technical = False
         screen.refresh_for_display_mode()
-        await pilot.pause()
+        await settle(pilot)
         text = screen_text(app)
         assert "P123-COR-0003-C01" not in text and "P123-default@1" not in text
         assert "Item" in headers(screen) and "Clock" not in headers(screen)
