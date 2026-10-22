@@ -24,6 +24,7 @@ from tl_core.services.commands import Command, CommandResult
 from tl_core.uow import UnitOfWork
 
 from tl_mod_correspondence import catalog, files, registry
+from tl_mod_correspondence.actions import states_for
 from tl_mod_correspondence.errors import InvalidItemError, ItemStateError, LetterRenderError
 from tl_mod_correspondence.handlers.clocks import close_clocks_of_item
 from tl_mod_correspondence.handlers.commercial import require_controller_viewer
@@ -47,13 +48,10 @@ from tl_mod_correspondence.limits import MAX_NUMBER, MAX_REASON
 from tl_mod_correspondence.names import (
     ASSESSMENT_STATUSES,
     COMM_ASSESSED,
+    COMMERCIAL,
     CORR_ISSUED,
     DOMAIN_COMMERCIAL,
-    ST_AGREED,
-    ST_AWAITING_ASSESSMENT,
     ST_DISPUTED,
-    ST_PARTLY_AGREED,
-    ST_PM_APPROVAL,
 )
 from tl_mod_correspondence.textcheck import clean_optional_text, clean_text
 
@@ -160,7 +158,7 @@ def handle_issue_commercial(uow: UnitOfWork, cmd: IssueCommercial) -> CommandRes
     cmd = correlated(cmd)
     row = open_commercial(uow, cmd, cmd.stream_id)
     item, data = row.item, row.data
-    require_state(item, ST_PM_APPROVAL)
+    require_state(item, *states_for("IssueCommercial", COMMERCIAL))
 
     recipients = ", ".join(r.get("name") or r.get("email") or "" for r in item.to).strip(", ")
     if not recipients:
@@ -287,7 +285,7 @@ def handle_assess_commercial(uow: UnitOfWork, cmd: AssessCommercial) -> CommandR
     cmd = correlated(cmd)
     row = open_commercial(uow, cmd, cmd.stream_id)
     item, data = row.item, row.data
-    require_state(item, ST_AWAITING_ASSESSMENT)
+    require_state(item, *states_for("AssessCommercial", COMMERCIAL))
 
     if cmd.status not in ASSESSMENT_STATUSES:
         raise InvalidItemError(f"status is one of {', '.join(ASSESSMENT_STATUSES)}")
@@ -348,7 +346,7 @@ def handle_close_commercial(uow: UnitOfWork, cmd: CloseCommercial) -> CommandRes
     cmd = correlated(cmd)
     row = open_commercial(uow, cmd, cmd.stream_id)
     item = row.item
-    require_state(item, ST_AGREED, ST_PARTLY_AGREED, ST_DISPUTED)
+    require_state(item, *states_for("CloseCommercial", COMMERCIAL))
     if item.state == ST_DISPUTED and not (cmd.reason and cmd.reason.strip()):
         raise ItemStateError(f"item {item.number} is disputed; give the reason for closing it")
 
@@ -373,7 +371,7 @@ def handle_refer_commercial_to_legal(uow: UnitOfWork, cmd: ReferCommercialToLega
     cmd = correlated(cmd)
     row = open_commercial(uow, cmd, cmd.stream_id)
     item = row.item
-    require_state(item, ST_DISPUTED)
+    require_state(item, *states_for("ReferCommercialToLegal", COMMERCIAL))
 
     moved = transition(
         uow, cmd, item.id, "escalate", reason=cmd.reason, expected=cmd.expected_version

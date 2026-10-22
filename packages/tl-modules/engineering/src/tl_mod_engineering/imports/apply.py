@@ -23,9 +23,9 @@ from tl_core.uow import UnitOfWork
 from tl_core.util import new_ulid
 
 from tl_mod_engineering import registry
+from tl_mod_engineering.actions import ENDED
 from tl_mod_engineering.errors import ImportApplyError
 from tl_mod_engineering.handlers.tags import (
-    ENDED,
     ReclassifyTag,
     RecordTag,
     handle_reclassify_tag,

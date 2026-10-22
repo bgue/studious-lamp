@@ -27,6 +27,7 @@ from tl_core.services.errors import NoChangesError
 from tl_core.uow import UnitOfWork
 
 from tl_mod_correspondence import catalog
+from tl_mod_correspondence.actions import states_for
 from tl_mod_correspondence.errors import InvalidItemError
 from tl_mod_correspondence.handlers.common import (
     append,
@@ -369,7 +370,7 @@ def handle_submit_technical(uow: UnitOfWork, cmd: SubmitTechnical) -> CommandRes
     cmd = correlated(cmd)
     row = open_technical(uow, cmd, cmd.stream_id)
     item, data = row.item, row.data
-    require_state(item, ST_DRAFT)
+    require_state(item, *states_for("SubmitTechnical", TECHNICAL))
     missing: list[str] = []
     if not item.to:
         missing.append("a recipient")
@@ -389,7 +390,7 @@ def handle_return_technical(uow: UnitOfWork, cmd: ReturnTechnical) -> CommandRes
     """
     cmd = correlated(cmd)
     row = open_technical(uow, cmd, cmd.stream_id)
-    require_state(row.item, ST_INTERNAL_REVIEW)
+    require_state(row.item, *states_for("ReturnTechnical", TECHNICAL))
     return transition(
         uow,
         cmd,

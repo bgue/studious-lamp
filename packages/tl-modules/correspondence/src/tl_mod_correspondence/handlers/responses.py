@@ -13,7 +13,6 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
 from typing import Any
 
 from pydantic import ConfigDict, Field, field_validator
@@ -23,6 +22,7 @@ from tl_core.services.errors import RecordNotFoundError
 from tl_core.uow import UnitOfWork
 
 from tl_mod_correspondence import registry
+from tl_mod_correspondence.actions import states_for
 from tl_mod_correspondence.errors import InvalidItemError, ItemStateError
 from tl_mod_correspondence.handlers.clocks import close_clocks_of_item
 from tl_mod_correspondence.handlers.common import (
@@ -44,18 +44,9 @@ from tl_mod_correspondence.handlers.models import Medium, Recipient, non_blank
 from tl_mod_correspondence.handlers.threads import with_thread
 from tl_mod_correspondence.limits import MAX_BODY, MAX_NUMBER, MAX_REASON, MAX_RECIPIENTS, MAX_TEXT
 from tl_mod_correspondence.names import (
-    COMMERCIAL,
     CORR_RESPONDED,
     CORRESPONDENCE,
-    ST_COMMERCIAL_REVIEW,
-    ST_DRAFT,
-    ST_INTERNAL_REVIEW,
-    ST_ISSUED,
-    ST_PM_APPROVAL,
-    ST_RECEIVED,
     ST_RESPONDED,
-    ST_TRIAGED,
-    TECHNICAL,
 )
 from tl_mod_correspondence.textcheck import clean_optional_text, clean_text
 
@@ -211,7 +202,7 @@ def mark_responded(
     Called by ``RecordResponse`` and by issuing a reply. The item must be Received, Triaged or
     Issued (``ItemStateError`` otherwise).
     """
-    require_state(item, ST_RECEIVED, ST_TRIAGED, ST_ISSUED)
+    require_state(item, *states_for("RecordResponse", CORRESPONDENCE))
     done = append(
         uow,
         cmd,
@@ -270,7 +261,7 @@ def handle_close_correspondence(uow: UnitOfWork, cmd: CloseCorrespondence) -> Co
     cmd = correlated(cmd)
     item = open_item(uow, cmd, cmd.stream_id)
     require_core(item)
-    require_state(item, ST_TRIAGED, ST_ISSUED, ST_RESPONDED)
+    require_state(item, *states_for("CloseCorrespondence", CORRESPONDENCE))
     unanswered = item.response_required and item.state != ST_RESPONDED
     if unanswered and not (cmd.reason and cmd.reason.strip()):
         raise ItemStateError(
@@ -288,25 +279,13 @@ def handle_close_correspondence(uow: UnitOfWork, cmd: CloseCorrespondence) -> Co
     )
 
 
-#: The states in which a Technical or Commercial item may still be voided (not yet issued).
-_UNISSUED = {
-    TECHNICAL: (ST_DRAFT, ST_INTERNAL_REVIEW),
-    COMMERCIAL: (ST_DRAFT, ST_COMMERCIAL_REVIEW, ST_PM_APPROVAL),
-}
-
-
-def _void(
-    uow: UnitOfWork,
-    cmd: VoidDraft | VoidCorrespondence,
-    allowed: Sequence[str],
-) -> CommandResult:
+def _void(uow: UnitOfWork, cmd: VoidDraft | VoidCorrespondence, command: str) -> CommandResult:
+    """Void an item in a state ``command`` takes (``actions.RULES``): a letter while it is a Draft
+    (or Received, for a controller); a Technical or Commercial item until it is issued."""
     cmd = correlated(cmd)
     item = open_item(uow, cmd, cmd.stream_id)
     require_controller_for(item)
-    if item.record_type == CORRESPONDENCE:
-        require_state(item, *allowed)
-    else:  # a Technical or Commercial item can be voided until it is issued
-        require_state(item, *_UNISSUED[item.record_type])
+    require_state(item, *states_for(command, item.record_type))
     cancelled = close_clocks_of_item(
         uow, cmd, item.id, how="cancelled", day=today(), reason=f"item void: {cmd.reason}"
     )
@@ -333,9 +312,9 @@ def _why(cmd: VoidDraft | VoidCorrespondence) -> dict[str, Any]:
 def handle_void_draft(uow: UnitOfWork, cmd: VoidDraft) -> CommandResult:
     """Void a Draft (a Technical item in internal review, a Commercial item before it is issued,
     too). ``ItemStateError`` for any other state."""
-    return _void(uow, cmd, (ST_DRAFT,))
+    return _void(uow, cmd, "VoidDraft")
 
 
 def handle_void_correspondence(uow: UnitOfWork, cmd: VoidCorrespondence) -> CommandResult:
     """Void a Draft or a Received item. ``ItemStateError`` for any other state."""
-    return _void(uow, cmd, (ST_DRAFT, ST_RECEIVED))
+    return _void(uow, cmd, "VoidCorrespondence")

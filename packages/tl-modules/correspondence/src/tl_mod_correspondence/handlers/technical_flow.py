@@ -27,6 +27,7 @@ from tl_core.services.errors import RecordNotFoundError
 from tl_core.uow import UnitOfWork
 
 from tl_mod_correspondence import catalog, constraints, files, registry, registry_domain
+from tl_mod_correspondence.actions import states_for
 from tl_mod_correspondence.errors import InvalidItemError, ItemStateError, LetterRenderError
 from tl_mod_correspondence.handlers.clocks import close_clocks_of_item
 from tl_mod_correspondence.handlers.common import (
@@ -55,13 +56,10 @@ from tl_mod_correspondence.names import (
     CORR_RESPONDED,
     DOMAIN_TECHNICAL,
     ST_ACCEPTED,
-    ST_ANSWERED,
-    ST_AWAITING_RESPONSE,
-    ST_INTERNAL_REVIEW,
-    ST_REJECTED,
     TECH_ANSWERED,
     TECH_REISSUED,
     TECH_REVIEWED,
+    TECHNICAL,
 )
 from tl_mod_correspondence.textcheck import clean_body, clean_optional_text, clean_text
 
@@ -218,7 +216,7 @@ def handle_issue_technical(uow: UnitOfWork, cmd: IssueTechnical) -> CommandResul
     cmd = correlated(cmd)
     row = open_technical(uow, cmd, cmd.stream_id)
     item, data = row.item, row.data
-    require_state(item, ST_INTERNAL_REVIEW)
+    require_state(item, *states_for("IssueTechnical", TECHNICAL))
     recipients = ", ".join(r.get("name") or r.get("email") or "" for r in item.to).strip(", ")
     if not recipients:
         raise InvalidItemError(f"item {item.number} has no recipient")
@@ -324,7 +322,7 @@ def handle_answer_technical(uow: UnitOfWork, cmd: AnswerTechnical) -> CommandRes
     cmd = correlated(cmd)
     row = open_technical(uow, cmd, cmd.stream_id)
     item = row.item
-    require_state(item, ST_AWAITING_RESPONSE)
+    require_state(item, *states_for("AnswerTechnical", TECHNICAL))
     if cmd.answer_item_id is not None:
         answer = registry.get_item(uow.conn(), cmd.answer_item_id)
         if answer is None or answer.scope != cmd.scope:
@@ -403,7 +401,7 @@ def handle_review_technical_answer(uow: UnitOfWork, cmd: ReviewTechnicalAnswer) 
     cmd = correlated(cmd)
     row = open_technical(uow, cmd, cmd.stream_id)
     item = row.item
-    require_state(item, ST_ANSWERED)
+    require_state(item, *states_for("ReviewTechnicalAnswer", TECHNICAL))
     if cmd.decision == "rejected" and not (cmd.note and cmd.note.strip()):
         raise InvalidItemError("say why the answer is rejected")
     done = append(
@@ -443,7 +441,7 @@ def handle_reissue_technical(uow: UnitOfWork, cmd: ReissueTechnical) -> CommandR
     cmd = correlated(cmd)
     row = open_technical(uow, cmd, cmd.stream_id)
     item = row.item
-    require_state(item, ST_REJECTED)
+    require_state(item, *states_for("ReissueTechnical", TECHNICAL))
     rounds = int(uow.conn().execute(_ISSUES_SQL, {"id": item.id}).scalar_one()) + 1
     done = append(
         uow,
@@ -477,7 +475,7 @@ def handle_close_technical(uow: UnitOfWork, cmd: CloseTechnical) -> CommandResul
     cmd = correlated(cmd)
     row = open_technical(uow, cmd, cmd.stream_id)
     item = row.item
-    require_state(item, ST_AWAITING_RESPONSE, ST_ACCEPTED, ST_REJECTED)
+    require_state(item, *states_for("CloseTechnical", TECHNICAL))
     if item.state != ST_ACCEPTED and not (cmd.reason and cmd.reason.strip()):
         raise ItemStateError(f"item {item.number} is {item.state}; give the reason for closing it")
     moved = transition(uow, cmd, item.id, "close", reason=cmd.reason, expected=cmd.expected_version)

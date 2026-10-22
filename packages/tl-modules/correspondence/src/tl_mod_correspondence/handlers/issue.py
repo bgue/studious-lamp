@@ -20,6 +20,7 @@ from tl_core.services.commands import Command, CommandResult
 from tl_core.uow import UnitOfWork
 
 from tl_mod_correspondence import catalog, files, registry
+from tl_mod_correspondence.actions import states_for
 from tl_mod_correspondence.errors import InvalidItemError, ItemStateError, LetterRenderError
 from tl_mod_correspondence.handlers.common import (
     append,
@@ -36,7 +37,7 @@ from tl_mod_correspondence.letter import LetterError, LetterFields, compose_lett
 from tl_mod_correspondence.limits import MAX_NUMBER, MAX_REASON
 from tl_mod_correspondence.names import (
     CORR_ISSUED,
-    ST_DRAFT,
+    CORRESPONDENCE,
     ST_ISSUED,
     ST_RECEIVED,
     ST_TRIAGED,
@@ -82,7 +83,7 @@ def handle_issue_correspondence(uow: UnitOfWork, cmd: IssueCorrespondence) -> Co
     cmd = correlated(cmd)
     item = open_item(uow, cmd, cmd.stream_id)
     require_core(item)
-    require_state(item, ST_DRAFT)
+    require_state(item, *states_for("IssueCorrespondence", CORRESPONDENCE))
     if item.direction != "out":
         raise ItemStateError(f"item {item.number} was received; only a letter we wrote is issued")
     if item.domain is None or item.subtype is None:

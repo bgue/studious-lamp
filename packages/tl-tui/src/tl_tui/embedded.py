@@ -14,11 +14,13 @@ from collections.abc import Callable, Generator, Iterator, Sequence
 from contextlib import AbstractContextManager, contextmanager
 from datetime import date, datetime, timedelta
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, BinaryIO, Literal
 
 from tl_api.auth import AGENT_MUST_PROPOSE
+from tl_api.client.files import save_download
 from tl_api.thread_runner import thread_runner
 from tl_core import confidentiality
+from tl_core.actions import Holds, Level, RecordActions, allowed_actions
 from tl_core.auth import accounts as account_services
 from tl_core.auth import queries as account_queries
 from tl_core.auth.env import current_env, demo_allowed
@@ -39,6 +41,8 @@ from tl_core.extypes.service import (
     type_detail,
 )
 from tl_core.extypes.types import TypeStatus
+from tl_core.files.queries import FileInfo, list_files
+from tl_core.files.service import FileService
 from tl_core.files.types import ObjectStore
 from tl_core.integration import registry as integration_registry
 from tl_core.integration.actor_access import held_access
@@ -60,7 +64,7 @@ from tl_core.services import (
 )
 from tl_core.services.commands import Command, CommandResult, CreateRecord, UpdateRecord
 from tl_core.services.edit import EditRecord, handle_edit_record
-from tl_core.services.errors import ReservedIdentifierError
+from tl_core.services.errors import ReservedIdentifierError, UnknownFileError
 from tl_core.services.feed import EditPost, PostToFeed, handle_edit_post, handle_post
 from tl_core.services.feed_actions import (
     ReactToPost,
@@ -121,6 +125,7 @@ from tl_mod_correspondence.commands import API_COMMANDS as CORRESPONDENCE_COMMAN
 from tl_mod_cost import views as cost_views
 from tl_mod_documents import reports as document_reports
 from tl_mod_documents import views as document_views
+from tl_mod_documents.commands import API_COMMANDS as DOCUMENT_COMMANDS
 from tl_mod_documents.derivation import views as derivation_views
 from tl_mod_documents.derivation.derived import (
     CancelJob,
@@ -153,6 +158,7 @@ from tl_mod_documents.handlers.transmittals import (
     handle_issue_transmittal,
 )
 from tl_mod_documents.resolver import RepinDocumentLink, handle_repin_document_link
+from tl_mod_engineering.commands import API_COMMANDS as ENGINEERING_COMMANDS
 from tl_mod_engineering.views import TagView, tag_view, tag_views
 from tl_mod_schedule import views as schedule_views
 from tl_mod_schedule.compare import Comparison
@@ -261,6 +267,12 @@ class EmbeddedAuthenticator:
         return f"dev setup: sign in as {DEMO_USERNAME} / {DEMO_USERNAME}" if usable else None
 
 
+def _copy(source: BinaryIO, out: BinaryIO) -> None:
+    """Copy a stream in blocks (a file can be larger than memory)."""
+    while block := source.read(1024 * 1024):
+        out.write(block)
+
+
 class EmbeddedClient:
     """`ClientInterface` over in-process services. Errors from the services propagate unchanged.
 
@@ -275,6 +287,7 @@ class EmbeddedClient:
         object_store: ObjectStore | None = None,
         actor: str = DEFAULT_ACTOR,
         prime_types: bool = True,
+        files: FileService | None = None,
     ) -> None:
         if actor.startswith("agent:"):
             raise ValueError(
@@ -282,6 +295,8 @@ class EmbeddedClient:
             )
         self._uow: UowFactory = _ViewingFactory(uow_factory, actor)
         self._objects = object_store
+        self._files = files
+        self._file_scopes: dict[str, str] = {}  # file id -> scope, from ``list_record_files``
         self.actor = actor  # recorded on the writes that take no command (settings, bodies)
         self.own_writes = OwnWrites()
         # the registered extension types of this ledger join the effective schema (brief 31)
@@ -433,6 +448,71 @@ class EmbeddedClient:
     def conformance(self, record_id: str) -> ConformanceReport:
         with self._uow(True) as uow:
             return psets.conformance(uow, record_id)
+
+    # --- what a record offers, and its files (P1-UX2) -------------------------------------------
+
+    def _gate_holds(self, uow: UnitOfWork) -> Holds:
+        """Whether this client's person holds a level, as the command gates decide it: ``user``
+        needs nothing (the gates check no account for it), the others the account's roles."""
+
+        def holds(level: Level) -> bool:
+            gate = {"admin": self._admin_gate, "controller": self._controller_gate}.get(level)
+            if gate is None:
+                return True
+            try:
+                gate(uow)
+            except ForbiddenError:
+                return False
+            return True
+
+        return holds
+
+    def allowed_actions(self, record_id: str) -> RecordActions:
+        with self._uow(True) as uow:
+            return allowed_actions(uow, record_id, actor=self.actor, holds=self._gate_holds(uow))
+
+    def list_record_files(self, record_id: str) -> list[FileInfo]:
+        with self._uow(True) as uow:
+            record = queries.get_record_by_id(uow, record_id)  # a hidden record reads as missing
+            if record is None:
+                return []
+            found = list_files(uow, str(record["scope"]), record_id, current_only=True)
+        self._file_scopes.update({info.file_id: info.scope for info in found})
+        return found
+
+    def _file_service(self) -> FileService:
+        """The file service reads go through: the one given, else the one this process set for
+        derivation, else one on this client's object store. Never a store of our own making."""
+        if self._files is not None:
+            return self._files
+        from tl_adapters.objectstore import object_secret
+        from tl_mod_documents.derivation import store as derivation_store
+
+        configured = derivation_store.configured()
+        if configured is not None:
+            return configured
+        if self._objects is not None:
+            try:
+                return FileService(self._objects, secret=object_secret())
+            except ValueError:
+                pass
+        raise BodyStoreUnavailableError("no file storage is configured, so files cannot be read")
+
+    def fetch_file(self, file_id: str, dest_dir: Path) -> Path:
+        service = self._file_service()
+        missing = UnknownFileError(f"no file {file_id!r}")
+        scope = self._file_scopes.get(file_id)
+        if scope is None:
+            raise missing
+        with self._uow(True) as uow:
+            try:
+                opened = service.open_file(uow, scope, file_id, actor=self.actor)
+            except UnknownFileError:
+                raise missing from None  # a hidden file reads as one that does not exist
+        try:
+            return save_download(dest_dir, opened.info, lambda out: _copy(opened.data, out))
+        finally:
+            opened.data.close()
 
     # --- extension record types ---------------------------------------------------------------
 
@@ -1044,6 +1124,28 @@ class EmbeddedClient:
             if spec.access == "controller":
                 self._controller_gate(uow)
             elif spec.access == "admin":
+                self._admin_gate(uow)
+            self._own_command(cmd.actor)
+            return self.own_writes.note(spec.handler(uow, cmd))
+
+    def document_command(self, name: str, cmd: Command) -> CommandResult:
+        return self._module_command(name, cmd, DOCUMENT_COMMANDS, "documents")
+
+    def engineering_command(self, name: str, cmd: Command) -> CommandResult:
+        return self._module_command(name, cmd, ENGINEERING_COMMANDS, "engineering")
+
+    def _module_command(
+        self, name: str, cmd: Command, table: Sequence[Any], module: str
+    ) -> CommandResult:
+        """Run a command of a module's own table with the access word that row names: the same
+        gates as ``correspondence_command``, the actor checked, the result noted in own_writes."""
+        spec = next((c for c in table if c.model.__name__ == name), None)
+        if spec is None or type(cmd) is not spec.model:
+            raise ForbiddenError(f"{name} is not a {module} command")
+        with self._uow(False) as uow:
+            if spec.access == "controller":
+                self._controller_gate(uow)
+            elif spec.access == "admin" or (spec.access == "company" and cmd.scope == "company"):
                 self._admin_gate(uow)
             self._own_command(cmd.actor)
             return self.own_writes.note(spec.handler(uow, cmd))

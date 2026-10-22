@@ -26,6 +26,7 @@ from tl_core.util import new_ulid, utcnow
 from tl_schema.conformance import evaluate
 
 from tl_mod_engineering import patterns, registry
+from tl_mod_engineering.actions import ENDED
 from tl_mod_engineering.errors import (
     InvalidTagNumberError,
     RegistryScopeError,
@@ -50,8 +51,6 @@ from tl_mod_engineering.names import (
     TAG_SUPERSEDED,
 )
 
-#: Workflow states in which a tag has left service for good.
-ENDED = ("Superseded", "Deleted")
 #: Pset roots that people do not write (enrichment and source layers).
 _NOT_COPIED = ("enrich", "src")
 #: One write of values: ``(pset, layer, values)`` as ``SetPsetValues`` takes them.

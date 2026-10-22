@@ -15,6 +15,7 @@ from copy import deepcopy
 from datetime import UTC, datetime, timedelta
 from typing import Any, Literal
 
+from fakes_actions import FakeActionsSupport
 from fakes_admin import FakeAdminSupport
 from fakes_correspondence import FakeCorrespondenceSupport
 from fakes_derivation import FakeDerivationSupport
@@ -215,6 +216,7 @@ def set_path(data: dict[str, Any], dotted: str, value: Any) -> None:
 
 class FakeClient(
     FakeQuerySupport,
+    FakeActionsSupport,
     FakeLinkSupport,
     FakeFeedSupport,
     FakeThreadSupport,
@@ -245,6 +247,7 @@ class FakeClient(
         self._events: dict[str, list[Event]] = {}
         self._seq = 0
         self._id = 0
+        self._init_actions()
         self._init_links()
         self._init_feed()
         self._init_threads()
