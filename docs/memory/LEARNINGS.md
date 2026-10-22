@@ -230,7 +230,7 @@ The impact report of a package is stored in an event the whole company can read,
   Evidence: S4 report, STATE D9, `dev/tools/check_licences.py` (`MIT_FILE_ONLY`), `caf2a9a`. Status: active
 
 - **L-P1-UX2-2** · 2026-10-22 · tags: process, tooling
-  A container restart ends every running workflow run and agent; the work on disk survives. Resume a lost run by its run id, from its last commit, instead of dispatching the piece again, and check `git status` in the worktree before anything is re-run. P1-UX2 lost work to three restarts this way.
+  A container restart ends every running workflow run and agent; the work on disk survives. Resume a lost run by its run id, from its last commit, instead of dispatching the piece again, and check `git status` in the worktree before anything is re-run. P1-UX2 lost work to four restarts this way.
   Evidence: `docs/reports/P1-UX2.md` (Deviations), STATE TRAPS. Status: active
 
 - **L-P1-UX2-3** · 2026-10-22 · tags: tui, standards
