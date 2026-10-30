@@ -78,11 +78,13 @@ def _pset_schema(pset: EffectivePset) -> dict[str, Any]:
     properties: dict[str, Any] = {
         name: _property_schema(prop) for name, prop in pset.properties.items()
     }
-    if pset.custom:
+    if pset.custom or pset.custom_allowed:
         properties[_CUSTOM_KEY] = {
             "type": "object",
             "properties": {name: _property_schema(prop) for name, prop in pset.custom.items()},
-            "additionalProperties": False,
+            # a set that allows a custom section takes ad-hoc fields the schema does not declare
+            # (P1-UX3 round 4); the command checks their names and values
+            "additionalProperties": pset.custom_allowed,
         }
     return {
         "type": "object",

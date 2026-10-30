@@ -190,7 +190,7 @@ def test_unknown_properties_are_reported_one_per_key(effective: EffectiveSchema)
         ("psets.prj.another_pset", "additionalProperties"),
         ("psets.prj.shutdown_tie_in.zzz", "additionalProperties"),
         ("psets.valve_data.nope", "additionalProperties"),
-        ("psets.valve_data.x.other", "additionalProperties"),
+        # valve_data allows a custom section: x.other is an ad-hoc field (P1-UX3 round 4)
     ]
     assert "nope" in issues[2].message
 

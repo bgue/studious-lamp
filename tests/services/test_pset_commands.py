@@ -247,7 +247,7 @@ def test_rebuilding_projections_reproduces_the_rows(db: DbTarget) -> None:
         ("valve_data", "custom", {"size_in": None}, LayerError),
         ("enrich.ai_classifier", "standard", {"valve_type": None}, LayerError),
         ("valve_data", "standard", {"size_in": None}, NoChangesError),  # nothing to unset
-        ("valve_data", "custom", {"x.nope": "v"}, PsetValidationError),
+        ("valve_data", "custom", {"x.Nope": "v"}, PsetValidationError),  # not a usable name
         ("prj.shutdown_tie_in", "project", {"approved": "yes"}, PsetValidationError),
         ("prj.shutdown_tie_in", "project", {"zzz": 1}, PsetValidationError),
         ("valve_data", "standard", {"x.fat_witness_by": "c"}, LayerError),
