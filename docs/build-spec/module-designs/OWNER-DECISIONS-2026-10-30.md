@@ -35,3 +35,13 @@ accepts a receipt, a superuser disposes of damaged or nonconforming items; (16) 
 SerializedItem and Equipment are deferred.
 Add property (same day): ad-hoc custom fields where a set allows them; unadopted sets need a superuser (admin until
 the roles MVP lands); the API and MCP have parity with the terminal form.
+
+## Phase 2 questions (owner accepted the recommendations, 2026-10-30)
+
+P2-Q10: the orchestrator approves Phase 2 human gates (schema merges and similar) as in Phase 1 and logs each in
+APPROVALS.md; spend, data migrations of existing data and copyleft licences still stop; the rules-of-credit package
+goes to the owner in person (the roles part of option B is already decided above). P2-Q4: A (POLineRef by hand and by
+CSV import; no outbound call). P2-Q5: B (movements are events on the stock-lot stream; lots, receipts and
+requisitions are records). P2-Q9: A (keys in schema/settings/platform.yaml). Web security review at the end of web
+increment 1; web off in production until it passes. `awp.release.signoff_roles` default `[superuser]`.
+`RejectReceipt` is a user act; disposition of rejected items is a superuser act.
