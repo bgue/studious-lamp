@@ -938,15 +938,93 @@ def build_cell(
     }
 
 
+def table_counts(target: Any) -> dict[str, int]:
+    """Rows in every current-state table (``cur_*``) of a ledger."""
+    from sqlalchemy import text
+    from tl_adapters import db as adapter_db
+
+    engine = adapter_db.make_engine(target)
+    try:
+        with engine.connect() as conn:
+            if engine.dialect.name == "postgresql":
+                names = (
+                    conn.execute(
+                        text(
+                            "SELECT tablename FROM pg_tables "
+                            "WHERE schemaname = current_schema() AND tablename LIKE 'cur\\_%'"
+                        )
+                    )
+                    .scalars()
+                    .all()
+                )
+            else:
+                names = (
+                    conn.execute(
+                        text(
+                            "SELECT name FROM sqlite_master "
+                            "WHERE type = 'table' AND name LIKE 'cur\\_%' ESCAPE '\\'"
+                        )
+                    )
+                    .scalars()
+                    .all()
+                )
+            return {
+                str(n): int(conn.exec_driver_sql(f'SELECT COUNT(*) FROM "{n}"').scalar_one())
+                for n in sorted(names)
+            }
+    finally:
+        engine.dispose()
+
+
+def copy_ledger(source: Path, target: str, say: Callable[[str], None]) -> dict[str, Any]:
+    """Postgres gets the same project as the SQLite file: the events are inserted verbatim
+    (``restore_events``, the path a restore from an archive takes) and the projections are
+    rebuilt by replaying them. Seeding Postgres through the commands takes hours at 10,000
+    records, because every command reads the whole register."""
+    from tl_adapters import db as adapter_db
+    from tl_adapters.postgres import admin
+
+    started = time.perf_counter()
+    adapter_db.create_schema(target)
+    src_engine = adapter_db.make_engine(source)
+    ledger = adapter_db.make_ledger(src_engine)
+
+    def events() -> Iterator[Any]:
+        seq = 0
+        while True:
+            page = ledger.read_after(seq, limit=1000)
+            if not page:
+                return
+            yield from page
+            seq = page[-1].seq
+
+    engine = adapter_db.make_engine(target)
+    try:
+        with adapter_db.write_tx(engine) as conn:
+            count = admin.restore_events(conn, events())
+    finally:
+        engine.dispose()
+        src_engine.dispose()
+    inserted = time.perf_counter()
+    say(f"    {count} events copied in {inserted - started:.0f} s; rebuilding projections")
+    adapter_db.rebuild_projections(target)
+    if table_counts(source) != table_counts(target):
+        raise RuntimeError("the Postgres copy does not hold the same records as the SQLite file")
+    return {"events": count, "seconds": round(time.perf_counter() - started, 1)}
+
+
 def run_all(args: argparse.Namespace) -> int:
     sizes = [int(s) for s in args.sizes.split(",") if s.strip()]
     backends = [b.strip() for b in args.backends.split(",") if b.strip()]
     for b in backends:
         if b not in BACKENDS:
             raise SystemExit(f"unknown backend {b!r}; use {', '.join(BACKENDS)}")
-    print_ = lambda text: print(text, flush=True)  # noqa: E731
+
+    def say(text: str) -> None:
+        print(text, flush=True)
+
     work = Path(tempfile.mkdtemp(prefix="tl-ux-perf-"))
-    print_(f"work folder {work}")
+    say(f"work folder {work}")
     os.environ["TL_ENV"] = "dev"
     for name in ("TL_SCHEMA_DIR", "TL_REMOTE", "TL_TOKEN", "TL_DB", "TL_PROJECT"):
         os.environ.pop(name, None)
@@ -954,18 +1032,51 @@ def run_all(args: argparse.Namespace) -> int:
     cells: list[dict[str, Any]] = []
     machine = machine_info(work)
     pg_names: list[str] = []
+
+    def measured(backend: str, size: int, facts: dict[str, Any], raw: dict[str, Any]) -> None:
+        cells.append(build_cell(backend, size, facts, raw))
+        write_results(args, machine, cells)  # after every cell: a long run keeps what it has
+
     try:
         for size in sizes:
             full = size <= FULL_LIMIT
+            db = work / f"ux-{size}.db"
+            say(f"[{size}] seeding SQLite")
+            facts = seed(db, size, full=full, say=say)
+            say(f"[{size}] SQLite seeded in {facts['seconds']} s")
+            if "sqlite" in backends:
+                say(f"[{size}] measuring sqlite")
+                raw = run_child(
+                    "embedded",
+                    str(db),
+                    work,
+                    grid_only=not full,
+                    reps=args.reps,
+                    warmup=args.warmup,
+                )
+                measured("sqlite", size, facts, raw)
+            if "remote" in backends:
+                say(f"[{size}] measuring remote")
+                with api_server(db, work) as (url, token):
+                    raw = run_child(
+                        "remote",
+                        url,
+                        work,
+                        grid_only=not full,
+                        reps=args.reps,
+                        warmup=args.warmup,
+                        token=token,
+                    )
+                measured("remote", size, facts, raw)
             if "postgres" in backends:
                 from tl_adapters.postgres import admin
 
                 name = f"tl_perf_ux_{size}_{os.getpid()}"
                 admin.create_database(pg_server(), name)
                 pg_names.append(name)
-                print_(f"[{size}] seeding Postgres")
-                facts = seed(pg_url(name), size, full=full, say=print_)
-                print_(f"[{size}] Postgres seeded in {facts['seconds']} s; measuring")
+                say(f"[{size}] copying the project to Postgres")
+                copied = copy_ledger(db, pg_url(name), say)
+                say(f"[{size}] measuring postgres")
                 raw = run_child(
                     "embedded",
                     pg_url(name),
@@ -974,35 +1085,11 @@ def run_all(args: argparse.Namespace) -> int:
                     reps=args.reps,
                     warmup=args.warmup,
                 )
-                cells.append(build_cell("postgres", size, facts, raw))
+                measured("postgres", size, {**facts, **copied, "via": "sqlite ledger copy"}, raw)
                 admin.drop_database(pg_server(), name)
                 pg_names.remove(name)
-            if "sqlite" in backends or "remote" in backends:
-                db = work / f"ux-{size}.db"
-                print_(f"[{size}] seeding SQLite")
-                facts = seed(db, size, full=full, say=print_)
-                print_(f"[{size}] SQLite seeded in {facts['seconds']} s")
-                if "sqlite" in backends:
-                    print_(f"[{size}] measuring sqlite")
-                    raw = run_child(
-                        "embedded",
-                        str(db),
-                        work,
-                        grid_only=not full,
-                        reps=args.reps,
-                        warmup=args.warmup,
-                    )
-                    cells.append(build_cell("sqlite", size, facts, raw))
-                if "remote" in backends:
-                    print_(f"[{size}] measuring remote")
-                    with api_server(db, work) as (url, token):
-                        raw = run_child(
-                            "remote", url, work, grid_only=not full, reps=args.reps,
-                            warmup=args.warmup, token=token,
-                        )  # fmt: skip
-                    cells.append(build_cell("remote", size, facts, raw))
-                for suffix in ("", "-wal", "-shm"):
-                    Path(str(db) + suffix).unlink(missing_ok=True)
+            for suffix in ("", "-wal", "-shm"):
+                Path(str(db) + suffix).unlink(missing_ok=True)
     finally:
         if pg_names:
             from tl_adapters.postgres import admin
@@ -1011,7 +1098,6 @@ def run_all(args: argparse.Namespace) -> int:
                 with contextlib.suppress(Exception):
                     admin.drop_database(pg_server(), name)
         shutil.rmtree(work, ignore_errors=True)
-    write_results(args, machine, cells)
     return 0
 
 
