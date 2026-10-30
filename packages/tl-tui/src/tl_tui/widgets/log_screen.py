@@ -26,7 +26,7 @@ from textual.screen import ModalScreen
 from textual.widgets import DataTable, Input, Static
 
 from tl_tui.errors import CLIENT_ERRORS, describe_error
-from tl_tui.layout import state_style
+from tl_tui.layout import Panel, state_style
 from tl_tui.log_text import (
     MIN_FLEX,
     SEPARATOR,
@@ -151,7 +151,7 @@ class LogScreen[Row](ModalScreen[None]):
         """``(number, title)`` of the record, for the breadcrumb."""
         raise NotImplementedError
 
-    def panel_text(self, row: Row | None) -> str | Text:
+    def panel_text(self, row: Row | None) -> Panel:
         """The panel of ``row``: a plain string, or a styled ``Text`` from ``layout.render``."""
         raise NotImplementedError
 

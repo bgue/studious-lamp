@@ -9,15 +9,22 @@ label plus two spaces, labels cut at 24 characters wrap their value to the next 
 
 Pure functions and small dataclasses; no widget, no client. A record type builds a ``Page`` once
 and both its panel and its Details tab render it, so the two never differ in order or wording.
+
+A page adapts to the width it is drawn at (P1-UX3 round 3). ``render`` returns an ``Adaptive``: a
+Rich renderable that lays the page out again at whatever width its widget has, so a resize re-flows
+it with no help from the screen. The label column narrows with the panel, a value wraps under its
+own start (a hanging indent), and a small table drops its least-needed column, then shortens a long
+one with ``…``, before its last column wraps. ``.plain`` is the layout without a width limit.
 """
 
 from __future__ import annotations
 
 import re
-from collections.abc import Iterable, Sequence
+from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass
 
 from rich.cells import cell_len
+from rich.console import Console, ConsoleOptions, RenderResult
 from rich.text import Text
 
 EMPTY = "—"
@@ -29,7 +36,44 @@ IDENTITY_STYLE = "bold"
 HEADING_STYLE = "bold grey62"
 LABEL_STYLE = "dim"
 SUMMARY_JOIN = " · "
-SUMMARY_WIDTH = 56  # the longest summary line: a panel beside a log is about 58 cells wide
+SUMMARY_WIDTH = 56  # the longest summary line without a width: a panel beside a log is ~58 wide
+MIN_LABEL = 8  # the narrowest label column a narrow panel squeezes to
+MIN_VALUE = 12  # the narrowest value column; a narrower panel just overflows
+SHORT_MIN = 8  # a shortened table column keeps at least this many cells
+SHORT_COMFORT = 20  # a table drops a column before it shortens another below this
+WRAP_MIN = 10  # the last column of a table wraps no narrower than this
+
+# Small tables at a narrow width (skill ``tui-layout``, "Repeating rows"). Columns by name, so every
+# table that uses a name follows the rule. ``DROP_FIRST`` is least needed first; ``SHORTENABLE``
+# columns end in ``…`` when the table is still too wide; the last column wraps as a last resort.
+DROP_FIRST: tuple[str, ...] = (
+    "Files",
+    "Pages",
+    "Pin",
+    "Size",
+    "Days left",
+    "Left",
+    "Days",
+    "Type",
+    "Reached by",
+    "Confidence",
+)
+SHORTENABLE: frozenset[str] = frozenset(
+    {
+        "Purpose",
+        "Title",
+        "Name",
+        "Who",
+        "Clock",
+        "Label",
+        "Property",
+        "Value",
+        "Record",
+        "Path",
+        "Message",
+        "Note",
+    }
+)
 
 # State colour (skill ``tui-layout``): green done, amber waiting or running, red overdue or refused.
 # The terminal's own palette colours, so a theme sets the exact shade; the word is always there.
@@ -194,21 +238,59 @@ Segment = tuple[str, str]  # (text, style)
 Line = list[Segment]
 
 
-def _prop_lines(props: Sequence[Prop]) -> list[Line]:
-    """Lines for consecutive properties, values on one column."""
-    width = min(max((len(p.label) for p in props), default=0), LABEL_CAP) + GAP
+def wrap_words(text: str, width: int | None, indent: int | None = None) -> list[str]:
+    """``text`` in lines of at most ``width`` cells, broken between words; a word longer than a
+    line is cut. Lines after the first start ``indent`` cells in (default: the text's own leading
+    spaces). ``width`` None or too small leaves the text as one line."""
+    if width is None or width < 2 or cell_len(text) <= width:
+        return [text]
+    lead = len(text) - len(text.lstrip(" "))
+    hang = " " * (lead if indent is None else indent)
+    lines: list[str] = []
+    current = text[:lead]
+    for word in text.strip(" ").split(" "):
+        joined = f"{current}{' ' if current.strip() else ''}{word}"
+        if cell_len(joined) <= width:
+            current = joined
+            continue
+        if current.strip():
+            lines.append(current)
+            current = hang
+        while cell_len(current + word) > width and len(word) > 1:  # a word wider than the line
+            room = max(width - cell_len(current), 1)
+            lines.append(current + word[:room])
+            word, current = word[room:], hang
+        current += word
+    if current.strip():
+        lines.append(current)
+    return lines or [text]
+
+
+def _prop_lines(props: Sequence[Prop], width: int | None = None) -> list[Line]:
+    """Lines for consecutive properties, values on one column. At a ``width`` the label column
+    narrows to two fifths of it (never below ``MIN_LABEL``), a label wider than the column puts its
+    value on the next line, and a long value wraps under its own start."""
+    label_w = min(max((len(p.label) for p in props), default=0), LABEL_CAP)
+    if width is not None:
+        label_w = min(label_w, max(MIN_LABEL, width * 2 // 5))
+    column = label_w + GAP
+    pad = " " * column
+    room = None if width is None else max(width - column, MIN_VALUE)
     lines: list[Line] = []
     for p in props:
-        first, *more = p.value.split("\n") if p.value else [""]
-        pad = " " * width
-        if len(p.label) > LABEL_CAP:  # too long to line up: the value goes under it
+        parts = [
+            part
+            for chunk in (p.value.split("\n") if p.value else [""])
+            for part in wrap_words(chunk, room, 0)
+        ]
+        first, *more = parts
+        if len(p.label) > label_w:  # too long to line up: the value goes under it
             lines.append([(p.label, LABEL_STYLE)])
             lines.append([(pad + first, "")])
         else:
-            gap = " " * (width - len(p.label))
             line: Line = [(p.label, LABEL_STYLE)]
             if first:
-                line.append((gap + first, ""))
+                line.append((" " * (column - len(p.label)) + first, ""))
             lines.append(line)
         lines.extend([(pad + rest, "")] for rest in more)
     return lines
@@ -218,34 +300,105 @@ def _pad(text: str, width: int) -> str:
     return text + " " * max(width - cell_len(text), 0)
 
 
-def _table_lines(rows: Sequence[TableRow]) -> list[Line]:
+def shorten(text: str, width: int) -> str:
+    """``text`` cut to ``width`` cells and ended with ``…`` when it is longer."""
+    if cell_len(text) <= width:
+        return text
+    out = ""
+    for char in text:
+        if cell_len(out + char) > width - 1:
+            break
+        out += char
+    return out.rstrip() + "…"
+
+
+def _plan_columns(
+    columns: Sequence[str], natural: list[int], width: int | None
+) -> tuple[list[int], list[int]]:
+    """Which columns a table keeps at ``width`` and how wide each is (indexes into ``columns``;
+    widths by index). Order of resort: drop the least-needed column (``DROP_FIRST``) while the
+    long columns could not keep ``SHORT_COMFORT`` cells, then shorten long columns (``SHORTENABLE``)
+    down to ``SHORT_MIN``; whatever is still too wide is left to the last column to wrap."""
+    keep = list(range(len(columns)))
+    widths = list(natural)
+    if width is None:
+        return keep, widths
+
+    def need(kept: list[int], floor: int) -> int:
+        total = GAP * (len(kept) - 1)
+        for i in kept:
+            if columns[i] in SHORTENABLE:
+                total += min(widths[i], max(floor, cell_len(columns[i])))
+            else:
+                total += widths[i]
+        return total
+
+    for name in DROP_FIRST:
+        if need(keep, SHORT_COMFORT) <= width or len(keep) <= 2:
+            break
+        for i in keep[1:]:
+            if columns[i] == name:
+                keep.remove(i)
+                break
+    excess = need(keep, 10_000) - width
+    while excess > 0:
+        # shorten the widest long column that still has room above its floor
+        roomy = [
+            i
+            for i in keep
+            if columns[i] in SHORTENABLE and widths[i] > max(SHORT_MIN, cell_len(columns[i]))
+        ]
+        if not roomy:
+            break
+        widest = max(roomy, key=lambda i: widths[i])
+        widths[widest] -= 1
+        excess -= 1
+    return keep, widths
+
+
+def _table_groups(rows: Sequence[TableRow], width: int | None = None) -> list[list[Line]]:
     """A small table: a dim header row, then one line per row; every column but the last as wide as
-    its widest cell, two cells between columns. A cell may carry a state colour."""
-    columns = rows[0].columns
+    its widest cell, two cells between columns. A cell may carry a state colour. At a ``width`` a
+    column may be dropped or shortened (``_plan_columns``) and the last column wraps under its own
+    start."""
+    names = rows[0].columns
     body = [[c if isinstance(c, Cell) else Cell(c) for c in row.cells] for row in rows]
-    widths = [cell_len(name) for name in columns]
+    natural = [cell_len(name) for name in names]
     for cells in body:
-        for index, cell in enumerate(cells[: len(widths)]):
-            widths[index] = max(widths[index], cell_len(cell.text))
+        for index, cell in enumerate(cells[: len(natural)]):
+            natural[index] = max(natural[index], cell_len(cell.text))
+    keep, widths = _plan_columns(names, natural, width)
     gap = " " * GAP
-    last = len(widths) - 1
+    last = keep[-1]
+    start = sum(widths[i] + GAP for i in keep[:-1])  # where the last column begins
+    wrap = None if width is None else max(width - start, WRAP_MIN)
     head: Line = []
-    for index, name in enumerate(columns):
-        head.append((name if index == last else _pad(name, widths[index]) + gap, LABEL_STYLE))
-    lines: list[Line] = [head]
+    for i in keep:
+        head.append((names[i] if i == last else _pad(names[i], widths[i]) + gap, LABEL_STYLE))
+    groups: list[list[Line]] = [[head]]  # the header, then one group of lines per row
     for cells in body:
+        cells = [*cells, *[Cell("")] * (len(names) - len(cells))]
         line: Line = []
-        for index, cell in enumerate(cells[: len(widths)]):
-            if index == last:
-                line.append((cell.text, cell.style))
+        extra: list[Line] = []
+        for i in keep:
+            cell = cells[i]
+            text = shorten(cell.text, widths[i]) if widths[i] < natural[i] else cell.text
+            if i == last:
+                first, *rest = wrap_words(text, wrap, 0)
+                line.append((first, cell.style))
+                extra.extend([(" " * start, ""), (more, cell.style)] for more in rest)
             else:  # colour the word, not the padding after it
-                line.append((cell.text, cell.style))
-                line.append((_pad("", widths[index] - cell_len(cell.text)) + gap, ""))
-        lines.append(line)
-    return lines
+                line.append((text, cell.style))
+                line.append((_pad("", widths[i] - cell_len(text)) + gap, ""))
+        groups.append([line, *extra])
+    return groups
 
 
-def _section_lines(section: Section) -> list[Line]:
+def _table_lines(rows: Sequence[TableRow], width: int | None = None) -> list[Line]:
+    return [line for group in _table_groups(rows, width) for line in group]
+
+
+def _section_lines(section: Section, width: int | None = None) -> list[Line]:
     lines: list[Line] = []
     if section.heading:
         lines.append([(section.heading, HEADING_STYLE)])
@@ -256,10 +409,10 @@ def _section_lines(section: Section) -> list[Line]:
     def flush() -> None:
         nonlocal props, table
         if props:
-            lines.extend(_prop_lines(props))
+            lines.extend(_prop_lines(props, width))
             props = []
         if table:
-            lines.extend(_table_lines(table))
+            lines.extend(_table_lines(table, width))
             table = []
 
     for item in items:
@@ -273,23 +426,63 @@ def _section_lines(section: Section) -> list[Line]:
             table.append(item)
         else:
             flush()
-            lines.extend([(text, "")] for text in item.split("\n"))
+            for text in item.split("\n"):
+                lines.extend([(part, "")] for part in wrap_words(text, width))
     flush()
     return lines
 
 
-def table_text(rows: Sequence[TableRow], selected: int | None = None) -> Text:
-    """A table on its own (no section around it) as styled text; the row ``selected`` (counted
-    from the first row under the header) is shown reversed."""
-    text = Text()
-    for index, line in enumerate(_table_lines(rows)):
-        if index:
-            text.append("\n")
-        for part, style in line:
-            if selected is not None and index == selected + 1:
-                style = f"{style} reverse".strip()
-            text.append(part, style=style or None)
-    return text
+class Adaptive:
+    """A page or table that lays itself out at the width it is drawn at.
+
+    A Rich renderable: a Textual ``Static`` that shows it draws it again whenever its width
+    changes. ``plain`` and ``text()`` are the layout without a width limit (what a test, the copy
+    command and a monochrome terminal read); ``text(width)`` is the layout at that width.
+    """
+
+    def __init__(self, build: Callable[[int | None], list[Line]]) -> None:
+        self._build = build
+
+    def lines(self, width: int | None = None) -> list[Line]:
+        return self._build(width)
+
+    def text(self, width: int | None = None) -> Text:
+        text = Text()
+        for index, line in enumerate(self._build(width)):
+            if index:
+                text.append("\n")
+            for part, style in line:
+                text.append(part, style=style or None)
+        return text
+
+    @property
+    def plain(self) -> str:
+        return self.text().plain
+
+    def __str__(self) -> str:
+        return self.plain
+
+    def __rich_console__(self, console: Console, options: ConsoleOptions) -> RenderResult:
+        yield self.text(options.max_width)
+
+
+Panel = str | Text | Adaptive  # what a log's panel hook may return
+
+
+def table_text(rows: Sequence[TableRow], selected: int | None = None) -> Adaptive:
+    """A table on its own (no section around it); the row ``selected`` (counted from the first row
+    under the header) is shown reversed."""
+
+    def build(width: int | None) -> list[Line]:
+        lines: list[Line] = []
+        for index, group in enumerate(_table_groups(rows, width)):
+            for line in group:
+                if selected is not None and index == selected + 1:
+                    line = [(t, f"{st} reverse".strip()) for t, st in line]  # noqa: PLW2901
+                lines.append(line)
+        return lines
+
+    return Adaptive(build)
 
 
 def state_segments(state: str) -> Line:
@@ -302,7 +495,7 @@ def state_segments(state: str) -> Line:
     return line
 
 
-def page_lines(page: Page, *, identity: bool = True) -> list[Line]:
+def page_lines(page: Page, *, identity: bool = True, width: int | None = None) -> list[Line]:
     """The page as lines of styled segments. ``identity=False`` leaves out the identity, state and
     summary lines (the Details tab: the record screen's header already shows them)."""
     lines: list[Line] = []
@@ -311,8 +504,10 @@ def page_lines(page: Page, *, identity: bool = True) -> list[Line]:
     if identity and page.state:
         lines.append(state_segments(page.state))
     if identity and page.summary:
-        lines.extend([(row, LABEL_STYLE)] for row in wrap_facts(page.summary))
-    blocks = [_section_lines(section) for section in page.sections]
+        lines.extend(
+            [(row, LABEL_STYLE)] for row in wrap_facts(page.summary, width or SUMMARY_WIDTH)
+        )
+    blocks = [_section_lines(section, width) for section in page.sections]
     for block in blocks:
         if not block:
             continue
@@ -322,21 +517,22 @@ def page_lines(page: Page, *, identity: bool = True) -> list[Line]:
     return lines
 
 
-def plain_lines(page: Page, *, identity: bool = True) -> list[str]:
+def plain_lines(page: Page, *, identity: bool = True, width: int | None = None) -> list[str]:
     """The page as plain text lines (what a monochrome terminal or a test reads)."""
-    lines = page_lines(page, identity=identity)
+    lines = page_lines(page, identity=identity, width=width)
     return ["".join(text for text, _ in line).rstrip() for line in lines]
 
 
-def render(page: Page, *, identity: bool = True) -> Text:
-    """The page as one styled ``Text``; its ``plain`` is ``plain_lines`` joined by newlines."""
-    text = Text()
-    for index, line in enumerate(page_lines(page, identity=identity)):
-        if index:
-            text.append("\n")
-        for part, style in line:
-            text.append(part, style=style or None)
-    return text
+def render(page: Page, *, identity: bool = True, lead: str = "", lead_style: str = "") -> Adaptive:
+    """The page as a renderable that re-flows to the width it is shown at; its ``plain`` is
+    ``plain_lines`` joined by newlines. ``lead`` is a line above the page, set off by a blank one
+    (the schema screen's tab row)."""
+
+    def build(width: int | None) -> list[Line]:
+        lines = page_lines(page, identity=identity, width=width)
+        return [[(lead, lead_style)], [], *lines] if lead else lines
+
+    return Adaptive(build)
 
 
 def group_items(entries: Iterable[tuple[str, Item]]) -> tuple[Section, ...]:

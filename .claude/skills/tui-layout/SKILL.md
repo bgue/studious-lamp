@@ -35,6 +35,8 @@ do*, and a second pass for detail. Design for the glance first. Everything below
   trailing colon inside an aligned table (`Needed by      2026-10-23`), or `Label: value` where lines are not aligned.
   Within one section, align the values on one column (the longest label plus two spaces, capped at 24 characters;
   longer labels wrap their value to the next line, indented).
+- **Width**: a panel renders to the space it has and re-flows on resize. The label column narrows with the panel
+  (two fifths of the width, at least 8); a long value wraps under its own start (hanging indent), never past the edge.
 - Values in the reader's words: labels from code lists, people by name, dates as `YYYY-MM-DD` (with the weekday where
   a day matters), money with its currency (`12 500 USD`), durations with units (`10 calendar days`).
 - **Relevance before emptiness**: show a field only if it can apply to this record's kind and direction (an outgoing
@@ -47,6 +49,9 @@ do*, and a second pass for detail. Design for the glance first. Everything below
 - **Repeating rows** (revisions, clocks, files, links, timeline) are a small table, not run-on lines: aligned columns
   with a dim header row when there are three or more columns (`Rev  State   Purpose     Date`), and a distinguishing
   label when rows would otherwise read the same (`Answer required, round 2`).
+- **A table at a narrow width** drops its least-needed column first (Files, Pages, Pin, Size, Days left, Type), then
+  shortens a long text column with `…` (Purpose, Title, Name, Who), and only then wraps its last column under its own
+  start. Name the order in `layout.DROP_FIRST` and `layout.SHORTENABLE`, not in each screen.
 - **Long text** (a question, an answer, a letter body) is a section of its own: a heading line, then the text wrapped
   to the panel width, never truncated silently. If it must be cut in a panel, cut at a word and end with `… (Enter
   for all)`.

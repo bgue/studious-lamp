@@ -14,7 +14,6 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import ClassVar
 
-from rich.text import Text
 from textual.binding import Binding, BindingType
 from textual.widgets import Input
 from tl_mod_engineering.views import TagView
@@ -23,7 +22,7 @@ from tl_tui.client import ClientInterface
 from tl_tui.display import Labels, mode_of
 from tl_tui.errors import CLIENT_ERRORS, describe_error
 from tl_tui.labels_load import load_labels
-from tl_tui.layout import render
+from tl_tui.layout import Panel, render
 from tl_tui.log_actions import ACTION_UI, Runner, log_actions, screen_runner
 from tl_tui.tag_text import COLUMNS, DROP, next_class, row_cells, summary_line, tag_page
 from tl_tui.widgets.log_screen import LogAction, LogScreen
@@ -100,7 +99,7 @@ class TagRegisterScreen(LogScreen[TagView]):
     def row_record(self, row: TagView) -> tuple[str, str]:
         return (row.number, row.title)
 
-    def panel_text(self, row: TagView | None) -> str | Text:
+    def panel_text(self, row: TagView | None) -> Panel:
         """The highlighted tag with what it lacks (one ``get_tag`` call per tag)."""
         if row is None:
             self.detail = None  # nothing is highlighted, so nothing is described

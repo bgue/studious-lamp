@@ -17,7 +17,6 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import ClassVar
 
-from rich.text import Text
 from textual.binding import Binding, BindingType
 from textual.widgets import DataTable, Input
 from tl_mod_correspondence.handlers.clocks import SweepClocks
@@ -43,7 +42,17 @@ from tl_tui.details.correspondence import direction_word
 from tl_tui.display import Labels, humanize, mode_of
 from tl_tui.errors import CLIENT_ERRORS, describe_error
 from tl_tui.labels_load import load_labels
-from tl_tui.layout import Page, Section, identity_line, join_facts, prop, render, state_line
+from tl_tui.layout import (
+    Adaptive,
+    Page,
+    Panel,
+    Section,
+    identity_line,
+    join_facts,
+    prop,
+    render,
+    state_line,
+)
 from tl_tui.log_actions import (
     ACTION_UI,
     ENVELOPE,
@@ -115,7 +124,7 @@ class CorrespondenceScreen(LogScreen[RegisterLineView | ClockView]):
         self._labelled = False
         self._flash = ""  # a note for the status line that the next reload would otherwise replace
         self._items: dict[str, tuple[ItemView, SuggestionView | None]] = {}
-        self._panels: dict[tuple[str, bool], Text] = {}  # panels drawn since the last read
+        self._panels: dict[tuple[str, bool], Adaptive] = {}  # panels drawn since the last read
 
     # --- the log's hooks -----------------------------------------------------------------
 
@@ -171,7 +180,7 @@ class CorrespondenceScreen(LogScreen[RegisterLineView | ClockView]):
             found = self._items[row.id] = (item, suggestion)
         return found
 
-    def panel_text(self, row: RegisterLineView | ClockView | None) -> str | Text:
+    def panel_text(self, row: RegisterLineView | ClockView | None) -> Panel:
         """The highlighted row in full (one read per row until the rows are read again)."""
         self.suggestion = None
         technical = mode_of(self.app).technical

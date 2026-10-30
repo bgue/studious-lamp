@@ -15,7 +15,6 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import ClassVar
 
-from rich.text import Text
 from textual.binding import Binding, BindingType
 from tl_core.settings.layers import project_of_scope
 from tl_mod_schemareg.views import PackageDetail, PackageSummary
@@ -23,7 +22,7 @@ from tl_mod_schemareg.views import PackageDetail, PackageSummary
 from tl_tui.client import ClientInterface
 from tl_tui.display import mode_of
 from tl_tui.errors import CLIENT_ERRORS, describe_error
-from tl_tui.layout import LABEL_STYLE, Section, render
+from tl_tui.layout import LABEL_STYLE, Panel, Section, render
 from tl_tui.schema_text import (
     COLUMNS,
     diff_lines,
@@ -118,7 +117,7 @@ class SchemaWorkbenchScreen(LogScreen[PackageSummary]):
             return flash
         return f"Schema packages ({len(self.rows)})   scope {self.scope}"
 
-    def panel_text(self, row: PackageSummary | None) -> str | Text:
+    def panel_text(self, row: PackageSummary | None) -> Panel:
         """The header, the tab line and the tab of the highlighted version."""
         tabs = "  ".join(
             f"[{n} {name}]" if n - 1 == self.tab else f"{n} {name}"
@@ -141,10 +140,9 @@ class SchemaWorkbenchScreen(LogScreen[PackageSummary]):
             body = lint_section(detail.lint, technical=technical)
         else:
             body = Section("Diff", tuple(diff_lines(detail)))
-        text = Text(tabs, style=LABEL_STYLE)
-        text.append("\n\n")
-        text.append_text(render(package_page(detail, body, technical=technical)))
-        return text
+        return render(
+            package_page(detail, body, technical=technical), lead=tabs, lead_style=LABEL_STYLE
+        )
 
     def open_row(self, row: PackageSummary) -> None:
         """Enter on a version opens its full record; Esc there returns to this row."""

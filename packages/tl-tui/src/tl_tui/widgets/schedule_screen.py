@@ -25,7 +25,7 @@ from tl_tui.client import ClientInterface
 from tl_tui.display import Labels, mode_of
 from tl_tui.errors import CLIENT_ERRORS, describe_error
 from tl_tui.labels_load import load_labels
-from tl_tui.layout import Section, render
+from tl_tui.layout import Panel, Section, render
 from tl_tui.schedule_text import (
     SCHEDULE_COLUMNS,
     SNAPSHOT_COLUMNS,
@@ -197,7 +197,7 @@ class ScheduleScreen(LogScreen[ScheduleView]):
             table.move_cursor(row=numbers.index(keep) if keep in numbers else 0)
         return None
 
-    def panel_text(self, row: ScheduleView | None) -> str | Text:
+    def panel_text(self, row: ScheduleView | None) -> Panel:
         """The panel: the highlighted snapshot, the look-ahead, or the orphaned links."""
         failed = self._sync(row)
         if failed is not None:

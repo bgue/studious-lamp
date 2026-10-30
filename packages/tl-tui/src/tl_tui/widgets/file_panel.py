@@ -34,7 +34,7 @@ from tl_core.services.errors import UnknownFileError
 from tl_tui.client import ClientInterface
 from tl_tui.errors import CLIENT_ERRORS, describe_error
 from tl_tui.file_text import file_kind, file_pages, human_size
-from tl_tui.layout import TableRow, table_text
+from tl_tui.layout import Adaptive, TableRow, table_text
 from tl_tui.preview import cache, render
 from tl_tui.preview.temp import PrivateTemp
 from tl_tui.preview.terminal import image_protocol
@@ -316,7 +316,7 @@ class FilePanel(Widget, can_focus=True):
         if not self.is_attached:
             return
         rows = self.table()
-        body: Text
+        body: Text | Adaptive
         if loading:
             body = Text("Loading files...")
         elif rows:

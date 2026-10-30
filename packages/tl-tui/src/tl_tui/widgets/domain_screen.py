@@ -17,7 +17,6 @@ from collections.abc import Sequence
 from datetime import date
 from typing import ClassVar
 
-from rich.text import Text
 from textual.binding import Binding, BindingType
 from textual.widgets import DataTable
 from tl_mod_correspondence.evidence import EvidenceNode, EvidenceTrail
@@ -42,7 +41,7 @@ from tl_tui.evidence_text import (
     step_day,
 )
 from tl_tui.labels_load import load_labels
-from tl_tui.layout import render
+from tl_tui.layout import Adaptive, Panel, render
 from tl_tui.log_actions import ACTION_UI, Runner, log_actions, screen_runner, without_keys
 from tl_tui.rfi_text import RFI_COLUMNS, RFI_DROP, rfi_cells, rfi_page, rfi_summary
 from tl_tui.widgets.log_screen import LogAction, LogScreen
@@ -126,7 +125,7 @@ class DomainScreen(LogScreen[Row]):
         self.labels = Labels()
         self._labelled = False
         self._summary = ""  # the summary line of the view last read
-        self._panels: dict[tuple[str, bool], Text] = {}  # panels drawn since the last read
+        self._panels: dict[tuple[str, bool], Adaptive] = {}  # panels drawn since the last read
 
     # --- the log's hooks -----------------------------------------------------------------
 
@@ -208,7 +207,7 @@ class DomainScreen(LogScreen[Row]):
             return (row.key or "", row.title)
         return (row.number, row.subject)
 
-    def panel_text(self, row: Row | None) -> str | Text:
+    def panel_text(self, row: Row | None) -> Panel:
         """The highlighted row in full (one read per row until the rows are read again)."""
         technical = mode_of(self.app).technical
         if isinstance(row, EvidenceNode):

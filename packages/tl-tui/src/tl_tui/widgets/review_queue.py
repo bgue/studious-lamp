@@ -15,7 +15,6 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import Any, ClassVar
 
-from rich.text import Text
 from textual.binding import Binding, BindingType
 from textual.widgets import DataTable, Input
 from tl_core.services.errors import ServiceError
@@ -31,7 +30,7 @@ from tl_tui.integration_text import (
     property_words,
     record_name,
 )
-from tl_tui.layout import render
+from tl_tui.layout import Panel, render
 from tl_tui.widgets.action_form import ActionFormScreen, FormField
 from tl_tui.widgets.log_screen import LogAction, LogScreen
 from tl_tui.widgets.record_screen import open_record
@@ -89,7 +88,7 @@ class ReviewQueueScreen(LogScreen[dict[str, Any]]):
     def row_record(self, row: dict[str, Any]) -> tuple[str, str]:
         return (record_name(row["target"], technical=False), property_words(row["property_path"]))
 
-    def panel_text(self, row: dict[str, Any] | None) -> str | Text:
+    def panel_text(self, row: dict[str, Any] | None) -> Panel:
         if row is None:
             return "No values." if self.show_all else "Nothing is waiting for review."
         return render(detail_page("enrichments", row, technical=mode_of(self.app).technical))

@@ -17,7 +17,6 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import Any, ClassVar
 
-from rich.text import Text
 from textual.binding import Binding, BindingType
 from textual.widgets import DataTable, Static
 from tl_core.services.errors import ServiceError
@@ -28,7 +27,7 @@ from tl_tui.display import Labels, mode_of
 from tl_tui.errors import CLIENT_ERRORS, describe_error
 from tl_tui.integration_text import LABELS, cells, columns, detail_page, identity_of
 from tl_tui.labels_load import load_labels
-from tl_tui.layout import render
+from tl_tui.layout import Panel, render
 from tl_tui.log_text import actions_text
 from tl_tui.widgets.log_screen import LogAction, LogScreen
 
@@ -135,7 +134,7 @@ class IntegrationScreen(LogScreen[dict[str, Any]]):
         """The name of the row and, where it has one, its title (never an id)."""
         return identity_of(self.kind, row, self.names)
 
-    def panel_text(self, row: dict[str, Any] | None) -> str | Text:
+    def panel_text(self, row: dict[str, Any] | None) -> Panel:
         """The highlighted row: who owns it, how it acts, with which access."""
         if row is None:
             return f"No {LABELS[self.kind].lower()}."

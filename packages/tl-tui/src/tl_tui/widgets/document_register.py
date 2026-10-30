@@ -39,7 +39,7 @@ from tl_tui.document_text import (
 )
 from tl_tui.errors import CLIENT_ERRORS, describe_error
 from tl_tui.labels_load import load_labels
-from tl_tui.layout import HEADING_STYLE, render
+from tl_tui.layout import HEADING_STYLE, Adaptive, Panel, render
 from tl_tui.widgets.action_form import ActionFormScreen, FormField
 from tl_tui.widgets.file_panel import FilePanel
 from tl_tui.widgets.log_screen import LogAction, LogScreen
@@ -180,7 +180,7 @@ class DocumentRegisterScreen(LogScreen[DocumentView]):
             self._full[row.number] = found
         return found
 
-    def panel_text(self, row: DocumentView | None) -> str | Text:
+    def panel_text(self, row: DocumentView | None) -> Panel:
         """The highlighted document: identity, state, key facts and revisions. The files list
         (a widget) follows, then the links."""
         if row is None:
@@ -199,7 +199,7 @@ class DocumentRegisterScreen(LogScreen[DocumentView]):
         self._show_links(render(links))
         return render(top)
 
-    def _show_links(self, text: Text | None) -> None:
+    def _show_links(self, text: Adaptive | None) -> None:
         for found in self.query(Static).filter("#doc-links"):
             found.update(text if text is not None else "")
 
