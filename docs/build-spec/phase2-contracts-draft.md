@@ -26,6 +26,8 @@ group, and pipeline-side signatures listed as comments so the other workstream c
 
 ## 1. Readiness checks
 
+**Frozen 2026-10-30 (orchestrator, P2-W0 round 1): W0-B1 copies this section verbatim; a change needs an ADR.**
+
 ```python
 """Readiness contracts for Phase 2 (brief §9 M3 "Readiness check"; 08-phase2-plan.md I2).
 
@@ -348,6 +350,8 @@ and reaches the suite through its public MCP and API only (L-P1-I0B-7).
 ---
 
 ## 7. Reserved identifiers and job kinds added by Phase 2
+
+**Frozen 2026-10-30 (orchestrator, P2-W0 round 1): a change needs an ADR.**
 
 | Kind | Value | Added in |
 |---|---|---|
