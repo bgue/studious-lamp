@@ -18403,6 +18403,17 @@
             "title": "Kind",
             "type": "string"
           },
+          "medium": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Medium"
+          },
           "number": {
             "title": "Number",
             "type": "string"

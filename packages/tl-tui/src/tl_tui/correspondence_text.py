@@ -51,7 +51,7 @@ def register_cells(line: RegisterLineView, labels: Labels | None = None) -> tupl
     if line.kind == "transmittal":
         category = category_label(_labels(labels), "document_control", "transmittal")
     else:
-        category = category_label(_labels(labels), line.domain, line.subtype)
+        category = category_label(_labels(labels), line.domain, line.subtype, line.medium)
     return (
         line.number,
         line.subject,

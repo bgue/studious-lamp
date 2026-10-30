@@ -161,12 +161,14 @@ SHORT_COMMERCIAL: dict[str, str] = {
 UNTRIAGED = "Untriaged"
 
 
-def category_label(labels: Labels, domain: str | None, subtype: str | None = None) -> str:
+def category_label(
+    labels: Labels, domain: str | None, subtype: str | None = None, medium: str | None = None
+) -> str:
     """The short category of an item for a list: ``RFI``, ``Letter``, ``Notice``, ``Transmittal``.
-    An item with no domain yet is ``Untriaged``; a subtype the table does not know reads as its
-    label."""
+    An item with no domain yet reads as its medium in words (``Email``), else ``Untriaged``; a
+    subtype the table does not know reads as its label."""
     if not domain:
-        return UNTRIAGED
+        return humanize(medium) if medium and humanize(medium) else UNTRIAGED
     if subtype and subtype in SHORT_SUBTYPES:
         return SHORT_SUBTYPES[subtype]
     return domain_label(labels, domain, subtype)
