@@ -16,3 +16,22 @@ Answers to the three open questions of `README.md`, given by the owner in conver
    from then on ship terminal and web together.
 4. **Phase 3 re-sequenced.** Inspections, deficiencies and calibration come before the shared Issue engine, which
    then generalises them.
+
+## Answers to the spec questions (owner accepted the orchestrator's recommendations, 2026-10-30)
+
+Roles: (1) document_controller is also superuser of correspondence and schedule; (2) a superuser grant does not
+grant restricted reads (confidentiality stays by clearance, ADR-0016); (3) roles do not filter reads yet; (4) only
+admins grant roles in the MVP.
+Offline: (5) the class table in specs/offline-classes.md is approved (core.Record and Tag full, ReviewCycle none);
+(6) controller/superuser commands are always online-only.
+Web: (7) increment 1 is view and act; creating records comes in increment 2; (8) the web is off by default in
+production until its security review passes; (9) current Chrome, Edge, Firefox and Safari, last two versions.
+M3: (10) CWP release is a superuser act; (11) cost codes on leaf nodes only; (12) loads stay admin-only;
+(13) starter commodity list (editable fixture): piping, structural steel, concrete, civil and earthworks,
+electrical, instrumentation, mechanical equipment, insulation, painting.
+M4: (14) the company item library is kept by a company-level materials superuser, else an admin; (15) any user
+accepts a receipt, a superuser disposes of damaged or nonconforming items; (16) stock never goes negative;
+(17) issue, transfer and return may be captured offline as drafts posted on sync (draft_only); (18) CatalogItem,
+SerializedItem and Equipment are deferred.
+Add property (same day): ad-hoc custom fields where a set allows them; unadopted sets need a superuser (admin until
+the roles MVP lands); the API and MCP have parity with the terminal form.
