@@ -73,3 +73,32 @@ Not run, not edited: in `packages/tl-tui/tests/` the pins of `test_tag_text`, `t
 - A panel does not adapt to its width: a table wider than the panel (the revisions table at 160 columns) wraps its last columns; a summary breaks only between facts.
 - The Details tabs of schedules, schema packages and the other registry rows keep their generic rows; only the panels moved to the shared sections. Evidence facts still show stored codes (`early_warning`).
 - Keys rows of non-log screens (forms, admin, the review screens) are unchanged.
+
+# Round 3: panels that adapt to their width, the Email category, Add property
+
+**Deviation first:** no test and no tour was run (owner's instruction); `just check` is clean. Two things outside the TUI: `PsetGroupMeta` (`tl_schema/forms.py`, `formgen.py`) gained `custom_allowed` and `custom_max` (additive, defaults `False` and `None`; the read that was missing for custom fields), and `RegisterLineView` gained `medium`. `docs/reference/openapi.json` is regenerated for both (`medium` on the register line; the two fields on the set group of the form metadata). No other API output changed.
+
+## What changed
+
+1. **Width.** `layout.render` and `table_text` return an `Adaptive`, a Rich renderable: a `Static` that shows it lays the page out again at its own width, so a resize re-flows every panel, Details tab and the file table with no screen code (`.plain` is the unlimited layout). Label column at most two fifths of the width (at least 8); a label wider than it puts its value on the next line; values and prose wrap under their own start; the summary wraps at the width. A table at a narrow width: drop the least-needed column (`DROP_FIRST`) only while the long columns could not keep 20 cells, then shorten a long column (`SHORTENABLE`) with `…` to at least 8, then wrap the last column. Example at 58 cells: revisions lose Files and shorten Purpose; timeline shortens Who and wraps Event. `Panel = str | Text | Adaptive` is the type of `panel_text`. The skill's "Property lines" and "Repeating rows" carry the rules.
+2. **Email.** Category = triaged domain short label, else the medium in words (`Email`, `Letter`), else `Untriaged` (`display.category_label(..., medium)`; `RegisterLineView.medium`, embedded and remote through the one model).
+3. **Add property.** `[+] Add property` line on the Properties tab, key `+` there (`RecordView.check_action`), and `[+] Add property` in the actions bar of the document, tag, correspondence and RFI/commercial logs, except for an agent or a voided record. `add_property.py` (pure) and `widgets/add_property_form.py`: *From the standard* (empty properties of shown sets, and properties of optional company sets the project has not adopted, read from the company's `form_metadata`; each with label, set label, unit; the typed `FieldEditor` asks the value), *Custom field* (set, name, value; plain message and the admin route when no set allows one; `used of max` shown), and for admins *Propose a change to the standard…* (`SchemaWorkbenchScreen(package=...)` highlights the latest version of the package that owns the set). The form sends nothing; the host sends `SetPsetValues` and a refusal goes to the status line. README updated.
+
+## Open questions (the service decides, I did not change it)
+
+- `SetPsetValues` refuses a set the project has not adopted (`not in the effective schema`) and a custom name the project's schema does not define (`x.` keys must exist in an extension's `custom` list). So an unadopted set and a brand-new custom name end in a refusal in the status line; the form says so in words. Making either work is a command change (adopt the set, or accept free custom names).
+- The "viewer may write" gate in the logs is: not an agent, record not voided. The module state guards and access words are applied by the command.
+
+## Stale pins for the next test run (about 30 test files by name, plus the openapi pin; estimated, nothing was run)
+
+- Layout (render now returns `Adaptive`, not `Text`; `.plain` unchanged): `test_record_view`, `test_record_plain`, `test_log_screen`, `test_domain_screen`, `test_correspondence_screen`, `test_document_register`/`_flow`, `test_tag_text`, `test_schedule_*`, `test_integration_*`, `test_review_plain`, `test_schema_screen`/`_text`/`_enter`, `test_file_panel` (`isinstance(..., Text)`, `.spans`, `.style` reads), the snapshots under `__snapshots__`.
+- Email: `test_correspondence_text`, `test_correspondence_screen` (`Untriaged` for an item with a medium), tests that compare `RegisterLineView.model_dump()` or the OpenAPI document; `test_openapi*`.
+- Form metadata: tests that compare `PsetGroupMeta` dumps or the form metadata JSON (`tl-schema` formgen, `tl-api` forms route).
+- Actions bar: tests that list the bar's exact text or action keys of the four logs (a `[+] Add property` cell is last), `test_keymap` (one more `Record view` entry), `test_log_text.key_label` (`plus`).
+- New tests wanted: `layout.wrap_words`, `_plan_columns`, `_prop_lines` at widths, `Adaptive` in a `Static` after a resize; `add_property.standard_offers`, `custom_targets`, `custom_key`, `offer_command`; `AddPropertyScreen` three steps; the four logs' bar; `SchemaWorkbenchScreen(package=...)`; the `medium` category.
+
+## Not done
+
+- Panels of the logs that do not use `layout.render` (thread, trace, links tab, the Properties tab text) do not re-flow; the Properties tab keeps its fixed columns and sideways scroll.
+- No tour shot of the Add property form (no tours this round).
+- Custom value is text only; a typed custom value needs a schema that defines the name.
