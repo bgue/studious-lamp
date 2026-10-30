@@ -102,3 +102,34 @@ Not run, not edited: in `packages/tl-tui/tests/` the pins of `test_tag_text`, `t
 - Panels of the logs that do not use `layout.render` (thread, trace, links tab, the Properties tab text) do not re-flow; the Properties tab keeps its fixed columns and sideways scroll.
 - No tour shot of the Add property form (no tours this round).
 - Custom value is text only; a typed custom value needs a schema that defines the name.
+
+# Round 4: Add property works end to end (ad-hoc custom fields, adopt a set, API parity)
+
+**Deviation first:** no test was run (owner's instruction); `just check` is clean (ruff, pyright, codegen, OpenAPI drift, licences). Three things outside the TUI, all additive: `SetPsetValues` accepts ad-hoc custom fields (a refusal that was `x.<unknown>` is now a write where the set allows it); the JSON Schema derived for a set that allows a custom section no longer rejects undeclared `x` keys; a new read `GET /records/{id}/addable-properties` (`docs/reference/openapi.json` regenerated, four new schemas). The commit trailers are the harness's attribution lines.
+
+## What changed in the command (`tl_core.services.psets`)
+- Where `custom_section.allowed` is true, `x.<name>` is accepted for a name the schema does not declare. Name: lower case letters, digits and `_`, 1 to 40, starting with a letter (`CUSTOM_NAME_PATTERN`), no `__`; refused when it is, or starts with, `x`, `prj`, `enrich` or `src` followed by `_` (the roots the schema already reserves for sets); refused when it is a property of the set (`x.size_in`). Limit: distinct names held plus new ones may not exceed `custom_section.max_properties` (a guard of 100 when the schema states none); changing or clearing a held name always works. Value: text or a number (finite), text up to 2000 characters; a date is its ISO text; lists, objects and booleans are refused.
+- One rule, `custom_name_problem` / `custom_value_problem`, so the API, an MCP proposal (`update_psets` checks the handler now), an inbound mapping, the CLI and `EditRecord` all reach it through `SetPsetValues`. The record is looked up first (`load_row`), so a hidden record answers `record_not_found` whatever the name; the name and limit checks never run for it.
+- Conformance: the set's JSON Schema gives `x` `additionalProperties: true` when the set allows custom fields, so an ad-hoc field is never an issue (a locked set, which allows none, still reports `locked`).
+
+## Adoption (the mechanism reused, nothing parallel)
+`AdoptSchemaPackage` of `tl_mod_schemareg` (`handlers/adoption.py`), access `admin` in `tl_mod_schemareg.commands.API_COMMANDS` (`POST /commands/AdoptSchemaPackage`, action `admin.command.AdoptSchemaPackage`; embedded: `schemareg_command` with `_admin_gate`). It pins `package@version` for the project. The read tells each viewer `can_adopt` by the same gate (`Holds("admin")`); a plain user is given `Needs a superuser to adopt this set for <project>`. A non-additive adoption still needs the impact digest: the command refuses with its own words and the form shows them.
+
+## API parity (item 13)
+- `tl_core.addable.addable_properties` (like `allowed_actions`): `standard` (set, property, label, unit, type, code list, values, layer), `adoptable` (set, package, version, project, `can_adopt`, `needs`, its properties), `custom` (per standard set: allowed, `max_properties`, `used`, `declared`), `can_write` and `write_refusal` (voided, an agent, a module type), `name_rule`. A hidden record is the same 404 as a missing one.
+- `GET /records/{id}/addable-properties` (`record.read`), `ApiClient.addable_properties`, `ClientInterface` and the embedded client, MCP `get_addable_properties` (read; an agent proposes values with `update_psets`, and `can_adopt` is false for it; `mcp.get_addable_properties` is in `MCP_ACTIONS`).
+- (b) adoption is reachable at `POST /commands/AdoptSchemaPackage` under the access above; (c) ad-hoc fields go through `POST /commands/SetPsetValues`, `layer: custom`, same validation (tests below).
+- The TUI form reads only `addable_properties` (no `form_metadata`, no company form). *From the standard* lists the shown sets' properties and those of sets to adopt; a set to adopt is `Adopt <set> for <project>` for a person who may and greyed for anybody else; afterwards the form opens again on the property. The custom step checks the name with the service's rule first; a typed number is kept as a number only when it reads back the same (`007` stays text). The Properties tab lists held ad-hoc fields in the set's custom section, layer `custom`.
+
+## New tests (not run)
+- `tests/services/test_pset_adhoc_custom.py`: good/bad/reserved names, collision, values, the limit (distinct per record and set, same-write, clearing frees room), a set with none, layers, missing record before name.
+- `packages/tl-api/tests/test_api_addable.py`: the read, `used`, agent, 404/401, contract; bad names are 422 `pset_validation`; over the limit; hidden record read and write alike for a good and a bad name; adoption: plain user greyed and `ForbiddenError`, superuser adopts, the value can then be entered. `test_confidentiality_walk.py`: the route as five readers.
+- `packages/tl-mcp/tests/test_mcp_tools.py`: the tool, an agent's proposal and refused bad names. `packages/tl-tui/tests/test_add_property.py`: offers, adoption command, blocked line, `{currency}` unit, custom problems, `_typed`, tab lines, the screen (greyed, adopt then reopen, bad name, number kept, unwritable record). `test_embedded_actions.py`: the embedded read.
+
+## Stale tests (edited where the new answer is certain; run to confirm)
+Edited: `tests/services/test_pset_commands.py` (`x.nope` refusal now `x.Nope`), `tl-schema/tests/test_validation.py` and `test_conformance.py` (`x.other` is no longer an issue in `valve_data`), `tl-mcp/tests/test_mcp_server.py` (`READ_TOOLS`), `tl-tui/tests/fakes_actions.py` (`addable_properties`). Not edited, check: tests pinning `record_json_schema` for a set with a custom section; the OpenAPI pins (`test_openapi*`); tour/demos that open the Add property form (the first step line `From the standard (n available)` counts only usable lines); round 3's list still applies.
+
+## Not done
+- Typed ad-hoc values stop at number and ISO text; a date is not validated as a date by the service (the form does not offer a date box for a custom field).
+- The impact digest of a non-additive adoption is not read by the form; the workbench (`Ctrl+O`) is where it is reviewed.
+- `Pset.ValuesSet` is unchanged; an ad-hoc field is told apart only by the key `x.<name>` and the schema, so no event changed.

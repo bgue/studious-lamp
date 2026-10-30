@@ -125,16 +125,26 @@ log never lays out its own screen and never adds a second standard.
   value wraps under its own start, and a small table drops its least-needed column (`layout.DROP_FIRST`: Files, Pages,
   Pin, Size, Days left ...), then shortens a long one with `…` (`layout.SHORTENABLE`: Purpose, Title, Name, Who ...),
   and last wraps its final column.
-- **Add property (P1-UX3 round 3)**: `[+] Add property` on the record screen's Properties tab (key `+`) and in the actions
-  bar of the document, tag, correspondence and RFI/commercial logs (not for an agent or a voided record).
-  `widgets/add_property_form.py` is the form and `add_property.py` its pure part. The first step offers
-  *From the standard* (properties the type allows that the record has no value for: the empty rows of the shown sets
-  and the properties of optional company sets the project has not adopted, from the company's `form_metadata`),
-  *Custom field* (a name and a value in a set whose `PsetGroupMeta.custom_allowed` is true) and, for an admin,
-  *Propose a change to the standard…* (the schema workbench, `SchemaWorkbenchScreen(package=...)`, on the package that
-  owns the set). The form sends nothing: it returns the `SetPsetValues` command, the host sends it inside `attempt()`
-  (log) or shows the refusal as a status message (record screen). The service decides: a set the project has not
-  adopted and a custom name the project's schema does not define are refused.
+- **Add property (P1-UX3 rounds 3 and 4)**: `[+] Add property` on the record screen's Properties tab (key `+`) and in the
+  actions bar of the document, tag, correspondence and RFI/commercial logs (not for an agent or a voided record).
+  `widgets/add_property_form.py` is the form and `add_property.py` its pure part. The form reads
+  `ClientInterface.addable_properties` (`GET /records/{id}/addable-properties`, the MCP tool `get_addable_properties`),
+  the same read an API client or an agent uses. The first step offers *From the standard* (properties the type allows
+  that the record has no value for, and those of optional company sets the project has not adopted), *Custom field* (a
+  name and a value in a set that allows a custom section) and, for an admin, *Propose a change to the standard…* (the
+  schema workbench on the package that owns the set). A property of a set the project has not adopted reads
+  `Adopt <set label> for <project>` for a person who may (`AdoptableSet.can_adopt`: the access of the schema registry's
+  `AdoptSchemaPackage`, an administrator's); anybody else sees the line greyed with `Needs a superuser to adopt this set
+  for <project>`. After adoption the form opens again on the property. The form sends nothing: it returns the
+  `SetPsetValues` or `AdoptSchemaPackage` command and the host sends it (`attempt()` in a log, a status message on the
+  record screen). A record that cannot be written (voided, or a module's type) says why on the first step.
+- **Custom fields (P1-UX3 round 4)**: where a set's `custom_section.allowed` is true, `SetPsetValues` takes
+  `x.<name>` for a name the schema does not declare (layer `custom`): lower case letters, digits and `_`, 1 to 40
+  characters, starting with a letter; not `x`, `prj`, `enrich` or `src` (or those followed by `_`); not the name of a
+  property of the set; at most `custom_section.max_properties` distinct names per record and set (100 when the schema
+  states none). A value is text or a number (a date is its ISO text). The Properties tab lists them in the set's custom
+  section with the layer `custom`; conformance never counts them against the record. The same rule applies to the API,
+  an MCP proposal, an inbound mapping and the CLI, because all of them reach `SetPsetValues`.
 - **Testing a log**: a small `LogScreen` subclass with three rows and fake actions pushed on a bare `App`, driven by
   `helpers.run_pilot`; wait for the workers with `await pilot.app.workers.wait_for_complete()`. See
   `tests/test_log_screen.py` (host pattern, stale answer, refusal, layout switch at 159/160, snapshots at 80 and 170).

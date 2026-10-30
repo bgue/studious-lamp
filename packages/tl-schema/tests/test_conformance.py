@@ -155,7 +155,7 @@ def test_unknown_properties_take_the_pset_enforcement(effective: EffectiveSchema
     report = run(effective, psets)
     assert summary(report) == [
         ("psets.valve_data.nope", "type", "nonconformant"),
-        ("psets.valve_data.x.other", "type", "nonconformant"),
+        # x.other is an ad-hoc custom field: valve_data allows a custom section (P1-UX3 round 4)
     ]
     project = run(effective, {"prj": {"shutdown_tie_in": {"zzz": 1}}})
     assert summary(project) == [("psets.prj.shutdown_tie_in.zzz", "type", "warning")]
