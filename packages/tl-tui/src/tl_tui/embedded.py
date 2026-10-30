@@ -21,6 +21,7 @@ from tl_api.client.files import save_download
 from tl_api.thread_runner import thread_runner
 from tl_core import confidentiality
 from tl_core.actions import Holds, Level, RecordActions, allowed_actions
+from tl_core.addable import AddableProperties, addable_properties
 from tl_core.auth import accounts as account_services
 from tl_core.auth import queries as account_queries
 from tl_core.auth.env import current_env, demo_allowed
@@ -473,6 +474,10 @@ class EmbeddedClient:
     def allowed_actions(self, record_id: str) -> RecordActions:
         with self._uow(True) as uow:
             return allowed_actions(uow, record_id, actor=self.actor, holds=self._gate_holds(uow))
+
+    def addable_properties(self, record_id: str) -> AddableProperties:
+        with self._uow(True) as uow:
+            return addable_properties(uow, record_id, actor=self.actor, holds=self._gate_holds(uow))
 
     def list_record_files(self, record_id: str) -> list[FileInfo]:
         with self._uow(True) as uow:

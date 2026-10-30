@@ -7,6 +7,7 @@ are mapped), opens a read-only unit of work with ``ctx.factory(True)`` and calls
 from __future__ import annotations
 
 from tl_api.routes.records import build_spec
+from tl_core.addable import AddableProperties, addable_properties
 from tl_core.query import count_query, run_query
 from tl_core.services import link_queries, link_trace, queries
 from tl_core.services.errors import RecordNotFoundError
@@ -60,6 +61,19 @@ def get_record_impl(ctx: McpContext, *, record: str, scope: str | None) -> dict[
         found = queries.get_record_by_id(uow, record_id)
         assert found is not None
     return found
+
+
+def get_addable_properties_impl(
+    ctx: McpContext, *, record: str, scope: str | None
+) -> AddableProperties:
+    """What could be added to the record: standard properties it lacks, optional sets the project
+    has not adopted, each set's custom-section rule. An agent proposes values with
+    ``update_psets``; it never adopts a set (``can_adopt`` is false for it)."""
+    with ctx.factory(True) as uow:
+        record_id = resolve_record_id(uow, record, scope)
+        return addable_properties(
+            uow, record_id, actor=ctx.actor, holds=lambda level: level == "user"
+        )
 
 
 def get_links_impl(

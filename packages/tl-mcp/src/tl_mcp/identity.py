@@ -30,6 +30,7 @@ MCP_ACTIONS = frozenset(
         "mcp.search_records",
         "mcp.get_record",
         "mcp.get_links",
+        "mcp.get_addable_properties",
         "mcp.trace",
         "mcp.get_settings",
         "mcp.lake_query",

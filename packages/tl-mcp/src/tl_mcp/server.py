@@ -22,6 +22,7 @@ from mcp.types import ToolAnnotations
 from pydantic import Field
 from tl_api.auth import authorize
 from tl_api.tokens import check_actor
+from tl_core.addable import AddableProperties
 from tl_core.extypes.provider import attach as attach_extension_types
 from tl_core.files.service import FileService
 from tl_core.files.types import ObjectStore
@@ -180,6 +181,16 @@ def build_server(
         """Get one record: its envelope with title, status, psets, version and conformance."""
         with guarded(ctx, "get_record", resource_name("record", record)):
             return tools.get_record_impl(ctx, record=record, scope=scope)
+
+    @server.tool(annotations=READ_ONLY)
+    def get_addable_properties(record: RecordRef, scope: ScopeForKey = None) -> AddableProperties:
+        """What could be added to a record: the standard properties its type allows and it has no
+        value for, the optional property sets its project has not adopted (an agent cannot adopt
+        one; a person with the right does), and each set's custom-section rule (whether it takes
+        custom fields, the most, how many are held, and the rule for a name). Propose a value
+        with `update_psets`; a custom field is `layer: custom` with the key `x.<name>`."""
+        with guarded(ctx, "get_addable_properties", resource_name("record", record)):
+            return tools.get_addable_properties_impl(ctx, record=record, scope=scope)
 
     @server.tool(annotations=READ_ONLY)
     def get_links(

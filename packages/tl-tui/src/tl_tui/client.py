@@ -13,6 +13,7 @@ from typing import Any, Literal, Protocol
 
 from pydantic import BaseModel
 from tl_core.actions import RecordActions
+from tl_core.addable import AddableProperties
 from tl_core.auth.types import AccountKind, AccountView, AgentTokenView
 from tl_core.extypes.service import BodyStoredOut, BodyView, TypeDetail, TypeSummary
 from tl_core.extypes.types import TypeStatus
@@ -154,6 +155,12 @@ class ClientInterface(Protocol):
         ``engineering_command`` or ``correspondence_command``) and a label in plain words. A record
         the person may not read raises ``RecordNotFoundError`` exactly as a missing one does.
         """
+        ...
+
+    def addable_properties(self, record_id: str) -> AddableProperties:
+        """What could be added to the record: the standard properties it lacks, the optional sets
+        the project has not adopted (and whether this person may adopt them), and each set's
+        custom-section rule. A record the person may not read raises ``RecordNotFoundError``."""
         ...
 
     def list_record_files(self, record_id: str) -> list[FileInfo]:

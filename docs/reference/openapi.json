@@ -967,6 +967,223 @@
         "title": "AddLinkBody",
         "type": "object"
       },
+      "AddableProperties": {
+        "description": "Everything the Add property form (or an agent) needs to know about one record.",
+        "properties": {
+          "adoptable": {
+            "items": {
+              "$ref": "#/components/schemas/AdoptableSet"
+            },
+            "title": "Adoptable",
+            "type": "array"
+          },
+          "can_write": {
+            "title": "Can Write",
+            "type": "boolean"
+          },
+          "custom": {
+            "items": {
+              "$ref": "#/components/schemas/CustomRule"
+            },
+            "title": "Custom",
+            "type": "array"
+          },
+          "key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Key"
+          },
+          "name_rule": {
+            "default": "Lower case letters, digits and _, 1 to 40 characters, starting with a letter; not x, prj, enrich or src (or starting with one and _); not the name of a property of the set.",
+            "title": "Name Rule",
+            "type": "string"
+          },
+          "record_id": {
+            "title": "Record Id",
+            "type": "string"
+          },
+          "scope": {
+            "title": "Scope",
+            "type": "string"
+          },
+          "standard": {
+            "items": {
+              "$ref": "#/components/schemas/AddableProperty"
+            },
+            "title": "Standard",
+            "type": "array"
+          },
+          "type": {
+            "title": "Type",
+            "type": "string"
+          },
+          "write_refusal": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Write Refusal"
+          }
+        },
+        "required": [
+          "record_id",
+          "key",
+          "type",
+          "scope",
+          "can_write",
+          "standard",
+          "adoptable",
+          "custom"
+        ],
+        "title": "AddableProperties",
+        "type": "object"
+      },
+      "AddableProperty": {
+        "description": "One standard property the record could be given a value for.",
+        "properties": {
+          "code_list": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Code List"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "enforcement": {
+            "anyOf": [
+              {
+                "enum": [
+                  "advisory",
+                  "required",
+                  "locked"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Enforcement"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "layer": {
+            "enum": [
+              "standard",
+              "project"
+            ],
+            "title": "Layer",
+            "type": "string"
+          },
+          "order": {
+            "default": 0,
+            "title": "Order",
+            "type": "integer"
+          },
+          "package": {
+            "title": "Package",
+            "type": "string"
+          },
+          "path": {
+            "title": "Path",
+            "type": "string"
+          },
+          "property": {
+            "title": "Property",
+            "type": "string"
+          },
+          "pset": {
+            "title": "Pset",
+            "type": "string"
+          },
+          "required_in_states": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Required In States",
+            "type": "array"
+          },
+          "set_label": {
+            "title": "Set Label",
+            "type": "string"
+          },
+          "type": {
+            "enum": [
+              "string",
+              "text",
+              "int",
+              "decimal",
+              "bool",
+              "date",
+              "datetime",
+              "enum",
+              "quantity",
+              "ref",
+              "json"
+            ],
+            "title": "Type",
+            "type": "string"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit"
+          },
+          "values": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/EnumValue"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Values"
+          }
+        },
+        "required": [
+          "pset",
+          "set_label",
+          "package",
+          "layer",
+          "property",
+          "path",
+          "label",
+          "description",
+          "type"
+        ],
+        "title": "AddableProperty",
+        "type": "object"
+      },
       "AdminFlagLinkBody": {
         "additionalProperties": false,
         "properties": {
@@ -1209,6 +1426,69 @@
           "version"
         ],
         "title": "AdoptSchemaPackageBody",
+        "type": "object"
+      },
+      "AdoptableSet": {
+        "description": "An optional company set that applies to the record's type and the project has not adopted.\n\n``can_adopt`` is whether this viewer may run ``command`` (``AdoptSchemaPackage`` with\n``project``, ``package`` and ``version``); ``needs`` is the sentence to show when not.",
+        "properties": {
+          "can_adopt": {
+            "title": "Can Adopt",
+            "type": "boolean"
+          },
+          "command": {
+            "default": "AdoptSchemaPackage",
+            "title": "Command",
+            "type": "string"
+          },
+          "needs": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Needs"
+          },
+          "package": {
+            "title": "Package",
+            "type": "string"
+          },
+          "project": {
+            "title": "Project",
+            "type": "string"
+          },
+          "properties": {
+            "items": {
+              "$ref": "#/components/schemas/AddableProperty"
+            },
+            "title": "Properties",
+            "type": "array"
+          },
+          "pset": {
+            "title": "Pset",
+            "type": "string"
+          },
+          "set_label": {
+            "title": "Set Label",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "pset",
+          "set_label",
+          "package",
+          "version",
+          "project",
+          "can_adopt",
+          "properties"
+        ],
+        "title": "AdoptableSet",
         "type": "object"
       },
       "AdoptionView": {
@@ -6730,6 +7010,59 @@
           "assessed"
         ],
         "title": "CurrencyTotal",
+        "type": "object"
+      },
+      "CustomRule": {
+        "description": "The custom section of one standard set the record's type uses.",
+        "properties": {
+          "allowed": {
+            "title": "Allowed",
+            "type": "boolean"
+          },
+          "declared": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Declared",
+            "type": "array"
+          },
+          "max_properties": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Properties"
+          },
+          "package": {
+            "title": "Package",
+            "type": "string"
+          },
+          "pset": {
+            "title": "Pset",
+            "type": "string"
+          },
+          "set_label": {
+            "title": "Set Label",
+            "type": "string"
+          },
+          "used": {
+            "title": "Used",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "pset",
+          "set_label",
+          "package",
+          "allowed",
+          "used"
+        ],
+        "title": "CustomRule",
         "type": "object"
       },
       "DateShift": {
@@ -57754,6 +58087,94 @@
           }
         ],
         "summary": "Get Record Actions",
+        "tags": [
+          "records"
+        ]
+      }
+    },
+    "/records/{record_id}/addable-properties": {
+      "get": {
+        "description": "What could be added to the record: the standard properties its type allows and it lacks, the\noptional sets the project has not adopted (and whether the caller may adopt them, with\n`POST /commands/AdoptSchemaPackage`), and each set's custom-section rule.\n\n404 `record_not_found` when the record is missing or the caller may not read it. Writing the\nvalues is `POST /commands/SetPsetValues`, which checks everything again.",
+        "operationId": "get_record_addable_properties",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "record_id",
+            "required": true,
+            "schema": {
+              "title": "Record Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AddableProperties"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Record Addable Properties",
         "tags": [
           "records"
         ]

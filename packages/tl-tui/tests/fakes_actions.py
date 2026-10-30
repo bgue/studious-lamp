@@ -14,6 +14,7 @@ from typing import Any
 
 from tl_api.client.files import save_download
 from tl_core.actions import ActionOffer, RecordActions
+from tl_core.addable import AddableProperties
 from tl_core.auth.errors import ForbiddenError
 from tl_core.files.queries import FileInfo
 from tl_core.services.commands import Command, CommandResult
@@ -30,6 +31,7 @@ class FakeActionsSupport:
     def _init_actions(self) -> None:
         self._offers: dict[str, RecordActions] = {}
         self._hidden_records: set[str] = set()
+        self._addable: dict[str, AddableProperties] = {}
         self._record_files: dict[str, list[FileInfo]] = {}
         self._file_bytes: dict[str, bytes] = {}
         self._known_files: set[str] = set()  # file ids this client listed (their scope is known)
@@ -47,6 +49,10 @@ class FakeActionsSupport:
             state=state,
             actions=[ActionOffer(command=c, label=label) for c, label in offers],
         )
+
+    def set_addable(self, record_id: str, addable: AddableProperties) -> None:
+        """What ``record_id`` could be given (P1-UX3 round 4); the default offers nothing."""
+        self._addable[record_id] = addable
 
     def hide_record(self, record_id: str) -> None:
         """Make ``record_id`` one the viewer may not read: it answers like a missing record."""
@@ -88,6 +94,24 @@ class FakeActionsSupport:
             raise RecordNotFoundError(f"no record {record_id!r}")
         return self._offers.get(
             record_id, RecordActions(record_id=record_id, state=None, actions=[])
+        )
+
+    def addable_properties(self, record_id: str) -> AddableProperties:
+        self.calls.append("addable_properties")  # type: ignore[attr-defined]
+        if record_id in self._hidden_records:
+            raise RecordNotFoundError(f"no record {record_id!r}")
+        return self._addable.get(
+            record_id,
+            AddableProperties(
+                record_id=record_id,
+                key=None,
+                type="core.Record",
+                scope=SCOPE,
+                can_write=True,
+                standard=[],
+                adoptable=[],
+                custom=[],
+            ),
         )
 
     def list_record_files(self, record_id: str) -> list[FileInfo]:

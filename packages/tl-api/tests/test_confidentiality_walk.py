@@ -209,6 +209,7 @@ def test_the_walk_finds_the_routes_and_the_seed_is_what_the_walk_assumes(
     assert {"/records/{record_id}", "/feed", "/events", "/files/{file_id}/content"} <= paths
     assert "/projects/{project}/correspondence/{number}" in paths and set(NOT_WALKED) <= paths
     assert "/records/{record_id}/actions" in paths  # P1-UX2-S1: walked below as five readers
+    assert "/records/{record_id}/addable-properties" in paths  # P1-UX3 r4: walked below too
     forms_query = next(q for p, _, q in routes if p == "/schema/forms")
     assert "record_id" in forms_query  # P1-UX-S2: the parameter is walked by the test below
     # the seed: a controller sees all but the unknown class; a user sees the internal item only
@@ -297,6 +298,37 @@ def test_the_actions_route_tells_each_reader_only_about_the_records_they_may_rea
         for marker in [*tokens, *hidden_ids]:
             assert marker not in found.text, (reader, kind, marker)
     assert readable >= 2  # the reader does read some, so the check can fail
+
+
+@pytest.mark.parametrize("reader", sorted(MAY_READ))
+def test_the_addable_properties_route_tells_each_reader_only_about_what_they_may_read(
+    harness: Harness, seeded: Seed, reader: str
+) -> None:
+    """P1-UX3 round 4: ``GET /records/{id}/addable-properties`` for every record of the seed, as
+    each reader: a hidden record answers exactly as an id that names nothing, a readable one
+    answers 200 with its own id and nothing hidden, and an agent can adopt and write nothing."""
+    client = harness.client_for(None)
+    headers = {"Authorization": f"Bearer {seeded.tokens[reader]}"}
+    tokens, hidden_ids = hidden_markers(seeded, reader)
+    nothing = client.get(f"/records/{FAKE_ID}/addable-properties", headers=headers)
+    assert nothing.status_code == 404
+    readable = 0
+    for kind, record_id in sorted(seeded.ids.items()):
+        found = client.get(f"/records/{record_id}/addable-properties", headers=headers)
+        if record_id in hidden_ids:
+            assert found.status_code == 404, (reader, kind)
+            assert found.text.replace(record_id, FAKE_ID) == nothing.text, (reader, kind)
+            assert sorted(found.headers) == sorted(nothing.headers), (reader, kind)
+            continue
+        readable += 1
+        assert found.status_code == 200, (reader, kind, found.text)
+        assert found.json()["record_id"] == record_id
+        if reader == "bot":
+            assert found.json()["can_write"] is False, (reader, kind)
+            assert not any(s["can_adopt"] for s in found.json()["adoptable"]), (reader, kind)
+        for marker in [*tokens, *hidden_ids]:
+            assert marker not in found.text, (reader, kind, marker)
+    assert readable >= 2
 
 
 def feed_cards(client: Any, token: str) -> list[dict[str, Any]]:
