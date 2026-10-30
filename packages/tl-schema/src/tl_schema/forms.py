@@ -58,6 +58,8 @@ class PsetGroupMeta(BaseModel):
     enforcement: Enforcement | None
     layer: Layer
     fields: list[FieldMeta]
+    custom_allowed: bool = False  # the set has a custom section (names start "x.")
+    custom_max: int | None = None  # the most custom properties it takes; None for no limit
 
 
 class FormMetadata(BaseModel):

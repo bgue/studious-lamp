@@ -15488,6 +15488,22 @@
       },
       "PsetGroupMeta": {
         "properties": {
+          "custom_allowed": {
+            "default": false,
+            "title": "Custom Allowed",
+            "type": "boolean"
+          },
+          "custom_max": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Custom Max"
+          },
           "enforcement": {
             "anyOf": [
               {

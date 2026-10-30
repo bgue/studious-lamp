@@ -24,6 +24,7 @@ from tl_tui.paths import pset_value
 from tl_tui.text import EMPTY, conformance_mark, format_value, short_hash, unit_label
 
 HEADER = f"{'Property':<28}{'Value':<24}{'Layer':<12}Rule"
+ADD_LINE = "[+] Add property"  # the key is `plus` on the record screen
 LEGEND = (
     "● required  ○ advisory  ■ locked  ! warning  ✗ nonconformant  ✓ ok  x. project custom section"
 )
@@ -162,6 +163,7 @@ class PsetsTab(VerticalScroll, can_focus=True):
     DEFAULT_CSS = """
     PsetsTab { overflow-x: auto; padding: 0 1; }
     PsetsTab > #psets-body { width: auto; }
+    PsetsTab > #psets-add { height: 1; color: $accent; }
     """
     KEY_HINTS: ClassVar[str] = "↑↓ scroll  Esc back"
 
@@ -180,6 +182,7 @@ class PsetsTab(VerticalScroll, can_focus=True):
         self._loaded: tuple[FormMetadata, ConformanceReport] | None = None
 
     def compose(self) -> ComposeResult:
+        yield Static(ADD_LINE, id="psets-add", markup=False)
         yield Static("", id="psets-body", markup=False)
 
     def show_record(self, record: dict[str, Any]) -> None:

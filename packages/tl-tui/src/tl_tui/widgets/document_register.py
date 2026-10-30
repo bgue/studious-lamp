@@ -40,6 +40,7 @@ from tl_tui.document_text import (
 from tl_tui.errors import CLIENT_ERRORS, describe_error
 from tl_tui.labels_load import load_labels
 from tl_tui.layout import HEADING_STYLE, Adaptive, Panel, render
+from tl_tui.log_actions import add_property_actions
 from tl_tui.widgets.action_form import ActionFormScreen, FormField
 from tl_tui.widgets.file_panel import FilePanel
 from tl_tui.widgets.log_screen import LogAction, LogScreen
@@ -254,8 +255,9 @@ class DocumentRegisterScreen(LogScreen[DocumentView]):
         """What the viewer may do to ``row``: the server's offers on the document and on the
         revisions that can take one, as actions; plus the re-pin and the file when they apply."""
         full = self.full(row)
+        document_offers = self.client.allowed_actions(full.id)
         offers: list[tuple[ActionOffer, RevisionView | None]] = [
-            (offer, None) for offer in self.client.allowed_actions(full.id).actions
+            (offer, None) for offer in document_offers.actions
         ]
         for revision in self._revisions_asked(full):
             offers += [(o, revision) for o in self.client.allowed_actions(revision.id).actions]
@@ -272,6 +274,15 @@ class DocumentRegisterScreen(LogScreen[DocumentView]):
         revision = self.file_revision(full)
         if revision is not None and self.client.list_record_files(revision.id):
             made.append(LogAction("v", "Open file", self._open_file))
+        made.extend(
+            add_property_actions(
+                self,
+                self.client,
+                document_offers,
+                actor=self.actor,
+                scope=f"project:{self.project}",
+            )
+        )
         return made
 
     @staticmethod

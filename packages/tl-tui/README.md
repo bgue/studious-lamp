@@ -117,8 +117,24 @@ log never lays out its own screen and never adds a second standard.
   `document_text.py`; each `DetailRow` names its `section`), and the Details tab and the log's panel both render
   them with `details.rows_page(...)` and `layout.render(...)` (`panel=True` cuts long text at a word with
   `… (Enter for all)`, shortens the timeline and file lists, and leaves out the `Record` dates). `panel_text` may
-  return that styled `Text`. Order: narrative, key facts, people, dates, clocks, timeline, files, record, technical
-  details (technical mode only).
+  return that renderable (`layout.Panel`). Order: narrative, key facts, people, dates, clocks, timeline, files, record,
+  technical details (technical mode only).
+- **Width (P1-UX3 round 3)**: `layout.render` returns an `Adaptive`, a Rich renderable that lays the page out at the
+  width its widget has, so a resize re-flows a panel, a Details tab and the file table with no help from the screen
+  (`.plain` is the layout with no limit, what tests read). The label column is at most two fifths of the width, a long
+  value wraps under its own start, and a small table drops its least-needed column (`layout.DROP_FIRST`: Files, Pages,
+  Pin, Size, Days left ...), then shortens a long one with `…` (`layout.SHORTENABLE`: Purpose, Title, Name, Who ...),
+  and last wraps its final column.
+- **Add property (P1-UX3 round 3)**: `[+] Add property` on the record screen's Properties tab (key `+`) and in the actions
+  bar of the document, tag, correspondence and RFI/commercial logs (not for an agent or a voided record).
+  `widgets/add_property_form.py` is the form and `add_property.py` its pure part. The first step offers
+  *From the standard* (properties the type allows that the record has no value for: the empty rows of the shown sets
+  and the properties of optional company sets the project has not adopted, from the company's `form_metadata`),
+  *Custom field* (a name and a value in a set whose `PsetGroupMeta.custom_allowed` is true) and, for an admin,
+  *Propose a change to the standard…* (the schema workbench, `SchemaWorkbenchScreen(package=...)`, on the package that
+  owns the set). The form sends nothing: it returns the `SetPsetValues` command, the host sends it inside `attempt()`
+  (log) or shows the refusal as a status message (record screen). The service decides: a set the project has not
+  adopted and a custom name the project's schema does not define are refused.
 - **Testing a log**: a small `LogScreen` subclass with three rows and fake actions pushed on a bare `App`, driven by
   `helpers.run_pilot`; wait for the workers with `await pilot.app.workers.wait_for_complete()`. See
   `tests/test_log_screen.py` (host pattern, stale answer, refusal, layout switch at 159/160, snapshots at 80 and 170).

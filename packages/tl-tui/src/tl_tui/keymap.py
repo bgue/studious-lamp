@@ -173,6 +173,13 @@ KEYMAP: tuple[KeyEntry, ...] = (
     KeyEntry("Record view", "e", "Edit the record", "RecordView", "e"),
     KeyEntry(
         "Record view",
+        "+",
+        "Properties tab: add a property (from the standard, or a custom field)",
+        "RecordView",
+        "plus",
+    ),
+    KeyEntry(
+        "Record view",
         "1  2  3  4  5",
         "Details, Psets, Links, History, Trace tab",
         "RecordView",

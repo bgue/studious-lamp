@@ -23,7 +23,13 @@ from tl_tui.display import Labels, mode_of
 from tl_tui.errors import CLIENT_ERRORS, describe_error
 from tl_tui.labels_load import load_labels
 from tl_tui.layout import Panel, render
-from tl_tui.log_actions import ACTION_UI, Runner, log_actions, screen_runner
+from tl_tui.log_actions import (
+    ACTION_UI,
+    Runner,
+    add_property_actions,
+    log_actions,
+    screen_runner,
+)
 from tl_tui.tag_text import COLUMNS, DROP, next_class, row_cells, summary_line, tag_page
 from tl_tui.widgets.log_screen import LogAction, LogScreen
 from tl_tui.widgets.record_screen import open_record
@@ -115,7 +121,13 @@ class TagRegisterScreen(LogScreen[TagView]):
 
     def actions_for(self, row: TagView) -> Sequence[LogAction]:
         offers = self.client.allowed_actions(row.id)
-        return log_actions(offers, ACTION_UI, self._runner(), version=row.version)
+        actor = str(getattr(self.app, "actor", "user:dev"))
+        return [
+            *log_actions(offers, ACTION_UI, self._runner(), version=row.version),
+            *add_property_actions(
+                self, self.client, offers, actor=actor, scope=f"project:{self.project}"
+            ),
+        ]
 
     def summary_text(self) -> str:
         return summary_line(

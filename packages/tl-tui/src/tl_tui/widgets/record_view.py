@@ -15,6 +15,7 @@ from textual.binding import Binding, BindingType
 from textual.containers import Vertical, VerticalScroll
 from textual.widgets import DataTable, Static, TabbedContent, TabPane
 from tl_core.ledger import Event
+from tl_core.services.psets import SetPsetValues
 from tl_core.settings.layers import project_of_scope
 
 from tl_tui.client import ClientInterface
@@ -122,7 +123,8 @@ class RecordView(Vertical, can_focus=True):
     """
 
     KEY_HINTS: ClassVar[str] = (
-        "Esc back  [ ] prev/next  1-6 tabs  T thread  e edit  l link  w workflow  t trace  R tray"
+        "Esc back  [ ] prev/next  1-6 tabs  T thread  e edit  + add property (Properties tab)  "
+        "l link  w workflow  t trace  R tray"
     )
 
     BINDINGS: ClassVar[list[BindingType]] = [
@@ -131,6 +133,7 @@ class RecordView(Vertical, can_focus=True):
         Binding("right_square_bracket", "step(1)", show=False),
         Binding("h", "history", show=False),
         Binding("e", "edit", show=False),
+        Binding("plus", "add_property", show=False),
         Binding("1", "tab('details')", show=False),
         Binding("2", "tab('psets')", show=False),
         Binding("3", "tab('links')", show=False),
@@ -410,6 +413,50 @@ class RecordView(Vertical, can_focus=True):
             ExtensionEditForm(self.client, self.scope, record, form, stored.body), saved
         )
         return True
+
+    def check_action(self, action: str, parameters: tuple[object, ...]) -> bool | None:
+        """``+`` adds a property on the Properties tab only (other tabs bind it to their own)."""
+        if action == "add_property":
+            return self.query_one("#rv-tabs", TabbedContent).active == TABS["psets"]
+        return True
+
+    def action_add_property(self) -> None:
+        """Open the Add property form; the form sends nothing, this sends its command."""
+        record = self.record
+        if record is None:
+            return
+        from tl_tui.widgets.add_property_form import open_add_property  # noqa: PLC0415
+        from tl_tui.widgets.schema_screen import SchemaWorkbenchScreen  # noqa: PLC0415
+
+        actor = self._actor()
+
+        def send(cmd: SetPsetValues) -> None:
+            try:
+                self.client.set_pset_values(cmd)
+            except CLIENT_ERRORS as exc:
+                self.post_message(StatusMessage(describe_error(exc), "error"))
+                return
+            self.post_message(StatusMessage("Property added", "info"))
+            self.post_message(RecordChanged(record["id"]))
+
+        def workbench(package: str) -> None:
+            self.app.push_screen(
+                SchemaWorkbenchScreen(self.client, self.scope, actor, package=package)
+            )
+
+        try:
+            open_add_property(
+                self,
+                self.client,
+                scope=self.scope,
+                record_id=record["id"],
+                actor=actor,
+                is_admin=bool(getattr(self.app, "is_admin", False)),
+                send=send,
+                workbench=workbench,
+            )
+        except CLIENT_ERRORS as exc:
+            self.post_message(StatusMessage(describe_error(exc), "error"))
 
     def action_edit(self) -> None:
         record = self.record

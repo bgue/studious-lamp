@@ -58,6 +58,7 @@ from tl_tui.log_actions import (
     ENVELOPE,
     ActionUi,
     Runner,
+    add_property_actions,
     log_actions,
     screen_runner,
     without_keys,
@@ -239,7 +240,12 @@ class CorrespondenceScreen(LogScreen[RegisterLineView | ClockView]):
                     subtype=subtype,
                 ),
             )
-        return log_actions(offers, ui, self._runner(), version=item.version)
+        return [
+            *log_actions(offers, ui, self._runner(), version=item.version),
+            *add_property_actions(
+                self, self.client, offers, actor=self.actor, scope=f"project:{self.project}"
+            ),
+        ]
 
     def _runner(self) -> Runner:
         return screen_runner(self, self.client, actor=self.actor, scope=f"project:{self.project}")

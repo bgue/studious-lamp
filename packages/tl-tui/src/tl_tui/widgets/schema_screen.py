@@ -65,8 +65,17 @@ class SchemaWorkbenchScreen(LogScreen[PackageSummary]):
     SchemaWorkbenchScreen #log-panel { height: 1fr; }
     """
 
-    def __init__(self, client: ClientInterface, scope: str, actor: str, *, tab: int = 0) -> None:
+    def __init__(
+        self,
+        client: ClientInterface,
+        scope: str,
+        actor: str,
+        *,
+        tab: int = 0,
+        package: str | None = None,
+    ) -> None:
         super().__init__()
+        self._show_package = package  # the package whose latest version is highlighted first
         self.client = client
         self.scope = scope
         self.actor = actor
@@ -75,6 +84,15 @@ class SchemaWorkbenchScreen(LogScreen[PackageSummary]):
         self._tree: dict[str, tuple[str, ...]] = {}  # row id -> cells, for the rows as listed
         self._tree_for: tuple[int, bool] | None = None
         self._flash = ""  # a note for the status line that the reload would replace
+
+    def _fill(self, keep: str | None = None, *, reread: bool = False) -> None:
+        """Fill the list; the first time the rows arrive the cursor goes to ``package``."""
+        if self._show_package is not None and reread and self.rows:
+            wanted = [row for row in self.rows if row.package == self._show_package]
+            self._show_package = None
+            if wanted:
+                keep = wanted[0].id
+        super()._fill(keep, reread=reread)
 
     @property
     def listed(self) -> list[PackageSummary]:

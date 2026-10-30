@@ -22,6 +22,7 @@ _NAMES = {
     "escape": "Esc",
     "slash": "/",
     "question_mark": "?",
+    "plus": "+",
     "space": "Space",
     "tab": "Tab",
     "backspace": "Backspace",

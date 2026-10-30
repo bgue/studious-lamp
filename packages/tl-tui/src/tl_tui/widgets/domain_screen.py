@@ -42,7 +42,14 @@ from tl_tui.evidence_text import (
 )
 from tl_tui.labels_load import load_labels
 from tl_tui.layout import Adaptive, Panel, render
-from tl_tui.log_actions import ACTION_UI, Runner, log_actions, screen_runner, without_keys
+from tl_tui.log_actions import (
+    ACTION_UI,
+    Runner,
+    add_property_actions,
+    log_actions,
+    screen_runner,
+    without_keys,
+)
 from tl_tui.rfi_text import RFI_COLUMNS, RFI_DROP, rfi_cells, rfi_page, rfi_summary
 from tl_tui.widgets.log_screen import LogAction, LogScreen
 from tl_tui.widgets.record_screen import open_record
@@ -235,7 +242,12 @@ class DomainScreen(LogScreen[Row]):
         if isinstance(row, EvidenceNode):
             return []  # the trail changes nothing
         offers = self.client.allowed_actions(row.id)
-        return log_actions(offers, without_keys(ACTION_UI, OWN_KEYS), self._runner())
+        return [
+            *log_actions(offers, without_keys(ACTION_UI, OWN_KEYS), self._runner()),
+            *add_property_actions(
+                self, self.client, offers, actor=self.actor, scope=f"project:{self.project}"
+            ),
+        ]
 
     def _runner(self) -> Runner:
         return screen_runner(self, self.client, actor=self.actor, scope=f"project:{self.project}")
