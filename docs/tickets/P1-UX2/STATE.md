@@ -24,7 +24,7 @@ D11 2026-10-22 owner process: no security reviews for this increment; testing de
 ## SEC
 Not run (owner, D11). Open rows: Sec1 allowed-actions query; Sec2 open/preview path.
 ## OPEN
-Q1 whole-suite `just gate` and `just gate-pg` on the merged branch: <<fill>> in docs/reports/P1-UX2.md
+Q1 closed: whole suite and gate-pg green on the merged branch (see docs/reports/P1-UX2.md)
 Q2 follow-up 1 of the report: LogScreen table caches (a one-line product fix), owner or orchestrator to decide
 ## NEXT
 1. Merge p1/ux2-s6-demo-tours into p1/ux2.

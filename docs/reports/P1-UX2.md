@@ -32,8 +32,8 @@ Status: built; waiting for the one whole-suite run (owner decision, below). Plan
 | S4/S5 tl-tui package | 1525 and 1486 passed; `gate-pg` embedded real services 7 and 10 passed |
 | `just demo P1-UX2` (S6) | `P1-UX2 demo OK on: sqlite postgres` |
 | `just tour-all` x2 (S6) | exit 0, no `LEAK`, second run no change |
-| Whole suite `just gate` on the merged branch | <<fill>> |
-| `just gate-pg` on touched adapter and ledger paths | <<fill>> |
+| Whole suite `just gate` on the merged branch | 1087 + 5088 + 3995 + 1228 + 1341 passed, 1 skipped, parts run one at a time; 9 record-view snapshots showed the old `1-5 tabs` hint and were regenerated (0465186, 23 passed) |
+| `just gate-pg` on touched adapter and ledger paths | 2950 passed on SQLite and Postgres (confidentiality walk, correspondence, documents, engineering) |
 
 ## Deviations
 - Four container restarts ended running agents and workflow runs (three before S6, one during it); each piece resumed from its last commit. In S6 the orchestrator committed the builder's work in progress (`dc73cdd`); the demo had passed SQLite and was seeding Postgres. Learning L-P1-UX2-2.
