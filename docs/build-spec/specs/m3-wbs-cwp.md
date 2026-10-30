@@ -42,8 +42,8 @@ ASCII digits only (`tl_core/text.py` checks); dates `YYYY-MM-DD`.
 | `awp.EWPRef`, `awp.PWPRef` | typed owner package number (unique per type and project) | `cur_awp_ewp_ref` / `cur_awp_pwp_ref`: `package_no`, `status_text` (≤ 40), `forecast_date`, `actual_date`, `constraint_source` (bool; read by P2-I2), `source_system` (≤ 40) | none (mirror) | `none`: mirror of the owner's system |
 | rollup table | — | `cur_awp_rollup`: `scope`, `subject_kind` (`wbs_node`), `subject_id`, `line` (`total`, `cost_code`, `unallocated`), `cost_code_id` (set only on `cost_code` lines), `measure` (`budget_hours`; P2-I5 adds `earned_hours`), `value`, `as_of_seq`, `run_id` | — | — (server job only) |
 
-Offline: each class carries `tl:offline` and `tl:offline_reason` as the offline core spec defines; if that spec
-chooses a `ModuleSpec` field instead, the same table moves there. Nothing in P2-I1 runs offline (Phase 3 I5).
+Offline: each class carries `tl:offline` as the offline core spec defines (the reason stays in this spec's table, not in
+the schema; plan check F9). Nothing in P2-I1 runs offline (Phase 3 I5).
 
 **CWP workflow** (`schema/fixtures/workflows/awp-cwp.yaml`, no `roles` guard, every move by a module command with
 `handle_transition_workflow(..., by_module=True)`): Planned → In development → Released for IWP development →

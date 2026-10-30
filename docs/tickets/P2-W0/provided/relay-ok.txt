@@ -1,0 +1,11 @@
+Prose line one.
+=== RELAY ===
+19 P2-W0 r1 base@0a69e0a ck0 g- st@8c87aab C0
+T01 docs/tickets/P2-W0/T01-state-sh.md p2/w0-t01-state-sh t l
+95 none
+9 none
+4 none
+REPORT none
+NOTE acc: just check
+30
+=== END ===
