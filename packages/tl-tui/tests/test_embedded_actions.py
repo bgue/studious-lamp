@@ -112,6 +112,30 @@ def test_a_record_the_person_may_not_read_answers_like_a_missing_one(ledger: Led
     assert ledger.client("ctl").allowed_actions(ledger.hidden.ids["secret_rfi"]).actions
 
 
+def test_what_can_be_added_follows_the_record_and_hides_what_the_person_may_not_read(
+    ledger: Ledger,
+) -> None:
+    """P1-UX3 round 4: the form's read through the embedded client."""
+    plain = ledger.harness.create_record("ADD-1", "A valve")
+    bob = ledger.client("bob")
+    found = bob.addable_properties(plain.stream_id)
+    assert found.can_write and found.record_id == plain.stream_id
+    assert ("valve_data", "size_in") in {(p.pset, p.property) for p in found.standard}
+    assert any(r.pset == "valve_data" and r.allowed for r in found.custom)
+    # a record of a module's type changes through the module's commands: the read says so
+    draft = ledger.docs.revision("ISO-9002", "B").id
+    refused = bob.addable_properties(draft)
+    assert refused.can_write is False and refused.write_refusal
+    # a record the person may not read is a missing one, with the same words
+    with pytest.raises(RecordNotFoundError) as unknown:
+        bob.addable_properties(FAKE_ID)
+    for kind in ("restricted", "privileged", "document", "commercial", "secret_rfi"):
+        record_id = ledger.hidden.ids[kind]
+        with pytest.raises(RecordNotFoundError) as hidden:
+            bob.addable_properties(record_id)
+        assert str(hidden.value).replace(record_id, FAKE_ID) == str(unknown.value), kind
+
+
 def test_an_agent_cannot_use_the_embedded_client_at_all(ledger: Ledger) -> None:
     with pytest.raises(ValueError, match="agent"):
         EmbeddedClient(SqliteUowFactory(ledger.harness.db), actor="agent:bot")

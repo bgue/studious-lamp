@@ -49,6 +49,7 @@ from tl_mod_correspondence.handlers.technical_flow import (
 )
 from tl_mod_engineering.commands import API_COMMANDS as ENGINEERING_COMMANDS
 from tl_mod_engineering.handlers.tags import ReclassifyTag, RenameTag
+from tl_mod_schemareg.handlers.adoption import AdoptSchemaPackage
 
 from tl_tui.client import ClientInterface
 from tl_tui.widgets.action_form import ActionFormScreen, FormField
@@ -354,6 +355,12 @@ def add_property_actions(
         def workbench(package: str) -> None:
             screen.app.push_screen(SchemaWorkbenchScreen(client, scope, actor, package=package))
 
+        def adopt(cmd: AdoptSchemaPackage) -> bool:
+            def run() -> None:
+                client.schemareg_command("AdoptSchemaPackage", cmd)
+
+            return screen.attempt(run)
+
         open_add_property(
             screen,
             client,
@@ -363,6 +370,7 @@ def add_property_actions(
             is_admin=bool(getattr(screen.app, "is_admin", False)),
             send=send,
             workbench=workbench,
+            adopt=adopt,
         )
 
     return [LogAction(ADD_PROPERTY_KEY, "Add property", run)]

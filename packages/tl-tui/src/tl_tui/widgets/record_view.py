@@ -17,6 +17,7 @@ from textual.widgets import DataTable, Static, TabbedContent, TabPane
 from tl_core.ledger import Event
 from tl_core.services.psets import SetPsetValues
 from tl_core.settings.layers import project_of_scope
+from tl_mod_schemareg.handlers.adoption import AdoptSchemaPackage
 
 from tl_tui.client import ClientInterface
 from tl_tui.details import DetailRow, details_for, rows_page
@@ -444,6 +445,15 @@ class RecordView(Vertical, can_focus=True):
                 SchemaWorkbenchScreen(self.client, self.scope, actor, package=package)
             )
 
+        def adopt(cmd: AdoptSchemaPackage) -> bool:
+            try:
+                self.client.schemareg_command("AdoptSchemaPackage", cmd)
+            except CLIENT_ERRORS as exc:
+                self.post_message(StatusMessage(describe_error(exc), "error"))
+                return False
+            self.post_message(StatusMessage(f"Adopted {cmd.package} for {cmd.project}", "info"))
+            return True
+
         try:
             open_add_property(
                 self,
@@ -454,6 +464,7 @@ class RecordView(Vertical, can_focus=True):
                 is_admin=bool(getattr(self.app, "is_admin", False)),
                 send=send,
                 workbench=workbench,
+                adopt=adopt,
             )
         except CLIENT_ERRORS as exc:
             self.post_message(StatusMessage(describe_error(exc), "error"))

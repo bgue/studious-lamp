@@ -1,16 +1,19 @@
-"""The Add property form (P1-UX3 round 3): one short form, three ways to name a property.
+"""The Add property form (P1-UX3 rounds 3 and 4): one short form, three ways to name a property.
 
-Opened from the record screen's Properties tab and from the actions bar of a log (``+``). The first
-step offers ``From the standard`` (the properties the record's type allows and the record has no
-value for) and ``Custom field`` (a name and a value in a set's custom section) and, for an admin,
-``Propose a change to the standard…`` (the schema workbench on the package that owns the set). A
-picked standard property asks for its value in the field that fits its type (text, number with its
-unit, date, code list choice).
+Opened from the record screen's Properties tab and from the actions bar of a log (``+``). It reads
+``ClientInterface.addable_properties``, the read the API and the MCP tool offer too. The first step
+offers ``From the standard`` (the properties the record's type allows and the record has no value
+for, including those of an optional set the project has not adopted), ``Custom field`` (a name and
+a value in a set's custom section) and, for an admin, ``Propose a change to the standard…`` (the
+schema workbench on the package that owns the set). A picked standard property asks for its value in
+the field that fits its type. Picking one of a set the project has not adopted offers ``Adopt <set>
+for <project>`` to a person who may (``can_adopt``); for anybody else the line is greyed with the
+words the read gives.
 
-The form sends nothing. It returns an ``AddOutcome``: the ``SetPsetValues`` command to send, or the
-package whose change to propose. The host sends the command inside its own error handling, so a
-refusal reaches its status line. ``load_add_property`` does the reads (they may raise
-``CLIENT_ERRORS``).
+The form sends nothing. It returns an ``AddOutcome``: the ``SetPsetValues`` command to send, the set
+to adopt (the form opens again on the same property afterwards), or the package whose change to
+propose. The host sends them inside its own error handling, so a refusal reaches its status line.
+``load_add_property`` does the read (it may raise ``CLIENT_ERRORS``).
 """
 
 from __future__ import annotations
@@ -19,6 +22,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any, ClassVar
 
+from rich.text import Text
 from textual import events
 from textual.app import ComposeResult
 from textual.binding import Binding, BindingType
@@ -26,16 +30,20 @@ from textual.containers import Vertical, VerticalScroll
 from textual.screen import ModalScreen
 from textual.widgets import Input, OptionList, Select, Static
 from textual.widgets.option_list import Option
+from tl_core.addable import AddableProperties
 from tl_core.services.errors import RecordNotFoundError
 from tl_core.services.psets import SetPsetValues
-from tl_schema.forms import FormMetadata
+from tl_mod_schemareg.handlers.adoption import AdoptSchemaPackage
 
 from tl_tui.add_property import (
     CUSTOM_HELP,
     NO_CUSTOM_SECTION,
     CustomTarget,
     Offer,
+    adopt_command,
+    adopt_label,
     custom_key,
+    custom_problem,
     custom_targets,
     offer_command,
     owners,
@@ -43,16 +51,15 @@ from tl_tui.add_property import (
     standard_offers,
 )
 from tl_tui.client import ClientInterface
-from tl_tui.errors import CLIENT_ERRORS
 from tl_tui.widgets.form_fields import FieldEditor
 
-COMPANY = "company"
-STEP_CHOOSE, STEP_STANDARD, STEP_VALUE, STEP_CUSTOM, STEP_PROPOSE = (
+STEP_CHOOSE, STEP_STANDARD, STEP_VALUE, STEP_CUSTOM, STEP_PROPOSE, STEP_ADOPT = (
     "choose",
     "standard",
     "value",
     "custom",
     "propose",
+    "adopt",
 )
 PROPOSE_LINE = "Propose a change to the standard…"
 
@@ -62,33 +69,27 @@ class AddData:
     """What the form needs, read once when it opens."""
 
     record: dict[str, Any]
-    meta: FormMetadata
-    company: FormMetadata | None  # the company's form for the type; None when it cannot be read
+    addable: AddableProperties
 
 
 @dataclass(frozen=True)
 class AddOutcome:
-    """What the form hands back: a command to send, or a package to open the workbench on."""
+    """What the form hands back: a command to send, a set to adopt (and the property to offer
+    again afterwards), or a package to open the workbench on."""
 
     command: SetPsetValues | None = None
     package: str | None = None
+    adopt: AdoptSchemaPackage | None = None
+    then: tuple[str, str] | None = None  # (set, property) to open on once the set is adopted
 
 
-def load_add_property(client: ClientInterface, scope: str, record_id: str) -> AddData:
-    """Read the record and the forms of its type: the project's and the company's. Raises
-    ``CLIENT_ERRORS`` (a missing or hidden record is ``RecordNotFoundError``)."""
+def load_add_property(client: ClientInterface, record_id: str) -> AddData:
+    """Read the record and what can be added to it. Raises ``CLIENT_ERRORS`` (a missing or hidden
+    record is ``RecordNotFoundError``)."""
     record = client.get_record_by_id(record_id)
     if record is None:
         raise RecordNotFoundError(f"no record {record_id!r}")
-    where = str(record.get("scope") or scope)
-    meta = client.form_metadata(where, str(record["type"]), record_id)
-    company: FormMetadata | None = None
-    if where != COMPANY:
-        try:
-            company = client.form_metadata(COMPANY, str(record["type"]))
-        except (NotImplementedError, *CLIENT_ERRORS):
-            company = None  # only the sets the project shows are offered
-    return AddData(record, meta, company)
+    return AddData(record, client.addable_properties(record_id))
 
 
 class AddPropertyScreen(ModalScreen[AddOutcome | None]):
@@ -113,15 +114,24 @@ class AddPropertyScreen(ModalScreen[AddOutcome | None]):
     AddPropertyScreen .ap-label { margin-top: 1; }
     """
 
-    def __init__(self, data: AddData, *, actor: str, scope: str, is_admin: bool = False) -> None:
+    def __init__(
+        self,
+        data: AddData,
+        *,
+        actor: str,
+        scope: str,
+        is_admin: bool = False,
+        preselect: tuple[str, str] | None = None,
+    ) -> None:
         super().__init__()
         self.data = data
         self.actor = actor
         self.scope = str(data.record.get("scope") or scope)
         self.is_admin = is_admin
-        self.offers: list[Offer] = standard_offers(data.meta, data.company, data.record)
-        self.targets: list[CustomTarget] = custom_targets(data.meta, data.record)
-        self.owners: list[tuple[str, str]] = owners(data.meta, data.company)
+        self.preselect = preselect
+        self.offers: list[Offer] = standard_offers(data.addable, data.record)
+        self.targets: list[CustomTarget] = custom_targets(data.addable)
+        self.owners: list[tuple[str, str]] = owners(data.addable)
         self.step = STEP_CHOOSE
         self.offer: Offer | None = None
         self.editor: FieldEditor | None = None
@@ -129,7 +139,7 @@ class AddPropertyScreen(ModalScreen[AddOutcome | None]):
     # --- layout ---------------------------------------------------------------------------
 
     def choose_options(self) -> list[Option]:
-        count = len(self.offers)
+        count = len([o for o in self.offers if o.blocked is None])
         standard = (
             f"From the standard  ({count} available)" if count else "From the standard  (none left)"
         )
@@ -152,8 +162,19 @@ class AddPropertyScreen(ModalScreen[AddOutcome | None]):
                     markup=False,
                 )
                 yield OptionList(
-                    *[Option(o.line, id=str(i)) for i, o in enumerate(self.offers)], id="ap-offers"
+                    *[
+                        Option(
+                            Text(o.line, style="dim") if o.blocked else o.line,
+                            id=str(i),
+                            disabled=o.blocked is not None,
+                        )
+                        for i, o in enumerate(self.offers)
+                    ],
+                    id="ap-offers",
                 )
+            with Vertical(id="ap-adopt", classes="ap-step"):
+                yield Static("", id="ap-adopt-head", classes="ap-help", markup=False)
+                yield OptionList(id="ap-adopt-list")
             with VerticalScroll(id="ap-value", classes="ap-step"):
                 yield Static("", id="ap-value-head", markup=False)
                 yield Vertical(id="ap-value-body")
@@ -195,14 +216,21 @@ class AddPropertyScreen(ModalScreen[AddOutcome | None]):
 
     def on_mount(self) -> None:
         self._show(STEP_CHOOSE)
+        if self.preselect is not None:
+            for offer in self.offers:
+                if (offer.pset, offer.prop.property) == self.preselect and offer.adopted:
+                    self._pick_offer(offer)
+                    break
 
     # --- steps ----------------------------------------------------------------------------
 
     def _show(self, step: str) -> None:
         self.step = step
-        for name in (STEP_CHOOSE, STEP_STANDARD, STEP_VALUE, STEP_CUSTOM, STEP_PROPOSE):
+        for name in (STEP_CHOOSE, STEP_STANDARD, STEP_VALUE, STEP_CUSTOM, STEP_PROPOSE, STEP_ADOPT):
             self.query_one(f"#ap-{name}").display = name == step
-        self.query_one("#ap-status", Static).update("")
+        refusal = self.data.addable.write_refusal
+        shown = f"This record takes no new property now: {refusal}." if refusal else ""
+        self.query_one("#ap-status", Static).update(shown if step == STEP_CHOOSE else "")
         self.call_after_refresh(self._focus_step)
 
     def _focus_step(self) -> None:
@@ -224,14 +252,33 @@ class AddPropertyScreen(ModalScreen[AddOutcome | None]):
     def _status(self, text: str) -> None:
         self.query_one("#ap-status", Static).update(text)
 
-    def _pick_offer(self, offer: Offer) -> None:
+    def _pick_adopt(self, offer: Offer) -> None:
+        """The set is not the project's yet: offer to adopt it (the person may; the line is greyed
+        for anybody else, so this is not reached)."""
+        sheet = offer.adopt
+        if sheet is None:
+            return
         self.offer = offer
-        self.query_one("#ap-value-head", Static).update(offer.line.split("  (")[0])
-        self.query_one("#ap-value-note", Static).update(
-            ""
-            if offer.adopted
-            else "This set is not adopted by this project yet; the service may refuse the value."
+        self.query_one("#ap-adopt-head", Static).update(
+            f"{sheet.set_label} is an optional set of the company standard and {sheet.project} "
+            f"has not adopted it yet. Adopting pins {sheet.package} {sheet.version} for "
+            f"{sheet.project}; then the value can be entered."
         )
+        options = self.query_one("#ap-adopt-list", OptionList)
+        options.clear_options()
+        options.add_option(Option(adopt_label(sheet), id=STEP_ADOPT))
+        self._show(STEP_ADOPT)
+
+    def _pick_offer(self, offer: Offer) -> None:
+        if offer.blocked is not None:
+            self._status(offer.blocked)
+            return
+        if offer.adopt is not None:
+            self._pick_adopt(offer)
+            return
+        self.offer = offer
+        self.query_one("#ap-value-head", Static).update(offer.line)
+        self.query_one("#ap-value-note", Static).update("")
         body = self.query_one("#ap-value-body", Vertical)
         self.editor = FieldEditor(offer.field, None, id="ap-editor")
         body.remove_children()
@@ -258,6 +305,13 @@ class AddPropertyScreen(ModalScreen[AddOutcome | None]):
             self._pick_offer(self.offers[int(picked)])
         elif self.step == STEP_PROPOSE:
             self.dismiss(AddOutcome(package=picked))
+        elif self.step == STEP_ADOPT and self.offer is not None and self.offer.adopt is not None:
+            self.dismiss(
+                AddOutcome(
+                    adopt=adopt_command(self.offer.adopt, actor=self.actor),
+                    then=(self.offer.pset, self.offer.prop.property),
+                )
+            )
 
     def on_key(self, event: events.Key) -> None:
         """1, 2 and 3 pick a line of the first step."""
@@ -271,7 +325,7 @@ class AddPropertyScreen(ModalScreen[AddOutcome | None]):
     def action_back(self) -> None:
         if self.step == STEP_CHOOSE:
             self.dismiss(None)
-        elif self.step == STEP_VALUE:
+        elif self.step == STEP_VALUE or self.step == STEP_ADOPT:
             self._show(STEP_STANDARD)
         else:
             self._show(STEP_CHOOSE)
@@ -286,9 +340,15 @@ class AddPropertyScreen(ModalScreen[AddOutcome | None]):
         event.stop()
         self.action_save()
 
+    def _refused(self) -> bool:
+        refusal = self.data.addable.write_refusal
+        if refusal:
+            self._status(f"This record takes no new property now: {refusal}.")
+        return bool(refusal)
+
     def _save_standard(self) -> None:
         offer, editor = self.offer, self.editor
-        if offer is None or editor is None:
+        if offer is None or editor is None or self._refused():
             return
         if not editor.validate():
             self._status("Fix the value first.")
@@ -306,15 +366,18 @@ class AddPropertyScreen(ModalScreen[AddOutcome | None]):
         )
 
     def _save_custom(self) -> None:
-        if not self.targets:
+        if not self.targets or self._refused():
             return
         chosen = self.query(Select)
         target = self.targets[int(chosen.first().value)] if chosen else self.targets[0]  # type: ignore[arg-type]
         name = self.query_one("#ap-cname", Input).value
         value = self.query_one("#ap-cvalue", Input).value.strip()
-        key = custom_key(name)
-        if not key or not value:
-            self._status("Enter a name and a value.")
+        problem = custom_problem(name, target)
+        if problem is not None:
+            self._status(problem)
+            return
+        if not value:
+            self._status("Enter a value.")
             return
         self.dismiss(
             AddOutcome(
@@ -322,13 +385,30 @@ class AddPropertyScreen(ModalScreen[AddOutcome | None]):
                     self.data.record,
                     pset=target.pset,
                     layer="custom",
-                    key=f"x.{key}",
-                    value=value,
+                    key=f"x.{custom_key(name)}",
+                    value=_typed(value),
                     actor=self.actor,
                     scope=self.scope,
                 )
             )
         )
+
+
+def _typed(text: str) -> Any:
+    """A number typed in the value box is kept as a number when it reads back exactly the same
+    (``14``, ``2.5``); anything else (``007``, a date) stays text. The service refuses what it
+    cannot keep."""
+    try:
+        whole = int(text)
+    except ValueError:
+        pass
+    else:
+        return whole if str(whole) == text else text
+    try:
+        number = float(text)
+    except ValueError:
+        return text
+    return number if repr(number) == text else text
 
 
 def open_add_property(
@@ -341,10 +421,14 @@ def open_add_property(
     is_admin: bool,
     send: Callable[[SetPsetValues], None],
     workbench: Callable[[str], None],
+    adopt: Callable[[AdoptSchemaPackage], bool],
+    preselect: tuple[str, str] | None = None,
 ) -> None:
-    """Read what the form needs, show it, and hand its outcome to ``send`` (a command) or
-    ``workbench`` (a package). The reads may raise ``CLIENT_ERRORS``; the caller shows them."""
-    data = load_add_property(client, scope, record_id)
+    """Read what the form needs, show it, and hand its outcome to ``send`` (a command), ``adopt``
+    (a set to adopt; it answers whether it worked, and then the form opens again on the same
+    property) or ``workbench`` (a package). The read may raise ``CLIENT_ERRORS``; the caller shows
+    them."""
+    data = load_add_property(client, record_id)
 
     def done(outcome: AddOutcome | None) -> None:
         if outcome is None:
@@ -353,5 +437,21 @@ def open_add_property(
             send(outcome.command)
         elif outcome.package is not None:
             workbench(outcome.package)
+        elif outcome.adopt is not None and adopt(outcome.adopt):
+            open_add_property(
+                host,
+                client,
+                scope=scope,
+                record_id=record_id,
+                actor=actor,
+                is_admin=is_admin,
+                send=send,
+                workbench=workbench,
+                adopt=adopt,
+                preselect=outcome.then,
+            )
 
-    host.app.push_screen(AddPropertyScreen(data, actor=actor, scope=scope, is_admin=is_admin), done)
+    host.app.push_screen(
+        AddPropertyScreen(data, actor=actor, scope=scope, is_admin=is_admin, preselect=preselect),
+        done,
+    )

@@ -9,12 +9,12 @@ from __future__ import annotations
 
 import re
 from collections.abc import Mapping, Sequence
-from typing import Any, ClassVar
+from typing import Any, ClassVar, cast
 
 from textual.app import ComposeResult
 from textual.containers import VerticalScroll
 from textual.widgets import Static
-from tl_schema.forms import ConformanceReport, FieldMeta, FormMetadata
+from tl_schema.forms import ConformanceReport, FieldMeta, FormMetadata, PsetGroupMeta
 
 from tl_tui.client import ClientInterface
 from tl_tui.display import mode_of, pset_label, rule_phrase
@@ -24,6 +24,7 @@ from tl_tui.paths import pset_value
 from tl_tui.text import EMPTY, conformance_mark, format_value, short_hash, unit_label
 
 HEADER = f"{'Property':<28}{'Value':<24}{'Layer':<12}Rule"
+CUSTOM_RULE = "custom field"  # the rule column of a field the schema does not declare
 ADD_LINE = "[+] Add property"  # the key is `plus` on the record screen
 LEGEND = (
     "● required  ○ advisory  ■ locked  ! warning  ✗ nonconformant  ✓ ok  x. project custom section"
@@ -110,6 +111,23 @@ def value_text(
     return text
 
 
+def adhoc_lines(group: PsetGroupMeta, psets: dict[str, Any]) -> list[str]:
+    """The custom fields the record holds in ``group`` that its schema does not declare (P1-UX3
+    round 4), one line each, in the set's custom section, with the layer ``custom``."""
+    held = pset_value(psets, f"psets.{group.name}.x") if group.custom_allowed else None
+    if not isinstance(held, dict):
+        return []
+    declared = {field.path for field in group.fields}
+    lines: list[str] = []
+    for name in sorted(cast(dict[str, Any], held)):
+        if f"psets.{group.name}.x.{name}" in declared:
+            continue
+        value = format_value(cast(dict[str, Any], held)[name])
+        label = name.replace("_", " ").capitalize()
+        lines.append(f"  {label:<26}{value:<24}{'custom':<12}{CUSTOM_RULE}  ✓")
+    return lines
+
+
 def psets_text(
     meta: FormMetadata,
     record: dict[str, Any],
@@ -148,6 +166,7 @@ def psets_text(
             if mark:
                 line += f"  {mark}"
             lines.append(line)
+        lines.extend(adhoc_lines(group, record["psets"]))
     lines.append("")
     lines.append(LEGEND)
     last = f"Conformance: {conformance_mark(report.status)}"
