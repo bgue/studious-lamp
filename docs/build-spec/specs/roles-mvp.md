@@ -1,4 +1,5 @@
 # Spec: module roles MVP (viewer, user, superuser per project and module)
+Owner answers of 2026-10-30 and the wave-0 build plan are in `specs/wave0.md`; where they differ, `wave0.md` wins.
 
 Status: draft v0.1, 2026-10-30, planner tier. Source: owner decision 1 (`module-designs/OWNER-DECISIONS-2026-10-30.md`).
 ADR: `docs/adr/0021-module-roles-mvp.md` (draft). Builds on ADR-0009, ADR-0011, ADR-0013 (+ P1-SEC1 addendum), ADR-0016,

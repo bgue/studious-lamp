@@ -1,10 +1,12 @@
 # Spec — M3 part 1: GC WBS, cost-code allocation, path of construction, CWA, CWP (P2-I1)
 
-Status: v0.1, 2026-10-30, spec for builders and implementers. Design: `module-designs/field-work-packaging.md`.
+Status: v0.2, 2026-10-30, plan check (Code 92, F1–F11) and owner answers 10–13 applied. Design: `module-designs/field-work-packaging.md`.
 Plan: `08-phase2-plan.md` I1 (wave 1, alternating with P2-I3). Owner decisions: `module-designs/OWNER-DECISIONS-2026-10-30.md`.
-Depends on: Phase 2 wave 0 (W0-B1: frozen contracts, reserved prefixes `rollup:` and `job:`, R-P2-3 fix); the core
-specs written beside this one: **roles** (access words → per-module `viewer`/`user`/`superuser`, per project),
-**offline** (where the class is declared and checked), **web** (how the web client renders logs and record screens).
+Depends on: Phase 2 wave 0, all of it on the trunk before S2 starts (`specs/wave0.md`; plan check F1): W0-B1 (frozen
+readiness contract, reserved prefixes `rollup:` and `job:`, the `awp.*` keys, `schema/settings/access-words.yaml`),
+W0-B2 (load targets by entry point, incl. company scope), the roles MVP (`P2-RM`: access words → per-module
+`viewer`/`user`/`superuser`, per project) and offline classes (`P2-OC`: `tl:offline`). **Web**: screens here are the
+contract the web twins render (§8).
 Phase 2 contracts used: `phase2-contracts-draft.md` §5 (rollup events, `cur_awp_rollup`), §6 (`AwpDesk`), §7.
 
 ## 1. Objective and user stories
@@ -64,9 +66,10 @@ module's `LinkActivity`.
 
 ## 3. Commands, access words, events
 
-Access words are `awp.<area>.<verb>`; the **default role** column is what the roles spec seeds as data. Until that
-spec is on the trunk, `viewer` and `user` words map to today's `user` level and `superuser` words to `admin`
-(the plan's P2-Q3 A / P2-Q12 A). Agents hold no word; they propose.
+Access words are `awp.<area>.<verb>`; the **default role** column is what the roles spec seeds as data. The roles
+MVP lands in wave 0, so no interim word-to-level shim is built (plan check F1): each word is a row of
+`schema/settings/access-words.yaml` (W0-B1) naming its role-table word (`read`, `user`, `controller`), and
+`CommandSpec.access` is that word. Agents hold no word; they propose.
 
 | Command | Access word | Default role | Events (stream) |
 |---|---|---|---|
@@ -76,13 +79,12 @@ spec is on the trunk, `viewer` and `user` words map to today's `user` level and 
 | `MapWbsToCostCodes` {node, allocations[{cost_code, percent}]} (replaces the list) | `awp.wbs.configure` | superuser | `WBSNode.CostCodesMapped`, `Link.*` |
 | `DefinePathOfConstruction` {steps[{cwa_code, reason_code?}]} (version 1) | `awp.path.configure` | superuser | `Record.Created`, `PathOfConstruction.Defined` |
 | `MoveCwaInPath` {cwa_code, to_position, reason_code, note?, expected_version} | `awp.path.configure` | superuser | `PathOfConstruction.Resequenced` (full new list, version + 1) |
-| `ResequencePath` {steps[...], reason_code, expected_version} (CLI and loader) | `awp.path.configure` | superuser | `PathOfConstruction.Resequenced` |
 | `DefineCwa` {code, title, location_text?}; `ReviseCwa` | `awp.cwa.edit` | user | `Record.Created`, `CWA.Defined`; `CWA.Revised` |
 | `RetireCwa` {cwa, reason} (refused while a non-void CWP names it) | `awp.wbs.configure` | superuser | `CWA.Retired` |
 | `CreateCwp` {discipline, title, cwa_code, planned_start?, planned_finish?, budget_hours?, quantities?, contractor_text?} | `awp.cwp.edit` | user | `Numbering.Allocated`, `Record.Created`, `CWP.Defined`, `Link.Added` |
 | `ReviseCwp`, `AllocateCwpToWbs` {cwp, allocations[{wbs_code, percent}]} | `awp.cwp.edit` | user | `CWP.Revised`; `CWP.AllocatedToWbs`, `Link.*` |
 | `StartCwpDevelopment`, `StartCwpExecution`, `CompleteCwp` | `awp.cwp.edit` | user | `Workflow.Transitioned` |
-| `ReleaseCwp` {cwp, expected_version} | `awp.cwp.release` | superuser | `CWP.Released` {by, record_hash}, `Workflow.Transitioned` |
+| `ReleaseCwp` {cwp, expected_version} (owner answer 10) | `awp.cwp.release` | superuser | `CWP.Released` {by, record_hash}, `Workflow.Transitioned` |
 | `ReturnCwp` {cwp, reason} | `awp.cwp.release` | superuser | `Workflow.Transitioned` (reason in note) |
 | `CloseCwp`; `ReopenCwp` {reason} | `awp.cwp.close` | superuser | `Workflow.Transitioned` |
 | `VoidCwp`, `VoidExternalPackage` {id, reason} | `awp.void` | superuser | `Record.Voided` |
@@ -114,11 +116,12 @@ Exact `Decimal`, then quantize to 0.1 h `ROUND_HALF_EVEN`; a node's split uses l
 rounded total. Compare with `cur_awp_rollup`; append `WBSNode.BudgetRolledUp` {run_id, as_of_seq, total,
 by_cost_code[...]} only for nodes whose figures differ, at most 500 nodes per run; settle re-queues when more
 remain. Correlation `rollup:<run id>`, source `job:awp.rollup`. Same seq → same figures; a rebuild never calls
-the job. `tl awp worker` runs the awp kinds (one kind in P2-I1).
+the job. `tl awp worker` runs the awp kinds (one kind in P2-I1). `request()` (queue only) ships in S3 so S4's handlers can call it;
+S5 owns the run and can be built beside S4 (plan check F8).
 
 ## 5. Views, routes, reports
 
-Read functions in `tl_mod_awp/views.py` (all through the viewer): `cwp_list(conn, scope, *, state=, discipline=,
+Read functions in `tl_mod_awp/views.py` (all through the viewer; one Haiku ticket T10 after S4, plan check F3): `cwp_list(conn, scope, *, state=, discipline=,
 cwa=)`, `cwp_detail(conn, scope, number)` (fields, allocations, packages, activities via
 `tl_mod_schedule.resolver.links_to_activities`, link and file counts, timeline), `cwa_list`, `wbs_tree(conn, scope,
 *, depth=None)` (depth-first, with rollup totals), `wbs_detail`, `path(conn, scope, version=None)`,
@@ -133,13 +136,14 @@ and budget h per CWA). Marts are P2-I6: the silver list gains `cur_awp_cwp`, `cu
 
 ## 6. Imports (legacy loader framework)
 
-No new parser: P2-I1 adds **load targets** to the loader framework (piece S1) and two loaders. A target is found by
-the entry-point group `throughline.load_targets`; `awp.wbs` creates nodes (`code`, `title`, `parent`, optional
+No new parser: wave 0 W0-B2 adds **load targets by entry point** to the loader framework; P2-I1 adds two targets
+(T02) and two loaders (T01) (plan check F2). A target is found by the entry-point group `throughline.load_targets`;
+`awp.wbs` creates nodes (`code`, `title`, `parent`, optional
 `cost_codes` as `CODE:PCT;CODE:PCT`) parents first, and plans a row invalid with a fixed reason when its parent is
 unknown, its depth > 8 or its percentages do not sum to 100 (`allocation sums to 101.00, not 100.00`); `awp.cwa`
 creates CWAs and, with a `sequence` column, the version-1 path. Loaders `awp-wbs` and `awp-cwa` (CSV and XLSX,
 sample mapping files) are entry points of the awp package. The load stays create-only and compensable (ADR-0014
-rule); `tl load` stays an admin act (platform power) until the roles spec says otherwise. This replaces the plan's
+rule); `tl load` stays an admin act (owner answer 12). This replaces the plan's
 "WBS CSV reader in the envelope with preview and apply" (divergence 1).
 
 ## 7. Allowed actions per state and role (`tl_mod_awp/actions.py`, ADR-0010 addendum 2026-10-21)
@@ -170,12 +174,12 @@ commands are not offers: "New CWP", "New CWA" and "New package" are palette comm
 
 All are `LogScreen` subclasses opened from the navigation panel ("Work packaging") and the palette, no F-key. The
 column, panel and section definitions below are the contract for both clients: the web client renders the same
-columns, summary line, sections and server-offered actions from the same routes (web core spec decides the shared
-form; if the web renderer is on the trunk at C2 each screen ticket gets a web twin, else twins are filed for the
-first web increment). Panels and the record screen's Details tab share one renderer per type (`details/awp.py`).
+columns, summary line, sections and server-offered actions from the same routes. Web twins are unconditional: one
+`WebLog` page per log below, filed as tickets of the first web increment (P2-WEB1, after its S4; `phase2-wave-plan.md`)
+(plan check F9). Panels and the record screen's Details tab share one renderer per type (`details/awp.py`).
 
 **CWP register** (home). Columns: Number, Subject, State, Discipline, CWA, Planned start, Budget h (right),
-Allocated (`✓`/`—`). Keys: `/` filter, `d` discipline, `s` state, `c` by CWA. Panel: `P123-CWP-PIP-0001 · Rack 12
+Allocated (`✓`/`—`). Quantities use the starter `Commodity` list (owner answer 13). Keys: `/` filter, `d` discipline, `s` state, `c` by CWA. Panel: `P123-CWP-PIP-0001 · Rack 12
 piping`; `In development · since 2026-10-28`; summary `Piping · CWA 12 · 2026-11-03 to 2027-01-29 · 4 200 h`.
 Sections: Scope (Budget hours, Contractor, then table Commodity, Qty, UOM); Allocation (table WBS node, Title, %,
 Hours); References (table Package, Type, Status, Forecast, Constraint source; `No packages linked`); Schedule
@@ -207,46 +211,72 @@ P2-I2 (IWP). Correspondence: none in I1 (the RFI `ConstraintSink`, ADR-0019 §9,
 
 ## 10. Pieces and tickets
 
-Paths are repository-relative; every ticket's Allowed paths include its report `docs/reports/P2-I1/<id>.md`. B = builder
-piece (`review: full`, sentinel + ≤ 5 targeted mutants on the named guards); H = Haiku ticket.
+Paths are repository-relative. B = builder piece (Sonnet, one shot, `review: full`); H = Haiku ticket. Every row's
+Allowed paths include its report `docs/reports/P2-I1/<id>.md` and its acceptance script `dev/accept/P2-I1/<id>.py`
+(SQLite; one `PASS` line per check; exit 0). **Tests are deferred** (owner; plan check F3): a piece leaves the
+reference implementation and stub each dependent ticket needs plus its acceptance script; S4's script also leaves the
+seed ledger `.accept/p2-i1.db` (WBS, 4 CWAs, path v1, 6 CWPs) that ticket acceptance runs against. **T11** writes the
+increment's tests at C3, before the demo, and runs the capped mutants (sentinel + ≤ 5) on the guards named below.
+Every row's acceptance starts with `just check` and ends with `just gate <existing test dirs its diff touches>`
+(consequential pins, skill rule 12); only the specific commands are listed. **Gate** = human approver: schema merges
+are approved by the owner, or by the orchestrator where P2-Q10 delegates them (line in `APPROVALS.md`). **Sec** = row
+of the increment's security review, range `<trunk at wave-1 base>..<P2-I1 head>`; the review runs only if the owner
+asks; rows are recorded either way (plan check F7).
 
-| ID | Kind | Rev | Depends | Title, Allowed paths | Tests it adds |
-|---|---|---|---|---|---|
-| S1 | B | full | W0-B1 | Load targets by entry point: `TargetKind` becomes a registered name; `throughline.load_targets`; built-ins `tags`, `documents`; generic column-mapping form for module targets; a target declares `scope: project | company` (`tl load open --company` for company targets, needed by P2-I3); duplicate name is a `ModuleLoadError`. `packages/tl-modules/legacy/**`, `packages/tl-cli/src/tl_cli/load.py`, `docs/runbooks/legacy-load.md`. Mutants: duplicate name, unknown target at plan, create-only skip | `packages/tl-modules/legacy/tests/test_load_targets.py` |
-| S2 | B | full (schema, human gate) | W0-B1 | LinkML `schema/modules/awp/**`, `schema/fixtures/workflows/awp-cwp.yaml`, CWP line in `schema/fixtures/numbering/patterns.yaml`, `schema/fixtures/standards/co.acme.awp@1.0.0.yaml` (lists `Commodity`, `PathReason`, `ConstraintType`), offline annotations, `just gen` output | `packages/tl-schema/tests/test_awp_schema.py`; pinned lists regenerated |
-| S3 | B | full | S1, S2 | `packages/tl-modules/awp/**` (new package: `module.py`, `names.py`, `limits.py`, `projectors/`, `handlers/wbs.py`, `path.py`, `cwa.py`, `targets.py`), root `pyproject.toml` entry points; WBS, allocation, path, CWA commands; load targets `awp.wbs`, `awp.cwa`; `views.py` WBS/path/CWA reads. Mutants: sum = 100, leaf-only, depth bound, expected_version | `packages/tl-modules/awp/tests/test_wbs.py`, `test_path.py`, `test_cwa.py`, `test_targets.py`, `test_projection_rebuild.py` (both adapters) |
-| S4 | B | full | S3 | CWP and external package commands, workflow moves, `actions.py` `RULES`, `commands.py` `AWP_COMMANDS`, proposable `propose_cwp`, `views.py` CWP/package reads, provided tests for T03a–T07. Mutants: release preconditions, frozen fields after Release, access word per row, `not_closed` guard | `packages/tl-modules/awp/tests/test_cwp.py`, `test_actions.py`, `test_packages.py` |
-| S5 | B | full | S4 | Rollup job `awp.rollup` (`tl_mod_awp/rollup.py`, projector rows, `tl awp worker` entry), §4. Mutants: largest remainder, unallocated bucket, batch bound, re-queue | `packages/tl-modules/awp/tests/test_rollup.py` (incl. rebuild = incremental, property test, both adapters) |
-| T01 | H | lite | S2 | Samples (not gated fixtures): `packages/tl-modules/awp/src/tl_mod_awp/samples/wbs-sample.csv` (12 nodes, one row summing to 101), `cwa-sample.csv` (4 CWAs), loader mapping files under `tl_mod_awp/loaders/mappings/` | `packages/tl-modules/awp/tests/test_fixtures.py` (provided) |
-| T02 | H | lite | S3, T01 | Loaders `awp-wbs`, `awp-cwa` (`tl_mod_awp/loaders/*.py`, package `pyproject.toml` entry points) | `packages/tl-modules/awp/tests/test_loaders.py` (provided) |
-| T03a | H | full | S4 | API read routes `packages/tl-api/src/tl_api/routes/awp.py`, router line; walking test entries | `packages/tl-api/tests/test_api_awp.py`; walk lists in `test_confidentiality_walk.py` |
-| T03b | H | full | T03a | `ApiClient` and TUI client methods (`tl_tui/client.py`, `embedded.py`, `remote.py`, fake) | `packages/tl-tui/tests/test_client_awp.py` |
-| T04 | H | lite | S5 | CLI `tl awp wbs\|cwa\|cwp\|path\|package\|report\|rollup` (`packages/tl-cli/src/tl_cli/awp.py`) and reports `tl_mod_awp/reports.py` | `packages/tl-cli/tests/test_cli_awp.py`, `packages/tl-modules/awp/tests/test_reports.py` |
-| T05a | H | full | T03b | CWP register + `details/awp.py` + `tl_tui/awp_text.py` (`widgets/cwp_register.py`) | `packages/tl-tui/tests/test_cwp_register.py` (80 and 170 cols, plain walk entry) |
-| T05b | H | full | T03b | WBS tree and CWA register (`widgets/wbs_screen.py`, `widgets/cwa_register.py`) | `packages/tl-tui/tests/test_wbs_screen.py` |
-| T05c | H | full | T03b | Path of construction and external packages logs (`widgets/path_screen.py`, `widgets/package_log.py`) | `packages/tl-tui/tests/test_path_screen.py` |
-| T06 | H | full | T03a | MCP read tools and `propose_cwp` (`packages/tl-mcp/src/tl_mcp/awp_tools.py`; registration is glue) | `packages/tl-mcp/tests/test_awp_tools.py`, MCP walk entries |
-| T07 | H | lite | T04 | Simulator `AwpDesk` (in `packages/tl-sim/src/tl_sim/client.py`) and `actors/workface_planner.py` (CWPs from a template) | `packages/tl-sim/tests/test_workface_planner.py` |
-| T08 | H | full | T05a–c, T06, T07 | `dev/demos/P2-I1.sh`, `dev/demos/p2_i1_demo.py` (§11) | the demo itself |
-| T09 | H | lite | T08 | Docs: `packages/tl-modules/awp/README.md`, `AGENTS.md`, `docs/runbooks/awp-setup.md`, `docs/modules/awp/` | — |
+| ID | Kind | Rev | Sec | Depends | Title, Allowed paths | Acceptance commands |
+|---|---|---|---|---|---|---|
+| S1 | — | — | — | — | Moved to wave 0 as **W0-B2** (load and publish targets by entry point) (plan check F2) | — |
+| S2 | B | full; Gate: owner | — | wave 0 | LinkML `schema/modules/awp/**`, `schema/fixtures/workflows/awp-cwp.yaml`, CWP line in `schema/fixtures/numbering/patterns.yaml`, `schema/fixtures/standards/co.acme.awp@1.0.0.yaml` (lists `Commodity` = starter list of owner answer 13, `PathReason`, `ConstraintType`), `tl:offline` per §2, `just gen` output, pinned lists | `uv run python dev/accept/P2-I1/S2.py` (6 types in `TYPE_LABELS` and `OFFLINE_CLASSES`; edition loads twice, no change) |
+| S3 | B | full | Y | S2 | New package `packages/tl-modules/awp/**` (`module.py`, `names.py`, `limits.py`, `projectors/`, `handlers/{wbs,path,cwa}.py`, `rollup.py` with `request()` only), root `pyproject.toml` entry points; WBS, allocation, path, CWA commands; stubs of `targets.py` (T02) and `views.py` (T10). Guards: sum = 100, leaf-only, depth bound, `expected_version` | `uv run python dev/accept/P2-I1/S3.py`; `just gate tests/services packages/tl-schema` |
+| S4 | B | full | Y | S3 | CWP and external package commands, workflow moves, `actions.py` `RULES`, `commands.py` `AWP_COMMANDS`, proposable `propose_cwp`; references for T03a–T07. Guards: release preconditions, frozen fields after Release, word per row, `not_closed` | `uv run python dev/accept/P2-I1/S4.py --keep .accept/p2-i1.db`; `just gate packages/tl-api/tests/test_commands.py packages/tl-api/tests/test_auth_review.py` |
+| S5 | B | full | Y | S3; beside S4 (plan check F8) | Rollup job `awp.rollup` (`rollup.py` run, projector rows, `tl awp worker` entry), §4. Guards: largest remainder, unallocated bucket, batch bound, re-queue | `uv run python dev/accept/P2-I1/S5.py` (SQLite, then `TL_PG_URL`: same figures; rebuild = incremental) |
+| T02 | H | full | Y | S3 | Load targets `awp.wbs`, `awp.cwa` (`tl_mod_awp/targets.py`, `packages/tl-modules/awp/pyproject.toml` entry points), moved out of S3 (plan check F3) | `uv run tl load targets` lists both, scope `project` |
+| T01 | H | lite | — | T02 | Samples, mappings and loaders, one ticket (plan check F11): `tl_mod_awp/samples/{wbs-sample,cwa-sample}.csv` (12 nodes, one row summing to 101; 4 CWAs), `tl_mod_awp/loaders/mappings/*`, `tl_mod_awp/loaders/awp.py` (`awp-wbs`, `awp-cwa`), package entry points | `tl load open/extract/plan` on `wbs-sample.csv` (runbook `legacy-load.md` sequence) reports 12 new, 1 invalid |
+| T10 | H | full | — | S4 | Read views `tl_mod_awp/views.py`, all of §5, through the viewer, moved out of S3 (plan check F3) | `uv run python dev/accept/P2-I1/T10.py --db .accept/p2-i1.db` (row count per view) |
+| T03a | H | full | Y | T10 | API read routes `packages/tl-api/src/tl_api/routes/awp.py`, router line, entries in the walk lists of `test_confidentiality_walk.py` | `uv run python dev/accept/P2-I1/T03a.py` (each GET 200 for a viewer); `just gate packages/tl-api/tests/test_confidentiality_walk.py` |
+| T03b | H | full | — | T03a | `ApiClient` and TUI client methods (`tl_tui/client.py`, `embedded.py`, `remote.py`, fake) | `uv run python dev/accept/P2-I1/T03b.py` (embedded and fake answer the same CWP) |
+| T04 | H | full (write verbs, plan check F5) | — | S5, T10 | CLI `tl awp wbs\|cwa\|cwp\|path\|package\|report\|rollup` (`packages/tl-cli/src/tl_cli/awp.py`) and `tl_mod_awp/reports.py` | `uv run tl awp cwp ls --db .accept/p2-i1.db`; `uv run tl awp report wbs_vs_cost_code --db .accept/p2-i1.db` |
+| T05a | H | full | — | T03b | CWP register, shared renderer `details/awp.py` and `tl_tui/awp_text.py` (`widgets/cwp_register.py`) | `uv run python dev/accept/P2-I1/T05a.py` (mounts at 80 and 170 columns, prints the panel) |
+| T05b | H | full | — | T05a (plan check F4) | WBS tree and CWA register (`widgets/wbs_screen.py`, `widgets/cwa_register.py`) | `uv run python dev/accept/P2-I1/T05b.py` |
+| T05c | H | full | — | T05a (plan check F4) | Path of construction and external packages logs (`widgets/path_screen.py`, `widgets/package_log.py`) | `uv run python dev/accept/P2-I1/T05c.py` |
+| T06 | H | full | Y | T03a | MCP read tools and `propose_cwp` (`packages/tl-mcp/src/tl_mcp/awp_tools.py`), MCP walk entries | `uv run python dev/accept/P2-I1/T06.py`; `just gate packages/tl-mcp` |
+| T07 | H | lite | — | T03b, T06 (plan check F8) | Simulator `AwpDesk` (`packages/tl-sim/src/tl_sim/client.py`) and `actors/workface_planner.py` | `uv run python dev/accept/P2-I1/T07.py` (3 CWPs from a template on the seed ledger) |
+| T11 | tests (Sonnet) | full | — | S2–S5, T01–T07, T10 | The increment's tests (list below) and the mutants of S3–S5; Allowed: the test paths listed, nothing else | `just gate packages/tl-modules/awp packages/tl-api packages/tl-tui packages/tl-mcp packages/tl-cli packages/tl-sim packages/tl-schema`; `just gate-pg packages/tl-modules/awp`; mutation 3 lines |
+| T08 | H | full | — | T11, T05a–c, T06, T07 | `dev/demos/P2-I1.sh`, `dev/demos/p2_i1_demo.py` (§11) | `just demo P2-I1` |
+| T09 | H | lite | — | T04, T05a–c (plan check F8) | Docs: `packages/tl-modules/awp/README.md`, `AGENTS.md`, `docs/runbooks/awp-setup.md`, `docs/modules/awp/` | — |
 
-Totals: **5 pieces, 12 tickets**; more than 10 tickets, so the plan check of skill rule 8 runs on this spec before
-dispatch. Checkpoints: C1 = S1–S3; C2 = S4, S5, T03a–b; C3 = all tickets; C4 = T08 green on both adapters, SR1.
+**Tests (T11)**, by origin: S2 `packages/tl-schema/tests/test_awp_schema.py`; S3 `packages/tl-modules/awp/tests/test_wbs.py`,
+`test_path.py`, `test_cwa.py`, `test_projection_rebuild.py` (both adapters); S4 `test_cwp.py`, `test_actions.py`
+(word per row equals the command's word), `test_packages.py`; S5 `test_rollup.py` (rebuild = incremental, property test,
+both adapters); T01–T02 `test_targets.py`, `test_loaders.py`, `test_fixtures.py`; T10 `test_views.py`; T03a
+`packages/tl-api/tests/test_api_awp.py`; T03b `packages/tl-tui/tests/test_client_awp.py`; T04
+`packages/tl-cli/tests/test_cli_awp.py`, `test_reports.py`; T05 `packages/tl-tui/tests/test_cwp_register.py`,
+`test_wbs_screen.py`, `test_path_screen.py` (80 and 170 columns, plain walk entry); T06
+`packages/tl-mcp/tests/test_awp_tools.py`; T07 `packages/tl-sim/tests/test_workface_planner.py`.
+
+Totals: **4 pieces, 14 tickets** (13 Haiku, T11 Sonnet). Checkpoints: C1 = S2, S3; C2 = S4, S5, T10, T03a–b; C3 = all
+tickets (T11 last); C4 = T08 green on both adapters, `just tour` run once (owner: tours at the end), security review
+only if the owner asks. Critical path: S2 → S3 → S4 → T10 → T03a → T03b → T05a → T05b/c → T11 → T08.
 Registry lines (`AWP_COMMANDS` splat, `add_typer`, `MCP_ACTIONS`, nav entry) are supervisor glue; I3 merges last.
 
 ## 11. Demo clauses (`just demo P2-I1`, SQLite then Postgres, one PASS each)
 
-1. An admin loads `co.acme.awp@1.0.0`; loading twice changes nothing. 2. `tl load` of `wbs-sample.csv` plans 12 new
-and 1 invalid (`allocation sums to 101.00, not 100.00`), loads 12; each leaf `references` its cost codes; compensate
-then reload gives the same tree. 3. The CWA loader makes 4 CWAs and path v1; `MoveCwaInPath` makes v2; both versions
-read back; a stale `expected_version` is refused. 4. A user creates 6 CWPs (`P123-CWP-PIP-0001`…), allocates them,
-links two EWPRefs (one `constraint_source`) and activities of the P1-I4 demo schedule; release is refused without an
-allocation, accepted for a superuser, refused for a user. 5. The rollup runs; `wbs_vs_cost_code` shows budget hours
-per cost code and the Unallocated row; a revised budget moves the figures and both runs are in the ledger; rebuild
-gives the same rows. 6. A user cannot map cost codes or move the path; an agent's `propose_cwp` waits until a person
-accepts. 7. API, TUI (CWP register, WBS tree, path screen at 170 columns) and MCP show the same CWP.
+1. An admin loads `co.acme.awp@1.0.0`; loading twice changes nothing; `Commodity` holds the nine starter values.
+2. `tl load` of `wbs-sample.csv` plans 12 new and 1 invalid (`allocation sums to 101.00, not 100.00`), loads 12; each
+leaf `references` its cost codes; compensate then reload gives the same tree; a superuser who is not an admin is
+refused `tl load`. 3. The CWA loader makes 4 CWAs and path v1; `MoveCwaInPath` makes v2; both versions read back; a
+stale `expected_version` is refused. 4. The driver first seeds the P1-I4 demo schedule itself (the seed step of
+`p1_i4_demo.py`), so the clause never depends on an earlier run (plan check F10); a user creates 6 CWPs
+(`P123-CWP-PIP-0001`…), allocates them, links two EWPRefs (one `constraint_source`) and activities of that schedule;
+release is refused without an allocation, accepted for a superuser, refused for a user. 5. The rollup runs;
+`wbs_vs_cost_code` shows budget hours per cost code and the Unallocated row; a revised budget moves the figures and
+both runs are in the ledger; rebuild gives the same rows. 6. A user cannot map cost codes or move the path; an agent's
+`propose_cwp` waits until a person accepts. 7. API, TUI (CWP register, WBS tree, path screen at 170 columns) and MCP
+show the same CWP. 8. The CWA register lists the 4 CWAs with path position, CWP count and budget hours (plan check F6).
+9. The external packages log lists both EWPRefs, `Constraint source` `Yes` on one, with the CWPs that require them
+(plan check F6).
 
-## 12. Divergences, risks, owner questions
+## 12. Divergences, risks, owner answers
 
 Divergences: (1) WBS and CWA import through loader targets, not a module CSV reader (one import path, envelope and
 compensation for free). (2) Roles: access words with default roles replace the plan's `admin`/`user` (owner decision
@@ -254,10 +284,10 @@ compensation for free). (2) Roles: access words with default roles replace the p
 `numbering/patterns.yaml` (allocator file, as correspondence), not in the standards edition, which holds only code
 lists. (4) Rollup table is contracts §5 `cur_awp_rollup` with a `measure` column, not the plan's
 `cur_awp_wbs_rollup`; event `WBSNode.BudgetRolledUp` (per node) instead of `CWP.BudgetRolledUp`. (5) Releasing a
-CWP is a superuser act and CWP→WBS allocation is frozen from Release (new; the design listed no CWP approvals).
+CWP is a superuser act and CWP→WBS allocation is frozen from Release (owner answer 10). (6) `ResequencePath` is cut:
+`MoveCwaInPath` is the one re-sequencing command and the CWA loader writes version 1 only (plan check F6).
 Risks: R-P2-2 (rollup at scale: bench 5 000 nodes × 2 000 CWPs before C4, one bound JSON per chunk on Postgres);
-R-P2-4 pinned lists (S2 regenerates); the load-target change touches a P1 package (S1 runs the legacy suite and the
-P1-I8 demo); the roles spec landing after C2 forces a word-to-level shim (interim map above, one test).
-Owner questions: Q-M3-1 is CWP release a superuser act (proposed) or a planner (`user`) act? Q-M3-2 cost-code
-allocation on leaf nodes only (proposed)? Q-M3-3 may an awp superuser run `tl load` for awp targets, or does it stay
-admin? Q-M3-4 the GC's commodity list for CWP quantities (sample list until given).
+R-P2-4 pinned lists (S2 regenerates); deferred tests mean a piece's defects surface at T11, not at its own gate
+(mitigation: acceptance scripts, existing suites at every gate, T11 before the demo).
+Owner answers applied (`OWNER-DECISIONS-2026-10-30.md`): 10 CWP release is a superuser act; 11 cost codes on leaf
+nodes only; 12 loads stay admin-only; 13 the starter commodity list is an editable fixture (S2). No M3 question is open.

@@ -1,12 +1,14 @@
 # Spec — M4 materials, first increment: item library, locations, receipts, ledgered stock, MTO, reservations (P2-I3)
 
-Status: v0.1, 2026-10-30, spec for builders and implementers. Design: `module-designs/materials.md`. Plan:
+Status: v0.2, 2026-10-30, plan check (Code 92, F1–F11) and owner answers 14–18 applied. Design: `module-designs/materials.md`. Plan:
 `08-phase2-plan.md` I3 (wave 1, alternating with P2-I1; I3 owns the registries and merges last). Owner decisions:
-`module-designs/OWNER-DECISIONS-2026-10-30.md`. Depends on: Phase 2 wave 0 (W0-B1: frozen readiness contract
-`tl_core/readiness/types.py`, reserved prefixes, the `materials.*` keys in `platform.yaml`, R-P2-3 fix); **P2-I1 S1**
-(load targets by entry point, incl. company-scope targets; `specs/m3-wbs-cwp.md` §10); an ADR (next free number,
-0021 at the time of writing; written by the orchestrator before C1) recording P2-Q5 option B, movements as events;
-the core specs **roles**, **offline**, **web** written beside this one. Contracts used: `phase2-contracts-draft.md`
+`module-designs/OWNER-DECISIONS-2026-10-30.md`. Depends on: Phase 2 wave 0, all of it on the trunk before S1
+starts (`specs/wave0.md`; plan check F1): W0-B1 (frozen readiness contract `tl_core/readiness/types.py`, `load_checks`,
+`check_readiness_contract`, reserved prefixes, the `materials.*` keys, `schema/settings/access-words.yaml`); **W0-B2**
+(load and publish targets by entry point, incl. company-scope load targets), which replaces the old dependency on
+P2-I1 S1 (plan check F2); the roles MVP (`P2-RM`, with company grants for materials, `wave0.md` §2) and offline classes
+(`P2-OC`); ADR-0022 (drafted by the orchestrator in wave 0; 0021 is now the roles ADR) recording P2-Q5 option B,
+movements as events. Contracts used: `phase2-contracts-draft.md`
 §1 (readiness check), §4 (movements API), §6 (`MaterialsDesk`), §7.
 
 ## 1. Objective and user stories
@@ -39,7 +41,7 @@ from `UnitOfMeasure` (co.acme.standards); one UOM per item, no conversion.
 | `materials.InventoryLocation` | project; typed `code` `^[A-Z0-9][A-Z0-9.\-]{0,15}$` | `cur_materials_location`: `code`, `kind` (`LocationKind`: project, warehouse, laydown, toolcrib, gang_box), `parent_id`, `depth` (0..5), `retired` | none | `none`: the tree must stay one tree |
 | `materials.POLineRef` | project; typed `<po>-<line>` | `cur_materials_po_line`: `po_number` (≤ 30), `line_no`, `project_item_id`, `qty_ordered`, `uom`, `promised_date`, `supplier_text` (≤ 120); projected `qty_received` | none (mirror) | `none`: mirror of the ERP (P2-Q4 A) |
 | `materials.Receipt` | project; allocator `P123-RCPT-0031` (`{project}-{type}-{seq:4}`, `type_code: RCPT`, gap-free) | `cur_materials_receipt`: `po_line_id`, `supplier_text`, `delivery_ref` (≤ 60), `received_on`, `location_id`, `inspected_by`, `inspected_on`, `decided_by`, `decided_on`, `rejection_reason`; child `cur_materials_receipt_line`: `receipt_id`, `line_no` (1..50), `project_item_id`, `qty`, `uom`, `heat_no` (`^[A-Za-z0-9][A-Za-z0-9./\-]{0,39}$` or null), `condition` (`ConditionCode`), `serials_text` (≤ 2 000), `lot_id` (set at Accept) | workflow `materials-receipt.yaml` | `draft_only`: a remote laydown can capture a draft receipt with photos; number and Accept (which creates stock) are central until reserved ranges exist (Phase 3) |
-| `materials.StockLot` | project; module-built `P123-RCPT-0031@1` (receipt @ line) | `cur_materials_lot`: `project_item_id`, `heat_no`, `receipt_id`, `receipt_line`, `uom`; projected `issued_net` (Σ issue − Σ return) | none | `none` for the record; movement offline classes below |
+| `materials.StockLot` | project; module-built `P123-RCPT-0031@1` (receipt @ line) | `cur_materials_lot`: `project_item_id`, `heat_no`, `receipt_id`, `receipt_line`, `uom`; projected `issued_net` (Σ issue − Σ return) | none | `draft_only`: issue, transfer and return are captured offline as drafts and posted on sync (owner answer 17); see below |
 | `materials.MTO` | project; module-built `ISO-1234@A/MTO` | `cur_materials_mto`: `derived_document_id`, `revision_id`, `line_count` | none | `none`: published on the server |
 | `materials.MTOLine` | project; module-built `ISO-1234@A/MTO/001` | `cur_materials_mto_line`: `mto_id`, `line_no`, `project_item_id`, `qty`, `uom`, `tag_id` (null), `work_package_id` (an `awp.CWP` or `awp.IWP` id, checked by type string; no import of awp); projected `reserved_qty`, `issued_qty` | none | `none` |
 
@@ -50,11 +52,12 @@ Projection tables (non-record classes, generated DDL): `cur_materials_movement` 
 `cur_materials_reservation` (`lot_id`, `location_id`, `mto_line_id`, `qty`). Rows at zero are deleted.
 
 **Movements are events, not records** (P2-Q5 B, contracts T-5): one event type `StockLot.Moved` on the lot's stream,
-`kind ∈ receive | issue | transfer | return | adjust | scrap | reserve | unreserve`. Offline class per kind
-(proposed; needs the offline spec to allow a class per command for event-only kinds, else StockLot stays `none`
-and P2-I4-B re-asks): issue, transfer, return `full` (deltas commute; a merge that would drive a balance negative
-goes to the Phase 3 conflict screen, not a refusal); receive, adjust, scrap, reserve, unreserve `none` (stock
-enters only by an accepted receipt; the rest feed readiness or need a superuser).
+`kind ∈ receive | issue | transfer | return | adjust | scrap | reserve | unreserve`. Offline (owner answer 17):
+`StockLot` is `draft_only` with `offline_drafts = {IssueStock, TransferStock, ReturnStock}` (offline spec §5.3, no
+per-kind class needed); a draft is posted on sync through the same checks, and one that would make a balance negative
+is refused (owner answer 16) and shown on the Phase 3 conflict screen. Reserve and unreserve are `user` commands not
+listed, so they stay online (`not_drafting`); adjust and scrap are `controller`, always central (owner answer 6);
+receive happens only inside an accepted receipt.
 
 **Receipt workflow** (`schema/fixtures/workflows/materials-receipt.yaml`, no `roles` guard, module commands only):
 Received → Inspected → Accepted | Rejected; Received → Rejected; Received, Inspected → Void. File slots
@@ -84,23 +87,25 @@ receipt; all module-written (`by_module=True`, source `rule` or `import`), kept 
 
 ## 3. Commands, access words, events
 
-Words are `materials.<area>.<verb>`; the default role column is the data the roles spec seeds. Until that spec is on
-the trunk: viewer and user words → today's `user`, superuser words → `admin`. Company-scope words have no module
-role yet (roles are per project), so `materials.library.edit` is admin until the roles spec gives company grants.
+Words are `materials.<area>.<verb>`; the default role column is the data the roles spec seeds. The roles MVP lands in
+wave 0, so there is no interim shim: each word is a row of `schema/settings/access-words.yaml` (W0-B1) naming its
+role-table word (plan check F1). `materials.library.edit` is held by a **company-level materials superuser**, else an
+admin (owner answer 14): the roles MVP allows a grant with project `company` for modules that declare
+`ModuleSpec.company_roles` (materials only; `wave0.md` §2).
 
 | Command | Word | Default | Events |
 |---|---|---|---|
-| `DefineItem`, `ReviseItem`, `RetireItem` {reason} | `materials.library.edit` | admin | `Record.Created`, `ItemMaster.Defined`, `.Revised`, `.Retired` |
+| `DefineItem`, `ReviseItem`, `RetireItem` {reason} | `materials.library.edit` | company superuser, else admin | `Record.Created`, `ItemMaster.Defined`, `.Revised`, `.Retired` |
 | `AdoptItem` {item_code} | `materials.item.adopt` | user | `Record.Created`, `ProjectItem.Defined` |
 | `DefineLocation` {code, title, kind, parent_code?}, `ReviseLocation`, `RetireLocation` (refused while stock ≠ 0) | `materials.location.configure` | superuser | `InventoryLocation.Defined`, `.Revised`, `.Retired` |
 | `RecordPoLine`, `UpdatePoLine` {promised_date?, qty_ordered?} | `materials.po.edit` | user | `POLineRef.Defined`, `.Updated` |
 | `CreateReceipt` {po_line?, supplier_text, delivery_ref?, received_on, location_code, lines[≤ 50]} | `materials.receive` | user | `Numbering.Allocated`, `Record.Created`, `Receipt.Defined` |
 | `ReviseReceipt` (Received only), `InspectReceipt` {notes?} | `materials.receive` | user | `Receipt.Revised`; `Receipt.Inspected`, `Workflow.Transitioned` |
-| `AcceptReceipt` {expected_version}, `RejectReceipt` {reason} | `materials.receipt.decide` | user | above; `Receipt.Rejected`, `Workflow.Transitioned` |
+| `AcceptReceipt` {expected_version}, `RejectReceipt` {reason} (owner answer 15: any user accepts) | `materials.receipt.decide` | user | above; `Receipt.Rejected`, `Workflow.Transitioned` |
 | `VoidReceipt` {reason} | `materials.void` | superuser | `Record.Voided` |
 | `IssueStock`, `TransferStock`, `ReturnStock` {movements[≤ 200]} | `materials.move` | user | `StockLot.Moved` × n |
 | `ReserveStock`, `UnreserveStock` {movements[≤ 200]} | `materials.reserve` | user | `StockLot.Moved` × n |
-| `AdjustStock`, `ScrapStock` {movements[≤ 200], each with reason} | `materials.adjust` | superuser | `StockLot.Moved` × n |
+| `AdjustStock`, `ScrapStock` {movements[≤ 200], each with reason} (scrap = disposal of damaged or nonconforming items, owner answer 15) | `materials.adjust` | superuser | `StockLot.Moved` × n |
 | `PublishDerivedMto` {derived_document, work_package_number?, skip_existing} | `materials.mto.publish` | superuser | `Record.Created`, `MTO.Defined`, `MTOLine.Defined` × n, `Link.Added`, documents' `Published` |
 | `AssignMtoLines` {mto_lines[≤ 500], work_package_number} (refused when a line has reservations) | `materials.mto.assign` | user | `MTOLine.Assigned` |
 | all reads | `materials.view` | viewer | — |
@@ -109,7 +114,7 @@ Every handler: `require_project`, `require_visible` on each id, `correlated(cmd)
 *, actor, source, by_module=False)` is the public surface (contracts §4) for P2-I4-A fulfilment; `by_module` skips
 the lot type's allow-list, never the access word of the calling command. There is no direct `Receive` command:
 stock enters only through `AcceptReceipt` (divergence 3). Compensation of an MTO publication runs through the
-documents module's `CompensatePublication` and the `mto` publish target (S4); it refuses when a line has a
+documents module's `CompensatePublication` and the `mto` publish target (S4, registered on W0-B2's publish targets); it refuses when a line has a
 reservation or an issue. Proposable: `propose_reservation` → `ReserveStock` (accepting person needs
 `materials.reserve`). Generic allow-list: Receipt `{SetPsetValues, AddLink, SuggestLink, AttachFile} ∪ LINK_LIFE`
 with guards (uploads only in Received or Inspected, plus `certificate`/`photo` when Accepted; nothing once Rejected
@@ -140,12 +145,14 @@ API GET (`materials.view`): `/projects/{p}/materials/stock`, `/lots/{key:path}`,
 Reports (`tl mat report`, API, CSV with formula-safe cells): `stock_on_hand`, `movement_log` (period),
 `mto_status` (per work package and item: required, received, reserved, issued), `shortages`, `heat_trace` (heat →
 lots → receipt → MTR file → locations → issues), `consumables_by_cost_code` (period). Marts are P2-I6
-(`mart_materials`; silver adds `cur_materials_movement`, `cur_materials_stock`).
-**Imports** through the loader framework (P2-I1 S1), no new parser: targets `materials.item_master` (company scope:
+(`mart_materials`; silver adds `cur_materials_movement`, `cur_materials_stock`): out of this increment's scope and
+demo (plan check F6).
+**Imports** through the loader framework (wave 0 W0-B2), no new parser: targets `materials.item_master` (company scope:
 code, description, category, uom, size, rating, material, consumable), `materials.location` (parents first),
 `materials.po_line` (P2-Q4 A stub, replacing the plan's derivation `po_lines` kind: divergence 2); loaders
 `mat-items`, `mat-locations`, `mat-po-lines`. `tl load` stays admin. **MTO** stays on the derivation pipeline
-(ADR-0014): S4 adds publish targets by entry point to the documents module so it never imports materials.
+(ADR-0014): W0-B2 adds publish targets by entry point to the documents module so it never imports materials; S4
+registers the `mto` target.
 
 ## 6. Allowed actions per state and role (`tl_mod_materials/actions.py`)
 
@@ -163,7 +170,7 @@ One `RULES` table drives offers, `require_state` and the word-equals-access test
 | StockLot | on hand > 0 | Adjust; Scrap | `AdjustStock`; `ScrapStock` | `materials.adjust` (superuser) |
 | MTOLine | short | Reserve from a lot | `ReserveStock` | `materials.reserve` (user) |
 | MTOLine | no reservation | Assign to work package | `AssignMtoLines` | `materials.mto.assign` (user) |
-| ItemMaster | Active | Retire; Adopt into this project | `RetireItem`; `AdoptItem` | `materials.library.edit` (admin); `materials.item.adopt` (user) |
+| ItemMaster | Active | Retire; Adopt into this project | `RetireItem`; `AdoptItem` | `materials.library.edit` (company superuser, else admin); `materials.item.adopt` (user) |
 | InventoryLocation | Active | Edit; Retire | `ReviseLocation`; `RetireLocation` | `materials.location.configure` (superuser) |
 
 Forms: movement actions take `qty`, and as needed `from`/`to` location (default: the highlighted row's location, a
@@ -173,7 +180,8 @@ the line's short figure as the view gives it.
 ## 7. Logs and record screens (log standard, `tui-layout` skill)
 
 `LogScreen` subclasses opened from the navigation panel ("Materials") and the palette, no F-key. The tables below are
-the contract for TUI and web alike (web core spec decides the shared form; web twins as in `m3-wbs-cwp.md` §8).
+the contract for TUI and web alike; web twins are unconditional, one `WebLog` page per log, filed for the first web
+increment (P2-WEB1) as in `m3-wbs-cwp.md` §8 (plan check F9).
 Stateless rows (stock, movements) have no State column: a lot has no workflow and a movement is not a record.
 **Stock by location** (home). Columns: Lot (heat, else lot key), Subject (item description), Location, On hand,
 Reserved, Available, UOM (numbers right-aligned; UOM dropped when constant). Keys `/`, `l` location subtree, `i`
@@ -188,7 +196,7 @@ decided), `m` missing MTR. Panel `P123-RCPT-0031 · Flanges from Acme Valves`; `
 Delivery (Supplier, PO line, Delivery ref, Received on, Received by); Inspection (Inspected by, Inspected on,
 Receiving inspection `n/a until quality inspections exist`); Files (MTR first, amber `required to accept` when
 missing and required); Timeline.
-**Receipt entry form** (`ReceiptEntryScreen`, a form, not a log): PO line (completion from `/po-lines?q=`), Supplier,
+**Receipt entry form** (`ReceiptEntryScreen`, a form, not a log; its own ticket T06e, plan check F4): PO line (completion from `/po-lines?q=`), Supplier,
 Delivery ref, Received on (today), Location; a lines grid (Item code, Qty, UOM shown read-only, Heat, Condition,
 Serials) of up to 50; MTR file path. `Ctrl+S` sends `CreateReceipt`, then `AttachFile` slot `mtr`; a failed upload
 leaves the receipt and says so in the status line.
@@ -218,67 +226,85 @@ and `post_movements(by_module=True)`. Quality (Phase 3): expected receiving insp
 
 ## 9. Pieces and tickets
 
-Every ticket's Allowed paths include its report `docs/reports/P2-I3/<id>.md`. B = builder piece (`review: full`,
-sentinel + ≤ 5 targeted mutants on the named guards); H = Haiku ticket.
+Conventions as `m3-wbs-cwp.md` §10, with `P2-I3` for the increment: B = builder piece (Sonnet, `review: full`), H =
+Haiku ticket; Allowed paths include `docs/reports/P2-I3/<id>.md` and `dev/accept/P2-I3/<id>.py`; tests deferred to
+**T11** at C3 (plan check F3); S3's acceptance leaves the seed ledger `.accept/p2-i3.db` (library, location tree, two
+lots, an MTO); every acceptance starts with `just check` and ends with `just gate <existing dirs touched>`. **Gate**:
+schema merges approved by the owner, or the orchestrator where P2-Q10 delegates them. **Sec**: security review rows,
+range `<trunk at wave-1 base>..<P2-I3 head>`, run only if the owner asks (plan check F7).
 
-| ID | Kind | Rev | Depends | Title, Allowed paths | Tests it adds |
-|---|---|---|---|---|---|
-| S1 | B | full (schema, human gate) | W0-B1, ADR P2-Q5 | LinkML `schema/modules/materials/**`; `schema/fixtures/workflows/materials-receipt.yaml`; `schema/fixtures/files/materials-receipt.yaml`; RCPT line in `schema/fixtures/numbering/patterns.yaml`; `schema/fixtures/standards/co.acme.materials@1.0.0.yaml` (`ItemCategory`, `LocationKind`, `ConditionCode`, `MovementReason`); offline annotations; `just gen` | `packages/tl-schema/tests/test_materials_schema.py`; pinned lists regenerated |
-| S2 | B | full | S1, P2-I1 S1 | New package `packages/tl-modules/materials/**` (`module.py`, `names.py`, `limits.py`, `projectors/` incl. stock, reservation, movement and MTO-line quantity columns, `handlers/items.py`, `locations.py`, `po_lines.py`, `targets.py`, `views.py`), root `pyproject.toml` entry points; item, location, PO commands; load targets. Mutants: depth bound, retire with stock, company-scope target | `packages/tl-modules/materials/tests/test_items.py`, `test_locations.py`, `test_targets.py`, `test_projection_rebuild.py` (both adapters, property test) |
-| S3 | B | full | S2 | Receipts (`handlers/receipts.py`), `api.py` `post_movements` and movement commands (`handlers/movements.py`), `actions.py`, `commands.py` `MATERIALS_COMMANDS`, proposable, provided tests for T03–T08. Mutants: MTR guard, negative balance, reservation over line qty, consumable cost code, word per row | `…/tests/test_receipts.py`, `test_movements.py` (incl. two concurrent issues on Postgres), `test_actions.py`, `test_api_surface.py` |
-| S4 | B | full | S3 | Publish targets by entry point (`throughline.publish_targets`) in `packages/tl-modules/documents/src/tl_mod_documents/derivation/**` (built-ins tags, documents; same shape as load targets), target `mto` and `AssignMtoLines` in materials, compensation refusal rules. Mutants: unknown kind, create-only, compensation with a reservation | `packages/tl-modules/documents/tests/test_publish_targets.py`, `packages/tl-modules/materials/tests/test_mto.py` |
-| T01 | H | lite | S1 | Samples (not gated): `packages/tl-modules/materials/src/tl_mod_materials/samples/` item library (50 items), locations, PO lines CSVs; loader mappings `tl_mod_materials/loaders/mappings/` | `…/tests/test_samples.py` (provided) |
-| T02 | H | lite | S2, T01 | Loaders `mat-items`, `mat-locations`, `mat-po-lines` (`tl_mod_materials/loaders/*.py`, package entry points) | `…/tests/test_loaders.py` (provided) |
-| T03 | H | full | S3, W0-B1 | Readiness check `tl_mod_materials/readiness.py` + entry point (§4) | `…/tests/test_materials_reserved.py` (calls `check_readiness_contract`) |
-| T04a | H | full | S3 | API read routes `packages/tl-api/src/tl_api/routes/materials.py`, router line, walk entries | `packages/tl-api/tests/test_api_materials.py`, `test_confidentiality_walk.py` lists |
-| T04b | H | full | T04a | `ApiClient` and TUI client methods (`client.py`, `embedded.py`, `remote.py`, fake) | `packages/tl-tui/tests/test_client_materials.py` |
-| T05 | H | lite | S4 | CLI `tl mat item\|loc\|po\|receipt\|stock\|lot\|move\|mto\|report` (`packages/tl-cli/src/tl_cli/mat.py`) and `tl_mod_materials/reports.py` | `packages/tl-cli/tests/test_cli_mat.py`, `…/tests/test_reports.py` |
-| T06a | H | full | T04b | Stock by location and movement log (`widgets/stock_screen.py`, `widgets/movement_log.py`, `tl_tui/materials_text.py`, `details/materials.py`) | `packages/tl-tui/tests/test_stock_screen.py` (80, 170 cols; plain walk) |
-| T06b | H | full | T04b | Receipt log and `ReceiptEntryScreen` (`widgets/receipt_log.py`, `widgets/receipt_entry.py`) | `packages/tl-tui/tests/test_receipt_screens.py` |
-| T06c | H | full | T04b | Item library and locations (`widgets/item_library.py`, `widgets/location_tree.py`) | `packages/tl-tui/tests/test_item_library.py` |
-| T06d | H | full | T04b, S4 | MTO lines and shortages log (`widgets/mto_log.py`) | `packages/tl-tui/tests/test_mto_log.py` |
-| T07 | H | full | T04a | MCP read tools and `propose_reservation` (`packages/tl-mcp/src/tl_mcp/materials_tools.py`) | `packages/tl-mcp/tests/test_materials_tools.py`, MCP walk entries |
-| T08 | H | lite | T05 | `MaterialsDesk` (`packages/tl-sim/src/tl_sim/client.py`) and `actors/materials_coordinator.py` | `packages/tl-sim/tests/test_materials_coordinator.py` |
-| T09 | H | full | T06a–d, T07, T08 | `dev/demos/P2-I3.sh`, `dev/demos/p2_i3_demo.py` (§10) | the demo |
-| T10 | H | lite | T09 | Docs: package `README.md`, `AGENTS.md`, `docs/runbooks/materials.md`, `docs/modules/materials/` | — |
+| ID | Kind | Rev | Sec | Depends | Title, Allowed paths | Acceptance commands |
+|---|---|---|---|---|---|---|
+| S1 | B | full; Gate: owner | Y | wave 0, ADR-0022 | LinkML `schema/modules/materials/**`; `schema/fixtures/workflows/materials-receipt.yaml`; `schema/fixtures/files/materials-receipt.yaml`; RCPT line in `schema/fixtures/numbering/patterns.yaml`; `schema/fixtures/standards/co.acme.materials@1.0.0.yaml` (`ItemCategory`, `LocationKind`, `ConditionCode`, `MovementReason`); `tl:offline` per §2; `just gen`; pinned lists | `uv run python dev/accept/P2-I3/S1.py` (8 types in `OFFLINE_CLASSES`, StockLot `draft_only`; edition loads twice, no change) |
+| S2 | B | full | Y | S1, W0-B2 (plan check F2) | New package `packages/tl-modules/materials/**` (`module.py` with `company_roles` and `offline_drafts`, `names.py`, `limits.py`, `projectors/` incl. stock, reservation, movement and MTO-line quantity columns, `handlers/{items,locations,po_lines}.py`, `targets.py`, `views.py`), stubs `mto.py` (`MTO_COMMANDS = ()`, `MTO_RULES = ()`) that `commands.py` and `actions.py` splat, root `pyproject.toml` entry points. Guards: depth bound, retire with stock, company-scope target | `uv run python dev/accept/P2-I3/S2.py`; `uv run tl load targets` lists the three materials targets, `materials.item_master` scope `company` |
+| S3 | B | full | Y | S2 | Receipts (`handlers/receipts.py`), `api.py` `post_movements` and movement commands (`handlers/movements.py`), `actions.py`, `commands.py` `MATERIALS_COMMANDS`, proposable; references for T03–T08. Guards: MTR guard, negative balance, reservation over line qty, consumable cost code, word per row | `uv run python dev/accept/P2-I3/S3.py --keep .accept/p2-i3.db` (incl. two concurrent issues with `TL_PG_URL`) |
+| S4 | B | full | Y | S2; beside S3 (plan check F2) | `mto` publish target on W0-B2's `throughline.publish_targets`, `AssignMtoLines`, compensation refusals; only `tl_mod_materials/mto.py`, `handlers/mto.py` and the package `pyproject.toml` entry point, so S3 and S4 share no file. Guards: create-only, compensation with a reservation or an issue | `uv run python dev/accept/P2-I3/S4.py` (publish, compensate, republish; refusal with a reservation) |
+| T01 | H | lite | — | S2 | Samples, mappings and loaders, one ticket (plan check F11): `tl_mod_materials/samples/` (50 items, locations, PO lines CSVs), `loaders/mappings/*`, `loaders/materials.py` (`mat-items`, `mat-locations`, `mat-po-lines`), package entry points | `uv run tl load loaders` lists the three; `tl load open --company …/items.csv` then `plan` reports 50 new |
+| T03 | H | full | Y | S3, W0-B1 | Readiness check `tl_mod_materials/readiness.py` and entry point (§4) | `uv run python dev/accept/P2-I3/T03.py` (`check_readiness_contract(load_checks()["materials_reserved"], world)` passes) |
+| T04a | H | full | Y | S3 | API read routes `packages/tl-api/src/tl_api/routes/materials.py`, router line, walk-list entries | `uv run python dev/accept/P2-I3/T04a.py`; `just gate packages/tl-api/tests/test_confidentiality_walk.py` |
+| T04b | H | full | — | T04a | `ApiClient` and TUI client methods (`client.py`, `embedded.py`, `remote.py`, fake) | `uv run python dev/accept/P2-I3/T04b.py` |
+| T05 | H | full (write verbs, plan check F5) | — | S3, S4 | CLI `tl mat item\|loc\|po\|receipt\|stock\|lot\|move\|mto\|report` (`packages/tl-cli/src/tl_cli/mat.py`) and `tl_mod_materials/reports.py` | `uv run tl mat stock --db .accept/p2-i3.db`; `uv run tl mat report heat_trace H-7781 --db .accept/p2-i3.db` |
+| T06a | H | full | — | T04b | Stock by location and movement log; shared renderer `details/materials.py` and `tl_tui/materials_text.py` (`widgets/stock_screen.py`, `widgets/movement_log.py`) | `uv run python dev/accept/P2-I3/T06a.py` (80 and 170 columns) |
+| T06b | H | full | — | T06a (plan check F4) | Receipt log (`widgets/receipt_log.py`) | `uv run python dev/accept/P2-I3/T06b.py` |
+| T06e | H | full | — | T06b (plan check F4) | `ReceiptEntryScreen` split from T06b: 50-row lines grid, `CreateReceipt` then `AttachFile` slot `mtr`, failed-upload status line (`widgets/receipt_entry.py`) | `uv run python dev/accept/P2-I3/T06e.py` (two lines saved, MTR attached) |
+| T06c | H | full | — | T06a (plan check F4) | Item library and locations (`widgets/item_library.py`, `widgets/location_tree.py`) | `uv run python dev/accept/P2-I3/T06c.py` |
+| T06d | H | full | — | T06a, S4 (plan check F4) | MTO lines and shortages log (`widgets/mto_log.py`) | `uv run python dev/accept/P2-I3/T06d.py` |
+| T07 | H | full | Y | T04a | MCP read tools and `propose_reservation` (`packages/tl-mcp/src/tl_mcp/materials_tools.py`), MCP walk entries | `uv run python dev/accept/P2-I3/T07.py`; `just gate packages/tl-mcp` |
+| T08 | H | lite | — | T04b, T07 (plan check F8) | `MaterialsDesk` (`packages/tl-sim/src/tl_sim/client.py`) and `actors/materials_coordinator.py` | `uv run python dev/accept/P2-I3/T08.py` |
+| T11 | tests (Sonnet) | full | — | S1–S4, T01–T08 | The increment's tests (list below) and the mutants of S2–S4; Allowed: those test paths only | `just gate packages/tl-modules/materials packages/tl-modules/documents packages/tl-api packages/tl-tui packages/tl-mcp packages/tl-cli packages/tl-sim packages/tl-schema`; `just gate-pg packages/tl-modules/materials`; mutation 3 lines |
+| T09 | H | full | — | T11, T06a–e, T07, T08; P2-I1 merged (plan check F10) | `dev/demos/P2-I3.sh`, `dev/demos/p2_i3_demo.py` (§10) | `just demo P2-I3` |
+| T10 | H | lite | — | T05, T06a–e (plan check F8) | Docs: package `README.md`, `AGENTS.md`, `docs/runbooks/materials.md`, `docs/modules/materials/` | — |
 
-Totals: **4 pieces, 15 tickets**; over 10 tickets, so the plan check (skill rule 8) runs before dispatch.
-Checkpoints: C1 = S1, S2; C2 = S3, S4, T04a–b; C3 = all tickets; C4 = T09 green on both adapters, SR1 closed.
+**Tests (T11)**, by origin: S1 `packages/tl-schema/tests/test_materials_schema.py`; S2
+`packages/tl-modules/materials/tests/test_items.py`, `test_locations.py`, `test_targets.py`, `test_projection_rebuild.py`
+(both adapters, property test); S3 `test_receipts.py`, `test_movements.py` (two concurrent issues on Postgres),
+`test_actions.py`, `test_api_surface.py`; S4 `test_mto.py`; T01 `test_samples.py`, `test_loaders.py`; T03
+`test_materials_reserved.py` (calls `check_readiness_contract`); T04a `packages/tl-api/tests/test_api_materials.py`;
+T04b `packages/tl-tui/tests/test_client_materials.py`; T05 `packages/tl-cli/tests/test_cli_mat.py`, `test_reports.py`;
+T06a–e `packages/tl-tui/tests/test_{stock_screen,receipt_screens,item_library,mto_log}.py` (80, 170 columns; plain
+walk); T07 `packages/tl-mcp/tests/test_materials_tools.py`; T08 `packages/tl-sim/tests/test_materials_coordinator.py`.
+
+Totals: **4 pieces, 15 tickets** (14 Haiku, T11 Sonnet). Checkpoints: C1 = S1, S2; C2 = S3, S4, T04a–b; C3 = all
+tickets (T11 last); C4 = T09 green on both adapters, `just tour` once, security review only if the owner asks.
 Registry glue (`MATERIALS_COMMANDS` splat, `add_typer`, `MCP_ACTIONS`, nav entry) by the supervisor; I3 merges last
 in wave 1 and regenerates the pinned lists.
 
 ## 10. Demo clauses (`just demo P2-I3`, SQLite then Postgres, one PASS each)
 
 1. An admin loads `co.acme.materials@1.0.0` (twice: no change) and the 50-item library with `tl load --company`
-(plan, load, reconcile 0 mismatches); a user's `DefineItem` is refused. 2. A superuser loads the location tree
+(plan, load, reconcile 0 mismatches); a company materials superuser's `DefineItem` is accepted, a project user's is
+refused. 2. A superuser loads the location tree
 project → warehouse → laydown L2 → toolcrib → gang box; a user's `DefineLocation` is refused. 3. A receipt of two
 flange lines, heat `H-7781`, against PO line `4471-3`; Accept without the MTR is refused with the fixed message;
 with it, two lots are on hand at L2. 4. Issue to a crew against a cost code (a consumable without one is refused),
 transfer, return one, a superuser adjust with a reason; a user's adjust and an over-issue are refused; stock equals
 the sum of movements and a rebuild gives the same rows. 5. `heat_trace H-7781` shows lots, receipt, MTR, locations,
-issues. 6. A derived `mto` document is published into an MTO for `P123-CWP-PIP-0001` (P2-I1 on the trunk, else no
-work package); compensation removes it; republished. 7. A reservation against an MTO line; over-reserving is
-refused; `shortages` lists the rest; the `materials_reserved` check passes its contract test and, with P2-I2 on the
-trunk, turns `ok`. 8. API, TUI (stock, receipts, MTO lines at 170 columns) and MCP agree; an agent's
-`propose_reservation` waits for a person. 9. A quantity with a non-ASCII digit, a negative, 4 decimals or over the
-bound is refused with a fixed message.
+issues. 6. A derived `mto` document is published into an MTO for `P123-CWP-PIP-0001` (the driver creates that CWP
+through the awp commands; P2-I1 is merged before this demo runs, plan check F10); compensation removes it;
+republished. 7. A reservation against an MTO line; over-reserving is refused; `shortages` lists the rest; the
+`materials_reserved` check passes `check_readiness_contract` (its `ok` on a real IWP is a P2-I2 demo clause).
+8. API, TUI (stock, receipts, MTO lines at 170 columns) and MCP agree; an agent's `propose_reservation` waits for a
+person. 9. A quantity with a non-ASCII digit, a negative, 4 decimals or over the bound is refused with a fixed
+message. 10. The item library shows the 50 items with project counts, and the locations screen shows the five-level
+tree with lot counts, at 170 columns (plan check F6). 11. The movement log lists the clause-4 movements in order with
+kind, from, to and by, and filtered by kind `issue` shows one row (plan check F6).
 
-## 11. Divergences, risks, owner questions
+## 11. Divergences, risks, owner answers
 
 Divergences from the plan and contracts: (1) roles as access words with default roles; adjust, scrap, locations and
-MTO publication are materials **superuser** (owner decision 1; P2-Q3 A superseded), the library admin. (2) Item, location and
+MTO publication are materials **superuser** (owner decision 1; P2-Q3 A superseded); the library a company materials
+superuser, else admin (owner answer 14). (2) Item, location and
 PO-line imports through loader targets, not module readers or a derivation `po_lines` kind. (3) No `Receive`
 command: stock enters only through an accepted receipt. (4) No negative balance, adjust included (contracts §4
-allowed an admin adjust below zero). (5) Reservations name an MTO line; `iwp_id` is optional and copied (contracts:
+allowed an admin adjust below zero; owner answer 16). (5) Reservations name an MTO line; `iwp_id` is optional and copied (contracts:
 required), because P2-I3 runs before IWPs exist. (6) Deferred from plan T02: `CatalogItem`, `SerializedItem`,
-`Equipment`, company aggregation views (to P2-I4-B or later). (7) One UOM per item, no registry conversion.
-(8) MTO publication needs publish targets by entry point in documents (S4), since documents must not import materials.
-Risks: R-P2-7 stock correctness (property-tested rebuild, concurrent-issue test); R-P2-4 pinned lists and four new
-record tables; S4 and P2-I1 S1 change two Phase 1 packages (run the documents, legacy and P1-I3/P1-I8 demos);
-R-P2-16 feed noise (`feed_policy: none`); `phase2-owner-questions.md` says its answers become ADR-0016, a number now
-taken: the Phase 2 decisions ADR and the P2-Q5 ADR take the next free numbers.
-Owner questions: Q-M4-1 who keeps the company item library: admin (proposed) or a company-scope materials superuser
-(the roles spec must then allow company grants)? Q-M4-2 is accepting a receipt a `user` act (proposed) or does it
-need a superuser or QC word? Q-M4-3 confirm no negative stock, even by adjust. Q-M4-4 may issue, transfer and return
-be captured offline (`full`, proposed) once replicas exist? Q-M4-5 confirm deferring `SerializedItem`, `Equipment`
-and `CatalogItem` to P2-I4-B or later.
+`Equipment`, company aggregation views (owner answer 18). (7) One UOM per item, no registry conversion.
+(8) MTO publication needs publish targets by entry point in documents, built in wave 0 (W0-B2).
+Risks: R-P2-7 stock correctness (property-tested rebuild, concurrent-issue test, both in T11: until then the S3
+acceptance script carries them); R-P2-4 pinned lists and four new record tables; R-P2-16 feed noise
+(`feed_policy: none`); the Phase 2 decisions ADR takes the number after ADR-0022.
+Owner answers applied (`OWNER-DECISIONS-2026-10-30.md`): 14 company item library kept by a company-level materials
+superuser, else an admin; 15 any user accepts a receipt, a superuser scraps (disposes of) damaged or nonconforming
+items; 16 stock never goes negative; 17 issue, transfer, return `draft_only`, posted on sync; 18 `CatalogItem`,
+`SerializedItem`, `Equipment` deferred. Open: whether `RejectReceipt` of a nonconforming delivery is a disposal
+(superuser) or a refusal of delivery (`user`, as specified); default `user`.

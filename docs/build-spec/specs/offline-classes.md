@@ -1,4 +1,5 @@
 # Spec: offline classes per record type (declaration and enforcement hooks)
+Owner answers of 2026-10-30 and the wave-0 build plan are in `specs/wave0.md`; where they differ, `wave0.md` wins.
 
 Status: draft v0.1, 2026-10-30, planner tier. Source: owner decision 2 (`module-designs/OWNER-DECISIONS-2026-10-30.md`);
 `module-designs/deployment-and-merge.md` §4–§5; `phase3-contracts-draft.md` §3 (`tl:merge`, sync); brief §22.
