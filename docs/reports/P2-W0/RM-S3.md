@@ -1,12 +1,12 @@
 # Report — P2-W0-RM-S3 (module roles on every admin surface; the module roles log)
 
-Branch: `p2/w0-rm-s3`   Commit(s): see `git log p2/w0..p2/w0-rm-s3` (one build commit, this report included)
+Branch: `p2/w0-rm-s3`   Commit(s): see `git log p2/w0..p2/w0-rm-s3` (build commit, then attempt-2 commit)
 
 ## Deviations
-1. **Blocked on one pin outside Allowed paths (predicted, no pytest by policy).** `packages/tl-api/tests/test_auth_review.py::test_every_route_action_is_decided_for_agents` fails until `"admin.accounts.module_roles"` is added to `AGENT_MAY_NOT` (next to `"admin.accounts.state"`, ~line 377). It is not a pin class the spec lists and the file is not allowed, so I stopped there (spec: *Blocked*, test id). Everything else is built and accepted.
+1. **Allowed paths widened by the orchestrator (attempt 2):** `packages/tl-api/tests/test_auth_review.py` (one line: `"admin.accounts.module_roles"` in `AGENT_MAY_NOT`, beside `admin.accounts.state`) and `packages/tl-tui/src/tl_tui/keymap.py` (the `m` row). Read check of that file: grant and revoke use `admin.accounts.module_roles` (now decided, agent-denied); `admin.accounts.list` (the two admin GETs) is already in `AGENT_MAY_NOT`; `auth.me` (`/auth/me/roles`) is already in `AGENT_MAY` (read-own, agents allowed like `/auth/me`). No other entry needed.
 2. `effective_role_views(conn, account_id, project, *, holder=None)`: one optional keyword beyond the spec, so `GET /auth/me/roles` can pass `holder_for_principal(me)` (a dev-token principal has no account row).
 3. `module_role_views.PROJECT_PATTERN` repeats the private `module_grants._PROJECT_PATTERN`. 4. `main.py`: the `add_typer` line plus its entry in the import list. `remote.py` needed no change (the five calls pass through `__getattr__`; signatures equal `AdminApi`/`AuthApi`).
-5. `AdminScreen` reads the project from `getattr(self.app, "scope", "company")`, so `app.py` (not allowed) is unchanged. `keymap.py` (not allowed) has no `m` row (`test_keymap` only checks documented keys exist).
+5. `AdminScreen` reads the project from `getattr(self.app, "scope", "company")`, so `app.py` (not allowed) is unchanged. `keymap.py` now has the `m` row (Accounts context, owner `AdminScreen`, binding `m`, exists), so help and the palette show it.
 
 ## Changed files
 - `tl_core/auth/module_role_views.py` (new) — views, `list_module_roles`, `effective_role_views`
@@ -14,6 +14,7 @@ Branch: `p2/w0-rm-s3`   Commit(s): see `git log p2/w0..p2/w0-rm-s3` (one build c
 - `tl_tui/{client,embedded}.py` (five methods), `tests/fakes_admin.py` (the fake, five methods + `seed_module_role`, `me_account_id`)
 - `tl_cli/admin_roles.py` (new), `main.py`
 - `tl_tui/widgets/module_roles_log.py` (new), `admin_text.py`, `widgets/admin_screen.py` (key `m`, hint)
+- `tl_api/tests/test_auth_review.py` (one pin line), `tl_tui/keymap.py` (`m` row)
 - `dev/accept/P2-W0/RM-S3.py` (new)
 
 ## Routes and actions
@@ -27,10 +28,10 @@ Branch: `p2/w0-rm-s3`   Commit(s): see `git log p2/w0..p2/w0-rm-s3` (one build c
 `AGENT_ACTIONS` untouched. Errors added: `unknown_role` 422, `unknown_module` 422, `no_such_grant` 404, `no_company_roles` 422.
 
 ## Pins (by reading) and snapshots expected to change
-- Text pin to add: see Deviation 1.
+- Pin added: `AGENT_MAY_NOT` line (Deviation 1). Keymap row `m` added; `test_keymap` checks it against `AdminScreen.BINDINGS` (has `m`).
 - `AdminScreen.KEY_HINTS` gained `m module roles` (78 cells; `KEY_HINTS_MORE` and its 76 pin untouched). Snapshots expected to change (do not regenerate): `test_admin_screen.py::test_the_accounts_snapshot_120x40`, `::test_the_accounts_snapshot_80x24`, `::test_the_agent_tokens_snapshot_120x40`; the modals over it may too: `test_account_forms.py::test_the_add_form_snapshot_120x40`, `::test_the_password_form_with_an_error_snapshot_80x24`, `::test_the_token_shown_once_snapshot_120x40`.
 - `test_plain_walk.py`: `m` is a VIEW_KEY.
-- `tests/api/test_error_table.py` (before this piece): `RoleTableError` (RM-S1) has no row; the spec names four rows only.
+- `RoleTableError` (RM-S1): deliberately not mapped in `errors.py`; a start-up configuration error, stays 500 (orchestrator decision).
 
 ## Guard sites (for TA mutants)
 - Admin check on grant/revoke routes: `routes/admin.py:295` and `:316` (`actor: ModuleRoleSetter`, guard at `:51`); the handler's own `_require_admin` at `module_grants.py:166`, `:182`. Reads: `Lister` on `list_roles`, `effective_roles_of`.
@@ -48,13 +49,12 @@ PASS CLI: grant, grant again, ls, ls filtered, effective, revoke, revoke again r
 PASS module roles log at 80 columns: 3 rows, panel, refusal in the status line   (also 170)
 PASS key m opens nothing for a non-admin (F10 refuses; no module role call was made)
 ```
-The script also prints the embedded/fake answers, each CLI command, and the log at 80 and 170 columns.
-
+The script also prints the embedded/fake answers, each CLI command and the log at 80 and 170 columns.
 ## Tests added
-None (end run, TA writes the four files the spec names).
+None (TA writes the four spec files).
 
 ## Learnings (proposed)
 - `LogScreen` rows with no `Subject`/`Title` column need `keep_columns()` set to every column, or a constant column (one module) is hidden.
 
 ## Open questions / Blocked
-Blocked on the one-line pin in Deviation 1 (supervisor adds it, or widens Allowed paths to that file). Also: map `RoleTableError` in `errors.py`?
+Blocked: closed (both items decided by the orchestrator). No open questions. pytest not run (owner policy).
