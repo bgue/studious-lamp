@@ -1,6 +1,6 @@
 # P2-W0 — Phase 2 wave 0: roles, offline classes, readiness contract, targets, relay tools
 
-Status: in-progress (round 1). Plan: `docs/build-spec/specs/wave0.md` (v0.1 with the plan check F1-F10 applied; it wins over
+Status: in-progress (round 2). Plan: `docs/build-spec/specs/wave0.md` (v0.1 with the plan check F1-F10 applied; it wins over
 `roles-mvp.md` and `offline-classes.md`). Board and next steps: `STATE.md`. Owner decisions: `docs/build-spec/module-designs/OWNER-DECISIONS-2026-10-30.md`.
 
 ## Objective
@@ -22,7 +22,7 @@ end run), tours at C4, security reviews only if the owner asks (Sec rows recorde
 | RM-S1 | `S1-roles-grants.md` | 1 |
 | W0-B1 | `S2-readiness-words-keys.md` | 1 |
 | A1, A2, A3 | `T01-state-sh.md`, `T02-review-pack.md`, `T03-relay-lint.md` (fixtures `provided/relay-*.txt`) | 1 |
-| RM-S2, W0-B2, OC-S1 | specs written in round 2 | 2 |
+| RM-S2, W0-B2, OC-S1 | `S3-roles-wiring.md`, `S4-load-publish-targets.md`, `S5-offline-annotation.md` | 2 |
 | RM-S3, RM-S4, OC-S2 | round 3 | 3 |
 | OC-T1..T3, TA | round 4 | 4 |
 | TB, DOC, DEMO | round 5 | 5 |

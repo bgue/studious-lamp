@@ -100,6 +100,10 @@ bench *args:
 bench-rebuild *args:
     TL_BENCH_FULL_REBUILD=1 uv run pytest tests/bench/test_rebuild.py -m bench -q -s -p no:cacheprovider -k large {{args}}
 
+# Validate a supervisor reply (relay block) from FILE or stdin (skill subagent-throughput-process, A3)
+relay-lint *args:
+    bash dev/relay-lint {{args}}
+
 # Run the demo script for an increment, e.g. `just demo P0-I1`
 demo id:
     bash dev/demos/{{id}}.sh
