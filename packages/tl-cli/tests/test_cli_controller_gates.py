@@ -91,17 +91,23 @@ def cast(env: dict[str, str], tmp_path: Path) -> Cast:
 
 @pytest.fixture
 def made(env: dict[str, str], tmp_path: Path, cast: Cast) -> DocumentsWorld:
-    """ISO-1234 issued as A; ISO-2000 with a draft A that has a PDF; a review cycle on it and a
-    draft transmittal of ISO-1234@A. The module gate runs once the command is built, so the
-    record each site names must exist (RM-S4)."""
+    """ISO-1234 issued as A with a draft B (the supersede target); ISO-2000 with a draft A that has
+    a PDF and a review cycle on it; ISO-3000 issued as A with a signed copy (the one to replace); a
+    draft transmittal of ISO-1234@A. The module gate runs once the command is built, so the record
+    each site names must exist (RM-S4)."""
     docs = world(env, tmp_path)
     docs.issued_document("ISO-1234", "IFR")
+    docs.create_revision("ISO-1234")  # B
+    docs.issued_document("ISO-3000", "IFR")
+    signed = tl(cast.boss, "doc", "rendition", "register-signed", "ISO-3000", "A", pdf(tmp_path),
+                "--project", "P123")  # fmt: skip
+    assert signed.exit_code == 0, signed.output
     docs.register("ISO-2000")
     docs.create_revision("ISO-2000")
     docs.attach("ISO-2000", "A")
     opened = tl(cast.boss, "review", "open", "ISO-2000", "A", "--project", "P123",
                 "--reviewer", "user:dora")  # fmt: skip
-    assert opened.exit_code == 0 and "P123-RC-1" in opened.stdout, opened.output
+    assert opened.exit_code == 0 and "ISO-2000@A/RC1" in opened.stdout, opened.output
     drafted = tl(cast.boss, "transmittal", "create", "--project", "P123", "--subject", "Isos",
                  "--purpose", "for_information", "--to", "Site:Acme:site@acme.test",
                  "--revision", "ISO-1234@A", "--number", "P123-TRN-0001")  # fmt: skip
@@ -155,12 +161,12 @@ def sites(tmp_path: Path) -> dict[str, tuple[str, ...]]:
                               "--by", "B", *why),
         "doc rendition register-signed": ("doc", "rendition", "register-signed", "ISO-1234", "A",
                                           pdf(tmp_path), "--project", "P123"),
-        "doc rendition replace-signed": ("doc", "rendition", "replace-signed", "ISO-1234", "A",
+        "doc rendition replace-signed": ("doc", "rendition", "replace-signed", "ISO-3000", "A",
                                          pdf(tmp_path), "--project", "P123", *why),
         "transmittal issue": ("transmittal", "issue", "P123-TRN-0001", "--project", "P123"),
-        "review on-behalf": ("review", "on-behalf", "P123-RC-1", "--project", "P123",
+        "review on-behalf": ("review", "on-behalf", "ISO-2000@A/RC1", "--project", "P123",
                              "--reviewer", "user:bo", "--outcome", "approved", "--comment", "mail"),
-        "review override": ("review", "override", "P123-RC-1", "--project", "P123",
+        "review override": ("review", "override", "ISO-2000@A/RC1", "--project", "P123",
                             "--outcome", "approved", *why),
         "doc import --apply": ("doc", "import", str(DMS_FILE), "--project", "P123",
                                "--mapping", str(DMS_MAPPING), "--apply"),
@@ -215,7 +221,8 @@ def test_a_user_is_refused_and_nothing_is_written(
     assert refused.exit_code == 1, refused.output
     assert refused.stderr.startswith("error: forbidden"), refused.stderr
     assert (ROLE_GATE if name in ROLE_GATED else GATE) in refused.stderr
-    assert events(made) == before
+    written = made.rows("SELECT event_type, actor FROM events ORDER BY seq DESC LIMIT 4")
+    assert events(made) == before, f"a refused user still wrote: {written}"
 
 
 @pytest.mark.parametrize("who", ["dora", "boss"])
@@ -232,13 +239,16 @@ def test_a_controller_and_an_admin_pass_the_gate(
 def test_a_controller_issues_a_revision_and_a_transmittal_without_being_an_admin(
     cast: Cast, made: DocumentsWorld, tmp_path: Path
 ) -> None:
-    issued = tl(cast.dora, "doc", "rev", "issue", "ISO-2000", "A", "--project", "P123",
+    made.register("ISO-3500")  # a draft of its own: ISO-2000@A is in review in `made`
+    made.create_revision("ISO-3500")
+    made.attach("ISO-3500", "A")
+    issued = tl(cast.dora, "doc", "rev", "issue", "ISO-3500", "A", "--project", "P123",
                 "--status", "IFC")  # fmt: skip
     assert issued.exit_code == 0, issued.stderr
-    assert issued.stdout.startswith("issued ISO-2000@A as IFC")
+    assert issued.stdout.startswith("issued ISO-3500@A as IFC")
     drafted = tl(cast.ursula, "transmittal", "create", "--project", "P123", "--subject", "Isos",
                  "--purpose", "for_construction", "--to", "Site:Acme:site@acme.test",
-                 "--revision", "ISO-2000@A")  # fmt: skip
+                 "--revision", "ISO-3500@A")  # fmt: skip
     assert drafted.exit_code == 0, drafted.stderr
     number = drafted.stdout.splitlines()[0].removeprefix("created transmittal ")
     assert tl(cast.ursula, "transmittal", "issue", number, "--project", "P123").exit_code == 1
