@@ -133,15 +133,23 @@ def _allowed(source: ConfidentialSource, viewer: Viewer) -> str:
     return clause
 
 
-def _source_hidden(source: ConfidentialSource, viewer: Viewer) -> str:
+def _only(only: str | None) -> str:
+    """The extra ``AND`` that limits a part to the records asked about (``r.id = :_cf_id``)."""
+    return f" AND {only}" if only else ""
+
+
+def _source_hidden(source: ConfidentialSource, viewer: Viewer, only: str | None = None) -> str:
     return (
-        f"SELECT r.id FROM cur_core_record r WHERE r.type IN ({_types(source.record_types)}) "
+        f"SELECT r.id FROM cur_core_record r WHERE r.type IN ({_types(source.record_types)})"
+        f"{_only(only)} "
         f"AND NOT EXISTS (SELECT 1 FROM {source.table} s WHERE s.{source.id_column} = r.id "
         f"AND ({_allowed(source, viewer)}))"
     )
 
 
-def _child_hidden(source: ConfidentialSource, child: ChildSource, viewer: Viewer) -> str:
+def _child_hidden(
+    source: ConfidentialSource, child: ChildSource, viewer: Viewer, only: str | None = None
+) -> str:
     """The children whose root is not readable. A flat join to the root: nesting one subquery
     inside another per level overflows SQLite's parser stack."""
     if child.hop is None:
@@ -151,32 +159,40 @@ def _child_hidden(source: ConfidentialSource, child: ChildSource, viewer: Viewer
         via = f" JOIN {table} hop ON hop.{key} = ch.{child.root_column}"
         root_key = f"hop.{root}"
     return (
-        f"SELECT r.id FROM cur_core_record r WHERE r.type IN ({_types(child.record_types)}) "
+        f"SELECT r.id FROM cur_core_record r WHERE r.type IN ({_types(child.record_types)})"
+        f"{_only(only)} "
         f"AND NOT EXISTS (SELECT 1 FROM {child.table} ch{via} "
         f"JOIN {source.table} s ON s.{source.id_column} = {root_key} "
         f"WHERE ch.{child.id_column} = r.id AND ({_allowed(source, viewer)}))"
     )
 
 
-def _source_parts(source: ConfidentialSource, viewer: Viewer) -> list[str]:
+def _source_parts(
+    source: ConfidentialSource, viewer: Viewer, only: str | None = None
+) -> list[str]:
     """The root's hidden records, then each child's."""
-    return [_source_hidden(source, viewer)] + [
-        _child_hidden(source, child, viewer) for child in source.children
+    return [_source_hidden(source, viewer, only)] + [
+        _child_hidden(source, child, viewer, only) for child in source.children
     ]
 
 
-def hidden_sql(viewer: Viewer | None = None) -> str | None:
+def hidden_sql(viewer: Viewer | None = None, *, only: str | None = None) -> str | None:
     """A ``SELECT id`` of every record ``viewer`` must not read; ``None`` when nothing is hidden.
 
     The text holds only names the modules declared and the bind parameter ``_cf_acct`` (see
     ``params_for``). A system viewer hides nothing.
+
+    ``only`` is a condition on ``r.id`` written by the caller (``r.id = :_cf_id``, ``r.id IN
+    :_cf_ids`` or ``r.id = l.from_id``, never user input): the answer is then the hidden records
+    that also meet it, the same ids as the whole set would hold, but the database looks at those
+    records and not at every confidential record of the ledger.
     """
     who = viewer if viewer is not None else current_viewer()
     if who.system:
         return None
     parts: list[str] = []
     for source in confidential_sources():
-        parts.extend(_source_parts(source, who))
+        parts.extend(_source_parts(source, who, only))
     return " UNION ALL ".join(parts) if parts else None
 
 
@@ -200,7 +216,7 @@ def not_hidden(id_expr: str, viewer: Viewer | None = None) -> tuple[str, dict[st
 
 def is_hidden(conn: Connection, record_id: str, viewer: Viewer | None = None) -> bool:
     """True when the record exists and the viewer must not read it (a missing one is not hidden)."""
-    sql = hidden_sql(viewer)
+    sql = hidden_sql(viewer, only="r.id = :_cf_id")
     if sql is None:
         return False
     statement = text(f"SELECT 1 FROM cur_core_record x WHERE x.id = :_cf_id AND x.id IN ({sql})")
@@ -219,8 +235,8 @@ def hidden_among(
     conn: Connection, record_ids: Sequence[str], viewer: Viewer | None = None
 ) -> set[str]:
     """The ids among ``record_ids`` that the viewer must not read (for a small list)."""
-    sql = hidden_sql(viewer)
     ids = sorted({i for i in record_ids if i})
+    sql = hidden_sql(viewer, only="r.id IN :_cf_ids")
     if sql is None or not ids:
         return set()
     found: set[str] = set()
@@ -276,21 +292,29 @@ def hidden_event_streams(
     sql = hidden_sql(who)
     assert sql is not None
     extra = {**params_for(sql, who)}
+
+    def about(column: str) -> str:
+        """The hidden records that ``column`` of the row under test names (a correlated test:
+        the database looks the row's record up, it does not list every hidden record)."""
+        found = hidden_sql(who, only=f"r.id = {column}")
+        assert found is not None
+        return found
+
     for start in range(0, len(ids), 500):
         chunk = ids[start : start + 500]
         queries = (
             f"SELECT l.link_id FROM cur_links l WHERE l.link_id IN :_cf_ids "
-            f"AND (l.from_id IN ({sql}) OR l.to_id IN ({sql}))",
+            f"AND (l.from_id IN ({about('l.from_id')}) OR l.to_id IN ({about('l.to_id')}))",
             f"SELECT f.file_id FROM cur_files f WHERE f.file_id IN :_cf_ids "
-            f"AND f.record_id IN ({sql})",
+            f"AND f.record_id IN ({about('f.record_id')})",
             f"SELECT t.item_id FROM cur_feed_tags t WHERE t.item_id IN :_cf_ids "
-            f"AND t.kind = 'record' AND t.record_id IN ({sql})",
+            f"AND t.kind = 'record' AND t.record_id IN ({about('t.record_id')})",
             # P1-I7: an enrichment value is about its target record, an action invocation about
             # the records it ran on; their events carry the value, the parameters and the result.
             f"SELECT v.value_id FROM cur_enrichment_value v WHERE v.value_id IN :_cf_ids "
-            f"AND v.target_id IN ({sql})",
+            f"AND v.target_id IN ({about('v.target_id')})",
             f"SELECT g.invocation_id FROM cur_action_invocation_target g "
-            f"WHERE g.invocation_id IN :_cf_ids AND g.record_id IN ({sql})",
+            f"WHERE g.invocation_id IN :_cf_ids AND g.record_id IN ({about('g.record_id')})",
         )
         for query in queries:
             statement = text(query).bindparams(bindparam("_cf_ids", expanding=True))

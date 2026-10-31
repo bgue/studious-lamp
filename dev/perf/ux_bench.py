@@ -1067,6 +1067,28 @@ def copy_ledger(source: Path, target: str, say: Callable[[str], None]) -> dict[s
     return {"events": count, "seconds": round(time.perf_counter() - started, 1)}
 
 
+def seeded_sqlite(
+    args: argparse.Namespace, work: Path, size: int, full: bool, say: Callable[[str], None]
+) -> tuple[Path, dict[str, Any]]:
+    """The seeded SQLite file of ``size`` records and the facts of its seeding. With
+    ``--seed-dir`` the file is kept there and reused by the next run (seeding 10,000 records takes
+    over an hour); without it the file lives in the work folder and is removed with it."""
+    keep = Path(args.seed_dir) if args.seed_dir else None
+    if keep is None:
+        db = work / f"ux-{size}.db"
+        return db, seed(db, size, full=full, say=say)
+    keep.mkdir(parents=True, exist_ok=True)
+    db, done = keep / f"ux-{size}.db", keep / f"ux-{size}.json"
+    if done.exists() and db.exists():
+        say(f"[{size}] reusing the seeded SQLite file {db}")
+        return db, json.loads(done.read_text(encoding="utf-8"))
+    for suffix in ("", "-wal", "-shm"):
+        Path(str(db) + suffix).unlink(missing_ok=True)
+    facts = seed(db, size, full=full, say=say)
+    done.write_text(json.dumps(facts), encoding="utf-8")  # last: a half-seeded file is not reused
+    return db, facts
+
+
 def run_all(args: argparse.Namespace) -> int:
     sizes = [int(s) for s in args.sizes.split(",") if s.strip()]
     backends = [b.strip() for b in args.backends.split(",") if b.strip()]
@@ -1094,10 +1116,11 @@ def run_all(args: argparse.Namespace) -> int:
     try:
         for size in sizes:
             full = size <= FULL_LIMIT
-            db = work / f"ux-{size}.db"
             say(f"[{size}] seeding SQLite")
-            facts = seed(db, size, full=full, say=say)
+            db, facts = seeded_sqlite(args, work, size, full, say)
             say(f"[{size}] SQLite seeded in {facts['seconds']} s")
+            if args.seed_only:
+                continue
             if "sqlite" in backends:
                 say(f"[{size}] measuring sqlite")
                 raw = run_child(
@@ -1125,11 +1148,20 @@ def run_all(args: argparse.Namespace) -> int:
             if "postgres" in backends:
                 from tl_adapters.postgres import admin
 
-                name = f"tl_perf_ux_{size}_{os.getpid()}"
-                admin.create_database(pg_server(), name)
-                pg_names.append(name)
-                say(f"[{size}] copying the project to Postgres")
-                copied = copy_ledger(db, pg_url(name), say)
+                kept = Path(args.seed_dir) / f"pg-{size}.json" if args.seed_dir else None
+                if kept is not None and kept.exists():  # a copy of an earlier run, still there
+                    name, copied = kept.read_text(encoding="utf-8").split(" ", 1)
+                    copied = json.loads(copied)
+                    say(f"[{size}] reusing the Postgres copy {name}")
+                else:
+                    name = f"tl_perf_ux_{size}_{os.getpid()}"
+                    admin.create_database(pg_server(), name)
+                    pg_names.append(name)
+                    say(f"[{size}] copying the project to Postgres")
+                    copied = copy_ledger(db, pg_url(name), say)
+                    if kept is not None:
+                        kept.write_text(f"{name} {json.dumps(copied)}", encoding="utf-8")
+                        pg_names.remove(name)  # kept for the next run; drop it by hand when done
                 say(f"[{size}] measuring postgres")
                 raw = run_child(
                     "embedded",
@@ -1140,10 +1172,12 @@ def run_all(args: argparse.Namespace) -> int:
                     warmup=args.warmup,
                 )
                 measured("postgres", size, {**facts, **copied, "via": "sqlite ledger copy"}, raw)
-                admin.drop_database(pg_server(), name)
-                pg_names.remove(name)
-            for suffix in ("", "-wal", "-shm"):
-                Path(str(db) + suffix).unlink(missing_ok=True)
+                if name in pg_names:
+                    admin.drop_database(pg_server(), name)
+                    pg_names.remove(name)
+            if not args.seed_dir:
+                for suffix in ("", "-wal", "-shm"):
+                    Path(str(db) + suffix).unlink(missing_ok=True)
     finally:
         if pg_names:
             from tl_adapters.postgres import admin
@@ -1398,6 +1432,10 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--reps", type=int, default=25, help="timed repetitions per action")
     parser.add_argument("--warmup", type=int, default=2, help="untimed repetitions after the first")
     parser.add_argument("--out-dir", default=str(OUT_DIR))
+    parser.add_argument(
+        "--seed-dir", help="keep the seeded SQLite files here and reuse them (development)"
+    )
+    parser.add_argument("--seed-only", action="store_true", help="seed into --seed-dir and stop")
     parser.add_argument(
         "--merge", action="store_true", help="keep cells of the earlier results file"
     )
