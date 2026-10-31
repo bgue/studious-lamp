@@ -104,6 +104,14 @@ bench-rebuild *args:
 relay-lint *args:
     bash dev/relay-lint {{args}}
 
+# STATE.md plus git state of an increment in at most 40 lines (skill subagent-throughput-process, A1)
+state inc *args:
+    bash dev/state.sh {{inc}} {{args}}
+
+# One-call review pack for a branch against its base (skill subagent-throughput-process, A2)
+review-pack base branch *args:
+    bash dev/review-pack.sh {{base}} {{branch}} {{args}}
+
 # Run the demo script for an increment, e.g. `just demo P0-I1`
 demo id:
     bash dev/demos/{{id}}.sh
