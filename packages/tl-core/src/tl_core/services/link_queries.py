@@ -74,6 +74,7 @@ class LinkTarget(BaseModel):
 
 # The other end of a link is a record or, for a `references` link made by a feed post (P0-I6), the
 # post. A post has no key, its title is the start of its body, and "voided" means retracted.
+POST_TYPE = "core.ActivityPost"  # what the other end of a link made by a feed post is
 _ENDS_SQL = (
     "(SELECT id, key, title, type, status, voided FROM cur_core_record "
     "UNION ALL SELECT item_id AS id, NULL AS key, "
@@ -120,11 +121,18 @@ def links_of(uow: UnitOfWork, record_id: str, *, include_retracted: bool = False
         raise RecordNotFoundError(f"no record {record_id!r}")
     confidentiality.require_visible(conn, record_id)
     sql = _LINKS_SQL if include_retracted else _LINKS_SQL + " AND l.status <> 'retracted'"
-    # The other end must be readable: a record, or a post that tags no hidden record (ADR-0016).
-    record_ok, params = confidentiality.not_hidden_each("r.id")
-    item_ok, item_params = confidentiality.not_hidden_item("r.id")
-    sql += f" AND {record_ok} AND {item_ok}"
-    rows = conn.execute(text(sql), {"id": record_id, **params, **item_params}).mappings().all()
+    rows = list(conn.execute(text(sql), {"id": record_id}).mappings().all())
+    if any(row["other_type"] == POST_TYPE for row in rows):
+        # A post at the other end must tag no hidden record (ADR-0016): the whole test, in SQL.
+        record_ok, params = confidentiality.not_hidden_each("r.id")
+        item_ok, item_params = confidentiality.not_hidden_item("r.id")
+        sql += f" AND {record_ok} AND {item_ok}"
+        rows = list(
+            conn.execute(text(sql), {"id": record_id, **params, **item_params}).mappings().all()
+        )
+    else:  # the other ends are records: the hidden ones among the few read are left out
+        hidden = confidentiality.hidden_among(conn, [row["other_id"] for row in rows])
+        rows = [row for row in rows if row["other_id"] not in hidden]
     views = [
         LinkView(
             link_id=row["link_id"],
@@ -173,25 +181,32 @@ def link_counts(uow: UnitOfWork, record_ids: Sequence[str]) -> dict[str, LinkCou
     if not record_ids:
         return {}
     found: dict[str, LinkCounts] = {rid: LinkCounts(record_id=rid) for rid in record_ids}
-    from_ok, params = confidentiality.not_hidden_each("l.from_id")
-    to_ok, to_params = confidentiality.not_hidden_each("l.to_id")
     sql = text(
-        "SELECT u.rid AS record_id, "
-        "COALESCE(SUM(CASE WHEN u.status = 'active' AND u.outbound = 1 THEN 1 ELSE 0 END), 0) "
-        "AS active_out, "
-        "COALESCE(SUM(CASE WHEN u.status = 'active' AND u.outbound = 0 THEN 1 ELSE 0 END), 0) "
-        "AS active_in, "
-        "COALESCE(SUM(CASE WHEN u.status = 'stale' THEN 1 ELSE 0 END), 0) AS stale, "
-        "COALESCE(SUM(CASE WHEN u.status = 'broken' THEN 1 ELSE 0 END), 0) AS broken, "
-        "COALESCE(SUM(CASE WHEN u.status = 'suggested' THEN 1 ELSE 0 END), 0) AS suggested FROM ("
-        "SELECT l.from_id AS rid, l.status AS status, 1 AS outbound FROM cur_links l "
-        f"WHERE l.from_id IN :ids AND {from_ok} AND {to_ok} "
-        "UNION ALL SELECT l.to_id AS rid, l.status AS status, 0 AS outbound FROM cur_links l "
-        f"WHERE l.to_id IN :ids AND {from_ok} AND {to_ok}) u GROUP BY u.rid"
+        "SELECT l.from_id AS rid, l.from_id, l.to_id, l.status, 1 AS outbound FROM cur_links l "
+        "WHERE l.from_id IN :ids "
+        "UNION ALL SELECT l.to_id AS rid, l.from_id, l.to_id, l.status, 0 AS outbound "
+        "FROM cur_links l WHERE l.to_id IN :ids"
     ).bindparams(bindparam("ids", expanding=True))
-    rows = uow.conn().execute(sql, {"ids": list(found), **params, **to_params}).mappings().all()
+    conn = uow.conn()
+    rows = conn.execute(sql, {"ids": list(found)}).mappings().all()
+    # A link counts only when both ends are readable: the hidden ones among the ends of the
+    # links read (a few) are looked up, not every hidden record of the ledger listed.
+    hidden = confidentiality.hidden_among(
+        conn, [e for row in rows for e in (row["from_id"], row["to_id"])]
+    )
+    totals: dict[str, dict[str, int]] = {}
     for row in rows:
-        found[row["record_id"]] = LinkCounts(**dict(row))
+        if row["from_id"] in hidden or row["to_id"] in hidden:
+            continue
+        count = totals.setdefault(
+            row["rid"], {"active_out": 0, "active_in": 0, "stale": 0, "broken": 0, "suggested": 0}
+        )
+        if row["status"] == "active":
+            count["active_out" if row["outbound"] else "active_in"] += 1
+        elif row["status"] in count:
+            count[row["status"]] += 1
+    for rid, count in totals.items():
+        found[rid] = LinkCounts(record_id=rid, **count)
     return found
 
 
