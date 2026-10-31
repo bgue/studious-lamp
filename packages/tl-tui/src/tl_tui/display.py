@@ -11,7 +11,7 @@ import dataclasses
 import re
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Final
 
 from tl_schema.forms import FieldMeta, PsetGroupMeta
 
@@ -202,6 +202,19 @@ def rule_phrase(field: FieldMeta) -> str:
 def pset_label(group: PsetGroupMeta) -> str:
     """The pset group's label; never its package or version."""
     return group.label or humanize(group.name)
+
+
+#: The wording of a record type's offline class in technical mode (offline-classes spec 5.6).
+OFFLINE_WORDS: Final[Mapping[str, str]] = {
+    "full": "Full: created and edited offline",
+    "draft_only": "Draft only: drafted offline, issued online",
+    "none": "None: online only",
+}
+
+
+def offline_words(offline: str) -> str:
+    """The wording of an offline class; a class the table does not name reads as itself."""
+    return OFFLINE_WORDS.get(offline, offline)
 
 
 def quantity(value: Any, unit: str | None) -> str:
