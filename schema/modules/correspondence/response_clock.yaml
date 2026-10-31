@@ -31,6 +31,7 @@ classes:
     annotations:
       tl:current_state: true
       tl:record_types: "correspondence.ResponseClock"
+      tl:offline: none
       tl:ix_item: "item_id"
       tl:ix_scope_state_due: "scope, state, due_on"
       tl:ix_clause: "clause_id"

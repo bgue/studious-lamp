@@ -25,6 +25,7 @@ classes:
     annotations:
       tl:current_state: true
       tl:record_types: "schemareg.Adoption"
+      tl:offline: none
       tl:ix_scope_package: "scope, package"
     unique_keys:
       scope_package:

@@ -30,6 +30,7 @@ classes:
     annotations:
       tl:current_state: true
       tl:record_types: "documents.Revision"
+      tl:offline: draft_only
       tl:ix_document_ordinal: "document_id, ordinal"
       tl:ix_scope_issue_status: "scope, issue_status"
       tl:ix_document_current: "document_id, is_current"
@@ -101,6 +102,7 @@ classes:
     annotations:
       tl:current_state: true
       tl:record_types: "documents.Rendition"
+      tl:offline: draft_only
       tl:ix_revision_kind: "revision_id, kind, is_current"
       tl:ix_document_kind: "document_id, kind"
     attributes:

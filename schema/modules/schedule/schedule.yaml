@@ -38,6 +38,7 @@ classes:
     annotations:
       tl:current_state: true
       tl:record_types: "schedule.Schedule"
+      tl:offline: none
       tl:ix_scope_code: "scope, code"
     attributes:
       id:

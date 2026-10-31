@@ -28,6 +28,7 @@ classes:
     annotations:
       tl:current_state: true
       tl:record_types: "schedule.ActivityRef"
+      tl:offline: none
       tl:ix_scope_schedule: "scope, schedule_id"
     unique_keys:
       schedule_activity:

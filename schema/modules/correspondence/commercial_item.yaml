@@ -32,6 +32,7 @@ classes:
     annotations:
       tl:current_state: true
       tl:record_types: "correspondence.CommercialItem"
+      tl:offline: none
       tl:ix_scope_clause: "scope, contract_clause_id"
       tl:ix_scope_status: "scope, assessment_status"
     attributes:

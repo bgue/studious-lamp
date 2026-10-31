@@ -24,6 +24,7 @@ classes:
     annotations:
       tl:current_state: true
       tl:record_types: "legacy.LoadRun"
+      tl:offline: none
       tl:ix_scope_system: "scope, source_system, source_table"
     unique_keys:
       scope_system_table_number:

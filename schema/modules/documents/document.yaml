@@ -30,6 +30,7 @@ classes:
     annotations:
       tl:current_state: true
       tl:record_types: "documents.Document"
+      tl:offline: draft_only
       tl:ix_scope_type: "scope, doc_type"
       tl:ix_scope_discipline: "scope, discipline"
       tl:ix_scope_current_status: "scope, current_revision_status"

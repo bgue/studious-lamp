@@ -32,6 +32,7 @@ classes:
     annotations:
       tl:current_state: true
       tl:record_types: "documents.DerivedDocument"
+      tl:offline: none
       tl:ix_scope_revision: "scope, source_revision_id"
       tl:ix_scope_schema: "scope, schema_code"
       tl:ix_source_document: "source_document_id, schema_code"

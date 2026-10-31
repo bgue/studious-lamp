@@ -27,6 +27,7 @@ classes:
     annotations:
       tl:current_state: true
       tl:record_types: "correspondence.Correspondence"
+      tl:offline: draft_only
       tl:ix_scope_direction: "scope, direction"
       tl:ix_scope_domain: "scope, domain"
       tl:ix_scope_received: "scope, received_on"

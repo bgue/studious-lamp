@@ -870,7 +870,8 @@ class Record(RecordEnvelope):
                                                                   'key desc, id'},
                          'tl:ix_scope_voided_updated': {'tag': 'tl:ix_scope_voided_updated',
                                                         'value': 'scope, voided, '
-                                                                 'updated_at, id'}},
+                                                                 'updated_at, id'},
+                         'tl:offline': {'tag': 'tl:offline', 'value': 'full'}},
          'from_schema': 'https://example.org/throughline/core/record',
          'title': 'Record',
          'unique_keys': {'scope_key': {'description': 'A key is unique within its '
@@ -5286,7 +5287,10 @@ class ActivityPost(ConfiguredBaseModel):
     """
     A broadcast post (brief 19.2, 21.1). Authored by a person, an agent or an external party; an agent's posts are labelled by its `agent:<id>` actor. A post has no replies.
     """
-    linkml_meta: ClassVar[LinkMLMeta] = LinkMLMeta({'class_uri': 'as:Note',
+    linkml_meta: ClassVar[LinkMLMeta] = LinkMLMeta({'annotations': {'tl:offline': {'tag': 'tl:offline', 'value': 'full'},
+                         'tl:stream_type': {'tag': 'tl:stream_type',
+                                            'value': 'core.ActivityPost'}},
+         'class_uri': 'as:Note',
          'from_schema': 'https://example.org/throughline/core/feed'})
 
     post_id: str = Field(default=..., description="""Immutable post identifier; equals the ledger `stream_id`.""", json_schema_extra = { "linkml_meta": {'domain_of': ['ActivityPost',
@@ -6186,6 +6190,9 @@ class ThreadRow(ConfiguredBaseModel):
     One row per thread, with the counts. The id of the record it belongs to is the key.
     """
     linkml_meta: ClassVar[LinkMLMeta] = LinkMLMeta({'annotations': {'tl:current_state': {'tag': 'tl:current_state', 'value': True},
+                         'tl:offline': {'tag': 'tl:offline', 'value': 'full'},
+                         'tl:stream_type': {'tag': 'tl:stream_type',
+                                            'value': 'core.Thread'},
                          'tl:table': {'tag': 'tl:table', 'value': 'cur_thread'}},
          'from_schema': 'https://example.org/throughline/core/threads'})
 
@@ -6661,6 +6668,9 @@ class ProposalRow(ConfiguredBaseModel):
     One proposal: what was asked, by whom, and how it ended. Oldest first by `seq` is the review queue. `created_day` (UTC, from the `effective_at` of `Proposal.Created`) with `agent` is the budget key.
     """
     linkml_meta: ClassVar[LinkMLMeta] = LinkMLMeta({'annotations': {'tl:current_state': {'tag': 'tl:current_state', 'value': True},
+                         'tl:offline': {'tag': 'tl:offline', 'value': 'none'},
+                         'tl:stream_type': {'tag': 'tl:stream_type',
+                                            'value': 'core.Proposal'},
                          'tl:table': {'tag': 'tl:table', 'value': 'cur_proposals'}},
          'from_schema': 'https://example.org/throughline/core/proposals'})
 
@@ -7100,6 +7110,9 @@ class SettingChangeRow(ConfiguredBaseModel):
     One `Setting.Changed` event: the history of a key at a layer, and the entries the resolver reads. The row in force at time t is the one with the greatest `effective_us` (then `seq`) not after t.
     """
     linkml_meta: ClassVar[LinkMLMeta] = LinkMLMeta({'annotations': {'tl:current_state': {'tag': 'tl:current_state', 'value': True},
+                         'tl:offline': {'tag': 'tl:offline', 'value': 'none'},
+                         'tl:stream_type': {'tag': 'tl:stream_type',
+                                            'value': 'core.Setting'},
                          'tl:table': {'tag': 'tl:table', 'value': 'cur_setting'}},
          'from_schema': 'https://example.org/throughline/core/settings'})
 
@@ -7653,6 +7666,9 @@ class WebhookSubscription(ConfiguredBaseModel):
     An outbound webhook (brief 18.4): where to send, what to send, and how. One row per subscription in its current state.
     """
     linkml_meta: ClassVar[LinkMLMeta] = LinkMLMeta({'annotations': {'tl:current_state': {'tag': 'tl:current_state', 'value': True},
+                         'tl:offline': {'tag': 'tl:offline', 'value': 'none'},
+                         'tl:stream_type': {'tag': 'tl:stream_type',
+                                            'value': 'core.WebhookSubscription'},
                          'tl:table': {'tag': 'tl:table',
                                       'value': 'cur_webhook_subscription'}},
          'from_schema': 'https://example.org/throughline/core/integration'})
@@ -8024,6 +8040,9 @@ class IntegrationApp(ConfiguredBaseModel):
     A named external system or internal integration (brief 19.2). Its `enabled` switch turns its inbound endpoints, rules, actions and enrichers off together. The name is unique in the ledger: it is the first segment of an inbound path (`/in/{app}/{endpoint}`).
     """
     linkml_meta: ClassVar[LinkMLMeta] = LinkMLMeta({'annotations': {'tl:current_state': {'tag': 'tl:current_state', 'value': True},
+                         'tl:offline': {'tag': 'tl:offline', 'value': 'none'},
+                         'tl:stream_type': {'tag': 'tl:stream_type',
+                                            'value': 'core.IntegrationApp'},
                          'tl:table': {'tag': 'tl:table',
                                       'value': 'cur_integration_app'}},
          'from_schema': 'https://example.org/throughline/core/integration',
@@ -8218,6 +8237,9 @@ class ActionDefinition(ConfiguredBaseModel):
     An operation people, rules and agents may ask for (brief 18.7, 19.2). One row per definition in its current version; `ReviseAction` bumps `version`, and an invocation names the version it ran. The webhook signing secret lives in `int_secret`; `secret_id` names it.
     """
     linkml_meta: ClassVar[LinkMLMeta] = LinkMLMeta({'annotations': {'tl:current_state': {'tag': 'tl:current_state', 'value': True},
+                         'tl:offline': {'tag': 'tl:offline', 'value': 'none'},
+                         'tl:stream_type': {'tag': 'tl:stream_type',
+                                            'value': 'core.ActionDefinition'},
                          'tl:table': {'tag': 'tl:table',
                                       'value': 'cur_action_definition'}},
          'from_schema': 'https://example.org/throughline/core/integration',
@@ -8468,6 +8490,9 @@ class ActionInvocation(ConfiguredBaseModel):
     linkml_meta: ClassVar[LinkMLMeta] = LinkMLMeta({'annotations': {'tl:current_state': {'tag': 'tl:current_state', 'value': True},
                          'tl:ix_action_seq': {'tag': 'tl:ix_action_seq',
                                               'value': 'action, seq desc'},
+                         'tl:offline': {'tag': 'tl:offline', 'value': 'none'},
+                         'tl:stream_type': {'tag': 'tl:stream_type',
+                                            'value': 'core.ActionInvocation'},
                          'tl:table': {'tag': 'tl:table',
                                       'value': 'cur_action_invocation'}},
          'from_schema': 'https://example.org/throughline/core/integration'})
@@ -8691,6 +8716,9 @@ class Rule(ConfiguredBaseModel):
     A when/if/then rule (brief 18.8): `when` is a `SubscriptionFilter`, `condition` a query-language expression on the subject record, `then` a list of `RuleStep`. It acts or proposes as the service actor `svc:rule-<slug>`, declared `access`. Every revision is a new `version`; a rule starts disabled and in `propose` mode.
     """
     linkml_meta: ClassVar[LinkMLMeta] = LinkMLMeta({'annotations': {'tl:current_state': {'tag': 'tl:current_state', 'value': True},
+                         'tl:offline': {'tag': 'tl:offline', 'value': 'none'},
+                         'tl:stream_type': {'tag': 'tl:stream_type',
+                                            'value': 'core.Rule'},
                          'tl:table': {'tag': 'tl:table', 'value': 'cur_rule'}},
          'from_schema': 'https://example.org/throughline/core/integration',
          'unique_keys': {'rule_key': {'unique_key_name': 'rule_key',
@@ -8920,6 +8948,9 @@ class InboundEndpoint(ConfiguredBaseModel):
     `POST /in/{app}/{name}` (brief 18.5, 19.3). `mapping` is restricted JSONata; `allowed_commands` is the subset of the automation commands the endpoint may produce; it runs as `service_actor` with `access`. The signing secrets are in `int_secret`; `current_secret_id` names the newest. Every earlier version stays in `cur_inbound_endpoint_version`, because a delivery is mapped by the version it was received under.
     """
     linkml_meta: ClassVar[LinkMLMeta] = LinkMLMeta({'annotations': {'tl:current_state': {'tag': 'tl:current_state', 'value': True},
+                         'tl:offline': {'tag': 'tl:offline', 'value': 'none'},
+                         'tl:stream_type': {'tag': 'tl:stream_type',
+                                            'value': 'core.InboundEndpoint'},
                          'tl:table': {'tag': 'tl:table',
                                       'value': 'cur_inbound_endpoint'}},
          'from_schema': 'https://example.org/throughline/core/integration',
@@ -9225,6 +9256,9 @@ class Enricher(ConfiguredBaseModel):
     The registration of an enricher plugin (brief 18.9): which events it follows (`when`), which properties of its own `enrich.<name>` pset layer it fills and the acceptance policy of each, and the service actor and access it runs as. `code_version` is the plugin's own version. Phase 1 enrichers are deterministic (`model_ref` is null; ADR-0008 decision 8).
     """
     linkml_meta: ClassVar[LinkMLMeta] = LinkMLMeta({'annotations': {'tl:current_state': {'tag': 'tl:current_state', 'value': True},
+                         'tl:offline': {'tag': 'tl:offline', 'value': 'none'},
+                         'tl:stream_type': {'tag': 'tl:stream_type',
+                                            'value': 'core.Enricher'},
                          'tl:table': {'tag': 'tl:table', 'value': 'cur_enricher'}},
          'from_schema': 'https://example.org/throughline/core/integration',
          'unique_keys': {'enricher_name': {'unique_key_name': 'enricher_name',
@@ -9457,6 +9491,9 @@ class EnrichmentValue(ConfiguredBaseModel):
                                          'value': 'acceptance_state, seq'},
                          'tl:ix_target': {'tag': 'tl:ix_target',
                                           'value': 'target_id, property_path'},
+                         'tl:offline': {'tag': 'tl:offline', 'value': 'none'},
+                         'tl:stream_type': {'tag': 'tl:stream_type',
+                                            'value': 'core.EnrichmentValue'},
                          'tl:table': {'tag': 'tl:table',
                                       'value': 'cur_enrichment_value'}},
          'from_schema': 'https://example.org/throughline/core/integration'})
@@ -10445,6 +10482,9 @@ class TypeRegistrationRow(ConfiguredBaseModel):
     One registered type version: the current state of the stream `type:<namespace>.<Name>@<version>`. `type_name` (`co.acme.LiftPlan`) is what a record's `type` holds. An `active` or `deprecated` row whose files later changed keeps its status and shows the changed hash in `conflict_hash`, with the conflict in `report_json`.
     """
     linkml_meta: ClassVar[LinkMLMeta] = LinkMLMeta({'annotations': {'tl:current_state': {'tag': 'tl:current_state', 'value': True},
+                         'tl:offline': {'tag': 'tl:offline', 'value': 'none'},
+                         'tl:stream_type': {'tag': 'tl:stream_type',
+                                            'value': 'core.TypeRegistration'},
                          'tl:table': {'tag': 'tl:table',
                                       'value': 'cur_core_type_registration'}},
          'from_schema': 'https://example.org/throughline/core/extension'})
@@ -10864,6 +10904,9 @@ class Account(ConfiguredBaseModel):
     One account in its current state. A projection of the `Account.*` events.
     """
     linkml_meta: ClassVar[LinkMLMeta] = LinkMLMeta({'annotations': {'tl:current_state': {'tag': 'tl:current_state', 'value': True},
+                         'tl:offline': {'tag': 'tl:offline', 'value': 'none'},
+                         'tl:stream_type': {'tag': 'tl:stream_type',
+                                            'value': 'core.Account'},
                          'tl:table': {'tag': 'tl:table', 'value': 'cur_account'}},
          'from_schema': 'https://example.org/throughline/core/auth',
          'unique_keys': {'username': {'description': 'Usernames are unique across all '

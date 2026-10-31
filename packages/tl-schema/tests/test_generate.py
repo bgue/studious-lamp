@@ -16,6 +16,8 @@ STATIC_KEYS = {
     "json_schema/correspondence.domain.schema.json",
     "json_schema/documents.publish-mapping.schema.json",
     "models.py",
+    "offline_classes.py",
+    "docs/offline-classes.md",
     "type_labels.py",
     "ddl/postgres/auth_attempt.sql",
     "ddl/postgres/auth_audit.sql",
