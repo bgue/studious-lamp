@@ -251,6 +251,8 @@ def test_record_view_fills_the_psets_tab_and_refreshes_on_change() -> None:
 
     async def scenario(pilot: Pilot[Any]) -> None:
         await pilot.pause()
+        app.query_one(RecordView).show_tab("psets")  # the tab reads its sets when first shown
+        await pilot.pause()
         tab = app.query_one(PsetsTab)
         assert "  x.fat_witness_by          —" in tab.text
         record = client.get_record(SCOPE, "FV-1002")

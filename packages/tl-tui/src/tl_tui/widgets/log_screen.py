@@ -450,6 +450,8 @@ class LogScreen[Row](ModalScreen[None]):
         highlighted then, so a run of filter keys reads one panel and not one for each key."""
         self._show_crumb()
         if not defer:
+            if self._row_due:  # a deferred panel and bar are coming for the row highlighted then
+                return
             self._finish_row(force)
             return
         self._row_force = self._row_force or force
