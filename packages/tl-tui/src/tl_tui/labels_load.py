@@ -78,9 +78,8 @@ def _standard_labels(client: ClientInterface, scope: str) -> dict[str, dict[str,
 #: domains, accounts, the effective schema) change when an administrator edits them, not while a
 #: person moves from record to record. ``forget_labels`` drops them at once.
 LABELS_TTL_S = 20.0
-_KEPT: weakref.WeakKeyDictionary[object, dict[tuple[str, tuple[str, ...]], tuple[float, Labels]]] = (
-    weakref.WeakKeyDictionary()
-)
+_Kept = dict[tuple[str, tuple[str, ...]], tuple[float, Labels]]  # (scope, types) -> (when, labels)
+_KEPT: weakref.WeakKeyDictionary[object, _Kept] = weakref.WeakKeyDictionary()
 
 
 def forget_labels(client: ClientInterface) -> None:

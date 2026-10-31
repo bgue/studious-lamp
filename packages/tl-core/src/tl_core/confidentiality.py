@@ -167,9 +167,7 @@ def _child_hidden(
     )
 
 
-def _source_parts(
-    source: ConfidentialSource, viewer: Viewer, only: str | None = None
-) -> list[str]:
+def _source_parts(source: ConfidentialSource, viewer: Viewer, only: str | None = None) -> list[str]:
     """The root's hidden records, then each child's."""
     return [_source_hidden(source, viewer, only)] + [
         _child_hidden(source, child, viewer, only) for child in source.children

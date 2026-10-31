@@ -253,9 +253,7 @@ def item_content(
         rows.append(DetailRow("", suggestion, section="Suggestion"))
     rows += [*facts, *people, *dates, *clock_rows_of(view.clocks)]
     if client is not None:
-        rows += timeline_detail_rows(
-            client, project, history, view.id, labels, clocks=view.clocks
-        )
+        rows += timeline_detail_rows(client, project, history, view.id, labels, clocks=view.clocks)
         rows += file_rows(client, view.id)
         rows += link_rows(client, view.id)
     rows += [
