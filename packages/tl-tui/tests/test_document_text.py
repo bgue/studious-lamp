@@ -31,28 +31,33 @@ def docs() -> dict[str, DocumentView]:
 
 def test_a_row_has_one_cell_per_column() -> None:
     found = docs()
-    assert len(COLUMNS) == 6 and COLUMNS[4] == "Discipline"
+    assert len(COLUMNS) == 6 and COLUMNS[:3] == ("Number", "Title", "State")
+    assert COLUMNS[5] == "Discipline"
     # Without labels a code is the fallback; with the code lists the plain words show.
     assert row_cells(found["ISO-1234"]) == (
-        "ISO-1234", "Issued", "B(IFC)", "ISO", "PIP", "Isometric, line 47-P-101"
+        "ISO-1234", "Isometric, line 47-P-101", "Issued", "B, Issued for construction", "ISO", "PIP"
     )  # fmt: skip
     assert row_cells(found["ISO-1234"], LABELS) == (
-        "ISO-1234", "Issued", "B(IFC)", "Isometric", "Piping", "Isometric, line 47-P-101"
+        "ISO-1234", "Isometric, line 47-P-101", "Issued", "B, Issued for construction",
+        "Isometric", "Piping",
     )  # fmt: skip
-    assert row_cells(found["ISO-2000"])[2] == "-" and current_text(found["ISO-2000"]) == "-"
+    assert row_cells(found["ISO-2000"])[3] == "—" and current_text(found["ISO-2000"]) == "—"
 
 
 def test_the_detail_lists_revisions_files_and_the_links_with_the_stale_one_marked() -> None:
     lines = detail_lines(docs()["ISO-1234"], LABELS)
-    assert lines[0] == "ISO-1234  Isometric, line 47-P-101"
-    assert lines[1] == "state Issued  |  type Isometric  |  discipline Piping"
-    assert lines[2] == "current B(IFC)"
-    assert "revisions:" in lines
-    assert "  A  Issued  IFR review 2026-10-01  pdf" in lines
-    assert "  B  Issued  IFC construction 2026-10-10  current  pdf" in lines
-    assert "links (1 stale):" in lines
-    assert "  ! 47-FV-1001 (Record) pin A, current B (newer B)" in lines
-    assert "    47-FV-1002 (Record) floats" in lines
+    assert lines[0] == "ISO-1234 · Isometric, line 47-P-101"
+    assert lines[1] == "Issued"
+    assert lines[2] == "Revision B, Issued for construction · Isometric · Piping"
+    assert "Current revision  B, Issued for construction" in lines
+    assert "Document type     Isometric" in lines
+    assert "Revisions (2)" in lines
+    assert "Rev  State    Purpose                  Date        Files" in lines
+    assert "A    Issued   Issued for review        2026-10-01  pdf" in lines
+    assert "B    Current  Issued for construction  2026-10-10  pdf" in lines
+    assert "Links (2, 1 stale)" in lines
+    assert "47-FV-1001  Record  A         ! Stale: now B" in lines
+    assert "47-FV-1002  Record  floating  Floating" in lines
     assert not any("core.Record" in line or "scheme" in line for line in lines)
 
 
@@ -61,16 +66,20 @@ def test_the_technical_lines_show_the_scheme_the_record_and_the_version_only_whe
     plain = detail_lines(view, LABELS)
     technical = detail_lines(view, LABELS, technical=True)
     assert [line for line in technical if line not in plain] == [
-        "state Issued  |  type Isometric  |  discipline Piping  |  scheme alpha",
-        "record DOC-ISO-1234",
-        "version 9",
+        "Technical details",
+        "Revision scheme  alpha",
+        "Record id        DOC-ISO-1234",
+        "Version          9",
     ]
-    assert not any("scheme" in line or line.startswith(("record ", "version ")) for line in plain)
+    assert not any(
+        "scheme" in line or line.startswith(("Record id", "Version", "Technical")) for line in plain
+    )
 
 
 def test_a_document_with_no_revision_says_so() -> None:
     lines = detail_lines(docs()["ISO-2000"])
-    assert "no revisions yet" in lines and not any(line.startswith("links") for line in lines)
+    assert "No revisions yet" in lines and "Current revision  —" in lines
+    assert "No links" in lines and not any(line.startswith("Links (") for line in lines)
 
 
 def test_only_a_stale_pinned_link_can_be_re_pinned() -> None:

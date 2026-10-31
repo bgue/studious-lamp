@@ -38,3 +38,17 @@ async def settle(pilot: Pilot[Any]) -> None:
     await pilot.app.workers.wait_for_complete()
     await pilot.pause()
     await pilot.pause()
+
+
+def panel_of(screen: Any) -> str:
+    """The text of a log's panel (``#log-panel-text``) in full, not only the part in view."""
+    from textual.widgets import Static  # noqa: PLC0415
+
+    return str(screen.query_one("#log-panel-text", Static).content)
+
+
+def static_of(screen: Any, selector: str) -> str:
+    """The text of one ``Static`` (a part of a panel) in full, not only the part in view."""
+    from textual.widgets import Static  # noqa: PLC0415
+
+    return str(screen.query_one(selector, Static).content)
