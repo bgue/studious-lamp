@@ -2148,7 +2148,13 @@ def section_plain_record_screen(ws: Workspace) -> None:
             "ISO-1234",
         )
         await pilot.press("ctrl+d")
-        await tk.until(pilot, lambda: "Schema hash" in tk.screen_text(admin), "details on")
+        await tk.until(
+            pilot,
+            lambda: (
+                "Schema hash" in tk.screen_text(admin) and "Offline class" in tk.screen_text(admin)
+            ),
+            "details on",
+        )
         tk.shot_tui(
             ws,
             admin,
@@ -2156,6 +2162,7 @@ def section_plain_record_screen(ws: Workspace) -> None:
             "Ctrl+D: the same record with ids, versions and keys (admins only)",
             "Schema hash",
             "Version",
+            "Offline class",
             technical=True,
         )
         await pilot.press("ctrl+d")
@@ -2191,6 +2198,52 @@ QUESTION_24 = (
 SUBJECT_24 = "Conflict in piling and utilities at AZ203"
 SUBJECT_24B = "Cable tray support spacing in the pipe rack"
 DOCUMENT_24 = "ISO-6100"
+
+
+def section_module_roles(ws: Workspace) -> None:
+    """An admin grants a module role on the CLI and reads the module roles log (P2-W0)."""
+    renew_sessions(ws)
+    sh = Shell(ws, "Module roles, as an admin", 118)
+    sh.run(
+        "admin",
+        "roles",
+        "grant",
+        "amy",
+        "--project",
+        PROJECT,
+        "--module",
+        "documents",
+        "--role",
+        "superuser",
+        "--reason",
+        "covers issue",
+        who="demo",
+    )
+    sh.run("admin", "roles", "ls", who="demo")
+    sh.run("admin", "roles", "effective", "amy", "--project", PROJECT, who="demo")
+    ws.save("25a-module-roles-cli", sh.transcript.svg())
+
+    app = build_app(ws, admin=True)
+
+    async def scenario(pilot: Pilot[Any]) -> None:
+        await tk.until(pilot, lambda: len(app.query("RecordGrid")) > 0, "the shell")
+        await pilot.press("f10")
+        await pilot.press("m")
+        await tk.until(
+            pilot,
+            lambda: "amy" in tk.screen_text(app) and "documents" in tk.screen_text(app),
+            "the module roles log",
+        )
+        tk.shot_tui(
+            ws,
+            app,
+            "25b-module-roles-log",
+            "F10, m: the module roles log, every grant and who made it (admins only)",
+            "amy",
+            "documents",
+        )
+
+    tk.run_tui(ws, app, scenario)
 
 
 def make_pdf(path: Path, pages: int) -> None:
@@ -2504,6 +2557,8 @@ def main(argv: list[str] | None = None) -> int:
         section_plain_record_screen(ws)
         print("P1-UX2: the log standard, the RFI record and document preview", flush=True)
         section_log_standard(ws)
+        print("P2-W0: module roles", flush=True)
+        section_module_roles(ws)
     finally:
         ws.close()
     print(f"wrote {len(ws.written)} screenshots to {out}")
