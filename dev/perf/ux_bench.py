@@ -65,7 +65,7 @@ PROJECT = "P123"
 SCOPE = f"project:{PROJECT}"
 ACTOR = "user:amy"
 SIZE = (170, 45)  # terminal columns x rows; from 160 columns a log shows its panel beside the list
-SLOW_MS = 250.0
+SLOW_MS = float(os.environ.get("TL_PERF_SLOW_MS", "250"))  # development: profile more
 FULL_LIMIT = 10_000  # above this a size seeds core records only (the grid actions)
 BACKENDS = ("sqlite", "postgres", "remote")
 SCHEMA_VERSION = 1
@@ -433,8 +433,7 @@ async def timed(
     profiler = rec.profiler(name)
     since = REFRESHES[0]
     started = time.perf_counter()
-    if profiler is not None:
-        profiler.enable()
+    profile_on(profiler, name)
     await act()
     while not done():
         if time.perf_counter() - started > limit:
@@ -443,8 +442,7 @@ async def timed(
     state = time.perf_counter()
     await wait_painted(pilot.app, since if paint else -1, started, limit, name)
     painted = time.perf_counter()
-    if profiler is not None:
-        profiler.disable()
+    profile_off(profiler)
     rec.add(name, (state - started) * 1000.0, (painted - started) * 1000.0)
 
 
@@ -663,8 +661,7 @@ async def run_grid(conn: Conn, rec: Recorder, count: int) -> None:
             profiler = rec.profiler("grid_open")
             since = REFRESHES[0]
             started = time.perf_counter()
-            if profiler is not None:
-                profiler.enable()
+            profile_on(profiler, "grid_open")
             await manager.__aenter__()
             try:
                 while not grid_ready(app):
@@ -672,8 +669,7 @@ async def run_grid(conn: Conn, rec: Recorder, count: int) -> None:
                 state = time.perf_counter()
                 await wait_painted(app, since, started, 300.0, "grid_open")
                 painted = time.perf_counter()
-                if profiler is not None:
-                    profiler.disable()
+                profile_off(profiler)
                 rec.add("grid_open", (state - started) * 1000.0, (painted - started) * 1000.0)
             finally:
                 await manager.__aexit__(None, None, None)
@@ -735,6 +731,63 @@ async def run_floor(conn: Conn, rec: Recorder, count: int) -> None:
                 await settle(pilot)
     finally:
         close_app(app)
+
+
+class SqlTimes:
+    """What the profile pass saw of SQL: per action, per statement, the seconds of each call."""
+
+    def __init__(self) -> None:
+        self.current: str | None = None
+        self.by_action: dict[str, dict[str, list[float]]] = {}
+        self.installed = False
+
+    def install(self) -> None:
+        from sqlalchemy import event
+        from sqlalchemy.engine import Engine
+
+        if self.installed:
+            return
+        self.installed = True
+
+        @event.listens_for(Engine, "before_cursor_execute")
+        def before(
+            conn: Any, cursor: Any, statement: Any, params: Any, context: Any, many: Any
+        ) -> None:
+            conn.info["ux_started"] = time.perf_counter()
+
+        @event.listens_for(Engine, "after_cursor_execute")
+        def after(
+            conn: Any, cursor: Any, statement: Any, params: Any, context: Any, many: Any
+        ) -> None:
+            started = conn.info.pop("ux_started", None)
+            if self.current is None or started is None:
+                return
+            text = " ".join(str(statement).split())[:150]
+            seen = self.by_action.setdefault(self.current, {})
+            seen.setdefault(text, []).append(time.perf_counter() - started)
+
+    def lines(self, action: str, limit: int = 4) -> list[str]:
+        seen = self.by_action.get(action, {})
+        ranked = sorted(seen.items(), key=lambda kv: sum(kv[1]), reverse=True)
+        return [
+            f"SQL {sum(t) * 1000:.0f} ms in {len(t)} calls, slowest {max(t) * 1000:.0f} ms: {text}"
+            for text, t in ranked[:limit]
+        ]
+
+
+SQL = SqlTimes()
+
+
+def profile_on(profiler: cProfile.Profile | None, name: str) -> None:
+    if profiler is not None:
+        SQL.current = name
+        profiler.enable()
+
+
+def profile_off(profiler: cProfile.Profile | None) -> None:
+    if profiler is not None:
+        profiler.disable()
+        SQL.current = None
 
 
 def top_lines(profiler: cProfile.Profile, limit: int = 12) -> list[str]:
@@ -810,11 +863,12 @@ async def measure(conn: Conn, full: bool, reps: int, warmup: int) -> dict[str, A
         if not slow:
             continue
         again = Recorder(1, profile=True)
+        SQL.install()
         with inline_threads(True):
             await run(again, 3)  # the first, one warm-up and one profiled repetition
         for n in slow:
             if n in again.profilers:
-                profile[n] = top_lines(again.profilers[n])
+                profile[n] = [*SQL.lines(n), *top_lines(again.profilers[n])]
     actions = {
         name: {
             "cold": list(series.cold) if series.cold else None,
