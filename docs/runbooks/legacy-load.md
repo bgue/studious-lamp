@@ -21,7 +21,7 @@ Purpose: bring the tag list, document register or another export of an incumbent
    ```
    tl load open export.xlsx --project P123 --loader <name> [--confidentiality restricted]
    ```
-   Expected: `opened <system>/<table>#<n> <id>`.
+   Expected: `opened <system>/<table>#<n> <id>`. For a company target give `--company` instead of `--project P123`, never both. The loader's target sets the scope (see Load targets).
 3. Read it, profile it, and look at the profile.
    ```
    tl load extract <run> --project P123
@@ -49,6 +49,17 @@ Purpose: bring the tag list, document register or another export of an incumbent
    ```
    tl load bronze <run> --project P123 --include-confidential
    ```
+
+## Load targets
+A loader writes into one target: the registered name that says which records the rows become. The built-in targets are `tags` and `documents`, both at project scope.
+1. List the installed targets: name, module, scope.
+   ```
+   tl load targets
+   ```
+   Expected: one line per target, for example `documents  legacy  project` and `tags  legacy  project`.
+2. Match the scope on `tl load open`: a project target takes `--project P123`, a company target takes `--company`. A target of the other scope, or an unknown target, is refused at `open`. Loads stay admin-only.
+3. To add a target, a module adds a line to its own `pyproject.toml`: `<name> = "<module>:<function>"` under `[project.entry-points."throughline.load_targets"]`. The function takes no arguments and returns a target of the same name with scope `project` or `company`. A module without a handler class can build its target from a declarative mapping with `mapping_target`.
+4. A duplicate target name is a `ModuleLoadError`, and so is an entry point that fails to load. The name must match `^[a-z][a-z0-9_]*$`. Derived documents use the same shape under `throughline.publish_targets` (ADR-0014); create-only loads and compensation are unchanged.
 
 ## Verify
 - `tl load show <run> --project P123` is Reconciled with `mismatches 0`.
