@@ -13,7 +13,9 @@
 #      offered no action on a P2 document (driver), and still issues in P1;
 #   4  `tl admin roles effective alice --project P1` lists every module with its source; alice
 #      cannot grant; GET /events as alice shows no grant event, as ada it does (driver);
-#   5  an agent proposal of IssueRevision accepted by alice runs; accepted by bob it is 403 (driver);
+#   5  an agent's propose_import_documents proposal of a valid derived register: bob and alice
+#      are 403 (the accept reads the account role) and the proposal stays pending; dora, a
+#      document controller, accepts it and the register's documents are created (driver);
 #   6  a company grant for a stand-in module with company_roles (awp.cwp.release) is accepted and
 #      the same grant on documents is refused no_company_roles (driver);
 #   7  OFFLINE_CLASSES, the capture rules on the device and authority nodes (driver), and
@@ -22,8 +24,9 @@
 #      technical mode only (driver);
 #   9  load_checks() is empty, the contract passes on a sample check, a reserved identifier is
 #      422 and awp.iwp.ready_lead_weeks reads 4 (driver);
-#   10 `tl load targets` lists tags and documents; a tag list loads through the tags target and
-#      reconciles; a derived document publishes through the documents publish target;
+#   10 `tl load targets` lists tags and documents; the tag seed loads through the tags target
+#      (11 created, the 3 invalid rows refused) and reconciles; a derived document publishes
+#      through the documents publish target;
 #   11 `just state P2-W0` prints at most 40 lines; `just relay-lint` passes on relay-ok.txt and
 #      fails on relay-bad.txt.
 #
@@ -42,6 +45,7 @@ drop_pg() {
   pg_url=""
 }
 trap 'drop_pg; rm -rf "$workdir"' EXIT
+STANDARDS=schema/fixtures/standards/co.acme.standards@1.0.0.yaml
 
 export TL_ENV="${TL_ENV:-dev}"
 export TL_PG_URL="${TL_PG_URL:-postgresql://postgres:postgres@localhost:5432/tl_test}"
@@ -160,13 +164,25 @@ run_backend() {
   driver clause4
   clause 4
 
-  step "[$backend] clause 5: an agent's IssueRevision proposal: accepted by alice it runs; accepted by bob it is 403"
-  as alice tl doc register ISO-1004 --project P1 --title "Proposed issue" >/dev/null
-  as alice tl doc rev create ISO-1004 --project P1 --purpose "For the proposal" >/dev/null
-  as alice tl doc rendition add ISO-1004 A "$(pdf ISO-1004-A)" --project P1 --kind pdf --pages 1 >/dev/null
-  driver clause5 ISO-1004 A
-  out="$(as alice tl doc rev ls ISO-1004 --project P1)"; echo "$out"
-  expect "Issued" "$out"
+  step "[$backend] clause 5: an agent's propose_import_documents proposal: bob and alice are refused, dora's accept runs"
+  driver doc-schema "$workdir/doc-list.yaml"
+  out="$(as ada tl derive schema register "$workdir/doc-list.yaml" --company)"; echo "$out"
+  printf 'number,title\nDOC-0501,Register unit 501\nDOC-0502,Register unit 502\n' >"$workdir/register-5.csv"
+  as alice tl doc register ISD-1004 --project P1 --title "Register for a proposal" >/dev/null
+  as alice tl doc rev create ISD-1004 --project P1 --purpose "First issue" >/dev/null
+  as alice tl doc rendition add ISD-1004 A "$(pdf ISD-1004-A)" --project P1 --kind pdf --pages 1 >/dev/null
+  out="$(as alice tl derive open ISD-1004 A --schema doc-list --project P1)"; echo "$out"
+  expect "opened ISD-1004@A/doc-list" "$out"
+  key="ISD-1004@A/doc-list"
+  as alice tl derive content "$key" "$workdir/register-5.csv" --project P1 >/dev/null
+  as alice tl derive start "$key" --project P1 >/dev/null
+  as alice tl derive worker --once >/dev/null
+  out="$(as alice tl derive show "$key" --project P1)"; echo "$out"
+  expect "state Valid" "$out"
+  driver clause5 "$key"
+  out="$(as dora tl doc ls --project P1)"; echo "$out"
+  expect "DOC-0501" "$out"
+  expect "DOC-0502" "$out"
   clause 5
 
   step "[$backend] clause 6: a company grant for a stand-in module with company_roles; refused on documents"
@@ -191,6 +207,8 @@ run_backend() {
   clause 9
 
   step "[$backend] clause 10: the load targets; a tag list through the tags target; a derived document through the documents target"
+  out="$(as ada tl standards load "$STANDARDS")"; echo "$out"
+  expect "loaded co.acme.standards@1.0.0" "$out"
   out="$(as ada tl load targets)"; echo "$out"
   expect "tags  legacy  project" "$out"
   expect "documents  legacy  project" "$out"
@@ -199,13 +217,11 @@ run_backend() {
   as ada tl load extract instr/index#1 --project P1 >/dev/null
   as ada tl load profile instr/index#1 --project P1 >/dev/null
   out="$(as ada tl load plan instr/index#1 --project P1)"; echo "$out"
-  expect "new 11 existing 0 invalid 0" "$out"
+  expect "new 11 existing 0 invalid 3" "$out"
   out="$(as ada tl load load instr/index#1 --project P1 --expect-new 11)"; echo "$out"
-  expect "created 11 existing 0 invalid 0" "$out"
+  expect "created 11 existing 0 invalid 3" "$out"
   out="$(as ada tl load reconcile instr/index#1 --project P1)"; echo "$out"
   expect "mismatches 0" "$out"
-  driver doc-schema "$workdir/doc-list.yaml"
-  out="$(as ada tl derive schema register "$workdir/doc-list.yaml" --company)"; echo "$out"
   as alice tl doc register ISD-1005 --project P1 --title "Document list unit 47" >/dev/null
   as alice tl doc rev create ISD-1005 --project P1 --purpose "First issue" >/dev/null
   as alice tl doc rendition add ISD-1005 A "$(pdf ISD-1005-A)" --project P1 --kind pdf --pages 1 >/dev/null

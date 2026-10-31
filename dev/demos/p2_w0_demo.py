@@ -11,8 +11,9 @@ Modes (first argument):
 * ``clause3 DOC_ID``: dora, a viewer of documents on P2, is refused RegisterDocument on P2 (403)
   and is offered no action on the P2 document DOC_ID (``GET /records/{id}/actions``).
 * ``clause4``: ``GET /events`` as alice shows no module-role grant; as ada it shows them.
-* ``clause5 NUMBER CODE``: an agent proposal of IssueRevision for revision CODE of NUMBER (P1):
-  bob's accept is 403 ``proposal_access``; alice's accept runs and the revision is Issued.
+* ``clause5 KEY``: an agent's ``propose_import_documents`` proposal publishing the valid derived
+  document KEY (P1): bob's and alice's accepts are 403 ``proposal_access`` and the proposal stays
+  pending; dora's accept (a document controller) runs and the proposal is accepted.
 * ``clause6``: a stand-in module with ``company_roles`` (its ``awp.cwp.release`` word) takes a
   ``company`` grant; the same grant on ``documents`` is refused ``no_company_roles``.
 * ``clause7``: ``OFFLINE_CLASSES`` has one entry per record type; the capture rules of section 5.
@@ -39,6 +40,7 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.pool import StaticPool
 from tl_adapters.backend import open_backend
 from tl_adapters.db import as_target
+from tl_adapters.objectstore import make_object_store, object_secret
 from tl_api.app import create_app
 from tl_api.settings import ApiSettings
 from tl_api.tokens import TokenStore
@@ -47,6 +49,7 @@ from tl_core.auth import sessions
 from tl_core.auth.errors import NoCompanyRolesError
 from tl_core.auth.module_grants import GrantModuleRole, grant_module_role
 from tl_core.auth.module_roles import command_index
+from tl_core.files.service import FileService
 from tl_core.modules import ModuleSpec, load_modules, use_modules
 from tl_core.offline import capture_allowed, record_type_rows
 from tl_core.readiness import (
@@ -57,9 +60,9 @@ from tl_core.readiness import (
     load_checks,
 )
 from tl_core.services import proposals
-from tl_core.services.errors import InvalidProposalError
-from tl_mod_documents import registry
-from tl_mod_documents.handlers.revisions import IssueRevision
+from tl_mod_documents.derivation import store as derivation_store
+from tl_mod_documents.derivation import views
+from tl_mod_documents.derivation.publish import PublishDerivedDocuments
 from tl_schema.generated.offline_classes import OFFLINE_CLASSES
 from tl_tui.details import details_for
 from tl_tui.display import DisplayMode, Labels, offline_words
@@ -72,6 +75,7 @@ PASSWORDS = {  # the documented dev passwords the script seeds the people with
     "dora": "a long passphrase for dora",
 }
 P1, P2 = "project:P1", "project:P2"
+AGENT = "agent:triage"
 TODAY = date(2026, 10, 30)
 RECORD_TYPES = frozenset({"awp.IWP", "documents.Revision"})
 MODES = ("clause3", "clause4", "clause5", "clause6", "clause7", "clause8", "clause9", "doc-schema")
@@ -100,6 +104,8 @@ class World:
         tokens = Path(tempfile.mkdtemp(prefix="p2-w0-demo-")) / "tokens.json"
         settings = ApiSettings(db_path=target, tokens_path=tokens)
         self.app = create_app(self.backend, settings=settings, tokens=TokenStore(tokens))
+        # a publication reads its stored rows through the file service (as P1-I3's driver does)
+        derivation_store.configure(FileService(make_object_store(), secret=object_secret()))
         self.clients: dict[str, TestClient] = {}
         self.principals: dict[str, Any] = {}
 
@@ -157,41 +163,48 @@ def clause4() -> None:
         world.close()
 
 
-def clause5(number: str, code: str) -> None:
+def proposal_status(client: TestClient, proposal_id: str) -> str:
+    response = client.get(f"/proposals/{proposal_id}", params={"scope": P1})
+    check(response.status_code == 200, f"GET /proposals/{proposal_id}: {response.status_code}")
+    return str(response.json()["status"])
+
+
+def accept(client: TestClient, proposal_id: str) -> Any:
+    return client.post(f"/proposals/{proposal_id}/accept", params={"scope": P1}, json={})
+
+
+def clause5(key: str) -> None:
+    """An agent proposes the publication of a valid derived register into documents (P1)."""
     world = World()
     try:
         with world.backend(True) as uow:
-            conn = uow.conn()
-            doc = registry.find_document(conn, P1, number)
-            check(doc is not None, f"no document {number} on P1")
-            rev = registry.find_revision(conn, doc.id, code)  # type: ignore[union-attr]
-            check(rev is not None and rev.state == "Draft", f"{number}@{code} is not a draft")
-            revision_id = rev.id  # type: ignore[union-attr]
-        command = IssueRevision(
-            actor="agent:triage", source="mcp:triage", scope=P1,
-            stream_id=revision_id, issue_status="IFR",
+            found = views.find_derived(uow.conn(), P1, key)
+        command = PublishDerivedDocuments(
+            actor=AGENT, source="mcp:triage", scope=P1, derived_id=found.id,
+            expected_content_rev=max(found.content_rev, 1),
         )  # fmt: skip
-        try:
-            with world.backend() as uow:
-                view = proposals.propose(
-                    uow, tool="propose_issue_revision", agent="agent:triage",
-                    summary=f"issue {number}@{code}", command=command,
-                )  # fmt: skip
-        except InvalidProposalError as exc:
-            miss(
-                f"an agent cannot propose IssueRevision (the documents module does not "
-                f"declare it proposable): {exc}"
-            )
-        bob = world.client("bob").post(f"/proposals/{view.proposal_id}/accept", json={})
-        check(bob.status_code == 403, f"bob's accept: {bob.status_code} {bob.text[:120]}")
-        check(bob.json().get("error") == "proposal_access", f"bob's accept: {bob.text[:120]}")
-        passed(5, "an agent's IssueRevision proposal accepted by bob (a plain user) is 403")
-        alice = world.client("alice").post(f"/proposals/{view.proposal_id}/accept", json={})
-        check(alice.status_code == 200, f"alice's accept: {alice.status_code} {alice.text[:160]}")
-        with world.backend(True) as uow:
-            after = registry.get_revision(uow.conn(), revision_id)
-        check(after is not None and after.state == "Issued", f"{number}@{code} after accept")
-        passed(5, f"the same proposal accepted by alice runs: {number}@{code} is Issued")
+        # ``propose`` records the proposal only: ``submit`` would first run the publication as the
+        # agent, which holds no module role, and refuse it before any person decides
+        with world.backend() as uow:
+            view = proposals.propose(
+                uow, tool="propose_import_documents", agent=AGENT, command=command,
+                summary=f"Create the documents of {key}",
+            )  # fmt: skip
+        pid = view.proposal_id
+        for who, what in (
+            ("bob", "bob (a plain user) accepts the agent's publication"),
+            ("alice", "alice (superuser on documents, a plain account) accepts it"),
+        ):
+            refused = accept(world.client(who), pid)
+            text = refused.text[:120]
+            check(refused.status_code == 403, f"{who}'s accept: {refused.status_code} {text}")
+            check(refused.json().get("error") == "proposal_access", f"{who}'s accept: {text}")
+            check(proposal_status(world.client(who), pid) == "pending", f"{who}: not pending")
+            passed(5, f"{what}: 403 proposal_access, the proposal stays pending")
+        done = accept(world.client("dora"), pid)
+        check(done.status_code == 200, f"dora's accept: {done.status_code} {done.text[:160]}")
+        check(done.json()["status"] == "accepted", f"dora's accept: {done.text[:200]}")
+        passed(5, f"dora (document controller) accepts it and the publication of {key} runs")
     finally:
         world.close()
 
@@ -363,7 +376,7 @@ def main(argv: list[str]) -> None:
         "clause3": clause3, "clause4": clause4, "clause5": clause5, "clause6": clause6,
         "clause7": clause7, "clause8": clause8, "clause9": clause9, "doc-schema": doc_schema,
     }  # fmt: skip
-    expected = {"clause3": 1, "clause5": 2, "doc-schema": 1}.get(mode, 0)
+    expected = {"clause3": 1, "clause5": 1, "doc-schema": 1}.get(mode, 0)
     if len(args) != expected:
         raise SystemExit(f"{mode} takes {expected} argument(s)")
     handlers[mode](*args)
