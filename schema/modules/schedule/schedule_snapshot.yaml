@@ -28,6 +28,7 @@ classes:
     annotations:
       tl:current_state: true
       tl:record_types: "schedule.ScheduleSnapshot"
+      tl:offline: none
       tl:ix_schedule_date: "schedule_id, data_date"
       tl:ix_scope_schedule: "scope, schedule_id"
     unique_keys:

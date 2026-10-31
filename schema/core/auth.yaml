@@ -53,6 +53,8 @@ classes:
   Account:
     description: One account in its current state. A projection of the `Account.*` events.
     annotations:
+      tl:offline: none
+      tl:stream_type: core.Account
       tl:current_state: true
       tl:table: cur_account
     unique_keys:

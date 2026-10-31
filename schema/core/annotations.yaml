@@ -31,6 +31,18 @@ description: >-
     `capture_hint` (`camera` | `scan` | `file`, default `file`), `metadata_pset`, `processing` (pipeline names),
     `retention_class` and `confidentiality`. Read at runtime by `tl_core.files.slots`; no generator reads it.
     Generic, unslotted attachments need no declaration.
+  - `tl:offline` (`full` | `draft_only` | `none`): the offline class of a record type (offline-classes spec 2-4). `full`: created
+    and edited offline, merged on sync; `draft_only`: drafts offline, issue, number and sign happen on the authority; `none`:
+    online only. Written on every class that is a record type, resolved as `tl:record_types` is (the class itself for a
+    module class and `core.Record`; the subclass named after the type for a multi-type class such as `Standard`, where the
+    parent may repeat the value but must not disagree). Also written, with `tl:stream_type`, on the class of a core stream
+    that is not a record. A record type without it, a value outside the three, or two classes giving one type different
+    values fails `just gen` with `OfflineClassError`. Read by `tl_schema.generators.offline` (it writes
+    `generated/offline_classes.py` and `generated/docs/offline-classes.md`); nothing enforces the class yet (OC-S2).
+    Corrects the old "no generator reads it" wording used for the other class tags.
+  - `tl:stream_type` (string, core classes only): the ledger stream type (`core.ActivityPost`) whose payload or state
+    this class is, for a stream that is not a record type. Needs `tl:offline` on the same class. Read by
+    `tl_schema.generators.offline` into `OFFLINE_STREAMS`.
 
   Event catalog tags (read by `tl_schema.generators.catalog`; set on the payload classes in events.yaml)
   - `tl:event_type` (string): the ledger event type the class is the payload of, for example `Record.Created`. A class with

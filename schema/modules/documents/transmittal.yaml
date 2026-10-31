@@ -27,6 +27,7 @@ classes:
     annotations:
       tl:current_state: true
       tl:record_types: "documents.Transmittal"
+      tl:offline: draft_only
       tl:ix_scope_direction: "scope, direction"
       tl:ix_scope_due: "scope, due_date"
     attributes:

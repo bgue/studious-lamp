@@ -28,6 +28,7 @@ classes:
     annotations:
       tl:current_state: true
       tl:record_types: "schemareg.SchemaPackage"
+      tl:offline: none
       tl:ix_scope_package: "scope, package, semver"
     unique_keys:
       package_version:

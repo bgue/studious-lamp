@@ -1,0 +1,58 @@
+"""Offline class of every record type and core stream. Do not edit by hand."""
+
+from __future__ import annotations
+
+from typing import Final, Literal
+
+OfflineClass = Literal["full", "draft_only", "none"]
+
+OFFLINE_CLASSES: Final[dict[str, OfflineClass]] = {
+    "core.Record": "full",
+    "correspondence.CommercialItem": "none",
+    "correspondence.ContractClause": "none",
+    "correspondence.Correspondence": "draft_only",
+    "correspondence.CorrespondenceThread": "none",
+    "correspondence.Party": "none",
+    "correspondence.ResponseClock": "none",
+    "correspondence.TechnicalItem": "draft_only",
+    "cost.CostCode": "none",
+    "cost.CostSnapshot": "none",
+    "documents.DerivedDocument": "none",
+    "documents.Document": "draft_only",
+    "documents.DocumentSchema": "none",
+    "documents.ProcessingJob": "none",
+    "documents.Rendition": "draft_only",
+    "documents.ReviewCycle": "none",
+    "documents.Revision": "draft_only",
+    "documents.Transmittal": "draft_only",
+    "engineering.CodeList": "none",
+    "engineering.CodeValue": "none",
+    "engineering.Mnemonic": "none",
+    "engineering.NumberingPattern": "none",
+    "engineering.Tag": "full",
+    "engineering.TagClass": "none",
+    "legacy.LoadRun": "none",
+    "schedule.ActivityRef": "none",
+    "schedule.Schedule": "none",
+    "schedule.ScheduleSnapshot": "none",
+    "schemareg.Adoption": "none",
+    "schemareg.SchemaPackage": "none",
+    "schemareg.Waiver": "none",
+}
+
+OFFLINE_STREAMS: Final[dict[str, OfflineClass]] = {
+    "core.Account": "none",
+    "core.ActionDefinition": "none",
+    "core.ActionInvocation": "none",
+    "core.ActivityPost": "full",
+    "core.Enricher": "none",
+    "core.EnrichmentValue": "none",
+    "core.InboundEndpoint": "none",
+    "core.IntegrationApp": "none",
+    "core.Proposal": "none",
+    "core.Rule": "none",
+    "core.Setting": "none",
+    "core.Thread": "full",
+    "core.TypeRegistration": "none",
+    "core.WebhookSubscription": "none",
+}

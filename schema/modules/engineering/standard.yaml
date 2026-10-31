@@ -134,12 +134,18 @@ classes:
   CodeList:
     title: Code list
     is_a: Standard
+    annotations:
+      tl:offline: none
     description: A registry entry of kind `code_list`. Record type `engineering.CodeList`.
   Mnemonic:
     title: Mnemonic
     is_a: Standard
+    annotations:
+      tl:offline: none
     description: A registry entry of kind `mnemonic`. Record type `engineering.Mnemonic`.
   NumberingPattern:
     title: Numbering pattern
     is_a: Standard
+    annotations:
+      tl:offline: none
     description: A registry entry of kind `numbering_pattern`. Record type `engineering.NumberingPattern`.

@@ -32,6 +32,7 @@ classes:
     annotations:
       tl:current_state: true
       tl:record_types: "correspondence.TechnicalItem"
+      tl:offline: draft_only
       tl:ix_scope_discipline: "scope, discipline"
       tl:ix_scope_required_by: "scope, required_by"
     attributes:

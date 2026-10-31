@@ -26,6 +26,7 @@ classes:
     annotations:
       tl:current_state: true
       tl:record_types: "correspondence.ContractClause"
+      tl:offline: none
       tl:ix_scope_contract: "scope, contract"
     attributes:
       id:

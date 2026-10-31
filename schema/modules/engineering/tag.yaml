@@ -53,6 +53,7 @@ classes:
     annotations:
       tl:current_state: true
       tl:record_types: "engineering.Tag"
+      tl:offline: full
       tl:ix_scope_class: "scope, class_code"
       tl:ix_scope_mnemonic_area: "scope, mnemonic, area"
       tl:ix_scope_number_status: "scope, number_status"

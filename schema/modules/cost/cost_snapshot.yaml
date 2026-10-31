@@ -27,6 +27,7 @@ classes:
     annotations:
       tl:current_state: true
       tl:record_types: "cost.CostSnapshot"
+      tl:offline: none
       tl:ix_scope_period: "scope, period, revision"
     unique_keys:
       scope_period_revision:

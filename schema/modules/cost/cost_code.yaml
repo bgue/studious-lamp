@@ -28,6 +28,7 @@ classes:
     annotations:
       tl:current_state: true
       tl:record_types: "cost.CostCode"
+      tl:offline: none
       tl:table: cur_cost_costcode
       tl:ix_scope_code: "scope, code"
       tl:ix_scope_parent: "scope, parent_code"

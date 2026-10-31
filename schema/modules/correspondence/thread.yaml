@@ -27,6 +27,7 @@ classes:
     annotations:
       tl:current_state: true
       tl:record_types: "correspondence.CorrespondenceThread"
+      tl:offline: none
       tl:ix_scope_state: "scope, state"
       tl:ix_scope_subject: "scope, subject_key"
     attributes:

@@ -26,6 +26,7 @@ classes:
     annotations:
       tl:current_state: true
       tl:record_types: "documents.ReviewCycle"
+      tl:offline: none
       tl:ix_revision_round: "revision_id, round"
       tl:ix_scope_state_due: "scope, state, due_date"
     attributes:
