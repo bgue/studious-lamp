@@ -10,7 +10,7 @@ Labels: **built** is on the trunk; **designed** is in the brief, a plan or a con
 |---|---|---|---|
 | Central (web, SaaS or the company's data centre) | Postgres | Everyone; API, MCP, webhooks, lake | Authority: canonical `seq`, numbering, hash chain, outbox |
 | Site server (on-premises edge node) | SQLite or Postgres | Site TUIs on the LAN | Replica with its own users; may be upstream of laptops |
-| Device (laptop; later the PWA) | SQLite embedded | One owner | Replica with a scope subscription |
+| Device (laptop; phone and tablet in Phase 5 I5) | SQLite embedded; in-browser ledger on a phone | One owner | Replica with a scope subscription; device-to-device sync on a local network proposed (Phase 5 I5) |
 
 The same core runs in all three (built: dialect-neutral core, SQLite and Postgres adapters with a parity suite, the
 embedded TUI client over SQLite, `tl serve`). What differs is authority and what each node may hold.

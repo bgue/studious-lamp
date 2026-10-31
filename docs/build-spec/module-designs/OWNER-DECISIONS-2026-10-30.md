@@ -45,3 +45,10 @@ CSV import; no outbound call). P2-Q5: B (movements are events on the stock-lot s
 requisitions are records). P2-Q9: A (keys in schema/settings/platform.yaml). Web security review at the end of web
 increment 1; web off in production until it passes. `awp.release.signoff_roles` default `[superuser]`.
 `RejectReceipt` is a user act; disposition of rejected items is a superuser act.
+
+## Roadmap item (owner, 2026-10-31)
+
+Mobile: the full app on phones (tabbed) and tablets, fully distributed (every device a replica, device-to-device sync
+proposed), with on-phone photo, video and point-cloud capture. Recorded as Phase 5 Increment 5 in
+`11-phase5-plan.md`, which lists the decisions it still needs (native shell, device-to-device sync, licences, device
+matrix and offline period, store distribution).

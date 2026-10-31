@@ -7,7 +7,7 @@
 | 2 Execution planning and materials | `08-phase2-plan.md` | 6 | IWP issued with documents, materials, scaffold readiness |
 | 3 Quality and piping | `09-phase3-plan.md` | 8 | Weld → NDE → test package → certificate; model overlay; inbound NDE |
 | 4 Completions and turnover | `10-phase4-plan.md` | 3 | Subsystem MC certificate with snapshot and dossier |
-| 5 Expansion | `11-phase5-plan.md` | 6 (outline) | v1 release checklist |
+| 5 Expansion | `11-phase5-plan.md` | 6 (outline) | v1 release checklist; the full app on phones and tablets, fully distributed, with photo, video and point-cloud capture (I5, owner roadmap item 2026-10-31) |
 
 Total: 39 increments. At 10–25 implementer tickets per increment, Phases 0–4 are roughly 500–800 Haiku tickets,
 40–60 Sonnet supervisor runs, and 25–35 Opus orchestrator calls (one per phase start, one per fanout increment,
