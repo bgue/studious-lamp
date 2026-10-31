@@ -31,8 +31,8 @@ def test_every_command_in_the_table_has_a_route(harness: Harness) -> None:
     # + the derivation pipeline (P1-I3), the cost (1) and schedule (6) modules (P1-I4), the
     # correspondence module's 28 (P1-I5), rules and actions (P1-I7 WS-A: 4 + 3 + 5 + 6 + 1) and
     # the thread messages (WS-B: 3), the 19 for RFIs and Commercial items (P1-I6) and the schema
-    # registry (P1-I8: 13)
-    assert len(COMMANDS) == 20 + 14 + 24 + 10 + 1 + 6 + 28 + 4 + 3 + 5 + 6 + 1 + 3 + 19 + 13
+    # registry (P1-I8: 13; AdoptSchemaSet: 14)
+    assert len(COMMANDS) == 20 + 14 + 24 + 10 + 1 + 6 + 28 + 4 + 3 + 5 + 6 + 1 + 3 + 19 + 14
 
 
 def test_create_record_returns_the_command_result(harness: Harness) -> None:
@@ -268,6 +268,8 @@ def test_the_controller_actions_are_exactly_the_commands_marked_controller() -> 
             "AssessCommercial",
             "CloseCommercial",
             "ReferCommercialToLegal",
+            # the schema registry: a project's superuser adopts an optional set
+            "AdoptSchemaSet",
         )
     }
     assert {s.name for s in COMMANDS if s.access == "controller"} == {

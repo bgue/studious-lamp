@@ -26,6 +26,7 @@ from tl_core.auth.password import prepare_password
 from tl_mod_correspondence.commands import API_COMMANDS as CORRESPONDENCE_COMMANDS
 from tl_mod_documents.commands import API_COMMANDS
 from tl_mod_schedule.commands import API_COMMANDS as SCHEDULE_COMMANDS
+from tl_mod_schemareg.commands import API_COMMANDS as SCHEMAREG_COMMANDS
 
 PASSWORD = "correct horse battery"
 SCOPE = "project:P123"
@@ -100,8 +101,10 @@ def test_the_controlling_set_is_the_twelve_and_the_actions_follow() -> None:
     assert scheduling == {"DefineSchedule", "PublishScheduleSnapshot", "VoidScheduleSnapshot"}
     correspondence = {c.model.__name__ for c in CORRESPONDENCE_COMMANDS if c.access == "controller"}
     assert len(correspondence) == 24  # P1-I5: 13; P1-I6: issue + escalate an RFI, 9 Commercial
+    registry = {c.model.__name__ for c in SCHEMAREG_COMMANDS if c.access == "controller"}
+    assert registry == {"AdoptSchemaSet"}
     assert controller_actions() == {
-        f"control.command.{n}" for n in CONTROLLING | scheduling | correspondence
+        f"control.command.{n}" for n in CONTROLLING | scheduling | correspondence | registry
     }
 
 
