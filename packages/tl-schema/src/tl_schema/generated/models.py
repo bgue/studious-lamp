@@ -12122,6 +12122,9 @@ class InboundDelivery(ConfiguredBaseModel):
                                                   'value': 'endpoint_id, state'},
                          'tl:ix_received': {'tag': 'tl:ix_received',
                                             'value': 'received_at'},
+                         'tl:offline': {'tag': 'tl:offline', 'value': 'none'},
+                         'tl:stream_type': {'tag': 'tl:stream_type',
+                                            'value': 'core.InboundDelivery'},
                          'tl:table': {'tag': 'tl:table', 'value': 'int_delivery'}},
          'from_schema': 'https://example.org/throughline/core/integration_ops'})
 
