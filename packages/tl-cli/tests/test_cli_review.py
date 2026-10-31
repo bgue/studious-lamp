@@ -191,7 +191,9 @@ def test_on_behalf_and_override_are_for_a_controller(
         amy = ordinary_env(env, tmp_path)
         for args in (behalf, over):
             refused = review(amy, *args, ok=False)
-            assert refused.stderr.startswith("error: ") and "admin" in refused.stderr
+            assert (
+                refused.stderr.startswith("error: ") and "controller access word" in refused.stderr
+            )
     done = review(env, *behalf)
     assert done.stdout.strip().startswith(f"recorded {CYCLE}: approved for user:bo by user:")
     assert "  user:bo  approved" in listing(env)[2]

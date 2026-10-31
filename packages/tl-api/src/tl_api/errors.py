@@ -176,6 +176,8 @@ def _rows() -> tuple[ErrorSpec, ...]:
         s(auth.UnknownModuleError, "unknown_module", 422),
         s(auth.NoSuchGrantError, "no_such_grant", 404),
         s(auth.NoCompanyRolesError, "no_company_roles", 422),
+        # an unusable role table is a start-up configuration error: it stays a 500, but a named one
+        s(auth.RoleTableError, "role_table", 500),
         # --- engineering module (P1-I1): registry, tag classes, tags, imports ----------------
         s(eng.EngineeringError, "engineering_error", 422),
         s(eng.RegistryScopeError, "registry_scope", 422),

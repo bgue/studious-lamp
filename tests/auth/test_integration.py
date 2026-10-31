@@ -6,6 +6,12 @@ from typing import Any
 
 from authworld import World
 from tl_core.auth import accounts
+from tl_core.auth.module_grants import (
+    GrantModuleRole,
+    RevokeModuleRole,
+    grant_module_role,
+    revoke_module_role,
+)
 from tl_core.auth.password import prepare_password
 from tl_core.auth.projector import ACCOUNT_EVENT_TYPES
 from tl_core.services.commands import CreateRecord
@@ -110,6 +116,11 @@ def test_real_account_payloads_match_the_catalog_schemas(world: World) -> None:
         )
         accounts.disable(uow, account_id=bob.account_id, by="user:root", reason="x")
         accounts.enable(uow, account_id=bob.account_id, by="user:root", reason="y")
+        grant = {"actor": "user:root", "source": "test", "scope": "company", "reason": "g"}
+        grant |= {"account_id": bob.account_id, "project": "project:P1"}
+        grant |= {"module": "documents", "role": "user"}
+        grant_module_role(uow, GrantModuleRole(**grant))  # RM-S1: module roles are account events
+        revoke_module_role(uow, RevokeModuleRole(**grant))
         view = accounts.revoke_agent_token(
             uow, token_id=_first_token(uow), by="user:root", reason="z"
         )
