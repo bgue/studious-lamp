@@ -10,7 +10,7 @@ from __future__ import annotations
 from collections.abc import Awaitable, Callable
 
 from fakes import SCOPE, FakeClient
-from helpers import run_pilot, screen_text, settle
+from helpers import panel_of, run_pilot, screen_text, settle
 from textual.pilot import Pilot
 from textual.widgets import DataTable
 from tl_tui.app import TlApp
@@ -107,9 +107,10 @@ def test_a_row_the_viewer_cannot_read_opens_as_no_record() -> None:
 
 def test_plain_text_names_the_snapshot_and_hides_the_command_and_the_actor_id() -> None:
     async def steps(pilot: Pilot[None], app: TlApp, screen: ScheduleScreen) -> None:
-        text = screen_text(app)
-        assert "Snapshot 2  Processing" in text and "waiting to be processed" in text
-        assert "requested by dev" in text
+        panel = panel_of(screen)
+        text = screen_text(app) + panel
+        assert "Snapshot 2\nState          Processing" in panel
+        assert "Waiting to be processed" in panel and "Requested by   dev" in panel
         for hidden in ("MAIN#2", "user:dev", "tl xer worker", "SNAP-MAIN-2"):
             assert hidden not in text, hidden
         assert find_technical(text, screen.labels) == []
@@ -119,17 +120,17 @@ def test_plain_text_names_the_snapshot_and_hides_the_command_and_the_actor_id() 
 
 def test_technical_mode_restores_the_key_and_the_command_and_back() -> None:
     async def steps(pilot: Pilot[None], app: TlApp, screen: ScheduleScreen) -> None:
-        assert "tl xer worker" not in screen_text(app)
+        assert "tl xer worker" not in panel_of(screen)
         app.display_mode.technical = True
         screen.refresh_for_display_mode()
         await settle(pilot)
-        text = screen_text(app)
-        assert "MAIN#2  Processing" in text and "tl xer worker" in text
+        text = panel_of(screen)
+        assert "MAIN#2\nState          Processing" in text and "tl xer worker" in text
         app.display_mode.technical = False
         screen.refresh_for_display_mode()
         await settle(pilot)
-        text = screen_text(app)
-        assert "Snapshot 2  Processing" in text and "tl xer worker" not in text
+        text = panel_of(screen)
+        assert "Snapshot 2\nState          Processing" in text and "tl xer worker" not in text
         assert "MAIN#2" not in text
 
     scenario(processing(), steps)

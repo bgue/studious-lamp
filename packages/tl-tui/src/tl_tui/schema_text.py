@@ -16,6 +16,7 @@ from tl_schema.registry import PackageError, parse_package
 
 from tl_tui.display import Labels, actor_label, humanize, plain_keys, type_label
 from tl_tui.layout import (
+    EMPTY,
     Cell,
     Page,
     Section,
@@ -52,7 +53,7 @@ def tree_cells(rows: Sequence[PackageSummary], *, technical: bool = False) -> li
     others, so the versions of a package read as a tree. In plain mode the name is the row's title,
     else its humanized package name; technical mode shows the package name. The drafter is a
     name (`demo`) in plain mode and the actor reference (`user:demo`) in technical mode. `Class` is
-    the worst class of change, `-` when none, with ` (stale)` after it when the content changed
+    the worst class of change, `—` when none, with ` (stale)` after it when the content changed
     since `analysed`.
     """
     cells: list[tuple[str, ...]] = []
@@ -61,7 +62,7 @@ def tree_cells(rows: Sequence[PackageSummary], *, technical: bool = False) -> li
         shown = row.package if technical else (row.title or humanize(row.package))
         name = "" if row.package == previous else shown
         previous = row.package
-        worst = row.worst_class or "-"
+        worst = row.worst_class or EMPTY
         if row.worst_class and not row.analysed:
             worst += " (stale)"
         drafted = row.drafted_by if technical else actor_label(Labels(), row.drafted_by)

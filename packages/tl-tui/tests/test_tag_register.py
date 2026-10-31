@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Awaitable, Callable
 
 from fakes import SCOPE, FakeClient
-from helpers import run_pilot, screen_text, settle
+from helpers import panel_of, run_pilot, screen_text, settle
 from textual.pilot import Pilot
 from textual.widgets import DataTable, Input, Static
 from tl_schema.forms import ConformanceIssue
@@ -59,7 +59,8 @@ def test_f8_lists_the_tags_in_service_by_number_and_describes_the_first() -> Non
         assert numbers(screen) == ["47-FV-1001", "47-FV-1002", "47-HV-1003", "LEGACY-1"]
         assert screen.query_one("#log-table", DataTable).row_count == 4
         assert "does not fit" in text and "✗ nonconformant" in text
-        assert "lacks:" in text and "Valve data" in text  # the detail of the first tag
+        panel = panel_of(screen)  # the detail of the first tag
+        assert "Lacks (1)" in panel and "nonconformant  Valve data  required" in panel
         assert "4 of 4 tags" in text
         await pilot.press("escape")
         await settle(pilot)
@@ -73,9 +74,9 @@ def test_moving_the_cursor_describes_the_tag_it_lands_on() -> None:
         await pilot.press("down", "down", "down")
         await settle(pilot)
         assert screen.detail is not None and screen.detail.number == "LEGACY-1"
-        text = screen_text(app)
-        assert "number does not fit the pattern" in text
-        assert "! number: does not fit the pattern" in text
+        panel = panel_of(screen)
+        assert "Number check  does not fit the pattern" in panel
+        assert "! number: does not fit the pattern" in panel
 
     scenario(world(), steps)
 

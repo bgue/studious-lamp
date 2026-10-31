@@ -46,39 +46,56 @@ def issue(
 
 
 def test_a_row_has_one_cell_per_column() -> None:
-    assert COLUMNS == ("Number", "Class", "Status", "Number check", "Conformance", "Title")
+    assert COLUMNS == ("Number", "Title", "Class", "Status", "Number check", "Conformance")
     assert row_cells(view()) == (
         "47-FV-1001",
+        "Feed gas control",
         "Control valve",
         "Design",
         "ok",
         "✗ nonconformant",
-        "Feed gas control",
     )
 
 
 def test_a_missing_class_or_status_is_a_dash_and_a_bad_number_says_bad() -> None:
     cells = row_cells(view(class_code=None, status=None, number_status="violation"))
-    assert cells[1:4] == ("-", "-", "does not fit")
+    assert cells[2:5] == ("—", "—", "does not fit")
 
 
 def test_the_detail_names_the_parts_the_class_and_what_is_lacking() -> None:
     lines = detail_lines(view(issues=[issue(), issue("psets.valve_data.size_in", "warning")]))
     assert lines == [
-        "47-FV-1001  Feed gas control",
-        "class Control valve  |  status Design  |  conformance nonconformant",
-        "number ok: Area 47, Mnemonic FV, Seq 1001",
-        "lacks:",
-        "  nonconformant  Valve data required by the class",
-        "  warning  Valve data / Size in required by the class",
+        "47-FV-1001 · Feed gas control",
+        "✗ Does not conform",
+        "Control valve · area 47 · Design",
+        "",
+        "Key facts",
+        "Class         Control valve",
+        "Status        Design",
+        "Number check  ok",
+        "Conformance   ✗ nonconformant",
+        "",
+        "Number",
+        "Area      47",
+        "Mnemonic  FV",
+        "Seq       1001",
+        "",
+        "Lacks (2)",
+        "Level          Property              Problem",
+        "nonconformant  Valve data            required by the class",
+        "warning        Valve data / Size in  required by the class",
     ]
 
 
 def test_technical_mode_adds_the_raw_class_path_and_segments() -> None:
+    plain = detail_lines(view(issues=[issue()]))
     lines = detail_lines(view(issues=[issue()]), technical=True)
-    assert lines[1].startswith("class ControlValve  |")
-    assert lines[2] == "number ok: area=47 mnemonic=FV seq=1001"
-    assert lines[4] == "  nonconformant  psets.valve_data required by the class"
+    assert [line for line in lines if line not in plain] == [
+        "Technical details",
+        "Number parts  area=47 mnemonic=FV seq=1001",
+        "Class code    ControlValve",
+    ]
+    assert not any("ControlValve" in line or "area=" in line for line in plain)
 
 
 def test_the_detail_shows_a_violation_of_the_number_and_a_clean_tag() -> None:
@@ -94,16 +111,15 @@ def test_the_detail_shows_a_violation_of_the_number_and_a_clean_tag() -> None:
             {"segment": None, "level": "error", "message": "'LEGACY-1' does not fit the pattern"}
         ],
     )
-    assert detail_lines(bad) == [
-        "LEGACY-1  LEGACY-1",
-        "class -  |  status -  |  conformance ok",
-        "number does not fit the pattern",
-        "  ! number: 'LEGACY-1' does not fit the pattern (error)",
-        "nothing lacking",
-    ]
-    assert detail_lines(view())[-1] == "no detail loaded"  # a listing carries no issues
+    lines = detail_lines(bad)
+    assert lines[:2] == ["LEGACY-1 · LEGACY-1", "✓ Conforms"]
+    assert "Class         —" in lines and "Status        —" in lines  # fixed section: dashes
+    assert "Number check  does not fit the pattern" in lines
+    assert "! number: 'LEGACY-1' does not fit the pattern (error)" in lines
+    assert lines[-2:] == ["Lacks", "Nothing lacking"]
+    assert detail_lines(view())[-1] == "No detail loaded"  # a listing carries no issues
     segment = view(violations=[{"segment": "mnemonic", "level": "error", "message": "unknown"}])
-    assert "  ! mnemonic: unknown (error)" in detail_lines(segment)
+    assert "! mnemonic: unknown (error)" in detail_lines(segment)
 
 
 @pytest.mark.parametrize(

@@ -11,7 +11,7 @@ from collections.abc import Awaitable, Callable
 from dataclasses import replace
 
 from fakes import SCOPE, FakeClient
-from helpers import run_pilot, screen_text, settle
+from helpers import panel_of, run_pilot, screen_text, settle
 from textual.pilot import Pilot
 from textual.screen import ModalScreen
 from tl_mod_schedule.compare import LogicChange, ProgressChange
@@ -236,12 +236,13 @@ def test_schedule_screen_look_ahead_header_plain_then_technical() -> None:
         await settle(pilot)
         await pilot.press("l")
         await settle(pilot)
-        text = screen_text(app)
-        assert "look-ahead Snapshot 2: 2026-10-12 to 2026-11-09 (4 weeks)" in text
-        assert "A1110  In progress" in text
+        panel = panel_of(app.screen)
+        assert "Look-ahead, Snapshot 2\nWindow  2026-10-12 to 2026-11-09 (4 weeks)" in panel
+        assert "A1110     In progress · critical" in panel
         await pilot.press("ctrl+d")
         await settle(pilot)
-        assert "look-ahead MAIN#2: 2026-10-12 to 2026-11-09 (4 weeks)" in screen_text(app)
-        assert "A1110  in_progress" in screen_text(app)
+        panel = panel_of(app.screen)
+        assert "Look-ahead, MAIN#2\nWindow  2026-10-12 to 2026-11-09 (4 weeks)" in panel
+        assert "A1110     in_progress · critical" in panel
 
     run_pilot(app, go)
