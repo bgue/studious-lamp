@@ -3,16 +3,19 @@
 #
 # Usage: dev/state.sh <INC> [<base>]
 #   INC    increment id, e.g. P2-W0. Its branch is the id lower-cased with its first "-" replaced by "/".
-#   base   optional ref. Default: the base= token on line 1 of docs/tickets/<INC>/STATE.md, else $TRUNK
-#          (default main).
+#   base   optional ref. Default: the base= token on line 1 of docs/tickets/<INC>/STATE.md, else the
+#          fallback main ($TRUNK overrides the fallback; the trunk is not read from git or STATE.md).
 # Output: at most 40 lines, each at most 160 characters. Line 1 is the STATE.md header verbatim, then the
-# sections BOARD, LOG, WT, HEADS and NEXT, each opened by a line holding only its name.
-# Env: WT_ROOT worktree root (default /home/user/wt); TRUNK fallback base (default main).
+# sections BOARD, LOG, WT, HEADS and NEXT, each opened by a line holding only its name. Caps per section:
+# BOARD 15, LOG 10 commits, WT 4, HEADS 4, NEXT 6; a section over its cap ends with "+n more". If the total
+# is still over 40, the output is cut to 39 lines and ends with "+N more lines".
+# Env: WT_ROOT worktree root (default /home/user/wt); TRUNK base fallback (default main).
 # Exit 0 on success, 1 when STATE.md is missing (prints "STATE none"), 2 on bad usage.
 set -euo pipefail
 
 usage() {
   echo "usage: dev/state.sh <INC> [<base>]" >&2
+  echo "  base defaults to the base= token on line 1 of docs/tickets/<INC>/STATE.md, else main (TRUNK overrides main)" >&2
   exit 2
 }
 
@@ -58,17 +61,26 @@ section() {
   awk -v sec="$1" '/^## /{ p = ($2 == sec); next } p && NF { print }' "$state"
 }
 
-lines=("$header")
+# add_capped CAP ITEM...: appends at most CAP items to lines; when cut, appends "+n more".
+lines=()
+add_capped() {
+  local cap="$1" count
+  shift
+  count=$#
+  if [ "$count" -le "$cap" ]; then
+    lines+=("$@")
+  else
+    lines+=("${@:1:$cap}")
+    lines+=("+$((count - cap)) more")
+  fi
+}
+
+lines+=("$header")
 
 # BOARD: at most 15 lines, then "+n more" when cut.
 lines+=("BOARD")
 mapfile -t board < <(section BOARD)
-for ((i = 0; i < ${#board[@]} && i < 15; i++)); do
-  lines+=("${board[i]}")
-done
-if [ "${#board[@]}" -gt 15 ]; then
-  lines+=("+$(( ${#board[@]} - 15 )) more")
-fi
+add_capped 15 "${board[@]}"
 
 # LOG: commits on the increment branch since base, at most 10.
 lines+=("LOG")
@@ -80,25 +92,25 @@ else
   lines+=("no branch $incbr")
 fi
 
-# WT: open worktrees under the worktree root whose branch starts with the increment branch.
+# WT: open worktrees under the worktree root whose branch starts with the increment branch; at most 4.
 wt_root="${WT_ROOT:-/home/user/wt}"
 wt_root="${wt_root%/}"
 wt_path=""
 wt_br=""
 wt_head=""
+wt_lines=()
 flush_wt() {
   if [ -n "$wt_path" ] && [[ "$wt_path" == "$wt_root"/* ]] && [[ "$wt_br" == "$incbr"* ]]; then
     st=clean
     if [ -n "$(git -C "$wt_path" status --porcelain 2>/dev/null)" ]; then
       st=dirty
     fi
-    lines+=("$wt_path $wt_br ${wt_head:0:7} $st")
+    wt_lines+=("$wt_path $wt_br ${wt_head:0:7} $st")
   fi
   wt_path=""
   wt_br=""
   wt_head=""
 }
-lines+=("WT")
 while IFS= read -r ln; do
   case "$ln" in
     worktree\ *) flush_wt; wt_path="${ln#worktree }" ;;
@@ -108,24 +120,31 @@ while IFS= read -r ln; do
   esac
 done < <(git worktree list --porcelain)
 flush_wt
+lines+=("WT")
+add_capped 4 "${wt_lines[@]}"
 
-# HEADS: ticket branches (<incbr>-*) not merged into the increment branch.
-lines+=("HEADS")
+# HEADS: ticket branches (<incbr>-*) not merged into the increment branch; at most 4.
+heads_lines=()
 if [ "$have_inc" -eq 1 ]; then
   while read -r br sha; do
     [ -n "$br" ] || continue
     if ! git merge-base --is-ancestor "$sha" "$incbr" 2>/dev/null; then
-      lines+=("$br ${sha:0:7}")
+      heads_lines+=("$br ${sha:0:7}")
     fi
   done < <(git branch --list --format='%(refname:short) %(objectname)' "$incbr-*")
 fi
+lines+=("HEADS")
+add_capped 4 "${heads_lines[@]}"
 
-# NEXT: the lines under "## NEXT", verbatim.
-lines+=("NEXT")
+# NEXT: the lines under "## NEXT", verbatim; at most 6.
 mapfile -t nxt < <(section NEXT)
-for l in "${nxt[@]}"; do
-  lines+=("$l")
-done
+lines+=("NEXT")
+add_capped 6 "${nxt[@]}"
+
+total=${#lines[@]}
+if [ "$total" -gt 40 ]; then
+  lines=("${lines[@]:0:39}" "+$((total - 39)) more lines")
+fi
 
 for l in "${lines[@]}"; do
   printf '%s\n' "${l:0:160}"
