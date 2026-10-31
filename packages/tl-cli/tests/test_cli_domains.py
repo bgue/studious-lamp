@@ -18,7 +18,8 @@ from unittest import mock
 
 import pytest
 from doccli_support import docs_env
-from tl_adapters.db import DbTarget, as_target
+from sqlalchemy import text
+from tl_adapters.db import DbTarget, as_target, open_uow
 from tl_cli import session
 from tl_cli.main import app
 from tl_core.auth import accounts, sessions
@@ -87,6 +88,11 @@ def run(who: dict[str, str], *args: str, ok: bool = True) -> RunResult:
     assert result.exception is None or isinstance(result.exception, SystemExit), result.exception
     assert (result.exit_code == 0) is ok, result.output
     return result
+
+
+def events(cast: Cast) -> int:
+    with open_uow(cast.target, readonly=True) as uow:
+        return int(uow.conn().execute(text("SELECT COUNT(*) FROM events")).scalar_one())
 
 
 def later(days: int) -> str:
@@ -195,22 +201,47 @@ def test_a_notice_goes_to_the_other_party_and_comes_back_assessed(cast: Cast) ->
 
 
 def test_every_comm_command_needs_a_controller(cast: Cast) -> None:
+    """The notice is real (escalated from an answered RFI by the controller): the module gate runs
+    once the command is built, after the lookup (RM-S4), so a made-up number would answer `no item`
+    before `forbidden`."""
+    run(cast.dora, "rfi", "escalate", answered_rfi(cast), *PROJECT)
+    notice = "P123-EW-0001"
+    # an escalated notice is restricted, hidden from a user as if it were not there (ADR-0016):
+    # lower it so the user's lookup finds it and the gate is what answers
+    run(cast.dora, "corr", "class", "set", notice, *PROJECT, "--to", "internal", "--reason", "test")
+    before = events(cast)
     for args in (
         ("ls",),
-        ("show", "P123-EW-0001"),
+        ("show", notice),
         ("raise", "--subject", "x"),
-        ("update", "P123-EW-0001", "--subject", "y"),
-        ("submit", "P123-EW-0001"),
-        ("review", "P123-EW-0001"),
-        ("return", "P123-EW-0001", "--reason", "r"),
-        ("issue", "P123-EW-0001"),
-        ("assess", "P123-EW-0001", "--status", "agreed"),
-        ("close", "P123-EW-0001"),
-        ("legal", "P123-EW-0001", "--reason", "r"),
+        ("update", notice, "--subject", "y"),
+        ("submit", notice),
+        ("review", notice),
+        ("return", notice, "--reason", "r"),
+        ("issue", notice),
+        ("assess", notice, "--status", "agreed"),
+        ("close", notice),
+        ("legal", notice, "--reason", "r"),
         ("export",),
     ):
         refused = run(cast.ursula, "comm", *args, *PROJECT, ok=False)
+        assert refused.stderr.startswith("error: forbidden"), (args, refused.stderr)
         assert (ROLE_GATE if args[0] in ("ls", "show", "export") else GATE) in refused.stderr, args
+    assert events(cast) == before
+
+
+def test_a_restricted_notice_answers_a_user_like_a_number_nobody_used(cast: Cast) -> None:
+    """ADR-0016 comes first: for a user a hidden notice does not exist, so a command that names one
+    says what it says for an unused number, never `forbidden`."""
+    run(cast.dora, "rfi", "escalate", answered_rfi(cast), *PROJECT)
+    hidden = run(
+        cast.ursula, "comm", "update", "P123-EW-0001", *PROJECT, "--subject", "y", ok=False
+    )
+    unused = run(
+        cast.ursula, "comm", "update", "P123-EW-9999", *PROJECT, "--subject", "y", ok=False
+    )
+    assert hidden.stderr.replace("0001", "N") == unused.stderr.replace("9999", "N")
+    assert "forbidden" not in hidden.stderr
 
 
 def test_the_export_names_its_classes_and_quotes_what_a_spreadsheet_would_run(

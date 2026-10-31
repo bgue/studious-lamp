@@ -216,7 +216,7 @@ def test_engineering_command_gates_the_admin_registry_and_lets_a_person_rename_a
         "MergeTags",
     ]
     before = ledger.events()
-    with pytest.raises(ForbiddenError, match="admin role"):
+    with pytest.raises(ForbiddenError, match="admin access word for engineering"):
         bob.engineering_command(
             "RegisterCodeList",
             ledger.command(
