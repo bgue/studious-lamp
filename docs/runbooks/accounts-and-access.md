@@ -6,7 +6,7 @@ Purpose: create and manage accounts, roles and agent tokens, get back in after a
 - Trigger: a new person, agent or leaver; a locked-out admin; a restore from the archive; a first real deployment; a question about who signed in.
 
 ## Before you start
-- Roles are `admin` (everything, including the admin module), `document_controller` (a `user` who may also run the controlling acts of document control: issue, supersede and void, signed copies, transmittals, review corrections, `tl doc import --apply`; no `admin.*`; ADR-0013) and `user` (everything except `admin.*` and the controlling acts). An agent (`agent:<name>`) is never admin, never a document controller and always propose-only.
+- Roles are `admin` (everything, including the admin module), `document_controller` (a `user` who may also run the controlling acts of document control: issue, supersede and void, signed copies, transmittals, review corrections, `tl doc import --apply`; no `admin.*`; ADR-0013) and `user` (everything except `admin.*` and the controlling acts). An agent (`agent:<name>`) is never admin, never a document controller and always propose-only. Module roles, which decide what an account may do in one module of one project, are separate from these account roles: see "Module roles" under Steps and the [access words reference](../reference/access-words.md).
 - Access needed: for `tl admin ...` and recovery, read and write access to the database (SQLite path or `postgresql://` URL) on the host. `tl login` keeps one session per ledger, keyed `db:<absolute path>` for a file and `pg:user@host:port/database[?options=sha256:...]` for Postgres (never a password; the schema scope is hashed; ADR-0009 addendum of P1-I0 workstream B); a Postgres ledger always needs a session, and `--actor` is honoured on it only when it is your own. `tl logout` ends the server session first; if the server cannot be reached it forgets the local entry and warns that the server session was not revoked. `tl sim` makes its agent on a Postgres ledger only for a signed-in admin. For the API, an admin session.
 - Safe to run during business hours: yes. A password hash takes about a quarter of a second of CPU.
 - **Trust boundary of the embedded modes (decision D3).** The embedded TUI and the CLI open the database directly. Whoever can read the file can read the password hashes and write rows; file permissions are the real boundary there, and sign-in only identifies the actor and applies the roles. Remote use goes through the API.
@@ -61,6 +61,60 @@ Purpose: create and manage accounts, roles and agent tokens, get back in after a
 
 ### Upgrading an existing dev database
 10. Run `uv run tl init` once (it is safe to repeat): it creates the account tables. A lake that already held account events is rebuilt once: see `docs/runbooks/lake-sync.md`, "After the accounts upgrade".
+
+### Module roles
+11. Module roles decide what an account may do in one module of one project. Only an admin grants or revokes them. The roles are:
+
+    | Role | Words it holds | An agent may get it |
+    |---|---|---|
+    | `viewer` | `read` | yes |
+    | `user` | `read`, `user` | yes |
+    | `superuser` | `read`, `user`, `controller` | no |
+
+    An explicit grant for that project and module replaces the role the account role would give. Without one, the account role gives a module role: `user` gives `user` in every module; `document_controller` gives `user` in every module and `superuser` in `documents`, `correspondence` and `schedule`. `admin` and `company` are platform words and cannot be granted.
+
+    Grant a role. `--reason` is kept in the history. `--module *` means every module. `--project company` is the company scope: it reads company grants only for a module that declares company roles (materials, in Phase 2). Granting a role the account already holds changes nothing.
+    ```
+    uv run tl admin roles grant alice --project P1 --module documents --role superuser --reason "document controller on P1"
+    ```
+    Expected: the grant appears in step 12's list.
+
+12. List the explicit grants, filtered if you like:
+    ```
+    uv run tl admin roles ls --project P1 --module documents
+    uv run tl admin roles ls --user alice --json
+    ```
+    Expected: one row per explicit grant, with who, where, which role, who granted it and when.
+
+13. Show what an account holds on a project, and where each role comes from:
+    ```
+    uv run tl admin roles effective alice --project P1
+    ```
+    Expected: one row per module, with the role held and whether an explicit grant or the account role gave it.
+
+14. Revoke a grant. It takes the same `--project`, `--module`, `--role` and `--reason` as the grant:
+    ```
+    uv run tl admin roles revoke alice --project P1 --module documents --role superuser --reason "moved off P1"
+    ```
+    Expected: the grant is gone from step 12's list. Revoking a role the account does not hold is an error (`no_such_grant`, 404 over the API).
+
+In the TUI, open the accounts screen with `F10` and press `m` to open the module roles log. The API routes are:
+
+| Action | Route | Who |
+|---|---|---|
+| Grant | `POST /admin/accounts/{id}/module-roles` | admin |
+| Revoke | `POST /admin/accounts/{id}/module-roles/revoke` | admin |
+| List grants | `GET /admin/module-roles` | admin |
+| Effective roles | `GET /admin/accounts/{id}/effective-roles?project` | admin |
+| My roles | `GET /auth/me/roles?project` | any signed-in account |
+
+Errors: `unknown_role` 422, `unknown_module` 422, `no_such_grant` 404, `no_company_roles` 422.
+
+### What a grant does not change
+- A `superuser` grant gives no restricted read (ADR-0016 is unchanged), and module roles do not filter reads.
+- A grant does not change the account role. A proposal is accepted only when the accepter holds the account role and the module word.
+- Grant events are hidden from `GET /events` for non-admins.
+- Agents still only propose.
 
 ## Release gates (before anything that is not a developer's machine)
 - [ ] **A front-door rate limiter** (reverse proxy, gateway or WAF) on `POST /auth/sign-in` and `/auth/password`, by client address, with an alert on a high failure rate. The server's own per-address limit is in memory and per process; it is a second layer.
