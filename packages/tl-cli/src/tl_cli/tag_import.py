@@ -18,16 +18,21 @@ import typer
 from pydantic import ValidationError
 from tl_adapters.db import DbTarget, open_uow
 from tl_core.ledger import ConcurrencyError
+from tl_core.services.commands import UpdateRecord
 from tl_core.services.errors import ServiceError
+from tl_core.services.psets import SetPsetValues
 from tl_mod_engineering.errors import ImportApplyError
+from tl_mod_engineering.handlers.tags import ReclassifyTag, RecordTag
 from tl_mod_engineering.imports.apply import apply_plan, ended_numbers, existing_tags
 from tl_mod_engineering.imports.diff import plan_import
 from tl_mod_engineering.imports.mapping import MappingError, load_mapping, read_rows
 from tl_mod_engineering.imports.model import ImportPlan
 
-from tl_cli.session import require_admin
+from tl_cli.session import require_admin, require_commands
 
 _DEFAULT_ACTOR = "user:dev"
+# every command class `apply_plan` issues (a bulk helper: the CLI gates it before the call)
+_APPLY_PLAN_COMMANDS = (RecordTag, ReclassifyTag, UpdateRecord, SetPsetValues)
 
 
 def _fail(message: str) -> NoReturn:
@@ -129,6 +134,7 @@ def import_tags(
             if not apply:
                 typer.echo("dry run: nothing written; add --apply to write")
                 return
+            require_commands(uow, _APPLY_PLAN_COMMANDS, actor=actor, scope=scope)
             result = apply_plan(
                 uow,
                 scope,

@@ -19,7 +19,7 @@ from __future__ import annotations
 import json
 import os
 import tempfile
-from collections.abc import Iterator, Sequence
+from collections.abc import Iterable, Iterator, Sequence
 from contextlib import AbstractContextManager, contextmanager
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
@@ -378,6 +378,20 @@ def require_command(uow: UnitOfWork, command: Command) -> None:
         require_command_access(uow.conn(), command)
     except ForbiddenError as exc:
         fail(f"forbidden: {exc}")
+
+
+def require_commands(
+    uow: UnitOfWork, classes: Iterable[type[Command]], *, actor: str, scope: str
+) -> None:
+    """The pre-flight of a bulk helper that runs ``handle_*`` calls inside: one gate per class.
+
+    ``apply_plan`` and ``load_standards`` build their commands themselves, so the CLI cannot gate
+    each one. Before the helper it calls :func:`require_command` with a probe of every class the
+    helper can issue (the access function reads the class name, the actor and the scope only, so
+    the probe is built without validation). A class no module declares passes, as before.
+    """
+    for cls in classes:
+        require_command(uow, cls.model_construct(actor=actor, source="cli", scope=scope))
 
 
 def session_viewer(db: DbTarget) -> Viewer:

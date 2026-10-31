@@ -25,18 +25,30 @@ from tl_mod_engineering.handlers.standards import (
     AddCodeValue,
     CloseCodeValue,
     CloseStandard,
+    RegisterCodeList,
+    RegisterMnemonic,
+    RegisterNumberingPattern,
     handle_add_code_value,
     handle_close_code_value,
     handle_close_standard,
 )
+from tl_mod_engineering.handlers.tag_class import DefineTagClass
 from tl_mod_engineering.loader import ItemKind, LoadReport, load_standards, plan_load
 from tl_mod_engineering.names import COMPANY
 
-from tl_cli.session import require_admin, require_command
+from tl_cli.session import require_admin, require_command, require_commands
 
 app = typer.Typer(help="Load and read the company standards registry.", no_args_is_help=True)
 
 _DEFAULT_ACTOR = "user:dev"
+# every command class `load_standards` issues (a bulk helper: the CLI gates it before the call)
+_LOAD_STANDARDS_COMMANDS = (
+    RegisterCodeList,
+    AddCodeValue,
+    RegisterMnemonic,
+    RegisterNumberingPattern,
+    DefineTagClass,
+)
 _Actor = Annotated[str, typer.Option("--actor", help="Actor recorded on events.")]
 _Reason = Annotated[str, typer.Option("--reason", help="Why (kept in the history).")]
 _Project = Annotated[
@@ -115,6 +127,7 @@ def load(
             _counts(plan)
             return
         with open_uow(db) as uow:
+            require_commands(uow, _LOAD_STANDARDS_COMMANDS, actor=actor, scope=COMPANY)
             report = load_standards(uow, doc, actor=actor, source="cli")
     typer.echo(f"loaded {doc.edition}")
     _counts(report)

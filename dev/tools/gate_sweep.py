@@ -19,7 +19,10 @@ statement that holds the call. A command built inline as the argument is first b
 the gate and the handler see the same object. An unconditional ``require_controller(db)`` (or
 ``self._controller_gate(uow)``) in a function the sweep gated is removed: the module word replaces
 it. A site it cannot place prints ``MANUAL file:line reason``; the run exits 2 and that file is left
-alone. Standard library only; the acceptance pin of RM-S4 reuses :func:`find_calls`.
+alone. A call to a bulk helper in ``HELPERS`` (``apply_plan``, ``load_standards``: they build and
+run commands inside) needs ``require_commands(uow, <classes>, ...)`` earlier in the same function;
+the sweep does not place it (``MANUAL``), ``--check`` lists it. Standard library only; the
+acceptance pin of RM-S4 reuses :func:`find_calls`.
 """
 
 from __future__ import annotations
@@ -41,6 +44,10 @@ GATE_NAMES = {CLI_GATE, EMBEDDED_GATE}
 # tl_mod_* entry points that are not called handle_* but take a command as their second argument
 EXTRA_HANDLERS = {"sweep_clocks", "ingest_email"}
 OLD_GATES = {"require_controller", "_controller_gate"}
+# bulk helpers of a tl_mod_* package that issue several commands inside (the CLI cannot gate each
+# one): the call must be preceded, in the same function, by the pre-flight over their classes
+HELPERS = {"apply_plan", "load_standards"}
+PREFLIGHT = "require_commands"
 _BAD_BETWEEN = (
     ast.Lambda,
     ast.ListComp,
@@ -131,7 +138,7 @@ def _is_handler_call(call: ast.Call, names: set[str], modules: set[str], params:
     return False
 
 
-def _gate_calls(fn: ast.AST) -> list[ast.Call]:
+def _gate_calls(fn: ast.AST, names: set[str] = GATE_NAMES) -> list[ast.Call]:
     """Calls to a gate in ``fn``, not descending into nested functions."""
     found: list[ast.Call] = []
 
@@ -148,7 +155,7 @@ def _gate_calls(fn: ast.AST) -> list[ast.Call]:
                     if isinstance(f, ast.Attribute)
                     else ""
                 )
-                if name in GATE_NAMES:
+                if name in names:
                     found.append(child)
             walk(child)
 
@@ -200,6 +207,29 @@ def find_calls(source: str, filename: str = "<memory>") -> list[Call]:
         for call, fn, gated in _scan(tree)
     ]
     return sorted(calls, key=lambda c: c.line)
+
+
+def find_helper_calls(source: str, filename: str = "<memory>") -> list[Call]:
+    """Calls to a bulk helper (``HELPERS`` imported from ``tl_mod_*``) and whether the pre-flight
+    ``require_commands(uow, <classes>, ...)`` comes earlier in the same function.
+
+    "Earlier" is position in the source, as for the handler pin: a pre-flight in a sibling branch
+    or loop of the function counts. The sweep does not place these; a person does.
+    """
+    tree = ast.parse(source, filename)
+    names, _ = _imports(tree)
+    parents = _parents(tree)
+    out: list[Call] = []
+    for call in (n for n in ast.walk(tree) if isinstance(n, ast.Call)):
+        if not (isinstance(call.func, ast.Name) and call.func.id in HELPERS & names):
+            continue
+        fn = _function_of(call, parents)
+        gated = fn is not None and any(
+            (g.lineno, g.col_offset) < (call.lineno, call.col_offset)
+            for g in _gate_calls(fn, {PREFLIGHT})
+        )
+        out.append(Call(filename, _qualname(fn, parents), call.lineno, call.func.id, gated))
+    return sorted(out, key=lambda c: c.line)
 
 
 # --- the rewrite ------------------------------------------------------------------------------
@@ -413,10 +443,16 @@ def main(argv: list[str]) -> int:
         pending.extend(calls)
         manual.extend(man)
         changed += len(calls) if did else 0
+        name = str(path.relative_to(ROOT))
+        bulk = [c for c in find_helper_calls(path.read_text(encoding="utf-8"), name) if not c.gated]
+        pending.extend(bulk)
+        if not check:
+            manual.extend(Manual(c.file, c.line, f"{c.variable} without {PREFLIGHT}") for c in bulk)
     if check:
         for c in pending:
-            print(f"{c.file}:{c.line} ungated {c.function} ({c.variable or 'inline command'})")
-        print(f"{len(pending)} ungated module handler call(s)")
+            what = c.variable if c.variable in HELPERS else (c.variable or "inline command")
+            print(f"{c.file}:{c.line} ungated {c.function} ({what})")
+        print(f"{len(pending)} ungated module handler or bulk helper call(s)")
         return 1 if pending else 0
     for m in manual:
         print(f"MANUAL {m.file}:{m.line} {m.reason}")

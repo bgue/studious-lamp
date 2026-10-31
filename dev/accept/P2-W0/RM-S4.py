@@ -15,6 +15,8 @@ check passes, 1 on the first failure.
 
 from __future__ import annotations
 
+import ast
+import importlib
 import importlib.util
 import os
 import re
@@ -28,6 +30,7 @@ TMP = Path(tempfile.mkdtemp(prefix="rm-s4-"))
 os.environ["TL_ENV"] = "dev"
 os.environ.pop("TL_SCHEMA_DIR", None)
 
+import typer  # noqa: E402
 from tl_adapters.db import as_target, open_uow  # noqa: E402
 from tl_cli import session  # noqa: E402
 from tl_cli.main import app  # noqa: E402
@@ -38,6 +41,7 @@ from tl_core.auth.module_grants import GrantModuleRole, grant_module_role  # noq
 from tl_core.auth.module_roles import command_index, holder_for_actor  # noqa: E402
 from tl_core.auth.password import prepare_password  # noqa: E402
 from tl_core.services import proposals  # noqa: E402
+from tl_core.services.commands import Command, UpdateRecord  # noqa: E402
 from tl_mod_correspondence.handlers.clocks import SweepClocks  # noqa: E402
 from tl_mod_documents.handlers.documents import (  # noqa: E402
     RegisterDocument,
@@ -45,6 +49,7 @@ from tl_mod_documents.handlers.documents import (  # noqa: E402
     handle_register_document,
 )
 from tl_mod_engineering.commands import API_COMMANDS as ENGINEERING_COMMANDS  # noqa: E402
+from tl_mod_engineering.handlers.tags import ReclassifyTag, RecordTag  # noqa: E402
 from tl_mod_schedule.handlers.publish import PublishScheduleSnapshot  # noqa: E402
 from tl_mod_schemareg.commands import API_COMMANDS as SCHEMAREG_COMMANDS  # noqa: E402
 from tl_tui.embedded import EmbeddedClient  # noqa: E402
@@ -181,6 +186,58 @@ need(mutant != doc_src, "the in-memory mutant must differ")
 seen = [c for c in sweep.find_calls(mutant, "doc.py(mutant)") if not c.gated]
 need(len(seen) == 1, f"the pin must report the ungated copy, saw {seen}")
 passed(f"AST pin: {total} handler calls all gated; a deliberately ungated copy is reported")
+
+# the bulk helpers (`apply_plan`, `load_standards`) run handlers inside: each call needs the
+# pre-flight `require_commands(uow, <classes>, ...)` earlier in its function, and the classes in
+# that tuple are exactly the commands the helper builds
+helpers = {
+    "tl_cli/doc_import.py": ("_APPLY_PLAN_COMMANDS", "tl_mod_documents.imports.apply"),
+    "tl_cli/tag_import.py": ("_APPLY_PLAN_COMMANDS", "tl_mod_engineering.imports.apply"),
+    "tl_cli/standards.py": ("_LOAD_STANDARDS_COMMANDS", "tl_mod_engineering.loader"),
+}
+bulk_total = 0
+for rel, (const, helper_module) in helpers.items():
+    path = ROOT / "packages" / "tl-cli" / "src" / rel
+    src = path.read_text(encoding="utf-8")
+    found = sweep.find_helper_calls(src, rel)
+    need(len(found) == 1 and found[0].gated, f"{rel}: the bulk helper call is ungated: {found}")
+    bulk_total += len(found)
+    pre = re.search(r"^\s*require_commands\(uow, " + const + r",.*\n", src, flags=re.M)
+    need(pre is not None, f"{rel}: the pre-flight names {const}")
+    removed = src.replace(pre.group(0), "", 1)  # type: ignore[union-attr]
+    again = sweep.find_helper_calls(removed, rel + "(mutant)")
+    need(len(again) == 1 and not again[0].gated, f"{rel}: removing the pre-flight must be reported")
+    # the tuple holds every Command class the helper module builds
+    cli_module = importlib.import_module(rel[:-3].replace("/", "."))
+    held = {c.__name__ for c in getattr(cli_module, const)}
+    mod = importlib.import_module(helper_module)
+    built = {
+        n.func.id
+        for n in ast.walk(ast.parse(Path(mod.__file__).read_text(encoding="utf-8")))  # type: ignore[arg-type]
+        if isinstance(n, ast.Call)
+        and isinstance(n.func, ast.Name)
+        and isinstance(getattr(mod, n.func.id, None), type)
+        and issubclass(getattr(mod, n.func.id), Command)
+    }
+    need(held == built, f"{rel}: {const} {sorted(held)} but the helper builds {sorted(built)}")
+need(bulk_total == 3, f"bulk helper calls: {bulk_total}")
+passed(
+    "AST pin: the 3 bulk helper calls (apply_plan x2, load_standards) are preceded by "
+    "require_commands over exactly the commands they build; removing one is reported"
+)
+
+# the pre-flight itself: a plain user is refused an engineering admin word before any write
+with open_uow(TARGET, readonly=True) as _uow:
+    try:
+        session.require_commands(_uow, (RecordTag,), actor="user:ursula", scope="project:P1")
+    except typer.Exit:
+        pass
+    else:
+        need(False, "require_commands must refuse a plain user the RecordTag admin word")
+    session.require_commands(
+        _uow, (ReclassifyTag, UpdateRecord), actor="user:ursula", scope="project:P1"
+    )
+passed("require_commands refuses a plain user a class whose word it lacks and passes the others")
 
 # --- 2. the CLI, per module -----------------------------------------------------------------------
 

@@ -15,6 +15,7 @@ from typing import Annotated
 
 import typer
 from tl_adapters.db import DbTarget, open_uow
+from tl_mod_documents.handlers.documents import RegisterDocument
 from tl_mod_documents.imports.apply import apply_plan
 from tl_mod_documents.imports.diff import plan_import
 from tl_mod_documents.imports.mapping import (
@@ -26,7 +27,10 @@ from tl_mod_documents.imports.mapping import (
 from tl_mod_documents.imports.model import ImportPlan
 
 from tl_cli.doc import _DEFAULT_ACTOR, _Actor, _fail, _Project, _service_errors
-from tl_cli.session import require_controller
+from tl_cli.session import require_commands, require_controller
+
+# every command class `apply_plan` issues (a bulk helper: the CLI gates it before the call)
+_APPLY_PLAN_COMMANDS = (RegisterDocument,)
 
 
 def _preview(plan: ImportPlan) -> None:
@@ -85,6 +89,7 @@ def import_documents(
             if not apply:
                 typer.echo("dry run: nothing written; add --apply to write")
                 return
+            require_commands(uow, _APPLY_PLAN_COMMANDS, actor=actor, scope=scope)
             results = apply_plan(
                 uow,
                 scope,

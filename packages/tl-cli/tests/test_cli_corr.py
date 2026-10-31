@@ -29,7 +29,11 @@ from typer.testing import Result as RunResult
 
 AUTO_SIGN_IN = False
 PASSWORD = "correct horse battery"
-GATE = "needs the document_controller or admin role"
+GATE = "access word for correspondence"  # the module word (RM-S4)
+ROLE_GATE = (
+    "needs the document_controller or admin role"  # `require_controller`, kept on a condition
+)
+ROLE_GATED = {"clearance ls", "report register"}
 PROJECT = ("--project", "P123")
 runner = CliRunner()
 
@@ -186,7 +190,7 @@ def test_the_register_csv_leaves_out_what_is_not_internal_and_quotes_formulas(
     # a user cannot name a class; the file goes where --out says
     refused = run(cast.ursula, "report", "register", *PROJECT, "--include-class", "restricted",
                   ok=False)  # fmt: skip
-    assert GATE in refused.stderr
+    assert ROLE_GATE in refused.stderr
     target = tmp_path / "register.json"
     run(cast.ursula, "report", "register", *PROJECT, "--json", "--out", str(target))
     assert [r["number"] for r in json.loads(target.read_text())] == [plain]
@@ -235,7 +239,7 @@ def test_a_user_is_refused_at_every_controller_site_and_nothing_is_written(
     before = cast.events()
     refused = run(cast.ursula, *SITES[name], *PROJECT, ok=False)
     assert refused.stderr.startswith("error: forbidden"), refused.stderr
-    assert GATE in refused.stderr
+    assert (ROLE_GATE if name in ROLE_GATED else GATE) in refused.stderr
     assert cast.events() == before
 
 
