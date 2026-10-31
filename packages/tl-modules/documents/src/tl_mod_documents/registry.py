@@ -267,10 +267,7 @@ def list_documents(
 ) -> list[DocumentRow]:
     """The documents of a scope ordered by number. A void document is left out unless asked."""
     sql = f"SELECT {_DOCUMENT_COLUMNS} FROM {DOCUMENT_VIEW} WHERE scope = :scope"
-    params: dict[str, Any] = {"scope": scope, "limit": limit, "offset": offset}
-    visible, visible_params = confidentiality.not_hidden("id")
-    sql += f" AND {visible}"
-    params.update(visible_params)
+    params: dict[str, Any] = {"scope": scope}
     if doc_type is not None:
         sql += " AND doc_type = :doc_type"
         params["doc_type"] = doc_type
@@ -282,7 +279,13 @@ def list_documents(
         params["state"] = state
     if not include_void:
         sql += " AND COALESCE(status, 'Draft') <> 'Void'"
-    sql += " ORDER BY key LIMIT :limit OFFSET :offset"
+    sql += " ORDER BY key, id"
+    if offset == 0:  # the readable rows of the first page: looked up for the rows read
+        return [_document(r) for r in confidentiality.visible_rows(conn, sql, params, limit=limit)]
+    visible, visible_params = confidentiality.not_hidden("id")
+    head, order = sql.rsplit(" ORDER BY ", 1)
+    sql = f"{head} AND {visible} ORDER BY {order} LIMIT :limit OFFSET :offset"
+    params.update({**visible_params, "limit": limit, "offset": offset})
     return [_document(r) for r in conn.execute(text(sql), params).all()]
 
 

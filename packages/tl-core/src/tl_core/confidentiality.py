@@ -22,7 +22,7 @@ from __future__ import annotations
 
 import json
 import re
-from collections.abc import Generator, Iterable, Mapping, Sequence
+from collections.abc import Callable, Generator, Iterable, Mapping, Sequence
 from contextlib import contextmanager
 from contextvars import ContextVar, Token
 from dataclasses import dataclass
@@ -134,24 +134,22 @@ def _allowed(source: ConfidentialSource, viewer: Viewer) -> str:
 
 
 def _only(only: str | None) -> str:
-    """The extra ``AND`` that limits a part to the records asked about (``r.id = :_cf_id``)."""
-    return f" AND {only}" if only else ""
+    """The extra condition that limits the scan to the records asked about (``r.id = :_cf_id``)."""
+    return f"{only} AND " if only else ""
 
 
-def _source_hidden(source: ConfidentialSource, viewer: Viewer, only: str | None = None) -> str:
+def _source_hidden(source: ConfidentialSource, viewer: Viewer) -> str:
+    """The test for a record of the root's types: it has no readable row in the module table."""
     return (
-        f"SELECT r.id FROM cur_core_record r WHERE r.type IN ({_types(source.record_types)})"
-        f"{_only(only)} "
+        f"(r.type IN ({_types(source.record_types)}) "
         f"AND NOT EXISTS (SELECT 1 FROM {source.table} s WHERE s.{source.id_column} = r.id "
-        f"AND ({_allowed(source, viewer)}))"
+        f"AND ({_allowed(source, viewer)})))"
     )
 
 
-def _child_hidden(
-    source: ConfidentialSource, child: ChildSource, viewer: Viewer, only: str | None = None
-) -> str:
-    """The children whose root is not readable. A flat join to the root: nesting one subquery
-    inside another per level overflows SQLite's parser stack."""
+def _child_hidden(source: ConfidentialSource, child: ChildSource, viewer: Viewer) -> str:
+    """The test for a record of the child's types: its root is not readable. A flat join to the
+    root: nesting one subquery inside another per level overflows SQLite's parser stack."""
     if child.hop is None:
         via, root_key = "", f"ch.{child.root_column}"
     else:
@@ -159,18 +157,17 @@ def _child_hidden(
         via = f" JOIN {table} hop ON hop.{key} = ch.{child.root_column}"
         root_key = f"hop.{root}"
     return (
-        f"SELECT r.id FROM cur_core_record r WHERE r.type IN ({_types(child.record_types)})"
-        f"{_only(only)} "
+        f"(r.type IN ({_types(child.record_types)}) "
         f"AND NOT EXISTS (SELECT 1 FROM {child.table} ch{via} "
         f"JOIN {source.table} s ON s.{source.id_column} = {root_key} "
-        f"WHERE ch.{child.id_column} = r.id AND ({_allowed(source, viewer)}))"
+        f"WHERE ch.{child.id_column} = r.id AND ({_allowed(source, viewer)})))"
     )
 
 
-def _source_parts(source: ConfidentialSource, viewer: Viewer, only: str | None = None) -> list[str]:
-    """The root's hidden records, then each child's."""
-    return [_source_hidden(source, viewer, only)] + [
-        _child_hidden(source, child, viewer, only) for child in source.children
+def _source_tests(source: ConfidentialSource, viewer: Viewer) -> list[str]:
+    """The root's hidden-record test, then each child's."""
+    return [_source_hidden(source, viewer)] + [
+        _child_hidden(source, child, viewer) for child in source.children
     ]
 
 
@@ -180,6 +177,11 @@ def hidden_sql(viewer: Viewer | None = None, *, only: str | None = None) -> str 
     The text holds only names the modules declared and the bind parameter ``_cf_acct`` (see
     ``params_for``). A system viewer hides nothing.
 
+    One pass over ``cur_core_record``: a record is hidden when it is of a confidential type and
+    the test for its type (root, or child through its root) says it is not readable. The tests
+    are joined by ``OR`` (flat: one level of subquery each), so the table is read once however
+    many sources there are, not once per source and child.
+
     ``only`` is a condition on ``r.id`` written by the caller (``r.id = :_cf_id``, ``r.id IN
     :_cf_ids`` or ``r.id = l.from_id``, never user input): the answer is then the hidden records
     that also meet it, the same ids as the whole set would hold, but the database looks at those
@@ -188,10 +190,19 @@ def hidden_sql(viewer: Viewer | None = None, *, only: str | None = None) -> str 
     who = viewer if viewer is not None else current_viewer()
     if who.system:
         return None
-    parts: list[str] = []
+    tests: list[str] = []
+    types: set[str] = set()
     for source in confidential_sources():
-        parts.extend(_source_parts(source, who, only))
-    return " UNION ALL ".join(parts) if parts else None
+        tests.extend(_source_tests(source, who))
+        types |= source.record_types
+        for child in source.children:
+            types |= child.record_types
+    if not tests:
+        return None
+    return (
+        f"SELECT r.id FROM cur_core_record r WHERE {_only(only)}r.type IN ({_types(types)}) "
+        f"AND ({' OR '.join(tests)})"
+    )
 
 
 def params_for(sql: str, viewer: Viewer | None = None) -> dict[str, Any]:
@@ -246,6 +257,41 @@ def hidden_among(
         rows = conn.execute(statement, {"_cf_ids": chunk, **params_for(sql, viewer)})
         found.update(str(row[0]) for row in rows)
     return found
+
+
+def visible_rows(
+    conn: Connection,
+    sql: str,
+    params: dict[str, Any],
+    *,
+    limit: int,
+    id_of: Callable[[Any], str] = lambda row: str(row.id),
+    viewer: Viewer | None = None,
+) -> list[Any]:
+    """The first ``limit`` rows of ``sql`` that the viewer may read, in the order ``sql`` gives.
+
+    ``sql`` is a ``SELECT`` with a total ``ORDER BY`` (ties broken, so two reads of it agree), no
+    ``LIMIT`` and no confidentiality condition of its own; ``id_of`` names the record of a row.
+    The answer is what ``... AND id NOT IN (hidden) ... LIMIT limit`` gives: hidden rows never use
+    up a place, and a viewer who hides nothing gets one plain read. But the hidden records are
+    looked up for the rows read (``hidden_among``), not listed for the whole ledger, so the cost
+    follows the page and not the number of confidential records.
+    """
+    who = viewer if viewer is not None else current_viewer()
+    ordered = f"{sql} LIMIT :_cf_limit OFFSET :_cf_skip"
+    if hidden_sql(who) is None:
+        return list(conn.execute(text(ordered), {**params, "_cf_limit": limit, "_cf_skip": 0}))
+    kept: list[Any] = []
+    skip, batch = 0, limit
+    while len(kept) < limit:
+        rows = conn.execute(text(ordered), {**params, "_cf_limit": batch, "_cf_skip": skip}).all()
+        hidden = hidden_among(conn, [id_of(row) for row in rows], who)
+        kept.extend(row for row in rows if id_of(row) not in hidden)
+        if len(rows) < batch:
+            break  # that was the last of them
+        skip += len(rows)
+        batch = min(max((limit - len(kept)) * 4, 64), 5000)  # hidden rows are many: look wider
+    return kept[:limit]
 
 
 def not_hidden_item(item_expr: str, viewer: Viewer | None = None) -> tuple[str, dict[str, Any]]:
