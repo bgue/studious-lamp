@@ -17,23 +17,24 @@ def trail():  # type: ignore[no-untyped-def]
 
 def test_a_row_is_indented_by_depth_and_says_how_it_was_reached() -> None:
     root, rfi = trail().nodes
+    assert et.EVIDENCE_COLUMNS[:3] == ("Record", "Title", "State")
     assert et.node_cells(root) == (
         "P123-EW-0001",
-        "CommercialItem",
-        "Draft",
-        "-",
         "Early warning: routing change",
+        "Draft",
+        "CommercialItem",
+        "—",
     )
     assert et.node_cells(rfi) == (
         "  P123-RFI-0001",
-        "TechnicalItem",
-        "Answered",
-        "derived from (active)",
         "Beam B12 clashes with line 47",
+        "Answered",
+        "TechnicalItem",
+        "derived from (active)",
     )
     gone = rfi.model_copy(update={"voided": True, "key": None, "state": None})
     cells = et.node_cells(gone)
-    assert cells[0] == "  ID-P123-RFI-0001" and cells[2] == "- VOID"
+    assert cells[0] == "  ID-P123-RFI-0001" and cells[2] == "— VOID"
     assert len(cells) == len(et.EVIDENCE_COLUMNS)
 
 

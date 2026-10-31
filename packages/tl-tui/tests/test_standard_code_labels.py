@@ -12,7 +12,7 @@ from typing import Any
 
 from fakes import SCOPE, FakeClient
 from fakes_correspondence import seed_domains
-from helpers import run_pilot, screen_text, settle
+from helpers import panel_of, run_pilot, settle
 from textual.pilot import Pilot
 from textual.widgets import DataTable
 from tl_tui.app import TlApp
@@ -39,13 +39,15 @@ def coded_world() -> FakeClient:
     client.seed_documents("P123")
     client.add_tag("P123", "47-FV-1001", class_code="ControlValve")
     client.code_lists = {name: dict(values) for name, values in LISTS.items()}
+    # two disciplines among the RFIs: a column with one value in every row is not shown
     lines = client._rfi_lines["P123"]  # pyright: ignore[reportPrivateUsage]
     client._rfi_lines["P123"] = [  # pyright: ignore[reportPrivateUsage]
-        line.model_copy(update={"discipline": "STR"}) for line in lines
+        line.model_copy(update={"discipline": "PIP" if line.number.endswith("3") else "STR"})
+        for line in lines
     ]
     for number, view in client._rfis["P123"].items():  # pyright: ignore[reportPrivateUsage]
         client._rfis["P123"][number] = view.model_copy(  # pyright: ignore[reportPrivateUsage]
-            update={"discipline": "STR"}
+            update={"discipline": "PIP" if number.endswith("3") else "STR"}
         )
     return client
 
@@ -55,6 +57,7 @@ def drive(
     steps: Callable[[Pilot[None], TlApp, Any], Awaitable[None]],
     *,
     technical: bool,
+    width: int = 170,
 ) -> None:
     app = TlApp(coded_world(), scope=SCOPE, actor="user:kim")
 
@@ -64,7 +67,7 @@ def drive(
         await settle(pilot)
         await steps(pilot, app, app.screen)
 
-    run_pilot(app, go, size=(170, 50))
+    run_pilot(app, go, size=(width, 50))
 
 
 def test_load_labels_keys_the_lists_by_column_and_by_list_name() -> None:
@@ -88,7 +91,7 @@ def test_a_failed_code_list_read_leaves_the_codes() -> None:
 def rfi_cell(screen: DomainScreen) -> str:
     table = screen.query_one("#log-table", DataTable)
     columns = [str(column.label) for column in table.columns.values()]
-    return str(table.get_row_at(0)[columns.index("Disc")])
+    return str(table.get_row_at(0)[columns.index("Discipline")])
 
 
 def test_the_rfi_log_reads_structural_in_plain_and_str_in_technical() -> None:
@@ -108,26 +111,28 @@ def test_the_document_register_reads_isometric_and_piping_in_plain_and_codes_in_
     async def plain(pilot: Pilot[None], app: TlApp, screen: DocumentRegisterScreen) -> None:
         assert isinstance(screen, DocumentRegisterScreen)
         row = cells(screen, "ISO-1234")
-        assert row[3:5] == ["Isometric", "Piping"]
+        assert row[4:6] == ["Isometric", "Piping"]
 
     async def technical(pilot: Pilot[None], app: TlApp, screen: DocumentRegisterScreen) -> None:
         assert isinstance(screen, DocumentRegisterScreen)
-        assert cells(screen, "ISO-1234")[3:5] == ["ISO", "PIP"]
+        assert cells(screen, "ISO-1234")[4:6] == ["ISO", "PIP"]
 
-    drive("f7", plain, technical=False)
-    drive("f7", technical, technical=True)
+    # below 160 columns the panel is under the list, which then has the whole width
+    drive("f7", plain, technical=False, width=150)
+    drive("f7", technical, technical=True, width=150)
 
 
 def test_the_tag_register_panel_reads_the_area_as_its_label_and_technical_keeps_the_code() -> None:
     async def plain(pilot: Pilot[None], app: TlApp, screen: TagRegisterScreen) -> None:
         assert isinstance(screen, TagRegisterScreen)
-        text = screen_text(app)
-        assert "Area 47 (Unit 47, Hydrotreater)" in text
+        text = panel_of(screen)
+        assert "Area      47 (Unit 47, Hydrotreater)" in text
 
     async def technical(pilot: Pilot[None], app: TlApp, screen: TagRegisterScreen) -> None:
         assert isinstance(screen, TagRegisterScreen)
-        text = screen_text(app)
-        assert "area=47" in text and "Hydrotreater" not in text
+        text = panel_of(screen)
+        # the panel keeps the label in both modes and adds the stored form in the technical one
+        assert "Number parts  area=47" in text and "Area      47 (Unit 47, Hydrotreater)" in text
 
     drive("f8", plain, technical=False)
     drive("f8", technical, technical=True)

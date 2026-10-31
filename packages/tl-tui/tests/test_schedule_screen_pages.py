@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Awaitable, Callable
 
 from fakes import SCOPE, FakeClient
-from helpers import run_pilot, screen_text, settle
+from helpers import panel_of, run_pilot, screen_text, settle
 from textual.pilot import Pilot
 from textual.widgets import DataTable, Static
 from tl_tui.app import TlApp
@@ -65,11 +65,11 @@ def test_the_first_page_is_the_newest_snapshots_and_n_and_b_turn_the_pages() -> 
     async def steps(pilot: Pilot[None], app: TlApp, screen: ScheduleScreen) -> None:
         table = screen.query_one("#sc-snapshots", DataTable)
         assert table.row_count == SNAPSHOT_PAGE and numbers(screen)[0] == TOTAL
-        assert "snapshots 1 to 50 of 130" in screen_text(app)
+        assert "snapshots 1 to 50 of 130" in panel_of(screen)
         await pilot.press("n")
         await settle(pilot)
         assert numbers(screen) == list(range(80, 30, -1)) and table.row_count == SNAPSHOT_PAGE
-        assert "snapshots 51 to 100 of 130" in screen_text(app)
+        assert "snapshots 51 to 100 of 130" in panel_of(screen)
         await pilot.press("n", "n")
         await settle(pilot)
         assert numbers(screen) == list(range(30, 0, -1))  # the last, short page

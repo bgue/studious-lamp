@@ -122,8 +122,13 @@ def answered_history() -> list[Event]:
 
 def rfi_world() -> FakeClient:
     client = FakeClient()
+    # the clocks of the first RFI, as its own view holds them (the timeline reads those)
+    clocks = [
+        clock(),
+        clock(id="CLK-2", key="P123-RFI-0001-C02", closed_on="2026-10-12", start_on="2026-10-10"),
+    ]
     answered = _rfi(
-        "P123-RFI-0001", RFI_ID, "Accepted", question=LONG_QUESTION,
+        "P123-RFI-0001", RFI_ID, "Accepted", question=LONG_QUESTION, clocks=clocks,
         proposed_solution="Move the beam 200 mm east.", answer="Re-route above the beam.",
         answered_on="2026-10-12", answer_cost_impact="yes", answer_schedule_impact="no",
         review_decision="accepted", reviewed_on="2026-10-13",
@@ -139,11 +144,8 @@ def rfi_world() -> FakeClient:
         event(22, "Correspondence.Defined", stream_id=DRAFT_ID, payload={"direction": "out"}),
         event(23, "Technical.Defined", stream_id=DRAFT_ID),
     ]
-    client.add_clock(PROJECT, clock())
-    client.add_clock(
-        PROJECT,
-        clock(id="CLK-2", key="P123-RFI-0001-C02", closed_on="2026-10-12", start_on="2026-10-10"),
-    )
+    for each in clocks:
+        client.add_clock(PROJECT, each)
     fields = _item_fields(
         "P123-COR-0001", "Revised programme", "Received", id=ITEM_ID, direction="in",
         domain="general", subtype="letter", response_required=False,

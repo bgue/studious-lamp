@@ -14,7 +14,7 @@ from typing import Any
 import pytest
 from fakes import SCOPE, FakeClient
 from fakes_schemareg import make_package
-from helpers import run_pilot, screen_text, settle
+from helpers import panel_of, run_pilot, screen_text, settle
 from textual.pilot import Pilot
 from textual.screen import ModalScreen
 from textual.widgets import DataTable
@@ -112,21 +112,25 @@ def test_ctrl_o_lists_the_versions_as_a_tree_and_escape_closes() -> None:
 
 def test_the_highlighted_version_shows_its_header_and_what_it_defines() -> None:
     async def steps(pilot: Pilot[Any], app: TlApp, screen: SchemaWorkbenchScreen) -> None:
-        text = screen_text(app)
-        assert "P123, version 1.4.0  Draft" in text and "Project P123" in text
-        assert "[1 Properties]  2 Lint  3 Diff" in text
-        assert "extends Engineering, version 3.2.0, Valve data" in text
-        assert "add MaterialCode  SS316L-NACE  -> SS316L" in text
+        panel = panel_of(screen)  # the whole panel, not the part in view
+        assert "P123, version 1.4.0\nDraft\nExtension package · not analysed" in panel
+        assert "Project    P123" in panel
+        assert "[1 Properties]  2 Lint  3 Diff" in panel
+        assert "extends Engineering, version 3.2.0, Valve data" in panel
+        assert "add MaterialCode  SS316L-NACE  -> SS316L" in panel
         await pilot.press("down")
         await settle(pilot)
-        text = screen_text(app)
-        assert "Engineering, version 3.3.0  Draft" in text
-        assert "pset valve_data  required  mandatory  applies to Record" in text
+        panel = panel_of(screen)
+        assert "Engineering, version 3.3.0\nDraft" in panel
+        assert "pset valve_data  required  mandatory  applies to Record" in panel
         show_technical(app, screen, True)
-        assert "co.acme.engineering@3.3.0  Draft" in screen_text(app)
-        assert "pset valve_data  required  mandatory  applies to core.Record" in screen_text(app)
+        await settle(pilot)
+        panel = panel_of(screen)
+        assert "co.acme.engineering@3.3.0\nDraft" in panel
+        assert "pset valve_data  required  mandatory  applies to core.Record" in panel
         show_technical(app, screen, False)
-        assert "co.acme.engineering@3.3.0  Draft" not in screen_text(app)
+        await settle(pilot)
+        assert "co.acme.engineering@3.3.0" not in panel_of(screen)
 
     scenario(full_client(), steps)
 
@@ -136,19 +140,21 @@ def test_the_tabs_show_lint_and_the_diff_and_the_brackets_wrap_round() -> None:
         await pilot.press("down")  # 3.3.0, the one with a finding and a diff
         await pilot.press("2")
         await settle(pilot)
-        text = screen_text(app)
-        assert "1 Properties  [2 Lint]  3 Diff" in text
-        assert "Lint: 1 errors, 0 warnings" in text and "error  L1  psets.a  No text." in text
+        panel = panel_of(screen)
+        assert "1 Properties  [2 Lint]  3 Diff" in panel
+        assert (
+            "Lint: 1 errors, 0 warnings" in panel and "error     L1    psets.a  No text." in panel
+        )
         await pilot.press("3")
         await settle(pilot)
-        text = screen_text(app)
-        assert "+  seat_leak" in text and "--- co.acme.engineering@3.2.0" in text
+        panel = panel_of(screen)
+        assert "+  seat_leak" in panel and "--- co.acme.engineering@3.2.0" in panel
         await pilot.press("right_square_bracket")  # wraps to the first tab
         await settle(pilot)
-        assert "[1 Properties]" in screen_text(app)
+        assert "[1 Properties]" in panel_of(screen)
         await pilot.press("left_square_bracket")  # and back to the last
         await settle(pilot)
-        assert "[3 Diff]" in screen_text(app)
+        assert "[3 Diff]" in panel_of(screen)
 
     scenario(full_client(), steps)
 

@@ -13,7 +13,7 @@ from datetime import date, timedelta
 import pytest
 from fakes import SCOPE, FakeClient
 from fakes_correspondence import seed_domains
-from helpers import run_pilot, screen_text, settle
+from helpers import panel_of, run_pilot, screen_text, settle
 from textual.pilot import Pilot
 from textual.widgets import DataTable, Static
 from tl_tui.app import TlApp
@@ -75,11 +75,13 @@ def test_ctrl_g_opens_the_rfi_log_with_a_summary_and_the_first_rfi_in_full() -> 
         assert "P123 › RFI log › P123-RFI-0001: " in text
         assert numbers(screen) == ["P123-RFI-0001", "P123-RFI-0002", "P123-RFI-0003"]
         assert "3 items | answered 1 | open 2 | overdue 1 | impact yes 1" in text
-        assert "overdue 1d" in text and "on time" in text and "C:yes S:no" in text
-        assert "answer (2026-10-12): Re-route above the beam." in text
+        assert "overdue 1d" in text and "on time" in text
+        panel = panel_of(screen)  # the whole panel, not the part in view
+        assert "Answer\nRe-route above the beam.\nAnswered on  2026-10-12" in panel
+        assert "Cost impact      Raiser: Unknown · Answer: Yes" in panel
         await pilot.press("down")
         await settle(pilot)
-        assert "question: Please confirm: Cable tray height" in screen_text(app)
+        assert "Question\nPlease confirm: Cable tray height" in panel_of(screen)
         await pilot.press("escape")
         await settle(pilot)
         assert not isinstance(app.screen, DomainScreen)
@@ -116,7 +118,7 @@ def test_view_two_lists_the_notices_with_the_late_bar_and_the_totals_line() -> N
         assert "P123 › Commercial register › P123-EW-0001: " in text
         assert numbers(screen) == ["P123-EW-0001", "P123-CN-0001"]
         assert "LATE" in text and "2 notices | time bars running 0, late 1" in text
-        assert "escalated from P123-RFI-0001" in text
+        assert "Escalated from   P123-RFI-0001" in panel_of(screen)
         await pilot.press("v")
         await settle(pilot)
         assert "filter: time bars" in status(screen)
@@ -152,8 +154,9 @@ def test_t_opens_the_evidence_trail_of_the_highlighted_item_as_of_today() -> Non
         assert "2 records in the trail" in text
         await pilot.press("down")
         await settle(pilot)
-        assert "reached by Derived from (active) since 2026-10-12" in screen_text(app)
-        assert "Cost impact: yes" in screen_text(app)
+        panel = panel_of(screen)
+        assert "Link    Derived from\nStatus  active\nSince   2026-10-12" in panel
+        assert "That day\nCost impact  yes" in panel
         assert client.trail_requests == [("P123-EW-0001", screen.today)]
 
     scenario(client, steps)

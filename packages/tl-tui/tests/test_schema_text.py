@@ -23,12 +23,12 @@ def test_the_versions_of_a_package_read_as_a_tree() -> None:
     ]
     assert COLUMNS == ("Package", "Version", "State", "Class", "Scope", "Drafted by")
     assert tree_cells(rows) == [
-        ("P123", "1.4.0", "Draft", "-", "project:P123", "dev"),
+        ("P123", "1.4.0", "Draft", "—", "project:P123", "dev"),
         ("Engineering", "3.3.0", "Draft", "additive", "company", "dev"),
         ("", "3.2.0", "Published", "additive (stale)", "company", "dev"),
     ]
     assert tree_cells(rows, technical=True) == [
-        ("x.P123", "1.4.0", "Draft", "-", "project:P123", "user:dev"),
+        ("x.P123", "1.4.0", "Draft", "—", "project:P123", "user:dev"),
         ("co.acme.engineering", "3.3.0", "Draft", "additive", "company", "user:dev"),
         ("", "3.2.0", "Published", "additive (stale)", "company", "user:dev"),
     ]

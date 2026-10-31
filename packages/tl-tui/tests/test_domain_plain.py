@@ -130,16 +130,25 @@ def test_technical_mode_restores_raw_cells_and_back() -> None:
 
     async def steps(pilot: Pilot[None], app: TlApp, screen: DomainScreen) -> None:
         table = table_of(screen)
-        plain_kind = str(table.get_row_at(0)[2])
-        assert plain_kind != "rfi"
+        # every RFI is a request for information, so the Kind column is hidden; the Commercial
+        # register has two kinds, and shows them
+        assert "Kind" not in [str(c.label) for c in table.columns.values()]
+        await pilot.press("2")
+        await settle(pilot)
+        table = table_of(screen)
+        assert [str(c.label) for c in table.columns.values()][:4] == [
+            "Number", "Subject", "State", "Kind",
+        ]  # fmt: skip
+        plain_kind = str(table.get_row_at(0)[3])
+        assert plain_kind != "early_warning"
         app.display_mode.technical = True
         screen.refresh_for_display_mode()
         await settle(pilot)
-        assert str(table.get_row_at(0)[2]) == "rfi"  # the raw subtype
+        assert str(table.get_row_at(0)[3]) == "early_warning"  # the raw subtype
         app.display_mode.technical = False
         screen.refresh_for_display_mode()
         await settle(pilot)
-        assert str(table.get_row_at(0)[2]) == plain_kind
+        assert str(table.get_row_at(0)[3]) == plain_kind
 
     scenario(client, steps)
 
@@ -156,13 +165,16 @@ def test_the_rfi_details_rows_are_labelled() -> None:
 
     answered_rows = details_for(client, "P123", record("P123-RFI-0001"), labels, plain)
     answered = {row.label: row.value for row in answered_rows}
-    assert answered["Answer"] == "Re-route above the beam."
+    assert answered["Answered on"] == "2026-10-12"
+    assert any(
+        row.section == "Answer" and row.value == "Re-route above the beam." for row in answered_rows
+    )
     assert answered["Escalated to"] == "P123-EW-0001 (Draft)"
     assert "Key" not in answered and "Schema hash" not in answered
 
     draft_rows = details_for(client, "P123", record("P123-RFI-0003"), labels, plain)
     draft = {row.label for row in draft_rows}
-    assert "Answer" not in draft and "Escalated to" not in draft
+    assert "Answered on" not in draft and "Escalated to" not in draft
 
     raw_rows = details_for(client, "P123", record("P123-RFI-0001"), labels, technical)
     assert "Key" in {row.label for row in raw_rows}

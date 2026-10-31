@@ -6,7 +6,7 @@ from collections.abc import Awaitable, Callable
 
 from fakes import SCOPE, FakeClient
 from fakes_correspondence import seed_correspondence, seed_domains
-from helpers import run_pilot, screen_text, settle
+from helpers import panel_of, run_pilot, screen_text, settle
 from textual.pilot import Pilot
 from textual.widgets import DataTable
 from tl_tui.app import TlApp
@@ -131,18 +131,20 @@ def test_plain_text_has_domain_labels_and_no_clock_key_or_calendar() -> None:
         await settle(pilot)
         register = screen_text(app)
         assert "Letter" in register and "Transmittal" in register
-        assert "running due 2026-11-02 left 14" in register
-        assert_plain(register, screen.labels)
+        panel = panel_of(screen)  # the whole panel, not the part in view
+        assert "Reply expected  Running  2026-11-02  14" in panel
+        assert_plain(register + panel, screen.labels)
 
         await pilot.press("2")  # the triage inbox: the suggestion is a label too
         await settle(pilot)
         inbox = screen_text(app)
-        assert "suggestion: Letter" in inbox
-        assert_plain(inbox, screen.labels)
+        panel = panel_of(screen)
+        assert "Suggestion\nLetter (score 0)" in panel
+        assert_plain(inbox + panel, screen.labels)
 
         await pilot.press("3")  # the clocks view: the item number leads, no calendar
         await settle(pilot)
-        clocks = screen_text(app)
+        clocks = screen_text(app) + panel_of(screen)
         assert "P123-COR-0003" in clocks and "Item" in headers(screen)
         assert_plain(clocks, screen.labels)
 
@@ -156,18 +158,20 @@ def test_technical_mode_restores_the_clock_key_and_the_calendar_and_back() -> No
         await pilot.press("3")
         await settle(pilot)
         assert "P123-COR-0003-C01" not in screen_text(app) and "Item" in headers(screen)
+        assert "Calendar" not in panel_of(screen)
 
         app.display_mode.technical = True
         screen.refresh_for_display_mode()
         await settle(pilot)
         text = screen_text(app)
-        assert "P123-COR-0003-C01" in text and "calendar P123-default@1" in text
+        assert "P123-COR-0003-C01" in text
+        assert "Calendar" in panel_of(screen) and "P123-default@1" in panel_of(screen)
         assert "Clock" in headers(screen) and "Item" not in headers(screen)
 
         app.display_mode.technical = False
         screen.refresh_for_display_mode()
         await settle(pilot)
-        text = screen_text(app)
+        text = screen_text(app) + panel_of(screen)
         assert "P123-COR-0003-C01" not in text and "P123-default@1" not in text
         assert "Item" in headers(screen) and "Clock" not in headers(screen)
 
@@ -188,17 +192,20 @@ def test_the_item_and_clock_renderers_give_labelled_rows() -> None:
     item_plain = {
         r.label: r.value for r in details_for(client, PROJECT, item_record, labels, plain)
     }
-    assert item_plain["Domain"] == "Letter" and item_plain["Number"] == "P123-COR-0003"
-    assert item_plain["Medium"] == "Letter" and item_plain["Direction"] == "Out"
-    assert "Received via" not in item_plain and "Key" not in item_plain
+    # the number is the heading of the page, and the medium is not repeated under the domain
+    assert item_plain["Domain"] == "Letter" and "Number" not in item_plain
+    assert "Medium" not in item_plain and item_plain["Direction"] == "Outgoing"
+    assert not {"Delivery", "External reference", "Key"} & set(item_plain)
     item_tech = {r.label for r in details_for(client, PROJECT, item_record, labels, technical)}
-    assert {"Received via", "External reference", "Key"} <= item_tech
+    assert {"Delivery", "External reference", "Key"} <= item_tech
 
     clock_plain = {
         r.label: r.value for r in details_for(client, PROJECT, clock_record, labels, plain)
     }
-    for label in ("Type", "Item", "Label", "Kind", "State", "Started", "Due", "Days left"):
+    # the clock's label is the heading of the page, and its type is the Kind
+    for label in ("Item", "Kind", "State", "Started", "Due", "Days left", "Owner"):
         assert label in clock_plain, label
+    assert not {"Type", "Label"} & set(clock_plain)
     assert clock_plain["Item"] == "P123-COR-0003" and clock_plain["Length"] == "14 calendar days"
     assert "Calendar" not in clock_plain and "Clock key" not in clock_plain
     clock_tech = {

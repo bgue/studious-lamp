@@ -196,7 +196,7 @@ def test_a_number_typed_stays_a_number_only_when_it_reads_back_the_same() -> Non
     assert (
         _typed("007") == "007" and _typed("1e3") == "1e3" and _typed("2026-10-30") == "2026-10-30"
     )
-    assert _typed("nan") == "nan" and _typed("hello") == "hello"
+    assert _typed("nan") == "nan" and _typed("inf") == "inf" and _typed("hello") == "hello"
 
 
 def test_owners_name_each_package_once() -> None:
@@ -218,6 +218,7 @@ def test_the_tab_shows_a_held_ad_hoc_field_in_the_custom_section_labelled_custom
     # a set that takes no custom section shows none, and a declared field is not shown twice
     assert adhoc_lines(group.model_copy(update={"custom_allowed": False}), RECORD["psets"]) == []
     meta = meta.model_copy(update={"psets": [group, *[g for g in meta.psets if g is not group]]})
+    client.add_stored_record("x", "P123-V-1", "core.Record", "Valve")
     text = psets_text(
         meta, {**RECORD, "psets": RECORD["psets"]}, client.conformance("x"), technical=False
     )

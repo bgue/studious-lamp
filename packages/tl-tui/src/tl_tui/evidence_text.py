@@ -27,7 +27,7 @@ def _labels(labels: Labels | None) -> Labels:
 def _state_text(node: EvidenceNode, *, technical: bool) -> str:
     """The state that day: the raw state for the technical form, its words otherwise."""
     if technical or not node.state:
-        return node.state or "-"
+        return node.state or EMPTY
     return humanize(node.state)
 
 

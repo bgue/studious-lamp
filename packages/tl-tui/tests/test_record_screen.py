@@ -86,6 +86,11 @@ def world() -> tuple[FakeClient, list[tuple[str, str]]]:
     return client, [(r["id"], r["key"]) for r in ids if r is not None]
 
 
+def labels_of(details: str) -> set[str]:
+    """The labels of the property lines of the Details text (a label ends at two spaces)."""
+    return {line.split("  ")[0] for line in details.splitlines() if "  " in line}
+
+
 def current(app: Host) -> RecordScreen:
     assert isinstance(app.screen, RecordScreen), type(app.screen)
     return app.screen
@@ -103,13 +108,15 @@ def test_open_record_shows_details_with_labels_not_ids() -> None:
         screen = current(app)
         assert screen.view is not None
         text = screen_text(app)
-        for label in ("Number", "Document type", "Current revision", "Conformance"):
+        for label in ("Document type", "Current revision"):
             assert label in screen.view.details, label
-        assert "Isometric, line 47-P-101" in text and "B (IFC)" in text
+        # the header holds the number, the title, the state and the conformance mark
+        assert "ISO-1234 · Isometric, line 47-P-101" in text and "! warning" in text
+        assert "B, Issued for construction" in text and "Number" not in screen.view.details
         assert "Properties" in text and "Psets" not in text
         assert find_technical(text) == []
         assert rows[2][0] not in text  # the record id never shows
-        assert "Schema hash" not in screen.view.details and "Key" not in screen.view.details
+        assert not {"Key", "Schema hash"} & labels_of(screen.view.details)
 
     run_pilot(app, scenario, size=(140, 40))
 
@@ -211,7 +218,7 @@ def test_following_a_link_inside_the_screen_retargets_it() -> None:
         await pilot.pause()
         assert isinstance(app.screen, RecordScreen) and app.screen is screen
         assert screen.view is not None and screen.view.key == "FV-1002"
-        assert "Manual valve" in screen.view.details
+        assert "FV-1002 · Manual valve MV on 4in vent" in screen_text(app)  # the header
         assert app.reached == []  # the app's own handler was not reached
         await pilot.press("escape")
         await pilot.pause()
@@ -239,8 +246,8 @@ def test_technical_rows_appear_only_in_technical_mode() -> None:
         run_pilot(app, scenario, size=(140, 40))
         details = seen[0]
         for label in ("Key", "Version", "Scope", "Schema hash"):
-            assert (label in details) is technical, (technical, label)
-        assert "Number" in details  # the plain rows are there in both modes
+            assert (label in labels_of(details)) is technical, (technical, label)
+        assert "Created" in labels_of(details)  # the plain rows are there in both modes
 
 
 def test_refresh_for_display_mode_rerenders_details_and_properties() -> None:
