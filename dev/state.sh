@@ -4,18 +4,18 @@
 # Usage: dev/state.sh <INC> [<base>]
 #   INC    increment id, e.g. P2-W0. Its branch is the id lower-cased with its first "-" replaced by "/".
 #   base   optional ref. Default: the base= token on line 1 of docs/tickets/<INC>/STATE.md, else the
-#          fallback main ($TRUNK overrides the fallback; the trunk is not read from git or STATE.md).
+#          fallback the trunk branch claude/wizardly-allen-m2v96s ($TRUNK overrides it; the local main ref may be stale).
 # Output: at most 40 lines, each at most 160 characters. Line 1 is the STATE.md header verbatim, then the
 # sections BOARD, LOG, WT, HEADS and NEXT, each opened by a line holding only its name. Caps per section:
 # BOARD 15, LOG 10 commits, WT 4, HEADS 4, NEXT 6; a section over its cap ends with "+n more". If the total
 # is still over 40, the output is cut to 39 lines and ends with "+N more lines".
-# Env: WT_ROOT worktree root (default /home/user/wt); TRUNK base fallback (default main).
+# Env: WT_ROOT worktree root (default /home/user/wt); TRUNK base fallback (default claude/wizardly-allen-m2v96s).
 # Exit 0 on success, 1 when STATE.md is missing (prints "STATE none"), 2 on bad usage.
 set -euo pipefail
 
 usage() {
   echo "usage: dev/state.sh <INC> [<base>]" >&2
-  echo "  base defaults to the base= token on line 1 of docs/tickets/<INC>/STATE.md, else main (TRUNK overrides main)" >&2
+  echo "  base defaults to the base= token on line 1 of docs/tickets/<INC>/STATE.md, else the trunk branch (TRUNK overrides it)" >&2
   exit 2
 }
 
@@ -45,7 +45,7 @@ hbase=""
 for w in "${words[@]}"; do
   case "$w" in base=*) hbase="${w#base=}" ;; esac
 done
-base="${2:-${hbase:-${TRUNK:-main}}}"
+base="${2:-${hbase:-${TRUNK:-claude/wizardly-allen-m2v96s}}}"
 if ! git rev-parse --verify -q "$base^{commit}" >/dev/null; then
   echo "state: base '$base' does not resolve to a commit" >&2
   exit 2
