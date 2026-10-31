@@ -223,7 +223,7 @@ def test_supersede_is_for_a_controller_and_needs_an_issued_replacement(
         sign_in(env)
         amy = ordinary_env(env, tmp_path)
         refused = doc(amy, *args, ok=False)
-        assert refused.stderr.startswith("error: ") and "admin" in refused.stderr
+        assert refused.stderr.startswith("error: ") and "controller access word" in refused.stderr
         assert show(env, "ISO-1000")["state"] == "Registered"
     no_issue = doc(env, *args, ok=False)  # the replacement has no issued revision yet
     assert "no issued revision yet" in no_issue.stderr, no_issue.stderr
@@ -284,7 +284,7 @@ def test_void_is_for_a_controller_and_voids_the_document(
         refused = doc(
             amy, "void", "ISO-1234", "--project", "P123", "--reason", "in error", ok=False
         )
-        assert refused.stderr.startswith("error: ") and "admin" in refused.stderr
+        assert refused.stderr.startswith("error: ") and "controller access word" in refused.stderr
         assert show(env)["state"] == "Registered"
     result = doc(env, "void", "ISO-1234", "--project", "P123", "--reason", "registered in error")
     assert result.stdout.strip() == "voided ISO-1234"
@@ -310,7 +310,7 @@ def test_confidentiality_is_for_a_controller_and_keeps_the_reason(
         assert bootstrap(env).exit_code == 0
         sign_in(env)
         refused = doc(ordinary_env(env, tmp_path), *args, ok=False)
-        assert refused.stderr.startswith("error: ") and "admin" in refused.stderr
+        assert refused.stderr.startswith("error: ") and "controller access word" in refused.stderr
         assert show(env)["confidentiality"] == "-"
     done = doc(env, *args)
     assert done.stdout.strip() == "confidentiality of ISO-1234: - -> restricted"
