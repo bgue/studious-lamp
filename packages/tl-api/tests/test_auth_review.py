@@ -375,6 +375,7 @@ AGENT_MAY_NOT = {
     "admin.accounts.create",
     "admin.accounts.roles",
     "admin.accounts.state",
+    "admin.accounts.module_roles",  # agents never grant or revoke module roles (RM-S3)
     "admin.accounts.password",
     "admin.tokens.list",
     "admin.tokens.issue",

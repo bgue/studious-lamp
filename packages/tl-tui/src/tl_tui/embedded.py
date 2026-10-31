@@ -26,6 +26,20 @@ from tl_core.auth import accounts as account_services
 from tl_core.auth import queries as account_queries
 from tl_core.auth.env import current_env, demo_allowed
 from tl_core.auth.errors import ForbiddenError
+from tl_core.auth.module_grants import (
+    GrantModuleRole,
+    ModuleRoleResult,
+    RevokeModuleRole,
+    grant_module_role,
+    revoke_module_role,
+)
+from tl_core.auth.module_role_views import (
+    EffectiveRoleView,
+    ModuleRoleGrantView,
+    effective_role_views,
+    list_module_roles,
+)
+from tl_core.auth.module_roles import holder_for_actor
 from tl_core.auth.password import prepare_password
 from tl_core.auth.provider import PasswordIdentityProvider
 from tl_core.auth.types import DEMO_USERNAME, AccountKind, AccountView, AgentTokenView
@@ -1761,6 +1775,68 @@ class EmbeddedClient:
             return account_services.revoke_agent_token(
                 uow, token_id=token_id, by=self.actor, reason=reason
             )
+
+    # --- module roles (RM-S3; ADR-0021) -------------------------------------------------------
+
+    def list_module_roles(
+        self,
+        project: str | None = None,
+        *,
+        module: str | None = None,
+        account_id: str | None = None,
+    ) -> list[ModuleRoleGrantView]:
+        with self._uow(True) as uow:
+            self._admin_gate(uow)
+            return list_module_roles(
+                uow.conn(), project=project, module=module, account_id=account_id
+            )
+
+    def effective_roles(self, account_id: str, project: str) -> list[EffectiveRoleView]:
+        with self._uow(True) as uow:
+            self._admin_gate(uow)
+            return effective_role_views(uow.conn(), account_id, project)
+
+    def grant_module_role(
+        self, account_id: str, project: str, module: str, role: str, reason: str
+    ) -> ModuleRoleResult:
+        with self._uow(False) as uow:
+            self._admin_gate(uow)
+            return grant_module_role(
+                uow,
+                GrantModuleRole(
+                    actor=self.actor,
+                    source=SOURCE,
+                    account_id=account_id,
+                    project=project,
+                    module=module,
+                    role=role,
+                    reason=reason,
+                ),
+            )
+
+    def revoke_module_role(
+        self, account_id: str, project: str, module: str, role: str, reason: str
+    ) -> ModuleRoleResult:
+        with self._uow(False) as uow:
+            self._admin_gate(uow)
+            return revoke_module_role(
+                uow,
+                RevokeModuleRole(
+                    actor=self.actor,
+                    source=SOURCE,
+                    account_id=account_id,
+                    project=project,
+                    module=module,
+                    role=role,
+                    reason=reason,
+                ),
+            )
+
+    def my_roles(self, project: str) -> list[EffectiveRoleView]:
+        """Any signed-in person's own roles; the holder is this client's actor, not a parameter."""
+        with self._uow(True) as uow:
+            holder = holder_for_actor(uow.conn(), self.actor)
+            return effective_role_views(uow.conn(), holder.account_id or "", project, holder=holder)
 
     # --- the integration layer (P1-I7) --------------------------------------------------------
 

@@ -10,6 +10,8 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
+from tl_core.auth.module_grants import ModuleRoleResult
+from tl_core.auth.module_role_views import EffectiveRoleView, ModuleRoleGrantView
 from tl_core.auth.types import AccountKind, AccountView, AgentTokenView
 
 from tl_api.client.base import ApiClientBase, quote
@@ -108,3 +110,47 @@ class AdminApi(ApiClientBase):
         """Revoke an agent token (``POST /admin/tokens/{id}/revoke``)."""
         data = self._post_json(f"/admin/tokens/{quote(token_id)}/revoke", {"reason": reason})
         return self._model(AgentTokenView, data)
+
+    def list_module_roles(
+        self,
+        project: str | None = None,
+        *,
+        module: str | None = None,
+        account_id: str | None = None,
+    ) -> list[ModuleRoleGrantView]:
+        """Explicit module role grants (``GET /admin/module-roles``).
+
+        ``project`` is ``company`` or ``project:<id>``; each filter given narrows the list.
+        """
+        data = self._get_json(
+            "/admin/module-roles", {"project": project, "module": module, "account_id": account_id}
+        )
+        return self._models(ModuleRoleGrantView, data)
+
+    def effective_roles(self, account_id: str, project: str) -> list[EffectiveRoleView]:
+        """What the account holds per loaded module on ``project``
+        (``GET /admin/accounts/{id}/effective-roles``)."""
+        data = self._get_json(
+            f"/admin/accounts/{quote(account_id)}/effective-roles", {"project": project}
+        )
+        return self._models(EffectiveRoleView, data)
+
+    def grant_module_role(
+        self, account_id: str, project: str, module: str, role: str, reason: str
+    ) -> ModuleRoleResult:
+        """Grant a module role (``POST /admin/accounts/{id}/module-roles``, 201).
+
+        The answer's ``changed`` is false when the account already held the role.
+        """
+        body = {"project": project, "module": module, "role": role, "reason": reason}
+        data = self._post_json(f"/admin/accounts/{quote(account_id)}/module-roles", body)
+        return self._model(ModuleRoleResult, data)
+
+    def revoke_module_role(
+        self, account_id: str, project: str, module: str, role: str, reason: str
+    ) -> ModuleRoleResult:
+        """Revoke a module role (``POST /admin/accounts/{id}/module-roles/revoke``);
+        ``NoSuchGrantError`` when it is not held."""
+        body = {"project": project, "module": module, "role": role, "reason": reason}
+        data = self._post_json(f"/admin/accounts/{quote(account_id)}/module-roles/revoke", body)
+        return self._model(ModuleRoleResult, data)

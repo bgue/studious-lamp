@@ -4,11 +4,12 @@ A full-size modal opened with ``F10`` by an admin (brief 10; ADR-0008). The tabl
 account; ``t`` switches to the agent tokens. The panel under the table describes the highlighted
 account. ``d`` disables or enables the account, ``r`` gives or takes away the admin role and ``c``
 the document controller role (ADR-0013); each asks for an optional reason first; ``a`` adds an
-account, ``p`` sets a person's password, ``i`` issues a token for the highlighted agent (shown once)
-and ``x`` revokes the highlighted token on the tokens view (P1-I0-T09b). The service decides what
-is allowed (the last active admin cannot be disabled or demoted, an agent cannot hold the
-controller role): a refusal is shown in the status line and nothing changes. Every change is one
-client call and the lists are read again afterwards; nothing is stored here.
+account, ``p`` sets a person's password, ``i`` issues a token for the highlighted agent (shown
+once), ``x`` revokes the highlighted token on the tokens view (P1-I0-T09b) and ``m`` opens the
+module roles log of the current project (RM-S3). The service decides what is allowed (the last
+active admin cannot be disabled or demoted, an agent cannot hold the controller role): a refusal is
+shown in the status line and nothing changes. Every change is one client call and the lists are
+read again afterwards; nothing is stored here.
 """
 
 from __future__ import annotations
@@ -38,13 +39,16 @@ from tl_tui.client import ClientInterface
 from tl_tui.display import mode_of
 from tl_tui.errors import CLIENT_ERRORS, describe_error
 from tl_tui.widgets.account_forms import AccountForm, PasswordForm, TokenForm, TokenShown
+from tl_tui.widgets.module_roles_log import ModuleRolesLog
 from tl_tui.widgets.prompt import PromptScreen
 
 
 class AdminScreen(ModalScreen[None]):
     """Accounts and agent tokens. ``now`` is the clock used for token expiry (tests fix it)."""
 
-    KEY_HINTS: ClassVar[str] = "d disable/enable  r admin role  t tokens  F5 reload  Esc close"
+    KEY_HINTS: ClassVar[str] = (
+        "d disable/enable  r admin role  t tokens  m module roles  F5 reload  Esc close"
+    )
     KEY_HINTS_MORE: ClassVar[str] = (
         "c controller role  a add  p password  i issue token  x revoke token"
     )
@@ -54,6 +58,7 @@ class AdminScreen(ModalScreen[None]):
         Binding("r", "toggle_admin", "Admin role", show=False),
         Binding("c", "toggle_controller", "Controller role", show=False),
         Binding("t", "toggle_view", "Tokens", show=False),
+        Binding("m", "module_roles", "Module roles", show=False),
         Binding("a", "add", "Add", show=False),
         Binding("p", "password", "Password", show=False),
         Binding("i", "issue", "Issue token", show=False),
@@ -283,6 +288,14 @@ class AdminScreen(ModalScreen[None]):
         (tokens if self.showing_tokens else accounts).focus()
         self._title()
         self._describe()
+
+    def action_module_roles(self) -> None:
+        """The module roles log of the current project (admins only; the service checks too)."""
+        if not getattr(self.app, "is_admin", True):
+            self._say("Module roles need the admin role", error=True)
+            return
+        scope = str(getattr(self.app, "scope", "company"))
+        self.app.push_screen(ModuleRolesLog(self.client, scope, self.actor))
 
     def action_reload(self) -> None:
         self.reload()
