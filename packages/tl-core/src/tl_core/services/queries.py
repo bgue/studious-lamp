@@ -123,9 +123,11 @@ def list_records(
         raise ValueError(f"offset must not be negative, got {offset}")
     clauses: list[str] = ["scope = :scope"]
     params: dict[str, Any] = {"scope": scope}
-    visible, visible_params = confidentiality.not_hidden("id")
-    clauses.append(visible)
-    params.update(visible_params)
+    first_page = limit is not None and offset == 0  # its hidden rows are looked up, not listed
+    if not first_page:
+        visible, visible_params = confidentiality.not_hidden("id")
+        clauses.append(visible)
+        params.update(visible_params)
     if status is not None:
         clauses.append("status = :status")
         params["status"] = status
@@ -147,6 +149,13 @@ def list_records(
         empty = f"{column} IS NULL OR {column} = ''"
         terms.append(f"({empty}), {column} {direction.upper()}")
     order = ", ".join([*terms, "id"]) if terms else "created_at, id"
+    if first_page and limit is not None:
+        # the first ``limit`` readable rows: the page is read, then its hidden rows are dropped
+        # and, if some were, more are read (``confidentiality.visible_rows``); the ordering ends in
+        # ``id``, so two reads of it agree
+        sql_text = f"{_SELECT} WHERE {' AND '.join(clauses)} ORDER BY {order}"
+        found = confidentiality.visible_rows(uow.conn(), sql_text, params, limit=limit)
+        return [_envelope(row._mapping) for row in found]
     paging = ""
     if limit is not None or offset:
         paging = " LIMIT :limit OFFSET :offset"

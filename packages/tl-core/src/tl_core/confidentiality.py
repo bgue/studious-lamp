@@ -259,25 +259,38 @@ def hidden_among(
     return found
 
 
+#: Pages above this many rows are filtered in SQL (one ``NOT IN``): checking that many rows one
+#: statement of 500 at a time costs more than listing the hidden records once.
+PAGE_ROWS_MAX = 1000
+
+
 def visible_rows(
     conn: Connection,
     sql: str,
     params: dict[str, Any],
     *,
     limit: int,
+    id_expr: str = "id",
     id_of: Callable[[Any], str] = lambda row: str(row.id),
     viewer: Viewer | None = None,
 ) -> list[Any]:
     """The first ``limit`` rows of ``sql`` that the viewer may read, in the order ``sql`` gives.
 
-    ``sql`` is a ``SELECT`` with a total ``ORDER BY`` (ties broken, so two reads of it agree), no
-    ``LIMIT`` and no confidentiality condition of its own; ``id_of`` names the record of a row.
+    ``sql`` is a ``SELECT ... WHERE ... ORDER BY`` with a total order (ties broken, so two reads of
+    it agree), no ``LIMIT`` and no confidentiality condition of its own; ``id_expr`` is the record
+    id as the statement names it and ``id_of`` reads it from a row. A page of more than
+    ``PAGE_ROWS_MAX`` rows has the condition added to the statement instead.
     The answer is what ``... AND id NOT IN (hidden) ... LIMIT limit`` gives: hidden rows never use
     up a place, and a viewer who hides nothing gets one plain read. But the hidden records are
     looked up for the rows read (``hidden_among``), not listed for the whole ledger, so the cost
     follows the page and not the number of confidential records.
     """
     who = viewer if viewer is not None else current_viewer()
+    if limit > PAGE_ROWS_MAX and hidden_sql(who) is not None:
+        visible, extra = not_hidden(id_expr, who)
+        head, order = sql.rsplit(" ORDER BY ", 1)
+        everything = f"{head} AND {visible} ORDER BY {order} LIMIT :_cf_limit OFFSET 0"
+        return list(conn.execute(text(everything), {**params, **extra, "_cf_limit": limit}))
     ordered = f"{sql} LIMIT :_cf_limit OFFSET :_cf_skip"
     if hidden_sql(who) is None:
         return list(conn.execute(text(ordered), {**params, "_cf_limit": limit, "_cf_skip": 0}))

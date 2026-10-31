@@ -75,7 +75,7 @@ def _page(
     a later page puts the condition in the query, as every list did.
     """
     if offset == 0:
-        return confidentiality.visible_rows(conn, sql, params, limit=limit)
+        return confidentiality.visible_rows(conn, sql, params, limit=limit, id_expr=id_expr)
     visible, extra = confidentiality.not_hidden(id_expr)
     head, order = sql.rsplit(" ORDER BY ", 1)
     paged = f"{head} AND {visible} ORDER BY {order} LIMIT :limit OFFSET :offset"

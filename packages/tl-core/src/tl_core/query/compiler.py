@@ -126,9 +126,20 @@ def like_pattern(text: str, *, prefix: bool = True, suffix: bool = True) -> str:
 
 
 def compile_query(
-    spec: QuerySpec, *, count: bool = False, clock: QueryClock | None = None
+    spec: QuerySpec,
+    *,
+    count: bool = False,
+    clock: QueryClock | None = None,
+    visibility: Literal["set", "each", "none"] = "set",
 ) -> Compiled:
-    """Compile ``spec`` to a record ``SELECT`` or, with ``count``, a ``SELECT COUNT(*)``."""
+    """Compile ``spec`` to a record ``SELECT`` or, with ``count``, a ``SELECT COUNT(*)``.
+
+    ``visibility`` is how a record the viewer may not read is left out (ADR-0016): ``set``, the
+    hidden records listed once (``NOT IN``); ``each``, each candidate row tested by a lookup
+    (cheaper when the other conditions leave few rows); ``none``, left to the caller, who must
+    then drop them (``confidentiality.visible_rows``) and add the ``LIMIT`` (the statement has
+    none).
+    """
     if not spec.scope:
         raise ValueError("a query needs a scope")
     if spec.limit is not None and not 0 <= spec.limit <= _NO_LIMIT:
@@ -143,13 +154,14 @@ def compile_query(
         clauses.append(f"r.voided = {builder.bind(False)}")
     if spec.where is not None:
         clauses.append(builder.expr(spec.where, "r", 0))
-    clauses.append(builder.visible("r.id"))  # a record the viewer may not read is not a result
+    if visibility != "none":  # a record the viewer may not read is not a result
+        clauses.append(builder.visible("r.id", each=visibility == "each"))
     where = " AND ".join(clauses)
     if count:
         return Compiled(f"SELECT COUNT(*) FROM cur_core_record r WHERE {where}", builder.params)
     joins, order = builder.order(spec.order_by)
     sql = f"SELECT {_SELECT_LIST} FROM cur_core_record r{joins} WHERE {where} ORDER BY {order}"
-    if spec.limit is not None or spec.offset:
+    if visibility != "none" and (spec.limit is not None or spec.offset):
         limit = _NO_LIMIT if spec.limit is None else spec.limit
         sql += f" LIMIT {builder.bind(limit)} OFFSET {builder.bind(spec.offset)}"
     return Compiled(sql, builder.params)
@@ -378,9 +390,13 @@ class _Builder:
 
     # --- links --------------------------------------------------------------------------------
 
-    def visible(self, id_expr: str) -> str:
+    def visible(self, id_expr: str, *, each: bool = False) -> str:
         """``id_expr`` is a record the viewer may read (ADR-0016); binds what the clause needs."""
-        clause, params = confidentiality.not_hidden(id_expr)
+        clause, params = (
+            confidentiality.not_hidden_each(id_expr)
+            if each
+            else confidentiality.not_hidden(id_expr)
+        )
         self.params.update(params)
         return clause
 
