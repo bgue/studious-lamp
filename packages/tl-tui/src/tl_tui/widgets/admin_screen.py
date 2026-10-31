@@ -291,7 +291,7 @@ class AdminScreen(ModalScreen[None]):
 
     def action_module_roles(self) -> None:
         """The module roles log of the current project (admins only; the service checks too)."""
-        if not getattr(self.app, "is_admin", True):
+        if not getattr(self.app, "is_admin", False):
             self._say("Module roles need the admin role", error=True)
             return
         scope = str(getattr(self.app, "scope", "company"))

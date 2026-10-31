@@ -13,7 +13,7 @@ from tl_core.auth.module_role_views import EffectiveRoleView, ModuleRoleGrantVie
 from tl_core.auth.types import AccountView, AgentTokenView
 
 from tl_tui.display import humanize
-from tl_tui.layout import Page, Prop, Section, state_line
+from tl_tui.layout import EMPTY, Page, Prop, Section, join_facts, state_line
 
 ACCOUNT_COLUMNS = ("Name", "Kind", "Roles", "Status", "Lock")
 TOKEN_COLUMNS = ("Agent", "Label", "Expires", "State")
@@ -157,18 +157,20 @@ def role_state(views: Sequence[EffectiveRoleView]) -> str:
 
 
 def effective_line(view: EffectiveRoleView) -> str:
-    """``superuser (granted)`` or ``none``: the value of one module's property line."""
+    """``superuser (granted)`` or ``—``: the value of one module's property line."""
     if not view.roles:
-        return "none"
+        return EMPTY
     return f"{', '.join(view.roles)} ({SOURCE_WORDS.get(view.source, view.source)})"
 
 
 def effective_page(display_name: str, views: Sequence[EffectiveRoleView]) -> Page:
     """The panel of a grant row: the account's name, where its roles come from, and one property
     line per module under **Effective roles**."""
+    n = sum(1 for v in views if v.roles)
     return Page(
         identity=display_name,
         state=state_line(role_state(views)),
+        summary=join_facts(f"{n} of {len(views)} modules" if views else ""),
         sections=(
             Section(
                 "Effective roles",
