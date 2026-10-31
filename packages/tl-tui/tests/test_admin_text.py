@@ -18,7 +18,7 @@ from tl_tui.admin_text import (
     token_cells,
     token_state,
 )
-from tl_tui.layout import EMPTY  # noqa: E402
+from tl_tui.layout import EMPTY
 
 NOW = "2026-10-11T12:00:00.000000Z"
 

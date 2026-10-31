@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pytest
 from doccli_support import admin_session, docs_env, world
-from engcli_support import ordinary_env
+from engcli_support import count, ordinary_env
 from tl_adapters.db import DbTarget
 from tl_cli.main import app
 from typer.testing import CliRunner
@@ -137,6 +137,23 @@ def test_an_issued_revision_takes_no_new_pdf_and_a_refusal_uploads_nothing(
     assert [row[0] for row in listing(env)] == ["pdf"]
 
 
+def test_add_without_the_user_word_is_forbidden_and_writes_nothing(
+    draft: dict[str, str], tmp_path: Path
+) -> None:
+    if not admin_session(draft):  # Postgres: the conftest signs an admin in; no refusal to try
+        return
+    amy = ordinary_env(draft, tmp_path)
+    lowered = ("admin", "roles", "grant", "amy", "--project", "P123", "--module", "documents")
+    run(draft, *lowered, "--role", "viewer", "--reason", "read only here")
+    events, files = count(draft), count(draft, "cur_files")
+    path = make(tmp_path, "sheet-A.pdf", b"%PDF-1.7 isometric sheet A")
+    refused = add(amy, path, "--kind", "pdf", ok=False)
+    assert refused.exit_code == 1
+    assert refused.stderr.startswith("error: forbidden")
+    assert count(draft) == events and count(draft, "cur_files") == files
+    assert listing(draft) == []
+
+
 # --- register-signed and replace-signed -----------------------------------------------------------
 
 
@@ -171,6 +188,7 @@ def test_the_signed_copy_is_registered_once_by_a_controller_and_replaced_by_one(
     if amy is not None:
         refused = rendition(amy, *args, ok=False)
         assert refused.stderr.startswith("error: ") and "controller access word" in refused.stderr
+        assert made.scalar("SELECT COUNT(*) FROM cur_files") == files  # nothing uploaded
     done = rendition(env, *args)
     assert done.stdout.splitlines()[0] == "replaced the signed copy of ISO-1234@A with s2.pdf"
     signed = [row for row in listing(env, "--all") if row[0] == "signed"]
