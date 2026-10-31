@@ -150,8 +150,10 @@ def test_the_signed_copy_is_registered_once_by_a_controller_and_replaced_by_one(
     register += ("--project", "P123")
     amy = ordinary_env(env, tmp_path) if admin_session(env) else None
     if amy is not None:
+        before = made.scalar("SELECT COUNT(*) FROM cur_files")
         refused = rendition(amy, *register, ok=False)
-        assert refused.stderr.startswith("error: ") and "admin" in refused.stderr
+        assert refused.stderr.startswith("error: ") and "controller access word" in refused.stderr
+        assert made.scalar("SELECT COUNT(*) FROM cur_files") == before  # nothing uploaded
         assert [row[0] for row in listing(env)] == ["pdf"]
     done = rendition(env, *register)
     assert done.stdout.splitlines()[0] == "registered the signed copy of ISO-1234@A: s1.pdf"
@@ -168,7 +170,7 @@ def test_the_signed_copy_is_registered_once_by_a_controller_and_replaced_by_one(
     args += ("--project", "P123", "--reason", "the first scan was cut off")
     if amy is not None:
         refused = rendition(amy, *args, ok=False)
-        assert refused.stderr.startswith("error: ") and "admin" in refused.stderr
+        assert refused.stderr.startswith("error: ") and "controller access word" in refused.stderr
     done = rendition(env, *args)
     assert done.stdout.splitlines()[0] == "replaced the signed copy of ISO-1234@A with s2.pdf"
     signed = [row for row in listing(env, "--all") if row[0] == "signed"]

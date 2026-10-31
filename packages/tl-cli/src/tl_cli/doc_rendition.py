@@ -39,7 +39,7 @@ from tl_cli.doc import (
     _service_errors,
 )
 from tl_cli.doc_rev import _Code, _Number, _revision
-from tl_cli.session import require_command
+from tl_cli.session import require_command, require_commands
 
 app = typer.Typer(help="Add, replace and list the renditions of a revision.", no_args_is_help=True)
 
@@ -132,6 +132,8 @@ def add(
             file_id=_PENDING,
             page_count=pages,
         )
+    with _service_errors(), open_uow(db, readonly=True) as uow:  # gate before any byte is written
+        require_commands(uow, (AttachRendition,), actor=actor, scope=scope)
     file_id = _upload(db, scope, actor, rev.id, kind, path, content_type)
     with _service_errors(), open_uow(db) as uow:
         command_2 = command.model_copy(update={"file_id": file_id})
@@ -171,6 +173,8 @@ def register_signed(
             page_count=pages,
             reason=reason,
         )
+    with _service_errors(), open_uow(db, readonly=True) as uow:  # gate before any byte is written
+        require_commands(uow, (RegisterSignedRendition,), actor=actor, scope=scope)
     file_id = _upload(db, scope, actor, rev.id, "signed", path, content_type)
     with _service_errors(), open_uow(db) as uow:
         command_2 = command.model_copy(update={"file_id": file_id})
@@ -208,6 +212,8 @@ def replace_signed(
             page_count=pages,
             reason=reason,
         )
+    with _service_errors(), open_uow(db, readonly=True) as uow:  # gate before any byte is written
+        require_commands(uow, (ReplaceSignedRendition,), actor=actor, scope=scope)
     file_id = _upload(db, scope, actor, rev.id, "signed", path, content_type)
     with _service_errors(), open_uow(db) as uow:
         command_2 = command.model_copy(update={"file_id": file_id})
