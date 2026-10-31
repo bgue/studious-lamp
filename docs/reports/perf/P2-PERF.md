@@ -1,6 +1,6 @@
 # P2-PERF: the everyday screens at 10,000 records
 
-Branch `p2/perf`; code measured `d82ba08`. Numbers: `P1-UX-perf.md` (before and after table), `P1-UX-perf.json`, `P1-UX-perf-before.json`. No pytest was run (owner policy); `just check` is clean.
+Branch `p2/perf`; code measured `0e25090` (the commits were re-written once to add the trailers; the trees are the same). Numbers: `P1-UX-perf.md` (before and after table), `P1-UX-perf.json`, `P1-UX-perf-before.json`. No pytest was run (owner policy); `just check` is clean.
 
 ## Headline (median ms at 10,000 records, before -> after; sqlite / postgres / remote)
 | Action | sqlite | postgres | remote |

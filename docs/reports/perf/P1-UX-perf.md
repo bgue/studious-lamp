@@ -3,7 +3,7 @@
 What a person waits for in the terminal app, measured with the real TUI driven headless by Textual's pilot against a seeded project. Re-run with `just perf-ux`; every number is also in `P1-UX-perf.json`. The earlier backend benchmark is `docs/reports/P0-I8-perf.md` (queries and the bare grid widget, 100k records); this report measures whole screens.
 
 ## Machine and run
-- Date 2026-10-31, code `d82ba08`.
+- Date 2026-10-31, code `0e25090`.
 - CPU `Intel(R) Xeon(R) Processor @ 2.80GHz`, 4 CPUs; RAM 15.7 GB; disk `/dev/vda` 271 GB, 20 GB free (virtual block device, kernel rotational flag 1).
 - Linux 6.18.44-fc-v185, Python 3.12.3, SQLite 3.45.1, Postgres 16.15. Load average at the start [2.11, 2.59, 2.67] (a shared container: expect noise of some milliseconds).
 - Terminal 170x45 (columns x rows): the panel sits beside the list.
