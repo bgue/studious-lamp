@@ -1,4 +1,4 @@
-# P2-W0 STATE  r=5 base=0c2c99d C=C2 ck=0 gate=n/a wt=/home/user/wt/p2-w0
+# P2-W0 STATE  r=5 base=0c2c99d C=C4 ck=0 gate=pass wt=/home/user/wt/p2-w0
 Read first: docs/build-spec/specs/wave0.md (plan, "Plan check" at the end), README.md here. Branch p2/w0 (trunk claude/wizardly-allen-m2v96s @0a69e0a). Builders and tickets branch from p2/w0 HEAD (the r5 state commit).
 ## BOARD
 RM-S1 p mrg f 55931f7 module roles table, grants, resolver, company grants; C1
@@ -17,11 +17,17 @@ OC-T2 t mrg f b2b3f2d T05 Offline class row, technical mode; merge 65cc353
 OC-T3 t mrg l c6dbfd9 T06 scaffold tl:offline none + expected pin
 RM-S3L t mrg l d8cd917 T07 four lows F1-F4
 OC-T4 t mrg l 2dddcb7 T08 InboundDelivery none; orch regen models.py 1eedbeb; APPROVALS 6d7f35f
-TA p stg f - S9-tests-roles.md; RM-S1..S4 tests, T07 tests, pins, 6 snapshots, Q6, Q7
-TB p stg f - S10-tests-core.md; W0-B1/B2, OC-S1/S2, T04-T06/T08, A1-A3 tests, Q4
-DOC-1 t stg l - T09-docs-roles-words.md; runbook section, access-words reference
-DOC-2 t stg l - T10-docs-targets-offline.md; legacy-load, tl-core README, module-designs §3
-DEMO t stg l - T11-demo-p2-w0.md; demo 11 clauses + tour rows (F8)
+TA p mrg f 4b354db S9 tests roles; gate before _upload fix
+TB p mrg f d868c2a S10 tests core
+DOC-1 t mrg l a970c2f T09 runbook, access-words reference
+DOC-2 t mrg l - T10 docs targets offline (README cap waived)
+DEMO t mrg l - T11 demo P2-W0 11 clauses sq+pg
+PERF p mrg f b0b1ff2 10k screens; confidentiality pushdown; P2-PERF.md
+FIX-REST p mrg f ef4c0df end-run fixes (36/37)
+FIX-TUI p mrg f b649e50 end-run TUI pins 134/134
+ADOPT p mrg f 454d8bb AdoptSchemaSet; F1 HI fixed; APPROVALS 1f03078
+TOUR p mrg f 1880d7d phase 1 tour module roles (83 shots)
+PGFIX p mrg f 492a116 pg test setup seeds accounts
 ## DEC
 D1 2026-10-30 plan check wave0 go-with-fixes F1-F10 all accepted; applied in wave0.md "Plan check" (st: 4ce6874)
 D2 2026-10-30 owner: tests and tours deferred to one end run; pieces leave acceptance scripts dev/accept/P2-W0/<id>.py; no pytest in piece acceptance
@@ -60,10 +66,8 @@ Q7 TA seeds real records in test_cli_corr.py::SITES and the test_cli_domains.py 
 Q8 W0-B2: derived-document publish target choice needs schema change (target_kind Literal, names.TARGET_KINDS, mapping JSON schema); M4 needs it needs orch raised W0-B2
 Q9 W0-B2: a company load run opened with --company cannot advance (extract..show take --project); follow-up in wave 1; docs/modules/legacy/README.md still says tags|documents needs orch raised W0-B2
 ## NEXT
-1. Dispatch r5: one workflow, S9 (TA) and S10 (TB) in parallel (disjoint test files, snapshots split: TA admin, TB settings); then T09, T10, T11 (lite) in a second workflow. Branches p2/w0-s9-tests-roles, p2/w0-s10-tests-core, p2/w0-t09-docs-roles-words, p2/w0-t10-docs-targets-offline, p2/w0-t11-demo.
-2. Merge order on P: S9, S10, T09, T10, T11. Retry any 2s/gr first. Source defects found by tests come back as Blocked with a test id: next round re-specs a Haiku ticket or builder fix.
-3. C3 after merge. C4 by orchestrator: just check, whole just gate once, gate-pg on tests/auth + packages/tl-core/tests/auth, P1-I3/P1-I8/P2-W0 demos on both adapters, just tour 1 once (tour rows from T11), increment report.
-4. Orchestrator at C4: Q1, Q2, Q8, Q9; APPROVALS lines for the schema merges are logged through T08.
+1. Wave done (C4). Report docs/reports/P2-W0.md. Follow-ups listed there go to wave 1 tickets.
+2. Wave 1: M3 (P2-I1), M4 (P2-I3), web client I1.
 ## REFS
 Specs wave0.md, roles-mvp.md (§6 RM-S3, §5/§11 RM-S4), offline-classes.md (§5, §7), phase2-wave-plan.md, OWNER-DECISIONS-2026-10-30.md. Reports docs/reports/P2-W0/{RM-S1,RM-S2,RM-S3,RM-S3-L,RM-S4,W0-B1,W0-B2,OC-S1,OC-S2,OC-T3,OC-T4,T04,T05,A1-A3}.md (guard sites for mutants). Old-text pins: T05 test_details_registry.py:43 (S10); T07 none (S9 pins the new text); T08 none found (S10 pins OFFLINE_STREAMS); RM-S4 gates/SITES/comm loop/xercli GATE (S9). Fixtures docs/tickets/P2-W0/provided/relay-{ok,bad}.txt. Acceptance scripts dev/accept/P2-W0/.
 ## TRAPS
