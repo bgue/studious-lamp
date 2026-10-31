@@ -37,7 +37,12 @@ def git(repo: Path, *args: str) -> str:
         "GIT_COMMITTER_EMAIL": "fixture@example.invalid",
     }
     done = subprocess.run(
-        ["git", *args], cwd=repo, env=env, check=True, capture_output=True, text=True
+        ["git", "-c", "commit.gpgsign=false", *args],
+        cwd=repo,
+        env=env,
+        check=True,
+        capture_output=True,
+        text=True,
     )
     return done.stdout
 
@@ -146,7 +151,7 @@ def test_clean_lines_are_shortened_to_sixty_lines_and_the_problem_stays(tmp_path
     repo = base_repo(tmp_path)
     git(repo, "checkout", "-q", "-b", "p9/x1-t01-d")
     for i in range(1, 51):
-        write(repo, "src/a.py", f"def f():\n    return {i}\n")
+        write(repo, "src/a.py", f"def f():\n    return {i + 1}\n")  # the base holds `return 1`
         commit_all(repo, f"P9-X1-T01: step {i}")
     git(repo, "commit", "-q", "--allow-empty", "-m", "fix stuff")
 
