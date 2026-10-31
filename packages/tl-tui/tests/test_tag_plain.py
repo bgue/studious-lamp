@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Awaitable, Callable
 
 from fakes import SCOPE, FakeClient
-from helpers import run_pilot, screen_text, settle
+from helpers import panel_of, run_pilot, screen_text, settle
 from textual.pilot import Pilot
 from textual.widgets import Input
 from tl_mod_engineering.views import TagView
@@ -126,7 +126,8 @@ def test_a_tag_the_viewer_cannot_read_opens_as_no_record() -> None:
 
 def test_plain_text_names_the_class_and_the_properties_in_words() -> None:
     async def steps(pilot: Pilot[None], app: TlApp, screen: TagRegisterScreen) -> None:
-        text = screen_text(app)
+        panel = panel_of(screen)
+        text = screen_text(app) + panel
         assert "Control valve" in text
         assert "Valve data / Body material" in text
         for raw in ("ControlValve", "psets.", "area="):
@@ -144,19 +145,18 @@ def test_plain_text_names_the_class_and_the_properties_in_words() -> None:
 
 def test_technical_mode_shows_the_raw_path_and_segments_and_back() -> None:
     async def steps(pilot: Pilot[None], app: TlApp, screen: TagRegisterScreen) -> None:
-        assert "area=" not in screen_text(app)
+        assert "area=" not in panel_of(screen)
         app.display_mode.technical = True
         screen.refresh_for_display_mode()
         await settle(pilot)
-        text = screen_text(app)
-        assert "psets.valve_data.body_material" in text
-        assert "area=47 mnemonic=FV seq=1001" in text
-        assert "ControlValve" in text
+        text = panel_of(screen)
+        assert "Number parts  area=47 mnemonic=FV seq=1001" in text
+        assert "Class code    ControlValve" in text
         app.display_mode.technical = False
         screen.refresh_for_display_mode()
         await settle(pilot)
-        text = screen_text(app)
-        assert "area=" not in text and "psets." not in text
+        text = panel_of(screen)
+        assert "area=" not in text and "psets." not in text and "ControlValve" not in text
         assert "Valve data / Body material" in text
 
     scenario(world(), steps)
@@ -180,14 +180,13 @@ def test_the_tag_renderer_rows_with_a_failing_read_fall_back_to_generic_rows_and
 
     rows = details_for(client, PROJECT, record, Labels(), DisplayMode())
 
+    # the title is the record screen's header, not a row
     assert [row.label for row in rows] == [
         "Type",
-        "Title",
         "Status",
+        "Conformance",
         "Created",
         "Updated",
-        "Conformance",
         NOTE_LABEL,
     ]
-    assert rows[1].value == "Feed gas control"
     assert rows[-1].value == NOTE_TEXT

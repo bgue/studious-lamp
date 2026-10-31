@@ -178,6 +178,8 @@ classes:
       (`co.acme.LiftPlan`) is what a record's `type` holds. An `active` or `deprecated` row whose files later changed keeps
       its status and shows the changed hash in `conflict_hash`, with the conflict in `report_json`.
     annotations:
+      tl:offline: none
+      tl:stream_type: core.TypeRegistration
       tl:current_state: true
       tl:table: cur_core_type_registration
     attributes:

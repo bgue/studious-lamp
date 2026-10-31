@@ -28,7 +28,7 @@ from typer.testing import CliRunner
 from typer.testing import Result as RunResult
 
 PASSWORD = "correct horse battery"
-GATE = "needs the document_controller or admin role"
+GATE = "access word for schedule"  # the module word (RM-S4)
 runner = CliRunner()
 P = ("--project", "P123")
 

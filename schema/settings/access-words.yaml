@@ -1,0 +1,34 @@
+# Fine access words of the Phase 2 modules, as data (specs/wave0.md section 2; plan check F1).
+# Each word names the word of the role table it needs: read (viewer), user (user), controller
+# (superuser). `CommandSpec.access` of a module command is the fine word; the roles MVP reads this
+# table through `tl_core.auth.access_words`. An unknown table word or a repeated word is an
+# `AccessWordError` at start-up (fail closed). Sources: specs/m3-wbs-cwp.md section 3 and
+# specs/m4-materials.md section 3 (default-role column: viewer -> read, user -> user,
+# superuser -> controller; "company superuser, else admin" -> controller).
+version: 1
+words:
+  # awp: work breakdown, packages and release (specs/m3-wbs-cwp.md section 3)
+  awp.view: read
+  awp.wbs.configure: controller
+  awp.path.configure: controller
+  awp.cwa.edit: user
+  awp.cwp.edit: user
+  awp.cwp.release: controller
+  awp.cwp.close: controller
+  awp.void: controller
+  awp.package.edit: user
+
+  # materials: library, receipts, stock and take-offs (specs/m4-materials.md section 3)
+  materials.view: read
+  materials.library.edit: controller   # company superuser, else admin
+  materials.item.adopt: user
+  materials.location.configure: controller
+  materials.po.edit: user
+  materials.receive: user
+  materials.receipt.decide: user
+  materials.void: controller
+  materials.move: user
+  materials.reserve: user
+  materials.adjust: controller
+  materials.mto.publish: controller
+  materials.mto.assign: user

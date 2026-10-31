@@ -112,6 +112,13 @@ def started_server(app: Any, settings: ApiSettings, on_started: Callable[[], Non
 
 
 def main(argv: Sequence[str] | None = None) -> int:
+    from tl_core.offline import NodeKindNotBuiltError, require_node_built
+
+    try:
+        require_node_built()  # before any ledger is opened
+    except (NodeKindNotBuiltError, ValueError) as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
     try:
         settings = parse_args(argv)
     except ValueError as exc:  # TL_DB holds a value that is not a database target

@@ -100,13 +100,32 @@ bench *args:
 bench-rebuild *args:
     TL_BENCH_FULL_REBUILD=1 uv run pytest tests/bench/test_rebuild.py -m bench -q -s -p no:cacheprovider -k large {{args}}
 
+# Validate a supervisor reply (relay block) from FILE or stdin (skill subagent-throughput-process, A3)
+relay-lint *args:
+    bash dev/relay-lint {{args}}
+
+# STATE.md plus git state of an increment in at most 40 lines (skill subagent-throughput-process, A1)
+state inc *args:
+    bash dev/state.sh {{inc}} {{args}}
+
+# One-call review pack for a branch against its base (skill subagent-throughput-process, A2)
+review-pack base branch *args:
+    bash dev/review-pack.sh {{base}} {{branch}} {{args}}
+
+# User-facing performance of the terminal app (RFI log, correspondence, documents, record grid) on SQLite,
+# Postgres and remote over HTTP; writes docs/reports/perf/P1-UX-perf.md and .json. Takes tens of minutes.
+# e.g. `just perf-ux --sizes 1000,10000 --backends sqlite,postgres,remote`
+perf-ux *args:
+    uv run python dev/perf/ux_bench.py {{args}}
+
 # Run the demo script for an increment, e.g. `just demo P0-I1`
 demo id:
     bash dev/demos/{{id}}.sh
 
-# Regenerate the screenshot tour (SVGs and transcripts) for a phase, 0 or 1; `out` overrides the output directory
+# Regenerate the screenshot tour (SVGs and transcripts) for a phase, 0 or 1, or the `highlights` tour
+# (only the everyday screens, docs/reports/tour/highlights); `out` overrides the output directory
 tour phase="1" out="":
-    uv run python dev/tour/phase{{phase}}.py {{ if out == "" { "" } else { "--out " + out } }}
+    uv run python dev/tour/{{ if phase == "highlights" { "highlights" } else { "phase" + phase } }}.py {{ if out == "" { "" } else { "--out " + out } }}
 
 # Regenerate both screenshot tours, phase 0 then phase 1
 tour-all:

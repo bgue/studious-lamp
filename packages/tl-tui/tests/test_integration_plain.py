@@ -45,10 +45,10 @@ def test_plain_columns_and_cells_drop_ids_versions_and_code_versions() -> None:
         "acme-nde/results", "✓ on", "live", "hmac", "user",
     )  # fmt: skip
     assert cells("rules", rows.rule(), technical=False) == (
-        "hse-notify", "✗ off", "propose", "user", "Notify HSE",
+        "hse-notify", "Notify HSE", "✗ off", "propose", "user",
     )  # fmt: skip
     assert cells("actions", rows.action(), technical=False) == (
-        "send_to_nde", "✓ on", "webhook", "user", "yes", "Send to NDE",
+        "send_to_nde", "Send to NDE", "✓ on", "webhook", "user", "yes",
     )  # fmt: skip
     assert cells("enrichers", rows.enricher(), technical=False) == (
         "doc_classifier", "✓ on", "user", "doc_type,discipline",
@@ -60,7 +60,7 @@ def test_plain_columns_and_cells_drop_ids_versions_and_code_versions() -> None:
     assert cells("deliveries", rows.delivery(), NAMES, technical=False) == (
         "! Failed", "acme-nde/results", "2026-10-11 12:15", "Mapping failed",
     )  # fmt: skip
-    assert cells("deliveries", rows.delivery(error_code=None), technical=False)[-1] == "-"
+    assert cells("deliveries", rows.delivery(error_code=None), technical=False)[-1] == "—"
 
 
 def test_plain_detail_lines_name_services_and_hide_ids() -> None:
@@ -92,10 +92,10 @@ def test_plain_panels_show_no_technical_tokens() -> None:
 
 #: The technical text as it was before P1-UX-T09a (captured from the HEAD parent), one row per kind.
 TECHNICAL_CELLS: dict[str, tuple[str, ...]] = {
-    "apps": ("acme-nde", "✓ on", "user:boss", "Acme NDE"),
+    "apps": ("acme-nde", "Acme NDE", "✓ on", "user:boss"),
     "endpoints": ("acme-nde/results", "✓ on", "live", "hmac", "user", "v2"),
-    "rules": ("hse-notify", "✗ off", "propose", "user", "v1", "Notify HSE"),
-    "actions": ("send_to_nde", "✓ on", "webhook", "user", "yes", "v1", "Send to NDE"),
+    "rules": ("hse-notify", "Notify HSE", "✗ off", "propose", "user", "v1"),
+    "actions": ("send_to_nde", "Send to NDE", "✓ on", "webhook", "user", "yes", "v1"),
     "enrichers": ("doc_classifier", "✓ on", "user", "v1", "1.0.0", "doc_type,discipline"),
     "invocations": ("NAAAAAA1", "✓ completed", "send_to_nde", "user:bob", "2026-10-11 12:15"),
     "deliveries": (

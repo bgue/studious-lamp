@@ -70,6 +70,7 @@ class LedgerExtensionSource:
         self._seen_changes = -1
         self._epoch = 0
         self._unavailable: dict[str, str] = {}
+        self._offline: dict[str, str] = {}
 
     def invalidate(self) -> None:
         """Make the next ``token()`` differ: the provider reloads every type's files."""
@@ -116,14 +117,17 @@ class LedgerExtensionSource:
             return []
         documents: list[PackageDoc] = []
         unavailable: dict[str, str] = {}
+        offline: dict[str, str] = {}
         for view in views:
             loaded = self._loader.load(view.registration)
             if isinstance(loaded, LoadedType):
                 documents.append(loaded.document)
+                offline[loaded.compiled.type_name] = loaded.compiled.offline
             else:
                 unavailable[view.registration.type_ref] = loaded.reason
         with self._lock:
             self._unavailable = unavailable
+            self._offline = offline
         self._refresh_settings(views)
         return documents
 
@@ -137,10 +141,31 @@ class LedgerExtensionSource:
         except Exception as exc:  # the schema must never fail because a settings key did
             log.warning("extension type settings not refreshed: %s", exc)
 
+    def offline_class(self, type_name: str) -> str | None:
+        """The ``tl:offline`` class of a type in the last read, or ``None`` when it was not read.
+
+        No IO: it answers from what ``documents()`` last handed the schema provider.
+        """
+        with self._lock:
+            return self._offline.get(type_name)
+
     def unavailable(self) -> dict[str, str]:
         """Type ref to the reason, for registered types left out of the schema at the last read."""
         with self._lock:
             return dict(self._unavailable)
+
+
+_attached: LedgerExtensionSource | None = None
+
+
+def attached_offline_class(type_name: str) -> str | None:
+    """The offline class of a registered extension type held by the attached source, else ``None``.
+
+    Free of IO (``LedgerExtensionSource.offline_class``); ``None`` when no source is attached or
+    the type is not in the last read.
+    """
+    source = _attached
+    return source.offline_class(type_name) if source is not None else None
 
 
 class _Merged:
@@ -176,8 +201,10 @@ def attach(
     provider = get_provider()
     if not isinstance(provider, DirectorySchemaProvider):
         return None
+    global _attached
     source = LedgerExtensionSource(factory, ttl=ttl)
     provider.attach_extensions(source)
+    _attached = source
     # The schema registry module (P1-I8) adds its published packages, pins and waivers the same way.
     registries = [make(factory) for make in schema_sources()]
     merged = (

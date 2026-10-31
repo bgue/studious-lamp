@@ -25,18 +25,30 @@ from tl_mod_engineering.handlers.standards import (
     AddCodeValue,
     CloseCodeValue,
     CloseStandard,
+    RegisterCodeList,
+    RegisterMnemonic,
+    RegisterNumberingPattern,
     handle_add_code_value,
     handle_close_code_value,
     handle_close_standard,
 )
+from tl_mod_engineering.handlers.tag_class import DefineTagClass
 from tl_mod_engineering.loader import ItemKind, LoadReport, load_standards, plan_load
 from tl_mod_engineering.names import COMPANY
 
-from tl_cli.session import require_admin
+from tl_cli.session import require_admin, require_command, require_commands
 
 app = typer.Typer(help="Load and read the company standards registry.", no_args_is_help=True)
 
 _DEFAULT_ACTOR = "user:dev"
+# every command class `load_standards` issues (a bulk helper: the CLI gates it before the call)
+_LOAD_STANDARDS_COMMANDS = (
+    RegisterCodeList,
+    AddCodeValue,
+    RegisterMnemonic,
+    RegisterNumberingPattern,
+    DefineTagClass,
+)
 _Actor = Annotated[str, typer.Option("--actor", help="Actor recorded on events.")]
 _Reason = Annotated[str, typer.Option("--reason", help="Why (kept in the history).")]
 _Project = Annotated[
@@ -115,6 +127,7 @@ def load(
             _counts(plan)
             return
         with open_uow(db) as uow:
+            require_commands(uow, _LOAD_STANDARDS_COMMANDS, actor=actor, scope=COMPANY)
             report = load_standards(uow, doc, actor=actor, source="cli")
     typer.echo(f"loaded {doc.edition}")
     _counts(report)
@@ -221,19 +234,18 @@ def add_value(
     if project is None:
         require_admin(db)
     with _service_errors(), open_uow(db) as uow:
-        handle_add_code_value(
-            uow,
-            AddCodeValue(
-                actor=actor,
-                source="cli",
-                scope=scope,
-                code_list=code_list,
-                code=code,
-                label=label,
-                crosswalk=crosswalk,
-                meaning=meaning,
-            ),
+        command = AddCodeValue(
+            actor=actor,
+            source="cli",
+            scope=scope,
+            code_list=code_list,
+            code=code,
+            label=label,
+            crosswalk=crosswalk,
+            meaning=meaning,
         )
+        require_command(uow, command)
+        handle_add_code_value(uow, command)
         row = registry.find_code_value(uow.conn(), scope, code_list, code)
     if row is None:
         _fail(f"no value {code_list}.{code} in {scope}")
@@ -283,18 +295,17 @@ def close(
                 _fail(f"no {kind} with key {superseded_by!r}")
             successor = replacing[0].id
         lifecycle = "superseded" if successor is not None else "retired"
-        handle_close_standard(
-            uow,
-            CloseStandard(
-                actor=actor,
-                source="cli",
-                scope=COMPANY,
-                stream_id=row.id,
-                lifecycle=lifecycle,
-                superseded_by=successor,
-                reason=reason,
-            ),
+        command = CloseStandard(
+            actor=actor,
+            source="cli",
+            scope=COMPANY,
+            stream_id=row.id,
+            lifecycle=lifecycle,
+            superseded_by=successor,
+            reason=reason,
         )
+        require_command(uow, command)
+        handle_close_standard(uow, command)
     typer.echo(f"closed {kind} {row.code} {row.edition} as {lifecycle}")
 
 
@@ -326,16 +337,15 @@ def close_value(
             if other is None:
                 _fail(f"no value {code_list}.{superseded_by} in {scope}")
         lifecycle = "superseded" if other is not None else "retired"
-        handle_close_code_value(
-            uow,
-            CloseCodeValue(
-                actor=actor,
-                source="cli",
-                scope=scope,
-                stream_id=row.id,
-                lifecycle=lifecycle,
-                superseded_by=other.id if other is not None else None,
-                reason=reason,
-            ),
+        command = CloseCodeValue(
+            actor=actor,
+            source="cli",
+            scope=scope,
+            stream_id=row.id,
+            lifecycle=lifecycle,
+            superseded_by=other.id if other is not None else None,
+            reason=reason,
         )
+        require_command(uow, command)
+        handle_close_code_value(uow, command)
     typer.echo(f"closed value {code_list}.{code} as {lifecycle}")

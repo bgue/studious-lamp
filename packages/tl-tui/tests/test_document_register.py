@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 from doc_support import pdf_bytes, settle
 from fakes import SCOPE, FakeClient
-from helpers import run_pilot, screen_text
+from helpers import panel_of, run_pilot, screen_text, static_of
 from textual.pilot import Pilot
 from textual.widgets import DataTable, Input, Static
 from tl_tui.app import TlApp
@@ -52,9 +52,15 @@ def test_f7_lists_the_documents_by_number_and_describes_the_first() -> None:
         assert "P123 › Documents › ISO-1234: Isometric, line 47-P-101" in text  # the breadcrumb
         assert numbers(screen) == ["ISO-1234", "ISO-2000"]  # the void one is left out
         assert screen.query_one("#log-table", DataTable).row_count == 2
-        assert "B(IFC)" in text and "Registered" in text
-        assert "revisions:" in text and "B  Issued  IFC construction 2026-10-10  current" in text
-        assert "links (1 stale):" in text and "! 47-FV-1001" in text
+        panel = panel_of(screen)  # the whole panel, not the part in view
+        assert "B, Issued for construction" in text and "Registered" in text
+        assert "Revisions (2)" in panel
+        assert "B    Current  Issued for construction  2026-10-10  pdf" in panel
+        links = static_of(screen, "#doc-links")
+        assert (
+            "Links (2, 1 stale)" in links
+            and "47-FV-1001  Record  A         ! Stale: now B" in links
+        )
         assert "2 of 2 documents" in text
         await pilot.press("escape")
         await settle(pilot)
@@ -68,7 +74,7 @@ def test_moving_the_cursor_describes_the_document_it_lands_on() -> None:
         await pilot.press("down")
         await settle(pilot)
         assert screen.detail is not None and screen.detail.number == "ISO-2000"
-        assert "no revisions yet" in screen_text(app)
+        assert "No revisions yet" in panel_of(screen)
 
     scenario(world(), steps)
 
@@ -252,7 +258,7 @@ def test_v_opens_the_current_revisions_pdf_in_the_viewer(
     async def steps(pilot: Pilot[None], app: TlApp, screen: DocumentRegisterScreen) -> None:
         await settle(pilot)
         assert "[v] Open file" in bar(screen)
-        assert "sheet-B.pdf  PDF document" in screen_text(app)
+        assert "sheet-B.pdf  PDF document" in static_of(screen, "#fp-lines")
         await pilot.press("v")
         await settle(pilot)
         assert [p.name for p in opened] == ["sheet-B.pdf"]

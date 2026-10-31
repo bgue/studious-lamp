@@ -10,6 +10,8 @@ from typing import Any
 import pytest
 from mcp.server.mcpserver.exceptions import ToolError
 from mcp_harness import ACTOR, SCOPE, McpHarness
+from tl_adapters.db import open_uow
+from tl_core.auth import accounts
 from tl_core.derivation.registry import use_extractors
 from tl_core.derivation.testing import make_extractors
 from tl_core.schema_provider import DirectorySchemaProvider, use_provider
@@ -54,6 +56,13 @@ def env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Env]:
                 world.attach("ISD-001", "A")
                 world.register_schema()
                 world.valid_derived(ROWS)
+                # the agent is an account holding the module word `user` (ADR-0021): proposing
+                # runs the command as the agent first, and a name with no account holds nothing
+                with open_uow(harness.db) as uow:
+                    accounts.create_account(
+                        uow, username=ACTOR.partition(":")[2], display_name="Triage",
+                        kind="agent", roles=["user"], password=None, by="user:root",
+                    )  # fmt: skip
                 yield Env(harness, world)
         finally:
             harness.close()

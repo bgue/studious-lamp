@@ -26,24 +26,39 @@ from tl_mod_correspondence.views import ClockView, ItemView, RegisterLineView, S
 from tl_tui.client import ClientInterface
 from tl_tui.correspondence_text import (
     CLOCK_COLUMNS,
+    CLOCK_DROP,
     MODES,
     PLAIN_CLOCK_COLUMNS,
     REGISTER_COLUMNS,
+    REGISTER_DROP,
     clock_cells,
-    clock_lines,
-    item_lines,
+    clock_page,
+    item_page,
     next_mode,
     register_cells,
     summary_line,
 )
-from tl_tui.display import Labels, mode_of
+from tl_tui.details.correspondence import direction_word
+from tl_tui.display import Labels, humanize, mode_of
 from tl_tui.errors import CLIENT_ERRORS, describe_error
 from tl_tui.labels_load import load_labels
+from tl_tui.layout import (
+    Adaptive,
+    Page,
+    Panel,
+    Section,
+    identity_line,
+    join_facts,
+    prop,
+    render,
+    state_line,
+)
 from tl_tui.log_actions import (
     ACTION_UI,
     ENVELOPE,
     ActionUi,
     Runner,
+    add_property_actions,
     log_actions,
     screen_runner,
     without_keys,
@@ -64,9 +79,17 @@ class CorrespondenceScreen(LogScreen[RegisterLineView | ClockView]):
     """The correspondence of ``project`` (the id, not the scope)."""
 
     LOG_NAME: ClassVar[str] = LOG_NAMES["register"]
+    # every key the log has, in one text (the walking tests read it); the keys row shows KEY_CELLS
+    # and F1 lists the rest (HELP_KEYS)
     KEY_HINTS: ClassVar[str] = (
         "1 register  2 triage inbox  3 clocks  m closed clocks  s sweep  / filter  F5 reload  "
         "Esc close"
+    )
+    KEY_CELLS: ClassVar[tuple[str, ...]] = ("1-3 view", "m closed clocks", "/ filter")
+    HELP_KEYS: ClassVar[tuple[tuple[str, str], ...]] = (
+        ("1  2  3  Tab", "Register, triage inbox, response clocks"),
+        ("m", "Clocks: show the met and cancelled ones too"),
+        ("s", "Record the warnings and expiries that are due (document controllers)"),
     )
 
     BINDINGS: ClassVar[list[BindingType]] = [
@@ -102,6 +125,7 @@ class CorrespondenceScreen(LogScreen[RegisterLineView | ClockView]):
         self._labelled = False
         self._flash = ""  # a note for the status line that the next reload would otherwise replace
         self._items: dict[str, tuple[ItemView, SuggestionView | None]] = {}
+        self._panels: dict[tuple[str, bool], Adaptive] = {}  # panels drawn since the last read
 
     # --- the log's hooks -----------------------------------------------------------------
 
@@ -113,6 +137,9 @@ class CorrespondenceScreen(LogScreen[RegisterLineView | ClockView]):
             return CLOCK_COLUMNS if mode_of(self.app).technical else PLAIN_CLOCK_COLUMNS
         return REGISTER_COLUMNS
 
+    def drop_order(self) -> Sequence[str]:
+        return CLOCK_DROP if self.mode == "clocks" else REGISTER_DROP
+
     def load_rows(self) -> Sequence[RegisterLineView | ClockView]:
         if not self._labelled:
             self.labels = load_labels(
@@ -120,6 +147,7 @@ class CorrespondenceScreen(LogScreen[RegisterLineView | ClockView]):
             )
             self._labelled = True
         self._items = {}
+        self._panels = {}
         if self.mode == "clocks":
             self.clocks = self.client.list_clocks(self.project, open_only=not self.closed_too)
             return self.clocks
@@ -153,21 +181,46 @@ class CorrespondenceScreen(LogScreen[RegisterLineView | ClockView]):
             found = self._items[row.id] = (item, suggestion)
         return found
 
-    def panel_text(self, row: RegisterLineView | ClockView | None) -> str:
-        """The highlighted row in full (one read per row)."""
+    def panel_text(self, row: RegisterLineView | ClockView | None) -> Panel:
+        """The highlighted row in full (one read per row until the rows are read again)."""
         self.suggestion = None
         technical = mode_of(self.app).technical
-        if isinstance(row, ClockView):
-            return "\n".join(clock_lines(row, self.labels, technical=technical))
         if row is None:
             return "Nothing here." if self.mode != "inbox" else "Nothing is waiting for triage."
+        if isinstance(row, ClockView):
+            return render(clock_page(row, self.labels, technical=technical))
         if row.kind != "item":
-            return f"{row.number}  {row.state}  {row.subject}  ({row.kind})"
+            return render(self._source_page(row))
         try:
             item, self.suggestion = self._detail(row)
+            found = self._panels.get((row.id, technical))
+            if found is None:
+                found = self._panels[(row.id, technical)] = render(
+                    item_page(
+                        item,
+                        self.suggestion,
+                        self.labels,
+                        technical=technical,
+                        client=self.client,
+                        project=self.project,
+                    )
+                )
         except CLIENT_ERRORS as exc:
             return describe_error(exc)
-        return "\n".join(item_lines(item, self.suggestion, self.labels, technical=technical))
+        return found
+
+    @staticmethod
+    def _source_page(row: RegisterLineView) -> Page:
+        """A register line that is not an item (a transmittal): its few facts."""
+        outgoing = row.direction == "out"
+        with_ = f"{'to' if outgoing else 'from'} {row.counterparty}" if row.counterparty else ""
+        facts = Section("Key facts", (prop("Kind", humanize(row.kind)), prop("Date", row.on)))
+        return Page(
+            identity_line(row.number, row.subject),
+            state_line(humanize(row.state)),
+            (facts,),
+            join_facts(direction_word(row.direction), with_),
+        )
 
     def actions_for(self, row: RegisterLineView | ClockView) -> Sequence[LogAction]:
         if isinstance(row, ClockView) or row.kind != "item":
@@ -187,7 +240,12 @@ class CorrespondenceScreen(LogScreen[RegisterLineView | ClockView]):
                     subtype=subtype,
                 ),
             )
-        return log_actions(offers, ui, self._runner(), version=item.version)
+        return [
+            *log_actions(offers, ui, self._runner(), version=item.version),
+            *add_property_actions(
+                self, self.client, offers, actor=self.actor, scope=f"project:{self.project}"
+            ),
+        ]
 
     def _runner(self) -> Runner:
         return screen_runner(self, self.client, actor=self.actor, scope=f"project:{self.project}")

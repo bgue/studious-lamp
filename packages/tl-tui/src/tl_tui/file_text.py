@@ -81,3 +81,10 @@ def file_line(name: str, content_type: str | None, size: int, pages: int | None 
     if pages is not None and pages >= 1:
         parts.append("1 page" if pages == 1 else f"{pages} pages")
     return "  ".join(parts)
+
+
+def file_pages(pages: int | None) -> str:
+    """``3 pages``, ``1 page``; empty when the count is not known."""
+    if pages is None or pages < 1:
+        return ""
+    return "1 page" if pages == 1 else f"{pages} pages"

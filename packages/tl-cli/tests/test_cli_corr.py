@@ -29,7 +29,11 @@ from typer.testing import Result as RunResult
 
 AUTO_SIGN_IN = False
 PASSWORD = "correct horse battery"
-GATE = "needs the document_controller or admin role"
+GATE = "access word for correspondence"  # the module word (RM-S4)
+ROLE_GATE = (
+    "needs the document_controller or admin role"  # `require_controller`, kept on a condition
+)
+ROLE_GATED = {"clearance ls", "report register"}
 PROJECT = ("--project", "P123")
 runner = CliRunner()
 
@@ -186,7 +190,7 @@ def test_the_register_csv_leaves_out_what_is_not_internal_and_quotes_formulas(
     # a user cannot name a class; the file goes where --out says
     refused = run(cast.ursula, "report", "register", *PROJECT, "--include-class", "restricted",
                   ok=False)  # fmt: skip
-    assert GATE in refused.stderr
+    assert ROLE_GATE in refused.stderr
     target = tmp_path / "register.json"
     run(cast.ursula, "report", "register", *PROJECT, "--json", "--out", str(target))
     assert [r["number"] for r in json.loads(target.read_text())] == [plain]
@@ -202,41 +206,64 @@ def test_responses_due_lists_the_items_that_want_an_answer(cast: Cast, tmp_path:
     assert number in run(cast.ursula, "report", "due", *PROJECT, "--within", "5").stdout
 
 
+# Each site is a template over real records (`{one}`, `{two}` are items, `ACME` a party, `CT-1` a
+# clause, all made by `seeded`): the module gate runs once the command is built, after the record is
+# looked up (RM-S4), so a made-up number would answer `no item` before it answered `forbidden`.
 SITES = {
-    "issue": ("issue", "P123-COR-0001"),
-    "supersede": ("supersede", "P123-COR-0001", "--by", "P123-COR-0002", "--reason", "x"),
+    "issue": ("issue", "{one}"),
+    "supersede": ("supersede", "{one}", "--by", "{two}", "--reason", "x"),
     "clock sweep": ("clock", "sweep"),
-    "party add": ("party", "add", "ACME", "--name", "Acme", "--role", "client"),
-    "party contact-add": ("party", "contact-add", "ACME", "--contact", "Bo"),
+    "party add": ("party", "add", "NEWCO", "--name", "Newco", "--role", "client"),
+    "party contact-add": ("party", "contact-add", "ACME", "--contact", "Cy"),
     "party contact-end": ("party", "contact-end", "ACME", "--position", "1", "--reason", "x"),
     "party retire": ("party", "retire", "ACME", "--reason", "x"),
-    "clause add": ("clause", "add", "CT-1", "20.1"),
+    "clause add": ("clause", "add", "CT-2", "20.1"),
     "clause retire": ("clause", "retire", "CT-1", "20.1", "--reason", "x"),
-    "class set": ("class", "set", "P123-COR-0001", "--to", "restricted", "--reason", "x"),
-    "class grant": ("class", "grant", "P123-COR-0001", "--account", "user:bo", "--reason", "x"),
-    "class withdraw": (
-        "class",
-        "withdraw",
-        "P123-COR-0001",
-        "--account",
-        "user:bo",
-        "--reason",
-        "x",
-    ),
+    "class set": ("class", "set", "{one}", "--to", "restricted", "--reason", "x"),
+    "class grant": ("class", "grant", "{one}", "--account", "user:bo", "--reason", "x"),
+    "class withdraw": ("class", "withdraw", "{one}", "--account", "user:bo", "--reason", "x"),
     "clearance ls": ("clearance", "ls"),
     "report register": ("report", "register", "--include-class", "restricted"),
 }
 
 
+@pytest.fixture
+def seeded(cast: Cast, tmp_path: Path) -> dict[str, tuple[str, ...]]:
+    """Two received items, the party ACME with a contact and the clause CT-1, made by the
+    controller; returns the sites with the real numbers in place."""
+    one = receive(cast.dora, tmp_path, "One")
+    two = receive(cast.dora, tmp_path, "Two")
+    run(cast.dora, "party", "add", "ACME", "--name", "Acme", "--role", "client", *PROJECT)
+    run(cast.dora, "party", "contact-add", "ACME", "--contact", "Bo", *PROJECT)
+    run(cast.dora, "clause", "add", "CT-1", "20.1", *PROJECT)
+    return {name: tuple(a.format(one=one, two=two) for a in args) for name, args in SITES.items()}
+
+
 @pytest.mark.parametrize("name", list(SITES))
 def test_a_user_is_refused_at_every_controller_site_and_nothing_is_written(
-    name: str, cast: Cast
+    name: str, cast: Cast, seeded: dict[str, tuple[str, ...]]
 ) -> None:
     before = cast.events()
-    refused = run(cast.ursula, *SITES[name], *PROJECT, ok=False)
+    refused = run(cast.ursula, *seeded[name], *PROJECT, ok=False)
     assert refused.stderr.startswith("error: forbidden"), refused.stderr
-    assert GATE in refused.stderr
+    assert (ROLE_GATE if name in ROLE_GATED else GATE) in refused.stderr
     assert cast.events() == before
+
+
+@pytest.mark.parametrize("verb", ["grant", "withdraw"])
+def test_the_clearance_gate_comes_before_the_lookup_so_a_hidden_number_is_no_oracle(
+    verb: str, cast: Cast, seeded: dict[str, tuple[str, ...]]
+) -> None:
+    """ADR-0016: for a plain user an unknown number and a real one answer the same, `forbidden`;
+    only the controller, who may know, is told that there is no such item."""
+    unknown = ("class", verb, "P123-COR-9999", "--account", "user:bo", "--reason", "x", *PROJECT)
+    real = ("class", verb, seeded[f"class {verb}"][2], "--account", "user:bo", "--reason", "x")
+    user_unknown = run(cast.ursula, *unknown, ok=False)
+    user_real = run(cast.ursula, *real, *PROJECT, ok=False)
+    assert user_unknown.stderr == user_real.stderr
+    assert user_unknown.stderr.startswith("error: forbidden") and GATE in user_unknown.stderr
+    controller = run(cast.dora, *unknown, ok=False)
+    assert controller.stderr.startswith("error: no item"), controller.stderr
 
 
 def test_a_controller_lists_who_is_named_and_names_another_reader(

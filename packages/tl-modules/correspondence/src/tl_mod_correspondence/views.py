@@ -115,6 +115,7 @@ class RegisterLineView(BaseModel):
     response_due: str | None
     confidentiality: str
     thread_id: str | None = None
+    medium: str | None = None  # email, letter, ...; the TUI's category before triage
 
 
 class ThreadView(BaseModel):
@@ -356,6 +357,7 @@ def _line(row: registry.ItemRow) -> RegisterLineView:
         response_due=row.response_due,
         confidentiality=row.confidentiality,
         thread_id=row.thread_id,
+        medium=row.medium,
     )
 
 

@@ -185,8 +185,12 @@ def links_to_documents(
         sql += " AND l.to_id = :document_id"
         params["document_id"] = document_id
     # both ends must be readable (ADR-0016): the document, and the record that links to it
+    # (one document: the few rows are tested one by one; the scope's links: the hidden set once)
+    test = (
+        confidentiality.not_hidden_each if document_id is not None else confidentiality.not_hidden
+    )
     for end in ("d.id", "x.id"):
-        visible, visible_params = confidentiality.not_hidden(end)
+        visible, visible_params = test(end)
         sql += f" AND {visible}"
         params.update(visible_params)
     sql += " ORDER BY d.key, x.key, l.link_id LIMIT :limit"

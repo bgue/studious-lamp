@@ -9,7 +9,7 @@ The schema registry module: the ledgered lifecycle of schema packages, per-proje
 | `tl_mod_schemareg.names` | module | Record types, event types, tables, workflow states |
 | `tl_mod_schemareg.projectors` | package | `SchemaPackageProjector`, `AdoptionProjector`, `WaiverProjector` |
 | `tl_mod_schemareg.handlers.packages` | module | The package commands (draft, revise, analyse, submit, review, publish, deprecate, retire) |
-| `tl_mod_schemareg.handlers.adoption` | module | `AdoptSchemaPackage` |
+| `tl_mod_schemareg.handlers.adoption` | module | `AdoptSchemaPackage`, `AdoptSchemaSet` |
 | `tl_mod_schemareg.handlers.waivers` | module | `RequestWaiver`, `ApproveWaiver`, `RevokeWaiver` |
 | `tl_mod_schemareg.analysis` | module | The trial schema, the classification and the impact of a draft or a pin (writes nothing) |
 | `tl_mod_schemareg.impact` / `impact_types` | modules | `impact_report(old, new, facts)`, a pure function, and its types |

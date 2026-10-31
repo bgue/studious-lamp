@@ -15,14 +15,29 @@ from collections.abc import Sequence
 
 from tl_mod_correspondence.views import ClockView, ItemView, RegisterLineView, SuggestionView
 
-from tl_tui.display import Labels, actor_label, code_label, domain_label, humanize
+from tl_tui.client import ClientInterface
+from tl_tui.details import rows_page, since_of
+from tl_tui.details.correspondence import (
+    clock_content,
+    clock_state,
+    direction_word,
+    item_content,
+)
+from tl_tui.display import Labels, actor_label, category_label, domain_label, humanize
+from tl_tui.layout import Page, identity_line, join_facts, plain_lines, state_line
+from tl_tui.text import EMPTY
 
-REGISTER_COLUMNS = ("Number", "State", "Dir", "Domain", "Date", "With", "Due", "Subject")
-CLOCK_COLUMNS = ("Clock", "State", "Due", "Left", "Days", "Type", "Label")
-PLAIN_CLOCK_COLUMNS = ("Item", "State", "Due", "Left", "Days", "Type", "Label")
+# Number, Subject (Title) and State first (skill tui-layout); a column that is the same in every
+# row (``Dir`` in a register of letters received) is hidden by ``LogScreen``.
+REGISTER_COLUMNS = ("Number", "Subject", "State", "In/out", "Category", "Date", "With", "Due")
+# columns left out, least needed first, when the register would not fit without scrolling
+REGISTER_DROP = ("Due", "Date", "In/out")
+CLOCK_DROP = ("Type", "Days", "Left")
+CLOCK_COLUMNS = ("Clock", "Label", "State", "Due", "Left", "Days", "Type")
+PLAIN_CLOCK_COLUMNS = ("Item", "Label", "State", "Due", "Left", "Days", "Type")
 MODES = ("register", "inbox", "clocks")
 MODE_TITLES = {"register": "Register", "inbox": "Triage inbox", "clocks": "Response clocks"}
-DIRECTION = {"in": "in", "out": "out", "internal": "int"}
+DIRECTION = {"in": "In", "out": "Out", "internal": "Int"}
 
 
 def _labels(labels: Labels | None) -> Labels:
@@ -30,25 +45,29 @@ def _labels(labels: Labels | None) -> Labels:
 
 
 def register_cells(line: RegisterLineView, labels: Labels | None = None) -> tuple[str, ...]:
-    """The eight cells of a register row, in the order of ``REGISTER_COLUMNS``."""
-    where = domain_label(_labels(labels), line.domain, line.subtype) if line.domain else "-"
-    kind = "" if line.kind == "item" else f" [{line.kind}]"
+    """The eight cells of a register row, in the order of ``REGISTER_COLUMNS``. The category is
+    the short name (``RFI``, ``Letter``, ``Transmittal``); the direction reads ``In``, ``Out``,
+    ``Int``."""
+    if line.kind == "transmittal":
+        category = category_label(_labels(labels), "document_control", "transmittal")
+    else:
+        category = category_label(_labels(labels), line.domain, line.subtype, line.medium)
     return (
         line.number,
+        line.subject,
         humanize(line.state),
         DIRECTION.get(line.direction, line.direction),
-        where,
-        line.on or "-",
-        line.counterparty or "-",
-        line.response_due or "-",
-        line.subject + kind,
+        category,
+        line.on or EMPTY,
+        line.counterparty or EMPTY,
+        line.response_due or EMPTY,
     )
 
 
 def left_text(clock: ClockView) -> str:
-    """``5``, ``0`` (due today) or ``-3`` (three days over); ``-`` when the clock is not running."""
+    """``5``, ``0`` (due today) or ``-3`` (three days over); ``—`` when the clock is not running."""
     if clock.days_left is None:
-        return "-"
+        return EMPTY
     return str(clock.days_left)
 
 
@@ -58,12 +77,12 @@ def clock_cells(clock: ClockView, *, technical: bool = False) -> tuple[str, ...]
     first = clock.key if technical else clock.item_number
     return (
         first,
+        clock.label,
         humanize(clock.effective_state),
         clock.due_on,
         left_text(clock),
         f"{clock.duration_days} {clock.day_type[:3]}",
         clock.kind.replace("_", " "),
-        clock.label,
     )
 
 
@@ -93,6 +112,49 @@ def suggestion_text(found: SuggestionView, labels: Labels | None = None) -> str:
     return head + (": " + "; ".join(found.reasons) if found.reasons else "")
 
 
+def item_summary_facts(item: ItemView) -> str:
+    """The decision facts of a letter in one line: ``Outgoing · to Acme Construction · reply due
+    2026-10-26``; an incoming one reads ``from``."""
+    if item.direction == "out":
+        names = ", ".join(p.name or p.email or EMPTY for p in item.to)
+        with_ = f"to {names}" if names else ""
+    else:
+        with_ = f"from {item.from_name}" if item.from_name else ""
+    due = f"reply due {item.response_due}" if item.response_required and item.response_due else ""
+    return join_facts(direction_word(item.direction), with_, due)
+
+
+def item_page(
+    item: ItemView,
+    suggestion: SuggestionView | None = None,
+    labels: Labels | None = None,
+    *,
+    technical: bool = False,
+    client: ClientInterface | None = None,
+    project: str = "",
+) -> Page:
+    """The panel under the register (skill ``tui-layout``): the identity and state lines, the
+    message, what the suggestion engine proposes (a received item), the key facts, people, dates,
+    clocks, timeline and files. With a ``client`` the timeline, the files and the day the state
+    began are read; ``technical`` adds the record id and the clock keys."""
+    shown = _labels(labels)
+    since = since_of(client, item.id) if client is not None else None
+    return rows_page(
+        item_content(
+            client,
+            project,
+            item,
+            shown,
+            suggestion=suggestion_text(suggestion, shown) if suggestion is not None else "",
+        ),
+        identity=identity_line(item.number, item.subject),
+        state=state_line(humanize(item.state), since),
+        summary=item_summary_facts(item),
+        technical=technical,
+        panel=True,
+    )
+
+
 def item_lines(
     item: ItemView,
     suggestion: SuggestionView | None = None,
@@ -100,50 +162,42 @@ def item_lines(
     *,
     technical: bool = False,
 ) -> list[str]:
-    """The panel under the table: the highlighted item, its clocks and (for a received item) what
-    the suggestion engine proposes."""
-    shown = _labels(labels)
-    domain = domain_label(shown, item.domain, item.subtype) if item.domain else "-"
-    lines = [
-        f"{item.number}  {humanize(item.state)}  {item.direction}  {item.medium}  "
-        f"class {code_label(shown, 'confidentiality', item.confidentiality)}",
-        f"subject: {item.subject}",
-        f"from {item.from_name or '-'}  to "
-        + (", ".join(r.name or r.email or "-" for r in item.to) or "-"),
-        f"received {item.received_on or '-'}  sent {item.sent_on or '-'}  "
-        f"issued {item.issued_on or '-'}",
-        f"domain {domain}  thread {item.thread_number or '-'}  "
-        f"answers {item.responds_to_number or '-'}",
-        "answer "
-        + (f"expected by {item.response_due or '-'}" if item.response_required else "not expected")
-        + (f", given {item.responded_on}" if item.responded_on else ""),
-    ]
-    if technical:
-        lines.append(f"record {item.id}")
-    if item.delivery != "none":
-        lines.append(f"delivery: {item.delivery}")
-    if item.clocks:
-        lines.append("clocks:")
-        lines.extend(f"  {clock_line(c, technical=technical)}" for c in item.clocks)
-    if suggestion is not None:
-        lines.append("suggestion: " + suggestion_text(suggestion, shown))
-    return lines
+    """The panel as plain lines (no client: no timeline and no files)."""
+    return plain_lines(item_page(item, suggestion, labels, technical=technical))
+
+
+def clock_page(clock: ClockView, labels: Labels | None = None, *, technical: bool = False) -> Page:
+    """The panel under the clocks table: the item and label, the clock's state and due date, then
+    its key facts."""
+    lab = _labels(labels)
+    left = clock.days_left
+    unit = f"{clock.day_type} day{'s' if left is not None and abs(left) != 1 else ''}"
+    time = (
+        ""
+        if left is None or clock.closed_on
+        else f"{left} {unit} left"
+        if left >= 0
+        else f"{-left} {unit} over"
+    )
+    return rows_page(
+        clock_content(clock, lab),
+        identity=identity_line(clock.item_number, clock.label),
+        state=clock_state(clock),
+        summary=join_facts(
+            f"due {clock.due_on}",
+            time,
+            actor_label(lab, clock.owner) if clock.owner else "",
+        ),
+        technical=technical,
+        panel=True,
+    )
 
 
 def clock_lines(
     clock: ClockView, labels: Labels | None = None, *, technical: bool = False
 ) -> list[str]:
-    """The panel under the clocks table."""
-    lines = [
-        clock_line(clock, technical=technical),
-        f"item {clock.item_number}  started {clock.start_on}  warns {clock.warn_days or '-'} "
-        f"days before  restarts {clock.restarts}",
-    ]
-    if clock.owner:
-        lines.append(f"owner {actor_label(_labels(labels), clock.owner)}")
-    if clock.problem:
-        lines.append(f"! {clock.problem}")
-    return lines
+    """The panel under the clocks table as plain lines."""
+    return plain_lines(clock_page(clock, labels, technical=technical))
 
 
 def summary_line(mode: str, shown: int, *, closed_too: bool = False) -> str:

@@ -46,7 +46,14 @@ from tl_schema.packages import (
 )
 from tl_schema.validation import DATE_PATTERN, DATETIME_PATTERN
 
-from tl_core.extypes.model import CompiledSlot, CompiledType, FormHints, SlotKind
+from tl_core.extypes.model import (
+    OFFLINE_VALUES,
+    CompiledSlot,
+    CompiledType,
+    FormHints,
+    OfflineValue,
+    SlotKind,
+)
 from tl_core.extypes.names import Coordinates
 from tl_core.extypes.types import TypeIssue
 
@@ -370,6 +377,11 @@ def _compile(
         detail = f"tl:storage_mode {mode!r} is not managed or object-backed"
         issues.append(TypeIssue(kind="compile", path=TYPE_FILE, detail=detail))
 
+    offline = str(_annotation(cls, "tl:offline") or "none")
+    if offline not in OFFLINE_VALUES:
+        detail = f"tl:offline {offline!r} is not one of {', '.join(OFFLINE_VALUES)}"
+        issues.append(TypeIssue(kind="compile", path=TYPE_FILE, detail=detail))
+
     names = [*cls.attributes, *[str(s) for s in cls.slots if s not in cls.attributes]]
     if not names:
         issues.append(TypeIssue(kind="compile", path=TYPE_FILE, detail="the class has no slots"))
@@ -398,6 +410,7 @@ def _compile(
             storage_mode=mode,  # type: ignore[arg-type]
             slots=slots,
             form=form,
+            offline=cast("OfflineValue", offline),
         ),
         [],
     )

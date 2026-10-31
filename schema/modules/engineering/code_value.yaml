@@ -36,6 +36,7 @@ classes:
     annotations:
       tl:current_state: true
       tl:record_types: "engineering.CodeValue"
+      tl:offline: none
       tl:ix_scope_list_order: "scope, code_list, sort_order, code"
     unique_keys:
       scope_list_code:

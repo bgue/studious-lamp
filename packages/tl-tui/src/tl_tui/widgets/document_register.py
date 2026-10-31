@@ -16,8 +16,9 @@ from __future__ import annotations
 from collections.abc import Callable, Sequence
 from typing import ClassVar
 
+from rich.text import Text
 from textual.binding import Binding, BindingType
-from textual.widgets import Input
+from textual.widgets import Input, Static
 from tl_core.actions import ActionOffer
 from tl_core.services.commands import Command
 from tl_mod_documents.handlers.documents import SupersedeDocument, VoidDocument
@@ -28,7 +29,9 @@ from tl_tui.client import ClientInterface
 from tl_tui.display import Labels, mode_of
 from tl_tui.document_text import (
     COLUMNS,
-    detail_lines,
+    DROP,
+    document_panel_pages,
+    file_revision,
     next_choice,
     row_cells,
     stale_links,
@@ -36,6 +39,8 @@ from tl_tui.document_text import (
 )
 from tl_tui.errors import CLIENT_ERRORS, describe_error
 from tl_tui.labels_load import load_labels
+from tl_tui.layout import HEADING_STYLE, Adaptive, Panel, render
+from tl_tui.log_actions import add_property_actions
 from tl_tui.widgets.action_form import ActionFormScreen, FormField
 from tl_tui.widgets.file_panel import FilePanel
 from tl_tui.widgets.log_screen import LogAction, LogScreen
@@ -44,6 +49,9 @@ from tl_tui.widgets.repin_dialog import RepinScreen
 from tl_tui.widgets.transmittal_composer import TransmittalComposerScreen
 
 MAX_DOCUMENTS = 5000
+FIRST_PAGE = (
+    500  # the rows read at first; the rest when the cursor nears the end or a filter is used
+)
 NEEDS_NEWER = "Nothing to replace it with: no other issued revision."
 NEEDS_DOCUMENT = "Nothing to replace it with: no other document has an issued revision."
 
@@ -52,8 +60,18 @@ class DocumentRegisterScreen(LogScreen[DocumentView]):
     """The documents of ``project`` (the id, not the scope)."""
 
     LOG_NAME = "Documents"
+    # every key the log has, in one text (the walking tests read it); the keys row shows KEY_CELLS
+    # and F1 lists the rest (HELP_KEYS)
     KEY_HINTS: ClassVar[str] = (
         "s state  y type  a void too  / filter  Enter open record  F5 reload  Esc close"
+    )
+    KEY_CELLS: ClassVar[tuple[str, ...]] = ("s state", "y type", "a void too", "/ filter")
+    HELP_KEYS: ClassVar[tuple[tuple[str, str], ...]] = (
+        ("s", "Show the next state: all, then each state"),
+        ("y", "Show the next document type: all, then each type"),
+        ("a", "Include the void documents"),
+        ("v", "Open the selected file in the viewer"),
+        ("Up  Down", "In the files list: choose a file"),
     )
 
     BINDINGS: ClassVar[list[BindingType]] = [
@@ -63,7 +81,8 @@ class DocumentRegisterScreen(LogScreen[DocumentView]):
     ]
 
     DEFAULT_CSS = """
-    DocumentRegisterScreen FilePanel { margin-top: 1; }
+    DocumentRegisterScreen #doc-files-head { margin-top: 1; height: 1; }
+    DocumentRegisterScreen #doc-links { margin-top: 1; height: auto; }
     """
 
     def __init__(
@@ -82,6 +101,7 @@ class DocumentRegisterScreen(LogScreen[DocumentView]):
         self._labels: Labels | None = None  # the code and type labels, loaded on first use
         self._full: dict[str, DocumentView] = {}  # number -> the document in full, per read
         self._reread = True  # False: the next load reuses ``self.views`` (a filter changed)
+        self._whole = False  # True once the register is read in full (up to MAX_DOCUMENTS)
         self._files_for: str | None = None  # the record whose files the panel shows
         self.files: FilePanel | None = None
         self._note = ""  # said once, with the next summary (a reload would otherwise wipe it)
@@ -103,11 +123,15 @@ class DocumentRegisterScreen(LogScreen[DocumentView]):
     def columns(self) -> Sequence[str]:
         return COLUMNS
 
+    def drop_order(self) -> Sequence[str]:
+        return DROP
+
+    def shrink_columns(self) -> Sequence[str]:
+        return ("Type",)  # a long type name shortens before the title does
+
     def load_rows(self) -> Sequence[DocumentView]:
         if self._reread:
-            self.views = self.client.list_documents(
-                self.project, include_void=self.include_void, limit=MAX_DOCUMENTS
-            )
+            self.views = self._read(MAX_DOCUMENTS if self._whole else FIRST_PAGE)
             self._full = {}
         self._reread = True
         return [
@@ -116,6 +140,35 @@ class DocumentRegisterScreen(LogScreen[DocumentView]):
             if (self.state is None or v.state == self.state)
             and (self.doc_type is None or v.doc_type == self.doc_type)
         ]
+
+    def _read(self, limit: int) -> list[DocumentView]:
+        return self.client.list_documents(self.project, include_void=self.include_void, limit=limit)
+
+    @property
+    def partial(self) -> bool:
+        """True while only the first page of a longer register is held."""
+        return not self._whole and len(self.views) >= FIRST_PAGE
+
+    def _load_whole(self) -> None:
+        """Read the rest of the register (in the background): the cursor came near the end of
+        the first page, or a filter was typed."""
+        if self.partial:
+            self._whole = True
+            self.reload()
+
+    def _have_whole(self) -> None:
+        """Read the rest of the register now (a choice list or a filter key needs every row)."""
+        if self.partial:
+            self._whole = True
+            self.views = self._read(MAX_DOCUMENTS)
+            self._full = {}
+
+    def filter_changed(self, text: str) -> None:
+        if text.strip():
+            self._load_whole()
+
+    def rows_exhausted(self) -> None:
+        self._load_whole()
 
     def row_key(self, row: DocumentView) -> str:
         return row.number
@@ -138,7 +191,7 @@ class DocumentRegisterScreen(LogScreen[DocumentView]):
         return f"{note}  {line}" if note else line
 
     def _summary(self) -> str:
-        return summary_line(
+        line = summary_line(
             len(self.shown),
             len(self.views),
             state=self.state,
@@ -146,6 +199,11 @@ class DocumentRegisterScreen(LogScreen[DocumentView]):
             include_void=self.include_void,
             text=self.filter_text,
             labels=self.labels,
+        )
+        return (
+            f"{line}  (the first {FIRST_PAGE}; the rest load as you scroll or filter)"
+            if self.partial
+            else line
         )
 
     def open_row(self, row: DocumentView) -> None:
@@ -159,11 +217,13 @@ class DocumentRegisterScreen(LogScreen[DocumentView]):
             self._full[row.number] = found
         return found
 
-    def panel_text(self, row: DocumentView | None) -> str:
-        """The highlighted document with its revisions and links; the files go under it."""
+    def panel_text(self, row: DocumentView | None) -> Panel:
+        """The highlighted document: identity, state, key facts and revisions. The files list
+        (a widget) follows, then the links."""
         if row is None:
             self.detail = None  # nothing is highlighted, so nothing is described
             self._show_files(None)
+            self._show_links(None)
             return "No document matches."
         try:
             full = self.full(row)
@@ -172,22 +232,37 @@ class DocumentRegisterScreen(LogScreen[DocumentView]):
             self.say(describe_error(exc), error=True)
         self.detail = full
         self._show_files(full)
-        technical = mode_of(self.app).technical
-        return "\n".join(detail_lines(full, self.labels, technical=technical))
+        top, links = document_panel_pages(full, self.labels, technical=mode_of(self.app).technical)
+        self._show_links(render(links))
+        return render(top)
+
+    def _show_links(self, text: Adaptive | None) -> None:
+        for found in self.query(Static).filter("#doc-links"):
+            found.update(text if text is not None else "")
 
     # --- the files of the current revision -------------------------------------------------
 
     def on_mount(self) -> None:
         self.files = FilePanel(self.client, id="doc-files")
-        self.query_one("#log-panel").mount(self.files)
+        panel = self.query_one("#log-panel")
+        panel.mount(
+            Static(Text("Files", style=HEADING_STYLE), markup=False, id="doc-files-head"),
+            self.files,
+        )
+        panel.mount(Static("", markup=False, id="doc-links"))
+
+    def on_file_panel_listed(self, message: FilePanel.Listed) -> None:
+        """The files were read: the heading says how many."""
+        message.stop()
+        count = message.count
+        self.query_one("#doc-files-head", Static).update(
+            Text(f"Files ({count})" if count else "Files", style=HEADING_STYLE)
+        )
 
     @staticmethod
     def file_revision(view: DocumentView) -> RevisionView | None:
         """The revision whose file is shown and opened: the current one, else the newest."""
-        current = [r for r in view.revisions if r.is_current]
-        if current:
-            return current[0]
-        return view.revisions[-1] if view.revisions else None
+        return file_revision(view)
 
     def _show_files(self, view: DocumentView | None) -> None:
         if self.files is None:
@@ -216,8 +291,9 @@ class DocumentRegisterScreen(LogScreen[DocumentView]):
         """What the viewer may do to ``row``: the server's offers on the document and on the
         revisions that can take one, as actions; plus the re-pin and the file when they apply."""
         full = self.full(row)
+        document_offers = self.client.allowed_actions(full.id)
         offers: list[tuple[ActionOffer, RevisionView | None]] = [
-            (offer, None) for offer in self.client.allowed_actions(full.id).actions
+            (offer, None) for offer in document_offers.actions
         ]
         for revision in self._revisions_asked(full):
             offers += [(o, revision) for o in self.client.allowed_actions(revision.id).actions]
@@ -234,6 +310,15 @@ class DocumentRegisterScreen(LogScreen[DocumentView]):
         revision = self.file_revision(full)
         if revision is not None and self.client.list_record_files(revision.id):
             made.append(LogAction("v", "Open file", self._open_file))
+        made.extend(
+            add_property_actions(
+                self,
+                self.client,
+                document_offers,
+                actor=self.actor,
+                scope=f"project:{self.project}",
+            )
+        )
         return made
 
     @staticmethod
@@ -340,6 +425,7 @@ class DocumentRegisterScreen(LogScreen[DocumentView]):
         self, offer: ActionOffer, doc: DocumentView, rev: RevisionView | None
     ) -> LogAction:
         def run() -> None:
+            self._have_whole()  # the choices are every other document
             others = {
                 v.number: v.id
                 for v in self.views
@@ -450,6 +536,7 @@ class DocumentRegisterScreen(LogScreen[DocumentView]):
         """Show the next state: all, then each state that has a document in the list, then all."""
         if isinstance(self.focused, Input):
             return  # the key is text
+        self._have_whole()  # the states of every document, not of the first page
         self.state = next_choice(self.state, [v.state for v in self.views])
         self._narrow()
 
@@ -457,6 +544,7 @@ class DocumentRegisterScreen(LogScreen[DocumentView]):
         """Show the next document type: all, then each type in the list, then all."""
         if isinstance(self.focused, Input):
             return  # the key is text
+        self._have_whole()
         self.doc_type = next_choice(
             self.doc_type, [v.doc_type for v in self.views if v.doc_type is not None]
         )

@@ -49,6 +49,39 @@ def _hidden(conn: Connection, record_id: str) -> bool:
     return confidentiality.is_hidden(conn, record_id)
 
 
+def _by_number(conn: Connection, sql: str, params: dict[str, Any], key: str) -> Any:
+    """The first row of ``sql`` (a lookup by ``scope`` and ``number``; ``key`` is the column that
+    holds the record key in it).
+
+    An item's number is also its record key, and ``(scope, key)`` has an index where ``number``
+    has none, so the key is tried first (an index lookup, where the number alone reads every record
+    of the scope). A number that is not the key, or a missing one, takes the lookup by number."""
+    found = conn.execute(text(f"{sql} AND {key} = :number"), params).first()
+    return found if found is not None else conn.execute(text(sql), params).first()
+
+
+def _page(
+    conn: Connection,
+    sql: str,
+    params: dict[str, Any],
+    limit: int,
+    offset: int,
+    id_expr: str = "id",
+) -> list[Any]:
+    """The rows of ``sql`` the viewer may read: its first ``limit`` after the first ``offset``.
+
+    ``sql`` ends in a total ``ORDER BY`` and has no ``LIMIT`` and no confidentiality condition.
+    The first page asks for the readable rows of the ones read (``confidentiality.visible_rows``);
+    a later page puts the condition in the query, as every list did.
+    """
+    if offset == 0:
+        return confidentiality.visible_rows(conn, sql, params, limit=limit, id_expr=id_expr)
+    visible, extra = confidentiality.not_hidden(id_expr)
+    head, order = sql.rsplit(" ORDER BY ", 1)
+    paged = f"{head} AND {visible} ORDER BY {order} LIMIT :limit OFFSET :offset"
+    return list(conn.execute(text(paged), {**params, **extra, "limit": limit, "offset": offset}))
+
+
 # --- items -----------------------------------------------------------------------------------
 
 
@@ -162,13 +195,13 @@ def get_item(conn: Connection, item_id: str) -> ItemRow | None:
 
 def find_item(conn: Connection, scope: str, number: str) -> ItemRow | None:
     """The item of this number in the scope, under the same rule as ``get_item``."""
-    row = conn.execute(
-        text(
-            f"SELECT {_ITEM_COLUMNS} FROM {CORRESPONDENCE_VIEW} "
-            "WHERE scope = :scope AND number = :number"
-        ),
+    row = _by_number(
+        conn,
+        f"SELECT {_ITEM_COLUMNS} FROM {CORRESPONDENCE_VIEW} "
+        "WHERE scope = :scope AND number = :number",
         {"scope": scope, "number": number},
-    ).first()
+        "key",
+    )
     return None if row is None or _hidden(conn, row.id) else _item(row)
 
 
@@ -224,10 +257,7 @@ def list_items(
     items that need an answer and have none. A void item is left out unless asked.
     """
     sql = f"SELECT {_ITEM_COLUMNS} FROM {CORRESPONDENCE_VIEW} WHERE scope = :scope"
-    params: dict[str, Any] = {"scope": scope, "limit": limit, "offset": offset}
-    visible, visible_params = confidentiality.not_hidden("id")
-    sql += f" AND {visible}"
-    params.update(visible_params)
+    params: dict[str, Any] = {"scope": scope}
     for column, value in (
         ("direction", direction),
         ("domain", domain),
@@ -256,8 +286,8 @@ def list_items(
         params["received_to"] = received_to
     if not include_void:
         sql += " AND COALESCE(status, 'Draft') <> 'Void'"
-    sql += " ORDER BY number DESC LIMIT :limit OFFSET :offset"
-    return [_item(r) for r in conn.execute(text(sql), params).all()]
+    sql += " ORDER BY number DESC, id"
+    return [_item(r) for r in _page(conn, sql, params, limit, offset)]
 
 
 def items_of_thread(conn: Connection, thread_id: str) -> list[ItemRow]:
@@ -364,12 +394,12 @@ def get_thread(conn: Connection, thread_id: str) -> ThreadRow | None:
 
 
 def find_thread(conn: Connection, scope: str, number: str) -> ThreadRow | None:
-    row = conn.execute(
-        text(
-            f"SELECT {_THREAD_COLUMNS} FROM {THREAD_VIEW} WHERE scope = :scope AND number = :number"
-        ),
+    row = _by_number(
+        conn,
+        f"SELECT {_THREAD_COLUMNS} FROM {THREAD_VIEW} WHERE scope = :scope AND number = :number",
         {"scope": scope, "number": number},
-    ).first()
+        "key",
+    )
     return None if row is None or _hidden(conn, row.id) else _thread(row)
 
 

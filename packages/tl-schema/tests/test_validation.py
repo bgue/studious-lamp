@@ -45,7 +45,8 @@ def test_schema_has_one_object_per_pset(effective: EffectiveSchema) -> None:
     ]
     custom = valve["properties"]["x"]
     assert list(custom["properties"]) == ["fat_witness_by", "tie_in_window"]
-    assert custom["additionalProperties"] is False
+    # the set allows a custom section, so it takes ad-hoc fields (P1-UX3 round 4)
+    assert custom["additionalProperties"] is True
     project = document["properties"]["prj"]
     assert list(project["properties"]) == ["shutdown_tie_in"]
     assert project["additionalProperties"] is False
@@ -190,7 +191,7 @@ def test_unknown_properties_are_reported_one_per_key(effective: EffectiveSchema)
         ("psets.prj.another_pset", "additionalProperties"),
         ("psets.prj.shutdown_tie_in.zzz", "additionalProperties"),
         ("psets.valve_data.nope", "additionalProperties"),
-        ("psets.valve_data.x.other", "additionalProperties"),
+        # valve_data allows a custom section: x.other is an ad-hoc field (P1-UX3 round 4)
     ]
     assert "nope" in issues[2].message
 
@@ -212,6 +213,7 @@ def test_a_custom_section_is_unknown_when_the_pset_has_none(
 ) -> None:
     data: dict[str, Any] = effective.model_dump(mode="json")
     data["psets"]["valve_data"]["custom"] = {}
+    data["psets"]["valve_data"]["custom_allowed"] = False
     data["hash"] = "no-custom"
     schema = EffectiveSchema.model_validate(data)
     issues = validate_psets(schema, RECORD, {"valve_data": {"x": {"fat_witness_by": "c"}}})

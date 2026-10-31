@@ -12,7 +12,7 @@ from typing import Any
 
 import rows_integration as rows
 from fakes import SCOPE, FakeClient
-from helpers import run_pilot, screen_text, settle
+from helpers import panel_of, run_pilot, screen_text, settle
 from textual.pilot import Pilot
 from textual.widgets import DataTable, Input
 from tl_tui.app import TlApp
@@ -61,8 +61,11 @@ def test_ctrl_r_lists_the_values_waiting_and_closes_with_escape() -> None:
         assert "Values waiting for review (2)" in text
         assert table(screen).row_count == 2
         assert "DOC-0001" in text and "Doc type" in text  # plain: the words, not the path
-        assert "Enricher    Doc classifier" in text  # the detail of the first row, plain
-        assert "Confidence  0.80" in text
+        panel = panel_of(screen)  # the detail of the first row, plain
+        assert panel.splitlines()[:4] == [
+            "DOC-0001 · Doc type", "… Waiting", 'proposed "DRW" · confidence 0.80',
+            "enricher Doc classifier",
+        ]  # fmt: skip
         await pilot.press("escape")
         await settle(pilot)
         assert not isinstance(app.screen, ReviewQueueScreen)

@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import re
 from collections.abc import Sequence
+from dataclasses import dataclass
 from typing import Protocol
 
 from rich.cells import cell_len, set_cell_size
@@ -21,6 +22,7 @@ _NAMES = {
     "escape": "Esc",
     "slash": "/",
     "question_mark": "?",
+    "plus": "+",
     "space": "Space",
     "tab": "Tab",
     "backspace": "Backspace",
@@ -103,3 +105,170 @@ def actions_text(actions: Sequence[ActionLike], *, can_open: bool) -> str:
     if can_open:
         cells.append(OPEN_ACTION)
     return "  ".join(cells)
+
+
+# --- the keys row (P1-UX3; skill tui-layout, "Screen frame") -------------------------------------
+
+KEYS_GAP = "  "
+KEYS_PADDING = 2  # the screen's one-cell padding each side
+HELP_ENTRY = "F1 more keys"
+CLOSE_ENTRY = "Esc close"
+
+
+def keys_row(own: Sequence[str], width: int) -> str:
+    """The keys row on one line: navigation first, then the log's own filter keys (``own``), then
+    ``Esc close`` and ``F1 more keys``. Every other key is on the help screen. When the line is
+    wider than the screen the last of the log's own keys go first; navigation, ``Esc`` and ``F1``
+    never do."""
+    head = ["Up/Down move"]
+    tail = [CLOSE_ENTRY, HELP_ENTRY]
+    room = max(width - KEYS_PADDING, 1)
+    cells = [*head, *own, *tail]
+    while len(KEYS_GAP.join(cells)) > room and len(cells) > len(head) + len(tail):
+        del cells[len(cells) - len(tail) - 1]
+    return KEYS_GAP.join(cells)
+
+
+# --- columns (P1-UX3; skill tui-layout, "Logs") ---------------------------------------------
+
+# the column that takes the remaining width and shortens: the first of these the log has
+FLEX_NAMES = ("Subject", "Title", "Label")
+CELL_PADDING = 2  # a table cell has one cell of padding on each side
+SCROLLBAR = 2  # room kept for the table's vertical scrollbar
+MIN_FLEX = 24  # the flexible column never shortens below this many cells
+CRUMB_PADDING_CELLS = 4  # the screen's one-cell padding and the frame, each side
+
+
+def flex_index(names: Sequence[str]) -> int | None:
+    """The position of the Subject (or Title) column, ``None`` when the log has none."""
+    for name in FLEX_NAMES:
+        if name in names:
+            return list(names).index(name)
+    return None
+
+
+def visible_columns(
+    names: Sequence[str], rows: Sequence[Sequence[str]], keep: Sequence[str] = ()
+) -> list[int]:
+    """The positions of the columns to show: every column, except one that holds the same value
+    in every one of two or more rows (``Kind`` when each RFI is a request for information).
+
+    ``keep`` names the columns that always show (the number, the subject, the state). One row, or
+    none, hides nothing: a single row has no variation to report.
+    """
+    everything = list(range(len(names)))
+    if len(rows) < 2:
+        return everything
+    shown_ = [
+        index
+        for index in everything
+        if names[index] in keep or len({row[index] for row in rows}) > 1
+    ]
+    return shown_ or everything
+
+
+def fit_cell(text: str, width: int) -> str:
+    """``text`` shortened to ``width`` cells with a closing ``…``; as it is when it fits."""
+    if cell_len(text) <= width:
+        return text
+    return set_cell_size(text, max(width - 1, 1)).rstrip() + "…"
+
+
+def column_width(name: str, rows: Sequence[Sequence[str]], index: int) -> int:
+    """The cells a column needs: its widest cell or its heading, and the table's cell padding."""
+    return CELL_PADDING + max([cell_len(name), *(cell_len(row[index]) for row in rows)])
+
+
+def free_width(total: int, names: Sequence[str], rows: Sequence[Sequence[str]], flex: int) -> int:
+    """The cells left for the flexible column in a table ``total`` cells wide, after the other
+    columns (each as wide as its widest cell or its heading). Negative when they do not fit."""
+    used = SCROLLBAR + CELL_PADDING  # the flexible column's own padding
+    for index, name in enumerate(names):
+        if index != flex:
+            used += column_width(name, rows, index)
+    return total - used
+
+
+def flex_width(total: int, names: Sequence[str], rows: Sequence[Sequence[str]], flex: int) -> int:
+    """The cells the flexible column may use in a table ``total`` cells wide: what is left after
+    the other columns (each as wide as its widest cell or its heading), at least ``MIN_FLEX``."""
+    return max(free_width(total, names, rows, flex), MIN_FLEX)
+
+
+def table_width(screen_width: int, *, wide: bool) -> int:
+    """Roughly the cells the list gets: the screen less its padding, and three fifths of that
+    when the panel sits beside it (``log_text.is_wide``)."""
+    inner = max(screen_width - CRUMB_PADDING_CELLS, 1)
+    return inner * 3 // 5 - 1 if wide else inner
+
+
+MIN_SHRINK = 12  # a shrinkable column (With) never goes below this many cells of text
+GOOD_SUBJECT = 26  # the subject is given this many cells before another column is dropped
+
+
+@dataclass(frozen=True)
+class ColumnPlan:
+    """Which columns a table shows and how wide the shrunk ones are."""
+
+    columns: list[int]  # positions in the log's own column list, in order
+    caps: dict[int, int]  # position -> the most cells of text its column may hold
+
+
+def plan_columns(
+    names: Sequence[str],
+    rows: Sequence[Sequence[str]],
+    keep: Sequence[str],
+    total: int,
+    *,
+    drop: Sequence[str] = (),
+    shrink: Sequence[str] = ("With",),
+) -> ColumnPlan:
+    """Choose the columns of a table ``total`` cells wide so that it never scrolls sideways.
+
+    First the columns that never vary are left out (``visible_columns``). Then the subject is
+    given ``GOOD_SUBJECT`` cells (or what its longest cell needs): the columns in ``shrink``
+    (``With``) give up cells down to ``MIN_SHRINK``; when that is not enough the columns named in
+    ``drop`` are left out one at a time, the least needed first, and the shrinkable ones take back
+    what they can. If nothing is left to give the subject takes what remains (at least
+    ``MIN_FLEX``) and the table may scroll.
+    """
+    shown = visible_columns(names, rows, keep)
+    flex = flex_index(names)
+    if flex is None or not rows:
+        return ColumnPlan(shown, {})
+    wanted = min(GOOD_SUBJECT, max(cell_len(row[flex]) for row in rows))
+
+    def room(columns: list[int], caps: dict[int, int]) -> int:
+        """Cells the subject gets with ``columns`` shown and the caps applied."""
+        used = SCROLLBAR + CELL_PADDING
+        for i in columns:
+            if i == flex:
+                continue
+            width = column_width(names[i], rows, i)
+            used += min(width, caps[i] + CELL_PADDING) if i in caps else width
+        return total - used
+
+    def shrunk(columns: list[int]) -> dict[int, int]:
+        """Caps on the shrinkable columns that give the subject ``wanted`` cells, or as many as
+        they can (down to ``MIN_SHRINK`` cells of text each)."""
+        caps: dict[int, int] = {}
+        for i in columns:
+            if names[i] not in shrink or i == flex:
+                continue
+            missing = wanted - room(columns, caps)
+            if missing <= 0:
+                break
+            have = column_width(names[i], rows, i) - CELL_PADDING
+            if have > MIN_SHRINK:
+                caps[i] = max(MIN_SHRINK, have - missing)
+        return caps
+
+    # Fewest columns left out first; each time the shrinkable columns give what they can.
+    leaving = [i for n in drop for i in shown if names[i] == n and names[i] not in keep]
+    for count in range(len(leaving) + 1):
+        columns = [i for i in shown if i not in leaving[:count]]
+        caps = shrunk(columns)
+        if room(columns, caps) >= wanted:
+            return ColumnPlan(columns, caps)
+    columns = [i for i in shown if i not in leaving]  # nothing more to give: the subject shrinks
+    return ColumnPlan(columns, shrunk(columns))

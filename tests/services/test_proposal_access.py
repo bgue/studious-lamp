@@ -12,6 +12,7 @@ from pathlib import Path
 import pytest
 from sqlalchemy import text
 from tl_adapters.db import DbTarget, create_schema, open_uow
+from tl_core.auth import accounts
 from tl_core.derivation.registry import use_extractors
 from tl_core.derivation.testing import make_extractors
 from tl_core.schema_provider import DirectorySchemaProvider, use_provider
@@ -40,7 +41,18 @@ def world(db: DbTarget, tmp_path: Path) -> Iterator[DocumentsWorld]:
             found.create_revision("ISD-001")
             found.attach("ISD-001", "A")
             found.register_schema()
+            open_agent_account(found)
             yield found
+
+
+def open_agent_account(world: DocumentsWorld) -> None:
+    """The agent is an account holding the module word ``user`` (ADR-0021): proposing runs the
+    command as the agent first, and a plain agent name with no account holds nothing."""
+    with open_uow(world.db) as uow:
+        accounts.create_account(
+            uow, username="triage", display_name="Triage", kind="agent",
+            roles=["user"], password=None, by="user:root",
+        )  # fmt: skip
 
 
 def factory(db: DbTarget) -> proposals.Factory:

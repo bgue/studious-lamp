@@ -32,6 +32,7 @@ from tl_mod_schemareg.views import PackageDetail, SampleTestView
 from tl_tui.client import ClientInterface
 from tl_tui.display import mode_of
 from tl_tui.errors import CLIENT_ERRORS, describe_error
+from tl_tui.labels_load import forget_labels
 from tl_tui.schema_review_text import (
     classification_lines,
     impact_lines,
@@ -167,6 +168,7 @@ class SchemaReviewScreen(ModalScreen[None]):
             self.reload()  # show what the version really is
             self._say(describe_error(exc), error=True)
             return
+        forget_labels(self.client)  # a package change can move code lists and labels
         self.sample = None  # a sample belongs to the content it was made for
         if self.reload():
             self._say(done)

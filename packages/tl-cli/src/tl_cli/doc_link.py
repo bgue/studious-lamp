@@ -39,6 +39,7 @@ from tl_cli.doc import (
     _service_errors,
 )
 from tl_cli.doc_rev import _Number
+from tl_cli.session import require_command
 
 _LINK_SQL = text(
     "SELECT l.to_id, l.pin, l.status, x.key AS from_key FROM cur_links l "
@@ -84,7 +85,9 @@ def link(
         }
         if relation is not None:
             fields["relation"] = relation
-        made = handle_link_to_document(uow, LinkToDocument(**fields))
+        command = LinkToDocument(**fields)
+        require_command(uow, command)
+        made = handle_link_to_document(uow, command)
         stored = (
             uow.conn()
             .execute(text("SELECT pin FROM cur_links WHERE link_id = :id"), {"id": made.stream_id})
@@ -167,16 +170,15 @@ def repin(
         for line in _diff_lines(result):
             typer.echo(line)
         if apply:
-            handle_repin_document_link(
-                uow,
-                RepinDocumentLink(
-                    actor=actor,
-                    source="cli",
-                    scope=scope,
-                    link_id=link_id,
-                    pin=target,
-                ),
+            command = RepinDocumentLink(
+                actor=actor,
+                source="cli",
+                scope=scope,
+                link_id=link_id,
+                pin=target,
             )
+            require_command(uow, command)
+            handle_repin_document_link(uow, command)
         else:
             typer.echo("not re-pinned; run again with --apply to confirm")
     if apply:

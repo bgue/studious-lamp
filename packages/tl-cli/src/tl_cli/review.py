@@ -41,7 +41,7 @@ from tl_cli.doc import (
     _Reason,
     _service_errors,
 )
-from tl_cli.session import require_controller
+from tl_cli.session import require_command
 
 app = typer.Typer(help="Open, answer and close reviews of revisions.", no_args_is_help=True)
 
@@ -81,17 +81,16 @@ def open_cycle(
         rev = registry.find_revision(uow.conn(), doc.id, code)
         if rev is None:
             _fail(f"no revision {code!r} of {number}")
-        made = handle_open_review_cycle(
-            uow,
-            OpenReviewCycle(
-                actor=actor,
-                source="cli",
-                scope=scope,
-                revision_id=rev.id,
-                reviewers=[ReviewerRequest(reviewer=r) for r in reviewers],
-                due_date=due,
-            ),
+        command = OpenReviewCycle(
+            actor=actor,
+            source="cli",
+            scope=scope,
+            revision_id=rev.id,
+            reviewers=[ReviewerRequest(reviewer=r) for r in reviewers],
+            due_date=due,
         )
+        require_command(uow, command)
+        made = handle_open_review_cycle(uow, command)
     key = made.key or ""
     typer.echo(f"opened {key} round {key.rsplit('RC', 1)[-1]}")
     typer.echo(f"reviewers {len(reviewers)}")
@@ -111,19 +110,18 @@ def answer(
     scope = f"project:{project}"
     with _service_errors(), open_uow(db) as uow:
         row = _cycle(uow, scope, project, cycle)
-        handle_record_review_outcome(
-            uow,
-            RecordReviewOutcome.model_validate(
-                {
-                    "actor": actor,
-                    "source": "cli",
-                    "scope": scope,
-                    "review_cycle_id": row.id,
-                    "outcome": outcome,
-                    "comment": comment,
-                }
-            ),
+        command = RecordReviewOutcome.model_validate(
+            {
+                "actor": actor,
+                "source": "cli",
+                "scope": scope,
+                "review_cycle_id": row.id,
+                "outcome": outcome,
+                "comment": comment,
+            }
         )
+        require_command(uow, command)
+        handle_record_review_outcome(uow, command)
     typer.echo(f"answered {cycle}: {outcome} by {actor}")
 
 
@@ -140,23 +138,21 @@ def on_behalf(
     """Record a reviewer's answer for them (controller). The comment is required and kept."""
     db: DbTarget = ctx.obj
     scope = f"project:{project}"
-    require_controller(db)
     with _service_errors(), open_uow(db) as uow:
         row = _cycle(uow, scope, project, cycle)
-        handle_record_review_outcome_on_behalf(
-            uow,
-            RecordReviewOutcomeOnBehalf.model_validate(
-                {
-                    "actor": actor,
-                    "source": "cli",
-                    "scope": scope,
-                    "review_cycle_id": row.id,
-                    "reviewer": reviewer,
-                    "outcome": outcome,
-                    "comment": comment,
-                }
-            ),
+        command = RecordReviewOutcomeOnBehalf.model_validate(
+            {
+                "actor": actor,
+                "source": "cli",
+                "scope": scope,
+                "review_cycle_id": row.id,
+                "reviewer": reviewer,
+                "outcome": outcome,
+                "comment": comment,
+            }
         )
+        require_command(uow, command)
+        handle_record_review_outcome_on_behalf(uow, command)
     typer.echo(f"recorded {cycle}: {outcome} for {reviewer} by {actor}")
 
 
@@ -179,19 +175,18 @@ def close(
     scope = f"project:{project}"
     with _service_errors(), open_uow(db) as uow:
         row = _cycle(uow, scope, project, cycle)
-        handle_close_review_cycle(
-            uow,
-            CloseReviewCycle.model_validate(
-                {
-                    "actor": actor,
-                    "source": "cli",
-                    "scope": scope,
-                    "review_cycle_id": row.id,
-                    "outcome": outcome,
-                    "reason": reason,
-                }
-            ),
+        command = CloseReviewCycle.model_validate(
+            {
+                "actor": actor,
+                "source": "cli",
+                "scope": scope,
+                "review_cycle_id": row.id,
+                "outcome": outcome,
+                "reason": reason,
+            }
         )
+        require_command(uow, command)
+        handle_close_review_cycle(uow, command)
         after = _cycle(uow, scope, project, cycle)
     typer.echo(f"closed {cycle}: {after.outcome}")
 
@@ -208,22 +203,20 @@ def override(
     """Close a cycle with a stated outcome, even a milder one than the answers (controller)."""
     db: DbTarget = ctx.obj
     scope = f"project:{project}"
-    require_controller(db)
     with _service_errors(), open_uow(db) as uow:
         row = _cycle(uow, scope, project, cycle)
-        handle_override_review_outcome(
-            uow,
-            OverrideReviewOutcome.model_validate(
-                {
-                    "actor": actor,
-                    "source": "cli",
-                    "scope": scope,
-                    "review_cycle_id": row.id,
-                    "outcome": outcome,
-                    "reason": reason,
-                }
-            ),
+        command = OverrideReviewOutcome.model_validate(
+            {
+                "actor": actor,
+                "source": "cli",
+                "scope": scope,
+                "review_cycle_id": row.id,
+                "outcome": outcome,
+                "reason": reason,
+            }
         )
+        require_command(uow, command)
+        handle_override_review_outcome(uow, command)
     typer.echo(f"closed {cycle}: {outcome} (overridden)")
 
 

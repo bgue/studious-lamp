@@ -42,7 +42,10 @@ def make_runner(calls: list[str]) -> TableCommandRunner:
     return TableCommandRunner(
         (
             CommandSpec(UserPing, handler, "user"),
-            CommandSpec(ControllerPing, handler, "controller"),
+            # a controller command names its module (ADR-0021); the fake is in no module's
+            # command index, so the runner decides it from the actor's own access
+            # (require_access), which is the question these tests ask
+            CommandSpec(ControllerPing, handler, "controller", module="documents"),
             CommandSpec(AdminPing, handler, "admin"),
             CommandSpec(CompanyPing, handler, "company"),
         )

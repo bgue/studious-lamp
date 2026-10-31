@@ -118,6 +118,8 @@ def _group(pset: EffectivePset) -> PsetGroupMeta:
         enforcement=pset.enforcement,
         layer=pset.layer,
         fields=[_field(pset, prop) for prop in pset.all_properties()],
+        custom_allowed=pset.custom_allowed,
+        custom_max=pset.custom_max,
     )
 
 

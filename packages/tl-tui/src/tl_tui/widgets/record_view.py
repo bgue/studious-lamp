@@ -15,14 +15,18 @@ from textual.binding import Binding, BindingType
 from textual.containers import Vertical, VerticalScroll
 from textual.widgets import DataTable, Static, TabbedContent, TabPane
 from tl_core.ledger import Event
+from tl_core.services.psets import SetPsetValues
 from tl_core.settings.layers import project_of_scope
+from tl_mod_schemareg.handlers.adoption import AdoptSchemaSet
 
 from tl_tui.client import ClientInterface
-from tl_tui.details import DetailRow, details_for
+from tl_tui.details import DetailRow, details_for, rows_page
 from tl_tui.display import Labels, actor_label, humanize, mode_of
 from tl_tui.errors import CLIENT_ERRORS, describe_error
-from tl_tui.labels_load import load_labels
+from tl_tui.labels_load import forget_labels, load_labels
+from tl_tui.layout import plain_lines, render, state_style
 from tl_tui.messages import CloseRecord, RecordChanged, StatusMessage, StepRecord
+from tl_tui.reads import Reads
 from tl_tui.text import EMPTY, conformance_mark, timestamp
 from tl_tui.widgets.file_panel import FilePanel
 from tl_tui.widgets.links_tab import LinksTab
@@ -50,19 +54,10 @@ def _sorted_keys(value: Any) -> str:
 
 
 def details_lines(rows: list[DetailRow]) -> str:
-    """The Details rows, one labelled line each, values lined up after the longest label.
-
-    A value of several lines hangs under the first (the timeline times); a long line wraps in the
-    widget, whole.
-    """
-    width = max((len(row.label) for row in rows), default=0) + 2
-    lines: list[str] = []
-    for row in rows:
-        first, *more = row.value.split("\n")
-        line = f"{row.label:<{width}}{first}"
-        lines.append(line if first else line.rstrip())  # a heading row has no value
-        lines.extend(" " * width + line for line in more)
-    return "\n".join(lines)
+    """The Details rows as text: named sections, each a heading and its lines, one blank line
+    between them; a property line is ``Label  value`` with the values of a section lined up after
+    its longest label (``tl_tui.layout``). The rows are already filtered for the display mode."""
+    return "\n".join(plain_lines(rows_page(rows, technical=True), identity=False))
 
 
 _EVENT_WORDS: dict[str, str] = {
@@ -130,7 +125,8 @@ class RecordView(Vertical, can_focus=True):
     """
 
     KEY_HINTS: ClassVar[str] = (
-        "Esc back  [ ] prev/next  1-6 tabs  T thread  e edit  l link  w workflow  t trace  R tray"
+        "Esc back  [ ] prev/next  1-6 tabs  T thread  e edit  + add property (Properties tab)  "
+        "l link  w workflow  t trace  R tray"
     )
 
     BINDINGS: ClassVar[list[BindingType]] = [
@@ -139,6 +135,7 @@ class RecordView(Vertical, can_focus=True):
         Binding("right_square_bracket", "step(1)", show=False),
         Binding("h", "history", show=False),
         Binding("e", "edit", show=False),
+        Binding("plus", "add_property", show=False),
         Binding("1", "tab('details')", show=False),
         Binding("2", "tab('psets')", show=False),
         Binding("3", "tab('links')", show=False),
@@ -195,27 +192,51 @@ class RecordView(Vertical, can_focus=True):
         self.reload()
 
     def reload(self) -> None:
-        """Re-read the record and its history, then redraw. On a client error, keep the display."""
+        """Re-read the record and its history, then redraw. On a client error, keep the display.
+
+        Details, header and History are drawn at once. A tab that needs reads of its own
+        (Properties, Links, Trace, Thread) reads them when it is first shown, and again after
+        the next ``reload`` if it is the tab on show; the Files list is read in the background."""
+        reads = Reads(self.client)
         try:
-            record = self.client.get_record(self.scope, self.key)
-            events = [] if record is None else self.client.history(record["id"])
+            record = reads.get_record(self.scope, self.key)
+            events = [] if record is None else reads.history(record["id"])
         except CLIENT_ERRORS as exc:
             self.post_message(StatusMessage(describe_error(exc), "error"))
             return
         self.record = record
         self._events = events
-        self._badges_text = self._badges(record)
+        self._badges_text = self._badges(record, reads)
         self._draw_header(record, self._badges_text)
-        self._draw_details(record)
+        self._draw_details(record, reads)
         self._draw_history(events)
+        self._tabs_read = set()
         if record is None:
             self.post_message(StatusMessage(f"No record {self.key}", "error"))
         else:
-            self.query_one("#psets-tab", PsetsTab).show_record(record)
-            self.query_one("#links-tab", LinksTab).show_record(record)
-            self.query_one("#trace-tab", TraceTab).show_record(record)
-            self.query_one("#thread-tab", ThreadTab).show_record(record)
+            self._read_tab(self.query_one("#rv-tabs", TabbedContent).active)
             self.query_one("#files-tab", FilePanel).show(str(record["id"]))
+
+    def _read_tab(self, pane: str) -> None:
+        """Give the tab ``pane`` the current record, once (a ``reload`` makes it read again)."""
+        record = self.record
+        if record is None or pane in self._tabs_read:
+            return
+        tab = {
+            TABS["psets"]: "#psets-tab",
+            TABS["links"]: "#links-tab",
+            TABS["trace"]: "#trace-tab",
+            TABS["thread"]: "#thread-tab",
+        }.get(pane)
+        if tab is None:
+            return
+        self._tabs_read.add(pane)
+        self.query_one(tab).show_record(record)  # pyright: ignore[reportAttributeAccessIssue]
+
+    def on_tabbed_content_tab_activated(self, event: TabbedContent.TabActivated) -> None:
+        event.stop()
+        if event.pane.id is not None:
+            self._read_tab(event.pane.id)
 
     def _labels_for(self, record: dict[str, Any]) -> Labels:
         """The labels, loaded once per view (a retarget makes a new view)."""
@@ -223,22 +244,24 @@ class RecordView(Vertical, can_focus=True):
             self._labels = load_labels(self.client, self.scope, ("core.Record", record["type"]))
         return self._labels
 
-    def _draw_details(self, record: dict[str, Any] | None) -> None:
-        """The Details tab: the type's rows, technical rows only in technical mode."""
+    def _draw_details(self, record: dict[str, Any] | None, client: Any = None) -> None:
+        """The Details tab: the type's rows, technical rows only in technical mode. ``client`` is
+        what the rows read through (a ``Reads`` for the length of one refresh)."""
         body = self.query_one("#rv-details", Static)
         if record is None:
             self.details = ""
             body.update("")
             return
         rows = details_for(
-            self.client,
+            client if client is not None else self.client,
             project_of_scope(self.scope) or "",
             record,
             self._labels_for(record),
             mode_of(self.app),
         )
-        self.details = details_lines(rows)
-        body.update(self.details)
+        page = rows_page(rows, technical=True)  # the rows are already filtered for the mode
+        self.details = "\n".join(plain_lines(page, identity=False))
+        body.update(render(page, identity=False))
 
     def _current_labels(self) -> Labels:
         """The labels for the shown record; no labels before a record is read."""
@@ -253,7 +276,7 @@ class RecordView(Vertical, can_focus=True):
         self._draw_history(self._events)
         self.query_one("#psets-tab", PsetsTab).refresh_for_display_mode()
 
-    def _badges(self, record: dict[str, Any] | None) -> str:
+    def _badges(self, record: dict[str, Any] | None, client: Any = None) -> str:
         """``since <time>`` (workflow state) and link counts for the header; empty when unknown.
 
         Both come from joins in the services (`workflow_status`, `link_counts`). A client that
@@ -263,7 +286,7 @@ class RecordView(Vertical, can_focus=True):
             return ""
         parts: list[str] = []
         try:
-            entered = self.client.workflow_status(record["id"]).entered_at
+            entered = (client or self.client).workflow_status(record["id"]).entered_at
             parts.append(f"since {timestamp(entered)}")
         except (*CLIENT_ERRORS, NotImplementedError):
             pass
@@ -288,18 +311,19 @@ class RecordView(Vertical, can_focus=True):
         if record is None:
             header.update(f"{self.key} · not found")
             return
-        line1 = f"{record['key']} · {record['title']}"
         technical = mode_of(self.app).technical
         version = f" · v{record['version']}" if technical else ""  # D20: the version is technical
-        line2 = (
-            f"{_or_empty(record.get('status'))}{version} · "
-            f"{conformance_mark(record.get('conformance'))}"
-        )
-        if record.get("voided"):
-            line2 += " · voided"
-        if badges:
-            line2 += f" · {badges}"
-        header.update(f"{line1}\n{line2}")
+        status = _or_empty(record.get("status"))
+        mark = conformance_mark(record.get("conformance"))
+        text = Text(f"{record['key']} · {record['title']}\n")
+        text.append(
+            status, style=state_style(status) or None
+        )  # the state colour (skill tui-layout)
+        text.append(f"{version} · ")
+        text.append(mark, style=state_style(mark) or None)
+        rest = (" · voided" if record.get("voided") else "") + (f" · {badges}" if badges else "")
+        text.append(rest)
+        header.update(text)
 
     def _draw_history(self, events: list[Event]) -> None:
         """The History table: technical columns in technical mode, plain words otherwise."""
@@ -416,6 +440,61 @@ class RecordView(Vertical, can_focus=True):
             ExtensionEditForm(self.client, self.scope, record, form, stored.body), saved
         )
         return True
+
+    def check_action(self, action: str, parameters: tuple[object, ...]) -> bool | None:
+        """``+`` adds a property on the Properties tab only (other tabs bind it to their own)."""
+        if action == "add_property":
+            return self.query_one("#rv-tabs", TabbedContent).active == TABS["psets"]
+        return True
+
+    def action_add_property(self) -> None:
+        """Open the Add property form; the form sends nothing, this sends its command."""
+        record = self.record
+        if record is None:
+            return
+        from tl_tui.widgets.add_property_form import open_add_property  # noqa: PLC0415
+        from tl_tui.widgets.schema_screen import SchemaWorkbenchScreen  # noqa: PLC0415
+
+        actor = self._actor()
+
+        def send(cmd: SetPsetValues) -> None:
+            try:
+                self.client.set_pset_values(cmd)
+            except CLIENT_ERRORS as exc:
+                self.post_message(StatusMessage(describe_error(exc), "error"))
+                return
+            self.post_message(StatusMessage("Property added", "info"))
+            self.post_message(RecordChanged(record["id"]))
+
+        def workbench(package: str) -> None:
+            self.app.push_screen(
+                SchemaWorkbenchScreen(self.client, self.scope, actor, package=package)
+            )
+
+        def adopt(cmd: AdoptSchemaSet) -> bool:
+            try:
+                self.client.schemareg_command("AdoptSchemaSet", cmd)
+            except CLIENT_ERRORS as exc:
+                self.post_message(StatusMessage(describe_error(exc), "error"))
+                return False
+            forget_labels(self.client)  # an adopted package can move code lists and labels
+            self.post_message(StatusMessage(f"Adopted {cmd.pset} for {cmd.project}", "info"))
+            return True
+
+        try:
+            open_add_property(
+                self,
+                self.client,
+                scope=self.scope,
+                record_id=record["id"],
+                actor=actor,
+                is_admin=bool(getattr(self.app, "is_admin", False)),
+                send=send,
+                workbench=workbench,
+                adopt=adopt,
+            )
+        except CLIENT_ERRORS as exc:
+            self.post_message(StatusMessage(describe_error(exc), "error"))
 
     def action_edit(self) -> None:
         record = self.record

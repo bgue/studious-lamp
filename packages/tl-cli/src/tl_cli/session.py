@@ -19,7 +19,7 @@ from __future__ import annotations
 import json
 import os
 import tempfile
-from collections.abc import Iterator, Sequence
+from collections.abc import Iterable, Iterator, Sequence
 from contextlib import AbstractContextManager, contextmanager
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
@@ -31,11 +31,18 @@ from tl_adapters.backend import ledger_exists
 from tl_adapters.db import DbTarget, is_postgres, open_uow, target_key
 from tl_core.auth import sessions
 from tl_core.auth.env import dev_tokens_allowed
-from tl_core.auth.errors import AccountLockedError, InvalidCredentialsError, WeakPasswordError
+from tl_core.auth.errors import (
+    AccountLockedError,
+    ForbiddenError,
+    InvalidCredentialsError,
+    WeakPasswordError,
+)
+from tl_core.auth.module_roles import require_command_access
 from tl_core.auth.sessions import UowFactory
 from tl_core.auth.types import Principal
 from tl_core.confidentiality import LOWEST, Viewer, viewer_for
 from tl_core.ledger import ConcurrencyError
+from tl_core.services.commands import Command
 from tl_core.services.errors import ServiceError
 from tl_core.uow import UnitOfWork
 from tl_core.util import utcnow
@@ -356,6 +363,35 @@ def require_controller(db: DbTarget) -> Principal:
     if not principal.is_controller:
         fail("forbidden: this command needs the document_controller or admin role")
     return principal
+
+
+def require_command(uow: UnitOfWork, command: Command) -> None:
+    """The module-role gate of one command, run on the unit of work that will run its handler.
+
+    Calls :func:`tl_core.auth.module_roles.require_command_access` (the only access function: the
+    command's word for its module on its scope, held by ``command.actor``) and turns
+    ``ForbiddenError`` into `error: forbidden: ...` and exit 1, like :func:`require_controller`.
+    Place it after the command is built and before its ``handle_*`` call. The dev rule (an
+    account-less ``user:`` actor on a dev ledger holds ``user`` everywhere) lives in core.
+    """
+    try:
+        require_command_access(uow.conn(), command)
+    except ForbiddenError as exc:
+        fail(f"forbidden: {exc}")
+
+
+def require_commands(
+    uow: UnitOfWork, classes: Iterable[type[Command]], *, actor: str, scope: str
+) -> None:
+    """The pre-flight of a bulk helper that runs ``handle_*`` calls inside: one gate per class.
+
+    ``apply_plan`` and ``load_standards`` build their commands themselves, so the CLI cannot gate
+    each one. Before the helper it calls :func:`require_command` with a probe of every class the
+    helper can issue (the access function reads the class name, the actor and the scope only, so
+    the probe is built without validation). A class no module declares passes, as before.
+    """
+    for cls in classes:
+        require_command(uow, cls.model_construct(actor=actor, source="cli", scope=scope))
 
 
 def session_viewer(db: DbTarget) -> Viewer:

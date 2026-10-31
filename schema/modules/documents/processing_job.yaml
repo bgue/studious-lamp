@@ -29,6 +29,7 @@ classes:
     annotations:
       tl:current_state: true
       tl:record_types: "documents.ProcessingJob"
+      tl:offline: none
       tl:ix_scope_state: "scope, state"
       tl:ix_derived: "derived_id, created_seq"
     attributes:

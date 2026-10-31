@@ -20,6 +20,7 @@ from tl_core.auth.types import AccountKind, AccountView
 
 from tl_tui.client import ClientInterface
 from tl_tui.errors import CLIENT_ERRORS, describe_error
+from tl_tui.labels_load import forget_labels
 
 KINDS: tuple[AccountKind, ...] = ("person", "sim", "agent")
 DEFAULT_DAYS = "90"
@@ -149,6 +150,7 @@ class AccountForm(_Form):
             self._clear_passwords()
             return
         self._clear_passwords()
+        forget_labels(self.client)  # a new service account is a new label
         self.dismiss(view)
 
 

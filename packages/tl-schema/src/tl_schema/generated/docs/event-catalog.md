@@ -9,6 +9,8 @@ Every ledger event type that can reach a webhook subscriber, generated from the 
 | [`Account.Created`](#accountcreated) | `tl.core.Account.Created.v1` | An account was created. |
 | [`Account.Disabled`](#accountdisabled) | `tl.core.Account.Disabled.v1` | An account was disabled: it cannot sign in and its sessions and agent tokens stop working. |
 | [`Account.Enabled`](#accountenabled) | `tl.core.Account.Enabled.v1` | A disabled account was enabled again. |
+| [`Account.ModuleRoleGranted`](#accountmodulerolegranted) | `tl.core.Account.ModuleRoleGranted.v1` | A module role was granted to an account on a project and module. |
+| [`Account.ModuleRoleRevoked`](#accountmodulerolerevoked) | `tl.core.Account.ModuleRoleRevoked.v1` | A module role was revoked from an account on a project and module. |
 | [`Account.PasswordChanged`](#accountpasswordchanged) | `tl.core.Account.PasswordChanged.v1` | The password of an account was set or changed. |
 | [`Account.RolesSet`](#accountrolesset) | `tl.core.Account.RolesSet.v1` | The roles of an account were replaced. |
 | [`Action.Completed`](#actioncompleted) | `tl.core.Action.Completed.v1` | The executor finished the action. |
@@ -356,6 +358,118 @@ A disabled account was enabled again. Internal: never delivered to webhooks.
   "tlseq": 48211933,
   "tlstreamversion": 7,
   "type": "tl.core.Account.Enabled.v1"
+}
+```
+
+## Account.ModuleRoleGranted
+
+A module role was granted to an account on a project and module. Internal: never delivered to webhooks.
+
+- CloudEvents type: `tl.core.Account.ModuleRoleGranted.v1`
+- Ledger payload class: `AccountModuleRoleGrantedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `account_id` | string | yes | Account id. |
+| `module` | string | yes | A module name, or `*` for every module of the project. |
+| `project` | string | yes | `project:<id>`, or `company` for a module that declares company roles. |
+| `reason` | string | yes | Why the role was granted. |
+| `role` | string | yes | A role of the module role table. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "account_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PA",
+      "module": "documents",
+      "project": "project:P1",
+      "reason": "takes over document control",
+      "role": "superuser"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Account.ModuleRoleGranted/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Account.ModuleRoleGranted.v1"
+}
+```
+
+## Account.ModuleRoleRevoked
+
+A module role was revoked from an account on a project and module. Internal: never delivered to webhooks.
+
+- CloudEvents type: `tl.core.Account.ModuleRoleRevoked.v1`
+- Ledger payload class: `AccountModuleRoleRevokedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `account_id` | string | yes | Account id. |
+| `module` | string | yes | A module name, or `*` for every module of the project. |
+| `project` | string | yes | `project:<id>`, or `company` for a module that declares company roles. |
+| `reason` | string | yes | Why the role was revoked. |
+| `role` | string | yes | A role of the module role table. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "account_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PA",
+      "module": "documents",
+      "project": "project:P1",
+      "reason": "takes over document control",
+      "role": "superuser"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Account.ModuleRoleRevoked/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Account.ModuleRoleRevoked.v1"
 }
 ```
 

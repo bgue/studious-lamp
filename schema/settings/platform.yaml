@@ -227,3 +227,148 @@ settings:
     lockable: true
     risk: advanced
     since: "0.1.0"
+
+  # P2-W0 W0-B1: shared Phase 2 keys (brief 30.5; specs/wave0.md section 2). Defaults the brief does
+  # not give are proposed and marked so; the approver is the orchestrator under P2-Q10.
+  - key: awp.iwp.ready_lead_weeks
+    type: int
+    default: 4
+    description: How many weeks before its planned start an installation work package should be ready.
+    docs: >-
+      The COAA lead time. It drives the need-by date of a constraint raised for an IWP (planned start minus
+      this many weeks). Changing it applies to constraints raised afterwards; need-by dates already set stay.
+    scopes: [platform, company, project]
+    lockable: true
+    validation:
+      minimum: 0
+      maximum: 52
+    since: "0.1.0"
+
+  - key: awp.backlog.target_weeks
+    type: int
+    default: 4
+    description: The target backlog of ready installation work packages per foreman, in weeks of work.
+    docs: >-
+      Used by the backlog view to show whether a foreman has enough ready work ahead. It is a target, not a
+      limit: nothing is refused when a foreman is above or below it.
+    scopes: [platform, company, project]
+    lockable: true
+    validation:
+      minimum: 0
+      maximum: 52
+    since: "0.1.0"
+
+  - key: awp.iwp.size_hours
+    type: list
+    default: [60, 850]
+    description: The warning bounds for the estimated hours of one installation work package, [low, high].
+    docs: >-
+      Two numbers, the low then the high bound (the COAA example range). An IWP outside the range is flagged,
+      never refused. Keep the low bound below the high one.
+    scopes: [platform, company, project]
+    lockable: true
+    since: "0.1.0"
+
+  - key: awp.release.signoff_roles
+    type: list
+    default: [superuser]
+    description: The module roles that may sign off the release of an installation work package.
+    docs: >-
+      Names are the module roles of the role table. Default proposed: superuser of the awp module. Releasing
+      needs distinct signers; the release command checks the signer holds one of these roles in the project.
+    scopes: [platform, company, project]
+    lockable: true
+    validation:
+      choices: [user, superuser]
+    risk: advanced
+    since: "0.1.0"
+
+  - key: awp.release.allow_unknown_checks
+    type: bool
+    default: false
+    description: Whether an installation work package may be released while a readiness check answers unknown.
+    docs: >-
+      Off: release is refused when any readiness check could not answer. On: an unknown check no longer blocks
+      release (blocked and pending checks still do). Turn it on only to work around a broken check.
+    scopes: [platform, company, project]
+    lockable: true
+    risk: advanced
+    since: "0.1.0"
+
+  - key: awp.rules_of_credit.set
+    type: string
+    default: ""
+    description: The edition of the rules of credit in force. Empty means the company standard.
+    docs: >-
+      Names a rules-of-credit edition loaded as a company registry record. Empty uses the company standard
+      edition. Earned progress already recorded keeps the edition it was computed with.
+    scopes: [platform, company, project]
+    lockable: true
+    validation:
+      pattern: "^[A-Za-z0-9][A-Za-z0-9 ._-]{0,63}$|^$"
+    since: "0.1.0"
+
+  - key: awp.constraint.aging_days
+    type: int
+    default: 14
+    description: How many days an open constraint may stand before it is shown as aging. Proposed default.
+    docs: >-
+      Counted from when the constraint was raised. Aging constraints are listed first on the constraint
+      screen and in the readiness summary. Nothing is closed or escalated automatically.
+    scopes: [platform, company, project]
+    lockable: true
+    validation:
+      minimum: 1
+      maximum: 365
+    since: "0.1.0"
+
+  - key: awp.constraint.auto_raise
+    type: bool
+    default: true
+    description: Whether a blocked readiness check raises a constraint on its own. Proposed default.
+    docs: >-
+      On: the readiness job raises a constraint for a blocked check that names records to resolve, owned by a
+      default owner and needed by the IWP's planned start minus the lead time. Off: constraints are raised by
+      people only.
+    scopes: [platform, company, project]
+    lockable: true
+    since: "0.1.0"
+
+  - key: awp.constraint.default_owners
+    type: list
+    default: []
+    description: The accounts that own a constraint raised automatically, as user:<name> actor strings.
+    docs: >-
+      Empty means an automatically raised constraint has no owner until someone takes it. Proposed default.
+    scopes: [platform, company, project]
+    lockable: true
+    validation:
+      pattern: "^user:[A-Za-z0-9._-]{1,64}$"
+    since: "0.1.0"
+
+  - key: materials.receipt.mtr_required_categories
+    type: list
+    default: []
+    description: The item categories whose receipts must carry a material test report before they are accepted.
+    docs: >-
+      A project lists ItemCategory codes. For an item in a listed category the receipt's `mtr` slot must hold
+      an available file or acceptance is refused. Empty means no category requires one. Proposed default.
+    scopes: [platform, company, project]
+    lockable: true
+    validation:
+      pattern: "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"
+    since: "0.1.0"
+
+  - key: scaffold.inspection.interval_days
+    type: int
+    default: 7
+    description: How many days may pass between inspections of an erected scaffold. Proposed default.
+    docs: >-
+      The scaffold inspections-due job raises an inspection for each erected scaffold whose last inspection
+      is older than this many days. Seven days is the usual rule for scaffold in use.
+    scopes: [platform, company, project]
+    lockable: true
+    validation:
+      minimum: 1
+      maximum: 90
+    since: "0.1.0"

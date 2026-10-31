@@ -26,8 +26,9 @@ from tl_mod_correspondence.reports_technical import RfiLog, RfiLogLine
 from tl_tui.client import ClientInterface
 from tl_tui.commercial_text import (
     COMMERCIAL_COLUMNS,
+    COMMERCIAL_DROP,
     commercial_cells,
-    commercial_lines,
+    commercial_page,
     commercial_summary,
 )
 from tl_tui.display import Labels, mode_of
@@ -36,12 +37,20 @@ from tl_tui.evidence_text import (
     EVIDENCE_COLUMNS,
     evidence_title,
     node_cells,
-    node_lines,
+    node_page,
     step_day,
 )
 from tl_tui.labels_load import load_labels
-from tl_tui.log_actions import ACTION_UI, Runner, log_actions, screen_runner, without_keys
-from tl_tui.rfi_text import RFI_COLUMNS, rfi_cells, rfi_lines, rfi_summary
+from tl_tui.layout import Adaptive, Panel, render
+from tl_tui.log_actions import (
+    ACTION_UI,
+    Runner,
+    add_property_actions,
+    log_actions,
+    screen_runner,
+    without_keys,
+)
+from tl_tui.rfi_text import RFI_COLUMNS, RFI_DROP, rfi_cells, rfi_page, rfi_summary
 from tl_tui.widgets.log_screen import LogAction, LogScreen
 from tl_tui.widgets.record_screen import open_record
 
@@ -58,9 +67,27 @@ class DomainScreen(LogScreen[Row]):
     """The Technical and Commercial domains of ``project`` (the id, not the scope)."""
 
     LOG_NAME: ClassVar[str] = MODE_TITLES["rfi"]
+    # every key the log has, in one text (the walking tests read it); the keys row shows KEY_CELLS
+    # and F1 lists the rest (HELP_KEYS)
     KEY_HINTS: ClassVar[str] = (
         "1 RFI log  2 Commercial  3 evidence (t on a row)  o open  v overdue/bars  i impact  "
         "[ ] day  0 today  / filter  F5 reload  Esc close"
+    )
+    KEY_CELLS: ClassVar[tuple[str, ...]] = (
+        "1-3 view",
+        "o open only",
+        "v overdue",
+        "i impact",
+        "/ filter",
+    )
+    HELP_KEYS: ClassVar[tuple[tuple[str, str], ...]] = (
+        ("1  2  3  Tab", "RFI log, Commercial register, evidence trail"),
+        ("o", "Only the items still open"),
+        ("v", "Only overdue RFIs, or the time bars running or late"),
+        ("i", "Only RFIs whose answer says yes to a cost or schedule impact"),
+        ("t", "Evidence trail of the highlighted item"),
+        ("[  ]", "Evidence: read as of a day earlier or later"),
+        ("0", "Evidence: read as of today"),
     )
 
     BINDINGS: ClassVar[list[BindingType]] = [
@@ -105,6 +132,7 @@ class DomainScreen(LogScreen[Row]):
         self.labels = Labels()
         self._labelled = False
         self._summary = ""  # the summary line of the view last read
+        self._panels: dict[tuple[str, bool], Adaptive] = {}  # panels drawn since the last read
 
     # --- the log's hooks -----------------------------------------------------------------
 
@@ -118,8 +146,12 @@ class DomainScreen(LogScreen[Row]):
             "evidence": EVIDENCE_COLUMNS,
         }[self.mode]
 
+    def drop_order(self) -> Sequence[str]:
+        return {"rfi": RFI_DROP, "commercial": COMMERCIAL_DROP, "evidence": ()}[self.mode]
+
     def load_rows(self) -> Sequence[Row]:
         """Read the current view (off the UI thread) and work out its summary line."""
+        self._panels = {}
         if not self._labelled:
             self.labels = load_labels(
                 self.client,
@@ -182,27 +214,40 @@ class DomainScreen(LogScreen[Row]):
             return (row.key or "", row.title)
         return (row.number, row.subject)
 
-    def panel_text(self, row: Row | None) -> str:
-        """The highlighted row in full (one read per row)."""
+    def panel_text(self, row: Row | None) -> Panel:
+        """The highlighted row in full (one read per row until the rows are read again)."""
         technical = mode_of(self.app).technical
         if isinstance(row, EvidenceNode):
-            return "\n".join(node_lines(row, self.labels, technical=technical))
+            return render(node_page(row, self.labels, technical=technical))
         if row is None:
             return "Nothing here."
+        found = self._panels.get((row.id, technical))
+        if found is not None:
+            return found
         try:
             if isinstance(row, RfiLogLine):
                 view = self.client.get_rfi(self.project, row.number)
-                return "\n".join(rfi_lines(view, self.labels, technical=technical))
-            found = self.client.get_commercial(self.project, row.number)
-            return "\n".join(commercial_lines(found, self.labels, technical=technical))
+                page = rfi_page(
+                    view, self.labels, technical=technical, client=self.client, project=self.project
+                )
+            else:
+                notice = self.client.get_commercial(self.project, row.number)
+                page = commercial_page(notice, self.labels, technical=technical, client=self.client)
         except CLIENT_ERRORS as exc:
             return describe_error(exc)
+        found = self._panels[(row.id, technical)] = render(page)
+        return found
 
     def actions_for(self, row: Row) -> Sequence[LogAction]:
         if isinstance(row, EvidenceNode):
             return []  # the trail changes nothing
         offers = self.client.allowed_actions(row.id)
-        return log_actions(offers, without_keys(ACTION_UI, OWN_KEYS), self._runner())
+        return [
+            *log_actions(offers, without_keys(ACTION_UI, OWN_KEYS), self._runner()),
+            *add_property_actions(
+                self, self.client, offers, actor=self.actor, scope=f"project:{self.project}"
+            ),
+        ]
 
     def _runner(self) -> Runner:
         return screen_runner(self, self.client, actor=self.actor, scope=f"project:{self.project}")

@@ -54,7 +54,7 @@ from tl_mod_correspondence.handlers.domain import CostCodeImpact, Reference
 from tl_cli.corr import recipient
 from tl_cli.derive_support import configure_files
 from tl_cli.doc import _DEFAULT_ACTOR, _Actor, _fail, _Project, _service_errors
-from tl_cli.session import require_controller
+from tl_cli.session import require_command, require_controller
 
 app = typer.Typer(
     help="Notices and claims under the contract: raise, review, issue, assess, export.",
@@ -200,31 +200,29 @@ def raise_(
 ) -> None:
     """Raise a notice as a Draft (controller). Its time bar starts counting from --aware-on."""
     db: DbTarget = ctx.obj
-    require_controller(db)
     scope = f"project:{project}"
     with _service_errors(), open_uow(db) as uow:
-        made = handle_raise_commercial(
-            uow,
-            RaiseCommercial(
-                actor=actor,
-                source="cli",
-                scope=scope,
-                subtype=subtype,
-                subject=subject,
-                body=body,
-                clause=clause,
-                aware_on=aware_on,
-                currency=currency,
-                estimated_value=value,
-                estimated_hours=hours,
-                cost_code_impacts=[_impact(c) for c in cost_code or []] or None,
-                schedule_impact_days=schedule_days,
-                schedule_impact_note=schedule_note,
-                entitlement_basis=basis,
-                to=[recipient(t) for t in to or []],
-                references=[Reference(record_id=r) for r in ref or []],
-            ),
+        command = RaiseCommercial(
+            actor=actor,
+            source="cli",
+            scope=scope,
+            subtype=subtype,
+            subject=subject,
+            body=body,
+            clause=clause,
+            aware_on=aware_on,
+            currency=currency,
+            estimated_value=value,
+            estimated_hours=hours,
+            cost_code_impacts=[_impact(c) for c in cost_code or []] or None,
+            schedule_impact_days=schedule_days,
+            schedule_impact_note=schedule_note,
+            entitlement_basis=basis,
+            to=[recipient(t) for t in to or []],
+            references=[Reference(record_id=r) for r in ref or []],
         )
+        require_command(uow, command)
+        made = handle_raise_commercial(uow, command)
         bars = [c for c in registry.clocks_of(uow.conn(), made.stream_id) if c.kind == "time_bar"]
     typer.echo(f"raised {made.key}")
     for bar in bars:
@@ -253,7 +251,6 @@ def update(
 ) -> None:
     """Change the fields you name of a draft or an item in commercial review."""
     db: DbTarget = ctx.obj
-    require_controller(db)
     scope = f"project:{project}"
     row = _row(db, scope, project, number)
     given: dict[str, object] = {
@@ -273,12 +270,11 @@ def update(
     if to is not None:
         fields["to"] = [recipient(t) for t in to]
     with _service_errors(), open_uow(db) as uow:
-        handle_update_commercial(
-            uow,
-            UpdateCommercial.model_validate(
-                {"actor": actor, "source": "cli", "scope": scope, "stream_id": row.id, **fields}
-            ),
+        command = UpdateCommercial.model_validate(
+            {"actor": actor, "source": "cli", "scope": scope, "stream_id": row.id, **fields}
         )
+        require_command(uow, command)
+        handle_update_commercial(uow, command)
     typer.echo(f"updated {number}")
 
 
@@ -294,10 +290,11 @@ def _move(
     """Run one transition command on an item (the shared body of submit, review, return, close
     and legal) and return its state."""
     scope = f"project:{project}"
-    require_controller(db)
     row = _row(db, scope, project, number)
     with _service_errors(), open_uow(db) as uow:
-        handler(uow, model(actor=actor, source="cli", scope=scope, stream_id=row.id, **more))
+        command = model(actor=actor, source="cli", scope=scope, stream_id=row.id, **more)
+        require_command(uow, command)
+        handler(uow, command)
         after = registry.get_item(uow.conn(), row.id)
     return after.state if after else "?"
 
@@ -354,22 +351,20 @@ def issue(
     """Approve and issue the notice: a PDF is stored, the send is a stub, the time bar is met."""
     db: DbTarget = ctx.obj
     scope = f"project:{project}"
-    require_controller(db)
     configure_files()
     row = _row(db, scope, project, number)
     with _service_errors(), open_uow(db) as uow:
-        handle_issue_commercial(
-            uow,
-            IssueCommercial(
-                actor=actor,
-                source="cli",
-                scope=scope,
-                stream_id=row.id,
-                template=template,
-                issued_on=issued_on,
-                date_reason=date_reason,
-            ),
+        command = IssueCommercial(
+            actor=actor,
+            source="cli",
+            scope=scope,
+            stream_id=row.id,
+            template=template,
+            issued_on=issued_on,
+            date_reason=date_reason,
         )
+        require_command(uow, command)
+        handle_issue_commercial(uow, command)
         after = views_domain.commercial_view(uow.conn(), scope, number)
     typer.echo(
         f"issued {number} on {after.issued_on} (delivery {after.delivery}: nothing was sent)"
@@ -396,25 +391,23 @@ def assess(
     """Record the other party's assessment (a value is needed unless it is disputed)."""
     db: DbTarget = ctx.obj
     scope = f"project:{project}"
-    require_controller(db)
     row = _row(db, scope, project, number)
     with _service_errors(), open_uow(db) as uow:
-        handle_assess_commercial(
-            uow,
-            AssessCommercial.model_validate(
-                {
-                    "actor": actor,
-                    "source": "cli",
-                    "scope": scope,
-                    "stream_id": row.id,
-                    "status": status,
-                    "assessed_value": assessed_value,
-                    "note": note,
-                    "assessed_on": assessed_on,
-                    "date_reason": date_reason,
-                }
-            ),
+        command = AssessCommercial.model_validate(
+            {
+                "actor": actor,
+                "source": "cli",
+                "scope": scope,
+                "stream_id": row.id,
+                "status": status,
+                "assessed_value": assessed_value,
+                "note": note,
+                "assessed_on": assessed_on,
+                "date_reason": date_reason,
+            }
         )
+        require_command(uow, command)
+        handle_assess_commercial(uow, command)
     typer.echo(f"{number} assessed as {status.replace('_', ' ')}")
 
 

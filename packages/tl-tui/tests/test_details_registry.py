@@ -29,7 +29,7 @@ def test_an_unknown_type_uses_the_generic_rows() -> None:
     record = a_record("x.Unknown")
     rows = details_for(FakeClient(), "P123", record, Labels(), PLAIN)
     assert rows == [r for r in generic_rows(record, Labels()) if not r.technical]
-    assert [r.label for r in rows][:2] == ["Type", "Title"]
+    assert [r.label for r in rows][:2] == ["Type", "Status"]  # the title is in the screen header
     assert rows[0].value == "Unknown"  # a type without a title is humanized, never the raw name
     assert all(not r.technical for r in rows)
 
@@ -39,8 +39,17 @@ def test_the_generic_rows_use_the_type_title_and_hold_the_technical_rows_back() 
     labels = Labels(type_titles={"documents.Document": "Document"})
     plain = details_for(FakeClient(), "P123", record, labels, PLAIN)
     full = details_for(FakeClient(), "P123", record, labels, TECHNICAL)
-    assert plain[0] == DetailRow("Type", "Document")
-    assert [r.label for r in full if r.technical] == ["Key", "Version", "Scope", "Schema hash"]
+    assert plain[0] == DetailRow("Type", "Document", section="Summary")
+    assert [r.label for r in full if r.technical] == [
+        "Key",
+        "Version",
+        "Scope",
+        "Schema hash",
+        "Offline class",
+    ]
+    assert [r.value for r in full if r.label == "Offline class"] == [
+        "Draft only: drafted offline, issued online"
+    ]
     assert [r for r in full if not r.technical] == plain
 
 
@@ -92,8 +101,8 @@ def test_the_document_renderer_reads_get_document_by_the_key() -> None:
     client.seed_documents("P123")
     record = {**a_record("documents.Document"), "key": "ISO-1234"}
     rows = {r.label: r.value for r in details_for(client, "P123", record, Labels(), PLAIN)}
-    assert rows["Number"] == "ISO-1234" and rows["Current revision"] == "B (IFC)"
-    assert rows["Type"] == "Document" and rows["State"] == "Issued"
+    assert rows["Current revision"] == "B, Issued for construction"
+    assert rows["Document type"] == "ISO" and rows["Discipline"] == "PIP"
     missing = {**record, "key": "NO-SUCH"}
     fallback = details_for(client, "P123", missing, Labels(), PLAIN)
     assert fallback[-1] == DetailRow(details.NOTE_LABEL, details.NOTE_TEXT)

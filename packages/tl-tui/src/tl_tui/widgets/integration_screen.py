@@ -23,10 +23,11 @@ from tl_core.services.errors import ServiceError
 from tl_core.settings.layers import project_of_scope
 
 from tl_tui.client import ClientInterface
-from tl_tui.display import Labels, humanize, mode_of
+from tl_tui.display import Labels, mode_of
 from tl_tui.errors import CLIENT_ERRORS, describe_error
-from tl_tui.integration_text import LABELS, cells, columns, detail_lines
+from tl_tui.integration_text import LABELS, cells, columns, detail_page, identity_of
 from tl_tui.labels_load import load_labels
+from tl_tui.layout import Panel, render
 from tl_tui.log_text import actions_text
 from tl_tui.widgets.log_screen import LogAction, LogScreen
 
@@ -55,7 +56,15 @@ class IntegrationScreen(LogScreen[dict[str, Any]]):
     """The registry for ``scope``; ``kind`` is the table shown first."""
 
     LOG_NAME: ClassVar[str] = LABELS[KINDS[0]]
+    # every key the log has, in one text (the walking tests read it); the keys row shows KEY_CELLS
+    # and F1 lists the rest (HELP_KEYS)
     KEY_HINTS: ClassVar[str] = "[ ] or 1-7 table  / filter  F5 reload  Esc close"
+    KEY_CELLS: ClassVar[tuple[str, ...]] = ("[ ] table", "/ filter")
+    HELP_KEYS: ClassVar[tuple[tuple[str, str], ...]] = (
+        ("[  ]  1-7", "Endpoints, rules, actions, enrichers, apps, invocations, error queue"),
+        ("e", "Turn the highlighted app, endpoint, rule or enricher on or off"),
+        ("y", "Retry the highlighted failed delivery"),
+    )
 
     BINDINGS: ClassVar[list[BindingType]] = [
         Binding("right_square_bracket", "next_kind(1)", "Next table", show=False),
@@ -123,35 +132,21 @@ class IntegrationScreen(LogScreen[dict[str, Any]]):
 
     def row_record(self, row: dict[str, Any]) -> tuple[str, str]:
         """The name of the row and, where it has one, its title (never an id)."""
-        kind = self.kind
-        if kind == "endpoints":
-            return (f"{row['app']}/{row['name']}", "")
-        if kind == "rules":
-            return (str(row["key"]), str(row["title"]))
-        if kind in ("actions", "apps"):
-            return (str(row["name"]), str(row["label"]))
-        if kind == "enrichers":
-            return (str(row["name"]), "")
-        if kind == "invocations":
-            return (str(row["action"]), humanize(str(row["status"])))
-        return (self.names.get(str(row["endpoint_id"]), "?"), humanize(str(row["state"])))
+        return identity_of(self.kind, row, self.names)
 
-    def panel_text(self, row: dict[str, Any] | None) -> str:
-        """The tab line, then the highlighted row: who owns it, how it acts, with which access."""
-        tabs = "  ".join(
-            f"[{n} {LABELS[k]}]" if k == self.kind else f"{n} {LABELS[k]}"
-            for n, k in enumerate(KINDS, 1)
-        )
+    def panel_text(self, row: dict[str, Any] | None) -> Panel:
+        """The highlighted row: who owns it, how it acts, with which access."""
         if row is None:
-            return f"{tabs}\n\nNo {LABELS[self.kind].lower()}."
-        lines = detail_lines(
-            self.kind,
-            row,
-            self.names,
-            labels=self.labels,
-            technical=mode_of(self.app).technical,
+            return f"No {LABELS[self.kind].lower()}."
+        return render(
+            detail_page(
+                self.kind,
+                row,
+                self.names,
+                labels=self.labels,
+                technical=mode_of(self.app).technical,
+            )
         )
-        return "\n".join([tabs, "", *lines])
 
     def summary_text(self) -> str:
         if self._flash:

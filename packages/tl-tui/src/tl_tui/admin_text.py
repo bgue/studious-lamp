@@ -9,11 +9,18 @@ from __future__ import annotations
 from collections.abc import Sequence
 from datetime import datetime
 
+from tl_core.auth.module_role_views import EffectiveRoleView, ModuleRoleGrantView
 from tl_core.auth.types import AccountView, AgentTokenView
+
+from tl_tui.display import humanize
+from tl_tui.layout import EMPTY, Page, Prop, Section, join_facts, state_line
 
 ACCOUNT_COLUMNS = ("Name", "Kind", "Roles", "Status", "Lock")
 TOKEN_COLUMNS = ("Agent", "Label", "Expires", "State")
 TECHNICAL_TOKEN_COLUMNS = (*TOKEN_COLUMNS, "Id")
+MODULE_ROLE_COLUMNS = ("Account", "Module", "Role", "Granted by", "Since")
+TECHNICAL_MODULE_ROLE_COLUMNS = (*MODULE_ROLE_COLUMNS, "Id")
+ALL_MODULES = "*"
 
 
 def moment(stamp: str) -> str:
@@ -90,3 +97,85 @@ def detail_lines(view: AccountView, tokens: Sequence[AgentTokenView], now: str) 
         revoked = sum(1 for token in mine if token.revoked)
         pairs.append(("Tokens", f"{live} live, {revoked} revoked"))
     return [f"{label:<10}{value}" for label, value in pairs]
+
+
+# --- module roles (RM-S3): the module roles log -----------------------------------------------
+
+#: The resolver's source words (``Source``) in plain language, for a property line.
+SOURCE_WORDS = {
+    "granted": "granted",
+    "granted_all_modules": "granted, all modules",
+    "derived": "derived",
+    "admin": "admin",
+    "service": "service",
+    "none": "none",
+}
+
+
+def module_label(module: str) -> str:
+    """``documents`` as ``Documents``; ``*`` as ``All modules``."""
+    return "All modules" if module == ALL_MODULES else humanize(module)
+
+
+def person_label(actor: str, names: dict[str, str]) -> str:
+    """Who an actor is: the account's shown name, else the part after ``user:`` (never an id)."""
+    name = actor.partition(":")[2] or actor
+    return names.get(name, name)
+
+
+def grant_cells(
+    grant: ModuleRoleGrantView,
+    names: dict[str, str],
+    *,
+    technical: bool = False,
+) -> tuple[str, ...]:
+    """The cells of a grant row, in the order of ``MODULE_ROLE_COLUMNS``.
+
+    ``names`` maps a username to the name shown for it. The account id is a sixth cell, shown only
+    in technical mode (``TECHNICAL_MODULE_ROLE_COLUMNS``).
+    """
+    cells = (
+        names.get(grant.username, grant.username),
+        module_label(grant.module),
+        grant.role.capitalize(),
+        person_label(grant.granted_by, names),
+        moment(grant.granted_at),
+    )
+    return (*cells, grant.account_id) if technical else cells
+
+
+def role_state(views: Sequence[EffectiveRoleView]) -> str:
+    """``Admin``, ``Granted``, ``Derived`` or ``No roles``: where the account's roles come from."""
+    sources = {view.source for view in views if view.roles}
+    if "admin" in sources:
+        return "Admin"
+    if sources & {"granted", "granted_all_modules"}:
+        return "Granted"
+    if "derived" in sources:
+        return "Derived"
+    return "No roles"
+
+
+def effective_line(view: EffectiveRoleView) -> str:
+    """``superuser (granted)`` or ``—``: the value of one module's property line."""
+    if not view.roles:
+        return EMPTY
+    return f"{', '.join(view.roles)} ({SOURCE_WORDS.get(view.source, view.source)})"
+
+
+def effective_page(display_name: str, views: Sequence[EffectiveRoleView]) -> Page:
+    """The panel of a grant row: the account's name, where its roles come from, and one property
+    line per module under **Effective roles**."""
+    n = sum(1 for v in views if v.roles)
+    return Page(
+        identity=display_name,
+        state=state_line(role_state(views)),
+        summary=join_facts(f"{n} of {len(views)} modules" if views else ""),
+        sections=(
+            Section(
+                "Effective roles",
+                tuple(Prop(module_label(v.module), effective_line(v)) for v in views),
+                note="No modules.",
+            ),
+        ),
+    )

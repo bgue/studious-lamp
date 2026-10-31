@@ -224,6 +224,8 @@ classes:
       One `Setting.Changed` event: the history of a key at a layer, and the entries the resolver reads. The row
       in force at time t is the one with the greatest `effective_us` (then `seq`) not after t.
     annotations:
+      tl:offline: none
+      tl:stream_type: core.Setting
       tl:current_state: true
       tl:table: cur_setting
     attributes:

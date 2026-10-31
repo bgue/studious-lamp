@@ -52,6 +52,7 @@ from tl_mod_documents import registry
 from tl_mod_documents.derivation import rows
 from tl_mod_documents.derivation.derived import load_derived
 from tl_mod_documents.derivation.mapping import MappingInvalidError, PublishMapping, check_mapping
+from tl_mod_documents.derivation.publish_targets import PublishTarget, publish_target_for
 from tl_mod_documents.derivation.store import result_files
 from tl_mod_documents.derivation.validation import typed_row
 from tl_mod_documents.errors import CompensationRefusedError, PublishRefusedError
@@ -254,13 +255,12 @@ def _build(
     creatable: list[_Creatable] = []
     counts = {"create": 0, "exists": 0, "differs": 0, "invalid": 0}
     if result is not None and schema is not None and mapping is not None:
-        kind = mapping.target
-        record_type = "engineering.Tag" if kind == TARGET_TAGS else "documents.Document"
-        found = _provenance_problem(scope, record_type)
+        target_object = publish_target_for(mapping.target)
+        found = _provenance_problem(scope, target_object.record_type)
         if found:
             problems.append(found)
         plan_rows, creatable, counts = _plan_rows(
-            conn, scope, derived, schema, mapping, result, kind
+            conn, scope, schema, mapping, result, target_object
         )
     can = not problems and counts["invalid"] == 0 and counts["create"] > 0
     needs_skip = can and (counts["exists"] + counts["differs"]) > 0
@@ -292,94 +292,15 @@ def _build(
 def _plan_rows(
     conn: Connection,
     scope: str,
-    derived: rows.DerivedRow,
     schema: rows.SchemaRow,
     mapping: PublishMapping,
     result: ExtractionResult,
-    kind: str,
+    target: PublishTarget,
 ) -> tuple[list[PlanRow], list[_Creatable], dict[str, int]]:
     mapped: list[tuple[dict[str, str], dict[str, dict[str, Any]], list[str]]] = [
         map_row(mapping, schema.json_schema, row) for row in result.rows
     ]
-    counts = {"create": 0, "exists": 0, "differs": 0, "invalid": 0}
-    plan_rows: list[PlanRow] = []
-    creatable: list[_Creatable] = []
-    if kind == TARGET_TAGS:
-        tag_rows = [
-            TagRow(
-                line=index + 1,
-                number=fields.get("number", "").strip(),
-                class_code=fields.get("class"),
-                service=fields.get("service"),
-                psets=psets,
-                problems=[*problems, *([] if fields.get("number") else ["no tag number"])],
-            )
-            for index, (fields, psets, problems) in enumerate(mapped, start=1)
-        ]
-        tag_plan = plan_tag_import(
-            tag_rows, existing_tags(conn, scope), ended=ended_numbers(conn, scope)
-        )
-        new_lines = {r.line for r in tag_plan.new}
-        changed = {c.line for c in tag_plan.changed}
-        invalid = {r.line: r.problems for r in tag_plan.invalid}
-        for row in tag_rows:
-            action: Action
-            if row.line in invalid:
-                action = "invalid"
-            elif row.line in new_lines:
-                action = "create"
-            elif row.line in changed:
-                action = "differs"
-            else:
-                action = "exists"
-            counts[action] += 1
-            plan_rows.append(
-                _plan_row(
-                    row.line - 1,
-                    row.number,
-                    action,
-                    invalid.get(row.line, []),
-                    mapped[row.line - 2],
-                )
-            )
-            if action == "create":
-                creatable.append(
-                    _Creatable(
-                        row.number, mapped[row.line - 2][0], mapped[row.line - 2][1], tag_row=row
-                    )
-                )
-        return plan_rows, creatable, counts
-    doc_rows = [
-        DocumentRow(
-            line=index + 1,
-            number=fields.get("number", "").strip(),
-            title=fields.get("title"),
-            doc_type=fields.get("doc_type"),
-            discipline=fields.get("discipline"),
-            originator=fields.get("originator"),
-            legacy_revision=None,
-            legacy_status=None,
-            legacy_date=None,
-            problems=[*problems, *([] if fields.get("number") else ["no document number"])],
-        )
-        for index, (fields, _psets, problems) in enumerate(mapped, start=1)
-    ]
-    doc_plan = plan_document_import(conn, scope, doc_rows)
-    new_lines = {r.line for r in doc_plan.new}
-    invalid = {r.line: r.problems for r in doc_plan.invalid}
-    for row in doc_rows:
-        action = (
-            "invalid" if row.line in invalid else "create" if row.line in new_lines else "exists"
-        )
-        counts[action] += 1
-        plan_rows.append(
-            _plan_row(
-                row.line - 1, row.number, action, invalid.get(row.line, []), mapped[row.line - 2]
-            )
-        )
-        if action == "create":
-            creatable.append(_Creatable(row.number, mapped[row.line - 2][0], {}, document_row=row))
-    return plan_rows, creatable, counts
+    return target.plan_rows(conn, scope, mapped)  # type: ignore[no-any-return]
 
 
 def _plan_row(
@@ -421,6 +342,7 @@ def _check_recorded_bounds(record_ids: list[str], link_ids: list[str]) -> None:
 
 
 def _publish(uow: UnitOfWork, cmd: _PublishBase, target: str) -> CommandResult:
+    publish_target_for(target)  # an unknown target is refused before anything is read
     cmd = correlated(cmd)
     built = _build(
         uow, cmd.scope, cmd.derived_id, target=target, expected_rev=cmd.expected_content_rev
@@ -451,11 +373,7 @@ def _publish(uow: UnitOfWork, cmd: _PublishBase, target: str) -> CommandResult:
         "causation_id": cmd.causation_id,  # the proposal, when an agent proposed this
     }
     provenance = {PROVENANCE_PROPERTY: derived.source_ref, "derived_document": derived.key}
-    record_ids = (
-        _create_tags(uow, base, built, provenance)
-        if target == TARGET_TAGS
-        else _create_documents(uow, base, built, provenance)
-    )
+    record_ids = publish_target_for(target).create(uow, base, built, provenance)
     link_ids: list[str] = []
     for record_id in record_ids:
         linked = handle_add_link(
@@ -578,6 +496,143 @@ def _create_documents(
             ) from exc
         ids.append(made.stream_id)
     return ids
+
+
+class _TagsPublishTarget:
+    """The built-in ``tags`` target: tags through the engineering import (``RecordTag``)."""
+
+    name = TARGET_TAGS
+    module = "documents"
+    record_type = "engineering.Tag"
+
+    def plan_rows(
+        self, conn: Connection, scope: str, mapped: list[Any]
+    ) -> tuple[list[PlanRow], list[_Creatable], dict[str, int]]:
+        counts = {"create": 0, "exists": 0, "differs": 0, "invalid": 0}
+        plan_rows: list[PlanRow] = []
+        creatable: list[_Creatable] = []
+
+        tag_rows = [
+            TagRow(
+                line=index + 1,
+                number=fields.get("number", "").strip(),
+                class_code=fields.get("class"),
+                service=fields.get("service"),
+                psets=psets,
+                problems=[*problems, *([] if fields.get("number") else ["no tag number"])],
+            )
+            for index, (fields, psets, problems) in enumerate(mapped, start=1)
+        ]
+        tag_plan = plan_tag_import(
+            tag_rows, existing_tags(conn, scope), ended=ended_numbers(conn, scope)
+        )
+        new_lines = {r.line for r in tag_plan.new}
+        changed = {c.line for c in tag_plan.changed}
+        invalid = {r.line: r.problems for r in tag_plan.invalid}
+        for row in tag_rows:
+            action: Action
+            if row.line in invalid:
+                action = "invalid"
+            elif row.line in new_lines:
+                action = "create"
+            elif row.line in changed:
+                action = "differs"
+            else:
+                action = "exists"
+            counts[action] += 1
+            plan_rows.append(
+                _plan_row(
+                    row.line - 1,
+                    row.number,
+                    action,
+                    invalid.get(row.line, []),
+                    mapped[row.line - 2],
+                )
+            )
+            if action == "create":
+                creatable.append(
+                    _Creatable(
+                        row.number, mapped[row.line - 2][0], mapped[row.line - 2][1], tag_row=row
+                    )
+                )
+        return plan_rows, creatable, counts
+
+    def create(
+        self, uow: UnitOfWork, base: dict[str, Any], built: _Built, provenance: dict[str, str]
+    ) -> list[str]:
+        return _create_tags(uow, base, built, provenance)
+
+
+class _DocumentsPublishTarget:
+    """The built-in ``documents`` target: documents through ``RegisterDocument``."""
+
+    name = TARGET_DOCUMENTS
+    module = "documents"
+    record_type = "documents.Document"
+
+    def plan_rows(
+        self, conn: Connection, scope: str, mapped: list[Any]
+    ) -> tuple[list[PlanRow], list[_Creatable], dict[str, int]]:
+        counts = {"create": 0, "exists": 0, "differs": 0, "invalid": 0}
+        plan_rows: list[PlanRow] = []
+        creatable: list[_Creatable] = []
+
+        doc_rows = [
+            DocumentRow(
+                line=index + 1,
+                number=fields.get("number", "").strip(),
+                title=fields.get("title"),
+                doc_type=fields.get("doc_type"),
+                discipline=fields.get("discipline"),
+                originator=fields.get("originator"),
+                legacy_revision=None,
+                legacy_status=None,
+                legacy_date=None,
+                problems=[*problems, *([] if fields.get("number") else ["no document number"])],
+            )
+            for index, (fields, _psets, problems) in enumerate(mapped, start=1)
+        ]
+        doc_plan = plan_document_import(conn, scope, doc_rows)
+        new_lines = {r.line for r in doc_plan.new}
+        invalid = {r.line: r.problems for r in doc_plan.invalid}
+        for row in doc_rows:
+            action = (
+                "invalid"
+                if row.line in invalid
+                else "create"
+                if row.line in new_lines
+                else "exists"
+            )
+            counts[action] += 1
+            plan_rows.append(
+                _plan_row(
+                    row.line - 1,
+                    row.number,
+                    action,
+                    invalid.get(row.line, []),
+                    mapped[row.line - 2],
+                )
+            )
+            if action == "create":
+                creatable.append(
+                    _Creatable(row.number, mapped[row.line - 2][0], {}, document_row=row)
+                )
+        return plan_rows, creatable, counts
+
+    def create(
+        self, uow: UnitOfWork, base: dict[str, Any], built: _Built, provenance: dict[str, str]
+    ) -> list[str]:
+        return _create_documents(uow, base, built, provenance)
+
+
+def tags_target() -> PublishTarget:
+    """Entry point ``tags`` of the group ``throughline.publish_targets``."""
+    return _TagsPublishTarget()
+
+
+def documents_target() -> PublishTarget:
+    """Entry point ``documents`` of the group ``throughline.publish_targets``."""
+    return _DocumentsPublishTarget()
 
 
 def handle_publish_derived_tags(uow: UnitOfWork, cmd: PublishDerivedTags) -> CommandResult:

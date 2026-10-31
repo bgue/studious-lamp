@@ -175,7 +175,7 @@ def handle_transition_workflow(
     """
     row = _load(uow, cmd.stream_id, cmd.scope)
     if not by_module:
-        require_generic(uow.conn(), row.type, "TransitionWorkflow", cmd.stream_id)
+        require_generic(uow.conn(), row.type, "TransitionWorkflow", cmd.stream_id, actor=cmd.actor)
     if row.voided:
         raise RecordVoidedError(f"record {cmd.stream_id!r} is voided and cannot change state")
     definition = _definition(row, f"record {row.key or cmd.stream_id}")

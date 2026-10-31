@@ -17,9 +17,10 @@ def test_a_log_row_has_eleven_cells_in_the_order_of_the_columns() -> None:
     log = seeded().list_rfis("P123")
     cells = {line.number: rt.rfi_cells(line) for line in log.lines}
     assert all(len(c) == len(rt.RFI_COLUMNS) for c in cells.values())
-    assert rt.RFI_COLUMNS[:3] == ("Number", "State", "Kind")
+    assert rt.RFI_COLUMNS[:4] == ("Number", "Subject", "State", "Kind")
     assert cells["P123-RFI-0001"] == (
         "P123-RFI-0001",
+        "Beam B12 clashes with line 47",
         "Answered",
         "rfi",
         "structural",
@@ -29,15 +30,14 @@ def test_a_log_row_has_eleven_cells_in_the_order_of_the_columns() -> None:
         "7",
         "on time",
         "C:yes S:no",
-        "Beam B12 clashes with line 47",
     )
-    assert cells["P123-RFI-0003"][3:10] == (
-        "-",
+    assert cells["P123-RFI-0003"][4:] == (
+        "—",
         "2026-10-05",
-        "-",
-        "-",
-        "-",
-        "-",
+        "—",
+        "—",
+        "—",
+        "—",
         "C:(unknown) S:(unknown)",
     )
 
@@ -45,7 +45,7 @@ def test_a_log_row_has_eleven_cells_in_the_order_of_the_columns() -> None:
 def test_the_timing_says_overdue_late_on_time_or_nothing() -> None:
     log = seeded().list_rfis("P123")
     one, two, three = log.lines
-    assert [rt.timing_text(x) for x in (one, two, three)] == ["on time", "overdue 1d", "-"]
+    assert [rt.timing_text(x) for x in (one, two, three)] == ["on time", "overdue 1d", "—"]
     late = one.model_copy(update={"on_time": False})
     assert rt.timing_text(late) == "late"
     # overdue wins over the answer's timing, and the days come from the report
@@ -77,22 +77,30 @@ def test_the_summary_counts_and_names_the_filters_that_are_on() -> None:
 def test_the_panel_shows_the_question_the_answer_the_escalation_and_the_clocks() -> None:
     client = seeded()
     answered = rt.rfi_lines(client.get_rfi("P123", "P123-RFI-0001"))
-    assert answered[0] == "P123-RFI-0001  Answered  Rfi  class internal"
-    assert "question: Please confirm: Beam B12 clashes with line 47" in answered
-    assert "proposed: -" in answered
-    assert "discipline structural  needed by 2026-10-19  issued 2026-10-05" in answered
-    assert "raiser expects: cost unknown, schedule unknown" in answered
-    assert "answer (2026-10-12): Re-route above the beam." in answered
-    assert "answerer says: cost yes, schedule no" in answered
-    assert "escalated to: P123-EW-0001 (Draft)" in answered
-    assert not any(x.startswith(("reviewed", "answered by", "clocks")) for x in answered)
+    assert answered[0] == "P123-RFI-0001 · Beam B12 clashes with line 47"
+    assert answered[1] == "Answered"
+    assert answered[2] == "structural · needed by 2026-10-19 · to Meridian"
+    assert "Question\nPlease confirm: Beam B12 clashes with line 47" in "\n".join(answered)
+    assert "Proposed solution\n—" in "\n".join(answered)  # a fixed section keeps its shape
+    assert "Answer\nRe-route above the beam.\nAnswered on  2026-10-12" in "\n".join(answered)
+    assert "Discipline       structural" in answered
+    assert "Needed by        2026-10-19" in answered
+    assert "Issued           2026-10-05" in answered
+    assert "Cost impact      Raiser: Unknown · Answer: Yes" in answered
+    assert "Schedule impact  Raiser: Unknown · Answer: No" in answered
+    assert "Escalated to     P123-EW-0001 (Draft)" in answered
+    assert "Response clocks" not in answered and "Review" not in "\n".join(answered)
     waiting = rt.rfi_lines(client.get_rfi("P123", "P123-RFI-0002"))
-    assert not any(x.startswith(("answer", "escalated")) for x in waiting)
-    assert waiting[-2] == "clocks:"
-    assert waiting[-1].startswith("  expired due 2026-10-19 left -1 ")
+    assert "Answer" not in waiting and not any(x.startswith("Escalated") for x in waiting)
+    assert waiting[waiting.index("Response clocks") + 1].split() == [
+        "Clock", "State", "Due", "Days", "left",
+    ]  # fmt: skip
+    assert waiting[-1].startswith("Answer required  Expired  2026-10-19  -1 ")
     technical = rt.rfi_lines(client.get_rfi("P123", "P123-RFI-0002"), technical=True)
-    assert technical[-1].startswith("  P123-RFI-0002-C01 expired due 2026-10-19 left -1 ")
-    assert "calendar " in technical[-1]
+    assert technical[technical.index("Technical details") + 1].endswith(
+        "P123-RFI-0002-C01 · calendar P123-default@1"
+    )
+    assert technical[-1].startswith("Record id") and technical[-1].endswith("ID-P123-RFI-0002")
 
 
 def test_a_review_and_the_item_that_carried_the_answer_are_shown_when_there_are_any() -> None:
@@ -109,17 +117,22 @@ def test_a_review_and_the_item_that_carried_the_answer_are_shown_when_there_are_
         )
     )
     lines = rt.rfi_lines(view)
-    assert "answered by item P123-COR-0007" in lines
-    assert "reviewed 2026-10-13: Rejected (does not answer the clash)" in lines
+    assert "Answered in item  P123-COR-0007" in lines
+    assert "Review            Rejected on 2026-10-13: does not answer the clash" in lines
     bare = view.model_copy(update={"review_note": None})
-    assert "reviewed 2026-10-13: Rejected" in rt.rfi_lines(bare)
+    assert "Review            Rejected on 2026-10-13" in rt.rfi_lines(bare)
 
 
 def test_a_draft_shows_dashes_for_what_it_does_not_have_yet() -> None:
     lines = rt.rfi_lines(seeded().get_rfi("P123", "P123-RFI-0003"))
-    assert lines[0] == "P123-RFI-0003  Draft  Rfi  class internal"
-    assert "discipline -  needed by -  issued -" in lines
-    assert len(lines) == 6  # no answer, review, escalation or clocks
+    assert lines[0] == "P123-RFI-0003 · Anchor bolt spacing"
+    assert lines[1] == "Draft"
+    for label in ("Discipline      ", "Needed by       ", "Issued          "):
+        assert f"{label} —" in lines
+    assert "Proposed solution\n—" in "\n".join(lines)
+    # no answer, review, escalation or clocks
+    assert not {"Answer", "Response clocks"} & set(lines)
+    assert not any(x.startswith(("Review", "Escalated")) for x in lines)
 
 
 def test_an_answer_without_text_or_statement_still_shows_its_day() -> None:
@@ -131,8 +144,9 @@ def test_an_answer_without_text_or_statement_still_shows_its_day() -> None:
         )
     )
     lines = rt.rfi_lines(view)
-    assert "answer (2026-10-12): -" in lines
-    assert "answerer says: cost -, schedule -" in lines
+    assert "Answer\n—\nAnswered on  2026-10-12" in "\n".join(lines)
+    assert "Cost impact      Raiser: Unknown" in lines  # no answerer's view yet
+    assert "Schedule impact  Raiser: Unknown" in lines
 
 
 def test_an_average_of_zero_days_is_still_shown() -> None:
@@ -145,9 +159,12 @@ def test_the_discipline_reads_as_its_label_in_plain_mode_and_stays_a_code_in_tec
 
     line = seeded().list_rfis("P123").lines[0]
     labels = Labels(code_labels={"discipline": {"structural": "Structural works"}})
-    assert rt.rfi_cells(line, labels, technical=False)[3] == "Structural works"
-    assert rt.rfi_cells(line, labels, technical=True)[3] == "structural"
-    assert rt.rfi_cells(line, Labels(), technical=False)[3] == "structural"  # no list: the code
+    assert rt.rfi_cells(line, labels, technical=False)[4] == "Structural works"
+    assert rt.rfi_cells(line, labels, technical=True)[4] == "structural"
+    assert rt.rfi_cells(line, Labels(), technical=False)[4] == "structural"  # no list: the code
     view = seeded().get_rfi("P123", line.number)
-    assert "discipline Structural works" in "\n".join(rt.rfi_lines(view, labels))
-    assert "discipline structural" in "\n".join(rt.rfi_lines(view, labels, technical=True))
+    plain = rt.rfi_lines(view, labels)
+    assert plain[2].startswith("Structural works · needed by")
+    assert "Discipline       Structural works" in plain
+    # the panel reads the discipline as its label in both modes; the log's cell has the code
+    assert "Discipline       Structural works" in rt.rfi_lines(view, labels, technical=True)

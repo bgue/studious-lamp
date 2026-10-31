@@ -15,6 +15,10 @@ action, an enricher and a thread dispatch each stamp their events with a source,
 and a causation id of their own shape (``inbound:``, ``rule:``, ``action:``, ``enricher:``,
 ``thread:``, ``dispatch:``); the prefixes are in ``tl_core.integration.contract`` and a client
 command that carries one is refused, so no client can pose as an automation.
+
+Phase 2 (W0-B1, contracts section 7) adds the correlation prefixes ``ready:``, ``rollup:`` and
+``progress:`` and the source prefix ``job:`` of its jobs; the body-model check and the API walk
+pick them up unchanged.
 """
 
 from __future__ import annotations
@@ -29,12 +33,19 @@ from tl_core.services.commands import Command
 from tl_core.services.errors import ReservedIdentifierError, RoleClaimError
 
 DERIVE_CORRELATION_PREFIX = "derive:"
+#: Phase 2 (contracts section 7): readiness evaluations (``ready:``), allocation and progress
+#: rollups (``rollup:``) and exports (``progress:``) stamp their events with these correlation ids.
+PHASE2_CORRELATION_PREFIXES = ("ready:", "rollup:", "progress:")
+#: Phase 2 job kinds write ``job:<kind>`` (``job:awp.readiness``, ``job:awp.rollup``,
+#: ``job:scaffold.inspections_due``) as the source of their events.
+PHASE2_SOURCE_PREFIXES = ("job:",)
 #: Correlation and causation ids a client may not set: the derivation pipeline's and automation's.
 #: ``load:`` is the legacy loaders' (P1-I8): a load and its compensation carry one.
 RESERVED_CORRELATION_PREFIXES = (
     DERIVE_CORRELATION_PREFIX,
     "load:",
     *AUTOMATION_CORRELATION_PREFIXES,
+    *PHASE2_CORRELATION_PREFIXES,
 )
 #: Event sources a client may not set: the derivation pipeline's, the suite's services (``svc:``)
 #: and automation's.
@@ -44,6 +55,7 @@ RESERVED_SOURCE_PREFIXES = (
     "svc:",
     "legacy:",
     *AUTOMATION_SOURCE_PREFIXES,
+    *PHASE2_SOURCE_PREFIXES,
 )
 
 

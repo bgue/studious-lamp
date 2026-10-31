@@ -32,7 +32,7 @@ from tl_cli.derive_support import (
     fail,
     service_errors,
 )
-from tl_cli.session import require_admin
+from tl_cli.session import require_admin, require_command
 
 app = typer.Typer(help="Cost codes and period snapshots.", no_args_is_help=True)
 cost_read.register(app)
@@ -117,6 +117,7 @@ def import_snapshot(
             if not apply:
                 typer.echo("dry run: nothing written; add --apply to write")
                 return
+            require_command(uow, command)
             made = handle_import_cost_snapshot(uow, command)
     counts = f"codes={len(plan.codes)}  new={len(plan.new)}  revised={len(plan.revised)}"
     typer.echo(f"applied {made.key}: {counts}")

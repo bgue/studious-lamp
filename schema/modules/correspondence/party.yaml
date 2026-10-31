@@ -27,6 +27,7 @@ classes:
     annotations:
       tl:current_state: true
       tl:record_types: "correspondence.Party"
+      tl:offline: none
       tl:ix_scope_role: "scope, project_role"
     attributes:
       id:

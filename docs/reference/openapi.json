@@ -967,6 +967,223 @@
         "title": "AddLinkBody",
         "type": "object"
       },
+      "AddableProperties": {
+        "description": "Everything the Add property form (or an agent) needs to know about one record.",
+        "properties": {
+          "adoptable": {
+            "items": {
+              "$ref": "#/components/schemas/AdoptableSet"
+            },
+            "title": "Adoptable",
+            "type": "array"
+          },
+          "can_write": {
+            "title": "Can Write",
+            "type": "boolean"
+          },
+          "custom": {
+            "items": {
+              "$ref": "#/components/schemas/CustomRule"
+            },
+            "title": "Custom",
+            "type": "array"
+          },
+          "key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Key"
+          },
+          "name_rule": {
+            "default": "Lower case letters, digits and _, 1 to 40 characters, starting with a letter; not x, prj, enrich or src (or starting with one and _); not the name of a property of the set.",
+            "title": "Name Rule",
+            "type": "string"
+          },
+          "record_id": {
+            "title": "Record Id",
+            "type": "string"
+          },
+          "scope": {
+            "title": "Scope",
+            "type": "string"
+          },
+          "standard": {
+            "items": {
+              "$ref": "#/components/schemas/AddableProperty"
+            },
+            "title": "Standard",
+            "type": "array"
+          },
+          "type": {
+            "title": "Type",
+            "type": "string"
+          },
+          "write_refusal": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Write Refusal"
+          }
+        },
+        "required": [
+          "record_id",
+          "key",
+          "type",
+          "scope",
+          "can_write",
+          "standard",
+          "adoptable",
+          "custom"
+        ],
+        "title": "AddableProperties",
+        "type": "object"
+      },
+      "AddableProperty": {
+        "description": "One standard property the record could be given a value for.",
+        "properties": {
+          "code_list": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Code List"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "enforcement": {
+            "anyOf": [
+              {
+                "enum": [
+                  "advisory",
+                  "required",
+                  "locked"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Enforcement"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "layer": {
+            "enum": [
+              "standard",
+              "project"
+            ],
+            "title": "Layer",
+            "type": "string"
+          },
+          "order": {
+            "default": 0,
+            "title": "Order",
+            "type": "integer"
+          },
+          "package": {
+            "title": "Package",
+            "type": "string"
+          },
+          "path": {
+            "title": "Path",
+            "type": "string"
+          },
+          "property": {
+            "title": "Property",
+            "type": "string"
+          },
+          "pset": {
+            "title": "Pset",
+            "type": "string"
+          },
+          "required_in_states": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Required In States",
+            "type": "array"
+          },
+          "set_label": {
+            "title": "Set Label",
+            "type": "string"
+          },
+          "type": {
+            "enum": [
+              "string",
+              "text",
+              "int",
+              "decimal",
+              "bool",
+              "date",
+              "datetime",
+              "enum",
+              "quantity",
+              "ref",
+              "json"
+            ],
+            "title": "Type",
+            "type": "string"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit"
+          },
+          "values": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/EnumValue"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Values"
+          }
+        },
+        "required": [
+          "pset",
+          "set_label",
+          "package",
+          "layer",
+          "property",
+          "path",
+          "label",
+          "description",
+          "type"
+        ],
+        "title": "AddableProperty",
+        "type": "object"
+      },
       "AdminFlagLinkBody": {
         "additionalProperties": false,
         "properties": {
@@ -1209,6 +1426,150 @@
           "version"
         ],
         "title": "AdoptSchemaPackageBody",
+        "type": "object"
+      },
+      "AdoptSchemaSetBody": {
+        "additionalProperties": false,
+        "properties": {
+          "causation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Causation Id"
+          },
+          "correlation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Correlation Id"
+          },
+          "idempotency_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Idempotency Key"
+          },
+          "package": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Package",
+            "type": "string"
+          },
+          "project": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Project",
+            "type": "string"
+          },
+          "pset": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Pset",
+            "type": "string"
+          },
+          "scope": {
+            "title": "Scope",
+            "type": "string"
+          },
+          "source": {
+            "default": "api",
+            "pattern": "^[a-z][a-z0-9_]*(:[A-Za-z0-9_.-]+)?$",
+            "title": "Source",
+            "type": "string"
+          },
+          "version": {
+            "maxLength": 40,
+            "minLength": 5,
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "scope",
+          "project",
+          "package",
+          "version",
+          "pset"
+        ],
+        "title": "AdoptSchemaSetBody",
+        "type": "object"
+      },
+      "AdoptableSet": {
+        "description": "An optional company set that applies to the record's type and the project has not adopted.\n\n``can_adopt`` is whether this viewer may run ``command`` (``AdoptSchemaSet`` with\n``project``, ``package``, ``version`` and ``pset``, sent in the scope of the project); ``needs``\nis the sentence to show when not.",
+        "properties": {
+          "can_adopt": {
+            "title": "Can Adopt",
+            "type": "boolean"
+          },
+          "command": {
+            "default": "AdoptSchemaSet",
+            "title": "Command",
+            "type": "string"
+          },
+          "needs": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Needs"
+          },
+          "package": {
+            "title": "Package",
+            "type": "string"
+          },
+          "project": {
+            "title": "Project",
+            "type": "string"
+          },
+          "properties": {
+            "items": {
+              "$ref": "#/components/schemas/AddableProperty"
+            },
+            "title": "Properties",
+            "type": "array"
+          },
+          "pset": {
+            "title": "Pset",
+            "type": "string"
+          },
+          "set_label": {
+            "title": "Set Label",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "pset",
+          "set_label",
+          "package",
+          "version",
+          "project",
+          "can_adopt",
+          "properties"
+        ],
+        "title": "AdoptableSet",
         "type": "object"
       },
       "AdoptionView": {
@@ -6732,6 +7093,59 @@
         "title": "CurrencyTotal",
         "type": "object"
       },
+      "CustomRule": {
+        "description": "The custom section of one standard set the record's type uses.",
+        "properties": {
+          "allowed": {
+            "title": "Allowed",
+            "type": "boolean"
+          },
+          "declared": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Declared",
+            "type": "array"
+          },
+          "max_properties": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Properties"
+          },
+          "package": {
+            "title": "Package",
+            "type": "string"
+          },
+          "pset": {
+            "title": "Pset",
+            "type": "string"
+          },
+          "set_label": {
+            "title": "Set Label",
+            "type": "string"
+          },
+          "used": {
+            "title": "Used",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "pset",
+          "set_label",
+          "package",
+          "allowed",
+          "used"
+        ],
+        "title": "CustomRule",
+        "type": "object"
+      },
       "DateShift": {
         "properties": {
           "activity_id": {
@@ -9382,6 +9796,41 @@
           "body"
         ],
         "title": "EditThreadMessageBody",
+        "type": "object"
+      },
+      "EffectiveRoleView": {
+        "description": "What one account holds for one module on one project, and why (the resolver's source).",
+        "properties": {
+          "module": {
+            "title": "Module",
+            "type": "string"
+          },
+          "roles": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Roles",
+            "type": "array"
+          },
+          "source": {
+            "enum": [
+              "admin",
+              "granted",
+              "granted_all_modules",
+              "derived",
+              "service",
+              "none"
+            ],
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "module",
+          "roles",
+          "source"
+        ],
+        "title": "EffectiveRoleView",
         "type": "object"
       },
       "EffectiveSetting": {
@@ -13786,6 +14235,133 @@
         "title": "MissingLink",
         "type": "object"
       },
+      "ModuleRoleBody": {
+        "additionalProperties": false,
+        "description": "Body of the module role grant and revoke calls.",
+        "properties": {
+          "module": {
+            "description": "A loaded module, or `*` for all.",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Module",
+            "type": "string"
+          },
+          "project": {
+            "description": "`company` or `project:<id>`.",
+            "pattern": "^(company|project:[A-Za-z0-9_.-]+)$",
+            "title": "Project",
+            "type": "string"
+          },
+          "reason": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          },
+          "role": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Role",
+            "type": "string"
+          }
+        },
+        "required": [
+          "project",
+          "module",
+          "role",
+          "reason"
+        ],
+        "title": "ModuleRoleBody",
+        "type": "object"
+      },
+      "ModuleRoleGrantView": {
+        "description": "One explicit grant, with the account's username.",
+        "properties": {
+          "account_id": {
+            "title": "Account Id",
+            "type": "string"
+          },
+          "granted_at": {
+            "title": "Granted At",
+            "type": "string"
+          },
+          "granted_by": {
+            "title": "Granted By",
+            "type": "string"
+          },
+          "module": {
+            "title": "Module",
+            "type": "string"
+          },
+          "project": {
+            "title": "Project",
+            "type": "string"
+          },
+          "role": {
+            "title": "Role",
+            "type": "string"
+          },
+          "username": {
+            "title": "Username",
+            "type": "string"
+          }
+        },
+        "required": [
+          "account_id",
+          "username",
+          "project",
+          "module",
+          "role",
+          "granted_by",
+          "granted_at"
+        ],
+        "title": "ModuleRoleGrantView",
+        "type": "object"
+      },
+      "ModuleRoleResult": {
+        "description": "A ``CommandResult`` that also says whether anything was written.",
+        "properties": {
+          "changed": {
+            "default": true,
+            "title": "Changed",
+            "type": "boolean"
+          },
+          "events": {
+            "items": {
+              "$ref": "#/components/schemas/Event"
+            },
+            "title": "Events",
+            "type": "array"
+          },
+          "key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Key"
+          },
+          "stream_id": {
+            "title": "Stream Id",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "stream_id",
+          "key",
+          "version",
+          "events"
+        ],
+        "title": "ModuleRoleResult",
+        "type": "object"
+      },
       "NotifyArgs": {
         "properties": {
           "note": {
@@ -15488,6 +16064,22 @@
       },
       "PsetGroupMeta": {
         "properties": {
+          "custom_allowed": {
+            "default": false,
+            "title": "Custom Allowed",
+            "type": "boolean"
+          },
+          "custom_max": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Custom Max"
+          },
           "enforcement": {
             "anyOf": [
               {
@@ -17612,6 +18204,48 @@
         "title": "RecordTransmittalResponseBody",
         "type": "object"
       },
+      "RecordTypeRow": {
+        "description": "One record type as the record-types route and client answer it (no record data).",
+        "properties": {
+          "drafting_commands": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Drafting Commands",
+            "type": "array"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "module": {
+            "title": "Module",
+            "type": "string"
+          },
+          "offline": {
+            "enum": [
+              "full",
+              "draft_only",
+              "none"
+            ],
+            "title": "Offline",
+            "type": "string"
+          },
+          "record_type": {
+            "title": "Record Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "record_type",
+          "label",
+          "module",
+          "offline",
+          "drafting_commands"
+        ],
+        "title": "RecordTypeRow",
+        "type": "object"
+      },
       "ReferCommercialToLegalBody": {
         "additionalProperties": false,
         "properties": {
@@ -18402,6 +19036,17 @@
           "kind": {
             "title": "Kind",
             "type": "string"
+          },
+          "medium": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Medium"
           },
           "number": {
             "title": "Number",
@@ -30342,6 +30987,110 @@
         ]
       }
     },
+    "/admin/accounts/{account_id}/effective-roles": {
+      "get": {
+        "description": "What the account holds, per loaded module, on the project and where it comes from.",
+        "operationId": "admin_effective_roles",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "account_id",
+            "required": true,
+            "schema": {
+              "title": "Account Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "`company` or `project:<id>`.",
+            "in": "query",
+            "name": "project",
+            "required": true,
+            "schema": {
+              "description": "`company` or `project:<id>`.",
+              "pattern": "^(company|project:[A-Za-z0-9_.-]+)$",
+              "title": "Project",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/EffectiveRoleView"
+                  },
+                  "title": "Response Admin Effective Roles",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Effective Roles Of",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
     "/admin/accounts/{account_id}/enable": {
       "post": {
         "description": "Enable a disabled account again.",
@@ -30435,6 +31184,202 @@
           }
         ],
         "summary": "Enable Account",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/accounts/{account_id}/module-roles": {
+      "post": {
+        "description": "Grant a module role. Granting one already held writes nothing: `changed: false`.\n\nRefusals: 404 `account_not_found`, 422 `unknown_role`, `unknown_module`, `no_company_roles`\n(a `company` grant for a module without company roles), `invalid_account` (an agent may hold\nonly the roles the table allows agents).",
+        "operationId": "admin_grant_module_role",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "account_id",
+            "required": true,
+            "schema": {
+              "title": "Account Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ModuleRoleBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModuleRoleResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Grant Role",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/accounts/{account_id}/module-roles/revoke": {
+      "post": {
+        "description": "Revoke a module role (404 `no_such_grant` when the account does not hold it).",
+        "operationId": "admin_revoke_module_role",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "account_id",
+            "required": true,
+            "schema": {
+              "title": "Account Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ModuleRoleBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModuleRoleResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Revoke Role",
         "tags": [
           "admin"
         ]
@@ -31283,6 +32228,142 @@
         ]
       }
     },
+    "/admin/module-roles": {
+      "get": {
+        "description": "The explicit module role grants, narrowed by any of project, module and account.",
+        "operationId": "admin_list_module_roles",
+        "parameters": [
+          {
+            "description": "`company` or `project:<id>`.",
+            "in": "query",
+            "name": "project",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "pattern": "^(company|project:[A-Za-z0-9_.-]+)$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "`company` or `project:<id>`.",
+              "title": "Project"
+            }
+          },
+          {
+            "in": "query",
+            "name": "module",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 64,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Module"
+            }
+          },
+          {
+            "in": "query",
+            "name": "account_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 64,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Account Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ModuleRoleGrantView"
+                  },
+                  "title": "Response Admin List Module Roles",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Roles",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
     "/admin/tokens": {
       "get": {
         "description": "Agent token metadata. The tokens themselves cannot be read back.",
@@ -31649,6 +32730,101 @@
           }
         ],
         "summary": "Whoami",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/auth/me/roles": {
+      "get": {
+        "description": "Your own roles per loaded module on the project and where each comes from.\n\nThe account is the token's, never a parameter: nobody reads another person's roles here.",
+        "operationId": "my_module_roles",
+        "parameters": [
+          {
+            "description": "`company` or `project:<id>`.",
+            "in": "query",
+            "name": "project",
+            "required": true,
+            "schema": {
+              "description": "`company` or `project:<id>`.",
+              "pattern": "^(company|project:[A-Za-z0-9_.-]+)$",
+              "title": "Project",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/EffectiveRoleView"
+                  },
+                  "title": "Response My Module Roles",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "My Roles",
         "tags": [
           "auth"
         ]
@@ -32859,6 +34035,113 @@
           }
         ],
         "summary": "AdoptSchemaPackage",
+        "tags": [
+          "commands"
+        ]
+      }
+    },
+    "/commands/AdoptSchemaSet": {
+      "post": {
+        "description": "Adopt the optional set ``pset`` of ``package@version`` for ``project``. The scope of the\ncommand is the project's (``project:<id>``), or ``company`` for an administrator.",
+        "operationId": "command_AdoptSchemaSet",
+        "parameters": [
+          {
+            "description": "Simulated time (ISO-8601 with offset) stamped as the events' effective_at. Accepted only for simulation scopes `project:sim-<run>`; any other scope is a 400 `effective_time_forbidden`.",
+            "in": "header",
+            "name": "X-TL-Effective-At",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Simulated time (ISO-8601 with offset) stamped as the events' effective_at. Accepted only for simulation scopes `project:sim-<run>`; any other scope is a 400 `effective_time_forbidden`.",
+              "title": "X-Tl-Effective-At"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdoptSchemaSetBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "AdoptSchemaSet",
         "tags": [
           "commands"
         ]
@@ -56871,7 +58154,7 @@
     },
     "/proposals/{proposal_id}/accept": {
       "post": {
-        "description": "Run the proposal's command as the caller and record the decision.\n\nThe answer has `status` `accepted`, or `failed` with the refusal in `reason` when the command\ncould not be applied (the record changed, a guard failed); nothing of the command is kept then.\nAccepting a proposal runs its command as the caller, so it needs the access that command needs\n(ADR-0014): a publication into tags the admin role, into documents the document controller or\nadmin role. Anyone else gets 403 `proposal_access` and the proposal stays pending.",
+        "description": "Run the proposal's command as the caller and record the decision.\n\nThe answer has `status` `accepted`, or `failed` with the refusal in `reason` when the command\ncould not be applied (the record changed, a guard failed); nothing of the command is kept then.\nAccepting a proposal runs its command as the caller, so it needs the access that command needs\n(ADR-0014): a publication into tags the admin role, into documents the document controller or\nadmin role. Anyone else gets 403 `proposal_access` and the proposal stays pending. A module\ncommand also needs its access word from the module role table for the project it names\n(ADR-0021): an accepter who lacks it gets the same 403.",
         "operationId": "accept_proposal",
         "parameters": [
           {
@@ -57105,6 +58388,87 @@
         "summary": "Reject Proposal",
         "tags": [
           "proposals"
+        ]
+      }
+    },
+    "/record-types": {
+      "get": {
+        "description": "Every record type with its label, module, offline class and drafting commands.",
+        "operationId": "list_record_types",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/RecordTypeRow"
+                  },
+                  "title": "Response List Record Types",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Record Types",
+        "tags": [
+          "reference"
         ]
       }
     },
@@ -57727,6 +59091,94 @@
           }
         ],
         "summary": "Get Record Actions",
+        "tags": [
+          "records"
+        ]
+      }
+    },
+    "/records/{record_id}/addable-properties": {
+      "get": {
+        "description": "What could be added to the record: the standard properties its type allows and it lacks, the\noptional sets the project has not adopted (and whether the caller may adopt them, with\n`POST /commands/AdoptSchemaSet` in the project's scope), and each set's custom-section rule.\n\n404 `record_not_found` when the record is missing or the caller may not read it. Writing the\nvalues is `POST /commands/SetPsetValues`, which checks everything again.",
+        "operationId": "get_record_addable_properties",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "record_id",
+            "required": true,
+            "schema": {
+              "title": "Record Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AddableProperties"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Record Addable Properties",
         "tags": [
           "records"
         ]

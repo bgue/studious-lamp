@@ -122,3 +122,41 @@ def test_a_tool_error_reaches_a_client_as_an_error_result(env: McpHarness) -> No
     result = env.wire_call("search_records", scope="project:P123", q="title~gate (")
     assert result.is_error is True
     assert "query syntax error at position" in result.content[0].text  # type: ignore[union-attr]
+
+
+def test_get_addable_properties_reads_like_the_service_and_an_agent_cannot_adopt(
+    env: McpHarness,
+) -> None:
+    """P1-UX3 round 4: what an agent may propose adding; ``update_psets`` is the way to propose."""
+    ids = seed(env)
+    found = env.structured("get_addable_properties", record=ids["A"])
+    assert found["record_id"] == ids["A"] and found["scope"] == SCOPE
+    assert found["can_write"] is False and found["write_refusal"]  # an agent proposes
+    assert ("valve_data", "size_in") in {(p["pset"], p["property"]) for p in found["standard"]}
+    rule = next(r for r in found["custom"] if r["pset"] == "valve_data")
+    assert (rule["allowed"], rule["max_properties"], rule["used"]) == (True, 10, 0)
+    assert not any(s["can_adopt"] for s in found["adoptable"])
+    assert env.structured("get_addable_properties", record="A", scope=SCOPE) == found
+    with pytest.raises(ToolError, match="no record 'NOPE'"):
+        env.call("get_addable_properties", record="NOPE", scope=SCOPE)
+
+
+def test_an_agent_proposes_an_ad_hoc_field_and_a_bad_name_is_refused_now(env: McpHarness) -> None:
+    ids = seed(env)
+    done = env.structured(
+        "update_psets",
+        record=ids["A"],
+        pset="valve_data",
+        layer="custom",
+        values={"x.inspector_note": "ok"},
+    )
+    assert done["proposal"]["command"]["values"] == {"x.inspector_note": "ok"}
+    for bad in ("x.Bad Name", "x.prj_a", "x.size_in"):
+        with pytest.raises(ToolError):
+            env.call(
+                "update_psets",
+                record=ids["A"],
+                pset="valve_data",
+                layer="custom",
+                values={bad: "v"},
+            )

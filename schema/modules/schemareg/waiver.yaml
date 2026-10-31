@@ -26,6 +26,7 @@ classes:
     annotations:
       tl:current_state: true
       tl:record_types: "schemareg.Waiver"
+      tl:offline: none
       tl:ix_scope_path: "scope, path"
     attributes:
       id:

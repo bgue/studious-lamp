@@ -36,7 +36,7 @@ from tl_cli.derive_support import (
     fail,
     service_errors,
 )
-from tl_cli.session import require_admin, require_controller
+from tl_cli.session import require_admin, require_command, require_controller
 
 app = typer.Typer(help="Publish a valid derived document, or compensate.", no_args_is_help=True)
 
@@ -132,29 +132,27 @@ def publish(
     expected = rev or plan.content_rev
     with service_errors(), open_uow(db) as uow:
         if plan.target == TARGET_TAGS:
-            handle_publish_derived_tags(
-                uow,
-                PublishDerivedTags(
-                    actor=who,
-                    source=SOURCE,
-                    scope=scope,
-                    derived_id=found.id,
-                    expected_content_rev=expected,
-                    skip_existing=skip_existing,
-                ),
+            command = PublishDerivedTags(
+                actor=who,
+                source=SOURCE,
+                scope=scope,
+                derived_id=found.id,
+                expected_content_rev=expected,
+                skip_existing=skip_existing,
             )
+            require_command(uow, command)
+            handle_publish_derived_tags(uow, command)
         else:
-            handle_publish_derived_documents(
-                uow,
-                PublishDerivedDocuments(
-                    actor=who,
-                    source=SOURCE,
-                    scope=scope,
-                    derived_id=found.id,
-                    expected_content_rev=expected,
-                    skip_existing=skip_existing,
-                ),
+            command_2 = PublishDerivedDocuments(
+                actor=who,
+                source=SOURCE,
+                scope=scope,
+                derived_id=found.id,
+                expected_content_rev=expected,
+                skip_existing=skip_existing,
             )
+            require_command(uow, command_2)
+            handle_publish_derived_documents(uow, command_2)
     with service_errors(), open_uow(db, readonly=True) as uow:
         view = views.derived_view(uow.conn(), scope, found.id)
     typer.echo(f"published {view.published_count} records from {view.key}")
@@ -200,15 +198,14 @@ def compensate(
         typer.echo("cannot compensate")
         raise typer.Exit(code=1)
     with service_errors(), open_uow(db) as uow:
-        handle_compensate_publication(
-            uow,
-            CompensatePublication(
-                actor=who,
-                source=SOURCE,
-                scope=scope,
-                derived_id=found.id,
-                reason=reason,
-            ),
+        command = CompensatePublication(
+            actor=who,
+            source=SOURCE,
+            scope=scope,
+            derived_id=found.id,
+            reason=reason,
         )
+        require_command(uow, command)
+        handle_compensate_publication(uow, command)
     reversed_count = sum(1 for item in plan.items if item.action != "retract_link")
     typer.echo(f"compensated {reversed_count} records of {plan.derived_key}")

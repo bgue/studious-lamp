@@ -29,6 +29,7 @@ classes:
     annotations:
       tl:current_state: true
       tl:record_types: "documents.DocumentSchema"
+      tl:offline: none
       tl:ix_scope_code: "scope, code, ordinal"
     attributes:
       id:

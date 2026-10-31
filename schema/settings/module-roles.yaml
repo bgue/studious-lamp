@@ -1,0 +1,22 @@
+# The module role table (ADR-0021, docs/build-spec/specs/roles-mvp.md section 2).
+# Loaded once per process by `tl_core.auth.module_roles.load_role_table()`. An unknown word, role or
+# account role anywhere in this file is a `RoleTableError` at start-up (fail closed).
+# Platform words `admin` and `company` are not here and cannot be granted.
+version: 1
+words: # the grantable access words
+  read: Read the module's records # reported, not yet enforced on reads
+  user: Create and work records
+  controller: Approve, sign off, issue, configure, void
+roles: # role -> words it holds; order = display order
+  viewer: [read]
+  user: [read, user]
+  superuser: [read, user, controller]
+agent_roles: [viewer, user] # roles an agent account may be granted (agents still only propose)
+derive: # account role -> module roles implied where no explicit grant applies
+  user:
+    - {module: "*", role: user}
+  document_controller:
+    - {module: "*", role: user} # keeps every `user` act it has today (a controller-only account)
+    - {module: documents, role: superuser}
+    - {module: correspondence, role: superuser}
+    - {module: schedule, role: superuser}

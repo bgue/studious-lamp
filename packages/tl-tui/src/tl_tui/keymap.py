@@ -173,6 +173,13 @@ KEYMAP: tuple[KeyEntry, ...] = (
     KeyEntry("Record view", "e", "Edit the record", "RecordView", "e"),
     KeyEntry(
         "Record view",
+        "+",
+        "Properties tab: add a property (from the standard, or a custom field)",
+        "RecordView",
+        "plus",
+    ),
+    KeyEntry(
+        "Record view",
         "1  2  3  4  5",
         "Details, Psets, Links, History, Trace tab",
         "RecordView",
@@ -286,6 +293,7 @@ KEYMAP: tuple[KeyEntry, ...] = (
         "c",
     ),
     KeyEntry("Accounts", "t", "Switch between accounts and agent tokens", "AdminScreen", "t"),
+    KeyEntry("Accounts", "m", "Module roles log: grant or revoke (admins)", "AdminScreen", "m"),
     KeyEntry("Accounts", "a", "Add an account (a form)", "AdminScreen", "a"),
     KeyEntry("Accounts", "p", "Set a person's password (a form)", "AdminScreen", "p"),
     KeyEntry("Accounts", "i", "Issue a token for the agent; it is shown once", "AdminScreen", "i"),

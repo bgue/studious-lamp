@@ -136,6 +136,8 @@ classes:
       One proposal: what was asked, by whom, and how it ended. Oldest first by `seq` is the review queue.
       `created_day` (UTC, from the `effective_at` of `Proposal.Created`) with `agent` is the budget key.
     annotations:
+      tl:offline: none
+      tl:stream_type: core.Proposal
       tl:current_state: true
       tl:table: cur_proposals
     attributes:

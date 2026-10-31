@@ -103,6 +103,58 @@ log never lays out its own screen and never adds a second standard.
 - **Mode**: Ctrl+D makes the app call `refresh_for_display_mode()` on every screen; the base redraws, so
   `row_cells` and `panel_text` must both read `mode_of(self.app)`.
 - **160-column rule**: the layout is chosen by width alone; a log adds no layout of its own.
+- **Columns (P1-UX3, skill `tui-layout`)**: Number, then Subject (Title), then State, then the fields people scan by.
+  The base hides a column whose value is the same in every shown row when two or more rows are shown (`Kind` in
+  an RFI log of requests for information), and shows it again when a second value appears; `keep_columns()` names
+  the columns that never hide (default: the first, `State` and the subject). Only the Subject column shortens,
+  with `…`, to the width left after the others (`log_text.visible_columns`, `fit_cell`, `flex_width`). Empty cells
+  read `—`.
+- **Panels and the Details tab (P1-UX3)**: one renderer, `tl_tui.layout`. A `Page` is an identity line
+  (`number · subject`), a state line (`Awaiting response · since 2026-10-13`) and named `Section`s: a heading, its
+  lines, one blank line before the next. A `Prop` is a `Label  value` line with the values of a section on one
+  column; prose and lists are plain lines; an empty value in a fixed section is `—`. A record type builds its rows
+  once (`details/technical.py` for an RFI, `details/correspondence.py`, `details/commercial.py`,
+  `document_text.py`; each `DetailRow` names its `section`), and the Details tab and the log's panel both render
+  them with `details.rows_page(...)` and `layout.render(...)` (`panel=True` cuts long text at a word with
+  `… (Enter for all)`, shortens the timeline and file lists, and leaves out the `Record` dates). `panel_text` may
+  return that renderable (`layout.Panel`). Order: narrative, key facts, people, dates, clocks, timeline, files, record,
+  technical details (technical mode only).
+- **Width (P1-UX3 round 3)**: `layout.render` returns an `Adaptive`, a Rich renderable that lays the page out at the
+  width its widget has, so a resize re-flows a panel, a Details tab and the file table with no help from the screen
+  (`.plain` is the layout with no limit, what tests read). The label column is at most two fifths of the width, a long
+  value wraps under its own start, and a small table drops its least-needed column (`layout.DROP_FIRST`: Files, Pages,
+  Pin, Size, Days left ...), then shortens a long one with `…` (`layout.SHORTENABLE`: Purpose, Title, Name, Who ...),
+  and last wraps its final column.
+- **Speed (P2-PERF)**: a log holds and filters every row it was given, but its table takes `WINDOW_ROWS` (120) at first
+  and the next `CHUNK_ROWS` when the cursor or the view nears the last row held (`Ctrl+End` takes them all); Textual
+  measures every cell of every row it is given, so a big table costs more than the read. A log's `row_cells` is called
+  once per read of the rows (and per display mode), the filter reads no more than the rows already held, and the
+  panel and the actions bar follow the list after its first draw (a run of filter keys reads one panel). Hooks for a
+  log that holds only the first page of a longer list: `filter_changed(text)` and `rows_exhausted()` (the document
+  register opens on its first 500 rows and reads the rest, up to 5,000, on either). `RecordView` reads the record, its
+  history and Details at once and the Properties, Links, Trace and Thread tabs when each is first shown;
+  `tl_tui.reads.Reads` answers repeated reads of one refresh once; `labels_load.load_labels` keeps the labels of a
+  client for 20 s (`forget_labels` drops them: creating or enabling an account, a module command run from a log and an adopted package call it). `dev/perf/ux_bench.py` (`just perf-ux`) measures all of it.
+- **Add property (P1-UX3 rounds 3 and 4)**: `[+] Add property` on the record screen's Properties tab (key `+`) and in the
+  actions bar of the document, tag, correspondence and RFI/commercial logs (not for an agent or a voided record).
+  `widgets/add_property_form.py` is the form and `add_property.py` its pure part. The form reads
+  `ClientInterface.addable_properties` (`GET /records/{id}/addable-properties`, the MCP tool `get_addable_properties`),
+  the same read an API client or an agent uses. The first step offers *From the standard* (properties the type allows
+  that the record has no value for, and those of optional company sets the project has not adopted), *Custom field* (a
+  name and a value in a set that allows a custom section) and, for an admin, *Propose a change to the standard…* (the
+  schema workbench on the package that owns the set). A property of a set the project has not adopted reads
+  `Adopt <set label> for <project>` for a person who may (`AdoptableSet.can_adopt`: the access of the schema registry's
+  `AdoptSchemaSet`: the project's schemareg superuser or an administrator); anybody else sees the line greyed with `Needs a superuser to adopt this set
+  for <project>`. After adoption the form opens again on the property. The form sends nothing: it returns the
+  `SetPsetValues` or `AdoptSchemaSet` command and the host sends it (`attempt()` in a log, a status message on the
+  record screen). A record that cannot be written (voided, or a module's type) says why on the first step.
+- **Custom fields (P1-UX3 round 4)**: where a set's `custom_section.allowed` is true, `SetPsetValues` takes
+  `x.<name>` for a name the schema does not declare (layer `custom`): lower case letters, digits and `_`, 1 to 40
+  characters, starting with a letter; not `x`, `prj`, `enrich` or `src` (or those followed by `_`); not the name of a
+  property of the set; at most `custom_section.max_properties` distinct names per record and set (100 when the schema
+  states none). A value is text or a number (a date is its ISO text). The Properties tab lists them in the set's custom
+  section with the layer `custom`; conformance never counts them against the record. The same rule applies to the API,
+  an MCP proposal, an inbound mapping and the CLI, because all of them reach `SetPsetValues`.
 - **Testing a log**: a small `LogScreen` subclass with three rows and fake actions pushed on a bare `App`, driven by
   `helpers.run_pilot`; wait for the workers with `await pilot.app.workers.wait_for_complete()`. See
   `tests/test_log_screen.py` (host pattern, stale answer, refusal, layout switch at 159/160, snapshots at 80 and 170).

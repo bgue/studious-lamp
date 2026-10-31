@@ -284,7 +284,12 @@ class FakeEntry:
 
 def discover_with(monkeypatch: pytest.MonkeyPatch, *entries: FakeEntry) -> Any:
     from tl_core import modules
+    from tl_schema.generated.offline_classes import OFFLINE_CLASSES
 
+    # since OC-S2 a module loads only when every record type has an offline class; the fakes
+    # declare theirs here, as a real module does in its schema (tl:offline)
+    for record_type in (THING, "aaa.X"):
+        monkeypatch.setitem(OFFLINE_CLASSES, record_type, "none")
     monkeypatch.setattr(modules, "entry_points", lambda group: list(entries))
     return modules._discover()  # pyright: ignore[reportPrivateUsage]
 

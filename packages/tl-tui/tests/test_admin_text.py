@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from tl_core.auth.module_role_views import EffectiveRoleView
 from tl_core.auth.types import AccountView, AgentTokenView
 from tl_tui.admin_text import (
     ACCOUNT_COLUMNS,
@@ -9,12 +10,15 @@ from tl_tui.admin_text import (
     TOKEN_COLUMNS,
     account_cells,
     detail_lines,
+    effective_line,
+    effective_page,
     lock_text,
     moment,
     status_text,
     token_cells,
     token_state,
 )
+from tl_tui.layout import EMPTY
 
 NOW = "2026-10-11T12:00:00.000000Z"
 
@@ -129,3 +133,39 @@ def test_the_detail_panel_shows_a_lock_and_counts_an_agents_tokens() -> None:
     lines = detail_lines(bot, tokens, NOW)
     assert lines[-1] == "Tokens    1 live, 1 revoked"
     assert not any(line.startswith("Tokens") for line in detail_lines(account(), tokens, NOW))
+
+
+# --- the effective roles panel (T07 lows) --------------------------------------------------------
+
+
+def view(module: str, roles: list[str], source: str = "granted") -> EffectiveRoleView:
+    return EffectiveRoleView(module=module, roles=roles, source=source)  # type: ignore[arg-type]
+
+
+def test_a_module_with_no_roles_reads_as_the_empty_mark_not_the_word_none() -> None:
+    line = effective_line(view("cost", [], source="none"))
+    assert line == EMPTY == "—"
+    assert "none" not in line.lower()
+
+
+def test_a_module_with_roles_reads_the_roles_and_where_they_come_from() -> None:
+    assert effective_line(view("documents", ["superuser"])) == "superuser (granted)"
+    assert effective_line(view("documents", ["viewer", "user"], "derived")).startswith(
+        "viewer, user ("
+    )
+
+
+def test_the_panel_summary_counts_the_modules_that_hold_a_role() -> None:
+    views = [view("documents", ["superuser"]), view("cost", [], "none"), view("schedule", ["user"])]
+    assert effective_page("Amy A", views).summary == "2 of 3 modules"
+    assert effective_page("Amy A", views[:1]).summary == "1 of 1 modules"  # the accepted text
+    assert effective_page("Amy A", [view("cost", [], "none")]).summary == "0 of 1 modules"
+
+
+def test_the_panel_summary_is_empty_when_there_are_no_views() -> None:
+    page = effective_page("Amy A", [])
+    assert page.summary == ""
+    assert page.identity == "Amy A"
+    assert page.sections[0].heading == "Effective roles"
+    assert page.sections[0].items == ()
+    assert page.sections[0].note == "No modules."

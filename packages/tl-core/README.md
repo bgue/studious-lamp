@@ -41,6 +41,7 @@ The dialect-neutral platform core: ledger types and hashing, the projector engin
 | `tl_core.files.reconcile`: `reconcile_objects` | function | Ledger hashes versus the store: missing, corrupt, orphans, staging (read-only) |
 | `tl_core.files.scan`: `Scanner`, `PassScanner` | Protocol, class | Malware-scan seam; Phase 0 passes everything |
 | `tl_core.projection.files.FileProjector` | class | `File.*` events to `cur_files`; rows are never deleted |
+| `tl_core.addable`: `addable_properties`, `AddableProperties`, `AddableProperty`, `AdoptableSet`, `CustomRule` | function, models | What can be added to a record (P1-UX3 round 4): standard properties it lacks, optional company sets the project has not adopted (with whether the viewer may adopt them), each set's custom-section rule. `services.psets`: `custom_name_problem`, `custom_value_problem`, `stored_custom_names` (the one rule for an ad-hoc custom field) |
 | `tl_core.feed`: `types` (frozen contract), `tags.parse_tags`, `cards.disposition`, `config` | module, functions | Activity feed (brief 21, P0-I6 WS-A): the `#tag` and `@mention` parser (precedence mention, record, code, signal, topic; unresolved record-like tags stay topics), the pure event-card rules, and the Phase 0 constants for `feed.signal_tags` and `feed.reactions.enabled` |
 | `tl_core.projection.feed.FeedProjector` | class (`handles_all`) | Posts, tombstones, reactions and event cards into `cur_feed_items`; tags and card subjects into `cur_feed_tags`; rebuild gives the same rows as the live run |
 | `tl_core.services.feed`: `PostToFeed`, `EditPost`, `handle_post`, `handle_edit_post`, `load_post`; `feed_actions`: `RetractPost`, `ReactToPost`, handlers | models, functions | Post to a project feed; a resolved record tag adds a suggested `references` link (post to record) in the same unit of work. Signatures: `docs/tickets/P0-I6/README-A.md` |
@@ -126,6 +127,15 @@ A company adds a record type with a package of files (brief 31, 27.3). Runbook: 
 | `module_projectors`, `module_record_types`, `bound_psets`, `ledger_numbering_patterns` | functions | What the core asks the loaded modules. `default_registry()` registers the module projectors after the core ones and before the outbox |
 | `tl_core.services.records.create_module_record` | function | `Record.Created` plus the module's own events in one append, for a record type a module provides |
 | `tl_core.numbering.config.numbering_for(conn)` | function | The file patterns plus the numbering patterns modules hold in the ledger; record creation and key detection in posts use it |
+
+## Module roles (`tl_core.auth.module_roles`)
+Per-module access for an account: `viewer`, `user` and `superuser` per project and module, derived from the account role or granted as `Account.ModuleRole*` events; the words each role holds are data in `schema/settings/module-roles.yaml`. `effective_roles` is the one resolver. Runbook: `docs/runbooks/accounts-and-access.md`.
+
+## Offline classes (`tl_core.offline`)
+Whether a node may capture a command while offline, pure and not yet called (Phase 3 wires it). A type's class comes from `tl:offline`: `full` (edited offline, merged), `draft_only` (drafted offline, issued online) or `none` (online only). `capture_allowed(type, command, node=...)` decides; a `controller`, `admin` or `company` command is never captured. The table is `OFFLINE_CLASSES` (`generated/offline_classes.py`; page `generated/docs/offline-classes.md`). Any node kind but `authority` stops start-up (`TL_NODE_KIND`).
+
+## Readiness contract (`tl_core.readiness`)
+The frozen types, `load_checks()` (entry-point group `throughline.readiness_checks`, empty today) and `check_readiness_contract`, the read-only harness that tests a check against the contract. Reserved correlation prefixes `ready:`, `rollup:`, `progress:` and source prefix `job:` are in `tl_core.services.reserved`. The evaluation engine is designed, not built.
 
 ## Depends on / used by
 - Depends on: `tl_schema` (generated DDL, effective schema, conformance), `sqlalchemy` (Core only), `pydantic`, `python-ulid`, `duckdb==1.5.5` (MIT; writes the archive Parquet, imported lazily), `cryptography` (Apache-2.0/BSD; Ed25519).

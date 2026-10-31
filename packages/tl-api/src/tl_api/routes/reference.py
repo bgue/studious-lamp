@@ -13,6 +13,7 @@ from tl_core.auth.types import Principal
 from tl_core.links.provider import get_vocabulary
 from tl_core.links.vocabulary import default_relation
 from tl_core.numbering.detect import KeyChip, suggest_chips
+from tl_core.offline import RecordTypeRow, record_type_rows
 from tl_core.services import psets
 from tl_core.services.queries import get_record_by_id
 from tl_core.services.workflow import WorkflowStatus, workflow_status
@@ -45,6 +46,12 @@ def list_relations(ctx: Ctx, actor: Reader) -> list[RelationOut]:
             )
         )
     return out
+
+
+@router.get("/record-types", operation_id="list_record_types")
+def list_record_types(ctx: Ctx, actor: Reader) -> list[RecordTypeRow]:
+    """Every record type with its label, module, offline class and drafting commands."""
+    return record_type_rows()
 
 
 @router.get("/relations/default", operation_id="get_default_relation")

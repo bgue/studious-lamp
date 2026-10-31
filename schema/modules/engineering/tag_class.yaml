@@ -44,6 +44,7 @@ classes:
     annotations:
       tl:current_state: true
       tl:record_types: "engineering.TagClass"
+      tl:offline: none
     unique_keys:
       scope_code:
         description: A class is named once per scope.

@@ -22,11 +22,12 @@ from tl_mod_schemareg.views import PackageDetail, PackageSummary
 from tl_tui.client import ClientInterface
 from tl_tui.display import mode_of
 from tl_tui.errors import CLIENT_ERRORS, describe_error
+from tl_tui.layout import LABEL_STYLE, Panel, Section, render
 from tl_tui.schema_text import (
     COLUMNS,
     diff_lines,
-    header_lines,
-    lint_lines,
+    lint_section,
+    package_page,
     plain_ref,
     property_lines,
     tree_cells,
@@ -41,7 +42,14 @@ class SchemaWorkbenchScreen(LogScreen[PackageSummary]):
     """The package versions for ``scope``; ``tab`` is the one shown first."""
 
     LOG_NAME: ClassVar[str] = "Schema packages"
+    # every key the log has, in one text (the walking tests read it); the keys row shows KEY_CELLS
+    # and F1 lists the rest (HELP_KEYS)
     KEY_HINTS: ClassVar[str] = "[ ] or 1-3 tab  / filter  F5 reload  Esc close"
+    KEY_CELLS: ClassVar[tuple[str, ...]] = ("[ ] tab", "/ filter")
+    HELP_KEYS: ClassVar[tuple[tuple[str, str], ...]] = (
+        ("[  ]  1-3", "What the version defines, its lint findings, the diff"),
+        ("v", "Review and publish the highlighted version (the actions bar)"),
+    )
 
     BINDINGS: ClassVar[list[BindingType]] = [
         Binding("right_square_bracket", "next_tab(1)", "Next tab", show=False),
@@ -57,8 +65,17 @@ class SchemaWorkbenchScreen(LogScreen[PackageSummary]):
     SchemaWorkbenchScreen #log-panel { height: 1fr; }
     """
 
-    def __init__(self, client: ClientInterface, scope: str, actor: str, *, tab: int = 0) -> None:
+    def __init__(
+        self,
+        client: ClientInterface,
+        scope: str,
+        actor: str,
+        *,
+        tab: int = 0,
+        package: str | None = None,
+    ) -> None:
         super().__init__()
+        self._show_package = package  # the package whose latest version is highlighted first
         self.client = client
         self.scope = scope
         self.actor = actor
@@ -67,6 +84,15 @@ class SchemaWorkbenchScreen(LogScreen[PackageSummary]):
         self._tree: dict[str, tuple[str, ...]] = {}  # row id -> cells, for the rows as listed
         self._tree_for: tuple[int, bool] | None = None
         self._flash = ""  # a note for the status line that the reload would replace
+
+    def _fill(self, keep: str | None = None, *, reread: bool = False) -> None:
+        """Fill the list; the first time the rows arrive the cursor goes to ``package``."""
+        if self._show_package is not None and reread and self.rows:
+            wanted = [row for row in self.rows if row.package == self._show_package]
+            self._show_package = None
+            if wanted:
+                keep = wanted[0].id
+        super()._fill(keep, reread=reread)
 
     @property
     def listed(self) -> list[PackageSummary]:
@@ -109,7 +135,7 @@ class SchemaWorkbenchScreen(LogScreen[PackageSummary]):
             return flash
         return f"Schema packages ({len(self.rows)})   scope {self.scope}"
 
-    def panel_text(self, row: PackageSummary | None) -> str:
+    def panel_text(self, row: PackageSummary | None) -> Panel:
         """The header, the tab line and the tab of the highlighted version."""
         tabs = "  ".join(
             f"[{n} {name}]" if n - 1 == self.tab else f"{n} {name}"
@@ -127,12 +153,14 @@ class SchemaWorkbenchScreen(LogScreen[PackageSummary]):
                 return "\n".join([row.key if technical else plain_ref(row.key), "", tabs])
             self.details[row.id] = detail
         if self.tab == 0:
-            lines = property_lines(detail.content, technical=technical)
+            body = Section("Defines", tuple(property_lines(detail.content, technical=technical)))
         elif self.tab == 1:
-            lines = lint_lines(detail.lint, technical=technical)
+            body = lint_section(detail.lint, technical=technical)
         else:
-            lines = diff_lines(detail)
-        return "\n".join([*header_lines(detail, technical=technical), "", tabs, "", *lines])
+            body = Section("Diff", tuple(diff_lines(detail)))
+        return render(
+            package_page(detail, body, technical=technical), lead=tabs, lead_style=LABEL_STYLE
+        )
 
     def open_row(self, row: PackageSummary) -> None:
         """Enter on a version opens its full record; Esc there returns to this row."""

@@ -78,6 +78,9 @@ classes:
     description: >-
       A broadcast post (brief 19.2, 21.1). Authored by a person, an agent or an external party; an agent's
       posts are labelled by its `agent:<id>` actor. A post has no replies.
+    annotations:
+      tl:offline: full
+      tl:stream_type: core.ActivityPost
     attributes:
       post_id:
         identifier: true

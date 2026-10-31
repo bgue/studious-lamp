@@ -7,13 +7,17 @@ orchestrator decision. The effective schema comes from ``tl_core.schema_provider
 from __future__ import annotations
 
 import json
-from typing import Any, Literal
+import math
+import re
+from collections.abc import Mapping
+from typing import Any, Literal, cast
 
 from sqlalchemy import text
 from tl_schema.compose import EffectiveCache
 from tl_schema.conformance import evaluate
 from tl_schema.formgen import form_metadata as build_form_metadata
 from tl_schema.forms import ConformanceReport, FormMetadata
+from tl_schema.packages import RESERVED_PSET_NAMES
 from tl_schema.validation import validate_psets
 
 from tl_core import confidentiality
@@ -41,10 +45,68 @@ _CACHE = EffectiveCache()
 BLOCKING_KEYWORDS = frozenset({"type", "additionalProperties"})
 READ_ONLY_ROOTS = frozenset({"enrich", "src"})
 
+#: The name of an ad-hoc custom field (P1-UX3 round 4): lower case letters, digits and ``_``,
+#: 1 to 40 characters, starting with a letter. It is written ``x.<name>`` in the set's values.
+CUSTOM_NAME_PATTERN = re.compile(r"[a-z][a-z0-9_]{0,39}")
+#: Where the name of an ad-hoc field may not start: the roots of the value layers (``x``, ``prj``,
+#: ``enrich``, ``src``), alone or followed by ``_``. The same list the schema reserves for sets.
+RESERVED_CUSTOM_PREFIXES = tuple(sorted(RESERVED_PSET_NAMES))
+#: The most ad-hoc fields a set takes when its schema states no limit (a guard, not a design).
+AD_HOC_CAP = 100
+#: The longest text value of an ad-hoc field.
+AD_HOC_TEXT_MAX = 2000
+
 _RECORD_SQL = text(
     "SELECT id, key, type, scope, status, psets_json, voided, version "
     "FROM cur_core_record WHERE id = :id"
 )
+
+
+def custom_name_problem(name: str) -> str | None:
+    """Why ``name`` cannot name an ad-hoc custom field, in words; ``None`` when it can.
+
+    The name is the part after ``x.``. This is the one rule; the API, MCP proposals, inbound
+    mappings and the CLI all reach it through ``SetPsetValues``.
+    """
+    if CUSTOM_NAME_PATTERN.fullmatch(name) is None:
+        return (
+            f"{name!r} is not a usable custom field name: lower case letters, digits and _, "
+            "1 to 40 characters, starting with a letter"
+        )
+    if "__" in name:
+        return f"{name!r} is not a usable custom field name: no double underscore"
+    for prefix in RESERVED_CUSTOM_PREFIXES:
+        if name == prefix or name.startswith(prefix + "_"):
+            return f"{name!r} starts with {prefix!r}, which is reserved"
+    return None
+
+
+def custom_value_problem(value: Any) -> str | None:
+    """Why ``value`` cannot be kept in an ad-hoc custom field; ``None`` when it can.
+
+    A field with no declared type holds text; a number the form could validate is kept as a number
+    (a date as its ISO text). Anything else (a list, an object, a boolean) is refused.
+    """
+    if value is None:
+        return None
+    if isinstance(value, bool) or not isinstance(value, (str, int, float)):
+        return "a custom field holds text or a number"
+    if isinstance(value, float) and not math.isfinite(value):
+        return "a custom field holds a finite number"
+    if isinstance(value, str) and len(value) > AD_HOC_TEXT_MAX:
+        return f"a custom field holds at most {AD_HOC_TEXT_MAX} characters"
+    return None
+
+
+def stored_custom_names(psets: Mapping[str, Any], pset: str) -> set[str]:
+    """The names held in a set's custom section of a record's ``psets`` object."""
+    node: Any = psets
+    for part in pset.split("."):
+        node = cast(dict[str, Any], node).get(part) if isinstance(node, dict) else None
+    if not isinstance(node, dict):
+        return set()
+    held: Any = cast(dict[str, Any], node).get("x")
+    return set(cast(dict[str, Any], held)) if isinstance(held, dict) else set()
 
 
 class SetPsetValues(Command):
@@ -84,7 +146,7 @@ def apply_index_values(uow: UnitOfWork, cmd: SetPsetValues) -> CommandResult:
 
 def _set_pset_values(uow: UnitOfWork, cmd: SetPsetValues, *, from_body: bool) -> CommandResult:
     row = load_row(uow, cmd.stream_id, cmd.scope)
-    require_generic(uow.conn(), row.type, "SetPsetValues", cmd.stream_id)
+    require_generic(uow.conn(), row.type, "SetPsetValues", cmd.stream_id, actor=cmd.actor)
     if row.voided:
         raise RecordVoidedError(f"record {cmd.stream_id!r} is voided and cannot be updated")
     if not from_body:
@@ -105,6 +167,7 @@ def _set_pset_values(uow: UnitOfWork, cmd: SetPsetValues, *, from_body: bool) ->
         raise LayerError(f"{cmd.pset} is a company standard pset; write it with layer 'standard'")
     if cmd.layer in ("standard", "custom") and pset.layer != "standard":
         raise LayerError(f"{cmd.pset} is a project pset; write it with layer 'project'")
+    ad_hoc: list[str] = []  # custom names the schema does not declare, new to this write
     for key in cmd.values:
         is_custom = key.startswith("x.")
         if cmd.layer == "custom":
@@ -115,10 +178,19 @@ def _set_pset_values(uow: UnitOfWork, cmd: SetPsetValues, *, from_body: bool) ->
         elif is_custom or key == "x":
             raise LayerError(f"{cmd.pset}.{key} is in the custom section; use layer 'custom'")
         if pset.find(key) is None:
-            raise PsetValidationError(
-                f"{cmd.pset}.{key} is not defined in the effective schema",
-                [f"psets.{cmd.pset}.{key}: not defined"],
-            )
+            if not is_custom or not pset.custom_allowed:
+                raise PsetValidationError(
+                    f"{cmd.pset}.{key} is not defined in the effective schema",
+                    [f"psets.{cmd.pset}.{key}: not defined"],
+                )
+            problem = _ad_hoc_problem(pset, key, cmd.values[key])
+            if problem is not None:
+                raise PsetValidationError(
+                    f"{cmd.pset}.{key}: {problem}", [f"psets.{cmd.pset}.{key}: {problem}"]
+                )
+            ad_hoc.append(key[2:])
+    if ad_hoc:
+        _check_ad_hoc_room(cmd, pset, row, ad_hoc)
 
     # A None value unsets the property: nothing to type-check, and the key is recorded in the
     # event as the ledgered clear.
@@ -176,6 +248,33 @@ def _set_pset_values(uow: UnitOfWork, cmd: SetPsetValues, *, from_body: bool) ->
         version=result.new_version,
         events=result.events,
     )
+
+
+def _ad_hoc_problem(pset: Any, key: str, value: Any) -> str | None:
+    """Why ``key`` (``x.<name>``) is no acceptable ad-hoc field of ``pset``; ``None`` if it is."""
+    name = key[2:]
+    problem = custom_name_problem(name)
+    if problem is not None:
+        return problem
+    if name in pset.properties:
+        return f"{name!r} is already a property of this set; write it without 'x.'"
+    return custom_value_problem(value)
+
+
+def _check_ad_hoc_room(cmd: SetPsetValues, pset: Any, row: Any, names: list[str]) -> None:
+    """Refuse when the new ad-hoc names take the custom section over its limit."""
+    held = stored_custom_names(json.loads(row.psets_json), cmd.pset)
+    added = {n for n in names if cmd.values.get(f"x.{n}") is not None} - held
+    if not added:
+        return
+    limit = pset.custom_max if pset.custom_max is not None else AD_HOC_CAP
+    kept = held | {k[2:] for k, v in cmd.values.items() if k.startswith("x.") and v is not None}
+    if len(kept) > limit:
+        raise PsetValidationError(
+            f"{cmd.pset} takes at most {limit} custom fields on a record "
+            f"({len(held)} are there already)",
+            [f"psets.{cmd.pset}.x: more than {limit} custom fields"],
+        )
 
 
 def form_metadata(

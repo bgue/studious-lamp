@@ -9,25 +9,81 @@ between two revisions are the module's findings, shown here as they come.
 from __future__ import annotations
 
 from collections.abc import Sequence
+from pathlib import Path
+from typing import Any
 
+from tl_mod_documents.errors import UnknownSchemeError
+from tl_mod_documents.schemes import SCHEME_FILE, load_scheme_file
 from tl_mod_documents.views import (
     DocumentLinkView,
     DocumentView,
     RevisionDiffView,
     RevisionView,
 )
+from tl_schema.registry import default_schema_dir
 
+from tl_tui.details import TECHNICAL_SECTION, DetailRow, plain_code, rows_page, table_rows
 from tl_tui.display import Labels, code_label, humanize, type_label
+from tl_tui.layout import Cell, Page, identity_line, join_facts, plain_lines, state_style
+from tl_tui.text import EMPTY
 
-COLUMNS = ("Number", "State", "Current", "Type", "Discipline", "Title")
+COLUMNS = ("Number", "Title", "State", "Current", "Type", "Discipline")
+DROP = ("Discipline", "Type")  # left out, least needed first, when the log would not fit
+FACTS = "Key facts"
+REVISIONS = "Revisions"
+REVISION_COLUMNS = ("Rev", "State", "Purpose", "Date", "Files")
+LINKS = "Links"
+LINK_COLUMNS = ("Record", "Type", "Pin", "Status")
 ALL = "all"
 
 
 def current_text(view: DocumentView) -> str:
-    """``B(IFC)``, or ``-`` while no revision is issued."""
+    """``B(IFC)``, or ``—`` while no revision is issued (the code form, technical mode)."""
     if view.current_revision_code is None:
-        return "-"
-    return f"{view.current_revision_code}({view.current_revision_status or '-'})"
+        return EMPTY
+    return f"{view.current_revision_code}({view.current_revision_status or EMPTY})"
+
+
+_WORDS: dict[Path, tuple[tuple[int, int] | None, dict[str, str]]] = {}
+
+
+def status_labels() -> dict[str, str]:
+    """The issue statuses of the revision scheme file in words (``IFR`` is ``Issued for review``).
+    Empty when the file cannot be read: a code then reads as itself.
+
+    The file is parsed again only when it was edited (a register asks for every one of its rows,
+    and parsing it takes longer than drawing the row)."""
+    path = default_schema_dir() / SCHEME_FILE
+    try:
+        info = path.stat()
+        stamp: tuple[int, int] | None = (info.st_mtime_ns, info.st_size)
+    except OSError:
+        stamp = None
+    found = _WORDS.get(path)
+    if found is None or found[0] != stamp:
+        try:
+            words = {code: status.label for code, status in load_scheme_file().statuses.items()}
+        except UnknownSchemeError:
+            words = {}
+        found = _WORDS[path] = (stamp, words)
+    return dict(found[1])
+
+
+def revision_words(code: str | None, status: str | None, words: dict[str, str]) -> str:
+    """``B, Issued for construction``; ``B`` alone for a revision with no issue status; ``—`` for
+    no revision."""
+    if code is None:
+        return EMPTY
+    return f"{code}, {words.get(status, status)}" if status else code
+
+
+def current_words(view: DocumentView, words: dict[str, str] | None = None) -> str:
+    """The current revision in words, ``A, Issued for review``; ``—`` while none is issued."""
+    return revision_words(
+        view.current_revision_code,
+        view.current_revision_status,
+        status_labels() if words is None else words,
+    )
 
 
 def row_cells(
@@ -39,11 +95,11 @@ def row_cells(
         labels = Labels()
     return (
         view.number,
+        view.title,
         humanize(view.state),
-        current_text(view),
+        current_text(view) if technical else current_words(view),
         code_label(labels, "doc_type", view.doc_type),
         code_label(labels, "discipline", view.discipline),
-        view.title,
     )
 
 
@@ -87,39 +143,159 @@ def stale_links(view: DocumentView) -> list[DocumentLinkView]:
     ]
 
 
+def file_revision(view: DocumentView) -> RevisionView | None:
+    """The revision whose files are shown and opened: the current one, else the newest."""
+    current = [rev for rev in view.revisions if rev.is_current]
+    if current:
+        return current[0]
+    return view.revisions[-1] if view.revisions else None
+
+
+def links_heading(view: DocumentView) -> str:
+    """``Links (3)``, or ``Links (3, 1 stale)``; ``Links`` alone when there are none."""
+    if not view.links:
+        return LINKS
+    stale = len(stale_links(view))
+    return (
+        f"{LINKS} ({len(view.links)}, {stale} stale)" if stale else f"{LINKS} ({len(view.links)})"
+    )
+
+
+def revision_rows(view: DocumentView, words: dict[str, str]) -> list[DetailRow]:
+    """The ``Revisions (n)`` section as a small table: revision, state (a current one reads
+    ``Current``; there is one per status class, the purpose tells which), purpose (the issue
+    status in words, else the stated purpose), date, files."""
+    if not view.revisions:
+        return [DetailRow("", "No revisions yet", section=REVISIONS)]
+    table = []
+    for rev in view.revisions:
+        state = "Current" if rev.is_current else rev.state  # one is current per status class
+        purpose = (
+            words.get(rev.issue_status, rev.issue_status)
+            if rev.issue_status
+            else rev.purpose or words.get(rev.intended_status or "", rev.intended_status or "")
+        )
+        files = ", ".join(sorted({r.kind for r in rev.renditions if r.is_current}))
+        table.append(
+            (
+                rev.code,
+                Cell(state, state_style(state)),
+                purpose or EMPTY,
+                rev.issued_on or rev.revision_date or EMPTY,
+                files or EMPTY,
+            )
+        )
+    return table_rows(f"{REVISIONS} ({len(view.revisions)})", REVISION_COLUMNS, table)
+
+
+def document_head_rows(view: DocumentView, labels: Labels) -> list[DetailRow]:
+    """The sections above the files: the description, the key facts (the current revision first)
+    and the revisions."""
+    words = status_labels()
+    rows: list[DetailRow] = []
+    if view.description:
+        rows.append(DetailRow("", view.description, section="Description"))
+    rows += [
+        DetailRow("Current revision", current_words(view, words), section=FACTS),
+        DetailRow("Document type", code_label(labels, "doc_type", view.doc_type), section=FACTS),
+        DetailRow("Discipline", code_label(labels, "discipline", view.discipline), section=FACTS),
+    ]
+    if view.originator:  # a document whose type has no originator shows no row
+        rows.append(DetailRow("Originator", view.originator, section=FACTS))
+    rows.append(
+        DetailRow(
+            "Confidentiality",
+            plain_code(labels, "confidentiality", view.confidentiality),
+            section=FACTS,
+        )
+    )
+    if view.superseded_by:
+        rows.append(DetailRow("Replaced by", view.superseded_by, section=FACTS))
+    return rows + revision_rows(view, words)
+
+
+def link_status(link: DocumentLinkView) -> str:
+    """The link's state in words: ``Current``, ``Floating``, ``! Stale: now B`` (the pin is behind),
+    ``! Stale`` (the document was voided or replaced)."""
+    if link.pin_state == "stale":
+        return f"! Stale: now {link.current_code or EMPTY}"
+    if link.link_status == "stale":
+        return "! Stale"
+    if link.pin_state == "current":
+        return "Current"
+    return humanize(link.pin_state)
+
+
+def document_link_rows(view: DocumentView, labels: Labels) -> list[DetailRow]:
+    """The ``Links (n)`` section as a small table (record, type, pin, status); a stale link is
+    marked ``!`` and red. ``No links`` when there is none."""
+    if not view.links:
+        return [DetailRow("", "No links", section=LINKS)]
+    table = []
+    for link in view.links:
+        status = link_status(link)
+        table.append(
+            (
+                link.from_key or link.from_title,
+                type_label(labels, link.from_type),
+                link.pin or "floating",
+                Cell(status, state_style(status)),
+            )
+        )
+    return table_rows(links_heading(view), LINK_COLUMNS, table)
+
+
+def document_technical_rows(
+    view: DocumentView, record: dict[str, Any] | None = None
+) -> list[DetailRow]:
+    """Scheme, version and record id (a panel), or the envelope rows (the Details tab)."""
+    rows = [DetailRow("Revision scheme", view.revision_scheme, True, TECHNICAL_SECTION)]
+    if record is None:
+        rows += [
+            DetailRow("Record id", view.id, True, TECHNICAL_SECTION),
+            DetailRow("Version", str(view.version), True, TECHNICAL_SECTION),
+        ]
+    return rows
+
+
+def document_state_line(view: DocumentView) -> str:
+    """``Issued``, with ``· replaced by ISO-1002`` when the document was superseded."""
+    line = humanize(view.state)
+    return f"{line} · replaced by {view.superseded_by}" if view.superseded_by else line
+
+
+def document_panel_pages(
+    view: DocumentView, labels: Labels | None = None, *, technical: bool = False
+) -> tuple[Page, Page]:
+    """The panel of a document in two parts, because the files list sits between them: the
+    identity, state, key facts and revisions; then the links."""
+    labels = labels or Labels()
+    top = rows_page(
+        [*document_head_rows(view, labels), *document_technical_rows(view)],
+        identity=identity_line(view.number, view.title),
+        state=document_state_line(view),
+        summary=join_facts(
+            f"Revision {current_words(view)}" if view.current_revision_code else "",
+            code_label(labels, "doc_type", view.doc_type) if view.doc_type else "",
+            code_label(labels, "discipline", view.discipline) if view.discipline else "",
+        ),
+        technical=technical,
+        panel=True,
+    )
+    links = rows_page(document_link_rows(view, labels), panel=True)
+    return top, links
+
+
 def detail_lines(
     view: DocumentView, labels: Labels | None = None, *, technical: bool = False
 ) -> list[str]:
-    """The panel under the table for the highlighted document.
+    """The panel under the table for the highlighted document, as plain lines (the files list is
+    a widget of its own, between the revisions and the links).
 
     The scheme, the record id and the version are technical: they show only when ``technical``.
     """
-    if labels is None:
-        labels = Labels()
-    head = (
-        f"state {humanize(view.state)}  |  type {code_label(labels, 'doc_type', view.doc_type)}"
-        f"  |  discipline {code_label(labels, 'discipline', view.discipline)}"
-    )
-    if technical:
-        head += f"  |  scheme {view.revision_scheme}"
-    lines = [f"{view.number}  {view.title}", head]
-    if technical:
-        lines.append(f"record {view.id}")
-        lines.append(f"version {view.version}")
-    lines.append(
-        f"current {current_text(view)}"
-        + (f"  |  replaced by {view.superseded_by}" if view.superseded_by else "")
-    )
-    if view.revisions:
-        lines.append("revisions:")
-        lines.extend(f"  {revision_line(rev)}" for rev in view.revisions)
-    else:
-        lines.append("no revisions yet")
-    if view.links:
-        stale = len(stale_links(view))
-        lines.append(f"links ({stale} stale):" if stale else "links:")
-        lines.extend(f"  {link_line(link, labels)}" for link in view.links)
-    return lines
+    top, links = document_panel_pages(view, labels, technical=technical)
+    return [*plain_lines(top), "", *plain_lines(links)]
 
 
 def repin_lines(link: DocumentLinkView, diff: RevisionDiffView) -> list[str]:

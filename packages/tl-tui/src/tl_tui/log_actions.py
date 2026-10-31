@@ -20,6 +20,7 @@ from typing import Any
 
 from tl_core.actions import RecordActions
 from tl_core.services.commands import Command, CommandResult
+from tl_core.services.psets import SetPsetValues
 from tl_mod_correspondence.handlers.commercial import (
     ReturnCommercial,
     ReviewCommercial,
@@ -48,8 +49,10 @@ from tl_mod_correspondence.handlers.technical_flow import (
 )
 from tl_mod_engineering.commands import API_COMMANDS as ENGINEERING_COMMANDS
 from tl_mod_engineering.handlers.tags import ReclassifyTag, RenameTag
+from tl_mod_schemareg.handlers.adoption import AdoptSchemaSet
 
 from tl_tui.client import ClientInterface
+from tl_tui.labels_load import forget_labels
 from tl_tui.widgets.action_form import ActionFormScreen, FormField
 from tl_tui.widgets.log_screen import LogAction, LogScreen
 
@@ -239,9 +242,13 @@ _unknown_logged: set[str] = set()
 def run_module_command(client: ClientInterface, name: str, cmd: Command) -> CommandResult:
     """Run a command of the engineering or the correspondence table (the client checks both the
     name and the access; a name in neither raises ``ForbiddenError``)."""
-    if name in _ENGINEERING:
-        return client.engineering_command(name, cmd)
-    return client.correspondence_command(name, cmd)
+    done = (
+        client.engineering_command(name, cmd)
+        if name in _ENGINEERING
+        else client.correspondence_command(name, cmd)
+    )
+    forget_labels(client)  # a code list, a mnemonic or a domain may have changed
+    return done
 
 
 def stamp(cmd: Command, *, actor: str, scope: str) -> Command:
@@ -320,3 +327,56 @@ def screen_runner(
 def without_keys(ui: Mapping[str, ActionUi], keys: frozenset[str]) -> dict[str, ActionUi]:
     """``ui`` minus the entries whose key a log binds itself (the log's own keys win)."""
     return {name: entry for name, entry in ui.items() if entry.key not in keys}
+
+
+#: The key of ``Add property`` in every log of records (``plus``: the ``+`` key).
+ADD_PROPERTY_KEY = "plus"
+
+
+def add_property_actions(
+    screen: LogScreen[Any],
+    client: ClientInterface,
+    offers: RecordActions,
+    *,
+    actor: str,
+    scope: str,
+) -> list[LogAction]:
+    """``[+] Add property`` for the record ``offers`` is about, unless the viewer cannot write it:
+    an agent only proposes, and a voided record changes no more. The form sends nothing; its
+    command goes through ``screen.attempt``, so a refusal reaches the status line."""
+    if actor.startswith("agent:") or offers.state == "Void":
+        return []
+
+    def run() -> None:
+        from tl_tui.widgets.add_property_form import open_add_property  # noqa: PLC0415
+        from tl_tui.widgets.schema_screen import SchemaWorkbenchScreen  # noqa: PLC0415
+
+        def write(cmd: SetPsetValues) -> None:
+            client.set_pset_values(cmd)
+
+        def send(cmd: SetPsetValues) -> None:
+            screen.attempt(lambda: write(cmd))
+
+        def workbench(package: str) -> None:
+            screen.app.push_screen(SchemaWorkbenchScreen(client, scope, actor, package=package))
+
+        def adopt(cmd: AdoptSchemaSet) -> bool:
+            def run() -> None:
+                client.schemareg_command("AdoptSchemaSet", cmd)
+                forget_labels(client)  # an adopted package can move code lists and labels
+
+            return screen.attempt(run)
+
+        open_add_property(
+            screen,
+            client,
+            scope=scope,
+            record_id=offers.record_id,
+            actor=actor,
+            is_admin=bool(getattr(screen.app, "is_admin", False)),
+            send=send,
+            workbench=workbench,
+            adopt=adopt,
+        )
+
+    return [LogAction(ADD_PROPERTY_KEY, "Add property", run)]

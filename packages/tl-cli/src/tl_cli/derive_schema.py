@@ -35,7 +35,7 @@ from tl_cli.derive_support import (
     scope_of,
     service_errors,
 )
-from tl_cli.session import require_admin
+from tl_cli.session import require_admin, require_command
 
 app = typer.Typer(help="Register, list, show and retire document schemas.", no_args_is_help=True)
 
@@ -74,10 +74,11 @@ def register(
     require_admin(db)
     fields = _load(file)
     with service_errors(), open_uow(db) as uow:
-        result = handle_register_document_schema(
-            uow,
-            RegisterDocumentSchema(actor=acting(db, actor), source=SOURCE, scope=scope, **fields),
+        command = RegisterDocumentSchema(
+            actor=acting(db, actor), source=SOURCE, scope=scope, **fields
         )
+        require_command(uow, command)
+        result = handle_register_document_schema(uow, command)
     typer.echo(f"registered {result.key} {scope}")
 
 
@@ -164,14 +165,13 @@ def retire(
         found = rows.find_schema(uow.conn(), scope, code, semver)
         if found is None:
             raise SchemaNotFoundError(f"no document schema {ref!r} in {scope}")
-        handle_retire_document_schema(
-            uow,
-            RetireDocumentSchema(
-                actor=acting(db, actor),
-                source=SOURCE,
-                scope=scope,
-                stream_id=found.id,
-                reason=reason,
-            ),
+        command = RetireDocumentSchema(
+            actor=acting(db, actor),
+            source=SOURCE,
+            scope=scope,
+            stream_id=found.id,
+            reason=reason,
         )
+        require_command(uow, command)
+        handle_retire_document_schema(uow, command)
     typer.echo(f"retired {found.key} {scope}")

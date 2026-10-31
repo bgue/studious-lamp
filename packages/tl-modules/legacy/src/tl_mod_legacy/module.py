@@ -41,4 +41,6 @@ def spec() -> ModuleSpec:
         projectors=projectors,
         generic_commands={LOAD_RUN: frozenset()},
         confidential=CONFIDENTIAL,
+        command_words={},  # the module has no API commands (no `API_COMMANDS`)
+        offline_drafts={},  # no drafting commands (offline-classes spec, section 4)
     )

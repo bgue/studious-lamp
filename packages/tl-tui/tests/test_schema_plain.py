@@ -11,7 +11,7 @@ from typing import Any
 
 from fakes import SCOPE, FakeClient
 from fakes_schemareg import make_package
-from helpers import run_pilot, screen_text, settle
+from helpers import panel_of, run_pilot, screen_text, settle
 from textual.pilot import Pilot
 from textual.widgets import DataTable
 from tl_mod_schemareg.impact_types import ImpactReport
@@ -129,28 +129,28 @@ def test_screen_toggle_refresh() -> None:
         await settle(pilot)
         screen = app.screen
         assert isinstance(screen, SchemaWorkbenchScreen)
-        text = screen_text(app)
-        assert "P123, version 1.4.0  Draft" in text  # the first row is highlighted
-        assert "x.P123@1.4.0" not in text
+        panel = panel_of(screen)
+        assert "P123, version 1.4.0\nDraft" in panel  # the first row is highlighted
+        assert "x.P123@1.4.0" not in screen_text(app) + panel
 
         await pilot.press("down")  # the second row is the 3.2.0 version
         await settle(pilot)
-        text = screen_text(app)
-        assert "Engineering, version 3.2.0  Published" in text
-        assert "co.acme.engineering@3.2.0" not in text.split("Properties")[0]
+        panel = panel_of(screen)
+        assert "Engineering, version 3.2.0\nPublished" in panel
+        assert "co.acme.engineering@3.2.0" not in panel.split("Properties")[0]
         mode = DisplayMode()
         mode.technical = True
         app.display_mode = mode  # pyright: ignore[reportAttributeAccessIssue]  # App does not declare it
         screen.refresh_for_display_mode()
         await settle(pilot)
-        assert "co.acme.engineering@3.2.0  Published" in screen_text(app)
+        assert "co.acme.engineering@3.2.0\nPublished" in panel_of(screen)
         assert screen.query_one("#log-table", DataTable).cursor_row == 1  # the cursor is kept
 
         mode.technical = False
         screen.refresh_for_display_mode()
         await settle(pilot)
-        assert "co.acme.engineering@3.2.0  Published" not in screen_text(app)
-        assert "Engineering, version 3.2.0  Published" in screen_text(app)
+        assert "co.acme.engineering@3.2.0" not in panel_of(screen)
+        assert "Engineering, version 3.2.0\nPublished" in panel_of(screen)
         assert screen.query_one("#log-table", DataTable).cursor_row == 1
 
     run_pilot(app, go)

@@ -439,3 +439,28 @@ def test_a_role_toggle_from_a_stale_row_is_refused_and_keeps_the_other_change() 
     run_pilot(app, scenario)
     sent = calls(client, "set_roles")[-1]
     assert sent["expected_roles"] == ["user"] and sent["roles"] == ["document_controller", "user"]
+
+
+# --- key m on an app that has no `is_admin` (T07 low F3) --------------------------------------
+
+
+class BareApp(Host):
+    """A host app without the `is_admin` attribute, as a test double of the real app."""
+
+    scope = "project:P1"
+
+
+def test_key_m_is_refused_when_the_app_has_no_is_admin_attribute() -> None:
+    client = seeded()
+    app = BareApp(client)
+    assert not hasattr(app, "is_admin")  # the default is read with getattr(..., False)
+
+    async def scenario(pilot: Pilot[Any]) -> None:
+        await pilot.pause()
+        await pilot.press("m")
+        await pilot.pause()
+        assert isinstance(app.screen, AdminScreen)  # no ModuleRolesLog was pushed
+        assert "Module roles need the admin role" in screen_text(app)
+
+    run_pilot(app, scenario)
+    assert not [c for c in client.admin_calls if "module_role" in c[0]]

@@ -155,7 +155,7 @@ def test_issue_is_for_a_controller_and_dates_are_today_unless_a_reason_backs_the
     can_refuse = admin_session(env)
     if can_refuse:
         refused = trn(ordinary_env(env, tmp_path), "issue", FIRST, "--project", "P123", ok=False)
-        assert refused.stderr.startswith("error: ") and "admin" in refused.stderr
+        assert refused.stderr.startswith("error: ") and "controller access word" in refused.stderr
         assert fields(env)["state"] == "Draft"
     future = trn(env, "issue", FIRST, "--project", "P123", "--date", "2999-01-01", ok=False)
     assert "future" in future.stderr

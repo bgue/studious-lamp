@@ -24,6 +24,9 @@ do*, and a second pass for detail. Design for the glance first. Everything below
   Conflict in piling/utilities at AZ203`. They carry no label because the heading position names them.
 - The **state** follows directly, as a short badge-like phrase (`Awaiting response`), optionally with the time in
   that state (`since 2026-10-13`). It is the second thing read.
+- In a **panel** (not the record screen), a one-line **summary** follows the state: the three or four facts a person
+  decides by, joined with ` · ` (`Structural · needed by 2026-10-22 · to Meridian`). It keeps the decision facts in
+  view when the panel is short; the sections below repeat them in full.
 - Nothing else is implicit. Every other value is a `Label: value` line.
 
 ## Property lines
@@ -32,11 +35,23 @@ do*, and a second pass for detail. Design for the glance first. Everything below
   trailing colon inside an aligned table (`Needed by      2026-10-23`), or `Label: value` where lines are not aligned.
   Within one section, align the values on one column (the longest label plus two spaces, capped at 24 characters;
   longer labels wrap their value to the next line, indented).
+- **Width**: a panel renders to the space it has and re-flows on resize. The label column narrows with the panel
+  (two fifths of the width, at least 8); a long value wraps under its own start (hanging indent), never past the edge.
 - Values in the reader's words: labels from code lists, people by name, dates as `YYYY-MM-DD` (with the weekday where
   a day matters), money with its currency (`12 500 USD`), durations with units (`10 calendar days`).
+- **Relevance before emptiness**: show a field only if it can apply to this record's kind and direction (an outgoing
+  letter has no "Received" or "Triaged on"; a document with no originator field in its type has none). Then:
 - **Empty values**: in a section that always shows the same fields, show `—` so the shape stays stable and absence is
   visible (`Answered by   —`). In an open-ended list (attachments, links), omit empty rows and show one line saying
   so (`No files`). Never show `-`, `None`, `null` or a blank value with a label.
+- **No repeats**: a value shown once (in the identity line, the summary or another field) is not shown again under
+  another label (`Domain: Letter` and `Medium: Letter`). Codes become words (`A, Issued for review`, not `A(IFR)`).
+- **Repeating rows** (revisions, clocks, files, links, timeline) are a small table, not run-on lines: aligned columns
+  with a dim header row when there are three or more columns (`Rev  State   Purpose     Date`), and a distinguishing
+  label when rows would otherwise read the same (`Answer required, round 2`).
+- **A table at a narrow width** drops its least-needed column first (Files, Pages, Pin, Size, Days left, Type), then
+  shortens a long text column with `…` (Purpose, Title, Name, Who), and only then wraps its last column under its own
+  start. Name the order in `layout.DROP_FIRST` and `layout.SHORTENABLE`, not in each screen.
 - **Long text** (a question, an answer, a letter body) is a section of its own: a heading line, then the text wrapped
   to the panel width, never truncated silently. If it must be cut in a panel, cut at a word and end with `… (Enter
   for all)`.
@@ -73,8 +88,15 @@ Documents: heading and state; current revision; revisions; files; links (stale o
 - Widths: identifiers and dates fixed; Subject takes the remaining width and is the only column that shortens (with
   `…`); numbers right-aligned with tabular digits.
 - Sorting and filters are named in the keys row, not as columns.
+- **Categories are short** in a list (`RFI`, `Letter`, `Transmittal`); the long name belongs in the panel. Column
+  headings are words a reader knows (`In/out`, not `Dir`). A list never needs sideways scrolling at 170 columns: drop
+  or narrow the least-needed column before that happens.
 
 ## Screen frame
+
+The actions bar names each action once; the panel does not repeat it as a hint (`v or Enter: open in viewer`). The
+keys row fits one line: when it would not, it keeps navigation and the log's own filters and moves the rest to the
+help screen (`F1`).
 
 Top to bottom, always: breadcrumb (`Project › Log › Number: subject`), filter, list, panel, actions bar (only
 offered actions, `[key] Verb`), keys row (navigation and filters), status line. Wide terminals (≥ 160 columns) put
@@ -93,7 +115,8 @@ decoration; everything must read in monochrome.
 - Identity line first; every other value is `Label: value`; no unlabeled stray values.
 - Sections named, ordered by need, separated by one blank line; long text in its own section.
 - Everyday metadata, extended properties and technical details are on separate tiers.
-- Log columns: Number, Subject, State first; no constant or duplicate columns.
+- Log columns: Number, Subject, State first; no constant or duplicate columns; short categories; no sideways scroll at 170.
+- Panels: summary line under the state; only relevant fields; no repeated values; repeating rows as small tables.
 - Empty values shown as `—` in fixed sections, omitted with a one-line note in open lists.
 - Same labels and order as the other screens of the same record type.
 - Works at 80 and at 170 columns; nothing important truncated without `…` and a way to see it whole.

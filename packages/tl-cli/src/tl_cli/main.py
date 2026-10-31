@@ -38,6 +38,7 @@ from tl_cli import (
     action,
     actor_hook,
     admin,
+    admin_roles,
     admin_token,
     admin_user,
     archive,
@@ -190,6 +191,7 @@ app.add_typer(sim_cli.app, name="sim")
 app.add_typer(admin.app, name="admin")
 admin.app.add_typer(admin_user.app, name="user")
 admin.app.add_typer(admin_token.app, name="token")
+admin.app.add_typer(admin_roles.app, name="roles")
 app.command("serve")(serve.serve)
 app.command("tui")(tui.tui)
 app.add_typer(backup.app, name="backup")

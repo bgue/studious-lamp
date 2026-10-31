@@ -103,7 +103,7 @@ def test_issue_is_for_a_controller_and_needs_a_rendition(
         refused = rev(
             amy, "issue", "ISO-1234", "A", "--project", "P123", "--status", "IFR", ok=False
         )
-        assert refused.stderr.startswith("error: ") and "admin" in refused.stderr
+        assert refused.stderr.startswith("error: ") and "controller access word" in refused.stderr
     bare = rev(env, "issue", "ISO-1234", "A", "--project", "P123", "--status", "IFR", ok=False)
     assert "has no PDF or native rendition" in bare.stderr
     assert lines(env) == ["revision A Draft - - -"]
@@ -168,7 +168,7 @@ def test_supersede_is_for_a_controller_and_names_the_revision_that_replaces_it(
     args = ("supersede", "ISO-1234", "A", "--by", "B", "--project", "P123", "--reason", "re-drawn")
     if can_refuse:
         refused = rev(ordinary_env(env, tmp_path), *args, ok=False)
-        assert refused.stderr.startswith("error: ") and "admin" in refused.stderr
+        assert refused.stderr.startswith("error: ") and "controller access word" in refused.stderr
     done = rev(env, *args)
     assert done.stdout.strip() == "superseded ISO-1234@A by B"
     assert lines(env)[0].startswith("revision A Superseded IFR review")

@@ -13,7 +13,7 @@ from textual.app import App
 from textual.pilot import Pilot
 from textual.widgets import TabbedContent
 from tl_tui.display import DisplayMode
-from tl_tui.file_text import file_line
+from tl_tui.file_text import human_size
 from tl_tui.widgets.file_panel import FilePanel
 from tl_tui.widgets.record_screen import RecordScreen
 from tl_tui.widgets.record_view import RecordView
@@ -79,13 +79,14 @@ def test_the_files_tab_lists_both_files_of_an_rfi_with_file_line() -> None:
         panel = app.screen.query_one(FilePanel)
         pages = panel.pages.get(first.sha256)
         assert pages == 2  # learnt from the first page's render
-        lines = panel.lines()
+        lines = [line.rstrip() for line in panel.lines()]
         assert lines == [
-            "> " + file_line(first.filename, first.content_type, first.size, 2),
-            "  " + file_line(second.filename, second.content_type, second.size),
+            "Name              Type          Size   Pages",
+            f"clash-sketch.pdf  PDF document  {human_size(first.size)}  2 pages",
+            f"survey.csv        CSV file      {human_size(second.size)}",
         ]
         text = screen_text(app)
-        assert "clash-sketch.pdf  PDF document" in text and "survey.csv  CSV file" in text
+        assert "clash-sketch.pdf  PDF document" in text and "survey.csv        CSV file" in text
 
     run_pilot(app, go, size=(140, 40))
 

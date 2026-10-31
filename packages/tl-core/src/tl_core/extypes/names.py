@@ -34,7 +34,9 @@ _CAMEL_BOUNDARY = re.compile(r"(?<=[a-z0-9])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])")
 #: a type's setting keys start with its namespace (decision D15), so they can never fall in a
 #: platform family.
 RESERVED_NAMESPACES = frozenset(
-    {"core", "tl", "throughline"} | {"ai", "feed", "lake", "project", "schema", "ui", "webhooks"}
+    {"core", "tl", "throughline"}
+    | {"ai", "feed", "lake", "project", "schema", "ui", "webhooks"}
+    | {"awp", "materials", "scaffold"}  # Phase 2 module namespaces (contracts §7)
 )
 
 STREAM_TYPE = "core.TypeRegistration"

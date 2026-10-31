@@ -38,7 +38,7 @@ from dataclasses import dataclass, field
 from importlib.metadata import entry_points
 from typing import TYPE_CHECKING, Any, Literal
 
-from sqlalchemy import Connection
+from sqlalchemy import Connection, text
 
 from tl_core.numbering.config import NumberingPattern
 from tl_core.projection.types import Projector
@@ -190,6 +190,10 @@ def _no_actions() -> dict[str, ActionsHook]:
     return {}
 
 
+def _no_words() -> dict[str, str]:
+    return {}
+
+
 @dataclass(frozen=True)
 class ModuleSpec:
     name: str  # ``engineering``; equal to the directory under ``schema/modules`` and the tl:module
@@ -222,6 +226,16 @@ class ModuleSpec:
     #: one the command handlers read, so the offer and the refusal cannot drift. A type that is not
     #: a key is offered nothing.
     actions: Mapping[str, ActionsHook] = field(default_factory=_no_actions)
+    #: Command class name -> access word, for the module's own commands (ADR-0021, module roles).
+    #: A word is declared as the module's ``CommandSpec`` has it: a table word, a platform word, or
+    #: a fine word (``awp.cwp.release``) that ``command_index()`` reads as its table word, once.
+    command_words: Mapping[str, str] = field(default_factory=_no_words)
+    #: Whether the module accepts ``company``-scope role grants (answer 14 of the wave-0 spec).
+    company_roles: bool = False
+    #: Per record type, the ``user`` commands that only draft it offline (offline-classes spec,
+    #: section 4). A key is a type of this module whose class is ``draft_only``; every command is a
+    #: ``command_words`` entry with the word ``user``. ``check_offline`` validates it at load.
+    offline_drafts: Mapping[str, frozenset[str]] = field(default_factory=_no_commands)
 
     def __post_init__(self) -> None:
         for record_type, commands in self.generic_commands.items():
@@ -264,6 +278,52 @@ class ModuleSpec:
                 )
 
 
+def check_offline(spec: ModuleSpec) -> None:
+    """Refuse a module whose offline behaviour is inconsistent (``ModuleLoadError``).
+
+    Every record type has a class in ``OFFLINE_CLASSES``; an ``offline_drafts`` key is a type the
+    module owns whose class is ``draft_only``; every drafting command carries the word ``user``.
+    """
+    from tl_schema.generated.offline_classes import OFFLINE_CLASSES  # read-only generated data
+
+    for record_type in sorted(spec.record_types):
+        if record_type not in OFFLINE_CLASSES:
+            raise ModuleLoadError(
+                f"module {spec.name!r}: record type {record_type!r} has no offline class "
+                "(declare tl:offline in the schema)"
+            )
+    for record_type, commands in sorted(spec.offline_drafts.items()):
+        if record_type not in spec.record_types:
+            raise ModuleLoadError(
+                f"module {spec.name!r}: offline_drafts names {record_type!r}, "
+                "which is not one of its record types"
+            )
+        if OFFLINE_CLASSES[record_type] != "draft_only":
+            raise ModuleLoadError(
+                f"module {spec.name!r}: offline_drafts lists commands for {record_type!r}, "
+                f"whose offline class is {OFFLINE_CLASSES[record_type]!r}, not 'draft_only'"
+            )
+        for command in sorted(commands):
+            word = spec.command_words.get(command)
+            if word is None:
+                raise ModuleLoadError(
+                    f"module {spec.name!r}: offline_drafts lists {command!r} for {record_type!r}, "
+                    "which is not in command_words"
+                )
+            if _table_word(word) != "user":
+                raise ModuleLoadError(
+                    f"module {spec.name!r}: offline_drafts lists {command!r} for {record_type!r}, "
+                    f"whose access word is {word!r}, not 'user'"
+                )
+
+
+def _table_word(word: str) -> str:
+    """A declared access word as the resolver reads it (a fine word becomes its table word)."""
+    from tl_core.auth.module_roles import normalise_word  # avoid an import cycle
+
+    return normalise_word(word)
+
+
 _lock = threading.Lock()
 _override: tuple[ModuleSpec, ...] | None = None
 _loaded: tuple[ModuleSpec, ...] | None = None
@@ -287,6 +347,7 @@ def _discover() -> tuple[ModuleSpec, ...]:
             )
         if produced.name in found:
             raise ModuleLoadError(f"module {produced.name!r} is declared twice")
+        check_offline(produced)
         for record_type in produced.record_types:
             if record_type in owner:
                 raise ModuleLoadError(
@@ -357,11 +418,17 @@ def require_generic(
     record_id: str,
     *,
     slot: str | None = None,
+    actor: str | None = None,
 ) -> None:
-    """``require_generic_command`` and then the module's state guard for ``(type, command)``.
+    """``require_generic_command``, the module role check, and the module's state guard.
 
     The guard (``ModuleSpec.generic_guards``) sees the record as it is now: the same command may be
     allowed in one state and refused in another. A core or extension type passes.
+
+    When ``actor`` is given and the type is a module's, the actor needs the access word ``user`` for
+    that module on the record's scope (``ForbiddenError``; ADR-0021): a generic command on a module
+    record is a working act. Every handler passes ``cmd.actor``; a caller with no actor (a read-side
+    offer) gets the allow-list and the guard only.
     """
     from tl_core import confidentiality  # avoid an import cycle
     from tl_core.services.errors import RecordNotFoundError
@@ -370,10 +437,36 @@ def require_generic(
     if confidentiality.is_hidden(conn, record_id):
         raise RecordNotFoundError(f"no record {record_id!r}")
     require_generic_command(record_type, command)
+    if actor is not None:
+        _require_user_word(conn, record_type, command, record_id, actor)
     for spec in load_modules():
         guard = spec.generic_guards.get((record_type, command))
         if guard is not None:
             guard(conn, record_id, slot)
+
+
+def _require_user_word(
+    conn: Connection, record_type: str, command: str, record_id: str, actor: str
+) -> None:
+    """The module role check of ``require_generic``: the word ``user`` for the type's module."""
+    from tl_core.auth.module_roles import holder_for_actor, require_word  # avoid an import cycle
+
+    owner = next((spec.name for spec in load_modules() if record_type in spec.record_types), None)
+    if owner is None:  # a core or extension type: no module role
+        return
+    scope = conn.execute(
+        text("SELECT scope FROM cur_core_record WHERE id = :id"), {"id": record_id}
+    ).scalar_one_or_none()
+    if scope is None:  # no such record: the caller reports that
+        return
+    require_word(
+        conn,
+        holder_for_actor(conn, actor),
+        scope=str(scope),
+        module=owner,
+        word="user",
+        what=command,
+    )
 
 
 def module_record_types() -> frozenset[str]:

@@ -242,7 +242,6 @@ class Workspace:
                 "TL_TOKENS": str(self.root / "tokens.json"),
                 "HOME": str(self.root / "home"),
                 "XDG_CONFIG_HOME": str(self.root / "home" / ".config"),
-                "NO_COLOR": "1",
                 "COLUMNS": "110",
             }
         )
@@ -275,9 +274,11 @@ class Workspace:
 
         if who:  # each person has their own signed-in session, as on their own machine
             os.environ["TL_SESSION_FILE"] = str(self.root / f"session-{who}.json")
+        os.environ["NO_COLOR"] = "1"  # the command line prints plain text; the screens keep colour
         try:
             result = CliRunner().invoke(app, list(args), input=stdin, catch_exceptions=False)
         finally:
+            os.environ.pop("NO_COLOR", None)
             os.environ["TL_SESSION_FILE"] = str(self.root / "session.json")
         shown = self.clean(result.output)
         if ok and result.exit_code != 0:
@@ -549,6 +550,10 @@ def shot_tui(
         labels, keys = _labels_and_keys(app)
         check_plain(name, text, labels, keys)
     ws.save(name, clean_svg(app.export_screenshot(title=title)))
+    text_dir = os.environ.get("TL_TOUR_TEXT")  # a folder to also get each screen as plain text
+    if text_dir:
+        Path(text_dir).mkdir(parents=True, exist_ok=True)
+        (Path(text_dir) / f"{name}.txt").write_text(text + "\n", encoding="utf-8")
 
 
 def run_tui(

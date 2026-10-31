@@ -49,7 +49,7 @@ PASSWORDS = {  # made-up dev passwords for made-up people
     "ben": "a long passphrase for ben",
     "dora": "a long passphrase for dora",
 }
-NEEDS = "needs the document_controller or admin role"
+NEEDS = "needs the controller access word for documents"
 STANDARDS = "standards/co.acme.standards@1.0.0.yaml"
 DOC_STANDARDS = "standards/co.acme.documents@1.0.0.yaml"
 TAG_MAPPING = "templates/tag-list-instrument-index.yaml"
@@ -623,16 +623,18 @@ def section_register_tui(ws: Workspace) -> None:
         expect(isinstance(screen, DocumentRegisterScreen), "F7 did not open the register")
         table = screen.query_one("#log-table", DataTable)
         table.move_cursor(row=[v.number for v in screen.shown].index("ISO-1234"))
-        await tk.until(pilot, lambda: "IFC" in tk.screen_text(app), "the detail panel")
+        await tk.until(
+            pilot, lambda: "Issued for construction" in tk.screen_text(app), "the detail panel"
+        )
         tk.shot_tui(
             ws,
             app,
             "09b-document-register",
             "F7: the register; one current revision per status class",
             "ISO-1234",
-            "IFR",
-            "IFC",
-            "construction",
+            "Issued for review",
+            "Issued for construction",
+            "Superseded",
         )
         await pilot.press("r")
         await tk.until(pilot, lambda: "Re-pin a stale link" in tk.screen_text(app), "the dialog")
@@ -709,7 +711,7 @@ def section_dms_import(ws: Workspace) -> None:
 def section_refused(ws: Workspace) -> None:
     sh = Shell(ws, "What a plain user (amy) is refused", 118)
     sh.note("amy has the role `user`: she registers, edits, links and drafts;")
-    sh.note("controlling acts need the document_controller or admin role (section 14);")
+    sh.note("controlling acts need the controller access word of the module (section 14);")
     sh.note("loading standards and managing accounts stay with admins")
     refused = (
         ("standards", "load", STANDARDS),
@@ -773,7 +775,7 @@ def section_controller(ws: Workspace) -> None:
         "3",
         who="amy",
     )
-    sh.note("dora has the role `user`, so issuing is refused, with the roles that would allow it")
+    sh.note("dora has the role `user`, so issuing is refused; the refusal names the missing word")
     sh.run("admin", "user", "show", "dora", who="demo", tail=6)
     refused = sh.run(
         "doc", "rev", "issue", "ISO-3000", "A", *P, "--status", "IFC", who="dora", ok=False
@@ -1385,7 +1387,7 @@ def section_correspondence(ws: Workspace) -> None:
         "17d-register-as-controller",
         "F5 as dora, a cleared controller: the same register, with the restricted email",
         mail,
-        "class restricted",
+        "Restricted",
     )
 
     app = build_app(ws, actor="user:dora", controller=True)
@@ -1433,7 +1435,7 @@ def section_rfi(ws: Workspace) -> None:
         "--question",
         "The isometric clashes with beam B12; confirm the routing.",
         "--discipline",
-        "structural",
+        "STR",
         "--required-by",
         needed,
         "--to",
@@ -2146,7 +2148,13 @@ def section_plain_record_screen(ws: Workspace) -> None:
             "ISO-1234",
         )
         await pilot.press("ctrl+d")
-        await tk.until(pilot, lambda: "Schema hash" in tk.screen_text(admin), "details on")
+        await tk.until(
+            pilot,
+            lambda: (
+                "Schema hash" in tk.screen_text(admin) and "Offline class" in tk.screen_text(admin)
+            ),
+            "details on",
+        )
         tk.shot_tui(
             ws,
             admin,
@@ -2154,6 +2162,7 @@ def section_plain_record_screen(ws: Workspace) -> None:
             "Ctrl+D: the same record with ids, versions and keys (admins only)",
             "Schema hash",
             "Version",
+            "Offline class",
             technical=True,
         )
         await pilot.press("ctrl+d")
@@ -2191,6 +2200,52 @@ SUBJECT_24B = "Cable tray support spacing in the pipe rack"
 DOCUMENT_24 = "ISO-6100"
 
 
+def section_module_roles(ws: Workspace) -> None:
+    """An admin grants a module role on the CLI and reads the module roles log (P2-W0)."""
+    renew_sessions(ws)
+    sh = Shell(ws, "Module roles, as an admin", 118)
+    sh.run(
+        "admin",
+        "roles",
+        "grant",
+        "amy",
+        "--project",
+        PROJECT,
+        "--module",
+        "documents",
+        "--role",
+        "superuser",
+        "--reason",
+        "covers issue",
+        who="demo",
+    )
+    sh.run("admin", "roles", "ls", who="demo")
+    sh.run("admin", "roles", "effective", "amy", "--project", PROJECT, who="demo")
+    ws.save("25a-module-roles-cli", sh.transcript.svg())
+
+    app = build_app(ws, admin=True)
+
+    async def scenario(pilot: Pilot[Any]) -> None:
+        await tk.until(pilot, lambda: len(app.query("RecordGrid")) > 0, "the shell")
+        await pilot.press("f10")
+        await pilot.press("m")
+        await tk.until(
+            pilot,
+            lambda: "Amy A" in tk.screen_text(app) and "Documents" in tk.screen_text(app),
+            "the module roles log",
+        )
+        tk.shot_tui(
+            ws,
+            app,
+            "25b-module-roles-log",
+            "F10, m: the module roles log, every grant and who made it (admins only)",
+            "Amy A",
+            "Superuser",
+        )
+
+    tk.run_tui(ws, app, scenario)
+
+
 def make_pdf(path: Path, pages: int) -> None:
     """A small real PDF (pypdfium2 writes it), so the preview can count its pages."""
     import pypdfium2 as pdfium
@@ -2222,7 +2277,7 @@ def section_log_standard(ws: Workspace) -> str:
         "--question",
         QUESTION_24,
         "--discipline",
-        "structural",
+        "STR",
         "--required-by",
         needed,
         "--to",
@@ -2281,7 +2336,7 @@ def section_log_standard(ws: Workspace) -> str:
             "--question",
             "Confirm 1.5 m support spacing for the cable trays on rack R-2.",
             "--discipline",
-            "structural",
+            "STR",
             "--required-by",
             needed,
             "--to",
@@ -2502,6 +2557,8 @@ def main(argv: list[str] | None = None) -> int:
         section_plain_record_screen(ws)
         print("P1-UX2: the log standard, the RFI record and document preview", flush=True)
         section_log_standard(ws)
+        print("P2-W0: module roles", flush=True)
+        section_module_roles(ws)
     finally:
         ws.close()
     print(f"wrote {len(ws.written)} screenshots to {out}")

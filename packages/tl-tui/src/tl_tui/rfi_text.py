@@ -8,34 +8,47 @@ report's: this module shows them as they come and decides nothing.
 
 from __future__ import annotations
 
+from datetime import date
+
+from tl_core.util import utcnow
 from tl_mod_correspondence.reports_technical import RfiLog, RfiLogLine
 from tl_mod_correspondence.views_domain import TechnicalView
 
-from tl_tui.correspondence_text import clock_line
-from tl_tui.display import Labels, code_label, domain_label, humanize
+from tl_tui.client import ClientInterface
+from tl_tui.details import rows_page, since_of
+from tl_tui.details.technical import rfi_content
+from tl_tui.display import Labels, category_label, code_label, humanize
+from tl_tui.layout import Page, identity_line, join_facts, plain_lines, state_line
+from tl_tui.text import EMPTY
 
+# The number, the subject and the state come first; the kind shows only when two kinds are listed
+# (``LogScreen`` hides a column whose value is the same in every row, P1-UX3).
 RFI_COLUMNS = (
     "Number",
+    "Subject",
     "State",
     "Kind",
-    "Disc",
+    "Discipline",
     "Raised",
-    "Needed",
+    "Needed by",
     "Answered",
     "Days",
     "Timing",
     "Impact",
-    "Subject",
 )
+
+
+# columns left out, least needed first, when the log would not fit without scrolling
+RFI_DROP = ("Kind", "Impact", "Raised", "Answered", "Days")
 
 
 def timing_text(line: RfiLogLine) -> str:
     """``overdue 3d`` (still waiting, past the date needed), ``late`` or ``on time`` (answered),
-    ``-`` otherwise."""
+    ``—`` otherwise."""
     if line.overdue:
         return f"overdue {line.days_overdue}d"
     if line.on_time is None:
-        return "-"
+        return EMPTY
     return "on time" if line.on_time else "late"
 
 
@@ -55,26 +68,26 @@ def rfi_cells(
     line: RfiLogLine, labels: Labels | None = None, *, technical: bool = True
 ) -> tuple[str, ...]:
     """The eleven cells of a log row, in the order of ``RFI_COLUMNS``. Without ``technical`` the
-    State and Kind cells read as words (``labels`` gives the domain labels)."""
+    State, Kind and Discipline cells read as words (``labels`` gives the labels)."""
     if technical:
-        state, kind, discipline = line.state, line.subtype, line.discipline or "-"
+        state, kind, discipline = line.state, line.subtype, line.discipline or EMPTY
     else:
         state = humanize(line.state)
         lab = labels if labels is not None else Labels()
-        kind = domain_label(lab, "technical", line.subtype) if line.subtype else "-"
-        discipline = code_label(lab, "discipline", line.discipline) if line.discipline else "-"
+        kind = category_label(lab, "technical", line.subtype) if line.subtype else EMPTY
+        discipline = code_label(lab, "discipline", line.discipline) if line.discipline else EMPTY
     return (
         line.number,
+        line.subject,
         state,
         kind,
         discipline,
         line.raised_on,
-        line.required_by or "-",
-        line.answered_on or "-",
-        "-" if line.response_days is None else str(line.response_days),
+        line.required_by or EMPTY,
+        line.answered_on or EMPTY,
+        EMPTY if line.response_days is None else str(line.response_days),
         timing_text(line),
         impact_text(line),
-        line.subject,
     )
 
 
@@ -102,51 +115,69 @@ def rfi_summary(
     return " | ".join(parts)
 
 
+def _plural(count: int, unit: str) -> str:
+    return f"{count} {unit}{'' if count == 1 else 's'}"
+
+
+def days_open(view: TechnicalView) -> str:
+    """``12 days open`` from the issue to today, ``answered in 3 days`` once answered; empty
+    before the RFI is issued."""
+    if not view.issued_on:
+        return ""
+    start = date.fromisoformat(view.issued_on)
+    if view.answered_on:
+        return "answered in " + _plural((date.fromisoformat(view.answered_on) - start).days, "day")
+    return _plural((utcnow().date() - start).days, "day") + " open"
+
+
+def overdue_note(view: TechnicalView) -> str:
+    """``overdue 3 days`` for an RFI still waiting past the day it is needed; else empty."""
+    if view.answered_on or not view.required_by or view.state in ("Draft", "Closed", "Void"):
+        return ""
+    late = (utcnow().date() - date.fromisoformat(view.required_by)).days
+    return f"overdue {_plural(late, 'day')}" if late > 0 else ""
+
+
+def rfi_summary_facts(view: TechnicalView, labels: Labels) -> str:
+    """The decision facts of an RFI in one line: ``Structural · needed by 2026-10-22 · to Meridian
+    · 12 days open``."""
+    to = ", ".join(p.name or p.email or EMPTY for p in view.to)
+    return join_facts(
+        code_label(labels, "discipline", view.discipline) if view.discipline else "",
+        f"needed by {view.required_by}" if view.required_by else "",
+        f"to {to}" if to else "",
+        days_open(view),
+    )
+
+
+def rfi_page(
+    view: TechnicalView,
+    labels: Labels | None = None,
+    *,
+    technical: bool = False,
+    client: ClientInterface | None = None,
+    project: str = "",
+) -> Page:
+    """The panel under the log (skill ``tui-layout``): the identity line, the state line, then
+    the question, the answer, the key facts, the clocks, the timeline and the files, the lists
+    short. With a ``client`` the timeline, the files and the day the state began are read.
+    ``technical`` adds the record id and the clock keys, and keeps the raw state."""
+    lab = labels if labels is not None else Labels()
+    state = view.state if technical else humanize(view.state)
+    since = since_of(client, view.id) if client is not None else None
+    late = overdue_note(view)
+    return rows_page(
+        rfi_content(view, lab, client=client, project=project),
+        identity=identity_line(view.number, view.subject),
+        state=state_line(state, since) + (f" · {late}" if late else ""),
+        summary=rfi_summary_facts(view, lab),
+        technical=technical,
+        panel=True,
+    )
+
+
 def rfi_lines(
     view: TechnicalView, labels: Labels | None = None, *, technical: bool = False
 ) -> list[str]:
-    """The panel under the log: the highlighted RFI, its answer, its review and what it led to.
-    ``technical`` adds the record id and the clock keys, and keeps the raw kind and states."""
-    lab = labels if labels is not None else Labels()
-    if technical:
-        state, kind, klass = view.state, view.subtype or "-", view.confidentiality
-        discipline = view.discipline or "-"
-    else:
-        state = humanize(view.state)
-        kind = domain_label(lab, "technical", view.subtype) if view.subtype else "-"
-        klass = code_label(lab, "confidentiality", view.confidentiality)
-        discipline = code_label(lab, "discipline", view.discipline) if view.discipline else "-"
-    lines = [f"{view.number}  {state}  {kind}  class {klass}"]
-    if technical:
-        lines.append(f"record {view.id}")
-    lines += [
-        f"subject: {view.subject}",
-        f"question: {view.question}",
-        f"proposed: {view.proposed_solution or '-'}",
-        f"discipline {discipline}  needed by {view.required_by or '-'}  "
-        f"issued {view.issued_on or '-'}",
-        f"raiser expects: cost {view.potential_cost_impact}, "
-        f"schedule {view.potential_schedule_impact}",
-    ]
-    if view.answered_on is not None:
-        lines.append(f"answer ({view.answered_on}): {view.answer or '-'}")
-        lines.append(
-            f"answerer says: cost {view.answer_cost_impact or '-'}, "
-            f"schedule {view.answer_schedule_impact or '-'}"
-        )
-    if view.answer_item_number:
-        lines.append(f"answered by item {view.answer_item_number}")
-    if view.review_decision:
-        decision = view.review_decision if technical else humanize(view.review_decision)
-        review = f"reviewed {view.reviewed_on or '-'}: {decision}"
-        if view.review_note:
-            review += f" ({view.review_note})"
-        lines.append(review)
-    if view.escalations:
-        lines.append(
-            "escalated to: " + ", ".join(f"{e.number} ({e.state})" for e in view.escalations)
-        )
-    if view.clocks:
-        lines.append("clocks:")
-        lines.extend(f"  {clock_line(c, technical=technical)}" for c in view.clocks)
-    return lines
+    """The panel as plain lines (no client: no timeline and no files)."""
+    return plain_lines(rfi_page(view, labels, technical=technical))

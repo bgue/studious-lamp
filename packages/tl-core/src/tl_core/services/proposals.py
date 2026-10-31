@@ -45,6 +45,8 @@ from pydantic import ValidationError
 from sqlalchemy import Connection, text
 
 from tl_core import confidentiality
+from tl_core.auth.errors import ForbiddenError
+from tl_core.auth.module_roles import Holder, require_command_access
 from tl_core.integration.contract import CommandRunner, InvokeAction
 from tl_core.ledger import ConcurrencyError, NewEvent
 from tl_core.modules import module_proposables
@@ -765,6 +767,14 @@ def _require_access(command_type: str, holds: Callable[[str], bool] | None) -> N
         )
 
 
+def _require_module_access(uow: UnitOfWork, command: Command, holder: Holder) -> None:
+    """The accepter's module roles on the stored command's scope (a no-op for a core command)."""
+    try:
+        require_command_access(uow.conn(), command, holder=holder)
+    except ForbiddenError as exc:
+        raise ProposalAccessError(str(exc)) from exc
+
+
 def accept_proposal(
     uow: UnitOfWork,
     *,
@@ -775,6 +785,7 @@ def accept_proposal(
     source: str = DEFAULT_SOURCE,
     holds: Callable[[str], bool] | None = None,
     runner: CommandRunner | None = None,
+    holder: Holder | None = None,
 ) -> ProposalView:
     """Run the stored command as ``by`` and append ``Proposal.Accepted``, in ``uow``.
 
@@ -798,6 +809,12 @@ def accept_proposal(
     access depends on its content, so the handler plans the stored command line again as ``by``,
     with ``by``'s ``holds``, and runs it only if every planned command is permitted to ``by`` and
     the plan is the one the agent proposed (the stored token). Otherwise the proposal fails.
+
+    With a ``holder`` (the API passes the signed-in principal's), a module command is also decided
+    by the module role table for ``by``: ``by`` needs the command's access word for that module on
+    the stored command's own scope (``require_command_access``, ADR-0021), or the proposal stays
+    pending with ``ProposalAccessError``. An entry point that passes none keeps the account-role
+    check above only.
     """
     _require_person(by, "accept")
     row = _pending(uow, proposal_id)
@@ -824,6 +841,8 @@ def accept_proposal(
     if model is ChangeSetting:
         data["accept_risk"] = accept_risk
     command = model.model_validate(data)
+    if holder is not None:
+        _require_module_access(uow, command, holder)
     if isinstance(command, TransitionWorkflow):
         result = handle_transition_workflow(uow, command, roles=roles)
     elif isinstance(command, DispatchFromThread):
@@ -923,6 +942,7 @@ def accept_or_fail(
     source: str = DEFAULT_SOURCE,
     holds: Callable[[str], bool] | None = None,
     runner: CommandRunner | None = None,
+    holder: Holder | None = None,
 ) -> ProposalView:
     """Accept; if the command is refused, roll it back and record ``Proposal.Failed``.
 
@@ -945,6 +965,7 @@ def accept_or_fail(
                 source=source,
                 holds=holds,
                 runner=runner,
+                holder=holder,
             )
     except (
         ProposalNotFoundError,

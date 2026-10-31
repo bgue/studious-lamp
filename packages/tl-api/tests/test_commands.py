@@ -31,8 +31,8 @@ def test_every_command_in_the_table_has_a_route(harness: Harness) -> None:
     # + the derivation pipeline (P1-I3), the cost (1) and schedule (6) modules (P1-I4), the
     # correspondence module's 28 (P1-I5), rules and actions (P1-I7 WS-A: 4 + 3 + 5 + 6 + 1) and
     # the thread messages (WS-B: 3), the 19 for RFIs and Commercial items (P1-I6) and the schema
-    # registry (P1-I8: 13)
-    assert len(COMMANDS) == 20 + 14 + 24 + 10 + 1 + 6 + 28 + 4 + 3 + 5 + 6 + 1 + 3 + 19 + 13
+    # registry (P1-I8: 13; AdoptSchemaSet: 14)
+    assert len(COMMANDS) == 20 + 14 + 24 + 10 + 1 + 6 + 28 + 4 + 3 + 5 + 6 + 1 + 3 + 19 + 14
 
 
 def test_create_record_returns_the_command_result(harness: Harness) -> None:
@@ -268,6 +268,8 @@ def test_the_controller_actions_are_exactly_the_commands_marked_controller() -> 
             "AssessCommercial",
             "CloseCommercial",
             "ReferCommercialToLegal",
+            # the schema registry: a project's superuser adopts an optional set
+            "AdoptSchemaSet",
         )
     }
     assert {s.name for s in COMMANDS if s.access == "controller"} == {
@@ -281,19 +283,33 @@ def test_the_core_and_engineering_admin_commands_are_not_controller_commands() -
     assert {"AdminFlagLink", "AdminRetractLink", "RecordTag", "RegisterCodeList"} <= stay_admin
 
 
-def test_an_unknown_access_value_has_no_action_so_it_fails_closed() -> None:
+def test_an_unknown_access_value_is_refused_when_the_spec_is_built_so_it_fails_closed() -> None:
     from tl_api.commands import CommandSpec, action_for
+    from tl_core.auth.access_words import AccessWordError
     from tl_core.services.commands import CreateRecord
     from tl_core.services.records import handle_create_record
 
     known = {"admin": "admin.command.", "controller": "control.command.", "user": "command."}
     for access, prefix in known.items():
-        spec = CommandSpec(CreateRecord, handle_create_record, access)  # type: ignore[arg-type]
+        spec = CommandSpec(CreateRecord, handle_create_record, access, module="documents")
         assert action_for(spec) == f"{prefix}CreateRecord"
     assert action_for(CommandSpec(CreateRecord, handle_create_record, "company")) == (
         "command.CreateRecord"
     )
+    # a fine word is read as its table word: a controlling one is a control.command action
+    fine = CommandSpec(CreateRecord, handle_create_record, "awp.cwp.release", module="awp")
+    assert action_for(fine) == "control.command.CreateRecord"
     for typo in ("Controller", "control", "", "admn"):
-        bad = CommandSpec(CreateRecord, handle_create_record, typo)  # type: ignore[arg-type]
-        with pytest.raises(ValueError, match="unknown access"):
-            action_for(bad)
+        with pytest.raises(AccessWordError):  # a start-up error, not an open door
+            CommandSpec(CreateRecord, handle_create_record, typo)
+
+
+def test_a_controller_command_with_no_module_is_a_start_up_error() -> None:
+    """Nothing could say who holds the word (ADR-0021); the core list of exceptions is empty."""
+    from tl_api.commands import CORE_CONTROLLER_COMMANDS, CommandSpec
+    from tl_core.services.commands import CreateRecord
+    from tl_core.services.records import handle_create_record
+
+    assert CORE_CONTROLLER_COMMANDS == frozenset()
+    with pytest.raises(ValueError, match="controller command with no module"):
+        CommandSpec(CreateRecord, handle_create_record, "controller")

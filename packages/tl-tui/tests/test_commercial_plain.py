@@ -48,11 +48,15 @@ def test_plain_commercial_cells_and_panel_use_words_and_find_technical_is_empty(
     lab = labels()
     warning_line = client.list_commercial("P123").lines[0]
     cells = ct.commercial_cells(warning_line, lab, technical=False)
-    assert cells[1] == "Awaiting assessment"
-    assert cells[2] == "Early warning"
-    assert cells[6] == "LATE"
+    assert cells[1] == "Early warning: routing change"
+    assert cells[2] == "Awaiting assessment"
+    assert cells[3] == "Early warning"
+    assert cells[7] == "LATE"
     panel = ct.commercial_lines(client.get_commercial("P123", "P123-EW-0001"), lab)
-    assert panel[0] == "P123-EW-0001  Awaiting assessment  Early warning  class Restricted"
+    assert panel[0] == "P123-EW-0001 · Early warning: routing change"
+    assert panel[1] == "Awaiting assessment"
+    assert "Kind             Early warning" in panel
+    assert "Confidentiality  Restricted" in panel
     rfi_line = client.list_rfis("P123").lines[1]
     rfi_row = rt.rfi_cells(rfi_line, lab, technical=False)
     rfi_panel = rt.rfi_lines(client.get_rfi("P123", "P123-RFI-0002"), lab)
@@ -83,26 +87,23 @@ def test_technical_flag_restores_the_clock_key_and_the_raw_kind() -> None:
     clock = client.get_rfi("P123", "P123-RFI-0002").clocks[0]
     warning = client.get_commercial("P123", "P123-EW-0001").model_copy(update={"clocks": [clock]})
     lines = ct.commercial_lines(warning, lab, technical=True)
-    assert lines[0] == "P123-EW-0001  Awaiting assessment  early_warning  class restricted"
-    assert "record ID-P123-EW-0001" in lines
-    assert any(
-        x.startswith("  P123-RFI-0002-C01 expired due") and ", calendar " in x for x in lines
-    )
+    assert lines[0] == "P123-EW-0001 · Early warning: routing change"
+    assert lines[1] == "Awaiting assessment"
+    assert any(x.startswith("Record id") and x.endswith("ID-P123-EW-0001") for x in lines)
+    assert any("P123-RFI-0002-C01 · calendar " in x for x in lines)
     warning_line = client.list_commercial("P123").lines[0]
-    assert ct.commercial_cells(warning_line)[1:3] == ("Awaiting assessment", "early_warning")
-    assert ct.commercial_cells(warning_line, lab, technical=False)[1:3] == (
+    assert ct.commercial_cells(warning_line)[2:4] == ("Awaiting assessment", "early_warning")
+    assert ct.commercial_cells(warning_line, lab, technical=False)[2:4] == (
         "Awaiting assessment",
         "Early warning",
     )
     rfi_line = client.list_rfis("P123").lines[1]
-    assert rt.rfi_cells(rfi_line)[1:3] == ("Awaiting response", "rfi")
-    assert rt.rfi_cells(rfi_line, lab, technical=False)[1:3] == (
-        "Awaiting response",
-        "Request for information",
-    )
+    assert rt.rfi_cells(rfi_line)[2:4] == ("Awaiting response", "rfi")
+    assert rt.rfi_cells(rfi_line, lab, technical=False)[2:4] == ("Awaiting response", "RFI")
     panel = rt.rfi_lines(client.get_rfi("P123", "P123-RFI-0002"), lab, technical=True)
-    assert panel[0] == "P123-RFI-0002  Awaiting response  rfi  class internal"
-    assert "record ID-P123-RFI-0002" in panel
+    assert panel[0] == "P123-RFI-0002 · Cable tray height"
+    assert panel[1].startswith("Awaiting response")
+    assert any(x.startswith("Record id") and x.endswith("ID-P123-RFI-0002") for x in panel)
 
 
 def test_the_commercial_details_rows_are_labelled() -> None:
@@ -111,18 +112,17 @@ def test_the_commercial_details_rows_are_labelled() -> None:
     record = {"type": "correspondence.CommercialItem", "key": "P123-EW-0001"}
     plain = details_for(client, "P123", record, lab, DisplayMode())
     rows = {row.label: row.value for row in plain}
-    assert rows["Type"] == "Commercial item"
-    assert rows["Number"] == "P123-EW-0001"
-    assert rows["Subject"] == "Early warning: routing change"
+    # the number, subject and state are the heading of the page, not rows; the type is the Kind
+    assert not {"Type", "Number", "Subject", "State"} & set(rows)
     assert rows["Kind"] == "Early warning"
-    assert rows["State"] == "Awaiting assessment"
     assert rows["Confidentiality"] == "Restricted"
-    assert rows["Estimated"] == "USD 12500.00"
+    assert rows["Estimated"] == "12500.00 USD"
     assert rows["Schedule impact"] == "3 days"
     assert rows["Cost codes"] == "2.3.1=12500.00"
-    assert rows["Basis"] == "Clause 20.1"
+    assert any(row.section == "Basis" and row.value == "Clause 20.1" for row in plain)
     assert rows["Escalated from"] == "P123-RFI-0001"
-    assert "Assessment" not in rows  # an early warning not yet assessed has none
+    # an early warning not yet assessed shows the fixed Assessment section with dashes
+    assert [row.value for row in plain if row.section == "Assessment"] == ["—", "—", "—"]
     assert not any(row.technical for row in plain)
     mode = DisplayMode()
     mode.technical = True

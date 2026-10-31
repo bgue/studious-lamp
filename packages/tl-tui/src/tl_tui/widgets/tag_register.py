@@ -22,8 +22,15 @@ from tl_tui.client import ClientInterface
 from tl_tui.display import Labels, mode_of
 from tl_tui.errors import CLIENT_ERRORS, describe_error
 from tl_tui.labels_load import load_labels
-from tl_tui.log_actions import ACTION_UI, Runner, log_actions, screen_runner
-from tl_tui.tag_text import COLUMNS, detail_lines, next_class, row_cells, summary_line
+from tl_tui.layout import Panel, render
+from tl_tui.log_actions import (
+    ACTION_UI,
+    Runner,
+    add_property_actions,
+    log_actions,
+    screen_runner,
+)
+from tl_tui.tag_text import COLUMNS, DROP, next_class, row_cells, summary_line, tag_page
 from tl_tui.widgets.log_screen import LogAction, LogScreen
 from tl_tui.widgets.record_screen import open_record
 
@@ -34,8 +41,16 @@ class TagRegisterScreen(LogScreen[TagView]):
     """The tags of ``project`` (the id, not the scope)."""
 
     LOG_NAME: ClassVar[str] = "Tags"
+    # every key the log has, in one text (the walking tests read it); the keys row shows KEY_CELLS
+    # and F1 lists the rest (HELP_KEYS)
     KEY_HINTS: ClassVar[str] = (
         "c class  v violations only  a ended too  / filter  F5 reload  Esc close"
+    )
+    KEY_CELLS: ClassVar[tuple[str, ...]] = ("c class", "v violations", "a ended too", "/ filter")
+    HELP_KEYS: ClassVar[tuple[tuple[str, str], ...]] = (
+        ("c", "Show the next class: all, then each class"),
+        ("v", "Only the tags whose number breaks the pattern"),
+        ("a", "Include the superseded and deleted tags"),
     )
 
     BINDINGS: ClassVar[list[BindingType]] = [
@@ -64,6 +79,9 @@ class TagRegisterScreen(LogScreen[TagView]):
     def columns(self) -> Sequence[str]:
         return COLUMNS
 
+    def drop_order(self) -> Sequence[str]:
+        return DROP
+
     def load_rows(self) -> Sequence[TagView]:
         if not self._labelled:
             self.labels = load_labels(self.client, f"project:{self.project}", ("engineering.Tag",))
@@ -87,7 +105,7 @@ class TagRegisterScreen(LogScreen[TagView]):
     def row_record(self, row: TagView) -> tuple[str, str]:
         return (row.number, row.title)
 
-    def panel_text(self, row: TagView | None) -> str:
+    def panel_text(self, row: TagView | None) -> Panel:
         """The highlighted tag with what it lacks (one ``get_tag`` call per tag)."""
         if row is None:
             self.detail = None  # nothing is highlighted, so nothing is described
@@ -99,11 +117,17 @@ class TagRegisterScreen(LogScreen[TagView]):
             self.say(describe_error(exc), error=True)
         self.detail = full
         technical = mode_of(self.app).technical
-        return "\n".join(detail_lines(full, self.labels, technical=technical))
+        return render(tag_page(full, self.labels, technical=technical, client=self.client))
 
     def actions_for(self, row: TagView) -> Sequence[LogAction]:
         offers = self.client.allowed_actions(row.id)
-        return log_actions(offers, ACTION_UI, self._runner(), version=row.version)
+        actor = str(getattr(self.app, "actor", "user:dev"))
+        return [
+            *log_actions(offers, ACTION_UI, self._runner(), version=row.version),
+            *add_property_actions(
+                self, self.client, offers, actor=actor, scope=f"project:{self.project}"
+            ),
+        ]
 
     def summary_text(self) -> str:
         return summary_line(

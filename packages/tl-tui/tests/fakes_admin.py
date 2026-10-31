@@ -23,11 +23,19 @@ from tl_core.auth.errors import (
     ForbiddenError,
     InvalidAccountError,
     LastAdminError,
+    NoCompanyRolesError,
+    NoSuchGrantError,
+    UnknownModuleError,
+    UnknownRoleError,
     UsernameTakenError,
 )
+from tl_core.auth.module_grants import ModuleRoleResult
+from tl_core.auth.module_role_views import EffectiveRoleView, ModuleRoleGrantView
+from tl_core.auth.module_roles import COMPANY, load_role_table
 from tl_core.auth.names import MAX_DISPLAY_NAME, MAX_LABEL, check_reason, check_text, check_username
 from tl_core.auth.password import check_policy
 from tl_core.auth.types import ROLES, AccountKind, AccountView, AgentTokenView, Role
+from tl_core.modules import load_modules
 
 _ADMIN_T0 = datetime(2026, 10, 9, 9, 0, 0, tzinfo=UTC)
 _ROLES = ROLES
@@ -48,6 +56,8 @@ class FakeAdminSupport:
         self.is_admin = True  # False: every admin call raises ForbiddenError
         self.admin_calls: list[tuple[str, dict[str, Any]]] = []
         self.last_issued_token: str | None = None
+        self._module_grants: list[ModuleRoleGrantView] = []
+        self.me_account_id: str | None = None  # who `my_roles` answers for; None: the first admin
 
     # --- seeding ----------------------------------------------------------------------------
 
@@ -258,3 +268,166 @@ class FakeAdminSupport:
                 self._agent_tokens[index] = token.model_copy(update={"revoked": True})
                 return self._agent_tokens[index]
         raise AgentTokenNotFoundError(f"no agent token {token_id}")
+
+    # --- module roles (RM-S3) ---------------------------------------------------------------
+
+    def seed_module_role(
+        self,
+        account_id: str,
+        project: str,
+        module: str,
+        role: str,
+        *,
+        granted_by: str = "user:boss",
+    ) -> ModuleRoleGrantView:
+        """Add a grant without any check (a starting state). Returns it."""
+        view = ModuleRoleGrantView(
+            account_id=account_id,
+            username=self._account(account_id).username,
+            project=project,
+            module=module,
+            role=role,
+            granted_by=granted_by,
+            granted_at=_stamp(_ADMIN_T0 + timedelta(hours=len(self._module_grants) + 1)),
+        )
+        self._module_grants.append(view)
+        return view
+
+    def _held(self, account_id: str, project: str, module: str, role: str) -> int | None:
+        for index, grant in enumerate(self._module_grants):
+            if (grant.account_id, grant.project, grant.module, grant.role) == (
+                account_id,
+                project,
+                module,
+                role,
+            ):
+                return index
+        return None
+
+    def list_module_roles(
+        self,
+        project: str | None = None,
+        *,
+        module: str | None = None,
+        account_id: str | None = None,
+    ) -> list[ModuleRoleGrantView]:
+        self._gate("list_module_roles", project=project, module=module, account_id=account_id)
+        found = [
+            g
+            for g in self._module_grants
+            if (project is None or g.project == project)
+            and (module is None or g.module == module)
+            and (account_id is None or g.account_id == account_id)
+        ]
+        return sorted(found, key=lambda g: (g.project, g.module, g.username, g.role))
+
+    def effective_roles(self, account_id: str, project: str) -> list[EffectiveRoleView]:
+        self._gate("effective_roles", account_id=account_id, project=project)
+        return self._effective(self._account(account_id), project)
+
+    def _effective(self, view: AccountView, project: str) -> list[EffectiveRoleView]:
+        """The resolver's precedence, in memory (admin, grants, ``*`` grants, derived, none)."""
+        table = load_role_table()
+        out: list[EffectiveRoleView] = []
+        for spec in load_modules():
+            roles: set[str] = set()
+            source = "none"
+            if view.status != "active":
+                pass
+            elif view.kind == "person" and "admin" in view.roles:
+                roles, source = set(table.roles), "admin"
+            else:
+                if project != COMPANY:  # 4, then 5
+                    for name, label in ((spec.name, "granted"), ("*", "granted_all_modules")):
+                        roles = self._granted(view.account_id, project, name, table.roles)
+                        if roles:
+                            source = label
+                            break
+                elif spec.company_roles:  # 3: a company grant only where the module has them
+                    roles = self._granted(view.account_id, COMPANY, spec.name, table.roles)
+                    source = "granted" if roles else "none"
+                if not roles:
+                    for account_role in view.roles:
+                        for target, role in table.derive.get(account_role, ()):
+                            if target in ("*", spec.name):
+                                roles.add(role)
+                    source = "derived" if roles else "none"
+                if view.kind == "agent":
+                    roles &= set(table.agent_roles)
+                    source = source if roles else "none"
+            out.append(
+                EffectiveRoleView(
+                    module=spec.name,
+                    roles=[r for r in table.roles if r in roles],
+                    source=source,  # pyright: ignore[reportArgumentType]
+                )
+            )
+        return out
+
+    def _granted(self, account_id: str, project: str, module: str, known: Any) -> set[str]:
+        return {
+            g.role
+            for g in self._module_grants
+            if (g.account_id, g.project, g.module) == (account_id, project, module)
+            and g.role in known
+        }
+
+    def _checked(self, account_id: str, module: str, role: str, project: str) -> AccountView:
+        view = self._account(account_id)
+        table = load_role_table()
+        if role not in table.roles:
+            raise UnknownRoleError(f"unknown role {role}; roles are {', '.join(table.roles)}")
+        modules = {m.name: m for m in load_modules()}
+        if project == COMPANY:
+            found = modules.get(module)
+            if found is None or not found.company_roles:
+                raise NoCompanyRolesError(f"{module} has no company-level roles")
+        if module != "*" and module not in modules:
+            raise UnknownModuleError(f"no module {module}")
+        if view.kind == "agent" and role not in table.agent_roles:
+            raise InvalidAccountError(
+                f"an agent account may hold only {', '.join(table.agent_roles)}; not {role}"
+            )
+        return view
+
+    def grant_module_role(
+        self, account_id: str, project: str, module: str, role: str, reason: str
+    ) -> ModuleRoleResult:
+        self._gate(
+            "grant_module_role", account_id=account_id, project=project, module=module, role=role
+        )
+        check_reason(reason)
+        self._checked(account_id, module, role, project)
+        stream = f"account:{account_id}"
+        if self._held(account_id, project, module, role) is not None:
+            return ModuleRoleResult(stream_id=stream, key=None, version=0, events=[], changed=False)
+        self.seed_module_role(account_id, project, module, role, granted_by="user:fake-admin")
+        return ModuleRoleResult(stream_id=stream, key=None, version=0, events=[], changed=True)
+
+    def revoke_module_role(
+        self, account_id: str, project: str, module: str, role: str, reason: str
+    ) -> ModuleRoleResult:
+        self._gate(
+            "revoke_module_role", account_id=account_id, project=project, module=module, role=role
+        )
+        check_reason(reason)
+        self._account(account_id)
+        index = self._held(account_id, project, module, role)
+        if index is None:
+            raise NoSuchGrantError(f"{role} on {module} for {project} is not held by that account")
+        del self._module_grants[index]
+        return ModuleRoleResult(
+            stream_id=f"account:{account_id}", key=None, version=0, events=[], changed=True
+        )
+
+    def my_roles(self, project: str) -> list[EffectiveRoleView]:
+        """Not an admin call: the roles of ``me_account_id`` (default: the first admin account)."""
+        self.admin_calls.append(("my_roles", {"project": project}))
+        me = self._accounts.get(self.me_account_id or "")
+        if me is None:
+            me = next((a for a in self._accounts.values() if "admin" in a.roles), None)
+        if me is None:
+            return [
+                EffectiveRoleView(module=m.name, roles=[], source="none") for m in load_modules()
+            ]
+        return self._effective(me, project)

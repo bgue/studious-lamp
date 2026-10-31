@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from doc_support import settle
 from fakes import SCOPE, FakeClient, valve_form_metadata
-from helpers import run_pilot, screen_text
+from helpers import panel_of, run_pilot, screen_text, static_of
 from textual.pilot import Pilot
 from textual.widgets import DataTable, Input
 from tl_schema.forms import EnumValue, FieldMeta
@@ -64,7 +64,7 @@ def test_enter_opens_the_record_screen_and_escape_returns_to_the_same_row() -> N
         await pilot.press("enter")
         await settle(pilot)
         assert isinstance(app.screen, RecordScreen)
-        assert "ISO-2000" in screen_text(app) and "Number" in screen_text(app)
+        assert "ISO-2000 · Pump datasheet" in screen_text(app)  # the heading names the record
         await pilot.press("escape")
         await settle(pilot)
         assert app.screen is register
@@ -123,20 +123,22 @@ def test_plain_text_has_labels_not_codes_or_class_names() -> None:
         await settle(pilot)
         register = app.screen
         assert isinstance(register, DocumentRegisterScreen)
-        text = screen_text(app)
+        panel = panel_of(register)
+        links = static_of(register, "#doc-links")
+        text = "\n".join([screen_text(app), panel, links])
         row = [
             str(cell) for cell in register.query_one("#log-table", DataTable).get_row("ISO-1234")
         ]
         assert row == [
             "ISO-1234",
+            "Isometric, line 47-P-101",
             "Issued",
-            "B(IFC)",
+            "B, Issued for construction",
             "Isometric",
             "Piping",
-            "Isometric, line 47-P-101",
         ]
-        assert "state Issued  |  type Isometric  |  discipline Piping" in text
-        assert "(Record) pin A, current B" in text  # the linked record's type, not core.Record
+        assert "Document type     Isometric" in panel and "Discipline        Piping" in panel
+        assert "47-FV-1001  Record  A" in links  # the linked record's type, not core.Record
         assert "Registered" in text
         assert find_technical(text) == []
         assert "core.Record" not in text and "PIP" not in text and "type ISO" not in text
@@ -153,16 +155,17 @@ def test_technical_mode_adds_the_scheme_and_record_lines_and_back() -> None:
         await settle(pilot)
         register = app.screen
         assert isinstance(register, DocumentRegisterScreen)
-        assert "scheme alpha" not in screen_text(app)
-        assert "record DOC-ISO-1234" not in screen_text(app)
+        assert "Revision scheme" not in panel_of(register)
+        assert "DOC-ISO-1234" not in panel_of(register)
         app.display_mode.technical = True
         register.refresh_for_display_mode()
         await settle(pilot)
-        assert "scheme alpha" in screen_text(app) and "record DOC-ISO-1234" in screen_text(app)
+        panel = panel_of(register)
+        assert "Revision scheme  alpha" in panel and "Record id        DOC-ISO-1234" in panel
         app.display_mode.technical = False
         register.refresh_for_display_mode()
         await settle(pilot)
-        assert "scheme alpha" not in screen_text(app)
-        assert "record DOC-ISO-1234" not in screen_text(app)
+        assert "Revision scheme" not in panel_of(register)
+        assert "DOC-ISO-1234" not in panel_of(register)
 
     run_pilot(app, go)

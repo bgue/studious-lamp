@@ -13,6 +13,8 @@ never to an error.
 from __future__ import annotations
 
 import re
+import time
+import weakref
 from collections.abc import Iterable
 
 from tl_core.settings.layers import project_of_scope
@@ -71,10 +73,47 @@ def _standard_labels(client: ClientInterface, scope: str) -> dict[str, dict[str,
     return found
 
 
+#: How long the labels one client read stay good (seconds). A record screen, its tabs, the logs and
+#: the registers each load them, and reading them is a dozen calls; the sources (code lists,
+#: domains, accounts, the effective schema) change when an administrator edits them, not while a
+#: person moves from record to record. ``forget_labels`` drops them at once.
+LABELS_TTL_S = 20.0
+_Kept = dict[tuple[str, tuple[str, ...]], tuple[float, Labels]]  # (scope, types) -> (when, labels)
+_KEPT: weakref.WeakKeyDictionary[object, _Kept] = weakref.WeakKeyDictionary()
+
+
+def forget_labels(client: ClientInterface) -> None:
+    """Drop the labels kept for ``client`` (after a change to a code list, a domain or a schema)."""
+    try:
+        _KEPT.pop(client, None)
+    except TypeError:  # a client that cannot be weakly referenced keeps nothing
+        pass
+
+
 def load_labels(
     client: ClientInterface, scope: str, record_types: Iterable[str] = ("core.Record",)
 ) -> Labels:
-    """The labels for ``scope``; ``record_types`` are the types whose code lists are wanted."""
+    """The labels for ``scope``; ``record_types`` are the types whose code lists are wanted.
+
+    The labels are kept per client for ``LABELS_TTL_S`` seconds: the next screen that asks for the
+    same scope and types gets the same, immutable ``Labels``.
+    """
+    types = tuple(record_types)
+    key = (scope, types)
+    now = time.monotonic()
+    try:
+        kept = _KEPT.setdefault(client, {})
+    except TypeError:  # a client that cannot be weakly referenced keeps nothing
+        return _read_labels(client, scope, types)
+    found = kept.get(key)
+    if found is not None and now - found[0] < LABELS_TTL_S:
+        return found[1]
+    labels = _read_labels(client, scope, types)
+    kept[key] = (now, labels)
+    return labels
+
+
+def _read_labels(client: ClientInterface, scope: str, record_types: Iterable[str]) -> Labels:
     project = project_of_scope(scope)
     domains: dict[str, str] = {}
     subtypes: dict[tuple[str, str], str] = {}

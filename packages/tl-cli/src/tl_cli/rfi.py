@@ -45,7 +45,7 @@ from tl_mod_correspondence.handlers.technical_flow import (
 from tl_cli.corr import recipient
 from tl_cli.derive_support import configure_files
 from tl_cli.doc import _DEFAULT_ACTOR, _Actor, _fail, _Project, _service_errors
-from tl_cli.session import require_controller
+from tl_cli.session import require_command
 
 app = typer.Typer(
     help="RFIs, technical queries and deviation requests: raise, issue, answer, escalate.",
@@ -196,24 +196,23 @@ def raise_(
     """Raise an RFI as a Draft (any person). Submit it for review with `tl rfi submit`."""
     db: DbTarget = ctx.obj
     with _service_errors(), open_uow(db) as uow:
-        made = handle_raise_technical(
-            uow,
-            RaiseTechnical(
-                actor=actor,
-                source="cli",
-                scope=f"project:{project}",
-                subtype=subtype,
-                subject=subject,
-                question=question,
-                proposed_solution=solution,
-                discipline=discipline,
-                required_by=required_by,
-                potential_cost_impact=cost_impact,
-                potential_schedule_impact=schedule_impact,
-                to=[recipient(t) for t in to or []],
-                references=[_reference(r) for r in ref or []],
-            ),
+        command = RaiseTechnical(
+            actor=actor,
+            source="cli",
+            scope=f"project:{project}",
+            subtype=subtype,
+            subject=subject,
+            question=question,
+            proposed_solution=solution,
+            discipline=discipline,
+            required_by=required_by,
+            potential_cost_impact=cost_impact,
+            potential_schedule_impact=schedule_impact,
+            to=[recipient(t) for t in to or []],
+            references=[_reference(r) for r in ref or []],
         )
+        require_command(uow, command)
+        made = handle_raise_technical(uow, command)
     typer.echo(f"raised {made.key}")
 
 
@@ -251,12 +250,11 @@ def update(
     if to is not None:
         fields["to"] = [recipient(t) for t in to]  # type: ignore[assignment]
     with _service_errors(), open_uow(db) as uow:
-        handle_update_technical(
-            uow,
-            UpdateTechnical.model_validate(
-                {"actor": actor, "source": "cli", "scope": scope, "stream_id": row.id, **fields}
-            ),
+        command = UpdateTechnical.model_validate(
+            {"actor": actor, "source": "cli", "scope": scope, "stream_id": row.id, **fields}
         )
+        require_command(uow, command)
+        handle_update_technical(uow, command)
     typer.echo(f"updated {number}")
 
 
@@ -269,9 +267,9 @@ def submit(
     scope = f"project:{project}"
     row = _row(db, scope, project, number)
     with _service_errors(), open_uow(db) as uow:
-        handle_submit_technical(
-            uow, SubmitTechnical(actor=actor, source="cli", scope=scope, stream_id=row.id)
-        )
+        command = SubmitTechnical(actor=actor, source="cli", scope=scope, stream_id=row.id)
+        require_command(uow, command)
+        handle_submit_technical(uow, command)
     typer.echo(f"{number} is in internal review")
 
 
@@ -288,12 +286,11 @@ def return_(
     scope = f"project:{project}"
     row = _row(db, scope, project, number)
     with _service_errors(), open_uow(db) as uow:
-        handle_return_technical(
-            uow,
-            ReturnTechnical(
-                actor=actor, source="cli", scope=scope, stream_id=row.id, reason=reason
-            ),
+        command = ReturnTechnical(
+            actor=actor, source="cli", scope=scope, stream_id=row.id, reason=reason
         )
+        require_command(uow, command)
+        handle_return_technical(uow, command)
     typer.echo(f"{number} is a draft again")
 
 
@@ -311,22 +308,20 @@ def issue(
     stub, the clock starts and the item waits for its answer."""
     db: DbTarget = ctx.obj
     scope = f"project:{project}"
-    require_controller(db)
     configure_files()
     row = _row(db, scope, project, number)
     with _service_errors(), open_uow(db) as uow:
-        handle_issue_technical(
-            uow,
-            IssueTechnical(
-                actor=actor,
-                source="cli",
-                scope=scope,
-                stream_id=row.id,
-                template=template,
-                issued_on=issued_on,
-                date_reason=date_reason,
-            ),
+        command = IssueTechnical(
+            actor=actor,
+            source="cli",
+            scope=scope,
+            stream_id=row.id,
+            template=template,
+            issued_on=issued_on,
+            date_reason=date_reason,
         )
+        require_command(uow, command)
+        handle_issue_technical(uow, command)
         after = views_domain.technical_view(uow.conn(), scope, number)
     typer.echo(
         f"issued {number} on {after.issued_on} (delivery {after.delivery}: nothing was sent)"
@@ -365,22 +360,21 @@ def answer(
             _fail(f"no item {answer_item!r} in project {project!r}")
         item_id = found.id
     with _service_errors(), open_uow(db) as uow:
-        handle_answer_technical(
-            uow,
-            AnswerTechnical(
-                actor=actor,
-                source="cli",
-                scope=scope,
-                stream_id=row.id,
-                answer=text,
-                cost_impact=cost_impact,
-                schedule_impact=schedule_impact,
-                answer_item_id=item_id,
-                answering_revision_id=revision,
-                answered_on=answered_on,
-                date_reason=date_reason,
-            ),
+        command = AnswerTechnical(
+            actor=actor,
+            source="cli",
+            scope=scope,
+            stream_id=row.id,
+            answer=text,
+            cost_impact=cost_impact,
+            schedule_impact=schedule_impact,
+            answer_item_id=item_id,
+            answering_revision_id=revision,
+            answered_on=answered_on,
+            date_reason=date_reason,
         )
+        require_command(uow, command)
+        handle_answer_technical(uow, command)
     typer.echo(f"answered {number}: cost {cost_impact} schedule {schedule_impact}")
     if "yes" in (cost_impact, schedule_impact):
         typer.echo(
@@ -402,17 +396,16 @@ def review(
     scope = f"project:{project}"
     row = _row(db, scope, project, number)
     with _service_errors(), open_uow(db) as uow:
-        handle_review_technical_answer(
-            uow,
-            ReviewTechnicalAnswer(
-                actor=actor,
-                source="cli",
-                scope=scope,
-                stream_id=row.id,
-                decision="accepted" if accept else "rejected",
-                note=note,
-            ),
+        command = ReviewTechnicalAnswer(
+            actor=actor,
+            source="cli",
+            scope=scope,
+            stream_id=row.id,
+            decision="accepted" if accept else "rejected",
+            note=note,
         )
+        require_command(uow, command)
+        handle_review_technical_answer(uow, command)
     typer.echo(f"{number} {'accepted' if accept else 'rejected'}")
 
 
@@ -429,12 +422,11 @@ def reissue(
     scope = f"project:{project}"
     row = _row(db, scope, project, number)
     with _service_errors(), open_uow(db) as uow:
-        handle_reissue_technical(
-            uow,
-            ReissueTechnical(
-                actor=actor, source="cli", scope=scope, stream_id=row.id, reason=reason
-            ),
+        command = ReissueTechnical(
+            actor=actor, source="cli", scope=scope, stream_id=row.id, reason=reason
         )
+        require_command(uow, command)
+        handle_reissue_technical(uow, command)
     typer.echo(f"{number} is in internal review again")
 
 
@@ -451,10 +443,11 @@ def close(
     scope = f"project:{project}"
     row = _row(db, scope, project, number)
     with _service_errors(), open_uow(db) as uow:
-        handle_close_technical(
-            uow,
-            CloseTechnical(actor=actor, source="cli", scope=scope, stream_id=row.id, reason=reason),
+        command = CloseTechnical(
+            actor=actor, source="cli", scope=scope, stream_id=row.id, reason=reason
         )
+        require_command(uow, command)
+        handle_close_technical(uow, command)
     typer.echo(f"closed {number}")
 
 
@@ -476,21 +469,19 @@ def escalate(
     whose time bar counts from the day of the answer."""
     db: DbTarget = ctx.obj
     scope = f"project:{project}"
-    require_controller(db)
     row = _row(db, scope, project, number)
     with _service_errors(), open_uow(db) as uow:
-        made = handle_escalate_technical(
-            uow,
-            EscalateTechnical(
-                actor=actor,
-                source="cli",
-                scope=scope,
-                stream_id=row.id,
-                subtype=subtype,
-                subject=subject,
-                clause=clause,
-            ),
+        command = EscalateTechnical(
+            actor=actor,
+            source="cli",
+            scope=scope,
+            stream_id=row.id,
+            subtype=subtype,
+            subject=subject,
+            clause=clause,
         )
+        require_command(uow, command)
+        made = handle_escalate_technical(uow, command)
         notice = registry.get_item(uow.conn(), made.stream_id)
         bars = [c for c in registry.clocks_of(uow.conn(), made.stream_id) if c.kind == "time_bar"]
     typer.echo(f"escalated {number} to {made.key}")

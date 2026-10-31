@@ -9,10 +9,10 @@ from collections.abc import Generator, Mapping
 from contextlib import contextmanager
 from dataclasses import dataclass
 from importlib.metadata import entry_points
-from typing import Literal
 
 LOADER_ENTRY_POINT = "throughline.loaders"
-TargetKind = Literal["tags", "documents"]
+#: A load target's registered name (group ``throughline.load_targets``; see ``targets.py``).
+TargetKind = str
 
 
 @dataclass(frozen=True)

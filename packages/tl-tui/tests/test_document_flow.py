@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from doc_support import settle
 from fakes import SCOPE, FakeClient
-from helpers import run_pilot, screen_text
+from helpers import run_pilot, screen_text, static_of
 from textual.pilot import Pilot
 from textual.widgets import Input
 from tl_tui.app import TlApp
@@ -31,7 +31,7 @@ def test_r_opens_the_dialog_and_a_yes_clears_the_stale_mark() -> None:
         await settle(pilot)
         register = app.screen
         assert isinstance(register, DocumentRegisterScreen)
-        assert "links (1 stale):" in screen_text(app)
+        assert "Links (2, 1 stale)" in static_of(register, "#doc-links")
         await pilot.press("r")
         await settle(pilot)
         assert isinstance(app.screen, RepinScreen)
@@ -40,8 +40,9 @@ def test_r_opens_the_dialog_and_a_yes_clears_the_stale_mark() -> None:
         await settle(pilot)
         assert app.screen is register
         text = screen_text(app)
-        assert "Link re-pinned." in text and "links (1 stale)" not in text
-        assert "47-FV-1001 (Record) pin B" in text
+        links = static_of(register, "#doc-links")
+        assert "Link re-pinned." in text and "stale" not in links
+        assert "Links (2)" in links and "47-FV-1001  Record  B" in links
         assert "[r] Re-pin" not in screen_text(app)  # nothing stale any more: the key is gone
         await pilot.press("r")
         await settle(pilot)

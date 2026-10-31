@@ -30,7 +30,7 @@ from tl_mod_engineering.handlers.tag_class import (
 )
 from tl_mod_engineering.names import COMPANY
 
-from tl_cli.session import require_admin
+from tl_cli.session import require_admin, require_command
 
 app = typer.Typer(help="Define, show and change tag classes.", no_args_is_help=True)
 
@@ -101,22 +101,21 @@ def define(
     db: DbTarget = ctx.obj
     require_admin(db)
     with _service_errors(), open_uow(db) as uow:
-        handle_define_tag_class(
-            uow,
-            DefineTagClass(
-                actor=actor,
-                source="cli",
-                scope=COMPANY,
-                code=code,
-                label=label,
-                definition=definition,
-                family=cast(TagFamily, family),  # the model validates the text
-                required_psets=pset or [],
-                itr_templates=itr or [],
-                mnemonics=mnemonic or [],
-                edition=edition,
-            ),
+        command = DefineTagClass(
+            actor=actor,
+            source="cli",
+            scope=COMPANY,
+            code=code,
+            label=label,
+            definition=definition,
+            family=cast(TagFamily, family),  # the model validates the text
+            required_psets=pset or [],
+            itr_templates=itr or [],
+            mnemonics=mnemonic or [],
+            edition=edition,
         )
+        require_command(uow, command)
+        handle_define_tag_class(uow, command)
     typer.echo(f"defined class {code}")
     typer.echo(f"psets {_list(pset or [])}")
 
@@ -193,17 +192,16 @@ def revise(
         _fail("nothing to revise: give --label, --family, --pset, --mnemonic or --itr")
     with _service_errors(), open_uow(db) as uow:
         row = _class(uow, code)
-        handle_revise_tag_class(
-            uow,
-            ReviseTagClass(
-                actor=actor,
-                source="cli",
-                scope=COMPANY,
-                stream_id=row.id,
-                changes=changes,
-                reason=reason,
-            ),
+        command = ReviseTagClass(
+            actor=actor,
+            source="cli",
+            scope=COMPANY,
+            stream_id=row.id,
+            changes=changes,
+            reason=reason,
         )
+        require_command(uow, command)
+        handle_revise_tag_class(uow, command)
     changed = [name for name in REVISABLE if name in changes]
     typer.echo(f"revised class {code}: " + ", ".join(changed))
 
@@ -226,16 +224,15 @@ def close(
         row = _class(uow, code)
         other = _class(uow, superseded_by) if superseded_by is not None else None
         lifecycle = "superseded" if other is not None else "retired"
-        handle_close_tag_class(
-            uow,
-            CloseTagClass(
-                actor=actor,
-                source="cli",
-                scope=COMPANY,
-                stream_id=row.id,
-                lifecycle=lifecycle,
-                superseded_by=other.id if other is not None else None,
-                reason=reason,
-            ),
+        command = CloseTagClass(
+            actor=actor,
+            source="cli",
+            scope=COMPANY,
+            stream_id=row.id,
+            lifecycle=lifecycle,
+            superseded_by=other.id if other is not None else None,
+            reason=reason,
         )
+        require_command(uow, command)
+        handle_close_tag_class(uow, command)
     typer.echo(f"closed class {code} as {lifecycle}")

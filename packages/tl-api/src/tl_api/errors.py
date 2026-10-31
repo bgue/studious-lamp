@@ -16,6 +16,7 @@ from dataclasses import dataclass
 from typing import Any, cast
 
 from pydantic import BaseModel, ValidationError
+from tl_core import offline
 from tl_core.auth import errors as auth
 from tl_core.derivation.registry import ExtractorLoadError
 from tl_core.extypes import errors as ext
@@ -130,6 +131,9 @@ def _rows() -> tuple[ErrorSpec, ...]:
         s(svc.BudgetExceededError, "budget_exceeded", 429),
         s(svc.ProposalDeciderError, "proposal_decider", 403),
         s(svc.ProposalAccessError, "proposal_access", 403),
+        # --- offline classes -----------------------------------------------------------------
+        s(offline.OnlineOnlyError, "online_only", 409),
+        s(offline.NodeKindNotBuiltError, "node_kind_not_built", 503),
         # --- extension types (P0-I8 workstream B) ---------------------------------------------
         s(ext.UnknownTypeError, "type_not_found", 404),
         s(ext.TypeNotActiveError, "type_not_active", 409),
@@ -167,6 +171,13 @@ def _rows() -> tuple[ErrorSpec, ...]:
         s(auth.InvalidAccountError, "invalid_account", 422),
         s(auth.AccountStateError, "account_state", 409),
         s(auth.AuthBusyError, "auth_busy", 503),
+        # --- module roles (RM-S3, ADR-0021) --------------------------------------------------
+        s(auth.UnknownRoleError, "unknown_role", 422),
+        s(auth.UnknownModuleError, "unknown_module", 422),
+        s(auth.NoSuchGrantError, "no_such_grant", 404),
+        s(auth.NoCompanyRolesError, "no_company_roles", 422),
+        # an unusable role table is a start-up configuration error: it stays a 500, but a named one
+        s(auth.RoleTableError, "role_table", 500),
         # --- engineering module (P1-I1): registry, tag classes, tags, imports ----------------
         s(eng.EngineeringError, "engineering_error", 422),
         s(eng.RegistryScopeError, "registry_scope", 422),

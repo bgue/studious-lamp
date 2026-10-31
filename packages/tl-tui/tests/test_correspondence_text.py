@@ -18,38 +18,46 @@ def test_a_register_row_has_eight_cells_and_marks_a_source_line() -> None:
     lines = seeded().list_correspondence("P123")
     cells = {line.number: ct.register_cells(line) for line in lines}
     assert all(len(c) == len(ct.REGISTER_COLUMNS) for c in cells.values())
-    assert cells["P123-TRN-0001"][-1] == "Isometrics [transmittal]"
-    assert cells["P123-TRN-0001"][3] == "Transmittal"  # the domain label, not its key
-    assert cells["P123-COR-0001"][2:4] == ("in", "-")
+    assert ct.REGISTER_COLUMNS[:3] == ("Number", "Subject", "State")
+    assert cells["P123-TRN-0001"][1] == "Isometrics"
+    assert cells["P123-TRN-0001"][4] == "Transmittal"  # the short category, not its key
+    assert cells["P123-COR-0001"][3:5] == ("In", "Untriaged")
+    assert cells["P123-COR-0001"][5:] == ("—", "—", "—")  # empty cells read as a dash
 
 
 def test_a_clock_row_shows_the_days_left_and_its_length() -> None:
     [clock] = seeded().list_clocks("P123")
     assert ct.clock_cells(clock) == (
-        "P123-COR-0003", "Running", "2026-11-02", "14", "14 cal", "response from them",
-        "Reply expected",
+        "P123-COR-0003", "Reply expected", "Running", "2026-11-02", "14", "14 cal",
+        "response from them",
     )  # fmt: skip
     assert ct.clock_cells(clock, technical=True)[0] == "P123-COR-0003-C01"
     over = clock.model_copy(update={"days_left": -3, "effective_state": "expired"})
     assert ct.left_text(over) == "-3"
-    assert ct.left_text(clock.model_copy(update={"days_left": None})) == "-"
+    assert ct.left_text(clock.model_copy(update={"days_left": None})) == "—"
 
 
 def test_the_item_panel_lists_clocks_and_the_suggestion_of_a_received_item() -> None:
     client = seeded()
     issued = ct.item_lines(client.get_correspondence("P123", "P123-COR-0003"))
-    assert issued[0].startswith("P123-COR-0003  Issued  out")
-    assert "delivery: stub" in issued
-    assert any("running due 2026-11-02 left 14 (14 calendar days)" in x for x in issued)
+    assert issued[0] == "P123-COR-0003 · Re: Revised programme"
+    assert issued[1] == "Issued"
+    assert issued[2] == "Outgoing · to Acme"
+    assert "Domain           Letter" in issued
+    assert not any(x.startswith("Delivery") for x in issued)  # a technical row
+    assert "Clock           State    Due         Days left" in issued
+    assert "Reply expected  Running  2026-11-02  14" in issued
     assert not any("P123-COR-0003-C01" in x or "P123-default@1" in x for x in issued)
     received = ct.item_lines(
         client.get_correspondence("P123", "P123-COR-0001"),
         client.get_correspondence_suggestion("P123", "P123-COR-0001"),
     )
-    assert received[-1] == "suggestion: Letter (score 0): no keyword matched; the default domain"
+    at = received.index("Suggestion")
+    assert received[at + 1] == "Letter (score 0): no keyword matched; the default domain"
     shown = ct.item_lines(client.get_correspondence("P123", "P123-COR-0003"), technical=True)
-    assert any(x.strip().startswith("P123-COR-0003-C01 running due") for x in shown)
-    assert "P123-default@1" in " ".join(shown) and "record ID-P123-COR-0003" in shown
+    assert any(x.endswith("P123-COR-0003-C01 · calendar P123-default@1") for x in shown)
+    assert any(x.startswith("Record id") and x.endswith("ID-P123-COR-0003") for x in shown)
+    assert any(x.startswith("Delivery") and x.endswith("stub") for x in shown)
 
 
 def test_the_summary_and_the_mode_order() -> None:

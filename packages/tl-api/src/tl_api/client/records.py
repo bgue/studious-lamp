@@ -12,8 +12,10 @@ from __future__ import annotations
 from typing import Any, Literal
 
 from tl_core.actions import RecordActions
+from tl_core.addable import AddableProperties
 from tl_core.auth.errors import ForbiddenError
 from tl_core.ledger import Event
+from tl_core.offline import RecordTypeRow
 from tl_core.services.commands import Command, CommandResult, CreateRecord, UpdateRecord
 from tl_core.services.edit import EditRecord
 from tl_core.services.errors import RecordNotFoundError
@@ -80,6 +82,10 @@ class RecordsApi(ApiClientBase):
             },
         )
 
+    def record_types(self) -> list[RecordTypeRow]:
+        """Every record type with its label, module, offline class and drafting commands."""
+        return self._models(RecordTypeRow, self._get_json("/record-types"))
+
     def count_records(self, scope: str, q: str) -> int:
         """How many records match ``q`` (``GET /records/count``)."""
         return int(self._get_json("/records/count", {"scope": scope, "q": q})["count"])
@@ -125,6 +131,16 @@ class RecordsApi(ApiClientBase):
         read, as the embedded client does. An agent token is offered nothing.
         """
         return self._model(RecordActions, self._get_json(f"/records/{quote(record_id)}/actions"))
+
+    def addable_properties(self, record_id: str) -> AddableProperties:
+        """What could be added to the record (``GET /records/{id}/addable-properties``): standard
+        properties it lacks, optional sets to adopt (and whether the caller may), custom rules.
+
+        Raises ``RecordNotFoundError`` for a record that is missing or that the caller may not read.
+        """
+        return self._model(
+            AddableProperties, self._get_json(f"/records/{quote(record_id)}/addable-properties")
+        )
 
     def document_command(self, name: str, cmd: Command) -> CommandResult:
         """Run a documents command by name (``POST /commands/{name}``); the token's actor is used.

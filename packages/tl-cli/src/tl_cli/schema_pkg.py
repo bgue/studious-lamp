@@ -38,7 +38,7 @@ from tl_mod_schemareg.limits import MAX_CONTENT_BYTES
 
 from tl_cli import schema_pkg_read
 from tl_cli.derive_support import DEV_ACTOR, SOURCE, Actor, acting, cell, fail, service_errors
-from tl_cli.session import require_admin, require_session
+from tl_cli.session import require_admin, require_command, require_session
 
 app = typer.Typer(help="Draft, review and read schema package versions.", no_args_is_help=True)
 schema_pkg_read.register(app)
@@ -150,16 +150,15 @@ def draft(
     require_session(db)
     content = _read(path)
     with service_errors(), open_uow(db) as uow:
-        made = handle_draft_schema_package(
-            uow,
-            DraftSchemaPackage(
-                actor=acting(db, actor),
-                source=SOURCE,
-                scope="company",
-                content=content,
-                changelog=changelog,
-            ),
+        command = DraftSchemaPackage(
+            actor=acting(db, actor),
+            source=SOURCE,
+            scope="company",
+            content=content,
+            changelog=changelog,
         )
+        require_command(uow, command)
+        made = handle_draft_schema_package(uow, command)
     _report("drafted", made, made.key or "-")
 
 
@@ -177,17 +176,16 @@ def revise(
     package_id = resolve_package(db, ref)
     content = _read(path)
     with service_errors(), open_uow(db) as uow:
-        made = handle_revise_schema_package(
-            uow,
-            ReviseSchemaPackage(
-                actor=acting(db, actor),
-                source=SOURCE,
-                scope="company",
-                package_id=package_id,
-                content=content,
-                changelog=changelog,
-            ),
+        command = ReviseSchemaPackage(
+            actor=acting(db, actor),
+            source=SOURCE,
+            scope="company",
+            package_id=package_id,
+            content=content,
+            changelog=changelog,
         )
+        require_command(uow, command)
+        made = handle_revise_schema_package(uow, command)
     _report("revised", made, ref)
 
 
@@ -201,12 +199,11 @@ def analyse(ctx: typer.Context, ref: _Ref, actor: Actor = DEV_ACTOR) -> None:
     require_session(db)
     package_id = resolve_package(db, ref)
     with service_errors(), open_uow(db) as uow:
-        handle_analyse_schema_package(
-            uow,
-            AnalyseSchemaPackage(
-                actor=acting(db, actor), source=SOURCE, scope="company", package_id=package_id
-            ),
+        command = AnalyseSchemaPackage(
+            actor=acting(db, actor), source=SOURCE, scope="company", package_id=package_id
         )
+        require_command(uow, command)
+        handle_analyse_schema_package(uow, command)
     with service_errors(), open_uow(db, readonly=True) as uow:
         detail = views.package_detail(uow.conn(), package_id)
     typer.echo(f"analysed {detail.key} {detail.worst_class or 'none'}")
@@ -219,12 +216,11 @@ def submit(ctx: typer.Context, ref: _Ref, actor: Actor = DEV_ACTOR) -> None:
     require_session(db)
     package_id = resolve_package(db, ref)
     with service_errors(), open_uow(db) as uow:
-        made = handle_submit_schema_package(
-            uow,
-            SubmitSchemaPackage(
-                actor=acting(db, actor), source=SOURCE, scope="company", package_id=package_id
-            ),
+        command = SubmitSchemaPackage(
+            actor=acting(db, actor), source=SOURCE, scope="company", package_id=package_id
         )
+        require_command(uow, command)
+        made = handle_submit_schema_package(uow, command)
     _report("submitted", made, ref)
 
 
@@ -240,16 +236,15 @@ def changes(
     require_admin(db)
     package_id = resolve_package(db, ref)
     with service_errors(), open_uow(db) as uow:
-        made = handle_request_schema_changes(
-            uow,
-            RequestSchemaChanges(
-                actor=acting(db, actor),
-                source=SOURCE,
-                scope="company",
-                package_id=package_id,
-                reason=reason,
-            ),
+        command = RequestSchemaChanges(
+            actor=acting(db, actor),
+            source=SOURCE,
+            scope="company",
+            package_id=package_id,
+            reason=reason,
         )
+        require_command(uow, command)
+        made = handle_request_schema_changes(uow, command)
     _report("sent-back", made, ref)
 
 
@@ -265,14 +260,13 @@ def approve(
     require_admin(db)
     package_id = resolve_package(db, ref)
     with service_errors(), open_uow(db) as uow:
-        made = handle_approve_schema_package(
-            uow,
-            ApproveSchemaPackage(
-                actor=acting(db, actor),
-                source=SOURCE,
-                scope="company",
-                package_id=package_id,
-                comment=comment,
-            ),
+        command = ApproveSchemaPackage(
+            actor=acting(db, actor),
+            source=SOURCE,
+            scope="company",
+            package_id=package_id,
+            comment=comment,
         )
+        require_command(uow, command)
+        made = handle_approve_schema_package(uow, command)
     _report("approved", made, ref)
