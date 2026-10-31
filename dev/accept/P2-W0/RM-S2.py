@@ -440,6 +440,19 @@ def run(world: World) -> None:
                 raise AssertionError(f"{spec.name}: pia holds user on P1") from None
             except Exception:  # noqa: S110 - the module's own state guard may refuse, not the word
                 pass
+            for scope_id in (ids[P1], ids[P2]):  # D2: no account on the dev ledger = `user` words
+                try:
+                    require_generic(conn, record_type, command, scope_id, actor="user:dev")
+                except ForbiddenError:
+                    raise AssertionError(f"{spec.name}: user:dev holds user (dev ledger)") from None
+                except Exception:  # noqa: S110 - the module's own state guard, not the word
+                    pass
+            refuses(
+                ForbiddenError,
+                lambda c=conn, t=record_type, k=command, i=ids[P1]: require_generic(
+                    c, t, k, i, actor="agent:ghost"
+                ),
+            )
         refused_in += 1
     passed(f"require_generic: the word `user` refused on P2, held on P1, for {refused_in} modules")
 
