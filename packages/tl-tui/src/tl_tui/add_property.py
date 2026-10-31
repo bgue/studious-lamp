@@ -6,7 +6,7 @@ of three kinds.
 
 * From the standard: a property of a set the project shows that the record has no value for.
 * From a set the project has not adopted: an optional set of the company standard. A superuser
-  adopts it for the project (``AdoptSchemaPackage``, the schema registry's command) and then enters
+  adopts it for the project (``AdoptSchemaSet``, the schema registry's command) and then enters
   the value; anybody else sees the line greyed with the words the read gives.
 * A custom field: a name and a value in the custom section of a set that allows one, up to the
   set's limit. The name rule is ``tl_core.services.psets.custom_name_problem``.
@@ -23,7 +23,7 @@ from typing import Any, Literal
 
 from tl_core.addable import AddableProperties, AddableProperty, AdoptableSet
 from tl_core.services.psets import SetPsetValues, custom_name_problem
-from tl_mod_schemareg.handlers.adoption import AdoptSchemaPackage
+from tl_mod_schemareg.handlers.adoption import AdoptSchemaSet
 from tl_schema.forms import FieldMeta
 
 from tl_tui.paths import pset_value
@@ -197,15 +197,17 @@ def adopt_label(sheet: AdoptableSet) -> str:
     return f"Adopt {sheet.set_label} for {sheet.project}"
 
 
-def adopt_command(sheet: AdoptableSet, *, actor: str) -> AdoptSchemaPackage:
-    """The schema registry's command that pins the package of ``sheet`` for its project."""
-    return AdoptSchemaPackage(
+def adopt_command(sheet: AdoptableSet, *, actor: str) -> AdoptSchemaSet:
+    """The schema registry's command that adopts the set of ``sheet`` for its project, sent in the
+    project's scope (the scope the person's superuser role is held in)."""
+    return AdoptSchemaSet(
         actor=actor,
         source="tui",
-        scope="company",
+        scope=f"project:{sheet.project}",
         project=sheet.project,
         package=sheet.package,
         version=sheet.version,
+        pset=sheet.pset,
     )
 
 

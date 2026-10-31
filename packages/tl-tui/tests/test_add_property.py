@@ -134,15 +134,16 @@ def test_a_plain_user_gets_a_blocked_offer_and_a_superuser_one_to_adopt() -> Non
     assert adopt_label(boss.adopt) == "Adopt Inspection data for P123"
 
 
-def test_the_adoption_is_the_schema_registrys_command_for_the_package_of_the_set() -> None:
+def test_the_adoption_is_the_schema_registrys_command_for_the_set_in_the_projects_scope() -> None:
     command = adopt_command(sheet(can_adopt=True), actor="user:boss")
-    assert type(command).__name__ == "AdoptSchemaPackage"
-    assert (command.project, command.package, command.version) == (
+    assert type(command).__name__ == "AdoptSchemaSet"
+    assert (command.project, command.package, command.version, command.pset) == (
         "P123",
         "co.acme.engineering",
         "3.3.0",
+        "inspection_data",
     )
-    assert command.impact_sha256 is None and command.source == "tui"
+    assert command.scope == "project:P123" and command.source == "tui"
 
 
 def test_a_property_of_a_set_to_adopt_is_written_with_its_own_layer_and_key() -> None:

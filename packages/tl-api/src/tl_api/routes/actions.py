@@ -69,4 +69,5 @@ def get_record_addable_properties(
             record_id,
             actor=actor,
             holds=lambda level: holds_access(principal, actor, level),
+            holder=holder_for_principal(principal),
         )

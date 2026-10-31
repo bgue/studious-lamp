@@ -498,7 +498,13 @@ class EmbeddedClient:
 
     def addable_properties(self, record_id: str) -> AddableProperties:
         with self._uow(True) as uow:
-            return addable_properties(uow, record_id, actor=self.actor, holds=self._gate_holds(uow))
+            return addable_properties(
+                uow,
+                record_id,
+                actor=self.actor,
+                holds=self._gate_holds(uow),
+                holder=holder_for_actor(uow.conn(), self.actor),
+            )
 
     def list_record_files(self, record_id: str) -> list[FileInfo]:
         with self._uow(True) as uow:

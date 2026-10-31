@@ -457,6 +457,7 @@ AGENT_MAY_NOT = {
     "admin.command.DeprecateSchemaPackage",
     "admin.command.RetireSchemaPackage",
     "admin.command.AdoptSchemaPackage",
+    "control.command.AdoptSchemaSet",
     "admin.command.ApproveWaiver",
     "admin.command.RevokeWaiver",
     # RFIs and Commercial items (P1-I6): the controller's; an agent proposes

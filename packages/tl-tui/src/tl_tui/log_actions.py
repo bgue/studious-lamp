@@ -49,7 +49,7 @@ from tl_mod_correspondence.handlers.technical_flow import (
 )
 from tl_mod_engineering.commands import API_COMMANDS as ENGINEERING_COMMANDS
 from tl_mod_engineering.handlers.tags import ReclassifyTag, RenameTag
-from tl_mod_schemareg.handlers.adoption import AdoptSchemaPackage
+from tl_mod_schemareg.handlers.adoption import AdoptSchemaSet
 
 from tl_tui.client import ClientInterface
 from tl_tui.labels_load import forget_labels
@@ -360,9 +360,9 @@ def add_property_actions(
         def workbench(package: str) -> None:
             screen.app.push_screen(SchemaWorkbenchScreen(client, scope, actor, package=package))
 
-        def adopt(cmd: AdoptSchemaPackage) -> bool:
+        def adopt(cmd: AdoptSchemaSet) -> bool:
             def run() -> None:
-                client.schemareg_command("AdoptSchemaPackage", cmd)
+                client.schemareg_command("AdoptSchemaSet", cmd)
                 forget_labels(client)  # an adopted package can move code lists and labels
 
             return screen.attempt(run)

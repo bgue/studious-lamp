@@ -386,6 +386,15 @@ def handle_approve_schema_package(uow: UnitOfWork, cmd: ApproveSchemaPackage) ->
     row = load(uow, cmd.package_id)
     _require_state(row, IN_REVIEW)
     _require_other_than_authors(row, cmd)
+    return approve_reviewed(uow, cmd, row)
+
+
+def approve_reviewed(
+    uow: UnitOfWork, cmd: ApproveSchemaPackage, row: registry.PackageRow
+) -> CommandResult:
+    """Approve ``row`` (in review, analysed). The caller has decided who may approve it:
+    ``handle_approve_schema_package`` refuses its authors; ``AdoptSchemaSet`` approves the one
+    mechanical extension it drafted itself."""
     report = _current_analysis(row)
     cmd = scoped(cmd, row.scope)
     moved = transition(uow, cmd, row.id, "approve")

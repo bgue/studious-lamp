@@ -15,11 +15,14 @@ from harness import Harness
 from test_api_actions import FAKE_ID, World, world  # noqa: F401  (fixtures)
 from test_api_schedule import Cast
 from tl_api.client import ApiClient
+from tl_core.auth import accounts, sessions
 from tl_core.auth.errors import ForbiddenError
+from tl_core.auth.module_grants import GrantModuleRole, grant_module_role
+from tl_core.auth.password import prepare_password
 from tl_core.services.errors import PsetValidationError, RecordNotFoundError
 from tl_core.services.psets import SetPsetValues
 from tl_mod_correspondence.confseed import TOKENS
-from tl_mod_schemareg.handlers.adoption import AdoptSchemaPackage
+from tl_mod_schemareg.handlers.adoption import AdoptSchemaSet
 from tl_mod_schemareg.handlers.packages import (
     AnalyseSchemaPackage,
     ApproveSchemaPackage,
@@ -240,19 +243,73 @@ def test_an_unadopted_optional_set_is_offered_and_only_a_superuser_may_adopt_it(
     assert len(offered) == 1
     sheet = offered[0]
     assert (sheet.package, sheet.version, sheet.project) == (PKG, "3.3.0", "P123")
-    assert sheet.command == "AdoptSchemaPackage" and sheet.can_adopt is False
+    assert sheet.command == "AdoptSchemaSet" and sheet.can_adopt is False
     assert sheet.needs == "Needs a superuser to adopt this set for P123"
     assert [p.property for p in sheet.properties] == ["inspected_on"]
     assert NEW_SET not in {p.pset for p in as_bob.standard}
-    assert [s.can_adopt for s in boss.addable_properties(record.stream_id).adoptable] == [True]
+    boss_sees = boss.addable_properties(record.stream_id).adoptable
+    assert [s.can_adopt for s in boss_sees if s.pset == NEW_SET] == [True]
+    adopt = {"project": "P123", "package": PKG, "version": "3.3.0", "pset": NEW_SET}
     with pytest.raises(ForbiddenError):  # the same access rule on the command itself
-        command(bob, AdoptSchemaPackage, project="P123", package=PKG, version="3.3.0")
-    command(boss, AdoptSchemaPackage, project="P123", package=PKG, version="3.3.0")
+        command(bob, AdoptSchemaSet, **adopt)
+    command(boss, AdoptSchemaSet, **adopt)
     after = bob.addable_properties(record.stream_id)
-    assert after.adoptable == []
+    assert NEW_SET not in {s.pset for s in after.adoptable}
     assert [(p.pset, p.property, p.type) for p in after.standard if p.pset == NEW_SET] == [
         (NEW_SET, "inspected_on", "date")
     ]
     put(
         bob, record, NEW_SET, {"inspected_on": "2026-10-30"}, "standard"
     )  # the value can be entered
+
+
+def test_the_schemareg_superuser_of_the_project_adopts_it_and_one_of_another_project_does_not(
+    harness: Harness, cast: Cast
+) -> None:
+    publish_new_set(cast)
+    record = harness.create_record("ADD-9", "A valve")
+    people: dict[str, ApiClient] = {}
+    with harness.backend() as uow:
+        for name, project in (("sue", "project:P123"), ("tom", "project:P999")):
+            made = accounts.create_account(
+                uow, username=name, display_name=name, kind="person", roles=["user"],
+                password=prepare_password("correct horse battery"), by="svc:test",
+            )  # fmt: skip
+            grant_module_role(
+                uow,
+                GrantModuleRole(
+                    actor="user:boss", source="test", scope="company", account_id=made.account_id,
+                    project=project, module="schemareg", role="superuser", reason="test",
+                ),
+            )  # fmt: skip
+    for name in ("sue", "tom"):
+        _, token = sessions.sign_in(
+            harness.backend, username=name, password="correct horse battery"
+        )
+        client = harness.client_for(None)
+        client.headers.update({"Authorization": f"Bearer {token}"})
+        people[name] = ApiClient("http://testserver", token, http=client)
+
+    def offered(name: str) -> list[bool]:
+        found = people[name].addable_properties(record.stream_id).adoptable
+        return [s.can_adopt for s in found if s.pset == NEW_SET]
+
+    assert offered("sue") == [True] and offered("tom") == [False]
+
+    def adopt(name: str, scope: str) -> Any:
+        cmd = AdoptSchemaSet(
+            actor=f"user:{name}", source="test", scope=scope,
+            project="P123", package=PKG, version="3.3.0", pset=NEW_SET,
+        )  # fmt: skip
+        return people[name].schemareg_command("AdoptSchemaSet", cmd)
+
+    with pytest.raises(ForbiddenError):
+        adopt("tom", "project:P999")  # his role is for another project
+    with pytest.raises(ForbiddenError):
+        adopt("tom", "project:P123")
+    with pytest.raises(ForbiddenError):
+        adopt("sue", "company")  # a project superuser has no company role
+    adopt("sue", "project:P123")
+    assert NEW_SET not in {
+        s.pset for s in people["sue"].addable_properties(record.stream_id).adoptable
+    }
