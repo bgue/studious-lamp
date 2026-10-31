@@ -24,6 +24,7 @@ from textual.pilot import Pilot
 from textual.widgets import DataTable, Static
 from tl_mod_schemareg.testing import fixture_text
 from tl_tui.app import TlApp
+from tl_tui.log_text import keys_row
 from tl_tui.widgets import domain_screen
 from tl_tui.widgets.log_screen import LogScreen
 
@@ -191,7 +192,10 @@ def test_a_migrated_log_has_an_actions_bar_a_keys_row_and_a_status_line(case: Ca
         bar = text_of(screen, "#log-actions")
         assert bar.startswith("["), bar  # offers, or at least "[Enter] Open record"
         keys = text_of(screen, "#log-keys")
-        assert keys == screen.KEY_HINTS and "F5 reload" in keys and "Esc" in keys
+        # navigation, then the log's own keys, then Esc and F1 (the rest is on the help screen)
+        assert keys == keys_row(screen.KEY_CELLS, 120)
+        assert keys.startswith("Up/Down move") and keys.endswith("Esc close  F1 more keys")
+        assert all(cell in keys for cell in screen.KEY_CELLS), keys  # all of them fit at 120
         screen.query_one("#log-status", Static)  # the summary line has its place
 
     drive(case, 120, check)

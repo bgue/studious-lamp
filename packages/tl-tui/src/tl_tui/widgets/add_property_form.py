@@ -397,8 +397,8 @@ class AddPropertyScreen(ModalScreen[AddOutcome | None]):
 
 def _typed(text: str) -> Any:
     """A number typed in the value box is kept as a number when it reads back exactly the same
-    (``14``, ``2.5``); anything else (``007``, a date, ``nan``) stays text. The service refuses what it
-    cannot keep."""
+    (``14``, ``2.5``); anything else (``007``, a date, ``nan``) stays text. The service refuses
+    what it cannot keep."""
     try:
         whole = int(text)
     except ValueError:

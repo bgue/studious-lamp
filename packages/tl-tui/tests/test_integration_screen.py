@@ -13,7 +13,7 @@ from typing import Any
 
 import rows_integration as rows
 from fakes import SCOPE, FakeClient
-from helpers import run_pilot, screen_text, settle
+from helpers import panel_of, run_pilot, screen_text, settle
 from textual.pilot import Pilot
 from textual.widgets import DataTable, Static
 from tl_tui.app import TlApp
@@ -65,10 +65,12 @@ def table(screen: IntegrationScreen) -> DataTable[str]:
 def test_ctrl_e_opens_on_the_endpoints_and_escape_closes() -> None:
     async def steps(pilot: Pilot[Any], app: TlApp, screen: IntegrationScreen) -> None:
         text = screen_text(app)
-        assert "Endpoints (2)" in text and "[1 Endpoints]" in text
+        assert "Endpoints (2)" in text and "P123 › Endpoints › acme-nde/results" in text
         assert "acme-nde/results" in text and "acme-nde/photos" in text
-        assert "Path        /in/acme-nde/results" in text  # the detail of the first row
-        assert "Acts as     a service" in text  # plain: no service label is known here
+        panel = panel_of(screen)  # the detail of the first row: heading, state, summary, facts
+        assert panel.startswith("acme-nde/results\n✓ on\nmode live")
+        assert "acts as a service" in panel  # plain: no service label is known here
+        assert "Auth      hmac" in panel
         await pilot.press("escape")
         await settle(pilot)
         assert not isinstance(app.screen, IntegrationScreen)
@@ -118,13 +120,14 @@ def test_the_error_queue_names_each_endpoint_by_its_path() -> None:
         await settle(pilot)
         text = screen_text(app)
         assert "acme-nde/results" in text and "! Failed" in text and "✓ Completed" in text
-        assert "Mapping failed: no weld in the payload" in text
-        assert "Endpoint    acme-nde/results" in text and "v2" not in text
+        panel = panel_of(screen)
+        assert panel.startswith("acme-nde/results · Failed\n! Failed")
+        assert "Error  Mapping failed: no weld in the payload" in panel and "v2" not in panel
         await pilot.press("ctrl+d")  # technical details on: the id, version and error code again
         await settle(pilot)
-        text = screen_text(app)
-        assert "mapping_failed: no weld in the payload" in text
-        assert "Endpoint    acme-nde/results v2" in text
+        panel = panel_of(screen)
+        assert "Error     mapping_failed: no weld in the payload" in panel
+        assert "Delivery  01JDELIVERYAAAAAAA1" in panel
 
     scenario(full_client(), steps)
 

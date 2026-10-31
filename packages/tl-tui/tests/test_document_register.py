@@ -57,7 +57,10 @@ def test_f7_lists_the_documents_by_number_and_describes_the_first() -> None:
         assert "Revisions (2)" in panel
         assert "B    Current  Issued for construction  2026-10-10  pdf" in panel
         links = static_of(screen, "#doc-links")
-        assert "Links (2, 1 stale)" in links and "47-FV-1001  Record  A         ! Stale: now B" in links
+        assert (
+            "Links (2, 1 stale)" in links
+            and "47-FV-1001  Record  A         ! Stale: now B" in links
+        )
         assert "2 of 2 documents" in text
         await pilot.press("escape")
         await settle(pilot)

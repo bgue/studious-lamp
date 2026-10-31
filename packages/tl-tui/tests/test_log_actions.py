@@ -125,10 +125,12 @@ def test_the_bar_of_an_rfi_differs_between_an_answerer_and_a_reader() -> None:
     reader = world(controller=False)  # offers nothing: a reader may only look
 
     async def answerer_steps(pilot: Pilot[None], app: TlApp, screen: DomainScreen) -> None:
-        assert bar(screen) == "[a] Answer  [c] Close  [e] Escalate  [Enter] Open record"
+        assert bar(screen) == (
+            "[a] Answer  [c] Close  [e] Escalate  [+] Add property  [Enter] Open record"
+        )
 
     async def reader_steps(pilot: Pilot[None], app: TlApp, screen: DomainScreen) -> None:
-        assert bar(screen) == "[Enter] Open record"
+        assert bar(screen) == "[+] Add property  [Enter] Open record"  # the service refuses a write
 
     scenario(answerer, answerer_steps)
     scenario(reader, reader_steps)
@@ -140,10 +142,10 @@ def test_the_bar_follows_the_highlighted_row_and_shows_nothing_the_server_did_no
     client.set_actions(RFI2, ("CloseTechnical", "Close"))
 
     async def steps(pilot: Pilot[None], app: TlApp, screen: DomainScreen) -> None:
-        assert bar(screen) == "[a] Answer  [Enter] Open record"
+        assert bar(screen) == "[a] Answer  [+] Add property  [Enter] Open record"
         await pilot.press("down")
         await settle(pilot)
-        assert bar(screen) == "[c] Close  [Enter] Open record"
+        assert bar(screen) == "[c] Close  [+] Add property  [Enter] Open record"
         await pilot.press("a")  # not offered on this row
         await settle(pilot)
         assert client.correspondence_commands == []
@@ -246,7 +248,7 @@ def test_the_tag_bar_is_server_fed_and_a_tag_command_runs_on_the_engineering_tab
         await settle(pilot)
         screen = app.screen
         assert isinstance(screen, TagRegisterScreen)
-        assert bar(screen) == "[l] Reclassify  [n] Rename  [Enter] Open record"
+        assert bar(screen) == "[l] Reclassify  [n] Rename  [+] Add property  [Enter] Open record"
         await pilot.press("n")
         await settle(pilot)
         assert not isinstance(app.screen, TagRegisterScreen)  # the form is up
@@ -266,13 +268,13 @@ def test_the_tag_bar_is_server_fed_and_a_tag_command_runs_on_the_engineering_tab
     run_pilot(app, go)
 
 
-def test_a_tag_that_is_offered_nothing_has_only_the_open_key() -> None:
+def test_a_tag_that_is_offered_nothing_has_only_add_property_and_the_open_key() -> None:
     client = tag_world()  # no offers set: the server offers nothing
 
     async def go(pilot: Pilot[None]) -> None:
         await pilot.press("f8")
         await settle(pilot)
-        assert bar(app.screen) == "[Enter] Open record"
+        assert bar(app.screen) == "[+] Add property  [Enter] Open record"
         await pilot.press("l")
         await settle(pilot)
         assert client.module_commands == []
@@ -289,7 +291,7 @@ def test_the_commercial_bar_is_server_fed_and_runs_on_the_correspondence_table()
     async def steps(pilot: Pilot[None], app: TlApp, screen: DomainScreen) -> None:
         await pilot.press("2")
         await settle(pilot)
-        assert bar(screen) == "[w] Review  [Enter] Open record"
+        assert bar(screen) == "[w] Review  [+] Add property  [Enter] Open record"
         await pilot.press("w")
         await settle(pilot)
         await pilot.press("enter")  # yes, approve

@@ -50,21 +50,24 @@ def test_details_lists_the_labelled_envelope_with_aligned_values() -> None:
     assert record is not None
     labels = Labels(type_titles={"core.Record": "Record"})
     plain = details_lines(details_for(client, "P123", record, labels, DisplayMode())).splitlines()
-    assert plain[0] == "Type         Record"
-    assert plain[1] == "Title        Control valve FCV on 6in discharge"
-    assert plain[2] == "Status       Design"
-    assert plain[3].startswith("Created      2026-10-09 09:")
-    assert plain[4].startswith("Updated      2026-10-09 09:")
-    assert plain[5] == "Conformance  ✓ ok"
-    assert len(plain) == 6
+    # the title and number are the record screen's header, not rows; the rest is in sections
+    assert plain[:5] == ["Summary", "Type         Record", "Status       Design",
+                         "Conformance  ✓ ok", ""]  # fmt: skip
+    assert plain[5] == "Record"
+    assert plain[6].startswith("Created  2026-10-09 09:")
+    assert plain[7].startswith("Updated  2026-10-09 09:")
+    assert len(plain) == 8
     mode = DisplayMode()
     mode.technical = True
     full = details_lines(details_for(client, "P123", record, labels, mode)).splitlines()
-    assert full[6:] == [
-        "Key          FV-1001",
-        "Version      3",
-        "Scope        project:P123",
-        "Schema hash  #a91f…3c",
+    assert full[8:] == [
+        "",
+        "Technical details",
+        "Key            FV-1001",
+        "Version        3",
+        "Scope          project:P123",
+        "Schema hash    #a91f…3c",
+        "Offline class  Full: created and edited offline",
     ]
 
 

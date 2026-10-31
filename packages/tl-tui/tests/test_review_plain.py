@@ -12,7 +12,7 @@ from typing import Any
 
 import rows_integration as rows
 from fakes import SCOPE, FakeClient
-from helpers import run_pilot, screen_text, settle
+from helpers import panel_of, run_pilot, screen_text, settle
 from textual.pilot import Pilot
 from textual.widgets import DataTable
 from tl_tui.app import TlApp
@@ -117,7 +117,7 @@ def test_technical_mode_restores_the_id_the_version_and_the_path_and_back() -> N
         assert "enrich.doc_classifier.doc_type" in text
         assert "doc_classifier@1" in text
         assert "AAAAAAA1" in text  # the short id column
-        assert "Value       01JVALUEAAAAAAAAAA1" in text  # the detail panel's id line
+        assert "Value     01JVALUEAAAAAAAAAA1" in panel_of(screen)  # the panel's id line
         await pilot.press("ctrl+d")
         await settle(pilot)
         assert app.display_mode.technical is False
