@@ -1,9 +1,10 @@
-"""Projectors for accounts (ADR-0009): ``Account.*`` and ``AgentToken.*`` events into two tables.
+"""Projectors for accounts (ADR-0009): ``Account.*`` and ``AgentToken.*`` events into three tables.
 
-``cur_account`` and ``cur_agent_token`` are rebuilt from the ledger like any projection. They hold
-no secret: a password hash, a session or agent token hash and the failed-sign-in counters live in
-the ``auth_*`` operational tables, which no event produces and a rebuild never clears (they ride on
-:class:`AuthStateTables`, a projector that handles no event, like ``WebhookStateTables``).
+``cur_account``, ``cur_agent_token`` and ``cur_account_module_role`` (ADR-0021) are rebuilt from
+the ledger like any projection. They hold no secret: a password hash, a session or agent token hash
+and the failed-sign-in counters live in the ``auth_*`` operational tables, which no event produces
+and a rebuild never clears (they ride on :class:`AuthStateTables`, a projector that handles no
+event, like ``WebhookStateTables``).
 """
 
 from __future__ import annotations
@@ -26,6 +27,12 @@ from tl_core.auth.types import (
 )
 from tl_core.ledger import Event
 
+#: Account.ModuleRoleGranted / Account.ModuleRoleRevoked:
+#: {account_id, project, module, role, reason}
+#: (ADR-0021). On the account's stream like every ``Account.*`` event, so they bump its version.
+ACCOUNT_MODULE_ROLE_GRANTED = "Account.ModuleRoleGranted"
+ACCOUNT_MODULE_ROLE_REVOKED = "Account.ModuleRoleRevoked"
+
 ACCOUNT_STREAM_TYPE = "core.Account"
 ACCOUNT_STREAM_PREFIX = "account:"
 ACCOUNT_EVENT_TYPES = frozenset(
@@ -37,6 +44,8 @@ ACCOUNT_EVENT_TYPES = frozenset(
         ACCOUNT_PASSWORD_CHANGED,
         AGENT_TOKEN_ISSUED,
         AGENT_TOKEN_REVOKED,
+        ACCOUNT_MODULE_ROLE_GRANTED,
+        ACCOUNT_MODULE_ROLE_REVOKED,
     }
 )
 OPERATIONAL_TABLES = (
@@ -69,16 +78,31 @@ _INSERT_TOKEN = text(
 )
 
 
+_INSERT_MODULE_ROLE = text(
+    "INSERT INTO cur_account_module_role (account_id, project, module, role, granted_by, "
+    "granted_at, seq) VALUES (:account_id, :project, :module, :role, :granted_by, :stamp, :seq)"
+)
+_DELETE_MODULE_ROLE = text(
+    "DELETE FROM cur_account_module_role WHERE account_id = :account_id AND project = :project "
+    "AND module = :module AND role = :role"
+)
+
+
 class AccountProjector:
     name = "accounts"
     handles = ACCOUNT_EVENT_TYPES
 
     def ddl(self, dialect: str) -> list[str]:
         if dialect == "sqlite" or dialect == "postgres":
-            return statements("cur_account", dialect) + statements("cur_agent_token", dialect)
+            return (
+                statements("cur_account", dialect)
+                + statements("cur_agent_token", dialect)
+                + statements("cur_account_module_role", dialect)
+            )
         raise ValueError(f"unsupported dialect: {dialect}")
 
     def reset(self, conn: Connection) -> None:
+        conn.execute(text("DELETE FROM cur_account_module_role"))
         conn.execute(text("DELETE FROM cur_agent_token"))
         conn.execute(text("DELETE FROM cur_account"))
 
@@ -116,6 +140,20 @@ class AccountProjector:
             changes = {"status": "disabled"}
         elif event.event_type == ACCOUNT_ENABLED:
             changes = {"status": "active"}
+        elif event.event_type in (ACCOUNT_MODULE_ROLE_GRANTED, ACCOUNT_MODULE_ROLE_REVOKED):
+            key = {
+                "account_id": account_id,
+                "project": payload["project"],
+                "module": payload["module"],
+                "role": payload["role"],
+            }
+            # delete first: a replayed grant leaves one row, a revoke leaves none
+            conn.execute(_DELETE_MODULE_ROLE, key)
+            if event.event_type == ACCOUNT_MODULE_ROLE_GRANTED:
+                conn.execute(
+                    _INSERT_MODULE_ROLE,
+                    {**key, "granted_by": event.actor, "stamp": stamp, "seq": event.seq},
+                )
         elif event.event_type == AGENT_TOKEN_ISSUED:
             conn.execute(
                 _INSERT_TOKEN,

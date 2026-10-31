@@ -1070,6 +1070,7 @@ class Event(ConfiguredBaseModel):
                        'EnrichmentValue',
                        'OutboxEvent',
                        'WebhookDelivery',
+                       'AccountModuleRole',
                        'RuleFiring']} })
     event_id: str = Field(default=..., description="""Unique event identifier (ULID).""", json_schema_extra = { "linkml_meta": {'domain_of': ['Event', 'OutboxEvent', 'WebhookDelivery', 'RuleFiring']} })
     stream_id: str = Field(default=..., description="""The record (aggregate) the event belongs to.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Event',
@@ -1391,7 +1392,9 @@ class Link(ConfiguredBaseModel):
                        'AccountRolesSetPayload',
                        'AccountDisabledPayload',
                        'AccountEnabledPayload',
-                       'AgentTokenRevokedPayload']} })
+                       'AgentTokenRevokedPayload',
+                       'AccountModuleRoleGrantedPayload',
+                       'AccountModuleRoleRevokedPayload']} })
     declined: bool = Field(default=False, description="""True when the link was a suggestion that a person declined. Declines are remembered.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Link'], 'ifabsent': 'false'} })
     verified_by: Optional[str] = Field(default=None, description="""Actor of the last `Link.Verified` event.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Link']} })
     verified_at: Optional[datetime ] = Field(default=None, description="""Time of the last `Link.Verified` event.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Link']} })
@@ -1941,7 +1944,9 @@ class RecordVoidedPayload(EventPayload):
                        'AccountRolesSetPayload',
                        'AccountDisabledPayload',
                        'AccountEnabledPayload',
-                       'AgentTokenRevokedPayload']} })
+                       'AgentTokenRevokedPayload',
+                       'AccountModuleRoleGrantedPayload',
+                       'AccountModuleRoleRevokedPayload']} })
 
 
 class RecordCorrectedPayload(EventPayload):
@@ -2004,7 +2009,9 @@ class RecordCorrectedPayload(EventPayload):
                        'AccountRolesSetPayload',
                        'AccountDisabledPayload',
                        'AccountEnabledPayload',
-                       'AgentTokenRevokedPayload']} })
+                       'AgentTokenRevokedPayload',
+                       'AccountModuleRoleGrantedPayload',
+                       'AccountModuleRoleRevokedPayload']} })
 
 
 class PsetValuesSetPayload(EventPayload):
@@ -2192,7 +2199,9 @@ class LinkDeclinedPayload(LinkPayload):
                        'AccountRolesSetPayload',
                        'AccountDisabledPayload',
                        'AccountEnabledPayload',
-                       'AgentTokenRevokedPayload']} })
+                       'AgentTokenRevokedPayload',
+                       'AccountModuleRoleGrantedPayload',
+                       'AccountModuleRoleRevokedPayload']} })
 
 
 class LinkRepinnedPayload(LinkPayload):
@@ -2289,7 +2298,9 @@ class LinkFlaggedPayload(LinkPayload):
                        'AccountRolesSetPayload',
                        'AccountDisabledPayload',
                        'AccountEnabledPayload',
-                       'AgentTokenRevokedPayload']} })
+                       'AgentTokenRevokedPayload',
+                       'AccountModuleRoleGrantedPayload',
+                       'AccountModuleRoleRevokedPayload']} })
 
 
 class LinkRetractedPayload(LinkPayload):
@@ -2342,7 +2353,9 @@ class LinkRetractedPayload(LinkPayload):
                        'AccountRolesSetPayload',
                        'AccountDisabledPayload',
                        'AccountEnabledPayload',
-                       'AgentTokenRevokedPayload']} })
+                       'AgentTokenRevokedPayload',
+                       'AccountModuleRoleGrantedPayload',
+                       'AccountModuleRoleRevokedPayload']} })
 
 
 class WorkflowTransitionedPayload(EventPayload):
@@ -2412,7 +2425,9 @@ class WorkflowTransitionedPayload(EventPayload):
                        'AccountRolesSetPayload',
                        'AccountDisabledPayload',
                        'AccountEnabledPayload',
-                       'AgentTokenRevokedPayload']} })
+                       'AgentTokenRevokedPayload',
+                       'AccountModuleRoleGrantedPayload',
+                       'AccountModuleRoleRevokedPayload']} })
     conformance: Optional[str] = Field(default=None, description="""Conformance after the transition.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'PsetValuesSetPayload',
                        'WorkflowTransitionedPayload']} })
@@ -2655,7 +2670,9 @@ class FileRejectedPayload(EventPayload):
                        'AccountRolesSetPayload',
                        'AccountDisabledPayload',
                        'AccountEnabledPayload',
-                       'AgentTokenRevokedPayload']} })
+                       'AgentTokenRevokedPayload',
+                       'AccountModuleRoleGrantedPayload',
+                       'AccountModuleRoleRevokedPayload']} })
     report: Optional[Any] = Field(default=None, description="""Scan report.""", json_schema_extra = { "linkml_meta": {'annotations': {'tl:json': {'tag': 'tl:json', 'value': True}},
          'domain_of': ['FileProcessedPayload',
                        'FileRejectedPayload',
@@ -2945,7 +2962,9 @@ class WebhookSubscriptionDisabledPayload(WebhookEventPayload):
                        'AccountRolesSetPayload',
                        'AccountDisabledPayload',
                        'AccountEnabledPayload',
-                       'AgentTokenRevokedPayload']} })
+                       'AgentTokenRevokedPayload',
+                       'AccountModuleRoleGrantedPayload',
+                       'AccountModuleRoleRevokedPayload']} })
     detail: Optional[str] = Field(default=None, description="""Free-text detail, for example the failure counts.""", json_schema_extra = { "linkml_meta": {'domain_of': ['WebhookSubscriptionDisabledPayload',
                        'CloudEventData',
                        'AuthAudit']} })
@@ -3192,7 +3211,9 @@ class IntegrationAppRevisedPayload(IntegrationAppEventPayload):
                        'AccountRolesSetPayload',
                        'AccountDisabledPayload',
                        'AccountEnabledPayload',
-                       'AgentTokenRevokedPayload']} })
+                       'AgentTokenRevokedPayload',
+                       'AccountModuleRoleGrantedPayload',
+                       'AccountModuleRoleRevokedPayload']} })
 
 
 class IntegrationAppEnabledPayload(IntegrationAppEventPayload):
@@ -3245,7 +3266,9 @@ class IntegrationAppEnabledPayload(IntegrationAppEventPayload):
                        'AccountRolesSetPayload',
                        'AccountDisabledPayload',
                        'AccountEnabledPayload',
-                       'AgentTokenRevokedPayload']} })
+                       'AgentTokenRevokedPayload',
+                       'AccountModuleRoleGrantedPayload',
+                       'AccountModuleRoleRevokedPayload']} })
 
 
 class IntegrationAppDisabledPayload(IntegrationAppEventPayload):
@@ -3298,7 +3321,9 @@ class IntegrationAppDisabledPayload(IntegrationAppEventPayload):
                        'AccountRolesSetPayload',
                        'AccountDisabledPayload',
                        'AccountEnabledPayload',
-                       'AgentTokenRevokedPayload']} })
+                       'AgentTokenRevokedPayload',
+                       'AccountModuleRoleGrantedPayload',
+                       'AccountModuleRoleRevokedPayload']} })
 
 
 class ActionDefinitionDefinedPayload(ActionDefinitionEventPayload):
@@ -3552,7 +3577,9 @@ class ActionDefinitionRevisedPayload(ActionDefinitionEventPayload):
                        'AccountRolesSetPayload',
                        'AccountDisabledPayload',
                        'AccountEnabledPayload',
-                       'AgentTokenRevokedPayload']} })
+                       'AgentTokenRevokedPayload',
+                       'AccountModuleRoleGrantedPayload',
+                       'AccountModuleRoleRevokedPayload']} })
 
 
 class ActionDefinitionRetiredPayload(ActionDefinitionEventPayload):
@@ -3613,7 +3640,9 @@ class ActionDefinitionRetiredPayload(ActionDefinitionEventPayload):
                        'AccountRolesSetPayload',
                        'AccountDisabledPayload',
                        'AccountEnabledPayload',
-                       'AgentTokenRevokedPayload']} })
+                       'AgentTokenRevokedPayload',
+                       'AccountModuleRoleGrantedPayload',
+                       'AccountModuleRoleRevokedPayload']} })
 
 
 class ActionDefinitionSecretRotatedPayload(ActionDefinitionEventPayload):
@@ -4015,7 +4044,9 @@ class RuleRevisedPayload(RuleEventPayload):
                        'AccountRolesSetPayload',
                        'AccountDisabledPayload',
                        'AccountEnabledPayload',
-                       'AgentTokenRevokedPayload']} })
+                       'AgentTokenRevokedPayload',
+                       'AccountModuleRoleGrantedPayload',
+                       'AccountModuleRoleRevokedPayload']} })
 
 
 class RuleEnabledPayload(RuleEventPayload):
@@ -4076,7 +4107,9 @@ class RuleEnabledPayload(RuleEventPayload):
                        'AccountRolesSetPayload',
                        'AccountDisabledPayload',
                        'AccountEnabledPayload',
-                       'AgentTokenRevokedPayload']} })
+                       'AgentTokenRevokedPayload',
+                       'AccountModuleRoleGrantedPayload',
+                       'AccountModuleRoleRevokedPayload']} })
 
 
 class RuleDisabledPayload(RuleEventPayload):
@@ -4137,7 +4170,9 @@ class RuleDisabledPayload(RuleEventPayload):
                        'AccountRolesSetPayload',
                        'AccountDisabledPayload',
                        'AccountEnabledPayload',
-                       'AgentTokenRevokedPayload']} })
+                       'AgentTokenRevokedPayload',
+                       'AccountModuleRoleGrantedPayload',
+                       'AccountModuleRoleRevokedPayload']} })
 
 
 class RuleBlockedPayload(RuleEventPayload):
@@ -4412,7 +4447,9 @@ class InboundEndpointRevisedPayload(InboundEndpointEventPayload):
                        'AccountRolesSetPayload',
                        'AccountDisabledPayload',
                        'AccountEnabledPayload',
-                       'AgentTokenRevokedPayload']} })
+                       'AgentTokenRevokedPayload',
+                       'AccountModuleRoleGrantedPayload',
+                       'AccountModuleRoleRevokedPayload']} })
 
 
 class InboundEndpointEnabledPayload(InboundEndpointEventPayload):
@@ -4477,7 +4514,9 @@ class InboundEndpointEnabledPayload(InboundEndpointEventPayload):
                        'AccountRolesSetPayload',
                        'AccountDisabledPayload',
                        'AccountEnabledPayload',
-                       'AgentTokenRevokedPayload']} })
+                       'AgentTokenRevokedPayload',
+                       'AccountModuleRoleGrantedPayload',
+                       'AccountModuleRoleRevokedPayload']} })
 
 
 class InboundEndpointDisabledPayload(InboundEndpointEventPayload):
@@ -4542,7 +4581,9 @@ class InboundEndpointDisabledPayload(InboundEndpointEventPayload):
                        'AccountRolesSetPayload',
                        'AccountDisabledPayload',
                        'AccountEnabledPayload',
-                       'AgentTokenRevokedPayload']} })
+                       'AgentTokenRevokedPayload',
+                       'AccountModuleRoleGrantedPayload',
+                       'AccountModuleRoleRevokedPayload']} })
 
 
 class InboundEndpointSecretRotatedPayload(InboundEndpointEventPayload):
@@ -4926,7 +4967,9 @@ class EnricherRevisedPayload(EnricherEventPayload):
                        'AccountRolesSetPayload',
                        'AccountDisabledPayload',
                        'AccountEnabledPayload',
-                       'AgentTokenRevokedPayload']} })
+                       'AgentTokenRevokedPayload',
+                       'AccountModuleRoleGrantedPayload',
+                       'AccountModuleRoleRevokedPayload']} })
 
 
 class EnricherEnabledPayload(EnricherEventPayload):
@@ -4985,7 +5028,9 @@ class EnricherEnabledPayload(EnricherEventPayload):
                        'AccountRolesSetPayload',
                        'AccountDisabledPayload',
                        'AccountEnabledPayload',
-                       'AgentTokenRevokedPayload']} })
+                       'AgentTokenRevokedPayload',
+                       'AccountModuleRoleGrantedPayload',
+                       'AccountModuleRoleRevokedPayload']} })
 
 
 class EnricherDisabledPayload(EnricherEventPayload):
@@ -5044,7 +5089,9 @@ class EnricherDisabledPayload(EnricherEventPayload):
                        'AccountRolesSetPayload',
                        'AccountDisabledPayload',
                        'AccountEnabledPayload',
-                       'AgentTokenRevokedPayload']} })
+                       'AgentTokenRevokedPayload',
+                       'AccountModuleRoleGrantedPayload',
+                       'AccountModuleRoleRevokedPayload']} })
 
 
 class EnrichmentProposedPayload(EnrichmentEventPayload):
@@ -5186,7 +5233,9 @@ class EnrichmentRejectedPayload(EnrichmentEventPayload):
                        'AccountRolesSetPayload',
                        'AccountDisabledPayload',
                        'AccountEnabledPayload',
-                       'AgentTokenRevokedPayload']} })
+                       'AgentTokenRevokedPayload',
+                       'AccountModuleRoleGrantedPayload',
+                       'AccountModuleRoleRevokedPayload']} })
 
 
 class FeedTag(ConfiguredBaseModel):
@@ -5488,7 +5537,9 @@ class FeedRetractedPayload(EventPayload):
                        'AccountRolesSetPayload',
                        'AccountDisabledPayload',
                        'AccountEnabledPayload',
-                       'AgentTokenRevokedPayload']} })
+                       'AgentTokenRevokedPayload',
+                       'AccountModuleRoleGrantedPayload',
+                       'AccountModuleRoleRevokedPayload']} })
 
 
 class FeedReactedPayload(EventPayload):
@@ -5589,6 +5640,7 @@ class FeedItemRow(ConfiguredBaseModel):
                        'EnrichmentValue',
                        'OutboxEvent',
                        'WebhookDelivery',
+                       'AccountModuleRole',
                        'RuleFiring']} })
     summary: str = Field(default=..., description="""Body of a post (empty once retracted) or the rendered summary of a card.""", json_schema_extra = { "linkml_meta": {'domain_of': ['EventCard',
                        'FeedItemRow',
@@ -5734,6 +5786,7 @@ class Hashtag(ConfiguredBaseModel):
                        'EnrichmentValue',
                        'OutboxEvent',
                        'WebhookDelivery',
+                       'AccountModuleRole',
                        'RuleFiring']} })
 
 
@@ -6070,7 +6123,9 @@ class ThreadMessageRetractedPayload(EventPayload):
                        'AccountRolesSetPayload',
                        'AccountDisabledPayload',
                        'AccountEnabledPayload',
-                       'AgentTokenRevokedPayload']} })
+                       'AgentTokenRevokedPayload',
+                       'AccountModuleRoleGrantedPayload',
+                       'AccountModuleRoleRevokedPayload']} })
 
 
 class ThreadDispatchedPayload(EventPayload):
@@ -6349,6 +6404,7 @@ class ThreadMessageRow(ConfiguredBaseModel):
                        'EnrichmentValue',
                        'OutboxEvent',
                        'WebhookDelivery',
+                       'AccountModuleRole',
                        'RuleFiring']} })
     author: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['ActivityPost',
                        'FeedPostedPayload',
@@ -6566,7 +6622,9 @@ class ProposalRejectedPayload(EventPayload):
                        'AccountRolesSetPayload',
                        'AccountDisabledPayload',
                        'AccountEnabledPayload',
-                       'AgentTokenRevokedPayload']} })
+                       'AgentTokenRevokedPayload',
+                       'AccountModuleRoleGrantedPayload',
+                       'AccountModuleRoleRevokedPayload']} })
 
 
 class ProposalFailedPayload(EventPayload):
@@ -6733,7 +6791,9 @@ class ProposalRow(ConfiguredBaseModel):
                        'AccountRolesSetPayload',
                        'AccountDisabledPayload',
                        'AccountEnabledPayload',
-                       'AgentTokenRevokedPayload']} })
+                       'AgentTokenRevokedPayload',
+                       'AccountModuleRoleGrantedPayload',
+                       'AccountModuleRoleRevokedPayload']} })
     result_stream_id: Optional[str] = Field(default=None, description="""Accepted only; the stream the command wrote to.""", json_schema_extra = { "linkml_meta": {'domain_of': ['ProposalAcceptedPayload', 'ProposalRow']} })
     seq: int = Field(default=..., description="""`seq` of `Proposal.Created`.""", json_schema_extra = { "linkml_meta": {'annotations': {'tl:indexed': {'tag': 'tl:indexed', 'value': True}},
          'domain_of': ['Event',
@@ -6748,6 +6808,7 @@ class ProposalRow(ConfiguredBaseModel):
                        'EnrichmentValue',
                        'OutboxEvent',
                        'WebhookDelivery',
+                       'AccountModuleRole',
                        'RuleFiring']} })
     version: Optional[int] = Field(default=None, description="""Ledger `stream_version` of the proposal stream after the last event applied.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'Link',
@@ -6949,7 +7010,9 @@ class SettingChangedPayload(EventPayload):
                        'AccountRolesSetPayload',
                        'AccountDisabledPayload',
                        'AccountEnabledPayload',
-                       'AgentTokenRevokedPayload']} })
+                       'AgentTokenRevokedPayload',
+                       'AccountModuleRoleGrantedPayload',
+                       'AccountModuleRoleRevokedPayload']} })
     applies_at: Optional[datetime ] = Field(default=None, description="""When the change takes effect, if later than the time it was recorded.""", json_schema_extra = { "linkml_meta": {'domain_of': ['SettingChangedPayload', 'SettingChangeRow']} })
     accept_risk: Optional[bool] = Field(default=None, description="""The person confirmed \"I accept the risk\" (a `dangerous` key).""", json_schema_extra = { "linkml_meta": {'domain_of': ['SettingChangedPayload', 'SettingChangeRow']} })
 
@@ -7027,7 +7090,9 @@ class SettingLockedPayload(EventPayload):
                        'AccountRolesSetPayload',
                        'AccountDisabledPayload',
                        'AccountEnabledPayload',
-                       'AgentTokenRevokedPayload']} })
+                       'AgentTokenRevokedPayload',
+                       'AccountModuleRoleGrantedPayload',
+                       'AccountModuleRoleRevokedPayload']} })
 
 
 class SettingChangeRow(ConfiguredBaseModel):
@@ -7139,7 +7204,9 @@ class SettingChangeRow(ConfiguredBaseModel):
                        'AccountRolesSetPayload',
                        'AccountDisabledPayload',
                        'AccountEnabledPayload',
-                       'AgentTokenRevokedPayload']} })
+                       'AgentTokenRevokedPayload',
+                       'AccountModuleRoleGrantedPayload',
+                       'AccountModuleRoleRevokedPayload']} })
     actor: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['Event',
                        'EventCard',
                        'FeedItemRow',
@@ -7173,6 +7240,7 @@ class SettingChangeRow(ConfiguredBaseModel):
                        'EnrichmentValue',
                        'OutboxEvent',
                        'WebhookDelivery',
+                       'AccountModuleRole',
                        'RuleFiring']} })
     version: int = Field(default=..., description="""Ledger `stream_version` of the setting stream after this event.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'Link',
@@ -7272,7 +7340,9 @@ class SettingLockRow(ConfiguredBaseModel):
                        'AccountRolesSetPayload',
                        'AccountDisabledPayload',
                        'AccountEnabledPayload',
-                       'AgentTokenRevokedPayload']} })
+                       'AgentTokenRevokedPayload',
+                       'AccountModuleRoleGrantedPayload',
+                       'AccountModuleRoleRevokedPayload']} })
     actor: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['Event',
                        'EventCard',
                        'FeedItemRow',
@@ -7293,6 +7363,7 @@ class SettingLockRow(ConfiguredBaseModel):
                        'EnrichmentValue',
                        'OutboxEvent',
                        'WebhookDelivery',
+                       'AccountModuleRole',
                        'RuleFiring']} })
     version: int = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'Link',
@@ -7479,7 +7550,9 @@ class File(ConfiguredBaseModel):
                        'AccountRolesSetPayload',
                        'AccountDisabledPayload',
                        'AccountEnabledPayload',
-                       'AgentTokenRevokedPayload']} })
+                       'AgentTokenRevokedPayload',
+                       'AccountModuleRoleGrantedPayload',
+                       'AccountModuleRoleRevokedPayload']} })
     uploaded_by: str = Field(default=..., description="""Actor of the `File.Uploaded` event; the only reader while the file is quarantined.""", json_schema_extra = { "linkml_meta": {'domain_of': ['File']} })
     uploaded_at: datetime  = Field(default=..., description="""Time of the `File.Uploaded` event (system time).""", json_schema_extra = { "linkml_meta": {'domain_of': ['File']} })
     processed_at: Optional[datetime ] = Field(default=None, description="""Time of the `File.Processed` or `File.Rejected` event.""", json_schema_extra = { "linkml_meta": {'domain_of': ['File']} })
@@ -8505,6 +8578,7 @@ class ActionInvocation(ConfiguredBaseModel):
                        'EnrichmentValue',
                        'OutboxEvent',
                        'WebhookDelivery',
+                       'AccountModuleRole',
                        'RuleFiring']} })
     version: int = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'Link',
@@ -9142,6 +9216,7 @@ class InboundEndpointVersion(ConfiguredBaseModel):
                        'EnrichmentValue',
                        'OutboxEvent',
                        'WebhookDelivery',
+                       'AccountModuleRole',
                        'RuleFiring']} })
 
 
@@ -9488,7 +9563,9 @@ class EnrichmentValue(ConfiguredBaseModel):
                        'AccountRolesSetPayload',
                        'AccountDisabledPayload',
                        'AccountEnabledPayload',
-                       'AgentTokenRevokedPayload']} })
+                       'AgentTokenRevokedPayload',
+                       'AccountModuleRoleGrantedPayload',
+                       'AccountModuleRoleRevokedPayload']} })
     seq: int = Field(default=..., description="""`seq` of `Enrichment.Proposed`.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Event',
                        'FeedItemRow',
                        'Hashtag',
@@ -9501,6 +9578,7 @@ class EnrichmentValue(ConfiguredBaseModel):
                        'EnrichmentValue',
                        'OutboxEvent',
                        'WebhookDelivery',
+                       'AccountModuleRole',
                        'RuleFiring']} })
     version: int = Field(default=..., description="""Ledger stream version after the last event applied.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'Link',
@@ -9579,6 +9657,7 @@ class OutboxEvent(ConfiguredBaseModel):
                        'EnrichmentValue',
                        'OutboxEvent',
                        'WebhookDelivery',
+                       'AccountModuleRole',
                        'RuleFiring']} })
     event_id: str = Field(default=..., description="""Ledger event id; the CloudEvents `id` and the Standard Webhooks `webhook-id`, so receivers dedupe on it.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Event', 'OutboxEvent', 'WebhookDelivery', 'RuleFiring']} })
     scope: str = Field(default=..., json_schema_extra = { "linkml_meta": {'annotations': {'tl:indexed': {'tag': 'tl:indexed', 'value': True}},
@@ -9704,6 +9783,7 @@ class WebhookDelivery(ConfiguredBaseModel):
                        'EnrichmentValue',
                        'OutboxEvent',
                        'WebhookDelivery',
+                       'AccountModuleRole',
                        'RuleFiring']} })
     event_id: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['Event', 'OutboxEvent', 'WebhookDelivery', 'RuleFiring']} })
     subject_id: str = Field(default=..., description="""The delivery ordering key (see `OutboxEvent.subject_id`).""", json_schema_extra = { "linkml_meta": {'domain_of': ['OutboxEvent', 'WebhookDelivery']} })
@@ -10329,7 +10409,9 @@ class TypeRegistrationDeprecatedPayload(EventPayload):
                        'AccountRolesSetPayload',
                        'AccountDisabledPayload',
                        'AccountEnabledPayload',
-                       'AgentTokenRevokedPayload']} })
+                       'AgentTokenRevokedPayload',
+                       'AccountModuleRoleGrantedPayload',
+                       'AccountModuleRoleRevokedPayload']} })
 
 
 class RecordBodyStoredPayload(EventPayload):
@@ -10515,7 +10597,9 @@ class TypeRegistrationRow(ConfiguredBaseModel):
                        'AccountRolesSetPayload',
                        'AccountDisabledPayload',
                        'AccountEnabledPayload',
-                       'AgentTokenRevokedPayload']} })
+                       'AgentTokenRevokedPayload',
+                       'AccountModuleRoleGrantedPayload',
+                       'AccountModuleRoleRevokedPayload']} })
     first_seq: int = Field(default=..., description="""`seq` of the first event of the stream.""", json_schema_extra = { "linkml_meta": {'domain_of': ['FeedItemRow', 'ThreadParticipantRow', 'TypeRegistrationRow']} })
     last_seq: int = Field(default=..., description="""`seq` of the last event of the stream.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'PsetValue',
@@ -10769,7 +10853,9 @@ class BodyQuarantine(ConfiguredBaseModel):
                        'AccountRolesSetPayload',
                        'AccountDisabledPayload',
                        'AccountEnabledPayload',
-                       'AgentTokenRevokedPayload']} })
+                       'AgentTokenRevokedPayload',
+                       'AccountModuleRoleGrantedPayload',
+                       'AccountModuleRoleRevokedPayload']} })
     detected_at: datetime  = Field(default=..., description="""When the mismatch was found.""", json_schema_extra = { "linkml_meta": {'domain_of': ['BodyQuarantine']} })
 
 
@@ -10787,6 +10873,7 @@ class Account(ConfiguredBaseModel):
 
     account_id: str = Field(default=..., description="""Immutable id; the ledger stream is `account:<account_id>`.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Account',
                        'AgentToken',
+                       'AccountModuleRole',
                        'AuthCredential',
                        'AuthSession',
                        'AuthAudit',
@@ -10796,7 +10883,9 @@ class Account(ConfiguredBaseModel):
                        'AccountEnabledPayload',
                        'AccountPasswordChangedPayload',
                        'AgentTokenIssuedPayload',
-                       'AgentTokenRevokedPayload']} })
+                       'AgentTokenRevokedPayload',
+                       'AccountModuleRoleGrantedPayload',
+                       'AccountModuleRoleRevokedPayload']} })
     username: str = Field(default=..., description="""Normalised (NFKC, lower case) and matching `[a-z0-9][a-z0-9_.@-]{0,63}`.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Account', 'AccountCreatedPayload']} })
     display_name: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['Account', 'AccountCreatedPayload']} })
     kind: AccountKind = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['SchemaPackagePublishedPayload',
@@ -10941,6 +11030,7 @@ class AgentToken(ConfiguredBaseModel):
     account_id: str = Field(default=..., json_schema_extra = { "linkml_meta": {'annotations': {'tl:indexed': {'tag': 'tl:indexed', 'value': True}},
          'domain_of': ['Account',
                        'AgentToken',
+                       'AccountModuleRole',
                        'AuthCredential',
                        'AuthSession',
                        'AuthAudit',
@@ -10950,7 +11040,9 @@ class AgentToken(ConfiguredBaseModel):
                        'AccountEnabledPayload',
                        'AccountPasswordChangedPayload',
                        'AgentTokenIssuedPayload',
-                       'AgentTokenRevokedPayload']} })
+                       'AgentTokenRevokedPayload',
+                       'AccountModuleRoleGrantedPayload',
+                       'AccountModuleRoleRevokedPayload']} })
     label: str = Field(default=..., description="""What the token is for; shown in lists.""", json_schema_extra = { "linkml_meta": {'domain_of': ['IntegrationAppRegisteredPayload',
                        'ActionDefinitionDefinedPayload',
                        'IntegrationApp',
@@ -10994,6 +11086,66 @@ class AgentToken(ConfiguredBaseModel):
                        'EnrichmentCursor']} })
 
 
+class AccountModuleRole(ConfiguredBaseModel):
+    """
+    One explicit module role granted to an account on a project and module (ADR-0021, `specs/roles-mvp.md` section 3). `project` is `project:<id>` or, for a module that declares `company_roles`, `company`; `module` is a module name or `*` (every module of the project). The row is the key `(account_id, project, module, role)`: the unique index below. Written by the `Account.ModuleRoleGranted` and `Account.ModuleRoleRevoked` events; a revoke deletes the row.
+    """
+    linkml_meta: ClassVar[LinkMLMeta] = LinkMLMeta({'annotations': {'tl:current_state': {'tag': 'tl:current_state', 'value': True},
+                         'tl:ix_scope': {'tag': 'tl:ix_scope',
+                                         'value': 'project, module'},
+                         'tl:table': {'tag': 'tl:table',
+                                      'value': 'cur_account_module_role'}},
+         'from_schema': 'https://example.org/throughline/core/auth',
+         'unique_keys': {'grant': {'description': 'One row per (account, project, '
+                                                  'module, role).',
+                                   'unique_key_name': 'grant',
+                                   'unique_key_slots': ['account_id',
+                                                        'project',
+                                                        'module',
+                                                        'role']}}})
+
+    account_id: str = Field(default=..., description="""The account that holds the role.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Account',
+                       'AgentToken',
+                       'AccountModuleRole',
+                       'AuthCredential',
+                       'AuthSession',
+                       'AuthAudit',
+                       'AccountCreatedPayload',
+                       'AccountRolesSetPayload',
+                       'AccountDisabledPayload',
+                       'AccountEnabledPayload',
+                       'AccountPasswordChangedPayload',
+                       'AgentTokenIssuedPayload',
+                       'AgentTokenRevokedPayload',
+                       'AccountModuleRoleGrantedPayload',
+                       'AccountModuleRoleRevokedPayload']} })
+    project: str = Field(default=..., description="""`project:<id>` or `company`.""", json_schema_extra = { "linkml_meta": {'domain_of': ['AccountModuleRole',
+                       'AccountModuleRoleGrantedPayload',
+                       'AccountModuleRoleRevokedPayload']} })
+    module: str = Field(default=..., description="""A module name or `*`.""", json_schema_extra = { "linkml_meta": {'domain_of': ['AccountModuleRole',
+                       'AccountModuleRoleGrantedPayload',
+                       'AccountModuleRoleRevokedPayload']} })
+    role: str = Field(default=..., description="""A role of `schema/settings/module-roles.yaml`.""", json_schema_extra = { "linkml_meta": {'domain_of': ['AccountModuleRole',
+                       'AccountModuleRoleGrantedPayload',
+                       'AccountModuleRoleRevokedPayload']} })
+    granted_by: str = Field(default=..., description="""Actor that granted it.""", json_schema_extra = { "linkml_meta": {'domain_of': ['AccountModuleRole']} })
+    granted_at: str = Field(default=..., description="""ISO-8601 UTC.""", json_schema_extra = { "linkml_meta": {'domain_of': ['AccountModuleRole']} })
+    seq: int = Field(default=..., description="""Ledger sequence of the grant event.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Event',
+                       'FeedItemRow',
+                       'Hashtag',
+                       'ThreadMessageRow',
+                       'ProposalRow',
+                       'SettingChangeRow',
+                       'SettingLockRow',
+                       'ActionInvocation',
+                       'InboundEndpointVersion',
+                       'EnrichmentValue',
+                       'OutboxEvent',
+                       'WebhookDelivery',
+                       'AccountModuleRole',
+                       'RuleFiring']} })
+
+
 class AuthCredential(ConfiguredBaseModel):
     """
     A password hash. Operational; never in the ledger, the archive, the lake or webhooks.
@@ -11004,6 +11156,7 @@ class AuthCredential(ConfiguredBaseModel):
 
     account_id: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['Account',
                        'AgentToken',
+                       'AccountModuleRole',
                        'AuthCredential',
                        'AuthSession',
                        'AuthAudit',
@@ -11013,7 +11166,9 @@ class AuthCredential(ConfiguredBaseModel):
                        'AccountEnabledPayload',
                        'AccountPasswordChangedPayload',
                        'AgentTokenIssuedPayload',
-                       'AgentTokenRevokedPayload']} })
+                       'AgentTokenRevokedPayload',
+                       'AccountModuleRoleGrantedPayload',
+                       'AccountModuleRoleRevokedPayload']} })
     password_hash: str = Field(default=..., description="""`scrypt$<log2 N>$<r>$<p>$<salt>$<hash>` (ADR-0009 section 2).""", json_schema_extra = { "linkml_meta": {'domain_of': ['AuthCredential']} })
     updated_at: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'PsetValue',
@@ -11044,6 +11199,7 @@ class AuthSession(ConfiguredBaseModel):
     account_id: str = Field(default=..., json_schema_extra = { "linkml_meta": {'annotations': {'tl:indexed': {'tag': 'tl:indexed', 'value': True}},
          'domain_of': ['Account',
                        'AgentToken',
+                       'AccountModuleRole',
                        'AuthCredential',
                        'AuthSession',
                        'AuthAudit',
@@ -11053,7 +11209,9 @@ class AuthSession(ConfiguredBaseModel):
                        'AccountEnabledPayload',
                        'AccountPasswordChangedPayload',
                        'AgentTokenIssuedPayload',
-                       'AgentTokenRevokedPayload']} })
+                       'AgentTokenRevokedPayload',
+                       'AccountModuleRoleGrantedPayload',
+                       'AccountModuleRoleRevokedPayload']} })
     created_at: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'Link',
                        'ThreadRow',
@@ -11143,6 +11301,7 @@ class AuthAudit(ConfiguredBaseModel):
     username_key: Optional[str] = Field(default=None, description="""The normalised username the attempt named, whether or not an account exists, or `<invalid>` when what was typed cannot be a username (it may have been a password, so it is never kept).""", json_schema_extra = { "linkml_meta": {'domain_of': ['AuthAttempt', 'AuthAudit']} })
     account_id: Optional[str] = Field(default=None, json_schema_extra = { "linkml_meta": {'domain_of': ['Account',
                        'AgentToken',
+                       'AccountModuleRole',
                        'AuthCredential',
                        'AuthSession',
                        'AuthAudit',
@@ -11152,7 +11311,9 @@ class AuthAudit(ConfiguredBaseModel):
                        'AccountEnabledPayload',
                        'AccountPasswordChangedPayload',
                        'AgentTokenIssuedPayload',
-                       'AgentTokenRevokedPayload']} })
+                       'AgentTokenRevokedPayload',
+                       'AccountModuleRoleGrantedPayload',
+                       'AccountModuleRoleRevokedPayload']} })
     actor: Optional[str] = Field(default=None, description="""The actor that did it, when there is one.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Event',
                        'EventCard',
                        'FeedItemRow',
@@ -11190,6 +11351,7 @@ class AccountCreatedPayload(AccountEventPayload):
 
     account_id: str = Field(default=..., description="""Account id.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Account',
                        'AgentToken',
+                       'AccountModuleRole',
                        'AuthCredential',
                        'AuthSession',
                        'AuthAudit',
@@ -11199,7 +11361,9 @@ class AccountCreatedPayload(AccountEventPayload):
                        'AccountEnabledPayload',
                        'AccountPasswordChangedPayload',
                        'AgentTokenIssuedPayload',
-                       'AgentTokenRevokedPayload']} })
+                       'AgentTokenRevokedPayload',
+                       'AccountModuleRoleGrantedPayload',
+                       'AccountModuleRoleRevokedPayload']} })
     username: str = Field(default=..., description="""Normalised username.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Account', 'AccountCreatedPayload']} })
     display_name: str = Field(default=..., description="""Name shown in lists.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Account', 'AccountCreatedPayload']} })
     kind: AccountKind = Field(default=..., description="""person, agent or sim.""", json_schema_extra = { "linkml_meta": {'domain_of': ['SchemaPackagePublishedPayload',
@@ -11229,6 +11393,7 @@ class AccountRolesSetPayload(AccountEventPayload):
 
     account_id: str = Field(default=..., description="""Account id.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Account',
                        'AgentToken',
+                       'AccountModuleRole',
                        'AuthCredential',
                        'AuthSession',
                        'AuthAudit',
@@ -11238,7 +11403,9 @@ class AccountRolesSetPayload(AccountEventPayload):
                        'AccountEnabledPayload',
                        'AccountPasswordChangedPayload',
                        'AgentTokenIssuedPayload',
-                       'AgentTokenRevokedPayload']} })
+                       'AgentTokenRevokedPayload',
+                       'AccountModuleRoleGrantedPayload',
+                       'AccountModuleRoleRevokedPayload']} })
     roles: Any = Field(default=..., description="""The new list of roles.""", json_schema_extra = { "linkml_meta": {'annotations': {'tl:json': {'tag': 'tl:json', 'value': True}},
          'domain_of': ['Account', 'AccountCreatedPayload', 'AccountRolesSetPayload']} })
     reason: Optional[str] = Field(default=None, description="""Why the roles changed.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Link',
@@ -11281,7 +11448,9 @@ class AccountRolesSetPayload(AccountEventPayload):
                        'AccountRolesSetPayload',
                        'AccountDisabledPayload',
                        'AccountEnabledPayload',
-                       'AgentTokenRevokedPayload']} })
+                       'AgentTokenRevokedPayload',
+                       'AccountModuleRoleGrantedPayload',
+                       'AccountModuleRoleRevokedPayload']} })
 
 
 class AccountDisabledPayload(AccountEventPayload):
@@ -11297,6 +11466,7 @@ class AccountDisabledPayload(AccountEventPayload):
 
     account_id: str = Field(default=..., description="""Account id.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Account',
                        'AgentToken',
+                       'AccountModuleRole',
                        'AuthCredential',
                        'AuthSession',
                        'AuthAudit',
@@ -11306,7 +11476,9 @@ class AccountDisabledPayload(AccountEventPayload):
                        'AccountEnabledPayload',
                        'AccountPasswordChangedPayload',
                        'AgentTokenIssuedPayload',
-                       'AgentTokenRevokedPayload']} })
+                       'AgentTokenRevokedPayload',
+                       'AccountModuleRoleGrantedPayload',
+                       'AccountModuleRoleRevokedPayload']} })
     reason: Optional[str] = Field(default=None, description="""Why it was disabled.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Link',
                        'RecordVoidedPayload',
                        'RecordCorrectedPayload',
@@ -11347,7 +11519,9 @@ class AccountDisabledPayload(AccountEventPayload):
                        'AccountRolesSetPayload',
                        'AccountDisabledPayload',
                        'AccountEnabledPayload',
-                       'AgentTokenRevokedPayload']} })
+                       'AgentTokenRevokedPayload',
+                       'AccountModuleRoleGrantedPayload',
+                       'AccountModuleRoleRevokedPayload']} })
 
 
 class AccountEnabledPayload(AccountEventPayload):
@@ -11363,6 +11537,7 @@ class AccountEnabledPayload(AccountEventPayload):
 
     account_id: str = Field(default=..., description="""Account id.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Account',
                        'AgentToken',
+                       'AccountModuleRole',
                        'AuthCredential',
                        'AuthSession',
                        'AuthAudit',
@@ -11372,7 +11547,9 @@ class AccountEnabledPayload(AccountEventPayload):
                        'AccountEnabledPayload',
                        'AccountPasswordChangedPayload',
                        'AgentTokenIssuedPayload',
-                       'AgentTokenRevokedPayload']} })
+                       'AgentTokenRevokedPayload',
+                       'AccountModuleRoleGrantedPayload',
+                       'AccountModuleRoleRevokedPayload']} })
     reason: Optional[str] = Field(default=None, description="""Why it was enabled.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Link',
                        'RecordVoidedPayload',
                        'RecordCorrectedPayload',
@@ -11413,7 +11590,9 @@ class AccountEnabledPayload(AccountEventPayload):
                        'AccountRolesSetPayload',
                        'AccountDisabledPayload',
                        'AccountEnabledPayload',
-                       'AgentTokenRevokedPayload']} })
+                       'AgentTokenRevokedPayload',
+                       'AccountModuleRoleGrantedPayload',
+                       'AccountModuleRoleRevokedPayload']} })
 
 
 class AccountPasswordChangedPayload(AccountEventPayload):
@@ -11429,6 +11608,7 @@ class AccountPasswordChangedPayload(AccountEventPayload):
 
     account_id: str = Field(default=..., description="""Account id.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Account',
                        'AgentToken',
+                       'AccountModuleRole',
                        'AuthCredential',
                        'AuthSession',
                        'AuthAudit',
@@ -11438,7 +11618,9 @@ class AccountPasswordChangedPayload(AccountEventPayload):
                        'AccountEnabledPayload',
                        'AccountPasswordChangedPayload',
                        'AgentTokenIssuedPayload',
-                       'AgentTokenRevokedPayload']} })
+                       'AgentTokenRevokedPayload',
+                       'AccountModuleRoleGrantedPayload',
+                       'AccountModuleRoleRevokedPayload']} })
     by: str = Field(default=..., description="""Actor that changed it.""", json_schema_extra = { "linkml_meta": {'domain_of': ['InboundRetriedPayload',
                        'EnrichmentAcceptedPayload',
                        'EnrichmentRejectedPayload',
@@ -11468,6 +11650,7 @@ class AgentTokenIssuedPayload(AccountEventPayload):
                        'AgentTokenRevokedPayload']} })
     account_id: str = Field(default=..., description="""The agent account.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Account',
                        'AgentToken',
+                       'AccountModuleRole',
                        'AuthCredential',
                        'AuthSession',
                        'AuthAudit',
@@ -11477,7 +11660,9 @@ class AgentTokenIssuedPayload(AccountEventPayload):
                        'AccountEnabledPayload',
                        'AccountPasswordChangedPayload',
                        'AgentTokenIssuedPayload',
-                       'AgentTokenRevokedPayload']} })
+                       'AgentTokenRevokedPayload',
+                       'AccountModuleRoleGrantedPayload',
+                       'AccountModuleRoleRevokedPayload']} })
     label: str = Field(default=..., description="""What the token is for.""", json_schema_extra = { "linkml_meta": {'domain_of': ['IntegrationAppRegisteredPayload',
                        'ActionDefinitionDefinedPayload',
                        'IntegrationApp',
@@ -11511,6 +11696,7 @@ class AgentTokenRevokedPayload(AccountEventPayload):
                        'AgentTokenRevokedPayload']} })
     account_id: str = Field(default=..., description="""The agent account.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Account',
                        'AgentToken',
+                       'AccountModuleRole',
                        'AuthCredential',
                        'AuthSession',
                        'AuthAudit',
@@ -11520,7 +11706,9 @@ class AgentTokenRevokedPayload(AccountEventPayload):
                        'AccountEnabledPayload',
                        'AccountPasswordChangedPayload',
                        'AgentTokenIssuedPayload',
-                       'AgentTokenRevokedPayload']} })
+                       'AgentTokenRevokedPayload',
+                       'AccountModuleRoleGrantedPayload',
+                       'AccountModuleRoleRevokedPayload']} })
     reason: Optional[str] = Field(default=None, description="""Why it was revoked.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Link',
                        'RecordVoidedPayload',
                        'RecordCorrectedPayload',
@@ -11561,7 +11749,173 @@ class AgentTokenRevokedPayload(AccountEventPayload):
                        'AccountRolesSetPayload',
                        'AccountDisabledPayload',
                        'AccountEnabledPayload',
-                       'AgentTokenRevokedPayload']} })
+                       'AgentTokenRevokedPayload',
+                       'AccountModuleRoleGrantedPayload',
+                       'AccountModuleRoleRevokedPayload']} })
+
+
+class AccountModuleRoleGrantedPayload(AccountEventPayload):
+    """
+    A module role was granted to an account on a project and module. Internal: never delivered to webhooks.
+    """
+    linkml_meta: ClassVar[LinkMLMeta] = LinkMLMeta({'annotations': {'tl:event_type': {'tag': 'tl:event_type',
+                                           'value': 'Account.ModuleRoleGranted'},
+                         'tl:event_version': {'tag': 'tl:event_version', 'value': '1'}},
+         'examples': [{'value': '{"account_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PA", '
+                                '"module": "documents", "project": "project:P1", '
+                                '"reason": "takes over document control", "role": '
+                                '"superuser"}'}],
+         'from_schema': 'https://example.org/throughline/core/auth'})
+
+    account_id: str = Field(default=..., description="""Account id.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Account',
+                       'AgentToken',
+                       'AccountModuleRole',
+                       'AuthCredential',
+                       'AuthSession',
+                       'AuthAudit',
+                       'AccountCreatedPayload',
+                       'AccountRolesSetPayload',
+                       'AccountDisabledPayload',
+                       'AccountEnabledPayload',
+                       'AccountPasswordChangedPayload',
+                       'AgentTokenIssuedPayload',
+                       'AgentTokenRevokedPayload',
+                       'AccountModuleRoleGrantedPayload',
+                       'AccountModuleRoleRevokedPayload']} })
+    project: str = Field(default=..., description="""`project:<id>`, or `company` for a module that declares company roles.""", json_schema_extra = { "linkml_meta": {'domain_of': ['AccountModuleRole',
+                       'AccountModuleRoleGrantedPayload',
+                       'AccountModuleRoleRevokedPayload']} })
+    module: str = Field(default=..., description="""A module name, or `*` for every module of the project.""", json_schema_extra = { "linkml_meta": {'domain_of': ['AccountModuleRole',
+                       'AccountModuleRoleGrantedPayload',
+                       'AccountModuleRoleRevokedPayload']} })
+    role: str = Field(default=..., description="""A role of the module role table.""", json_schema_extra = { "linkml_meta": {'domain_of': ['AccountModuleRole',
+                       'AccountModuleRoleGrantedPayload',
+                       'AccountModuleRoleRevokedPayload']} })
+    reason: str = Field(default=..., description="""Why the role was granted.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Link',
+                       'RecordVoidedPayload',
+                       'RecordCorrectedPayload',
+                       'LinkDeclinedPayload',
+                       'LinkFlaggedPayload',
+                       'LinkRetractedPayload',
+                       'WorkflowTransitionedPayload',
+                       'FileRejectedPayload',
+                       'WebhookSubscriptionDisabledPayload',
+                       'IntegrationAppRevisedPayload',
+                       'IntegrationAppEnabledPayload',
+                       'IntegrationAppDisabledPayload',
+                       'ActionDefinitionRevisedPayload',
+                       'ActionDefinitionRetiredPayload',
+                       'RuleRevisedPayload',
+                       'RuleEnabledPayload',
+                       'RuleDisabledPayload',
+                       'InboundEndpointRevisedPayload',
+                       'InboundEndpointEnabledPayload',
+                       'InboundEndpointDisabledPayload',
+                       'EnricherRevisedPayload',
+                       'EnricherEnabledPayload',
+                       'EnricherDisabledPayload',
+                       'EnrichmentRejectedPayload',
+                       'FeedRetractedPayload',
+                       'ThreadMessageRetractedPayload',
+                       'ProposalRejectedPayload',
+                       'ProposalRow',
+                       'SettingChangedPayload',
+                       'SettingLockedPayload',
+                       'SettingChangeRow',
+                       'SettingLockRow',
+                       'File',
+                       'EnrichmentValue',
+                       'TypeRegistrationDeprecatedPayload',
+                       'TypeRegistrationRow',
+                       'BodyQuarantine',
+                       'AccountRolesSetPayload',
+                       'AccountDisabledPayload',
+                       'AccountEnabledPayload',
+                       'AgentTokenRevokedPayload',
+                       'AccountModuleRoleGrantedPayload',
+                       'AccountModuleRoleRevokedPayload']} })
+
+
+class AccountModuleRoleRevokedPayload(AccountEventPayload):
+    """
+    A module role was revoked from an account on a project and module. Internal: never delivered to webhooks.
+    """
+    linkml_meta: ClassVar[LinkMLMeta] = LinkMLMeta({'annotations': {'tl:event_type': {'tag': 'tl:event_type',
+                                           'value': 'Account.ModuleRoleRevoked'},
+                         'tl:event_version': {'tag': 'tl:event_version', 'value': '1'}},
+         'examples': [{'value': '{"account_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PA", '
+                                '"module": "documents", "project": "project:P1", '
+                                '"reason": "takes over document control", "role": '
+                                '"superuser"}'}],
+         'from_schema': 'https://example.org/throughline/core/auth'})
+
+    account_id: str = Field(default=..., description="""Account id.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Account',
+                       'AgentToken',
+                       'AccountModuleRole',
+                       'AuthCredential',
+                       'AuthSession',
+                       'AuthAudit',
+                       'AccountCreatedPayload',
+                       'AccountRolesSetPayload',
+                       'AccountDisabledPayload',
+                       'AccountEnabledPayload',
+                       'AccountPasswordChangedPayload',
+                       'AgentTokenIssuedPayload',
+                       'AgentTokenRevokedPayload',
+                       'AccountModuleRoleGrantedPayload',
+                       'AccountModuleRoleRevokedPayload']} })
+    project: str = Field(default=..., description="""`project:<id>`, or `company` for a module that declares company roles.""", json_schema_extra = { "linkml_meta": {'domain_of': ['AccountModuleRole',
+                       'AccountModuleRoleGrantedPayload',
+                       'AccountModuleRoleRevokedPayload']} })
+    module: str = Field(default=..., description="""A module name, or `*` for every module of the project.""", json_schema_extra = { "linkml_meta": {'domain_of': ['AccountModuleRole',
+                       'AccountModuleRoleGrantedPayload',
+                       'AccountModuleRoleRevokedPayload']} })
+    role: str = Field(default=..., description="""A role of the module role table.""", json_schema_extra = { "linkml_meta": {'domain_of': ['AccountModuleRole',
+                       'AccountModuleRoleGrantedPayload',
+                       'AccountModuleRoleRevokedPayload']} })
+    reason: str = Field(default=..., description="""Why the role was revoked.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Link',
+                       'RecordVoidedPayload',
+                       'RecordCorrectedPayload',
+                       'LinkDeclinedPayload',
+                       'LinkFlaggedPayload',
+                       'LinkRetractedPayload',
+                       'WorkflowTransitionedPayload',
+                       'FileRejectedPayload',
+                       'WebhookSubscriptionDisabledPayload',
+                       'IntegrationAppRevisedPayload',
+                       'IntegrationAppEnabledPayload',
+                       'IntegrationAppDisabledPayload',
+                       'ActionDefinitionRevisedPayload',
+                       'ActionDefinitionRetiredPayload',
+                       'RuleRevisedPayload',
+                       'RuleEnabledPayload',
+                       'RuleDisabledPayload',
+                       'InboundEndpointRevisedPayload',
+                       'InboundEndpointEnabledPayload',
+                       'InboundEndpointDisabledPayload',
+                       'EnricherRevisedPayload',
+                       'EnricherEnabledPayload',
+                       'EnricherDisabledPayload',
+                       'EnrichmentRejectedPayload',
+                       'FeedRetractedPayload',
+                       'ThreadMessageRetractedPayload',
+                       'ProposalRejectedPayload',
+                       'ProposalRow',
+                       'SettingChangedPayload',
+                       'SettingLockedPayload',
+                       'SettingChangeRow',
+                       'SettingLockRow',
+                       'File',
+                       'EnrichmentValue',
+                       'TypeRegistrationDeprecatedPayload',
+                       'TypeRegistrationRow',
+                       'BodyQuarantine',
+                       'AccountRolesSetPayload',
+                       'AccountDisabledPayload',
+                       'AccountEnabledPayload',
+                       'AgentTokenRevokedPayload',
+                       'AccountModuleRoleGrantedPayload',
+                       'AccountModuleRoleRevokedPayload']} })
 
 
 class JobQueue(ConfiguredBaseModel):
@@ -11903,6 +12257,7 @@ class RuleFiring(ConfiguredBaseModel):
                        'EnrichmentValue',
                        'OutboxEvent',
                        'WebhookDelivery',
+                       'AccountModuleRole',
                        'RuleFiring']} })
     depth: int = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['RuleBlockedPayload', 'RuleFiring']} })
     outcome: str = Field(default=..., description="""`fired`, `proposed`, `skipped_condition`, `refused`, `depth_limit`, `budget` or `killed`.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RuleBlockedPayload', 'WebhookAttempt', 'RuleFiring']} })
@@ -12101,6 +12456,7 @@ RecordBody.model_rebuild()
 BodyQuarantine.model_rebuild()
 Account.model_rebuild()
 AgentToken.model_rebuild()
+AccountModuleRole.model_rebuild()
 AuthCredential.model_rebuild()
 AuthSession.model_rebuild()
 AuthTokenSecret.model_rebuild()
@@ -12114,6 +12470,8 @@ AccountEnabledPayload.model_rebuild()
 AccountPasswordChangedPayload.model_rebuild()
 AgentTokenIssuedPayload.model_rebuild()
 AgentTokenRevokedPayload.model_rebuild()
+AccountModuleRoleGrantedPayload.model_rebuild()
+AccountModuleRoleRevokedPayload.model_rebuild()
 JobQueue.model_rebuild()
 IntegrationSecret.model_rebuild()
 InboundReplay.model_rebuild()
