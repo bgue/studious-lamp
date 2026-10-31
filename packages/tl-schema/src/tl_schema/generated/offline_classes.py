@@ -47,6 +47,7 @@ OFFLINE_STREAMS: Final[dict[str, OfflineClass]] = {
     "core.ActivityPost": "full",
     "core.Enricher": "none",
     "core.EnrichmentValue": "none",
+    "core.InboundDelivery": "none",
     "core.InboundEndpoint": "none",
     "core.IntegrationApp": "none",
     "core.Proposal": "none",
