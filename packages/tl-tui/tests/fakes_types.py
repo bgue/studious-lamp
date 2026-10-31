@@ -35,6 +35,7 @@ from tl_core.extypes.service import (
     summarise,
 )
 from tl_core.extypes.types import BodyPointer, TypeRegistration, TypeStatus, TypeView
+from tl_core.offline import RecordTypeRow, record_type_rows
 from tl_core.services.commands import CommandResult, CreateRecord
 from tl_core.services.errors import (
     RecordNotFoundError,
@@ -105,6 +106,10 @@ class FakeTypeSupport:
             summarise(TypeView(registration=d.registration, seq=d.seq))
             for d in sorted(rows, key=lambda d: d.registration.type_ref)
         ]
+
+    def record_types(self) -> list[RecordTypeRow]:
+        self.calls.append("record_types")  # type: ignore[attr-defined]
+        return record_type_rows()
 
     def get_type(self, type_ref: str) -> TypeDetail:
         self.calls.append("get_type")  # type: ignore[attr-defined]
