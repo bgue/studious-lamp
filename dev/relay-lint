@@ -1,0 +1,221 @@
+#!/usr/bin/env bash
+# Relay block validator (P2-W0 brief A3, ticket T03). Reads a supervisor reply, from stdin or from a
+# file, and checks the Code 92 relay block at its end. It prints one `E<n> <line> <reason>` line per
+# broken rule, or one `OK <state> <INC> r<n> <n items>` line when the reply is clean.
+#
+# Usage: dev/relay-lint [<file>]
+# Exit 0 when clean, 1 on a finding, 2 on bad usage. Bash and coreutils only; no network, no Python.
+# Rules, in order: (1) exactly one === RELAY === ... === END === block, and only blank lines after it;
+# (2) at most 8 lines of prose before it; (3) the first line in it is a relay header; (4) state 19 has
+# item lines whose paths exist, states 88 and 2 have none; (5) one 95, 9, 4, REPORT and NOTE line
+# each, in that order, at most 160 characters, and with 88 REPORT names an existing file; (6) the line
+# before === END === is 30; (7) no model name outside the block's NOTE line.
+# Paths in the block are resolved from the repository root. Each rule prints at most one line.
+set -euo pipefail
+export LC_ALL=C
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+usage() {
+  echo "usage: dev/relay-lint [<file>]" >&2
+  exit 2
+}
+
+lines=()
+case $# in
+  0) mapfile -t lines ;;
+  1)
+    case "$1" in -*) usage ;; esac
+    if [ ! -f "$1" ] || [ ! -r "$1" ]; then
+      echo "relay-lint: cannot read $1" >&2
+      exit 2
+    fi
+    mapfile -t lines < "$1"
+    ;;
+  *) usage ;;
+esac
+
+n=${#lines[@]}
+findings=0
+state=""
+inc=""
+rtok=""
+items=()
+note_ln=0
+mark_pos=()
+body_first=0
+body_last=0
+
+emit() { printf '%.160s\n' "$*"; }
+
+fail() {
+  findings=$((findings + 1))
+  emit "E$1 $2 $3"
+}
+
+# Rule 5: one line each of the five markers, in order, each at most 160 characters; with 88 the
+# REPORT line names an existing file. Stops at the first failure so the rule prints one line.
+check_markers() {
+  local k cnt pos prev=0 ln report_line _tag report_path _rest
+  local -a prefixes=("95 " "9 " "4 " "REPORT " "NOTE ")
+  for k in 0 1 2 3 4; do
+    cnt=0
+    pos=0
+    for ((ln = body_first; ln <= body_last; ln++)); do
+      if [[ "${lines[ln - 1]}" == "${prefixes[k]}"* ]]; then
+        cnt=$((cnt + 1))
+        pos=$ln
+      fi
+    done
+    if [ "$cnt" -eq 0 ]; then
+      fail 5 "$end" "expected one 95, 9, 4, REPORT and NOTE line each, in that order"
+      return 0
+    fi
+    if [ "$cnt" -gt 1 ] || [ "$pos" -le "$prev" ]; then
+      fail 5 "$pos" "expected one 95, 9, 4, REPORT and NOTE line each, in that order"
+      return 0
+    fi
+    if [ "${#lines[pos - 1]}" -gt 160 ]; then
+      fail 5 "$pos" "line is longer than 160 characters"
+      return 0
+    fi
+    mark_pos[k]=$pos
+    prev=$pos
+  done
+  if [ "$state" = 88 ]; then
+    report_line="${lines[mark_pos[3] - 1]}"
+    read -r _tag report_path _rest <<< "$report_line"
+    if [ ! -f "$ROOT/${report_path:-}" ]; then
+      fail 5 "${mark_pos[3]}" "REPORT names no existing file"
+    fi
+  fi
+}
+
+# Rule 1: locate the block, and check that nothing but blank lines follows it.
+relay_lines=()
+end_lines=()
+for ((i = 0; i < n; i++)); do
+  if [ "${lines[i]}" = "=== RELAY ===" ]; then relay_lines+=("$((i + 1))"); fi
+  if [ "${lines[i]}" = "=== END ===" ]; then end_lines+=("$((i + 1))"); fi
+done
+
+blocked=0
+relay=0
+end=0
+if [ "${#relay_lines[@]}" -eq 0 ]; then
+  fail 1 0 "no === RELAY === line"
+  blocked=1
+elif [ "${#relay_lines[@]}" -gt 1 ]; then
+  fail 1 "${relay_lines[1]}" "more than one === RELAY === line"
+  blocked=1
+elif [ "${#end_lines[@]}" -eq 0 ]; then
+  fail 1 0 "no === END === line"
+  blocked=1
+elif [ "${#end_lines[@]}" -gt 1 ]; then
+  fail 1 "${end_lines[1]}" "more than one === END === line"
+  blocked=1
+elif [ "${end_lines[0]}" -lt "${relay_lines[0]}" ]; then
+  fail 1 "${end_lines[0]}" "=== END === before === RELAY ==="
+  blocked=1
+else
+  relay="${relay_lines[0]}"
+  end="${end_lines[0]}"
+  for ((i = end; i < n; i++)); do
+    if [ -n "${lines[i]//[[:space:]]/}" ]; then
+      fail 1 "$((i + 1))" "text after === END ==="
+      break
+    fi
+  done
+fi
+
+if [ "$blocked" -eq 0 ]; then
+  body_first=$((relay + 2))
+  body_last=$((end - 1))
+
+  # Rule 2: prose before the block.
+  if [ $((relay - 1)) -gt 8 ]; then
+    fail 2 "$relay" "prose before the block exceeds 8 lines"
+  fi
+
+  # Rule 3: the header is the first line inside the block.
+  header_ln=$((relay + 1))
+  header=""
+  if [ "$header_ln" -lt "$end" ]; then
+    header="${lines[header_ln - 1]}"
+  fi
+  hdr_re='^(19|88|2) [A-Z0-9-]+ r[0-9]+ base@[0-9a-f]{7,} ck[01] g[01-] st@[0-9a-f]{7,} C[0-9]$'
+  if [[ "$header" =~ $hdr_re ]]; then
+    read -r state inc rtok _ <<< "$header"
+  else
+    fail 3 "$header_ln" "first line of the block is not a relay header"
+  fi
+
+  # Rule 4: item lines sit between the header and the first 95 line.
+  item_last=$body_last
+  for ((ln = body_first; ln <= body_last; ln++)); do
+    if [[ "${lines[ln - 1]}" == "95 "* ]]; then
+      item_last=$((ln - 1))
+      break
+    fi
+  done
+  item_re='^[A-Za-z0-9-]+ docs/tickets/[^[:space:]]+ [^[:space:]]+ [tp] [lf]$'
+  for ((ln = body_first; ln <= item_last; ln++)); do
+    if [[ "${lines[ln - 1]}" =~ $item_re ]]; then
+      items+=("$ln")
+    fi
+  done
+  if [ "$state" = 19 ]; then
+    if [ "${#items[@]}" -eq 0 ]; then
+      fail 4 "$header_ln" "state 19 needs at least one item line"
+    else
+      for ln in "${items[@]}"; do
+        read -r _id item_path _rest <<< "${lines[ln - 1]}"
+        if [ ! -e "$ROOT/$item_path" ]; then
+          fail 4 "$ln" "item path does not exist"
+          break
+        fi
+      done
+    fi
+  elif [ "$state" = 88 ] || [ "$state" = 2 ]; then
+    if [ "${#items[@]}" -gt 0 ]; then
+      fail 4 "${items[0]}" "item lines are only allowed with state 19"
+    fi
+  fi
+
+  # Rule 5: the five markers.
+  check_markers
+
+  # Rule 6: the line before === END === is 30.
+  if [ "${lines[end - 2]}" != "30" ]; then
+    fail 6 "$((end - 1))" "line before === END === is not 30"
+  fi
+fi
+
+# Rule 7 runs on the whole text, with the block's NOTE line exempt. The NOTE line is found only
+# when the block is located; otherwise nothing is exempt.
+if [ "$blocked" -eq 0 ]; then
+  for ((ln = body_first; ln <= body_last; ln++)); do
+    if [[ "${lines[ln - 1]}" == "NOTE "* ]]; then
+      note_ln=$ln
+      break
+    fi
+  done
+fi
+model_re='(^|[^[:alnum:]])(opus|sonnet|haiku|gpt|claude)([^[:alnum:]]|$)'
+shopt -s nocasematch
+for ((ln = 1; ln <= n; ln++)); do
+  if [ "$ln" -eq "$note_ln" ]; then
+    continue
+  fi
+  if [[ "${lines[ln - 1]}" =~ $model_re ]]; then
+    fail 7 "$ln" "model name outside the NOTE line"
+    break
+  fi
+done
+shopt -u nocasematch
+
+if [ "$findings" -eq 0 ]; then
+  emit "OK $state $inc $rtok ${#items[@]} items"
+  exit 0
+fi
+exit 1
