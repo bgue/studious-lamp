@@ -88,7 +88,7 @@ class Roles:
             return effective_roles(conn, who, scope=scope, module=module)
 
     def raw_grant(self, who: str, project: str, module: str, role: str) -> None:
-        """A grant event appended past the command (the resolver must cap whatever the ledger holds)."""
+        """A grant event appended past the command, as an old or hand-made ledger could hold."""
         with self.world.factory() as uow:
             version = int(
                 uow.conn()
