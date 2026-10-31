@@ -34,7 +34,7 @@ from textual.widgets.option_list import Option
 from tl_core.addable import AddableProperties
 from tl_core.services.errors import RecordNotFoundError
 from tl_core.services.psets import SetPsetValues
-from tl_mod_schemareg.handlers.adoption import AdoptSchemaPackage
+from tl_mod_schemareg.handlers.adoption import AdoptSchemaSet
 
 from tl_tui.add_property import (
     CUSTOM_HELP,
@@ -80,7 +80,7 @@ class AddOutcome:
 
     command: SetPsetValues | None = None
     package: str | None = None
-    adopt: AdoptSchemaPackage | None = None
+    adopt: AdoptSchemaSet | None = None
     then: tuple[str, str] | None = None  # (set, property) to open on once the set is adopted
 
 
@@ -262,8 +262,8 @@ class AddPropertyScreen(ModalScreen[AddOutcome | None]):
         self.offer = offer
         self.query_one("#ap-adopt-head", Static).update(
             f"{sheet.set_label} is an optional set of the company standard and {sheet.project} "
-            f"has not adopted it yet. Adopting pins {sheet.package} {sheet.version} for "
-            f"{sheet.project}; then the value can be entered."
+            f"has not adopted it yet. Adopting makes it part of {sheet.project}'s schema, from "
+            f"{sheet.package} {sheet.version}; then the value can be entered."
         )
         options = self.query_one("#ap-adopt-list", OptionList)
         options.clear_options()
@@ -422,7 +422,7 @@ def open_add_property(
     is_admin: bool,
     send: Callable[[SetPsetValues], None],
     workbench: Callable[[str], None],
-    adopt: Callable[[AdoptSchemaPackage], bool],
+    adopt: Callable[[AdoptSchemaSet], bool],
     preselect: tuple[str, str] | None = None,
 ) -> None:
     """Read what the form needs, show it, and hand its outcome to ``send`` (a command), ``adopt``

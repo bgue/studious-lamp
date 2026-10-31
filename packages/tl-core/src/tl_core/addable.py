@@ -7,14 +7,15 @@ things:
 * ``standard``: the writable properties of the sets the project's effective schema shows for the
   record's type (and the sets its class binds) that the record has no value for;
 * ``adoptable``: optional sets of the company standard that apply to the record's type and are not
-  in the project's schema, with whether this viewer may adopt them (``AdoptSchemaPackage``, the
-  schema registry's own command, an administrator's) and the words to show when not;
+  in the project's schema, with whether this viewer may adopt them (``AdoptSchemaSet``, the
+  schema registry's own command: the project's schemareg superuser, or an administrator) and the
+  words to show when not;
 * ``custom``: for each standard set, its custom-section rule (allowed, the most names, the names
   held now) and the rule for a name (``name_rule``).
 
 Visibility first (ADR-0016): a record the viewer may not read answers ``RecordNotFoundError`` with
 the same text as a record that does not exist, before anything else is looked at. The answer is
-advice for a screen; ``SetPsetValues`` and ``AdoptSchemaPackage`` check everything again when they
+advice for a screen; ``SetPsetValues`` and ``AdoptSchemaSet`` check everything again when they
 run.
 """
 
@@ -31,6 +32,7 @@ from tl_schema.forms import EnumValue, FieldKind, FieldMeta, PsetGroupMeta
 
 from tl_core import confidentiality
 from tl_core.actions import Holds
+from tl_core.auth.module_roles import Holder, command_index, holds_word
 from tl_core.modules import bound_psets, require_generic
 from tl_core.schema_provider import get_provider
 from tl_core.services import psets as pset_services
@@ -43,7 +45,7 @@ NAME_RULE = (
     "Lower case letters, digits and _, 1 to 40 characters, starting with a letter; "
     "not x, prj, enrich or src (or starting with one and _); not the name of a property of the set."
 )
-ADOPT_COMMAND = "AdoptSchemaPackage"
+ADOPT_COMMAND = "AdoptSchemaSet"
 
 _RECORD_SQL = text(
     "SELECT id, key, type, scope, psets_json, voided FROM cur_core_record WHERE id = :id"
@@ -73,8 +75,9 @@ class AddableProperty(BaseModel):
 class AdoptableSet(BaseModel):
     """An optional company set that applies to the record's type and the project has not adopted.
 
-    ``can_adopt`` is whether this viewer may run ``command`` (``AdoptSchemaPackage`` with
-    ``project``, ``package`` and ``version``); ``needs`` is the sentence to show when not.
+    ``can_adopt`` is whether this viewer may run ``command`` (``AdoptSchemaSet`` with
+    ``project``, ``package``, ``version`` and ``pset``, sent in the scope of the project); ``needs``
+    is the sentence to show when not.
     """
 
     pset: str
@@ -161,18 +164,31 @@ def _write_state(uow: UnitOfWork, row: Any, actor: str) -> tuple[bool, str | Non
     return True, None
 
 
+def _may_adopt(uow: UnitOfWork, scope: str, holds: Holds, holder: Holder | None) -> bool:
+    """Whether the viewer may run ``AdoptSchemaSet`` in ``scope``: the module role table decides,
+    with the command's own word (the rule ``require_command_access`` applies when it runs). With
+    no holder (an entry point that has not moved to module roles), or no schema registry module
+    loaded, only an admin may."""
+    found = command_index().get(ADOPT_COMMAND)
+    if holder is None or found is None:  # no module roles here (or no registry module): an admin
+        return holds("admin")
+    module, word = found
+    return holds_word(uow.conn(), holder, scope=scope, module=module, word=word)
+
+
 def _adoptable(
     uow: UnitOfWork,
     row: Any,
     project_schema: EffectiveSchema,
     bound: tuple[str, ...],
     holds: Holds,
+    holder: Holder | None,
 ) -> list[AdoptableSet]:
     if not row.scope.startswith("project:"):
         return []
     project = row.scope.removeprefix("project:")
     company = get_provider().effective("company")
-    allowed = holds("admin")
+    allowed = _may_adopt(uow, row.scope, holds, holder)
     found: list[AdoptableSet] = []
     for pset in company.psets_for(row.type, bound):
         if pset.layer != "standard" or pset.adoption != "optional":
@@ -222,7 +238,12 @@ def _custom_rules(
 
 
 def addable_properties(
-    uow: UnitOfWork, record_id: str, *, actor: str, holds: Holds
+    uow: UnitOfWork,
+    record_id: str,
+    *,
+    actor: str,
+    holds: Holds,
+    holder: Holder | None = None,
 ) -> AddableProperties:
     """What ``actor`` could add to the record. Raises ``RecordNotFoundError`` for a record that is
     missing or hidden from the viewer, with the same text for both."""
@@ -250,6 +271,6 @@ def addable_properties(
         can_write=can_write,
         write_refusal=refusal,
         standard=standard,
-        adoptable=_adoptable(uow, row, schema, bound, holds),
+        adoptable=_adoptable(uow, row, schema, bound, holds, holder),
         custom=_custom_rules(schema, row.type, bound, psets),
     )

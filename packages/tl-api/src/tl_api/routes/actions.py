@@ -58,7 +58,7 @@ def get_record_addable_properties(
 ) -> AddableProperties:
     """What could be added to the record: the standard properties its type allows and it lacks, the
     optional sets the project has not adopted (and whether the caller may adopt them, with
-    `POST /commands/AdoptSchemaPackage`), and each set's custom-section rule.
+    `POST /commands/AdoptSchemaSet` in the project's scope), and each set's custom-section rule.
 
     404 `record_not_found` when the record is missing or the caller may not read it. Writing the
     values is `POST /commands/SetPsetValues`, which checks everything again.
@@ -69,4 +69,5 @@ def get_record_addable_properties(
             record_id,
             actor=actor,
             holds=lambda level: holds_access(principal, actor, level),
+            holder=holder_for_principal(principal),
         )

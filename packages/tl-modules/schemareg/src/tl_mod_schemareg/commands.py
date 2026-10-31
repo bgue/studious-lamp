@@ -5,7 +5,9 @@ The API builds one ``POST /commands/<Name>`` route per row. ``access`` says who 
 drafting, revising, analysing and submitting a package, and asking for a waiver, are any signed-in
 person's (the handlers also bind the first four to the actor that drafted the package); sending a
 package back, approving, publishing, deprecating, retiring, adopting a version and approving or
-revoking a waiver are the administrator's. An agent never changes a record: its calls are
+revoking a waiver are the administrator's. Adopting one optional set for one project
+(``AdoptSchemaSet``) is a ``controller`` command: the schemareg superuser of that project, or an
+administrator. An agent never changes a record: its calls are
 proposals a person accepts, and a command is closed to agents until ``tl_core.auth.provider``
 lists it (none of these is).
 """
@@ -19,7 +21,12 @@ from typing import Any, Literal
 from tl_core.services.commands import Command, CommandResult
 from tl_core.uow import UnitOfWork
 
-from tl_mod_schemareg.handlers.adoption import AdoptSchemaPackage, handle_adopt_schema_package
+from tl_mod_schemareg.handlers.adoption import (
+    AdoptSchemaPackage,
+    AdoptSchemaSet,
+    handle_adopt_schema_package,
+    handle_adopt_schema_set,
+)
 from tl_mod_schemareg.handlers.packages import (
     AnalyseSchemaPackage,
     ApproveSchemaPackage,
@@ -70,6 +77,7 @@ API_COMMANDS: tuple[ApiCommand, ...] = (
     ApiCommand(DeprecateSchemaPackage, handle_deprecate_schema_package, "admin"),
     ApiCommand(RetireSchemaPackage, handle_retire_schema_package, "admin"),
     ApiCommand(AdoptSchemaPackage, handle_adopt_schema_package, "admin"),
+    ApiCommand(AdoptSchemaSet, handle_adopt_schema_set, "controller"),
     ApiCommand(RequestWaiver, handle_request_waiver, "user"),
     ApiCommand(ApproveWaiver, handle_approve_waiver, "admin"),
     ApiCommand(RevokeWaiver, handle_revoke_waiver, "admin"),

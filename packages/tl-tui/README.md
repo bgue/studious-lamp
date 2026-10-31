@@ -144,9 +144,9 @@ log never lays out its own screen and never adds a second standard.
   name and a value in a set that allows a custom section) and, for an admin, *Propose a change to the standard…* (the
   schema workbench on the package that owns the set). A property of a set the project has not adopted reads
   `Adopt <set label> for <project>` for a person who may (`AdoptableSet.can_adopt`: the access of the schema registry's
-  `AdoptSchemaPackage`, an administrator's); anybody else sees the line greyed with `Needs a superuser to adopt this set
+  `AdoptSchemaSet`: the project's schemareg superuser or an administrator); anybody else sees the line greyed with `Needs a superuser to adopt this set
   for <project>`. After adoption the form opens again on the property. The form sends nothing: it returns the
-  `SetPsetValues` or `AdoptSchemaPackage` command and the host sends it (`attempt()` in a log, a status message on the
+  `SetPsetValues` or `AdoptSchemaSet` command and the host sends it (`attempt()` in a log, a status message on the
   record screen). A record that cannot be written (voided, or a module's type) says why on the first step.
 - **Custom fields (P1-UX3 round 4)**: where a set's `custom_section.allowed` is true, `SetPsetValues` takes
   `x.<name>` for a name the schema does not declare (layer `custom`): lower case letters, digits and `_`, 1 to 40
