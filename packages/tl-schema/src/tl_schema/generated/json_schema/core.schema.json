@@ -201,6 +201,128 @@
             "title": "AccountKind",
             "type": "string"
         },
+        "AccountModuleRole": {
+            "additionalProperties": false,
+            "description": "One explicit module role granted to an account on a project and module (ADR-0021, `specs/roles-mvp.md` section 3). `project` is `project:<id>` or, for a module that declares `company_roles`, `company`; `module` is a module name or `*` (every module of the project). The row is the key `(account_id, project, module, role)`: the unique index below. Written by the `Account.ModuleRoleGranted` and `Account.ModuleRoleRevoked` events; a revoke deletes the row.",
+            "properties": {
+                "account_id": {
+                    "description": "The account that holds the role.",
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                    "type": "string"
+                },
+                "granted_at": {
+                    "description": "ISO-8601 UTC.",
+                    "type": "string"
+                },
+                "granted_by": {
+                    "description": "Actor that granted it.",
+                    "type": "string"
+                },
+                "module": {
+                    "description": "A module name or `*`.",
+                    "type": "string"
+                },
+                "project": {
+                    "description": "`project:<id>` or `company`.",
+                    "type": "string"
+                },
+                "role": {
+                    "description": "A role of `schema/settings/module-roles.yaml`.",
+                    "type": "string"
+                },
+                "seq": {
+                    "description": "Ledger sequence of the grant event.",
+                    "type": "integer"
+                }
+            },
+            "required": [
+                "account_id",
+                "project",
+                "module",
+                "role",
+                "granted_by",
+                "granted_at",
+                "seq"
+            ],
+            "title": "AccountModuleRole",
+            "type": "object"
+        },
+        "AccountModuleRoleGrantedPayload": {
+            "additionalProperties": false,
+            "description": "A module role was granted to an account on a project and module. Internal: never delivered to webhooks.",
+            "examples": [
+                "{\"account_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6PA\", \"module\": \"documents\", \"project\": \"project:P1\", \"reason\": \"takes over document control\", \"role\": \"superuser\"}"
+            ],
+            "properties": {
+                "account_id": {
+                    "description": "Account id.",
+                    "type": "string"
+                },
+                "module": {
+                    "description": "A module name, or `*` for every module of the project.",
+                    "type": "string"
+                },
+                "project": {
+                    "description": "`project:<id>`, or `company` for a module that declares company roles.",
+                    "type": "string"
+                },
+                "reason": {
+                    "description": "Why the role was granted.",
+                    "type": "string"
+                },
+                "role": {
+                    "description": "A role of the module role table.",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "account_id",
+                "project",
+                "module",
+                "role",
+                "reason"
+            ],
+            "title": "AccountModuleRoleGrantedPayload",
+            "type": "object"
+        },
+        "AccountModuleRoleRevokedPayload": {
+            "additionalProperties": false,
+            "description": "A module role was revoked from an account on a project and module. Internal: never delivered to webhooks.",
+            "examples": [
+                "{\"account_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6PA\", \"module\": \"documents\", \"project\": \"project:P1\", \"reason\": \"takes over document control\", \"role\": \"superuser\"}"
+            ],
+            "properties": {
+                "account_id": {
+                    "description": "Account id.",
+                    "type": "string"
+                },
+                "module": {
+                    "description": "A module name, or `*` for every module of the project.",
+                    "type": "string"
+                },
+                "project": {
+                    "description": "`project:<id>`, or `company` for a module that declares company roles.",
+                    "type": "string"
+                },
+                "reason": {
+                    "description": "Why the role was revoked.",
+                    "type": "string"
+                },
+                "role": {
+                    "description": "A role of the module role table.",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "account_id",
+                "project",
+                "module",
+                "role",
+                "reason"
+            ],
+            "title": "AccountModuleRoleRevokedPayload",
+            "type": "object"
+        },
         "AccountPasswordChangedPayload": {
             "additionalProperties": false,
             "description": "The password of an account was set or changed. The event records that it happened, never the password or its hash. Internal: never delivered to webhooks.",

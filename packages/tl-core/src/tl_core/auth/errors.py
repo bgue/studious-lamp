@@ -1,6 +1,7 @@
 """Authentication and authorization failures (ADR-0009). Mapped to HTTP in ``tl_api.errors``.
 
-The first seven are the contract's (``types.py``); the last four are ADR-0009 additions. No message
+The first seven are the contract's (``types.py``); the next four are ADR-0009 additions; the module
+role errors (ADR-0021) come last. No message
 ever holds a password, a hash or a token, and the two credential failures read the same whether
 the user exists or not.
 """
@@ -61,3 +62,24 @@ class AccountStateError(ServiceError): ...  # already disabled, already revoked,
 
 class AuthBusyError(ServiceError):
     """Too many password hashes are running at once; nothing was written, try again shortly."""
+
+
+class UnknownRoleError(ServiceError):
+    """A module role that is not a role of the role table (422 ``unknown_role``)."""
+
+
+class UnknownModuleError(ServiceError):
+    """A module name that is not a loaded module (422 ``unknown_module``)."""
+
+
+class NoSuchGrantError(ServiceError):
+    """A revoke of a module role the account does not hold (404 ``no_such_grant``)."""
+
+
+class NoCompanyRolesError(ServiceError):
+    """A ``company`` grant for a module that does not declare ``company_roles`` (422
+    ``no_company_roles``)."""
+
+
+class RoleTableError(ServiceError):
+    """``schema/settings/module-roles.yaml`` is unusable: fail closed at load (ADR-0021)."""

@@ -142,6 +142,49 @@ classes:
         range: integer
         required: true
 
+  AccountModuleRole:
+    description: >-
+      One explicit module role granted to an account on a project and module (ADR-0021, `specs/roles-mvp.md` section 3).
+      `project` is `project:<id>` or, for a module that declares `company_roles`, `company`; `module` is a module name
+      or `*` (every module of the project). The row is the key `(account_id, project, module, role)`: the unique index
+      below. Written by the `Account.ModuleRoleGranted` and `Account.ModuleRoleRevoked` events; a revoke deletes the row.
+    annotations:
+      tl:current_state: true
+      tl:table: cur_account_module_role
+      tl:ix_scope: "project, module"
+    unique_keys:
+      grant:
+        description: One row per (account, project, module, role).
+        unique_key_slots:
+          - account_id
+          - project
+          - module
+          - role
+    attributes:
+      account_id:
+        range: Ulid
+        required: true
+        description: The account that holds the role.
+      project:
+        required: true
+        description: "`project:<id>` or `company`."
+      module:
+        required: true
+        description: A module name or `*`.
+      role:
+        required: true
+        description: A role of `schema/settings/module-roles.yaml`.
+      granted_by:
+        required: true
+        description: Actor that granted it.
+      granted_at:
+        required: true
+        description: ISO-8601 UTC.
+      seq:
+        range: integer
+        required: true
+        description: Ledger sequence of the grant event.
+
   AuthCredential:
     description: A password hash. Operational; never in the ledger, the archive, the lake or webhooks.
     annotations:
@@ -402,3 +445,53 @@ classes:
         description: "Why it was revoked."
     examples:
       - value: "{\"account_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6PB\", \"reason\": \"rotated\", \"token_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6PC\"}"
+  AccountModuleRoleGrantedPayload:
+    is_a: AccountEventPayload
+    description: >-
+      A module role was granted to an account on a project and module. Internal: never delivered to webhooks.
+    annotations:
+      tl:event_type: Account.ModuleRoleGranted
+      tl:event_version: "1"
+    attributes:
+      account_id:
+        required: true
+        description: "Account id."
+      project:
+        required: true
+        description: "`project:<id>`, or `company` for a module that declares company roles."
+      module:
+        required: true
+        description: "A module name, or `*` for every module of the project."
+      role:
+        required: true
+        description: "A role of the module role table."
+      reason:
+        required: true
+        description: "Why the role was granted."
+    examples:
+      - value: "{\"account_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6PA\", \"module\": \"documents\", \"project\": \"project:P1\", \"reason\": \"takes over document control\", \"role\": \"superuser\"}"
+  AccountModuleRoleRevokedPayload:
+    is_a: AccountEventPayload
+    description: >-
+      A module role was revoked from an account on a project and module. Internal: never delivered to webhooks.
+    annotations:
+      tl:event_type: Account.ModuleRoleRevoked
+      tl:event_version: "1"
+    attributes:
+      account_id:
+        required: true
+        description: "Account id."
+      project:
+        required: true
+        description: "`project:<id>`, or `company` for a module that declares company roles."
+      module:
+        required: true
+        description: "A module name, or `*` for every module of the project."
+      role:
+        required: true
+        description: "A role of the module role table."
+      reason:
+        required: true
+        description: "Why the role was revoked."
+    examples:
+      - value: "{\"account_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6PA\", \"module\": \"documents\", \"project\": \"project:P1\", \"reason\": \"takes over document control\", \"role\": \"superuser\"}"

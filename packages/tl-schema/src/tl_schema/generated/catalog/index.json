@@ -28,6 +28,24 @@
       "version": 1
     },
     {
+      "ce_type": "tl.core.Account.ModuleRoleGranted.v1",
+      "event_type": "Account.ModuleRoleGranted",
+      "payload_class": "AccountModuleRoleGrantedPayload",
+      "sample": "samples/Account.ModuleRoleGranted.v1.json",
+      "schema": "schemas/Account.ModuleRoleGranted.v1.json",
+      "title": "A module role was granted to an account on a project and module.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Account.ModuleRoleRevoked.v1",
+      "event_type": "Account.ModuleRoleRevoked",
+      "payload_class": "AccountModuleRoleRevokedPayload",
+      "sample": "samples/Account.ModuleRoleRevoked.v1.json",
+      "schema": "schemas/Account.ModuleRoleRevoked.v1.json",
+      "title": "A module role was revoked from an account on a project and module.",
+      "version": 1
+    },
+    {
       "ce_type": "tl.core.Account.PasswordChanged.v1",
       "event_type": "Account.PasswordChanged",
       "payload_class": "AccountPasswordChangedPayload",

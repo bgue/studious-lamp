@@ -190,6 +190,10 @@ def _no_actions() -> dict[str, ActionsHook]:
     return {}
 
 
+def _no_words() -> dict[str, str]:
+    return {}
+
+
 @dataclass(frozen=True)
 class ModuleSpec:
     name: str  # ``engineering``; equal to the directory under ``schema/modules`` and the tl:module
@@ -222,6 +226,12 @@ class ModuleSpec:
     #: one the command handlers read, so the offer and the refusal cannot drift. A type that is not
     #: a key is offered nothing.
     actions: Mapping[str, ActionsHook] = field(default_factory=_no_actions)
+    #: Command class name -> access word, for the module's own commands (ADR-0021, module roles).
+    #: A word is declared as the module's ``CommandSpec`` has it; ``tl_core.auth.module_roles``
+    #: reads it through ``command_index()``.
+    command_words: Mapping[str, str] = field(default_factory=_no_words)
+    #: Whether the module accepts ``company``-scope role grants (answer 14 of the wave-0 spec).
+    company_roles: bool = False
 
     def __post_init__(self) -> None:
         for record_type, commands in self.generic_commands.items():
