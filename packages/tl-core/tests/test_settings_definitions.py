@@ -75,6 +75,17 @@ def test_the_platform_file_defines_the_keys_of_decision_d2() -> None:
         "threads.dispatch.roles",
         "threads.agents.can_dispatch",
         "threads.reminders.max_pending",
+        "awp.iwp.ready_lead_weeks",  # P2-W0 W0-B1
+        "awp.backlog.target_weeks",
+        "awp.iwp.size_hours",
+        "awp.release.signoff_roles",
+        "awp.release.allow_unknown_checks",
+        "awp.rules_of_credit.set",
+        "awp.constraint.aging_days",
+        "awp.constraint.auto_raise",
+        "awp.constraint.default_owners",
+        "materials.receipt.mtr_required_categories",
+        "scaffold.inspection.interval_days",
     }
 
 
