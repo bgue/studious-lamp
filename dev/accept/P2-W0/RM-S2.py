@@ -255,8 +255,10 @@ def run(world: World) -> None:
         "document_controller derives superuser: documents, correspondence, schedule on P1 and P2"
     )
     assert world.post("solo", "IssueRevision", P1) == 200
-    assert world.post("solo", "CreateTag", P1) == 403  # no `user` role: nothing derived there
-    passed("a document_controller with no user role: controller acts yes, other modules' user no")
+    assert world.post("solo", "CreateTag", P1) == 200  # derives `user` in every module (D3)
+    assert world.post("solo", "CreateTag", P2) == 200
+    assert world.post("solo", "ImportCostSnapshot", P1) == 403  # ... and never `controller` there
+    passed("a document-controller-only account creates a tag (user everywhere), controls its 3")
     world.grant("dora", P2, "documents", "viewer")
     assert world.post("dora", "IssueRevision", P2) == 403
     assert world.post("dora", "IssueRevision", P1) == 200
@@ -279,13 +281,46 @@ def run(world: World) -> None:
         actor="agent:x", account_id="b", kind="agent", roles=["user"], via="agent_token"
     )
     admin = Principal(actor="user:y", account_id="c", kind="person", roles=["admin"], via="session")
+    dcon = Principal(
+        actor="user:d", account_id="d", kind="person", roles=["document_controller"], via="session"
+    )
     auth = RoleAuthorizer(controller_actions=controller_actions())
-    auth.authorize(plain, "control.command.IssueRevision", "r")  # the endpoint decides
+    for action in sorted(controller_actions()):  # D1: a plain user is refused every listed one
+        refuses(ForbiddenError, lambda a=action: auth.authorize(plain, a, "r"))
+        refuses(ForbiddenError, lambda a=action: auth.authorize(agent, a, "r"))
+        auth.authorize(admin, action, "r")
+    passed(f"RoleAuthorizer: a plain user and an agent are refused all {len(controller_actions())}")
+    for action in ("control.command.IssueRevision", "control.command.IssueCorrespondence"):
+        auth.authorize(dcon, action, "r")  # derived superuser of that module
+    refuses(ForbiddenError, lambda: auth.authorize(dcon, "control.command.ImportCostSnapshot", "r"))
     refuses(ForbiddenError, lambda: auth.authorize(plain, "control.command.NoSuchThing", "r"))
-    refuses(ForbiddenError, lambda: auth.authorize(agent, "control.command.IssueRevision", "r"))
     auth.authorize(admin, "control.command.NoSuchThing", "r")
-    passed("RoleAuthorizer: a listed control action passes a person, an unlisted one is an admin's")
+    granted = RoleAuthorizer(
+        controller_actions=controller_actions(), granted=lambda p, m: m == "documents"
+    )
+    granted.authorize(plain, "control.command.IssueRevision", "r")  # an explicit grant counts
+    refuses(
+        ForbiddenError, lambda: granted.authorize(plain, "control.command.ImportCostSnapshot", "r")
+    )
+    passed("RoleAuthorizer: the controller word of the module (derived or granted), else admin")
 
+    # --- the dev ledger (D2): an actor with no account on the dev file holds the user words -----
+    assert os.environ["TL_ENV"] in ("dev", "test", "ci")
+    dev_register = RegisterDocument(actor="user:dev", source="accept", scope=P1, number="D-9",
+                                    title="Dev")  # fmt: skip
+    dev_issue = next(s for s in COMMANDS if s.name == "IssueRevision").model.model_construct(
+        actor="user:dev", source="accept", scope=P1
+    )
+    with world.backend(True) as uow:
+        conn = uow.conn()
+        require_command_access(conn, dev_register)  # a user command passes
+        for command in (dev_issue, dev_issue.model_copy(update={"scope": P2})):
+            refuses(ForbiddenError, lambda c=command: require_command_access(conn, c))
+        ghost = RegisterDocument(actor="agent:ghost", source="accept", scope=P1, number="D-8",
+                                 title="Ghost")  # fmt: skip
+        refuses(ForbiddenError, lambda: require_command_access(conn, ghost))
+        refuses(ForbiddenError, lambda: require_command_access(conn, dev_register, dev_file=False))
+    passed("dev ledger: user:dev passes a user command, is refused a controller command")
     # --- the runner, per module --------------------------------------------------------------
     stubs = tuple(loosen(s) for s in COMMANDS)
     runner = TableCommandRunner(stubs)

@@ -437,7 +437,7 @@ class TableCommandRunner:
         if not command.actor.startswith("svc:") and spec.name in command_index():
             # a person's (or agent's) module command: the module role table decides, for this scope
             try:
-                require_command_access(uow.conn(), command)
+                require_command_access(uow.conn(), command, dev_file=False)
             except ForbiddenError as exc:  # the runner's callers know one refusal: this one
                 raise CommandAccessError(str(exc)) from exc
         else:  # a core command, or automation (a service actor keeps its declared access)

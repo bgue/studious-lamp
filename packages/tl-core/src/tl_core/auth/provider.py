@@ -8,12 +8,16 @@ person may run on which project is decided after it, by ``module_roles.require_c
 
 from __future__ import annotations
 
+from collections.abc import Callable
+
 from tl_core.auth import sessions
 from tl_core.auth._time import Clock
 from tl_core.auth.errors import ForbiddenError
 from tl_core.auth.sessions import UowFactory
 from tl_core.auth.types import ADMIN_ACTION_PREFIX, CONTROL_ACTION_PREFIX, Principal
 from tl_core.util import utcnow
+
+CONTROL_COMMAND_PREFIX = f"{CONTROL_ACTION_PREFIX}command."
 
 
 class PasswordIdentityProvider:
@@ -90,9 +94,12 @@ class RoleAuthorizer:
 
     ``controller_actions`` (ADR-0013) lists the exact ``control.*`` actions of module commands that
     need the ``controller`` word; the API builds it from its command table. An admin passes every
-    ``control.*`` action. A listed action passes here for any non-agent principal with a role: the
-    command's endpoint then asks the module role table (``require_command_access``, ADR-0021)
-    whether this person holds the word for that module on that project, and that decides. A
+    ``control.*`` action. A listed action passes a person only if the person holds the
+    ``controller`` word for that command's module on some project: derived from the account roles
+    (``document_controller`` is superuser of documents, correspondence and schedule), or through
+    an explicit module grant (``granted``, a lookup the API supplies over its ledger). A plain
+    user, an account with no such word and any agent are refused here. The command's endpoint then
+    asks the scoped question (``require_command_access``, ADR-0021) for the project. A
     ``control.*`` action that is not in the list, and the empty default, is an admin's: a typo or
     a name nobody added widens nothing.
     """
@@ -102,9 +109,11 @@ class RoleAuthorizer:
         *,
         agent_actions: frozenset[str] = AGENT_ACTIONS,
         controller_actions: frozenset[str] = frozenset(),
+        granted: Callable[[Principal, str], bool] | None = None,
     ) -> None:
         self._agent_actions = agent_actions
         self._controller_actions = controller_actions
+        self._granted = granted  # (principal, module) -> an explicit grant gives `controller`
 
     def authorize(self, principal: Principal, action: str, resource: str) -> None:
         if not principal.roles:
@@ -123,4 +132,24 @@ class RoleAuthorizer:
             return False
         if principal.is_admin:
             return True
-        return action in self._controller_actions  # the endpoint's scoped module check decides
+        if action not in self._controller_actions:
+            return False
+        from tl_core.auth.module_roles import (  # avoid an import cycle
+            Holder,
+            command_index,
+            derived_holds,
+        )
+
+        found = command_index().get(action.removeprefix(CONTROL_COMMAND_PREFIX))
+        if found is None or not action.startswith(CONTROL_COMMAND_PREFIX):
+            return False  # no module command of that name: an admin's
+        module = found[0]
+        holder = Holder(
+            actor=principal.actor,
+            kind=principal.kind,
+            account_id=principal.account_id,
+            account_roles=tuple(principal.roles),
+        )
+        if derived_holds(holder, module=module, word="controller"):
+            return True
+        return self._granted is not None and self._granted(principal, module)

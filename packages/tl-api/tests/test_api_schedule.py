@@ -291,8 +291,8 @@ def run(client: TestClient, name: str) -> tuple[int, str]:
 def test_a_user_is_refused_the_controlling_commands_by_the_module_role(cast: Cast) -> None:
     for name in CONTROLLING:
         status, message = run(cast.clients["bob"], name)
-        want = f"{name} needs the controller access word for schedule on {SCOPE}"
-        assert status == 403 and want in message, (name, status, message)
+        # refused at the authorizer: a plain user holds no controller word for any module
+        assert status == 403 and "needs the controller access word" in message, (name, status)
 
 
 def test_a_controller_and_an_admin_pass_the_access_check(cast: Cast) -> None:

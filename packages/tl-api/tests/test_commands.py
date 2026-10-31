@@ -214,11 +214,9 @@ def test_links_and_the_workflow_through_commands(harness: Harness) -> None:
 @pytest.mark.parametrize("spec", COMMANDS, ids=lambda s: s.name)
 def test_a_command_with_no_body_is_a_422_not_a_500(harness: Harness, spec) -> None:  # type: ignore[no-untyped-def]
     response = harness.client.post(f"/commands/{spec.name}", json={})
-    if spec.access == "admin":  # a dev-token person is no admin: refused before the body is read
+    if spec.access in ("admin", "controller"):  # a dev-token person holds neither: refused first
         assert response.status_code == 403 and response.json()["error"] == "forbidden"
         return
-    # A controller command is decided by the module role table inside the endpoint (ADR-0021), so
-    # the body is read first: a person with a role gets the validation error like any other.
     assert response.status_code == 422 and response.json()["error"] == "validation_error"
 
 

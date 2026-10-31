@@ -16,6 +16,7 @@ derive: # account role -> module roles implied where no explicit grant applies
   user:
     - {module: "*", role: user}
   document_controller:
+    - {module: "*", role: user} # keeps every `user` act it has today (a controller-only account)
     - {module: documents, role: superuser}
     - {module: correspondence, role: superuser}
     - {module: schedule, role: superuser}

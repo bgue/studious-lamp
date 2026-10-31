@@ -108,8 +108,8 @@ def test_the_controlling_set_is_the_twelve_and_the_actions_follow() -> None:
 def test_a_user_is_refused_every_controlling_command_by_the_module_role(cast: Cast) -> None:
     for name in sorted(CONTROLLING):
         status, message = run(cast.clients["bob"], name)
-        want = f"{name} needs the controller access word for documents on {SCOPE}"
-        assert status == 403 and want in message, (name, status, message)
+        # refused at the authorizer: a plain user holds no controller word for any module
+        assert status == 403 and "needs the controller access word" in message, (name, status)
 
 
 def test_a_superuser_grant_opens_the_controlling_commands_on_that_project_only(
