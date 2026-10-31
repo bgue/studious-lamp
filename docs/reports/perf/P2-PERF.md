@@ -13,6 +13,8 @@ Branch `p2/perf`; code measured `0e25090` (the commits were re-written once to a
 | Document filter (last key) | 13,992 -> 16 | 13,513 -> 41 | 13,654 -> 22 |
 | Grid: launch / text filter | 259 -> 200 / 237 -> 121 | 241 -> 340 / 125 -> 150 | 325 -> 292 / 250 -> 125 |
 
+Machine: the before figures come from a 2.10 GHz Xeon, the after from a 2.80 GHz one (the container moved), so up to 30% of any figure may be hardware; the 10- to 1,000-fold changes are not.
+
 ## Causes (profile first) and fixes
 1. **Document register 15 s**: `status_labels()` parsed the revision-scheme YAML for every row (10,000 times). Cached per file edit; the register opens on its first 500 rows and reads the rest (up to 5,000) when the cursor nears the end or a filter is typed; the table draws 120 rows and takes chunks (Textual measures every cell: 0.6 s for 5,000 rows).
 2. **Every confidentiality check built the whole hidden set**: `is_hidden`, `hidden_among`, `hidden_event_streams`, `get_record(_by_id)`, link reads and the lists each listed every hidden record (about 100 ms on SQLite and 250 ms on Postgres at 31,000 confidential records), 13 times per Enter. Now the id is pushed into the test (`hidden_sql(only=...)`), a record is found by key and then tested, links tested per row (`not_hidden_each`), and the first page of each list is read and its hidden rows looked up (`visible_rows`; same rows, same order, hidden rows use no place). Proved equal to the old SQL by differential scripts on SQLite and Postgres (all kinds of viewer, links across hidden records, 400-700 hidden rows among the newest).
