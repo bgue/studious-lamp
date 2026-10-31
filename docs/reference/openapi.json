@@ -18123,6 +18123,48 @@
         "title": "RecordTransmittalResponseBody",
         "type": "object"
       },
+      "RecordTypeRow": {
+        "description": "One record type as the record-types route and client answer it (no record data).",
+        "properties": {
+          "drafting_commands": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Drafting Commands",
+            "type": "array"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "module": {
+            "title": "Module",
+            "type": "string"
+          },
+          "offline": {
+            "enum": [
+              "full",
+              "draft_only",
+              "none"
+            ],
+            "title": "Offline",
+            "type": "string"
+          },
+          "record_type": {
+            "title": "Record Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "record_type",
+          "label",
+          "module",
+          "offline",
+          "drafting_commands"
+        ],
+        "title": "RecordTypeRow",
+        "type": "object"
+      },
       "ReferCommercialToLegalBody": {
         "additionalProperties": false,
         "properties": {
@@ -58158,6 +58200,87 @@
         "summary": "Reject Proposal",
         "tags": [
           "proposals"
+        ]
+      }
+    },
+    "/record-types": {
+      "get": {
+        "description": "Every record type with its label, module, offline class and drafting commands.",
+        "operationId": "list_record_types",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/RecordTypeRow"
+                  },
+                  "title": "Response List Record Types",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Record Types",
+        "tags": [
+          "reference"
         ]
       }
     },

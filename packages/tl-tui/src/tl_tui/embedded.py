@@ -67,6 +67,7 @@ from tl_core.links.expected import MissingLink, missing_expected_links
 from tl_core.links.provider import get_vocabulary
 from tl_core.links.vocabulary import default_relation
 from tl_core.numbering.detect import KeyChip, suggest_chips
+from tl_core.offline import RecordTypeRow, record_type_rows
 from tl_core.query import QuerySpec, count_query, parse, run_query
 from tl_core.services import (
     feed_completion,
@@ -563,6 +564,9 @@ class EmbeddedClient:
 
     def _factory(self, readonly: bool = False) -> AbstractContextManager[UnitOfWork]:
         return self._uow(readonly)
+
+    def record_types(self) -> list[RecordTypeRow]:
+        return record_type_rows()
 
     def list_types(self, status: TypeStatus | None = None) -> list[TypeSummary]:
         with self._uow(True) as uow:

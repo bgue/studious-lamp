@@ -15,6 +15,7 @@ from tl_core.actions import RecordActions
 from tl_core.addable import AddableProperties
 from tl_core.auth.errors import ForbiddenError
 from tl_core.ledger import Event
+from tl_core.offline import RecordTypeRow
 from tl_core.services.commands import Command, CommandResult, CreateRecord, UpdateRecord
 from tl_core.services.edit import EditRecord
 from tl_core.services.errors import RecordNotFoundError
@@ -80,6 +81,10 @@ class RecordsApi(ApiClientBase):
                 "order_by": format_order_by(order_by),
             },
         )
+
+    def record_types(self) -> list[RecordTypeRow]:
+        """Every record type with its label, module, offline class and drafting commands."""
+        return self._models(RecordTypeRow, self._get_json("/record-types"))
 
     def count_records(self, scope: str, q: str) -> int:
         """How many records match ``q`` (``GET /records/count``)."""

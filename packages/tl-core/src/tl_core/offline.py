@@ -25,6 +25,7 @@ from typing import Final, Literal, cast, get_args
 
 from pydantic import BaseModel
 from tl_schema.generated.offline_classes import OFFLINE_CLASSES, OFFLINE_STREAMS, OfflineClass
+from tl_schema.generated.type_labels import TYPE_LABELS
 
 from tl_core.services.errors import ServiceError
 
@@ -146,3 +147,34 @@ def require_capture_allowed(record_type: str, command: str, *, node: NodeKind) -
             f"{command} on a {record_type} record cannot be captured offline on a {node} node "
             f"({decision.reason})"
         )
+
+
+class RecordTypeRow(BaseModel):
+    """One record type as the record-types route and client answer it (no record data)."""
+
+    record_type: str  # "engineering.Tag"
+    label: str  # TYPE_LABELS, else the record type itself
+    module: str  # the part before the first "."
+    offline: OfflineClass
+    drafting_commands: list[str]  # sorted; [] unless the class is draft_only
+
+
+def record_type_rows() -> list[RecordTypeRow]:
+    """One row per record type of the offline table, sorted by record type.
+
+    Reads only generated data and the module table: no record, no ledger.
+    """
+    rows: list[RecordTypeRow] = []
+    for record_type in sorted(OFFLINE_CLASSES):
+        offline = OFFLINE_CLASSES[record_type]
+        commands = sorted(_drafting_commands(record_type)) if offline == "draft_only" else []
+        rows.append(
+            RecordTypeRow(
+                record_type=record_type,
+                label=TYPE_LABELS.get(record_type, record_type),
+                module=record_type.split(".", 1)[0],
+                offline=offline,
+                drafting_commands=commands,
+            )
+        )
+    return rows

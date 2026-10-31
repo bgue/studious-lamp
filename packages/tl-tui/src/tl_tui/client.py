@@ -23,6 +23,7 @@ from tl_core.files.queries import FileInfo
 from tl_core.ledger import Event
 from tl_core.links.expected import MissingLink
 from tl_core.numbering.detect import KeyChip
+from tl_core.offline import RecordTypeRow
 from tl_core.services.commands import Command, CommandResult, CreateRecord, UpdateRecord
 from tl_core.services.edit import EditRecord
 from tl_core.services.feed import EditPost, PostToFeed
@@ -134,6 +135,10 @@ class ClientInterface(Protocol):
     def get_record_by_id(self, record_id: str) -> dict[str, Any] | None: ...
 
     def history(self, record_id: str) -> list[Event]: ...
+
+    def record_types(self) -> list[RecordTypeRow]:
+        """Every record type: label, module, offline class, drafting commands (no record data)."""
+        ...
 
     def create_record(self, cmd: CreateRecord) -> CommandResult: ...
 
