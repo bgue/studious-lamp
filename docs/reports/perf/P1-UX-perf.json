@@ -1,7 +1,7 @@
 {
  "schema": 1,
  "date": "2026-10-31",
- "commit": "59a01ba",
+ "commit": "d82ba08",
  "dirty": false,
  "machine": {
   "cpu_model": "Intel(R) Xeon(R) Processor @ 2.80GHz",
@@ -10,16 +10,16 @@
   "disk": {
    "device": "/dev/vda",
    "total_gb": 271,
-   "free_gb": 21,
+   "free_gb": 20,
    "kind": "virtual block device, kernel rotational flag 1"
   },
   "kernel": "6.18.44-fc-v185",
   "python": "3.12.3",
   "sqlite": "3.45.1",
   "load_average": [
-   1.7,
-   2.32,
-   2.88
+   2.11,
+   2.59,
+   2.67
   ],
   "terminal": "170x45"
  },
@@ -61,269 +61,269 @@
     "grid_open": {
      "painted": {
       "n": 25,
-      "median": 205.5,
-      "p95": 559.2,
-      "min": 173.6,
-      "max": 562.1
+      "median": 194.1,
+      "p95": 520.1,
+      "min": 164.5,
+      "max": 541.6
      },
      "state": {
       "n": 25,
-      "median": 137.7,
-      "p95": 433.8,
-      "min": 122.0,
-      "max": 473.3
+      "median": 131.2,
+      "p95": 470.6,
+      "min": 114.2,
+      "max": 494.6
      },
-     "cold_painted": 452.3,
-     "cold_state": 391.2
+     "cold_painted": 397.4,
+     "cold_state": 349.2
     },
     "grid_reload": {
      "painted": {
       "n": 25,
-      "median": 25.7,
-      "p95": 39.7,
-      "min": 23.3,
-      "max": 429.2
+      "median": 18.2,
+      "p95": 41.7,
+      "min": 16.6,
+      "max": 401.2
      },
      "state": {
       "n": 25,
-      "median": 16.3,
-      "p95": 26.1,
-      "min": 14.4,
-      "max": 420.4
+      "median": 8.8,
+      "p95": 16.0,
+      "min": 8.0,
+      "max": 393.3
      },
-     "cold_painted": 28.1,
-     "cold_state": 19.5
+     "cold_painted": 15.7,
+     "cold_state": 7.7
     },
     "grid_filter_text": {
      "painted": {
       "n": 25,
-      "median": 75.6,
-      "p95": 466.1,
-      "min": 47.6,
-      "max": 471.7
+      "median": 64.0,
+      "p95": 82.3,
+      "min": 35.0,
+      "max": 434.8
      },
      "state": {
       "n": 25,
-      "median": 49.8,
-      "p95": 86.8,
-      "min": 28.6,
-      "max": 466.1
+      "median": 35.0,
+      "p95": 64.0,
+      "min": 15.3,
+      "max": 74.7
      },
-     "cold_painted": 59.8,
-     "cold_state": 59.8
+     "cold_painted": 41.5,
+     "cold_state": 41.5
     },
     "grid_filter_number": {
      "painted": {
       "n": 25,
-      "median": 71.0,
-      "p95": 101.9,
-      "min": 44.6,
-      "max": 123.0
+      "median": 72.1,
+      "p95": 450.8,
+      "min": 36.2,
+      "max": 498.6
      },
      "state": {
       "n": 25,
-      "median": 44.6,
-      "p95": 63.9,
-      "min": 28.0,
-      "max": 64.8
+      "median": 19.5,
+      "p95": 49.9,
+      "min": 16.1,
+      "max": 450.8
      },
-     "cold_painted": 86.9,
-     "cold_state": 41.9
+     "cold_painted": 71.0,
+     "cold_state": 17.1
     },
     "grid_filter_code": {
      "painted": {
       "n": 25,
-      "median": 76.5,
-      "p95": 102.0,
-      "min": 47.1,
-      "max": 456.0
+      "median": 70.5,
+      "p95": 90.7,
+      "min": 35.0,
+      "max": 469.1
      },
      "state": {
       "n": 25,
-      "median": 47.1,
-      "p95": 73.8,
-      "min": 28.3,
-      "max": 76.5
+      "median": 24.4,
+      "p95": 48.4,
+      "min": 15.6,
+      "max": 55.7
      },
-     "cold_painted": 48.7,
-     "cold_state": 48.7
+     "cold_painted": 82.7,
+     "cold_state": 17.5
     },
     "rfi_open": {
      "painted": {
       "n": 25,
-      "median": 219.0,
-      "p95": 775.4,
-      "min": 126.8,
-      "max": 824.6
+      "median": 243.5,
+      "p95": 866.9,
+      "min": 177.7,
+      "max": 882.2
      },
      "state": {
       "n": 25,
-      "median": 187.4,
-      "p95": 715.5,
-      "min": 126.8,
-      "max": 721.8
+      "median": 184.1,
+      "p95": 762.9,
+      "min": 128.6,
+      "max": 781.0
      },
-     "cold_painted": 262.2,
-     "cold_state": 262.2
+     "cold_painted": 614.1,
+     "cold_state": 614.1
     },
     "rfi_cursor": {
      "painted": {
       "n": 25,
       "median": 4.9,
-      "p95": 6.7,
-      "min": 4.5,
-      "max": 7.0
+      "p95": 50.6,
+      "min": 4.2,
+      "max": 50.8
      },
      "state": {
       "n": 25,
       "median": 4.9,
-      "p95": 6.7,
-      "min": 4.5,
-      "max": 7.0
+      "p95": 8.6,
+      "min": 4.2,
+      "max": 8.8
      },
-     "cold_painted": 37.9,
-     "cold_state": 37.9
+     "cold_painted": 27.5,
+     "cold_state": 27.5
     },
     "rfi_enter": {
      "painted": {
       "n": 25,
-      "median": 170.4,
-      "p95": 196.8,
-      "min": 158.4,
-      "max": 212.7
+      "median": 176.4,
+      "p95": 252.4,
+      "min": 155.4,
+      "max": 997.1
      },
      "state": {
       "n": 25,
-      "median": 72.6,
-      "p95": 85.5,
-      "min": 64.6,
-      "max": 92.3
+      "median": 77.1,
+      "p95": 109.3,
+      "min": 63.4,
+      "max": 128.5
      },
-     "cold_painted": 228.5,
-     "cold_state": 130.1
+     "cold_painted": 212.3,
+     "cold_state": 88.8
     },
     "rfi_props": {
      "painted": {
       "n": 25,
-      "median": 56.5,
-      "p95": 71.8,
-      "min": 51.4,
-      "max": 76.6
+      "median": 57.1,
+      "p95": 74.6,
+      "min": 52.0,
+      "max": 815.9
      },
      "state": {
       "n": 25,
-      "median": 10.0,
-      "p95": 15.0,
-      "min": 4.9,
-      "max": 16.3
+      "median": 12.8,
+      "p95": 14.8,
+      "min": 4.4,
+      "max": 15.7
      },
-     "cold_painted": 55.5,
-     "cold_state": 10.6
+     "cold_painted": 58.4,
+     "cold_state": 10.0
     },
     "rfi_filter": {
      "painted": {
       "n": 25,
-      "median": 26.4,
-      "p95": 39.6,
-      "min": 22.7,
-      "max": 40.4
+      "median": 26.8,
+      "p95": 35.0,
+      "min": 23.3,
+      "max": 36.7
      },
      "state": {
       "n": 25,
-      "median": 26.4,
-      "p95": 39.6,
-      "min": 22.7,
-      "max": 40.4
+      "median": 26.8,
+      "p95": 35.0,
+      "min": 23.3,
+      "max": 36.7
      },
-     "cold_painted": 8.3,
-     "cold_state": 8.3
+     "cold_painted": 5.5,
+     "cold_state": 5.5
     },
     "corr_open": {
      "painted": {
       "n": 25,
-      "median": 219.6,
-      "p95": 1050.6,
-      "min": 138.1,
-      "max": 1068.8
+      "median": 236.7,
+      "p95": 861.7,
+      "min": 149.2,
+      "max": 909.6
      },
      "state": {
       "n": 25,
-      "median": 164.6,
-      "p95": 930.2,
-      "min": 134.9,
-      "max": 975.5
+      "median": 156.5,
+      "p95": 861.7,
+      "min": 131.3,
+      "max": 909.6
      },
-     "cold_painted": 209.8,
-     "cold_state": 209.8
+     "cold_painted": 230.1,
+     "cold_state": 230.1
     },
     "corr_cursor": {
      "painted": {
       "n": 25,
-      "median": 5.1,
-      "p95": 6.8,
-      "min": 4.9,
-      "max": 7.8
+      "median": 5.9,
+      "p95": 9.3,
+      "min": 4.6,
+      "max": 9.4
      },
      "state": {
       "n": 25,
-      "median": 5.1,
-      "p95": 6.8,
-      "min": 4.9,
-      "max": 7.8
+      "median": 5.9,
+      "p95": 9.3,
+      "min": 4.6,
+      "max": 9.4
      },
-     "cold_painted": 36.6,
-     "cold_state": 36.6
+     "cold_painted": 21.1,
+     "cold_state": 21.1
     },
     "corr_enter": {
      "painted": {
       "n": 25,
-      "median": 180.9,
-      "p95": 217.9,
-      "min": 160.7,
-      "max": 986.2
+      "median": 172.0,
+      "p95": 252.0,
+      "min": 148.1,
+      "max": 273.2
      },
      "state": {
       "n": 25,
-      "median": 72.9,
-      "p95": 97.0,
-      "min": 62.6,
-      "max": 106.6
+      "median": 69.2,
+      "p95": 123.6,
+      "min": 61.5,
+      "max": 124.2
      },
-     "cold_painted": 185.8,
-     "cold_state": 87.8
+     "cold_painted": 185.9,
+     "cold_state": 90.4
     },
     "corr_props": {
      "painted": {
       "n": 25,
-      "median": 55.8,
-      "p95": 847.9,
-      "min": 46.6,
-      "max": 942.2
+      "median": 56.5,
+      "p95": 852.0,
+      "min": 49.8,
+      "max": 905.5
      },
      "state": {
       "n": 25,
-      "median": 10.6,
-      "p95": 14.9,
-      "min": 5.7,
-      "max": 15.0
+      "median": 10.5,
+      "p95": 15.3,
+      "min": 9.3,
+      "max": 17.3
      },
-     "cold_painted": 56.8,
-     "cold_state": 12.6
+     "cold_painted": 55.8,
+     "cold_state": 9.7
     },
     "corr_filter": {
      "painted": {
       "n": 25,
-      "median": 22.7,
-      "p95": 35.0,
+      "median": 24.1,
+      "p95": 35.5,
       "min": 20.9,
-      "max": 87.6
+      "max": 35.8
      },
      "state": {
       "n": 25,
-      "median": 22.7,
-      "p95": 31.8,
+      "median": 24.1,
+      "p95": 35.5,
       "min": 20.9,
-      "max": 35.0
+      "max": 35.8
      },
      "cold_painted": 8.2,
      "cold_state": 8.2
@@ -331,119 +331,95 @@
     "docs_open": {
      "painted": {
       "n": 25,
-      "median": 252.2,
-      "p95": 1065.8,
-      "min": 185.1,
-      "max": 1071.8
+      "median": 238.1,
+      "p95": 1017.1,
+      "min": 179.0,
+      "max": 1022.5
      },
      "state": {
       "n": 25,
-      "median": 166.7,
-      "p95": 1001.0,
-      "min": 145.0,
-      "max": 1055.4
+      "median": 154.3,
+      "p95": 896.4,
+      "min": 132.9,
+      "max": 918.5
      },
-     "cold_painted": 305.2,
-     "cold_state": 182.2
+     "cold_painted": 1182.9,
+     "cold_state": 1085.8
     },
     "docs_cursor": {
      "painted": {
       "n": 25,
-      "median": 5.1,
-      "p95": 7.9,
-      "min": 4.9,
-      "max": 8.1
+      "median": 5.0,
+      "p95": 7.7,
+      "min": 4.8,
+      "max": 9.7
      },
      "state": {
       "n": 25,
-      "median": 5.1,
-      "p95": 7.9,
-      "min": 4.9,
-      "max": 8.1
+      "median": 5.0,
+      "p95": 7.7,
+      "min": 4.8,
+      "max": 9.7
      },
-     "cold_painted": 11.2,
-     "cold_state": 11.2
+     "cold_painted": 11.0,
+     "cold_state": 11.0
     },
     "docs_enter": {
      "painted": {
       "n": 25,
-      "median": 184.4,
-      "p95": 880.6,
-      "min": 151.5,
-      "max": 1050.4
+      "median": 163.4,
+      "p95": 1009.3,
+      "min": 147.1,
+      "max": 1045.1
      },
      "state": {
       "n": 25,
-      "median": 68.4,
-      "p95": 101.3,
-      "min": 59.3,
-      "max": 787.8
+      "median": 69.2,
+      "p95": 85.0,
+      "min": 58.5,
+      "max": 96.3
      },
-     "cold_painted": 167.7,
-     "cold_state": 76.3
+     "cold_painted": 181.1,
+     "cold_state": 87.4
     },
     "docs_props": {
      "painted": {
       "n": 25,
-      "median": 55.4,
-      "p95": 90.4,
-      "min": 50.6,
-      "max": 985.0
+      "median": 57.4,
+      "p95": 71.4,
+      "min": 48.6,
+      "max": 84.0
      },
      "state": {
       "n": 25,
-      "median": 10.2,
-      "p95": 16.9,
-      "min": 9.1,
-      "max": 24.8
+      "median": 10.3,
+      "p95": 15.6,
+      "min": 9.3,
+      "max": 17.0
      },
-     "cold_painted": 56.4,
-     "cold_state": 9.1
+     "cold_painted": 56.9,
+     "cold_state": 14.3
     },
     "docs_filter": {
      "painted": {
       "n": 25,
       "median": 13.0,
-      "p95": 18.0,
+      "p95": 18.4,
       "min": 11.3,
-      "max": 19.0
+      "max": 25.2
      },
      "state": {
       "n": 25,
       "median": 13.0,
-      "p95": 18.0,
+      "p95": 18.4,
       "min": 11.3,
-      "max": 19.0
+      "max": 25.2
      },
-     "cold_painted": 7.2,
-     "cold_state": 7.2
+     "cold_painted": 9.6,
+     "cold_state": 9.6
     }
    },
-   "profile": {
-    "docs_open": [
-     "SQL 9 ms in 1 calls, slowest 9 ms: SELECT x.id FROM cur_core_record x WHERE x.id IN (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?",
-     "SQL 3 ms in 6 calls, slowest 1 ms: SELECT 1 FROM cur_core_record x WHERE x.id = ? AND x.id IN (SELECT hr.id FROM cur_core_record hr WHERE hr.type IN ('correspondence.CommercialItem', 'c",
-     "SQL 2 ms in 1 calls, slowest 2 ms: SELECT l.link_id, l.scope, l.from_id, l.to_id, l.relation, l.status, l.pin, l.updated_at, d.key AS document_number, d.title AS document_title, x.key A",
-     "SQL 1 ms in 4 calls, slowest 1 ms: SELECT id, scope, key, title, description, status, voided, version, conformance, doc_type, discipline, originator, confidentiality, revision_scheme, p",
-     "1076 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/widgets/log_screen.py:311(_load)",
-     "1030 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/widgets/log_screen.py:337(_fill)",
-     "1029 ms cumulative, 1 ms own, 1 calls  tl-tui/src/tl_tui/widgets/log_screen.py:349(_draw_table)",
-     "1008 ms cumulative, 0 ms own, 500 calls  tl-tui/src/tl_tui/widgets/log_screen.py:324(_cells_of)",
-     "1008 ms cumulative, 1 ms own, 500 calls  tl-tui/src/tl_tui/widgets/log_screen.py:328(_cached)",
-     "1006 ms cumulative, 1 ms own, 500 calls  tl-tui/src/tl_tui/widgets/document_register.py:176(row_cells)",
-     "1004 ms cumulative, 1 ms own, 500 calls  tl-tui/src/tl_tui/document_text.py:89(row_cells)",
-     "998 ms cumulative, 1 ms own, 502 calls  tl-tui/src/tl_tui/document_text.py:80(current_words)",
-     "998 ms cumulative, 1 ms own, 502 calls  tl-tui/src/tl_tui/document_text.py:50(status_labels)",
-     "45 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/widgets/document_register.py:132(load_rows)",
-     "45 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/widgets/document_register.py:144(_read)",
-     "45 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/embedded.py:881(list_documents)",
-     "own time 974 ms, 975 ms cumulative, 502 calls  <frozen posixpath>:71(join)",
-     "own time 22 ms, 34 ms cumulative, 3114 calls  textual/strip.py:94(__init__)",
-     "own time 16 ms, 16 ms cumulative, 35 calls  ~:0(<method 'execute' of 'sqlite3.Cursor' objects>)",
-     "own time 12 ms, 17 ms cumulative, 49459 calls  ~:0(<method 'get' of 'dict' objects>)",
-     "own time 12 ms, 18 ms cumulative, 22091 calls  textual/css/styles.py:1507(get_rule)"
-    ]
-   },
+   "profile": {},
    "reps": 25,
    "warmup": 2
   },
@@ -482,421 +458,402 @@
     "grid_open": {
      "painted": {
       "n": 25,
-      "median": 299.8,
-      "p95": 681.5,
-      "min": 259.7,
-      "max": 689.2
+      "median": 263.3,
+      "p95": 659.3,
+      "min": 224.4,
+      "max": 685.6
      },
      "state": {
       "n": 25,
-      "median": 236.5,
-      "p95": 601.4,
-      "min": 211.3,
-      "max": 635.1
+      "median": 203.9,
+      "p95": 603.1,
+      "min": 175.9,
+      "max": 610.7
      },
-     "cold_painted": 514.9,
-     "cold_state": 460.1
+     "cold_painted": 508.6,
+     "cold_state": 465.4
     },
     "grid_reload": {
      "painted": {
       "n": 25,
-      "median": 34.7,
-      "p95": 44.2,
-      "min": 31.0,
-      "max": 45.3
-     },
-     "state": {
-      "n": 25,
-      "median": 23.8,
-      "p95": 33.2,
-      "min": 21.4,
-      "max": 33.6
-     },
-     "cold_painted": 39.0,
-     "cold_state": 24.4
-    },
-    "grid_filter_text": {
-     "painted": {
-      "n": 25,
-      "median": 93.4,
-      "p95": 414.7,
-      "min": 59.3,
-      "max": 476.2
-     },
-     "state": {
-      "n": 25,
-      "median": 56.2,
-      "p95": 414.7,
-      "min": 38.2,
-      "max": 476.2
-     },
-     "cold_painted": 91.7,
-     "cold_state": 91.7
-    },
-    "grid_filter_number": {
-     "painted": {
-      "n": 25,
-      "median": 88.8,
-      "p95": 114.4,
-      "min": 64.3,
-      "max": 121.8
-     },
-     "state": {
-      "n": 25,
-      "median": 66.2,
-      "p95": 91.8,
-      "min": 41.6,
-      "max": 92.0
-     },
-     "cold_painted": 108.4,
-     "cold_state": 56.1
-    },
-    "grid_filter_code": {
-     "painted": {
-      "n": 25,
-      "median": 101.2,
-      "p95": 116.2,
-      "min": 61.8,
-      "max": 487.1
-     },
-     "state": {
-      "n": 25,
-      "median": 45.5,
-      "p95": 85.7,
-      "min": 39.1,
-      "max": 102.0
-     },
-     "cold_painted": 90.0,
-     "cold_state": 90.0
-    },
-    "rfi_open": {
-     "painted": {
-      "n": 25,
-      "median": 261.0,
-      "p95": 752.4,
-      "min": 102.0,
-      "max": 766.1
-     },
-     "state": {
-      "n": 25,
-      "median": 124.5,
-      "p95": 619.0,
-      "min": 99.2,
-      "max": 665.7
-     },
-     "cold_painted": 252.9,
-     "cold_state": 252.9
-    },
-    "rfi_cursor": {
-     "painted": {
-      "n": 25,
-      "median": 5.2,
-      "p95": 16.5,
-      "min": 4.4,
-      "max": 55.6
-     },
-     "state": {
-      "n": 25,
-      "median": 5.2,
-      "p95": 9.3,
-      "min": 4.4,
-      "max": 16.5
-     },
-     "cold_painted": 50.3,
-     "cold_state": 50.3
-    },
-    "rfi_enter": {
-     "painted": {
-      "n": 25,
-      "median": 229.6,
-      "p95": 285.3,
-      "min": 192.4,
-      "max": 1092.3
-     },
-     "state": {
-      "n": 25,
-      "median": 119.7,
-      "p95": 186.0,
-      "min": 98.6,
-      "max": 194.8
-     },
-     "cold_painted": 288.6,
-     "cold_state": 190.2
-    },
-    "rfi_props": {
-     "painted": {
-      "n": 25,
-      "median": 67.5,
-      "p95": 75.4,
-      "min": 55.4,
-      "max": 77.3
-     },
-     "state": {
-      "n": 25,
-      "median": 19.4,
-      "p95": 23.7,
-      "min": 4.7,
-      "max": 23.7
-     },
-     "cold_painted": 88.9,
-     "cold_state": 26.9
-    },
-    "rfi_filter": {
-     "painted": {
-      "n": 25,
-      "median": 60.9,
-      "p95": 74.6,
-      "min": 50.0,
-      "max": 78.1
-     },
-     "state": {
-      "n": 25,
-      "median": 60.8,
-      "p95": 74.6,
-      "min": 50.0,
-      "max": 78.0
-     },
-     "cold_painted": 8.9,
-     "cold_state": 8.9
-    },
-    "corr_open": {
-     "painted": {
-      "n": 25,
-      "median": 271.5,
-      "p95": 991.3,
-      "min": 104.6,
-      "max": 1062.0
-     },
-     "state": {
-      "n": 25,
-      "median": 138.5,
-      "p95": 872.0,
-      "min": 104.6,
-      "max": 922.6
-     },
-     "cold_painted": 355.9,
-     "cold_state": 355.9
-    },
-    "corr_cursor": {
-     "painted": {
-      "n": 25,
-      "median": 6.7,
-      "p95": 22.2,
-      "min": 4.8,
+      "median": 24.9,
+      "p95": 31.4,
+      "min": 23.2,
       "max": 39.7
      },
      "state": {
       "n": 25,
-      "median": 6.7,
-      "p95": 15.5,
-      "min": 4.8,
-      "max": 22.2
+      "median": 15.8,
+      "p95": 22.6,
+      "min": 13.9,
+      "max": 29.5
      },
-     "cold_painted": 52.6,
-     "cold_state": 52.6
+     "cold_painted": 24.8,
+     "cold_state": 16.5
     },
-    "corr_enter": {
+    "grid_filter_text": {
      "painted": {
       "n": 25,
-      "median": 238.5,
-      "p95": 1081.0,
-      "min": 197.7,
-      "max": 1110.1
+      "median": 76.6,
+      "p95": 110.6,
+      "min": 44.6,
+      "max": 462.3
      },
      "state": {
       "n": 25,
-      "median": 125.7,
-      "p95": 171.5,
-      "min": 106.1,
-      "max": 298.7
+      "median": 30.1,
+      "p95": 59.0,
+      "min": 25.0,
+      "max": 79.7
      },
-     "cold_painted": 1248.5,
-     "cold_state": 322.5
+     "cold_painted": 54.3,
+     "cold_state": 54.3
     },
-    "corr_props": {
+    "grid_filter_number": {
      "painted": {
       "n": 25,
-      "median": 70.9,
-      "p95": 82.3,
-      "min": 54.8,
-      "max": 83.1
+      "median": 74.4,
+      "p95": 107.9,
+      "min": 45.4,
+      "max": 462.7
      },
      "state": {
       "n": 25,
-      "median": 20.6,
-      "p95": 25.7,
-      "min": 4.7,
-      "max": 27.2
+      "median": 34.3,
+      "p95": 82.2,
+      "min": 26.0,
+      "max": 462.7
      },
-     "cold_painted": 73.3,
-     "cold_state": 28.0
+     "cold_painted": 61.2,
+     "cold_state": 61.2
     },
-    "corr_filter": {
+    "grid_filter_code": {
      "painted": {
       "n": 25,
-      "median": 61.3,
-      "p95": 75.6,
-      "min": 51.1,
-      "max": 76.4
+      "median": 71.7,
+      "p95": 417.3,
+      "min": 45.1,
+      "max": 427.4
      },
      "state": {
       "n": 25,
-      "median": 61.3,
-      "p95": 75.6,
-      "min": 51.1,
-      "max": 76.4
+      "median": 51.3,
+      "p95": 417.3,
+      "min": 27.3,
+      "max": 427.4
      },
-     "cold_painted": 9.7,
-     "cold_state": 9.7
+     "cold_painted": 85.3,
+     "cold_state": 35.7
     },
-    "docs_open": {
+    "rfi_open": {
      "painted": {
       "n": 25,
-      "median": 249.3,
-      "p95": 1100.6,
-      "min": 161.2,
-      "max": 1138.1
+      "median": 262.0,
+      "p95": 820.6,
+      "min": 98.7,
+      "max": 889.3
      },
      "state": {
       "n": 25,
-      "median": 151.5,
-      "p95": 922.4,
-      "min": 101.8,
-      "max": 968.1
+      "median": 112.7,
+      "p95": 588.4,
+      "min": 95.0,
+      "max": 699.2
      },
-     "cold_painted": 336.2,
-     "cold_state": 261.9
+     "cold_painted": 238.3,
+     "cold_state": 238.3
     },
-    "docs_cursor": {
+    "rfi_cursor": {
      "painted": {
       "n": 25,
-      "median": 5.7,
-      "p95": 8.0,
-      "min": 4.9,
-      "max": 14.8
+      "median": 5.3,
+      "p95": 6.9,
+      "min": 4.5,
+      "max": 7.2
      },
      "state": {
       "n": 25,
-      "median": 5.7,
-      "p95": 8.0,
-      "min": 4.9,
-      "max": 14.7
+      "median": 5.3,
+      "p95": 6.9,
+      "min": 4.5,
+      "max": 7.2
      },
-     "cold_painted": 22.7,
-     "cold_state": 22.7
+     "cold_painted": 42.8,
+     "cold_state": 42.8
     },
-    "docs_enter": {
+    "rfi_enter": {
      "painted": {
       "n": 25,
-      "median": 206.5,
-      "p95": 943.6,
-      "min": 175.5,
-      "max": 1008.8
+      "median": 218.9,
+      "p95": 309.5,
+      "min": 186.4,
+      "max": 1058.1
      },
      "state": {
       "n": 25,
-      "median": 94.7,
-      "p95": 134.2,
-      "min": 82.1,
-      "max": 179.1
+      "median": 114.6,
+      "p95": 166.6,
+      "min": 96.7,
+      "max": 210.3
      },
-     "cold_painted": 307.5,
-     "cold_state": 204.3
+     "cold_painted": 970.8,
+     "cold_state": 193.8
     },
-    "docs_props": {
+    "rfi_props": {
      "painted": {
       "n": 25,
-      "median": 70.9,
-      "p95": 88.6,
-      "min": 57.1,
-      "max": 91.0
+      "median": 69.1,
+      "p95": 83.2,
+      "min": 54.0,
+      "max": 819.4
      },
      "state": {
       "n": 25,
       "median": 20.5,
-      "p95": 26.2,
-      "min": 15.9,
-      "max": 27.2
+      "p95": 25.3,
+      "min": 6.6,
+      "max": 26.4
      },
-     "cold_painted": 72.2,
-     "cold_state": 19.2
+     "cold_painted": 69.3,
+     "cold_state": 22.2
+    },
+    "rfi_filter": {
+     "painted": {
+      "n": 25,
+      "median": 56.7,
+      "p95": 69.0,
+      "min": 46.8,
+      "max": 75.2
+     },
+     "state": {
+      "n": 25,
+      "median": 56.7,
+      "p95": 69.0,
+      "min": 46.8,
+      "max": 75.2
+     },
+     "cold_painted": 5.8,
+     "cold_state": 5.8
+    },
+    "corr_open": {
+     "painted": {
+      "n": 25,
+      "median": 228.4,
+      "p95": 958.6,
+      "min": 93.6,
+      "max": 1045.4
+     },
+     "state": {
+      "n": 25,
+      "median": 116.9,
+      "p95": 864.9,
+      "min": 87.5,
+      "max": 900.4
+     },
+     "cold_painted": 222.9,
+     "cold_state": 222.8
+    },
+    "corr_cursor": {
+     "painted": {
+      "n": 25,
+      "median": 5.1,
+      "p95": 7.8,
+      "min": 4.6,
+      "max": 8.3
+     },
+     "state": {
+      "n": 25,
+      "median": 5.1,
+      "p95": 7.8,
+      "min": 4.6,
+      "max": 8.2
+     },
+     "cold_painted": 51.4,
+     "cold_state": 51.4
+    },
+    "corr_enter": {
+     "painted": {
+      "n": 25,
+      "median": 214.4,
+      "p95": 1015.9,
+      "min": 195.8,
+      "max": 1181.0
+     },
+     "state": {
+      "n": 25,
+      "median": 115.7,
+      "p95": 169.5,
+      "min": 99.6,
+      "max": 187.1
+     },
+     "cold_painted": 294.9,
+     "cold_state": 193.2
+    },
+    "corr_props": {
+     "painted": {
+      "n": 25,
+      "median": 69.2,
+      "p95": 82.4,
+      "min": 54.8,
+      "max": 84.9
+     },
+     "state": {
+      "n": 25,
+      "median": 20.0,
+      "p95": 23.4,
+      "min": 16.7,
+      "max": 25.5
+     },
+     "cold_painted": 56.0,
+     "cold_state": 18.0
+    },
+    "corr_filter": {
+     "painted": {
+      "n": 25,
+      "median": 53.2,
+      "p95": 63.6,
+      "min": 41.2,
+      "max": 64.8
+     },
+     "state": {
+      "n": 25,
+      "median": 53.2,
+      "p95": 63.6,
+      "min": 41.2,
+      "max": 64.8
+     },
+     "cold_painted": 6.0,
+     "cold_state": 6.0
+    },
+    "docs_open": {
+     "painted": {
+      "n": 25,
+      "median": 247.5,
+      "p95": 1086.1,
+      "min": 186.7,
+      "max": 1111.0
+     },
+     "state": {
+      "n": 25,
+      "median": 128.0,
+      "p95": 175.2,
+      "min": 100.5,
+      "max": 177.7
+     },
+     "cold_painted": 315.5,
+     "cold_state": 184.4
+    },
+    "docs_cursor": {
+     "painted": {
+      "n": 25,
+      "median": 5.0,
+      "p95": 7.5,
+      "min": 4.7,
+      "max": 8.1
+     },
+     "state": {
+      "n": 25,
+      "median": 5.0,
+      "p95": 7.5,
+      "min": 4.7,
+      "max": 8.1
+     },
+     "cold_painted": 16.6,
+     "cold_state": 16.6
+    },
+    "docs_enter": {
+     "painted": {
+      "n": 25,
+      "median": 188.5,
+      "p95": 985.1,
+      "min": 164.2,
+      "max": 1061.1
+     },
+     "state": {
+      "n": 25,
+      "median": 91.8,
+      "p95": 143.3,
+      "min": 75.0,
+      "max": 890.3
+     },
+     "cold_painted": 278.9,
+     "cold_state": 178.3
+    },
+    "docs_props": {
+     "painted": {
+      "n": 25,
+      "median": 69.9,
+      "p95": 86.0,
+      "min": 54.4,
+      "max": 843.1
+     },
+     "state": {
+      "n": 25,
+      "median": 18.3,
+      "p95": 24.6,
+      "min": 6.8,
+      "max": 25.5
+     },
+     "cold_painted": 71.6,
+     "cold_state": 18.9
     },
     "docs_filter": {
      "painted": {
       "n": 25,
-      "median": 17.4,
-      "p95": 23.4,
+      "median": 18.1,
+      "p95": 22.5,
       "min": 15.5,
-      "max": 23.6
+      "max": 24.2
      },
      "state": {
       "n": 25,
-      "median": 17.4,
-      "p95": 23.4,
+      "median": 18.0,
+      "p95": 22.5,
       "min": 15.5,
-      "max": 23.6
+      "max": 24.1
      },
-     "cold_painted": 7.2,
-     "cold_state": 7.2
+     "cold_painted": 8.2,
+     "cold_state": 8.2
     }
    },
    "profile": {
     "grid_open": [
-     "206 ms cumulative, 0 ms own, 9 calls  tl-tui/src/tl_tui/remote.py:249(tracked)",
-     "203 ms cumulative, 0 ms own, 27 calls  tl-api/src/tl_api/client/base.py:168(_get_json)",
-     "199 ms cumulative, 0 ms own, 27 calls  tl-api/src/tl_api/client/base.py:108(_send)",
-     "199 ms cumulative, 0 ms own, 27 calls  tl-api/src/tl_api/client/base.py:125(_attempt)",
-     "198 ms cumulative, 0 ms own, 27 calls  httpx2/_client.py:743(request)",
-     "181 ms cumulative, 0 ms own, 27 calls  httpx2/_client.py:949(send)",
-     "173 ms cumulative, 0 ms own, 2 calls  tl-tui/src/tl_tui/labels_load.py:93(load_labels)",
-     "173 ms cumulative, 0 ms own, 2 calls  tl-tui/src/tl_tui/labels_load.py:116(_read_labels)",
-     "171 ms cumulative, 0 ms own, 27 calls  httpx2/_client.py:996(_send_handling_auth)",
-     "170 ms cumulative, 0 ms own, 27 calls  httpx2/_client.py:1030(_send_handling_redirects)",
-     "170 ms cumulative, 1 ms own, 27 calls  httpx2/_client.py:1065(_send_single_request)",
-     "167 ms cumulative, 1 ms own, 27 calls  httpx2/_transports/default.py:225(handle_request)",
-     "own time 141 ms, 141 ms cumulative, 45 calls  ~:0(<method 'recv' of '_socket.socket' objects>)",
-     "own time 25 ms, 25 ms cumulative, 69 calls  ~:0(<method 'poll' of 'select.epoll' objects>)",
-     "own time 11 ms, 19 ms cumulative, 2727 calls  textual/css/tokenizer.py:227(get_token)",
-     "own time 11 ms, 11 ms cumulative, 16771 calls  textual/cache.py:226(__init__)",
-     "own time 10 ms, 21 ms cumulative, 2393 calls  textual/strip.py:94(__init__)"
+     "181 ms cumulative, 0 ms own, 9 calls  tl-tui/src/tl_tui/remote.py:249(tracked)",
+     "178 ms cumulative, 0 ms own, 27 calls  tl-api/src/tl_api/client/base.py:168(_get_json)",
+     "175 ms cumulative, 0 ms own, 27 calls  tl-api/src/tl_api/client/base.py:108(_send)",
+     "174 ms cumulative, 0 ms own, 27 calls  tl-api/src/tl_api/client/base.py:125(_attempt)",
+     "174 ms cumulative, 0 ms own, 27 calls  httpx2/_client.py:743(request)",
+     "167 ms cumulative, 0 ms own, 2 calls  tl-tui/src/tl_tui/labels_load.py:93(load_labels)",
+     "167 ms cumulative, 0 ms own, 2 calls  tl-tui/src/tl_tui/labels_load.py:116(_read_labels)",
+     "157 ms cumulative, 0 ms own, 27 calls  httpx2/_client.py:949(send)",
+     "147 ms cumulative, 0 ms own, 27 calls  httpx2/_client.py:996(_send_handling_auth)",
+     "147 ms cumulative, 0 ms own, 27 calls  httpx2/_client.py:1030(_send_handling_redirects)",
+     "146 ms cumulative, 1 ms own, 27 calls  httpx2/_client.py:1065(_send_single_request)",
+     "144 ms cumulative, 1 ms own, 27 calls  httpx2/_transports/default.py:225(handle_request)",
+     "own time 119 ms, 119 ms cumulative, 43 calls  ~:0(<method 'recv' of '_socket.socket' objects>)",
+     "own time 21 ms, 21 ms cumulative, 61 calls  ~:0(<method 'poll' of 'select.epoll' objects>)",
+     "own time 12 ms, 22 ms cumulative, 2393 calls  textual/strip.py:94(__init__)",
+     "own time 9 ms, 9 ms cumulative, 16771 calls  textual/cache.py:226(__init__)",
+     "own time 8 ms, 32 ms cumulative, 266 calls  textual/dom.py:1084(rich_style)"
     ],
     "rfi_open": [
-     "139 ms cumulative, 0 ms own, 8 calls  tl-tui/src/tl_tui/remote.py:249(tracked)",
-     "134 ms cumulative, 0 ms own, 9 calls  tl-api/src/tl_api/client/base.py:168(_get_json)",
-     "131 ms cumulative, 0 ms own, 9 calls  tl-api/src/tl_api/client/base.py:108(_send)",
-     "131 ms cumulative, 0 ms own, 9 calls  tl-api/src/tl_api/client/base.py:125(_attempt)",
-     "131 ms cumulative, 0 ms own, 9 calls  httpx2/_client.py:743(request)",
-     "126 ms cumulative, 0 ms own, 9 calls  httpx2/_client.py:949(send)",
-     "122 ms cumulative, 0 ms own, 9 calls  httpx2/_client.py:996(_send_handling_auth)",
-     "122 ms cumulative, 0 ms own, 9 calls  httpx2/_client.py:1030(_send_handling_redirects)",
-     "122 ms cumulative, 0 ms own, 9 calls  httpx2/_client.py:1065(_send_single_request)",
-     "121 ms cumulative, 0 ms own, 9 calls  httpx2/_transports/default.py:225(handle_request)",
-     "100 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/widgets/log_screen.py:311(_load)",
-     "64 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/widgets/domain_screen.py:152(load_rows)",
-     "own time 807 ms, 822 ms cumulative, 3789 calls  textual/strip.py:94(__init__)",
-     "own time 111 ms, 111 ms cumulative, 16 calls  ~:0(<method 'recv' of '_socket.socket' objects>)",
-     "own time 18 ms, 18 ms cumulative, 80 calls  ~:0(<method 'poll' of 'select.epoll' objects>)",
-     "own time 12 ms, 13 ms cumulative, 47189 calls  ~:0(<method 'get' of 'dict' objects>)",
-     "own time 11 ms, 11 ms cumulative, 26535 calls  textual/cache.py:226(__init__)"
-    ],
-    "corr_open": [
-     "282 ms cumulative, 0 ms own, 8 calls  tl-tui/src/tl_tui/remote.py:249(tracked)",
-     "277 ms cumulative, 0 ms own, 9 calls  tl-api/src/tl_api/client/base.py:168(_get_json)",
-     "275 ms cumulative, 0 ms own, 9 calls  tl-api/src/tl_api/client/base.py:108(_send)",
-     "275 ms cumulative, 0 ms own, 9 calls  tl-api/src/tl_api/client/base.py:125(_attempt)",
-     "275 ms cumulative, 0 ms own, 9 calls  httpx2/_client.py:743(request)",
-     "269 ms cumulative, 0 ms own, 9 calls  httpx2/_client.py:949(send)",
-     "263 ms cumulative, 0 ms own, 9 calls  httpx2/_client.py:996(_send_handling_auth)",
-     "263 ms cumulative, 0 ms own, 9 calls  httpx2/_client.py:1030(_send_handling_redirects)",
-     "263 ms cumulative, 0 ms own, 9 calls  httpx2/_client.py:1065(_send_single_request)",
-     "261 ms cumulative, 0 ms own, 9 calls  httpx2/_transports/default.py:225(handle_request)",
-     "154 ms cumulative, 0 ms own, 3 calls  tl-tui/src/tl_tui/widgets/log_screen.py:445(_show_row)",
-     "153 ms cumulative, 0 ms own, 3 calls  tl-tui/src/tl_tui/widgets/log_screen.py:469(_finish_row)",
-     "own time 252 ms, 252 ms cumulative, 21 calls  ~:0(<method 'recv' of '_socket.socket' objects>)",
-     "own time 23 ms, 35 ms cumulative, 3473 calls  textual/strip.py:94(__init__)",
-     "own time 10 ms, 15 ms cumulative, 20084 calls  textual/css/styles.py:1507(get_rule)",
-     "own time 9 ms, 11 ms cumulative, 41798 calls  ~:0(<method 'get' of 'dict' objects>)",
-     "own time 9 ms, 9 ms cumulative, 24323 calls  textual/cache.py:226(__init__)"
+     "132 ms cumulative, 0 ms own, 8 calls  tl-tui/src/tl_tui/remote.py:249(tracked)",
+     "128 ms cumulative, 0 ms own, 9 calls  tl-api/src/tl_api/client/base.py:168(_get_json)",
+     "125 ms cumulative, 0 ms own, 9 calls  tl-api/src/tl_api/client/base.py:108(_send)",
+     "125 ms cumulative, 0 ms own, 9 calls  tl-api/src/tl_api/client/base.py:125(_attempt)",
+     "124 ms cumulative, 0 ms own, 9 calls  httpx2/_client.py:743(request)",
+     "120 ms cumulative, 0 ms own, 9 calls  httpx2/_client.py:949(send)",
+     "116 ms cumulative, 0 ms own, 9 calls  httpx2/_client.py:996(_send_handling_auth)",
+     "116 ms cumulative, 0 ms own, 9 calls  httpx2/_client.py:1030(_send_handling_redirects)",
+     "116 ms cumulative, 0 ms own, 9 calls  httpx2/_client.py:1065(_send_single_request)",
+     "115 ms cumulative, 0 ms own, 9 calls  httpx2/_transports/default.py:225(handle_request)",
+     "111 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/widgets/log_screen.py:311(_load)",
+     "70 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/widgets/domain_screen.py:152(load_rows)",
+     "own time 106 ms, 106 ms cumulative, 19 calls  ~:0(<method 'recv' of '_socket.socket' objects>)",
+     "own time 15 ms, 27 ms cumulative, 3318 calls  textual/strip.py:94(__init__)",
+     "own time 9 ms, 11 ms cumulative, 43899 calls  ~:0(<method 'get' of 'dict' objects>)",
+     "own time 9 ms, 14 ms cumulative, 19984 calls  textual/css/styles.py:1507(get_rule)",
+     "own time 9 ms, 9 ms cumulative, 23238 calls  textual/cache.py:226(__init__)"
     ]
    },
    "reps": 25,
@@ -923,540 +880,517 @@
       "median": 0.1,
       "p95": 0.1,
       "min": 0.1,
-      "max": 0.5
+      "max": 0.1
      },
      "state": {
       "n": 25,
       "median": 0.1,
       "p95": 0.1,
       "min": 0.1,
-      "max": 0.5
+      "max": 0.1
      },
-     "cold_painted": 0.1,
-     "cold_state": 0.1
+     "cold_painted": 0.2,
+     "cold_state": 0.2
     },
     "grid_open": {
      "painted": {
       "n": 25,
-      "median": 399.5,
-      "p95": 735.8,
-      "min": 303.0,
-      "max": 744.1
+      "median": 319.9,
+      "p95": 646.7,
+      "min": 253.8,
+      "max": 666.5
      },
      "state": {
       "n": 25,
-      "median": 335.7,
-      "p95": 661.8,
-      "min": 242.0,
-      "max": 674.6
+      "median": 256.2,
+      "p95": 571.4,
+      "min": 197.3,
+      "max": 617.2
      },
-     "cold_painted": 665.2,
-     "cold_state": 606.5
+     "cold_painted": 514.0,
+     "cold_state": 460.4
     },
     "grid_reload": {
      "painted": {
       "n": 25,
-      "median": 44.1,
-      "p95": 55.5,
-      "min": 36.7,
-      "max": 56.1
+      "median": 34.9,
+      "p95": 47.8,
+      "min": 28.1,
+      "max": 50.2
      },
      "state": {
       "n": 25,
-      "median": 33.8,
-      "p95": 42.0,
-      "min": 28.4,
-      "max": 45.9
+      "median": 24.7,
+      "p95": 31.7,
+      "min": 20.0,
+      "max": 42.0
      },
-     "cold_painted": 39.7,
-     "cold_state": 31.0
+     "cold_painted": 40.6,
+     "cold_state": 30.9
     },
     "grid_filter_text": {
      "painted": {
       "n": 25,
-      "median": 97.1,
-      "p95": 124.4,
-      "min": 72.8,
-      "max": 130.0
+      "median": 81.6,
+      "p95": 113.7,
+      "min": 50.8,
+      "max": 582.9
      },
      "state": {
       "n": 25,
-      "median": 83.6,
-      "p95": 110.3,
-      "min": 55.0,
-      "max": 111.4
+      "median": 52.6,
+      "p95": 81.6,
+      "min": 33.7,
+      "max": 582.9
      },
-     "cold_painted": 115.8,
-     "cold_state": 56.1
+     "cold_painted": 68.6,
+     "cold_state": 68.6
     },
     "grid_filter_number": {
      "painted": {
       "n": 25,
-      "median": 103.4,
-      "p95": 153.1,
-      "min": 72.6,
-      "max": 468.7
+      "median": 86.7,
+      "p95": 449.4,
+      "min": 59.8,
+      "max": 464.5
      },
      "state": {
       "n": 25,
-      "median": 79.3,
-      "p95": 123.9,
-      "min": 53.0,
-      "max": 468.7
+      "median": 62.7,
+      "p95": 449.4,
+      "min": 38.4,
+      "max": 464.5
      },
-     "cold_painted": 566.9,
-     "cold_state": 74.6
+     "cold_painted": 105.6,
+     "cold_state": 48.6
     },
     "grid_filter_code": {
      "painted": {
       "n": 25,
-      "median": 96.3,
-      "p95": 117.5,
-      "min": 71.6,
-      "max": 119.1
+      "median": 86.4,
+      "p95": 120.9,
+      "min": 53.6,
+      "max": 129.1
      },
      "state": {
       "n": 25,
-      "median": 78.7,
-      "p95": 101.8,
-      "min": 50.3,
-      "max": 115.8
+      "median": 53.6,
+      "p95": 72.1,
+      "min": 39.0,
+      "max": 89.6
      },
-     "cold_painted": 116.1,
-     "cold_state": 56.1
+     "cold_painted": 78.8,
+     "cold_state": 78.8
     },
     "rfi_open": {
      "painted": {
       "n": 25,
-      "median": 297.1,
-      "p95": 987.6,
-      "min": 235.0,
-      "max": 1050.3
+      "median": 255.1,
+      "p95": 852.6,
+      "min": 187.6,
+      "max": 1049.4
      },
      "state": {
       "n": 25,
-      "median": 293.7,
-      "p95": 987.6,
-      "min": 235.0,
-      "max": 1050.3
+      "median": 254.3,
+      "p95": 852.5,
+      "min": 187.6,
+      "max": 865.8
      },
-     "cold_painted": 332.4,
-     "cold_state": 332.4
+     "cold_painted": 928.5,
+     "cold_state": 336.7
     },
     "rfi_cursor": {
      "painted": {
       "n": 25,
-      "median": 5.1,
-      "p95": 7.3,
-      "min": 4.6,
-      "max": 8.9
+      "median": 4.9,
+      "p95": 6.8,
+      "min": 4.5,
+      "max": 7.3
      },
      "state": {
       "n": 25,
-      "median": 5.1,
-      "p95": 7.3,
-      "min": 4.6,
-      "max": 8.9
+      "median": 4.9,
+      "p95": 6.8,
+      "min": 4.5,
+      "max": 7.2
      },
-     "cold_painted": 105.5,
-     "cold_state": 105.5
+     "cold_painted": 115.1,
+     "cold_state": 115.1
     },
     "rfi_enter": {
      "painted": {
       "n": 25,
-      "median": 252.5,
-      "p95": 337.6,
-      "min": 224.4,
-      "max": 936.9
+      "median": 268.9,
+      "p95": 327.9,
+      "min": 223.8,
+      "max": 1092.3
      },
      "state": {
       "n": 25,
-      "median": 157.5,
-      "p95": 243.1,
-      "min": 135.7,
-      "max": 833.9
+      "median": 168.8,
+      "p95": 204.8,
+      "min": 133.7,
+      "max": 225.3
      },
-     "cold_painted": 318.4,
-     "cold_state": 228.0
+     "cold_painted": 1052.6,
+     "cold_state": 932.1
     },
     "rfi_props": {
      "painted": {
       "n": 25,
-      "median": 70.8,
-      "p95": 833.0,
-      "min": 57.4,
-      "max": 902.2
+      "median": 72.1,
+      "p95": 86.3,
+      "min": 55.9,
+      "max": 825.0
      },
      "state": {
       "n": 25,
-      "median": 22.5,
-      "p95": 27.3,
-      "min": 4.8,
-      "max": 27.3
+      "median": 22.2,
+      "p95": 28.8,
+      "min": 4.1,
+      "max": 30.1
      },
-     "cold_painted": 67.5,
-     "cold_state": 22.9
+     "cold_painted": 74.9,
+     "cold_state": 20.5
     },
     "rfi_filter": {
      "painted": {
       "n": 25,
       "median": 98.1,
-      "p95": 127.2,
-      "min": 84.1,
-      "max": 130.0
+      "p95": 124.3,
+      "min": 86.5,
+      "max": 125.8
      },
      "state": {
       "n": 25,
       "median": 98.1,
-      "p95": 127.2,
-      "min": 84.1,
-      "max": 130.0
+      "p95": 124.3,
+      "min": 86.5,
+      "max": 125.8
      },
-     "cold_painted": 6.4,
-     "cold_state": 6.4
+     "cold_painted": 8.8,
+     "cold_state": 8.8
     },
     "corr_open": {
      "painted": {
       "n": 25,
-      "median": 305.0,
-      "p95": 985.2,
-      "min": 251.9,
-      "max": 1033.0
+      "median": 272.7,
+      "p95": 1012.0,
+      "min": 233.9,
+      "max": 1047.7
      },
      "state": {
       "n": 25,
-      "median": 305.0,
-      "p95": 985.2,
-      "min": 251.9,
-      "max": 1033.0
+      "median": 270.0,
+      "p95": 1012.0,
+      "min": 216.0,
+      "max": 1047.7
      },
-     "cold_painted": 339.6,
-     "cold_state": 339.6
+     "cold_painted": 1090.6,
+     "cold_state": 1090.6
     },
     "corr_cursor": {
      "painted": {
       "n": 25,
-      "median": 5.4,
-      "p95": 7.4,
-      "min": 4.8,
-      "max": 7.9
+      "median": 6.2,
+      "p95": 8.9,
+      "min": 4.7,
+      "max": 29.6
      },
      "state": {
       "n": 25,
-      "median": 5.4,
-      "p95": 7.4,
-      "min": 4.8,
-      "max": 7.9
+      "median": 6.1,
+      "p95": 8.9,
+      "min": 4.7,
+      "max": 29.6
      },
-     "cold_painted": 114.9,
-     "cold_state": 114.9
+     "cold_painted": 95.7,
+     "cold_state": 95.7
     },
     "corr_enter": {
      "painted": {
       "n": 25,
-      "median": 267.0,
-      "p95": 1152.3,
-      "min": 224.9,
-      "max": 1259.2
+      "median": 255.4,
+      "p95": 361.6,
+      "min": 234.4,
+      "max": 1108.2
      },
      "state": {
       "n": 25,
-      "median": 161.8,
-      "p95": 186.0,
-      "min": 135.8,
-      "max": 235.4
+      "median": 155.2,
+      "p95": 174.4,
+      "min": 137.0,
+      "max": 230.5
      },
-     "cold_painted": 345.7,
-     "cold_state": 245.5
+     "cold_painted": 391.4,
+     "cold_state": 262.7
     },
     "corr_props": {
      "painted": {
       "n": 25,
-      "median": 72.2,
-      "p95": 79.6,
-      "min": 57.4,
-      "max": 86.6
+      "median": 71.3,
+      "p95": 938.4,
+      "min": 62.9,
+      "max": 949.5
      },
      "state": {
       "n": 25,
-      "median": 23.9,
-      "p95": 30.4,
-      "min": 19.3,
-      "max": 31.0
+      "median": 22.2,
+      "p95": 32.2,
+      "min": 18.4,
+      "max": 32.8
      },
-     "cold_painted": 62.0,
-     "cold_state": 20.7
+     "cold_painted": 62.2,
+     "cold_state": 20.6
     },
     "corr_filter": {
      "painted": {
       "n": 25,
-      "median": 94.4,
-      "p95": 115.6,
-      "min": 73.9,
-      "max": 115.8
+      "median": 91.0,
+      "p95": 123.6,
+      "min": 76.7,
+      "max": 124.4
      },
      "state": {
       "n": 25,
-      "median": 94.4,
-      "p95": 115.5,
-      "min": 73.9,
-      "max": 115.8
+      "median": 90.9,
+      "p95": 123.6,
+      "min": 76.7,
+      "max": 124.4
      },
-     "cold_painted": 6.5,
-     "cold_state": 6.5
+     "cold_painted": 9.3,
+     "cold_state": 9.3
     },
     "docs_open": {
      "painted": {
       "n": 25,
-      "median": 326.0,
-      "p95": 1174.5,
-      "min": 255.9,
-      "max": 1245.3
+      "median": 275.0,
+      "p95": 1124.0,
+      "min": 205.3,
+      "max": 1279.9
      },
      "state": {
       "n": 25,
-      "median": 314.1,
-      "p95": 1174.5,
-      "min": 255.9,
-      "max": 1245.3
+      "median": 260.3,
+      "p95": 1124.0,
+      "min": 205.3,
+      "max": 1279.9
      },
-     "cold_painted": 391.7,
-     "cold_state": 391.7
+     "cold_painted": 318.3,
+     "cold_state": 318.3
     },
     "docs_cursor": {
      "painted": {
       "n": 25,
-      "median": 5.7,
-      "p95": 8.0,
-      "min": 4.9,
-      "max": 43.4
+      "median": 5.4,
+      "p95": 43.3,
+      "min": 5.0,
+      "max": 55.7
      },
      "state": {
       "n": 25,
-      "median": 5.7,
-      "p95": 8.0,
+      "median": 5.4,
+      "p95": 8.7,
       "min": 4.9,
-      "max": 8.7
+      "max": 9.2
      },
-     "cold_painted": 37.2,
-     "cold_state": 37.2
+     "cold_painted": 25.5,
+     "cold_state": 25.5
     },
     "docs_enter": {
      "painted": {
       "n": 25,
-      "median": 263.6,
-      "p95": 1293.4,
-      "min": 210.2,
-      "max": 1367.7
+      "median": 241.7,
+      "p95": 312.8,
+      "min": 211.7,
+      "max": 335.4
      },
      "state": {
       "n": 25,
-      "median": 153.1,
-      "p95": 1032.2,
-      "min": 119.0,
-      "max": 1135.1
+      "median": 130.5,
+      "p95": 174.9,
+      "min": 116.5,
+      "max": 228.9
      },
-     "cold_painted": 318.9,
-     "cold_state": 227.0
+     "cold_painted": 375.3,
+     "cold_state": 276.1
     },
     "docs_props": {
      "painted": {
       "n": 25,
-      "median": 79.4,
-      "p95": 98.3,
-      "min": 64.4,
-      "max": 1047.0
+      "median": 72.9,
+      "p95": 91.1,
+      "min": 65.9,
+      "max": 891.1
      },
      "state": {
       "n": 25,
-      "median": 26.3,
-      "p95": 30.8,
-      "min": 18.7,
-      "max": 32.5
+      "median": 23.7,
+      "p95": 27.2,
+      "min": 4.8,
+      "max": 27.8
      },
-     "cold_painted": 70.7,
-     "cold_state": 21.3
+     "cold_painted": 77.2,
+     "cold_state": 26.7
     },
     "docs_filter": {
      "painted": {
       "n": 25,
-      "median": 33.9,
-      "p95": 45.1,
-      "min": 25.8,
-      "max": 50.3
+      "median": 34.2,
+      "p95": 44.0,
+      "min": 27.2,
+      "max": 92.3
      },
      "state": {
       "n": 25,
-      "median": 33.9,
-      "p95": 45.1,
-      "min": 25.8,
-      "max": 50.2
+      "median": 34.0,
+      "p95": 42.4,
+      "min": 27.2,
+      "max": 44.0
      },
-     "cold_painted": 7.2,
-     "cold_state": 7.2
+     "cold_painted": 8.1,
+     "cold_state": 8.1
     }
    },
    "profile": {
     "grid_open": [
-     "SQL 49 ms in 36 calls, slowest 2 ms: SELECT v.id, v.scope, v.code_list, v.code, v.label, v.meaning, v.crosswalk, v.origin, v.sort_order, v.effective_from, v.effective_to, v.lifecycle, v.s",
-     "SQL 32 ms in 1 calls, slowest 32 ms: SELECT id, key, type, scope, title, description, status, psets_json, voided, version, last_seq, effective_schema_hash, conformance, created_at, update",
-     "SQL 26 ms in 20 calls, slowest 3 ms: SELECT s.id, s.scope, s.kind, s.code, s.label, s.definition, s.edition, s.owner, s.adoption, s.value_list_policy, s.effective_from, s.effective_to, s.",
-     "SQL 10 ms in 9 calls, slowest 2 ms: SELECT a.account_id, a.username, a.display_name, a.kind, a.roles_json, a.status, a.created_at, a.last_seq, t.locked_until FROM cur_account a LEFT JOIN",
-     "1119 ms cumulative, 0 ms own, 2 calls  tl-tui/src/tl_tui/labels_load.py:93(load_labels)",
-     "1119 ms cumulative, 0 ms own, 2 calls  tl-tui/src/tl_tui/labels_load.py:116(_read_labels)",
-     "1062 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/app.py:735(on_record_highlighted)",
-     "1062 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/widgets/context_panel.py:101(show_record)",
-     "1061 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/widgets/context_panel.py:86(_labels_for)",
-     "1002 ms cumulative, 0 ms own, 2 calls  tl-tui/src/tl_tui/labels_load.py:31(_code_labels)",
-     "1002 ms cumulative, 0 ms own, 2 calls  tl-tui/src/tl_tui/embedded.py:444(form_metadata)",
-     "996 ms cumulative, 0 ms own, 2 calls  tl-core/src/tl_core/services/psets.py:280(form_metadata)",
-     "993 ms cumulative, 0 ms own, 2 calls  tl-core/src/tl_core/schema_provider.py:292(effective)",
-     "990 ms cumulative, 0 ms own, 2 calls  tl-core/src/tl_core/schema_provider.py:193(_refresh)",
-     "964 ms cumulative, 0 ms own, 1 calls  tl-core/src/tl_core/schema_provider.py:173(_build_registry)",
-     "964 ms cumulative, 0 ms own, 1 calls  tl-schema/src/tl_schema/registry.py:101(from_directory)",
-     "own time 900 ms, 910 ms cumulative, 574 calls  yaml/scanner.py:1270(scan_plain)",
-     "own time 72 ms, 72 ms cumulative, 397 calls  ~:0(<method 'recv_into' of '_socket.socket' objects>)",
-     "own time 27 ms, 27 ms cumulative, 73 calls  ~:0(<method 'poll' of 'select.epoll' objects>)",
-     "own time 13 ms, 19 ms cumulative, 66 calls  pg8000/dbapi.py:250(convert_paramstyle)",
-     "own time 12 ms, 18 ms cumulative, 2393 calls  textual/strip.py:94(__init__)"
+     "SQL 58 ms in 36 calls, slowest 3 ms: SELECT v.id, v.scope, v.code_list, v.code, v.label, v.meaning, v.crosswalk, v.origin, v.sort_order, v.effective_from, v.effective_to, v.lifecycle, v.s",
+     "SQL 33 ms in 20 calls, slowest 4 ms: SELECT s.id, s.scope, s.kind, s.code, s.label, s.definition, s.edition, s.owner, s.adoption, s.value_list_policy, s.effective_from, s.effective_to, s.",
+     "SQL 21 ms in 1 calls, slowest 21 ms: SELECT id, key, type, scope, title, description, status, psets_json, voided, version, last_seq, effective_schema_hash, conformance, created_at, update",
+     "SQL 17 ms in 1 calls, slowest 17 ms: SELECT x.id FROM cur_core_record x WHERE x.id IN (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, ",
+     "246 ms cumulative, 0 ms own, 2 calls  tl-tui/src/tl_tui/labels_load.py:93(load_labels)",
+     "246 ms cumulative, 0 ms own, 2 calls  tl-tui/src/tl_tui/labels_load.py:116(_read_labels)",
+     "175 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/app.py:735(on_record_highlighted)",
+     "174 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/widgets/context_panel.py:101(show_record)",
+     "174 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/widgets/context_panel.py:86(_labels_for)",
+     "171 ms cumulative, 0 ms own, 73 calls  sqlalchemy/engine/base.py:1407(execute)",
+     "171 ms cumulative, 0 ms own, 73 calls  sqlalchemy/sql/elements.py:524(_execute_on_connection)",
+     "170 ms cumulative, 1 ms own, 73 calls  sqlalchemy/engine/base.py:1621(_execute_clauseelement)",
+     "168 ms cumulative, 1 ms own, 84 calls  sqlalchemy/engine/base.py:1770(_execute_context)",
+     "163 ms cumulative, 1 ms own, 84 calls  sqlalchemy/engine/base.py:1829(_exec_single_context)",
+     "149 ms cumulative, 0 ms own, 84 calls  sqlalchemy/engine/default.py:1191(do_execute)",
+     "126 ms cumulative, 0 ms own, 2 calls  tl-tui/src/tl_tui/labels_load.py:63(_standard_labels)",
+     "own time 860 ms, 860 ms cumulative, 16771 calls  textual/cache.py:226(__init__)",
+     "own time 76 ms, 76 ms cumulative, 410 calls  ~:0(<method 'recv_into' of '_socket.socket' objects>)",
+     "own time 17 ms, 25 ms cumulative, 67 calls  pg8000/dbapi.py:250(convert_paramstyle)",
+     "own time 14 ms, 14 ms cumulative, 51 calls  ~:0(<method 'poll' of 'select.epoll' objects>)",
+     "own time 12 ms, 872 ms cumulative, 2393 calls  textual/strip.py:94(__init__)"
     ],
     "rfi_open": [
-     "SQL 102 ms in 1 calls, slowest 102 ms: SELECT x.id FROM cur_core_record x WHERE x.id IN (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, ",
-     "SQL 84 ms in 3 calls, slowest 78 ms: SELECT i.id, i.record_type, i.scope, i.number, i.title, i.status, i.voided, i.version, i.direction, i.medium, i.received_via, i.external_ref, i.messag",
-     "SQL 69 ms in 11 calls, slowest 8 ms: SELECT 1 FROM cur_core_record x WHERE x.id = %s AND x.id IN (SELECT hr.id FROM cur_core_record hr WHERE hr.type IN ('correspondence.CommercialItem', '",
-     "SQL 14 ms in 1 calls, slowest 14 ms: SELECT l.link_id FROM cur_links l WHERE l.link_id IN (%s) AND (l.from_id IN (SELECT hr.id FROM cur_core_record hr WHERE hr.type IN ('correspondence.Co",
-     "346 ms cumulative, 0 ms own, 45 calls  sqlalchemy/engine/base.py:1407(execute)",
-     "346 ms cumulative, 0 ms own, 45 calls  sqlalchemy/sql/elements.py:524(_execute_on_connection)",
-     "345 ms cumulative, 1 ms own, 45 calls  sqlalchemy/engine/base.py:1621(_execute_clauseelement)",
-     "345 ms cumulative, 0 ms own, 54 calls  sqlalchemy/engine/base.py:1770(_execute_context)",
-     "338 ms cumulative, 1 ms own, 54 calls  sqlalchemy/engine/base.py:1829(_exec_single_context)",
-     "329 ms cumulative, 0 ms own, 54 calls  sqlalchemy/engine/default.py:1191(do_execute)",
-     "264 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/widgets/log_screen.py:311(_load)",
-     "231 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/widgets/domain_screen.py:152(load_rows)",
-     "231 ms cumulative, 1 ms own, 1 calls  tl-tui/src/tl_tui/embedded.py:1062(list_rfis)",
-     "225 ms cumulative, 2 ms own, 1 calls  tl-modules/correspondence/src/tl_mod_correspondence/reports_technical.py:69(rfi_log)",
-     "220 ms cumulative, 1 ms own, 1 calls  tl-modules/correspondence/src/tl_mod_correspondence/registry_domain.py:123(list_technical)",
-     "192 ms cumulative, 0 ms own, 2 calls  tl-modules/correspondence/src/tl_mod_correspondence/registry.py:63(_page)",
-     "own time 163 ms, 163 ms cumulative, 337 calls  ~:0(<method 'recv_into' of '_socket.socket' objects>)",
-     "own time 45 ms, 68 ms cumulative, 45 calls  pg8000/dbapi.py:250(convert_paramstyle)",
-     "own time 27 ms, 66 ms cumulative, 511 calls  pg8000/core.py:821(handle_DATA_ROW)",
-     "own time 21 ms, 21 ms cumulative, 132885 calls  ~:0(<method 'append' of 'list' objects>)",
-     "own time 13 ms, 13 ms cumulative, 133332 calls  ~:0(<built-in method builtins.len>)"
+     "SQL 72 ms in 3 calls, slowest 58 ms: SELECT i.id, i.record_type, i.scope, i.number, i.title, i.status, i.voided, i.version, i.direction, i.medium, i.received_via, i.external_ref, i.messag",
+     "SQL 65 ms in 1 calls, slowest 65 ms: SELECT x.id FROM cur_core_record x WHERE x.id IN (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, ",
+     "SQL 63 ms in 11 calls, slowest 8 ms: SELECT 1 FROM cur_core_record x WHERE x.id = %s AND x.id IN (SELECT hr.id FROM cur_core_record hr WHERE hr.type IN ('correspondence.CommercialItem', '",
+     "SQL 12 ms in 11 calls, slowest 1 ms: SELECT a.account_id, a.username, a.display_name, a.kind, a.roles_json, a.status, a.created_at, a.last_seq, t.locked_until FROM cur_account a LEFT JOIN",
+     "288 ms cumulative, 0 ms own, 45 calls  sqlalchemy/engine/base.py:1407(execute)",
+     "288 ms cumulative, 0 ms own, 45 calls  sqlalchemy/sql/elements.py:524(_execute_on_connection)",
+     "287 ms cumulative, 1 ms own, 45 calls  sqlalchemy/engine/base.py:1621(_execute_clauseelement)",
+     "286 ms cumulative, 1 ms own, 54 calls  sqlalchemy/engine/base.py:1770(_execute_context)",
+     "281 ms cumulative, 1 ms own, 54 calls  sqlalchemy/engine/base.py:1829(_exec_single_context)",
+     "269 ms cumulative, 0 ms own, 54 calls  sqlalchemy/engine/default.py:1191(do_execute)",
+     "240 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/widgets/log_screen.py:311(_load)",
+     "188 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/widgets/domain_screen.py:152(load_rows)",
+     "188 ms cumulative, 1 ms own, 1 calls  tl-tui/src/tl_tui/embedded.py:1062(list_rfis)",
+     "181 ms cumulative, 2 ms own, 1 calls  tl-modules/correspondence/src/tl_mod_correspondence/reports_technical.py:69(rfi_log)",
+     "176 ms cumulative, 1 ms own, 1 calls  tl-modules/correspondence/src/tl_mod_correspondence/registry_domain.py:123(list_technical)",
+     "155 ms cumulative, 0 ms own, 3 calls  tl-tui/src/tl_tui/widgets/log_screen.py:445(_show_row)",
+     "own time 137 ms, 137 ms cumulative, 283 calls  ~:0(<method 'recv_into' of '_socket.socket' objects>)",
+     "own time 46 ms, 67 ms cumulative, 45 calls  pg8000/dbapi.py:250(convert_paramstyle)",
+     "own time 20 ms, 20 ms cumulative, 120776 calls  ~:0(<method 'append' of 'list' objects>)",
+     "own time 19 ms, 46 ms cumulative, 511 calls  pg8000/core.py:821(handle_DATA_ROW)",
+     "own time 18 ms, 37 ms cumulative, 503 calls  tl-modules/correspondence/src/tl_mod_correspondence/registry.py:145(_item)"
     ],
     "rfi_enter": [
-     "SQL 121 ms in 11 calls, slowest 38 ms: SELECT 1 FROM cur_core_record x WHERE x.id = %s AND x.id IN (SELECT hr.id FROM cur_core_record hr WHERE hr.type IN ('correspondence.CommercialItem', '",
-     "SQL 45 ms in 10 calls, slowest 35 ms: SELECT a.account_id, a.username, a.display_name, a.kind, a.roles_json, a.status, a.created_at, a.last_seq, t.locked_until FROM cur_account a LEFT JOIN",
-     "SQL 37 ms in 4 calls, slowest 33 ms: SELECT id, key, type, scope, title, description, status, psets_json, voided, version, last_seq, effective_schema_hash, conformance, created_at, update",
-     "SQL 24 ms in 2 calls, slowest 22 ms: SELECT file_id, scope, record_id, slot, revision, sha256, size, content_type, filename, status, deduplicated, superseded_by, reason, uploaded_by, uplo",
-     "263 ms cumulative, 0 ms own, 18 calls  tl-tui/src/tl_tui/embedded.py:227(_scope)",
-     "253 ms cumulative, 0 ms own, 43 calls  sqlalchemy/engine/base.py:1407(execute)",
-     "248 ms cumulative, 0 ms own, 43 calls  sqlalchemy/sql/elements.py:524(_execute_on_connection)",
-     "238 ms cumulative, 0 ms own, 20 calls  tl-adapters/src/tl_adapters/postgres/engine.py:228(read_tx)",
-     "238 ms cumulative, 0 ms own, 2 calls  tl-tui/src/tl_tui/embedded.py:482(list_record_files)",
-     "226 ms cumulative, 0 ms own, 9 calls  tl-adapters/src/tl_adapters/_unit.py:80(__exit__)",
-     "224 ms cumulative, 0 ms own, 10 calls  sqlalchemy/engine/util.py:126(__exit__)",
-     "224 ms cumulative, 0 ms own, 10 calls  sqlalchemy/engine/base.py:2595(commit)",
-     "224 ms cumulative, 0 ms own, 10 calls  sqlalchemy/engine/base.py:2712(_do_commit)",
-     "223 ms cumulative, 0 ms own, 10 calls  sqlalchemy/engine/base.py:2687(_connection_commit_impl)",
-     "223 ms cumulative, 0 ms own, 10 calls  sqlalchemy/engine/base.py:1150(_commit_impl)",
-     "195 ms cumulative, 0 ms own, 11 calls  tl-core/src/tl_core/confidentiality.py:226(is_hidden)",
-     "own time 69 ms, 69 ms cumulative, 259 calls  ~:0(<method 'recv_into' of '_socket.socket' objects>)",
-     "own time 34 ms, 50 ms cumulative, 43 calls  pg8000/dbapi.py:250(convert_paramstyle)",
-     "own time 16 ms, 108 ms cumulative, 222 calls  textual/css/stylesheet.py:470(apply)",
-     "own time 12 ms, 12 ms cumulative, 81994 calls  ~:0(<method 'append' of 'list' objects>)",
-     "own time 11 ms, 11 ms cumulative, 192 calls  ~:0(<method 'send' of '_socket.socket' objects>)"
-    ],
-    "corr_open": [
-     "SQL 130 ms in 1 calls, slowest 130 ms: SELECT x.id FROM cur_core_record x WHERE x.id IN (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, ",
-     "SQL 70 ms in 11 calls, slowest 7 ms: SELECT 1 FROM cur_core_record x WHERE x.id = %s AND x.id IN (SELECT hr.id FROM cur_core_record hr WHERE hr.type IN ('correspondence.CommercialItem', '",
-     "SQL 60 ms in 4 calls, slowest 52 ms: SELECT id, record_type, scope, number, title, status, voided, version, direction, medium, received_via, external_ref, message_id, in_reply_to, from_pa",
-     "SQL 23 ms in 1 calls, slowest 23 ms: SELECT l.link_id FROM cur_links l WHERE l.link_id IN (%s) AND (l.from_id IN (SELECT hr.id FROM cur_core_record hr WHERE hr.type IN ('correspondence.Co",
-     "367 ms cumulative, 0 ms own, 45 calls  sqlalchemy/engine/base.py:1407(execute)",
-     "367 ms cumulative, 0 ms own, 45 calls  sqlalchemy/sql/elements.py:524(_execute_on_connection)",
-     "366 ms cumulative, 1 ms own, 45 calls  sqlalchemy/engine/base.py:1621(_execute_clauseelement)",
-     "365 ms cumulative, 1 ms own, 54 calls  sqlalchemy/engine/base.py:1770(_execute_context)",
-     "359 ms cumulative, 1 ms own, 54 calls  sqlalchemy/engine/base.py:1829(_exec_single_context)",
-     "348 ms cumulative, 0 ms own, 54 calls  sqlalchemy/engine/default.py:1191(do_execute)",
-     "257 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/widgets/log_screen.py:311(_load)",
-     "227 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/widgets/correspondence_screen.py:143(load_rows)",
-     "227 ms cumulative, 1 ms own, 1 calls  tl-tui/src/tl_tui/embedded.py:962(list_correspondence)",
-     "221 ms cumulative, 0 ms own, 1 calls  tl-modules/correspondence/src/tl_mod_correspondence/views.py:364(register)",
-     "212 ms cumulative, 1 ms own, 1 calls  tl-modules/correspondence/src/tl_mod_correspondence/registry.py:237(list_items)",
-     "188 ms cumulative, 0 ms own, 1 calls  tl-modules/correspondence/src/tl_mod_correspondence/registry.py:63(_page)",
-     "own time 829 ms, 840 ms cumulative, 3473 calls  textual/strip.py:94(__init__)",
-     "own time 206 ms, 206 ms cumulative, 308 calls  ~:0(<method 'recv_into' of '_socket.socket' objects>)",
-     "own time 50 ms, 76 ms cumulative, 45 calls  pg8000/dbapi.py:250(convert_paramstyle)",
-     "own time 20 ms, 20 ms cumulative, 122720 calls  ~:0(<method 'append' of 'list' objects>)",
-     "own time 14 ms, 37 ms cumulative, 511 calls  pg8000/core.py:821(handle_DATA_ROW)"
+     "SQL 129 ms in 11 calls, slowest 44 ms: SELECT 1 FROM cur_core_record x WHERE x.id = %s AND x.id IN (SELECT hr.id FROM cur_core_record hr WHERE hr.type IN ('correspondence.CommercialItem', '",
+     "SQL 41 ms in 10 calls, slowest 32 ms: SELECT a.account_id, a.username, a.display_name, a.kind, a.roles_json, a.status, a.created_at, a.last_seq, t.locked_until FROM cur_account a LEFT JOIN",
+     "SQL 31 ms in 4 calls, slowest 28 ms: SELECT id, key, type, scope, title, description, status, psets_json, voided, version, last_seq, effective_schema_hash, conformance, created_at, update",
+     "SQL 22 ms in 2 calls, slowest 21 ms: SELECT file_id, scope, record_id, slot, revision, sha256, size, content_type, filename, status, deduplicated, superseded_by, reason, uploaded_by, uplo",
+     "384 ms cumulative, 0 ms own, 43 calls  sqlalchemy/engine/base.py:1407(execute)",
+     "381 ms cumulative, 0 ms own, 43 calls  sqlalchemy/sql/elements.py:524(_execute_on_connection)",
+     "381 ms cumulative, 1 ms own, 43 calls  sqlalchemy/engine/base.py:1621(_execute_clauseelement)",
+     "380 ms cumulative, 1 ms own, 53 calls  sqlalchemy/engine/base.py:1770(_execute_context)",
+     "370 ms cumulative, 1 ms own, 53 calls  sqlalchemy/engine/base.py:1829(_exec_single_context)",
+     "347 ms cumulative, 0 ms own, 53 calls  sqlalchemy/engine/default.py:1191(do_execute)",
+     "220 ms cumulative, 0 ms own, 2 calls  tl-tui/src/tl_tui/embedded.py:482(list_record_files)",
+     "210 ms cumulative, 0 ms own, 2 calls  tl-core/src/tl_core/files/queries.py:85(list_files)",
+     "154 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/widgets/record_view.py:190(on_mount)",
+     "152 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/widgets/record_view.py:194(reload)",
+     "110 ms cumulative, 0 ms own, 11 calls  tl-core/src/tl_core/confidentiality.py:226(is_hidden)",
+     "100 ms cumulative, 0 ms own, 5 calls  tl-tui/src/tl_tui/reads.py:33(once)",
+     "own time 70 ms, 70 ms cumulative, 275 calls  ~:0(<method 'recv_into' of '_socket.socket' objects>)",
+     "own time 30 ms, 44 ms cumulative, 43 calls  pg8000/dbapi.py:250(convert_paramstyle)",
+     "own time 16 ms, 103 ms cumulative, 222 calls  textual/css/stylesheet.py:470(apply)",
+     "own time 13 ms, 13 ms cumulative, 84491 calls  ~:0(<method 'append' of 'list' objects>)",
+     "own time 9 ms, 9 ms cumulative, 192 calls  ~:0(<method 'send' of '_socket.socket' objects>)"
     ],
     "corr_enter": [
-     "SQL 109 ms in 11 calls, slowest 35 ms: SELECT 1 FROM cur_core_record x WHERE x.id = %s AND x.id IN (SELECT hr.id FROM cur_core_record hr WHERE hr.type IN ('correspondence.CommercialItem', '",
-     "SQL 35 ms in 2 calls, slowest 34 ms: SELECT file_id, scope, record_id, slot, revision, sha256, size, content_type, filename, status, deduplicated, superseded_by, reason, uploaded_by, uplo",
-     "SQL 32 ms in 10 calls, slowest 22 ms: SELECT a.account_id, a.username, a.display_name, a.kind, a.roles_json, a.status, a.created_at, a.last_seq, t.locked_until FROM cur_account a LEFT JOIN",
-     "SQL 31 ms in 4 calls, slowest 28 ms: SELECT id, key, type, scope, title, description, status, psets_json, voided, version, last_seq, effective_schema_hash, conformance, created_at, update",
-     "284 ms cumulative, 0 ms own, 43 calls  sqlalchemy/engine/base.py:1407(execute)",
-     "284 ms cumulative, 0 ms own, 43 calls  sqlalchemy/sql/elements.py:524(_execute_on_connection)",
-     "283 ms cumulative, 1 ms own, 43 calls  sqlalchemy/engine/base.py:1621(_execute_clauseelement)",
-     "223 ms cumulative, 0 ms own, 53 calls  sqlalchemy/engine/base.py:1770(_execute_context)",
-     "208 ms cumulative, 1 ms own, 53 calls  sqlalchemy/engine/base.py:1829(_exec_single_context)",
-     "197 ms cumulative, 0 ms own, 53 calls  sqlalchemy/engine/default.py:1191(do_execute)",
-     "138 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/widgets/record_view.py:190(on_mount)",
-     "136 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/widgets/record_view.py:194(reload)",
-     "107 ms cumulative, 0 ms own, 2 calls  tl-core/src/tl_core/files/queries.py:85(list_files)",
-     "89 ms cumulative, 0 ms own, 5 calls  tl-tui/src/tl_tui/reads.py:33(once)",
-     "81 ms cumulative, 0 ms own, 18 calls  tl-tui/src/tl_tui/embedded.py:227(_scope)",
-     "72 ms cumulative, 0 ms own, 11 calls  tl-core/src/tl_core/confidentiality.py:226(is_hidden)",
-     "own time 65 ms, 68 ms cumulative, 264 calls  ~:0(<method 'recv_into' of '_socket.socket' objects>)",
-     "own time 29 ms, 44 ms cumulative, 43 calls  pg8000/dbapi.py:250(convert_paramstyle)",
-     "own time 16 ms, 106 ms cumulative, 222 calls  textual/css/stylesheet.py:470(apply)",
-     "own time 11 ms, 11 ms cumulative, 81502 calls  ~:0(<method 'append' of 'list' objects>)",
-     "own time 9 ms, 13 ms cumulative, 16422 calls  textual/css/styles.py:1507(get_rule)"
+     "SQL 122 ms in 11 calls, slowest 41 ms: SELECT 1 FROM cur_core_record x WHERE x.id = %s AND x.id IN (SELECT hr.id FROM cur_core_record hr WHERE hr.type IN ('correspondence.CommercialItem', '",
+     "SQL 48 ms in 10 calls, slowest 38 ms: SELECT a.account_id, a.username, a.display_name, a.kind, a.roles_json, a.status, a.created_at, a.last_seq, t.locked_until FROM cur_account a LEFT JOIN",
+     "SQL 36 ms in 4 calls, slowest 32 ms: SELECT id, key, type, scope, title, description, status, psets_json, voided, version, last_seq, effective_schema_hash, conformance, created_at, update",
+     "SQL 16 ms in 2 calls, slowest 15 ms: SELECT file_id, scope, record_id, slot, revision, sha256, size, content_type, filename, status, deduplicated, superseded_by, reason, uploaded_by, uplo",
+     "507 ms cumulative, 0 ms own, 43 calls  sqlalchemy/engine/base.py:1407(execute)",
+     "504 ms cumulative, 0 ms own, 43 calls  sqlalchemy/sql/elements.py:524(_execute_on_connection)",
+     "439 ms cumulative, 0 ms own, 53 calls  sqlalchemy/engine/base.py:1770(_execute_context)",
+     "436 ms cumulative, 1 ms own, 53 calls  sqlalchemy/engine/base.py:1829(_exec_single_context)",
+     "429 ms cumulative, 1 ms own, 43 calls  sqlalchemy/engine/base.py:1621(_execute_clauseelement)",
+     "410 ms cumulative, 1 ms own, 53 calls  sqlalchemy/engine/default.py:1191(do_execute)",
+     "221 ms cumulative, 0 ms own, 2 calls  tl-tui/src/tl_tui/embedded.py:482(list_record_files)",
+     "210 ms cumulative, 0 ms own, 2 calls  tl-core/src/tl_core/files/queries.py:85(list_files)",
+     "149 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/widgets/record_view.py:190(on_mount)",
+     "147 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/widgets/record_view.py:194(reload)",
+     "98 ms cumulative, 0 ms own, 11 calls  tl-core/src/tl_core/confidentiality.py:226(is_hidden)",
+     "94 ms cumulative, 0 ms own, 5 calls  tl-tui/src/tl_tui/reads.py:33(once)",
+     "own time 68 ms, 68 ms cumulative, 258 calls  ~:0(<method 'recv_into' of '_socket.socket' objects>)",
+     "own time 33 ms, 48 ms cumulative, 43 calls  pg8000/dbapi.py:250(convert_paramstyle)",
+     "own time 15 ms, 107 ms cumulative, 222 calls  textual/css/stylesheet.py:470(apply)",
+     "own time 12 ms, 12 ms cumulative, 84854 calls  ~:0(<method 'append' of 'list' objects>)",
+     "own time 8 ms, 12 ms cumulative, 16423 calls  textual/css/styles.py:1507(get_rule)"
     ],
-    "docs_enter": [
-     "SQL 96 ms in 8 calls, slowest 36 ms: SELECT 1 FROM cur_core_record x WHERE x.id = %s AND x.id IN (SELECT hr.id FROM cur_core_record hr WHERE hr.type IN ('correspondence.CommercialItem', '",
-     "SQL 46 ms in 8 calls, slowest 39 ms: SELECT a.account_id, a.username, a.display_name, a.kind, a.roles_json, a.status, a.created_at, a.last_seq, t.locked_until FROM cur_account a LEFT JOIN",
-     "SQL 35 ms in 3 calls, slowest 33 ms: SELECT id, key, type, scope, title, description, status, psets_json, voided, version, last_seq, effective_schema_hash, conformance, created_at, update",
-     "SQL 13 ms in 10 calls, slowest 11 ms: SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY",
-     "539 ms cumulative, 0 ms own, 35 calls  sqlalchemy/engine/base.py:1407(execute)",
-     "539 ms cumulative, 0 ms own, 35 calls  sqlalchemy/sql/elements.py:524(_execute_on_connection)",
-     "536 ms cumulative, 0 ms own, 35 calls  sqlalchemy/engine/base.py:1621(_execute_clauseelement)",
-     "369 ms cumulative, 0 ms own, 45 calls  sqlalchemy/engine/base.py:1770(_execute_context)",
-     "361 ms cumulative, 1 ms own, 45 calls  sqlalchemy/engine/base.py:1829(_exec_single_context)",
-     "330 ms cumulative, 0 ms own, 45 calls  sqlalchemy/engine/default.py:1191(do_execute)",
-     "251 ms cumulative, 0 ms own, 8 calls  tl-core/src/tl_core/confidentiality.py:226(is_hidden)",
-     "193 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/widgets/file_panel.py:159(work)",
-     "192 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/embedded.py:482(list_record_files)",
-     "191 ms cumulative, 0 ms own, 1 calls  tl-core/src/tl_core/files/queries.py:85(list_files)",
-     "119 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/widgets/record_view.py:190(on_mount)",
-     "117 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/widgets/record_view.py:194(reload)",
-     "own time 57 ms, 61 ms cumulative, 211 calls  ~:0(<method 'recv_into' of '_socket.socket' objects>)",
-     "own time 25 ms, 38 ms cumulative, 33 calls  pg8000/dbapi.py:250(convert_paramstyle)",
-     "own time 15 ms, 98 ms cumulative, 222 calls  textual/css/stylesheet.py:470(apply)",
-     "own time 10 ms, 10 ms cumulative, 71793 calls  ~:0(<method 'append' of 'list' objects>)",
-     "own time 9 ms, 9 ms cumulative, 164 calls  ~:0(<method 'send' of '_socket.socket' objects>)"
+    "corr_open": [
+     "SQL 81 ms in 11 calls, slowest 9 ms: SELECT 1 FROM cur_core_record x WHERE x.id = %s AND x.id IN (SELECT hr.id FROM cur_core_record hr WHERE hr.type IN ('correspondence.CommercialItem', '",
+     "SQL 62 ms in 4 calls, slowest 55 ms: SELECT id, record_type, scope, number, title, status, voided, version, direction, medium, received_via, external_ref, message_id, in_reply_to, from_pa",
+     "SQL 61 ms in 1 calls, slowest 61 ms: SELECT x.id FROM cur_core_record x WHERE x.id IN (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, ",
+     "SQL 14 ms in 11 calls, slowest 1 ms: SELECT a.account_id, a.username, a.display_name, a.kind, a.roles_json, a.status, a.created_at, a.last_seq, t.locked_until FROM cur_account a LEFT JOIN",
+     "302 ms cumulative, 0 ms own, 45 calls  sqlalchemy/engine/base.py:1407(execute)",
+     "302 ms cumulative, 0 ms own, 45 calls  sqlalchemy/sql/elements.py:524(_execute_on_connection)",
+     "302 ms cumulative, 1 ms own, 45 calls  sqlalchemy/engine/base.py:1621(_execute_clauseelement)",
+     "300 ms cumulative, 1 ms own, 54 calls  sqlalchemy/engine/base.py:1770(_execute_context)",
+     "296 ms cumulative, 1 ms own, 54 calls  sqlalchemy/engine/base.py:1829(_exec_single_context)",
+     "283 ms cumulative, 0 ms own, 54 calls  sqlalchemy/engine/default.py:1191(do_execute)",
+     "189 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/widgets/log_screen.py:311(_load)",
+     "160 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/widgets/correspondence_screen.py:143(load_rows)",
+     "160 ms cumulative, 1 ms own, 1 calls  tl-tui/src/tl_tui/embedded.py:962(list_correspondence)",
+     "160 ms cumulative, 0 ms own, 3 calls  tl-tui/src/tl_tui/widgets/log_screen.py:445(_show_row)",
+     "159 ms cumulative, 0 ms own, 3 calls  tl-tui/src/tl_tui/widgets/log_screen.py:469(_finish_row)",
+     "159 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/widgets/log_screen.py:515(on_data_table_row_highlighted)",
+     "own time 166 ms, 166 ms cumulative, 308 calls  ~:0(<method 'recv_into' of '_socket.socket' objects>)",
+     "own time 39 ms, 59 ms cumulative, 45 calls  pg8000/dbapi.py:250(convert_paramstyle)",
+     "own time 18 ms, 18 ms cumulative, 107787 calls  ~:0(<method 'append' of 'list' objects>)",
+     "own time 17 ms, 31 ms cumulative, 3473 calls  textual/strip.py:94(__init__)",
+     "own time 15 ms, 41 ms cumulative, 511 calls  pg8000/core.py:821(handle_DATA_ROW)"
     ],
     "docs_open": [
-     "SQL 111 ms in 1 calls, slowest 111 ms: SELECT x.id FROM cur_core_record x WHERE x.id IN (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, ",
-     "SQL 38 ms in 6 calls, slowest 8 ms: SELECT 1 FROM cur_core_record x WHERE x.id = %s AND x.id IN (SELECT hr.id FROM cur_core_record hr WHERE hr.type IN ('correspondence.CommercialItem', '",
-     "SQL 32 ms in 4 calls, slowest 27 ms: SELECT id, scope, key, title, description, status, voided, version, conformance, doc_type, discipline, originator, confidentiality, revision_scheme, p",
-     "SQL 14 ms in 1 calls, slowest 14 ms: SELECT l.link_id, l.scope, l.from_id, l.to_id, l.relation, l.status, l.pin, l.updated_at, d.key AS document_number, d.title AS document_title, x.key A",
-     "228 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/widgets/log_screen.py:311(_load)",
-     "218 ms cumulative, 0 ms own, 23 calls  sqlalchemy/engine/base.py:1407(execute)",
-     "218 ms cumulative, 0 ms own, 23 calls  sqlalchemy/sql/elements.py:524(_execute_on_connection)",
-     "218 ms cumulative, 1 ms own, 23 calls  sqlalchemy/engine/base.py:1621(_execute_clauseelement)",
-     "217 ms cumulative, 0 ms own, 27 calls  sqlalchemy/engine/base.py:1770(_execute_context)",
-     "213 ms cumulative, 1 ms own, 27 calls  sqlalchemy/engine/base.py:1829(_exec_single_context)",
-     "206 ms cumulative, 0 ms own, 27 calls  sqlalchemy/engine/default.py:1191(do_execute)",
-     "173 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/widgets/document_register.py:132(load_rows)",
-     "173 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/widgets/document_register.py:144(_read)",
-     "173 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/embedded.py:881(list_documents)",
-     "167 ms cumulative, 0 ms own, 1 calls  tl-modules/documents/src/tl_mod_documents/views.py:152(document_views)",
-     "158 ms cumulative, 0 ms own, 1 calls  tl-modules/documents/src/tl_mod_documents/registry.py:257(list_documents)",
-     "own time 903 ms, 962 ms cumulative, 608 calls  rich/console.py:1345(render_lines)",
-     "own time 118 ms, 118 ms cumulative, 148 calls  ~:0(<method 'recv_into' of '_socket.socket' objects>)",
-     "own time 32 ms, 50 ms cumulative, 23 calls  pg8000/dbapi.py:250(convert_paramstyle)",
-     "own time 16 ms, 30 ms cumulative, 2990 calls  textual/strip.py:94(__init__)",
-     "own time 14 ms, 14 ms cumulative, 77455 calls  ~:0(<method 'append' of 'list' objects>)"
+     "SQL 65 ms in 1 calls, slowest 65 ms: SELECT x.id FROM cur_core_record x WHERE x.id IN (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, ",
+     "SQL 45 ms in 4 calls, slowest 41 ms: SELECT id, scope, key, title, description, status, voided, version, conformance, doc_type, discipline, originator, confidentiality, revision_scheme, p",
+     "SQL 31 ms in 6 calls, slowest 6 ms: SELECT 1 FROM cur_core_record x WHERE x.id = %s AND x.id IN (SELECT hr.id FROM cur_core_record hr WHERE hr.type IN ('correspondence.CommercialItem', '",
+     "SQL 9 ms in 1 calls, slowest 9 ms: SELECT l.link_id, l.scope, l.from_id, l.to_id, l.relation, l.status, l.pin, l.updated_at, d.key AS document_number, d.title AS document_title, x.key A",
+     "233 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/widgets/log_screen.py:311(_load)",
+     "171 ms cumulative, 0 ms own, 23 calls  sqlalchemy/engine/base.py:1407(execute)",
+     "170 ms cumulative, 0 ms own, 23 calls  sqlalchemy/sql/elements.py:524(_execute_on_connection)",
+     "170 ms cumulative, 0 ms own, 23 calls  sqlalchemy/engine/base.py:1621(_execute_clauseelement)",
+     "169 ms cumulative, 0 ms own, 27 calls  sqlalchemy/engine/base.py:1770(_execute_context)",
+     "166 ms cumulative, 1 ms own, 27 calls  sqlalchemy/engine/base.py:1829(_exec_single_context)",
+     "161 ms cumulative, 0 ms own, 27 calls  sqlalchemy/engine/default.py:1191(do_execute)",
+     "145 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/widgets/document_register.py:132(load_rows)",
+     "145 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/widgets/document_register.py:144(_read)",
+     "145 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/embedded.py:881(list_documents)",
+     "140 ms cumulative, 0 ms own, 1 calls  tl-modules/documents/src/tl_mod_documents/views.py:152(document_views)",
+     "129 ms cumulative, 0 ms own, 1 calls  tl-modules/documents/src/tl_mod_documents/registry.py:257(list_documents)",
+     "own time 91 ms, 91 ms cumulative, 138 calls  ~:0(<method 'recv_into' of '_socket.socket' objects>)",
+     "own time 25 ms, 25 ms cumulative, 97 calls  ~:0(<method 'poll' of 'select.epoll' objects>)",
+     "own time 21 ms, 37 ms cumulative, 3700 calls  textual/strip.py:94(__init__)",
+     "own time 17 ms, 32 ms cumulative, 505 calls  pg8000/core.py:821(handle_DATA_ROW)",
+     "own time 16 ms, 25 ms cumulative, 23 calls  pg8000/dbapi.py:250(convert_paramstyle)"
     ]
    },
    "reps": 25,
@@ -1480,14 +1414,14 @@
      "painted": {
       "n": 25,
       "median": 0.1,
-      "p95": 0.1,
+      "p95": 0.2,
       "min": 0.1,
       "max": 0.2
      },
      "state": {
       "n": 25,
       "median": 0.1,
-      "p95": 0.1,
+      "p95": 0.2,
       "min": 0.1,
       "max": 0.2
      },
@@ -1497,479 +1431,433 @@
     "grid_open": {
      "painted": {
       "n": 25,
-      "median": 348.5,
-      "p95": 675.9,
-      "min": 308.1,
-      "max": 766.3
+      "median": 200.5,
+      "p95": 539.7,
+      "min": 181.6,
+      "max": 601.2
      },
      "state": {
       "n": 25,
-      "median": 284.2,
-      "p95": 584.7,
-      "min": 252.8,
-      "max": 607.0
+      "median": 143.5,
+      "p95": 484.7,
+      "min": 127.7,
+      "max": 545.4
      },
-     "cold_painted": 570.2,
-     "cold_state": 520.8
+     "cold_painted": 425.6,
+     "cold_state": 379.4
     },
     "grid_reload": {
      "painted": {
       "n": 25,
-      "median": 147.9,
-      "p95": 197.1,
-      "min": 140.6,
-      "max": 617.3
+      "median": 19.8,
+      "p95": 47.5,
+      "min": 17.1,
+      "max": 472.7
      },
      "state": {
       "n": 25,
-      "median": 138.3,
-      "p95": 188.2,
-      "min": 132.4,
-      "max": 609.0
+      "median": 10.5,
+      "p95": 36.2,
+      "min": 8.6,
+      "max": 463.8
      },
-     "cold_painted": 139.4,
-     "cold_state": 131.3
+     "cold_painted": 21.1,
+     "cold_state": 9.9
     },
     "grid_filter_text": {
      "painted": {
       "n": 25,
-      "median": 344.8,
-      "p95": 388.5,
-      "min": 304.5,
-      "max": 419.7
+      "median": 120.8,
+      "p95": 145.6,
+      "min": 86.8,
+      "max": 150.9
      },
      "state": {
       "n": 25,
-      "median": 326.1,
-      "p95": 364.2,
-      "min": 287.0,
-      "max": 372.5
+      "median": 86.8,
+      "p95": 138.2,
+      "min": 64.5,
+      "max": 150.8
      },
-     "cold_painted": 311.9,
-     "cold_state": 311.9
+     "cold_painted": 92.0,
+     "cold_state": 92.0
     },
     "grid_filter_number": {
      "painted": {
       "n": 25,
-      "median": 357.2,
-      "p95": 808.8,
-      "min": 309.9,
-      "max": 873.0
+      "median": 253.7,
+      "p95": 303.7,
+      "min": 207.4,
+      "max": 608.4
      },
      "state": {
       "n": 25,
-      "median": 324.1,
-      "p95": 808.8,
-      "min": 294.9,
-      "max": 873.0
+      "median": 237.2,
+      "p95": 303.7,
+      "min": 186.7,
+      "max": 608.4
      },
-     "cold_painted": 335.0,
-     "cold_state": 334.9
+     "cold_painted": 262.3,
+     "cold_state": 262.3
     },
     "grid_filter_code": {
      "painted": {
       "n": 25,
-      "median": 342.7,
-      "p95": 416.3,
-      "min": 303.1,
-      "max": 798.8
+      "median": 237.5,
+      "p95": 259.0,
+      "min": 208.7,
+      "max": 275.3
      },
      "state": {
       "n": 25,
-      "median": 335.6,
-      "p95": 384.4,
-      "min": 291.8,
-      "max": 416.3
+      "median": 210.3,
+      "p95": 259.0,
+      "min": 180.4,
+      "max": 275.3
      },
-     "cold_painted": 331.6,
-     "cold_state": 331.6
+     "cold_painted": 203.5,
+     "cold_state": 203.5
     },
     "rfi_open": {
      "painted": {
       "n": 25,
-      "median": 240.9,
-      "p95": 319.8,
-      "min": 185.8,
-      "max": 693.4
+      "median": 226.7,
+      "p95": 739.5,
+      "min": 180.9,
+      "max": 869.1
      },
      "state": {
       "n": 25,
-      "median": 240.9,
-      "p95": 319.8,
-      "min": 185.8,
-      "max": 693.4
+      "median": 226.0,
+      "p95": 739.4,
+      "min": 180.9,
+      "max": 869.1
      },
-     "cold_painted": 335.6,
-     "cold_state": 335.6
+     "cold_painted": 711.2,
+     "cold_state": 711.2
     },
     "rfi_cursor": {
      "painted": {
       "n": 25,
-      "median": 5.6,
-      "p95": 48.2,
+      "median": 5.1,
+      "p95": 46.0,
       "min": 4.6,
-      "max": 49.8
+      "max": 70.5
      },
      "state": {
       "n": 25,
-      "median": 5.6,
-      "p95": 8.5,
+      "median": 5.1,
+      "p95": 8.8,
       "min": 4.6,
-      "max": 26.6
+      "max": 9.4
      },
-     "cold_painted": 40.5,
-     "cold_state": 40.5
+     "cold_painted": 38.5,
+     "cold_state": 38.4
     },
     "rfi_enter": {
      "painted": {
       "n": 25,
-      "median": 203.7,
-      "p95": 841.8,
-      "min": 171.6,
-      "max": 1133.8
+      "median": 181.5,
+      "p95": 232.4,
+      "min": 163.4,
+      "max": 937.2
      },
      "state": {
       "n": 25,
-      "median": 95.0,
-      "p95": 131.7,
-      "min": 78.6,
-      "max": 1003.2
+      "median": 83.2,
+      "p95": 113.8,
+      "min": 73.8,
+      "max": 842.9
      },
-     "cold_painted": 254.8,
-     "cold_state": 135.5
+     "cold_painted": 249.4,
+     "cold_state": 134.1
     },
     "rfi_props": {
      "painted": {
       "n": 25,
-      "median": 63.7,
-      "p95": 74.8,
-      "min": 47.6,
-      "max": 74.9
+      "median": 56.3,
+      "p95": 737.8,
+      "min": 48.4,
+      "max": 856.2
      },
      "state": {
       "n": 25,
-      "median": 12.3,
-      "p95": 18.1,
-      "min": 5.0,
-      "max": 25.2
+      "median": 10.3,
+      "p95": 14.0,
+      "min": 9.3,
+      "max": 14.5
      },
-     "cold_painted": 55.3,
-     "cold_state": 10.7
+     "cold_painted": 49.2,
+     "cold_state": 11.5
     },
     "rfi_filter": {
      "painted": {
       "n": 25,
-      "median": 43.2,
-      "p95": 57.3,
-      "min": 37.2,
-      "max": 71.7
+      "median": 43.5,
+      "p95": 60.2,
+      "min": 37.8,
+      "max": 60.6
      },
      "state": {
       "n": 25,
-      "median": 43.2,
-      "p95": 57.3,
-      "min": 37.2,
-      "max": 71.7
+      "median": 43.5,
+      "p95": 60.1,
+      "min": 37.8,
+      "max": 60.6
      },
-     "cold_painted": 9.3,
-     "cold_state": 9.3
+     "cold_painted": 5.9,
+     "cold_state": 5.9
     },
     "corr_open": {
      "painted": {
       "n": 25,
-      "median": 324.3,
-      "p95": 394.8,
-      "min": 270.5,
-      "max": 1071.0
+      "median": 313.7,
+      "p95": 1130.6,
+      "min": 255.6,
+      "max": 1257.3
      },
      "state": {
       "n": 25,
-      "median": 324.3,
-      "p95": 394.8,
-      "min": 270.5,
-      "max": 1071.0
+      "median": 313.7,
+      "p95": 1130.6,
+      "min": 255.6,
+      "max": 1257.3
      },
-     "cold_painted": 321.2,
-     "cold_state": 321.2
+     "cold_painted": 371.8,
+     "cold_state": 371.7
     },
     "corr_cursor": {
      "painted": {
       "n": 25,
-      "median": 5.5,
-      "p95": 8.6,
-      "min": 4.7,
-      "max": 53.1
+      "median": 5.3,
+      "p95": 7.5,
+      "min": 5.0,
+      "max": 10.6
      },
      "state": {
       "n": 25,
-      "median": 5.5,
-      "p95": 8.6,
-      "min": 4.7,
-      "max": 9.8
+      "median": 5.3,
+      "p95": 7.4,
+      "min": 5.0,
+      "max": 10.6
      },
-     "cold_painted": 28.5,
-     "cold_state": 28.5
+     "cold_painted": 22.3,
+     "cold_state": 22.3
     },
     "corr_enter": {
      "painted": {
       "n": 25,
-      "median": 212.6,
-      "p95": 1114.2,
-      "min": 175.9,
-      "max": 1292.8
+      "median": 189.0,
+      "p95": 238.5,
+      "min": 165.2,
+      "max": 1025.1
      },
      "state": {
       "n": 25,
-      "median": 102.3,
-      "p95": 124.2,
-      "min": 81.2,
-      "max": 132.0
+      "median": 87.2,
+      "p95": 117.1,
+      "min": 74.4,
+      "max": 124.7
      },
-     "cold_painted": 239.2,
-     "cold_state": 115.2
+     "cold_painted": 212.8,
+     "cold_state": 112.4
     },
     "corr_props": {
      "painted": {
       "n": 25,
-      "median": 57.6,
-      "p95": 900.7,
-      "min": 47.4,
-      "max": 1109.2
+      "median": 55.9,
+      "p95": 80.1,
+      "min": 51.0,
+      "max": 890.0
      },
      "state": {
       "n": 25,
-      "median": 11.2,
-      "p95": 16.4,
-      "min": 7.9,
-      "max": 18.6
+      "median": 10.8,
+      "p95": 14.7,
+      "min": 9.6,
+      "max": 16.7
      },
-     "cold_painted": 61.5,
+     "cold_painted": 54.2,
      "cold_state": 10.4
     },
     "corr_filter": {
      "painted": {
       "n": 25,
-      "median": 24.5,
-      "p95": 44.6,
-      "min": 22.1,
-      "max": 46.3
+      "median": 24.3,
+      "p95": 33.7,
+      "min": 21.8,
+      "max": 36.1
      },
      "state": {
       "n": 25,
-      "median": 24.5,
-      "p95": 44.5,
-      "min": 22.1,
-      "max": 46.3
+      "median": 24.3,
+      "p95": 33.7,
+      "min": 21.8,
+      "max": 36.1
      },
-     "cold_painted": 6.4,
-     "cold_state": 6.4
+     "cold_painted": 6.2,
+     "cold_state": 6.2
     },
     "docs_open": {
      "painted": {
       "n": 25,
-      "median": 239.1,
-      "p95": 1130.5,
-      "min": 185.4,
-      "max": 1138.9
+      "median": 266.6,
+      "p95": 1173.5,
+      "min": 186.5,
+      "max": 1221.2
      },
      "state": {
       "n": 25,
-      "median": 217.3,
-      "p95": 278.2,
-      "min": 145.7,
-      "max": 1130.4
+      "median": 186.5,
+      "p95": 1058.3,
+      "min": 142.3,
+      "max": 1146.1
      },
-     "cold_painted": 246.4,
-     "cold_state": 246.4
+     "cold_painted": 1398.5,
+     "cold_state": 270.3
     },
     "docs_cursor": {
      "painted": {
       "n": 25,
-      "median": 7.0,
-      "p95": 53.1,
+      "median": 7.1,
+      "p95": 42.6,
       "min": 4.9,
-      "max": 54.4
+      "max": 45.6
      },
      "state": {
       "n": 25,
-      "median": 7.0,
-      "p95": 8.8,
+      "median": 7.1,
+      "p95": 9.6,
       "min": 4.9,
-      "max": 8.9
+      "max": 11.8
      },
-     "cold_painted": 16.1,
-     "cold_state": 16.1
+     "cold_painted": 12.0,
+     "cold_state": 12.0
     },
     "docs_enter": {
      "painted": {
       "n": 25,
-      "median": 182.2,
-      "p95": 246.8,
-      "min": 152.4,
-      "max": 1103.7
+      "median": 171.1,
+      "p95": 218.1,
+      "min": 148.3,
+      "max": 1030.8
      },
      "state": {
       "n": 25,
-      "median": 71.9,
-      "p95": 106.1,
-      "min": 60.1,
-      "max": 108.3
+      "median": 67.6,
+      "p95": 103.1,
+      "min": 58.0,
+      "max": 105.4
      },
-     "cold_painted": 214.5,
-     "cold_state": 120.0
+     "cold_painted": 217.0,
+     "cold_state": 112.8
     },
     "docs_props": {
      "painted": {
       "n": 25,
-      "median": 58.1,
-      "p95": 79.8,
-      "min": 53.6,
-      "max": 876.4
+      "median": 56.4,
+      "p95": 939.9,
+      "min": 50.2,
+      "max": 1087.8
      },
      "state": {
       "n": 25,
-      "median": 11.1,
-      "p95": 15.2,
-      "min": 7.8,
-      "max": 18.2
+      "median": 10.6,
+      "p95": 12.5,
+      "min": 6.6,
+      "max": 16.6
      },
-     "cold_painted": 58.1,
-     "cold_state": 9.6
+     "cold_painted": 56.8,
+     "cold_state": 10.1
     },
     "docs_filter": {
      "painted": {
       "n": 25,
-      "median": 18.5,
-      "p95": 23.9,
-      "min": 14.3,
-      "max": 25.2
+      "median": 16.2,
+      "p95": 25.4,
+      "min": 14.6,
+      "max": 25.6
      },
      "state": {
       "n": 25,
-      "median": 18.5,
-      "p95": 23.9,
-      "min": 14.2,
-      "max": 25.1
+      "median": 16.2,
+      "p95": 25.4,
+      "min": 14.6,
+      "max": 25.6
      },
-     "cold_painted": 15.0,
-     "cold_state": 15.0
+     "cold_painted": 10.3,
+     "cold_state": 10.3
     }
    },
    "profile": {
-    "grid_filter_text": [
-     "SQL 161 ms in 1 calls, slowest 161 ms: SELECT COUNT(*) FROM cur_core_record r WHERE r.scope = ? AND r.voided = ? AND r.id IN (SELECT pv1.record_id FROM cur_pset_values pv1 WHERE pv1.path = ",
-     "SQL 143 ms in 1 calls, slowest 143 ms: SELECT r.id, r.key, r.type, r.scope, r.title, r.description, r.status, r.psets_json, r.voided, r.version, r.last_seq, r.effective_schema_hash, r.confo",
-     "SQL 0 ms in 2 calls, slowest 0 ms: SELECT a.account_id, a.username, a.display_name, a.kind, a.roles_json, a.status, a.created_at, a.last_seq, t.locked_until FROM cur_account a LEFT JOIN",
-     "SQL 0 ms in 2 calls, slowest 0 ms: PRAGMA query_only=OFF",
-     "315 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/app.py:274(on_filter_submitted)",
-     "315 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/widgets/grid.py:351(apply_filter)",
-     "306 ms cumulative, 0 ms own, 10 calls  sqlalchemy/engine/base.py:1770(_execute_context)",
-     "306 ms cumulative, 0 ms own, 4 calls  sqlalchemy/engine/base.py:1407(execute)",
-     "306 ms cumulative, 0 ms own, 4 calls  sqlalchemy/sql/elements.py:524(_execute_on_connection)",
-     "306 ms cumulative, 0 ms own, 4 calls  sqlalchemy/engine/base.py:1621(_execute_clauseelement)",
-     "306 ms cumulative, 0 ms own, 10 calls  sqlalchemy/engine/base.py:1829(_exec_single_context)",
-     "304 ms cumulative, 0 ms own, 10 calls  sqlalchemy/engine/default.py:1191(do_execute)",
-     "163 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/embedded.py:411(count_records)",
-     "162 ms cumulative, 0 ms own, 1 calls  tl-core/src/tl_core/query/api.py:65(count_query)",
-     "151 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/widgets/grid.py:320(load)",
-     "150 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/widgets/grid.py:294(_fetch)",
-     "own time 304 ms, 304 ms cumulative, 10 calls  ~:0(<method 'execute' of 'sqlite3.Cursor' objects>)",
-     "own time 4 ms, 6 ms cumulative, 627 calls  textual/strip.py:94(__init__)",
-     "own time 2 ms, 9 ms cumulative, 81 calls  textual/dom.py:1084(rich_style)",
-     "own time 2 ms, 4 ms cumulative, 5031 calls  textual/css/styles.py:1507(get_rule)",
-     "own time 2 ms, 2 ms cumulative, 4389 calls  textual/cache.py:226(__init__)"
-    ],
-    "grid_open": [
-     "SQL 139 ms in 1 calls, slowest 139 ms: SELECT id, key, type, scope, title, description, status, psets_json, voided, version, last_seq, effective_schema_hash, conformance, created_at, update",
-     "SQL 9 ms in 1 calls, slowest 9 ms: SELECT t.scope, t.path, t.reason, t.approver, t.expires FROM cur_schemareg_waiver t JOIN cur_core_record r ON r.id = t.id WHERE r.status = 'Approved' ",
-     "SQL 1 ms in 36 calls, slowest 0 ms: SELECT v.id, v.scope, v.code_list, v.code, v.label, v.meaning, v.crosswalk, v.origin, v.sort_order, v.effective_from, v.effective_to, v.lifecycle, v.s",
-     "SQL 1 ms in 20 calls, slowest 0 ms: SELECT s.id, s.scope, s.kind, s.code, s.label, s.definition, s.edition, s.owner, s.adoption, s.value_list_policy, s.effective_from, s.effective_to, s.",
-     "166 ms cumulative, 0 ms own, 72 calls  sqlalchemy/engine/base.py:1407(execute)",
-     "166 ms cumulative, 0 ms own, 72 calls  sqlalchemy/sql/elements.py:524(_execute_on_connection)",
-     "165 ms cumulative, 1 ms own, 72 calls  sqlalchemy/engine/base.py:1621(_execute_clauseelement)",
-     "163 ms cumulative, 1 ms own, 105 calls  sqlalchemy/engine/base.py:1770(_execute_context)",
-     "161 ms cumulative, 1 ms own, 105 calls  sqlalchemy/engine/base.py:1829(_exec_single_context)",
-     "160 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/widgets/grid.py:284(on_mount)",
-     "151 ms cumulative, 0 ms own, 105 calls  sqlalchemy/engine/default.py:1191(do_execute)",
-     "145 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/widgets/grid.py:320(load)",
-     "145 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/widgets/grid.py:294(_fetch)",
-     "145 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/embedded.py:369(list_records)",
-     "144 ms cumulative, 0 ms own, 1 calls  tl-core/src/tl_core/services/queries.py:100(list_records)",
-     "130 ms cumulative, 0 ms own, 2 calls  tl-tui/src/tl_tui/labels_load.py:93(load_labels)",
-     "own time 154 ms, 154 ms cumulative, 109 calls  ~:0(<method 'execute' of 'sqlite3.Cursor' objects>)",
-     "own time 24 ms, 24 ms cumulative, 69 calls  ~:0(<method 'poll' of 'select.epoll' objects>)",
-     "own time 9 ms, 16 ms cumulative, 2393 calls  textual/strip.py:94(__init__)",
-     "own time 7 ms, 28 ms cumulative, 266 calls  textual/dom.py:1084(rich_style)",
-     "own time 7 ms, 7 ms cumulative, 9379 calls  yaml/scanner.py:279(stale_possible_simple_keys)"
-    ],
-    "grid_filter_code": [
-     "SQL 159 ms in 1 calls, slowest 159 ms: SELECT COUNT(*) FROM cur_core_record r WHERE r.scope = ? AND r.voided = ? AND r.id IN (SELECT pv1.record_id FROM cur_pset_values pv1 WHERE pv1.path = ",
-     "SQL 134 ms in 1 calls, slowest 134 ms: SELECT r.id, r.key, r.type, r.scope, r.title, r.description, r.status, r.psets_json, r.voided, r.version, r.last_seq, r.effective_schema_hash, r.confo",
-     "SQL 0 ms in 2 calls, slowest 0 ms: SELECT a.account_id, a.username, a.display_name, a.kind, a.roles_json, a.status, a.created_at, a.last_seq, t.locked_until FROM cur_account a LEFT JOIN",
-     "SQL 0 ms in 2 calls, slowest 0 ms: PRAGMA query_only=ON",
-     "304 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/app.py:274(on_filter_submitted)",
-     "303 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/widgets/grid.py:351(apply_filter)",
-     "295 ms cumulative, 0 ms own, 10 calls  sqlalchemy/engine/base.py:1770(_execute_context)",
-     "295 ms cumulative, 0 ms own, 10 calls  sqlalchemy/engine/base.py:1829(_exec_single_context)",
-     "294 ms cumulative, 0 ms own, 4 calls  sqlalchemy/engine/base.py:1407(execute)",
-     "294 ms cumulative, 0 ms own, 4 calls  sqlalchemy/sql/elements.py:524(_execute_on_connection)",
-     "294 ms cumulative, 0 ms own, 4 calls  sqlalchemy/engine/base.py:1621(_execute_clauseelement)",
-     "293 ms cumulative, 0 ms own, 10 calls  sqlalchemy/engine/default.py:1191(do_execute)",
-     "162 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/embedded.py:411(count_records)",
-     "160 ms cumulative, 0 ms own, 1 calls  tl-core/src/tl_core/query/api.py:65(count_query)",
-     "142 ms cumulative, 1 ms own, 1 calls  tl-tui/src/tl_tui/widgets/grid.py:320(load)",
-     "140 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/widgets/grid.py:294(_fetch)",
-     "own time 293 ms, 293 ms cumulative, 10 calls  ~:0(<method 'execute' of 'sqlite3.Cursor' objects>)",
-     "own time 4 ms, 5 ms cumulative, 627 calls  textual/strip.py:94(__init__)",
-     "own time 2 ms, 9 ms cumulative, 81 calls  textual/dom.py:1084(rich_style)",
-     "own time 2 ms, 3 ms cumulative, 5031 calls  textual/css/styles.py:1507(get_rule)",
-     "own time 2 ms, 6 ms cumulative, 1 calls  textual/_compositor.py:1140(render_full_update)"
-    ],
     "grid_filter_number": [
-     "SQL 156 ms in 1 calls, slowest 156 ms: SELECT COUNT(*) FROM cur_core_record r WHERE r.scope = ? AND r.voided = ? AND r.id IN (SELECT pv1.record_id FROM cur_pset_values pv1 WHERE pv1.path = ",
-     "SQL 139 ms in 1 calls, slowest 139 ms: SELECT r.id, r.key, r.type, r.scope, r.title, r.description, r.status, r.psets_json, r.voided, r.version, r.last_seq, r.effective_schema_hash, r.confo",
+     "SQL 200 ms in 2 calls, slowest 171 ms: SELECT COUNT(*) FROM cur_core_record r WHERE r.scope = ? AND r.voided = ? AND r.id IN (SELECT pv1.record_id FROM cur_pset_values pv1 WHERE pv1.path = ",
+     "SQL 3 ms in 1 calls, slowest 3 ms: SELECT x.id FROM cur_core_record x WHERE x.id IN (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?",
+     "SQL 2 ms in 1 calls, slowest 2 ms: SELECT r.id, r.key, r.type, r.scope, r.title, r.description, r.status, r.psets_json, r.voided, r.version, r.last_seq, r.effective_schema_hash, r.confo",
      "SQL 0 ms in 2 calls, slowest 0 ms: SELECT a.account_id, a.username, a.display_name, a.kind, a.roles_json, a.status, a.created_at, a.last_seq, t.locked_until FROM cur_account a LEFT JOIN",
-     "SQL 0 ms in 2 calls, slowest 0 ms: PRAGMA query_only=OFF",
-     "305 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/app.py:274(on_filter_submitted)",
-     "305 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/widgets/grid.py:351(apply_filter)",
-     "297 ms cumulative, 0 ms own, 10 calls  sqlalchemy/engine/base.py:1770(_execute_context)",
-     "297 ms cumulative, 0 ms own, 4 calls  sqlalchemy/engine/base.py:1407(execute)",
-     "296 ms cumulative, 0 ms own, 4 calls  sqlalchemy/sql/elements.py:524(_execute_on_connection)",
-     "296 ms cumulative, 0 ms own, 4 calls  sqlalchemy/engine/base.py:1621(_execute_clauseelement)",
-     "296 ms cumulative, 0 ms own, 10 calls  sqlalchemy/engine/base.py:1829(_exec_single_context)",
-     "295 ms cumulative, 0 ms own, 10 calls  sqlalchemy/engine/default.py:1191(do_execute)",
-     "159 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/embedded.py:411(count_records)",
-     "157 ms cumulative, 0 ms own, 1 calls  tl-core/src/tl_core/query/api.py:65(count_query)",
-     "146 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/widgets/grid.py:320(load)",
-     "145 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/widgets/grid.py:294(_fetch)",
-     "own time 295 ms, 295 ms cumulative, 10 calls  ~:0(<method 'execute' of 'sqlite3.Cursor' objects>)",
-     "own time 4 ms, 6 ms cumulative, 627 calls  textual/strip.py:94(__init__)",
-     "own time 3 ms, 13 ms cumulative, 81 calls  textual/dom.py:1084(rich_style)",
-     "own time 3 ms, 4 ms cumulative, 5031 calls  textual/css/styles.py:1507(get_rule)",
-     "own time 2 ms, 2 ms cumulative, 4389 calls  textual/cache.py:226(__init__)"
+     "218 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/app.py:274(on_filter_submitted)",
+     "217 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/widgets/grid.py:351(apply_filter)",
+     "207 ms cumulative, 0 ms own, 6 calls  sqlalchemy/engine/base.py:1407(execute)",
+     "207 ms cumulative, 0 ms own, 6 calls  sqlalchemy/sql/elements.py:524(_execute_on_connection)",
+     "207 ms cumulative, 0 ms own, 6 calls  sqlalchemy/engine/base.py:1621(_execute_clauseelement)",
+     "207 ms cumulative, 0 ms own, 12 calls  sqlalchemy/engine/base.py:1770(_execute_context)",
+     "206 ms cumulative, 0 ms own, 12 calls  sqlalchemy/engine/base.py:1829(_exec_single_context)",
+     "205 ms cumulative, 0 ms own, 12 calls  sqlalchemy/engine/default.py:1191(do_execute)",
+     "204 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/embedded.py:411(count_records)",
+     "202 ms cumulative, 0 ms own, 1 calls  tl-core/src/tl_core/query/api.py:79(count_query)",
+     "14 ms cumulative, 1 ms own, 1 calls  tl-tui/src/tl_tui/widgets/grid.py:320(load)",
+     "13 ms cumulative, 0 ms own, 39 calls  tl-tui/src/tl_tui/widgets/grid.py:788(render_line)",
+     "own time 205 ms, 205 ms cumulative, 12 calls  ~:0(<method 'execute' of 'sqlite3.Cursor' objects>)",
+     "own time 4 ms, 4 ms cumulative, 4389 calls  textual/cache.py:226(__init__)",
+     "own time 3 ms, 7 ms cumulative, 627 calls  textual/strip.py:94(__init__)",
+     "own time 2 ms, 9 ms cumulative, 81 calls  textual/dom.py:1084(rich_style)",
+     "own time 2 ms, 3 ms cumulative, 5031 calls  textual/css/styles.py:1507(get_rule)"
     ],
     "corr_open": [
-     "SQL 102 ms in 4 calls, slowest 102 ms: SELECT id, record_type, scope, number, title, status, voided, version, direction, medium, received_via, external_ref, message_id, in_reply_to, from_pa",
-     "SQL 33 ms in 1 calls, slowest 33 ms: SELECT id, scope, key, title, description, status, voided, version, created_at, direction, purpose, due_date, issued_on, response_code, response_note,",
+     "SQL 110 ms in 4 calls, slowest 109 ms: SELECT id, record_type, scope, number, title, status, voided, version, direction, medium, received_via, external_ref, message_id, in_reply_to, from_pa",
+     "SQL 39 ms in 1 calls, slowest 39 ms: SELECT id, scope, key, title, description, status, voided, version, created_at, direction, purpose, due_date, issued_on, response_code, response_note,",
+     "SQL 7 ms in 1 calls, slowest 7 ms: SELECT x.id FROM cur_core_record x WHERE x.id IN (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?",
+     "SQL 5 ms in 11 calls, slowest 1 ms: SELECT 1 FROM cur_core_record x WHERE x.id = ? AND x.id IN (SELECT hr.id FROM cur_core_record hr WHERE hr.type IN ('correspondence.CommercialItem', 'c",
+     "227 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/widgets/log_screen.py:311(_load)",
+     "198 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/widgets/correspondence_screen.py:143(load_rows)",
+     "198 ms cumulative, 1 ms own, 1 calls  tl-tui/src/tl_tui/embedded.py:962(list_correspondence)",
+     "195 ms cumulative, 0 ms own, 1 calls  tl-modules/correspondence/src/tl_mod_correspondence/views.py:364(register)",
+     "176 ms cumulative, 0 ms own, 47 calls  sqlalchemy/engine/base.py:1407(execute)",
+     "176 ms cumulative, 0 ms own, 47 calls  sqlalchemy/sql/elements.py:524(_execute_on_connection)",
+     "176 ms cumulative, 1 ms own, 47 calls  sqlalchemy/engine/base.py:1621(_execute_clauseelement)",
+     "176 ms cumulative, 0 ms own, 74 calls  sqlalchemy/engine/base.py:1770(_execute_context)",
+     "172 ms cumulative, 1 ms own, 74 calls  sqlalchemy/engine/base.py:1829(_exec_single_context)",
+     "164 ms cumulative, 0 ms own, 74 calls  sqlalchemy/engine/default.py:1191(do_execute)",
+     "150 ms cumulative, 1 ms own, 1 calls  tl-modules/correspondence/src/tl_mod_correspondence/registry.py:237(list_items)",
+     "125 ms cumulative, 0 ms own, 1 calls  tl-modules/correspondence/src/tl_mod_correspondence/registry.py:63(_page)",
+     "own time 899 ms, 910 ms cumulative, 3504 calls  textual/strip.py:94(__init__)",
+     "own time 164 ms, 164 ms cumulative, 74 calls  ~:0(<method 'execute' of 'sqlite3.Cursor' objects>)",
+     "own time 15 ms, 15 ms cumulative, 71 calls  ~:0(<method 'poll' of 'select.epoll' objects>)",
+     "own time 13 ms, 25 ms cumulative, 503 calls  tl-modules/correspondence/src/tl_mod_correspondence/registry.py:145(_item)",
+     "own time 10 ms, 12 ms cumulative, 42546 calls  ~:0(<method 'get' of 'dict' objects>)"
+    ],
+    "docs_open": [
      "SQL 8 ms in 1 calls, slowest 8 ms: SELECT x.id FROM cur_core_record x WHERE x.id IN (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?",
-     "SQL 4 ms in 11 calls, slowest 1 ms: SELECT 1 FROM cur_core_record x WHERE x.id = ? AND x.id IN (SELECT hr.id FROM cur_core_record hr WHERE hr.type IN ('correspondence.CommercialItem', 'c",
-     "210 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/widgets/log_screen.py:311(_load)",
-     "183 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/widgets/correspondence_screen.py:143(load_rows)",
-     "183 ms cumulative, 1 ms own, 1 calls  tl-tui/src/tl_tui/embedded.py:962(list_correspondence)",
-     "180 ms cumulative, 0 ms own, 1 calls  tl-modules/correspondence/src/tl_mod_correspondence/views.py:364(register)",
-     "165 ms cumulative, 0 ms own, 47 calls  sqlalchemy/engine/base.py:1407(execute)",
-     "165 ms cumulative, 0 ms own, 47 calls  sqlalchemy/sql/elements.py:524(_execute_on_connection)",
-     "164 ms cumulative, 1 ms own, 47 calls  sqlalchemy/engine/base.py:1621(_execute_clauseelement)",
-     "164 ms cumulative, 0 ms own, 74 calls  sqlalchemy/engine/base.py:1770(_execute_context)",
-     "159 ms cumulative, 1 ms own, 74 calls  sqlalchemy/engine/base.py:1829(_exec_single_context)",
-     "151 ms cumulative, 0 ms own, 74 calls  sqlalchemy/engine/default.py:1191(do_execute)",
-     "141 ms cumulative, 0 ms own, 1 calls  tl-modules/correspondence/src/tl_mod_correspondence/registry.py:237(list_items)",
-     "119 ms cumulative, 0 ms own, 1 calls  tl-modules/correspondence/src/tl_mod_correspondence/registry.py:63(_page)",
-     "own time 151 ms, 151 ms cumulative, 74 calls  ~:0(<method 'execute' of 'sqlite3.Cursor' objects>)",
-     "own time 17 ms, 29 ms cumulative, 3504 calls  textual/strip.py:94(__init__)",
-     "own time 12 ms, 23 ms cumulative, 503 calls  tl-modules/correspondence/src/tl_mod_correspondence/registry.py:145(_item)",
-     "own time 11 ms, 11 ms cumulative, 65 calls  ~:0(<method 'poll' of 'select.epoll' objects>)",
-     "own time 10 ms, 15 ms cumulative, 20104 calls  textual/css/styles.py:1507(get_rule)"
+     "SQL 5 ms in 4 calls, slowest 4 ms: SELECT id, scope, key, title, description, status, voided, version, conformance, doc_type, discipline, originator, confidentiality, revision_scheme, p",
+     "SQL 3 ms in 6 calls, slowest 1 ms: SELECT 1 FROM cur_core_record x WHERE x.id = ? AND x.id IN (SELECT hr.id FROM cur_core_record hr WHERE hr.type IN ('correspondence.CommercialItem', 'c",
+     "SQL 1 ms in 1 calls, slowest 1 ms: SELECT l.link_id, l.scope, l.from_id, l.to_id, l.relation, l.status, l.pin, l.updated_at, d.key AS document_number, d.title AS document_title, x.key A",
+     "120 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/widgets/log_screen.py:311(_load)",
+     "72 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/widgets/log_screen.py:337(_fill)",
+     "71 ms cumulative, 1 ms own, 1 calls  tl-tui/src/tl_tui/widgets/log_screen.py:349(_draw_table)",
+     "53 ms cumulative, 0 ms own, 500 calls  tl-tui/src/tl_tui/widgets/log_screen.py:324(_cells_of)",
+     "52 ms cumulative, 2 ms own, 500 calls  tl-tui/src/tl_tui/widgets/log_screen.py:328(_cached)",
+     "49 ms cumulative, 1 ms own, 500 calls  tl-tui/src/tl_tui/widgets/document_register.py:176(row_cells)",
+     "46 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/widgets/document_register.py:132(load_rows)",
+     "46 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/widgets/document_register.py:144(_read)",
+     "46 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/embedded.py:881(list_documents)",
+     "46 ms cumulative, 2 ms own, 500 calls  tl-tui/src/tl_tui/document_text.py:89(row_cells)",
+     "44 ms cumulative, 0 ms own, 1 calls  tl-modules/documents/src/tl_mod_documents/views.py:152(document_views)",
+     "37 ms cumulative, 1 ms own, 502 calls  tl-tui/src/tl_tui/document_text.py:80(current_words)",
+     "own time 895 ms, 895 ms cumulative, 21816 calls  textual/cache.py:226(__init__)",
+     "own time 17 ms, 17 ms cumulative, 35 calls  ~:0(<method 'execute' of 'sqlite3.Cursor' objects>)",
+     "own time 15 ms, 912 ms cumulative, 3114 calls  textual/strip.py:94(__init__)",
+     "own time 11 ms, 16 ms cumulative, 47491 calls  ~:0(<method 'get' of 'dict' objects>)",
+     "own time 10 ms, 16 ms cumulative, 22081 calls  textual/css/styles.py:1507(get_rule)"
     ]
    },
    "reps": 25,
@@ -1993,16 +1881,16 @@
      "painted": {
       "n": 25,
       "median": 0.1,
-      "p95": 0.1,
+      "p95": 0.2,
       "min": 0.1,
-      "max": 0.1
+      "max": 0.2
      },
      "state": {
       "n": 25,
       "median": 0.1,
-      "p95": 0.1,
+      "p95": 0.2,
       "min": 0.1,
-      "max": 0.1
+      "max": 0.2
      },
      "cold_painted": 0.1,
      "cold_state": 0.1
@@ -2010,497 +1898,459 @@
     "grid_open": {
      "painted": {
       "n": 25,
-      "median": 459.1,
-      "p95": 841.5,
-      "min": 410.0,
-      "max": 896.2
+      "median": 292.1,
+      "p95": 686.4,
+      "min": 232.0,
+      "max": 710.2
      },
      "state": {
       "n": 25,
-      "median": 394.5,
-      "p95": 784.6,
-      "min": 346.0,
-      "max": 820.8
+      "median": 238.1,
+      "p95": 613.1,
+      "min": 186.8,
+      "max": 623.5
      },
-     "cold_painted": 714.2,
-     "cold_state": 669.5
+     "cold_painted": 515.6,
+     "cold_state": 463.2
     },
     "grid_reload": {
      "painted": {
       "n": 25,
-      "median": 180.6,
-      "p95": 214.7,
-      "min": 158.9,
-      "max": 236.1
+      "median": 28.7,
+      "p95": 42.0,
+      "min": 25.9,
+      "max": 42.6
      },
      "state": {
       "n": 25,
-      "median": 170.7,
-      "p95": 205.1,
-      "min": 149.5,
-      "max": 220.5
+      "median": 18.5,
+      "p95": 26.1,
+      "min": 17.2,
+      "max": 26.6
      },
-     "cold_painted": 226.0,
-     "cold_state": 212.9
+     "cold_painted": 27.0,
+     "cold_state": 17.3
     },
     "grid_filter_text": {
      "painted": {
       "n": 25,
-      "median": 386.8,
-      "p95": 730.1,
-      "min": 327.2,
-      "max": 776.0
+      "median": 125.3,
+      "p95": 184.2,
+      "min": 96.9,
+      "max": 574.0
      },
      "state": {
       "n": 25,
-      "median": 361.4,
-      "p95": 730.1,
-      "min": 312.7,
-      "max": 775.9
+      "median": 100.3,
+      "p95": 169.7,
+      "min": 74.4,
+      "max": 574.0
      },
-     "cold_painted": 384.4,
-     "cold_state": 384.3
+     "cold_painted": 118.4,
+     "cold_state": 118.4
     },
     "grid_filter_number": {
      "painted": {
       "n": 25,
-      "median": 383.8,
-      "p95": 787.5,
-      "min": 311.8,
-      "max": 855.1
+      "median": 263.8,
+      "p95": 620.1,
+      "min": 224.2,
+      "max": 728.7
      },
      "state": {
       "n": 25,
-      "median": 376.5,
-      "p95": 421.5,
-      "min": 311.8,
-      "max": 787.5
+      "median": 252.6,
+      "p95": 620.1,
+      "min": 198.9,
+      "max": 728.7
      },
-     "cold_painted": 455.1,
-     "cold_state": 455.1
+     "cold_painted": 226.0,
+     "cold_state": 226.0
     },
     "grid_filter_code": {
      "painted": {
       "n": 25,
-      "median": 388.3,
-      "p95": 515.3,
-      "min": 344.6,
-      "max": 553.7
+      "median": 269.1,
+      "p95": 324.1,
+      "min": 214.1,
+      "max": 671.8
      },
      "state": {
       "n": 25,
-      "median": 361.7,
-      "p95": 479.0,
-      "min": 305.5,
-      "max": 553.7
+      "median": 228.8,
+      "p95": 313.7,
+      "min": 199.7,
+      "max": 671.8
      },
-     "cold_painted": 363.7,
-     "cold_state": 363.7
+     "cold_painted": 239.9,
+     "cold_state": 195.1
     },
     "rfi_open": {
      "painted": {
       "n": 25,
-      "median": 217.6,
-      "p95": 843.9,
-      "min": 167.4,
-      "max": 1259.8
+      "median": 234.3,
+      "p95": 817.9,
+      "min": 171.4,
+      "max": 1087.7
      },
      "state": {
       "n": 25,
-      "median": 217.6,
-      "p95": 705.1,
-      "min": 167.4,
-      "max": 1038.5
+      "median": 227.4,
+      "p95": 661.4,
+      "min": 171.4,
+      "max": 941.6
      },
-     "cold_painted": 382.2,
-     "cold_state": 382.2
+     "cold_painted": 323.6,
+     "cold_state": 323.6
     },
     "rfi_cursor": {
      "painted": {
       "n": 25,
-      "median": 5.2,
-      "p95": 12.6,
-      "min": 4.7,
-      "max": 63.5
+      "median": 6.9,
+      "p95": 53.8,
+      "min": 5.0,
+      "max": 68.0
      },
      "state": {
       "n": 25,
-      "median": 5.2,
-      "p95": 8.1,
-      "min": 4.7,
-      "max": 12.6
+      "median": 6.9,
+      "p95": 9.9,
+      "min": 5.0,
+      "max": 11.3
      },
-     "cold_painted": 71.9,
-     "cold_state": 71.9
+     "cold_painted": 86.6,
+     "cold_state": 86.6
     },
     "rfi_enter": {
      "painted": {
       "n": 25,
-      "median": 271.5,
-      "p95": 365.1,
-      "min": 220.9,
-      "max": 395.8
+      "median": 244.0,
+      "p95": 1039.7,
+      "min": 217.6,
+      "max": 1063.2
      },
      "state": {
       "n": 25,
-      "median": 156.8,
-      "p95": 214.2,
-      "min": 126.3,
-      "max": 286.4
+      "median": 144.2,
+      "p95": 284.7,
+      "min": 122.4,
+      "max": 938.8
      },
-     "cold_painted": 454.5,
-     "cold_state": 306.8
+     "cold_painted": 454.7,
+     "cold_state": 357.1
     },
     "rfi_props": {
      "painted": {
       "n": 25,
-      "median": 69.7,
-      "p95": 101.9,
-      "min": 56.9,
-      "max": 111.5
+      "median": 73.0,
+      "p95": 87.4,
+      "min": 54.7,
+      "max": 904.1
      },
      "state": {
       "n": 25,
-      "median": 25.4,
-      "p95": 39.8,
-      "min": 17.4,
-      "max": 40.1
+      "median": 22.3,
+      "p95": 27.1,
+      "min": 6.6,
+      "max": 27.9
      },
-     "cold_painted": 66.7,
-     "cold_state": 22.8
+     "cold_painted": 73.6,
+     "cold_state": 27.7
     },
     "rfi_filter": {
      "painted": {
       "n": 25,
-      "median": 79.9,
-      "p95": 107.0,
-      "min": 64.7,
-      "max": 114.9
+      "median": 72.5,
+      "p95": 94.8,
+      "min": 62.2,
+      "max": 100.7
      },
      "state": {
       "n": 25,
-      "median": 79.9,
-      "p95": 107.0,
-      "min": 64.7,
-      "max": 114.9
+      "median": 72.5,
+      "p95": 94.8,
+      "min": 62.2,
+      "max": 100.7
      },
-     "cold_painted": 8.9,
-     "cold_state": 8.9
+     "cold_painted": 9.6,
+     "cold_state": 9.6
     },
     "corr_open": {
      "painted": {
       "n": 25,
-      "median": 343.4,
-      "p95": 1173.8,
-      "min": 245.2,
-      "max": 1454.9
+      "median": 262.1,
+      "p95": 1055.9,
+      "min": 222.1,
+      "max": 1131.8
      },
      "state": {
       "n": 25,
-      "median": 343.4,
-      "p95": 1041.4,
-      "min": 245.1,
-      "max": 1205.5
+      "median": 262.1,
+      "p95": 950.5,
+      "min": 222.1,
+      "max": 980.0
      },
-     "cold_painted": 1259.0,
-     "cold_state": 1259.0
+     "cold_painted": 1177.3,
+     "cold_state": 1177.3
     },
     "corr_cursor": {
      "painted": {
       "n": 25,
-      "median": 6.7,
-      "p95": 56.8,
-      "min": 4.8,
-      "max": 56.8
+      "median": 7.9,
+      "p95": 53.7,
+      "min": 4.9,
+      "max": 85.5
      },
      "state": {
       "n": 25,
-      "median": 6.7,
-      "p95": 14.1,
-      "min": 4.8,
-      "max": 14.9
+      "median": 7.4,
+      "p95": 8.6,
+      "min": 4.9,
+      "max": 9.0
      },
-     "cold_painted": 54.2,
-     "cold_state": 54.2
+     "cold_painted": 77.1,
+     "cold_state": 77.0
     },
     "corr_enter": {
      "painted": {
       "n": 25,
-      "median": 267.1,
-      "p95": 1199.9,
-      "min": 224.4,
-      "max": 1243.1
+      "median": 267.9,
+      "p95": 1329.4,
+      "min": 241.9,
+      "max": 1363.0
      },
      "state": {
       "n": 25,
-      "median": 160.3,
-      "p95": 351.2,
-      "min": 124.0,
-      "max": 1092.5
+      "median": 149.2,
+      "p95": 194.8,
+      "min": 127.8,
+      "max": 362.7
      },
-     "cold_painted": 462.6,
-     "cold_state": 350.9
+     "cold_painted": 535.1,
+     "cold_state": 388.8
     },
     "corr_props": {
      "painted": {
       "n": 25,
-      "median": 72.5,
-      "p95": 128.7,
-      "min": 63.7,
-      "max": 1126.2
+      "median": 75.5,
+      "p95": 100.3,
+      "min": 66.4,
+      "max": 102.9
      },
      "state": {
       "n": 25,
-      "median": 23.3,
-      "p95": 34.2,
-      "min": 15.8,
-      "max": 44.2
+      "median": 23.8,
+      "p95": 30.2,
+      "min": 4.7,
+      "max": 31.6
      },
-     "cold_painted": 102.7,
-     "cold_state": 25.8
+     "cold_painted": 75.4,
+     "cold_state": 6.9
     },
     "corr_filter": {
      "painted": {
       "n": 25,
-      "median": 64.0,
-      "p95": 89.1,
-      "min": 49.1,
-      "max": 93.9
+      "median": 60.0,
+      "p95": 71.5,
+      "min": 46.1,
+      "max": 76.1
      },
      "state": {
       "n": 25,
-      "median": 64.0,
-      "p95": 89.1,
-      "min": 49.1,
-      "max": 93.9
+      "median": 60.0,
+      "p95": 71.5,
+      "min": 46.1,
+      "max": 76.1
      },
-     "cold_painted": 13.6,
-     "cold_state": 13.6
+     "cold_painted": 8.4,
+     "cold_state": 8.4
     },
     "docs_open": {
      "painted": {
       "n": 25,
-      "median": 242.3,
-      "p95": 1188.0,
-      "min": 152.7,
-      "max": 1253.6
+      "median": 246.8,
+      "p95": 1128.6,
+      "min": 175.3,
+      "max": 1159.8
      },
      "state": {
       "n": 25,
-      "median": 162.3,
-      "p95": 225.7,
-      "min": 122.4,
-      "max": 244.5
+      "median": 136.5,
+      "p95": 1036.1,
+      "min": 104.3,
+      "max": 1075.3
      },
-     "cold_painted": 313.9,
-     "cold_state": 272.6
+     "cold_painted": 1221.9,
+     "cold_state": 229.6
     },
     "docs_cursor": {
      "painted": {
       "n": 25,
-      "median": 5.8,
+      "median": 5.6,
       "p95": 8.0,
-      "min": 4.8,
-      "max": 41.4
+      "min": 5.0,
+      "max": 8.0
      },
      "state": {
       "n": 25,
-      "median": 5.8,
-      "p95": 8.0,
-      "min": 4.8,
-      "max": 9.4
+      "median": 5.6,
+      "p95": 7.9,
+      "min": 5.0,
+      "max": 8.0
      },
-     "cold_painted": 22.8,
-     "cold_state": 22.8
+     "cold_painted": 17.0,
+     "cold_state": 17.0
     },
     "docs_enter": {
      "painted": {
       "n": 25,
-      "median": 218.3,
-      "p95": 1077.5,
-      "min": 189.8,
-      "max": 1130.5
+      "median": 228.0,
+      "p95": 1102.6,
+      "min": 200.8,
+      "max": 1165.4
      },
      "state": {
       "n": 25,
-      "median": 105.1,
-      "p95": 140.6,
-      "min": 91.9,
-      "max": 218.5
+      "median": 112.4,
+      "p95": 152.3,
+      "min": 97.0,
+      "max": 198.6
      },
-     "cold_painted": 405.3,
-     "cold_state": 282.1
+     "cold_painted": 290.2,
+     "cold_state": 187.8
     },
     "docs_props": {
      "painted": {
       "n": 25,
-      "median": 72.8,
-      "p95": 86.7,
-      "min": 60.6,
-      "max": 95.0
+      "median": 72.4,
+      "p95": 86.5,
+      "min": 67.6,
+      "max": 90.6
      },
      "state": {
       "n": 25,
-      "median": 21.9,
-      "p95": 27.8,
-      "min": 19.1,
-      "max": 27.9
+      "median": 21.5,
+      "p95": 29.7,
+      "min": 4.9,
+      "max": 32.9
      },
-     "cold_painted": 72.3,
-     "cold_state": 20.6
+     "cold_painted": 74.0,
+     "cold_state": 21.5
     },
     "docs_filter": {
      "painted": {
       "n": 25,
-      "median": 23.2,
-      "p95": 48.0,
-      "min": 19.1,
-      "max": 53.2
+      "median": 22.0,
+      "p95": 28.3,
+      "min": 18.8,
+      "max": 62.4
      },
      "state": {
       "n": 25,
-      "median": 23.2,
-      "p95": 28.9,
-      "min": 19.1,
-      "max": 30.0
+      "median": 22.0,
+      "p95": 26.6,
+      "min": 18.8,
+      "max": 26.9
      },
-     "cold_painted": 15.4,
-     "cold_state": 15.4
+     "cold_painted": 16.1,
+     "cold_state": 16.1
     }
    },
    "profile": {
     "grid_open": [
-     "349 ms cumulative, 0 ms own, 9 calls  tl-tui/src/tl_tui/remote.py:249(tracked)",
-     "347 ms cumulative, 1 ms own, 27 calls  tl-api/src/tl_api/client/base.py:168(_get_json)",
-     "343 ms cumulative, 0 ms own, 27 calls  tl-api/src/tl_api/client/base.py:108(_send)",
-     "342 ms cumulative, 0 ms own, 27 calls  tl-api/src/tl_api/client/base.py:125(_attempt)",
-     "342 ms cumulative, 0 ms own, 27 calls  httpx2/_client.py:743(request)",
-     "325 ms cumulative, 0 ms own, 27 calls  httpx2/_client.py:949(send)",
-     "314 ms cumulative, 0 ms own, 27 calls  httpx2/_client.py:996(_send_handling_auth)",
-     "314 ms cumulative, 0 ms own, 27 calls  httpx2/_client.py:1030(_send_handling_redirects)",
-     "313 ms cumulative, 1 ms own, 27 calls  httpx2/_client.py:1065(_send_single_request)",
-     "310 ms cumulative, 1 ms own, 27 calls  httpx2/_transports/default.py:225(handle_request)",
-     "242 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/widgets/grid.py:284(on_mount)",
-     "194 ms cumulative, 0 ms own, 2 calls  tl-tui/src/tl_tui/labels_load.py:93(load_labels)",
-     "own time 284 ms, 284 ms cumulative, 41 calls  ~:0(<method 'recv' of '_socket.socket' objects>)",
-     "own time 15 ms, 15 ms cumulative, 51 calls  ~:0(<method 'poll' of 'select.epoll' objects>)",
-     "own time 11 ms, 16 ms cumulative, 2727 calls  textual/css/tokenizer.py:227(get_token)",
-     "own time 9 ms, 18 ms cumulative, 2393 calls  textual/strip.py:94(__init__)",
-     "own time 9 ms, 102 ms cumulative, 532 calls  textual/_styles_cache.py:267(render_line)"
+     "214 ms cumulative, 0 ms own, 9 calls  tl-tui/src/tl_tui/remote.py:249(tracked)",
+     "211 ms cumulative, 0 ms own, 27 calls  tl-api/src/tl_api/client/base.py:168(_get_json)",
+     "208 ms cumulative, 0 ms own, 27 calls  tl-api/src/tl_api/client/base.py:108(_send)",
+     "207 ms cumulative, 0 ms own, 27 calls  tl-api/src/tl_api/client/base.py:125(_attempt)",
+     "207 ms cumulative, 0 ms own, 27 calls  httpx2/_client.py:743(request)",
+     "200 ms cumulative, 0 ms own, 2 calls  tl-tui/src/tl_tui/labels_load.py:93(load_labels)",
+     "200 ms cumulative, 0 ms own, 2 calls  tl-tui/src/tl_tui/labels_load.py:116(_read_labels)",
+     "189 ms cumulative, 0 ms own, 27 calls  httpx2/_client.py:949(send)",
+     "179 ms cumulative, 0 ms own, 27 calls  httpx2/_client.py:996(_send_handling_auth)",
+     "178 ms cumulative, 0 ms own, 27 calls  httpx2/_client.py:1030(_send_handling_redirects)",
+     "177 ms cumulative, 1 ms own, 27 calls  httpx2/_client.py:1065(_send_single_request)",
+     "174 ms cumulative, 1 ms own, 27 calls  httpx2/_transports/default.py:225(handle_request)",
+     "own time 147 ms, 147 ms cumulative, 34 calls  ~:0(<method 'recv' of '_socket.socket' objects>)",
+     "own time 18 ms, 18 ms cumulative, 57 calls  ~:0(<method 'poll' of 'select.epoll' objects>)",
+     "own time 13 ms, 21 ms cumulative, 2393 calls  textual/strip.py:94(__init__)",
+     "own time 8 ms, 13 ms cumulative, 2727 calls  textual/css/tokenizer.py:227(get_token)",
+     "own time 8 ms, 8 ms cumulative, 16771 calls  textual/cache.py:226(__init__)"
     ],
-    "grid_filter_text": [
-     "323 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/app.py:274(on_filter_submitted)",
-     "323 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/widgets/grid.py:351(apply_filter)",
-     "321 ms cumulative, 0 ms own, 2 calls  tl-tui/src/tl_tui/remote.py:249(tracked)",
-     "321 ms cumulative, 0 ms own, 2 calls  tl-api/src/tl_api/client/base.py:168(_get_json)",
-     "320 ms cumulative, 0 ms own, 2 calls  tl-api/src/tl_api/client/base.py:108(_send)",
-     "320 ms cumulative, 0 ms own, 2 calls  tl-api/src/tl_api/client/base.py:125(_attempt)",
-     "320 ms cumulative, 0 ms own, 2 calls  httpx2/_client.py:743(request)",
-     "318 ms cumulative, 0 ms own, 2 calls  httpx2/_client.py:949(send)",
-     "317 ms cumulative, 0 ms own, 2 calls  httpx2/_client.py:996(_send_handling_auth)",
-     "317 ms cumulative, 0 ms own, 2 calls  httpx2/_client.py:1030(_send_handling_redirects)",
-     "317 ms cumulative, 0 ms own, 2 calls  httpx2/_client.py:1065(_send_single_request)",
-     "317 ms cumulative, 0 ms own, 2 calls  httpx2/_transports/default.py:225(handle_request)",
-     "own time 314 ms, 314 ms cumulative, 5 calls  ~:0(<method 'recv' of '_socket.socket' objects>)",
-     "own time 3 ms, 26 ms cumulative, 127 calls  textual/_styles_cache.py:267(render_line)",
-     "own time 2 ms, 9 ms cumulative, 81 calls  textual/dom.py:1084(rich_style)",
-     "own time 2 ms, 4 ms cumulative, 627 calls  textual/strip.py:94(__init__)",
-     "own time 2 ms, 4 ms cumulative, 5031 calls  textual/css/styles.py:1507(get_rule)"
-    ],
-    "grid_filter_code": [
-     "357 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/app.py:274(on_filter_submitted)",
-     "357 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/widgets/grid.py:351(apply_filter)",
-     "355 ms cumulative, 0 ms own, 2 calls  tl-tui/src/tl_tui/remote.py:249(tracked)",
-     "355 ms cumulative, 0 ms own, 2 calls  tl-api/src/tl_api/client/base.py:168(_get_json)",
-     "354 ms cumulative, 0 ms own, 2 calls  tl-api/src/tl_api/client/base.py:108(_send)",
-     "354 ms cumulative, 0 ms own, 2 calls  tl-api/src/tl_api/client/base.py:125(_attempt)",
-     "354 ms cumulative, 0 ms own, 2 calls  httpx2/_client.py:743(request)",
-     "352 ms cumulative, 0 ms own, 2 calls  httpx2/_client.py:949(send)",
-     "351 ms cumulative, 0 ms own, 2 calls  httpx2/_client.py:996(_send_handling_auth)",
-     "351 ms cumulative, 0 ms own, 2 calls  httpx2/_client.py:1030(_send_handling_redirects)",
-     "351 ms cumulative, 0 ms own, 2 calls  httpx2/_client.py:1065(_send_single_request)",
-     "350 ms cumulative, 0 ms own, 2 calls  httpx2/_transports/default.py:225(handle_request)",
-     "own time 348 ms, 348 ms cumulative, 7 calls  ~:0(<method 'recv' of '_socket.socket' objects>)",
-     "own time 3 ms, 26 ms cumulative, 127 calls  textual/_styles_cache.py:267(render_line)",
-     "own time 3 ms, 4 ms cumulative, 627 calls  textual/strip.py:94(__init__)",
+    "grid_filter_number": [
+     "207 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/app.py:274(on_filter_submitted)",
+     "207 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/widgets/grid.py:351(apply_filter)",
+     "205 ms cumulative, 0 ms own, 2 calls  tl-tui/src/tl_tui/remote.py:249(tracked)",
+     "205 ms cumulative, 0 ms own, 2 calls  tl-api/src/tl_api/client/base.py:168(_get_json)",
+     "199 ms cumulative, 0 ms own, 2 calls  tl-api/src/tl_api/client/base.py:108(_send)",
+     "199 ms cumulative, 0 ms own, 2 calls  tl-api/src/tl_api/client/base.py:125(_attempt)",
+     "199 ms cumulative, 0 ms own, 2 calls  httpx2/_client.py:743(request)",
+     "198 ms cumulative, 0 ms own, 2 calls  httpx2/_client.py:949(send)",
+     "196 ms cumulative, 0 ms own, 2 calls  httpx2/_client.py:996(_send_handling_auth)",
+     "196 ms cumulative, 0 ms own, 2 calls  httpx2/_client.py:1030(_send_handling_redirects)",
+     "196 ms cumulative, 0 ms own, 2 calls  httpx2/_client.py:1065(_send_single_request)",
+     "195 ms cumulative, 0 ms own, 2 calls  httpx2/_transports/default.py:225(handle_request)",
+     "own time 192 ms, 192 ms cumulative, 5 calls  ~:0(<method 'recv' of '_socket.socket' objects>)",
+     "own time 5 ms, 5 ms cumulative, 2 calls  /usr/lib/python3.12/json/decoder.py:343(raw_decode)",
+     "own time 4 ms, 6 ms cumulative, 627 calls  textual/strip.py:94(__init__)",
      "own time 2 ms, 9 ms cumulative, 81 calls  textual/dom.py:1084(rich_style)",
      "own time 2 ms, 3 ms cumulative, 5031 calls  textual/css/styles.py:1507(get_rule)"
     ],
-    "grid_filter_number": [
-     "377 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/app.py:274(on_filter_submitted)",
-     "376 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/widgets/grid.py:351(apply_filter)",
-     "375 ms cumulative, 0 ms own, 2 calls  tl-tui/src/tl_tui/remote.py:249(tracked)",
-     "375 ms cumulative, 0 ms own, 2 calls  tl-api/src/tl_api/client/base.py:168(_get_json)",
-     "373 ms cumulative, 0 ms own, 2 calls  tl-api/src/tl_api/client/base.py:108(_send)",
-     "373 ms cumulative, 0 ms own, 2 calls  tl-api/src/tl_api/client/base.py:125(_attempt)",
-     "373 ms cumulative, 0 ms own, 2 calls  httpx2/_client.py:743(request)",
-     "371 ms cumulative, 0 ms own, 2 calls  httpx2/_client.py:949(send)",
-     "369 ms cumulative, 0 ms own, 2 calls  httpx2/_client.py:996(_send_handling_auth)",
-     "369 ms cumulative, 0 ms own, 2 calls  httpx2/_client.py:1030(_send_handling_redirects)",
-     "369 ms cumulative, 0 ms own, 2 calls  httpx2/_client.py:1065(_send_single_request)",
-     "369 ms cumulative, 0 ms own, 2 calls  httpx2/_transports/default.py:225(handle_request)",
-     "own time 366 ms, 366 ms cumulative, 6 calls  ~:0(<method 'recv' of '_socket.socket' objects>)",
-     "own time 46 ms, 46 ms cumulative, 105 calls  ~:0(<method 'poll' of 'select.epoll' objects>)",
-     "own time 5 ms, 7 ms cumulative, 807 calls  textual/strip.py:94(__init__)",
-     "own time 4 ms, 58 ms cumulative, 4 calls  textual/_compositor.py:1200(_render_chops)",
-     "own time 3 ms, 4 ms cumulative, 6184 calls  textual/css/styles.py:1507(get_rule)"
-    ],
-    "rfi_enter": [
-     "116 ms cumulative, 0 ms own, 9 calls  tl-tui/src/tl_tui/remote.py:249(tracked)",
-     "113 ms cumulative, 0 ms own, 11 calls  tl-api/src/tl_api/client/base.py:168(_get_json)",
-     "112 ms cumulative, 0 ms own, 11 calls  tl-api/src/tl_api/client/base.py:108(_send)",
-     "112 ms cumulative, 0 ms own, 11 calls  tl-api/src/tl_api/client/base.py:125(_attempt)",
-     "112 ms cumulative, 0 ms own, 11 calls  httpx2/_client.py:743(request)",
-     "104 ms cumulative, 0 ms own, 11 calls  httpx2/_client.py:949(send)",
-     "99 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/widgets/record_view.py:190(on_mount)",
-     "99 ms cumulative, 0 ms own, 11 calls  httpx2/_client.py:996(_send_handling_auth)",
-     "99 ms cumulative, 0 ms own, 11 calls  httpx2/_client.py:1030(_send_handling_redirects)",
-     "99 ms cumulative, 0 ms own, 11 calls  httpx2/_client.py:1065(_send_single_request)",
-     "97 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/widgets/record_view.py:194(reload)",
-     "97 ms cumulative, 0 ms own, 11 calls  httpx2/_transports/default.py:225(handle_request)",
-     "own time 72 ms, 72 ms cumulative, 17 calls  ~:0(<method 'recv' of '_socket.socket' objects>)",
-     "own time 28 ms, 173 ms cumulative, 222 calls  textual/css/stylesheet.py:470(apply)",
-     "own time 14 ms, 45 ms cumulative, 1060 calls  textual/css/match.py:27(_check_selectors)",
-     "own time 10 ms, 10 ms cumulative, 34939 calls  ~:0(<method 'get' of 'dict' objects>)",
-     "own time 9 ms, 11 ms cumulative, 26309 calls  ~:0(<built-in method builtins.hasattr>)"
+    "grid_filter_code": [
+     "195 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/app.py:274(on_filter_submitted)",
+     "195 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/widgets/grid.py:351(apply_filter)",
+     "193 ms cumulative, 0 ms own, 2 calls  tl-tui/src/tl_tui/remote.py:249(tracked)",
+     "193 ms cumulative, 0 ms own, 2 calls  tl-api/src/tl_api/client/base.py:168(_get_json)",
+     "192 ms cumulative, 0 ms own, 2 calls  tl-api/src/tl_api/client/base.py:108(_send)",
+     "192 ms cumulative, 0 ms own, 2 calls  tl-api/src/tl_api/client/base.py:125(_attempt)",
+     "192 ms cumulative, 0 ms own, 2 calls  httpx2/_client.py:743(request)",
+     "190 ms cumulative, 0 ms own, 2 calls  httpx2/_client.py:949(send)",
+     "189 ms cumulative, 0 ms own, 2 calls  httpx2/_client.py:996(_send_handling_auth)",
+     "189 ms cumulative, 0 ms own, 2 calls  httpx2/_client.py:1030(_send_handling_redirects)",
+     "189 ms cumulative, 0 ms own, 2 calls  httpx2/_client.py:1065(_send_single_request)",
+     "189 ms cumulative, 0 ms own, 2 calls  httpx2/_transports/default.py:225(handle_request)",
+     "own time 186 ms, 186 ms cumulative, 5 calls  ~:0(<method 'recv' of '_socket.socket' objects>)",
+     "own time 48 ms, 48 ms cumulative, 106 calls  ~:0(<method 'poll' of 'select.epoll' objects>)",
+     "own time 6 ms, 8 ms cumulative, 807 calls  textual/strip.py:94(__init__)",
+     "own time 4 ms, 60 ms cumulative, 4 calls  textual/_compositor.py:1200(_render_chops)",
+     "own time 3 ms, 5 ms cumulative, 6184 calls  textual/css/styles.py:1507(get_rule)"
     ],
     "corr_open": [
-     "263 ms cumulative, 0 ms own, 8 calls  tl-tui/src/tl_tui/remote.py:249(tracked)",
-     "259 ms cumulative, 0 ms own, 9 calls  tl-api/src/tl_api/client/base.py:168(_get_json)",
-     "256 ms cumulative, 0 ms own, 9 calls  tl-api/src/tl_api/client/base.py:108(_send)",
-     "256 ms cumulative, 0 ms own, 9 calls  tl-api/src/tl_api/client/base.py:125(_attempt)",
-     "256 ms cumulative, 0 ms own, 9 calls  httpx2/_client.py:743(request)",
-     "250 ms cumulative, 0 ms own, 9 calls  httpx2/_client.py:949(send)",
-     "246 ms cumulative, 0 ms own, 9 calls  httpx2/_client.py:996(_send_handling_auth)",
-     "246 ms cumulative, 0 ms own, 9 calls  httpx2/_client.py:1030(_send_handling_redirects)",
-     "246 ms cumulative, 0 ms own, 9 calls  httpx2/_client.py:1065(_send_single_request)",
-     "244 ms cumulative, 0 ms own, 9 calls  httpx2/_transports/default.py:225(handle_request)",
-     "219 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/widgets/log_screen.py:311(_load)",
-     "188 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/widgets/correspondence_screen.py:143(load_rows)",
-     "own time 235 ms, 235 ms cumulative, 14 calls  ~:0(<method 'recv' of '_socket.socket' objects>)",
-     "own time 19 ms, 31 ms cumulative, 3504 calls  textual/strip.py:94(__init__)",
-     "own time 10 ms, 15 ms cumulative, 20104 calls  textual/css/styles.py:1507(get_rule)",
-     "own time 9 ms, 11 ms cumulative, 41878 calls  ~:0(<method 'get' of 'dict' objects>)",
-     "own time 9 ms, 9 ms cumulative, 24540 calls  textual/cache.py:226(__init__)"
+     "274 ms cumulative, 0 ms own, 8 calls  tl-tui/src/tl_tui/remote.py:249(tracked)",
+     "269 ms cumulative, 0 ms own, 9 calls  tl-api/src/tl_api/client/base.py:168(_get_json)",
+     "267 ms cumulative, 0 ms own, 9 calls  tl-api/src/tl_api/client/base.py:108(_send)",
+     "267 ms cumulative, 0 ms own, 9 calls  tl-api/src/tl_api/client/base.py:125(_attempt)",
+     "267 ms cumulative, 0 ms own, 9 calls  httpx2/_client.py:743(request)",
+     "260 ms cumulative, 0 ms own, 9 calls  httpx2/_client.py:949(send)",
+     "255 ms cumulative, 0 ms own, 9 calls  httpx2/_client.py:996(_send_handling_auth)",
+     "255 ms cumulative, 0 ms own, 9 calls  httpx2/_client.py:1030(_send_handling_redirects)",
+     "255 ms cumulative, 0 ms own, 9 calls  httpx2/_client.py:1065(_send_single_request)",
+     "253 ms cumulative, 0 ms own, 9 calls  httpx2/_transports/default.py:225(handle_request)",
+     "227 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/widgets/log_screen.py:311(_load)",
+     "190 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/widgets/correspondence_screen.py:143(load_rows)",
+     "own time 242 ms, 242 ms cumulative, 14 calls  ~:0(<method 'recv' of '_socket.socket' objects>)",
+     "own time 16 ms, 29 ms cumulative, 3504 calls  textual/strip.py:94(__init__)",
+     "own time 13 ms, 13 ms cumulative, 69 calls  ~:0(<method 'poll' of 'select.epoll' objects>)",
+     "own time 10 ms, 16 ms cumulative, 20104 calls  textual/css/styles.py:1507(get_rule)",
+     "own time 10 ms, 10 ms cumulative, 24540 calls  textual/cache.py:226(__init__)"
     ],
     "corr_enter": [
-     "150 ms cumulative, 0 ms own, 9 calls  tl-tui/src/tl_tui/remote.py:249(tracked)",
-     "147 ms cumulative, 0 ms own, 11 calls  tl-api/src/tl_api/client/base.py:168(_get_json)",
-     "147 ms cumulative, 0 ms own, 11 calls  tl-api/src/tl_api/client/base.py:108(_send)",
-     "147 ms cumulative, 0 ms own, 11 calls  tl-api/src/tl_api/client/base.py:125(_attempt)",
-     "146 ms cumulative, 0 ms own, 11 calls  httpx2/_client.py:743(request)",
-     "140 ms cumulative, 0 ms own, 11 calls  httpx2/_client.py:949(send)",
-     "136 ms cumulative, 0 ms own, 11 calls  httpx2/_client.py:996(_send_handling_auth)",
-     "136 ms cumulative, 0 ms own, 11 calls  httpx2/_client.py:1030(_send_handling_redirects)",
-     "135 ms cumulative, 0 ms own, 11 calls  httpx2/_client.py:1065(_send_single_request)",
-     "133 ms cumulative, 0 ms own, 11 calls  httpx2/_transports/default.py:225(handle_request)",
+     "158 ms cumulative, 0 ms own, 9 calls  tl-tui/src/tl_tui/remote.py:249(tracked)",
+     "153 ms cumulative, 0 ms own, 11 calls  tl-api/src/tl_api/client/base.py:168(_get_json)",
+     "152 ms cumulative, 0 ms own, 11 calls  tl-api/src/tl_api/client/base.py:108(_send)",
+     "152 ms cumulative, 0 ms own, 11 calls  tl-api/src/tl_api/client/base.py:125(_attempt)",
+     "152 ms cumulative, 0 ms own, 11 calls  httpx2/_client.py:743(request)",
+     "145 ms cumulative, 0 ms own, 11 calls  httpx2/_client.py:949(send)",
+     "140 ms cumulative, 0 ms own, 11 calls  httpx2/_client.py:996(_send_handling_auth)",
+     "139 ms cumulative, 0 ms own, 11 calls  httpx2/_client.py:1030(_send_handling_redirects)",
+     "139 ms cumulative, 0 ms own, 11 calls  httpx2/_client.py:1065(_send_single_request)",
+     "137 ms cumulative, 0 ms own, 11 calls  httpx2/_transports/default.py:225(handle_request)",
      "111 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/widgets/record_view.py:190(on_mount)",
      "108 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/widgets/record_view.py:194(reload)",
-     "own time 86 ms, 87 ms cumulative, 19 calls  ~:0(<method 'recv' of '_socket.socket' objects>)",
-     "own time 16 ms, 111 ms cumulative, 222 calls  textual/css/stylesheet.py:470(apply)",
-     "own time 8 ms, 39 ms cumulative, 391 calls  textual/_styles_cache.py:267(render_line)",
-     "own time 8 ms, 13 ms cumulative, 16412 calls  textual/css/styles.py:1507(get_rule)",
-     "own time 7 ms, 8 ms cumulative, 26099 calls  ~:0(<built-in method builtins.hasattr>)"
+     "own time 84 ms, 84 ms cumulative, 19 calls  ~:0(<method 'recv' of '_socket.socket' objects>)",
+     "own time 19 ms, 125 ms cumulative, 222 calls  textual/css/stylesheet.py:470(apply)",
+     "own time 11 ms, 15 ms cumulative, 820 calls  textual/css/_style_properties.py:414(__get__)",
+     "own time 9 ms, 13 ms cumulative, 16413 calls  textual/css/styles.py:1507(get_rule)",
+     "own time 8 ms, 9 ms cumulative, 26306 calls  ~:0(<built-in method builtins.hasattr>)"
     ]
    },
    "reps": 25,
@@ -2527,609 +2377,586 @@
       "median": 0.1,
       "p95": 0.1,
       "min": 0.1,
-      "max": 0.2
+      "max": 0.1
      },
      "state": {
       "n": 25,
       "median": 0.1,
       "p95": 0.1,
       "min": 0.1,
-      "max": 0.2
+      "max": 0.1
      },
-     "cold_painted": 0.1,
-     "cold_state": 0.1
+     "cold_painted": 0.2,
+     "cold_state": 0.2
     },
     "grid_open": {
      "painted": {
       "n": 25,
-      "median": 422.1,
-      "p95": 835.2,
-      "min": 322.6,
-      "max": 887.0
+      "median": 340.1,
+      "p95": 670.4,
+      "min": 276.1,
+      "max": 860.2
      },
      "state": {
       "n": 25,
-      "median": 340.5,
-      "p95": 649.2,
-      "min": 264.9,
-      "max": 779.8
+      "median": 276.6,
+      "p95": 609.0,
+      "min": 220.3,
+      "max": 615.4
      },
-     "cold_painted": 755.6,
-     "cold_state": 667.6
+     "cold_painted": 544.4,
+     "cold_state": 493.5
     },
     "grid_reload": {
      "painted": {
       "n": 25,
-      "median": 118.7,
-      "p95": 151.9,
-      "min": 92.1,
-      "max": 174.6
+      "median": 42.4,
+      "p95": 60.9,
+      "min": 29.4,
+      "max": 68.1
      },
      "state": {
       "n": 25,
-      "median": 107.5,
-      "p95": 143.4,
-      "min": 83.0,
-      "max": 157.8
+      "median": 30.9,
+      "p95": 44.9,
+      "min": 20.8,
+      "max": 46.2
      },
-     "cold_painted": 161.5,
-     "cold_state": 145.0
+     "cold_painted": 42.0,
+     "cold_state": 33.2
     },
     "grid_filter_text": {
      "painted": {
       "n": 25,
-      "median": 420.3,
-      "p95": 499.4,
-      "min": 181.1,
-      "max": 506.3
+      "median": 150.5,
+      "p95": 221.2,
+      "min": 114.5,
+      "max": 240.9
      },
      "state": {
       "n": 25,
-      "median": 372.9,
-      "p95": 450.8,
-      "min": 181.1,
-      "max": 475.5
+      "median": 121.5,
+      "p95": 165.9,
+      "min": 81.1,
+      "max": 177.1
      },
-     "cold_painted": 239.3,
-     "cold_state": 239.3
+     "cold_painted": 128.7,
+     "cold_state": 128.7
     },
     "grid_filter_number": {
      "painted": {
       "n": 25,
-      "median": 409.6,
-      "p95": 586.4,
-      "min": 326.8,
-      "max": 880.1
+      "median": 276.4,
+      "p95": 661.5,
+      "min": 238.4,
+      "max": 795.8
      },
      "state": {
       "n": 25,
-      "median": 379.0,
-      "p95": 529.5,
-      "min": 326.8,
-      "max": 880.1
+      "median": 267.0,
+      "p95": 335.5,
+      "min": 209.8,
+      "max": 661.5
      },
-     "cold_painted": 404.2,
-     "cold_state": 342.6
+     "cold_painted": 319.5,
+     "cold_state": 258.2
     },
     "grid_filter_code": {
      "painted": {
       "n": 25,
-      "median": 406.4,
-      "p95": 521.3,
-      "min": 347.4,
-      "max": 578.8
+      "median": 302.8,
+      "p95": 353.8,
+      "min": 238.0,
+      "max": 368.1
      },
      "state": {
       "n": 25,
-      "median": 381.5,
-      "p95": 478.8,
-      "min": 347.4,
-      "max": 578.8
+      "median": 285.1,
+      "p95": 345.4,
+      "min": 220.4,
+      "max": 368.1
      },
-     "cold_painted": 456.8,
-     "cold_state": 396.0
+     "cold_painted": 329.7,
+     "cold_state": 253.5
     },
     "rfi_open": {
      "painted": {
       "n": 25,
-      "median": 361.3,
-      "p95": 905.9,
-      "min": 272.5,
-      "max": 947.3
+      "median": 365.1,
+      "p95": 658.6,
+      "min": 273.9,
+      "max": 892.4
      },
      "state": {
       "n": 25,
-      "median": 361.3,
-      "p95": 905.9,
-      "min": 272.5,
-      "max": 947.3
+      "median": 331.3,
+      "p95": 441.3,
+      "min": 273.9,
+      "max": 892.4
      },
-     "cold_painted": 465.5,
-     "cold_state": 465.5
+     "cold_painted": 427.4,
+     "cold_state": 427.4
     },
     "rfi_cursor": {
      "painted": {
       "n": 25,
-      "median": 6.5,
-      "p95": 9.2,
-      "min": 4.8,
-      "max": 9.9
+      "median": 6.1,
+      "p95": 36.8,
+      "min": 4.6,
+      "max": 52.3
      },
      "state": {
       "n": 25,
-      "median": 6.5,
+      "median": 6.1,
       "p95": 9.2,
-      "min": 4.8,
-      "max": 9.9
+      "min": 4.6,
+      "max": 9.4
      },
-     "cold_painted": 151.8,
-     "cold_state": 151.8
+     "cold_painted": 170.4,
+     "cold_state": 170.4
     },
     "rfi_enter": {
      "painted": {
       "n": 25,
-      "median": 340.5,
-      "p95": 1173.3,
-      "min": 279.3,
-      "max": 1219.6
+      "median": 364.6,
+      "p95": 511.3,
+      "min": 292.9,
+      "max": 1059.8
      },
      "state": {
       "n": 25,
-      "median": 233.2,
-      "p95": 277.3,
-      "min": 187.4,
-      "max": 314.8
+      "median": 256.3,
+      "p95": 339.3,
+      "min": 193.4,
+      "max": 958.2
      },
-     "cold_painted": 461.4,
-     "cold_state": 347.7
+     "cold_painted": 424.2,
+     "cold_state": 331.6
     },
     "rfi_props": {
      "painted": {
       "n": 25,
-      "median": 77.4,
-      "p95": 92.6,
-      "min": 56.6,
-      "max": 94.8
+      "median": 75.2,
+      "p95": 100.7,
+      "min": 62.1,
+      "max": 901.1
      },
      "state": {
       "n": 25,
-      "median": 26.7,
-      "p95": 35.6,
-      "min": 6.4,
-      "max": 36.0
+      "median": 28.1,
+      "p95": 35.3,
+      "min": 6.1,
+      "max": 37.1
      },
-     "cold_painted": 62.2,
-     "cold_state": 22.7
+     "cold_painted": 72.5,
+     "cold_state": 21.1
     },
     "rfi_filter": {
      "painted": {
       "n": 25,
-      "median": 154.0,
-      "p95": 189.1,
-      "min": 122.3,
-      "max": 189.1
+      "median": 182.9,
+      "p95": 207.7,
+      "min": 147.7,
+      "max": 215.0
      },
      "state": {
       "n": 25,
-      "median": 154.0,
-      "p95": 189.0,
-      "min": 122.2,
-      "max": 189.1
+      "median": 182.9,
+      "p95": 207.7,
+      "min": 147.7,
+      "max": 215.0
      },
-     "cold_painted": 5.7,
-     "cold_state": 5.7
+     "cold_painted": 6.9,
+     "cold_state": 6.8
     },
     "corr_open": {
      "painted": {
       "n": 25,
-      "median": 379.8,
-      "p95": 462.1,
-      "min": 337.4,
-      "max": 559.8
+      "median": 385.8,
+      "p95": 1190.6,
+      "min": 290.6,
+      "max": 1271.6
      },
      "state": {
       "n": 25,
-      "median": 379.8,
-      "p95": 462.1,
-      "min": 337.4,
-      "max": 559.8
+      "median": 355.5,
+      "p95": 1190.6,
+      "min": 290.6,
+      "max": 1271.6
      },
-     "cold_painted": 507.8,
-     "cold_state": 507.8
+     "cold_painted": 387.7,
+     "cold_state": 387.7
     },
     "corr_cursor": {
      "painted": {
       "n": 25,
-      "median": 5.3,
-      "p95": 40.1,
-      "min": 4.8,
-      "max": 59.1
+      "median": 7.7,
+      "p95": 70.9,
+      "min": 5.2,
+      "max": 78.3
      },
      "state": {
       "n": 25,
-      "median": 5.3,
-      "p95": 10.7,
-      "min": 4.8,
-      "max": 12.7
+      "median": 7.7,
+      "p95": 8.6,
+      "min": 5.2,
+      "max": 8.8
      },
-     "cold_painted": 140.2,
-     "cold_state": 140.2
+     "cold_painted": 189.6,
+     "cold_state": 189.6
     },
     "corr_enter": {
      "painted": {
       "n": 25,
-      "median": 357.8,
-      "p95": 1244.6,
-      "min": 273.0,
-      "max": 1255.3
+      "median": 374.3,
+      "p95": 1295.4,
+      "min": 303.5,
+      "max": 1327.0
      },
      "state": {
       "n": 25,
-      "median": 219.5,
-      "p95": 276.4,
-      "min": 181.8,
-      "max": 321.0
+      "median": 234.4,
+      "p95": 323.7,
+      "min": 206.5,
+      "max": 353.2
      },
-     "cold_painted": 385.2,
-     "cold_state": 293.1
+     "cold_painted": 427.1,
+     "cold_state": 333.5
     },
     "corr_props": {
      "painted": {
       "n": 25,
-      "median": 82.5,
-      "p95": 103.9,
-      "min": 66.1,
-      "max": 112.1
+      "median": 80.5,
+      "p95": 104.4,
+      "min": 65.4,
+      "max": 1023.5
      },
      "state": {
       "n": 25,
-      "median": 31.6,
-      "p95": 41.2,
-      "min": 20.2,
-      "max": 49.6
+      "median": 28.2,
+      "p95": 35.8,
+      "min": 7.1,
+      "max": 36.6
      },
-     "cold_painted": 74.2,
-     "cold_state": 21.1
+     "cold_painted": 78.8,
+     "cold_state": 6.9
     },
     "corr_filter": {
      "painted": {
       "n": 25,
-      "median": 136.6,
-      "p95": 167.7,
-      "min": 120.8,
-      "max": 174.6
+      "median": 153.3,
+      "p95": 183.4,
+      "min": 129.3,
+      "max": 201.5
      },
      "state": {
       "n": 25,
-      "median": 136.6,
-      "p95": 167.7,
-      "min": 120.8,
-      "max": 174.6
+      "median": 153.3,
+      "p95": 183.4,
+      "min": 129.2,
+      "max": 201.5
      },
-     "cold_painted": 10.1,
-     "cold_state": 10.1
+     "cold_painted": 6.3,
+     "cold_state": 6.3
     },
     "docs_open": {
      "painted": {
       "n": 25,
-      "median": 337.7,
-      "p95": 1171.5,
-      "min": 289.1,
-      "max": 1208.8
+      "median": 274.4,
+      "p95": 1312.2,
+      "min": 247.1,
+      "max": 1335.9
      },
      "state": {
       "n": 25,
-      "median": 307.1,
-      "p95": 1171.5,
-      "min": 283.1,
-      "max": 1208.8
+      "median": 271.5,
+      "p95": 1202.0,
+      "min": 229.3,
+      "max": 1312.2
      },
-     "cold_painted": 330.3,
-     "cold_state": 330.3
+     "cold_painted": 331.3,
+     "cold_state": 331.3
     },
     "docs_cursor": {
      "painted": {
       "n": 25,
-      "median": 5.5,
-      "p95": 7.9,
-      "min": 4.9,
-      "max": 8.5
+      "median": 6.8,
+      "p95": 33.8,
+      "min": 5.2,
+      "max": 46.0
      },
      "state": {
       "n": 25,
-      "median": 5.5,
-      "p95": 7.9,
-      "min": 4.9,
-      "max": 8.5
+      "median": 6.8,
+      "p95": 10.0,
+      "min": 5.1,
+      "max": 14.9
      },
-     "cold_painted": 34.3,
-     "cold_state": 34.3
+     "cold_painted": 36.6,
+     "cold_state": 36.6
     },
     "docs_enter": {
      "painted": {
       "n": 25,
-      "median": 255.2,
-      "p95": 1105.4,
-      "min": 206.1,
-      "max": 1109.5
+      "median": 296.9,
+      "p95": 360.6,
+      "min": 237.3,
+      "max": 375.9
      },
      "state": {
       "n": 25,
-      "median": 140.0,
-      "p95": 179.7,
-      "min": 115.3,
-      "max": 235.3
+      "median": 174.2,
+      "p95": 223.7,
+      "min": 132.5,
+      "max": 231.9
      },
-     "cold_painted": 402.1,
-     "cold_state": 279.5
+     "cold_painted": 432.8,
+     "cold_state": 309.9
     },
     "docs_props": {
      "painted": {
       "n": 25,
-      "median": 73.0,
-      "p95": 86.1,
-      "min": 57.2,
-      "max": 99.5
+      "median": 83.8,
+      "p95": 107.8,
+      "min": 62.7,
+      "max": 1132.4
      },
      "state": {
       "n": 25,
-      "median": 22.4,
-      "p95": 32.1,
-      "min": 6.1,
-      "max": 36.1
+      "median": 26.2,
+      "p95": 32.9,
+      "min": 6.8,
+      "max": 40.4
      },
-     "cold_painted": 85.3,
-     "cold_state": 25.8
+     "cold_painted": 78.0,
+     "cold_state": 29.3
     },
     "docs_filter": {
      "painted": {
       "n": 25,
-      "median": 35.1,
-      "p95": 50.7,
-      "min": 29.2,
-      "max": 58.0
+      "median": 41.2,
+      "p95": 50.3,
+      "min": 32.9,
+      "max": 53.2
      },
      "state": {
       "n": 25,
-      "median": 35.0,
-      "p95": 46.9,
-      "min": 29.2,
-      "max": 50.7
+      "median": 41.2,
+      "p95": 50.2,
+      "min": 32.9,
+      "max": 53.2
      },
-     "cold_painted": 10.5,
-     "cold_state": 10.5
+     "cold_painted": 10.6,
+     "cold_state": 10.6
     }
    },
    "profile": {
-    "grid_open": [
-     "SQL 170 ms in 1 calls, slowest 170 ms: SELECT id, key, type, scope, title, description, status, psets_json, voided, version, last_seq, effective_schema_hash, conformance, created_at, update",
-     "SQL 48 ms in 36 calls, slowest 2 ms: SELECT v.id, v.scope, v.code_list, v.code, v.label, v.meaning, v.crosswalk, v.origin, v.sort_order, v.effective_from, v.effective_to, v.lifecycle, v.s",
-     "SQL 26 ms in 20 calls, slowest 3 ms: SELECT s.id, s.scope, s.kind, s.code, s.label, s.definition, s.edition, s.owner, s.adoption, s.value_list_policy, s.effective_from, s.effective_to, s.",
-     "SQL 9 ms in 9 calls, slowest 2 ms: SELECT a.account_id, a.username, a.display_name, a.kind, a.roles_json, a.status, a.created_at, a.last_seq, t.locked_until FROM cur_account a LEFT JOIN",
-     "275 ms cumulative, 0 ms own, 72 calls  sqlalchemy/engine/base.py:1407(execute)",
-     "275 ms cumulative, 0 ms own, 72 calls  sqlalchemy/sql/elements.py:524(_execute_on_connection)",
-     "275 ms cumulative, 1 ms own, 72 calls  sqlalchemy/engine/base.py:1621(_execute_clauseelement)",
-     "272 ms cumulative, 1 ms own, 83 calls  sqlalchemy/engine/base.py:1770(_execute_context)",
-     "269 ms cumulative, 1 ms own, 83 calls  sqlalchemy/engine/base.py:1829(_exec_single_context)",
-     "258 ms cumulative, 0 ms own, 83 calls  sqlalchemy/engine/default.py:1191(do_execute)",
-     "232 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/widgets/grid.py:284(on_mount)",
-     "213 ms cumulative, 0 ms own, 2 calls  tl-tui/src/tl_tui/labels_load.py:93(load_labels)",
-     "213 ms cumulative, 0 ms own, 2 calls  tl-tui/src/tl_tui/labels_load.py:116(_read_labels)",
-     "177 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/widgets/grid.py:320(load)",
-     "176 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/widgets/grid.py:294(_fetch)",
-     "176 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/embedded.py:369(list_records)",
-     "own time 207 ms, 207 ms cumulative, 423 calls  ~:0(<method 'recv_into' of '_socket.socket' objects>)",
-     "own time 14 ms, 14 ms cumulative, 51 calls  ~:0(<method 'poll' of 'select.epoll' objects>)",
-     "own time 12 ms, 18 ms cumulative, 66 calls  pg8000/dbapi.py:250(convert_paramstyle)",
-     "own time 9 ms, 17 ms cumulative, 2393 calls  textual/strip.py:94(__init__)",
-     "own time 8 ms, 8 ms cumulative, 273 calls  ~:0(<method 'send' of '_socket.socket' objects>)"
-    ],
     "grid_filter_code": [
-     "SQL 201 ms in 1 calls, slowest 201 ms: SELECT r.id, r.key, r.type, r.scope, r.title, r.description, r.status, r.psets_json, r.voided, r.version, r.last_seq, r.effective_schema_hash, r.confo",
-     "SQL 179 ms in 1 calls, slowest 179 ms: SELECT COUNT(*) FROM cur_core_record r WHERE r.scope = %s AND r.voided = %s AND r.id IN (SELECT pv1.record_id FROM cur_pset_values pv1 WHERE pv1.path ",
+     "SQL 201 ms in 2 calls, slowest 187 ms: SELECT COUNT(*) FROM cur_core_record r WHERE r.scope = %s AND r.voided = %s AND r.id IN (SELECT pv1.record_id FROM cur_pset_values pv1 WHERE pv1.path ",
+     "SQL 28 ms in 1 calls, slowest 28 ms: SELECT r.id, r.key, r.type, r.scope, r.title, r.description, r.status, r.psets_json, r.voided, r.version, r.last_seq, r.effective_schema_hash, r.confo",
+     "SQL 13 ms in 1 calls, slowest 13 ms: SELECT x.id FROM cur_core_record x WHERE x.id IN (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, ",
      "SQL 3 ms in 2 calls, slowest 2 ms: SELECT a.account_id, a.username, a.display_name, a.kind, a.roles_json, a.status, a.created_at, a.last_seq, t.locked_until FROM cur_account a LEFT JOIN",
-     "SQL 1 ms in 2 calls, slowest 0 ms: SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY",
-     "400 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/app.py:274(on_filter_submitted)",
-     "399 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/widgets/grid.py:351(apply_filter)",
-     "384 ms cumulative, 0 ms own, 6 calls  sqlalchemy/engine/base.py:1770(_execute_context)",
-     "384 ms cumulative, 0 ms own, 4 calls  sqlalchemy/engine/base.py:1407(execute)",
-     "384 ms cumulative, 0 ms own, 4 calls  sqlalchemy/sql/elements.py:524(_execute_on_connection)",
-     "384 ms cumulative, 0 ms own, 4 calls  sqlalchemy/engine/base.py:1621(_execute_clauseelement)",
-     "384 ms cumulative, 0 ms own, 6 calls  sqlalchemy/engine/base.py:1829(_exec_single_context)",
-     "382 ms cumulative, 0 ms own, 6 calls  sqlalchemy/engine/default.py:1191(do_execute)",
-     "210 ms cumulative, 1 ms own, 1 calls  tl-tui/src/tl_tui/widgets/grid.py:320(load)",
-     "209 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/widgets/grid.py:294(_fetch)",
-     "209 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/embedded.py:392(query_records)",
-     "204 ms cumulative, 0 ms own, 1 calls  tl-core/src/tl_core/query/api.py:53(run_query)",
-     "own time 362 ms, 362 ms cumulative, 40 calls  ~:0(<method 'recv_into' of '_socket.socket' objects>)",
-     "own time 6 ms, 9 ms cumulative, 4 calls  pg8000/dbapi.py:250(convert_paramstyle)",
-     "own time 3 ms, 3 ms cumulative, 4389 calls  textual/cache.py:226(__init__)",
-     "own time 3 ms, 10 ms cumulative, 201 calls  pg8000/core.py:821(handle_DATA_ROW)",
-     "own time 3 ms, 3 ms cumulative, 6 calls  sqlalchemy/engine/cursor.py:1755(_soft_close)"
-    ],
-    "grid_filter_text": [
-     "SQL 226 ms in 1 calls, slowest 226 ms: SELECT r.id, r.key, r.type, r.scope, r.title, r.description, r.status, r.psets_json, r.voided, r.version, r.last_seq, r.effective_schema_hash, r.confo",
-     "SQL 166 ms in 1 calls, slowest 166 ms: SELECT COUNT(*) FROM cur_core_record r WHERE r.scope = %s AND r.voided = %s AND r.id IN (SELECT pv1.record_id FROM cur_pset_values pv1 WHERE pv1.path ",
-     "SQL 2 ms in 2 calls, slowest 1 ms: SELECT a.account_id, a.username, a.display_name, a.kind, a.roles_json, a.status, a.created_at, a.last_seq, t.locked_until FROM cur_account a LEFT JOIN",
-     "SQL 0 ms in 2 calls, slowest 0 ms: SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY",
-     "408 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/app.py:274(on_filter_submitted)",
-     "407 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/widgets/grid.py:351(apply_filter)",
-     "397 ms cumulative, 0 ms own, 6 calls  sqlalchemy/engine/base.py:1770(_execute_context)",
-     "397 ms cumulative, 0 ms own, 4 calls  sqlalchemy/engine/base.py:1407(execute)",
-     "397 ms cumulative, 0 ms own, 4 calls  sqlalchemy/sql/elements.py:524(_execute_on_connection)",
-     "397 ms cumulative, 0 ms own, 4 calls  sqlalchemy/engine/base.py:1621(_execute_clauseelement)",
-     "396 ms cumulative, 0 ms own, 6 calls  sqlalchemy/engine/base.py:1829(_exec_single_context)",
-     "395 ms cumulative, 0 ms own, 6 calls  sqlalchemy/engine/default.py:1191(do_execute)",
-     "235 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/widgets/grid.py:320(load)",
-     "234 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/widgets/grid.py:294(_fetch)",
-     "234 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/embedded.py:392(query_records)",
-     "229 ms cumulative, 0 ms own, 1 calls  tl-core/src/tl_core/query/api.py:53(run_query)",
-     "own time 372 ms, 372 ms cumulative, 40 calls  ~:0(<method 'recv_into' of '_socket.socket' objects>)",
-     "own time 29 ms, 29 ms cumulative, 74 calls  ~:0(<method 'poll' of 'select.epoll' objects>)",
-     "own time 9 ms, 9 ms cumulative, 25 calls  ~:0(<method 'send' of '_socket.socket' objects>)",
-     "own time 6 ms, 7 ms cumulative, 807 calls  textual/strip.py:94(__init__)",
-     "own time 4 ms, 6 ms cumulative, 4 calls  pg8000/dbapi.py:250(convert_paramstyle)"
+     "269 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/app.py:274(on_filter_submitted)",
+     "269 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/widgets/grid.py:351(apply_filter)",
+     "249 ms cumulative, 0 ms own, 6 calls  sqlalchemy/engine/base.py:1407(execute)",
+     "249 ms cumulative, 0 ms own, 6 calls  sqlalchemy/sql/elements.py:524(_execute_on_connection)",
+     "249 ms cumulative, 0 ms own, 6 calls  sqlalchemy/engine/base.py:1621(_execute_clauseelement)",
+     "249 ms cumulative, 0 ms own, 8 calls  sqlalchemy/engine/base.py:1770(_execute_context)",
+     "248 ms cumulative, 0 ms own, 8 calls  sqlalchemy/engine/base.py:1829(_exec_single_context)",
+     "245 ms cumulative, 0 ms own, 8 calls  sqlalchemy/engine/default.py:1191(do_execute)",
+     "209 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/embedded.py:411(count_records)",
+     "203 ms cumulative, 0 ms own, 1 calls  tl-core/src/tl_core/query/api.py:79(count_query)",
+     "60 ms cumulative, 1 ms own, 1 calls  tl-tui/src/tl_tui/widgets/grid.py:320(load)",
+     "59 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/widgets/grid.py:294(_fetch)",
+     "own time 224 ms, 224 ms cumulative, 48 calls  ~:0(<method 'recv_into' of '_socket.socket' objects>)",
+     "own time 6 ms, 9 ms cumulative, 6 calls  pg8000/dbapi.py:250(convert_paramstyle)",
+     "own time 4 ms, 13 ms cumulative, 202 calls  pg8000/core.py:821(handle_DATA_ROW)",
+     "own time 4 ms, 12 ms cumulative, 38 calls  tl-tui/src/tl_tui/widgets/grid.py:816(_row_segments)",
+     "own time 4 ms, 6 ms cumulative, 627 calls  textual/strip.py:94(__init__)"
     ],
     "grid_filter_number": [
-     "SQL 157 ms in 1 calls, slowest 157 ms: SELECT COUNT(*) FROM cur_core_record r WHERE r.scope = %s AND r.voided = %s AND r.id IN (SELECT pv1.record_id FROM cur_pset_values pv1 WHERE pv1.path ",
-     "SQL 150 ms in 1 calls, slowest 150 ms: SELECT r.id, r.key, r.type, r.scope, r.title, r.description, r.status, r.psets_json, r.voided, r.version, r.last_seq, r.effective_schema_hash, r.confo",
-     "SQL 2 ms in 2 calls, slowest 1 ms: SELECT a.account_id, a.username, a.display_name, a.kind, a.roles_json, a.status, a.created_at, a.last_seq, t.locked_until FROM cur_account a LEFT JOIN",
-     "SQL 0 ms in 2 calls, slowest 0 ms: SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY",
-     "324 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/app.py:274(on_filter_submitted)",
-     "323 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/widgets/grid.py:351(apply_filter)",
-     "311 ms cumulative, 0 ms own, 6 calls  sqlalchemy/engine/base.py:1770(_execute_context)",
-     "311 ms cumulative, 0 ms own, 4 calls  sqlalchemy/engine/base.py:1407(execute)",
-     "311 ms cumulative, 0 ms own, 4 calls  sqlalchemy/sql/elements.py:524(_execute_on_connection)",
-     "311 ms cumulative, 0 ms own, 4 calls  sqlalchemy/engine/base.py:1621(_execute_clauseelement)",
-     "311 ms cumulative, 0 ms own, 6 calls  sqlalchemy/engine/base.py:1829(_exec_single_context)",
-     "310 ms cumulative, 0 ms own, 6 calls  sqlalchemy/engine/default.py:1191(do_execute)",
-     "164 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/embedded.py:411(count_records)",
-     "160 ms cumulative, 0 ms own, 1 calls  tl-core/src/tl_core/query/api.py:65(count_query)",
-     "159 ms cumulative, 1 ms own, 1 calls  tl-tui/src/tl_tui/widgets/grid.py:320(load)",
-     "157 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/widgets/grid.py:294(_fetch)",
-     "own time 294 ms, 294 ms cumulative, 42 calls  ~:0(<method 'recv_into' of '_socket.socket' objects>)",
-     "own time 4 ms, 4 ms cumulative, 4389 calls  textual/cache.py:226(__init__)",
-     "own time 3 ms, 10 ms cumulative, 201 calls  pg8000/core.py:821(handle_DATA_ROW)",
-     "own time 3 ms, 4 ms cumulative, 4 calls  pg8000/dbapi.py:250(convert_paramstyle)",
-     "own time 3 ms, 7 ms cumulative, 627 calls  textual/strip.py:94(__init__)"
+     "SQL 296 ms in 2 calls, slowest 272 ms: SELECT COUNT(*) FROM cur_core_record r WHERE r.scope = %s AND r.voided = %s AND r.id IN (SELECT pv1.record_id FROM cur_pset_values pv1 WHERE pv1.path ",
+     "SQL 30 ms in 1 calls, slowest 30 ms: SELECT r.id, r.key, r.type, r.scope, r.title, r.description, r.status, r.psets_json, r.voided, r.version, r.last_seq, r.effective_schema_hash, r.confo",
+     "SQL 18 ms in 1 calls, slowest 18 ms: SELECT x.id FROM cur_core_record x WHERE x.id IN (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, ",
+     "SQL 3 ms in 2 calls, slowest 2 ms: SELECT a.account_id, a.username, a.display_name, a.kind, a.roles_json, a.status, a.created_at, a.last_seq, t.locked_until FROM cur_account a LEFT JOIN",
+     "368 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/app.py:274(on_filter_submitted)",
+     "368 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/widgets/grid.py:351(apply_filter)",
+     "350 ms cumulative, 0 ms own, 6 calls  sqlalchemy/engine/base.py:1407(execute)",
+     "350 ms cumulative, 0 ms own, 6 calls  sqlalchemy/sql/elements.py:524(_execute_on_connection)",
+     "350 ms cumulative, 0 ms own, 6 calls  sqlalchemy/engine/base.py:1621(_execute_clauseelement)",
+     "350 ms cumulative, 0 ms own, 8 calls  sqlalchemy/engine/base.py:1770(_execute_context)",
+     "349 ms cumulative, 0 ms own, 8 calls  sqlalchemy/engine/base.py:1829(_exec_single_context)",
+     "346 ms cumulative, 0 ms own, 8 calls  sqlalchemy/engine/default.py:1191(do_execute)",
+     "305 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/embedded.py:411(count_records)",
+     "298 ms cumulative, 0 ms own, 1 calls  tl-core/src/tl_core/query/api.py:79(count_query)",
+     "63 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/widgets/grid.py:320(load)",
+     "62 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/widgets/grid.py:294(_fetch)",
+     "own time 314 ms, 314 ms cumulative, 47 calls  ~:0(<method 'recv_into' of '_socket.socket' objects>)",
+     "own time 27 ms, 27 ms cumulative, 65 calls  ~:0(<method 'poll' of 'select.epoll' objects>)",
+     "own time 7 ms, 11 ms cumulative, 6 calls  pg8000/dbapi.py:250(convert_paramstyle)",
+     "own time 5 ms, 17 ms cumulative, 202 calls  pg8000/core.py:821(handle_DATA_ROW)",
+     "own time 5 ms, 7 ms cumulative, 807 calls  textual/strip.py:94(__init__)"
+    ],
+    "grid_open": [
+     "SQL 54 ms in 36 calls, slowest 3 ms: SELECT v.id, v.scope, v.code_list, v.code, v.label, v.meaning, v.crosswalk, v.origin, v.sort_order, v.effective_from, v.effective_to, v.lifecycle, v.s",
+     "SQL 29 ms in 20 calls, slowest 3 ms: SELECT s.id, s.scope, s.kind, s.code, s.label, s.definition, s.edition, s.owner, s.adoption, s.value_list_policy, s.effective_from, s.effective_to, s.",
+     "SQL 13 ms in 1 calls, slowest 13 ms: SELECT x.id FROM cur_core_record x WHERE x.id IN (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, ",
+     "SQL 13 ms in 1 calls, slowest 13 ms: SELECT id, key, type, scope, title, description, status, psets_json, voided, version, last_seq, effective_schema_hash, conformance, created_at, update",
+     "270 ms cumulative, 0 ms own, 2 calls  tl-tui/src/tl_tui/labels_load.py:93(load_labels)",
+     "270 ms cumulative, 0 ms own, 2 calls  tl-tui/src/tl_tui/labels_load.py:116(_read_labels)",
+     "201 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/app.py:735(on_record_highlighted)",
+     "201 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/widgets/context_panel.py:101(show_record)",
+     "200 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/widgets/context_panel.py:86(_labels_for)",
+     "146 ms cumulative, 0 ms own, 73 calls  sqlalchemy/engine/base.py:1407(execute)",
+     "146 ms cumulative, 0 ms own, 73 calls  sqlalchemy/sql/elements.py:524(_execute_on_connection)",
+     "146 ms cumulative, 1 ms own, 73 calls  sqlalchemy/engine/base.py:1621(_execute_clauseelement)",
+     "142 ms cumulative, 1 ms own, 84 calls  sqlalchemy/engine/base.py:1770(_execute_context)",
+     "139 ms cumulative, 0 ms own, 2 calls  tl-tui/src/tl_tui/labels_load.py:31(_code_labels)",
+     "138 ms cumulative, 0 ms own, 2 calls  tl-tui/src/tl_tui/embedded.py:444(form_metadata)",
+     "138 ms cumulative, 1 ms own, 84 calls  sqlalchemy/engine/base.py:1829(_exec_single_context)",
+     "own time 62 ms, 62 ms cumulative, 386 calls  ~:0(<method 'recv_into' of '_socket.socket' objects>)",
+     "own time 28 ms, 28 ms cumulative, 73 calls  ~:0(<method 'poll' of 'select.epoll' objects>)",
+     "own time 15 ms, 23 ms cumulative, 67 calls  pg8000/dbapi.py:250(convert_paramstyle)",
+     "own time 13 ms, 20 ms cumulative, 2393 calls  textual/strip.py:94(__init__)",
+     "own time 12 ms, 19 ms cumulative, 2727 calls  textual/css/tokenizer.py:227(get_token)"
     ],
     "rfi_open": [
-     "SQL 126 ms in 1 calls, slowest 126 ms: SELECT x.id FROM cur_core_record x WHERE x.id IN (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, ",
-     "SQL 102 ms in 3 calls, slowest 97 ms: SELECT i.id, i.record_type, i.scope, i.number, i.title, i.status, i.voided, i.version, i.direction, i.medium, i.received_via, i.external_ref, i.messag",
-     "SQL 62 ms in 11 calls, slowest 7 ms: SELECT 1 FROM cur_core_record x WHERE x.id = %s AND x.id IN (SELECT hr.id FROM cur_core_record hr WHERE hr.type IN ('correspondence.CommercialItem', '",
-     "SQL 48 ms in 1 calls, slowest 48 ms: SELECT l.link_id, l.relation, l.status, l.pin, l.note, l.source, l.confidence, l.reason, l.declined, l.verified_by, l.verified_at, l.created_at, l.ver",
-     "424 ms cumulative, 0 ms own, 47 calls  sqlalchemy/engine/base.py:1407(execute)",
-     "424 ms cumulative, 0 ms own, 47 calls  sqlalchemy/sql/elements.py:524(_execute_on_connection)",
-     "424 ms cumulative, 1 ms own, 47 calls  sqlalchemy/engine/base.py:1621(_execute_clauseelement)",
-     "423 ms cumulative, 1 ms own, 56 calls  sqlalchemy/engine/base.py:1770(_execute_context)",
-     "416 ms cumulative, 1 ms own, 56 calls  sqlalchemy/engine/base.py:1829(_exec_single_context)",
-     "405 ms cumulative, 0 ms own, 56 calls  sqlalchemy/engine/default.py:1191(do_execute)",
-     "308 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/widgets/log_screen.py:311(_load)",
-     "271 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/widgets/domain_screen.py:152(load_rows)",
-     "271 ms cumulative, 1 ms own, 1 calls  tl-tui/src/tl_tui/embedded.py:1062(list_rfis)",
-     "264 ms cumulative, 2 ms own, 1 calls  tl-modules/correspondence/src/tl_mod_correspondence/reports_technical.py:69(rfi_log)",
-     "260 ms cumulative, 1 ms own, 1 calls  tl-modules/correspondence/src/tl_mod_correspondence/registry_domain.py:123(list_technical)",
-     "233 ms cumulative, 0 ms own, 2 calls  tl-modules/correspondence/src/tl_mod_correspondence/registry.py:63(_page)",
-     "own time 250 ms, 250 ms cumulative, 306 calls  ~:0(<method 'recv_into' of '_socket.socket' objects>)",
-     "own time 48 ms, 74 ms cumulative, 47 calls  pg8000/dbapi.py:250(convert_paramstyle)",
-     "own time 22 ms, 22 ms cumulative, 133590 calls  ~:0(<method 'append' of 'list' objects>)",
-     "own time 21 ms, 53 ms cumulative, 513 calls  pg8000/core.py:821(handle_DATA_ROW)",
-     "own time 16 ms, 31 ms cumulative, 3349 calls  textual/strip.py:94(__init__)"
+     "SQL 98 ms in 3 calls, slowest 88 ms: SELECT i.id, i.record_type, i.scope, i.number, i.title, i.status, i.voided, i.version, i.direction, i.medium, i.received_via, i.external_ref, i.messag",
+     "SQL 72 ms in 11 calls, slowest 8 ms: SELECT 1 FROM cur_core_record x WHERE x.id = %s AND x.id IN (SELECT hr.id FROM cur_core_record hr WHERE hr.type IN ('correspondence.CommercialItem', '",
+     "SQL 59 ms in 1 calls, slowest 59 ms: SELECT x.id FROM cur_core_record x WHERE x.id IN (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, ",
+     "SQL 47 ms in 1 calls, slowest 47 ms: SELECT l.link_id, l.relation, l.status, l.pin, l.note, l.source, l.confidence, l.reason, l.declined, l.verified_by, l.verified_at, l.created_at, l.ver",
+     "380 ms cumulative, 0 ms own, 47 calls  sqlalchemy/engine/base.py:1407(execute)",
+     "379 ms cumulative, 0 ms own, 47 calls  sqlalchemy/sql/elements.py:524(_execute_on_connection)",
+     "379 ms cumulative, 1 ms own, 47 calls  sqlalchemy/engine/base.py:1621(_execute_clauseelement)",
+     "376 ms cumulative, 1 ms own, 56 calls  sqlalchemy/engine/base.py:1770(_execute_context)",
+     "372 ms cumulative, 1 ms own, 56 calls  sqlalchemy/engine/base.py:1829(_exec_single_context)",
+     "359 ms cumulative, 0 ms own, 56 calls  sqlalchemy/engine/default.py:1191(do_execute)",
+     "246 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/widgets/log_screen.py:311(_load)",
+     "207 ms cumulative, 0 ms own, 3 calls  tl-tui/src/tl_tui/widgets/log_screen.py:445(_show_row)",
+     "207 ms cumulative, 0 ms own, 3 calls  tl-tui/src/tl_tui/widgets/log_screen.py:469(_finish_row)",
+     "206 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/widgets/log_screen.py:515(on_data_table_row_highlighted)",
+     "205 ms cumulative, 0 ms own, 3 calls  tl-tui/src/tl_tui/widgets/domain_screen.py:217(panel_text)",
+     "194 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/widgets/domain_screen.py:152(load_rows)",
+     "own time 238 ms, 238 ms cumulative, 314 calls  ~:0(<method 'recv_into' of '_socket.socket' objects>)",
+     "own time 38 ms, 57 ms cumulative, 47 calls  pg8000/dbapi.py:250(convert_paramstyle)",
+     "own time 21 ms, 35 ms cumulative, 3349 calls  textual/strip.py:94(__init__)",
+     "own time 19 ms, 45 ms cumulative, 513 calls  pg8000/core.py:821(handle_DATA_ROW)",
+     "own time 18 ms, 18 ms cumulative, 121481 calls  ~:0(<method 'append' of 'list' objects>)"
     ],
     "rfi_enter": [
-     "SQL 140 ms in 11 calls, slowest 40 ms: SELECT 1 FROM cur_core_record x WHERE x.id = %s AND x.id IN (SELECT hr.id FROM cur_core_record hr WHERE hr.type IN ('correspondence.CommercialItem', '",
-     "SQL 66 ms in 1 calls, slowest 66 ms: SELECT l.link_id, l.relation, l.status, l.pin, l.note, l.source, l.confidence, l.reason, l.declined, l.verified_by, l.verified_at, l.created_at, l.ver",
-     "SQL 51 ms in 10 calls, slowest 40 ms: SELECT a.account_id, a.username, a.display_name, a.kind, a.roles_json, a.status, a.created_at, a.last_seq, t.locked_until FROM cur_account a LEFT JOIN",
-     "SQL 36 ms in 4 calls, slowest 33 ms: SELECT id, key, type, scope, title, description, status, psets_json, voided, version, last_seq, effective_schema_hash, conformance, created_at, update",
-     "523 ms cumulative, 0 ms own, 43 calls  sqlalchemy/engine/base.py:1407(execute)",
-     "503 ms cumulative, 1 ms own, 53 calls  sqlalchemy/engine/base.py:1770(_execute_context)",
-     "501 ms cumulative, 0 ms own, 43 calls  sqlalchemy/sql/elements.py:524(_execute_on_connection)",
-     "491 ms cumulative, 1 ms own, 43 calls  sqlalchemy/engine/base.py:1621(_execute_clauseelement)",
-     "482 ms cumulative, 1 ms own, 53 calls  sqlalchemy/engine/base.py:1829(_exec_single_context)",
-     "470 ms cumulative, 0 ms own, 53 calls  sqlalchemy/engine/default.py:1191(do_execute)",
-     "334 ms cumulative, 0 ms own, 11 calls  tl-core/src/tl_core/confidentiality.py:226(is_hidden)",
-     "247 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/widgets/record_view.py:190(on_mount)",
-     "245 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/widgets/record_view.py:194(reload)",
-     "225 ms cumulative, 0 ms own, 2 calls  tl-tui/src/tl_tui/embedded.py:482(list_record_files)",
-     "208 ms cumulative, 0 ms own, 2 calls  tl-core/src/tl_core/files/queries.py:85(list_files)",
-     "182 ms cumulative, 0 ms own, 5 calls  tl-tui/src/tl_tui/reads.py:33(once)",
-     "own time 133 ms, 136 ms cumulative, 248 calls  ~:0(<method 'recv_into' of '_socket.socket' objects>)",
-     "own time 46 ms, 66 ms cumulative, 43 calls  pg8000/dbapi.py:250(convert_paramstyle)",
-     "own time 16 ms, 16 ms cumulative, 81877 calls  ~:0(<method 'append' of 'list' objects>)",
-     "own time 15 ms, 101 ms cumulative, 222 calls  textual/css/stylesheet.py:470(apply)",
-     "own time 10 ms, 10 ms cumulative, 76731 calls  ~:0(<built-in method builtins.len>)"
-    ],
-    "corr_open": [
-     "SQL 168 ms in 1 calls, slowest 168 ms: SELECT x.id FROM cur_core_record x WHERE x.id IN (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, ",
-     "SQL 148 ms in 4 calls, slowest 142 ms: SELECT id, record_type, scope, number, title, status, voided, version, direction, medium, received_via, external_ref, message_id, in_reply_to, from_pa",
-     "SQL 77 ms in 11 calls, slowest 9 ms: SELECT 1 FROM cur_core_record x WHERE x.id = %s AND x.id IN (SELECT hr.id FROM cur_core_record hr WHERE hr.type IN ('correspondence.CommercialItem', '",
-     "SQL 49 ms in 1 calls, slowest 49 ms: SELECT l.link_id, l.relation, l.status, l.pin, l.note, l.source, l.confidence, l.reason, l.declined, l.verified_by, l.verified_at, l.created_at, l.ver",
-     "555 ms cumulative, 0 ms own, 47 calls  sqlalchemy/engine/base.py:1407(execute)",
-     "555 ms cumulative, 0 ms own, 47 calls  sqlalchemy/sql/elements.py:524(_execute_on_connection)",
-     "555 ms cumulative, 1 ms own, 47 calls  sqlalchemy/engine/base.py:1621(_execute_clauseelement)",
-     "552 ms cumulative, 1 ms own, 56 calls  sqlalchemy/engine/base.py:1770(_execute_context)",
-     "545 ms cumulative, 1 ms own, 56 calls  sqlalchemy/engine/base.py:1829(_exec_single_context)",
-     "531 ms cumulative, 0 ms own, 56 calls  sqlalchemy/engine/default.py:1191(do_execute)",
-     "380 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/widgets/log_screen.py:311(_load)",
-     "353 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/widgets/correspondence_screen.py:143(load_rows)",
-     "353 ms cumulative, 1 ms own, 1 calls  tl-tui/src/tl_tui/embedded.py:962(list_correspondence)",
-     "347 ms cumulative, 0 ms own, 1 calls  tl-modules/correspondence/src/tl_mod_correspondence/views.py:364(register)",
-     "340 ms cumulative, 0 ms own, 1 calls  tl-modules/correspondence/src/tl_mod_correspondence/registry.py:237(list_items)",
-     "318 ms cumulative, 0 ms own, 1 calls  tl-modules/correspondence/src/tl_mod_correspondence/registry.py:63(_page)",
-     "own time 320 ms, 320 ms cumulative, 307 calls  ~:0(<method 'recv_into' of '_socket.socket' objects>)",
-     "own time 69 ms, 106 ms cumulative, 47 calls  pg8000/dbapi.py:250(convert_paramstyle)",
-     "own time 26 ms, 26 ms cumulative, 123464 calls  ~:0(<method 'append' of 'list' objects>)",
-     "own time 20 ms, 60 ms cumulative, 513 calls  pg8000/core.py:821(handle_DATA_ROW)",
-     "own time 17 ms, 17 ms cumulative, 24540 calls  textual/cache.py:226(__init__)"
+     "SQL 116 ms in 11 calls, slowest 36 ms: SELECT 1 FROM cur_core_record x WHERE x.id = %s AND x.id IN (SELECT hr.id FROM cur_core_record hr WHERE hr.type IN ('correspondence.CommercialItem', '",
+     "SQL 63 ms in 1 calls, slowest 63 ms: SELECT l.link_id, l.relation, l.status, l.pin, l.note, l.source, l.confidence, l.reason, l.declined, l.verified_by, l.verified_at, l.created_at, l.ver",
+     "SQL 43 ms in 10 calls, slowest 34 ms: SELECT a.account_id, a.username, a.display_name, a.kind, a.roles_json, a.status, a.created_at, a.last_seq, t.locked_until FROM cur_account a LEFT JOIN",
+     "SQL 37 ms in 4 calls, slowest 33 ms: SELECT id, key, type, scope, title, description, status, psets_json, voided, version, last_seq, effective_schema_hash, conformance, created_at, update",
+     "470 ms cumulative, 0 ms own, 43 calls  sqlalchemy/engine/base.py:1407(execute)",
+     "448 ms cumulative, 0 ms own, 53 calls  sqlalchemy/engine/base.py:1770(_execute_context)",
+     "445 ms cumulative, 1 ms own, 53 calls  sqlalchemy/engine/base.py:1829(_exec_single_context)",
+     "445 ms cumulative, 0 ms own, 43 calls  sqlalchemy/sql/elements.py:524(_execute_on_connection)",
+     "445 ms cumulative, 1 ms own, 43 calls  sqlalchemy/engine/base.py:1621(_execute_clauseelement)",
+     "435 ms cumulative, 0 ms own, 53 calls  sqlalchemy/engine/default.py:1191(do_execute)",
+     "216 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/widgets/record_view.py:190(on_mount)",
+     "214 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/widgets/record_view.py:194(reload)",
+     "208 ms cumulative, 0 ms own, 2 calls  tl-tui/src/tl_tui/embedded.py:482(list_record_files)",
+     "198 ms cumulative, 0 ms own, 2 calls  tl-core/src/tl_core/files/queries.py:85(list_files)",
+     "158 ms cumulative, 0 ms own, 5 calls  tl-tui/src/tl_tui/reads.py:33(once)",
+     "127 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/widgets/record_view.py:247(_draw_details)",
+     "own time 140 ms, 140 ms cumulative, 256 calls  ~:0(<method 'recv_into' of '_socket.socket' objects>)",
+     "own time 31 ms, 46 ms cumulative, 43 calls  pg8000/dbapi.py:250(convert_paramstyle)",
+     "own time 16 ms, 96 ms cumulative, 222 calls  textual/css/stylesheet.py:470(apply)",
+     "own time 11 ms, 11 ms cumulative, 84813 calls  ~:0(<method 'append' of 'list' objects>)",
+     "own time 10 ms, 11 ms cumulative, 192 calls  ~:0(<method 'send' of '_socket.socket' objects>)"
     ],
     "corr_enter": [
-     "SQL 121 ms in 11 calls, slowest 37 ms: SELECT 1 FROM cur_core_record x WHERE x.id = %s AND x.id IN (SELECT hr.id FROM cur_core_record hr WHERE hr.type IN ('correspondence.CommercialItem', '",
-     "SQL 104 ms in 10 calls, slowest 102 ms: SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY",
-     "SQL 45 ms in 1 calls, slowest 45 ms: SELECT l.link_id, l.relation, l.status, l.pin, l.note, l.source, l.confidence, l.reason, l.declined, l.verified_by, l.verified_at, l.created_at, l.ver",
-     "SQL 40 ms in 10 calls, slowest 30 ms: SELECT a.account_id, a.username, a.display_name, a.kind, a.roles_json, a.status, a.created_at, a.last_seq, t.locked_until FROM cur_account a LEFT JOIN",
-     "1380 ms cumulative, 1 ms own, 53 calls  sqlalchemy/engine/base.py:1770(_execute_context)",
-     "1371 ms cumulative, 1 ms own, 53 calls  sqlalchemy/engine/base.py:1829(_exec_single_context)",
-     "1361 ms cumulative, 0 ms own, 53 calls  sqlalchemy/engine/default.py:1191(do_execute)",
-     "1280 ms cumulative, 0 ms own, 43 calls  sqlalchemy/engine/base.py:1407(execute)",
-     "1280 ms cumulative, 0 ms own, 43 calls  sqlalchemy/sql/elements.py:524(_execute_on_connection)",
-     "1279 ms cumulative, 1 ms own, 43 calls  sqlalchemy/engine/base.py:1621(_execute_clauseelement)",
-     "1112 ms cumulative, 0 ms own, 18 calls  tl-tui/src/tl_tui/embedded.py:227(_scope)",
-     "1092 ms cumulative, 0 ms own, 2 calls  tl-tui/src/tl_tui/embedded.py:482(list_record_files)",
-     "1081 ms cumulative, 0 ms own, 9 calls  tl-adapters/src/tl_adapters/_unit.py:80(__exit__)",
-     "1080 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/widgets/file_panel.py:159(work)",
-     "1053 ms cumulative, 0 ms own, 2 calls  tl-core/src/tl_core/files/queries.py:85(list_files)",
-     "916 ms cumulative, 0 ms own, 20 calls  tl-adapters/src/tl_adapters/postgres/engine.py:228(read_tx)",
-     "own time 747 ms, 869 ms cumulative, 271 calls  /usr/lib/python3.12/socket.py:693(readinto)",
-     "own time 120 ms, 121 ms cumulative, 271 calls  ~:0(<method 'recv_into' of '_socket.socket' objects>)",
-     "own time 103 ms, 104 ms cumulative, 192 calls  ~:0(<method 'send' of '_socket.socket' objects>)",
-     "own time 31 ms, 46 ms cumulative, 43 calls  pg8000/dbapi.py:250(convert_paramstyle)",
-     "own time 21 ms, 141 ms cumulative, 222 calls  textual/css/stylesheet.py:470(apply)"
+     "SQL 144 ms in 11 calls, slowest 43 ms: SELECT 1 FROM cur_core_record x WHERE x.id = %s AND x.id IN (SELECT hr.id FROM cur_core_record hr WHERE hr.type IN ('correspondence.CommercialItem', '",
+     "SQL 52 ms in 1 calls, slowest 52 ms: SELECT l.link_id, l.relation, l.status, l.pin, l.note, l.source, l.confidence, l.reason, l.declined, l.verified_by, l.verified_at, l.created_at, l.ver",
+     "SQL 49 ms in 10 calls, slowest 39 ms: SELECT a.account_id, a.username, a.display_name, a.kind, a.roles_json, a.status, a.created_at, a.last_seq, t.locked_until FROM cur_account a LEFT JOIN",
+     "SQL 36 ms in 4 calls, slowest 33 ms: SELECT id, key, type, scope, title, description, status, psets_json, voided, version, last_seq, effective_schema_hash, conformance, created_at, update",
+     "496 ms cumulative, 0 ms own, 43 calls  sqlalchemy/engine/base.py:1407(execute)",
+     "470 ms cumulative, 1 ms own, 53 calls  sqlalchemy/engine/base.py:1770(_execute_context)",
+     "468 ms cumulative, 0 ms own, 43 calls  sqlalchemy/sql/elements.py:524(_execute_on_connection)",
+     "466 ms cumulative, 1 ms own, 43 calls  sqlalchemy/engine/base.py:1621(_execute_clauseelement)",
+     "463 ms cumulative, 2 ms own, 53 calls  sqlalchemy/engine/base.py:1829(_exec_single_context)",
+     "446 ms cumulative, 0 ms own, 53 calls  sqlalchemy/engine/default.py:1191(do_execute)",
+     "232 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/widgets/record_view.py:190(on_mount)",
+     "230 ms cumulative, 0 ms own, 2 calls  tl-tui/src/tl_tui/embedded.py:482(list_record_files)",
+     "230 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/widgets/record_view.py:194(reload)",
+     "217 ms cumulative, 0 ms own, 2 calls  tl-core/src/tl_core/files/queries.py:85(list_files)",
+     "166 ms cumulative, 0 ms own, 5 calls  tl-tui/src/tl_tui/reads.py:33(once)",
+     "151 ms cumulative, 0 ms own, 11 calls  tl-core/src/tl_core/confidentiality.py:226(is_hidden)",
+     "own time 134 ms, 136 ms cumulative, 265 calls  ~:0(<method 'recv_into' of '_socket.socket' objects>)",
+     "own time 34 ms, 51 ms cumulative, 43 calls  pg8000/dbapi.py:250(convert_paramstyle)",
+     "own time 17 ms, 100 ms cumulative, 222 calls  textual/css/stylesheet.py:470(apply)",
+     "own time 14 ms, 14 ms cumulative, 84774 calls  ~:0(<method 'append' of 'list' objects>)",
+     "own time 10 ms, 10 ms cumulative, 192 calls  ~:0(<method 'send' of '_socket.socket' objects>)"
+    ],
+    "corr_open": [
+     "SQL 133 ms in 4 calls, slowest 126 ms: SELECT id, record_type, scope, number, title, status, voided, version, direction, medium, received_via, external_ref, message_id, in_reply_to, from_pa",
+     "SQL 92 ms in 11 calls, slowest 11 ms: SELECT 1 FROM cur_core_record x WHERE x.id = %s AND x.id IN (SELECT hr.id FROM cur_core_record hr WHERE hr.type IN ('correspondence.CommercialItem', '",
+     "SQL 69 ms in 1 calls, slowest 69 ms: SELECT x.id FROM cur_core_record x WHERE x.id IN (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, ",
+     "SQL 67 ms in 1 calls, slowest 67 ms: SELECT l.link_id, l.relation, l.status, l.pin, l.note, l.source, l.confidence, l.reason, l.declined, l.verified_by, l.verified_at, l.created_at, l.ver",
+     "470 ms cumulative, 0 ms own, 47 calls  sqlalchemy/engine/base.py:1407(execute)",
+     "470 ms cumulative, 0 ms own, 47 calls  sqlalchemy/sql/elements.py:524(_execute_on_connection)",
+     "470 ms cumulative, 1 ms own, 47 calls  sqlalchemy/engine/base.py:1621(_execute_clauseelement)",
+     "468 ms cumulative, 1 ms own, 56 calls  sqlalchemy/engine/base.py:1770(_execute_context)",
+     "463 ms cumulative, 1 ms own, 56 calls  sqlalchemy/engine/base.py:1829(_exec_single_context)",
+     "449 ms cumulative, 0 ms own, 56 calls  sqlalchemy/engine/default.py:1191(do_execute)",
+     "312 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/widgets/log_screen.py:311(_load)",
+     "262 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/widgets/correspondence_screen.py:143(load_rows)",
+     "262 ms cumulative, 1 ms own, 1 calls  tl-tui/src/tl_tui/embedded.py:962(list_correspondence)",
+     "256 ms cumulative, 0 ms own, 1 calls  tl-modules/correspondence/src/tl_mod_correspondence/views.py:364(register)",
+     "244 ms cumulative, 1 ms own, 1 calls  tl-modules/correspondence/src/tl_mod_correspondence/registry.py:237(list_items)",
+     "237 ms cumulative, 0 ms own, 3 calls  tl-tui/src/tl_tui/widgets/log_screen.py:445(_show_row)",
+     "own time 293 ms, 293 ms cumulative, 306 calls  ~:0(<method 'recv_into' of '_socket.socket' objects>)",
+     "own time 46 ms, 68 ms cumulative, 47 calls  pg8000/dbapi.py:250(convert_paramstyle)",
+     "own time 23 ms, 63 ms cumulative, 513 calls  pg8000/core.py:821(handle_DATA_ROW)",
+     "own time 23 ms, 41 ms cumulative, 503 calls  tl-modules/correspondence/src/tl_mod_correspondence/registry.py:145(_item)",
+     "own time 22 ms, 22 ms cumulative, 108494 calls  ~:0(<method 'append' of 'list' objects>)"
     ],
     "docs_open": [
-     "SQL 128 ms in 1 calls, slowest 128 ms: SELECT x.id FROM cur_core_record x WHERE x.id IN (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, ",
-     "SQL 50 ms in 4 calls, slowest 45 ms: SELECT id, scope, key, title, description, status, voided, version, conformance, doc_type, discipline, originator, confidentiality, revision_scheme, p",
-     "SQL 45 ms in 6 calls, slowest 8 ms: SELECT 1 FROM cur_core_record x WHERE x.id = %s AND x.id IN (SELECT hr.id FROM cur_core_record hr WHERE hr.type IN ('correspondence.CommercialItem', '",
-     "SQL 14 ms in 1 calls, slowest 14 ms: SELECT l.link_id, l.scope, l.from_id, l.to_id, l.relation, l.status, l.pin, l.updated_at, d.key AS document_number, d.title AS document_title, x.key A",
-     "263 ms cumulative, 0 ms own, 23 calls  sqlalchemy/engine/base.py:1407(execute)",
-     "263 ms cumulative, 0 ms own, 23 calls  sqlalchemy/sql/elements.py:524(_execute_on_connection)",
-     "263 ms cumulative, 1 ms own, 23 calls  sqlalchemy/engine/base.py:1621(_execute_clauseelement)",
-     "261 ms cumulative, 0 ms own, 27 calls  sqlalchemy/engine/base.py:1770(_execute_context)",
-     "257 ms cumulative, 1 ms own, 27 calls  sqlalchemy/engine/base.py:1829(_exec_single_context)",
-     "251 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/widgets/log_screen.py:311(_load)",
-     "249 ms cumulative, 0 ms own, 27 calls  sqlalchemy/engine/default.py:1191(do_execute)",
-     "202 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/widgets/document_register.py:132(load_rows)",
-     "202 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/widgets/document_register.py:144(_read)",
-     "202 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/embedded.py:881(list_documents)",
-     "198 ms cumulative, 0 ms own, 1 calls  tl-modules/documents/src/tl_mod_documents/views.py:152(document_views)",
-     "189 ms cumulative, 0 ms own, 1 calls  tl-modules/documents/src/tl_mod_documents/registry.py:257(list_documents)",
-     "own time 148 ms, 148 ms cumulative, 140 calls  ~:0(<method 'recv_into' of '_socket.socket' objects>)",
-     "own time 37 ms, 57 ms cumulative, 23 calls  pg8000/dbapi.py:250(convert_paramstyle)",
-     "own time 17 ms, 31 ms cumulative, 2990 calls  textual/strip.py:94(__init__)",
-     "own time 15 ms, 15 ms cumulative, 76998 calls  ~:0(<method 'append' of 'list' objects>)",
-     "own time 12 ms, 18 ms cumulative, 21685 calls  textual/css/styles.py:1507(get_rule)"
+     "SQL 56 ms in 1 calls, slowest 56 ms: SELECT x.id FROM cur_core_record x WHERE x.id IN (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, ",
+     "SQL 44 ms in 4 calls, slowest 40 ms: SELECT id, scope, key, title, description, status, voided, version, conformance, doc_type, discipline, originator, confidentiality, revision_scheme, p",
+     "SQL 38 ms in 6 calls, slowest 8 ms: SELECT 1 FROM cur_core_record x WHERE x.id = %s AND x.id IN (SELECT hr.id FROM cur_core_record hr WHERE hr.type IN ('correspondence.CommercialItem', '",
+     "SQL 13 ms in 1 calls, slowest 13 ms: SELECT l.link_id, l.scope, l.from_id, l.to_id, l.relation, l.status, l.pin, l.updated_at, d.key AS document_number, d.title AS document_title, x.key A",
+     "174 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/widgets/log_screen.py:311(_load)",
+     "171 ms cumulative, 0 ms own, 23 calls  sqlalchemy/engine/base.py:1407(execute)",
+     "171 ms cumulative, 0 ms own, 23 calls  sqlalchemy/sql/elements.py:524(_execute_on_connection)",
+     "171 ms cumulative, 0 ms own, 23 calls  sqlalchemy/engine/base.py:1621(_execute_clauseelement)",
+     "170 ms cumulative, 0 ms own, 27 calls  sqlalchemy/engine/base.py:1770(_execute_context)",
+     "168 ms cumulative, 1 ms own, 27 calls  sqlalchemy/engine/base.py:1829(_exec_single_context)",
+     "163 ms cumulative, 0 ms own, 27 calls  sqlalchemy/engine/default.py:1191(do_execute)",
+     "121 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/widgets/document_register.py:132(load_rows)",
+     "121 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/widgets/document_register.py:144(_read)",
+     "121 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/embedded.py:881(list_documents)",
+     "116 ms cumulative, 0 ms own, 1 calls  tl-modules/documents/src/tl_mod_documents/views.py:152(document_views)",
+     "110 ms cumulative, 0 ms own, 1 calls  tl-modules/documents/src/tl_mod_documents/registry.py:257(list_documents)",
+     "own time 872 ms, 872 ms cumulative, 20948 calls  textual/cache.py:226(__init__)",
+     "own time 112 ms, 112 ms cumulative, 161 calls  ~:0(<method 'recv_into' of '_socket.socket' objects>)",
+     "own time 15 ms, 24 ms cumulative, 23 calls  pg8000/dbapi.py:250(convert_paramstyle)",
+     "own time 12 ms, 886 ms cumulative, 2990 calls  textual/strip.py:94(__init__)",
+     "own time 10 ms, 15 ms cumulative, 21685 calls  textual/css/styles.py:1507(get_rule)"
     ],
     "docs_enter": [
-     "SQL 128 ms in 8 calls, slowest 44 ms: SELECT 1 FROM cur_core_record x WHERE x.id = %s AND x.id IN (SELECT hr.id FROM cur_core_record hr WHERE hr.type IN ('correspondence.CommercialItem', '",
-     "SQL 46 ms in 8 calls, slowest 38 ms: SELECT a.account_id, a.username, a.display_name, a.kind, a.roles_json, a.status, a.created_at, a.last_seq, t.locked_until FROM cur_account a LEFT JOIN",
-     "SQL 35 ms in 3 calls, slowest 33 ms: SELECT id, key, type, scope, title, description, status, psets_json, voided, version, last_seq, effective_schema_hash, conformance, created_at, update",
-     "SQL 13 ms in 10 calls, slowest 11 ms: SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY",
-     "657 ms cumulative, 0 ms own, 35 calls  sqlalchemy/engine/base.py:1407(execute)",
-     "596 ms cumulative, 0 ms own, 35 calls  sqlalchemy/sql/elements.py:524(_execute_on_connection)",
-     "596 ms cumulative, 1 ms own, 35 calls  sqlalchemy/engine/base.py:1621(_execute_clauseelement)",
-     "437 ms cumulative, 0 ms own, 45 calls  sqlalchemy/engine/base.py:1770(_execute_context)",
-     "407 ms cumulative, 1 ms own, 45 calls  sqlalchemy/engine/base.py:1829(_exec_single_context)",
-     "392 ms cumulative, 0 ms own, 45 calls  sqlalchemy/engine/default.py:1191(do_execute)",
-     "320 ms cumulative, 0 ms own, 8 calls  tl-core/src/tl_core/confidentiality.py:226(is_hidden)",
-     "210 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/embedded.py:482(list_record_files)",
-     "209 ms cumulative, 0 ms own, 1 calls  tl-core/src/tl_core/files/queries.py:85(list_files)",
-     "138 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/widgets/record_view.py:190(on_mount)",
-     "137 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/widgets/record_view.py:194(reload)",
-     "97 ms cumulative, 0 ms own, 3 calls  tl-core/src/tl_core/services/queries.py:29(_one)",
-     "own time 78 ms, 78 ms cumulative, 264 calls  ~:0(<method 'recv_into' of '_socket.socket' objects>)",
-     "own time 23 ms, 35 ms cumulative, 33 calls  pg8000/dbapi.py:250(convert_paramstyle)",
-     "own time 18 ms, 129 ms cumulative, 222 calls  textual/css/stylesheet.py:470(apply)",
-     "own time 12 ms, 12 ms cumulative, 71665 calls  ~:0(<method 'append' of 'list' objects>)",
-     "own time 9 ms, 10 ms cumulative, 26131 calls  ~:0(<built-in method builtins.hasattr>)"
+     "SQL 110 ms in 8 calls, slowest 41 ms: SELECT 1 FROM cur_core_record x WHERE x.id = %s AND x.id IN (SELECT hr.id FROM cur_core_record hr WHERE hr.type IN ('correspondence.CommercialItem', '",
+     "SQL 34 ms in 1 calls, slowest 34 ms: SELECT file_id, scope, record_id, slot, revision, sha256, size, content_type, filename, status, deduplicated, superseded_by, reason, uploaded_by, uplo",
+     "SQL 17 ms in 8 calls, slowest 9 ms: SELECT a.account_id, a.username, a.display_name, a.kind, a.roles_json, a.status, a.created_at, a.last_seq, t.locked_until FROM cur_account a LEFT JOIN",
+     "SQL 11 ms in 1 calls, slowest 11 ms: SELECT l.link_id FROM cur_links l WHERE l.link_id IN (%s) AND (l.from_id IN (SELECT hr.id FROM cur_core_record hr WHERE hr.type IN ('correspondence.Co",
+     "253 ms cumulative, 0 ms own, 14 calls  tl-tui/src/tl_tui/embedded.py:227(_scope)",
+     "211 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/widgets/file_panel.py:159(work)",
+     "211 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/widgets/file_panel.py:113(_call)",
+     "203 ms cumulative, 0 ms own, 7 calls  tl-adapters/src/tl_adapters/_unit.py:80(__exit__)",
+     "194 ms cumulative, 0 ms own, 33 calls  sqlalchemy/engine/base.py:1407(execute)",
+     "194 ms cumulative, 0 ms own, 33 calls  sqlalchemy/sql/elements.py:524(_execute_on_connection)",
+     "194 ms cumulative, 1 ms own, 33 calls  sqlalchemy/engine/base.py:1621(_execute_clauseelement)",
+     "191 ms cumulative, 1 ms own, 41 calls  sqlalchemy/engine/base.py:1770(_execute_context)",
+     "187 ms cumulative, 1 ms own, 41 calls  sqlalchemy/engine/base.py:1829(_exec_single_context)",
+     "178 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/embedded.py:482(list_record_files)",
+     "175 ms cumulative, 0 ms own, 41 calls  sqlalchemy/engine/default.py:1191(do_execute)",
+     "166 ms cumulative, 0 ms own, 1 calls  tl-tui/src/tl_tui/widgets/record_view.py:190(on_mount)",
+     "own time 79 ms, 79 ms cumulative, 189 calls  ~:0(<method 'recv_into' of '_socket.socket' objects>)",
+     "own time 34 ms, 50 ms cumulative, 33 calls  pg8000/dbapi.py:250(convert_paramstyle)",
+     "own time 22 ms, 126 ms cumulative, 222 calls  textual/css/stylesheet.py:470(apply)",
+     "own time 12 ms, 12 ms cumulative, 71759 calls  ~:0(<method 'append' of 'list' objects>)",
+     "own time 10 ms, 15 ms cumulative, 150 calls  ~:0(<method 'send' of '_socket.socket' objects>)"
     ]
    },
    "reps": 25,

@@ -91,7 +91,38 @@ GRID_FILTERS = (
 
 #: One line per action that was slow, written after reading the cProfile of a run (the profile in
 #: the results file is the evidence; a rerun that is no longer slow does not show the line).
-CAUSES: dict[str, str] = {}
+CAUSES: dict[str, str] = {
+    "rfi_open": (
+        "Postgres: the list statement and the hidden-record check of its 500 rows (500 ids "
+        "through the pure-Python driver) take about 60 ms each, the panel's statements 100 ms; "
+        "Textual draws about 100 ms on every backend."
+    ),
+    "rfi_enter": (
+        "Postgres: about 50 statements of 2-8 ms each (the pure-Python driver, a viewer lookup "
+        "and a visibility check on every client call), then the seven-tab screen is composed and "
+        "drawn (about 100 ms on every backend)."
+    ),
+    "corr_open": (
+        "The register is a view over every letter and RFI sorted by number: SQLite reads every "
+        "wide core record of the scope for it (about 100 ms, no ANALYZE statistics) and the "
+        "transmittal sources add 35 ms; Postgres adds the driver's cost to the same."
+    ),
+    "corr_enter": "As the RFI record; remote: about 11 HTTP calls of 4-17 ms and the same drawing.",
+    "docs_open": "The first 500 rows take about 190 ms to read and draw; the paint adds the rest.",
+    "docs_enter": "Postgres: as the RFI record (about 45 statements).",
+    "grid_open": (
+        "Launch reads the code lists and standards in 56 small statements (Postgres, remote: "
+        "3-4 ms each) before the first page."
+    ),
+    "grid_filter_number": (
+        "A filter that matches more than 3,000 records counts them with the hidden records listed "
+        "once (NOT IN, 170-190 ms); a narrower filter tests each match and is under 150 ms."
+    ),
+    "grid_filter_code": (
+        "A filter that matches more than 3,000 records counts them with the hidden records listed "
+        "once (NOT IN, 170-190 ms); a narrower filter tests each match and is under 150 ms."
+    ),
+}
 
 
 # --- the machine -----------------------------------------------------------------------------
