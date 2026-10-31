@@ -134,22 +134,24 @@ def _allowed(source: ConfidentialSource, viewer: Viewer) -> str:
 
 
 def _only(only: str | None) -> str:
-    """The extra condition that limits the scan to the records asked about (``r.id = :_cf_id``)."""
-    return f"{only} AND " if only else ""
+    """The extra condition that limits a part to the records asked about (``hr.id = :_cf_id``)."""
+    return f" AND {only}" if only else ""
 
 
-def _source_hidden(source: ConfidentialSource, viewer: Viewer) -> str:
-    """The test for a record of the root's types: it has no readable row in the module table."""
+def _source_hidden(source: ConfidentialSource, viewer: Viewer, only: str | None = None) -> str:
     return (
-        f"(r.type IN ({_types(source.record_types)}) "
-        f"AND NOT EXISTS (SELECT 1 FROM {source.table} s WHERE s.{source.id_column} = r.id "
-        f"AND ({_allowed(source, viewer)})))"
+        f"SELECT hr.id FROM cur_core_record hr WHERE hr.type IN ({_types(source.record_types)})"
+        f"{_only(only)} "
+        f"AND NOT EXISTS (SELECT 1 FROM {source.table} s WHERE s.{source.id_column} = hr.id "
+        f"AND ({_allowed(source, viewer)}))"
     )
 
 
-def _child_hidden(source: ConfidentialSource, child: ChildSource, viewer: Viewer) -> str:
-    """The test for a record of the child's types: its root is not readable. A flat join to the
-    root: nesting one subquery inside another per level overflows SQLite's parser stack."""
+def _child_hidden(
+    source: ConfidentialSource, child: ChildSource, viewer: Viewer, only: str | None = None
+) -> str:
+    """The children whose root is not readable. A flat join to the root: nesting one subquery
+    inside another per level overflows SQLite's parser stack."""
     if child.hop is None:
         via, root_key = "", f"ch.{child.root_column}"
     else:
@@ -157,17 +159,18 @@ def _child_hidden(source: ConfidentialSource, child: ChildSource, viewer: Viewer
         via = f" JOIN {table} hop ON hop.{key} = ch.{child.root_column}"
         root_key = f"hop.{root}"
     return (
-        f"(r.type IN ({_types(child.record_types)}) "
+        f"SELECT hr.id FROM cur_core_record hr WHERE hr.type IN ({_types(child.record_types)})"
+        f"{_only(only)} "
         f"AND NOT EXISTS (SELECT 1 FROM {child.table} ch{via} "
         f"JOIN {source.table} s ON s.{source.id_column} = {root_key} "
-        f"WHERE ch.{child.id_column} = r.id AND ({_allowed(source, viewer)})))"
+        f"WHERE ch.{child.id_column} = hr.id AND ({_allowed(source, viewer)}))"
     )
 
 
-def _source_tests(source: ConfidentialSource, viewer: Viewer) -> list[str]:
-    """The root's hidden-record test, then each child's."""
-    return [_source_hidden(source, viewer)] + [
-        _child_hidden(source, child, viewer) for child in source.children
+def _source_parts(source: ConfidentialSource, viewer: Viewer, only: str | None = None) -> list[str]:
+    """The root's hidden records, then each child's."""
+    return [_source_hidden(source, viewer, only)] + [
+        _child_hidden(source, child, viewer, only) for child in source.children
     ]
 
 
@@ -177,32 +180,18 @@ def hidden_sql(viewer: Viewer | None = None, *, only: str | None = None) -> str 
     The text holds only names the modules declared and the bind parameter ``_cf_acct`` (see
     ``params_for``). A system viewer hides nothing.
 
-    One pass over ``cur_core_record``: a record is hidden when it is of a confidential type and
-    the test for its type (root, or child through its root) says it is not readable. The tests
-    are joined by ``OR`` (flat: one level of subquery each), so the table is read once however
-    many sources there are, not once per source and child.
-
-    ``only`` is a condition on ``r.id`` written by the caller (``r.id = :_cf_id``, ``r.id IN
-    :_cf_ids`` or ``r.id = l.from_id``, never user input): the answer is then the hidden records
-    that also meet it, the same ids as the whole set would hold, but the database looks at those
-    records and not at every confidential record of the ledger.
+    ``only`` is a condition on ``hr.id`` (``hr`` is the record under test) written by the caller
+    (``hr.id = :_cf_id``, ``hr.id IN :_cf_ids`` or ``hr.id = l.from_id``, never user input): the
+    answer is then the hidden records that also meet it, the same ids as the whole set would
+    hold, but the database looks at those records and not at every confidential record.
     """
     who = viewer if viewer is not None else current_viewer()
     if who.system:
         return None
-    tests: list[str] = []
-    types: set[str] = set()
+    parts: list[str] = []
     for source in confidential_sources():
-        tests.extend(_source_tests(source, who))
-        types |= source.record_types
-        for child in source.children:
-            types |= child.record_types
-    if not tests:
-        return None
-    return (
-        f"SELECT r.id FROM cur_core_record r WHERE {_only(only)}r.type IN ({_types(types)}) "
-        f"AND ({' OR '.join(tests)})"
-    )
+        parts.extend(_source_parts(source, who, only))
+    return " UNION ALL ".join(parts) if parts else None
 
 
 def params_for(sql: str, viewer: Viewer | None = None) -> dict[str, Any]:
@@ -223,9 +212,20 @@ def not_hidden(id_expr: str, viewer: Viewer | None = None) -> tuple[str, dict[st
     return f"{id_expr} NOT IN ({sql})", params_for(sql, viewer)
 
 
+def not_hidden_each(id_expr: str, viewer: Viewer | None = None) -> tuple[str, dict[str, Any]]:
+    """Like ``not_hidden``, for a statement whose other conditions already narrow the rows to a
+    few (the links of one record, say): the test is made for each row that reaches it, by looking
+    that row's record up, not by listing every hidden record of the ledger first. The same
+    records pass; ``id_expr`` must be a column of the statement's own rows, never user input."""
+    sql = hidden_sql(viewer, only=f"hr.id = {id_expr}")
+    if sql is None:
+        return "1 = 1", {}
+    return f"{id_expr} NOT IN ({sql})", params_for(sql, viewer)
+
+
 def is_hidden(conn: Connection, record_id: str, viewer: Viewer | None = None) -> bool:
     """True when the record exists and the viewer must not read it (a missing one is not hidden)."""
-    sql = hidden_sql(viewer, only="r.id = :_cf_id")
+    sql = hidden_sql(viewer, only="hr.id = :_cf_id")
     if sql is None:
         return False
     statement = text(f"SELECT 1 FROM cur_core_record x WHERE x.id = :_cf_id AND x.id IN ({sql})")
@@ -245,7 +245,7 @@ def hidden_among(
 ) -> set[str]:
     """The ids among ``record_ids`` that the viewer must not read (for a small list)."""
     ids = sorted({i for i in record_ids if i})
-    sql = hidden_sql(viewer, only="r.id IN :_cf_ids")
+    sql = hidden_sql(viewer, only="hr.id IN :_cf_ids")
     if sql is None or not ids:
         return set()
     found: set[str] = set()
@@ -340,7 +340,7 @@ def hidden_event_streams(
     def about(column: str) -> str:
         """The hidden records that ``column`` of the row under test names (a correlated test:
         the database looks the row's record up, it does not list every hidden record)."""
-        found = hidden_sql(who, only=f"r.id = {column}")
+        found = hidden_sql(who, only=f"hr.id = {column}")
         assert found is not None
         return found
 

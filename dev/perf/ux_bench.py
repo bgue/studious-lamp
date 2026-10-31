@@ -1274,6 +1274,56 @@ def _fmt(value: float | None) -> str:
     return f"{value:,.0f}" if value >= 100 else f"{value:.1f}"
 
 
+def medians_of(doc: dict[str, Any]) -> dict[str, float]:
+    """``backend:size:action`` -> painted median, the figures an earlier run is compared with."""
+    return {
+        f"{c['backend']}:{c['size']}:{name}": data["painted"]["median"]
+        for c in doc["cells"]
+        for name, data in c["actions"].items()
+    }
+
+
+#: The actions of the before/after table: the headline ones, and the registers' and the record
+#: screen's others that a person meets every day.
+COMPARED = (
+    *HEADLINE,
+    "corr_enter",
+    "corr_filter",
+    "docs_enter",
+    "docs_filter",
+    "grid_open",
+    "grid_filter_text",
+)
+
+
+def before_after(
+    before: dict[str, Any], head_cells: list[dict[str, Any]], titles: dict[str, str], big: int
+) -> list[str]:
+    """Median ms before (the earlier run named in ``before['source']``) and after, per backend."""
+    old: dict[str, float] = before["medians"]
+    lines = [
+        f"## Before and after at {big:,} records (median ms; before: {before['source']})",
+        "",
+        "| Action | " + " | ".join(c["backend"] for c in head_cells) + " |",
+        "|---|" + "---:|" * len(head_cells),
+    ]
+    for name in dict.fromkeys(COMPARED):
+        cols: list[str] = []
+        for c in head_cells:
+            now = c["actions"].get(name)
+            was = old.get(f"{c['backend']}:{c['size']}:{name}")
+            cols.append(
+                "-"
+                if now is None
+                else f"{_fmt(was)} -> {_fmt(now['painted']['median'])}"
+                if was is not None
+                else _fmt(now["painted"]["median"])
+            )
+        lines.append(f"| {titles[name]} | " + " | ".join(cols) + " |")
+    lines.append("")
+    return lines
+
+
 def render_markdown(doc: dict[str, Any]) -> str:
     cells: list[dict[str, Any]] = sorted(
         doc["cells"], key=lambda c: (c["size"], BACKEND_ORDER[c["backend"]])
@@ -1319,11 +1369,14 @@ def render_markdown(doc: dict[str, Any]) -> str:
         "- Data per size: that many core records with property sets (the bulk writer of the "
         "benches), and that many RFIs, letters and documents through the command handlers (half "
         "of the RFIs submitted, half of the documents with a draft revision). The RFI log and "
-        "the correspondence register list at most 500 lines and the document register 5,000: "
-        "at 10,000 records the list is cut, but the server still has the whole project.",
+        "the correspondence register list at most 500 lines and the document register 5,000 "
+        "(it opens on its first 500 and reads the rest when the cursor nears the end or a "
+        "filter is typed): at 10,000 records the list is cut, but the server still has the "
+        "whole project.",
         "- The filter rows time the **last** key of the filter; the earlier keys are typed with "
-        "the rows held back. Every key filters and redraws the whole list, so a filter of n "
-        "keys costs about n times the figure.",
+        "the rows held back (the document register has read its whole list by then, as the "
+        "first key of a filter makes it). Every key filters the rows held and redraws the list "
+        "(no key reads the log again), so a filter of n keys costs about n times the figure.",
         "- The pilot normally waits for every animation after a key (a tab's underline takes "
         "0.3 s); that wait is off here, since a person does not wait for it.",
         "",
@@ -1342,6 +1395,9 @@ def render_markdown(doc: dict[str, Any]) -> str:
         ]
         lines.append(f"| {titles[name]} | " + " | ".join(row) + " |")
     lines.append("")
+    before = doc.get("before")
+    if before:
+        lines += before_after(before, head_cells, titles, big)
     lines += [f"## Slow spots (median over {SLOW_MS:.0f} ms at {big:,} records)", ""]
     slow = 0
     for name, title, _kind in ACTION_TABLES:
@@ -1407,6 +1463,13 @@ def write_results(
         postgres = _pg_version()
     elif old:
         postgres = old.get("postgres", "n/a")
+    before = old.get("before") if old else None
+    if args.before:
+        earlier = json.loads(Path(args.before).read_text(encoding="utf-8"))
+        before = {
+            "source": f"code `{earlier['commit']}`, {earlier['date']}",
+            "medians": medians_of(earlier),
+        }
     doc: dict[str, Any] = {
         "schema": SCHEMA_VERSION,
         "date": datetime.now(UTC).strftime("%Y-%m-%d"),
@@ -1416,6 +1479,7 @@ def write_results(
         "postgres": postgres,
         "slow_ms": SLOW_MS,
         "cells": kept + cells,
+        **({"before": before} if before else {}),
     }
     json_path.write_text(json.dumps(doc, indent=1) + "\n", encoding="utf-8")
     (out / "P1-UX-perf.md").write_text(render_markdown(doc), encoding="utf-8")
@@ -1451,6 +1515,9 @@ def main(argv: list[str] | None = None) -> int:
         "--seed-dir", help="keep the seeded SQLite files here and reuse them (development)"
     )
     parser.add_argument("--seed-only", action="store_true", help="seed into --seed-dir and stop")
+    parser.add_argument(
+        "--before", help="results JSON of an earlier run: its medians go in a before/after table"
+    )
     parser.add_argument(
         "--merge", action="store_true", help="keep cells of the earlier results file"
     )

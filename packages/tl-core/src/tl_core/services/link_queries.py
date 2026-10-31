@@ -121,7 +121,7 @@ def links_of(uow: UnitOfWork, record_id: str, *, include_retracted: bool = False
     confidentiality.require_visible(conn, record_id)
     sql = _LINKS_SQL if include_retracted else _LINKS_SQL + " AND l.status <> 'retracted'"
     # The other end must be readable: a record, or a post that tags no hidden record (ADR-0016).
-    record_ok, params = confidentiality.not_hidden("r.id")
+    record_ok, params = confidentiality.not_hidden_each("r.id")
     item_ok, item_params = confidentiality.not_hidden_item("r.id")
     sql += f" AND {record_ok} AND {item_ok}"
     rows = conn.execute(text(sql), {"id": record_id, **params, **item_params}).mappings().all()
@@ -173,8 +173,8 @@ def link_counts(uow: UnitOfWork, record_ids: Sequence[str]) -> dict[str, LinkCou
     if not record_ids:
         return {}
     found: dict[str, LinkCounts] = {rid: LinkCounts(record_id=rid) for rid in record_ids}
-    from_ok, params = confidentiality.not_hidden("l.from_id")
-    to_ok, to_params = confidentiality.not_hidden("l.to_id")
+    from_ok, params = confidentiality.not_hidden_each("l.from_id")
+    to_ok, to_params = confidentiality.not_hidden_each("l.to_id")
     sql = text(
         "SELECT u.rid AS record_id, "
         "COALESCE(SUM(CASE WHEN u.status = 'active' AND u.outbound = 1 THEN 1 ELSE 0 END), 0) "

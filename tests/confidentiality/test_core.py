@@ -398,6 +398,30 @@ def test_not_hidden_is_a_noop_for_the_system_and_a_clause_for_everyone_else() ->
     assert params == {}  # an agent has no account: the clause names none
 
 
+def test_visible_rows_are_the_first_readable_rows_whatever_is_hidden_among_them(
+    db: DbTarget, vault: Vault
+) -> None:
+    """The page read and then checked row by row is the page a ``NOT IN`` of every hidden record
+    gives, for every kind of reader and every page size (hidden rows use up no place)."""
+    sql = "SELECT id FROM cur_core_record WHERE scope = :scope ORDER BY key, id"
+    with open_uow(db, readonly=True) as uow:
+        conn = uow.conn()
+        for viewer in (USER, OTHER, CONTROLLER, AGENT, NOBODY):
+            clause, params = cf.not_hidden("id", viewer)
+            rows = conn.execute(
+                text(
+                    "SELECT id FROM cur_core_record "
+                    f"WHERE scope = :scope AND {clause} ORDER BY key, id"
+                ),
+                {"scope": SCOPE, **params},
+            )
+            expected = [str(r.id) for r in rows]
+            assert expected, "the viewer reads something"
+            for limit in (1, 2, 3, 5, 100):
+                got = cf.visible_rows(conn, sql, {"scope": SCOPE}, limit=limit, viewer=viewer)
+                assert [str(r.id) for r in got] == expected[:limit]
+
+
 def test_with_no_confidential_module_nothing_is_hidden(db: DbTarget, vault: Vault) -> None:
     with use_modules([]):
         assert cf.hidden_sql(NOBODY) is None

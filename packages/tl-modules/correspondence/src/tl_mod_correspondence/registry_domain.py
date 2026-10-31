@@ -13,7 +13,6 @@ from dataclasses import dataclass
 from typing import Any
 
 from sqlalchemy import Connection, text
-from tl_core import confidentiality
 
 from tl_mod_correspondence.names import (
     COMMERCIAL,
@@ -32,6 +31,7 @@ from tl_mod_correspondence.registry import (
     _page,
 )
 
+DERIVED_LIMIT = 10_000  # far more Commercial items than one RFI is ever raised into
 _ITEM_I = ", ".join(f"i.{c.strip()}" for c in _ITEM_COLUMNS.split(","))
 
 
@@ -280,9 +280,9 @@ def list_commercial(
 
 def derived_from_commercial(conn: Connection, source_id: str) -> list[CommercialRow]:
     """The Commercial items raised from ``source_id`` (an RFI) that the viewer may read."""
-    visible, params = confidentiality.not_hidden("i.id")
     sql = (
         f"SELECT {_ITEM_I}, {_COMM_COLUMNS} {_COMM_FROM} AND t.derived_from_id = :source "
-        f"AND {visible} ORDER BY i.number"
+        "ORDER BY i.number, i.id"
     )
-    return [_commercial(r) for r in conn.execute(text(sql), {**params, "source": source_id}).all()]
+    rows = _page(conn, sql, {"source": source_id}, DERIVED_LIMIT, 0, "i.id")
+    return [_commercial(r) for r in rows]

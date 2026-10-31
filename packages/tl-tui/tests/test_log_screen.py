@@ -20,6 +20,7 @@ from textual.worker import WorkerFailed
 from tl_core.services.errors import ServiceError
 from tl_tui.display import DisplayMode, mode_of
 from tl_tui.widgets.log_screen import (
+    WINDOW_ROWS,
     LogAction,
     LogScreen,
     check_action_keys,
@@ -569,6 +570,51 @@ def test_the_log_screen_snapshot_170x30(snap_compare: Any) -> None:
         await settle(pilot)
 
     assert snap_compare(HostApp(Host(Probe())), terminal_size=(170, 30), run_before=run_before)
+
+
+def long_probe(count: int = 300) -> Probe:
+    """A host with ``count`` rows (more than the table takes at first), none with actions."""
+    items = [Item(f"r{i}", f"P123-RFI-{i:04d}", f"Title {i}", "Open") for i in range(count)]
+    return Probe(items=items, actions={item.key: () for item in items})
+
+
+def test_a_long_list_fills_the_table_in_chunks_and_the_filter_sees_every_row() -> None:
+    async def steps(pilot: Pilot[Any], screen: Host, probe: Probe) -> None:
+        table = screen.query_one("#log-table", DataTable)
+        assert len(screen.shown) == 300 and table.row_count == WINDOW_ROWS  # a window, not all
+        await pilot.press(*(["down"] * (WINDOW_ROWS - 10)))  # the cursor nears the last row held
+        await settle(pilot)
+        assert table.row_count > WINDOW_ROWS
+        await pilot.press("slash", *"0299")  # a row far beyond the first window
+        await settle(pilot)
+        assert [row.number for row in screen.shown] == ["P123-RFI-0299"]
+        assert table.row_count == 1
+
+    drive(steps, long_probe())
+
+
+def test_ctrl_end_goes_to_the_very_last_row_of_a_long_list() -> None:
+    async def steps(pilot: Pilot[Any], screen: Host, probe: Probe) -> None:
+        table = screen.query_one("#log-table", DataTable)
+        await pilot.press("ctrl+end")
+        await settle(pilot)
+        assert table.row_count == 300 and table.cursor_row == 299
+        current = screen.current()
+        assert current is not None and current.number == "P123-RFI-0299"
+
+    drive(steps, long_probe())
+
+
+def test_a_reload_keeps_the_cursor_on_a_row_beyond_the_first_window() -> None:
+    async def steps(pilot: Pilot[Any], screen: Host, probe: Probe) -> None:
+        table = screen.query_one("#log-table", DataTable)
+        await pilot.press("ctrl+end")
+        await settle(pilot)
+        await pilot.press("f5")
+        await settle(pilot)
+        assert table.cursor_row == 299 and table.row_count == 300
+
+    drive(steps, long_probe())
 
 
 def test_list_navigation_keys_are_reserved() -> None:
