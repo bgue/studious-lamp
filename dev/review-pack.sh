@@ -4,8 +4,12 @@
 # Usage: bash dev/review-pack.sh <base> <branch> [<ticket path>]
 #
 # Sections, in this order, each opened by a line holding only its name: DIFFSTAT, SYMBOLS, PATHS,
-# TESTS, COMMITS, GATE. At most 60 lines. Exit 0 when there is no finding; 1 on a finding (a PATHS
-# entry, a missing test or a `cmp differs`, a BAD-MSG or a MODEL-NAME); 2 on bad usage. Reads git
+# TESTS, COMMITS, GATE. At most 60 lines. A problem line is never cut: every PATHS entry outside the
+# Allowed paths, every TESTS `missing` or `cmp differs`, every COMMITS BAD-MSG or MODEL-NAME line. Only
+# clean lines (OK, present, cmp same, clean commits) are shortened, to a `+N more ok` line. If the
+# headers, DIFFSTAT, SYMBOLS, GATE and problem lines alone leave no room, every problem is printed and
+# the output ends with `over 60 lines: N problems`. Exit 0 when there is no finding; 1 on a finding (a
+# PATHS entry, a missing test or a `cmp differs`, a BAD-MSG or a MODEL-NAME); 2 on bad usage. Reads git
 # objects and the branch worktree's .gate/summary.txt only; no network, no Python.
 #
 # Without a ticket path the ticket is found on the branch as docs/tickets/<INC>/<ID>-*.md: the branch
@@ -148,9 +152,14 @@ AWK
 # ---------------------------------------------------------------------------------------------------
 # output buffer: every line goes through emit and is cut to 160 characters at the end
 
+TAGS=()
 OUT=()
 finding=0
-emit() { OUT+=("$1"); }
+# Each output line carries a tag: F (fixed: headers, DIFFSTAT, SYMBOLS, GATE and "none" lines, never
+# cut), P (a problem, always printed) or C (clean, shortened to "+N more ok" when over budget).
+emit() { TAGS+=(F); OUT+=("$1"); }
+emit_problem() { TAGS+=(P); OUT+=("$1"); }
+emit_clean() { TAGS+=(C); OUT+=("$1"); }
 
 # emit_list CAP ITEM...: at most CAP items, then "... N more" when cut
 emit_list() {
@@ -356,11 +365,13 @@ paths_section() {
     fi
   done <<<"$changed"
   if [ "${#outside[@]}" -eq 0 ]; then
-    emit "OK"
+    emit_clean "OK"
     return 0
   fi
   finding=1
-  emit_list 4 "${outside[@]}"
+  for p in "${outside[@]}"; do
+    emit_problem "$p"
+  done
 }
 
 tests_section() {
@@ -369,36 +380,38 @@ tests_section() {
     return 0
   fi
   local -A seen=()
-  local -a lines=()
-  local p i line
+  local p i line count=0
   for p in "${test_paths[@]}"; do
     if [ -n "${seen[$p]:-}" ]; then
       continue
     fi
     seen[$p]=1
+    count=$((count + 1))
     if git cat-file -e "$branch_arg:$p" 2>/dev/null; then
-      lines+=("$p present")
+      emit_clean "$p present"
     else
-      lines+=("$p missing")
+      emit_problem "$p missing"
       finding=1
     fi
   done
   for i in "${!map_src[@]}"; do
     line="$(cmp_line "${map_src[i]}" "${map_dst[i]}")"
-    lines+=("$line")
+    count=$((count + 1))
     case "$line" in
-      "cmp differs"*) finding=1 ;;
+      "cmp differs"*)
+        emit_problem "$line"
+        finding=1
+        ;;
+      *) emit_clean "$line" ;;
     esac
   done
-  if [ "${#lines[@]}" -eq 0 ]; then
+  if [ "$count" -eq 0 ]; then
     emit "none"
-    return 0
   fi
-  emit_list 3 "${lines[@]}"
 }
 
 commits_section() {
-  local -a shas=() flagged=() plain=() show=()
+  local -a shas=() flagged=() plain=()
   local sha s7 subj body flags line total
   mapfile -t shas < <(git rev-list --reverse "$base..$branch_arg")
   for sha in "${shas[@]}"; do
@@ -426,8 +439,12 @@ commits_section() {
     emit "none"
     return 0
   fi
-  show=("${flagged[@]}" "${plain[@]}")
-  emit_list 3 "${show[@]}"
+  for line in "${flagged[@]}"; do
+    emit_problem "$line"
+  done
+  for line in "${plain[@]}"; do
+    emit_clean "$line"
+  done
 }
 
 gate_section() {
@@ -454,7 +471,50 @@ commits_section
 emit "GATE"
 gate_section
 
-printf '%s\n' "${OUT[@]}" | cut -c1-160
+# Budget: 60 lines. Fixed and problem lines are always printed; clean lines fill the rest. If the fixed
+# and problem lines, plus one line for a "+N more ok" marker when clean lines exist, would exceed 60,
+# every clean line is dropped and the output ends with the "over" line.
+nfix=0
+nprob=0
+nclean=0
+for t in "${TAGS[@]}"; do
+  case "$t" in
+    F) nfix=$((nfix + 1)) ;;
+    P) nprob=$((nprob + 1)) ;;
+    C) nclean=$((nclean + 1)) ;;
+  esac
+done
+base=$((nfix + nprob))
+final=()
+if [ $((base + (nclean > 0 ? 1 : 0))) -gt 60 ]; then
+  for i in "${!OUT[@]}"; do
+    if [ "${TAGS[i]}" != C ]; then
+      final+=("${OUT[i]}")
+    fi
+  done
+  final+=("over 60 lines: $nprob problems")
+else
+  avail=$((60 - base))
+  limit=$nclean
+  if [ "$nclean" -gt "$avail" ]; then
+    limit=$((avail - 1))
+  fi
+  shown=0
+  marked=0
+  for i in "${!OUT[@]}"; do
+    if [ "${TAGS[i]}" != C ]; then
+      final+=("${OUT[i]}")
+    elif [ "$shown" -lt "$limit" ]; then
+      final+=("${OUT[i]}")
+      shown=$((shown + 1))
+    elif [ "$marked" -eq 0 ]; then
+      final+=("+$((nclean - shown)) more ok")
+      marked=1
+    fi
+  done
+fi
+
+printf '%s\n' "${final[@]}" | cut -c1-160
 if [ "$finding" -eq 1 ]; then
   exit 1
 fi

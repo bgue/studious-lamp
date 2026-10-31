@@ -3,7 +3,8 @@
 The fixture repository lives in ``tmp_path``: a base commit with the ticket, its provided test and
 the test file, then one branch. The dirty branch changes a file outside Allowed paths, a test that
 differs from its provided copy, and has a commit subject without the ticket id; the clean branch
-changes only the allowed file. No network.
+changes only the allowed file. Two more tests pin the 60-line budget: problem lines are never cut,
+and clean lines are shortened to a "+N more ok" line. No network.
 """
 
 from __future__ import annotations
@@ -123,3 +124,36 @@ def test_clean_branch_prints_ok_and_exits_zero(tmp_path: Path) -> None:
 def test_bad_usage_exits_two(tmp_path: Path) -> None:
     repo = base_repo(tmp_path)
     assert run(repo).returncode == 2
+
+
+def test_problem_lines_are_never_cut_and_an_over_budget_pack_says_so(tmp_path: Path) -> None:
+    repo = base_repo(tmp_path)
+    git(repo, "checkout", "-q", "-b", "p9/x1-t01-c")
+    names = [f"docs/extra/f{i:02d}.txt" for i in range(65)]
+    for name in names:
+        write(repo, name, "x\n")
+    commit_all(repo, "P9-X1-T01: sixty-five files outside the boundary")
+
+    result = run(repo, "trunk", "p9/x1-t01-c", "docs/tickets/P9-X1/T01-a.md")
+
+    assert result.returncode == 1, result.stdout + result.stderr
+    parts = sections(result.stdout)
+    assert parts["PATHS"] == names
+    assert result.stdout.splitlines()[-1] == "over 60 lines: 65 problems"
+
+
+def test_clean_lines_are_shortened_to_sixty_lines_and_the_problem_stays(tmp_path: Path) -> None:
+    repo = base_repo(tmp_path)
+    git(repo, "checkout", "-q", "-b", "p9/x1-t01-d")
+    for i in range(1, 51):
+        write(repo, "src/a.py", f"def f():\n    return {i}\n")
+        commit_all(repo, f"P9-X1-T01: step {i}")
+    git(repo, "commit", "-q", "--allow-empty", "-m", "fix stuff")
+
+    result = run(repo, "trunk", "p9/x1-t01-d", "docs/tickets/P9-X1/T01-a.md")
+
+    assert result.returncode == 1, result.stdout + result.stderr
+    lines = result.stdout.splitlines()
+    assert len(lines) == 60
+    assert sum(line.endswith("fix stuff  BAD-MSG") for line in lines) == 1
+    assert any(line.startswith("+") and line.endswith(" more ok") for line in lines)
