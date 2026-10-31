@@ -117,7 +117,7 @@ def refused(
     ledger: Ledger,
     actor: str,
     command_actor: str | None = None,
-    match: str = "document_controller or admin",
+    match: str = "needs the controller access word",
 ) -> None:
     with pytest.raises(ForbiddenError, match=match):
         ledger.client(actor).issue_transmittal(ledger.command(command_actor or actor))

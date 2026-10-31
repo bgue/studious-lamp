@@ -25,7 +25,7 @@ from tl_mod_schemareg.limits import MAX_CONTENT_BYTES
 from tl_schema.packages import PackageDoc, version_tuple
 
 from tl_cli.derive_support import DEV_ACTOR, SOURCE, Actor, acting, fail, service_errors
-from tl_cli.session import require_session
+from tl_cli.session import require_command, require_session
 
 MAX_FILES = 200
 
@@ -150,15 +150,14 @@ def import_git(
             typer.echo(f"would draft {doc.key()}")
         else:
             with service_errors(), open_uow(db) as uow:
-                made = handle_draft_schema_package(
-                    uow,
-                    DraftSchemaPackage(
-                        actor=acting(db, actor),
-                        source=SOURCE,
-                        scope="company",
-                        content=text,
-                    ),
+                command = DraftSchemaPackage(
+                    actor=acting(db, actor),
+                    source=SOURCE,
+                    scope="company",
+                    content=text,
                 )
+                require_command(uow, command)
+                made = handle_draft_schema_package(uow, command)
             typer.echo(f"drafted {doc.key()} {made.stream_id}")
     states = [state for _, _, state in triples]
     typer.echo(

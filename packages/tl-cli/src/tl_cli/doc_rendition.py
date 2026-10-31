@@ -39,7 +39,7 @@ from tl_cli.doc import (
     _service_errors,
 )
 from tl_cli.doc_rev import _Code, _Number, _revision
-from tl_cli.session import require_controller
+from tl_cli.session import require_command
 
 app = typer.Typer(help="Add, replace and list the renditions of a revision.", no_args_is_help=True)
 
@@ -134,7 +134,9 @@ def add(
         )
     file_id = _upload(db, scope, actor, rev.id, kind, path, content_type)
     with _service_errors(), open_uow(db) as uow:
-        made = handle_attach_rendition(uow, command.model_copy(update={"file_id": file_id}))
+        command_2 = command.model_copy(update={"file_id": file_id})
+        require_command(uow, command_2)
+        made = handle_attach_rendition(uow, command_2)
     typer.echo(f"attached {kind} {path.name} to {number}@{code}")
     typer.echo(f"rendition {made.stream_id}")
 
@@ -156,7 +158,6 @@ def register_signed(
     """Register the first signed copy of a revision (controller); `replace-signed` corrects it."""
     db: DbTarget = ctx.obj
     scope = f"project:{project}"
-    require_controller(db)
     with _service_errors(), open_uow(db, readonly=True) as uow:
         rev = _revision(uow, scope, project, number, code)
         preflight_rendition(uow.conn(), scope, rev.id, "signed", "register_signed")
@@ -172,9 +173,9 @@ def register_signed(
         )
     file_id = _upload(db, scope, actor, rev.id, "signed", path, content_type)
     with _service_errors(), open_uow(db) as uow:
-        made = handle_register_signed_rendition(
-            uow, command.model_copy(update={"file_id": file_id})
-        )
+        command_2 = command.model_copy(update={"file_id": file_id})
+        require_command(uow, command_2)
+        made = handle_register_signed_rendition(uow, command_2)
     typer.echo(f"registered the signed copy of {number}@{code}: {path.name}")
     typer.echo(f"rendition {made.stream_id}")
 
@@ -194,7 +195,6 @@ def replace_signed(
     """Replace the signed copy of a revision by another file (controller). The reason is kept."""
     db: DbTarget = ctx.obj
     scope = f"project:{project}"
-    require_controller(db)
     with _service_errors(), open_uow(db, readonly=True) as uow:
         rev = _revision(uow, scope, project, number, code)
         preflight_rendition(uow.conn(), scope, rev.id, "signed", "replace_signed")
@@ -210,7 +210,9 @@ def replace_signed(
         )
     file_id = _upload(db, scope, actor, rev.id, "signed", path, content_type)
     with _service_errors(), open_uow(db) as uow:
-        made = handle_replace_signed_rendition(uow, command.model_copy(update={"file_id": file_id}))
+        command_2 = command.model_copy(update={"file_id": file_id})
+        require_command(uow, command_2)
+        made = handle_replace_signed_rendition(uow, command_2)
     typer.echo(f"replaced the signed copy of {number}@{code} with {path.name}")
     typer.echo(f"rendition {made.stream_id}")
 

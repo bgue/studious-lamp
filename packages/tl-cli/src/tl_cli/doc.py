@@ -37,7 +37,7 @@ from tl_mod_documents.handlers.documents import (
 )
 from tl_mod_documents.handlers.revisions import CreateRevision, handle_create_revision
 
-from tl_cli.session import require_controller
+from tl_cli.session import require_command
 
 app = typer.Typer(help="Register, show and change controlled documents.", no_args_is_help=True)
 
@@ -135,30 +135,28 @@ def register(
     common: dict[str, Any] = {"actor": actor, "source": "cli", "scope": scope}
     revision: str | None = None
     with _service_errors(), open_uow(db) as uow:
-        made = handle_register_document(
-            uow,
-            RegisterDocument(
-                **common,
-                number=number,
-                title=title,
-                description=description,
-                doc_type=doc_type,
-                discipline=discipline,
-                originator=originator,
-                confidentiality=_class(confidentiality),
-                revision_scheme=scheme,
-            ),
+        command = RegisterDocument(
+            **common,
+            number=number,
+            title=title,
+            description=description,
+            doc_type=doc_type,
+            discipline=discipline,
+            originator=originator,
+            confidentiality=_class(confidentiality),
+            revision_scheme=scheme,
         )
+        require_command(uow, command)
+        made = handle_register_document(uow, command)
         if first_revision:
-            started = handle_create_revision(
-                uow,
-                CreateRevision(
-                    **common,
-                    document_id=made.stream_id,
-                    purpose=purpose,
-                    correlation_id=made.events[0].correlation_id,
-                ),
+            command_2 = CreateRevision(
+                **common,
+                document_id=made.stream_id,
+                purpose=purpose,
+                correlation_id=made.events[0].correlation_id,
             )
+            require_command(uow, command_2)
+            started = handle_create_revision(uow, command_2)
             revision = started.key
         row = _document(uow, scope, project, number)
     typer.echo(f"registered {made.stream_id}")
@@ -275,17 +273,16 @@ def update(
         _fail("give at least one field to change (--title, --type, --discipline, ...)")
     with _service_errors(), open_uow(db) as uow:
         row = _document(uow, scope, project, number)
-        handle_update_document(
-            uow,
-            UpdateDocument(
-                actor=actor,
-                source="cli",
-                scope=scope,
-                stream_id=row.id,
-                reason=reason,
-                **fields,
-            ),
+        command = UpdateDocument(
+            actor=actor,
+            source="cli",
+            scope=scope,
+            stream_id=row.id,
+            reason=reason,
+            **fields,
         )
+        require_command(uow, command)
+        handle_update_document(uow, command)
     typer.echo(f"updated {number}")
 
 
@@ -320,20 +317,18 @@ def confidentiality(
     scope = f"project:{project}"
     if (value is None) == (not clear):
         _fail("give the new class with --class, or --clear to remove it")
-    require_controller(db)
     with _service_errors(), open_uow(db) as uow:
         row = _document(uow, scope, project, number)
-        handle_set_document_confidentiality(
-            uow,
-            SetDocumentConfidentiality(
-                actor=actor,
-                source="cli",
-                scope=scope,
-                stream_id=row.id,
-                confidentiality=_class(value),
-                reason=reason,
-            ),
+        command = SetDocumentConfidentiality(
+            actor=actor,
+            source="cli",
+            scope=scope,
+            stream_id=row.id,
+            confidentiality=_class(value),
+            reason=reason,
         )
+        require_command(uow, command)
+        handle_set_document_confidentiality(uow, command)
     typer.echo(f"confidentiality of {number}: {row.confidentiality or '-'} -> {value or '-'}")
 
 
@@ -349,21 +344,19 @@ def supersede(
     """Replace a document by another one (controller). Every link to the old one goes stale."""
     db: DbTarget = ctx.obj
     scope = f"project:{project}"
-    require_controller(db)
     with _service_errors(), open_uow(db) as uow:
         old = _document(uow, scope, project, number)
         new = _document(uow, scope, project, by)
-        handle_supersede_document(
-            uow,
-            SupersedeDocument(
-                actor=actor,
-                source="cli",
-                scope=scope,
-                stream_id=old.id,
-                superseded_by_id=new.id,
-                reason=reason,
-            ),
+        command = SupersedeDocument(
+            actor=actor,
+            source="cli",
+            scope=scope,
+            stream_id=old.id,
+            superseded_by_id=new.id,
+            reason=reason,
         )
+        require_command(uow, command)
+        handle_supersede_document(uow, command)
     typer.echo(f"superseded {number} by {by}")
 
 
@@ -378,17 +371,15 @@ def void(
     """Void a document registered in error (controller). Every link to it goes stale."""
     db: DbTarget = ctx.obj
     scope = f"project:{project}"
-    require_controller(db)
     with _service_errors(), open_uow(db) as uow:
         row = _document(uow, scope, project, number)
-        handle_void_document(
-            uow,
-            VoidDocument(
-                actor=actor,
-                source="cli",
-                scope=scope,
-                stream_id=row.id,
-                reason=reason,
-            ),
+        command = VoidDocument(
+            actor=actor,
+            source="cli",
+            scope=scope,
+            stream_id=row.id,
+            reason=reason,
         )
+        require_command(uow, command)
+        handle_void_document(uow, command)
     typer.echo(f"voided {number}")

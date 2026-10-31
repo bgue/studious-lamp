@@ -31,11 +31,18 @@ from tl_adapters.backend import ledger_exists
 from tl_adapters.db import DbTarget, is_postgres, open_uow, target_key
 from tl_core.auth import sessions
 from tl_core.auth.env import dev_tokens_allowed
-from tl_core.auth.errors import AccountLockedError, InvalidCredentialsError, WeakPasswordError
+from tl_core.auth.errors import (
+    AccountLockedError,
+    ForbiddenError,
+    InvalidCredentialsError,
+    WeakPasswordError,
+)
+from tl_core.auth.module_roles import require_command_access
 from tl_core.auth.sessions import UowFactory
 from tl_core.auth.types import Principal
 from tl_core.confidentiality import LOWEST, Viewer, viewer_for
 from tl_core.ledger import ConcurrencyError
+from tl_core.services.commands import Command
 from tl_core.services.errors import ServiceError
 from tl_core.uow import UnitOfWork
 from tl_core.util import utcnow
@@ -356,6 +363,21 @@ def require_controller(db: DbTarget) -> Principal:
     if not principal.is_controller:
         fail("forbidden: this command needs the document_controller or admin role")
     return principal
+
+
+def require_command(uow: UnitOfWork, command: Command) -> None:
+    """The module-role gate of one command, run on the unit of work that will run its handler.
+
+    Calls :func:`tl_core.auth.module_roles.require_command_access` (the only access function: the
+    command's word for its module on its scope, held by ``command.actor``) and turns
+    ``ForbiddenError`` into `error: forbidden: ...` and exit 1, like :func:`require_controller`.
+    Place it after the command is built and before its ``handle_*`` call. The dev rule (an
+    account-less ``user:`` actor on a dev ledger holds ``user`` everywhere) lives in core.
+    """
+    try:
+        require_command_access(uow.conn(), command)
+    except ForbiddenError as exc:
+        fail(f"forbidden: {exc}")
 
 
 def session_viewer(db: DbTarget) -> Viewer:

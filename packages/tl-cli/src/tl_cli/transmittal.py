@@ -38,7 +38,7 @@ from tl_cli.doc import (
     _Reason,
     _service_errors,
 )
-from tl_cli.session import require_controller
+from tl_cli.session import require_command
 
 app = typer.Typer(help="Draft, issue, answer, close and void transmittals.", no_args_is_help=True)
 
@@ -117,24 +117,23 @@ def create(
     scope = f"project:{project}"
     with _service_errors(), open_uow(db) as uow:
         ids = _revision_ids(uow, scope, project, revisions)
-        made = handle_create_transmittal(
-            uow,
-            CreateTransmittal.model_validate(
-                {
-                    "actor": actor,
-                    "source": "cli",
-                    "scope": scope,
-                    "number": number,
-                    "subject": subject,
-                    "direction": direction,
-                    "purpose": purpose,
-                    "due_date": due,
-                    "recipients": [_recipient(t) for t in to],
-                    "revision_ids": ids,
-                    "notes": notes,
-                }
-            ),
+        command = CreateTransmittal.model_validate(
+            {
+                "actor": actor,
+                "source": "cli",
+                "scope": scope,
+                "number": number,
+                "subject": subject,
+                "direction": direction,
+                "purpose": purpose,
+                "due_date": due,
+                "recipients": [_recipient(t) for t in to],
+                "revision_ids": ids,
+                "notes": notes,
+            }
         )
+        require_command(uow, command)
+        made = handle_create_transmittal(uow, command)
     typer.echo(f"created transmittal {made.key}")
     typer.echo(f"items {len(ids)}")
 
@@ -151,20 +150,18 @@ def issue(
     """Issue a draft transmittal (controller): it is now the record of what was sent."""
     db: DbTarget = ctx.obj
     scope = f"project:{project}"
-    require_controller(db)
     with _service_errors(), open_uow(db) as uow:
         row = _transmittal(uow, scope, project, number)
-        handle_issue_transmittal(
-            uow,
-            IssueTransmittal(
-                actor=actor,
-                source="cli",
-                scope=scope,
-                stream_id=row.id,
-                issued_on=issued_on,
-                date_reason=date_reason,
-            ),
+        command = IssueTransmittal(
+            actor=actor,
+            source="cli",
+            scope=scope,
+            stream_id=row.id,
+            issued_on=issued_on,
+            date_reason=date_reason,
         )
+        require_command(uow, command)
+        handle_issue_transmittal(uow, command)
         after = _transmittal(uow, scope, project, number)
     typer.echo(f"issued {number} on {after.issued_on}")
 
@@ -188,21 +185,20 @@ def answer(
     scope = f"project:{project}"
     with _service_errors(), open_uow(db) as uow:
         row = _transmittal(uow, scope, project, number)
-        handle_record_transmittal_response(
-            uow,
-            RecordTransmittalResponse.model_validate(
-                {
-                    "actor": actor,
-                    "source": "cli",
-                    "scope": scope,
-                    "stream_id": row.id,
-                    "response_code": code,
-                    "response_note": note,
-                    "responded_on": responded_on,
-                    "date_reason": date_reason,
-                }
-            ),
+        command = RecordTransmittalResponse.model_validate(
+            {
+                "actor": actor,
+                "source": "cli",
+                "scope": scope,
+                "stream_id": row.id,
+                "response_code": code,
+                "response_note": note,
+                "responded_on": responded_on,
+                "date_reason": date_reason,
+            }
         )
+        require_command(uow, command)
+        handle_record_transmittal_response(uow, command)
     typer.echo(f"answered {number}: {code}")
 
 
@@ -219,12 +215,11 @@ def close(
     scope = f"project:{project}"
     with _service_errors(), open_uow(db) as uow:
         row = _transmittal(uow, scope, project, number)
-        handle_close_transmittal(
-            uow,
-            CloseTransmittal(
-                actor=actor, source="cli", scope=scope, stream_id=row.id, reason=reason
-            ),
+        command = CloseTransmittal(
+            actor=actor, source="cli", scope=scope, stream_id=row.id, reason=reason
         )
+        require_command(uow, command)
+        handle_close_transmittal(uow, command)
     typer.echo(f"closed {number}")
 
 
@@ -241,12 +236,11 @@ def void(
     scope = f"project:{project}"
     with _service_errors(), open_uow(db) as uow:
         row = _transmittal(uow, scope, project, number)
-        handle_void_transmittal(
-            uow,
-            VoidTransmittal(
-                actor=actor, source="cli", scope=scope, stream_id=row.id, reason=reason
-            ),
+        command = VoidTransmittal(
+            actor=actor, source="cli", scope=scope, stream_id=row.id, reason=reason
         )
+        require_command(uow, command)
+        handle_void_transmittal(uow, command)
     typer.echo(f"voided {number}")
 
 

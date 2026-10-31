@@ -26,7 +26,7 @@ from tl_mod_schemareg.handlers.packages import (
 
 from tl_cli.derive_support import DEV_ACTOR, SOURCE, Actor, acting, cell, service_errors
 from tl_cli.schema_pkg import resolve_package
-from tl_cli.session import require_admin, require_session
+from tl_cli.session import require_admin, require_command, require_session
 
 _Ref = Annotated[str, typer.Argument(help="A package id or name@version, for example acme@1.1.0.")]
 _Reason = Annotated[str, typer.Option("--reason", help="Why; kept in the ledger.")]
@@ -51,16 +51,15 @@ def publish(
     require_admin(db)
     target = resolve_package(db, ref)
     with service_errors(), open_uow(db) as uow:
-        made = handle_publish_schema_package(
-            uow,
-            PublishSchemaPackage(
-                actor=acting(db, actor),
-                source=SOURCE,
-                scope="company",
-                package_id=target,
-                auto_adopt=auto_adopt,
-            ),
+        command = PublishSchemaPackage(
+            actor=acting(db, actor),
+            source=SOURCE,
+            scope="company",
+            package_id=target,
+            auto_adopt=auto_adopt,
         )
+        require_command(uow, command)
+        made = handle_publish_schema_package(uow, command)
     typer.echo(f"published {made.key} {made.stream_id}")
     if auto_adopt:
         moved = sum(1 for event in made.events if event.event_type == "Adoption.Pinned")
@@ -81,17 +80,16 @@ def deprecate(
     require_admin(db)
     target = resolve_package(db, ref)
     with service_errors(), open_uow(db) as uow:
-        done = handle_deprecate_schema_package(
-            uow,
-            DeprecateSchemaPackage(
-                actor=acting(db, actor),
-                source=SOURCE,
-                scope="company",
-                package_id=target,
-                reason=reason,
-                replacement=replacement,
-            ),
+        command = DeprecateSchemaPackage(
+            actor=acting(db, actor),
+            source=SOURCE,
+            scope="company",
+            package_id=target,
+            reason=reason,
+            replacement=replacement,
         )
+        require_command(uow, command)
+        done = handle_deprecate_schema_package(uow, command)
     typer.echo(f"deprecated {done.key}")
 
 
@@ -104,16 +102,15 @@ def retire(ctx: typer.Context, ref: _Ref, reason: _Reason, actor: Actor = DEV_AC
     require_admin(db)
     target = resolve_package(db, ref)
     with service_errors(), open_uow(db) as uow:
-        done = handle_retire_schema_package(
-            uow,
-            RetireSchemaPackage(
-                actor=acting(db, actor),
-                source=SOURCE,
-                scope="company",
-                package_id=target,
-                reason=reason,
-            ),
+        command = RetireSchemaPackage(
+            actor=acting(db, actor),
+            source=SOURCE,
+            scope="company",
+            package_id=target,
+            reason=reason,
         )
+        require_command(uow, command)
+        done = handle_retire_schema_package(uow, command)
     typer.echo(f"retired {done.key}")
 
 
@@ -139,18 +136,17 @@ def adopt(
     db: DbTarget = ctx.obj
     require_admin(db)
     with service_errors(), open_uow(db) as uow:
-        handle_adopt_schema_package(
-            uow,
-            AdoptSchemaPackage(
-                actor=acting(db, actor),
-                source=SOURCE,
-                scope=f"project:{project}",
-                project=project,
-                package=package,
-                version=version,
-                impact_sha256=impact_sha256,
-            ),
+        command = AdoptSchemaPackage(
+            actor=acting(db, actor),
+            source=SOURCE,
+            scope=f"project:{project}",
+            project=project,
+            package=package,
+            version=version,
+            impact_sha256=impact_sha256,
         )
+        require_command(uow, command)
+        handle_adopt_schema_package(uow, command)
     typer.echo(f"adopted {project} {package}@{version}")
 
 

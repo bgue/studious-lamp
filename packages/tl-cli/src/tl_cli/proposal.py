@@ -17,6 +17,7 @@ from pydantic import ValidationError
 from tl_adapters.db import DbTarget, is_postgres, open_uow
 from tl_adapters.objectstore import make_object_store, object_secret
 from tl_api.thread_runner import thread_runner
+from tl_core.auth.module_roles import holder_for_actor
 from tl_core.files.service import FileService
 from tl_core.ledger import ConcurrencyError
 from tl_core.proposals.types import ProposalStatus, ProposalView
@@ -224,6 +225,7 @@ def accept(
         holds: Callable[[Any], bool] = session_holds
         with open_uow(db, readonly=True) as uow:
             stored = proposals.get_proposal(uow.conn(), proposal_id)
+            holder = holder_for_actor(uow.conn(), actor)  # the accepter's module roles (RM-S2)
             if stored.command_type == "DispatchFromThread":
                 # the runner reads what the person holds from their account: so does this
                 holds = account_holds(uow.conn(), actor)
@@ -236,6 +238,7 @@ def accept(
             source="cli",
             holds=holds,
             runner=thread_runner(),  # a dispatch proposal re-plans and runs its commands
+            holder=holder,
         )
     if view.status == "failed":
         typer.echo(f"failed {view.proposal_id}")

@@ -24,7 +24,7 @@ from tl_mod_schemareg.handlers.waivers import (
 )
 
 from tl_cli.derive_support import DEV_ACTOR, SOURCE, Actor, acting, cell, fail, service_errors
-from tl_cli.session import require_admin, require_session
+from tl_cli.session import require_admin, require_command, require_session
 
 app = typer.Typer(help="Ask for, approve, revoke and list waivers.", no_args_is_help=True)
 
@@ -54,18 +54,17 @@ def request(
     db: DbTarget = ctx.obj
     require_session(db)
     with service_errors(), open_uow(db) as uow:
-        made = handle_request_waiver(
-            uow,
-            RequestWaiver(
-                actor=acting(db, actor),
-                source=SOURCE,
-                scope=f"project:{project}",
-                project=project,
-                path=path,
-                reason=reason,
-                expires=expires,
-            ),
+        command = RequestWaiver(
+            actor=acting(db, actor),
+            source=SOURCE,
+            scope=f"project:{project}",
+            project=project,
+            path=path,
+            reason=reason,
+            expires=expires,
         )
+        require_command(uow, command)
+        made = handle_request_waiver(uow, command)
     typer.echo(f"requested {made.key} {made.stream_id}")
 
 
@@ -81,16 +80,15 @@ def approve(
     require_admin(db)
     waiver_id = _waiver_id(db, ref)
     with service_errors(), open_uow(db) as uow:
-        done = handle_approve_waiver(
-            uow,
-            ApproveWaiver(
-                actor=acting(db, actor),
-                source=SOURCE,
-                scope="company",
-                waiver_id=waiver_id,
-                comment=comment,
-            ),
+        command = ApproveWaiver(
+            actor=acting(db, actor),
+            source=SOURCE,
+            scope="company",
+            waiver_id=waiver_id,
+            comment=comment,
         )
+        require_command(uow, command)
+        done = handle_approve_waiver(uow, command)
     typer.echo(f"approved {done.key}")
 
 
@@ -106,16 +104,15 @@ def revoke(
     require_admin(db)
     waiver_id = _waiver_id(db, ref)
     with service_errors(), open_uow(db) as uow:
-        done = handle_revoke_waiver(
-            uow,
-            RevokeWaiver(
-                actor=acting(db, actor),
-                source=SOURCE,
-                scope="company",
-                waiver_id=waiver_id,
-                reason=reason,
-            ),
+        command = RevokeWaiver(
+            actor=acting(db, actor),
+            source=SOURCE,
+            scope="company",
+            waiver_id=waiver_id,
+            reason=reason,
         )
+        require_command(uow, command)
+        done = handle_revoke_waiver(uow, command)
     typer.echo(f"revoked {done.key}")
 
 

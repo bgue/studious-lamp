@@ -36,7 +36,7 @@ from tl_cli.doc import (
     _revision_line,
     _service_errors,
 )
-from tl_cli.session import require_controller
+from tl_cli.session import require_command
 
 app = typer.Typer(help="Start, issue, supersede, void and list revisions.", no_args_is_help=True)
 
@@ -73,21 +73,20 @@ def create(
     scope = f"project:{project}"
     with _service_errors(), open_uow(db) as uow:
         row = _document(uow, scope, project, number)
-        made = handle_create_revision(
-            uow,
-            CreateRevision(
-                actor=actor,
-                source="cli",
-                scope=scope,
-                document_id=row.id,
-                code=code,
-                stage=stage,
-                purpose=purpose,
-                change_note=change_note,
-                revision_date=revision_date,
-                intended_status=intended_status,
-            ),
+        command = CreateRevision(
+            actor=actor,
+            source="cli",
+            scope=scope,
+            document_id=row.id,
+            code=code,
+            stage=stage,
+            purpose=purpose,
+            change_note=change_note,
+            revision_date=revision_date,
+            intended_status=intended_status,
         )
+        require_command(uow, command)
+        made = handle_create_revision(uow, command)
     made_code = (made.key or "").rsplit("@", 1)[-1]
     typer.echo(f"created revision {made_code} Draft")
 
@@ -110,21 +109,19 @@ def issue(
     """Issue a draft revision (controller). Links pinned to other revisions go stale."""
     db: DbTarget = ctx.obj
     scope = f"project:{project}"
-    require_controller(db)
     with _service_errors(), open_uow(db) as uow:
         rev = _revision(uow, scope, project, number, code)
-        result = handle_issue_revision(
-            uow,
-            IssueRevision(
-                actor=actor,
-                source="cli",
-                scope=scope,
-                stream_id=rev.id,
-                issue_status=status,
-                issued_on=issued_on,
-                date_reason=date_reason,
-            ),
+        command = IssueRevision(
+            actor=actor,
+            source="cli",
+            scope=scope,
+            stream_id=rev.id,
+            issue_status=status,
+            issued_on=issued_on,
+            date_reason=date_reason,
         )
+        require_command(uow, command)
+        result = handle_issue_revision(uow, command)
         issued = _revision(uow, scope, project, number, code)
     flagged = sum(1 for event in result.events if event.event_type == "Link.Flagged")
     typer.echo(f"issued {number}@{code} as {status} on {issued.issued_on}")
@@ -146,21 +143,19 @@ def supersede(
     """Mark an issued revision as replaced by another issued one (controller)."""
     db: DbTarget = ctx.obj
     scope = f"project:{project}"
-    require_controller(db)
     with _service_errors(), open_uow(db) as uow:
         old = _revision(uow, scope, project, number, code)
         new = _revision(uow, scope, project, number, by)
-        handle_supersede_revision(
-            uow,
-            SupersedeRevision(
-                actor=actor,
-                source="cli",
-                scope=scope,
-                stream_id=old.id,
-                superseded_by_id=new.id,
-                reason=reason,
-            ),
+        command = SupersedeRevision(
+            actor=actor,
+            source="cli",
+            scope=scope,
+            stream_id=old.id,
+            superseded_by_id=new.id,
+            reason=reason,
         )
+        require_command(uow, command)
+        handle_supersede_revision(uow, command)
     typer.echo(f"superseded {number}@{code} by {by}")
 
 
@@ -178,16 +173,15 @@ def void(
     scope = f"project:{project}"
     with _service_errors(), open_uow(db) as uow:
         rev = _revision(uow, scope, project, number, code)
-        handle_void_revision(
-            uow,
-            VoidRevision(
-                actor=actor,
-                source="cli",
-                scope=scope,
-                stream_id=rev.id,
-                reason=reason,
-            ),
+        command = VoidRevision(
+            actor=actor,
+            source="cli",
+            scope=scope,
+            stream_id=rev.id,
+            reason=reason,
         )
+        require_command(uow, command)
+        handle_void_revision(uow, command)
     typer.echo(f"voided {number}@{code}")
 
 

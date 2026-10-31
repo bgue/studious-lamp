@@ -54,7 +54,7 @@ from tl_cli.derive_support import (
     file_service,
     service_errors,
 )
-from tl_cli.session import require_admin, require_controller
+from tl_cli.session import require_admin, require_command
 
 app = typer.Typer(help="P6 schedules as XER snapshots.", no_args_is_help=True)
 xer_read.register(app)
@@ -94,21 +94,19 @@ def define(
 ) -> None:
     """Register a schedule (controller). Prints `defined <code> <id>`."""
     db: DbTarget = ctx.obj
-    require_controller(db)
     with service_errors(), open_uow(db) as uow:
-        made = handle_define_schedule(
-            uow,
-            DefineSchedule(
-                actor=acting(db, actor),
-                source=SOURCE,
-                scope=f"project:{project}",
-                code=code,
-                name=name,
-                schedule_type=schedule_type,
-                owner=owner,
-                p6_project=p6_project,
-            ),
+        command = DefineSchedule(
+            actor=acting(db, actor),
+            source=SOURCE,
+            scope=f"project:{project}",
+            code=code,
+            name=name,
+            schedule_type=schedule_type,
+            owner=owner,
+            p6_project=p6_project,
         )
+        require_command(uow, command)
+        made = handle_define_schedule(uow, command)
     typer.echo(f"defined {made.key} {made.stream_id}")
 
 
@@ -149,16 +147,15 @@ def upload(
         with open_uow(db, readonly=True) as uow:
             found = views.find_schedule(uow.conn(), scope, schedule)
         with open_uow(db) as uow:  # one transaction: a refused upload leaves no snapshot behind
-            opened = handle_open_schedule_snapshot(
-                uow,
-                OpenScheduleSnapshot(
-                    actor=who,
-                    source=SOURCE,
-                    scope=scope,
-                    schedule_id=found.id,
-                    p6_project=p6_project,
-                ),
+            command = OpenScheduleSnapshot(
+                actor=who,
+                source=SOURCE,
+                scope=scope,
+                schedule_id=found.id,
+                p6_project=p6_project,
             )
+            require_command(uow, command)
+            opened = handle_open_schedule_snapshot(uow, command)
             ticket = service.register_upload(
                 uow,
                 RegisterUpload(
@@ -180,12 +177,11 @@ def upload(
                 with path.open("rb") as source_file:
                     service.complete_upload(uow, done, source_file)
             if not no_start:
-                handle_start_schedule_snapshot(
-                    uow,
-                    StartScheduleSnapshot(
-                        actor=who, source=SOURCE, scope=scope, snapshot_id=opened.stream_id
-                    ),
+                command_2 = StartScheduleSnapshot(
+                    actor=who, source=SOURCE, scope=scope, snapshot_id=opened.stream_id
                 )
+                require_command(uow, command_2)
+                handle_start_schedule_snapshot(uow, command_2)
     if no_start:
         typer.echo(f"uploaded {opened.key} {opened.stream_id}")
         return
@@ -206,12 +202,11 @@ def start(
     with service_errors():
         _, snapshot_id = _snapshot(db, scope, schedule, number)
         with open_uow(db) as uow:
-            made = handle_start_schedule_snapshot(
-                uow,
-                StartScheduleSnapshot(
-                    actor=acting(db, actor), source=SOURCE, scope=scope, snapshot_id=snapshot_id
-                ),
+            command = StartScheduleSnapshot(
+                actor=acting(db, actor), source=SOURCE, scope=scope, snapshot_id=snapshot_id
             )
+            require_command(uow, command)
+            made = handle_start_schedule_snapshot(uow, command)
     typer.echo(f"queued {made.key} {made.stream_id}")
 
 
@@ -231,16 +226,14 @@ def publish(
     """
     db: DbTarget = ctx.obj
     scope = f"project:{project}"
-    require_controller(db)
     with service_errors():
         _, snapshot_id = _snapshot(db, scope, schedule, number)
         with open_uow(db) as uow:
-            made = handle_publish_schedule_snapshot(
-                uow,
-                PublishScheduleSnapshot(
-                    actor=acting(db, actor), source=SOURCE, scope=scope, snapshot_id=snapshot_id
-                ),
+            command = PublishScheduleSnapshot(
+                actor=acting(db, actor), source=SOURCE, scope=scope, snapshot_id=snapshot_id
             )
+            require_command(uow, command)
+            made = handle_publish_schedule_snapshot(uow, command)
     typer.echo(f"published {made.key}")
     checked = [e for e in made.events if e.event_type == "ScheduleSnapshot.MadeCurrent"]
     if checked and checked[0].payload.get("orphan_check_queued"):
@@ -262,20 +255,18 @@ def void(
     """Void a snapshot that is not published (controller)."""
     db: DbTarget = ctx.obj
     scope = f"project:{project}"
-    require_controller(db)
     with service_errors():
         _, snapshot_id = _snapshot(db, scope, schedule, number)
         with open_uow(db) as uow:
-            made = handle_void_schedule_snapshot(
-                uow,
-                VoidScheduleSnapshot(
-                    actor=acting(db, actor),
-                    source=SOURCE,
-                    scope=scope,
-                    snapshot_id=snapshot_id,
-                    reason=reason,
-                ),
+            command = VoidScheduleSnapshot(
+                actor=acting(db, actor),
+                source=SOURCE,
+                scope=scope,
+                snapshot_id=snapshot_id,
+                reason=reason,
             )
+            require_command(uow, command)
+            made = handle_void_schedule_snapshot(uow, command)
     typer.echo(f"voided {made.key}")
 
 
@@ -304,19 +295,18 @@ def link(
         source = get_record(uow, scope, record)
         if source is None:
             fail(f"no record with key {record!r} in project {project!r}")
-        made = handle_link_activity(
-            uow,
-            LinkActivity(
-                actor=acting(db, actor),
-                source=SOURCE,
-                scope=scope,
-                from_id=str(source["id"]),
-                schedule_id=found.id,
-                activity_id=activity,
-                pin=pin,
-                note=note,
-            ),
+        command = LinkActivity(
+            actor=acting(db, actor),
+            source=SOURCE,
+            scope=scope,
+            from_id=str(source["id"]),
+            schedule_id=found.id,
+            activity_id=activity,
+            pin=pin,
+            note=note,
         )
+        require_command(uow, command)
+        made = handle_link_activity(uow, command)
     typer.echo(f"linked {record} -> {schedule}/{activity} {made.stream_id}")
 
 

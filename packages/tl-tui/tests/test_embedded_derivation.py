@@ -126,7 +126,7 @@ def test_publishing_tags_needs_the_admin_role(ledger: Ledger) -> None:
 def test_publishing_documents_needs_the_controller_and_compensating_the_admin(
     ledger: Ledger,
 ) -> None:
-    with pytest.raises(ForbiddenError, match="document_controller or admin"):
+    with pytest.raises(ForbiddenError, match="needs the controller access word"):
         ledger.client("user:ursula").publish_derived_documents(
             publish_documents(ledger, "user:ursula")
         )
@@ -151,7 +151,7 @@ def test_voiding_a_derived_document_is_a_controllers_act(ledger: Ledger) -> None
         )
 
     for actor in ("user:ursula", "user:nobody"):
-        with pytest.raises(ForbiddenError, match="document_controller or admin"):
+        with pytest.raises(ForbiddenError, match="needs the controller access word"):
             ledger.client(actor).void_derived_document(void(actor))
     done = ledger.client("user:dora").void_derived_document(void("user:dora"))
     assert done.stream_id == ledger.derived_id

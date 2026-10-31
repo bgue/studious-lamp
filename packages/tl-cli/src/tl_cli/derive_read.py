@@ -26,6 +26,7 @@ from tl_cli.derive_support import (
     fail,
     service_errors,
 )
+from tl_cli.session import require_command
 
 app = typer.Typer(
     help="Show, report, diff and re-validate derived documents.", no_args_is_help=True
@@ -226,15 +227,14 @@ def validate(
     scope = f"project:{project}"
     with service_errors(), open_uow(db) as uow:
         found = views.find_derived(uow.conn(), scope, ref)
-        made = handle_validate_derived(
-            uow,
-            ValidateDerived(
-                actor=who,
-                source=SOURCE,
-                scope=scope,
-                derived_id=found.id,
-                content_rev=rev,
-                schema_semver=schema_version,
-            ),
+        command = ValidateDerived(
+            actor=who,
+            source=SOURCE,
+            scope=scope,
+            derived_id=found.id,
+            content_rev=rev,
+            schema_semver=schema_version,
         )
+        require_command(uow, command)
+        made = handle_validate_derived(uow, command)
     typer.echo(f"queued {made.key} for {found.key}")
