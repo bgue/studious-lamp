@@ -98,6 +98,8 @@ classes:
   InboundDelivery:
     description: One accepted inbound POST and what became of it. The raw body is an object, never a column.
     annotations:
+      tl:offline: none
+      tl:stream_type: core.InboundDelivery
       tl:current_state: true
       tl:table: int_delivery
       tl:ix_endpoint_state: "endpoint_id, state"

@@ -54,6 +54,7 @@ Classes:
 | `core.ActivityPost` | `full` | Created and edited offline, merged on sync. |
 | `core.Enricher` | `none` | Online only. |
 | `core.EnrichmentValue` | `none` | Online only. |
+| `core.InboundDelivery` | `none` | Online only. |
 | `core.InboundEndpoint` | `none` | Online only. |
 | `core.IntegrationApp` | `none` | Online only. |
 | `core.Proposal` | `none` | Online only. |
