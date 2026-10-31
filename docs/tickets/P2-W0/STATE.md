@@ -1,5 +1,5 @@
-# P2-W0 STATE  r=2 base=eb69853 C=C1 ck=- gate=n/a wt=/home/user/wt/p2-w0
-Read first: docs/build-spec/specs/wave0.md (plan, "Plan check" at the end), README.md here. Branch p2/w0 (trunk claude/wizardly-allen-m2v96s @0a69e0a). Builders branch from p2/w0 HEAD (after the r2 state commit).
+# P2-W0 STATE  r=2 base=129359c C=C1 ck=- gate=n/a wt=/home/user/wt/p2-w0
+Read first: docs/build-spec/specs/wave0.md (plan, "Plan check" at the end), README.md here. Branch p2/w0 (trunk claude/wizardly-allen-m2v96s @0a69e0a). Builders branch from p2/w0 HEAD (the r2 state commit).
 ## BOARD
 RM-S1 p mrg f 55931f7 module roles table, grants, resolver, company grants; C1
 W0-B1 p mrg f 4824bf6 readiness, reserved, 11 keys, access words; C1
