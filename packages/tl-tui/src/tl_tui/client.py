@@ -14,6 +14,8 @@ from typing import Any, Literal, Protocol
 from pydantic import BaseModel
 from tl_core.actions import RecordActions
 from tl_core.addable import AddableProperties
+from tl_core.auth.module_grants import ModuleRoleResult
+from tl_core.auth.module_role_views import EffectiveRoleView, ModuleRoleGrantView
 from tl_core.auth.types import AccountKind, AccountView, AgentTokenView
 from tl_core.extypes.service import BodyStoredOut, BodyView, TypeDetail, TypeSummary
 from tl_core.extypes.types import TypeStatus
@@ -1058,6 +1060,44 @@ class ClientInterface(Protocol):
 
     def revoke_agent_token(self, token_id: str, *, reason: str | None = None) -> AgentTokenView:
         """Revoke a token at once."""
+        ...
+
+    # --- module roles (RM-S3; ADR-0021) -------------------------------------------------------
+    #
+    # The same names and signatures as ``tl_api.client.AdminApi`` and ``AuthApi.my_roles``.
+    # ``project`` is ``company`` or ``project:<id>``. The first four are an admin's
+    # (``ForbiddenError`` otherwise); ``my_roles`` is any signed-in person's own. Failures raise
+    # ``UnknownRoleError``, ``UnknownModuleError``, ``NoSuchGrantError``, ``NoCompanyRolesError``,
+    # ``AccountNotFoundError``, ``InvalidAccountError``.
+
+    def list_module_roles(
+        self,
+        project: str | None = None,
+        *,
+        module: str | None = None,
+        account_id: str | None = None,
+    ) -> list[ModuleRoleGrantView]:
+        """The explicit grants, narrowed by any of project, module and account."""
+        ...
+
+    def effective_roles(self, account_id: str, project: str) -> list[EffectiveRoleView]:
+        """What the account holds per loaded module on ``project``, with the source."""
+        ...
+
+    def grant_module_role(
+        self, account_id: str, project: str, module: str, role: str, reason: str
+    ) -> ModuleRoleResult:
+        """Grant a role; ``changed`` is false when the account already held it."""
+        ...
+
+    def revoke_module_role(
+        self, account_id: str, project: str, module: str, role: str, reason: str
+    ) -> ModuleRoleResult:
+        """Revoke a role; ``NoSuchGrantError`` when it is not held."""
+        ...
+
+    def my_roles(self, project: str) -> list[EffectiveRoleView]:
+        """The signed-in person's own roles per loaded module on ``project``."""
         ...
 
     # --- the integration layer (P1-I7) --------------------------------------------------------

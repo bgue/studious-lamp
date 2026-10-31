@@ -11,10 +11,12 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Request, Response
+from fastapi import APIRouter, Depends, Query, Request, Response
 from pydantic import BaseModel, ConfigDict, Field
 from tl_core.auth import sessions
 from tl_core.auth.errors import ForbiddenError
+from tl_core.auth.module_role_views import PROJECT_PATTERN, EffectiveRoleView, effective_role_views
+from tl_core.auth.module_roles import holder_for_principal
 from tl_core.auth.types import Principal
 
 from tl_api.auth import bearer_token, current_principal, guard
@@ -118,3 +120,24 @@ def change_own_password(
         new_password=body.new_password,
     )
     return Response(status_code=204)
+
+
+@router.get(
+    "/auth/me/roles", operation_id="my_module_roles", response_model=list[EffectiveRoleView]
+)
+def my_roles(
+    me: Me,
+    ctx: Ctx,
+    actor: Annotated[str, Depends(guard("auth.me"))],
+    project: Annotated[
+        str, Query(pattern=PROJECT_PATTERN, description="`company` or `project:<id>`.")
+    ],
+) -> list[EffectiveRoleView]:
+    """Your own roles per loaded module on the project and where each comes from.
+
+    The account is the token's, never a parameter: nobody reads another person's roles here.
+    """
+    with ctx.backend(True) as uow:
+        return effective_role_views(
+            uow.conn(), me.account_id, project, holder=holder_for_principal(me)
+        )

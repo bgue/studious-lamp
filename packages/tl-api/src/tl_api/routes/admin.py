@@ -16,6 +16,20 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, ConfigDict, Field
 from tl_core.auth import accounts, queries
+from tl_core.auth.module_grants import (
+    GrantModuleRole,
+    ModuleRoleResult,
+    RevokeModuleRole,
+    grant_module_role,
+    revoke_module_role,
+)
+from tl_core.auth.module_role_views import (
+    PROJECT_PATTERN,
+    EffectiveRoleView,
+    ModuleRoleGrantView,
+    effective_role_views,
+    list_module_roles,
+)
 from tl_core.auth.password import prepare_password
 from tl_core.auth.types import ROLES, AccountKind, AccountView, AgentTokenView, Role
 from tl_core.util import utcnow
@@ -34,6 +48,8 @@ Resetter = Annotated[str, Depends(guard("admin.accounts.password"))]
 TokenLister = Annotated[str, Depends(guard("admin.tokens.list"))]
 TokenIssuer = Annotated[str, Depends(guard("admin.tokens.issue"))]
 TokenRevoker = Annotated[str, Depends(guard("admin.tokens.revoke"))]
+ModuleRoleSetter = Annotated[str, Depends(guard("admin.accounts.module_roles"))]
+MODULE_ROLE_SOURCE = "api"
 MAX_SECRET = 1024
 MAX_REASON = 500
 DEFAULT_TOKEN_DAYS = 90
@@ -84,6 +100,21 @@ class ResetPasswordBody(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     new_password: Annotated[str, Field(min_length=1, max_length=MAX_SECRET)]
+
+
+class ModuleRoleBody(BaseModel):
+    """Body of the module role grant and revoke calls."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    project: Annotated[
+        str, Field(pattern=PROJECT_PATTERN, description="`company` or `project:<id>`.")
+    ]
+    module: Annotated[
+        str, Field(min_length=1, max_length=64, description="A loaded module, or `*` for all.")
+    ]
+    role: Annotated[str, Field(min_length=1, max_length=64)]
+    reason: Annotated[str, Field(min_length=1, max_length=MAX_REASON)]
 
 
 class IssueTokenBody(BaseModel):
@@ -252,3 +283,78 @@ def revoke_token(token_id: str, body: ReasonBody, ctx: Ctx, actor: TokenRevoker)
     """Revoke an agent token at once (404 `agent_token_not_found`, 409 `account_state`)."""
     with ctx.backend() as uow:
         return accounts.revoke_agent_token(uow, token_id=token_id, by=actor, reason=body.reason)
+
+
+@router.post(
+    "/admin/accounts/{account_id}/module-roles",
+    operation_id="admin_grant_module_role",
+    response_model=ModuleRoleResult,
+    status_code=201,
+)
+def grant_role(
+    account_id: str, body: ModuleRoleBody, ctx: Ctx, actor: ModuleRoleSetter
+) -> ModuleRoleResult:
+    """Grant a module role. Granting one already held writes nothing: `changed: false`.
+
+    Refusals: 404 `account_not_found`, 422 `unknown_role`, `unknown_module`, `no_company_roles`
+    (a `company` grant for a module without company roles), `invalid_account` (an agent may hold
+    only the roles the table allows agents).
+    """
+    command = GrantModuleRole(
+        actor=actor, source=MODULE_ROLE_SOURCE, account_id=account_id, **body.model_dump()
+    )
+    with ctx.backend() as uow:
+        return grant_module_role(uow, command)
+
+
+@router.post(
+    "/admin/accounts/{account_id}/module-roles/revoke",
+    operation_id="admin_revoke_module_role",
+    response_model=ModuleRoleResult,
+)
+def revoke_role(
+    account_id: str, body: ModuleRoleBody, ctx: Ctx, actor: ModuleRoleSetter
+) -> ModuleRoleResult:
+    """Revoke a module role (404 `no_such_grant` when the account does not hold it)."""
+    command = RevokeModuleRole(
+        actor=actor, source=MODULE_ROLE_SOURCE, account_id=account_id, **body.model_dump()
+    )
+    with ctx.backend() as uow:
+        return revoke_module_role(uow, command)
+
+
+@router.get(
+    "/admin/module-roles",
+    operation_id="admin_list_module_roles",
+    response_model=list[ModuleRoleGrantView],
+)
+def list_roles(
+    ctx: Ctx,
+    actor: Lister,
+    project: Annotated[
+        str | None, Query(pattern=PROJECT_PATTERN, description="`company` or `project:<id>`.")
+    ] = None,
+    module: Annotated[str | None, Query(max_length=64)] = None,
+    account_id: Annotated[str | None, Query(max_length=64)] = None,
+) -> list[ModuleRoleGrantView]:
+    """The explicit module role grants, narrowed by any of project, module and account."""
+    with ctx.backend(True) as uow:
+        return list_module_roles(uow.conn(), project=project, module=module, account_id=account_id)
+
+
+@router.get(
+    "/admin/accounts/{account_id}/effective-roles",
+    operation_id="admin_effective_roles",
+    response_model=list[EffectiveRoleView],
+)
+def effective_roles_of(
+    account_id: str,
+    ctx: Ctx,
+    actor: Lister,
+    project: Annotated[
+        str, Query(pattern=PROJECT_PATTERN, description="`company` or `project:<id>`.")
+    ],
+) -> list[EffectiveRoleView]:
+    """What the account holds, per loaded module, on the project and where it comes from."""
+    with ctx.backend(True) as uow:
+        return effective_role_views(uow.conn(), account_id, project)

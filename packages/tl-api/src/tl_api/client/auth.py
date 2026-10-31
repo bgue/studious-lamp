@@ -10,6 +10,7 @@ includes a password or a token in an exception text.
 from __future__ import annotations
 
 import httpx2
+from tl_core.auth.module_role_views import EffectiveRoleView
 from tl_core.auth.types import Principal
 
 from tl_api.client.base import DEFAULT_TIMEOUT_S, ApiClientBase, ApiUnavailableError
@@ -62,3 +63,8 @@ class AuthApi(ApiClientBase):
             "/auth/password",
             json={"current_password": current_password, "new_password": new_password},
         )
+
+    def my_roles(self, project: str) -> list[EffectiveRoleView]:
+        """Your own roles per loaded module on ``project`` (``GET /auth/me/roles``)."""
+        data = self._get_json("/auth/me/roles", {"project": project})
+        return self._models(EffectiveRoleView, data)
