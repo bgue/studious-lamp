@@ -37,6 +37,7 @@ from tl_tui.admin_text import (
 from tl_tui.client import ClientInterface
 from tl_tui.display import mode_of
 from tl_tui.errors import CLIENT_ERRORS, describe_error
+from tl_tui.labels_load import forget_labels
 from tl_tui.widgets.account_forms import AccountForm, PasswordForm, TokenForm, TokenShown
 from tl_tui.widgets.prompt import PromptScreen
 
@@ -222,6 +223,7 @@ class AdminScreen(ModalScreen[None]):
             except CLIENT_ERRORS as exc:
                 self._say(describe_error(exc), error=True)
                 return
+            forget_labels(self.client)  # the labels list the service accounts
             self.reload()
             self._say(f"{verb}d {view.username}")
 

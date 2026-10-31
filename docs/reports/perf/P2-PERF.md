@@ -30,11 +30,15 @@ Machine: the before figures come from a 2.10 GHz Xeon, the after from a 2.80 GHz
 - Within noise of the line: document register open (sqlite 267, postgres 274), grid number/code filters (254-303, count of more than 3,000 matches), remote Enter (244-268).
 - Not a P2 effect: the grid was already 320-370 on the branch before this work on this machine (P1 measured 237-259 on older code); this work brings it to 200-340.
 
-## Stale pins (not run; expect these to need a one-line change)
-- Tests that read the Properties, Links, Trace or Thread tab without switching to it (`test_properties_tab`, `test_psets_tab`, `test_trace_tab`, `test_thread_tab`, `test_record_view`, `test_record_screen`, `test_links_tab`, `test_links_thread_plain`, `test_keymap`, `test_embedded_real_services`): switch first (`view.show_tab(...)`).
-- Tests that read `#log-panel-text` or the actions bar right after the rows load: they now follow after the first refresh (one more `pilot.pause()`).
-- Tests that count `list_clocks` calls from a record's timeline; tests that count table rows above 120 (none found).
-- New, unrun tests: `packages/tl-core/tests/test_definition_cache.py`, `tests/confidentiality/test_core.py::test_visible_rows_*`, `packages/tl-tui/tests/test_reads_and_labels.py`, three in `test_log_screen.py`.
+## Stale pins (round 2: fixed, and checked against the branch before this work)
+- Fixed (tests only): `test_properties_tab` (4) and `test_psets_tab` (1) now show the Properties tab before reading it. The log fill asked the actions bar twice per list (`test_log_screen`, 2): fixed in code (the deferred fill answers for the highlighted row; a highlight in between waits for it).
+- 40 other failures in the 23 tl-tui files I ran (record, domain, correspondence, document, RFI details and snapshot tests) fail the same way at 8f05864, before this work: P1-UX3 layout pins, not this piece. Not changed here.
+- `list_clocks` counts: the only counting test (`test_correspondence_screen`) counts the clocks view's own read and passes. New tests: `tests/confidentiality/test_paths_equal_old.py` (differential, 5 readers), `packages/tl-core/tests/test_definition_cache.py`, `packages/tl-tui/tests/test_reads_and_labels.py`, three in `test_log_screen.py`.
+
+## Review round 2
+- `_by_number` (correspondence registry): the fast lookup requires `key = n` and `number = n`; no code path changes a record's key or number after creation (no renumber event; the key is set from the number at creation), and a miss falls back to the lookup by number alone, so a divergence would cost one extra statement, not a wrong or missing row.
+- `derived_from_commercial` now reads at most `DERIVED_LIMIT` (10,000) Commercial items per RFI; before there was no cap. Above 1,000 it filters in SQL as before.
+- `not_hidden_each` requires a non-NULL id column (docstring); `forget_labels` is called after creating an account, enabling or disabling one, a module command run from a log, and package adoption.
 
 ## Not reached
 Postgres statement count (batching a record screen into one call); `ANALYZE` for SQLite ledgers; seeding at 10,000 takes 100 minutes (every command reads the whole register: letters 2,779 s, documents 3,012 s) so `just perf-ux` now has `--seed-dir` to keep seeded ledgers. The bench also needed two repairs for the P1-UX3 layout (`widget_text` read a panel's drawn form; the list-ready test counted every row).

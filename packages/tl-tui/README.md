@@ -134,7 +134,7 @@ log never lays out its own screen and never adds a second standard.
   register opens on its first 500 rows and reads the rest, up to 5,000, on either). `RecordView` reads the record, its
   history and Details at once and the Properties, Links, Trace and Thread tabs when each is first shown;
   `tl_tui.reads.Reads` answers repeated reads of one refresh once; `labels_load.load_labels` keeps the labels of a
-  client for 20 s (`forget_labels` drops them). `dev/perf/ux_bench.py` (`just perf-ux`) measures all of it.
+  client for 20 s (`forget_labels` drops them: creating or enabling an account, a module command run from a log and an adopted package call it). `dev/perf/ux_bench.py` (`just perf-ux`) measures all of it.
 - **Add property (P1-UX3 rounds 3 and 4)**: `[+] Add property` on the record screen's Properties tab (key `+`) and in the
   actions bar of the document, tag, correspondence and RFI/commercial logs (not for an agent or a voided record).
   `widgets/add_property_form.py` is the form and `add_property.py` its pure part. The form reads

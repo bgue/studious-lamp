@@ -216,7 +216,11 @@ def not_hidden_each(id_expr: str, viewer: Viewer | None = None) -> tuple[str, di
     """Like ``not_hidden``, for a statement whose other conditions already narrow the rows to a
     few (the links of one record, say): the test is made for each row that reaches it, by looking
     that row's record up, not by listing every hidden record of the ledger first. The same
-    records pass; ``id_expr`` must be a column of the statement's own rows, never user input."""
+    records pass; ``id_expr`` must be a column of the statement's own rows, never user input.
+
+    ``id_expr`` must not be NULL: the lookup of a NULL finds nothing, so a NULL passes here (the
+    set form drops it as soon as any record is hidden). Every caller names a NOT NULL id column
+    (``l.from_id``, ``l.to_id``, ``r.id``, ``d.id``, ``x.id``)."""
     sql = hidden_sql(viewer, only=f"hr.id = {id_expr}")
     if sql is None:
         return "1 = 1", {}
