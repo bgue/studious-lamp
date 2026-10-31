@@ -1,4 +1,4 @@
-"""The document controller gate of the CLI (ADR-0013): `require_controller` at every site.
+"""The controller gate of the CLI (ADR-0013, module roles): `require_command` before every handler.
 
 Three people on one ledger, each with a session file of their own: `ursula` (role user), `dora`
 (user and document_controller) and `boss` (admin). Every command that was an admin's act in
@@ -10,6 +10,7 @@ off), so every case runs on both adapters.
 from __future__ import annotations
 
 import os
+import re
 from collections.abc import Callable
 from pathlib import Path
 from unittest import mock
@@ -27,7 +28,11 @@ from typer.testing import Result as RunResult
 
 AUTO_SIGN_IN = False  # this module signs in as three different people itself
 PASSWORD = "correct horse battery"
-GATE = "needs the document_controller or admin role"
+GATE = "needs the controller access word for documents"  # the module word (RM-S4)
+ROLE_GATE = (
+    "needs the document_controller or admin role"  # `require_controller`, kept on a condition
+)
+ROLE_GATED = {"doc import --apply"}
 ROOT = Path(__file__).resolve().parents[3]
 runner = CliRunner()
 DMS_MAPPING = ROOT / "dev" / "seed" / "templates" / "document-register-dms-export.yaml"
@@ -86,12 +91,21 @@ def cast(env: dict[str, str], tmp_path: Path) -> Cast:
 
 @pytest.fixture
 def made(env: dict[str, str], tmp_path: Path, cast: Cast) -> DocumentsWorld:
-    """ISO-1234 issued as A; ISO-2000 with a draft A that has a PDF; a draft transmittal."""
+    """ISO-1234 issued as A; ISO-2000 with a draft A that has a PDF; a review cycle on it and a
+    draft transmittal of ISO-1234@A. The module gate runs once the command is built, so the
+    record each site names must exist (RM-S4)."""
     docs = world(env, tmp_path)
     docs.issued_document("ISO-1234", "IFR")
     docs.register("ISO-2000")
     docs.create_revision("ISO-2000")
     docs.attach("ISO-2000", "A")
+    opened = tl(cast.boss, "review", "open", "ISO-2000", "A", "--project", "P123",
+                "--reviewer", "user:dora")  # fmt: skip
+    assert opened.exit_code == 0 and "P123-RC-1" in opened.stdout, opened.output
+    drafted = tl(cast.boss, "transmittal", "create", "--project", "P123", "--subject", "Isos",
+                 "--purpose", "for_information", "--to", "Site:Acme:site@acme.test",
+                 "--revision", "ISO-1234@A", "--number", "P123-TRN-0001")  # fmt: skip
+    assert drafted.exit_code == 0, drafted.stderr
     return docs
 
 
@@ -153,26 +167,42 @@ def sites(tmp_path: Path) -> dict[str, tuple[str, ...]]:
     }  # fmt: skip
 
 
-def test_there_are_eleven_controller_sites(tmp_path: Path) -> None:
-    """The sites below are all of them: `require_controller` appears 11 times in `tl doc` and
-    friends, once more in `tl derive publish` (a controller publishes documents; its own test
-    is `test_cli_derive_publish.py`) and three times in `tl xer` (define, publish and void a
-    schedule; the tests are in `test_cli_xer.py`)."""
+# `require_command(uow, command)` calls per source file: one before every `tl_mod_*` handler call
+# (RM-S4; `dev/tools/gate_sweep.py --check` finds an ungated one). It replaced
+# `require_controller(db)` at every controlling site that runs a module handler.
+REQUIRE_COMMAND = {
+    "comm.py": 5, "corr.py": 11, "corr_clock.py": 4, "corr_registry.py": 11, "cost.py": 1,
+    "derive_publish.py": 3, "derive_read.py": 1, "derive_run.py": 3, "derive_schema.py": 2,
+    "doc.py": 6, "doc_link.py": 2, "doc_rendition.py": 3, "doc_rev.py": 4, "review.py": 5,
+    "rfi.py": 10, "schema_gov.py": 4, "schema_import.py": 1, "schema_pkg.py": 6,
+    "schema_waiver.py": 3, "standards.py": 3, "standards_class.py": 3, "tag.py": 6,
+    "transmittal.py": 5, "xer.py": 7,
+}  # fmt: skip
+# `require_controller(db)` that stays: a read that only a controller may make (`tl comm ls`, `show`,
+# `export`), and a condition on an option (`doc import --apply`, `derive publish`, `corr void` of a
+# received item, a privileged export class)
+REQUIRE_CONTROLLER = {
+    "comm.py": 3, "corr.py": 1, "corr_registry.py": 1, "corr_report.py": 1,
+    "derive_publish.py": 1, "doc_import.py": 1,
+}  # fmt: skip
+
+
+def test_every_controlling_cli_path_is_gated(tmp_path: Path) -> None:
+    """`require_command` stands before every module handler call, per file; `require_controller(db)`
+    stays only where no handler runs (a controller's read) or the gate depends on an option."""
     src = Path(__file__).resolve().parents[1] / "src" / "tl_cli"
-    found = {
-        p.name: p.read_text().count("require_controller(db)")
-        for p in src.glob("*.py")
-        if "require_controller(db)" in p.read_text()
-    }
-    assert found.pop("derive_publish.py") == 1
-    assert found.pop("xer.py") == 3
-    # the correspondence group has sites of its own (test_cli_corr.py names and tries each)
-    assert sum(n for name, n in found.items() if name.startswith("corr")) == 15
-    # `tl rfi` and `tl comm` (P1-I6): the issue, escalate and every Commercial command; named and
-    # tried in test_cli_domains.py
-    assert found.pop("rfi.py") == 2
-    assert found.pop("comm.py") == 8
-    assert sum(n for name, n in found.items() if not name.startswith("corr")) == 11
+    gates = {}
+    controllers = {}
+    for p in sorted(src.glob("*.py")):
+        if p.name == "session.py":
+            continue
+        text = p.read_text()
+        if "require_command(" in text:
+            gates[p.name] = len(re.findall(r"\brequire_command\(", text))
+        if "require_controller(db)" in text:
+            controllers[p.name] = text.count("require_controller(db)")
+    assert gates == REQUIRE_COMMAND
+    assert controllers == REQUIRE_CONTROLLER
     assert tuple(sites(tmp_path)) == SITE_NAMES
 
 
@@ -184,7 +214,7 @@ def test_a_user_is_refused_and_nothing_is_written(
     refused = tl(cast.ursula, *sites(tmp_path)[name])
     assert refused.exit_code == 1, refused.output
     assert refused.stderr.startswith("error: forbidden"), refused.stderr
-    assert GATE in refused.stderr
+    assert (ROLE_GATE if name in ROLE_GATED else GATE) in refused.stderr
     assert events(made) == before
 
 
@@ -196,7 +226,7 @@ def test_a_controller_and_an_admin_pass_the_gate(
     # the commands may still fail for their own reasons (a missing cycle, an invalid register row);
     # what they must not say is that the caller lacks the role
     result = tl(getattr(cast, who), *sites(tmp_path)[name])
-    assert GATE not in result.stderr and "forbidden" not in result.stderr, result.stderr
+    assert ROLE_GATE not in result.stderr and "forbidden" not in result.stderr, result.stderr
 
 
 def test_a_controller_issues_a_revision_and_a_transmittal_without_being_an_admin(
@@ -238,10 +268,12 @@ def test_a_controller_has_no_admin_command(cast: Cast, made: DocumentsWorld) -> 
     assert events(made) == before
 
 
-def test_the_gate_needs_a_session_even_where_a_dev_actor_is_free(
+def test_the_gate_needs_a_controller_even_where_a_dev_actor_is_free(
     env: dict[str, str], made: DocumentsWorld, tmp_path: Path
 ) -> None:
     nobody = env | {"TL_SESSION_FILE": str(tmp_path / "none.json")}  # no session at all
     refused = tl(nobody, "doc", "rev", "issue", "ISO-2000", "A", "--project", "P123",
                  "--status", "IFR")  # fmt: skip
-    assert refused.exit_code == 1 and refused.stderr.startswith("error: not signed in")
+    # the free dev actor holds the `user` word only (core's dev rule), never `controller`
+    assert refused.exit_code == 1 and refused.stderr.startswith("error: forbidden"), refused.stderr
+    assert GATE in refused.stderr

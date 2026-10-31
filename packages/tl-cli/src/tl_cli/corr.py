@@ -61,7 +61,7 @@ from tl_cli.doc import (
     _Reason,
     _service_errors,
 )
-from tl_cli.session import require_controller
+from tl_cli.session import require_command, require_controller
 
 app = typer.Typer(
     help="The correspondence register: receive, triage, reply, issue, clocks, mail.",
@@ -267,25 +267,24 @@ def receive(
     if file is not None:
         configure_files()
     with _service_errors(), open_uow(db) as uow:
-        made = handle_receive_correspondence(
-            uow,
-            ReceiveCorrespondence.model_validate(
-                {
-                    "actor": actor,
-                    "source": "cli",
-                    "scope": scope,
-                    "subject": subject,
-                    "medium": medium,
-                    "external_ref": external_ref,
-                    "from_name": from_name,
-                    "to": [recipient(t) for t in to or []],
-                    "sent_on": sent_on,
-                    "received_on": received_on,
-                    "body": _body(body, body_file),
-                    "response_required": response_required,
-                }
-            ),
+        command = ReceiveCorrespondence.model_validate(
+            {
+                "actor": actor,
+                "source": "cli",
+                "scope": scope,
+                "subject": subject,
+                "medium": medium,
+                "external_ref": external_ref,
+                "from_name": from_name,
+                "to": [recipient(t) for t in to or []],
+                "sent_on": sent_on,
+                "received_on": received_on,
+                "body": _body(body, body_file),
+                "response_required": response_required,
+            }
         )
+        require_command(uow, command)
+        made = handle_receive_correspondence(uow, command)
     typer.echo(f"received {made.key}")
     if file is not None:
         upload(db, scope, actor, made.stream_id, "original", file)
@@ -325,19 +324,18 @@ def update(
     }
     with _service_errors(), open_uow(db) as uow:
         row = item_row(uow, scope, project, number)
-        handle_update_correspondence(
-            uow,
-            UpdateCorrespondence.model_validate(
-                {
-                    "actor": actor,
-                    "source": "cli",
-                    "scope": scope,
-                    "stream_id": row.id,
-                    "reason": reason,
-                    **given,
-                }
-            ),
+        command = UpdateCorrespondence.model_validate(
+            {
+                "actor": actor,
+                "source": "cli",
+                "scope": scope,
+                "stream_id": row.id,
+                "reason": reason,
+                **given,
+            }
         )
+        require_command(uow, command)
+        handle_update_correspondence(uow, command)
     typer.echo(f"updated {number}")
 
 
@@ -384,20 +382,19 @@ def triage(
         if domain is None or subtype is None:
             _fail("give both --domain and --subtype")
         ids = [item_row(uow, scope, project, n).id for n in refs or []]
-        done = handle_confirm_triage(
-            uow,
-            ConfirmTriage(
-                actor=actor,
-                source="cli",
-                scope=scope,
-                stream_id=row.id,
-                domain=domain,
-                subtype=subtype,
-                referenced_ids=ids,
-                response_required=response_required,
-                start_clocks=not no_clocks,
-            ),
+        command = ConfirmTriage(
+            actor=actor,
+            source="cli",
+            scope=scope,
+            stream_id=row.id,
+            domain=domain,
+            subtype=subtype,
+            referenced_ids=ids,
+            response_required=response_required,
+            start_clocks=not no_clocks,
         )
+        require_command(uow, command)
+        done = handle_confirm_triage(uow, command)
         clocks = registry.clocks_of(uow.conn(), row.id)
     typer.echo(f"triaged {number} as {domain}/{subtype}")
     for clock in clocks:
@@ -420,13 +417,17 @@ def reclassify(
     scope = f"project:{project}"
     with _service_errors(), open_uow(db) as uow:
         row = item_row(uow, scope, project, number)
-        handle_reclassify_correspondence(
-            uow,
-            ReclassifyCorrespondence(
-                actor=actor, source="cli", scope=scope, stream_id=row.id,
-                domain=domain, subtype=subtype, reason=reason,
-            ),
-        )  # fmt: skip
+        command = ReclassifyCorrespondence(
+            actor=actor,
+            source="cli",
+            scope=scope,
+            stream_id=row.id,
+            domain=domain,
+            subtype=subtype,
+            reason=reason,
+        )
+        require_command(uow, command)
+        handle_reclassify_correspondence(uow, command)  # fmt: skip
     typer.echo(f"reclassified {number} as {domain}/{subtype}")
 
 
@@ -453,23 +454,22 @@ def draft(
     scope = f"project:{project}"
     with _service_errors(), open_uow(db) as uow:
         parent = item_row(uow, scope, project, reply_to).id if reply_to else None
-        made = handle_draft_correspondence(
-            uow,
-            DraftCorrespondence.model_validate(
-                {
-                    "actor": actor,
-                    "source": "cli",
-                    "scope": scope,
-                    "subject": subject,
-                    "body": _body(body, body_file),
-                    "to": [recipient(t) for t in to],
-                    "cc": [recipient(t) for t in cc or []],
-                    "responds_to_id": parent,
-                    "domain": domain,
-                    "subtype": subtype,
-                }
-            ),
+        command = DraftCorrespondence.model_validate(
+            {
+                "actor": actor,
+                "source": "cli",
+                "scope": scope,
+                "subject": subject,
+                "body": _body(body, body_file),
+                "to": [recipient(t) for t in to],
+                "cc": [recipient(t) for t in cc or []],
+                "responds_to_id": parent,
+                "domain": domain,
+                "subtype": subtype,
+            }
         )
+        require_command(uow, command)
+        made = handle_draft_correspondence(uow, command)
     typer.echo(f"drafted {made.key}")
 
 
@@ -488,22 +488,20 @@ def issue(
     """Issue a draft letter (controller): a PDF is stored, the send is a stub, clocks start."""
     db: DbTarget = ctx.obj
     scope = f"project:{project}"
-    require_controller(db)
     configure_files()
     with _service_errors(), open_uow(db) as uow:
         row = item_row(uow, scope, project, number)
-        handle_issue_correspondence(
-            uow,
-            IssueCorrespondence(
-                actor=actor,
-                source="cli",
-                scope=scope,
-                stream_id=row.id,
-                template=template,
-                issued_on=issued_on,
-                date_reason=date_reason,
-            ),
+        command = IssueCorrespondence(
+            actor=actor,
+            source="cli",
+            scope=scope,
+            stream_id=row.id,
+            template=template,
+            issued_on=issued_on,
+            date_reason=date_reason,
         )
+        require_command(uow, command)
+        handle_issue_correspondence(uow, command)
         after = views.item_view_by_id(uow.conn(), scope, row.id)
     typer.echo(
         f"issued {number} on {after.issued_on} (delivery {after.delivery}: nothing was sent)"
@@ -530,13 +528,17 @@ def respond(
     with _service_errors(), open_uow(db) as uow:
         row = item_row(uow, scope, project, number)
         answer = item_row(uow, scope, project, by)
-        handle_record_response(
-            uow,
-            RecordResponse(
-                actor=actor, source="cli", scope=scope, stream_id=row.id,
-                response_id=answer.id, responded_on=answered_on, reason=reason,
-            ),
-        )  # fmt: skip
+        command = RecordResponse(
+            actor=actor,
+            source="cli",
+            scope=scope,
+            stream_id=row.id,
+            response_id=answer.id,
+            responded_on=answered_on,
+            reason=reason,
+        )
+        require_command(uow, command)
+        handle_record_response(uow, command)  # fmt: skip
     typer.echo(f"{number} answered by {by}")
 
 
@@ -555,12 +557,11 @@ def close(
     scope = f"project:{project}"
     with _service_errors(), open_uow(db) as uow:
         row = item_row(uow, scope, project, number)
-        handle_close_correspondence(
-            uow,
-            CloseCorrespondence(
-                actor=actor, source="cli", scope=scope, stream_id=row.id, reason=reason
-            ),
+        command = CloseCorrespondence(
+            actor=actor, source="cli", scope=scope, stream_id=row.id, reason=reason
         )
+        require_command(uow, command)
+        handle_close_correspondence(uow, command)
     typer.echo(f"closed {number}")
 
 
@@ -581,17 +582,17 @@ def void(
         require_controller(db)
     with _service_errors(), open_uow(db) as uow:
         if row.state == "Draft":
-            handle_void_draft(
-                uow,
-                VoidDraft(actor=actor, source="cli", scope=scope, stream_id=row.id, reason=reason),
+            command = VoidDraft(
+                actor=actor, source="cli", scope=scope, stream_id=row.id, reason=reason
             )
+            require_command(uow, command)
+            handle_void_draft(uow, command)
         else:
-            handle_void_correspondence(
-                uow,
-                VoidCorrespondence(
-                    actor=actor, source="cli", scope=scope, stream_id=row.id, reason=reason
-                ),
+            command_2 = VoidCorrespondence(
+                actor=actor, source="cli", scope=scope, stream_id=row.id, reason=reason
             )
+            require_command(uow, command_2)
+            handle_void_correspondence(uow, command_2)
     typer.echo(f"voided {number}")
 
 
@@ -607,17 +608,19 @@ def supersede(
     """Replace an item by another (controller). The old item stays, marked superseded."""
     db: DbTarget = ctx.obj
     scope = f"project:{project}"
-    require_controller(db)
     with _service_errors(), open_uow(db) as uow:
         old = item_row(uow, scope, project, number)
         new = item_row(uow, scope, project, by)
-        handle_supersede_correspondence(
-            uow,
-            SupersedeCorrespondence(
-                actor=actor, source="cli", scope=scope, stream_id=old.id,
-                superseded_by_id=new.id, reason=reason,
-            ),
-        )  # fmt: skip
+        command = SupersedeCorrespondence(
+            actor=actor,
+            source="cli",
+            scope=scope,
+            stream_id=old.id,
+            superseded_by_id=new.id,
+            reason=reason,
+        )
+        require_command(uow, command)
+        handle_supersede_correspondence(uow, command)  # fmt: skip
     typer.echo(f"{number} superseded by {by}")
 
 

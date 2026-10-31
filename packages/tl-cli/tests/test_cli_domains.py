@@ -28,7 +28,8 @@ from typer.testing import Result as RunResult
 
 AUTO_SIGN_IN = False
 PASSWORD = "correct horse battery"
-GATE = "needs the document_controller or admin role"
+GATE = "access word for correspondence"  # the module word (RM-S4)
+ROLE_GATE = "needs the document_controller or admin role"  # `require_controller`, kept on reads
 PROJECT = ("--project", "P123")
 runner = CliRunner()
 
@@ -164,8 +165,8 @@ def test_escalating_is_a_controllers_act_and_the_notice_is_not_the_users(cast: C
     # the user reads the RFI, never the notice: same words as an unused number
     shown = run(cast.ursula, "rfi", "show", number, *PROJECT).stdout
     assert "escalated to" not in shown
-    assert GATE in run(cast.ursula, "comm", "show", "P123-EW-0001", *PROJECT, ok=False).stderr
-    assert GATE in run(cast.ursula, "comm", "ls", *PROJECT, ok=False).stderr
+    assert ROLE_GATE in run(cast.ursula, "comm", "show", "P123-EW-0001", *PROJECT, ok=False).stderr
+    assert ROLE_GATE in run(cast.ursula, "comm", "ls", *PROJECT, ok=False).stderr
     assert "escalated to P123-EW-0001" in run(cast.dora, "rfi", "show", number, *PROJECT).stdout
 
 
@@ -209,7 +210,7 @@ def test_every_comm_command_needs_a_controller(cast: Cast) -> None:
         ("export",),
     ):
         refused = run(cast.ursula, "comm", *args, *PROJECT, ok=False)
-        assert GATE in refused.stderr, args
+        assert (ROLE_GATE if args[0] in ("ls", "show", "export") else GATE) in refused.stderr, args
 
 
 def test_the_export_names_its_classes_and_quotes_what_a_spreadsheet_would_run(

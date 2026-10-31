@@ -42,6 +42,7 @@ from tl_cli.derive_support import (
     fail,
     service_errors,
 )
+from tl_cli.session import require_command
 
 app = typer.Typer(help="Open, feed, start and run derived documents.", no_args_is_help=True)
 
@@ -78,17 +79,16 @@ def open_derived(
     code, _, semver = schema.partition("@")
     revision_id = _revision_id(db, scope, number, revision)
     with service_errors(), open_uow(db) as uow:
-        made = handle_open_derived_document(
-            uow,
-            OpenDerivedDocument(
-                actor=acting(db, actor),
-                source=SOURCE,
-                scope=scope,
-                revision_id=revision_id,
-                schema_code=code,
-                schema_semver=semver or None,
-            ),
+        command = OpenDerivedDocument(
+            actor=acting(db, actor),
+            source=SOURCE,
+            scope=scope,
+            revision_id=revision_id,
+            schema_code=code,
+            schema_semver=semver or None,
         )
+        require_command(uow, command)
+        made = handle_open_derived_document(uow, command)
     typer.echo(f"opened {made.key} {made.stream_id}")
 
 
@@ -173,19 +173,18 @@ def start(
         revision_id = _revision_id(db, scope, doc, rev)
     with service_errors(), open_uow(db) as uow:
         derived_id = views.find_derived(uow.conn(), scope, ref).id if ref is not None else None
-        made = handle_start_extraction(
-            uow,
-            StartExtraction(
-                actor=acting(db, actor),
-                source=SOURCE,
-                scope=scope,
-                derived_id=derived_id,
-                revision_id=revision_id,
-                schema_code=schema if by_revision else None,
-                extractor=extractor,
-                file_id=file_id,
-            ),
+        command = StartExtraction(
+            actor=acting(db, actor),
+            source=SOURCE,
+            scope=scope,
+            derived_id=derived_id,
+            revision_id=revision_id,
+            schema_code=schema if by_revision else None,
+            extractor=extractor,
+            file_id=file_id,
         )
+        require_command(uow, command)
+        made = handle_start_extraction(uow, command)
         derived_key = views.job_view(uow.conn(), scope, made.stream_id).derived_key
     typer.echo(f"queued {made.key} for {derived_key}")
 
@@ -246,16 +245,15 @@ def cancel(
     db: DbTarget = ctx.obj
     scope = f"project:{project}"
     with service_errors(), open_uow(db) as uow:
-        made = handle_cancel_job(
-            uow,
-            CancelJob(
-                actor=acting(db, actor),
-                source=SOURCE,
-                scope=scope,
-                job_id=job,
-                reason=reason,
-            ),
+        command = CancelJob(
+            actor=acting(db, actor),
+            source=SOURCE,
+            scope=scope,
+            job_id=job,
+            reason=reason,
         )
+        require_command(uow, command)
+        made = handle_cancel_job(uow, command)
     typer.echo(f"cancelled {made.key}")
 
 

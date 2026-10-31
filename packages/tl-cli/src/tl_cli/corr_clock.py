@@ -33,7 +33,7 @@ from tl_mod_correspondence.handlers.clocks import (
 
 from tl_cli.corr import item_row
 from tl_cli.doc import _DEFAULT_ACTOR, _Actor, _fail, _Project, _service_errors
-from tl_cli.session import require_controller
+from tl_cli.session import require_command
 
 app = typer.Typer(
     help="Start, pause, resume, restart, meet and cancel response clocks.", no_args_is_help=True
@@ -111,16 +111,23 @@ def start(
     scope = f"project:{project}"
     with _service_errors(), open_uow(db) as uow:
         row = item_row(uow, scope, project, number)
-        made = handle_start_clock(
-            uow,
-            StartClock.model_validate(
-                {
-                    "actor": actor, "source": "cli", "scope": scope, "item_id": row.id,
-                    "label": label, "kind": kind, "duration_days": days, "day_type": day_type,
-                    "warn_days": warn or [], "start_on": start_on, "start_reason": start_reason,
-                }
-            ),
-        )  # fmt: skip
+        command = StartClock.model_validate(
+            {
+                "actor": actor,
+                "source": "cli",
+                "scope": scope,
+                "item_id": row.id,
+                "label": label,
+                "kind": kind,
+                "duration_days": days,
+                "day_type": day_type,
+                "warn_days": warn or [],
+                "start_on": start_on,
+                "start_reason": start_reason,
+            }
+        )
+        require_command(uow, command)
+        made = handle_start_clock(uow, command)  # fmt: skip
         view = views.clock_view_by_id(uow.conn(), scope, made.stream_id)
     typer.echo(f"started {made.key}")
     typer.echo(_line(view))
@@ -131,7 +138,9 @@ def _act(ctx: typer.Context, project: str, key: str, build, handler, message: st
     scope = f"project:{project}"
     with _service_errors(), open_uow(db) as uow:
         row = clock_row(uow, scope, project, key)
-        handler(uow, build(scope, row.id))
+        command = build(scope, row.id)
+        require_command(uow, command)
+        handler(uow, command)
         view = views.clock_view_by_id(uow.conn(), scope, row.id)
     typer.echo(f"{message} {key}")
     typer.echo(_line(view))
@@ -188,11 +197,17 @@ def meet(
     with _service_errors(), open_uow(db) as uow:
         row = clock_row(uow, scope, project, key)
         answer = item_row(uow, scope, project, by).id if by else None
-        handle_meet_clock(
-            uow,
-            MeetClock(actor=actor, source="cli", scope=scope, clock_id=row.id,
-                      response_id=answer, reason=reason, on=on),
-        )  # fmt: skip
+        command = MeetClock(
+            actor=actor,
+            source="cli",
+            scope=scope,
+            clock_id=row.id,
+            response_id=answer,
+            reason=reason,
+            on=on,
+        )
+        require_command(uow, command)
+        handle_meet_clock(uow, command)  # fmt: skip
     typer.echo(f"met {key}")
 
 
@@ -219,9 +234,10 @@ def sweep(
     """Record the warnings and expiries that are due (controller). Safe to repeat."""
     db: DbTarget = ctx.obj
     scope = f"project:{project}"
-    require_controller(db)
     with _service_errors(), open_uow(db) as uow:
-        outcome = sweep_clocks(uow, SweepClocks(actor=actor, source="cli", scope=scope, on=on))
+        command = SweepClocks(actor=actor, source="cli", scope=scope, on=on)
+        require_command(uow, command)
+        outcome = sweep_clocks(uow, command)
     if not outcome.events and not outcome.hidden_events:
         typer.echo("nothing to record")
     for event in outcome.events:

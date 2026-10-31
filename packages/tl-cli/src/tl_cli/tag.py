@@ -37,7 +37,7 @@ from tl_mod_engineering.handlers.tags import (
 )
 
 from tl_cli.pset import parse_assignment
-from tl_cli.session import require_admin
+from tl_cli.session import require_admin, require_command
 
 app = typer.Typer(help="Create, show and change engineering tags.", no_args_is_help=True)
 
@@ -155,9 +155,13 @@ def create(
     }
     with _service_errors(), open_uow(db) as uow:
         if allow_violation:
-            result = handle_record_tag(uow, RecordTag(**fields))
+            command = RecordTag(**fields)
+            require_command(uow, command)
+            result = handle_record_tag(uow, command)
         else:
-            result = handle_create_tag(uow, CreateTag(**fields))
+            command_2 = CreateTag(**fields)
+            require_command(uow, command_2)
+            result = handle_create_tag(uow, command_2)
         _show_created(uow, scope, project, number, result.stream_id)
 
 
@@ -260,17 +264,16 @@ def reclassify(
     scope = f"project:{project}"
     with _service_errors(), open_uow(db) as uow:
         row = _tag(uow, scope, project, number)
-        handle_reclassify_tag(
-            uow,
-            ReclassifyTag(
-                actor=actor,
-                source="cli",
-                scope=scope,
-                stream_id=row.id,
-                class_code=class_code,
-                reason=reason,
-            ),
+        command = ReclassifyTag(
+            actor=actor,
+            source="cli",
+            scope=scope,
+            stream_id=row.id,
+            class_code=class_code,
+            reason=reason,
         )
+        require_command(uow, command)
+        handle_reclassify_tag(uow, command)
         after = _tag(uow, scope, project, number)
     typer.echo(f"reclassified {number} {row.class_code or '-'} -> {after.class_code}")
     typer.echo(f"conformance {after.conformance}")
@@ -290,17 +293,16 @@ def rename(
     scope = f"project:{project}"
     with _service_errors(), open_uow(db) as uow:
         row = _tag(uow, scope, project, number)
-        made = handle_rename_tag(
-            uow,
-            RenameTag(
-                actor=actor,
-                source="cli",
-                scope=scope,
-                stream_id=row.id,
-                new_number=new_number,
-                reason=reason,
-            ),
+        command = RenameTag(
+            actor=actor,
+            source="cli",
+            scope=scope,
+            stream_id=row.id,
+            new_number=new_number,
+            reason=reason,
         )
+        require_command(uow, command)
+        made = handle_rename_tag(uow, command)
     typer.echo(f"renamed {number} -> {new_number}")
     typer.echo(f"created {made.stream_id}")
 
@@ -319,17 +321,16 @@ def split(
     scope = f"project:{project}"
     with _service_errors(), open_uow(db) as uow:
         row = _tag(uow, scope, project, number)
-        made_list = handle_split_tag(
-            uow,
-            SplitTag(
-                actor=actor,
-                source="cli",
-                scope=scope,
-                stream_id=row.id,
-                new_numbers=new_numbers,
-                reason=reason,
-            ),
+        command = SplitTag(
+            actor=actor,
+            source="cli",
+            scope=scope,
+            stream_id=row.id,
+            new_numbers=new_numbers,
+            reason=reason,
         )
+        require_command(uow, command)
+        made_list = handle_split_tag(uow, command)
     typer.echo(f"split {number} -> " + ", ".join(new_numbers))
     for made in made_list:
         typer.echo(f"created {made.stream_id}")
@@ -349,16 +350,15 @@ def merge(
     scope = f"project:{project}"
     with _service_errors(), open_uow(db) as uow:
         rows = [_tag(uow, scope, project, n) for n in numbers]
-        made = handle_merge_tags(
-            uow,
-            MergeTags(
-                actor=actor,
-                source="cli",
-                scope=scope,
-                stream_ids=[r.id for r in rows],
-                new_number=into,
-                reason=reason,
-            ),
+        command = MergeTags(
+            actor=actor,
+            source="cli",
+            scope=scope,
+            stream_ids=[r.id for r in rows],
+            new_number=into,
+            reason=reason,
         )
+        require_command(uow, command)
+        made = handle_merge_tags(uow, command)
     typer.echo(f"merged {', '.join(numbers)} -> {into}")
     typer.echo(f"created {made.stream_id}")

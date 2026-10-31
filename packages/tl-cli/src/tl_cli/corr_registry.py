@@ -46,7 +46,7 @@ from tl_mod_correspondence.handlers.threads import AssignThread, handle_assign_t
 from tl_cli.corr import item_row
 from tl_cli.derive_support import configure_files
 from tl_cli.doc import _DEFAULT_ACTOR, _Actor, _fail, _Project, _Reason, _service_errors
-from tl_cli.session import require_controller
+from tl_cli.session import require_command, require_commands, require_controller
 
 thread_app = typer.Typer(help="Threads: the items of one exchange.", no_args_is_help=True)
 party_app = typer.Typer(help="Parties and their contacts (controller).", no_args_is_help=True)
@@ -119,11 +119,16 @@ def thread_assign(
                 _fail(f"no thread {thread!r} in project {project!r}")
             thread_id = found.id
         answered = item_row(uow, scope, project, answers).id if answers else None
-        handle_assign_thread(
-            uow,
-            AssignThread(actor=actor, source="cli", scope=scope, stream_id=row.id,
-                         thread_id=thread_id, responds_to_id=answered),
-        )  # fmt: skip
+        command = AssignThread(
+            actor=actor,
+            source="cli",
+            scope=scope,
+            stream_id=row.id,
+            thread_id=thread_id,
+            responds_to_id=answered,
+        )
+        require_command(uow, command)
+        handle_assign_thread(uow, command)
         after = registry.get_item(uow.conn(), row.id)
         now = (
             registry.get_thread(uow.conn(), after.thread_id) if after and after.thread_id else None
@@ -176,16 +181,21 @@ def party_add(
     """Register a party (controller)."""
     db: DbTarget = ctx.obj
     scope = f"project:{project}"
-    require_controller(db)
     with _service_errors(), open_uow(db) as uow:
-        made = handle_register_party(
-            uow,
-            RegisterParty.model_validate(
-                {"actor": actor, "source": "cli", "scope": scope, "code": code, "name": name,
-                 "project_role": role, "email_domains": domains or [],
-                 "contacts": [_contact(c) for c in contacts or []]}
-            ),
-        )  # fmt: skip
+        command = RegisterParty.model_validate(
+            {
+                "actor": actor,
+                "source": "cli",
+                "scope": scope,
+                "code": code,
+                "name": name,
+                "project_role": role,
+                "email_domains": domains or [],
+                "contacts": [_contact(c) for c in contacts or []],
+            }
+        )
+        require_command(uow, command)
+        made = handle_register_party(uow, command)
     typer.echo(f"registered party {made.key}")
 
 
@@ -204,16 +214,16 @@ def party_contact_add(
     """Add a contact to a party (controller)."""
     db: DbTarget = ctx.obj
     scope = f"project:{project}"
-    require_controller(db)
     person = _contact(contact).model_copy(update={"domain": domain, "is_authorised": authorised})
     with _service_errors(), open_uow(db) as uow:
         party = registry.find_party(uow.conn(), scope, code)
         if party is None:
             _fail(f"no party {code!r} in project {project!r}")
-        handle_add_contact(
-            uow,
-            AddContact(actor=actor, source="cli", scope=scope, party_id=party.id, contact=person),
+        command = AddContact(
+            actor=actor, source="cli", scope=scope, party_id=party.id, contact=person
         )
+        require_command(uow, command)
+        handle_add_contact(uow, command)
     typer.echo(f"added contact {person.name} to {code}")
 
 
@@ -229,16 +239,20 @@ def party_contact_end(
     """End a contact of a party (controller)."""
     db: DbTarget = ctx.obj
     scope = f"project:{project}"
-    require_controller(db)
     with _service_errors(), open_uow(db) as uow:
         party = registry.find_party(uow.conn(), scope, code)
         if party is None:
             _fail(f"no party {code!r} in project {project!r}")
-        handle_end_contact(
-            uow,
-            EndContact(actor=actor, source="cli", scope=scope, party_id=party.id,
-                       position=position, reason=reason),
-        )  # fmt: skip
+        command = EndContact(
+            actor=actor,
+            source="cli",
+            scope=scope,
+            party_id=party.id,
+            position=position,
+            reason=reason,
+        )
+        require_command(uow, command)
+        handle_end_contact(uow, command)
     typer.echo(f"ended contact {position} of {code}")
 
 
@@ -253,15 +267,15 @@ def party_retire(
     """Retire a party (controller)."""
     db: DbTarget = ctx.obj
     scope = f"project:{project}"
-    require_controller(db)
     with _service_errors(), open_uow(db) as uow:
         party = registry.find_party(uow.conn(), scope, code)
         if party is None:
             _fail(f"no party {code!r} in project {project!r}")
-        handle_retire_party(
-            uow,
-            RetireParty(actor=actor, source="cli", scope=scope, party_id=party.id, reason=reason),
+        command = RetireParty(
+            actor=actor, source="cli", scope=scope, party_id=party.id, reason=reason
         )
+        require_command(uow, command)
+        handle_retire_party(uow, command)
     typer.echo(f"retired party {code}")
 
 
@@ -311,17 +325,24 @@ def clause_add(
     """Register a contract clause (controller)."""
     db: DbTarget = ctx.obj
     scope = f"project:{project}"
-    require_controller(db)
     with _service_errors(), open_uow(db) as uow:
-        made = handle_define_clause(
-            uow,
-            DefineClause.model_validate(
-                {"actor": actor, "source": "cli", "scope": scope, "contract": contract,
-                 "clause_number": number, "time_bar_days": days, "time_bar_day_type": day_type,
-                 "notice_requirements": notice, "required_recipients": recipients or [],
-                 "service_method": service, "domains": domains or []}
-            ),
-        )  # fmt: skip
+        command = DefineClause.model_validate(
+            {
+                "actor": actor,
+                "source": "cli",
+                "scope": scope,
+                "contract": contract,
+                "clause_number": number,
+                "time_bar_days": days,
+                "time_bar_day_type": day_type,
+                "notice_requirements": notice,
+                "required_recipients": recipients or [],
+                "service_method": service,
+                "domains": domains or [],
+            }
+        )
+        require_command(uow, command)
+        made = handle_define_clause(uow, command)
     typer.echo(f"registered clause {made.key}")
 
 
@@ -337,15 +358,15 @@ def clause_retire(
     """Retire a clause (controller)."""
     db: DbTarget = ctx.obj
     scope = f"project:{project}"
-    require_controller(db)
     with _service_errors(), open_uow(db) as uow:
         found = registry.find_clause(uow.conn(), scope, contract, number)
         if found is None:
             _fail(f"no clause {contract}/{number} in project {project!r}")
-        handle_retire_clause(
-            uow,
-            RetireClause(actor=actor, source="cli", scope=scope, clause_id=found.id, reason=reason),
+        command = RetireClause(
+            actor=actor, source="cli", scope=scope, clause_id=found.id, reason=reason
         )
+        require_command(uow, command)
+        handle_retire_clause(uow, command)
     typer.echo(f"retired clause {contract}/{number}")
 
 
@@ -378,16 +399,21 @@ def class_set(
     """Set the class of an item (controller). Privileged names who may read it, you too."""
     db: DbTarget = ctx.obj
     scope = f"project:{project}"
-    require_controller(db)
     with _service_errors(), open_uow(db) as uow:
         row = item_row(uow, scope, project, number)
-        handle_set_confidentiality(
-            uow,
-            SetCorrespondenceConfidentiality.model_validate(
-                {"actor": actor, "source": "cli", "scope": scope, "stream_id": row.id,
-                 "to_class": to, "reason": reason, "grant": grant or []}
-            ),
-        )  # fmt: skip
+        command = SetCorrespondenceConfidentiality.model_validate(
+            {
+                "actor": actor,
+                "source": "cli",
+                "scope": scope,
+                "stream_id": row.id,
+                "to_class": to,
+                "reason": reason,
+                "grant": grant or [],
+            }
+        )
+        require_command(uow, command)
+        handle_set_confidentiality(uow, command)
     typer.echo(f"{number} is now {to}")
 
 
@@ -418,14 +444,20 @@ def class_grant(
     """Name an account that may read a privileged item (controller)."""
     db: DbTarget = ctx.obj
     scope = f"project:{project}"
-    require_controller(db)
     with _service_errors(), open_uow(db) as uow:
+        # the gate first: the lookup below does not filter hidden items (ADR-0016)
+        require_commands(uow, (GrantClearance,), actor=actor, scope=scope)
         item_id = control_item_id(uow, scope, project, number)
-        handle_grant_clearance(
-            uow,
-            GrantClearance(actor=actor, source="cli", scope=scope, stream_id=item_id,
-                           account=account, reason=reason),
-        )  # fmt: skip
+        command = GrantClearance(
+            actor=actor,
+            source="cli",
+            scope=scope,
+            stream_id=item_id,
+            account=account,
+            reason=reason,
+        )
+        require_command(uow, command)
+        handle_grant_clearance(uow, command)
     typer.echo(f"{account} may read {number}")
 
 
@@ -441,14 +473,20 @@ def class_withdraw(
     """Remove an account from the readers of a privileged item (controller)."""
     db: DbTarget = ctx.obj
     scope = f"project:{project}"
-    require_controller(db)
     with _service_errors(), open_uow(db) as uow:
+        # the gate first: the lookup below does not filter hidden items (ADR-0016)
+        require_commands(uow, (WithdrawClearance,), actor=actor, scope=scope)
         item_id = control_item_id(uow, scope, project, number)
-        handle_withdraw_clearance(
-            uow,
-            WithdrawClearance(actor=actor, source="cli", scope=scope, stream_id=item_id,
-                              account=account, reason=reason),
-        )  # fmt: skip
+        command = WithdrawClearance(
+            actor=actor,
+            source="cli",
+            scope=scope,
+            stream_id=item_id,
+            account=account,
+            reason=reason,
+        )
+        require_command(uow, command)
+        handle_withdraw_clearance(uow, command)
     typer.echo(f"{account} may no longer read {number}")
 
 
@@ -489,9 +527,11 @@ def mail_ingest(
     with _service_errors():
         parsed = read_email(data)
         with open_uow(db) as uow:
+            command = IngestEmail(actor=actor, source="cli", scope=scope, original_name=path.name)
+            require_command(uow, command)
             made = ingest_email(
                 uow,
-                IngestEmail(actor=actor, source="cli", scope=scope, original_name=path.name),
+                command,
                 parsed,
                 data,
             )

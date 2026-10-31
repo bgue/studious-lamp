@@ -167,12 +167,12 @@ def test_document_command_refuses_an_access_the_person_lacks_and_runs_it_for_who
     other = ledger.docs.register("ISO-7001")
     before = ledger.events()
     bob = ledger.client("bob")
-    with pytest.raises(ForbiddenError, match="document_controller or admin"):
+    with pytest.raises(ForbiddenError, match="needs the controller access word"):
         bob.document_command(
             "VoidDocument",
             ledger.command(VoidDocument, "bob", stream_id=other.stream_id, reason="x"),
         )
-    with pytest.raises(ForbiddenError, match="document_controller or admin"):
+    with pytest.raises(ForbiddenError, match="needs the controller access word"):
         bob.document_command(
             "IssueRevision",
             ledger.command(IssueRevision, "bob", stream_id=draft, issue_status="IFR"),

@@ -39,7 +39,7 @@ from tl_core.auth.module_role_views import (
     effective_role_views,
     list_module_roles,
 )
-from tl_core.auth.module_roles import holder_for_actor
+from tl_core.auth.module_roles import holder_for_actor, require_command_access
 from tl_core.auth.password import prepare_password
 from tl_core.auth.provider import PasswordIdentityProvider
 from tl_core.auth.types import DEMO_USERNAME, AccountKind, AccountView, AgentTokenView
@@ -487,7 +487,13 @@ class EmbeddedClient:
 
     def allowed_actions(self, record_id: str) -> RecordActions:
         with self._uow(True) as uow:
-            return allowed_actions(uow, record_id, actor=self.actor, holds=self._gate_holds(uow))
+            return allowed_actions(
+                uow,
+                record_id,
+                actor=self.actor,
+                holds=self._gate_holds(uow),
+                holder=holder_for_actor(uow.conn(), self.actor),
+            )
 
     def addable_properties(self, record_id: str) -> AddableProperties:
         with self._uow(True) as uow:
@@ -954,17 +960,19 @@ class EmbeddedClient:
 
     def repin_document_link(self, cmd: RepinDocumentLink) -> CommandResult:
         with self._uow(False) as uow:
+            self._command_gate(uow, cmd)
             return self.own_writes.note(handle_repin_document_link(uow, cmd))
 
     def create_transmittal(self, cmd: CreateTransmittal) -> CommandResult:
         with self._uow(False) as uow:
+            self._command_gate(uow, cmd)
             return self.own_writes.note(handle_create_transmittal(uow, cmd))
 
     def issue_transmittal(self, cmd: IssueTransmittal) -> CommandResult:
         with self._uow(False) as uow:
-            self._controller_gate(uow)
             if cmd.actor != self.actor:  # the gate checked this client's actor, so must the command
                 raise ForbiddenError("the command names an actor other than the signed-in person")
+            self._command_gate(uow, cmd)
             return self.own_writes.note(handle_issue_transmittal(uow, cmd))
 
     # --- correspondence (P1-I5) ---------------------------------------------------------------
@@ -1157,11 +1165,8 @@ class EmbeddedClient:
         if spec is None or type(cmd) is not spec.model:
             raise ForbiddenError(f"{name} is not a correspondence command")
         with self._uow(False) as uow:
-            if spec.access == "controller":
-                self._controller_gate(uow)
-            elif spec.access == "admin":
-                self._admin_gate(uow)
             self._own_command(cmd.actor)
+            self._command_gate(uow, cmd)
             return self.own_writes.note(spec.handler(uow, cmd))
 
     def document_command(self, name: str, cmd: Command) -> CommandResult:
@@ -1179,11 +1184,8 @@ class EmbeddedClient:
         if spec is None or type(cmd) is not spec.model:
             raise ForbiddenError(f"{name} is not a {module} command")
         with self._uow(False) as uow:
-            if spec.access == "controller":
-                self._controller_gate(uow)
-            elif spec.access == "admin" or (spec.access == "company" and cmd.scope == "company"):
-                self._admin_gate(uow)
             self._own_command(cmd.actor)
+            self._command_gate(uow, cmd)
             return self.own_writes.note(spec.handler(uow, cmd))
 
     # --- derivation (P1-I3) -------------------------------------------------------------------
@@ -1281,42 +1283,48 @@ class EmbeddedClient:
 
     def open_derived_document(self, cmd: OpenDerivedDocument) -> CommandResult:
         with self._uow(False) as uow:
+            self._command_gate(uow, cmd)
             return self.own_writes.note(handle_open_derived_document(uow, cmd))
 
     def start_extraction(self, cmd: StartExtraction) -> CommandResult:
         with self._uow(False) as uow:
+            self._command_gate(uow, cmd)
             return self.own_writes.note(handle_start_extraction(uow, cmd))
 
     def validate_derived(self, cmd: ValidateDerived) -> CommandResult:
         with self._uow(False) as uow:
+            self._command_gate(uow, cmd)
             return self.own_writes.note(handle_validate_derived(uow, cmd))
 
     def cancel_job(self, cmd: CancelJob) -> CommandResult:
         with self._uow(False) as uow:
+            self._command_gate(uow, cmd)
             return self.own_writes.note(handle_cancel_job(uow, cmd))
 
     def void_derived_document(self, cmd: VoidDerivedDocument) -> CommandResult:
         with self._uow(False) as uow:
-            self._controller_gate(uow)  # voiding another person's data is a controller's act
             self._own_command(cmd.actor)
+            self._command_gate(uow, cmd)
             return self.own_writes.note(handle_void_derived_document(uow, cmd))
 
     def publish_derived_tags(self, cmd: PublishDerivedTags) -> CommandResult:
         with self._uow(False) as uow:
             self._admin_gate(uow)
             self._own_command(cmd.actor)
+            self._command_gate(uow, cmd)
             return self.own_writes.note(handle_publish_derived_tags(uow, cmd))
 
     def publish_derived_documents(self, cmd: PublishDerivedDocuments) -> CommandResult:
         with self._uow(False) as uow:
-            self._controller_gate(uow)
             self._own_command(cmd.actor)
+            self._command_gate(uow, cmd)
             return self.own_writes.note(handle_publish_derived_documents(uow, cmd))
 
     def compensate_publication(self, cmd: CompensatePublication) -> CommandResult:
         with self._uow(False) as uow:
             self._admin_gate(uow)
             self._own_command(cmd.actor)
+            self._command_gate(uow, cmd)
             return self.own_writes.note(handle_compensate_publication(uow, cmd))
 
     def _own_command(self, actor: str) -> None:
@@ -1433,12 +1441,13 @@ class EmbeddedClient:
     def link_activity(self, cmd: LinkActivity) -> CommandResult:
         with self._uow(False) as uow:
             self._own_command(cmd.actor)
+            self._command_gate(uow, cmd)
             return self.own_writes.note(handle_link_activity(uow, cmd))
 
     def publish_schedule_snapshot(self, cmd: PublishScheduleSnapshot) -> CommandResult:
         with self._uow(False) as uow:
-            self._controller_gate(uow)  # what the project's schedule is: a controller's act
             self._own_command(cmd.actor)
+            self._command_gate(uow, cmd)
             return self.own_writes.note(handle_publish_schedule_snapshot(uow, cmd))
 
     def list_cost_snapshots(self, project: str) -> list[cost_views.CostSnapshotView]:
@@ -1521,9 +1530,8 @@ class EmbeddedClient:
         if spec is None or type(cmd) is not spec.model:
             raise ForbiddenError(f"{name} is not a schema registry command")
         with self._uow(False) as uow:
-            if spec.access == "admin":
-                self._admin_gate(uow)
             self._own_command(cmd.actor)
+            self._command_gate(uow, cmd)
             return self.own_writes.note(spec.handler(uow, cmd))
 
     # --- settings (P0-I8) ---------------------------------------------------------------------
@@ -1658,6 +1666,12 @@ class EmbeddedClient:
             or "admin" not in found.roles
         ):
             raise ForbiddenError("this action needs the admin role")
+
+    def _command_gate(self, uow: UnitOfWork, cmd: Command) -> None:
+        """The module-role gate of one command: its access word for its module on its scope, held
+        by this client's person (``require_command_access``, the only access function; the dev
+        rule for an account-less ``user:dev`` lives in core). Run it before the handler."""
+        require_command_access(uow.conn(), cmd, holder=holder_for_actor(uow.conn(), self.actor))
 
     def _controller_gate(self, uow: UnitOfWork) -> None:
         """Only an active admin or document controller may run a controlling act (ADR-0013)."""
