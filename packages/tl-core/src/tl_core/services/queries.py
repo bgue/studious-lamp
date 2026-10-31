@@ -26,11 +26,19 @@ _GET_SQL = " WHERE scope = :scope AND key = :key"
 _GET_BY_ID_SQL = " WHERE id = :id"
 
 
-def _readable(where: str, params: dict[str, Any]) -> Any:
-    """``SELECT ... where`` with the viewer's hidden records left out (ADR-0016)."""
-    clause, extra = confidentiality.not_hidden("id")
-    params.update(extra)
-    return text(f"{_SELECT}{where} AND {clause}")
+def _one(uow: UnitOfWork, where: str, params: dict[str, Any]) -> dict[str, Any] | None:
+    """The one record ``where`` names, or ``None`` when there is none or the viewer may not read it
+    (ADR-0016: hidden answers as missing).
+
+    The row is found by its key first and the viewer's right to it checked for that one record, so
+    the cost does not grow with the number of confidential records in the ledger (the filter as a
+    ``NOT IN`` over every hidden record read them all on every call).
+    """
+    conn = uow.conn()
+    row = conn.execute(text(f"{_SELECT}{where}"), params).mappings().first()
+    if row is None or confidentiality.is_hidden(conn, str(row["id"])):
+        return None
+    return _envelope(row)
 
 
 def _envelope(row: RowMapping) -> dict[str, Any]:
@@ -61,20 +69,12 @@ def envelope_from_row(row: RowMapping) -> dict[str, Any]:
 
 def get_record(uow: UnitOfWork, scope: str, key: str) -> dict[str, Any] | None:
     """The record with this ``(scope, key)``, voided or not; ``None`` when no row matches."""
-    params: dict[str, Any] = {"scope": scope, "key": key}
-    row = uow.conn().execute(_readable(_GET_SQL, params), params).mappings().first()
-    if row is None:
-        return None
-    return _envelope(row)
+    return _one(uow, _GET_SQL, {"scope": scope, "key": key})
 
 
 def get_record_by_id(uow: UnitOfWork, record_id: str) -> dict[str, Any] | None:
     """The record with this ``id`` (its stream id), voided or not; ``None`` when no row matches."""
-    params: dict[str, Any] = {"id": record_id}
-    row = uow.conn().execute(_readable(_GET_BY_ID_SQL, params), params).mappings().first()
-    if row is None:
-        return None
-    return _envelope(row)
+    return _one(uow, _GET_BY_ID_SQL, {"id": record_id})
 
 
 def record_history(uow: UnitOfWork, record_id: str) -> list[Event]:
@@ -123,9 +123,11 @@ def list_records(
         raise ValueError(f"offset must not be negative, got {offset}")
     clauses: list[str] = ["scope = :scope"]
     params: dict[str, Any] = {"scope": scope}
-    visible, visible_params = confidentiality.not_hidden("id")
-    clauses.append(visible)
-    params.update(visible_params)
+    first_page = limit is not None and offset == 0  # its hidden rows are looked up, not listed
+    if not first_page:
+        visible, visible_params = confidentiality.not_hidden("id")
+        clauses.append(visible)
+        params.update(visible_params)
     if status is not None:
         clauses.append("status = :status")
         params["status"] = status
@@ -147,6 +149,13 @@ def list_records(
         empty = f"{column} IS NULL OR {column} = ''"
         terms.append(f"({empty}), {column} {direction.upper()}")
     order = ", ".join([*terms, "id"]) if terms else "created_at, id"
+    if first_page and limit is not None:
+        # the first ``limit`` readable rows: the page is read, then its hidden rows are dropped
+        # and, if some were, more are read (``confidentiality.visible_rows``); the ordering ends in
+        # ``id``, so two reads of it agree
+        sql_text = f"{_SELECT} WHERE {' AND '.join(clauses)} ORDER BY {order}"
+        found = confidentiality.visible_rows(uow.conn(), sql_text, params, limit=limit)
+        return [_envelope(row._mapping) for row in found]
     paging = ""
     if limit is not None or offset:
         paging = " LIMIT :limit OFFSET :offset"

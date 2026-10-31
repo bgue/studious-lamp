@@ -72,14 +72,21 @@ def timeline_detail_rows(
     labels: Labels,
     *,
     escalations: Sequence[Event] = (),
+    clocks: Sequence[ClockView] | None = None,
 ) -> list[DetailRow]:
     """The status timeline as rows of the ``Timeline`` section: one row per state change or clock
     outcome (label = the date, value = ``who: what - note``), oldest first.
 
+    ``clocks`` are the item's own clocks, as its view holds them. Without them every clock of the
+    project is read and the item's are picked out, which costs more the more the project holds.
+
     The technical mode adds one row with the same lines in full (time of day, stored actor). No
     row when the record has nothing to show.
     """
-    clocks = [c for c in client.list_clocks(project, open_only=False) if c.item_id == item_id]
+    if clocks is None:
+        clocks = [c for c in client.list_clocks(project, open_only=False) if c.item_id == item_id]
+    else:  # the order the project list gives: soonest due first
+        clocks = sorted(clocks, key=lambda c: (c.due_on, c.id))
     plain = timeline_rows(events, clocks, labels, technical=False, escalations=escalations)
     if not plain:
         return []
@@ -246,7 +253,7 @@ def item_content(
         rows.append(DetailRow("", suggestion, section="Suggestion"))
     rows += [*facts, *people, *dates, *clock_rows_of(view.clocks)]
     if client is not None:
-        rows += timeline_detail_rows(client, project, history, view.id, labels)
+        rows += timeline_detail_rows(client, project, history, view.id, labels, clocks=view.clocks)
         rows += file_rows(client, view.id)
         rows += link_rows(client, view.id)
     rows += [

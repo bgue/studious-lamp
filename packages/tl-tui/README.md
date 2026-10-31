@@ -125,6 +125,16 @@ log never lays out its own screen and never adds a second standard.
   value wraps under its own start, and a small table drops its least-needed column (`layout.DROP_FIRST`: Files, Pages,
   Pin, Size, Days left ...), then shortens a long one with `…` (`layout.SHORTENABLE`: Purpose, Title, Name, Who ...),
   and last wraps its final column.
+- **Speed (P2-PERF)**: a log holds and filters every row it was given, but its table takes `WINDOW_ROWS` (120) at first
+  and the next `CHUNK_ROWS` when the cursor or the view nears the last row held (`Ctrl+End` takes them all); Textual
+  measures every cell of every row it is given, so a big table costs more than the read. A log's `row_cells` is called
+  once per read of the rows (and per display mode), the filter reads no more than the rows already held, and the
+  panel and the actions bar follow the list after its first draw (a run of filter keys reads one panel). Hooks for a
+  log that holds only the first page of a longer list: `filter_changed(text)` and `rows_exhausted()` (the document
+  register opens on its first 500 rows and reads the rest, up to 5,000, on either). `RecordView` reads the record, its
+  history and Details at once and the Properties, Links, Trace and Thread tabs when each is first shown;
+  `tl_tui.reads.Reads` answers repeated reads of one refresh once; `labels_load.load_labels` keeps the labels of a
+  client for 20 s (`forget_labels` drops them: creating or enabling an account, a module command run from a log and an adopted package call it). `dev/perf/ux_bench.py` (`just perf-ux`) measures all of it.
 - **Add property (P1-UX3 rounds 3 and 4)**: `[+] Add property` on the record screen's Properties tab (key `+`) and in the
   actions bar of the document, tag, correspondence and RFI/commercial logs (not for an agent or a voided record).
   `widgets/add_property_form.py` is the form and `add_property.py` its pure part. The form reads

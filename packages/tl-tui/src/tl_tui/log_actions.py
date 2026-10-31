@@ -52,6 +52,7 @@ from tl_mod_engineering.handlers.tags import ReclassifyTag, RenameTag
 from tl_mod_schemareg.handlers.adoption import AdoptSchemaPackage
 
 from tl_tui.client import ClientInterface
+from tl_tui.labels_load import forget_labels
 from tl_tui.widgets.action_form import ActionFormScreen, FormField
 from tl_tui.widgets.log_screen import LogAction, LogScreen
 
@@ -241,9 +242,13 @@ _unknown_logged: set[str] = set()
 def run_module_command(client: ClientInterface, name: str, cmd: Command) -> CommandResult:
     """Run a command of the engineering or the correspondence table (the client checks both the
     name and the access; a name in neither raises ``ForbiddenError``)."""
-    if name in _ENGINEERING:
-        return client.engineering_command(name, cmd)
-    return client.correspondence_command(name, cmd)
+    done = (
+        client.engineering_command(name, cmd)
+        if name in _ENGINEERING
+        else client.correspondence_command(name, cmd)
+    )
+    forget_labels(client)  # a code list, a mnemonic or a domain may have changed
+    return done
 
 
 def stamp(cmd: Command, *, actor: str, scope: str) -> Command:
@@ -358,6 +363,7 @@ def add_property_actions(
         def adopt(cmd: AdoptSchemaPackage) -> bool:
             def run() -> None:
                 client.schemareg_command("AdoptSchemaPackage", cmd)
+                forget_labels(client)  # an adopted package can move code lists and labels
 
             return screen.attempt(run)
 

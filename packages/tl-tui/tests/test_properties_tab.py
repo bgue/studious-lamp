@@ -31,6 +31,13 @@ def fixture_schemas() -> Iterator[None]:
         yield
 
 
+async def show_properties(pilot: Pilot[Any]) -> None:
+    """The tab reads its sets when it is first shown (P2-PERF), so show it."""
+    await pilot.pause()
+    pilot.app.query_one(RecordView).show_tab("psets")
+    await pilot.pause()
+
+
 class Host(App[None]):
     def __init__(self, client: Any, key: str) -> None:
         super().__init__()
@@ -60,7 +67,7 @@ def test_the_tab_asks_for_the_sets_of_the_record_by_its_id() -> None:
     app = Host(client, "FV-1002")
 
     async def scenario(pilot: Pilot[Any]) -> None:
-        await pilot.pause()
+        await show_properties(pilot)
         assert client.form_metadata_ids[-1] == record["id"]
 
     run_pilot(app, scenario, size=(120, 30))
@@ -71,7 +78,7 @@ def test_the_rule_and_the_group_use_plain_words() -> None:
     app = Host(client, "FV-1001")
 
     async def scenario(pilot: Pilot[Any]) -> None:
-        await pilot.pause()
+        await show_properties(pilot)
         text = app.query_one(PsetsTab).text
         assert "required at Design or Installed" in text and "▾ valve_data · required" in text
         assert find_technical(text) == []
@@ -102,7 +109,7 @@ def test_a_tag_shows_the_sets_its_class_binds(tmp_path: Path, fixture_schemas: N
     app = Host(client, "47-FV-1001")
 
     async def scenario(pilot: Pilot[Any]) -> None:
-        await pilot.pause()
+        await show_properties(pilot)
         text = app.query_one(PsetsTab).text
         assert "▾ Valve data" in text, text  # only the record id tells the class
 
@@ -121,7 +128,7 @@ def test_a_document_shows_document_data(fixture_schemas: None) -> None:
     app = Host(client, "ISO-1234")
 
     async def scenario(pilot: Pilot[Any]) -> None:
-        await pilot.pause()
+        await show_properties(pilot)
         text = app.query_one(PsetsTab).text
         assert text.count("▾ Document data") == 1
         for label in ("Originator", "Native file format", "Review due"):

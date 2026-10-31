@@ -49,6 +49,9 @@ from tl_tui.widgets.repin_dialog import RepinScreen
 from tl_tui.widgets.transmittal_composer import TransmittalComposerScreen
 
 MAX_DOCUMENTS = 5000
+FIRST_PAGE = (
+    500  # the rows read at first; the rest when the cursor nears the end or a filter is used
+)
 NEEDS_NEWER = "Nothing to replace it with: no other issued revision."
 NEEDS_DOCUMENT = "Nothing to replace it with: no other document has an issued revision."
 
@@ -98,6 +101,7 @@ class DocumentRegisterScreen(LogScreen[DocumentView]):
         self._labels: Labels | None = None  # the code and type labels, loaded on first use
         self._full: dict[str, DocumentView] = {}  # number -> the document in full, per read
         self._reread = True  # False: the next load reuses ``self.views`` (a filter changed)
+        self._whole = False  # True once the register is read in full (up to MAX_DOCUMENTS)
         self._files_for: str | None = None  # the record whose files the panel shows
         self.files: FilePanel | None = None
         self._note = ""  # said once, with the next summary (a reload would otherwise wipe it)
@@ -127,9 +131,7 @@ class DocumentRegisterScreen(LogScreen[DocumentView]):
 
     def load_rows(self) -> Sequence[DocumentView]:
         if self._reread:
-            self.views = self.client.list_documents(
-                self.project, include_void=self.include_void, limit=MAX_DOCUMENTS
-            )
+            self.views = self._read(MAX_DOCUMENTS if self._whole else FIRST_PAGE)
             self._full = {}
         self._reread = True
         return [
@@ -138,6 +140,35 @@ class DocumentRegisterScreen(LogScreen[DocumentView]):
             if (self.state is None or v.state == self.state)
             and (self.doc_type is None or v.doc_type == self.doc_type)
         ]
+
+    def _read(self, limit: int) -> list[DocumentView]:
+        return self.client.list_documents(self.project, include_void=self.include_void, limit=limit)
+
+    @property
+    def partial(self) -> bool:
+        """True while only the first page of a longer register is held."""
+        return not self._whole and len(self.views) >= FIRST_PAGE
+
+    def _load_whole(self) -> None:
+        """Read the rest of the register (in the background): the cursor came near the end of
+        the first page, or a filter was typed."""
+        if self.partial:
+            self._whole = True
+            self.reload()
+
+    def _have_whole(self) -> None:
+        """Read the rest of the register now (a choice list or a filter key needs every row)."""
+        if self.partial:
+            self._whole = True
+            self.views = self._read(MAX_DOCUMENTS)
+            self._full = {}
+
+    def filter_changed(self, text: str) -> None:
+        if text.strip():
+            self._load_whole()
+
+    def rows_exhausted(self) -> None:
+        self._load_whole()
 
     def row_key(self, row: DocumentView) -> str:
         return row.number
@@ -160,7 +191,7 @@ class DocumentRegisterScreen(LogScreen[DocumentView]):
         return f"{note}  {line}" if note else line
 
     def _summary(self) -> str:
-        return summary_line(
+        line = summary_line(
             len(self.shown),
             len(self.views),
             state=self.state,
@@ -168,6 +199,11 @@ class DocumentRegisterScreen(LogScreen[DocumentView]):
             include_void=self.include_void,
             text=self.filter_text,
             labels=self.labels,
+        )
+        return (
+            f"{line}  (the first {FIRST_PAGE}; the rest load as you scroll or filter)"
+            if self.partial
+            else line
         )
 
     def open_row(self, row: DocumentView) -> None:
@@ -389,6 +425,7 @@ class DocumentRegisterScreen(LogScreen[DocumentView]):
         self, offer: ActionOffer, doc: DocumentView, rev: RevisionView | None
     ) -> LogAction:
         def run() -> None:
+            self._have_whole()  # the choices are every other document
             others = {
                 v.number: v.id
                 for v in self.views
@@ -499,6 +536,7 @@ class DocumentRegisterScreen(LogScreen[DocumentView]):
         """Show the next state: all, then each state that has a document in the list, then all."""
         if isinstance(self.focused, Input):
             return  # the key is text
+        self._have_whole()  # the states of every document, not of the first page
         self.state = next_choice(self.state, [v.state for v in self.views])
         self._narrow()
 
@@ -506,6 +544,7 @@ class DocumentRegisterScreen(LogScreen[DocumentView]):
         """Show the next document type: all, then each type in the list, then all."""
         if isinstance(self.focused, Input):
             return  # the key is text
+        self._have_whole()
         self.doc_type = next_choice(
             self.doc_type, [v.doc_type for v in self.views if v.doc_type is not None]
         )

@@ -50,13 +50,27 @@ def parse(text: str) -> Expr | None:
     return parse_text(text)
 
 
+#: A filtered count of up to this many rows tests them one by one for visibility (a lookup each)
+#: instead of listing every hidden record of the ledger first.
+COUNT_EACH_LIMIT = 3000
+
+
 def run_query(uow: UnitOfWork, spec: QuerySpec) -> list[dict[str, Any]]:
     """Matching records as envelope dicts, ordered by ``spec.order_by`` then ``id``."""
     from sqlalchemy import text
 
+    from tl_core import confidentiality
     from tl_core.query.compiler import compile_query
     from tl_core.services.queries import envelope_from_row
 
+    if spec.limit is not None and spec.offset == 0:
+        # the first ``limit`` readable rows: the page is read, then its hidden rows are dropped
+        # (and more read if some were): the cost follows the page, not the hidden records
+        listed = compile_query(spec, visibility="none")
+        found = confidentiality.visible_rows(
+            uow.conn(), listed.sql, listed.params, limit=spec.limit, id_expr="r.id"
+        )
+        return [envelope_from_row(row._mapping) for row in found]
     compiled = compile_query(spec)
     rows = uow.conn().execute(text(compiled.sql), compiled.params).mappings().all()
     return [envelope_from_row(row) for row in rows]
@@ -66,7 +80,18 @@ def count_query(uow: UnitOfWork, spec: QuerySpec) -> int:
     """Number of matching records (ignores limit, offset and order_by)."""
     from sqlalchemy import text
 
+    from tl_core import confidentiality
     from tl_core.query.compiler import compile_query
 
+    conn = uow.conn()
+    if spec.where is not None and confidentiality.hidden_sql() is not None:
+        # a filter usually leaves few rows: count them, and when they are few test each one
+        raw = compile_query(spec, count=True, visibility="none")
+        seen = int(conn.execute(text(raw.sql), raw.params).scalar_one())
+        if seen == 0:
+            return 0
+        if seen <= COUNT_EACH_LIMIT:
+            each = compile_query(spec, count=True, visibility="each")
+            return int(conn.execute(text(each.sql), each.params).scalar_one())
     compiled = compile_query(spec, count=True)
-    return int(uow.conn().execute(text(compiled.sql), compiled.params).scalar_one())
+    return int(conn.execute(text(compiled.sql), compiled.params).scalar_one())

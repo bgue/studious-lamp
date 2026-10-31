@@ -13,7 +13,6 @@ from dataclasses import dataclass
 from typing import Any
 
 from sqlalchemy import Connection, text
-from tl_core import confidentiality
 
 from tl_mod_correspondence.names import (
     COMMERCIAL,
@@ -22,8 +21,17 @@ from tl_mod_correspondence.names import (
     TECHNICAL,
     TECHNICAL_TABLE,
 )
-from tl_mod_correspondence.registry import _ITEM_COLUMNS, ItemRow, _hidden, _item, _json
+from tl_mod_correspondence.registry import (
+    _ITEM_COLUMNS,
+    ItemRow,
+    _by_number,
+    _hidden,
+    _item,
+    _json,
+    _page,
+)
 
+DERIVED_LIMIT = 10_000  # far more Commercial items than one RFI is ever raised into
 _ITEM_I = ", ".join(f"i.{c.strip()}" for c in _ITEM_COLUMNS.split(","))
 
 
@@ -102,13 +110,13 @@ def get_technical(conn: Connection, item_id: str) -> TechnicalRow | None:
 
 def find_technical(conn: Connection, scope: str, number: str) -> TechnicalRow | None:
     """The Technical item of this number in the scope, under the same rule as ``get_technical``."""
-    row = conn.execute(
-        text(
-            f"SELECT {_ITEM_I}, {_TECH_COLUMNS} {_TECH_FROM} "
-            "AND i.scope = :scope AND i.number = :number"
-        ),
+    row = _by_number(
+        conn,
+        f"SELECT {_ITEM_I}, {_TECH_COLUMNS} {_TECH_FROM} "
+        "AND i.scope = :scope AND i.number = :number",
         {"scope": scope, "number": number},
-    ).first()
+        "i.key",
+    )
     return None if row is None or _hidden(conn, row.id) else _technical(row)
 
 
@@ -129,9 +137,8 @@ def list_technical(
     ``open_only`` keeps the items that are not Closed or Void. A void item is left out unless
     ``include_void``.
     """
-    visible, params = confidentiality.not_hidden("i.id")
-    sql = f"SELECT {_ITEM_I}, {_TECH_COLUMNS} {_TECH_FROM} AND i.scope = :scope AND {visible}"
-    params = {**params, "scope": scope, "limit": limit, "offset": offset}
+    sql = f"SELECT {_ITEM_I}, {_TECH_COLUMNS} {_TECH_FROM} AND i.scope = :scope"
+    params: dict[str, Any] = {"scope": scope}
     for column, value in (("i.subtype", subtype), ("t.discipline", discipline)):
         if value is not None:
             key = column.split(".")[1]
@@ -144,8 +151,8 @@ def list_technical(
         sql += " AND COALESCE(i.status, 'Draft') NOT IN ('Closed', 'Void')"
     if not include_void:
         sql += " AND COALESCE(i.status, 'Draft') <> 'Void'"
-    sql += " ORDER BY i.number DESC LIMIT :limit OFFSET :offset"
-    return [_technical(r) for r in conn.execute(text(sql), params).all()]
+    sql += " ORDER BY i.number DESC, i.id"
+    return [_technical(r) for r in _page(conn, sql, params, limit, offset, "i.id")]
 
 
 # --- Commercial ------------------------------------------------------------------------------
@@ -222,13 +229,13 @@ def get_commercial(conn: Connection, item_id: str) -> CommercialRow | None:
 
 def find_commercial(conn: Connection, scope: str, number: str) -> CommercialRow | None:
     """The Commercial item of this number in the scope (the rule of ``get_commercial``)."""
-    row = conn.execute(
-        text(
-            f"SELECT {_ITEM_I}, {_COMM_COLUMNS} {_COMM_FROM} "
-            "AND i.scope = :scope AND i.number = :number"
-        ),
+    row = _by_number(
+        conn,
+        f"SELECT {_ITEM_I}, {_COMM_COLUMNS} {_COMM_FROM} "
+        "AND i.scope = :scope AND i.number = :number",
         {"scope": scope, "number": number},
-    ).first()
+        "i.key",
+    )
     return None if row is None or _hidden(conn, row.id) else _commercial(row)
 
 
@@ -250,9 +257,8 @@ def list_commercial(
     ``open_only`` keeps the items that are not Closed or Void. A void item is left out unless
     ``include_void``.
     """
-    visible, params = confidentiality.not_hidden("i.id")
-    sql = f"SELECT {_ITEM_I}, {_COMM_COLUMNS} {_COMM_FROM} AND i.scope = :scope AND {visible}"
-    params = {**params, "scope": scope, "limit": limit, "offset": offset}
+    sql = f"SELECT {_ITEM_I}, {_COMM_COLUMNS} {_COMM_FROM} AND i.scope = :scope"
+    params: dict[str, Any] = {"scope": scope}
     for column, key, value in (
         ("i.subtype", "subtype", subtype),
         ("t.assessment_status", "assessment_status", assessment_status),
@@ -268,15 +274,15 @@ def list_commercial(
         sql += " AND COALESCE(i.status, 'Draft') NOT IN ('Closed', 'Void')"
     if not include_void:
         sql += " AND COALESCE(i.status, 'Draft') <> 'Void'"
-    sql += " ORDER BY i.number DESC LIMIT :limit OFFSET :offset"
-    return [_commercial(r) for r in conn.execute(text(sql), params).all()]
+    sql += " ORDER BY i.number DESC, i.id"
+    return [_commercial(r) for r in _page(conn, sql, params, limit, offset, "i.id")]
 
 
 def derived_from_commercial(conn: Connection, source_id: str) -> list[CommercialRow]:
     """The Commercial items raised from ``source_id`` (an RFI) that the viewer may read."""
-    visible, params = confidentiality.not_hidden("i.id")
     sql = (
         f"SELECT {_ITEM_I}, {_COMM_COLUMNS} {_COMM_FROM} AND t.derived_from_id = :source "
-        f"AND {visible} ORDER BY i.number"
+        "ORDER BY i.number, i.id"
     )
-    return [_commercial(r) for r in conn.execute(text(sql), {**params, "source": source_id}).all()]
+    rows = _page(conn, sql, {"source": source_id}, DERIVED_LIMIT, 0, "i.id")
+    return [_commercial(r) for r in rows]

@@ -112,6 +112,12 @@ state inc *args:
 review-pack base branch *args:
     bash dev/review-pack.sh {{base}} {{branch}} {{args}}
 
+# User-facing performance of the terminal app (RFI log, correspondence, documents, record grid) on SQLite,
+# Postgres and remote over HTTP; writes docs/reports/perf/P1-UX-perf.md and .json. Takes tens of minutes.
+# e.g. `just perf-ux --sizes 1000,10000 --backends sqlite,postgres,remote`
+perf-ux *args:
+    uv run python dev/perf/ux_bench.py {{args}}
+
 # Run the demo script for an increment, e.g. `just demo P0-I1`
 demo id:
     bash dev/demos/{{id}}.sh
