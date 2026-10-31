@@ -146,7 +146,7 @@ def apply_index_values(uow: UnitOfWork, cmd: SetPsetValues) -> CommandResult:
 
 def _set_pset_values(uow: UnitOfWork, cmd: SetPsetValues, *, from_body: bool) -> CommandResult:
     row = load_row(uow, cmd.stream_id, cmd.scope)
-    require_generic(uow.conn(), row.type, "SetPsetValues", cmd.stream_id)
+    require_generic(uow.conn(), row.type, "SetPsetValues", cmd.stream_id, actor=cmd.actor)
     if row.voided:
         raise RecordVoidedError(f"record {cmd.stream_id!r} is voided and cannot be updated")
     if not from_body:

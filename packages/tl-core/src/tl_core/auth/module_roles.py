@@ -18,7 +18,8 @@ Precedence for ``effective_roles`` (the first step that applies wins):
 
 An agent holds at most ``agent_roles``. A ``svc:`` actor keeps its declared access (``held_access``,
 ADR-0017 section 7). Module roles never filter reads and give no clearance (ADR-0016 is unchanged).
-Fine access words (W0-B1) are not read here: the word a command declares is taken as a table word.
+A module may declare a fine access word (``awp.cwp.release``, W0-B1). :func:`command_index` reads
+it as its table word, once, so every other reader sees a table word or a platform word only.
 """
 
 from __future__ import annotations
@@ -33,6 +34,7 @@ from typing import TYPE_CHECKING, Any, Literal, cast
 import yaml
 from sqlalchemy import Connection, text
 
+from tl_core.auth.access_words import TABLE_WORDS, table_word
 from tl_core.auth.errors import ForbiddenError, RoleTableError
 from tl_core.auth.names import actor_for, is_id
 from tl_core.auth.queries import find_account
@@ -344,8 +346,25 @@ def scoped_holds(
     return holds
 
 
+def normalise_word(word: str) -> str:
+    """The word the resolver understands for a declared access ``word``.
+
+    ``admin`` and ``company`` (platform words) and the table words pass unchanged; any other word
+    is a fine word and becomes its table word. An unknown word raises ``AccessWordError`` (fail
+    closed: a typo is a start-up failure, never an open door). This is the one place a fine word
+    is read.
+    """
+    if word in PLATFORM_WORDS or word in TABLE_WORDS:
+        return word
+    return table_word(word)
+
+
 def command_index() -> Mapping[str, tuple[str, str]]:
-    """Command class name -> ``(module, word)``, from ``ModuleSpec.command_words``, as declared."""
+    """Command class name -> ``(module, word)``, from ``ModuleSpec.command_words``.
+
+    The word is normalised (:func:`normalise_word`): a table word or a platform word, never a
+    fine one.
+    """
     index: dict[str, tuple[str, str]] = {}
     for spec in load_modules():
         for name, word in spec.command_words.items():
@@ -353,8 +372,16 @@ def command_index() -> Mapping[str, tuple[str, str]]:
                 raise ModuleLoadError(
                     f"command {name!r} is declared by modules {index[name][0]!r} and {spec.name!r}"
                 )
-            index[name] = (spec.name, word)
+            index[name] = (spec.name, normalise_word(word))
     return index
+
+
+def require_word(
+    conn: Connection, holder: Holder, *, scope: str, module: str, word: str, what: str
+) -> None:
+    """Refuse (``ForbiddenError``) a holder that lacks ``word`` for ``module`` at ``scope``."""
+    if not holds_word(conn, holder, scope=scope, module=module, word=word):
+        raise ForbiddenError(f"{what} needs the {word} access word for {module} on {scope}")
 
 
 def require_command_access(
@@ -373,5 +400,4 @@ def require_command_access(
     if word == "company":  # admin at company scope, else the plain user word
         word = "admin" if command.scope == COMPANY else "user"
     who = holder if holder is not None else holder_for_actor(conn, command.actor)
-    if not holds_word(conn, who, scope=command.scope, module=module, word=word):
-        raise ForbiddenError(f"{name} needs the {word} access word for {module} on {command.scope}")
+    require_word(conn, who, scope=command.scope, module=module, word=word, what=name)

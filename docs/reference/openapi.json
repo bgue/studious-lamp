@@ -57231,7 +57231,7 @@
     },
     "/proposals/{proposal_id}/accept": {
       "post": {
-        "description": "Run the proposal's command as the caller and record the decision.\n\nThe answer has `status` `accepted`, or `failed` with the refusal in `reason` when the command\ncould not be applied (the record changed, a guard failed); nothing of the command is kept then.\nAccepting a proposal runs its command as the caller, so it needs the access that command needs\n(ADR-0014): a publication into tags the admin role, into documents the document controller or\nadmin role. Anyone else gets 403 `proposal_access` and the proposal stays pending.",
+        "description": "Run the proposal's command as the caller and record the decision.\n\nThe answer has `status` `accepted`, or `failed` with the refusal in `reason` when the command\ncould not be applied (the record changed, a guard failed); nothing of the command is kept then.\nAccepting a proposal runs its command as the caller, so it needs the access that command needs\n(ADR-0014): a publication into tags the admin role, into documents the document controller or\nadmin role. Anyone else gets 403 `proposal_access` and the proposal stays pending. A module\ncommand also needs its access word from the module role table for the project it names\n(ADR-0021): an accepter who lacks it gets the same 403.",
         "operationId": "accept_proposal",
         "parameters": [
           {

@@ -274,15 +274,25 @@ CONTROLLING = ("DefineSchedule", "PublishScheduleSnapshot", "VoidScheduleSnapsho
 OPEN = ("OpenScheduleSnapshot", "StartScheduleSnapshot", "LinkActivity")
 
 
+#: The smallest bodies that pass validation: since ADR-0021 the endpoint reads the project's module
+#: role after the body is checked, so an empty body is a 422 for everybody.
+BODIES: dict[str, dict[str, Any]] = {
+    "DefineSchedule": {"code": "X1", "name": "x"},
+    "PublishScheduleSnapshot": {"snapshot_id": "x1"},
+    "VoidScheduleSnapshot": {"snapshot_id": "x1", "reason": "x"},
+}
+
+
 def run(client: TestClient, name: str) -> tuple[int, str]:
-    response = client.post(f"/commands/{name}", json={"scope": SCOPE})
+    response = client.post(f"/commands/{name}", json={"scope": SCOPE, **BODIES.get(name, {})})
     return response.status_code, str(response.json().get("message", ""))
 
 
-def test_a_user_is_refused_the_controlling_commands_naming_their_action(cast: Cast) -> None:
+def test_a_user_is_refused_the_controlling_commands_by_the_module_role(cast: Cast) -> None:
     for name in CONTROLLING:
         status, message = run(cast.clients["bob"], name)
-        assert status == 403 and f"control.command.{name}" in message, (name, status, message)
+        want = f"{name} needs the controller access word for schedule on {SCOPE}"
+        assert status == 403 and want in message, (name, status, message)
 
 
 def test_a_controller_and_an_admin_pass_the_access_check(cast: Cast) -> None:

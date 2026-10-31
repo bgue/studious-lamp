@@ -9,7 +9,9 @@ caller could still add to the record (``tl_core.addable``).
 the accept route of a proposal builds it. A record the caller may not read answers as one that does
 not exist (404 `record_not_found`, the same body), and an agent is offered nothing: agents propose,
 they never change a record. An offer is advice for a screen; the command route still checks the
-state and the access when it runs.
+state and the access when it runs. The access words come from the module role table at the
+record's own project (ADR-0021), so the list offers nothing the command route would refuse for
+lack of the word.
 """
 
 from __future__ import annotations
@@ -19,6 +21,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends
 from tl_core.actions import RecordActions, allowed_actions
 from tl_core.addable import AddableProperties, addable_properties
+from tl_core.auth.module_roles import holder_for_principal
 from tl_core.auth.types import Principal
 
 from tl_api.auth import current_principal, guard
@@ -45,6 +48,7 @@ def get_record_actions(ctx: Ctx, actor: Reader, principal: Who, record_id: str) 
             record_id,
             actor=actor,
             holds=lambda level: holds_access(principal, actor, level),
+            holder=holder_for_principal(principal),
         )
 
 

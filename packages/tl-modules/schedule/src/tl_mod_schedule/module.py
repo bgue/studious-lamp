@@ -10,6 +10,7 @@ from tl_core.modules import ModuleSpec, ProposableCommand
 from tl_core.projection.types import Projector
 
 from tl_mod_schedule import MODULE
+from tl_mod_schedule.commands import API_COMMANDS
 from tl_mod_schedule.guards import snapshot_upload
 from tl_mod_schedule.handlers.publish import (
     PublishScheduleSnapshot,
@@ -63,4 +64,6 @@ def spec() -> ModuleSpec:
         },
         generic_guards={(SCHEDULE_SNAPSHOT, "AttachFile"): snapshot_upload},
         proposable=PROPOSABLE,
+        # command name -> access word, from the module's own table (ADR-0021)
+        command_words={c.model.__name__: c.access for c in API_COMMANDS},
     )

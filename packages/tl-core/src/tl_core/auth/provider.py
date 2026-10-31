@@ -2,7 +2,8 @@
 
 ``PasswordIdentityProvider`` is the Phase 1 :class:`~tl_core.auth.types.IdentityProvider`. Entra ID
 (OIDC) replaces it behind the same two methods; callers only ever see a ``Principal``.
-``RoleAuthorizer`` is the whole authorization model of Phase 1: three roles, no per-record rules.
+``RoleAuthorizer`` is the coarse gate: account roles by action prefix. Which module command a
+person may run on which project is decided after it, by ``module_roles.require_command_access``.
 """
 
 from __future__ import annotations
@@ -77,7 +78,7 @@ def agent_may(action: str, allowed: frozenset[str] = AGENT_ACTIONS) -> bool:
 
 
 class RoleAuthorizer:
-    """``admin.*`` needs a human admin; ``control.*`` an admin or a listed document controller.
+    """``admin.*`` needs a human admin; ``control.*`` an admin or, for a listed action, any person.
 
     A person with any role may do the rest. An ``agent:*`` principal never runs an ``admin.*`` or
     a ``control.*`` action, whatever its roles, and may run only the actions in
@@ -87,9 +88,12 @@ class RoleAuthorizer:
     :data:`AGENT_ACTIONS`): there is no prefix rule, so a new tool is closed to agents until
     someone adds it to that list.
 
-    ``controller_actions`` (ADR-0013) lists the exact ``control.*`` actions a document controller
-    may run; the API builds it from its command table. An admin passes every ``control.*`` action.
-    A ``control.*`` action that is not in the list, and the empty default, is an admin's: a typo or
+    ``controller_actions`` (ADR-0013) lists the exact ``control.*`` actions of module commands that
+    need the ``controller`` word; the API builds it from its command table. An admin passes every
+    ``control.*`` action. A listed action passes here for any non-agent principal with a role: the
+    command's endpoint then asks the module role table (``require_command_access``, ADR-0021)
+    whether this person holds the word for that module on that project, and that decides. A
+    ``control.*`` action that is not in the list, and the empty default, is an admin's: a typo or
     a name nobody added widens nothing.
     """
 
@@ -110,7 +114,7 @@ class RoleAuthorizer:
         ):
             raise ForbiddenError(f"{action} needs the admin role")
         if action.startswith(CONTROL_ACTION_PREFIX) and not self._may_control(principal, action):
-            raise ForbiddenError(f"{action} needs the admin or document_controller role")
+            raise ForbiddenError(f"{action} needs the controller access word or the admin role")
         if principal.kind == "agent" and not agent_may(action, self._agent_actions):
             raise ForbiddenError(f"{action} is not open to agents")
 
@@ -119,4 +123,4 @@ class RoleAuthorizer:
             return False
         if principal.is_admin:
             return True
-        return "document_controller" in principal.roles and action in self._controller_actions
+        return action in self._controller_actions  # the endpoint's scoped module check decides

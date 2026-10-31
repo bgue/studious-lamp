@@ -214,9 +214,11 @@ def test_links_and_the_workflow_through_commands(harness: Harness) -> None:
 @pytest.mark.parametrize("spec", COMMANDS, ids=lambda s: s.name)
 def test_a_command_with_no_body_is_a_422_not_a_500(harness: Harness, spec) -> None:  # type: ignore[no-untyped-def]
     response = harness.client.post(f"/commands/{spec.name}", json={})
-    if spec.access in ("admin", "controller"):  # a dev-token person holds neither: refused first
+    if spec.access == "admin":  # a dev-token person is no admin: refused before the body is read
         assert response.status_code == 403 and response.json()["error"] == "forbidden"
         return
+    # A controller command is decided by the module role table inside the endpoint (ADR-0021), so
+    # the body is read first: a person with a role gets the validation error like any other.
     assert response.status_code == 422 and response.json()["error"] == "validation_error"
 
 
@@ -281,19 +283,33 @@ def test_the_core_and_engineering_admin_commands_are_not_controller_commands() -
     assert {"AdminFlagLink", "AdminRetractLink", "RecordTag", "RegisterCodeList"} <= stay_admin
 
 
-def test_an_unknown_access_value_has_no_action_so_it_fails_closed() -> None:
+def test_an_unknown_access_value_is_refused_when_the_spec_is_built_so_it_fails_closed() -> None:
     from tl_api.commands import CommandSpec, action_for
+    from tl_core.auth.access_words import AccessWordError
     from tl_core.services.commands import CreateRecord
     from tl_core.services.records import handle_create_record
 
     known = {"admin": "admin.command.", "controller": "control.command.", "user": "command."}
     for access, prefix in known.items():
-        spec = CommandSpec(CreateRecord, handle_create_record, access)  # type: ignore[arg-type]
+        spec = CommandSpec(CreateRecord, handle_create_record, access, module="documents")
         assert action_for(spec) == f"{prefix}CreateRecord"
     assert action_for(CommandSpec(CreateRecord, handle_create_record, "company")) == (
         "command.CreateRecord"
     )
+    # a fine word is read as its table word: a controlling one is a control.command action
+    fine = CommandSpec(CreateRecord, handle_create_record, "awp.cwp.release", module="awp")
+    assert action_for(fine) == "control.command.CreateRecord"
     for typo in ("Controller", "control", "", "admn"):
-        bad = CommandSpec(CreateRecord, handle_create_record, typo)  # type: ignore[arg-type]
-        with pytest.raises(ValueError, match="unknown access"):
-            action_for(bad)
+        with pytest.raises(AccessWordError):  # a start-up error, not an open door
+            CommandSpec(CreateRecord, handle_create_record, typo)
+
+
+def test_a_controller_command_with_no_module_is_a_start_up_error() -> None:
+    """Nothing could say who holds the word (ADR-0021); the core list of exceptions is empty."""
+    from tl_api.commands import CORE_CONTROLLER_COMMANDS, CommandSpec
+    from tl_core.services.commands import CreateRecord
+    from tl_core.services.records import handle_create_record
+
+    assert CORE_CONTROLLER_COMMANDS == frozenset()
+    with pytest.raises(ValueError, match="controller command with no module"):
+        CommandSpec(CreateRecord, handle_create_record, "controller")

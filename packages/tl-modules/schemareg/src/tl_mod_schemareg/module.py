@@ -11,6 +11,7 @@ from tl_core.modules import ModuleSpec
 from tl_core.projection.types import Projector
 
 from tl_mod_schemareg import MODULE
+from tl_mod_schemareg.commands import API_COMMANDS
 from tl_mod_schemareg.names import ADOPTION, RECORD_TYPES, SCHEMA_PACKAGE, WAIVER
 from tl_mod_schemareg.projectors import AdoptionProjector, SchemaPackageProjector, WaiverProjector
 from tl_mod_schemareg.source import schema_source
@@ -40,4 +41,6 @@ def spec() -> ModuleSpec:
             WAIVER: frozenset(),
         },
         schema_source=schema_source,
+        # command name -> access word, from the module's own table (ADR-0021)
+        command_words={c.model.__name__: c.access for c in API_COMMANDS},
     )

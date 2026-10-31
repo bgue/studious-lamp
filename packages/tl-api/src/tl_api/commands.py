@@ -10,12 +10,19 @@ This module does not use ``from __future__ import annotations``: FastAPI reads t
 endpoints' annotations at run time, and one of them closes over a local (the action name).
 """
 
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from typing import Annotated, Any, Literal, cast
 
 from fastapi import APIRouter, Depends, Header, Request
 from pydantic import BaseModel, ConfigDict, Field, create_model, model_validator
+from tl_core.auth.errors import ForbiddenError
+from tl_core.auth.module_roles import (
+    command_index,
+    holder_for_principal,
+    normalise_word,
+    require_command_access,
+)
 from tl_core.auth.types import Principal
 from tl_core.integration.actions.service import (
     RetireAction,
@@ -100,12 +107,17 @@ from tl_api.context import get_ctx
 from tl_api.effective import EFFECTIVE_AT_HEADER, resolve_effective_at
 
 Handler = Callable[[UnitOfWork, Any], CommandResult]
-Access = Literal[
-    "admin", "controller", "company", "user"
-]  # a typo is a type error, not an open door
+#: The four words a command table has always used, or a fine word (``awp.cwp.release``) that
+#: ``schema/settings/access-words.yaml`` maps to a table word. Any other string is refused when the
+#: ``CommandSpec`` is built (``AccessWordError``): a typo is a start-up error, not an open door.
+Access = Literal["admin", "controller", "company", "user"] | str
 SOURCE_PATTERN = r"^[a-z][a-z0-9_]*(:[A-Za-z0-9_.-]+)?$"
 DEFAULT_SOURCE = "api"
 CONTROLLER_PREFIX = "control.command."
+#: Core commands (no module) that may be ``controller`` commands. A ``controller`` command with
+#: ``module=None`` and a name not listed here is a start-up error: there would be no module whose
+#: role table could decide it. There are none today (every ``controller`` command is a module's).
+CORE_CONTROLLER_COMMANDS: frozenset[str] = frozenset()
 
 
 @dataclass(frozen=True)
@@ -123,10 +135,33 @@ class CommandSpec:
     #: The handler also takes ``roles=``: the caller's workflow roles, derived here from the
     #: authenticated principal (``tl_core.workflow.roles``) and never read from the body.
     takes_roles: bool = False
+    #: The module whose role table decides this command (``tl_core.auth.module_roles``): the name
+    #: in ``ModuleSpec.name``. ``None`` for a core command.
+    module: str | None = None
+
+    def __post_init__(self) -> None:
+        word = normalise_word(self.access)  # AccessWordError for a typo: a start-up failure
+        core_controller = self.module is None and self.name not in CORE_CONTROLLER_COMMANDS
+        if word == "controller" and core_controller:
+            raise ValueError(
+                f"{self.name} is a controller command with no module: "
+                "nothing could say who holds the word"
+            )
 
     @property
     def name(self) -> str:
         return self.model.__name__
+
+
+def effective_access(spec: CommandSpec) -> str:
+    """The access of a command as a table word or a platform word: a fine word is read here, as
+    its table word (``command_index()`` reads it the same way, from the module's declaration)."""
+    return normalise_word(spec.access)
+
+
+def _module_specs(module: str, commands: Iterable[Any]) -> tuple[CommandSpec, ...]:
+    """The ``CommandSpec`` rows of a module's ``API_COMMANDS``, each carrying its module name."""
+    return tuple(CommandSpec(c.model, c.handler, c.access, module=module) for c in commands)
 
 
 COMMANDS: tuple[CommandSpec, ...] = (
@@ -151,8 +186,8 @@ COMMANDS: tuple[CommandSpec, ...] = (
     CommandSpec(RetractPost, handle_retract_post),
     CommandSpec(ReactToPost, handle_react_to_post),
     CommandSpec(ChangeSetting, handle_change_setting),
-    *(CommandSpec(c.model, c.handler, c.access) for c in API_COMMANDS),
-    *(CommandSpec(c.model, c.handler, c.access) for c in DOCUMENT_COMMANDS),
+    *_module_specs("engineering", API_COMMANDS),
+    *_module_specs("documents", DOCUMENT_COMMANDS),
     # P1-I7 WS-B: record threads. A message changes no record and never dispatches (D9).
     CommandSpec(thread_messages.PostThreadMessage, thread_messages.handle_post_thread_message),
     CommandSpec(thread_messages.EditThreadMessage, thread_messages.handle_edit_thread_message),
@@ -180,10 +215,10 @@ COMMANDS: tuple[CommandSpec, ...] = (
     CommandSpec(RunEnricher, handle_run_enricher),
     CommandSpec(AcceptEnrichment, handle_accept_enrichment),
     CommandSpec(RejectEnrichment, handle_reject_enrichment),
-    *(CommandSpec(c.model, c.handler, c.access) for c in CORRESPONDENCE_COMMANDS),
-    *(CommandSpec(c.model, c.handler, c.access) for c in COST_COMMANDS),
-    *(CommandSpec(c.model, c.handler, c.access) for c in SCHEDULE_COMMANDS),
-    *(CommandSpec(c.model, c.handler, c.access) for c in SCHEMAREG_COMMANDS),
+    *_module_specs("correspondence", CORRESPONDENCE_COMMANDS),
+    *_module_specs("cost", COST_COMMANDS),
+    *_module_specs("schedule", SCHEDULE_COMMANDS),
+    *_module_specs("schemareg", SCHEMAREG_COMMANDS),
 )
 """Every command the API accepts. Void, mark-pins-stale and the file commands are not here:
 voiding is not in the Phase 0 client contract, pin staleness is a system command, and files have
@@ -244,18 +279,22 @@ def _refuse_reserved_body(data: Any) -> Any:
 
 def action_for(spec: CommandSpec) -> str:
     """The authorization action of a command: one explicit prefix per access level."""
-    if spec.access == "admin":
+    access = effective_access(spec)
+    if access == "admin":
         return f"admin.command.{spec.name}"
-    if spec.access == "controller":
+    if access == "controller":
         return f"{CONTROLLER_PREFIX}{spec.name}"
-    if spec.access in ("company", "user"):
+    if access in ("company", "user", "read"):
         return f"command.{spec.name}"
     raise ValueError(f"unknown access {spec.access!r} for {spec.name}")  # fail closed at start-up
 
 
 def controller_actions() -> frozenset[str]:
-    """The exact ``control.command.<Name>`` actions a document controller may run (ADR-0013)."""
-    return frozenset(action_for(spec) for spec in COMMANDS if spec.access == "controller")
+    """The exact ``control.command.<Name>`` actions of the module commands that need the
+    ``controller`` word (ADR-0013, ADR-0021)."""
+    return frozenset(
+        action_for(spec) for spec in COMMANDS if effective_access(spec) == "controller"
+    )
 
 
 def _make_endpoint(spec: CommandSpec, body_model: type[BaseModel]) -> Callable[..., CommandResult]:
@@ -283,10 +322,12 @@ def _make_endpoint(spec: CommandSpec, body_model: type[BaseModel]) -> Callable[.
             fields["source"] = source_for(actor)
         command = spec.model(**fields, actor=actor)
         refuse_reserved(command)  # a client cannot pose as a publication (ADR-0014)
-        if spec.access == "company" and command.scope == "company":
+        if effective_access(spec) == "company" and command.scope == "company":
             ctx.authorizer.authorize(principal, f"admin.command.{spec.name}", request.url.path)
         when = resolve_effective_at(effective_at, command.scope)
         with effective_time(when), ctx.backend(False) as uow:
+            # the one access function (ADR-0021): the module role table decides, for this project
+            require_command_access(uow.conn(), command, holder=holder_for_principal(principal))
             if spec.needs_holds:
                 from tl_api.routes.proposals import holds_access
 
@@ -303,7 +344,27 @@ def _make_endpoint(spec: CommandSpec, body_model: type[BaseModel]) -> Callable[.
     return endpoint
 
 
+def check_command_words(specs: Iterable[CommandSpec] = COMMANDS) -> None:
+    """Every module command's row agrees with the module's ``command_words`` (fail closed).
+
+    ``require_command_access`` reads ``command_index()``, the route reads the row: a command the
+    index does not list would pass the module check unseen, and a word that differs would be
+    decided differently on two paths. Either is a start-up error.
+    """
+    index = command_index()
+    for spec in specs:
+        if spec.module is None:
+            continue
+        found = index.get(spec.name)
+        if found != (spec.module, effective_access(spec)):
+            raise ValueError(
+                f"{spec.name}: the command table says {(spec.module, effective_access(spec))!r}, "
+                f"the module's command_words say {found!r}"
+            )
+
+
 def build_router() -> APIRouter:
+    check_command_words()
     router = APIRouter(tags=["commands"])
     for spec in COMMANDS:
         router.add_api_route(
@@ -345,7 +406,12 @@ class TableCommandRunner:
         spec = self._specs.get(command_type)
         if spec is None:
             return None
-        return "admin" if spec.access == "company" else spec.access
+        access = effective_access(spec)
+        if access == "company":
+            return "admin"
+        if access in ("controller", "admin"):
+            return cast(Access_, access)
+        return "user"
 
     def run(self, uow: UnitOfWork, command: Command) -> CommandResult:
         """Run ``command`` only if its own actor holds the access the table declares for it.
@@ -353,19 +419,32 @@ class TableCommandRunner:
         The actor's access is resolved from the ledger in ``uow`` (``tl_core.integration.
         actor_access``), never from the caller, and the check fails closed: an unknown actor, a
         disabled account or a service actor with no live owner holds nothing. A handler that takes
-        ``holds`` gets it from the same resolved access.
+        ``holds`` gets it from the same resolved access. A module command run for a person or an
+        agent is decided by the module role table (``require_command_access``) for the command's
+        scope; a service actor keeps the access its rule, endpoint or enricher declared.
         """
         spec = self._specs[type(command).__name__]
         if command.actor.startswith("agent:") and spec.name not in AGENT_DIRECT_COMMANDS:
             # an agent proposes record changes (brief 18.12); the runner is not a way around it
             raise CommandAccessError(f"{spec.name}: an agent proposes, a person decides")
         needed: Access_ = "user"
-        if spec.access in ("admin", "controller"):
-            needed = spec.access
-        elif spec.access == "company" and command.scope == "company":
+        access = effective_access(spec)
+        if access == "admin" or access == "controller":
+            needed = access
+        elif access == "company" and command.scope == "company":
             needed = "admin"
-        held = require_access(uow.conn(), command.actor, needed, spec.name)
+        held: Access_ | None = None
+        if not command.actor.startswith("svc:") and spec.name in command_index():
+            # a person's (or agent's) module command: the module role table decides, for this scope
+            try:
+                require_command_access(uow.conn(), command)
+            except ForbiddenError as exc:  # the runner's callers know one refusal: this one
+                raise CommandAccessError(str(exc)) from exc
+        else:  # a core command, or automation (a service actor keeps its declared access)
+            held = require_access(uow.conn(), command.actor, needed, spec.name)
         if spec.needs_holds:
+            if held is None:  # no module command takes ``holds`` today; fail closed if one does
+                raise CommandAccessError(f"{spec.name}: its access depends on its content")
             return cast(Any, spec.handler)(uow, command, holds=holds_for(held))
         if spec.takes_roles:
             # the roles of the command's own actor, from the ledger: a person's account, nothing

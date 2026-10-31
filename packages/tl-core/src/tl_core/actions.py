@@ -7,7 +7,11 @@ decides three things only, in this order:
 1. **Visibility first.** A record the viewer may not read (ADR-0016) and a record that does not
    exist raise the same ``RecordNotFoundError`` with the same text, before any hook runs.
 2. **An agent proposes, it never changes a record.** An actor ``agent:*`` is offered nothing.
-3. **The module's hook** for the record's type; a type with no hook is offered nothing.
+3. **The module's hook** for the record's type; a type with no hook is offered nothing. When the
+   entry point passes the caller's ``Holder``, the hook's ``holds`` is the module role table at the
+   record's own scope (``scoped_holds``, ADR-0021): ``admin`` from the caller's ``holds``,
+   ``user`` and ``controller`` from the roles the caller holds in that module on that project, so
+   an offer is never one the command's endpoint would refuse for lack of the word.
 
 An offer names a command of the module's own table and a label in plain words. It is advice for a
 screen, not a permission: the command still checks its state and its access word when it runs, and
@@ -24,6 +28,7 @@ from pydantic import BaseModel
 from sqlalchemy import Connection, text
 
 from tl_core import confidentiality
+from tl_core.auth.module_roles import Holder, scoped_holds
 from tl_core.modules import load_modules
 from tl_core.services.errors import RecordNotFoundError
 from tl_core.uow import UnitOfWork
@@ -53,13 +58,23 @@ class RecordActions(BaseModel):
 #: ``(conn, record_id, holds)`` to the offers for a record the viewer may read.
 ActionsHook = Callable[[Connection, str, Holds], list[ActionOffer]]
 
-_RECORD_SQL = text("SELECT type, status, voided FROM cur_core_record WHERE id = :id")
+_RECORD_SQL = text("SELECT type, status, voided, scope FROM cur_core_record WHERE id = :id")
 _AGENT_PREFIX = "agent:"
 
 
-def allowed_actions(uow: UnitOfWork, record_id: str, *, actor: str, holds: Holds) -> RecordActions:
+def allowed_actions(
+    uow: UnitOfWork,
+    record_id: str,
+    *,
+    actor: str,
+    holds: Holds,
+    holder: Holder | None = None,
+) -> RecordActions:
     """What ``actor`` may do on the record now. Raises ``RecordNotFoundError`` for a record that
-    is missing or hidden from the viewer, with the same text for both."""
+    is missing or hidden from the viewer, with the same text for both.
+
+    With a ``holder`` the hook sees ``scoped_holds`` for the record's scope and the owning module;
+    without one it sees ``holds`` as given (an entry point that has not moved to module roles)."""
     conn = uow.conn()
     confidentiality.require_visible(conn, record_id)
     row = conn.execute(_RECORD_SQL, {"id": record_id}).first()
@@ -71,7 +86,12 @@ def allowed_actions(uow: UnitOfWork, record_id: str, *, actor: str, holds: Holds
     for spec in load_modules():
         hook = spec.actions.get(row.type)
         if hook is not None:
+            offered = (
+                holds
+                if holder is None
+                else scoped_holds(conn, holder, scope=str(row.scope), module=spec.name, base=holds)
+            )
             return RecordActions(
-                record_id=record_id, state=state, actions=hook(conn, record_id, holds)
+                record_id=record_id, state=state, actions=hook(conn, record_id, offered)
             )
     return RecordActions(record_id=record_id, state=state, actions=[])

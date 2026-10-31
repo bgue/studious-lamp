@@ -56,7 +56,7 @@ def write_enrichment_layer(
     row = uow.conn().execute(_RECORD_SQL, {"id": record_id}).first()
     if row is None or row.scope != scope:
         raise RecordNotFoundError(f"no record {record_id!r} in scope {scope!r}")
-    require_generic(uow.conn(), row.type, "SetPsetValues", record_id)
+    require_generic(uow.conn(), row.type, "SetPsetValues", record_id, actor=actor)
     if row.voided:
         raise RecordVoidedError(f"record {record_id!r} is voided and cannot be updated")
     pset = f"{ENRICHMENT_PSET_PREFIX}{enricher}"
