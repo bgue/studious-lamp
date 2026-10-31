@@ -39,9 +39,6 @@ _Reason = Annotated[str, typer.Option("--reason", help="Why (kept in the history
 COMPANY = "company"
 PROJECT_PREFIX = "project:"
 
-# Every command starts: admin = require_admin(ctx.obj); backend = backend_of(ctx). Service calls
-# run inside `with service_errors():`. Do not catch service exceptions yourself.
-
 
 def scope_of(project: str) -> str:
     """``P1`` as ``project:P1``; ``company`` and ``project:P1`` as they are."""
