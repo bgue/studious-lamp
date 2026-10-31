@@ -18,6 +18,7 @@ propose. The host sends them inside its own error handling, so a refusal reaches
 
 from __future__ import annotations
 
+import math
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any, ClassVar
@@ -396,8 +397,8 @@ class AddPropertyScreen(ModalScreen[AddOutcome | None]):
 
 def _typed(text: str) -> Any:
     """A number typed in the value box is kept as a number when it reads back exactly the same
-    (``14``, ``2.5``); anything else (``007``, a date) stays text. The service refuses what it
-    cannot keep."""
+    (``14``, ``2.5``); anything else (``007``, a date, ``nan``) stays text. The service refuses
+    what it cannot keep."""
     try:
         whole = int(text)
     except ValueError:
@@ -408,7 +409,7 @@ def _typed(text: str) -> Any:
         number = float(text)
     except ValueError:
         return text
-    return number if repr(number) == text else text
+    return number if math.isfinite(number) and repr(number) == text else text
 
 
 def open_add_property(

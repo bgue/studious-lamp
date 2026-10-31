@@ -62,9 +62,9 @@ MAX_VALUE_CHARS = 30
 
 
 def moment(stamp: object) -> str:
-    """``2026-10-11T12:15:00.123456Z`` as ``2026-10-11 12:15``; ``-`` for nothing."""
+    """``2026-10-11T12:15:00.123456Z`` as ``2026-10-11 12:15``; ``—`` for nothing."""
     if not isinstance(stamp, str) or not stamp:
-        return "-"
+        return EMPTY
     return datetime.fromisoformat(stamp.replace("Z", "+00:00")).strftime("%Y-%m-%d %H:%M")
 
 
@@ -199,14 +199,14 @@ def cells(
     if kind == "deliveries":
         endpoint = (names or {}).get(row["endpoint_id"], "?")
         if not technical:
-            error = humanize(row["error_code"]) if row["error_code"] else "-"
+            error = humanize(row["error_code"]) if row["error_code"] else EMPTY
             return (
                 state_words(row["state"], technical=False), endpoint,
                 moment(row["received_at"]), error,
             )  # fmt: skip
         return (
             short_id(row["delivery_id"]), run_state(row["state"]), endpoint,
-            moment(row["received_at"]), row["error_code"] or "-",
+            moment(row["received_at"]), row["error_code"] or EMPTY,
         )  # fmt: skip
     if kind == "enrichments":
         if not technical:
@@ -242,7 +242,7 @@ def detail_pairs(
     if kind == "apps":
         owner = str(row["owner"]) if technical else actor_label(who, row["owner"])
         pairs = [("App", row["name"]), ("State", on_off(row)), ("Owner", owner),
-                 ("Label", row["label"]), ("About", row["description"] or "-")]  # fmt: skip
+                 ("Label", row["label"]), ("About", row["description"] or EMPTY)]  # fmt: skip
     elif kind == "endpoints" and not technical:
         pairs = [
             ("Path", f"/in/{row['app']}/{row['name']}"), ("State", on_off(row)),
@@ -290,7 +290,7 @@ def detail_pairs(
             ("Executor", row["executor"]), ("Access", row["access"]),
             ("Approval", "needs another person" if row["requires_approval"] else "none"),
             ("Effect", row["side_effect_class"]), ("Owner", owner),
-            ("Parameters", ", ".join(p["name"] for p in row["parameters"]) or "-"),
+            ("Parameters", ", ".join(p["name"] for p in row["parameters"]) or EMPTY),
         ]  # fmt: skip
     elif kind == "enrichers" and not technical:
         pairs = [
@@ -329,7 +329,7 @@ def detail_pairs(
     elif kind == "deliveries" and not technical:
         endpoint_name = (names or {}).get(row["endpoint_id"], "?")
         error = (
-            f"{humanize(row['error_code'])}: {row['error_message']}" if row["error_code"] else "-"
+            f"{humanize(row['error_code'])}: {row['error_message']}" if row["error_code"] else EMPTY
         )
         pairs = [
             ("Endpoint", endpoint_name),
@@ -345,7 +345,8 @@ def detail_pairs(
             ("Endpoint", f"{endpoint_name} v{row['endpoint_version']}"),
             ("State", run_state(row["state"])), ("Received", moment(row["received_at"])),
             ("Size", f"{row['payload_size']} bytes"), ("Attempts", str(row["attempts"])),
-            ("Error", f"{row['error_code']}: {row['error_message']}" if row["error_code"] else "-"),
+            ("Error",
+             f"{row['error_code']}: {row['error_message']}" if row["error_code"] else EMPTY),
         ]  # fmt: skip
     elif kind == "enrichments" and not technical:
         pairs = [

@@ -46,7 +46,7 @@ def test_state_is_never_colour_alone() -> None:
 
 def test_a_time_reads_as_minutes_and_nothing_as_a_dash() -> None:
     assert moment("2026-10-11T12:15:00.123456Z") == "2026-10-11 12:15"
-    assert moment(None) == "-" and moment("") == "-"
+    assert moment(None) == "—" and moment("") == "—"
 
 
 def test_a_long_value_is_cut_and_a_record_shows_its_key() -> None:
@@ -63,8 +63,8 @@ def test_rows_read_the_way_an_admin_expects() -> None:
         "acme-nde/results", "✓ on", "live", "hmac", "user", "v2",
     )  # fmt: skip
     assert cells("endpoints", rows.endpoint(dry_run=True))[2] == "dry-run"
-    assert cells("rules", rows.rule())[:3] == ("hse-notify", "✗ off", "propose")
-    assert cells("actions", rows.action())[4] == "yes"
+    assert cells("rules", rows.rule())[:4] == ("hse-notify", "Notify HSE", "✗ off", "propose")
+    assert cells("actions", rows.action())[5] == "yes"
     assert cells("enrichers", rows.enricher())[-1] == "doc_type,discipline"
     assert cells("invocations", rows.invocation())[0] == "NAAAAAA1"
     assert cells("enrichments", rows.enrichment()) == (
@@ -77,7 +77,7 @@ def test_the_error_queue_names_the_endpoint_from_the_map() -> None:
     names = {"ep-1": "acme-nde/results"}
     assert cells("deliveries", rows.delivery(), names)[2] == "acme-nde/results"
     assert cells("deliveries", rows.delivery(), None)[2] == "?"
-    assert cells("deliveries", rows.delivery(error_code=None))[-1] == "-"
+    assert cells("deliveries", rows.delivery(error_code=None))[-1] == "—"
     lines = detail_lines("deliveries", rows.delivery(), names)
     assert any(line.startswith("Endpoint") and "acme-nde/results v2" in line for line in lines)
     assert any("mapping_failed: no weld in the payload" in line for line in lines)

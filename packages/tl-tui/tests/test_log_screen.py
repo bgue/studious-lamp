@@ -66,7 +66,8 @@ class Probe:
 
 class Host(LogScreen[Item]):
     LOG_NAME = "RFI Log"
-    KEY_HINTS = "/ filter  o open only  F5 reload  Esc back"
+    KEY_HINTS = "/ filter  o open only  F5 reload  Esc back"  # every key, for the help screen
+    KEY_CELLS = ("/ filter", "o open only")  # the keys row shows these after Up/Down move
 
     def __init__(self, probe: Probe) -> None:
         super().__init__()
@@ -196,7 +197,9 @@ def test_the_screen_lists_the_rows_with_plain_cells_and_the_hints() -> None:
         assert table.row_count == 3
         shown = screen_text(pilot.app)
         assert "P123-RFI-0001" in shown and "[rev B, draft]" in shown  # not read as markup
-        assert text_of(screen, "#log-keys") == Host.KEY_HINTS
+        assert text_of(screen, "#log-keys") == (
+            "Up/Down move  / filter  o open only  Esc close  F1 more keys"
+        )
         assert status(screen) == "3 of 3 RFIs"  # the summary line
         for ident in ("crumb", "filter", "table", "panel", "actions", "keys", "status"):
             screen.query_one(f"#log-{ident}")

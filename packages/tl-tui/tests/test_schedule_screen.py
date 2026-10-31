@@ -6,7 +6,7 @@ from collections.abc import Awaitable, Callable
 
 import pytest
 from fakes import SCOPE, FakeClient
-from helpers import run_pilot, screen_text, settle
+from helpers import panel_of, run_pilot, screen_text, settle
 from textual.app import ComposeResult
 from textual.pilot import Pilot
 from textual.screen import ModalScreen
@@ -68,7 +68,9 @@ def test_f12_lists_the_schedules_and_the_snapshots_and_describes_the_current_one
         assert screen.query_one("#sc-snapshots", DataTable).row_count == 2
         assert "2*" in text and "Published (current)" in text and "Superseded" in text
         assert "MAIN schedule" in text and "2026-10-12" in text
-        assert "Snapshot 2  Published (current)" in text and "compares with snapshot 1" in text
+        panel = panel_of(screen)
+        assert "Snapshot 2 (current)\nState          Published" in panel
+        assert "Compares with  snapshot 1" in panel
         assert screen.detail is not None and screen.detail.code == "MAIN"
         snap = screen.current_snapshot()
         assert snap is not None and snap.number == 2
@@ -85,9 +87,12 @@ def test_moving_to_the_older_snapshot_describes_it() -> None:
         await settle(pilot)
         snap = screen.current_snapshot()
         assert snap is not None and snap.number == 1
-        text = screen_text(app)
-        assert "Snapshot 1  Superseded" in text and "(current)" not in text.split("Snapshot 1")[1]
-        assert "compares with snapshot" not in text  # the first snapshot has none
+        panel = panel_of(screen)
+        assert (
+            "Snapshot 1\nState         Superseded" in panel
+            and "(current)" not in panel.split("Snapshot 1")[1]
+        )
+        assert "Compares with" not in panel  # the first snapshot has none
 
     scenario(world(), steps)
 
@@ -98,21 +103,21 @@ def test_l_shows_the_look_ahead_and_o_the_orphaned_links_and_each_goes_back() ->
     async def steps(pilot: Pilot[None], app: TlApp, screen: ScheduleScreen) -> None:
         await pilot.press("l")
         await settle(pilot)
-        text = screen_text(app)
+        panel = panel_of(screen)
         assert screen.panel == "look_ahead"
-        assert "look-ahead Snapshot 2: 2026-10-12 to 2026-11-09 (4 weeks)" in text
-        assert "A1230  In progress" in text
+        assert "Look-ahead, Snapshot 2\nWindow  2026-10-12 to 2026-11-09 (4 weeks)" in panel
+        assert "A1230     In progress" in panel
         await pilot.press("l")
         await settle(pilot)
-        assert screen.panel == "snapshot" and "look-ahead MAIN#2:" not in screen_text(app)
+        assert screen.panel == "snapshot" and "Look-ahead" not in panel_of(screen)
         await pilot.press("o")
         await settle(pilot)
-        assert screen.panel == "orphans" and "no orphaned links" in screen_text(app)
+        assert screen.panel == "orphans" and "Orphaned links\nNone: every" in panel_of(screen)
         client.put_orphans("P123", "MAIN", [OrphanedLink("LNK1", "REC1", "A1990", 1, "gone")])
         await pilot.press("f5")
         await settle(pilot)
-        text = screen_text(app)
-        assert "orphaned links: 1" in text and "A1990  last seen in snapshot 1" in text
+        panel = panel_of(screen)
+        assert "Orphaned links (1)" in panel and "A1990     1" in panel
         await pilot.press("o")
         await settle(pilot)
         assert screen.panel == "snapshot"
@@ -128,8 +133,8 @@ def test_the_panel_warns_while_the_links_are_being_checked() -> None:
     )
 
     async def steps(pilot: Pilot[None], app: TlApp, screen: ScheduleScreen) -> None:
-        text = " ".join(screen_text(app).split())
-        assert "links to activities are being checked" in text
+        text = " ".join(panel_of(screen).split())
+        assert "Warning Links to activities are being checked" in text
 
     scenario(client, steps)
 
@@ -366,7 +371,7 @@ def test_the_look_ahead_is_asked_for_the_highlighted_snapshot_and_a_refusal_is_i
         assert asked == [1]
         await pilot.press("shift+tab", "down")  # SIDE, whose newest snapshot is Invalid
         await settle(pilot)
-        text = " ".join(screen_text(app).split())
+        text = " ".join(panel_of(screen).split())
         assert asked[-1] == 2 and "has no activities to read" in text
         assert isinstance(app.screen, ScheduleScreen)
 

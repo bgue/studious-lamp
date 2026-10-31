@@ -6,7 +6,7 @@ from collections.abc import Awaitable, Callable
 
 from fakes import SCOPE, FakeClient
 from fakes_correspondence import seed_correspondence
-from helpers import run_pilot, screen_text, settle
+from helpers import panel_of, run_pilot, screen_text, settle
 from textual.pilot import Pilot
 from textual.widgets import DataTable, Static
 from tl_mod_correspondence.handlers.triage import ConfirmTriage
@@ -46,7 +46,7 @@ def test_f5_lists_the_master_register_with_the_transmittal_among_the_items() -> 
         assert [x.number for x in screen.lines] == [
             "P123-COR-0001", "P123-COR-0002", "P123-COR-0003", "P123-TRN-0001",
         ]  # fmt: skip
-        assert "Isometrics [transmittal]" in text and "4 lines in the register" in text
+        assert "Isometrics" in text and "Transmittal" in text and "4 lines in the register" in text
         await pilot.press("escape")
         await settle(pilot)
         assert not isinstance(app.screen, CorrespondenceScreen)
@@ -62,12 +62,12 @@ def test_the_clocks_view_shows_the_reply_clock_with_fourteen_days_left() -> None
         assert "P123 › Response clocks › P123-COR-0003" in text
         assert "P123-COR-0003" in text and "2026-11-02" in text and "14 cal" in text
         assert "1 open clock" in text and "Item" in text
-        assert "P123-COR-0003-C01" not in text and "P123-default@1" not in text
+        assert "P123-COR-0003-C01" not in text and "P123-default@1" not in panel_of(screen)
         app.display_mode.technical = True  # technical mode puts the clock key and calendar back
         screen.refresh_for_display_mode()
         await settle(pilot)
         text = screen_text(app)
-        assert "P123-COR-0003-C01" in text and "calendar P123-default@1" in text
+        assert "P123-COR-0003-C01" in text and "P123-default@1" in panel_of(screen)
 
     scenario(world(), steps)
 
@@ -78,7 +78,7 @@ def test_the_inbox_lists_received_items_and_shows_the_suggestion() -> None:
         await settle(pilot)
         assert [x.number for x in screen.lines] == ["P123-COR-0001", "P123-COR-0002"]
         assert screen.query_one("#log-table", DataTable).row_count == 2
-        assert "suggestion: Letter" in screen_text(app)
+        assert "Letter (score 0)" in panel_of(screen)
         assert "2 items awaiting triage" in screen_text(app)
 
     scenario(world(), steps)

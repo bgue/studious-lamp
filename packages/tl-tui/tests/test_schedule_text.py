@@ -35,11 +35,11 @@ def test_schedule_and_snapshot_rows() -> None:
     [listed] = client.list_schedules("P123")
     assert st.schedule_cells(listed) == (
         "MAIN",
+        "MAIN schedule",
         "Current",
         "2",
         "2026-10-12",
         "2",
-        "MAIN schedule",
     )
     assert len(st.SCHEDULE_COLUMNS) == len(st.schedule_cells(listed))
     current, older = client.get_schedule("P123", "MAIN").snapshots

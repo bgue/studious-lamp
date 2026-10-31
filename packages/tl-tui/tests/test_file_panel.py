@@ -67,7 +67,7 @@ def drive(panel: FilePanel, steps: Any) -> PanelApp:
 
 
 def shown(panel: FilePanel) -> str:
-    return str(panel.query_one("#fp-lines", Static).render())
+    return str(panel.query_one("#fp-lines", Static).content)
 
 
 def make_panel(
@@ -87,7 +87,11 @@ def test_the_text_fallback_shows_type_size_and_page_count(tmp_path: Path) -> Non
     async def steps(pilot: Pilot[None], app: PanelApp) -> None:
         panel.show(RECORD, {info.sha256: 3})
         await settle(pilot)
-        assert shown(panel) == f"> sheet-B.pdf  PDF document  {human_size(len(data))}  3 pages"
+        size = human_size(len(data))
+        assert shown(panel).splitlines() == [
+            "Name         Type          Size   Pages",
+            f"sheet-B.pdf  PDF document  {size}  3 pages",
+        ]  # the chosen row is shown reversed, not marked with text
         assert panel.thumbnail is None
 
     drive(panel, steps)
@@ -301,7 +305,10 @@ def test_a_file_that_is_not_a_pdf_gets_a_line_and_no_render(tmp_path: Path) -> N
     async def steps(pilot: Pilot[None], app: PanelApp) -> None:
         panel.show(RECORD)
         await settle(pilot)
-        assert shown(panel).startswith("> memo.docx  Word document  6 B")
+        assert shown(panel).splitlines() == [
+            "Name       Type           Size",
+            "memo.docx  Word document  6 B",
+        ]
         assert panel.thumbnail is None and "fetch_file" not in client.calls
 
     drive(panel, steps)
