@@ -21,6 +21,10 @@ SlotKind = Literal[
     "string", "text", "int", "decimal", "bool", "date", "datetime", "enum", "ref", "json"
 ]
 Widget = Literal["input", "textarea", "select", "checkbox", "date"]
+#: The offline class a type package declares with the class annotation ``tl:offline``
+#: (offline-classes spec, section 3). The vocabulary of `generated.offline_classes`.
+OfflineValue = Literal["full", "draft_only", "none"]
+OFFLINE_VALUES: tuple[str, ...] = ("full", "draft_only", "none")
 
 
 class _Strict(BaseModel):
@@ -86,6 +90,9 @@ class CompiledType(BaseModel):
     storage_mode: Literal["managed", "object-backed"]
     slots: list[CompiledSlot]
     form: FormHints = FormHints()
+    #: ``tl:offline`` of the class; a missing annotation is ``none`` (fail closed). Not part of
+    #: ``schema_hash``: the hash covers what a body is, and a change of class changes the files.
+    offline: OfflineValue = "none"
 
     @property
     def type_name(self) -> str:
