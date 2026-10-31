@@ -22,6 +22,7 @@ from urllib.parse import urlsplit
 
 from tl_adapters.backend import BackendUnavailableError, ledger_exists
 from tl_adapters.db import as_target, display_target
+from tl_core.offline import NodeKindNotBuiltError, require_node_built
 
 from tl_tui.app import TlApp
 from tl_tui.embedded import DEFAULT_ACTOR, EmbeddedAuthenticator, EmbeddedClient
@@ -192,7 +193,15 @@ def run(
     """Sign in (unless ``signed_in`` or a token says who it is), build the app, run it, release it.
 
     Quitting the sign-in screen ends the run without opening the ledger.
+
+    A node kind whose replica layer is not built (``TL_NODE_KIND`` ``site`` or ``device``) is
+    refused first: ``error: ...`` on stderr and exit 2, before anything is opened.
     """
+    try:
+        require_node_built()
+    except (NodeKindNotBuiltError, ValueError) as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        raise SystemExit(2) from None
     url = remote or os.environ.get("TL_REMOTE") or None
     session_token: str | None = None  # a server session this call made and must end
     if signed_in is None and needs_sign_in(remote=remote, token=token):

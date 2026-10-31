@@ -16,6 +16,7 @@ from dataclasses import dataclass
 from typing import Any, cast
 
 from pydantic import BaseModel, ValidationError
+from tl_core import offline
 from tl_core.auth import errors as auth
 from tl_core.derivation.registry import ExtractorLoadError
 from tl_core.extypes import errors as ext
@@ -130,6 +131,9 @@ def _rows() -> tuple[ErrorSpec, ...]:
         s(svc.BudgetExceededError, "budget_exceeded", 429),
         s(svc.ProposalDeciderError, "proposal_decider", 403),
         s(svc.ProposalAccessError, "proposal_access", 403),
+        # --- offline classes -----------------------------------------------------------------
+        s(offline.OnlineOnlyError, "online_only", 409),
+        s(offline.NodeKindNotBuiltError, "node_kind_not_built", 503),
         # --- extension types (P0-I8 workstream B) ---------------------------------------------
         s(ext.UnknownTypeError, "type_not_found", 404),
         s(ext.TypeNotActiveError, "type_not_active", 409),

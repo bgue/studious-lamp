@@ -168,4 +168,10 @@ def spec() -> ModuleSpec:
         },
         # command name -> access word, from the module's own table (ADR-0021)
         command_words={c.model.__name__: c.access for c in API_COMMANDS},
+        offline_drafts={  # record type -> its drafting commands (offline-classes spec, section 4)
+            DOCUMENT: frozenset({"RegisterDocument", "UpdateDocument"}),
+            REVISION: frozenset({"CreateRevision", "VoidRevision"}),
+            RENDITION: frozenset({"AttachRendition"}),
+            TRANSMITTAL: frozenset({"CreateTransmittal", "VoidTransmittal"}),
+        },
     )

@@ -145,4 +145,8 @@ def spec() -> ModuleSpec:
         actions={record_type: item_actions for record_type in ITEM_TYPES},
         # command name -> access word, from the module's own table (ADR-0021)
         command_words={c.model.__name__: c.access for c in API_COMMANDS},
+        offline_drafts={  # record type -> its drafting commands (offline-classes spec, section 4)
+            CORRESPONDENCE: frozenset({"DraftCorrespondence", "UpdateCorrespondence", "VoidDraft"}),
+            TECHNICAL: frozenset({"RaiseTechnical", "UpdateTechnical"}),
+        },
     )
