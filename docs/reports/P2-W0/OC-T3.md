@@ -36,7 +36,7 @@ No pytest was run (deferred to the increment's end run, per ticket).
 None (ticket: none; `test_cli_new_record_type.py` not edited).
 
 ## Learnings (proposed)
-- The workflow task text named `docs/reports/P2-W0/T06.md` and `Claude Opus 5.5` as the trailer model, while the ticket names `OC-T3.md` and the running model is Haiku 5.5. I followed the ticket path and used the Haiku 5.5 trailer, which the session attribution requires. A ticket-ID alias (T06 vs OC-T3) in the workflow would avoid this mismatch.
+- The workflow task text named a different report path and a different trailer model than the ticket; I followed the ticket. The trailer names the running model, as the session attribution requires. A ticket-ID alias (T06 vs OC-T3) in the workflow would avoid this mismatch.
 - `uv sync --all-packages` printed the normal dependency list; the `UV_NATIVE_TLS` deprecation warning appears on every `uv run`, which is noise, not a failure.
 
 ## Open questions / Blocked
