@@ -18,6 +18,7 @@ from sqlalchemy import Connection, event, text
 from sqlalchemy.engine import Engine
 from tl_adapters.db import DbTarget, create_schema, open_uow
 from tl_core import confidentiality as cf
+from tl_core.auth import accounts
 from tl_core.query import QuerySpec, api, parse, run_query
 from tl_core.query.compiler import compile_query
 from tl_core.schema_provider import DirectorySchemaProvider, use_provider
@@ -64,6 +65,14 @@ def world(db: DbTarget, tmp_path: Path) -> Iterator[CorrWorld]:
     """Letters, RFIs and documents of every class, a post and links across hidden records."""
     with use_provider(DirectorySchemaProvider(FIXTURES)):
         made = CorrWorld(db, tmp_path / "objects")
+        # The acting accounts exist with the ``user`` role: an account-less ``user:`` actor holds
+        # the ``user`` word only on a dev ledger (SQLite), never on Postgres (owner decision D2).
+        with open_uow(db) as uow:
+            for name in ("u", "mlee"):
+                accounts.create_account(
+                    uow, username=name, display_name=name.title(), kind="person",
+                    roles=["user"], password=None, by="svc:test",
+                )  # fmt: skip
         with store.use_files(made.files):
             ids: dict[str, str] = {}
             for i in range(1, LETTERS + 1):
