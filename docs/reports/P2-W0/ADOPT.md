@@ -21,11 +21,24 @@ Refused: scope not `project:<project>` (or `company` for an admin); set missing 
 - tests: `tl-api/tests/test_api_addable.py` (filter, new command, project superuser vs another project's), `test_auth_review.py` (closed to agents), `tl-modules/schemareg/tests/test_adopt_set.py` (7), `tl-tui/tests/test_add_property.py`
 - docs: schemareg README (module and docs), tl-api and tl-tui READMEs, `docs/reference/openapi.json`
 
+## Review fixes (attempt 2)
+- Merged p2/w0 @10268ab first (clean).
+- F1: a package not in the project's schema (ledger-only, not pinned) is refused: "an administrator adopts the package for <project> first (AdoptSchemaPackage)". F5: a registry pin of another version is refused early ("an administrator moves the pin"); README says the project's company version moves with the extension.
+- F3: approval comment "Approved by AdoptSchemaSet (mechanical extension)". F4: route docstring and openapi.json regenerated.
+- F6/F1 tests: the five events in order, actor and source, a refused call leaves no draft, new-package and pin refusals (schemareg tests now 11).
+- F2: command-table pins in `test_commands`, `test_api_proposals` (registry 13 to 14) and `test_api_document_controller` counted the new controller command; updated. `test_module_role_seams` passes unchanged (`pick("schemareg")` now picks `AdoptSchemaSet`, which the runner decides by role on its scope).
+
 ## Mutation
-Sentinel (`_may_adopt` returns True): killed. Handler guards: scope, optional, already adopted, additive, several extensions: 5/5 killed (the last after adding a test: it had survived).
+Sentinel (`_may_adopt` returns True): killed. Handler guards: scope, optional, already adopted, additive, several extensions, no-package (F1), pin (F5): 7/7 killed (several-extensions after adding a test).
 
 ## Gate
-`just check`: ok. `just gate test_api_addable test_auth_review packages/tl-core/tests packages/tl-modules/schemareg/tests test_add_property`: `part 1: exit 1, 2 failed, 1743 passed in 157.07s`. The 2 failures are in `tl-tui/tests/test_add_property.py` (`test_a_number_typed_stays_a_number_only_when_it_reads_back_the_same`, `test_the_tab_shows_a_held_ad_hoc_field_in_the_custom_section_labelled_custom`, RecordNotFoundError in `tests/fakes.py:576`); they fail the same on p2/w0 @656e54a with my changes stashed. Not touched.
+`just check` ok. Parts, one at a time:
+- `packages/tl-api/tests`: 4 failed, 1205 passed (the four command-table pins above); the three files re-run after the fix: 194 passed.
+- `packages/tl-mcp/tests tests/services/test_module_role_seams.py`: `part 1: exit 0, 547 passed, 1 skipped in 483.96s`, PASS.
+- tl-tui (test_add_property, log_actions, fakes/embedded schemareg, record/schema/properties/psets/edit tests): `part 1: exit 0, 136 passed in 60.28s`, PASS (the two earlier add-property failures are fixed by FIX-TUI).
+- `just gate-pg packages/tl-modules/schemareg/tests packages/tl-api/tests/test_api_addable.py`: `part 1: exit 0, 255 passed in 481.76s`, PASS.
+- Earlier part (before the merge): tl-core/tests, schemareg tests, test_api_addable, test_auth_review all passed.
+The whole tl-tui directory was not run (over 30 min on this host); the files that use schemareg or the add-property form were.
 
 ## Open
-4 Should the extension be approved without a second person (as built), or should the command stop at Approved for an admin? 4 Full-suite parity (Postgres) not run: `just gate-pg` is the next step.
+4 Single-person approval and the `controller` word await the orchestrator (F1 now closed).
