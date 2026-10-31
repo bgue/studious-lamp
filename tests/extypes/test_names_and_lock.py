@@ -82,6 +82,19 @@ def test_bad_coordinates_are_refused(namespace: str, name: str, version: str) ->
         coordinates(namespace, name, version)
 
 
+@pytest.mark.parametrize("first", ["awp", "materials", "scaffold"])
+@pytest.mark.parametrize("namespace", ["{first}", "{first}.sub", "{first}.a.b"])
+def test_the_phase_2_module_namespaces_are_reserved(first: str, namespace: str) -> None:
+    """``awp``, ``materials`` and ``scaffold`` are the first segment of platform setting keys."""
+    with pytest.raises(LayoutError, match="reserved for the platform"):
+        coordinates(namespace.format(first=first), "Thing", "1.0.0")
+
+
+def test_a_namespace_that_only_starts_with_a_reserved_word_is_not_reserved() -> None:
+    for namespace in ("awpx", "co.awp", "co.materials", "scaffolding"):
+        assert coordinates(namespace, "Thing", "1.0.0").namespace == namespace
+
+
 def test_a_package_path_has_exactly_three_levels(tmp_path: Path) -> None:
     ok = tmp_path / "co.acme" / "LiftPlan" / "1.0.0"
     ok.mkdir(parents=True)

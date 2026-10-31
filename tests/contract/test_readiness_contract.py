@@ -114,7 +114,8 @@ def test_a_check_that_writes_is_refused(engine: Engine) -> None:
 
 def test_a_detail_over_the_bound_is_refused(engine: Engine) -> None:
     check = Sample("long_check", frozenset({"awp.IWP"}), _too_long)
-    with pytest.raises(ContractViolation, match="detail"):
+    # The pydantic bound on `detail` answers first (model_construct skipped it at build time).
+    with pytest.raises(ContractViolation, match="does not satisfy the CheckResult model"):
         check_readiness_contract(check, make_world(engine))
 
 
