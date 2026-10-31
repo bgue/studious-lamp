@@ -49,7 +49,7 @@ PASSWORDS = {  # made-up dev passwords for made-up people
     "ben": "a long passphrase for ben",
     "dora": "a long passphrase for dora",
 }
-NEEDS = "needs the document_controller or admin role"
+NEEDS = "needs the controller access word for documents"
 STANDARDS = "standards/co.acme.standards@1.0.0.yaml"
 DOC_STANDARDS = "standards/co.acme.documents@1.0.0.yaml"
 TAG_MAPPING = "templates/tag-list-instrument-index.yaml"
@@ -711,7 +711,7 @@ def section_dms_import(ws: Workspace) -> None:
 def section_refused(ws: Workspace) -> None:
     sh = Shell(ws, "What a plain user (amy) is refused", 118)
     sh.note("amy has the role `user`: she registers, edits, links and drafts;")
-    sh.note("controlling acts need the document_controller or admin role (section 14);")
+    sh.note("controlling acts need the controller access word of the module (section 14);")
     sh.note("loading standards and managing accounts stay with admins")
     refused = (
         ("standards", "load", STANDARDS),
@@ -775,7 +775,7 @@ def section_controller(ws: Workspace) -> None:
         "3",
         who="amy",
     )
-    sh.note("dora has the role `user`, so issuing is refused, with the roles that would allow it")
+    sh.note("dora has the role `user`, so issuing is refused; the refusal names the missing word")
     sh.run("admin", "user", "show", "dora", who="demo", tail=6)
     refused = sh.run(
         "doc", "rev", "issue", "ISO-3000", "A", *P, "--status", "IFC", who="dora", ok=False
@@ -2231,7 +2231,7 @@ def section_module_roles(ws: Workspace) -> None:
         await pilot.press("m")
         await tk.until(
             pilot,
-            lambda: "amy" in tk.screen_text(app) and "documents" in tk.screen_text(app),
+            lambda: "Amy A" in tk.screen_text(app) and "Documents" in tk.screen_text(app),
             "the module roles log",
         )
         tk.shot_tui(
@@ -2239,8 +2239,8 @@ def section_module_roles(ws: Workspace) -> None:
             app,
             "25b-module-roles-log",
             "F10, m: the module roles log, every grant and who made it (admins only)",
-            "amy",
-            "documents",
+            "Amy A",
+            "Superuser",
         )
 
     tk.run_tui(ws, app, scenario)
