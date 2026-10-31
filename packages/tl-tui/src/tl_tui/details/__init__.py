@@ -89,7 +89,7 @@ def details_for(
     mode: DisplayMode,
 ) -> list[DetailRow]:
     """The rows for ``record``: its type's renderer, else the generic rows (technical by mode)."""
-    from tl_tui.details.generic import generic_rows  # noqa: PLC0415
+    from tl_tui.details.generic import generic_rows, offline_rows  # noqa: PLC0415
 
     _load_renderers()
     renderer = _RENDERERS.get(str(record.get("type")))
@@ -100,6 +100,8 @@ def details_for(
             rows = renderer(client, project, record, labels)
         except Exception:  # noqa: BLE001  a renderer must never take the screen down
             rows = [*generic_rows(record, labels), DetailRow(NOTE_LABEL, NOTE_TEXT)]
+    if mode.technical:  # one read of the record types per call; plain mode never reads them
+        rows = [*rows, *offline_rows(client, str(record.get("type")))]
     return [row for row in rows if mode.technical or not row.technical]
 
 
