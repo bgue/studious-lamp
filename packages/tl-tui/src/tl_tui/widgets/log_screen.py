@@ -65,8 +65,8 @@ CRUMB_PADDING = 2  # the screen's left and right padding
 #: ``EDGE_ROWS`` of the last one: Textual measures every cell of every row it is given (about
 #: 0.1 ms a row), so 5,000 rows cost half a second whether or not they are on screen. The screen
 #: still holds, filters and counts every row it was given; only the table is filled as needed.
-WINDOW_ROWS = 500
-CHUNK_ROWS = 500
+WINDOW_ROWS = 120
+CHUNK_ROWS = 240
 EDGE_ROWS = 40
 
 
@@ -76,6 +76,15 @@ class LogTable(DataTable[str]):
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self.fill_all: Callable[[], None] | None = None
+        self.fill_more: Callable[[], None] | None = None  # the view reached the last rows held
+
+    def watch_scroll_y(self, old_value: float, new_value: float) -> None:
+        super().watch_scroll_y(old_value, new_value)
+        if (
+            self.fill_more is not None
+            and new_value + self.size.height >= self.row_count - EDGE_ROWS
+        ):
+            self.fill_more()  # the wheel or a scroll bar moved the view near the last row held
 
     def action_scroll_bottom(self) -> None:
         if self.fill_all is not None:
@@ -204,6 +213,14 @@ class LogScreen[Row](ModalScreen[None]):
         """Enter on a row; normally ``open_record(self, client, scope, project, actor, id)``."""
         raise NotImplementedError
 
+    def filter_changed(self, text: str) -> None:
+        """The filter box changed (before the list follows it). A log that holds only the first
+        page of its rows reads the rest here."""
+
+    def rows_exhausted(self) -> None:
+        """The cursor is near the last row held. A log that holds only the first page of its rows
+        reads the rest here."""
+
     # --- state ----------------------------------------------------------------------------
 
     def __init__(self) -> None:
@@ -218,6 +235,8 @@ class LogScreen[Row](ModalScreen[None]):
         self._cells: dict[int, tuple[Row, tuple[str, ...], str]] = {}  # row -> cells, search text
         self._drawn_width = -1  # the width the table was last planned for
         self._in_table = 0  # the first rows of ``shown`` that the table holds
+        self._row_due = False  # a deferred panel and bar are waiting for the list to be drawn
+        self._row_force = False
         self._planned_names: list[str] = []
         self._planned_cells: list[list[str]] = []
 
@@ -238,6 +257,7 @@ class LogScreen[Row](ModalScreen[None]):
     def on_mount(self) -> None:
         table = self.query_one("#log-table", LogTable)
         table.fill_all = self._fill_all
+        table.fill_more = self._fill_more
         table.add_columns(*self.columns())
         self._set_layout(self.size.width)
         self._show_keys()
@@ -324,7 +344,7 @@ class LogScreen[Row](ModalScreen[None]):
         self.shown = [row for row in self.rows if not needle or needle in self._cached(row)[1]]
         self._draw_table(keep)
         self.say(self.summary_text())
-        self._show_row(force=reread)
+        self._show_row(force=reread, defer=True)
 
     def _draw_table(self, keep: str | None) -> None:
         """Fill the table from ``self.shown``: the columns that vary (``keep_columns`` always),
@@ -358,9 +378,9 @@ class LogScreen[Row](ModalScreen[None]):
             ]
         self._planned_names, self._planned_cells = shown_names, shown_cells
         table = self.query_one("#log-table", DataTable)
+        self._in_table = 0
         table.clear(columns=True)
         table.add_columns(*shown_names)
-        self._in_table = 0
         keys = [self.row_key(row) for row in self.shown]
         at = keys.index(keep) if keep in keys else 0
         self._add_rows(max(WINDOW_ROWS, at + EDGE_ROWS + 1))
@@ -370,10 +390,10 @@ class LogScreen[Row](ModalScreen[None]):
     def _add_rows(self, stop: int) -> None:
         """Put rows ``_in_table`` up to ``stop`` of ``shown`` into the table."""
         stop = min(stop, len(self.shown))
-        if stop <= self._in_table:
-            return
         table = self.query_one("#log-table", DataTable)
         names = self._planned_names
+        if stop <= self._in_table or len(table.columns) != len(names):
+            return  # nothing more to add, or the table is between two sets of columns
         for index in range(self._in_table, stop):
             # Text, not str: a cell is read as markup, and a title such as [a, b] is not markup
             table.add_row(
@@ -385,9 +405,19 @@ class LogScreen[Row](ModalScreen[None]):
             )
         self._in_table = stop
 
+    def _fill_more(self) -> None:
+        """The next chunk of ``shown`` into the table (the view is near the last row held)."""
+        if not self.shown:
+            return
+        if self._in_table < len(self.shown):
+            self._add_rows(self._in_table + CHUNK_ROWS)
+        else:
+            self.rows_exhausted()
+
     def _fill_all(self) -> None:
         """Every row of ``shown`` into the table (Ctrl+End)."""
         self._add_rows(len(self.shown))
+        self.rows_exhausted()
 
     def current(self) -> Row | None:
         table = self.query_one("#log-table", DataTable)
@@ -412,10 +442,32 @@ class LogScreen[Row](ModalScreen[None]):
             text.stylize("bold reverse", len(head) + len(SEPARATOR))  # the record part stands out
         self.query_one("#log-crumb", Static).update(text)
 
-    def _show_row(self, *, force: bool = False) -> None:
-        """Breadcrumb, panel and (when the row changed, or ``force``) a fresh actions bar."""
-        row = self.current()
+    def _show_row(self, *, force: bool = False, defer: bool = False) -> None:
+        """Breadcrumb, panel and (when the row changed, or ``force``) a fresh actions bar.
+
+        ``defer``: the list has just been filled (rows read, a filter key). The breadcrumb is
+        drawn now; the panel and the bar follow once the list is on screen, for the row that is
+        highlighted then, so a run of filter keys reads one panel and not one for each key."""
         self._show_crumb()
+        if not defer:
+            self._finish_row(force)
+            return
+        self._row_force = self._row_force or force
+        if not self._row_due:
+            self._row_due = True
+            self.call_after_refresh(self._finish_deferred_row)
+
+    def _finish_deferred_row(self) -> None:
+        if not self._row_due:
+            return
+        self._row_due = False
+        force, self._row_force = self._row_force, False
+        if self._alive():
+            self._show_crumb()
+            self._finish_row(force)
+
+    def _finish_row(self, force: bool) -> None:
+        row = self.current()
         self.query_one("#log-panel-text", Static).update(self.panel_text(row))
         key = self.row_key(row) if row is not None else None
         if force or key != self._acted_for:
@@ -464,6 +516,11 @@ class LogScreen[Row](ModalScreen[None]):
         event.stop()
         if event.cursor_row >= self._in_table - EDGE_ROWS:
             self._add_rows(self._in_table + CHUNK_ROWS)  # the cursor is near the end of the table
+            if (
+                self._in_table >= len(self.shown)
+                and event.cursor_row >= len(self.shown) - EDGE_ROWS
+            ):
+                self.rows_exhausted()
         self._show_row()
 
     def on_data_table_row_selected(self, event: DataTable.RowSelected) -> None:
@@ -475,6 +532,7 @@ class LogScreen[Row](ModalScreen[None]):
     def on_input_changed(self, event: Input.Changed) -> None:
         event.stop()
         self.filter_text = event.value
+        self.filter_changed(event.value)
         self._fill(self._key())
 
     def on_input_submitted(self, event: Input.Submitted) -> None:

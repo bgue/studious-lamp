@@ -622,6 +622,10 @@ async def type_filters(rec: Recorder, name: str, pilot: Any, app: Any, count: in
     """``/`` and a reference taken from a row that is listed; the last key narrows the list."""
     screen = app.screen
     table = screen.query_one("#log-table")
+    whole = getattr(screen, "_load_whole", None)  # the document register opens on its first page
+    if whole is not None:  # the first key of a filter reads the rest; the last key is timed after
+        whole()
+        await settle(pilot)
     pool = [
         m.group(0).lower()
         for row in screen.rows[:300]
