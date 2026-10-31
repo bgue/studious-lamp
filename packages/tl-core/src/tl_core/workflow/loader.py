@@ -17,6 +17,7 @@ import yaml
 from pydantic import ValidationError
 from tl_schema.registry import default_schema_dir
 
+from tl_core.filesig import Signature, signature
 from tl_core.workflow.definition import RequiredPsetsGuard, WorkflowDefinition
 
 _SCOPE_PATTERN = re.compile(r"company|project:[A-Za-z0-9_.-]+")
@@ -187,6 +188,19 @@ def load_workflows(directory: Path) -> WorkflowRegistry:
     return registry
 
 
+_PARSED: dict[Path, tuple[Signature, WorkflowRegistry]] = {}
+
+
 def default_workflows() -> WorkflowRegistry:
-    """The definitions in ``<schema dir>/workflows`` (``tl_schema.registry.default_schema_dir``)."""
-    return load_workflows(default_schema_dir() / "workflows")
+    """The definitions in ``<schema dir>/workflows`` (``tl_schema.registry.default_schema_dir``).
+
+    The files are parsed again only when one was added, removed or edited (``filesig``); each call
+    gets a registry of its own over the same, immutable definitions.
+    """
+    directory = default_schema_dir() / "workflows"
+    seen = signature(directory)
+    found = _PARSED.get(directory)
+    if found is None or found[0] != seen:
+        found = (seen, load_workflows(directory))  # a bad file raises and is not remembered
+        _PARSED[directory] = found
+    return WorkflowRegistry(found[1].all())

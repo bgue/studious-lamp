@@ -454,7 +454,8 @@ def screen_text(app: Any) -> str:
 def widget_text(app: Any, ident: str) -> str:
     from textual.widgets import Static
 
-    return str(app.screen.query_one(ident, Static).render())
+    # the content as given (a string, a Text or a layout.Adaptive page), not its drawn form
+    return str(app.screen.query_one(ident, Static).content)
 
 
 @contextlib.contextmanager
@@ -523,6 +524,16 @@ LOGS = (
 )
 
 
+def table_rows(screen: Any) -> int:
+    """The rows the list holds when it is drawn: all of them, or the first chunk of a long list
+    (the table takes the rest as the cursor comes near its end); -1 while it is still being
+    filled."""
+    from tl_tui.widgets.log_screen import WINDOW_ROWS
+
+    held = screen._in_table  # pyright: ignore[reportPrivateUsage]
+    return held if held >= min(len(screen.shown), WINDOW_ROWS) else -1
+
+
 def is_screen(app: Any, name: str) -> bool:
     return type(app.screen).__name__ == name
 
@@ -533,7 +544,7 @@ def log_ready(app: Any, name: str) -> bool:
         return False
     screen = app.screen
     tables = screen.query("#log-table")  # not there while the screen is still being built
-    return bool(tables) and bool(screen.shown) and tables.first().row_count == len(screen.shown)
+    return bool(tables) and bool(screen.shown) and tables.first().row_count == table_rows(screen)
 
 
 async def run_log(
@@ -635,7 +646,7 @@ async def type_filters(rec: Recorder, name: str, pilot: Any, app: Any, count: in
             return (
                 screen.filter_text == text
                 and 0 < len(screen.shown) < total
-                and table.row_count == len(screen.shown)
+                and table.row_count == table_rows(screen)
             )
 
         await timed(rec, name, pilot, lambda text=text: send_key(app, text[-1]), narrowed)

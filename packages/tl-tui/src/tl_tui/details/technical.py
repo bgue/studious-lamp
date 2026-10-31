@@ -147,7 +147,9 @@ def rfi_content(
             for defined in client.history(e.id)
             if defined.event_type == CORR_DEFINED
         ]
-        rows += timeline_detail_rows(client, project, history, view.id, labels, escalations=derived)
+        rows += timeline_detail_rows(
+            client, project, history, view.id, labels, escalations=derived, clocks=view.clocks
+        )
         rows += file_rows(client, view.id)
         rows += link_rows(client, view.id)
     rows += record_rows(record) if record is not None else []

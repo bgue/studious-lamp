@@ -19,6 +19,7 @@ from sqlalchemy import text
 from tl_schema.registry import default_schema_dir
 
 from tl_core import confidentiality
+from tl_core.filesig import Signature, signature
 from tl_core.services.errors import RecordNotFoundError
 from tl_core.uow import UnitOfWork
 
@@ -167,9 +168,24 @@ def load_expected_links(path: Path) -> ExpectedLinkRegistry:
     return registry
 
 
+_PARSED: dict[Path, tuple[Signature, ExpectedLinkRegistry]] = {}
+
+
 def default_expected_links() -> ExpectedLinkRegistry:
-    """The expectations in ``<schema dir>/links`` (``TL_SCHEMA_DIR`` or ``schema/fixtures``)."""
-    return load_expected_links(default_schema_dir() / "links")
+    """The expectations in ``<schema dir>/links`` (``TL_SCHEMA_DIR`` or ``schema/fixtures``).
+
+    The files are parsed again only when one was added, removed or edited (``filesig``); each call
+    gets a registry of its own over the same, immutable expectations.
+    """
+    directory = default_schema_dir() / "links"
+    seen = signature(directory)
+    found = _PARSED.get(directory)
+    if found is None or found[0] != seen:
+        found = (seen, load_expected_links(directory))  # a bad file raises and is not remembered
+        _PARSED[directory] = found
+    copy = ExpectedLinkRegistry()
+    copy.merge(found[1])
+    return copy
 
 
 def unmet_expectations(

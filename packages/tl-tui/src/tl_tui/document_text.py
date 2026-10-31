@@ -9,16 +9,18 @@ between two revisions are the module's findings, shown here as they come.
 from __future__ import annotations
 
 from collections.abc import Sequence
+from pathlib import Path
 from typing import Any
 
 from tl_mod_documents.errors import UnknownSchemeError
-from tl_mod_documents.schemes import load_scheme_file
+from tl_mod_documents.schemes import SCHEME_FILE, load_scheme_file
 from tl_mod_documents.views import (
     DocumentLinkView,
     DocumentView,
     RevisionDiffView,
     RevisionView,
 )
+from tl_schema.registry import default_schema_dir
 
 from tl_tui.details import TECHNICAL_SECTION, DetailRow, plain_code, rows_page, table_rows
 from tl_tui.display import Labels, code_label, humanize, type_label
@@ -42,13 +44,29 @@ def current_text(view: DocumentView) -> str:
     return f"{view.current_revision_code}({view.current_revision_status or EMPTY})"
 
 
+_WORDS: dict[Path, tuple[tuple[int, int] | None, dict[str, str]]] = {}
+
+
 def status_labels() -> dict[str, str]:
     """The issue statuses of the revision scheme file in words (``IFR`` is ``Issued for review``).
-    Empty when the file cannot be read: a code then reads as itself."""
+    Empty when the file cannot be read: a code then reads as itself.
+
+    The file is parsed again only when it was edited (a register asks for every one of its rows,
+    and parsing it takes longer than drawing the row)."""
+    path = default_schema_dir() / SCHEME_FILE
     try:
-        return {code: status.label for code, status in load_scheme_file().statuses.items()}
-    except UnknownSchemeError:
-        return {}
+        info = path.stat()
+        stamp: tuple[int, int] | None = (info.st_mtime_ns, info.st_size)
+    except OSError:
+        stamp = None
+    found = _WORDS.get(path)
+    if found is None or found[0] != stamp:
+        try:
+            words = {code: status.label for code, status in load_scheme_file().statuses.items()}
+        except UnknownSchemeError:
+            words = {}
+        found = _WORDS[path] = (stamp, words)
+    return dict(found[1])
 
 
 def revision_words(code: str | None, status: str | None, words: dict[str, str]) -> str:

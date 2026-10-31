@@ -23,9 +23,10 @@ from tl_tui.client import ClientInterface
 from tl_tui.details import DetailRow, details_for, rows_page
 from tl_tui.display import Labels, actor_label, humanize, mode_of
 from tl_tui.errors import CLIENT_ERRORS, describe_error
-from tl_tui.labels_load import load_labels
+from tl_tui.labels_load import forget_labels, load_labels
 from tl_tui.layout import plain_lines, render, state_style
 from tl_tui.messages import CloseRecord, RecordChanged, StatusMessage, StepRecord
+from tl_tui.reads import Reads
 from tl_tui.text import EMPTY, conformance_mark, timestamp
 from tl_tui.widgets.file_panel import FilePanel
 from tl_tui.widgets.links_tab import LinksTab
@@ -191,27 +192,51 @@ class RecordView(Vertical, can_focus=True):
         self.reload()
 
     def reload(self) -> None:
-        """Re-read the record and its history, then redraw. On a client error, keep the display."""
+        """Re-read the record and its history, then redraw. On a client error, keep the display.
+
+        Details, header and History are drawn at once. A tab that needs reads of its own
+        (Properties, Links, Trace, Thread) reads them when it is first shown, and again after
+        the next ``reload`` if it is the tab on show; the Files list is read in the background."""
+        reads = Reads(self.client)
         try:
-            record = self.client.get_record(self.scope, self.key)
-            events = [] if record is None else self.client.history(record["id"])
+            record = reads.get_record(self.scope, self.key)
+            events = [] if record is None else reads.history(record["id"])
         except CLIENT_ERRORS as exc:
             self.post_message(StatusMessage(describe_error(exc), "error"))
             return
         self.record = record
         self._events = events
-        self._badges_text = self._badges(record)
+        self._badges_text = self._badges(record, reads)
         self._draw_header(record, self._badges_text)
-        self._draw_details(record)
+        self._draw_details(record, reads)
         self._draw_history(events)
+        self._tabs_read = set()
         if record is None:
             self.post_message(StatusMessage(f"No record {self.key}", "error"))
         else:
-            self.query_one("#psets-tab", PsetsTab).show_record(record)
-            self.query_one("#links-tab", LinksTab).show_record(record)
-            self.query_one("#trace-tab", TraceTab).show_record(record)
-            self.query_one("#thread-tab", ThreadTab).show_record(record)
+            self._read_tab(self.query_one("#rv-tabs", TabbedContent).active)
             self.query_one("#files-tab", FilePanel).show(str(record["id"]))
+
+    def _read_tab(self, pane: str) -> None:
+        """Give the tab ``pane`` the current record, once (a ``reload`` makes it read again)."""
+        record = self.record
+        if record is None or pane in self._tabs_read:
+            return
+        tab = {
+            TABS["psets"]: "#psets-tab",
+            TABS["links"]: "#links-tab",
+            TABS["trace"]: "#trace-tab",
+            TABS["thread"]: "#thread-tab",
+        }.get(pane)
+        if tab is None:
+            return
+        self._tabs_read.add(pane)
+        self.query_one(tab).show_record(record)  # pyright: ignore[reportAttributeAccessIssue]
+
+    def on_tabbed_content_tab_activated(self, event: TabbedContent.TabActivated) -> None:
+        event.stop()
+        if event.pane.id is not None:
+            self._read_tab(event.pane.id)
 
     def _labels_for(self, record: dict[str, Any]) -> Labels:
         """The labels, loaded once per view (a retarget makes a new view)."""
@@ -219,15 +244,16 @@ class RecordView(Vertical, can_focus=True):
             self._labels = load_labels(self.client, self.scope, ("core.Record", record["type"]))
         return self._labels
 
-    def _draw_details(self, record: dict[str, Any] | None) -> None:
-        """The Details tab: the type's rows, technical rows only in technical mode."""
+    def _draw_details(self, record: dict[str, Any] | None, client: Any = None) -> None:
+        """The Details tab: the type's rows, technical rows only in technical mode. ``client`` is
+        what the rows read through (a ``Reads`` for the length of one refresh)."""
         body = self.query_one("#rv-details", Static)
         if record is None:
             self.details = ""
             body.update("")
             return
         rows = details_for(
-            self.client,
+            client if client is not None else self.client,
             project_of_scope(self.scope) or "",
             record,
             self._labels_for(record),
@@ -250,7 +276,7 @@ class RecordView(Vertical, can_focus=True):
         self._draw_history(self._events)
         self.query_one("#psets-tab", PsetsTab).refresh_for_display_mode()
 
-    def _badges(self, record: dict[str, Any] | None) -> str:
+    def _badges(self, record: dict[str, Any] | None, client: Any = None) -> str:
         """``since <time>`` (workflow state) and link counts for the header; empty when unknown.
 
         Both come from joins in the services (`workflow_status`, `link_counts`). A client that
@@ -260,7 +286,7 @@ class RecordView(Vertical, can_focus=True):
             return ""
         parts: list[str] = []
         try:
-            entered = self.client.workflow_status(record["id"]).entered_at
+            entered = (client or self.client).workflow_status(record["id"]).entered_at
             parts.append(f"since {timestamp(entered)}")
         except (*CLIENT_ERRORS, NotImplementedError):
             pass
@@ -451,6 +477,7 @@ class RecordView(Vertical, can_focus=True):
             except CLIENT_ERRORS as exc:
                 self.post_message(StatusMessage(describe_error(exc), "error"))
                 return False
+            forget_labels(self.client)  # an adopted package can move code lists and labels
             self.post_message(StatusMessage(f"Adopted {cmd.package} for {cmd.project}", "info"))
             return True
 
