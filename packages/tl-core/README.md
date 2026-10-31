@@ -128,6 +128,15 @@ A company adds a record type with a package of files (brief 31, 27.3). Runbook: 
 | `tl_core.services.records.create_module_record` | function | `Record.Created` plus the module's own events in one append, for a record type a module provides |
 | `tl_core.numbering.config.numbering_for(conn)` | function | The file patterns plus the numbering patterns modules hold in the ledger; record creation and key detection in posts use it |
 
+## Module roles (`tl_core.auth.module_roles`)
+Per-module access for an account: `viewer`, `user` and `superuser` per project and module, derived from the account role or granted as `Account.ModuleRole*` events; the words each role holds are data in `schema/settings/module-roles.yaml`. `effective_roles` is the one resolver. Runbook: `docs/runbooks/accounts-and-access.md`.
+
+## Offline classes (`tl_core.offline`)
+Whether a node may capture a command while offline, pure and not yet called (Phase 3 wires it). A type's class comes from `tl:offline`: `full` (edited offline, merged), `draft_only` (drafted offline, issued online) or `none` (online only). `capture_allowed(type, command, node=...)` decides; a `controller`, `admin` or `company` command is never captured. The table is `OFFLINE_CLASSES` (`generated/offline_classes.py`; page `generated/docs/offline-classes.md`). Any node kind but `authority` stops start-up (`TL_NODE_KIND`).
+
+## Readiness contract (`tl_core.readiness`)
+The frozen types, `load_checks()` (entry-point group `throughline.readiness_checks`, empty today) and `check_readiness_contract`, the read-only harness that tests a check against the contract. Reserved correlation prefixes `ready:`, `rollup:`, `progress:` and source prefix `job:` are in `tl_core.services.reserved`. The evaluation engine is designed, not built.
+
 ## Depends on / used by
 - Depends on: `tl_schema` (generated DDL, effective schema, conformance), `sqlalchemy` (Core only), `pydantic`, `python-ulid`, `duckdb==1.5.5` (MIT; writes the archive Parquet, imported lazily), `cryptography` (Apache-2.0/BSD; Ed25519).
 - Used by: `tl_adapters`, `tl_cli`, `tl_tui` (embedded client), later `tl_api`, `tl_mcp`.
