@@ -243,9 +243,12 @@ def require_visible(conn: Connection, record_id: str, viewer: Viewer | None = No
 def hidden_among(
     conn: Connection, record_ids: Sequence[str], viewer: Viewer | None = None
 ) -> set[str]:
-    """The ids among ``record_ids`` that the viewer must not read (for a small list)."""
+    """The ids among ``record_ids`` that the viewer must not read (for a small list).
+
+    Each id is tested by a lookup of its record (the ids are listed once in the statement); the
+    hidden records of the whole ledger are not listed."""
     ids = sorted({i for i in record_ids if i})
-    sql = hidden_sql(viewer, only="hr.id IN :_cf_ids")
+    sql = hidden_sql(viewer, only="hr.id = x.id")
     if sql is None or not ids:
         return set()
     found: set[str] = set()
