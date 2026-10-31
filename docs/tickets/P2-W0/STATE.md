@@ -1,5 +1,5 @@
-# P2-W0 STATE  r=3 base=9563763 C=C1 ck=- gate=n/a wt=/home/user/wt/p2-w0
-Read first: docs/build-spec/specs/wave0.md (plan, "Plan check" at the end), README.md here. Branch p2/w0 (trunk claude/wizardly-allen-m2v96s @0a69e0a). Builders branch from p2/w0 HEAD (the r3 state commit).
+# P2-W0 STATE  r=4 base=9563763 C=C2 ck=0 gate=n/a wt=/home/user/wt/p2-w0
+Read first: docs/build-spec/specs/wave0.md (plan, "Plan check" at the end), README.md here. Branch p2/w0 (trunk claude/wizardly-allen-m2v96s @0a69e0a). Builders and tickets branch from p2/w0 HEAD (the r4 state commit).
 ## BOARD
 RM-S1 p mrg f 55931f7 module roles table, grants, resolver, company grants; C1
 W0-B1 p mrg f 4824bf6 readiness, reserved, 11 keys, access words; C1
@@ -9,11 +9,15 @@ A3 t mrg l 266e29a dev/relay-lint; justfile recipe added r2
 RM-S2 p mrg f 2ee1c0e API-side module-role gates, D1-D3 orch; APPROVALS 9563763
 W0-B2 p mrg f bfd4629 load/publish targets by entry point
 OC-S1 p mrg f fc09ce7 offline annotation, tables; APPROVALS b203322
-RM-S3 p stg f - S6-roles-admin-surfaces.md; API/CLI/TUI grants + roles log; orch gate; Sec Y
-RM-S4 p stg f - S7-gate-sweep-cli-embedded.md; codemod gate_sweep.py + AST pin; orch gate; Sec Y
-OC-S2 p stg f - S8-offline-capture-hook.md; hook, load checks, node kind; no gate
-OC-T1 t todo f - r4; OC-T2 after T1; OC-T3 lite, one workflow
-TA p todo f - r4-5 tests for RM-S1..S4 + access words (Sonnet)
+RM-S3 p mrg f bdff740 admin surfaces; agent pin, keymap m widened; 26 PASS; APPROVALS 672d87d
+RM-S4 p mrg f 97f3436 gate sweep; 3 attempts; ADR-0016 fix class; gate_sweep 0 ungated; APPROVALS ac9c0d2
+OC-S2 p mrg f 41353f7 capture hook, load checks, node kind; 43 PASS
+OC-T1 t stg f - T04-record-types-route.md; GET /record-types + record_types() on clients; r4
+OC-T2 t stg f - T05-offline-row.md; technical-mode row; after T04 (needs record_types)
+OC-T3 t stg l - T06-scaffold-offline.md; template tl:offline none + expected pin; r4
+RM-S3L t stg l - T07-roles-lows.md; review lows F1-F4; r4
+OC-T4 t stg l - T08-delivery-class.md; InboundDelivery none (schema, orch approves); r4
+TA p todo f - r5 tests for RM-S1..S4 + access words (Sonnet)
 TB p todo f - r5 tests for W0-B1, W0-B2, OC, reserved, keys, A1-A3 tools
 DOC t todo l - r5 with DEMO, one workflow
 DEMO t todo l - r5; also dev/tour/phase1.py rows (F8)
@@ -35,20 +39,24 @@ D14 2026-10-31 orch: proposal accept = AND (account role + module word) kept; RM
 D15 2026-10-31 RM-S2 orch rows: D1 RoleAuthorizer needs controller word (derived or granted); D2 dev-ledger user words live in core holder_for_actor, so RM-S4 adds NO CLI-side dev fallback; D3 derive row document_controller -> user in every module
 D16 2026-10-31 r3 glue: justfile recipes `state` and `review-pack` added (A1/A2 merged); fake tl-tui/tests/fakes_admin.py is allowed in RM-S3 (a fake, not a test)
 D17 2026-10-31 OC-S2: extension class read from type.yaml key `offline` (default none); offline_class stays IO-free, optional `conn` only as disclosed deviation; its extype test goes to tests/extypes/ (the spec's packages/tl-core/tests/extypes does not exist)
+D18 2026-10-31 T04: row model RecordTypeRow + record_type_rows() in tl_core/offline.py (one copy for route and embedded); action reference.read (exists, agent-allowed; not record.read); extension types not listed; remote needs no code (__getattr__)
+D19 2026-10-31 T05: spec path details/technical.py is the RFI renderer; the offline row is added in details_for (details/__init__.py) + generic.py, technical mode, panel=False
+D20 2026-10-31 Q5 decided by orch: InboundDelivery offline class none. Not folded into the lows ticket: it is a schema change (tl:offline + tl:stream_type, just gen) -> own ticket T08, label schema, orch approves under P2-Q10
+D21 2026-10-31 r4 file names T04..T08 = OC-T1, OC-T2, OC-T3, RM-S3L, OC-T4; relay ids T04..T08 (relay-lint id class has no '-'); T06 updates tests/expected/record_type/weld_inspection.yaml (rule 12)
 ## SEC
 Not run (owner: only if asked). Rows recorded: RM-S1 Y, RM-S2 Y, RM-S3 Y, RM-S4 Y, W0-B1 Y, W0-B2 Y. Range 0a69e0a..P2-W0 head.
 ## OPEN
 Q1 orchestrator: ADR-0022, Phase 2 decisions ADR, accept ADR-0021 (contracts §1/§7 frozen per W0-B1 merge) needs orch raised wave0 §9
 Q2 owner/orch confirm awp.release.signoff_roles default [superuser] (W0-B1 wrote it as proposed) needs owner raised wave0 §9
 Q4 end run: TUI settings snapshot (test_snapshots_settings) differs after 11 keys; accounts-screen/admin snapshots differ after RM-S3; review --snapshot-update needs builder(TA) raised W0-B1
-Q5 orch: core.InboundDelivery stream has no tl:stream_type/class (OC-S1 open question); follow-up, stream_class() answers none meanwhile needs orch raised OC-S1
 Q6 end run: RM-S2 unaudited tests (tl-sim, tests/auth/test_authorizer_and_seed.py) and its predicted extra pins may break; TA reads them needs builder(TA) raised RM-S2
+Q7 TA: test_cli_corr.py::SITES and test_cli_domains.py comm loop use made-up ids; now 'no item' before forbidden after RM-S4 (ADR-0016 order); TA seeds real records needs builder(TA) raised RM-S4
 ## NEXT
-1. r3 dispatch (one workflow of 3, slots A/B/C): RM-S3 (S6), RM-S4 (S7), OC-S2 (S8). Branches p2/w0-rm-s3, p2/w0-rm-s4, p2/w0-oc-s2, all from p2/w0 HEAD.
-2. Merge order on P: OC-S2, RM-S3, RM-S4 (RM-S3 and RM-S4 both edit embedded.py in different hunks; RM-S3 and OC-S2 both add rows to tl_api/errors.py; regenerate openapi.json by python -m tl_api.openapi on conflict). Orch approves RM-S3/RM-S4 permission paths, logs APPROVALS. C2 after all three.
-3. Retry any 2s/gr first. Round 4: OC-T1/T3 then T2 (one workflow, specs from offline-classes §7 T1-T3) + TA (S9, tests for RM-S1..S4 and access words, mutants from roles-mvp §9).
-4. Round 5: TB, DOC+DEMO (one workflow). C4 by orchestrator (also P1-I3/P1-I8 demos on both adapters, just tour 1 once).
-5. Specs for round 4 are written in r4 from RM-S3/S4/OC-S2 reports (guard sites listed there).
+1. r4 dispatch, one workflow (T04, T06, T07, T08 independent; T05 after T04 merged or branched from T04 head). Branches p2/w0-t04-record-types-route, -t05-offline-row, -t06-scaffold-offline, -t07-roles-lows, -t08-delivery-class.
+2. Merge order on P: T04, T05, T06, T07, T08. T08 is a schema change: orch approves under P2-Q10 and logs APPROVALS. T04 regenerates docs/reference/openapi.json (python -m tl_api.openapi on conflict).
+3. Retry any 2s/gr first. Tests and tours stay deferred to the end run (D2). Each ticket leaves dev/accept/P2-W0/<id>.py or a named smoke.
+4. Round 5: TA (S9: tests RM-S1..S4 + access words, mutants roles-mvp §9; read Q6, Q7 first), TB (OC §7 tests incl. T04/T05/T06 files, W0-B2, reserved, keys, A1-A3), DOC + DEMO one workflow. TA/TB briefs list the old-text pins named in T05/T07/T08 reports.
+5. C4 by orchestrator (also P1-I3/P1-I8 demos on both adapters, just tour 1 once).
 ## REFS
 Specs wave0.md, roles-mvp.md (§6 RM-S3, §5/§11 RM-S4), offline-classes.md (§5, §7), phase2-wave-plan.md, OWNER-DECISIONS-2026-10-30.md. Reports docs/reports/P2-W0/{RM-S1,RM-S2,W0-B1,W0-B2,OC-S1,A1-A3}.md (guard sites for TA in RM-S1, RM-S2). Fixtures docs/tickets/P2-W0/provided/relay-{ok,bad}.txt. Acceptance scripts dev/accept/P2-W0/.
 ## TRAPS

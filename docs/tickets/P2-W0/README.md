@@ -1,6 +1,6 @@
 # P2-W0 — Phase 2 wave 0: roles, offline classes, readiness contract, targets, relay tools
 
-Status: in-progress (round 3). Plan: `docs/build-spec/specs/wave0.md` (v0.1 with the plan check F1-F10 applied; it wins over
+Status: in-progress (round 4). Plan: `docs/build-spec/specs/wave0.md` (v0.1 with the plan check F1-F10 applied; it wins over
 `roles-mvp.md` and `offline-classes.md`). Board and next steps: `STATE.md`. Owner decisions: `docs/build-spec/module-designs/OWNER-DECISIONS-2026-10-30.md`.
 
 ## Objective
@@ -24,7 +24,8 @@ end run), tours at C4, security reviews only if the owner asks (Sec rows recorde
 | A1, A2, A3 | `T01-state-sh.md`, `T02-review-pack.md`, `T03-relay-lint.md` (fixtures `provided/relay-*.txt`) | 1 |
 | RM-S2, W0-B2, OC-S1 | `S3-roles-wiring.md`, `S4-load-publish-targets.md`, `S5-offline-annotation.md` | 2 |
 | RM-S3, RM-S4, OC-S2 | `S6-roles-admin-surfaces.md`, `S7-gate-sweep-cli-embedded.md`, `S8-offline-capture-hook.md` | 3 |
-| OC-T1..T3, TA | round 4 | 4 |
+| OC-T1, OC-T2, OC-T3, RM-S3L, OC-T4 | `T04-record-types-route.md`, `T05-offline-row.md`, `T06-scaffold-offline.md`, `T07-roles-lows.md`, `T08-delivery-class.md` | 4 |
+| TA | round 5 (owner policy) | 5 |
 | TB, DOC, DEMO | round 5 | 5 |
 
 ## Risks and escalation
