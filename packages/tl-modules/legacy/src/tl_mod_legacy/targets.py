@@ -1,4 +1,11 @@
-"""Where the rows of a legacy file go: tags (engineering) or documents (documents).
+"""Where the rows of a legacy file go: a registered load target (built in: tags, documents).
+
+Targets are plugins of the group ``throughline.load_targets``: each entry point names a
+zero-argument callable that returns a :class:`Target`. The built-ins are registered by this
+package's own ``pyproject.toml``; a module adds its own by adding a line to its own. A target
+declares its ``scope`` (``project`` or ``company``): ``tl load open --company`` opens a run for a
+company target, and a project target refuses it (and the reverse). A module without a handler
+class can build a target from a declarative mapping with :func:`mapping_target`.
 
 A target reads the grid with the mapping template of the existing import of its module, plans
 against the project (what is new, what exists, what cannot be loaded), writes the new rows with the
@@ -13,11 +20,21 @@ a problem is a line number and fixed words or a field name.
 
 from __future__ import annotations
 
+import logging
+import re
+import threading
+from collections.abc import Generator, Iterable, Mapping
+from contextlib import contextmanager
 from dataclasses import dataclass, field
-from typing import Any, Protocol
+from importlib import metadata
+from typing import Any, Literal, Protocol, runtime_checkable
 
 import yaml
 from sqlalchemy import Connection, bindparam, text
+from tl_core.ledger import NewEvent
+from tl_core.modules import ModuleLoadError
+from tl_core.services.commands import Command
+from tl_core.services.records import create_module_record
 from tl_core.services.workflow import TransitionWorkflow, handle_transition_workflow
 from tl_core.uow import UnitOfWork
 from tl_mod_documents import registry as documents_registry
@@ -34,11 +51,15 @@ from tl_mod_engineering.imports import diff as engineering_diff
 from tl_mod_engineering.imports import mapping as engineering_mapping
 from tl_mod_engineering.imports.model import ImportPlan as TagPlan
 
-from tl_mod_legacy.errors import MappingProblemError
+from tl_mod_legacy.errors import LoadRefusedError, MappingProblemError
 from tl_mod_legacy.limits import MAX_REASON
 from tl_mod_legacy.model import Grid, LoaderDef, TargetKind
 
+LOAD_TARGET_ENTRY_POINT = "throughline.load_targets"
+TargetScope = Literal["project", "company"]
 KEY_BATCH = 400
+_NAME = re.compile(r"[a-z][a-z0-9_]*")
+log = logging.getLogger(__name__)
 TAG_TYPE = "engineering.Tag"
 DOCUMENT_TYPE = "documents.Document"
 #: States of a tag that ``delete`` can end (the same list as the derivation pipeline's rollback).
@@ -104,8 +125,18 @@ class Comparison:
     invalid: int
 
 
+class TargetLoadError(ModuleLoadError):
+    """An installed load target cannot be loaded, is misnamed, or is declared twice."""
+
+
+@runtime_checkable
 class Target(Protocol):
+    #: The registered name (the entry point's name) a loader's ``target`` refers to.
     kind: TargetKind
+    #: The module that registers it (listed by ``tl load targets``).
+    module: str
+    #: ``project`` (a run is opened with ``--project``) or ``company`` (with ``--company``).
+    scope: TargetScope
 
     def plan(self, conn: Connection, scope: str, loader: LoaderDef, grid: Grid) -> Plan: ...
 
@@ -215,6 +246,8 @@ def _reversal_item(
 
 class TagTarget:
     kind: TargetKind = "tags"
+    module = "legacy"
+    scope: TargetScope = "project"
 
     def _rows(self, loader: LoaderDef, grid: Grid) -> list[Any]:
         try:
@@ -348,6 +381,8 @@ class TagTarget:
 
 class DocumentTarget:
     kind: TargetKind = "documents"
+    module = "legacy"
+    scope: TargetScope = "project"
 
     def _rows(self, loader: LoaderDef, grid: Grid) -> list[Any]:
         try:
@@ -488,5 +523,315 @@ class DocumentTarget:
         return count
 
 
+def tags_target() -> Target:
+    """Entry point ``tags`` of the group ``throughline.load_targets``."""
+    return TagTarget()
+
+
+def documents_target() -> Target:
+    """Entry point ``documents`` of the group ``throughline.load_targets``."""
+    return DocumentTarget()
+
+
+# --- a target built from a declarative mapping --------------------------------------------------
+
+MAPPING_FIELDS = ("title", "description")
+
+
+class MappingTarget:
+    """A target with no handler class: a record type, a key column and a column -> field map.
+
+    A row is a record of ``record_type`` keyed by the ``key_column`` cell. ``columns`` maps a file
+    column to ``title`` or ``description`` (no ``title`` mapped: the key is the title). Records are
+    created with ``create_module_record`` (an envelope event, no other event of the module), so
+    the form fits a record type that its module projects from that event alone. Create-only: a key
+    the scope holds is left alone, and compensation voids exactly the records the run made.
+    """
+
+    def __init__(
+        self,
+        kind: str,
+        *,
+        module: str,
+        record_type: str,
+        key_column: str,
+        columns: Mapping[str, str],
+        scope: TargetScope = "project",
+    ) -> None:
+        if _NAME.fullmatch(kind) is None:
+            raise ValueError(f"target {kind!r}: the name must match ^[a-z][a-z0-9_]*$")
+        if scope not in ("project", "company"):
+            raise ValueError(f"target {kind}: scope is project or company")
+        unknown = sorted(set(columns.values()) - set(MAPPING_FIELDS))
+        if unknown:
+            raise ValueError(
+                f"target {kind}: a column maps to {', '.join(MAPPING_FIELDS)}, not {unknown[0]!r}"
+            )
+        self.kind = kind
+        self.module = module
+        self.scope: TargetScope = scope
+        self.record_type = record_type
+        self.key_column = key_column
+        self.columns = dict(columns)
+
+    def _check(self, grid: Grid) -> None:
+        missing = [c for c in (self.key_column, *self.columns) if c not in grid.columns]
+        if missing:
+            raise MappingProblemError(f"target {self.kind}: the file has no column {missing[0]!r}")
+
+    def _cells(self, grid: Grid) -> list[tuple[int, str, dict[str, str]]]:
+        """``(line, key, raw)`` per data row; ``key`` is empty for a row without one."""
+        self._check(grid)
+        out: list[tuple[int, str, dict[str, str]]] = []
+        for index, cells in enumerate(grid.rows):
+            raw = {c: ("" if v is None else v) for c, v in zip(grid.columns, cells, strict=False)}
+            out.append((index + 2, raw.get(self.key_column, "").strip(), raw))
+        return out
+
+    def _field(self, raw: dict[str, str], name: str) -> str | None:
+        for column, target in self.columns.items():
+            if target == name and raw.get(column, "").strip():
+                return raw[column].strip()
+        return None
+
+    def plan(self, conn: Connection, scope: str, loader: LoaderDef, grid: Grid) -> Plan:
+        cells = self._cells(grid)
+        held = _ids_by_key(conn, scope, self.record_type, [k for _, k, _ in cells if k])
+        new: list[PlannedRow] = []
+        existing: list[str] = []
+        invalid: list[tuple[int, str]] = []
+        seen: set[str] = set()
+        for line, key, raw in cells:
+            if not key:
+                invalid.append((line, "no key"))
+            elif key in seen:
+                invalid.append((line, "key repeated"))
+            elif key in held:
+                seen.add(key)
+                existing.append(key)
+            else:
+                seen.add(key)
+                new.append(PlannedRow(line, key, raw))
+        return Plan(rows=new, existing=existing, invalid=invalid)
+
+    def apply(
+        self,
+        uow: UnitOfWork,
+        scope: str,
+        loader: LoaderDef,
+        plan: Plan,
+        *,
+        actor: str,
+        source: str,
+        correlation_id: str,
+        confidentiality: str | None,
+    ) -> list[Created]:
+        made: list[Created] = []
+        for row in plan.rows:
+            result = create_module_record(
+                uow,
+                Command(actor=actor, source=source, scope=scope, correlation_id=correlation_id),
+                record_type=self.record_type,
+                title=self._field(row.raw, "title") or row.key,
+                description=self._field(row.raw, "description"),
+                key=row.key,
+            )
+            made.append(Created(result.stream_id, row.key, row.line, row.raw))
+        return made
+
+    def compare(
+        self, conn: Connection, scope: str, loader: LoaderDef, grid: Grid, created_keys: set[str]
+    ) -> Comparison:
+        cells = self._cells(grid)
+        held: dict[str, Any] = {}
+        statement = text(
+            "SELECT key, title, description, voided FROM cur_core_record "
+            "WHERE scope = :s AND type = :t AND key IN :keys"
+        ).bindparams(bindparam("keys", expanding=True))
+        keys = [k for _, k, _ in cells if k]
+        for start in range(0, len(keys), KEY_BATCH):
+            for row in conn.execute(
+                statement,
+                {"s": scope, "t": self.record_type, "keys": keys[start : start + KEY_BATCH]},
+            ):
+                held[str(row.key)] = row
+        valid = matched = left = invalid = 0
+        missing: list[int] = []
+        differs: list[tuple[int, str]] = []
+        seen: set[str] = set()
+        for line, key, raw in cells:
+            if not key or key in seen:
+                invalid += 1
+                continue
+            seen.add(key)
+            valid += 1
+            found = held.get(key)
+            if found is None or bool(found.voided):
+                missing.append(line)
+                continue
+            fields = [
+                name
+                for name, mine, theirs in (
+                    ("title", self._field(raw, "title"), found.title),
+                    ("description", self._field(raw, "description"), found.description),
+                )
+                if mine is not None and mine != theirs
+            ]
+            if not fields:
+                matched += 1
+            elif key in created_keys:
+                differs.extend((line, name) for name in fields)
+            else:
+                left += 1
+        return Comparison(valid, matched, missing, differs, left, invalid)
+
+    def reversals(
+        self, conn: Connection, scope: str, record_ids: list[str], correlation_id: str
+    ) -> list[Reversal]:
+        return [
+            _reversal_item(conn, scope, record_id, correlation_id, self.record_type, "Created")
+            for record_id in record_ids
+        ]
+
+    def reverse(
+        self,
+        uow: UnitOfWork,
+        scope: str,
+        record_ids: list[str],
+        *,
+        actor: str,
+        source: str,
+        correlation_id: str,
+        reason: str,
+    ) -> int:
+        count = 0
+        for record_id in record_ids:
+            row = _record(uow.conn(), record_id)
+            if row is not None and bool(row.voided):
+                continue
+            uow.append(
+                stream_id=record_id,
+                stream_type=self.record_type,
+                scope=scope,
+                expected_version=_version(uow.conn(), record_id),
+                events=[
+                    NewEvent(event_type="Record.Voided", payload={"reason": reason[:MAX_REASON]})
+                ],
+                actor=actor,
+                source=source,
+                correlation_id=correlation_id,
+            )
+            count += 1
+        return count
+
+
+def mapping_target(
+    kind: str,
+    *,
+    module: str,
+    record_type: str,
+    key_column: str,
+    columns: Mapping[str, str],
+    scope: TargetScope = "project",
+) -> Target:
+    """A target from a declarative mapping (record type, key column, column -> field map)."""
+    return MappingTarget(
+        kind,
+        module=module,
+        record_type=record_type,
+        key_column=key_column,
+        columns=columns,
+        scope=scope,
+    )
+
+
+# --- the registry -------------------------------------------------------------------------------
+
+_lock = threading.Lock()
+_found: dict[str, Target] | None = None
+_override: dict[str, Target] | None = None
+
+
+def load_targets(entry_points: Iterable[metadata.EntryPoint] | None = None) -> dict[str, Target]:
+    """The load targets by name, sorted by name.
+
+    ``entry_points`` is an iterable of entry points (a test injects plugins); the default reads
+    the group ``throughline.load_targets``. Raises :class:`TargetLoadError` (a ``ModuleLoadError``)
+    naming the group and the entry point for a plugin that does not load, does not return a
+    ``Target`` of its own name, has a name outside ``^[a-z][a-z0-9_]*$`` or repeats a name.
+    """
+    points = (
+        metadata.entry_points(group=LOAD_TARGET_ENTRY_POINT)
+        if entry_points is None
+        else entry_points
+    )
+    found: dict[str, Target] = {}
+    for entry in sorted(points, key=lambda e: (e.name, e.value)):
+        where = f"{LOAD_TARGET_ENTRY_POINT} entry point {entry.name!r}"
+        if _NAME.fullmatch(entry.name) is None:
+            raise TargetLoadError(f"{where}: the name must match ^[a-z][a-z0-9_]*$")
+        try:
+            produced = entry.load()()
+        except Exception as exc:
+            log.warning("%s cannot be loaded: %s", where, exc, exc_info=True)
+            raise TargetLoadError(f"{where} cannot be loaded: {type(exc).__name__}") from exc
+        if (
+            not isinstance(produced, Target)
+            or produced.kind != entry.name
+            or produced.scope not in ("project", "company")
+        ):
+            raise TargetLoadError(
+                f"{where} must return a Target of the same name with scope project or company"
+            )
+        if entry.name in found:
+            raise TargetLoadError(
+                f"{LOAD_TARGET_ENTRY_POINT}: target {entry.name!r} is declared twice"
+            )
+        found[entry.name] = produced
+    return dict(sorted(found.items()))
+
+
+def installed_targets() -> Mapping[str, Target]:
+    """The installed load targets by name, found once per process."""
+    global _found
+    with _lock:
+        if _override is not None:
+            return _override
+        if _found is None:
+            _found = load_targets()
+        return _found
+
+
+@contextmanager
+def use_targets(targets: Mapping[str, Target]) -> Generator[None]:
+    """Make ``targets`` the only load targets for the block (tests)."""
+    global _override
+    with _lock:
+        previous, _override = _override, dict(targets)
+    try:
+        yield
+    finally:
+        with _lock:
+            _override = previous
+
+
 def target_for(kind: TargetKind) -> Target:
-    return TagTarget() if kind == "tags" else DocumentTarget()
+    """The target registered as ``kind``; ``LoadRefusedError`` names the known ones."""
+    targets = installed_targets()
+    found = targets.get(kind)
+    if found is None:
+        known = ", ".join(sorted(targets)) or "none installed"
+        raise LoadRefusedError(f"no load target {kind!r} (known: {known})")
+    return found
+
+
+def check_scope(target: Target, scope: str) -> None:
+    """A company target is opened for ``company`` and a project target for ``project:<ID>``."""
+    if target.scope == "company" and scope != "company":
+        raise LoadRefusedError(
+            f"load target {target.kind} loads into the company: open the run with --company"
+        )
+    if target.scope == "project" and not scope.startswith("project:"):
+        raise LoadRefusedError(
+            f"load target {target.kind} loads into a project: open the run with --project"
+        )

@@ -80,7 +80,7 @@ from tl_mod_legacy.profile import profile_grid
 from tl_mod_legacy.registry import RunRow
 from tl_mod_legacy.source_layer import clean_values, write_source_layer
 from tl_mod_legacy.store import JSON_TYPE, RunFiles, canonical_bytes, grid_bytes
-from tl_mod_legacy.targets import Plan, target_for
+from tl_mod_legacy.targets import Plan, check_scope, target_for
 
 MAX_SOURCE_BYTES = 50 * 1024 * 1024
 
@@ -150,7 +150,8 @@ class LoadService:
         actor: str,
         confidentiality: str | None = None,
     ) -> RunRow:
-        """Record a run for a file and keep the file. Raises ``UnknownLoaderError`` or
+        """Record a run for a file and keep the file. Raises ``UnknownLoaderError``,
+        ``LoadRefusedError`` (the loader's target is unknown, or loads into the other scope) or
         ``SourceFileError`` (too large, or a kind the loader does not read).
 
         The run has a class (ADR-0016): ``confidentiality``, else the loader's, else ``internal``.
@@ -158,6 +159,7 @@ class LoadService:
         may read restricted records, and the documents it registers are ``restricted``.
         """
         loader = _loader(loader_name)
+        check_scope(target_for(loader.target), scope)  # an unknown target or the wrong scope
         klass = confidentiality or loader.confidentiality or "internal"
         if klass not in ("internal", "restricted"):
             raise LoadRefusedError("confidentiality is internal or restricted")

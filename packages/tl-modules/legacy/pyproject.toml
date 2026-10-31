@@ -23,6 +23,11 @@ dms-register = "tl_mod_legacy.loaders.dms_register:loader"
 instrument-index = "tl_mod_legacy.loaders.instrument_index:loader"
 equipment-list = "tl_mod_legacy.loaders.equipment_list:loader"
 
+# One line per load target: <name> = "<module>:<function>" (the function returns a Target).
+[project.entry-points."throughline.load_targets"]
+tags = "tl_mod_legacy.targets:tags_target"
+documents = "tl_mod_legacy.targets:documents_target"
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"

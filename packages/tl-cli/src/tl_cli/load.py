@@ -1,4 +1,4 @@
-"""`tl load loaders|open|extract|profile|bronze|plan|load|reconcile|compensate|void|ls|show`:
+"""`tl load loaders|targets|open|extract|profile|bronze|plan|load|reconcile|compensate|void|ls|show`
 legacy loader runs (P1-I8; brief 29.6).
 
 A run takes one spreadsheet or CSV export of an incumbent system through fixed stages: open (keep
@@ -30,15 +30,18 @@ from tl_mod_legacy.errors import CompensationRefusedError, LoadRefusedError
 from tl_mod_legacy.model import load_loaders
 from tl_mod_legacy.registry import RunRow
 from tl_mod_legacy.service import MAX_SOURCE_BYTES, LoadService
+from tl_mod_legacy.targets import installed_targets
 
 from tl_cli.derive_support import (
     DEV_ACTOR,
     Actor,
+    OptProject,
     Project,
     acting,
     cell,
     fail,
     file_service,
+    scope_of,
 )
 from tl_cli.session import require_admin
 
@@ -92,13 +95,19 @@ def loaders() -> None:
         )
 
 
+@app.command("targets")
+def targets() -> None:
+    """List the installed load targets: name, module, scope (project or company)."""
+    for found in sorted(installed_targets().values(), key=lambda item: item.kind):
+        typer.echo(f"{found.kind}  {found.module}  {found.scope}")
+
+
 @app.command("open")
 def open_run(
     ctx: typer.Context,
     path: Annotated[
         Path, typer.Argument(help="The export.", exists=True, dir_okay=False, readable=True)
     ],
-    project: Project,
     loader: Annotated[str, typer.Option("--loader", help="A name from `tl load loaders`.")],
     confidentiality: Annotated[
         str | None,
@@ -108,16 +117,28 @@ def open_run(
             "and its files are read by document controllers and administrators only.",
         ),
     ] = None,
+    project: OptProject = None,
+    company: Annotated[
+        bool,
+        typer.Option(
+            "--company", help="Open the run for a company target (not for a project one)."
+        ),
+    ] = False,
     actor: Actor = DEV_ACTOR,
 ) -> None:
-    """Keep the file and record a run for it. Prints `opened <key> <id>`."""
+    """Keep the file and record a run for it. Prints `opened <key> <id>`.
+
+    Give `--project` for a project target (`tags`, `documents`) or `--company` for a company one;
+    `tl load targets` lists each target's scope.
+    """
     db: DbTarget = ctx.obj
     require_admin(db)
+    scope = scope_of(project, company)
     if path.stat().st_size > MAX_SOURCE_BYTES:
         fail(f"{path.name} is larger than {MAX_SOURCE_BYTES} bytes")
     with _errors():
         run = _service(db).open(
-            _scope(project),
+            scope,
             loader,
             path.name,
             path.read_bytes(),

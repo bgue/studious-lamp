@@ -15,6 +15,11 @@ dependencies = [
 [project.entry-points."throughline.modules"]
 documents = "tl_mod_documents.module:spec"
 
+# One line per publish target: <name> = "<module>:<function>" (the function returns a PublishTarget).
+[project.entry-points."throughline.publish_targets"]
+tags = "tl_mod_documents.derivation.publish:tags_target"
+documents = "tl_mod_documents.derivation.publish:documents_target"
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
