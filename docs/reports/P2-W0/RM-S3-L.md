@@ -3,7 +3,7 @@
 Branch: `p2/w0-t07-roles-lows`   Commit(s): the T07 commit on this branch (sha in `git log`; this report is in that commit)
 
 ## Deviations
-Report path: written to `docs/reports/P2-W0/RM-S3-L.md`, the ticket's Allowed path, not `docs/reports/P2-W0/T07.md` as the task text asked. The ticket's Allowed paths is the write boundary (AGENTS.md rule 1). The commit trailer names Claude Haiku 5.5, my own model; the task text said Opus 5.5.
+Report path: written to `docs/reports/P2-W0/RM-S3-L.md`, the ticket's Allowed path, not `docs/reports/P2-W0/T07.md` as the task text asked. The ticket's Allowed paths is the write boundary (AGENTS.md rule 1). The commit trailer follows the session attribution, not the task text.
 
 ## Changed files
 - `packages/tl-tui/src/tl_tui/admin_text.py` — F1 `effective_line` returns `EMPTY` (docstring fixed); F2 `effective_page` passes `summary=join_facts(...)` with a local `n`; imports `EMPTY`, `join_facts` from `tl_tui.layout`
