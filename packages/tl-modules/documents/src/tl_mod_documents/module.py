@@ -11,6 +11,7 @@ from tl_core.projection.types import Projector
 
 from tl_mod_documents import MODULE
 from tl_mod_documents.actions import document_actions, revision_actions, transmittal_actions
+from tl_mod_documents.commands import API_COMMANDS
 from tl_mod_documents.derivation.derived import StartExtraction, handle_start_extraction
 from tl_mod_documents.derivation.publish import (
     PublishDerivedDocuments,
@@ -165,4 +166,6 @@ def spec() -> ModuleSpec:
             REVISION: revision_actions,
             TRANSMITTAL: transmittal_actions,
         },
+        # command name -> access word, from the module's own table (ADR-0021)
+        command_words={c.model.__name__: c.access for c in API_COMMANDS},
     )

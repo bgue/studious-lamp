@@ -317,7 +317,7 @@ def _refuse_read_only_psets(new: Any, old: Any = None) -> None:
 
 def handle_update_record(uow: UnitOfWork, cmd: UpdateRecord) -> CommandResult:
     stored = _load_record(uow, cmd.scope, cmd.stream_id)
-    require_generic(uow.conn(), stored.type, "UpdateRecord", cmd.stream_id)
+    require_generic(uow.conn(), stored.type, "UpdateRecord", cmd.stream_id, actor=cmd.actor)
     if stored.voided:
         raise RecordVoidedError(f"record {cmd.stream_id!r} is voided and cannot be updated")
     if "psets" in cmd.changes:
@@ -364,7 +364,7 @@ def handle_update_record(uow: UnitOfWork, cmd: UpdateRecord) -> CommandResult:
 
 def handle_void_record(uow: UnitOfWork, cmd: VoidRecord) -> CommandResult:
     stored = _load_record(uow, cmd.scope, cmd.stream_id)
-    require_generic(uow.conn(), stored.type, "VoidRecord", cmd.stream_id)
+    require_generic(uow.conn(), stored.type, "VoidRecord", cmd.stream_id, actor=cmd.actor)
     if stored.voided:
         raise AlreadyVoidedError(f"record {cmd.stream_id!r} is already voided")
 

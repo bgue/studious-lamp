@@ -38,7 +38,7 @@ from dataclasses import dataclass, field
 from importlib.metadata import entry_points
 from typing import TYPE_CHECKING, Any, Literal
 
-from sqlalchemy import Connection
+from sqlalchemy import Connection, text
 
 from tl_core.numbering.config import NumberingPattern
 from tl_core.projection.types import Projector
@@ -227,8 +227,8 @@ class ModuleSpec:
     #: a key is offered nothing.
     actions: Mapping[str, ActionsHook] = field(default_factory=_no_actions)
     #: Command class name -> access word, for the module's own commands (ADR-0021, module roles).
-    #: A word is declared as the module's ``CommandSpec`` has it; ``tl_core.auth.module_roles``
-    #: reads it through ``command_index()``.
+    #: A word is declared as the module's ``CommandSpec`` has it: a table word, a platform word, or
+    #: a fine word (``awp.cwp.release``) that ``command_index()`` reads as its table word, once.
     command_words: Mapping[str, str] = field(default_factory=_no_words)
     #: Whether the module accepts ``company``-scope role grants (answer 14 of the wave-0 spec).
     company_roles: bool = False
@@ -367,11 +367,17 @@ def require_generic(
     record_id: str,
     *,
     slot: str | None = None,
+    actor: str | None = None,
 ) -> None:
-    """``require_generic_command`` and then the module's state guard for ``(type, command)``.
+    """``require_generic_command``, the module role check, and the module's state guard.
 
     The guard (``ModuleSpec.generic_guards``) sees the record as it is now: the same command may be
     allowed in one state and refused in another. A core or extension type passes.
+
+    When ``actor`` is given and the type is a module's, the actor needs the access word ``user`` for
+    that module on the record's scope (``ForbiddenError``; ADR-0021): a generic command on a module
+    record is a working act. Every handler passes ``cmd.actor``; a caller with no actor (a read-side
+    offer) gets the allow-list and the guard only.
     """
     from tl_core import confidentiality  # avoid an import cycle
     from tl_core.services.errors import RecordNotFoundError
@@ -380,10 +386,36 @@ def require_generic(
     if confidentiality.is_hidden(conn, record_id):
         raise RecordNotFoundError(f"no record {record_id!r}")
     require_generic_command(record_type, command)
+    if actor is not None:
+        _require_user_word(conn, record_type, command, record_id, actor)
     for spec in load_modules():
         guard = spec.generic_guards.get((record_type, command))
         if guard is not None:
             guard(conn, record_id, slot)
+
+
+def _require_user_word(
+    conn: Connection, record_type: str, command: str, record_id: str, actor: str
+) -> None:
+    """The module role check of ``require_generic``: the word ``user`` for the type's module."""
+    from tl_core.auth.module_roles import holder_for_actor, require_word  # avoid an import cycle
+
+    owner = next((spec.name for spec in load_modules() if record_type in spec.record_types), None)
+    if owner is None:  # a core or extension type: no module role
+        return
+    scope = conn.execute(
+        text("SELECT scope FROM cur_core_record WHERE id = :id"), {"id": record_id}
+    ).scalar_one_or_none()
+    if scope is None:  # no such record: the caller reports that
+        return
+    require_word(
+        conn,
+        holder_for_actor(conn, actor),
+        scope=str(scope),
+        module=owner,
+        word="user",
+        what=command,
+    )
 
 
 def module_record_types() -> frozenset[str]:

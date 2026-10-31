@@ -15,6 +15,7 @@ from typing import Annotated, Any, cast
 
 from fastapi import APIRouter, Depends, Header, Query
 from pydantic import BaseModel, ConfigDict, Field, model_validator
+from tl_core.auth.module_roles import holder_for_principal
 from tl_core.auth.types import Principal
 from tl_core.proposals.types import ProposalStatus, ProposalView
 from tl_core.services import proposals
@@ -132,7 +133,9 @@ def accept_proposal(
     could not be applied (the record changed, a guard failed); nothing of the command is kept then.
     Accepting a proposal runs its command as the caller, so it needs the access that command needs
     (ADR-0014): a publication into tags the admin role, into documents the document controller or
-    admin role. Anyone else gets 403 `proposal_access` and the proposal stays pending.
+    admin role. Anyone else gets 403 `proposal_access` and the proposal stays pending. A module
+    command also needs its access word from the module role table for the project it names
+    (ADR-0021): an accepter who lacks it gets the same 403.
     """
     accept_risk = body.accept_risk if body is not None else False
     when = simulated_time(ctx, proposal_id, effective_at)
@@ -146,6 +149,7 @@ def accept_proposal(
             source=API_SOURCE,
             holds=lambda level: holds_access(principal, actor, level),
             runner=thread_runner(),  # a dispatch proposal re-plans and runs its commands (ADR-0018)
+            holder=holder_for_principal(principal),  # a module command: the accepter's module roles
         )
 
 

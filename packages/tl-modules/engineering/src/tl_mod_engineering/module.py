@@ -12,6 +12,7 @@ from tl_core.projection.types import Projector
 from tl_mod_engineering import MODULE
 from tl_mod_engineering.actions import tag_actions
 from tl_mod_engineering.binding import bound_psets
+from tl_mod_engineering.commands import API_COMMANDS
 from tl_mod_engineering.names import RECORD_TYPES, TAG
 from tl_mod_engineering.patterns import ledger_numbering_patterns
 from tl_mod_engineering.projectors import (
@@ -59,4 +60,6 @@ def spec() -> ModuleSpec:
         generic_commands={TAG: TAG_GENERIC_COMMANDS},
         # which of the commands a viewer may run on a tag now (P1-UX2); one table, actions.py
         actions={TAG: tag_actions},
+        # command name -> access word, from the module's own table (ADR-0021)
+        command_words={c.model.__name__: c.access for c in API_COMMANDS},
     )

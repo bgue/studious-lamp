@@ -224,6 +224,7 @@ def _create(
             source.type,
             "SuggestLink" if event_type == "Link.Suggested" else "AddLink",
             source.id,
+            actor=cmd.actor,
         )
     if source.type == POST_RECORD_TYPE and cmd.relation != "references":
         raise UnknownRelationError(
@@ -347,7 +348,7 @@ def _act(
         raise LinkNotFoundError(f"no link {cmd.link_id!r} in scope {cmd.scope!r}")
     if not by_module:
         require_link_visible(uow, link, cmd.link_id, cmd.scope)
-        _require_owner_allows(uow, link, event_type)
+        _require_owner_allows(uow, link, event_type, cmd.actor)
     next_status(link.status, event_type, flag=flag)  # raises InvalidLinkTransitionError
     if same_pin_is_noop and link.status == "active" and link.pin == payload["pin"]:
         raise NoChangesError(f"link {cmd.link_id} already has that pin")
@@ -372,7 +373,7 @@ def _act(
     )
 
 
-def _require_owner_allows(uow: UnitOfWork, link: Any, event_type: str) -> None:
+def _require_owner_allows(uow: UnitOfWork, link: Any, event_type: str, actor: str) -> None:
     """The record a link starts at must allow the generic command, and a rule's link is kept.
 
     A link belongs to the record it starts at (ADR-0010 addendum). Phase 1 has no per-record
@@ -383,7 +384,7 @@ def _require_owner_allows(uow: UnitOfWork, link: Any, event_type: str) -> None:
     owner = uow.conn().execute(_TYPE_SQL, {"id": link.from_id}).scalar_one_or_none()
     if owner is None:  # a feed post is the start of a reference, not a module record
         return
-    require_generic(uow.conn(), owner, _COMMAND_OF[event_type], link.from_id)
+    require_generic(uow.conn(), owner, _COMMAND_OF[event_type], link.from_id, actor=actor)
     if (
         link.source == "rule"
         and event_type in ("Link.Flagged", "Link.Retracted")

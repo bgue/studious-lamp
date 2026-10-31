@@ -228,7 +228,9 @@ class FileService:
         generic-command allow-list and guard do not apply (ADR-0014). It is a Python argument, not
         a field of any command, so no client can set it; slot, type, size and scan rules still do.
         """
-        record = self._load_record(uow, cmd.scope, cmd.record_id, cmd.slot, by_module=by_module)
+        record = self._load_record(
+            uow, cmd.scope, cmd.record_id, cmd.slot, by_module=by_module, actor=cmd.actor
+        )
         self._check_declared(uow, record, cmd)
         key = object_key(cmd.sha256)
         exists = (
@@ -369,12 +371,13 @@ class FileService:
         slot: str | None = None,
         *,
         by_module: bool = False,
+        actor: str | None = None,
     ) -> _Record:
         row = uow.conn().execute(_RECORD_SQL, {"id": record_id}).first()
         if row is None or row.scope != scope or confidentiality.is_hidden(uow.conn(), record_id):
             raise RecordNotFoundError(f"no record {record_id!r} in scope {scope!r}")
         if not by_module:
-            require_generic(uow.conn(), row.type, "AttachFile", record_id, slot=slot)
+            require_generic(uow.conn(), row.type, "AttachFile", record_id, slot=slot, actor=actor)
         if row.voided:
             raise RecordVoidedError(f"record {record_id!r} is voided; files cannot be attached")
         return _Record(id=row.id, type=row.type)
@@ -478,7 +481,9 @@ class FileService:
         staging: str | None,
         by_module: bool = False,
     ) -> FileResult:
-        record = self._load_record(uow, cmd.scope, cmd.record_id, cmd.slot, by_module=by_module)
+        record = self._load_record(
+            uow, cmd.scope, cmd.record_id, cmd.slot, by_module=by_module, actor=cmd.actor
+        )
         self._check_declared(uow, record, cmd)
         same = self._same_attachment(uow, cmd)
         if same is not None:

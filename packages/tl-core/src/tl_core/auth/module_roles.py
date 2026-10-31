@@ -18,7 +18,8 @@ Precedence for ``effective_roles`` (the first step that applies wins):
 
 An agent holds at most ``agent_roles``. A ``svc:`` actor keeps its declared access (``held_access``,
 ADR-0017 section 7). Module roles never filter reads and give no clearance (ADR-0016 is unchanged).
-Fine access words (W0-B1) are not read here: the word a command declares is taken as a table word.
+A module may declare a fine access word (``awp.cwp.release``, W0-B1). :func:`command_index` reads
+it as its table word, once, so every other reader sees a table word or a platform word only.
 """
 
 from __future__ import annotations
@@ -33,6 +34,8 @@ from typing import TYPE_CHECKING, Any, Literal, cast
 import yaml
 from sqlalchemy import Connection, text
 
+from tl_core.auth.access_words import TABLE_WORDS, table_word
+from tl_core.auth.env import dev_tokens_allowed
 from tl_core.auth.errors import ForbiddenError, RoleTableError
 from tl_core.auth.names import actor_for, is_id
 from tl_core.auth.queries import find_account
@@ -195,11 +198,24 @@ def holder_for_principal(p: Principal) -> Holder:
     return Holder(actor=p.actor, kind=p.kind, account_id=p.account_id, account_roles=tuple(p.roles))
 
 
-def holder_for_actor(conn: Connection, actor: str) -> Holder:
+def dev_ledger(conn: Connection) -> bool:
+    """Whether this ledger's identity source is the dev file: a SQLite file where ``TL_ENV`` is
+    dev, test or ci (ADR-0009 section 7: the file's owner can write the file anyway)."""
+    return dev_tokens_allowed() and conn.dialect.name == "sqlite"
+
+
+def holder_for_actor(conn: Connection, actor: str, *, dev_file: bool | None = None) -> Holder:
     """CLI, embedded and runner: the holder for an exact actor string, from ``cur_account``.
 
     An actor that names no account gets a holder with no ``account_id`` (it resolves to none); a
     normalised twin of a real name keeps the account's id, so precedence 1 refuses it as inexact.
+
+    The dev-ledger rule (owner decision D2): a ``user:`` actor with no account on a ledger whose
+    identity source is the dev file (:func:`dev_ledger`) holds what a dev-token principal holds,
+    the ``user`` role in every module: the words ``read`` and ``user``, never ``controller``,
+    never ``admin``. That is what the CLI and the embedded TUI do today for ``user:dev``. An
+    agent, a service actor and an account-less actor on any other ledger are unchanged.
+    ``dev_file`` ``None`` detects the ledger; ``False`` switches the rule off (the command runner).
     """
     if actor.startswith("svc:"):
         return Holder(actor=actor, kind="service", account_id=None, account_roles=())
@@ -212,6 +228,10 @@ def holder_for_actor(conn: Connection, actor: str) -> Holder:
     except Exception:  # an unusable name is no account
         account = None
     if account is None:
+        if prefix == "user" and (dev_ledger(conn) if dev_file is None else dev_file):
+            return Holder(
+                actor=actor, kind="person", account_id=f"dev:{actor}", account_roles=("user",)
+            )
         return Holder(actor=actor, kind=kind, account_id=None, account_roles=())
     return Holder(
         actor=actor,
@@ -326,6 +346,31 @@ def effective_roles(conn: Connection, holder: Holder, *, scope: str, module: str
     return EffectiveRoles(roles, table.words_of(roles), source)
 
 
+def derived_holds(holder: Holder, *, module: str, word: str) -> bool:
+    """Whether the holder's account roles alone (the ``derive`` block, no ledger) give ``word``."""
+    table = load_role_table()
+    return word in table.words_of(_derived(table, holder, module))
+
+
+def granted_holds(conn: Connection, holder: Holder, *, module: str, word: str) -> bool:
+    """Whether an explicit grant of the holder gives ``word`` for ``module`` on some project.
+
+    The coarse question of the authorizer, which does not know the project yet; the endpoint's
+    :func:`require_command_access` then asks the real, scoped question.
+    """
+    if holder.account_id is None:
+        return False
+    found = conn.execute(
+        text(
+            "SELECT role FROM cur_account_module_role "
+            "WHERE account_id = :a AND module IN (:m, :all)"
+        ),
+        {"a": holder.account_id, "m": module, "all": ALL_MODULES},
+    ).all()
+    table = load_role_table()
+    return word in table.words_of(frozenset(str(r[0]) for r in found))
+
+
 def holds_word(conn: Connection, holder: Holder, *, scope: str, module: str, word: str) -> bool:
     return word in effective_roles(conn, holder, scope=scope, module=module).words
 
@@ -344,8 +389,25 @@ def scoped_holds(
     return holds
 
 
+def normalise_word(word: str) -> str:
+    """The word the resolver understands for a declared access ``word``.
+
+    ``admin`` and ``company`` (platform words) and the table words pass unchanged; any other word
+    is a fine word and becomes its table word. An unknown word raises ``AccessWordError`` (fail
+    closed: a typo is a start-up failure, never an open door). This is the one place a fine word
+    is read.
+    """
+    if word in PLATFORM_WORDS or word in TABLE_WORDS:
+        return word
+    return table_word(word)
+
+
 def command_index() -> Mapping[str, tuple[str, str]]:
-    """Command class name -> ``(module, word)``, from ``ModuleSpec.command_words``, as declared."""
+    """Command class name -> ``(module, word)``, from ``ModuleSpec.command_words``.
+
+    The word is normalised (:func:`normalise_word`): a table word or a platform word, never a
+    fine one.
+    """
     index: dict[str, tuple[str, str]] = {}
     for spec in load_modules():
         for name, word in spec.command_words.items():
@@ -353,17 +415,30 @@ def command_index() -> Mapping[str, tuple[str, str]]:
                 raise ModuleLoadError(
                     f"command {name!r} is declared by modules {index[name][0]!r} and {spec.name!r}"
                 )
-            index[name] = (spec.name, word)
+            index[name] = (spec.name, normalise_word(word))
     return index
 
 
+def require_word(
+    conn: Connection, holder: Holder, *, scope: str, module: str, word: str, what: str
+) -> None:
+    """Refuse (``ForbiddenError``) a holder that lacks ``word`` for ``module`` at ``scope``."""
+    if not holds_word(conn, holder, scope=scope, module=module, word=word):
+        raise ForbiddenError(f"{what} needs the {word} access word for {module} on {scope}")
+
+
 def require_command_access(
-    conn: Connection, command: Command, *, holder: Holder | None = None
+    conn: Connection,
+    command: Command,
+    *,
+    holder: Holder | None = None,
+    dev_file: bool | None = None,
 ) -> None:
     """Refuse (``ForbiddenError``) a module command whose holder lacks the command's word here.
 
     A command no module declares is unchanged. ``holder`` defaults to the command's own actor,
-    resolved from ``cur_account``; the API passes the principal's holder.
+    resolved from ``cur_account`` (``dev_file`` as for :func:`holder_for_actor`); the API passes
+    the principal's holder.
     """
     name = type(command).__name__
     found = command_index().get(name)
@@ -372,6 +447,5 @@ def require_command_access(
     module, word = found
     if word == "company":  # admin at company scope, else the plain user word
         word = "admin" if command.scope == COMPANY else "user"
-    who = holder if holder is not None else holder_for_actor(conn, command.actor)
-    if not holds_word(conn, who, scope=command.scope, module=module, word=word):
-        raise ForbiddenError(f"{name} needs the {word} access word for {module} on {command.scope}")
+    who = holder if holder is not None else holder_for_actor(conn, command.actor, dev_file=dev_file)
+    require_word(conn, who, scope=command.scope, module=module, word=word, what=name)

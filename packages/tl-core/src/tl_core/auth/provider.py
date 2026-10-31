@@ -2,10 +2,13 @@
 
 ``PasswordIdentityProvider`` is the Phase 1 :class:`~tl_core.auth.types.IdentityProvider`. Entra ID
 (OIDC) replaces it behind the same two methods; callers only ever see a ``Principal``.
-``RoleAuthorizer`` is the whole authorization model of Phase 1: three roles, no per-record rules.
+``RoleAuthorizer`` is the coarse gate: account roles by action prefix. Which module command a
+person may run on which project is decided after it, by ``module_roles.require_command_access``.
 """
 
 from __future__ import annotations
+
+from collections.abc import Callable
 
 from tl_core.auth import sessions
 from tl_core.auth._time import Clock
@@ -13,6 +16,8 @@ from tl_core.auth.errors import ForbiddenError
 from tl_core.auth.sessions import UowFactory
 from tl_core.auth.types import ADMIN_ACTION_PREFIX, CONTROL_ACTION_PREFIX, Principal
 from tl_core.util import utcnow
+
+CONTROL_COMMAND_PREFIX = f"{CONTROL_ACTION_PREFIX}command."
 
 
 class PasswordIdentityProvider:
@@ -77,7 +82,7 @@ def agent_may(action: str, allowed: frozenset[str] = AGENT_ACTIONS) -> bool:
 
 
 class RoleAuthorizer:
-    """``admin.*`` needs a human admin; ``control.*`` an admin or a listed document controller.
+    """``admin.*`` needs a human admin; ``control.*`` an admin or, for a listed action, any person.
 
     A person with any role may do the rest. An ``agent:*`` principal never runs an ``admin.*`` or
     a ``control.*`` action, whatever its roles, and may run only the actions in
@@ -87,9 +92,15 @@ class RoleAuthorizer:
     :data:`AGENT_ACTIONS`): there is no prefix rule, so a new tool is closed to agents until
     someone adds it to that list.
 
-    ``controller_actions`` (ADR-0013) lists the exact ``control.*`` actions a document controller
-    may run; the API builds it from its command table. An admin passes every ``control.*`` action.
-    A ``control.*`` action that is not in the list, and the empty default, is an admin's: a typo or
+    ``controller_actions`` (ADR-0013) lists the exact ``control.*`` actions of module commands that
+    need the ``controller`` word; the API builds it from its command table. An admin passes every
+    ``control.*`` action. A listed action passes a person only if the person holds the
+    ``controller`` word for that command's module on some project: derived from the account roles
+    (``document_controller`` is superuser of documents, correspondence and schedule), or through
+    an explicit module grant (``granted``, a lookup the API supplies over its ledger). A plain
+    user, an account with no such word and any agent are refused here. The command's endpoint then
+    asks the scoped question (``require_command_access``, ADR-0021) for the project. A
+    ``control.*`` action that is not in the list, and the empty default, is an admin's: a typo or
     a name nobody added widens nothing.
     """
 
@@ -98,9 +109,11 @@ class RoleAuthorizer:
         *,
         agent_actions: frozenset[str] = AGENT_ACTIONS,
         controller_actions: frozenset[str] = frozenset(),
+        granted: Callable[[Principal, str], bool] | None = None,
     ) -> None:
         self._agent_actions = agent_actions
         self._controller_actions = controller_actions
+        self._granted = granted  # (principal, module) -> an explicit grant gives `controller`
 
     def authorize(self, principal: Principal, action: str, resource: str) -> None:
         if not principal.roles:
@@ -110,7 +123,7 @@ class RoleAuthorizer:
         ):
             raise ForbiddenError(f"{action} needs the admin role")
         if action.startswith(CONTROL_ACTION_PREFIX) and not self._may_control(principal, action):
-            raise ForbiddenError(f"{action} needs the admin or document_controller role")
+            raise ForbiddenError(f"{action} needs the controller access word or the admin role")
         if principal.kind == "agent" and not agent_may(action, self._agent_actions):
             raise ForbiddenError(f"{action} is not open to agents")
 
@@ -119,4 +132,24 @@ class RoleAuthorizer:
             return False
         if principal.is_admin:
             return True
-        return "document_controller" in principal.roles and action in self._controller_actions
+        if action not in self._controller_actions:
+            return False
+        from tl_core.auth.module_roles import (  # avoid an import cycle
+            Holder,
+            command_index,
+            derived_holds,
+        )
+
+        found = command_index().get(action.removeprefix(CONTROL_COMMAND_PREFIX))
+        if found is None or not action.startswith(CONTROL_COMMAND_PREFIX):
+            return False  # no module command of that name: an admin's
+        module = found[0]
+        holder = Holder(
+            actor=principal.actor,
+            kind=principal.kind,
+            account_id=principal.account_id,
+            account_roles=tuple(principal.roles),
+        )
+        if derived_holds(holder, module=module, word="controller"):
+            return True
+        return self._granted is not None and self._granted(principal, module)

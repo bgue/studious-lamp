@@ -19,9 +19,10 @@ from pydantic import ValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from tl_core.auth.env import dev_tokens_allowed
 from tl_core.auth.errors import AuthBusyError
+from tl_core.auth.module_roles import granted_holds, holder_for_principal
 from tl_core.auth.provider import PasswordIdentityProvider, RoleAuthorizer
 from tl_core.auth.types import Authorizer as CoreAuthorizer
-from tl_core.auth.types import IdentityProvider
+from tl_core.auth.types import IdentityProvider, Principal
 from tl_core.extypes.provider import attach as attach_extension_types
 from tl_core.files.service import FileService
 from tl_core.files.types import ObjectStore
@@ -94,6 +95,14 @@ _ERROR_RESPONSES: dict[int | str, dict[str, Any]] = {
         422: "The request is well formed but cannot be applied.",
     }.items()
 }
+
+
+def _grants_controller(backend: Backend, principal: Principal, module: str) -> bool:
+    """Whether an explicit module grant of ``principal`` gives it ``controller`` for ``module``."""
+    with backend(False) as uow:
+        return granted_holds(
+            uow.conn(), holder_for_principal(principal), module=module, word="controller"
+        )
 
 
 def _json(status: int, body: ErrorBody, headers: dict[str, str] | None = None) -> JSONResponse:
@@ -223,7 +232,10 @@ def create_app(
         identity=provider,
         authorizer=authorizer
         if authorizer is not None
-        else RoleAuthorizer(controller_actions=commands.controller_actions()),
+        else RoleAuthorizer(
+            controller_actions=commands.controller_actions(),
+            granted=lambda principal, module: _grants_controller(backend, principal, module),
+        ),
         resolver=resolver,
         files=files_service,
         objects=object_store,

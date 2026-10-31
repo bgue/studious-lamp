@@ -10,6 +10,7 @@ from tl_core.modules import ModuleSpec
 from tl_core.projection.types import Projector
 
 from tl_mod_cost import MODULE
+from tl_mod_cost.commands import API_COMMANDS
 from tl_mod_cost.names import COST_CODE, COST_SNAPSHOT, RECORD_TYPES
 from tl_mod_cost.projectors import CostCodeProjector, CostSnapshotProjector
 
@@ -33,4 +34,6 @@ def spec() -> ModuleSpec:
         record_types=RECORD_TYPES,
         projectors=projectors,
         generic_commands={COST_CODE: COST_CODE_GENERIC_COMMANDS, COST_SNAPSHOT: frozenset()},
+        # command name -> access word, from the module's own table (ADR-0021)
+        command_words={c.model.__name__: c.access for c in API_COMMANDS},
     )

@@ -1,21 +1,27 @@
-"""The document controller over HTTP, on every adapter (ADR-0013).
+"""The document controller over HTTP, on every adapter (ADR-0013, ADR-0021).
 
-A user, a document controller, an admin and an agent call every documents command with an empty
-body, so only the access check can decide: the ten controlling commands are refused to the user
-(403 `forbidden`, naming `control.command.<Name>`), pass for the controller and the admin, and are
-`agent_must_propose` for the agent. The controller has no `admin.*` route and cannot recover a link
-or change a role. `test_api_documents.py` pins the table; this file runs it as a matrix, on SQLite
-and (under `just test-parity`) on Postgres.
+A user, a document controller, an admin and an agent call every documents command with the
+smallest body that passes validation, so only the access check can decide. The controlling
+commands are decided by the module role table (ADR-0021): the endpoint refuses the user (403
+`forbidden`, "<Name> needs the controller access word for documents on <project>") and passes the
+derived controller (a `document_controller` account derives `superuser` of documents) and the admin;
+an agent is `agent_must_propose`. A user with an explicit `superuser` grant passes too, on that
+project only. The controller has no `admin.*` route and cannot recover a link or change a role.
+`test_api_documents.py` pins the table; this file runs it as a matrix, on SQLite and (under
+`just test-parity`) on Postgres.
 """
 
 from __future__ import annotations
 
+from typing import Any, Literal, get_args, get_origin
+
 import pytest
 from fastapi.testclient import TestClient
 from harness import Harness
-from tl_api.commands import controller_actions
+from tl_api.commands import COMMANDS, controller_actions
 from tl_api.tokens import add_token
 from tl_core.auth import accounts, sessions
+from tl_core.auth.module_grants import GrantModuleRole, grant_module_role
 from tl_core.auth.password import prepare_password
 from tl_mod_correspondence.commands import API_COMMANDS as CORRESPONDENCE_COMMANDS
 from tl_mod_documents.commands import API_COMMANDS
@@ -68,8 +74,23 @@ def cast(harness: Harness) -> Cast:
     return Cast(harness)
 
 
-def run(client: TestClient, name: str) -> tuple[int, str]:
-    response = client.post(f"/commands/{name}", json={"scope": SCOPE})
+def valid_body(name: str, scope: str = SCOPE) -> dict[str, Any]:
+    """The smallest body that passes validation: since ADR-0021 the project's module role is read
+    by the endpoint, after the body is checked, so an empty body is a 422 for everybody."""
+    model = next(spec.model for spec in COMMANDS if spec.name == name)
+    body: dict[str, Any] = {"scope": scope}
+    for field, info in model.model_fields.items():
+        if field in ("actor", "source", "scope") or not info.is_required():
+            continue
+        if get_origin(info.annotation) is Literal:
+            body[field] = get_args(info.annotation)[0]
+        else:
+            body[field] = 1 if info.annotation is int else "x1"
+    return body
+
+
+def run(client: TestClient, name: str, scope: str = SCOPE) -> tuple[int, str]:
+    response = client.post(f"/commands/{name}", json=valid_body(name, scope))
     return response.status_code, str(response.json().get("message", ""))
 
 
@@ -84,15 +105,38 @@ def test_the_controlling_set_is_the_twelve_and_the_actions_follow() -> None:
     }
 
 
-def test_a_user_is_refused_every_controlling_command_naming_its_action(cast: Cast) -> None:
+def test_a_user_is_refused_every_controlling_command_by_the_module_role(cast: Cast) -> None:
     for name in sorted(CONTROLLING):
         status, message = run(cast.clients["bob"], name)
-        assert status == 403 and f"control.command.{name}" in message, (name, status, message)
+        # refused at the authorizer: a plain user holds no controller word for any module
+        assert status == 403 and "needs the controller access word" in message, (name, status)
+
+
+def test_a_superuser_grant_opens_the_controlling_commands_on_that_project_only(
+    harness: Harness, cast: Cast
+) -> None:
+    bob = cast.clients["bob"]
+    me = bob.get("/auth/me").json()["account_id"]
+    with harness.backend() as uow:
+        grant_module_role(
+            uow,
+            GrantModuleRole(
+                actor="user:boss", source="test", scope="company", account_id=me,
+                project=SCOPE, module="documents", role="superuser", reason="test",
+            ),
+        )  # fmt: skip
+    for name in sorted(CONTROLLING):
+        assert run(bob, name)[0] != 403, name
+        assert run(bob, name, "project:OTHER")[0] == 403, name  # the grant is for one project
+    # the grant is for documents: a controller command of another module is still refused
+    assert run(bob, "DefineSchedule")[0] == 403
 
 
 def test_a_document_controller_an_admin_and_a_sim_controller_pass_the_access_check(
     cast: Cast,
 ) -> None:
+    """The derived controller (ADR-0021: `document_controller` derives `superuser` of documents)
+    and the admin keep every controlling act, on any project."""
     for who in ("dora", "solo", "sim-dc", "boss"):  # `solo` holds the role and nothing else
         for name in sorted(CONTROLLING):
             status, _ = run(cast.clients[who], name)
