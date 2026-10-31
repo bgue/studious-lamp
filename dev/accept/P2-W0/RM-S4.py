@@ -352,8 +352,8 @@ passed("proposal accept: refused without the module word (proposal stays pending
 controller_names = {n for n, (_, word) in command_index().items() if word == "controller"}
 
 
-def offers(who: str) -> set[str]:
-    return {a.command for a in embedded(who).allowed_actions(SEED["ISO-1"]).actions}
+def offers(who: str, number: str = "ISO-1") -> set[str]:
+    return {a.command for a in embedded(who).allowed_actions(SEED[number]).actions}
 
 
 need(not offers("ursula") & controller_names, f"ursula is offered {offers('ursula')}")
@@ -364,6 +364,18 @@ with open_uow(TARGET, readonly=True) as uow:  # what the API computes: the same 
         holder=holder_for_actor(uow.conn(), "user:dora"),
     )  # fmt: skip
 need({a.command for a in api.actions} == offers("dora"), "embedded offers what the API would")
+with backend() as uow:  # a viewer grant on P2 documents takes the derived controller word away
+    grant_module_role(
+        uow,
+        GrantModuleRole(
+            actor="user:boss", source="accept", scope="company", account_id=IDS["dora"],
+            project=f"project:{P2}", module="documents", role="viewer", reason="acceptance",
+        ),
+    )  # fmt: skip
+need(
+    not offers("dora", "ISO-6") & controller_names,
+    f"dora (viewer on P2 documents) is offered {offers('dora', 'ISO-6')}",
+)
 passed("allowed_actions: a controller is offered only what the module word gives")
 
 # --- 5. no raw .access in embedded.py -------------------------------------------------------------
