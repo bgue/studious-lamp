@@ -219,7 +219,19 @@ def handle_adopt_schema_set(uow: UnitOfWork, cmd: AdoptSchemaSet) -> CommandResu
     if effective.find_pset(cmd.pset) is not None:
         raise AdoptionError(f"{cmd.project} has already adopted {cmd.pset}")
     in_force = {ref.name: ref.version for ref in effective.packages}.get(cmd.package)
-    if in_force is not None and in_force != cmd.version:
+    if in_force is None:
+        # the whole package, with its required sets and constraints, would come into force
+        raise AdoptionError(
+            f"{cmd.package} is not part of {cmd.project}'s schema; an administrator adopts "
+            f"the package for {cmd.project} first (AdoptSchemaPackage)"
+        )
+    pinned = held.pins_of(scope).get(cmd.package)
+    if pinned is not None and pinned != cmd.version:
+        raise AdoptionError(
+            f"{cmd.project} pins {cmd.package}@{pinned}, and an extension on {cmd.version} "
+            "would conflict with the pin; an administrator moves the pin"
+        )
+    if in_force != cmd.version:
         if version_tuple(cmd.version) < version_tuple(in_force):
             raise AdoptionError(
                 f"{cmd.project} is on {cmd.package}@{in_force}, above {cmd.version}; "
@@ -271,7 +283,14 @@ def handle_adopt_schema_set(uow: UnitOfWork, cmd: AdoptSchemaSet) -> CommandResu
     row = registry.get_package(uow.conn(), package_id)
     assert row is not None  # just drafted
     approved = approve_reviewed(
-        uow, ApproveSchemaPackage(scope=scope, package_id=package_id, **common), row
+        uow,
+        ApproveSchemaPackage(
+            scope=scope,
+            package_id=package_id,
+            comment="Approved by AdoptSchemaSet (mechanical extension)",
+            **common,
+        ),
+        row,
     )
     events.extend(approved.events)
     published = handle_publish_schema_package(
