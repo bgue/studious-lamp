@@ -226,6 +226,47 @@ passed(
     "require_commands over exactly the commands they build; removing one is reported"
 )
 
+# `class grant` / `class withdraw` look the item up without the viewer filter (`control_item_id`,
+# ADR-0016 section 2): their gate must come before that lookup, or "forbidden" against "no item"
+# tells a plain user which hidden numbers exist
+reg_path = ROOT / "packages/tl-cli/src/tl_cli/corr_registry.py"
+
+
+def gate_before_lookup(source: str, function: str) -> bool:
+    fn = next(
+        n
+        for n in ast.walk(ast.parse(source))
+        if isinstance(n, ast.FunctionDef) and n.name == function
+    )
+
+    def lines(name: str) -> list[int]:
+        return [
+            n.lineno
+            for n in ast.walk(fn)
+            if isinstance(n, ast.Call) and getattr(n.func, "id", None) == name
+        ]
+
+    gates, lookups = lines("require_commands"), lines("control_item_id")
+    return bool(gates) and bool(lookups) and min(gates) < min(lookups)
+
+
+reg_src = reg_path.read_text(encoding="utf-8")
+for function in ("class_grant", "class_withdraw"):
+    need(gate_before_lookup(reg_src, function), f"{function}: the gate must precede the lookup")
+    swapped = re.sub(
+        r"^(\s*# the gate first.*\n\s*require_commands\(.*\n)(\s*item_id = control_item_id\(.*\n)",
+        r"\2\1",
+        reg_src,
+        flags=re.M,
+    )
+    need(not gate_before_lookup(swapped, function), f"{function}: a swapped copy is reported")
+unknown = tl(ENV["ursula"], "corr", "class", "grant", "P1-NO-SUCH-9", "--project", P1,
+             "--account", "user:bo", "--reason", "x")  # fmt: skip
+refused(unknown, "ursula class grant on an unknown number")
+need("no item" not in unknown.stderr, "forbidden, not a no-item oracle: " + unknown.stderr)
+passed("class grant / class withdraw gate before the unfiltered lookup (AST order); an unknown "
+       "number is refused as forbidden, not as no-item")  # fmt: skip
+
 # the pre-flight itself: a plain user is refused an engineering admin word before any write
 with open_uow(TARGET, readonly=True) as _uow:
     try:

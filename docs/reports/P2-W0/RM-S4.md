@@ -34,15 +34,12 @@ Holder passed: `tl_cli/proposal.py:228,238` (`holder_for_actor`), `embedded.py:4
 
 ## Commands and output
 ```
-$ just check
-All checks passed! | 0 errors, 0 warnings | generated files are up to date (641) | licences ok
+$ just check                                   # clean
 $ uv run python dev/tools/gate_sweep.py --check
-0 ungated module handler call(s)
-$ uv run python dev/accept/P2-W0/RM-S4.py      # exit 0, 9 PASS
-total: 125 handler calls, 125 gated, 0 MANUAL-placed
-PASS AST pin ... | PASS CLI x4 | PASS embedded | PASS proposal accept | PASS allowed_actions | PASS embedded.py reads no raw .access
+0 ungated module handler or bulk helper call(s)
+$ uv run python dev/accept/P2-W0/RM-S4.py      # exit 0, 12 PASS; total: 125 handler calls, 125 gated, 0 MANUAL
 ```
-Bulk pre-flight (attempt 2): `gate_sweep.py --check` prints `0 ungated module handler or bulk helper call(s)`; acceptance adds 2 PASS lines (pin over the 3 helper calls with the tuple equal to the Command classes the helper modules build; `require_commands` refuses a plain user `RecordTag`, passes `ReclassifyTag`) and the 3 in-memory removals are reported. Real mutant: deleting the `standards.py` pre-flight fails the script and `--check`.
+Attempt 2 adds 2 PASS lines (bulk helper pin: tuple equals the Command classes the helper modules build; `require_commands` refuses a plain user `RecordTag`, passes `ReclassifyTag`). Real mutant: deleting the `standards.py` pre-flight fails the script and `--check`.
 Mutants (on the acceptance script, committed tree restored each time): sentinel `require_command` body no-op killed; `_command_gate` no-op killed; `holder=holder` at `proposal.py` removed killed (needs the P2 viewer grant added for that); `holder=` in `allowed_actions` removed killed (P2 documents viewer grant added); one removed `require_command` (`xer define`) killed by the AST pin. 5/5.
 
 ## Guard sites for TA
@@ -51,8 +48,12 @@ Mutants (on the acceptance script, committed tree restored each time): sentinel 
 ## Learnings (proposed)
 - A gate that needs the built command runs after the record lookup; a test that refuses a user on a made-up record id must now create it.
 
+## Attempt 3 (re-review F1: hidden-number oracle)
+`class grant` / `class withdraw` looked the item up with `control_item_id` (no `_hidden` filter, ADR-0016) before the gate: `forbidden` against `no item` showed which hidden numbers exist. Now `require_commands(uow, (GrantClearance,)|(WithdrawClearance,), actor=, scope=)` runs before the lookup; `require_command` on the built command stays. Pin: AST order in both functions, a swapped copy is reported, an unknown number as a plain user answers forbidden (1 PASS line, 12 in all).
+Audit (calls before the first gate in every gating function, helpers read): `control_item_id` is the only unfiltered confidential lookup. Viewer-filtered: `item_row`, `comm/rfi _row`, `_document`, `_revision`, `clock_row`, `find_thread`, `_cycle`; not confidential: parties, clauses, tags, transmittals, schedules, schemas, derived runs.
+
 ## Notes for TA
 - The helper pin (like the handler pin) accepts a gate in a sibling branch or loop of the same function: "earlier" is source position, not dominance. TA should place a mutant that moves a gate into a non-executing branch if that matters.
 
 ## Open questions / Blocked
-1. `test_cli_corr.py::SITES` and the `comm` loop in `test_cli_domains.py` need seeded records (see Pins updated). Who seeds them?
+1. Closed (orchestrator, attempt 3): the pre-flight for the bulk helpers is decided and in. Still open for TA: `test_cli_corr.py::SITES` and the `comm` loop in `test_cli_domains.py` need seeded records (see Pins updated).

@@ -46,7 +46,7 @@ from tl_mod_correspondence.handlers.threads import AssignThread, handle_assign_t
 from tl_cli.corr import item_row
 from tl_cli.derive_support import configure_files
 from tl_cli.doc import _DEFAULT_ACTOR, _Actor, _fail, _Project, _Reason, _service_errors
-from tl_cli.session import require_command, require_controller
+from tl_cli.session import require_command, require_commands, require_controller
 
 thread_app = typer.Typer(help="Threads: the items of one exchange.", no_args_is_help=True)
 party_app = typer.Typer(help="Parties and their contacts (controller).", no_args_is_help=True)
@@ -445,6 +445,8 @@ def class_grant(
     db: DbTarget = ctx.obj
     scope = f"project:{project}"
     with _service_errors(), open_uow(db) as uow:
+        # the gate first: the lookup below does not filter hidden items (ADR-0016)
+        require_commands(uow, (GrantClearance,), actor=actor, scope=scope)
         item_id = control_item_id(uow, scope, project, number)
         command = GrantClearance(
             actor=actor,
@@ -472,6 +474,8 @@ def class_withdraw(
     db: DbTarget = ctx.obj
     scope = f"project:{project}"
     with _service_errors(), open_uow(db) as uow:
+        # the gate first: the lookup below does not filter hidden items (ADR-0016)
+        require_commands(uow, (WithdrawClearance,), actor=actor, scope=scope)
         item_id = control_item_id(uow, scope, project, number)
         command = WithdrawClearance(
             actor=actor,
