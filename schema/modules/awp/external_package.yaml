@@ -1,0 +1,95 @@
+id: https://example.org/throughline/modules/awp/external_package
+name: tl_mod_awp_external_package
+title: Owner packages (brief 9, M3)
+description: >-
+  An `EWPRef` or `PWPRef` mirrors one engineering or procurement work package of the owner's system: its number, status text and dates. The source of truth stays outside. Spec: docs/build-spec/specs/m3-wbs-cwp.md section 2.
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+  - ../../core/annotations
+  - ../../core/record
+default_range: string
+annotations:
+  tl:module: awp
+
+classes:
+  ExternalPackage:
+    abstract: true
+    description: >-
+      The columns the engineering and procurement package mirrors share. Not a table and not a record type;
+      `EWPRef` and `PWPRef` each give the table of their own.
+    attributes:
+      id:
+        identifier: true
+        range: Ulid
+        required: true
+        description: Record id; equals the ledger stream id and the `cur_core_record` id.
+      scope:
+        range: ScopeId
+        required: true
+        description: The project scope, `project:<id>`.
+      package_no:
+        required: true
+        description: The package number as the owner writes it; the record key.
+      status_text:
+        pattern: "^.{0,40}$"
+        description: The status in the owner's words (at most 40 characters).
+      forecast_date:
+        pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+        description: "Forecast date, `YYYY-MM-DD`."
+      actual_date:
+        pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+        description: "Actual date, `YYYY-MM-DD`."
+      constraint_source:
+        range: boolean
+        required: true
+        ifabsent: "false"
+        description: True when the package can hold back field work; read by the constraints of P2-I2.
+      source_system:
+        pattern: "^.{0,40}$"
+        description: The system the owner keeps the package in (at most 40 characters).
+      last_seq:
+        range: integer
+        required: true
+        description: Ledger `seq` of the last event applied to this row.
+
+  EWPRef:
+    is_a: ExternalPackage
+    title: Engineering work package reference
+    description: >-
+      One engineering work package of the owner. Record type `awp.EWPRef`; its key is the package number
+      (unique per project) and its title the package name.
+    annotations:
+      tl:current_state: true
+      tl:record_types: "awp.EWPRef"
+      tl:offline: none
+      tl:table: cur_awp_ewp_ref
+      tl:ix_scope_package: "scope, package_no"
+    unique_keys:
+      scope_package_no:
+        description: A package number names one package in a project.
+        unique_key_slots:
+          - scope
+          - package_no
+
+  PWPRef:
+    is_a: ExternalPackage
+    title: Procurement work package reference
+    description: >-
+      One procurement work package of the owner. Record type `awp.PWPRef`; its key is the package number
+      (unique per project) and its title the package name.
+    annotations:
+      tl:current_state: true
+      tl:record_types: "awp.PWPRef"
+      tl:offline: none
+      tl:table: cur_awp_pwp_ref
+      tl:ix_scope_package: "scope, package_no"
+    unique_keys:
+      scope_package_no:
+        description: A package number names one package in a project.
+        unique_key_slots:
+          - scope
+          - package_no

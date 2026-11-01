@@ -12,6 +12,12 @@ Classes:
 
 | Record type | Label | Class | Meaning |
 |---|---|---|---|
+| `awp.CWA` | Construction work area | `none` | Online only. |
+| `awp.CWP` | Construction work package | `draft_only` | Drafts offline; issue, number and sign happen on the authority. |
+| `awp.EWPRef` | Engineering work package reference | `none` | Online only. |
+| `awp.PWPRef` | Procurement work package reference | `none` | Online only. |
+| `awp.PathOfConstruction` | Path of construction | `none` | Online only. |
+| `awp.WBSNode` | WBS node | `none` | Online only. |
 | `core.Record` | Record | `full` | Created and edited offline, merged on sync. |
 | `correspondence.CommercialItem` | Commercial item | `none` | Online only. |
 | `correspondence.ContractClause` | Contract clause | `none` | Online only. |
