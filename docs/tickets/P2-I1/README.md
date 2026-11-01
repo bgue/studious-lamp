@@ -31,7 +31,7 @@ regenerated on the later side, never hand-merged.
 | S3 | `S3-awp-package-wbs-path-cwa.md` | piece | full | S2 | 2 |
 | S4 | `S4-awp-cwp-packages-actions.md` | piece | full | S3 | 3 |
 | S5 | `S5-awp-rollup-job.md` | piece | full | S3 | 3 |
-| T02 | `T02-load-targets.md` | ticket | full | S3 | 3 |
+| T02 | `T02-load-targets.md` | piece (D8) | full | S3 | 3 |
 | T01 | `T01-samples-loaders.md` | ticket | lite | T02 | 4 |
 | T10 | `T10-views.md` | ticket | full | S4 | 4 |
 | T03a, T03b | `T03a-api-routes.md`, `T03b-clients.md` | tickets | full | T10, T03a | 5 |
