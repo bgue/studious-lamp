@@ -75,6 +75,7 @@ MIRRORS: dict[str, str] = {
     "links_of": "get_record_links",
     "link_counts": "get_link_counts",
     "list_record_files": "list_record_files",
+    "file_info": "get_file_info",
     "thread_page": "get_record_thread",
     "get_record": "lookup_record",
     "get_record_by_id": "get_record",
@@ -366,6 +367,10 @@ class WebReadClient:
             slot=None,
             current_only=True,
         )
+
+    def file_info(self, scope: str, file_id: str) -> Any:
+        """One file's metadata (``FileInfo``); a hidden or unknown file raises the route's 404."""
+        return self._call(files_routes.get_file_info, file_id=file_id, scope=scope)
 
     def thread_page(self, record_id: str, *, limit: int = 50, before_seq: int | None = None) -> Any:
         return self._call(
