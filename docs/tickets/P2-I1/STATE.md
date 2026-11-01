@@ -1,21 +1,21 @@
-# P2-I1 STATE  r=3 base=1b93a13 C=1 ck=0 gate=n/a wt=/home/user/wt/p2-i1
+# P2-I1 STATE  r=4 base=47f4e76 C=1 ck=0 gate=n/a wt=/home/user/wt/p2-i1
 ## BOARD
 S2 p mrg f 99ad743 schema awp merged; APPROVALS logged
-S3 p mrg f f482aad awp package merged; APPROVALS logged; rev pass; F1 MD to S4
-S4 p stg f - CWP, packages, RULES, D-a/b/d/e, F4; spec r3
-S5 p stg f - rollup run, projector, worker fn, D-c; spec r3
-T02 p stg f - load targets (now a piece, D8); spec r3
-T01 t todo l - samples, mappings, loaders; after T02
-T10 t todo f - read views; after S4
-T03a t todo f - API routes; after T10
+S3 p mrg f f482aad awp package merged; rev pass
+S4 p mrg f 1fa0f90 CWP, packages, RULES, tl_api glue; rev pass; F1 fixed via T02
+S5 p mrg f d32e1be rollup run, projector, worker; rev pass
+T02 p mrg f 518f6a1 targets awp_wbs, awp_cwa; rev pass
+T10 t disp f - read views (r4); after S4
+T01 t disp l - samples, mappings, loaders (r4); after T02
+T03a t todo f - API routes + link/file counts, timeline (D15); after T10
 T03b t todo f - client methods; after T03a
-T04 t todo f - CLI, reports, awp worker cmd; after S5, T10
+T04 t todo f - CLI, reports, awp worker cmd; after T10 (S5 mrg)
 T05a t todo f - CWP register; after T03b
 T05b t todo f - WBS tree, CWA register; after T05a
 T05c t todo f - path, package logs; after T05a
 T06 t todo f - MCP tools; after T03a
 T07 t todo l - sim AwpDesk, actor; after T03b, T06
-T11 p todo f - tests + capped mutants + F1 guard + five-reader walk; after all
+T11 p todo f - tests + capped mutants + guards + five-reader walk; after all
 T08 t todo f - demo; after T11
 T09 t todo l - docs; after T04, T05
 ## DEC
@@ -33,25 +33,30 @@ D11 2026-11-01 seams: projectors/cwp.py (S4) and projectors/rollup.py (S5) so mo
 D12 2026-11-01 `tl awp worker` CLI is T04's; S5 leaves tl_mod_awp.worker.build_worker/requeue_orphans (spec §4 entry reworded)
 D13 2026-11-01 every ticket acceptance runs just check with NODE_OPTIONS=--max-old-space-size=6144 (pyright heap)
 D14 2026-11-01 weekly capacity near stop line: r3 batch is S4 S5 T02 only; T10/T01 wait for r4
+D15 2026-11-01 r4 T10 views omit link count, file count, timeline (need a unit of work): T03a adds them from links_of and record_history
+D16 2026-11-01 r4 S4 open 2-4 accepted: AllocateCwpToWbs has no clear (spec); CommandResult.key = typed code; offline_drafts {} for awp.CWP until P3-I5
+D17 2026-11-01 r4 T02 F1 accepted (subject); F2 second-reverse no-op check goes to T11 test_targets.py; path-defining run stays irreversible
+D18 2026-11-01 r4 C2 NOT reached: S4 S5 T02 merged but T10 T03a T03b open. Batch r4 = T10 + T01 (T03a/T04 need T10)
+
 ## SEC
 F1 LO fixed@- S2 report 65>60 lines; waived
 F2 LO fixed@adfbd1d S3 dropped redundant scope indexes
-S3F1 MD open S3 key-taken check read cur_core_record without ADR-0016 filter -> S4 D-a (guard for T11)
+S3F1 MD fixed@e79b789 S4 D-a namespaced keys; T11 guard (node 1 and cost code 1 coexist, hidden record keeps answer)
 S3F2 LO open path lookup hidden -> T11 five-reader walk
 S3F3 LO open tree counts hidden -> T11 five-reader walk
-S3F4 LO open missing cost-code link not re-added -> S4 F4
+S3F4 LO fixed@1fa0f90 S4 F4
 (review only if the owner asks. Sec rows: S3 S4 S5 T02 T03a T06)
 ## OPEN
-(none)
+Q1 `tl links expected` shows no CWP miss at Released: `default_expected_links()` reads only schema/fixtures/links/; the awp.CWP requires-EWPRef expectation is in schema/modules/awp/cwp.yaml. Needs a schema-labelled file schema/fixtures/links/awp.yaml (not Haiku, 01-tiers 6.6). Proposal: piece S6 (tiny, Gate: orch per P2-Q10, APPROVALS line) + T11 test of `tl links expected` on the seed; alternative: default_expected_links also reads module schema (tl_core change, larger). needs orch raised S4
 ## NEXT
-1. Orchestrator dispatches S4, S5, T02 (disjoint paths; 3 builders = 3 slots). Merge order free; conflicts only in uv.lock (regenerate).
-2. r4 (after S4 mrg): T10; (after T02 mrg) T01 as a lite ticket. T04 after S5 and T10.
-3. S4 leaves .accept/p2-i1.db (WBS, 4 CWAs, path v1, 6 CWPs); T10, T04, T07 run against it.
-4. Registry glue left for C2 (supervisor, <= 50 lines): add_typer (T04), MCP_ACTIONS (T06), nav entry (T05). tl_api COMMANDS and errors are in S4.
-5. Every ticket: acceptance script dev/accept/P2-I1/<id>.py, no pytest; `NODE_OPTIONS=--max-old-space-size=6144 just check` first.
-6. T11 spec at C2: add the F1 guard (node 1 and cost code 1 coexist, hidden record does not change the answer), five-reader walk of path lookup and tree counts (S3F2, S3F3), D-c settle, 0-line clear.
-7. Twin web tickets (CWP/CWA registers, WBS tree, path, packages) belong to WEB1 after C2.
+1. Orchestrator dispatches T10 and T01 (disjoint paths; ticket-batch-v2). Each starts with S4.py --keep to build .accept/p2-i1.db in its own worktree.
+2. Answer Q1: yes -> r5 writes S6 spec (schema/fixtures/links/awp.yaml); no -> waive, T11 documents the gap.
+3. r5 (after T10 mrg): T03a (routes + counts + timeline, walk entries), T04 (CLI + reports + `tl awp worker`). Then T03b, T06, T05a.. per spec 10.
+4. C2 = S4 S5 T10 T03a T03b: mark when T03b merges; WEB1 twins (CWP/CWA registers, WBS tree, external packages) need C2 routes and client methods: NOT ready.
+5. Registry glue for C2 (supervisor, <= 50 lines): add_typer (T04), MCP_ACTIONS (T06), nav entry (T05). tl_api COMMANDS and errors done in S4.
+6. T11 spec at C2: F1 guard, five-reader walk of path lookup and tree counts (S3F2, S3F3), D-c settle, 0-line clear, T02 F2 second-reverse no-op, S4 guard list (S4 report), S5 guard list (S5 report), T02 guard list.
+7. Every ticket: setup `uv sync --all-packages`; `NODE_OPTIONS=--max-old-space-size=6144 just check`; acceptance script; no pytest; subject `P2-I1-<id>: ...`.
 ## REFS
-Spec docs/build-spec/specs/m3-wbs-cwp.md; wave plan phase2-wave-plan.md; reports docs/reports/P2-I1/S2.md S3.md; W0 acceptance dev/accept/P2-W0/*.py (script style); load target contract packages/tl-modules/legacy/src/tl_mod_legacy/targets.py:133.
+Spec docs/build-spec/specs/m3-wbs-cwp.md; wave plan phase2-wave-plan.md; reports docs/reports/P2-I1/S2.md S3.md S4.md S5.md T02.md; tickets docs/tickets/P2-I1/T10-read-views.md T01-samples-loaders.md; W0 acceptance dev/accept/P2-W0/*.py (script style); load target contract packages/tl-modules/legacy/src/tl_mod_legacy/targets.py:133.
 ## TRAPS
 Worktree /home/user/wt/p2-i1 only; never /home/user/studious-lamp. `just check` takes >120 s and needs NODE_OPTIONS=--max-old-space-size=6144 (pyright heap): run in background. `uv sync` after editing a pyproject. dev/tests/ is outside testpaths. Never delete /tmp/pytest-of-root, never pkill. Record keys are per project across types (core), hence D9.
