@@ -14,6 +14,8 @@ from tl_mod_awp.actions import awp_actions
 from tl_mod_awp.commands import AWP_COMMANDS
 from tl_mod_awp.names import CWA, PATH, RECORD_TYPES, WBS_NODE
 from tl_mod_awp.projectors import CwaProjector, PathProjector, WbsProjector
+from tl_mod_awp.projectors.cwp import cwp_projectors
+from tl_mod_awp.projectors.rollup import rollup_projectors
 
 #: The life of a link that starts at the record (accept, decline, re-pin, verify, flag, retract).
 LINK_LIFE = frozenset(
@@ -27,7 +29,14 @@ CWA_GENERIC_COMMANDS = frozenset({"AddLink", "SuggestLink", "AttachFile"}) | LIN
 
 def projectors() -> list[Projector]:
     """Fresh projectors in the order they are registered."""
-    return [WbsProjector(), PathProjector(), CwaProjector()]
+    # cwp_projectors: S4 (CWP, EWPRef, PWPRef); rollup_projectors: S5 (cur_awp_rollup)
+    return [
+        WbsProjector(),
+        PathProjector(),
+        CwaProjector(),
+        *cwp_projectors(),
+        *rollup_projectors(),
+    ]
 
 
 def spec() -> ModuleSpec:
