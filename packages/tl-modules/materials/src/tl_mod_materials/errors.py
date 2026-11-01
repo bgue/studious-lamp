@@ -79,3 +79,29 @@ class MtoLineInUseError(MaterialsError):
 
 class WorkPackageNotFoundError(MaterialsError):
     """No work package with that number in the project."""
+
+
+class ReceiptNotFoundError(MaterialsError):
+    """No receipt with that id in the project."""
+
+
+class ReceiptStateError(MaterialsError):
+    """The receipt is not in a state that takes the command (revise, inspect, decide, void)."""
+
+
+class MtrRequiredError(MaterialsError):
+    """A line is of a category that needs a material test report; none is attached."""
+
+
+class CostCodeNotFoundError(MaterialsError):
+    """No cost code with that id in the project."""
+
+
+class MovementRuleError(MaterialsError):
+    """A movement breaks a rule of its kind (a field it needs or may not carry, a lot or location
+    it cannot use). The message names the movement by its index."""
+
+
+class InsufficientStockError(MaterialsError):
+    """The lot does not hold enough at the location (available, reserved or issued) for the
+    movement. The message names the movement by its index."""

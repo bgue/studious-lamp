@@ -153,6 +153,72 @@
         "title": "AcceptLinkBody",
         "type": "object"
       },
+      "AcceptReceiptBody": {
+        "additionalProperties": false,
+        "properties": {
+          "causation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Causation Id"
+          },
+          "correlation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Correlation Id"
+          },
+          "expected_version": {
+            "minimum": 1.0,
+            "title": "Expected Version",
+            "type": "integer"
+          },
+          "idempotency_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Idempotency Key"
+          },
+          "scope": {
+            "title": "Scope",
+            "type": "string"
+          },
+          "source": {
+            "default": "api",
+            "pattern": "^[a-z][a-z0-9_]*(:[A-Za-z0-9_.-]+)?$",
+            "title": "Source",
+            "type": "string"
+          },
+          "stream_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Stream Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "scope",
+          "stream_id",
+          "expected_version"
+        ],
+        "title": "AcceptReceiptBody",
+        "type": "object"
+      },
       "AccountView": {
         "properties": {
           "account_id": {
@@ -1184,6 +1250,69 @@
         "title": "AddableProperty",
         "type": "object"
       },
+      "AdjustStockBody": {
+        "additionalProperties": false,
+        "properties": {
+          "causation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Causation Id"
+          },
+          "correlation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Correlation Id"
+          },
+          "idempotency_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Idempotency Key"
+          },
+          "movements": {
+            "items": {
+              "$ref": "#/components/schemas/Movement"
+            },
+            "maxItems": 200,
+            "minItems": 1,
+            "title": "Movements",
+            "type": "array"
+          },
+          "scope": {
+            "title": "Scope",
+            "type": "string"
+          },
+          "source": {
+            "default": "api",
+            "pattern": "^[a-z][a-z0-9_]*(:[A-Za-z0-9_.-]+)?$",
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "scope",
+          "movements"
+        ],
+        "title": "AdjustStockBody",
+        "type": "object"
+      },
       "AdminFlagLinkBody": {
         "additionalProperties": false,
         "properties": {
@@ -1339,6 +1468,66 @@
           "reason"
         ],
         "title": "AdminRetractLinkBody",
+        "type": "object"
+      },
+      "AdoptItemBody": {
+        "additionalProperties": false,
+        "properties": {
+          "causation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Causation Id"
+          },
+          "correlation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Correlation Id"
+          },
+          "idempotency_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Idempotency Key"
+          },
+          "item_code": {
+            "maxLength": 40,
+            "minLength": 1,
+            "title": "Item Code",
+            "type": "string"
+          },
+          "scope": {
+            "title": "Scope",
+            "type": "string"
+          },
+          "source": {
+            "default": "api",
+            "pattern": "^[a-z][a-z0-9_]*(:[A-Za-z0-9_.-]+)?$",
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "scope",
+          "item_code"
+        ],
+        "title": "AdoptItemBody",
         "type": "object"
       },
       "AdoptSchemaPackageBody": {
@@ -6421,6 +6610,114 @@
         "title": "CreateInstanceIn",
         "type": "object"
       },
+      "CreateReceiptBody": {
+        "additionalProperties": false,
+        "properties": {
+          "causation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Causation Id"
+          },
+          "correlation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Correlation Id"
+          },
+          "delivery_ref": {
+            "anyOf": [
+              {
+                "maxLength": 60,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Delivery Ref"
+          },
+          "idempotency_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Idempotency Key"
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/ReceiptLineIn"
+            },
+            "maxItems": 50,
+            "minItems": 1,
+            "title": "Lines",
+            "type": "array"
+          },
+          "location_code": {
+            "maxLength": 16,
+            "minLength": 1,
+            "title": "Location Code",
+            "type": "string"
+          },
+          "po_line": {
+            "anyOf": [
+              {
+                "maxLength": 38,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Po Line"
+          },
+          "received_on": {
+            "maxLength": 10,
+            "minLength": 10,
+            "title": "Received On",
+            "type": "string"
+          },
+          "scope": {
+            "title": "Scope",
+            "type": "string"
+          },
+          "source": {
+            "default": "api",
+            "pattern": "^[a-z][a-z0-9_]*(:[A-Za-z0-9_.-]+)?$",
+            "title": "Source",
+            "type": "string"
+          },
+          "supplier_text": {
+            "default": "",
+            "maxLength": 120,
+            "title": "Supplier Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "scope",
+          "received_on",
+          "location_code",
+          "lines"
+        ],
+        "title": "CreateReceiptBody",
+        "type": "object"
+      },
       "CreateRecordBody": {
         "additionalProperties": false,
         "properties": {
@@ -7583,6 +7880,215 @@
           "clause_number"
         ],
         "title": "DefineClauseBody",
+        "type": "object"
+      },
+      "DefineItemBody": {
+        "additionalProperties": false,
+        "properties": {
+          "base_uom": {
+            "maxLength": 8,
+            "minLength": 1,
+            "title": "Base Uom",
+            "type": "string"
+          },
+          "category": {
+            "maxLength": 32,
+            "minLength": 1,
+            "title": "Category",
+            "type": "string"
+          },
+          "causation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Causation Id"
+          },
+          "code": {
+            "maxLength": 40,
+            "minLength": 1,
+            "title": "Code",
+            "type": "string"
+          },
+          "consumable": {
+            "default": false,
+            "title": "Consumable",
+            "type": "boolean"
+          },
+          "correlation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Correlation Id"
+          },
+          "idempotency_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Idempotency Key"
+          },
+          "material_code": {
+            "anyOf": [
+              {
+                "maxLength": 32,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Material Code"
+          },
+          "rating_text": {
+            "anyOf": [
+              {
+                "maxLength": 60,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rating Text"
+          },
+          "scope": {
+            "title": "Scope",
+            "type": "string"
+          },
+          "size_text": {
+            "anyOf": [
+              {
+                "maxLength": 60,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Size Text"
+          },
+          "source": {
+            "default": "api",
+            "pattern": "^[a-z][a-z0-9_]*(:[A-Za-z0-9_.-]+)?$",
+            "title": "Source",
+            "type": "string"
+          },
+          "title": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "scope",
+          "code",
+          "title",
+          "category",
+          "base_uom"
+        ],
+        "title": "DefineItemBody",
+        "type": "object"
+      },
+      "DefineLocationBody": {
+        "additionalProperties": false,
+        "properties": {
+          "causation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Causation Id"
+          },
+          "code": {
+            "maxLength": 16,
+            "minLength": 1,
+            "title": "Code",
+            "type": "string"
+          },
+          "correlation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Correlation Id"
+          },
+          "idempotency_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Idempotency Key"
+          },
+          "kind": {
+            "maxLength": 16,
+            "minLength": 1,
+            "title": "Kind",
+            "type": "string"
+          },
+          "parent_code": {
+            "anyOf": [
+              {
+                "maxLength": 16,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Code"
+          },
+          "scope": {
+            "title": "Scope",
+            "type": "string"
+          },
+          "source": {
+            "default": "api",
+            "pattern": "^[a-z][a-z0-9_]*(:[A-Za-z0-9_.-]+)?$",
+            "title": "Source",
+            "type": "string"
+          },
+          "title": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "scope",
+          "code",
+          "title",
+          "kind"
+        ],
+        "title": "DefineLocationBody",
         "type": "object"
       },
       "DefineScheduleBody": {
@@ -11935,6 +12441,90 @@
         "title": "ImportResult",
         "type": "object"
       },
+      "InspectReceiptBody": {
+        "additionalProperties": false,
+        "properties": {
+          "causation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Causation Id"
+          },
+          "correlation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Correlation Id"
+          },
+          "expected_version": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Version"
+          },
+          "idempotency_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Idempotency Key"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "scope": {
+            "title": "Scope",
+            "type": "string"
+          },
+          "source": {
+            "default": "api",
+            "pattern": "^[a-z][a-z0-9_]*(:[A-Za-z0-9_.-]+)?$",
+            "title": "Source",
+            "type": "string"
+          },
+          "stream_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Stream Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "scope",
+          "stream_id"
+        ],
+        "title": "InspectReceiptBody",
+        "type": "object"
+      },
       "InvokeActionBody": {
         "additionalProperties": false,
         "properties": {
@@ -12375,6 +12965,69 @@
           "issue_status"
         ],
         "title": "IssueRevisionBody",
+        "type": "object"
+      },
+      "IssueStockBody": {
+        "additionalProperties": false,
+        "properties": {
+          "causation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Causation Id"
+          },
+          "correlation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Correlation Id"
+          },
+          "idempotency_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Idempotency Key"
+          },
+          "movements": {
+            "items": {
+              "$ref": "#/components/schemas/Movement"
+            },
+            "maxItems": 200,
+            "minItems": 1,
+            "title": "Movements",
+            "type": "array"
+          },
+          "scope": {
+            "title": "Scope",
+            "type": "string"
+          },
+          "source": {
+            "default": "api",
+            "pattern": "^[a-z][a-z0-9_]*(:[A-Za-z0-9_.-]+)?$",
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "scope",
+          "movements"
+        ],
+        "title": "IssueStockBody",
         "type": "object"
       },
       "IssueTechnicalBody": {
@@ -14360,6 +15013,128 @@
           "events"
         ],
         "title": "ModuleRoleResult",
+        "type": "object"
+      },
+      "Movement": {
+        "additionalProperties": false,
+        "description": "One movement of a batch. Fields as the ``cur_materials_movement`` columns; the kind is the\ncommand's. ``from_location`` and ``to_location`` are location codes of the project.",
+        "properties": {
+          "cost_code_id": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cost Code Id"
+          },
+          "direction": {
+            "anyOf": [
+              {
+                "enum": [
+                  "in",
+                  "out"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Direction"
+          },
+          "from_location": {
+            "anyOf": [
+              {
+                "maxLength": 16,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "From Location"
+          },
+          "lot_key": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Lot Key",
+            "type": "string"
+          },
+          "mto_line_id": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mto Line Id"
+          },
+          "person": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Person"
+          },
+          "qty": {
+            "maxLength": 32,
+            "minLength": 1,
+            "title": "Qty",
+            "type": "string"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "to_location": {
+            "anyOf": [
+              {
+                "maxLength": 16,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "To Location"
+          },
+          "uom": {
+            "maxLength": 8,
+            "minLength": 1,
+            "title": "Uom",
+            "type": "string"
+          }
+        },
+        "required": [
+          "lot_key",
+          "qty",
+          "uom"
+        ],
+        "title": "Movement",
         "type": "object"
       },
       "NotifyArgs": {
@@ -17068,6 +17843,72 @@
         "title": "ReasonBody",
         "type": "object"
       },
+      "ReceiptLineIn": {
+        "additionalProperties": false,
+        "description": "One line of a delivery. The unit is the item's; ``uom`` may be sent and must equal it.",
+        "properties": {
+          "condition": {
+            "default": "good",
+            "maxLength": 32,
+            "title": "Condition",
+            "type": "string"
+          },
+          "heat_no": {
+            "anyOf": [
+              {
+                "maxLength": 40,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Heat No"
+          },
+          "item_code": {
+            "maxLength": 40,
+            "minLength": 1,
+            "title": "Item Code",
+            "type": "string"
+          },
+          "qty": {
+            "maxLength": 20,
+            "minLength": 1,
+            "title": "Qty",
+            "type": "string"
+          },
+          "serials_text": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Serials Text"
+          },
+          "uom": {
+            "anyOf": [
+              {
+                "maxLength": 8,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Uom"
+          }
+        },
+        "required": [
+          "item_code",
+          "qty"
+        ],
+        "title": "ReceiptLineIn",
+        "type": "object"
+      },
       "ReceiveCorrespondenceBody": {
         "additionalProperties": false,
         "properties": {
@@ -17633,6 +18474,119 @@
           "updated_at"
         ],
         "title": "RecordOut",
+        "type": "object"
+      },
+      "RecordPoLineBody": {
+        "additionalProperties": false,
+        "properties": {
+          "causation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Causation Id"
+          },
+          "correlation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Correlation Id"
+          },
+          "idempotency_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Idempotency Key"
+          },
+          "item_code": {
+            "maxLength": 40,
+            "minLength": 1,
+            "title": "Item Code",
+            "type": "string"
+          },
+          "line_no": {
+            "maximum": 99999.0,
+            "minimum": 1.0,
+            "title": "Line No",
+            "type": "integer"
+          },
+          "po_number": {
+            "maxLength": 30,
+            "minLength": 1,
+            "title": "Po Number",
+            "type": "string"
+          },
+          "promised_date": {
+            "anyOf": [
+              {
+                "maxLength": 10,
+                "minLength": 10,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Promised Date"
+          },
+          "qty_ordered": {
+            "maxLength": 14,
+            "minLength": 1,
+            "title": "Qty Ordered",
+            "type": "string"
+          },
+          "scope": {
+            "title": "Scope",
+            "type": "string"
+          },
+          "source": {
+            "default": "api",
+            "pattern": "^[a-z][a-z0-9_]*(:[A-Za-z0-9_.-]+)?$",
+            "title": "Source",
+            "type": "string"
+          },
+          "supplier_text": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Supplier Text"
+          },
+          "uom": {
+            "maxLength": 8,
+            "minLength": 1,
+            "title": "Uom",
+            "type": "string"
+          }
+        },
+        "required": [
+          "scope",
+          "po_number",
+          "line_no",
+          "item_code",
+          "qty_ordered",
+          "uom"
+        ],
+        "title": "RecordPoLineBody",
         "type": "object"
       },
       "RecordRef": {
@@ -19890,6 +20844,85 @@
         "title": "RejectEnrichmentBody",
         "type": "object"
       },
+      "RejectReceiptBody": {
+        "additionalProperties": false,
+        "properties": {
+          "causation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Causation Id"
+          },
+          "correlation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Correlation Id"
+          },
+          "expected_version": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Version"
+          },
+          "idempotency_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Idempotency Key"
+          },
+          "reason": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          },
+          "scope": {
+            "title": "Scope",
+            "type": "string"
+          },
+          "source": {
+            "default": "api",
+            "pattern": "^[a-z][a-z0-9_]*(:[A-Za-z0-9_.-]+)?$",
+            "title": "Source",
+            "type": "string"
+          },
+          "stream_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Stream Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "scope",
+          "stream_id",
+          "reason"
+        ],
+        "title": "RejectReceiptBody",
+        "type": "object"
+      },
       "RelationOut": {
         "description": "A relation of the link vocabulary (brief 7.1).",
         "properties": {
@@ -20566,6 +21599,69 @@
         "title": "RequestWaiverBody",
         "type": "object"
       },
+      "ReserveStockBody": {
+        "additionalProperties": false,
+        "properties": {
+          "causation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Causation Id"
+          },
+          "correlation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Correlation Id"
+          },
+          "idempotency_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Idempotency Key"
+          },
+          "movements": {
+            "items": {
+              "$ref": "#/components/schemas/Movement"
+            },
+            "maxItems": 200,
+            "minItems": 1,
+            "title": "Movements",
+            "type": "array"
+          },
+          "scope": {
+            "title": "Scope",
+            "type": "string"
+          },
+          "source": {
+            "default": "api",
+            "pattern": "^[a-z][a-z0-9_]*(:[A-Za-z0-9_.-]+)?$",
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "scope",
+          "movements"
+        ],
+        "title": "ReserveStockBody",
+        "type": "object"
+      },
       "ResetBody": {
         "additionalProperties": false,
         "description": "Body of ``POST /settings/{key}/reset``.",
@@ -21074,6 +22170,140 @@
         "title": "RetireDocumentSchemaBody",
         "type": "object"
       },
+      "RetireItemBody": {
+        "additionalProperties": false,
+        "properties": {
+          "causation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Causation Id"
+          },
+          "code": {
+            "maxLength": 40,
+            "minLength": 1,
+            "title": "Code",
+            "type": "string"
+          },
+          "correlation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Correlation Id"
+          },
+          "idempotency_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Idempotency Key"
+          },
+          "reason": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          },
+          "scope": {
+            "title": "Scope",
+            "type": "string"
+          },
+          "source": {
+            "default": "api",
+            "pattern": "^[a-z][a-z0-9_]*(:[A-Za-z0-9_.-]+)?$",
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "scope",
+          "code",
+          "reason"
+        ],
+        "title": "RetireItemBody",
+        "type": "object"
+      },
+      "RetireLocationBody": {
+        "additionalProperties": false,
+        "properties": {
+          "causation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Causation Id"
+          },
+          "code": {
+            "maxLength": 16,
+            "minLength": 1,
+            "title": "Code",
+            "type": "string"
+          },
+          "correlation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Correlation Id"
+          },
+          "idempotency_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Idempotency Key"
+          },
+          "reason": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          },
+          "scope": {
+            "title": "Scope",
+            "type": "string"
+          },
+          "source": {
+            "default": "api",
+            "pattern": "^[a-z][a-z0-9_]*(:[A-Za-z0-9_.-]+)?$",
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "scope",
+          "code",
+          "reason"
+        ],
+        "title": "RetireLocationBody",
+        "type": "object"
+      },
       "RetirePartyBody": {
         "additionalProperties": false,
         "properties": {
@@ -21560,6 +22790,69 @@
           "reason"
         ],
         "title": "ReturnCommercialBody",
+        "type": "object"
+      },
+      "ReturnStockBody": {
+        "additionalProperties": false,
+        "properties": {
+          "causation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Causation Id"
+          },
+          "correlation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Correlation Id"
+          },
+          "idempotency_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Idempotency Key"
+          },
+          "movements": {
+            "items": {
+              "$ref": "#/components/schemas/Movement"
+            },
+            "maxItems": 200,
+            "minItems": 1,
+            "title": "Movements",
+            "type": "array"
+          },
+          "scope": {
+            "title": "Scope",
+            "type": "string"
+          },
+          "source": {
+            "default": "api",
+            "pattern": "^[a-z][a-z0-9_]*(:[A-Za-z0-9_.-]+)?$",
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "scope",
+          "movements"
+        ],
+        "title": "ReturnStockBody",
         "type": "object"
       },
       "ReturnTechnicalBody": {
@@ -22193,6 +23486,389 @@
           "reason"
         ],
         "title": "ReviseIntegrationAppBody",
+        "type": "object"
+      },
+      "ReviseItemBody": {
+        "additionalProperties": false,
+        "properties": {
+          "base_uom": {
+            "anyOf": [
+              {
+                "maxLength": 8,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Base Uom"
+          },
+          "category": {
+            "anyOf": [
+              {
+                "maxLength": 32,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category"
+          },
+          "causation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Causation Id"
+          },
+          "code": {
+            "maxLength": 40,
+            "minLength": 1,
+            "title": "Code",
+            "type": "string"
+          },
+          "consumable": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Consumable"
+          },
+          "correlation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Correlation Id"
+          },
+          "idempotency_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Idempotency Key"
+          },
+          "material_code": {
+            "anyOf": [
+              {
+                "maxLength": 32,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Material Code"
+          },
+          "rating_text": {
+            "anyOf": [
+              {
+                "maxLength": 60,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rating Text"
+          },
+          "scope": {
+            "title": "Scope",
+            "type": "string"
+          },
+          "size_text": {
+            "anyOf": [
+              {
+                "maxLength": 60,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Size Text"
+          },
+          "source": {
+            "default": "api",
+            "pattern": "^[a-z][a-z0-9_]*(:[A-Za-z0-9_.-]+)?$",
+            "title": "Source",
+            "type": "string"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          }
+        },
+        "required": [
+          "scope",
+          "code"
+        ],
+        "title": "ReviseItemBody",
+        "type": "object"
+      },
+      "ReviseLocationBody": {
+        "additionalProperties": false,
+        "properties": {
+          "causation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Causation Id"
+          },
+          "code": {
+            "maxLength": 16,
+            "minLength": 1,
+            "title": "Code",
+            "type": "string"
+          },
+          "correlation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Correlation Id"
+          },
+          "idempotency_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Idempotency Key"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "maxLength": 16,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kind"
+          },
+          "scope": {
+            "title": "Scope",
+            "type": "string"
+          },
+          "source": {
+            "default": "api",
+            "pattern": "^[a-z][a-z0-9_]*(:[A-Za-z0-9_.-]+)?$",
+            "title": "Source",
+            "type": "string"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          }
+        },
+        "required": [
+          "scope",
+          "code"
+        ],
+        "title": "ReviseLocationBody",
+        "type": "object"
+      },
+      "ReviseReceiptBody": {
+        "additionalProperties": false,
+        "properties": {
+          "causation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Causation Id"
+          },
+          "correlation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Correlation Id"
+          },
+          "delivery_ref": {
+            "anyOf": [
+              {
+                "maxLength": 60,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Delivery Ref"
+          },
+          "expected_version": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Version"
+          },
+          "idempotency_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Idempotency Key"
+          },
+          "lines": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ReceiptLineIn"
+                },
+                "maxItems": 50,
+                "minItems": 1,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lines"
+          },
+          "location_code": {
+            "anyOf": [
+              {
+                "maxLength": 16,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location Code"
+          },
+          "po_line": {
+            "anyOf": [
+              {
+                "maxLength": 38,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Po Line"
+          },
+          "received_on": {
+            "anyOf": [
+              {
+                "maxLength": 10,
+                "minLength": 10,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Received On"
+          },
+          "scope": {
+            "title": "Scope",
+            "type": "string"
+          },
+          "source": {
+            "default": "api",
+            "pattern": "^[a-z][a-z0-9_]*(:[A-Za-z0-9_.-]+)?$",
+            "title": "Source",
+            "type": "string"
+          },
+          "stream_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Stream Id",
+            "type": "string"
+          },
+          "supplier_text": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Supplier Text"
+          }
+        },
+        "required": [
+          "scope",
+          "stream_id"
+        ],
+        "title": "ReviseReceiptBody",
         "type": "object"
       },
       "ReviseRuleBody": {
@@ -23886,6 +25562,69 @@
           "mapping_notes"
         ],
         "title": "SchemaView",
+        "type": "object"
+      },
+      "ScrapStockBody": {
+        "additionalProperties": false,
+        "properties": {
+          "causation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Causation Id"
+          },
+          "correlation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Correlation Id"
+          },
+          "idempotency_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Idempotency Key"
+          },
+          "movements": {
+            "items": {
+              "$ref": "#/components/schemas/Movement"
+            },
+            "maxItems": 200,
+            "minItems": 1,
+            "title": "Movements",
+            "type": "array"
+          },
+          "scope": {
+            "title": "Scope",
+            "type": "string"
+          },
+          "source": {
+            "default": "api",
+            "pattern": "^[a-z][a-z0-9_]*(:[A-Za-z0-9_.-]+)?$",
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "scope",
+          "movements"
+        ],
+        "title": "ScrapStockBody",
         "type": "object"
       },
       "SecretIssued": {
@@ -27860,6 +29599,69 @@
         "title": "TraceNode",
         "type": "object"
       },
+      "TransferStockBody": {
+        "additionalProperties": false,
+        "properties": {
+          "causation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Causation Id"
+          },
+          "correlation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Correlation Id"
+          },
+          "idempotency_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Idempotency Key"
+          },
+          "movements": {
+            "items": {
+              "$ref": "#/components/schemas/Movement"
+            },
+            "maxItems": 200,
+            "minItems": 1,
+            "title": "Movements",
+            "type": "array"
+          },
+          "scope": {
+            "title": "Scope",
+            "type": "string"
+          },
+          "source": {
+            "default": "api",
+            "pattern": "^[a-z][a-z0-9_]*(:[A-Za-z0-9_.-]+)?$",
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "scope",
+          "movements"
+        ],
+        "title": "TransferStockBody",
+        "type": "object"
+      },
       "TransitionOption": {
         "properties": {
           "allowed": {
@@ -28683,6 +30485,69 @@
         "title": "TypeSummary",
         "type": "object"
       },
+      "UnreserveStockBody": {
+        "additionalProperties": false,
+        "properties": {
+          "causation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Causation Id"
+          },
+          "correlation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Correlation Id"
+          },
+          "idempotency_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Idempotency Key"
+          },
+          "movements": {
+            "items": {
+              "$ref": "#/components/schemas/Movement"
+            },
+            "maxItems": 200,
+            "minItems": 1,
+            "title": "Movements",
+            "type": "array"
+          },
+          "scope": {
+            "title": "Scope",
+            "type": "string"
+          },
+          "source": {
+            "default": "api",
+            "pattern": "^[a-z][a-z0-9_]*(:[A-Za-z0-9_.-]+)?$",
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "scope",
+          "movements"
+        ],
+        "title": "UnreserveStockBody",
+        "type": "object"
+      },
       "UpdateCommercialBody": {
         "additionalProperties": false,
         "properties": {
@@ -29284,6 +31149,99 @@
           "stream_id"
         ],
         "title": "UpdateDocumentBody",
+        "type": "object"
+      },
+      "UpdatePoLineBody": {
+        "additionalProperties": false,
+        "properties": {
+          "causation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Causation Id"
+          },
+          "correlation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Correlation Id"
+          },
+          "idempotency_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Idempotency Key"
+          },
+          "line_no": {
+            "maximum": 99999.0,
+            "minimum": 1.0,
+            "title": "Line No",
+            "type": "integer"
+          },
+          "po_number": {
+            "maxLength": 30,
+            "minLength": 1,
+            "title": "Po Number",
+            "type": "string"
+          },
+          "promised_date": {
+            "anyOf": [
+              {
+                "maxLength": 10,
+                "minLength": 10,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Promised Date"
+          },
+          "qty_ordered": {
+            "anyOf": [
+              {
+                "maxLength": 14,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Qty Ordered"
+          },
+          "scope": {
+            "title": "Scope",
+            "type": "string"
+          },
+          "source": {
+            "default": "api",
+            "pattern": "^[a-z][a-z0-9_]*(:[A-Za-z0-9_.-]+)?$",
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "scope",
+          "po_number",
+          "line_no"
+        ],
+        "title": "UpdatePoLineBody",
         "type": "object"
       },
       "UpdateRecordBody": {
@@ -30113,6 +32071,85 @@
           "reason"
         ],
         "title": "VoidDraftBody",
+        "type": "object"
+      },
+      "VoidReceiptBody": {
+        "additionalProperties": false,
+        "properties": {
+          "causation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Causation Id"
+          },
+          "correlation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Correlation Id"
+          },
+          "expected_version": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Version"
+          },
+          "idempotency_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Idempotency Key"
+          },
+          "reason": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          },
+          "scope": {
+            "title": "Scope",
+            "type": "string"
+          },
+          "source": {
+            "default": "api",
+            "pattern": "^[a-z][a-z0-9_]*(:[A-Za-z0-9_.-]+)?$",
+            "title": "Source",
+            "type": "string"
+          },
+          "stream_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Stream Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "scope",
+          "stream_id",
+          "reason"
+        ],
+        "title": "VoidReceiptBody",
         "type": "object"
       },
       "VoidRevisionBody": {
@@ -33398,6 +35435,113 @@
         ]
       }
     },
+    "/commands/AcceptReceipt": {
+      "post": {
+        "description": "Accept an Inspected receipt: its lines become stock lots at the receipt's location.",
+        "operationId": "command_AcceptReceipt",
+        "parameters": [
+          {
+            "description": "Simulated time (ISO-8601 with offset) stamped as the events' effective_at. Accepted only for simulation scopes `project:sim-<run>`; any other scope is a 400 `effective_time_forbidden`.",
+            "in": "header",
+            "name": "X-TL-Effective-At",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Simulated time (ISO-8601 with offset) stamped as the events' effective_at. Accepted only for simulation scopes `project:sim-<run>`; any other scope is a 400 `effective_time_forbidden`.",
+              "title": "X-Tl-Effective-At"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AcceptReceiptBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "AcceptReceipt",
+        "tags": [
+          "commands"
+        ]
+      }
+    },
     "/commands/AddCodeValue": {
       "post": {
         "description": "Add a value to a code list in ``scope`` (``company`` or a project).",
@@ -33719,6 +35863,113 @@
         ]
       }
     },
+    "/commands/AdjustStock": {
+      "post": {
+        "description": "Correct a count in or out, with a reason (superuser).",
+        "operationId": "command_AdjustStock",
+        "parameters": [
+          {
+            "description": "Simulated time (ISO-8601 with offset) stamped as the events' effective_at. Accepted only for simulation scopes `project:sim-<run>`; any other scope is a 400 `effective_time_forbidden`.",
+            "in": "header",
+            "name": "X-TL-Effective-At",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Simulated time (ISO-8601 with offset) stamped as the events' effective_at. Accepted only for simulation scopes `project:sim-<run>`; any other scope is a 400 `effective_time_forbidden`.",
+              "title": "X-Tl-Effective-At"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdjustStockBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "AdjustStock",
+        "tags": [
+          "commands"
+        ]
+      }
+    },
     "/commands/AdminFlagLink": {
       "post": {
         "description": "Admin: flag any link stale or broken, including one a module wrote by rule (recovery).",
@@ -33928,6 +36179,113 @@
           }
         ],
         "summary": "AdminRetractLink",
+        "tags": [
+          "commands"
+        ]
+      }
+    },
+    "/commands/AdoptItem": {
+      "post": {
+        "description": "Adopt a library item into the project.",
+        "operationId": "command_AdoptItem",
+        "parameters": [
+          {
+            "description": "Simulated time (ISO-8601 with offset) stamped as the events' effective_at. Accepted only for simulation scopes `project:sim-<run>`; any other scope is a 400 `effective_time_forbidden`.",
+            "in": "header",
+            "name": "X-TL-Effective-At",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Simulated time (ISO-8601 with offset) stamped as the events' effective_at. Accepted only for simulation scopes `project:sim-<run>`; any other scope is a 400 `effective_time_forbidden`.",
+              "title": "X-Tl-Effective-At"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdoptItemBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "AdoptItem",
         "tags": [
           "commands"
         ]
@@ -36287,6 +38645,113 @@
         ]
       }
     },
+    "/commands/CreateReceipt": {
+      "post": {
+        "description": "Book a delivery: a receipt in state Received with its lines (up to 50).",
+        "operationId": "command_CreateReceipt",
+        "parameters": [
+          {
+            "description": "Simulated time (ISO-8601 with offset) stamped as the events' effective_at. Accepted only for simulation scopes `project:sim-<run>`; any other scope is a 400 `effective_time_forbidden`.",
+            "in": "header",
+            "name": "X-TL-Effective-At",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Simulated time (ISO-8601 with offset) stamped as the events' effective_at. Accepted only for simulation scopes `project:sim-<run>`; any other scope is a 400 `effective_time_forbidden`.",
+              "title": "X-Tl-Effective-At"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateReceiptBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "CreateReceipt",
+        "tags": [
+          "commands"
+        ]
+      }
+    },
     "/commands/CreateRecord": {
       "post": {
         "description": "Run the CreateRecord command.",
@@ -37031,6 +39496,220 @@
           }
         ],
         "summary": "DefineClause",
+        "tags": [
+          "commands"
+        ]
+      }
+    },
+    "/commands/DefineItem": {
+      "post": {
+        "description": "Define an item of the company library.",
+        "operationId": "command_DefineItem",
+        "parameters": [
+          {
+            "description": "Simulated time (ISO-8601 with offset) stamped as the events' effective_at. Accepted only for simulation scopes `project:sim-<run>`; any other scope is a 400 `effective_time_forbidden`.",
+            "in": "header",
+            "name": "X-TL-Effective-At",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Simulated time (ISO-8601 with offset) stamped as the events' effective_at. Accepted only for simulation scopes `project:sim-<run>`; any other scope is a 400 `effective_time_forbidden`.",
+              "title": "X-Tl-Effective-At"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DefineItemBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "DefineItem",
+        "tags": [
+          "commands"
+        ]
+      }
+    },
+    "/commands/DefineLocation": {
+      "post": {
+        "description": "Define a location in the project's tree (the root has no ``parent_code``).",
+        "operationId": "command_DefineLocation",
+        "parameters": [
+          {
+            "description": "Simulated time (ISO-8601 with offset) stamped as the events' effective_at. Accepted only for simulation scopes `project:sim-<run>`; any other scope is a 400 `effective_time_forbidden`.",
+            "in": "header",
+            "name": "X-TL-Effective-At",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Simulated time (ISO-8601 with offset) stamped as the events' effective_at. Accepted only for simulation scopes `project:sim-<run>`; any other scope is a 400 `effective_time_forbidden`.",
+              "title": "X-Tl-Effective-At"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DefineLocationBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "DefineLocation",
         "tags": [
           "commands"
         ]
@@ -38641,6 +41320,113 @@
         ]
       }
     },
+    "/commands/InspectReceipt": {
+      "post": {
+        "description": "Record that the delivery was looked at (Received to Inspected).",
+        "operationId": "command_InspectReceipt",
+        "parameters": [
+          {
+            "description": "Simulated time (ISO-8601 with offset) stamped as the events' effective_at. Accepted only for simulation scopes `project:sim-<run>`; any other scope is a 400 `effective_time_forbidden`.",
+            "in": "header",
+            "name": "X-TL-Effective-At",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Simulated time (ISO-8601 with offset) stamped as the events' effective_at. Accepted only for simulation scopes `project:sim-<run>`; any other scope is a 400 `effective_time_forbidden`.",
+              "title": "X-Tl-Effective-At"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InspectReceiptBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "InspectReceipt",
+        "tags": [
+          "commands"
+        ]
+      }
+    },
     "/commands/InvokeAction": {
       "post": {
         "description": "Ask for an action on records. The handler checks the definition's ``access`` with ``holds``\n(client layer), its ``applies_to`` and its parameters, then appends ``Action.Requested`` on a\nnew ``core.ActionInvocation`` stream and queues the execution.",
@@ -39064,6 +41850,113 @@
           }
         ],
         "summary": "IssueRevision",
+        "tags": [
+          "commands"
+        ]
+      }
+    },
+    "/commands/IssueStock": {
+      "post": {
+        "description": "Issue stock to a crew or a cost code (consumed; a reservation of the line is used first).",
+        "operationId": "command_IssueStock",
+        "parameters": [
+          {
+            "description": "Simulated time (ISO-8601 with offset) stamped as the events' effective_at. Accepted only for simulation scopes `project:sim-<run>`; any other scope is a 400 `effective_time_forbidden`.",
+            "in": "header",
+            "name": "X-TL-Effective-At",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Simulated time (ISO-8601 with offset) stamped as the events' effective_at. Accepted only for simulation scopes `project:sim-<run>`; any other scope is a 400 `effective_time_forbidden`.",
+              "title": "X-Tl-Effective-At"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IssueStockBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "IssueStock",
         "tags": [
           "commands"
         ]
@@ -41530,6 +44423,113 @@
         ]
       }
     },
+    "/commands/RecordPoLine": {
+      "post": {
+        "description": "Mirror one purchase order line into the project.",
+        "operationId": "command_RecordPoLine",
+        "parameters": [
+          {
+            "description": "Simulated time (ISO-8601 with offset) stamped as the events' effective_at. Accepted only for simulation scopes `project:sim-<run>`; any other scope is a 400 `effective_time_forbidden`.",
+            "in": "header",
+            "name": "X-TL-Effective-At",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Simulated time (ISO-8601 with offset) stamped as the events' effective_at. Accepted only for simulation scopes `project:sim-<run>`; any other scope is a 400 `effective_time_forbidden`.",
+              "title": "X-Tl-Effective-At"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecordPoLineBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "RecordPoLine",
+        "tags": [
+          "commands"
+        ]
+      }
+    },
     "/commands/RecordResponse": {
       "post": {
         "description": "Record that an item has been answered by another item of the register.\n\nThe item moves to Responded; its clocks that waited for an answer are met on ``responded_on``\n(today by default; an earlier day needs ``reason``).",
@@ -43349,6 +46349,113 @@
         ]
       }
     },
+    "/commands/RejectReceipt": {
+      "post": {
+        "description": "Refuse the delivery (Received or Inspected to Rejected). No stock is made.",
+        "operationId": "command_RejectReceipt",
+        "parameters": [
+          {
+            "description": "Simulated time (ISO-8601 with offset) stamped as the events' effective_at. Accepted only for simulation scopes `project:sim-<run>`; any other scope is a 400 `effective_time_forbidden`.",
+            "in": "header",
+            "name": "X-TL-Effective-At",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Simulated time (ISO-8601 with offset) stamped as the events' effective_at. Accepted only for simulation scopes `project:sim-<run>`; any other scope is a 400 `effective_time_forbidden`.",
+              "title": "X-Tl-Effective-At"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RejectReceiptBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "RejectReceipt",
+        "tags": [
+          "commands"
+        ]
+      }
+    },
     "/commands/RenameTag": {
       "post": {
         "description": "Replace a tag by a new tag with another number (same class, service and values).",
@@ -43991,6 +47098,113 @@
         ]
       }
     },
+    "/commands/ReserveStock": {
+      "post": {
+        "description": "Hold available stock for a take-off line.",
+        "operationId": "command_ReserveStock",
+        "parameters": [
+          {
+            "description": "Simulated time (ISO-8601 with offset) stamped as the events' effective_at. Accepted only for simulation scopes `project:sim-<run>`; any other scope is a 400 `effective_time_forbidden`.",
+            "in": "header",
+            "name": "X-TL-Effective-At",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Simulated time (ISO-8601 with offset) stamped as the events' effective_at. Accepted only for simulation scopes `project:sim-<run>`; any other scope is a 400 `effective_time_forbidden`.",
+              "title": "X-Tl-Effective-At"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReserveStockBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "ReserveStock",
+        "tags": [
+          "commands"
+        ]
+      }
+    },
     "/commands/RestartClock": {
       "post": {
         "description": "Count again from a new day zero with the same parameters (an extension, a new notice).\n\n``on`` is the new day zero. A closed, expired or paused clock runs again; the warnings are\nforgotten. A reason is required.",
@@ -44521,6 +47735,220 @@
           }
         ],
         "summary": "RetireDocumentSchema",
+        "tags": [
+          "commands"
+        ]
+      }
+    },
+    "/commands/RetireItem": {
+      "post": {
+        "description": "Retire a library item; projects keep their copies.",
+        "operationId": "command_RetireItem",
+        "parameters": [
+          {
+            "description": "Simulated time (ISO-8601 with offset) stamped as the events' effective_at. Accepted only for simulation scopes `project:sim-<run>`; any other scope is a 400 `effective_time_forbidden`.",
+            "in": "header",
+            "name": "X-TL-Effective-At",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Simulated time (ISO-8601 with offset) stamped as the events' effective_at. Accepted only for simulation scopes `project:sim-<run>`; any other scope is a 400 `effective_time_forbidden`.",
+              "title": "X-Tl-Effective-At"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RetireItemBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "RetireItem",
+        "tags": [
+          "commands"
+        ]
+      }
+    },
+    "/commands/RetireLocation": {
+      "post": {
+        "description": "Retire a location; refused while stock is held there or an active child exists.",
+        "operationId": "command_RetireLocation",
+        "parameters": [
+          {
+            "description": "Simulated time (ISO-8601 with offset) stamped as the events' effective_at. Accepted only for simulation scopes `project:sim-<run>`; any other scope is a 400 `effective_time_forbidden`.",
+            "in": "header",
+            "name": "X-TL-Effective-At",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Simulated time (ISO-8601 with offset) stamped as the events' effective_at. Accepted only for simulation scopes `project:sim-<run>`; any other scope is a 400 `effective_time_forbidden`.",
+              "title": "X-Tl-Effective-At"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RetireLocationBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "RetireLocation",
         "tags": [
           "commands"
         ]
@@ -45275,6 +48703,113 @@
         ]
       }
     },
+    "/commands/ReturnStock": {
+      "post": {
+        "description": "Return issued stock to a location (at most what was issued net).",
+        "operationId": "command_ReturnStock",
+        "parameters": [
+          {
+            "description": "Simulated time (ISO-8601 with offset) stamped as the events' effective_at. Accepted only for simulation scopes `project:sim-<run>`; any other scope is a 400 `effective_time_forbidden`.",
+            "in": "header",
+            "name": "X-TL-Effective-At",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Simulated time (ISO-8601 with offset) stamped as the events' effective_at. Accepted only for simulation scopes `project:sim-<run>`; any other scope is a 400 `effective_time_forbidden`.",
+              "title": "X-Tl-Effective-At"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReturnStockBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "ReturnStock",
+        "tags": [
+          "commands"
+        ]
+      }
+    },
     "/commands/ReturnTechnical": {
       "post": {
         "description": "Send an item in internal review back to its raiser. A reason is required.",
@@ -46024,6 +49559,327 @@
         ]
       }
     },
+    "/commands/ReviseItem": {
+      "post": {
+        "description": "Revise a library item; only the fields sent change (a field sent as null is cleared).",
+        "operationId": "command_ReviseItem",
+        "parameters": [
+          {
+            "description": "Simulated time (ISO-8601 with offset) stamped as the events' effective_at. Accepted only for simulation scopes `project:sim-<run>`; any other scope is a 400 `effective_time_forbidden`.",
+            "in": "header",
+            "name": "X-TL-Effective-At",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Simulated time (ISO-8601 with offset) stamped as the events' effective_at. Accepted only for simulation scopes `project:sim-<run>`; any other scope is a 400 `effective_time_forbidden`.",
+              "title": "X-Tl-Effective-At"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviseItemBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "ReviseItem",
+        "tags": [
+          "commands"
+        ]
+      }
+    },
+    "/commands/ReviseLocation": {
+      "post": {
+        "description": "Rename a location or change its kind (a location is never re-parented).",
+        "operationId": "command_ReviseLocation",
+        "parameters": [
+          {
+            "description": "Simulated time (ISO-8601 with offset) stamped as the events' effective_at. Accepted only for simulation scopes `project:sim-<run>`; any other scope is a 400 `effective_time_forbidden`.",
+            "in": "header",
+            "name": "X-TL-Effective-At",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Simulated time (ISO-8601 with offset) stamped as the events' effective_at. Accepted only for simulation scopes `project:sim-<run>`; any other scope is a 400 `effective_time_forbidden`.",
+              "title": "X-Tl-Effective-At"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviseLocationBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "ReviseLocation",
+        "tags": [
+          "commands"
+        ]
+      }
+    },
+    "/commands/ReviseReceipt": {
+      "post": {
+        "description": "Correct a receipt that is still Received. Only the fields sent change; ``lines`` replaces\nall the lines; ``po_line`` sent as null takes the PO line away.",
+        "operationId": "command_ReviseReceipt",
+        "parameters": [
+          {
+            "description": "Simulated time (ISO-8601 with offset) stamped as the events' effective_at. Accepted only for simulation scopes `project:sim-<run>`; any other scope is a 400 `effective_time_forbidden`.",
+            "in": "header",
+            "name": "X-TL-Effective-At",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Simulated time (ISO-8601 with offset) stamped as the events' effective_at. Accepted only for simulation scopes `project:sim-<run>`; any other scope is a 400 `effective_time_forbidden`.",
+              "title": "X-Tl-Effective-At"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviseReceiptBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "ReviseReceipt",
+        "tags": [
+          "commands"
+        ]
+      }
+    },
     "/commands/ReviseRule": {
       "post": {
         "description": "A new version of a rule. ``reason`` says why; ``expected_version`` is the ledger stream\nversion the caller read (None: whatever it is now).",
@@ -46554,6 +50410,113 @@
           }
         ],
         "summary": "RunEnricher",
+        "tags": [
+          "commands"
+        ]
+      }
+    },
+    "/commands/ScrapStock": {
+      "post": {
+        "description": "Dispose of damaged or nonconforming stock, with a reason (superuser).",
+        "operationId": "command_ScrapStock",
+        "parameters": [
+          {
+            "description": "Simulated time (ISO-8601 with offset) stamped as the events' effective_at. Accepted only for simulation scopes `project:sim-<run>`; any other scope is a 400 `effective_time_forbidden`.",
+            "in": "header",
+            "name": "X-TL-Effective-At",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Simulated time (ISO-8601 with offset) stamped as the events' effective_at. Accepted only for simulation scopes `project:sim-<run>`; any other scope is a 400 `effective_time_forbidden`.",
+              "title": "X-Tl-Effective-At"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScrapStockBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "ScrapStock",
         "tags": [
           "commands"
         ]
@@ -48378,6 +52341,113 @@
         ]
       }
     },
+    "/commands/TransferStock": {
+      "post": {
+        "description": "Move stock between two locations of the project.",
+        "operationId": "command_TransferStock",
+        "parameters": [
+          {
+            "description": "Simulated time (ISO-8601 with offset) stamped as the events' effective_at. Accepted only for simulation scopes `project:sim-<run>`; any other scope is a 400 `effective_time_forbidden`.",
+            "in": "header",
+            "name": "X-TL-Effective-At",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Simulated time (ISO-8601 with offset) stamped as the events' effective_at. Accepted only for simulation scopes `project:sim-<run>`; any other scope is a 400 `effective_time_forbidden`.",
+              "title": "X-Tl-Effective-At"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TransferStockBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "TransferStock",
+        "tags": [
+          "commands"
+        ]
+      }
+    },
     "/commands/TransitionWorkflow": {
       "post": {
         "description": "Run the TransitionWorkflow command.",
@@ -48480,6 +52550,113 @@
           }
         ],
         "summary": "TransitionWorkflow",
+        "tags": [
+          "commands"
+        ]
+      }
+    },
+    "/commands/UnreserveStock": {
+      "post": {
+        "description": "Release a reservation.",
+        "operationId": "command_UnreserveStock",
+        "parameters": [
+          {
+            "description": "Simulated time (ISO-8601 with offset) stamped as the events' effective_at. Accepted only for simulation scopes `project:sim-<run>`; any other scope is a 400 `effective_time_forbidden`.",
+            "in": "header",
+            "name": "X-TL-Effective-At",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Simulated time (ISO-8601 with offset) stamped as the events' effective_at. Accepted only for simulation scopes `project:sim-<run>`; any other scope is a 400 `effective_time_forbidden`.",
+              "title": "X-Tl-Effective-At"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UnreserveStockBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "UnreserveStock",
         "tags": [
           "commands"
         ]
@@ -48801,6 +52978,113 @@
           }
         ],
         "summary": "UpdateDocument",
+        "tags": [
+          "commands"
+        ]
+      }
+    },
+    "/commands/UpdatePoLine": {
+      "post": {
+        "description": "Change the quantity ordered or the promised date of a mirrored PO line.",
+        "operationId": "command_UpdatePoLine",
+        "parameters": [
+          {
+            "description": "Simulated time (ISO-8601 with offset) stamped as the events' effective_at. Accepted only for simulation scopes `project:sim-<run>`; any other scope is a 400 `effective_time_forbidden`.",
+            "in": "header",
+            "name": "X-TL-Effective-At",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Simulated time (ISO-8601 with offset) stamped as the events' effective_at. Accepted only for simulation scopes `project:sim-<run>`; any other scope is a 400 `effective_time_forbidden`.",
+              "title": "X-Tl-Effective-At"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdatePoLineBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "UpdatePoLine",
         "tags": [
           "commands"
         ]
@@ -49657,6 +53941,113 @@
           }
         ],
         "summary": "VoidDraft",
+        "tags": [
+          "commands"
+        ]
+      }
+    },
+    "/commands/VoidReceipt": {
+      "post": {
+        "description": "Void a receipt booked in error (Received or Inspected only; never after a decision).",
+        "operationId": "command_VoidReceipt",
+        "parameters": [
+          {
+            "description": "Simulated time (ISO-8601 with offset) stamped as the events' effective_at. Accepted only for simulation scopes `project:sim-<run>`; any other scope is a 400 `effective_time_forbidden`.",
+            "in": "header",
+            "name": "X-TL-Effective-At",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Simulated time (ISO-8601 with offset) stamped as the events' effective_at. Accepted only for simulation scopes `project:sim-<run>`; any other scope is a 400 `effective_time_forbidden`.",
+              "title": "X-Tl-Effective-At"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VoidReceiptBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "VoidReceipt",
         "tags": [
           "commands"
         ]

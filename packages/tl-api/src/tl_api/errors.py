@@ -33,6 +33,7 @@ from tl_mod_documents import errors as doc
 from tl_mod_documents.imports.apply import ImportRefusedError
 from tl_mod_engineering import errors as eng
 from tl_mod_legacy import errors as legacy
+from tl_mod_materials import errors as mat
 from tl_mod_schedule import errors as sched
 from tl_mod_schemareg import errors as sreg
 
@@ -317,6 +318,31 @@ def _rows() -> tuple[ErrorSpec, ...]:
         s(sreg.WaiverStateError, "waiver_state", 409),
         s(sreg.SchemaScopeError, "schema_scope", 422),
         s(sreg.EffectiveTimeError, "schema_effective_time", 400),
+        # --- materials module (P2-I3): library, locations, receipts, stock, take-offs ---------
+        s(mat.MaterialsError, "materials_error", 422),
+        s(mat.MaterialsScopeError, "materials_scope", 422),
+        s(mat.InvalidQuantityError, "materials_invalid_quantity", 422),
+        s(mat.InvalidValueError, "materials_invalid_value", 422),
+        s(mat.ItemNotFoundError, "materials_item_not_found", 404),
+        s(mat.ItemRetiredError, "materials_item_retired", 409),
+        s(mat.ItemInUseError, "materials_item_in_use", 409),
+        s(mat.ItemAlreadyAdoptedError, "materials_item_adopted", 409),
+        s(mat.NoChangesError, "materials_no_changes", 422),
+        s(mat.LocationNotFoundError, "materials_location_not_found", 404),
+        s(mat.LocationTreeError, "materials_location_tree", 422),
+        s(mat.PoLineNotFoundError, "materials_po_line_not_found", 404),
+        s(mat.DuplicatePoLineError, "materials_duplicate_po_line", 409),
+        s(mat.LotNotFoundError, "materials_lot_not_found", 404),
+        s(mat.MtoPublishRefusedError, "materials_mto_publish_refused", 422),
+        s(mat.MtoLineNotFoundError, "materials_mto_line_not_found", 404),
+        s(mat.MtoLineInUseError, "materials_mto_line_in_use", 409),
+        s(mat.WorkPackageNotFoundError, "materials_work_package_not_found", 404),
+        s(mat.ReceiptNotFoundError, "materials_receipt_not_found", 404),
+        s(mat.ReceiptStateError, "materials_receipt_state", 409),
+        s(mat.MtrRequiredError, "materials_mtr_required", 422),
+        s(mat.CostCodeNotFoundError, "materials_cost_code_not_found", 404),
+        s(mat.MovementRuleError, "materials_movement_rule", 422),
+        s(mat.InsufficientStockError, "materials_insufficient_stock", 409),
     )
 
 
