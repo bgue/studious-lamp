@@ -1,0 +1,5 @@
+# Mapping template of the loader `awp-wbs` (P2-I1-T01): the WBS of a legacy export, one row per node.
+# The awp_wbs target reads the grid by column name, lower-cased and trimmed: code, title, parent
+# (blank for a root) and cost_codes as CODE:PCT;CODE:PCT, the percents of a leaf summing to 100.
+# No import mapping is read from this file; the loader only hashes its text.
+name: awp-wbs
