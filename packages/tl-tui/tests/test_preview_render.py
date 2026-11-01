@@ -217,7 +217,7 @@ def test_the_child_command_is_an_argument_list_with_a_stripped_environment(
     monkeypatch.setenv("SECRET_TOKEN", "hunter2")
     path, sha = stored(tmp_path, pdf_bytes())
     render_first_page(path, sha, root=tmp_path / "c")
-    assert seen["argv"][:4] == [sys.executable, "-I", "-m", "tl_tui.preview._worker"]  # type: ignore[index]
+    assert seen["argv"][:4] == [sys.executable, "-I", "-m", "tl_api.preview._worker"]  # type: ignore[index]
     assert seen["shell"] is False and seen["stdin"] is subprocess.DEVNULL
     assert "SECRET_TOKEN" not in seen["env"]  # type: ignore[operator]
 
