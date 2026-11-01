@@ -11,13 +11,14 @@ A test holds every rule's word equal to the ``access`` of its command. An offer 
 handler still checks state, quantities and the word when the command runs.
 
 The ``MTO_RULES`` of ``mto.py`` (S4) are accepted by shape: any row with the five attributes of
-``rules.Rule`` (``record_type`` or ``type``, ``condition``, ``label``, ``command``, ``word``).
+``Rule`` (``record_type`` or ``type``, ``condition``, ``label``, ``command``, ``word``).
 A row repeating a command already offered on the record is dropped.
 """
 
 from __future__ import annotations
 
 from collections.abc import Callable, Iterable
+from dataclasses import dataclass
 from decimal import Decimal
 from typing import Any, cast
 
@@ -45,9 +46,27 @@ from tl_mod_materials.names import (
     STOCK_LOT,
     STOCK_TABLE,
 )
-from tl_mod_materials.rules import Rule
 
-RULES: tuple[Rule, ...] = (
+
+@dataclass(frozen=True)
+class Rule:
+    """One command a screen may offer on a record, as a line of m4-materials.md section 6.
+
+    ``condition`` is the text of the spec's State / condition column, verbatim (``Received``,
+    ``short``, ``no reservation``); this module knows how to judge each text from the record's
+    rows, and an unknown text is never offered. ``word`` is the command's access word
+    (``materials.reserve``): a test holds it equal to the ``access`` of the command's row in
+    ``MATERIALS_COMMANDS``.
+    """
+
+    record_type: str
+    condition: str
+    label: str  # plain words
+    command: str  # the command model's class name, as in ``MATERIALS_COMMANDS``
+    word: str
+
+
+_OWN_RULES: tuple[Rule, ...] = (
     # a receipt
     Rule(RECEIPT, "Received", "Edit", "ReviseReceipt", "materials.receive"),
     Rule(RECEIPT, "Received", "Inspect", "InspectReceipt", "materials.receive"),
@@ -80,8 +99,11 @@ RULES: tuple[Rule, ...] = (
     Rule(ITEM_MASTER, "Active", "Adopt into this project", "AdoptItem", "materials.item.adopt"),
     Rule(LOCATION, "Active", "Edit", "ReviseLocation", "materials.location.configure"),
     Rule(LOCATION, "Active", "Retire", "RetireLocation", "materials.location.configure"),
-    *MTO_RULES,
 )
+
+#: ``_OWN_RULES`` and the rows ``mto.py`` (S4) exports. ``mto.py`` is imported here, so its rows
+#: cannot be ``Rule``; ``rule_rows`` reads every row by shape.
+RULES: tuple[object, ...] = (*_OWN_RULES, *MTO_RULES)
 
 #: Condition text -> whether it holds, for one record. Each loader below fills its type's texts.
 Facts = dict[str, bool]
@@ -181,11 +203,9 @@ def _attr(row: object, *names: str) -> str:
 
 
 def rule_rows() -> list[Rule]:
-    """``RULES`` as ``Rule`` rows (``MTO_RULES`` rows are read by shape)."""
+    """``RULES`` as ``Rule`` rows (every row is read by shape)."""
     return [
-        row
-        if isinstance(row, Rule)
-        else Rule(
+        Rule(
             _attr(row, "record_type", "type"),
             _attr(row, "condition"),
             _attr(row, "label"),

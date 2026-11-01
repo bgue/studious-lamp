@@ -792,6 +792,11 @@ def check_receipts(w: World) -> None:
         assert [r.number for r in views.receipts(uow.conn(), w.project, open_only=True)] == [
             fourth.key
         ]
+        missing = views.receipts(uow.conn(), w.project, missing_mtr=True)
+        assert [r.number for r in missing] == [r.number for r in listed if r.mtr == "missing"]
+        assert [
+            r.number for r in views.receipts(uow.conn(), w.project, missing_mtr=True, limit=1)
+        ] == [r.number for r in listed if r.mtr == "missing"][:1]
         detail = views.receipt_detail(uow.conn(), w.project, keys[0])
         assert [x.lot for x in detail.line_rows] == [w.lot_key(x) for x in lots]
         assert [f.slot for f in detail.files] == ["mtr"] and detail.decided_by == ACTOR

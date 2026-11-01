@@ -582,13 +582,16 @@ class ReceiptDetailView(ReceiptView):
     files: list[ReceiptFileView]
 
 
+_MTR_FILES = (
+    "SELECT COUNT(*) FROM cur_files f WHERE f.record_id = t.id AND f.slot = :mtr_slot "
+    "AND f.status = 'available' AND f.superseded_by IS NULL"
+)
 _RECEIPT_SELECT = (
     "SELECT t.id, r.key, r.title, r.status, r.voided, r.created_at, t.received_on, "
     "t.supplier_text, t.delivery_ref, t.inspected_by, t.inspected_on, t.decided_by, "
     "t.decided_on, t.rejection_reason, loc.code AS location, po.key AS po_line, "
     f"(SELECT COUNT(*) FROM {RECEIPT_LINE_TABLE} x WHERE x.receipt_id = t.id) AS line_count, "
-    "(SELECT COUNT(*) FROM cur_files f WHERE f.record_id = t.id AND f.slot = :mtr_slot "
-    "AND f.status = 'available' AND f.superseded_by IS NULL) AS mtr_files "
+    f"({_MTR_FILES}) AS mtr_files "
     f"FROM {RECEIPT_TABLE} t JOIN cur_core_record r ON r.id = t.id "
     f"JOIN {LOCATION_TABLE} loc ON loc.id = t.location_id "
     "LEFT JOIN cur_core_record po ON po.id = t.po_line_id "
@@ -658,12 +661,28 @@ def receipts(
         where.append(
             "r.voided = :no AND (r.status IS NULL OR r.status IN ('Received', 'Inspected'))"
         )
+    args: dict[str, Any] = {
+        **params,
+        "scope": scope,
+        "no": False,
+        "mtr_slot": MTR_SLOT,
+        "limit": _limit(limit),
+    }
+    if missing_mtr:
+        # in SQL, so the LIMIT counts only the receipts that qualify
+        required = sorted(_mtr_categories(conn, scope))
+        if not required:
+            return []
+        where.append(
+            f"({_MTR_FILES}) = 0 AND EXISTS (SELECT 1 "
+            f"FROM {RECEIPT_LINE_TABLE} x JOIN {PROJECT_ITEM_TABLE} p ON p.id = x.project_item_id "
+            "WHERE x.receipt_id = t.id AND p.category IN :cats)"
+        )
+        args["cats"] = required
     sql = text(f"{_RECEIPT_SELECT}WHERE {' AND '.join(where)} ORDER BY r.key LIMIT :limit")
-    rows = conn.execute(
-        sql, {**params, "scope": scope, "no": False, "mtr_slot": MTR_SLOT, "limit": _limit(limit)}
-    ).all()
-    found = _receipt_views(conn, scope, rows)
-    return [v for v in found if v.mtr == "missing"] if missing_mtr else found
+    if missing_mtr:
+        sql = sql.bindparams(bindparam("cats", expanding=True))
+    return _receipt_views(conn, scope, conn.execute(sql, args).all())
 
 
 def receipt_detail(
