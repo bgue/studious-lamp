@@ -748,6 +748,60 @@
       "version": 1
     },
     {
+      "ce_type": "tl.core.InventoryLocation.Defined.v1",
+      "event_type": "InventoryLocation.Defined",
+      "payload_class": "InventoryLocationDefinedPayload",
+      "sample": "samples/InventoryLocation.Defined.v1.json",
+      "schema": "schemas/InventoryLocation.Defined.v1.json",
+      "title": "A stock location was defined in the project's location tree.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.InventoryLocation.Retired.v1",
+      "event_type": "InventoryLocation.Retired",
+      "payload_class": "InventoryLocationRetiredPayload",
+      "sample": "samples/InventoryLocation.Retired.v1.json",
+      "schema": "schemas/InventoryLocation.Retired.v1.json",
+      "title": "A location was retired; the command is refused while stock is held there.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.InventoryLocation.Revised.v1",
+      "event_type": "InventoryLocation.Revised",
+      "payload_class": "InventoryLocationRevisedPayload",
+      "sample": "samples/InventoryLocation.Revised.v1.json",
+      "schema": "schemas/InventoryLocation.Revised.v1.json",
+      "title": "A location was renamed or its kind changed; only the fields that changed are present.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.ItemMaster.Defined.v1",
+      "event_type": "ItemMaster.Defined",
+      "payload_class": "ItemMasterDefinedPayload",
+      "sample": "samples/ItemMaster.Defined.v1.json",
+      "schema": "schemas/ItemMaster.Defined.v1.json",
+      "title": "An item was defined in the company item library.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.ItemMaster.Retired.v1",
+      "event_type": "ItemMaster.Retired",
+      "payload_class": "ItemMasterRetiredPayload",
+      "sample": "samples/ItemMaster.Retired.v1.json",
+      "schema": "schemas/ItemMaster.Retired.v1.json",
+      "title": "An item was retired from the library; projects keep their copies.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.ItemMaster.Revised.v1",
+      "event_type": "ItemMaster.Revised",
+      "payload_class": "ItemMasterRevisedPayload",
+      "sample": "samples/ItemMaster.Revised.v1.json",
+      "schema": "schemas/ItemMaster.Revised.v1.json",
+      "title": "An item of the library was revised; only the fields that changed are present.",
+      "version": 1
+    },
+    {
       "ce_type": "tl.core.Link.Accepted.v1",
       "event_type": "Link.Accepted",
       "payload_class": "LinkAcceptedPayload",
@@ -910,12 +964,57 @@
       "version": 1
     },
     {
+      "ce_type": "tl.core.MTO.Defined.v1",
+      "event_type": "MTO.Defined",
+      "payload_class": "MTODefinedPayload",
+      "sample": "samples/MTO.Defined.v1.json",
+      "schema": "schemas/MTO.Defined.v1.json",
+      "title": "A material take-off was published from a derived document.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.MTOLine.Assigned.v1",
+      "event_type": "MTOLine.Assigned",
+      "payload_class": "MTOLineAssignedPayload",
+      "sample": "samples/MTOLine.Assigned.v1.json",
+      "schema": "schemas/MTOLine.Assigned.v1.json",
+      "title": "A take-off line was assigned to a work package.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.MTOLine.Defined.v1",
+      "event_type": "MTOLine.Defined",
+      "payload_class": "MTOLineDefinedPayload",
+      "sample": "samples/MTOLine.Defined.v1.json",
+      "schema": "schemas/MTOLine.Defined.v1.json",
+      "title": "One line of a take-off was published.",
+      "version": 1
+    },
+    {
       "ce_type": "tl.core.Numbering.Allocated.v1",
       "event_type": "Numbering.Allocated",
       "payload_class": "NumberingAllocatedPayload",
       "sample": "samples/Numbering.Allocated.v1.json",
       "schema": "schemas/Numbering.Allocated.v1.json",
       "title": "A number was allocated from a counter.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.POLineRef.Defined.v1",
+      "event_type": "POLineRef.Defined",
+      "payload_class": "POLineRefDefinedPayload",
+      "sample": "samples/POLineRef.Defined.v1.json",
+      "schema": "schemas/POLineRef.Defined.v1.json",
+      "title": "A purchase order line was mirrored into the project.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.POLineRef.Updated.v1",
+      "event_type": "POLineRef.Updated",
+      "payload_class": "POLineRefUpdatedPayload",
+      "sample": "samples/POLineRef.Updated.v1.json",
+      "schema": "schemas/POLineRef.Updated.v1.json",
+      "title": "The mirror of a purchase order line changed; only the fields that changed are present.",
       "version": 1
     },
     {
@@ -1000,6 +1099,15 @@
       "version": 1
     },
     {
+      "ce_type": "tl.core.ProjectItem.Defined.v1",
+      "event_type": "ProjectItem.Defined",
+      "payload_class": "ProjectItemDefinedPayload",
+      "sample": "samples/ProjectItem.Defined.v1.json",
+      "schema": "schemas/ProjectItem.Defined.v1.json",
+      "title": "A library item was adopted into a project.",
+      "version": 1
+    },
+    {
       "ce_type": "tl.core.Proposal.Accepted.v1",
       "event_type": "Proposal.Accepted",
       "payload_class": "ProposalAcceptedPayload",
@@ -1042,6 +1150,51 @@
       "sample": "samples/Pset.ValuesSet.v1.json",
       "schema": "schemas/Pset.ValuesSet.v1.json",
       "title": "Values of a property set were written on a record.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Receipt.Accepted.v1",
+      "event_type": "Receipt.Accepted",
+      "payload_class": "ReceiptAcceptedPayload",
+      "sample": "samples/Receipt.Accepted.v1.json",
+      "schema": "schemas/Receipt.Accepted.v1.json",
+      "title": "The receipt was accepted; one stock lot exists per line.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Receipt.Defined.v1",
+      "event_type": "Receipt.Defined",
+      "payload_class": "ReceiptDefinedPayload",
+      "sample": "samples/Receipt.Defined.v1.json",
+      "schema": "schemas/Receipt.Defined.v1.json",
+      "title": "A delivery was received (state Received).",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Receipt.Inspected.v1",
+      "event_type": "Receipt.Inspected",
+      "payload_class": "ReceiptInspectedPayload",
+      "sample": "samples/Receipt.Inspected.v1.json",
+      "schema": "schemas/Receipt.Inspected.v1.json",
+      "title": "The delivery was inspected (Received to Inspected).",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Receipt.Rejected.v1",
+      "event_type": "Receipt.Rejected",
+      "payload_class": "ReceiptRejectedPayload",
+      "sample": "samples/Receipt.Rejected.v1.json",
+      "schema": "schemas/Receipt.Rejected.v1.json",
+      "title": "The receipt was rejected; no stock was made.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Receipt.Revised.v1",
+      "event_type": "Receipt.Revised",
+      "payload_class": "ReceiptRevisedPayload",
+      "sample": "samples/Receipt.Revised.v1.json",
+      "schema": "schemas/Receipt.Revised.v1.json",
+      "title": "A receipt was corrected while it was still Received; only the fields that changed are present.",
       "version": 1
     },
     {
@@ -1492,6 +1645,24 @@
       "sample": "samples/Standard.Defined.v1.json",
       "schema": "schemas/Standard.Defined.v1.json",
       "title": "A registry entry (a code list, a mnemonic or a numbering pattern) was defined.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.StockLot.Defined.v1",
+      "event_type": "StockLot.Defined",
+      "payload_class": "StockLotDefinedPayload",
+      "sample": "samples/StockLot.Defined.v1.json",
+      "schema": "schemas/StockLot.Defined.v1.json",
+      "title": "A stock lot was made for one line of an accepted receipt.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.StockLot.Moved.v1",
+      "event_type": "StockLot.Moved",
+      "payload_class": "StockLotMovedPayload",
+      "sample": "samples/StockLot.Moved.v1.json",
+      "schema": "schemas/StockLot.Moved.v1.json",
+      "title": "Stock moved: one movement of a lot.",
       "version": 1
     },
     {

@@ -1,0 +1,32 @@
+id: https://example.org/throughline/modules/materials
+name: tl_mod_materials
+title: "The materials module (M4, item library, locations, receipts, ledgered stock, MTO)"
+description: >-
+  Materials management of a project (brief 9, M4). A company item library (`ItemMaster`) and the project's
+  adopted copies (`ProjectItem`); a location tree (`InventoryLocation`); a mirror of purchase order lines
+  (`POLineRef`); receipts with heat numbers and MTR files (`Receipt`); stock lots (`StockLot`); and material
+  take-offs published from derived documents (`MTO`, `MTOLine`). Stock is not a record: every movement is
+  one `StockLot.Moved` event on the lot's stream (ADR-0022), projected into `cur_materials_movement`, the
+  balances `cur_materials_stock` and the reservations `cur_materials_reservation`.
+
+  Storage rule (ADR-0010): every record of this module is a row of `cur_core_record` and a row of the
+  module's own current-state table, joined on `id`. Module spec: docs/build-spec/specs/m4-materials.md.
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+  - ../../core/annotations
+  - ../../core/record
+  - item
+  - location
+  - po_line
+  - receipt
+  - lot
+  - mto
+  - movement
+  - events
+default_range: string
+annotations:
+  tl:module: materials
