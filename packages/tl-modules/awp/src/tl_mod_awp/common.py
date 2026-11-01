@@ -9,7 +9,7 @@ same way (``resolve_code``).
 from __future__ import annotations
 
 import re
-from collections.abc import Sequence
+from collections.abc import Collection, Sequence
 from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
@@ -80,6 +80,7 @@ class RecordRef:
     id: str
     key: str | None
     title: str
+    record_type: str = ""
 
 
 def require_project(cmd: Command) -> None:
@@ -129,12 +130,24 @@ def load_record(uow: UnitOfWork, scope: str, record_id: str, record_type: str) -
     ``RecordNotFoundError`` (the same words) when it is hidden from the viewer, does not exist,
     is in another project or is of another type.
     """
+    return load_record_of(uow, scope, record_id, (record_type,))
+
+
+def load_record_of(
+    uow: UnitOfWork, scope: str, record_id: str, record_types: Collection[str]
+) -> RecordRef:
+    """``load_record`` for a record of any of ``record_types`` (same refusals, same words)."""
     conn = uow.conn()
     confidentiality.require_visible(conn, record_id)
     row = conn.execute(_RECORD_SQL, {"id": record_id}).first()
-    if row is None or row.scope != scope or row.type != record_type or bool(row.voided):
+    if row is None or row.scope != scope or row.type not in record_types or bool(row.voided):
         raise RecordNotFoundError(f"no record {record_id!r}")
-    return RecordRef(id=str(row.id), key=None if row.key is None else str(row.key), title=row.title)
+    return RecordRef(
+        id=str(row.id),
+        key=None if row.key is None else str(row.key),
+        title=row.title,
+        record_type=str(row.type),
+    )
 
 
 def record_key(record_type: str, code: str) -> str:
@@ -145,6 +158,11 @@ def record_key(record_type: str, code: str) -> str:
     one: a node ``1`` and a cost code ``1`` coexist, and a record the viewer may not read never
     makes a code look taken. The displayed code stays the typed ``code`` column and the title."""
     return f"{KEY_PREFIX.get(record_type, '')}{code}"
+
+
+def display_code(key: str | None) -> str | None:
+    """The typed code of a record key built by ``record_key`` (what a person sees and types)."""
+    return None if key is None else key.split("@", 1)[-1]
 
 
 def key_taken(conn: Connection, scope: str, record_type: str, code: str) -> bool:
