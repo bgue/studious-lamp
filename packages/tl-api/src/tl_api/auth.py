@@ -264,6 +264,7 @@ BODY_LIMITS: tuple[tuple[str, int], ...] = (
     ("/auth/", 16 * 1024),
     ("/admin/", 64 * 1024),
     ("/web/sign-in", 16 * 1024),
+    ("/web/", 64 * 1024),
 )
 
 
