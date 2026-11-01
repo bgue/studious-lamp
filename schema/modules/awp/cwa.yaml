@@ -1,0 +1,61 @@
+id: https://example.org/throughline/modules/awp/cwa
+name: tl_mod_awp_cwa
+title: Construction work areas (brief 9, M3)
+description: >-
+  A `CWA` is one construction work area, keyed by its code. The path of construction orders them. Spec: docs/build-spec/specs/m3-wbs-cwp.md section 2.
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+  - ../../core/annotations
+  - ../../core/record
+default_range: string
+annotations:
+  tl:module: awp
+
+classes:
+  CWA:
+    title: Construction work area
+    description: >-
+      One construction work area. Record type `awp.CWA`; its key is the typed code (same rule as a WBS code,
+      unique per project) and its title the area name. A plot plan may be attached.
+    annotations:
+      tl:current_state: true
+      tl:record_types: "awp.CWA"
+      tl:offline: none
+      tl:table: cur_awp_cwa
+      tl:ix_scope_code: "scope, code"
+    unique_keys:
+      scope_code:
+        description: A code names one area in a project.
+        unique_key_slots:
+          - scope
+          - code
+    attributes:
+      id:
+        identifier: true
+        range: Ulid
+        required: true
+        description: Record id; equals the ledger stream id and the `cur_core_record` id.
+      scope:
+        range: ScopeId
+        required: true
+        description: The project scope, `project:<id>`.
+      code:
+        required: true
+        pattern: "^[A-Z0-9][A-Z0-9.\\-]{0,31}$"
+        description: The area code; the record key.
+      location_text:
+        pattern: "^.{0,200}$"
+        description: Where the area is, in words (at most 200 characters).
+      retired:
+        range: boolean
+        required: true
+        ifabsent: "false"
+        description: True once the area is retired; a retired area takes no new CWP.
+      last_seq:
+        range: integer
+        required: true
+        description: Ledger `seq` of the last event applied to this row.
