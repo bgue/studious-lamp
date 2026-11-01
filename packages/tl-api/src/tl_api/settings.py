@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from tl_adapters.db import DbTarget, as_target
+from tl_core.auth.env import dev_tokens_allowed
 
 DEFAULT_DB = "./dev/data/tl.db"
 DEFAULT_TOKENS = "./dev/data/tokens.json"
@@ -78,3 +79,19 @@ def check_bind(host: str, *, insecure_dev: bool) -> None:
             f"refusing to bind {host!r}: the Phase 0 API has no real authentication. "
             "Bind 127.0.0.1, or pass --insecure-dev to accept the risk."
         )
+
+
+def web_enabled(env: Mapping[str, str]) -> bool:
+    """Whether the web client (``/web``, package ``tl_web``) is mounted.
+
+    ``TL_WEB`` is ``on`` or ``off``; unset (or empty) means on for ``TL_ENV`` dev, test and ci and
+    off everywhere else, until the web's security review has passed. Anything else is refused.
+    """
+    raw = env.get("TL_WEB", "").strip().lower()
+    if raw == "on":
+        return True
+    if raw == "off":
+        return False
+    if raw:
+        raise ValueError("TL_WEB must be 'on' or 'off'")
+    return dev_tokens_allowed(env)
