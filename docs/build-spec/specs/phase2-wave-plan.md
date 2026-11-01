@@ -12,7 +12,7 @@ keep that table with the changes below. Inputs: `specs/wave0.md`, `m3-wbs-cwp.md
 | 1 | A **M3 P2-I1** ∥ B **M4 P2-I3** ∥ C **web P2-WEB1** | M3 4 pieces, 14 tickets; M4 4 pieces, 15 tickets; WEB1 4 pieces, 8 tickets + 6 twin tickets | P2-W0 C4 (WEB1 S1 may start earlier, see §2) | M3 and M4 at C4; WEB1 at C4 or carried into wave 2 (nothing depends on it) |
 | 2 | **P2-I2** fanout: WS-A (IWP, constraints, sign-off) ∥ WS-B (readiness engine, checks, screens); C: web twins of I2 logs inside I2 | as `08-phase2-plan.md` I2, re-cut by the same plan-check rules | M3 on the trunk (M4 may still run; its check is found by entry point) | I2 C4; `materials_reserved` turns `ok` on a real IWP (moved from the M4 demo) |
 | 3 | **P2-I4-A** ∥ **P2-I5**; C: **P2-WEB2** (create forms, incl. the receipt entry twin) if the owner wants it now | as 08 | I2 and M4 on the trunk; P2-Q1 (rules of credit) and P2-Q11 answered | both C4 |
-| 4 | **P2-I4-B** ∥ **P2-I6 prep** (marts, report audit) | as 08 | I4-A on the trunk | both C4 |
+| 4 | **P2-I4-B** ∥ **P2-I6 prep** (marts, report audit); C: **P2-SCHED** schedule display and commenting (owner 2026-11-01), terminal and web together | as 08; SCHED about 3 pieces, 8 tickets (`module-designs/schedule-display.md` "First increment") | I4-A on the trunk; SCHED: I2 readiness and the I5 look-ahead on the trunk | all three C4 |
 | 5 | **P2-I6** alone; full parity suite and the phase mutation sweep on dedicated time; phase exit | as 08 | I4-B and I5 on the trunk | phase-exit demo: an IWP issued with documents, materials and scaffold checks, both adapters |
 
 Rules carried into every wave: tests deferred to one tests ticket per increment at C3 (Sonnet), pieces leave reference,

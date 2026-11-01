@@ -13,11 +13,12 @@ highlighting, drill-through to contributing records, comments per code/period. S
 projection and variance rules; implementers build screens, reports, and comment records. Later: forecast editing
 pushed back by connector (separate increment when Q1 is answered).
 
-## Increment 2 — Schedule display and commenting module
+## Increment 2 — Schedule statusing and export to P6
 
-Activity list and text Gantt in the TUI over XER snapshot history, filtered by WBS/activity codes; AWP readiness
-overlay; comments per activity; progress statusing export back to P6 (XER/XML). Supervisor builds the Gantt layout
-engine and the statusing export; implementers build screens and reports.
+**Changed 2026-11-01 (owner):** the schedule display and commenting module (activity list, text Gantt, readiness
+overlay, comments) moved to Phase 2 wave 4 (`specs/phase2-wave-plan.md`, P2-SCHED). What stays here: progress
+statusing entry and the statusing export back to P6 (XER/XML), next to the P6 connector of Increment 3, behind its
+write-back gate. Supervisor builds the statusing export; implementers build the entry screen and reports.
 
 ## Increment 3 — P6 XML import and EPPM API connector
 

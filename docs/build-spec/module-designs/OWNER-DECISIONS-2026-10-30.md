@@ -52,3 +52,9 @@ Mobile: the full app on phones (tabbed) and tablets, fully distributed (every de
 proposed), with on-phone photo, video and point-cloud capture. Recorded as Phase 5 Increment 5 in
 `11-phase5-plan.md`, which lists the decisions it still needs (native shell, device-to-device sync, licences, device
 matrix and offline period, store distribution).
+
+## Schedule display moved up (owner, 2026-11-01)
+
+The schedule display and commenting module (activity list, text Gantt, work-package readiness overlay, comments) moves
+from Phase 5 I2 to the end of Phase 2: wave 4, slot C (P2-SCHED), after the weekly cycle (I5) is on the trunk, with its
+web twin. Statusing entry and the P6 statusing export stay in Phase 5 I2 beside the P6 connector.

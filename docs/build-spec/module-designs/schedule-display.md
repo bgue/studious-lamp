@@ -65,12 +65,12 @@ Schedules are `internal`; a subcontractor party sees the activities linked to it
 wants) with PM approval; export and write-back: admin with the connector gate. Agents read only.
 
 ## First increment vs later
-First (Phase 5 I2, or beside Phase 2 I5): activity list, filters, text Gantt, readiness overlay, comments as threads,
-compare and look-ahead wiring, tiles, reports. Later: statusing entry and export; P6 XML and EPPM (I3); 4D overlay in
+First (Phase 2 wave 4, P2-SCHED, beside the weekly cycle; owner 2026-11-01): activity list, filters, text Gantt, readiness overlay, comments as threads,
+compare and look-ahead wiring, tiles, reports. Later (Phase 5 I2): statusing entry and export; P6 XML and EPPM (I3); 4D overlay in
 the model workspace; baseline management beyond compare.
 
 ## Open questions for the owner
 Q2 is decided (XER first). New: is a text Gantt in the terminal useful enough, or should the Gantt wait for the web
 client (README §4)? Who statuses activities, the planner from IWP progress or the foremen through the weekly plan?
-Are comments as threads enough for the schedule review? Should the list and Gantt be built beside the Phase 2 weekly
-cycle rather than in Phase 5 **(proposed)**?
+Are comments as threads enough for the schedule review? (Decided 2026-11-01: the list and Gantt are built beside the
+Phase 2 weekly cycle, wave 4; the web twin ships with it.)

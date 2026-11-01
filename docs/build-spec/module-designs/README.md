@@ -26,7 +26,7 @@ snapshots; threads, integration layer, schema registry, legacy loads, lake marts
 | `external-parties.md` | External parties and portal | §18.11 | 3 (I8) | Subcontractor, client and inspector access by scoped accounts and guest links; the portal page |
 | `systems-completion.md` | M8 Systems completion and turnover | §9 M8 | 4 (I1, I2) | Subsystems, ITRs, punch, certificates with snapshot, handover dossiers |
 | `cost-display.md` | Cost display and commenting | §13, §2.2 | 5 (I1) | Cost code tree and measure matrix over the M11 mirror, drill-through, comments |
-| `schedule-display.md` | Schedule display and commenting | §13, §2.2 | 5 (I2) | Activity list and text Gantt over XER snapshot history, readiness overlay, comments, statusing export |
+| `schedule-display.md` | Schedule display and commenting | §13, §2.2 | 2 (wave 4, P2-SCHED); statusing 5 (I2) | Activity list and text Gantt over XER snapshot history, readiness overlay, comments, statusing export |
 
 Not separate modules, but user-facing work the plans still owe: the Quality, HSE, Interface and Legal correspondence
 domains (domain files on the built M10, Phase 3 I1 and I8; see `quality.md` and `external-parties.md`); offline
@@ -49,7 +49,7 @@ The phase order is fixed (`06-later-phases.md` rule 5); within it the order belo
 | 8 | Offline replicas (P3-I5) once welds, inspections and toolcrib exist | Merge policies are tested over real field-capture commands |
 | 9 | External parties and portal (P3-I8) | Needs the party scope on the viewer and `api.public_base_url`; every module above gains a party column |
 | 10 | M8 (Phase 4) | Reuses ITR runner (M5 checklist runner), punch (M5), readiness (M3), certificates (M7), dossiers (archive bundle) |
-| 11 | Cost and schedule display (Phase 5) | Both read only data that exists today (M11). **(proposed)** They can be pulled earlier if the owner wants planners to see a Gantt beside the weekly cycle; they need no new module seam |
+| 11 | Schedule display (Phase 2 wave 4, owner 2026-11-01); cost display (Phase 5) | Both read only data that exists today (M11) and need no new module seam. Schedule display is built beside the weekly cycle; statusing and the P6 export stay in Phase 5 I2. Cost display can be pulled earlier the same way if the owner wants |
 
 ## 3. Shared building blocks every design reuses
 
