@@ -38,3 +38,13 @@ main:has(.tl-log) { max-width: none; }
 /* narrow screens give the subject room: the least needed columns go (no sideways scroll) */
 @media (max-width: 899px) { .tl-table .tl-drop { display: none; } }
 @media (min-width: 1280px) and (max-width: 1599px) { .tl-table .tl-drop { display: none; } }
+/* the record screen: the tab bar (links, the current one marked) */
+#rec-tabs { display: flex; flex-wrap: wrap; gap: 0.25rem; border-bottom: 1px solid #8886; }
+#rec-tabs a { padding: 0.3rem 0.8rem; text-decoration: none; color: inherit; border-radius: 0.3rem 0.3rem 0 0; }
+#rec-tabs a:hover { background: #8882; }
+#rec-tabs a[aria-current="page"] { font-weight: 700; border: 1px solid #8886; border-bottom-color: Canvas; margin-bottom: -1px; }
+.tl-rec-header h1 { margin: 0; font-size: 1.3rem; }
+.tl-rec-header p { margin: 0.2rem 0 0.5rem; }
+.tl-history { border-collapse: collapse; }
+.tl-history th, .tl-history td { padding: 0.2rem 0.6rem; text-align: left; vertical-align: top; }
+.tl-history th { border-bottom: 1px solid #8886; }

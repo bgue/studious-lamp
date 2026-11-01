@@ -44,9 +44,10 @@ from tl_api.routes import records as records_routes
 from tl_api.routes import reference as reference_routes
 from tl_api.routes import threads as threads_routes
 from tl_core.auth.types import Principal
-from tl_schema.forms import FormMetadata
+from tl_schema.forms import ConformanceReport, FormMetadata
 
 if TYPE_CHECKING:  # annotations only: tl-web does not declare these packages as dependencies
+    from tl_core.services.link_trace import TraceNode
     from tl_mod_correspondence import reports_technical
     from tl_mod_correspondence import views as correspondence_views
     from tl_mod_correspondence import views_domain as correspondence_domain_views
@@ -79,6 +80,8 @@ MIRRORS: dict[str, str] = {
     "thread_page": "get_record_thread",
     "get_record": "lookup_record",
     "get_record_by_id": "get_record",
+    "conformance": "get_conformance",
+    "trace": "get_record_trace",
 }
 
 
@@ -294,6 +297,11 @@ class WebReadClient:
         )
         return found
 
+    def conformance(self, record_id: str) -> ConformanceReport:
+        """The record's conformance against its scope's effective schema."""
+        found: ConformanceReport = self._call(reference_routes.get_conformance, record_id=record_id)
+        return found
+
     # --- one record ----------------------------------------------------------------------------
 
     def get_record(self, scope: str, key: str) -> dict[str, Any] | None:
@@ -371,6 +379,13 @@ class WebReadClient:
     def file_info(self, scope: str, file_id: str) -> Any:
         """One file's metadata (``FileInfo``); a hidden or unknown file raises the route's 404."""
         return self._call(files_routes.get_file_info, file_id=file_id, scope=scope)
+
+    def trace(self, record_id: str, *, depth: int = 2, direction: str = "both") -> TraceNode:
+        """The tree of records within ``depth`` link hops (``direction``: both, out or in)."""
+        found: TraceNode = self._call(
+            links_routes.get_record_trace, record_id=record_id, depth=depth, direction=direction
+        )
+        return found
 
     def thread_page(self, record_id: str, *, limit: int = 50, before_seq: int | None = None) -> Any:
         return self._call(

@@ -34,6 +34,19 @@ from tl_tui.properties_text import (  # noqa: F401 - the moved names stay import
     value_text,
 )
 
+__all__ = [
+    "ADD_LINE",
+    "CUSTOM_RULE",
+    "HEADER",
+    "LEGEND",
+    "PsetsTab",
+    "adhoc_lines",
+    "psets_text",
+    "rule_text",
+    "unit_text",
+    "value_text",
+]
+
 
 class PsetsTab(VerticalScroll, can_focus=True):
     """Rendered inside the record view's Properties tab. ``show_record`` (re)loads it."""

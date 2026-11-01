@@ -32,6 +32,18 @@ from tl_tui.trace_text import (  # noqa: F401 - the moved names stay importable 
     tree_lines,
 )
 
+__all__ = [
+    "DIRECTIONS",
+    "DIRECTION_WORDS",
+    "Direction",
+    "MAX_DEPTH",
+    "MIN_DEPTH",
+    "TraceTab",
+    "head_text",
+    "node_text",
+    "tree_lines",
+]
+
 
 class TraceTab(Vertical, can_focus=True):
     """Shows the trace of one record; Enter follows, + and - change the depth, o the direction."""

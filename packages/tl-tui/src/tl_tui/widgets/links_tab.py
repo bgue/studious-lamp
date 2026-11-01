@@ -44,6 +44,18 @@ from tl_tui.links_text import (  # noqa: F401 - the moved names stay importable 
 from tl_tui.messages import OpenRecord, RecordChanged, StatusMessage
 from tl_tui.widgets.prompt import PromptScreen
 
+__all__ = [
+    "COLUMNS",
+    "LinksTab",
+    "SUGGESTED",
+    "TableRow",
+    "build_rows",
+    "group_title",
+    "missing_line",
+    "pin_text",
+    "status_text",
+]
+
 COLUMNS: tuple[str, ...] = ("", "Key", "Title", "Status", "Pin", "Note")
 
 

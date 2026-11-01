@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}{{ header.identity }} - {{ project }} - Throughline{% endblock %}
+{% block content %}
+<div class="tl-record" data-project="{{ project }}">
+<div id="rec-header" class="tl-rec-header">
+<h1>{{ header.identity }}</h1>
+<p>{{ header.state }}</p>
+</div>
+<nav id="rec-tabs" aria-label="Record tabs">{% for t in nav %}<a href="{{ t.url }}"{% if t.current %} aria-current="page"{% endif %}>{{ t.label }}</a> {% endfor %}</nav>
+{% include "actions.html" %}
+<div id="log-panel" class="tl-panel"></div>
+<div id="rec-body" class="tl-rec-body">
+{% include tab_template %}
+</div>
+{% with text=notice %}{% include "status.html" %}{% endwith %}
+</div>
+{% endblock %}

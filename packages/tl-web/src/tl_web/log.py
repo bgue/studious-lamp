@@ -100,6 +100,26 @@ def offered_actions(offers: Any, own_keys: frozenset[str] = frozenset()) -> list
     return found
 
 
+def action_views(
+    project: str, record_id: str, actions: Sequence[WebAction]
+) -> list[dict[str, Any]]:
+    """The actions bar's buttons for ``actions.html``: key, label, command and the URLs of the POST
+    route (``tl_web.actions``) that runs it and of its question form."""
+    base = f"/web/p/{project}/records/{quote(record_id, safe='')}/do"
+    return [
+        {
+            "key": a.key,
+            "key_label": present.key_label(a.key),
+            "label": a.label,
+            "command": a.command,
+            "asks": a.asks,
+            "url": f"{base}/{a.command}",
+            "form_url": f"{base}/{a.command}/form",
+        }
+        for a in actions
+    ]
+
+
 class WebLog[Row]:
     """The base of every web log. One instance serves one request."""
 
@@ -204,19 +224,7 @@ class WebLog[Row]:
         return f"{self.page_url()}/panel/{quoted}{self._mode_query()}"
 
     def _action_views(self, record_id: str, actions: Sequence[WebAction]) -> list[dict[str, Any]]:
-        base = f"/web/p/{self.project}/records/{quote(record_id, safe='')}/do"
-        return [
-            {
-                "key": a.key,
-                "key_label": present.key_label(a.key),
-                "label": a.label,
-                "command": a.command,
-                "asks": a.asks,
-                "url": f"{base}/{a.command}",
-                "form_url": f"{base}/{a.command}/form",
-            }
-            for a in actions
-        ]
+        return action_views(self.project, record_id, actions)
 
     def _selected_context(self, row: Row | None) -> dict[str, Any]:
         number, title = self.row_record(row) if row is not None else ("", "")

@@ -46,6 +46,18 @@ from tl_tui.widgets.psets_tab import PsetsTab
 from tl_tui.widgets.thread_tab import ThreadTab
 from tl_tui.widgets.trace_tab import TraceTab
 
+__all__ = [
+    "RecordView",
+    "TABS",
+    "badges_text",
+    "details_lines",
+    "event_label",
+    "event_summary",
+    "header_parts",
+    "history_cells",
+    "history_columns",
+]
+
 TABS: dict[str, str] = {
     "details": "tab-details",
     "psets": "tab-psets",
