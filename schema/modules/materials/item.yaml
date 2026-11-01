@@ -1,0 +1,110 @@
+id: https://example.org/throughline/modules/materials/item
+name: tl_mod_materials_item
+title: Item library and project items (brief 9, M4)
+description: >-
+  The company item library and the project's copy of the items it uses. An `ItemMaster` is one stocked
+  item in the company library (the code is the record key, one unit of measure, no conversion). A
+  `ProjectItem` is the project's adopted copy: its category, unit and consumable flag are copied and the
+  projector follows later revisions of the master. Spec: docs/build-spec/specs/m4-materials.md section 2.
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+  - ../../core/annotations
+  - ../../core/record
+default_range: string
+annotations:
+  tl:module: materials
+
+classes:
+  ItemMaster:
+    title: Item master
+    description: >-
+      One item of the company library. Record type `materials.ItemMaster`, scope `company`; its key is the
+      code. Offline class `none`: a company library with one steward, edited centrally.
+    annotations:
+      tl:current_state: true
+      tl:record_types: "materials.ItemMaster"
+      tl:offline: none
+      tl:ix_code: "scope, code"
+    attributes:
+      id:
+        identifier: true
+        range: Ulid
+        required: true
+        description: "Record id; equals the ledger stream id and the `cur_core_record` id."
+      scope:
+        range: ScopeId
+        required: true
+        description: "The company scope, `company`."
+      code:
+        pattern: "^[A-Z0-9][A-Z0-9._\\-]{0,39}$"
+        required: true
+        description: "The item code; the record key (upper-case letters, digits, `.`, `_`, `-`; at most 40)."
+      category:
+        required: true
+        description: "Item category, a value of the `ItemCategory` code list."
+      base_uom:
+        required: true
+        description: "The unit of measure of the item, a value of the `StockUom` code list."
+      size_text:
+        description: "Size as the catalogue words it (`6 in`); null when none."
+      rating_text:
+        description: "Rating or class as the catalogue words it (`150#`); null when none."
+      material_code:
+        description: "Material code (`MaterialCode`); null when none."
+      consumable:
+        range: boolean
+        required: true
+        ifabsent: "false"
+        description: "True for an item issued against a cost code and never returned to stock."
+      retired:
+        range: boolean
+        required: true
+        ifabsent: "false"
+        description: "True once the entry is retired; retired entries stay readable."
+      last_seq:
+        range: integer
+        required: true
+        description: "Ledger `seq` of the last event applied to this row."
+  ProjectItem:
+    title: Project item
+    description: >-
+      The project's adopted copy of a library item. Record type `materials.ProjectItem`; its key is the item
+      code. Offline class `none`: made centrally by adoption, receipt or publication.
+    annotations:
+      tl:current_state: true
+      tl:record_types: "materials.ProjectItem"
+      tl:offline: none
+      tl:ix_item_master: "item_master_id"
+    attributes:
+      id:
+        identifier: true
+        range: Ulid
+        required: true
+        description: "Record id; equals the ledger stream id and the `cur_core_record` id."
+      scope:
+        range: ScopeId
+        required: true
+        description: "The project scope, `project:<id>`."
+      item_master_id:
+        range: Ulid
+        required: true
+        description: "The library item this is a copy of."
+      category:
+        required: true
+        description: "Item category, copied from the master."
+      uom:
+        required: true
+        description: "Unit of measure, copied from the master (`StockUom`)."
+      consumable:
+        range: boolean
+        required: true
+        ifabsent: "false"
+        description: "Consumable flag, copied from the master."
+      last_seq:
+        range: integer
+        required: true
+        description: "Ledger `seq` of the last event applied to this row."

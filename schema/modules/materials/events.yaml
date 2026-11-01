@@ -1,0 +1,487 @@
+id: https://example.org/throughline/modules/materials/events
+name: tl_mod_materials_events
+title: Materials module events
+description: >-
+  The ledger events of the materials module (brief 18.3), one class per event type, in the same form as
+  `schema/core/events.yaml`. A record is created by `Record.Created` followed in the same append by its
+  `*.Defined` event. Quantities are decimal text (`"12.500"`), greater than zero, at most 3 decimals; the
+  pattern here checks the shape, the command checks the range. A movement is not a record: `StockLot.Moved`
+  is the one movement event on the lot's stream, `kind` one of eight (ADR-0022), and it carries
+  `feed_policy: none`. Each class names its stream type in its description.
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+  - ../../core/annotations
+  - ../../core/record
+  - ../../core/events
+  - movement
+default_range: string
+annotations:
+  tl:module: materials
+
+classes:
+  ItemMasterDefinedPayload:
+    is_a: EventPayload
+    description: >-
+      An item was defined in the company item library. Stream type `materials.ItemMaster`.
+    annotations:
+      tl:event_type: ItemMaster.Defined
+      tl:event_version: "1"
+    attributes:
+      code:
+        pattern: "^[A-Z0-9][A-Z0-9._\\-]{0,39}$"
+        description: "Item code, the record key."
+        required: true
+      category:
+        description: "Item category (`ItemCategory` of the materials edition)."
+        required: true
+      base_uom:
+        description: "Base unit of measure (`StockUom` of the materials edition)."
+        required: true
+      size_text:
+        description: "Size as the catalogue words it (`6 in`); null when none."
+      rating_text:
+        description: "Rating or class as the catalogue words it (`150#`); null when none."
+      material_code:
+        description: "Material code (`MaterialCode`); null when none."
+      consumable:
+        range: boolean
+        description: "True for an item issued against a cost code and never returned to stock."
+        required: true
+    examples:
+      - value: "{\"base_uom\": \"EA\", \"category\": \"valve\", \"code\": \"VLV-GATE-6-150\", \"consumable\": false, \"material_code\": \"A105\", \"rating_text\": \"150#\", \"size_text\": \"6 in\"}"
+  ItemMasterRevisedPayload:
+    is_a: EventPayload
+    description: >-
+      An item of the library was revised; only the fields that changed are present. Stream type `materials.ItemMaster`.
+    annotations:
+      tl:event_type: ItemMaster.Revised
+      tl:event_version: "1"
+    attributes:
+      code:
+        pattern: "^[A-Z0-9][A-Z0-9._\\-]{0,39}$"
+        description: "Item code, the record key."
+      category:
+        description: "Item category (`ItemCategory` of the materials edition)."
+      base_uom:
+        description: "Base unit of measure (`StockUom` of the materials edition)."
+      size_text:
+        description: "Size as the catalogue words it (`6 in`); null when none."
+      rating_text:
+        description: "Rating or class as the catalogue words it (`150#`); null when none."
+      material_code:
+        description: "Material code (`MaterialCode`); null when none."
+      consumable:
+        range: boolean
+        description: "True for an item issued against a cost code and never returned to stock."
+    examples:
+      - value: "{\"rating_text\": \"300#\"}"
+  ItemMasterRetiredPayload:
+    is_a: EventPayload
+    description: >-
+      An item was retired from the library; projects keep their copies. Stream type `materials.ItemMaster`.
+    annotations:
+      tl:event_type: ItemMaster.Retired
+      tl:event_version: "1"
+    attributes:
+      reason:
+        description: "Why the item was retired."
+        required: true
+    examples:
+      - value: "{\"reason\": \"Superseded by VLV-GATE-6-300\"}"
+  ProjectItemDefinedPayload:
+    is_a: EventPayload
+    description: >-
+      A library item was adopted into a project. Stream type `materials.ProjectItem`.
+    annotations:
+      tl:event_type: ProjectItem.Defined
+      tl:event_version: "1"
+    attributes:
+      item_master_id:
+        range: Ulid
+        description: "Record id of the library item."
+        required: true
+      code:
+        pattern: "^[A-Z0-9][A-Z0-9._\\-]{0,39}$"
+        description: "Item code, copied from the library item."
+        required: true
+      category:
+        description: "Item category, copied."
+        required: true
+      uom:
+        description: "Unit of measure, copied (`StockUom`)."
+        required: true
+      consumable:
+        range: boolean
+        description: "Consumable flag, copied."
+        required: true
+    examples:
+      - value: "{\"category\": \"valve\", \"code\": \"VLV-GATE-6-150\", \"consumable\": false, \"item_master_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P1\", \"uom\": \"EA\"}"
+  InventoryLocationDefinedPayload:
+    is_a: EventPayload
+    description: >-
+      A stock location was defined in the project's location tree. Stream type `materials.InventoryLocation`.
+    annotations:
+      tl:event_type: InventoryLocation.Defined
+      tl:event_version: "1"
+    attributes:
+      code:
+        pattern: "^[A-Z0-9][A-Z0-9.\\-]{0,15}$"
+        description: "Location code, the record key."
+        required: true
+      kind:
+        description: "project, warehouse, laydown, toolcrib or gang_box (`LocationKind`)."
+        required: true
+      parent_id:
+        range: Ulid
+        description: "Record id of the parent location; null for the root."
+      depth:
+        range: integer
+        description: "Depth in the tree, 0 for the root, at most 5."
+        required: true
+    examples:
+      - value: "{\"code\": \"LAYDOWN-N\", \"depth\": 2, \"kind\": \"laydown\", \"parent_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P2\"}"
+  InventoryLocationRevisedPayload:
+    is_a: EventPayload
+    description: >-
+      A location was renamed or its kind changed; only the fields that changed are present. Stream type `materials.InventoryLocation`.
+    annotations:
+      tl:event_type: InventoryLocation.Revised
+      tl:event_version: "1"
+    attributes:
+      title:
+        description: "New title."
+      kind:
+        description: "New kind (`LocationKind`)."
+    examples:
+      - value: "{\"title\": \"North laydown\"}"
+  InventoryLocationRetiredPayload:
+    is_a: EventPayload
+    description: >-
+      A location was retired; the command is refused while stock is held there. Stream type `materials.InventoryLocation`.
+    annotations:
+      tl:event_type: InventoryLocation.Retired
+      tl:event_version: "1"
+    attributes:
+      reason:
+        description: "Why the location was retired."
+        required: true
+    examples:
+      - value: "{\"reason\": \"Area demobilised\"}"
+  POLineRefDefinedPayload:
+    is_a: EventPayload
+    description: >-
+      A purchase order line was mirrored into the project. Stream type `materials.POLineRef`.
+    annotations:
+      tl:event_type: POLineRef.Defined
+      tl:event_version: "1"
+    attributes:
+      po_number:
+        description: "Purchase order number, at most 30 characters."
+        required: true
+      line_no:
+        range: integer
+        description: "Line number on the purchase order."
+        required: true
+      project_item_id:
+        range: Ulid
+        description: "Record id of the project item ordered."
+        required: true
+      qty_ordered:
+        pattern: "^[0-9]{1,10}(\\.[0-9]{1,3})?$"
+        description: "Quantity ordered, decimal text."
+        required: true
+      uom:
+        description: "Unit of measure (`StockUom`)."
+        required: true
+      promised_date:
+        description: "ISO date the supplier promised; null when none."
+      supplier_text:
+        description: "Supplier name as the order words it, at most 120 characters."
+        required: true
+    examples:
+      - value: "{\"line_no\": 10, \"po_number\": \"PO-4500\", \"project_item_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P3\", \"promised_date\": \"2026-12-01\", \"qty_ordered\": \"40.000\", \"supplier_text\": \"Acme Valves\", \"uom\": \"EA\"}"
+  POLineRefUpdatedPayload:
+    is_a: EventPayload
+    description: >-
+      The mirror of a purchase order line changed; only the fields that changed are present. Stream type `materials.POLineRef`.
+    annotations:
+      tl:event_type: POLineRef.Updated
+      tl:event_version: "1"
+    attributes:
+      promised_date:
+        description: "New promised date (ISO)."
+      qty_ordered:
+        pattern: "^[0-9]{1,10}(\\.[0-9]{1,3})?$"
+        description: "New quantity ordered, decimal text."
+    examples:
+      - value: "{\"promised_date\": \"2026-12-15\"}"
+  ReceiptDefinedPayload:
+    is_a: EventPayload
+    description: >-
+      A delivery was received (state Received). Stream type `materials.Receipt`.
+    annotations:
+      tl:event_type: Receipt.Defined
+      tl:event_version: "1"
+    attributes:
+      po_line_id:
+        range: Ulid
+        description: "Record id of the PO line received against; null when none."
+      supplier_text:
+        description: "Supplier name as the delivery note words it, at most 120 characters."
+        required: true
+      delivery_ref:
+        description: "Delivery note reference, at most 60 characters; null when none."
+      received_on:
+        description: "ISO date the delivery arrived."
+        required: true
+      location_id:
+        range: Ulid
+        description: "Record id of the location the delivery is received into."
+        required: true
+      lines:
+        range: Any
+        annotations:
+          tl:json: true
+        description: "List of lines, at most 50: {line_no, project_item_id, qty (decimal text), uom, heat_no, condition, serials_text}."
+        required: true
+    examples:
+      - value: "{\"delivery_ref\": \"DN-8841\", \"lines\": [{\"condition\": \"good\", \"heat_no\": \"H12345\", \"line_no\": 1, \"project_item_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P3\", \"qty\": \"12.000\", \"serials_text\": null, \"uom\": \"EA\"}], \"location_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P2\", \"po_line_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P4\", \"received_on\": \"2026-11-02\", \"supplier_text\": \"Acme Valves\"}"
+  ReceiptRevisedPayload:
+    is_a: EventPayload
+    description: >-
+      A receipt was corrected while it was still Received; only the fields that changed are present. Stream type `materials.Receipt`.
+    annotations:
+      tl:event_type: Receipt.Revised
+      tl:event_version: "1"
+    attributes:
+      po_line_id:
+        range: Ulid
+        description: "Record id of the PO line received against; null when none."
+      supplier_text:
+        description: "Supplier name as the delivery note words it, at most 120 characters."
+      delivery_ref:
+        description: "Delivery note reference, at most 60 characters; null when none."
+      received_on:
+        description: "ISO date the delivery arrived."
+      location_id:
+        range: Ulid
+        description: "Record id of the location the delivery is received into."
+      lines:
+        range: Any
+        annotations:
+          tl:json: true
+        description: "List of lines, at most 50: {line_no, project_item_id, qty (decimal text), uom, heat_no, condition, serials_text}."
+    examples:
+      - value: "{\"delivery_ref\": \"DN-8842\"}"
+  ReceiptInspectedPayload:
+    is_a: EventPayload
+    description: >-
+      The delivery was inspected (Received to Inspected). Stream type `materials.Receipt`.
+    annotations:
+      tl:event_type: Receipt.Inspected
+      tl:event_version: "1"
+    attributes:
+      inspected_by:
+        description: "Actor who inspected the delivery."
+        required: true
+      inspected_on:
+        description: "ISO date of the inspection."
+        required: true
+      notes:
+        description: "Inspector's notes; null when none."
+    examples:
+      - value: "{\"inspected_by\": \"user:jsmith\", \"inspected_on\": \"2026-11-02\", \"notes\": null}"
+  ReceiptAcceptedPayload:
+    is_a: EventPayload
+    description: >-
+      The receipt was accepted; one stock lot exists per line. Delivered to webhook subscribers. Stream type `materials.Receipt`.
+    annotations:
+      tl:event_type: Receipt.Accepted
+      tl:event_version: "1"
+    attributes:
+      decided_by:
+        description: "Actor who accepted the receipt."
+        required: true
+      decided_on:
+        description: "ISO date of the decision."
+        required: true
+      lots:
+        range: Any
+        annotations:
+          tl:json: true
+        description: "List of {line, lot_id}: the stock lot made for each line."
+        required: true
+    examples:
+      - value: "{\"decided_by\": \"user:jsmith\", \"decided_on\": \"2026-11-02\", \"lots\": [{\"line\": 1, \"lot_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P5\"}]}"
+  ReceiptRejectedPayload:
+    is_a: EventPayload
+    description: >-
+      The receipt was rejected; no stock was made. Delivered to webhook subscribers. Stream type `materials.Receipt`.
+    annotations:
+      tl:event_type: Receipt.Rejected
+      tl:event_version: "1"
+    attributes:
+      decided_by:
+        description: "Actor who rejected the receipt."
+        required: true
+      decided_on:
+        description: "ISO date of the decision."
+        required: true
+      reason:
+        description: "Why the delivery was rejected."
+        required: true
+    examples:
+      - value: "{\"decided_by\": \"user:jsmith\", \"decided_on\": \"2026-11-02\", \"reason\": \"Wrong heat on the MTR\"}"
+  StockLotDefinedPayload:
+    is_a: EventPayload
+    description: >-
+      A stock lot was made for one line of an accepted receipt. Stream type `materials.StockLot`.
+    annotations:
+      tl:event_type: StockLot.Defined
+      tl:event_version: "1"
+    attributes:
+      project_item_id:
+        range: Ulid
+        description: "Record id of the project item."
+        required: true
+      heat_no:
+        pattern: "^[A-Za-z0-9][A-Za-z0-9./\\-]{0,39}$"
+        description: "Heat number; null when the item has none."
+      receipt_id:
+        range: Ulid
+        description: "Record id of the receipt."
+        required: true
+      receipt_line:
+        range: integer
+        description: "Line number on the receipt."
+        required: true
+      uom:
+        description: "Unit of measure of the lot (`StockUom`)."
+        required: true
+    examples:
+      - value: "{\"heat_no\": \"H12345\", \"project_item_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P3\", \"receipt_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P6\", \"receipt_line\": 1, \"uom\": \"EA\"}"
+  StockLotMovedPayload:
+    is_a: EventPayload
+    description: >-
+      Stock moved: one movement of a lot. The single movement event (ADR-0022); `kind` says what happened. Never shown in the feed. Delivered to webhook subscribers, which filter on `kind`. Stream type `materials.StockLot`.
+    annotations:
+      tl:event_type: StockLot.Moved
+      tl:event_version: "1"
+    attributes:
+      kind:
+        range: MovementKind
+        description: "receive, issue, transfer, return, adjust, scrap, reserve or unreserve."
+        required: true
+      qty:
+        pattern: "^[0-9]{1,10}(\\.[0-9]{1,3})?$"
+        description: "Quantity moved, decimal text, greater than zero, at most 3 decimals."
+        required: true
+      uom:
+        description: "Unit of measure; equals the lot's (`StockUom`)."
+        required: true
+      direction:
+        range: MovementDirection
+        description: "in or out; adjust only."
+      from_location_id:
+        range: Ulid
+        description: "Record id of the location stock leaves; null when none."
+      to_location_id:
+        range: Ulid
+        description: "Record id of the location stock enters; null when none."
+      cost_code_id:
+        range: Ulid
+        description: "Record id of the cost code an issue is charged to; null when none."
+      mto_line_id:
+        range: Ulid
+        description: "Record id of the MTO line a reserve, unreserve or issue refers to; null when none."
+      iwp_id:
+        range: Ulid
+        description: "Record id of the work package, copied from the MTO line; null when none."
+      requisition_id:
+        range: Ulid
+        description: "Record id of the requisition that asked for the issue; null when none."
+      person:
+        description: "Who took the stock (name or account); null when none."
+      reason:
+        description: "Reason code for adjust and scrap (`MovementReason`), or free text; null when none."
+      feed_policy:
+        equals_string: none
+        description: "Always `none`: a movement does not appear in the feed."
+        required: true
+    examples:
+      - value: "{\"cost_code_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P7\", \"feed_policy\": \"none\", \"from_location_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P2\", \"iwp_id\": null, \"kind\": \"issue\", \"mto_line_id\": null, \"person\": \"R. Singh\", \"qty\": \"4.000\", \"reason\": null, \"requisition_id\": null, \"to_location_id\": null, \"uom\": \"EA\"}"
+  MTODefinedPayload:
+    is_a: EventPayload
+    description: >-
+      A material take-off was published from a derived document. Stream type `materials.MTO`.
+    annotations:
+      tl:event_type: MTO.Defined
+      tl:event_version: "1"
+    attributes:
+      derived_document_id:
+        range: Ulid
+        description: "Record id of the derived document the take-off came from."
+        required: true
+      revision_id:
+        range: Ulid
+        description: "Record id of the document revision."
+        required: true
+      line_count:
+        range: integer
+        description: "Number of lines published."
+        required: true
+    examples:
+      - value: "{\"derived_document_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P8\", \"line_count\": 14, \"revision_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P9\"}"
+  MTOLineDefinedPayload:
+    is_a: EventPayload
+    description: >-
+      One line of a take-off was published. Stream type `materials.MTOLine`.
+    annotations:
+      tl:event_type: MTOLine.Defined
+      tl:event_version: "1"
+    attributes:
+      mto_id:
+        range: Ulid
+        description: "Record id of the take-off."
+        required: true
+      line_no:
+        range: integer
+        description: "Line number within the take-off."
+        required: true
+      project_item_id:
+        range: Ulid
+        description: "Record id of the project item."
+        required: true
+      qty:
+        pattern: "^[0-9]{1,10}(\\.[0-9]{1,3})?$"
+        description: "Quantity required, decimal text."
+        required: true
+      uom:
+        description: "Unit of measure (`StockUom`)."
+        required: true
+      tag_id:
+        range: Ulid
+        description: "Record id of the tag the line is for; null when none."
+      work_package_id:
+        range: Ulid
+        description: "Record id of the construction or installation work package; null when none."
+    examples:
+      - value: "{\"line_no\": 1, \"mto_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P10\", \"project_item_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P3\", \"qty\": \"6.000\", \"tag_id\": null, \"uom\": \"EA\", \"work_package_id\": null}"
+  MTOLineAssignedPayload:
+    is_a: EventPayload
+    description: >-
+      A take-off line was assigned to a work package. Stream type `materials.MTOLine`.
+    annotations:
+      tl:event_type: MTOLine.Assigned
+      tl:event_version: "1"
+    attributes:
+      work_package_id:
+        range: Ulid
+        description: "Record id of the work package."
+        required: true
+    examples:
+      - value: "{\"work_package_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P11\"}"

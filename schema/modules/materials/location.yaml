@@ -1,0 +1,65 @@
+id: https://example.org/throughline/modules/materials/location
+name: tl_mod_materials_location
+title: Inventory locations (brief 9, M4)
+description: >-
+  The project's location tree: the project, its warehouses, laydown areas, tool cribs and gang boxes.
+  Stock is held at a location; a location is retired only when no stock is held there.
+  Spec: docs/build-spec/specs/m4-materials.md section 2.
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+  - ../../core/annotations
+  - ../../core/record
+default_range: string
+annotations:
+  tl:module: materials
+
+classes:
+  InventoryLocation:
+    title: Inventory location
+    description: >-
+      One node of the location tree. Record type `materials.InventoryLocation`; its key is the code.
+      Offline class `none`: the tree must stay one tree.
+    annotations:
+      tl:current_state: true
+      tl:record_types: "materials.InventoryLocation"
+      tl:offline: none
+      tl:table: cur_materials_location
+      tl:ix_parent: "parent_id"
+    attributes:
+      id:
+        identifier: true
+        range: Ulid
+        required: true
+        description: "Record id; equals the ledger stream id and the `cur_core_record` id."
+      scope:
+        range: ScopeId
+        required: true
+        description: "The project scope, `project:<id>`."
+      code:
+        pattern: "^[A-Z0-9][A-Z0-9.\\-]{0,15}$"
+        required: true
+        description: "The location code; the record key (upper-case letters, digits, `.`, `-`; at most 16)."
+      kind:
+        required: true
+        description: "project, warehouse, laydown, toolcrib or gang_box (`LocationKind`)."
+      parent_id:
+        range: Ulid
+        description: "The parent location; null for the root."
+      depth:
+        range: integer
+        required: true
+        ifabsent: "int(0)"
+        description: "Depth in the tree, 0 for the root, at most 5."
+      retired:
+        range: boolean
+        required: true
+        ifabsent: "false"
+        description: "True once the entry is retired; retired entries stay readable."
+      last_seq:
+        range: integer
+        required: true
+        description: "Ledger `seq` of the last event applied to this row."

@@ -1,10 +1,10 @@
-# P2-I3 STATE  r=1 base=3ed66af C=0 ck=- gate=n/a wt=/home/user/wt/p2-i3
+# P2-I3 STATE  r=2 base=ebd7dc9 C=0 ck=- gate=n/a wt=/home/user/wt/p2-i3
 ## BOARD
-S1 p stg f 3ed66af schema piece, human gate (95), branch p2/i3-s1-schema
-T01a t stg l 3ed66af sample CSVs; split from T01; branch p2/i3-t01a-samples
-S2 p todo f - package, library, locations, po lines; needs S1 + W0-B2 (merged)
-S3 p todo f - receipts, movements, actions; needs S2
-S4 p todo f - mto publish target; needs S2; beside S3 (disjoint files)
+S1 p mrg f 485f3b4 schema merged; APPROVALS logged; C1 half
+S2 p disp f 842ecfb package spec; branch p2/i3-s2-package; skeleton pyproject at 2aef8fb
+T01a t disp l ebd7dc9 data done 7ac62fc; merge p2/i3 into branch, run acceptance, lite review
+S3 p todo f - receipts, movements, actions, commands; needs S2 mrg
+S4 p todo f - mto publish target; needs S2 mrg; beside S3 (disjoint files)
 T01b t todo l - mappings + loaders mat-items/locations/po-lines; needs S2, T01a
 T03 t todo f - materials_reserved check; needs S3
 T04a t todo f - API read routes + walk entries; needs S3
@@ -22,20 +22,23 @@ D4 2026-11-01 T01 split: T01a samples (round 1, no S2 needed), T01b mappings+loa
 D5 2026-11-01 dispatch rule: nothing else in spec §9 can start before S1 (all need generated models or S2); round-1 batch is S1 + T01a only
 D6 2026-11-01 T01a acceptance script is written by the implementer from the listed assertions (own diff cap forbids a provided one ~107 lines)
 D7 2026-11-01 commit attribution lines: used the harness's lines for this session (Sonnet 5.5); tickets name no model, say "attribution lines your harness requires"
+D8 2026-11-01 r2 orch decisions into S2 spec: stored `available` (projector writes on_hand-reserved); quantities Decimal in code (no SQL arithmetic); OC-S1.py pin extension and extra S1 columns accepted
+D9 2026-11-01 r2 own diff: skeleton package pyproject (no entry points) + root uv source + uv.lock, 2aef8fb, so T01a unblocks now instead of after S2
+D10 2026-11-01 r2 RecordPoLine auto-adopts the ProjectItem (module-written); one root per project; ReviseLocation cannot re-parent (S2 spec decisions 4-6)
+D11 2026-11-01 r2 T01a Q2 4471-4 accepted, Q3 depth 4; acceptance of every item carries `uv sync --all-packages` + NODE_OPTIONS=--max-old-space-size=6144
+D12 2026-11-01 weekly capacity near stop line: r2 batch is S2 + T01a only (nothing else is independent of S2)
 ## SEC
 (none; Sec rows S1-S4, T03, T04a, T07 recorded in spec §9, review only if the owner asks)
 ## OPEN
-Q1 UOM list StockUom instead of UnitOfMeasure (D2): confirm or give another list needs orch raised S1
-Q2 ADR-0022 (movements as events, P2-Q5 B) is not in docs/adr yet (0021 is last); S1 reads it if present, merge needs it needs orch raised S1
 Q3 RejectReceipt user vs superuser: spec default user (owner decisions 15); no action needs owner raised spec §11
+(Q1 StockUom, Q2 ADR-0022: closed r2, S1 merged)
 ## NEXT
-1. Orch: run S1 + T01a through ticket-batch-v2; S1 is the 95 gate: approve under P2-Q10 after review, log APPROVALS.
-2. r2 after S1 mrg: write S2 (package, handlers items/locations/po_lines, targets, views, mto.py stub, entry points) and T01b; guards in spec §9.
-3. r2 also: S4 spec (only mto.py, handlers/mto.py, pyproject entry) once S2 spec exists so they can run beside S3.
-4. r3 after S2 mrg: S3 spec (receipts, movements, actions, commands, api.py) and S4 dispatch; T03, T04a ticket drafts (interfaces pasted from S3).
-5. At C2: T04b..T08 tickets; registry glue (MATERIALS_COMMANDS splat, add_typer, MCP_ACTIONS, nav) by supervisor, last, after P2-I1 merges.
-6. C3: T11 spec (tests list spec §9) then T09, T10. Then merge-last regeneration of pinned lists.
+1. Orch: run S2 (builder) and T01a (lite) through ticket-batch-v2. T01a: merge p2/i3 into its branch first. S2 needs no human gate (no schema), review full.
+2. r3 after S2 mrg: write S3 spec (receipts, movements, actions, commands.py append, api.py post_movements; views receipts/mto_lines) and S4 spec (only mto.py, handlers/mto.py, pyproject entry); dispatch both beside each other.
+3. r3 also: T01b (mappings + loaders over S2 targets; interfaces then in tree), T03/T04a drafts from S3 interfaces.
+4. At C2: T04b..T08 tickets; registry glue (MATERIALS_COMMANDS splat, add_typer, MCP_ACTIONS, nav) by supervisor, last, after P2-I1 merges.
+5. C3: T11 spec (tests list spec §9) then T09, T10. Then merge-last regeneration of pinned lists.
 ## REFS
 Spec docs/build-spec/specs/m4-materials.md §9 (table), §10 (demo). Wave plan phase2-wave-plan.md §3. Analog acceptance: dev/accept/P2-W0/OC-S1.py. Access words already on trunk: schema/settings/access-words.yaml (materials.*), platform.yaml key materials.receipt.mtr_required_categories (default []). W0-B2 targets on trunk.
 ## TRAPS
-Worktree /home/user/wt/p2-i3 only; never /home/user/studious-lamp. dev/tests/ is outside testpaths (use tests/tools/). Never delete /tmp/pytest-of-root, never pkill. `just check` takes >120 s: background it. Tagging a core class changes generated/models.py. Do not rm -r dev/accept (tracked W0 scripts). P2-I1 and P2-WEB1 run beside: registries (tl_api/{auth,app,commands}.py, pyproject.toml, uv.lock, openapi.json) regenerate on merge, M4 merges last.
+New worktrees: `uv sync --all-packages` first; pyright needs NODE_OPTIONS=--max-old-space-size=6144 (put both in every acceptance). Worktree /home/user/wt/p2-i3 only; never /home/user/studious-lamp. dev/tests/ is outside testpaths (use tests/tools/). Never delete /tmp/pytest-of-root, never pkill. `just check` takes >120 s: background it. Tagging a core class changes generated/models.py. Do not rm -r dev/accept (tracked W0 scripts). P2-I1 and P2-WEB1 run beside: registries (tl_api/{auth,app,commands}.py, pyproject.toml, uv.lock, openapi.json) regenerate on merge, M4 merges last.
