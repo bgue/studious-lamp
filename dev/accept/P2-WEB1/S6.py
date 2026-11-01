@@ -294,7 +294,10 @@ def check_tabs(world: Any) -> None:
     for tab in ("details", "properties", "history"):
         raw = alice.get(url(world, "planted", f"?tab={tab}")).text
         expect("<i>" not in raw and "</i>" not in raw, f"{tab}: raw markup in the page")
+        expect("<u>" not in raw and "</u>" not in raw, f"{tab}: raw markup in the page")
     expect("Plant &lt;i&gt;bold&lt;/i&gt;" in planted.text, "the subject is not escaped")
+    body = alice.get(url(world, "planted", "?tab=details")).text
+    expect("Why &lt;u&gt;this&lt;/u&gt;?" in body, "the question is not escaped in Details")
     expect(Page(planted.text).h1.endswith(PLANTED), f"h1 {Page(planted.text).h1!r}")
     passed(
         "c: Details == details_lines, Properties == psets_text, History == history_cells; escaped"
@@ -465,7 +468,11 @@ def main() -> int:
         world = S4.World(Path(tmp))
         try:
             world.ids["planted"] = world.corr.forge_technical(
-                "P123-RFI-0007", subject=PLANTED, state="Awaiting response", scope=SCOPE
+                "P123-RFI-0007",
+                subject=PLANTED,
+                state="Awaiting response",
+                scope=SCOPE,
+                question="Why <u>this</u>?",
             )
             world.ids["other"] = world.corr.forge_technical(
                 "OTH-RFI-0001", subject="Other project", state="Draft", scope="project:OTHER"
