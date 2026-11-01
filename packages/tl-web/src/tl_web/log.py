@@ -151,6 +151,11 @@ class WebLog[Row]:
         """The panel of ``row`` as the terminal's plain lines (``present.plain_lines(page)``)."""
         raise NotImplementedError
 
+    def panel_image(self, row: Row) -> str:
+        """The URL of a picture for the top of the panel (a page-1 preview), or ``""`` for none.
+        The URL must be same-origin (``img-src 'self'``) and carry the scope it needs."""
+        return ""
+
     def keep_columns(self) -> Sequence[str]:
         """The columns that always show: the first, the State and the subject. Any other column
         whose value is the same in every shown row (two or more) is dropped."""
@@ -222,6 +227,7 @@ class WebLog[Row]:
         return {
             "crumb": crumb,
             "panel": self.panel_text(row) if row is not None else ["Nothing here."],
+            "panel_image": self.panel_image(row) if row is not None else "",
             "actions": self._action_views(self.row_key(row), actions) if row is not None else [],
             "open_url": (
                 f"/web/p/{self.project}/records/{quote(self.row_key(row), safe='')}"

@@ -24,6 +24,7 @@ main:has(.tl-log) { max-width: none; }
 .tl-table tbody tr[aria-selected="true"] { background: Highlight; color: HighlightText; }
 .tl-table tbody tr:focus-visible { outline: 2px solid Highlight; outline-offset: -2px; }
 .tl-panel { border-top: 2px solid #8888; padding: 0.5rem; min-height: 8rem; max-height: 50vh; overflow-y: auto; }
+.tl-panel-img { display: block; max-width: 100%; max-height: 24rem; margin: 0 0 0.5rem; border: 1px solid #8888; }
 .tl-panel-text { margin: 0; font-family: ui-monospace, monospace; white-space: pre-wrap; overflow-wrap: anywhere; }
 .tl-actions { min-height: 1.5rem; display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
 .tl-action { font: inherit; padding: 0.15rem 0.5rem; }
