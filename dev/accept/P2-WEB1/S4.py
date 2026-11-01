@@ -54,6 +54,7 @@ from tl_tui import display, rfi_text  # noqa: E402
 from tl_tui.action_ui import ACTION_UI  # noqa: E402
 from tl_tui.layout import plain_lines  # noqa: E402
 from tl_web import routers  # noqa: E402
+from tl_web.actions import NOT_OFFERED  # noqa: E402
 from tl_web.reads import MIRRORS, UnsupportedRead, WebReadClient  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -631,7 +632,8 @@ def check_actions(world: World) -> None:
     ):
         response = do(key, command, answer="x", reason="x")
         expect(response.status_code == 409, f"{command} on {key}: {response.status_code}")
-        expect(status_of(response).startswith("! "), f"no refusal text: {response.text[:200]}")
+        said = status_of(response)
+        expect(said == f"! {NOT_OFFERED}", f"{command} on {key}: {said!r}")
         expect(world.events() == before, f"{command} on {key} wrote an event")
     # a form field cannot make a command offered
     response = do("closed", "CloseTechnical", offered="CloseTechnical", allowed="CloseTechnical")
