@@ -13,8 +13,8 @@ Three data files that the loaders of T01b read and the demo loads: 50 library it
 PO lines. Data only, no code besides the acceptance script. (Split from spec ticket T01 so the data is ready before S2.)
 
 ## Brief references (pasted)
-> Import targets: `materials.item_master` (company scope: code, description, category, uom, size, rating, material, consumable),
-> `materials.location` (parents first), `materials.po_line`. Demo: 50-item library; locations project -> warehouse ->
+> Import targets: `materials_item_master` (company scope: code, description, category, uom, size, rating, material, consumable),
+> `materials_location` (parents first), `materials_po_line`. Demo: 50-item library; locations project -> warehouse ->
 > laydown L2 -> toolcrib -> gang box; a receipt of two flange lines, heat H-7781, against PO line 4471-3; a consumable issue needs a cost code.
 > Item code `^[A-Z0-9][A-Z0-9._\-]{0,39}$`. Location code `^[A-Z0-9][A-Z0-9.\-]{0,15}$`, depth 0..5. PO number <= 30 chars,
 > supplier text <= 120. Quantities: ASCII digits, > 0, at most 3 decimals, <= 1 000 000 000.

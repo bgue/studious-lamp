@@ -61,7 +61,7 @@ po_line,receipt,receipt_line,lot,mto,mto_line,movement,stock,reservation}`; code
   item=, heat=, subtree=)`, `lot_detail`, `movements(conn, scope, *, lot=, since=, until=, kind=)`. S3 adds `receipts`, `receipt_detail`,
   `mto_lines`, `reservations_for_iwp`, `mto_lines_for`; leave them out.
 - Entry points in the package `pyproject.toml`: `throughline.modules` `materials = "tl_mod_materials.module:spec"`;
-  `throughline.load_targets` `materials.item_master` (scope `company`), `materials.location`, `materials.po_line` (scope `project`),
+  `throughline.load_targets` `materials_item_master` (scope `company`), `materials_location`, `materials_po_line` (scope `project`),
   via the generic column-mapping form of W0-B2; each column mapping plans through the command above, so the loader and
   the command share one check. Loaders (`mat-items` ...) are T01b's, not here.
 - Projection semantics S3/S4 rely on (events from S1 `events.yaml`; `StockLot.Moved.kind`):
@@ -99,7 +99,7 @@ locations: depth 5 allowed, 6 refused, second root refused, retire refused with 
 checks uom, `UpdatePoLine` changes qty; replay: append by hand (ledger API) a `Receipt.Accepted`, `StockLot.Defined`, `Moved` receive 12.500,
 reserve 4.000, issue 3.000 with the line, transfer 2.000, then assert stock, `available`, reservation, movement and `mto_line` rows, `Decimal` exact
 (0.1 + 0.2 style sum: three moves of `0.100` give `0.300`), zero rows deleted; `rebuild-projections` gives identical rows; `tl load targets` shows the
-three targets with scope `company` for `materials.item_master`; a non-member (viewer clearance) read of a record hidden by class returns nothing.
+three targets with scope `company` for `materials_item_master`; a non-member (viewer clearance) read of a record hidden by class returns nothing.
 
 ## Tests to add
 None (deferred to T11: `test_items.py`, `test_locations.py`, `test_targets.py`, `test_projection_rebuild.py`).

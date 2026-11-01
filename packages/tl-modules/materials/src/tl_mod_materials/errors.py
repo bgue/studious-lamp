@@ -63,3 +63,19 @@ class DuplicatePoLineError(MaterialsError):
 
 class LotNotFoundError(MaterialsError):
     """No stock lot with that key in the project."""
+
+
+class MtoPublishRefusedError(MaterialsError):
+    """A derived document cannot be published as a take-off (kind, rows, work package)."""
+
+
+class MtoLineNotFoundError(MaterialsError):
+    """No take-off line with that key in the project."""
+
+
+class MtoLineInUseError(MaterialsError):
+    """The take-off line has a reservation or an issue, so it cannot be reassigned or taken back."""
+
+
+class WorkPackageNotFoundError(MaterialsError):
+    """No work package with that number in the project."""
