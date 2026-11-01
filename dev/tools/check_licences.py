@@ -11,20 +11,29 @@ Rules (ADR-0006, decision 1 to 3):
   least one of them is permissive.
 * MPL-2.0 is allowed only for the distributions in ``MPL_ALLOWED``.
 * A distribution with no licence information is refused.
+
+Vendored JavaScript (P2-WEB1-T06): every ``VENDORED.toml`` under a package's ``static/vendor/``
+directory lists its files; a listed file that is missing, has another sha256, misses a manifest
+field, or carries a licence that ``statement_ok`` refuses is a problem. No manifest is fine.
 """
 
 from __future__ import annotations
 
+import hashlib
 import importlib.metadata as metadata
 import re
 import sys
+import tomllib
 from collections.abc import Iterable
-from typing import NamedTuple
+from pathlib import Path
+from typing import Any, NamedTuple
 
 MPL_ALLOWED = frozenset({"certifi", "tqdm", "fqdn", "hypothesis"})
 EXEMPT_PREFIX = "tl-"
 # rich-pixels 3.0.1 declares no licence field; its wheel carries an MIT LICENSE file (P1-UX2-S4, D9)
 MIT_FILE_ONLY = frozenset({"rich-pixels"})
+MANIFEST_GLOB = "packages/*/src/*/static/vendor/VENDORED.toml"
+REQUIRED = ("path", "name", "version", "licence", "url", "sha256")
 
 COPYLEFT = re.compile(r"gpl|general public|affero|lesser general", re.IGNORECASE)
 MPL = re.compile(r"\bmpl\b|mpl-|mozilla public", re.IGNORECASE)
@@ -130,11 +139,64 @@ def problems(dists: Iterable[Dist]) -> list[str]:
     return [line for _, line in refused]
 
 
+def find_manifests(root: Path) -> list[Path]:
+    """Every ``VENDORED.toml`` matching ``MANIFEST_GLOB`` under ``root``, sorted."""
+    return sorted(root.glob(MANIFEST_GLOB))
+
+
+def _package_relative(manifest: Path) -> str:
+    """The manifest path relative to its package root (the directory under ``packages/``)."""
+    for ancestor in manifest.parents:
+        if ancestor.parent.name == "packages":
+            return manifest.relative_to(ancestor).as_posix()
+    return manifest.as_posix()
+
+
+def vendored_problems(manifest: Path) -> list[str]:
+    """One line per problem in a vendored-files manifest, in file order.
+
+    Each ``[[file]]`` entry must carry every key in ``REQUIRED``; a missing key is reported and
+    skips the other checks of that entry. ``path`` is relative to the manifest's directory: the
+    file must exist, hash to ``sha256`` (hex, compared in lower case) and have a licence that
+    ``statement_ok`` accepts. The label of an entry is its ``name``, else its ``path``, else ``?``.
+    An unreadable manifest (invalid TOML, or no ``file`` array of tables) gives one line only.
+    """
+    where = _package_relative(manifest)
+    try:
+        data: dict[str, Any] = tomllib.loads(manifest.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, tomllib.TOMLDecodeError):
+        return [f"vendored {where}: unreadable manifest"]
+    entries = data.get("file")
+    if not isinstance(entries, list) or not all(isinstance(e, dict) for e in entries):
+        return [f"vendored {where}: unreadable manifest"]
+    lines: list[str] = []
+    for entry in entries:
+        label = str(entry.get("name") or entry.get("path") or "?")
+        missing = [key for key in REQUIRED if key not in entry]
+        if missing:
+            lines.extend(f"vendored {label}: missing field {key}" for key in missing)
+            continue
+        path = str(entry["path"])
+        target = manifest.parent / path
+        if not target.is_file():
+            lines.append(f"vendored {label}: file not found ({path})")
+        elif hashlib.sha256(target.read_bytes()).hexdigest() != str(entry["sha256"]).lower():
+            lines.append(f"vendored {label}: sha256 mismatch ({path})")
+        licence = str(entry["licence"])
+        if not statement_ok(licence, label):
+            lines.append(f"vendored {label}: licence not allowed ({licence})")
+    return lines
+
+
 def main() -> int:
-    """Print every line of ``problems(collect())``. When there are any, also print
+    """Print every line of ``problems(collect())``, then the ``vendored_problems`` lines of every
+    manifest under the repository root. When there are any, also print
     ``"<n> licence problem(s); see docs/adr/0006-dependency-licences.md"`` and return 1.
     Otherwise print ``"licences ok"`` and return 0."""
     lines = problems(collect())
+    root = Path(__file__).resolve().parents[2]
+    for manifest in find_manifests(root):
+        lines.extend(vendored_problems(manifest))
     for line in lines:
         print(line)
     if lines:
