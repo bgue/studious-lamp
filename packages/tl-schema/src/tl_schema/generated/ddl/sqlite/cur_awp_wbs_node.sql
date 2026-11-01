@@ -11,6 +11,4 @@ CREATE TABLE IF NOT EXISTS cur_awp_wbs_node (
 
 CREATE UNIQUE INDEX IF NOT EXISTS ux_cur_awp_wbs_node_scope_code ON cur_awp_wbs_node (scope, code);
 
-CREATE INDEX IF NOT EXISTS ix_cur_awp_wbs_node_scope_code ON cur_awp_wbs_node (scope, code);
-
 CREATE INDEX IF NOT EXISTS ix_cur_awp_wbs_node_scope_parent ON cur_awp_wbs_node (scope, parent_id, position);

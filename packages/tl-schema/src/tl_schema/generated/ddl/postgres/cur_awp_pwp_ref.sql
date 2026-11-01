@@ -11,5 +11,3 @@ CREATE TABLE IF NOT EXISTS cur_awp_pwp_ref (
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS ux_cur_awp_pwp_ref_scope_package_no ON cur_awp_pwp_ref (scope, package_no);
-
-CREATE INDEX IF NOT EXISTS ix_cur_awp_pwp_ref_scope_package ON cur_awp_pwp_ref (scope, package_no);

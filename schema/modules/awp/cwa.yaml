@@ -26,7 +26,6 @@ classes:
       tl:record_types: "awp.CWA"
       tl:offline: none
       tl:table: cur_awp_cwa
-      tl:ix_scope_code: "scope, code"
     unique_keys:
       scope_code:
         description: A code names one area in a project.

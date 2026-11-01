@@ -16,6 +16,7 @@ members = [
     "tl-extract",
     "tl-lake",
     "tl-mcp",
+    "tl-mod-awp",
     "tl-mod-correspondence",
     "tl-mod-cost",
     "tl-mod-documents",
@@ -2905,6 +2906,27 @@ requires-dist = [
     { name = "tl-mod-schemareg", editable = "packages/tl-modules/schemareg" },
     { name = "tl-schema", editable = "packages/tl-schema" },
     { name = "tl-tui", editable = "packages/tl-tui" },
+]
+
+[[package]]
+name = "tl-mod-awp"
+version = "0.0.1"
+source = { editable = "packages/tl-modules/awp" }
+dependencies = [
+    { name = "pydantic" },
+    { name = "sqlalchemy" },
+    { name = "tl-adapters" },
+    { name = "tl-core" },
+    { name = "tl-schema" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "pydantic", specifier = ">=2" },
+    { name = "sqlalchemy", specifier = ">=2" },
+    { name = "tl-adapters", editable = "packages/tl-adapters" },
+    { name = "tl-core", editable = "packages/tl-core" },
+    { name = "tl-schema", editable = "packages/tl-schema" },
 ]
 
 [[package]]

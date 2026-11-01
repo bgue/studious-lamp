@@ -26,7 +26,6 @@ classes:
       tl:record_types: "awp.WBSNode"
       tl:offline: none
       tl:table: cur_awp_wbs_node
-      tl:ix_scope_code: "scope, code"
       tl:ix_scope_parent: "scope, parent_id, position"
     unique_keys:
       scope_code:

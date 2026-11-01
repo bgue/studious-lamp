@@ -8,5 +8,3 @@ CREATE TABLE IF NOT EXISTS cur_awp_cwa (
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS ux_cur_awp_cwa_scope_code ON cur_awp_cwa (scope, code);
-
-CREATE INDEX IF NOT EXISTS ix_cur_awp_cwa_scope_code ON cur_awp_cwa (scope, code);
