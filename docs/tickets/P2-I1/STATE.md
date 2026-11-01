@@ -1,7 +1,7 @@
-# P2-I1 STATE  r=1 base=1b93a13 C=0 ck=0 gate=n/a wt=/home/user/wt/p2-i1
+# P2-I1 STATE  r=2 base=1b93a13 C=1 ck=0 gate=n/a wt=/home/user/wt/p2-i1
 ## BOARD
-S2 p todo f - schema awp; spec staged r1; gate owner
-S3 p todo f - package, WBS, path, CWA cmds; after S2
+S2 p mrg f 99ad743 schema awp merged; APPROVALS logged; F1 F2 LO
+S3 p stg f - spec staged r2; also folds F2 index drop and Q1 feed fix; sch gate
 S4 p todo f - CWP, packages, RULES; after S3
 S5 p todo f - rollup job; beside S4
 T02 t todo f - load targets; after S3
@@ -24,17 +24,21 @@ D2 2026-11-01 no model names in committed files: tier field reads builder/implem
 D3 2026-11-01 first batch is S2 alone: every other row of spec §10 depends on S2 or later (S3 needs generated models)
 D4 2026-11-01 owner policy: tests at T11 (C3), tour once at C4, no security review; Sec rows recorded not run
 D5 2026-11-01 access words and awp.* keys already on trunk (schema/settings/access-words.yaml lines 10-19); S2 adds none
+D6 2026-11-01 Q1 feed: 8 awp no-card events added to POLICY_EVENT_TYPES in tl_core/feed/cards.py by S3 (builder may pick smaller safe change)
+D7 2026-11-01 r2 batch is S3 alone: T02/S4/S5 depend on S3; no ticket has all deps merged; capacity near stop line
 ## SEC
-(none; review only if the owner asks. Sec rows: S3 S4 S5 T02 T03a T06)
+F1 LO fixed@- S2 report 65>60 lines; waived
+F2 LO open S3 drops redundant ix_scope_code/ix_scope_package (wbs cwa external_package); regen
+(review only if the owner asks. Sec rows: S3 S4 S5 T02 T03a T06)
 ## OPEN
-Q1 P2-Q10 delegation: orch approves S2 schema merge and logs APPROVALS at merge needs orch raised r1
+(none open; Q1 closed D6, P2-Q10 S2 approved and logged)
 ## NEXT
-1. r2: verify S2 merged (git log), then write S3 (package, entry points, WBS/path/CWA handlers, rollup.request only, stubs of targets.py and views.py).
-2. r2: also S5 only if S3 is merged; else wait. Prefer r3 for S4+S5+T02 together (disjoint paths).
-3. Each piece spec: acceptance script dev/accept/P2-I1/<id>.py, no pytest; S4 leaves .accept/p2-i1.db (WBS, 4 CWAs, path v1, 6 CWPs).
-4. Registry glue (AWP_COMMANDS splat, add_typer, MCP_ACTIONS, nav entry) is supervisor glue, <= 50 lines, at C2; WEB1 touches the same registries: regenerate, never hand-merge.
-5. Twin web tickets for the CWP and CWA registers, WBS tree and path, packages belong to WEB1 after C2.
-6. T11 lists its test files in spec §10; write T11 spec at C2.
+1. r3 (after S3 merged, schema line in APPROVALS for the index edit): S4 + S5 + T02 together (disjoint paths); S5 needs S3 only.
+2. S4 leaves .accept/p2-i1.db (WBS, 4 CWAs, path v1, 6 CWPs); S4 extends AWP_COMMANDS and RULES that S3 creates.
+3. r4: T10 (after S4), T01 (after T02). Each piece spec: acceptance script dev/accept/P2-I1/<id>.py, no pytest.
+4. Registry glue (AWP_COMMANDS splat, add_typer, MCP_ACTIONS, nav entry) is supervisor glue <= 50 lines at C2; WEB1 shares the registries: regenerate, never hand-merge.
+5. Twin web tickets for CWP/CWA registers, WBS tree, path, packages belong to WEB1 after C2.
+6. T11 lists its test files in spec section 10; write T11 spec at C2.
 ## REFS
 Spec docs/build-spec/specs/m3-wbs-cwp.md; wave plan phase2-wave-plan.md; W0 trunk acceptance dev/accept/P2-W0/*.py (style for scripts); piece spec example docs/tickets/P2-W0/S4-load-publish-targets.md.
 ## TRAPS
