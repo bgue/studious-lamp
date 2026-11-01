@@ -1,7 +1,8 @@
 """Acceptance for P2-I1-T10: the awp read views on the seed ledger.
 
 Run: ``uv run python dev/accept/P2-I1/T10.py --db PATH`` (PATH is the seed from ``S4.py --keep``).
-Prints ``PASS <view> <n> rows`` per view, then ``PASS hidden``, then ``T10 ok``. Read-only.
+Prints ``PASS <view> <n> rows`` per view, then ``T10 ok``. Read-only. The hidden-CWP check is not
+here: awp records carry no confidentiality class, so it moves to T11 (tests, with a fixture).
 """
 
 from __future__ import annotations
@@ -11,9 +12,7 @@ import sys
 from pathlib import Path
 
 from tl_adapters.db import as_target, open_uow
-from tl_core.modules import confidential_sources
 from tl_mod_awp import views
-from tl_mod_awp.names import CWP
 
 SCOPE = "project:P123"
 
@@ -94,26 +93,12 @@ def check(db: Path) -> None:
         passed("package_list", len(packages))
 
 
-def hidden() -> None:
-    """A CWP a lowest-clearance viewer may not read leaves the lists and answers None.
-
-    Not runnable yet: the awp module declares no confidential source and ``cur_awp_cwp`` has no
-    class column, so no command sets a restricted class on a CWP (see the report, Blocked)."""
-    if not any(CWP in source.record_types for source in confidential_sources()):
-        raise Failed(
-            "BLOCKED no confidential source covers awp.CWP: the awp module declares none and "
-            "cur_awp_cwp has no class column"
-        )
-    raise Failed("the hidden check is not written for this class mechanism")
-
-
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--db", type=Path, required=True, help="the seed ledger (S4.py --keep)")
     args = parser.parse_args()
     try:
         check(args.db)
-        hidden()
     except Failed as exc:
         print(f"FAIL {exc}")
         sys.exit(1)
