@@ -10,6 +10,7 @@ dependencies = [
   "tl-adapters",
   "tl-mod-engineering",
   "tl-mod-legacy",
+  "tl-mod-schedule",
 ]
 
 [project.entry-points."throughline.modules"]

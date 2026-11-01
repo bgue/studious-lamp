@@ -2921,6 +2921,7 @@ dependencies = [
     { name = "tl-core" },
     { name = "tl-mod-engineering" },
     { name = "tl-mod-legacy" },
+    { name = "tl-mod-schedule" },
     { name = "tl-schema" },
 ]
 
@@ -2932,6 +2933,7 @@ requires-dist = [
     { name = "tl-core", editable = "packages/tl-core" },
     { name = "tl-mod-engineering", editable = "packages/tl-modules/engineering" },
     { name = "tl-mod-legacy", editable = "packages/tl-modules/legacy" },
+    { name = "tl-mod-schedule", editable = "packages/tl-modules/schedule" },
     { name = "tl-schema", editable = "packages/tl-schema" },
 ]
 
