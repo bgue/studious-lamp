@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}Sign in - Throughline{% endblock %}
+{% block content %}
+<h1>Sign in</h1>
+{% if error %}<p class="tl-error" role="alert" id="sign-in-error">{{ error }}</p>
+{% endif %}<form method="post" action="/web/sign-in" class="tl-form" autocomplete="on">
+<label for="username">Username</label>
+<input type="text" id="username" name="username" value="{{ username }}" autocomplete="username" required>
+<label for="password">Password</label>
+<input type="password" id="password" name="password" autocomplete="current-password" required>
+<p><button type="submit">Sign in</button></p>
+</form>
+{% endblock %}

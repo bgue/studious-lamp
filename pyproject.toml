@@ -33,6 +33,7 @@ tl-adapters = { workspace = true }
 tl-api = { workspace = true }
 tl-mcp = { workspace = true }
 tl-tui = { workspace = true }
+tl-web = { workspace = true }
 tl-cli = { workspace = true }
 tl-sim = { workspace = true }
 tl-lake = { workspace = true }
@@ -56,7 +57,7 @@ extend-exclude = ["packages/tl-schema/src/tl_schema/generated"]
 select = ["E", "F", "I", "UP", "B"]
 
 [tool.pytest.ini_options]
-testpaths = ["packages", "tests"]
+testpaths = ["packages", "packages/tl-web/tests", "tests"]
 addopts = "--import-mode=importlib"
 markers = [
   "parity: runs once per adapter named by --adapters (see conftest.py)",

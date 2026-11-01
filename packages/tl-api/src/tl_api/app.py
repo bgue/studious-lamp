@@ -7,7 +7,9 @@ and ``tl_api.main`` build it; ``tl_api.openapi`` builds one over a backend that 
 
 from __future__ import annotations
 
+import importlib.util
 import logging
+import os
 from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
 from typing import Annotated, Any
@@ -71,7 +73,7 @@ from tl_api.routes import (
 )
 from tl_api.routes import feed as feed_routes
 from tl_api.routes import settings as settings_routes
-from tl_api.settings import ApiSettings
+from tl_api.settings import ApiSettings, web_enabled
 from tl_api.tokens import TokenStore
 
 log = logging.getLogger("tl_api")
@@ -160,6 +162,24 @@ def install_error_handlers(app: FastAPI) -> None:
         return _json(500, ErrorBody(error="internal_error", message="internal server error"))
 
 
+def _web_mount() -> Callable[[FastAPI], None] | None:
+    """``tl_web.app.mount`` when the web client is switched on, else ``None``.
+
+    ``TL_WEB=on`` with ``tl_web`` missing is a start-up error; the unset default (on in dev, test
+    and ci) with it missing is silent, so a deployment without the package still starts.
+    """
+    env = os.environ
+    if not web_enabled(env):
+        return None
+    if importlib.util.find_spec("tl_web") is None:
+        if env.get("TL_WEB", "").strip().lower() == "on":
+            raise RuntimeError("TL_WEB=on but the tl_web package is not importable")
+        return None
+    from tl_web.app import mount
+
+    return mount
+
+
 def create_app(
     backend: Backend,
     *,
@@ -244,16 +264,27 @@ def create_app(
     if files_service is not None:  # derivation commands and reads store/read rows as files
         derivation_store.configure(files_service)
     install_error_handlers(app)
-    app.add_middleware(AuthenticationMiddleware, resolver=resolver)
+    web_mount = _web_mount()
+    app.add_middleware(AuthenticationMiddleware, resolver=resolver, web_paths=web_mount is not None)
     app.add_middleware(  # the limit applies before anything reads
         BodyLimitMiddleware,
         limits=(*BODY_LIMITS, ("/commands/", cfg.max_command_bytes)),
     )
+    sign_in_limiter = (
+        source_limiter
+        if source_limiter is not None
+        else SourceLimiter(cfg.rate_limit_failures, cfg.rate_limit_window_s)
+    )
+    if web_mount is not None:  # the web form counts failures in the same window as the JSON route
+        app.add_middleware(
+            RateLimitMiddleware,
+            limiter=sign_in_limiter,
+            trusted_header=cfg.trusted_proxy_header,
+            path="/web/sign-in",
+        )
     app.add_middleware(  # outermost: a limited source costs no hash, no body read, no query
         RateLimitMiddleware,
-        limiter=source_limiter
-        if source_limiter is not None
-        else SourceLimiter(cfg.rate_limit_failures, cfg.rate_limit_window_s),
+        limiter=sign_in_limiter,
         trusted_header=cfg.trusted_proxy_header,
     )
     app.add_middleware(  # outermost of all: nothing reads an inbound request before it
@@ -307,4 +338,6 @@ def create_app(
     ):
         app.include_router(module.router)
     app.include_router(commands.router)
+    if web_mount is not None:
+        web_mount(app)  # last: its catch-all 404 page and its outermost headers middleware
     return app

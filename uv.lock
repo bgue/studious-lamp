@@ -26,6 +26,7 @@ members = [
     "tl-schema",
     "tl-sim",
     "tl-tui",
+    "tl-web",
     "tl-xer",
 ]
 overrides = [{ name = "jsonschema", extras = ["format-nongpl"], specifier = ">=4.26" }]
@@ -3171,6 +3172,25 @@ requires-dist = [
     { name = "tl-mod-schedule", editable = "packages/tl-modules/schedule" },
     { name = "tl-mod-schemareg", editable = "packages/tl-modules/schemareg" },
     { name = "tl-schema", editable = "packages/tl-schema" },
+]
+
+[[package]]
+name = "tl-web"
+version = "0.0.1"
+source = { editable = "packages/tl-web" }
+dependencies = [
+    { name = "jinja2" },
+    { name = "python-multipart" },
+    { name = "tl-api" },
+    { name = "tl-tui" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "jinja2" },
+    { name = "python-multipart" },
+    { name = "tl-api", editable = "packages/tl-api" },
+    { name = "tl-tui", editable = "packages/tl-tui" },
 ]
 
 [[package]]
