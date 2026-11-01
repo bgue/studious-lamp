@@ -9,22 +9,40 @@ same way (``resolve_code``).
 from __future__ import annotations
 
 import re
-from collections.abc import Sequence
+from collections.abc import Collection, Sequence
 from dataclasses import dataclass
+from datetime import date
 from decimal import Decimal
 from typing import Any
 
 from sqlalchemy import Connection, inspect, text
 from tl_core import confidentiality
 from tl_core.ledger import AppendResult, NewEvent
-from tl_core.services.commands import Command
-from tl_core.services.errors import RecordNotFoundError
+from tl_core.services.commands import Command, CommandResult
+from tl_core.services.errors import DuplicateKeyError, RecordNotFoundError
+from tl_core.services.records import create_module_record
 from tl_core.uow import UnitOfWork
 from tl_core.util import new_ulid
+from tl_mod_engineering import codelists
+from tl_mod_engineering.errors import UnknownCodeError, UnknownCodeListError
 
-from tl_mod_awp.errors import AllocationError, AwpScopeError, CodeNotFoundError
+from tl_mod_awp.errors import (
+    AllocationError,
+    AwpScopeError,
+    CodeNotFoundError,
+    DuplicateCodeError,
+    UnknownListCodeError,
+)
 from tl_mod_awp.limits import MAX_ALLOCATIONS
-from tl_mod_awp.names import CWA_TABLE, CWP_ALLOCATION_TABLE, CWP_TABLE, FEED_NONE
+from tl_mod_awp.names import (
+    CWA_TABLE,
+    CWP_ALLOCATION_TABLE,
+    CWP_TABLE,
+    FEED_NONE,
+    KEY_PREFIX,
+    ST_PLANNED,
+    ST_VOID,
+)
 
 HUNDRED = Decimal("100.00")
 MIN_PERCENT = Decimal("0.01")
@@ -44,12 +62,17 @@ _CWP_ON_CWA_SQL = text(
     f"SELECT 1 FROM {CWP_TABLE} c JOIN cur_core_record r ON r.id = c.id "
     "WHERE c.cwa_id = :cwa AND r.voided = :voided LIMIT 1"
 )
+_KEY_TAKEN_SQL = text(
+    "SELECT 1 FROM cur_core_record WHERE scope = :scope AND type = :type AND key = :key"
+)
+_STATE_SQL = text("SELECT status, voided FROM cur_core_record WHERE id = :id")
 _CWA_BY_ID_SQL = text(f"SELECT id, code, location_text, retired FROM {CWA_TABLE} WHERE id = :id")
 
 #: Fixed messages shared by the allocation checks (here and in S4's CWP allocation).
 MSG_ROWS = "an allocation holds 1 to 20 lines"
 MSG_REPEAT = "a target is allocated twice in one list"
 MSG_PERCENT = "each percent is a number from 0.01 to 100.00 with at most two decimals"
+MSG_DUPLICATE = "the code is already used by a record of that kind in the project"
 
 
 @dataclass(frozen=True)
@@ -57,6 +80,7 @@ class RecordRef:
     id: str
     key: str | None
     title: str
+    record_type: str = ""
 
 
 def require_project(cmd: Command) -> None:
@@ -106,19 +130,93 @@ def load_record(uow: UnitOfWork, scope: str, record_id: str, record_type: str) -
     ``RecordNotFoundError`` (the same words) when it is hidden from the viewer, does not exist,
     is in another project or is of another type.
     """
+    return load_record_of(uow, scope, record_id, (record_type,))
+
+
+def load_record_of(
+    uow: UnitOfWork, scope: str, record_id: str, record_types: Collection[str]
+) -> RecordRef:
+    """``load_record`` for a record of any of ``record_types`` (same refusals, same words)."""
     conn = uow.conn()
     confidentiality.require_visible(conn, record_id)
     row = conn.execute(_RECORD_SQL, {"id": record_id}).first()
-    if row is None or row.scope != scope or row.type != record_type or bool(row.voided):
+    if row is None or row.scope != scope or row.type not in record_types or bool(row.voided):
         raise RecordNotFoundError(f"no record {record_id!r}")
-    return RecordRef(id=str(row.id), key=None if row.key is None else str(row.key), title=row.title)
+    return RecordRef(
+        id=str(row.id),
+        key=None if row.key is None else str(row.key),
+        title=row.title,
+        record_type=str(row.type),
+    )
+
+
+def record_key(record_type: str, code: str) -> str:
+    """The record key of an awp record with the typed ``code``: ``awp.wbs@1.2``, ``awp.cwa@A1``,
+    ``awp.ewp@EWP-7``. The code of a record of another module (a cost code) is its own key.
+
+    Every awp key holds the ``@`` a typed key may not, so no other module's typed record can equal
+    one: a node ``1`` and a cost code ``1`` coexist, and a record the viewer may not read never
+    makes a code look taken. The displayed code stays the typed ``code`` column and the title."""
+    return f"{KEY_PREFIX.get(record_type, '')}{code}"
+
+
+def display_code(key: str | None) -> str | None:
+    """The typed code of a record key built by ``record_key`` (what a person sees and types)."""
+    return None if key is None else key.split("@", 1)[-1]
+
+
+def key_taken(conn: Connection, scope: str, record_type: str, code: str) -> bool:
+    """A record of ``record_type`` (void ones too, as core counts them) already has ``code``.
+
+    The key asked for is the prefixed one and the type is part of the question, so only awp
+    records of that kind answer it."""
+    found = conn.execute(
+        _KEY_TAKEN_SQL,
+        {"scope": scope, "type": record_type, "key": record_key(record_type, code)},
+    )
+    return found.first() is not None
+
+
+def create_coded_record(
+    uow: UnitOfWork,
+    cmd: Command,
+    *,
+    record_type: str,
+    title: str,
+    code: str,
+    extra_events: Sequence[NewEvent],
+) -> CommandResult:
+    """``create_module_record`` for a record keyed by a typed ``code`` (the prefixed key).
+
+    Refuses a code the kind already has with the one fixed message, whether the same-kind check
+    or core's own duplicate-key error caught it."""
+    if key_taken(uow.conn(), cmd.scope, record_type, code):
+        raise DuplicateCodeError(MSG_DUPLICATE)
+    try:
+        return create_module_record(
+            uow,
+            cmd,
+            record_type=record_type,
+            title=title,
+            key=record_key(record_type, code),
+            composed_key=True,
+            extra_events=extra_events,
+        )
+    except DuplicateKeyError:
+        raise DuplicateCodeError(MSG_DUPLICATE) from None
 
 
 def resolve_code(conn: Connection, scope: str, record_type: str, code: str) -> str | None:
-    """The id of the live record of ``record_type`` whose key is ``code``; ``None`` when there is
+    """The id of the live record of ``record_type`` whose code is ``code``; ``None`` when there is
     none or the viewer may not read it (the two answer alike)."""
     found = conn.execute(
-        _BY_KEY_SQL, {"scope": scope, "type": record_type, "key": code, "voided": False}
+        _BY_KEY_SQL,
+        {
+            "scope": scope,
+            "type": record_type,
+            "key": record_key(record_type, code),
+            "voided": False,
+        },
     ).scalar_one_or_none()
     if found is None or confidentiality.is_hidden(conn, str(found)):
         return None
@@ -186,9 +284,16 @@ def percent_text(value: Decimal) -> str:
     return f"{value:.2f}"
 
 
-def check_allocations(lines: Sequence[tuple[str, str]]) -> list[tuple[str, Decimal]]:
+def check_allocations(
+    lines: Sequence[tuple[str, str]], *, allow_empty: bool = False
+) -> list[tuple[str, Decimal]]:
     """``(target, percent)`` lines checked: 1 to 20 of them, no target twice, each percent from
-    0.01 to 100.00, the sum exactly 100.00. The messages are fixed (no cell text)."""
+    0.01 to 100.00, the sum exactly 100.00. The messages are fixed (no cell text).
+
+    ``allow_empty``: no line at all is a valid list (it clears an allocation) and has no sum to
+    check; with lines the sum rule holds."""
+    if not lines and allow_empty:
+        return []
     if not 1 <= len(lines) <= MAX_ALLOCATIONS:
         raise AllocationError(MSG_ROWS)
     seen: set[str] = set()
@@ -202,3 +307,23 @@ def check_allocations(lines: Sequence[tuple[str, str]]) -> list[tuple[str, Decim
     if total != HUNDRED:
         raise AllocationError(f"the percentages sum to {total}, not 100.00")
     return checked
+
+
+def package_state(conn: Connection, record_id: str) -> str:
+    """The workflow state of a package (``Void`` once voided, ``Planned`` before its first move)."""
+    row = conn.execute(_STATE_SQL, {"id": record_id}).first()
+    if row is None:
+        return ST_PLANNED
+    return ST_VOID if bool(row.voided) else str(row.status or ST_PLANNED)
+
+
+def require_list_code(conn: Connection, scope: str, list_name: str, code: str, what: str) -> None:
+    """``code`` is a usable value of the code list ``list_name`` for ``scope`` (company values and
+    the project's own). Fixed message; the code is not repeated. A list that is not registered
+    answers the same way, so a project without the standards edition refuses rather than guesses."""
+    try:
+        found = codelists.resolve(conn, scope, list_name, code, on=date.today())
+    except (UnknownCodeListError, UnknownCodeError):
+        raise UnknownListCodeError(f"{what} is not a value of the code list {list_name}") from None
+    if not found.usable:
+        raise UnknownListCodeError(f"{what} is not in use in the code list {list_name}")
