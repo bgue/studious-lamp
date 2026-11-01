@@ -14,6 +14,7 @@ from fastapi import APIRouter
 
 PAGE_MODULES: tuple[str, ...] = (
     "tl_web.files",
+    "tl_web.log",
     "tl_web.actions",
     "tl_web.pages.rfis",
     "tl_web.pages.correspondence",

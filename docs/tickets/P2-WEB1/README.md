@@ -1,6 +1,6 @@
 # P2-WEB1 — Web client, increment 1: RFI, correspondence and document logs, record screen, full PDF preview
 
-Status: in-progress (round 1). Plan: `docs/build-spec/specs/web-client-i1.md` (the spec; wins over this file), placement in
+Status: in-progress (round 2). Plan: `docs/build-spec/specs/web-client-i1.md` (the spec; wins over this file), placement in
 `docs/build-spec/specs/phase2-wave-plan.md` §2. Owner decisions 3 and 7–9: `docs/build-spec/module-designs/OWNER-DECISIONS-2026-10-30.md`.
 Board and next steps: `STATE.md`. Trunk at start: `claude/wizardly-allen-m2v96s` @1b93a13 (P2-W0 merged, roles in `allowed_actions` and `run_command`).
 
@@ -25,7 +25,7 @@ the later side regenerates, never hand-merges.
 | Checkpoint | Meaning |
 |---|---|
 | C1 | S1 foundation, S2 runner, S3 server page 1 merged (sign-in works, shared runner, page-1 route) |
-| C2 | S4 merged (reads, log standard, actions, RFI log) |
+| C2 | S4 merged (reads, log standard, actions) and T15 merged (RFI log) |
 | C3 | T01–T05 merged; S5 tests piece merged and run |
 | C4 | T06–T08 merged, full gate, demo, security review of S1–S4 |
 
@@ -35,8 +35,9 @@ the later side regenerates, never hand-merges.
 | S1 foundation | `S1-foundation.md` | piece | 1 |
 | S2 shared runner, `action_ui` (web `actions.py` moved to S4, D3) | `S2-run-command-action-ui.md` | piece | 1 |
 | T6 vendored licence check | `T06-vendored-licence-check.md` | ticket, lite | 1 |
-| S3 server page 1 (tl-api route and the web file mirror routes) | `S3-*.md` | piece | 2 (after S1) |
-| S4 log standard, reads, actions, RFI log | `S4-*.md` | piece | 2 (after S1, S2) |
+| S3 server page 1 (tl-api route and the web file mirror routes) | `S3-server-page1.md` | piece | 2 (after S1) |
+| S4 log standard, reads, actions (RFI page is ticket T15, D9) | `S4-log-standard-reads-actions.md` | piece | 2 (after S1, S2) |
+| T15 RFI log page (recipe from S4) | `T15-*.md` | ticket, full | 3 (after S4) |
 | T1 correspondence log, T2 document log | `T01-*.md`, `T02-*.md` | tickets, full | 3 |
 | T3, T4 record screen; T5 PDF viewer | `T03-*.md`, `T04-*.md`, `T05-*.md` | tickets, full | 3–4 |
 | S5 tests (recasts all "Tests added", D2) | `S5-*.md` | piece | C3 |
