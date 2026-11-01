@@ -9,6 +9,7 @@ dependencies = [
   "tl-schema",
   "tl-adapters",
   "tl-mod-documents",
+  "tl-mod-legacy",
 ]
 
 # Entry points (modules, load targets, loaders, publish targets, readiness checks) are added by the

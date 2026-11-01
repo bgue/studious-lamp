@@ -3045,6 +3045,7 @@ dependencies = [
     { name = "tl-adapters" },
     { name = "tl-core" },
     { name = "tl-mod-documents" },
+    { name = "tl-mod-legacy" },
     { name = "tl-schema" },
 ]
 
@@ -3055,6 +3056,7 @@ requires-dist = [
     { name = "tl-adapters", editable = "packages/tl-adapters" },
     { name = "tl-core", editable = "packages/tl-core" },
     { name = "tl-mod-documents", editable = "packages/tl-modules/documents" },
+    { name = "tl-mod-legacy", editable = "packages/tl-modules/legacy" },
     { name = "tl-schema", editable = "packages/tl-schema" },
 ]
 
