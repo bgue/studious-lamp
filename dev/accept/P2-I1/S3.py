@@ -23,11 +23,13 @@ from tl_core.auth.errors import ForbiddenError
 from tl_core.auth.module_grants import GrantModuleRole, grant_module_role
 from tl_core.auth.module_roles import require_command_access
 from tl_core.auth.password import prepare_password
+from tl_core.schema_provider import DirectorySchemaProvider, use_provider
 from tl_core.services.commands import Command
 from tl_core.services.errors import RecordNotFoundError, UnsupportedRecordTypeError
 from tl_core.services.links import RetractLink, handle_retract_link
 from tl_core.util import new_ulid
 from tl_mod_awp.commands import AWP_COMMANDS
+from tl_mod_awp.common import record_key
 from tl_mod_awp.errors import (
     AllocationError,
     StaleVersionError,
@@ -37,8 +39,12 @@ from tl_mod_correspondence.handlers.create import create_item
 from tl_mod_correspondence.handlers.models import Recipient
 from tl_mod_correspondence.testing import frozen_today
 from tl_mod_cost.testing import CostWorld, row
+from tl_mod_engineering.document import load_standards_file
+from tl_mod_engineering.loader import load_standards
 
 SCOPE = "project:P123"
+ROOT = Path(__file__).resolve().parents[3]
+STANDARDS = ROOT / "schema" / "fixtures" / "standards"
 PASSWORD = "correct horse battery"
 SPEC = {c.model.__name__: c for c in AWP_COMMANDS}
 
@@ -112,12 +118,23 @@ class World:
         with open_uow(self.db, readonly=True) as uow:
             return [dict(r) for r in uow.conn().execute(text(sql), params).mappings()]
 
-    def id_of(self, code: str) -> str:
+    def id_of(self, code: str, kind: str = "awp.WBSNode") -> str:
+        """The id of the record of ``kind`` with the typed ``code`` (awp keys are namespaced)."""
         return str(self.scalar("SELECT id FROM cur_core_record WHERE scope = :s AND key = :k",
-                               s=SCOPE, k=code))  # fmt: skip
+                               s=SCOPE, k=record_key(kind, code)))  # fmt: skip
+
+
+def load_editions(w: World) -> None:
+    """The standards editions the path reasons come from (``PathReason`` of co.acme.awp)."""
+    with use_provider(DirectorySchemaProvider(ROOT / "schema" / "fixtures")):
+        for name in ("co.acme.standards@1.0.0.yaml", "co.acme.awp@1.0.0.yaml"):
+            doc = load_standards_file(STANDARDS / name)
+            with open_uow(w.db) as uow:
+                load_standards(uow, doc, actor="user:seed", source="accept")
 
 
 def seed(w: World) -> None:
+    load_editions(w)
     w.person("ada", ("admin",))
     w.person("vera", ("user",))  # viewer by an explicit grant
     w.person("uma", ("user",))  # the derived role: user
@@ -278,7 +295,10 @@ def links(w: World) -> None:
         allocations=[{"cost_code": "4210-PIP-WLD", "percent": "100"}],
     )
     now = w.rows("SELECT to_id FROM cur_links WHERE from_id = :n AND status <> 'retracted'", n=leaf)
-    need([r["to_id"] for r in now] == [w.id_of("4210-PIP-WLD")], f"links after remap: {now}")
+    need(
+        [r["to_id"] for r in now] == [w.id_of("4210-PIP-WLD", "cost.CostCode")],
+        f"links after remap: {now}",
+    )
     passed("links kept in step when the allocation changes")
 
 

@@ -20,16 +20,17 @@ from tl_core import confidentiality
 from tl_core.ledger import NewEvent
 from tl_core.services.commands import CommandResult
 from tl_core.services.errors import NoChangesError
-from tl_core.services.links import AddLink, RetractLink, handle_add_link, handle_retract_link
-from tl_core.services.records import create_module_record
 from tl_core.uow import UnitOfWork
 
 from tl_mod_awp import rollup
 from tl_mod_awp.common import (
+    MSG_DUPLICATE,
     append,
     check_allocations,
     correlated,
+    create_coded_record,
     cwp_allocates_to,
+    key_taken,
     load_record,
     percent_text,
     require_project,
@@ -45,10 +46,10 @@ from tl_mod_awp.errors import (
     WbsRuleError,
 )
 from tl_mod_awp.limits import MAX_WBS_DEPTH, MAX_WBS_NODES
+from tl_mod_awp.linking import sync_links
 from tl_mod_awp.names import (
     COST_CODE,
     COST_RELATION,
-    RULE_LINK_SOURCE,
     WBS_ALLOCATION_TABLE,
     WBS_COST_CODES_MAPPED,
     WBS_DEFINED,
@@ -69,7 +70,6 @@ if TYPE_CHECKING:
 MSG_DEPTH = "a WBS holds at most 8 levels"
 MSG_COUNT = "a project holds at most 5000 WBS nodes"
 MSG_POSITION = "the position is beyond the last sibling"
-MSG_DUPLICATE = "the code is already used by a record in the project"
 MSG_NO_PARENT = "no WBS node with that parent code in the project"
 MSG_HAS_ALLOCATION = "a node with a cost code or package allocation cannot take a child"
 MSG_CYCLE = "a node cannot move under itself or one of its descendants"
@@ -83,12 +83,7 @@ _NODES_SQL = text(
     "SELECT t.id, t.code, r.title, t.parent_id, t.depth, t.position, t.retired "
     f"FROM {WBS_NODE_TABLE} t JOIN cur_core_record r ON r.id = t.id WHERE t.scope = :scope"
 )
-_KEY_TAKEN_SQL = text("SELECT 1 FROM cur_core_record WHERE scope = :scope AND key = :key")
 _LINES_SQL = text(f"SELECT cost_code_id FROM {WBS_ALLOCATION_TABLE} WHERE node_id = :node")
-_LIVE_LINK_SQL = text(
-    "SELECT link_id FROM cur_links WHERE from_id = :node AND to_id = :cost_code "
-    "AND relation = :relation AND source = :source AND status <> 'retracted'"
-)
 
 
 @dataclass(frozen=True)
@@ -153,8 +148,9 @@ def load_tree(conn: Connection, scope: str) -> Tree:
 
 
 def _require_free_code(conn: Connection, scope: str, code: str) -> None:
-    """Keys are unique in a project across record types, so a cost code or an area may hold it."""
-    if conn.execute(_KEY_TAKEN_SQL, {"scope": scope, "key": code}).first() is not None:
+    """The code is free among the project's WBS nodes. The key is ``awp.wbs@<code>``, so a cost
+    code, an area or a record the viewer may not read never makes it look taken."""
+    if key_taken(conn, scope, WBS_NODE, code):
         raise DuplicateCodeError(MSG_DUPLICATE)
 
 
@@ -212,12 +208,12 @@ def handle_define_wbs_node(uow: UnitOfWork, cmd: DefineWbsNode) -> CommandResult
     position = len(siblings) + 1 if cmd.position is None else cmd.position
     if position > len(siblings) + 1:
         raise WbsRuleError(MSG_POSITION)
-    made = create_module_record(
+    made = create_coded_record(
         uow,
         cmd,
         record_type=WBS_NODE,
         title=cmd.title,
-        key=cmd.code,
+        code=cmd.code,
         extra_events=[
             NewEvent(
                 event_type=WBS_DEFINED,
@@ -353,26 +349,15 @@ def handle_retire_wbs_node(uow: UnitOfWork, cmd: RetireWbsNode) -> CommandResult
     )
 
 
-def _live_link(conn: Connection, node_id: str, cost_code_id: str) -> str | None:
-    found = conn.execute(
-        _LIVE_LINK_SQL,
-        {
-            "node": node_id,
-            "cost_code": cost_code_id,
-            "relation": COST_RELATION,
-            "source": RULE_LINK_SOURCE,
-        },
-    ).scalar_one_or_none()
-    return None if found is None else str(found)
-
-
 def handle_map_wbs_to_cost_codes(uow: UnitOfWork, cmd: MapWbsToCostCodes) -> CommandResult:
     """Replace the cost code allocation of a leaf node and keep its ``references`` links in step.
 
-    The lines are 1 to 20, a cost code once each, each percent from 0.01 to 100.00, the sum exactly
-    100.00, and every cost code exists in the project. A retired node and a node with children take
-    none. Events: ``WBSNode.CostCodesMapped``, then ``Link.Retracted`` for each cost code that left
-    and ``Link.Added`` for each that came in. Raises ``RecordNotFoundError``, ``RetiredError``,
+    The lines are 0 to 20 (none clears the allocation), a cost code once each, each percent from
+    0.01 to 100.00, the sum exactly 100.00 when there are lines, and every cost code exists in the
+    project. A retired node and a node with children take none. Events:
+    ``WBSNode.CostCodesMapped``, then ``Link.Retracted`` for each link of a cost code that is no
+    longer allocated and ``Link.Added`` for each allocated cost code that has no live link (a link
+    that went missing is added again here). Raises ``RecordNotFoundError``, ``RetiredError``,
     ``WbsRuleError``, ``AllocationError``.
     """
     require_project(cmd)
@@ -385,15 +370,15 @@ def handle_map_wbs_to_cost_codes(uow: UnitOfWork, cmd: MapWbsToCostCodes) -> Com
         raise RetiredError(MSG_RETIRED)
     if tree.children(node.id):
         raise WbsRuleError(MSG_LEAF_ONLY)
-    lines = check_allocations([(line.cost_code, line.percent) for line in cmd.allocations])
+    lines = check_allocations(
+        [(line.cost_code, line.percent) for line in cmd.allocations], allow_empty=True
+    )
     allocations: list[dict[str, str]] = []
     for code, percent in sorted(lines, key=lambda line: line[0]):
         found = resolve_code(conn, cmd.scope, COST_CODE, code)
         if found is None:
             raise AllocationError(MSG_UNKNOWN_COST_CODE)
         allocations.append({"cost_code_id": found, "code": code, "percent": percent_text(percent)})
-    old = {str(r.cost_code_id) for r in conn.execute(_LINES_SQL, {"node": node.id})}
-    new = {a["cost_code_id"] for a in allocations}
     made = append(
         uow,
         cmd,
@@ -402,41 +387,15 @@ def handle_map_wbs_to_cost_codes(uow: UnitOfWork, cmd: MapWbsToCostCodes) -> Com
         [NewEvent(event_type=WBS_COST_CODES_MAPPED, payload=silent({"allocations": allocations}))],
     )
     events = list(made.events)
-    for cost_code_id in sorted(old - new):
-        link_id = _live_link(conn, node.id, cost_code_id)
-        if link_id is not None:
-            gone = handle_retract_link(
-                uow,
-                RetractLink(
-                    actor=cmd.actor,
-                    source=cmd.source,
-                    scope=cmd.scope,
-                    correlation_id=cmd.correlation_id,
-                    causation_id=cmd.causation_id,
-                    link_id=link_id,
-                    reason=RELINK_REASON,
-                ),
-                by_module=True,
-            )
-            events.extend(gone.events)
-    for cost_code_id in sorted(new - old):
-        if _live_link(conn, node.id, cost_code_id) is not None:
-            continue
-        added = handle_add_link(
+    events.extend(
+        sync_links(
             uow,
-            AddLink(
-                actor=cmd.actor,
-                source=cmd.source,
-                scope=cmd.scope,
-                correlation_id=cmd.correlation_id,
-                causation_id=cmd.causation_id,
-                from_id=node.id,
-                to_id=cost_code_id,
-                relation=COST_RELATION,
-                link_source=RULE_LINK_SOURCE,
-            ),
-            by_module=True,
+            cmd,
+            node.id,
+            COST_RELATION,
+            {a["cost_code_id"] for a in allocations},
+            RELINK_REASON,
         )
-        events.extend(added.events)
+    )
     rollup.request(uow, cmd.scope)
     return CommandResult(stream_id=node.id, key=node.code, version=made.new_version, events=events)

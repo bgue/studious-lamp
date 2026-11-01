@@ -10,19 +10,20 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import text
 from tl_core.ledger import NewEvent
 from tl_core.services.commands import CommandResult
 from tl_core.services.errors import NoChangesError
-from tl_core.services.records import create_module_record
 from tl_core.uow import UnitOfWork
 
 from tl_mod_awp import rollup
 from tl_mod_awp.common import (
+    MSG_DUPLICATE,
     append,
     correlated,
+    create_coded_record,
     cwp_names_cwa,
     get_cwa,
+    key_taken,
     load_record,
     require_project,
 )
@@ -32,31 +33,32 @@ from tl_mod_awp.names import CWA, CWA_DEFINED, CWA_RETIRED, CWA_REVISED
 if TYPE_CHECKING:
     from tl_mod_awp.commands import DefineCwa, RetireCwa, ReviseCwa
 
-MSG_DUPLICATE = "the code is already used by a record in the project"
 MSG_RETIRED = "the area is retired"
 MSG_IN_USE = "a package that is not void names the area"
 MSG_NOTHING = "the request changes nothing"
-_KEY_TAKEN_SQL = text("SELECT 1 FROM cur_core_record WHERE scope = :scope AND key = :key")
 
 
 def handle_define_cwa(uow: UnitOfWork, cmd: DefineCwa) -> CommandResult:
     """Create an area (``Record.Created``, ``CWA.Defined``). Raises ``DuplicateCodeError``."""
     require_project(cmd)
     cmd = correlated(cmd)
-    if uow.conn().execute(_KEY_TAKEN_SQL, {"scope": cmd.scope, "key": cmd.code}).first():
+    if key_taken(uow.conn(), cmd.scope, CWA, cmd.code):
         raise DuplicateCodeError(MSG_DUPLICATE)
-    return create_module_record(
+    made = create_coded_record(
         uow,
         cmd,
         record_type=CWA,
         title=cmd.title,
-        key=cmd.code,
+        code=cmd.code,
         extra_events=[
             NewEvent(
                 event_type=CWA_DEFINED,
                 payload={"code": cmd.code, "location_text": cmd.location_text},
             )
         ],
+    )
+    return CommandResult(
+        stream_id=made.stream_id, key=cmd.code, version=made.version, events=made.events
     )
 
 

@@ -19,7 +19,14 @@ from tl_core.services.errors import NoChangesError
 from tl_core.services.records import create_module_record
 from tl_core.uow import UnitOfWork
 
-from tl_mod_awp.common import append, correlated, require_code, require_project, silent
+from tl_mod_awp.common import (
+    append,
+    correlated,
+    require_code,
+    require_list_code,
+    require_project,
+    silent,
+)
 from tl_mod_awp.errors import PathRuleError, RetiredError, StaleVersionError
 from tl_mod_awp.names import (
     CWA,
@@ -44,6 +51,8 @@ MSG_POSITION = "the position is outside the path"
 MSG_STALE = "the path changed since it was read; read it again"
 MSG_SAME = "the area is already at that position"
 TITLE = "Path of construction"
+REASON_LIST = "PathReason"  # code list of the standards edition co.acme.awp@1.0.0
+REASON_WHAT = "the reason code"
 
 _PATH_SQL = text(f"SELECT id, current_version FROM {PATH_TABLE} WHERE scope = :scope")
 _STEPS_SQL = text(
@@ -64,7 +73,7 @@ def handle_define_path_of_construction(
     """Create the project's path (``Record.Created``, ``PathOfConstruction.Defined``, version 1).
 
     Raises ``PathRuleError`` (a path exists, an area twice), ``CodeNotFoundError`` (an unknown
-    area), ``RetiredError``.
+    area), ``UnknownListCodeError`` (a reason code not in ``PathReason``), ``RetiredError``.
     """
     require_project(cmd)
     cmd = correlated(cmd)
@@ -75,6 +84,8 @@ def handle_define_path_of_construction(
     steps: list[dict[str, Any]] = []
     for step in cmd.steps:
         cwa_id = require_code(conn, cmd.scope, CWA, step.cwa_code, "area")
+        if step.reason_code is not None:
+            require_list_code(conn, cmd.scope, REASON_LIST, step.reason_code, REASON_WHAT)
         if cwa_id in seen:
             raise PathRuleError(MSG_TWICE)
         seen.add(cwa_id)
@@ -111,6 +122,7 @@ def handle_move_cwa_in_path(uow: UnitOfWork, cmd: MoveCwaInPath) -> CommandResul
     if cmd.expected_version != version:
         raise StaleVersionError(MSG_STALE)
     cwa_id = require_code(conn, cmd.scope, CWA, cmd.cwa_code, "area")
+    require_list_code(conn, cmd.scope, REASON_LIST, cmd.reason_code, REASON_WHAT)
     rows = conn.execute(_STEPS_SQL, {"path": str(path.id), "version": version}).all()
     order = [(str(r.cwa_id), str(r.code)) for r in rows]
     at = next((i for i, (cid, _) in enumerate(order) if cid == cwa_id), None)
