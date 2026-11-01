@@ -43,6 +43,8 @@ may explore: (none)
 
 ## Acceptance
 ```
+uv sync --all-packages
+export NODE_OPTIONS=--max-old-space-size=6144
 uv run python dev/accept/P2-I3/T01a.py
 just check
 ```
@@ -61,4 +63,7 @@ Standard report (`docs/templates/haiku-report.md`), <= 60 lines. Deviations firs
 (implementer writes here)
 
 ## Decision
-(supervisor or orchestrator writes here)
+Round 2 (data done at 7ac62fc; blocked on the workspace). Q1: option (a). The package skeleton `pyproject.toml` is on `p2/i3`
+at 2aef8fb; merge `p2/i3` into this branch first (no conflicts expected). Q2: `4471-4` accepted. Q3: depth 4 stands.
+Remaining work: after the merge run `uv sync --all-packages`, then the Acceptance commands below with
+`NODE_OPTIONS=--max-old-space-size=6144` exported (pyright), set the report Status to done, add the output. No data change.
