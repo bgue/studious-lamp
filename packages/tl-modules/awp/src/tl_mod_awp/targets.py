@@ -3,10 +3,10 @@
 Two targets are found by the entry-point group ``throughline.load_targets``; each entry point names
 a zero-argument callable that returns a ``tl_mod_legacy.targets.Target`` with scope ``project``:
 
-* ``awp.wbs`` creates nodes (``code``, ``title``, ``parent``, optional ``cost_codes`` as
+* ``awp_wbs`` creates nodes (``code``, ``title``, ``parent``, optional ``cost_codes`` as
   ``CODE:PCT;CODE:PCT``) parents first, and plans a row invalid with a fixed reason when its parent
   is unknown, its depth is over 8 or its percentages do not sum to 100;
-* ``awp.cwa`` creates areas (``code``, ``title``) and, with a ``sequence`` column, the version-1
+* ``awp_cwa`` creates areas (``code``, ``title``) and, with a ``sequence`` column, the version-1
   path of construction.
 
 Both are create-only: a code the project holds (read through ``common.resolve_code``, so a record
@@ -218,7 +218,7 @@ def _retired(conn: Connection, cwa_id: str) -> bool:
 
 
 class WbsTarget:
-    kind = "awp.wbs"
+    kind = "awp_wbs"
     module = "awp"
     scope: TargetScope = "project"
 
@@ -471,7 +471,7 @@ class WbsTarget:
 
 
 class CwaTarget:
-    kind = "awp.cwa"
+    kind = "awp_cwa"
     module = "awp"
     scope: TargetScope = "project"
 
@@ -646,10 +646,10 @@ class CwaTarget:
 
 
 def wbs_target() -> Target:
-    """The ``awp.wbs`` load target."""
+    """The ``awp_wbs`` load target."""
     return WbsTarget()
 
 
 def cwa_target() -> Target:
-    """The ``awp.cwa`` load target."""
+    """The ``awp_cwa`` load target."""
     return CwaTarget()

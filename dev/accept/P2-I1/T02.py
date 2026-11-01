@@ -1,4 +1,4 @@
-"""Acceptance for P2-I1-T02: load targets awp.wbs and awp.cwa (SQLite).
+"""Acceptance for P2-I1-T02: load targets awp_wbs and awp_cwa (SQLite).
 
 Run: ``uv run python dev/accept/P2-I1/T02.py``. The targets are driven through their methods.
 """
