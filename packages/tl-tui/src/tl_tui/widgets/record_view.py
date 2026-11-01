@@ -20,14 +20,26 @@ from tl_core.settings.layers import project_of_scope
 from tl_mod_schemareg.handlers.adoption import AdoptSchemaSet
 
 from tl_tui.client import ClientInterface
-from tl_tui.details import DetailRow, details_for, rows_page
-from tl_tui.display import Labels, actor_label, humanize, mode_of
+from tl_tui.details import details_for, rows_page
+from tl_tui.display import Labels, mode_of
 from tl_tui.errors import CLIENT_ERRORS, describe_error
 from tl_tui.labels_load import forget_labels, load_labels
-from tl_tui.layout import plain_lines, render, state_style
+from tl_tui.layout import render, state_style
 from tl_tui.messages import CloseRecord, RecordChanged, StatusMessage, StepRecord
 from tl_tui.reads import Reads
-from tl_tui.text import EMPTY, conformance_mark, timestamp
+from tl_tui.record_text import (  # noqa: F401 - the moved names stay importable from here
+    _EVENT_WORDS,
+    _or_empty,
+    _plain_keys,
+    _sorted_keys,
+    badges_text,
+    details_lines,
+    event_label,
+    event_summary,
+    header_parts,
+    history_cells,
+    history_columns,
+)
 from tl_tui.widgets.file_panel import FilePanel
 from tl_tui.widgets.links_tab import LinksTab
 from tl_tui.widgets.psets_tab import PsetsTab
@@ -43,78 +55,6 @@ TABS: dict[str, str] = {
     "thread": "tab-thread",  # P1-I7 WS-B
     "files": "tab-files",  # P1-UX2-S4: only while the record has files
 }
-
-
-def _or_empty(value: Any) -> str:
-    return EMPTY if value is None or value == "" else str(value)
-
-
-def _sorted_keys(value: Any) -> str:
-    return ", ".join(sorted(str(k) for k in value)) if isinstance(value, dict) else ""
-
-
-def details_lines(rows: list[DetailRow]) -> str:
-    """The Details rows as text: named sections, each a heading and its lines, one blank line
-    between them; a property line is ``Label  value`` with the values of a section lined up after
-    its longest label (``tl_tui.layout``). The rows are already filtered for the display mode."""
-    return "\n".join(plain_lines(rows_page(rows, technical=True), identity=False))
-
-
-_EVENT_WORDS: dict[str, str] = {
-    "Record.Created": "Created",
-    "Record.Updated": "Changed",
-    "Record.Corrected": "Corrected",
-    "Record.Voided": "Voided",
-    "Pset.ValuesSet": "Properties set",
-}
-
-
-def event_label(event_type: str) -> str:
-    """The History "What" column in plain mode: a word for each known event type."""
-    return _EVENT_WORDS.get(event_type) or humanize(event_type)
-
-
-def _plain_keys(value: Any) -> str:
-    """The sorted keys of a dict as words (``size_in`` becomes ``Size in``), joined by commas."""
-    if not isinstance(value, dict):
-        return ""
-    return ", ".join(humanize(str(k)) for k in sorted(str(k) for k in value))
-
-
-def event_summary(event: Event, labels: Labels | None = None, *, technical: bool = True) -> str:
-    """One line for the History table, by event type. Other event types have no summary.
-
-    ``technical=True`` (the default, and what the tests pin) is the raw text; plain mode uses
-    words for the property names and the pset, and no layer.
-    """
-    payload = event.payload
-    kind = event.event_type
-    if not technical:
-        if kind == "Record.Created":
-            return f"created: {payload.get('title') or ''}"
-        if kind == "Record.Updated":
-            return f"changed: {_plain_keys(payload.get('changes'))}"
-        if kind == "Record.Corrected":
-            return f"corrected: {_plain_keys(payload.get('changes'))}"
-        if kind == "Record.Voided":
-            return f"voided: {payload.get('reason') or ''}"
-        if kind == "Pset.ValuesSet":
-            pset = humanize(str(payload.get("pset") or ""))
-            return f"{pset}: {_plain_keys(payload.get('values'))}"
-        return ""
-    if kind == "Record.Created":
-        return f"created: {payload.get('title') or ''}"
-    if kind == "Record.Updated":
-        return f"changed: {_sorted_keys(payload.get('changes'))}"
-    if kind == "Record.Corrected":
-        return f"corrected: {_sorted_keys(payload.get('changes'))}"
-    if kind == "Record.Voided":
-        return f"voided: {payload.get('reason') or ''}"
-    if kind == "Pset.ValuesSet":
-        pset = payload.get("pset") or ""
-        layer = payload.get("layer") or ""
-        return f"{pset} ({layer}): {_sorted_keys(payload.get('values'))}"
-    return ""
 
 
 class RecordView(Vertical, can_focus=True):
@@ -260,7 +200,7 @@ class RecordView(Vertical, can_focus=True):
             mode_of(self.app),
         )
         page = rows_page(rows, technical=True)  # the rows are already filtered for the mode
-        self.details = "\n".join(plain_lines(page, identity=False))
+        self.details = details_lines(rows)
         body.update(render(page, identity=False))
 
     def _current_labels(self) -> Labels:
@@ -284,45 +224,30 @@ class RecordView(Vertical, can_focus=True):
         """
         if record is None:
             return ""
-        parts: list[str] = []
+        entered: str | None = None
         try:
             entered = (client or self.client).workflow_status(record["id"]).entered_at
-            parts.append(f"since {timestamp(entered)}")
         except (*CLIENT_ERRORS, NotImplementedError):
             pass
         try:
             counts = self.client.link_counts([record["id"]]).get(record["id"])
         except (*CLIENT_ERRORS, NotImplementedError):
             counts = None
-        if counts is not None:
-            if counts.active:
-                parts.append(f"{counts.active} link{'' if counts.active == 1 else 's'}")
-            for label, number in (
-                ("stale", counts.stale),
-                ("broken", counts.broken),
-                ("suggested", counts.suggested),
-            ):
-                if number:
-                    parts.append(f"{number} {label}")
-        return " · ".join(parts)
+        return badges_text(entered, counts)
 
     def _draw_header(self, record: dict[str, Any] | None, badges: str = "") -> None:
         header = self.query_one("#rv-header", Static)
         if record is None:
             header.update(f"{self.key} · not found")
             return
-        technical = mode_of(self.app).technical
-        version = f" · v{record['version']}" if technical else ""  # D20: the version is technical
-        status = _or_empty(record.get("status"))
-        mark = conformance_mark(record.get("conformance"))
-        text = Text(f"{record['key']} · {record['title']}\n")
+        parts = header_parts(record, badges, technical=mode_of(self.app).technical)
+        text = Text(f"{parts.identity}\n")
         text.append(
-            status, style=state_style(status) or None
+            parts.status, style=state_style(parts.status) or None
         )  # the state colour (skill tui-layout)
-        text.append(f"{version} · ")
-        text.append(mark, style=state_style(mark) or None)
-        rest = (" · voided" if record.get("voided") else "") + (f" · {badges}" if badges else "")
-        text.append(rest)
+        text.append(f"{parts.version} · ")
+        text.append(parts.mark, style=state_style(parts.mark) or None)
+        text.append(parts.rest)
         header.update(text)
 
     def _draw_history(self, events: list[Event]) -> None:
@@ -331,29 +256,10 @@ class RecordView(Vertical, can_focus=True):
         technical = mode_of(self.app).technical
         labels = self._current_labels()
         table.clear(columns=True)
-        if technical:
-            table.add_columns("#", "When", "Event", "Actor", "Summary")
-        else:
-            table.add_columns("When", "What", "By", "Summary")
+        table.add_columns(*history_columns(technical))
         for event in reversed(events):
-            when = Text(event.recorded_at.strftime("%Y-%m-%d %H:%M:%S"))
-            if technical:
-                table.add_row(
-                    Text(str(event.stream_version)),
-                    when,
-                    Text(event.event_type),
-                    Text(event.actor),
-                    Text(event_summary(event)),
-                    key=event.event_id,
-                )
-            else:
-                table.add_row(
-                    when,
-                    Text(event_label(event.event_type)),
-                    Text(actor_label(labels, event.actor)),
-                    Text(event_summary(event, labels, technical=False)),
-                    key=event.event_id,
-                )
+            cells = history_cells(event, labels, technical=technical)
+            table.add_row(*(Text(cell) for cell in cells), key=event.event_id)
 
     def note_remote_update(self, actor: str, version: int, when: datetime | None = None) -> None:
         """Show "! Updated by <actor> (now v<n>)" under the header (someone else changed it).
