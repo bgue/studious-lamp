@@ -9,13 +9,23 @@ as drafts and posted on sync (``offline_drafts``).
 
 from __future__ import annotations
 
-from tl_core.modules import ModuleSpec
+from tl_core.modules import ModuleSpec, ProposableCommand
 from tl_core.projection.types import Projector
 
 from tl_mod_materials import MODULE
-from tl_mod_materials.commands import DRAFT_COMMAND_WORDS, MATERIALS_COMMANDS
+from tl_mod_materials.actions import (
+    item_actions,
+    location_actions,
+    lot_actions,
+    mto_line_actions,
+    receipt_actions,
+)
+from tl_mod_materials.commands import MATERIALS_COMMANDS
 from tl_mod_materials.guards import receipt_upload_guard
+from tl_mod_materials.handlers.movements import ReserveStock, handle_reserve_stock
 from tl_mod_materials.names import (
+    ITEM_MASTER,
+    LOCATION,
     MTO,
     MTO_LINE,
     PO_LINE,
@@ -45,6 +55,9 @@ LINK_ONLY = frozenset({"AddLink", "SuggestLink"}) | LINK_LIFE
 RECEIPT_GENERIC = frozenset({"SetPsetValues", "AddLink", "SuggestLink", "AttachFile"}) | LINK_LIFE
 #: Drafts a remote crew captures offline for a stock lot (offline-classes spec, section 4).
 STOCK_LOT_DRAFTS = frozenset({"IssueStock", "TransferStock", "ReturnStock"})
+#: What an agent may propose (ADR-0015). Accepting runs the command as the accepting person, who
+#: needs ``materials.reserve`` (a ``user`` word of the role table).
+PROPOSABLE = (ProposableCommand("propose_reservation", ReserveStock, handle_reserve_stock, "user"),)
 
 
 def projectors() -> list[Projector]:
@@ -77,11 +90,17 @@ def spec() -> ModuleSpec:
             PO_LINE: LINK_ONLY,
         },
         generic_guards={(RECEIPT, "AttachFile"): receipt_upload_guard},
-        # command name -> access word, from the module's own table (ADR-0021)
-        command_words={
-            **DRAFT_COMMAND_WORDS,
-            **{c.model.__name__: c.access for c in MATERIALS_COMMANDS},
+        # which of the module's commands a viewer may run on a record now (P1-UX2); actions.py
+        actions={
+            RECEIPT: receipt_actions,
+            STOCK_LOT: lot_actions,
+            MTO_LINE: mto_line_actions,
+            ITEM_MASTER: item_actions,
+            LOCATION: location_actions,
         },
+        proposable=PROPOSABLE,
+        # command name -> access word, from the module's own table (ADR-0021)
+        command_words={c.model.__name__: c.access for c in MATERIALS_COMMANDS},
         company_roles=True,
         offline_drafts={STOCK_LOT: STOCK_LOT_DRAFTS},
     )

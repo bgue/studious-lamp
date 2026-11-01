@@ -5,8 +5,8 @@ default is the lowest clearance; the class filter is part of the statement, so a
 uses up a place of the ``LIMIT``. A hidden record answers as one that never existed. Nothing here
 writes and nothing checks an access word (the entry points need ``materials.view``).
 
-S3 adds ``receipts``, ``receipt_detail``, ``mto_lines``, ``reservations_for_iwp`` and
-``mto_lines_for``.
+S3 added ``receipts``, ``receipt_detail``, ``mto_lines``, ``reservations_for_iwp`` and
+``mto_lines_for`` (the figures of a take-off line are ``Decimal``, shortages computed in Python).
 """
 
 from __future__ import annotations
@@ -14,14 +14,16 @@ from __future__ import annotations
 from collections.abc import Sequence
 from datetime import date, timedelta
 from decimal import Decimal
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel
 from sqlalchemy import Connection, bindparam, text
 from tl_core.confidentiality import Viewer, not_hidden
+from tl_core.settings.layers import project_of_scope
+from tl_core.settings.resolver import value_of
 
-from tl_mod_materials.common import dec
-from tl_mod_materials.errors import LotNotFoundError
+from tl_mod_materials.common import ZERO, dec
+from tl_mod_materials.errors import LotNotFoundError, ReceiptNotFoundError
 from tl_mod_materials.limits import MAX_VIEW_ROWS
 from tl_mod_materials.names import (
     COMPANY,
@@ -30,8 +32,11 @@ from tl_mod_materials.names import (
     LOT_TABLE,
     MOVEMENT_KINDS,
     MOVEMENT_TABLE,
+    MTO_LINE_TABLE,
     PO_LINE_TABLE,
     PROJECT_ITEM_TABLE,
+    RECEIPT_LINE_TABLE,
+    RECEIPT_TABLE,
     RESERVATION_TABLE,
     STOCK_TABLE,
 )
@@ -520,3 +525,365 @@ def lot_detail(
         ],
         movements=[_movement_row(r) for r in last],
     )
+
+
+# --- receipts ------------------------------------------------------------------------------------
+
+MTR_SLOT = "mtr"
+MTR_SETTING = "materials.receipt.mtr_required_categories"
+#: ``present``: an available MTR file; ``missing``: none, and a line is of a category that needs
+#: one; ``n/a``: none, and none is needed.
+MtrState = Literal["present", "missing", "n/a"]
+
+
+class ReceiptView(BaseModel):
+    id: str
+    number: str
+    title: str
+    state: str  # Received, Inspected, Accepted, Rejected or Void
+    received_on: str
+    location: str  # the location code
+    supplier_text: str
+    delivery_ref: str | None
+    po_line: str | None  # the PO line key
+    lines: int
+    mtr: MtrState
+    mtr_required: bool
+
+
+class ReceiptLineView(BaseModel):
+    line_no: int
+    item_code: str
+    item_title: str
+    qty: Decimal
+    uom: str
+    heat_no: str | None
+    condition: str
+    serials_text: str | None
+    lot: str | None  # the lot key, set when the receipt is accepted
+
+
+class ReceiptFileView(BaseModel):
+    file_id: str
+    slot: str | None
+    filename: str
+    status: str
+    uploaded_at: str
+
+
+class ReceiptDetailView(ReceiptView):
+    created_at: str
+    inspected_by: str | None
+    inspected_on: str | None
+    decided_by: str | None
+    decided_on: str | None
+    rejection_reason: str | None
+    line_rows: list[ReceiptLineView]
+    files: list[ReceiptFileView]
+
+
+_MTR_FILES = (
+    "SELECT COUNT(*) FROM cur_files f WHERE f.record_id = t.id AND f.slot = :mtr_slot "
+    "AND f.status = 'available' AND f.superseded_by IS NULL"
+)
+_RECEIPT_SELECT = (
+    "SELECT t.id, r.key, r.title, r.status, r.voided, r.created_at, t.received_on, "
+    "t.supplier_text, t.delivery_ref, t.inspected_by, t.inspected_on, t.decided_by, "
+    "t.decided_on, t.rejection_reason, loc.code AS location, po.key AS po_line, "
+    f"(SELECT COUNT(*) FROM {RECEIPT_LINE_TABLE} x WHERE x.receipt_id = t.id) AS line_count, "
+    f"({_MTR_FILES}) AS mtr_files "
+    f"FROM {RECEIPT_TABLE} t JOIN cur_core_record r ON r.id = t.id "
+    f"JOIN {LOCATION_TABLE} loc ON loc.id = t.location_id "
+    "LEFT JOIN cur_core_record po ON po.id = t.po_line_id "
+)
+_CATEGORIES_OF = text(
+    "SELECT x.receipt_id, p.category "
+    f"FROM {RECEIPT_LINE_TABLE} x JOIN {PROJECT_ITEM_TABLE} p ON p.id = x.project_item_id "
+    "WHERE x.receipt_id IN :ids"
+).bindparams(bindparam("ids", expanding=True))
+
+
+def _mtr_categories(conn: Connection, scope: str) -> set[str]:
+    listed = value_of(conn, MTR_SETTING, project=project_of_scope(scope))
+    return {str(c) for c in listed} if isinstance(listed, list) else set()
+
+
+def _receipt_state(r: Any) -> str:
+    if bool(r.voided):
+        return "Void"
+    return "Received" if r.status is None else str(r.status)
+
+
+def _receipt_views(conn: Connection, scope: str, rows: Sequence[Any]) -> list[ReceiptView]:
+    if not rows:
+        return []
+    required = _mtr_categories(conn, scope)
+    by_receipt: dict[str, set[str]] = {}
+    for found in conn.execute(_CATEGORIES_OF, {"ids": [str(r.id) for r in rows]}):
+        by_receipt.setdefault(str(found.receipt_id), set()).add(str(found.category))
+    views: list[ReceiptView] = []
+    for r in rows:
+        needs = bool(by_receipt.get(str(r.id), set()) & required)
+        present = int(r.mtr_files) > 0
+        views.append(
+            ReceiptView(
+                id=str(r.id),
+                number=str(r.key),
+                title=str(r.title),
+                state=_receipt_state(r),
+                received_on=str(r.received_on),
+                location=str(r.location),
+                supplier_text=str(r.supplier_text),
+                delivery_ref=r.delivery_ref,
+                po_line=r.po_line,
+                lines=int(r.line_count),
+                mtr="present" if present else ("missing" if needs else "n/a"),
+                mtr_required=needs,
+            )
+        )
+    return views
+
+
+def receipts(
+    conn: Connection,
+    scope: str,
+    *,
+    open_only: bool = False,
+    missing_mtr: bool = False,
+    viewer: Viewer | None = None,
+    limit: int = MAX_VIEW_ROWS,
+) -> list[ReceiptView]:
+    """The project's receipts by number. ``open_only`` keeps those not yet decided (Received or
+    Inspected); ``missing_mtr`` keeps those that still lack a required MTR."""
+    visible, params = _hide("t.id", viewer=viewer)
+    where = [f"t.scope = :scope AND {visible}"]
+    if open_only:
+        where.append(
+            "r.voided = :no AND (r.status IS NULL OR r.status IN ('Received', 'Inspected'))"
+        )
+    args: dict[str, Any] = {
+        **params,
+        "scope": scope,
+        "no": False,
+        "mtr_slot": MTR_SLOT,
+        "limit": _limit(limit),
+    }
+    if missing_mtr:
+        # in SQL, so the LIMIT counts only the receipts that qualify
+        required = sorted(_mtr_categories(conn, scope))
+        if not required:
+            return []
+        where.append(
+            f"({_MTR_FILES}) = 0 AND EXISTS (SELECT 1 "
+            f"FROM {RECEIPT_LINE_TABLE} x JOIN {PROJECT_ITEM_TABLE} p ON p.id = x.project_item_id "
+            "WHERE x.receipt_id = t.id AND p.category IN :cats)"
+        )
+        args["cats"] = required
+    sql = text(f"{_RECEIPT_SELECT}WHERE {' AND '.join(where)} ORDER BY r.key LIMIT :limit")
+    if missing_mtr:
+        sql = sql.bindparams(bindparam("cats", expanding=True))
+    return _receipt_views(conn, scope, conn.execute(sql, args).all())
+
+
+def receipt_detail(
+    conn: Connection, scope: str, number: str, *, viewer: Viewer | None = None
+) -> ReceiptDetailView:
+    """One receipt by number with its lines and files. ``ReceiptNotFoundError`` when there is no
+    such receipt, or the viewer may not read it."""
+    visible, params = _hide("t.id", viewer=viewer)
+    row = conn.execute(
+        text(f"{_RECEIPT_SELECT}WHERE t.scope = :scope AND r.key = :key AND {visible}"),
+        {**params, "scope": scope, "key": number, "mtr_slot": MTR_SLOT},
+    ).first()
+    if row is None:
+        raise ReceiptNotFoundError(f"no receipt {number!r} in {scope}")
+    head = _receipt_views(conn, scope, [row])[0]
+    lines = conn.execute(
+        text(
+            "SELECT x.line_no, ir.key AS item_code, ir.title AS item_title, x.qty, x.uom, "
+            "x.heat_no, x.condition, x.serials_text, lr.key AS lot "
+            f"FROM {RECEIPT_LINE_TABLE} x JOIN cur_core_record ir ON ir.id = x.project_item_id "
+            "LEFT JOIN cur_core_record lr ON lr.id = x.lot_id "
+            "WHERE x.receipt_id = :id ORDER BY x.line_no"
+        ),
+        {"id": head.id},
+    )
+    files = conn.execute(
+        text(
+            "SELECT file_id, slot, filename, status, uploaded_at FROM cur_files "
+            "WHERE record_id = :id ORDER BY COALESCE(slot, ''), revision, file_id"
+        ),
+        {"id": head.id},
+    )
+    return ReceiptDetailView(
+        **head.model_dump(),
+        created_at=str(row.created_at),
+        inspected_by=row.inspected_by,
+        inspected_on=row.inspected_on,
+        decided_by=row.decided_by,
+        decided_on=row.decided_on,
+        rejection_reason=row.rejection_reason,
+        line_rows=[
+            ReceiptLineView(
+                line_no=int(x.line_no),
+                item_code=str(x.item_code),
+                item_title=str(x.item_title),
+                qty=dec(x.qty),
+                uom=str(x.uom),
+                heat_no=x.heat_no,
+                condition=str(x.condition),
+                serials_text=x.serials_text,
+                lot=x.lot,
+            )
+            for x in lines
+        ],
+        files=[
+            ReceiptFileView(
+                file_id=str(f.file_id),
+                slot=f.slot,
+                filename=str(f.filename),
+                status=str(f.status),
+                uploaded_at=str(f.uploaded_at),
+            )
+            for f in files
+        ],
+    )
+
+
+# --- take-off lines and reservations -------------------------------------------------------------
+
+
+class MtoLineView(BaseModel):
+    id: str
+    key: str  # the line key, ``ISO-1234@A/MTO/001``
+    mto: str  # the take-off key
+    line_no: int
+    item_code: str
+    item_title: str
+    uom: str
+    required: Decimal
+    reserved: Decimal
+    issued: Decimal
+    short: Decimal  # required - reserved - issued, never below zero
+    work_package: str | None  # the work package number (the key of its record)
+    work_package_id: str | None
+    need_by: str | None  # the work package's planned start; None until the awp module provides it
+
+
+class ReservationRowView(BaseModel):
+    lot: str
+    location: str
+    mto_line: str
+    mto_line_id: str
+    qty: Decimal
+    item_code: str
+    iwp_id: str | None
+
+
+_LINE_SELECT = (
+    "SELECT l.id, lr.key, mr.key AS mto, l.line_no, ir.key AS item_code, ir.title AS item_title, "
+    "l.uom, l.qty, l.reserved_qty, l.issued_qty, l.work_package_id, wp.key AS work_package "
+    f"FROM {MTO_LINE_TABLE} l JOIN cur_core_record lr ON lr.id = l.id "
+    "JOIN cur_core_record mr ON mr.id = l.mto_id "
+    "JOIN cur_core_record ir ON ir.id = l.project_item_id "
+    "LEFT JOIN cur_core_record wp ON wp.id = l.work_package_id "
+)
+
+
+def _line_view(r: Any) -> MtoLineView:
+    required, reserved, issued = dec(r.qty), dec(r.reserved_qty), dec(r.issued_qty)
+    return MtoLineView(
+        id=str(r.id),
+        key=str(r.key),
+        mto=str(r.mto),
+        line_no=int(r.line_no),
+        item_code=str(r.item_code),
+        item_title=str(r.item_title),
+        uom=str(r.uom),
+        required=required,
+        reserved=reserved,
+        issued=issued,
+        short=max(ZERO, required - reserved - issued),
+        work_package=r.work_package,
+        work_package_id=None if r.work_package_id is None else str(r.work_package_id),
+        need_by=None,
+    )
+
+
+def mto_lines(
+    conn: Connection,
+    scope: str,
+    *,
+    work_package: str | None = None,
+    short_only: bool = False,
+    viewer: Viewer | None = None,
+    limit: int = MAX_VIEW_ROWS,
+) -> list[MtoLineView]:
+    """The project's take-off lines by key. ``work_package`` is a work package number;
+    ``short_only`` keeps the lines not covered by reservations and issues."""
+    visible, params = _hide("l.id", viewer=viewer)
+    where = [f"l.scope = :scope AND lr.voided = :no AND {visible}"]
+    if work_package is not None:
+        where.append("wp.key = :wp")
+        params["wp"] = work_package
+    rows = conn.execute(
+        text(f"{_LINE_SELECT}WHERE {' AND '.join(where)} ORDER BY lr.key"),
+        {**params, "scope": scope, "no": False},
+    )
+    found: list[MtoLineView] = []
+    for r in rows:
+        view = _line_view(r)
+        if short_only and view.short <= ZERO:
+            continue
+        found.append(view)
+        if len(found) >= _limit(limit):
+            break
+    return found
+
+
+def mto_lines_for(
+    conn: Connection, record_id: str, *, viewer: Viewer | None = None, limit: int = MAX_VIEW_ROWS
+) -> list[MtoLineView]:
+    """The take-off lines of a work package (a CWP or an IWP, by record id)."""
+    visible, params = _hide("l.id", viewer=viewer)
+    rows = conn.execute(
+        text(
+            f"{_LINE_SELECT}WHERE l.work_package_id = :wp AND lr.voided = :no AND {visible} "
+            "ORDER BY lr.key LIMIT :limit"
+        ),
+        {**params, "wp": record_id, "no": False, "limit": _limit(limit)},
+    )
+    return [_line_view(r) for r in rows]
+
+
+def reservations_for_iwp(
+    conn: Connection, iwp_id: str, *, viewer: Viewer | None = None, limit: int = MAX_VIEW_ROWS
+) -> list[ReservationRowView]:
+    """What is reserved for the take-off lines of an IWP: lot, location, line and quantity."""
+    visible, params = _hide("x.lot_id", "x.mto_line_id", "x.location_id", viewer=viewer)
+    rows = conn.execute(
+        text(
+            "SELECT lr.key AS lot, loc.code AS location, mr.key AS mto_line, x.mto_line_id, x.qty, "
+            "ir.key AS item_code, l.work_package_id "
+            f"FROM {RESERVATION_TABLE} x JOIN {MTO_LINE_TABLE} l ON l.id = x.mto_line_id "
+            "JOIN cur_core_record lr ON lr.id = x.lot_id "
+            "JOIN cur_core_record mr ON mr.id = x.mto_line_id "
+            "JOIN cur_core_record ir ON ir.id = l.project_item_id "
+            f"JOIN {LOCATION_TABLE} loc ON loc.id = x.location_id "
+            f"WHERE l.work_package_id = :iwp AND {visible} "
+            "ORDER BY mr.key, lr.key, loc.code LIMIT :limit"
+        ),
+        {**params, "iwp": iwp_id, "limit": _limit(limit)},
+    )
+    return [
+        ReservationRowView(
+            lot=str(r.lot),
+            location=str(r.location),
+            mto_line=str(r.mto_line),
+            mto_line_id=str(r.mto_line_id),
+            qty=dec(r.qty),
+            item_code=str(r.item_code),
+            iwp_id=iwp_id,
+        )
+        for r in rows
+    ]

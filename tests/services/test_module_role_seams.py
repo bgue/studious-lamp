@@ -47,6 +47,7 @@ from tl_mod_cost.handlers.snapshots import ImportCostSnapshot as ImportCostSnaps
 from tl_mod_documents.commands import API_COMMANDS as DOCUMENTS
 from tl_mod_documents.derivation.publish import PublishDerivedDocuments
 from tl_mod_engineering.commands import API_COMMANDS as ENGINEERING
+from tl_mod_materials.commands import MATERIALS_COMMANDS as MATERIALS
 from tl_mod_schedule.commands import API_COMMANDS as SCHEDULE
 from tl_mod_schedule.handlers.publish import PublishScheduleSnapshot
 from tl_mod_schemareg.commands import API_COMMANDS as SCHEMAREG
@@ -60,6 +61,7 @@ API_COMMANDS_OF = {
     "cost": COST,
     "documents": DOCUMENTS,
     "engineering": ENGINEERING,
+    "materials": MATERIALS,
     "schedule": SCHEDULE,
     "schemareg": SCHEMAREG,
 }
