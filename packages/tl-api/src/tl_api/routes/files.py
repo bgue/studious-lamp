@@ -9,19 +9,24 @@ What belongs here is the HTTP side of the security rules:
   reflected as a renderable type (it stays in the JSON metadata).
 * A quarantined file is served to its uploader only: ``open_file`` is called with the token's
   actor, and its refusal becomes 403.
+* Page 1 of a PDF (``page1.png``) opens the file under the viewer first; only then does it look at
+  the size, the ``%PDF-`` header and the picture cache, and the bytes of a file the viewer may not
+  see never reach the renderer (P2-WEB1-S3).
 """
 
 from __future__ import annotations
 
 import re
 import tempfile
+import threading
 from collections.abc import Iterator
+from pathlib import Path
 from typing import Annotated, BinaryIO, cast
 from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, Query, Request
 from fastapi.concurrency import run_in_threadpool
-from fastapi.responses import StreamingResponse
+from fastapi.responses import JSONResponse, Response, StreamingResponse
 from tl_core.files.queries import FileInfo, get_file, list_files
 from tl_core.files.service import (
     AttachFile,
@@ -36,7 +41,8 @@ from tl_core.services.errors import FileTooLargeError
 from tl_api.auth import guard
 from tl_api.commands import request_model
 from tl_api.context import ApiContext, get_ctx
-from tl_api.errors import ApiError
+from tl_api.errors import ApiError, ErrorBody
+from tl_api.preview import cache, render
 
 router = APIRouter(tags=["files"])
 
@@ -215,3 +221,101 @@ def download_file(
         media_type="application/octet-stream",
         headers=download_headers(opened.info),
     )
+
+
+#: One text for every reason a page 1 cannot be drawn (not a PDF, too big, broken, timed out).
+NO_PREVIEW_TEXT = "there is no preview for this file"
+#: At most this many renders run at once in this process; a further request is told to retry.
+RENDER_SLOT_COUNT = 2
+#: Taken without waiting; a cache hit never takes one.
+RENDER_SLOTS = threading.BoundedSemaphore(RENDER_SLOT_COUNT)
+
+
+def _no_preview() -> ApiError:
+    return ApiError(404, "no_preview", NO_PREVIEW_TEXT)
+
+
+def _picture(path: Path) -> Response | None:
+    try:
+        data = path.read_bytes()
+    except OSError:
+        return None
+    return Response(
+        data,
+        media_type="image/png",
+        headers={
+            "Cache-Control": "private",
+            "X-Content-Type-Options": "nosniff",
+            "Content-Security-Policy": "default-src 'none'; sandbox",
+        },
+    )
+
+
+def _draw(opened_data: BinaryIO, head: bytes, sha256: str, root: Path) -> Response:
+    """Copy the (already opened, already checked) bytes to a private temp file and render."""
+    with tempfile.TemporaryDirectory(prefix="tl-page1-") as folder:
+        target = Path(folder) / "document.pdf"
+        with open(target, "wb") as out:
+            out.write(head)
+            left = render.MAX_BYTES - len(head) + 1  # one byte more than allowed shows an overrun
+            while left > 0 and (chunk := opened_data.read(min(CHUNK, left))):
+                out.write(chunk)
+                left -= len(chunk)
+        if left <= 0:
+            raise _no_preview()
+        done = render.render_first_page(target, sha256, root=root)
+    picture = _picture(done.png) if done.state == "ok" and done.png is not None else None
+    if picture is None:
+        raise _no_preview()
+    return picture
+
+
+@router.get(
+    "/files/{file_id}/page1.png",
+    operation_id="get_file_page1",
+    response_class=Response,
+    responses={
+        200: {"content": {"image/png": {"schema": {"type": "string", "format": "binary"}}}},
+        404: {"model": ErrorBody, "description": "Unknown, hidden or not renderable."},
+        503: {"model": ErrorBody, "description": "Too many renders at once; see `Retry-After`."},
+    },
+)
+def get_file_page1(
+    ctx: Ctx,
+    file_id: str,
+    scope: ScopeParam,
+    actor: Annotated[str, Depends(guard("file.read"))],
+) -> Response:
+    """Page 1 of a PDF file as a PNG.
+
+    The file is opened under the viewer first (hidden or unknown is the 404 of the download; a
+    quarantined file is its uploader's only). Then the size and ``%PDF-`` checks and the cache
+    lookup by content hash; a miss renders in a bounded child process, at most two at once.
+    """
+    service = _service(ctx)
+    with ctx.backend(True) as uow:
+        opened = service.open_file(uow, scope, file_id, actor=actor)
+    try:
+        info = opened.info
+        if info.size > render.MAX_BYTES:
+            raise _no_preview()
+        head = opened.data.read(len(render.HEADER))
+        if head != render.HEADER:
+            raise _no_preview()
+        root = cache.cache_dir()
+        hit = cache.lookup(root, info.sha256)
+        if hit is not None and (picture := _picture(hit)) is not None:
+            return picture
+        if not RENDER_SLOTS.acquire(blocking=False):
+            body = ErrorBody(error="preview_busy", message="too many previews are being drawn")
+            return JSONResponse(
+                body.model_dump(mode="json", exclude_none=True),
+                status_code=503,
+                headers={"Retry-After": "2"},
+            )
+        try:
+            return _draw(opened.data, head, info.sha256, root)
+        finally:
+            RENDER_SLOTS.release()
+    finally:
+        opened.data.close()
