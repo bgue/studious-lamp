@@ -8,10 +8,16 @@ dependencies = [
   "tl-core",
   "tl-schema",
   "tl-adapters",
+  "tl-mod-engineering",
+  "tl-mod-legacy",
 ]
 
 [project.entry-points."throughline.modules"]
 awp = "tl_mod_awp.module:spec"
+
+[project.entry-points."throughline.load_targets"]
+awp_wbs = "tl_mod_awp.targets:wbs_target"
+awp_cwa = "tl_mod_awp.targets:cwa_target"
 
 [build-system]
 requires = ["hatchling"]
