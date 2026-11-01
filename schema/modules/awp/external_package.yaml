@@ -67,7 +67,6 @@ classes:
       tl:record_types: "awp.EWPRef"
       tl:offline: none
       tl:table: cur_awp_ewp_ref
-      tl:ix_scope_package: "scope, package_no"
     unique_keys:
       scope_package_no:
         description: A package number names one package in a project.
@@ -86,7 +85,6 @@ classes:
       tl:record_types: "awp.PWPRef"
       tl:offline: none
       tl:table: cur_awp_pwp_ref
-      tl:ix_scope_package: "scope, package_no"
     unique_keys:
       scope_package_no:
         description: A package number names one package in a project.
