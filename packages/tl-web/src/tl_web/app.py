@@ -149,7 +149,10 @@ def home(request: Request) -> Response:
     return RedirectResponse(f"/web/p/{project}/rfis", status_code=303)
 
 
-@router.api_route("/{rest:path}", methods=["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE"])
+@router.api_route(
+    "/{rest:path}", methods=["POST", "PUT", "PATCH", "DELETE"], dependencies=[Depends(csrf.verify)]
+)
+@router.api_route("/{rest:path}", methods=["GET", "HEAD"])
 def not_found(request: Request, rest: str = "") -> Response:
     """The one 404 page: the same text for a path that never existed and one that is hidden."""
     return render(request, "not_found.html", 404)

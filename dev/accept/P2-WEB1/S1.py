@@ -353,6 +353,18 @@ def check_csrf(world: World) -> None:
     response = sign_out(world, fourth, headers=own, csrf=expected_csrf(fourth))
     expect(response.status_code == 303, f"right token and own origin: {response.status_code}")
     expect(response.headers["location"] == "/web/sign-in", "sign-out redirect")
+    # the catch-all answers an unsafe method only after the CSRF check (pin 5: every non-GET route)
+    live = world.session()
+    live_csrf = expected_csrf(live)
+    for method in ("POST", "PUT", "PATCH", "DELETE"):
+        refused(
+            world.client(live).request(method, "/web/nowhere", headers=own),
+            f"{method} to an unknown /web path with no token",
+        )
+        response = world.client(live).request(
+            method, "/web/nowhere", headers={**own, "X-CSRF-Token": live_csrf}
+        )
+        expect(response.status_code == 404, f"{method} with a token: {response.status_code}")
     passed(
         "e: CSRF token, origin and Referer checked on POST /web/sign-out; TL_WEB_ORIGIN honoured"
     )
