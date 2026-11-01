@@ -10,6 +10,7 @@ from typing import Any
 
 import pytest
 from tl_core import offline
+from tl_core.auth.module_roles import normalise_word
 from tl_core.modules import ModuleSpec, load_modules, use_modules
 from tl_core.offline import (
     NodeKind,
@@ -40,6 +41,7 @@ SECTION_4_DRAFTS: dict[str, frozenset[str]] = {
         {"DraftCorrespondence", "UpdateCorrespondence", "VoidDraft"}
     ),
     "correspondence.TechnicalItem": frozenset({"RaiseTechnical", "UpdateTechnical"}),
+    "materials.StockLot": frozenset({"IssueStock", "TransferStock", "ReturnStock"}),
 }
 CENTRAL = ("controller", "admin", "company")
 
@@ -72,7 +74,11 @@ def oracle(record_type: str, command: str, word: str | None, node: str) -> tuple
 
 
 def test_the_decision_equals_the_rule_for_every_type_command_and_node() -> None:
-    words = {spec.name: dict(spec.command_words) for spec in load_modules()}
+    # a fine word (``materials.library.edit``) is read as its table word, as the resolver reads it
+    words = {
+        spec.name: {c: normalise_word(w) for c, w in spec.command_words.items()}
+        for spec in load_modules()
+    }
     rows = 0
     for record_type in OFFLINE_CLASSES:
         commands = {**words.get(record_type.split(".")[0], {}), **dict.fromkeys(GENERIC)}

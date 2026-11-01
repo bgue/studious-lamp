@@ -116,7 +116,7 @@ def test_an_unknown_module_is_422_unknown_module(cast: Cast) -> None:
 def test_a_company_grant_for_a_module_without_company_roles_is_422_no_company_roles(
     cast: Cast,
 ) -> None:
-    assert not any(spec.company_roles for spec in load_modules())
+    assert not next(s for s in load_modules() if s.name == "documents").company_roles
     response = cast.clients["ada"].post(cast.url("uma"), json=cast.body("user", project="company"))
     assert response.status_code == 422 and code(response) == "no_company_roles", response.text
 

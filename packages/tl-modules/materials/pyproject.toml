@@ -12,7 +12,15 @@ dependencies = [
 ]
 
 # Entry points (modules, load targets, loaders, publish targets, readiness checks) are added by the
-# pieces that write the code they name (P2-I3 S2, S4, T01b, T03); none is declared here.
+# pieces that write the code they name (P2-I3 S2, S4, T01b, T03).
+[project.entry-points."throughline.modules"]
+materials = "tl_mod_materials.module:spec"
+
+# One line per load target: <name> = "<module>:<function>" (the function returns a Target).
+[project.entry-points."throughline.load_targets"]
+materials_item_master = "tl_mod_materials.targets:item_master_target"
+materials_location = "tl_mod_materials.targets:location_target"
+materials_po_line = "tl_mod_materials.targets:po_line_target"
 
 [build-system]
 requires = ["hatchling"]

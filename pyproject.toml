@@ -84,6 +84,7 @@ extraPaths = [
   "packages/tl-modules/documents/tests",
   "packages/tl-modules/correspondence/tests",
   "packages/tl-modules/cost/tests",
+  "packages/tl-modules/materials/tests",
   "packages/tl-modules/schedule/tests",
   "packages/tl-modules/schemareg/tests",
   "packages/tl-modules/legacy/tests",
