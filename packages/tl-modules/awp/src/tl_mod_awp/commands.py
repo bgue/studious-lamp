@@ -126,10 +126,11 @@ class RetireWbsNode(_Strict):
 
 
 class MapWbsToCostCodes(_Strict):
-    """Replace the cost code allocation of a leaf node (1 to 20 lines summing to 100.00)."""
+    """Replace the cost code allocation of a leaf node: 1 to 20 lines summing to 100.00, or no
+    line, which clears the allocation."""
 
     node: str = Field(min_length=1, max_length=MAX_ID)
-    allocations: list[CostCodeLine] = Field(min_length=1, max_length=MAX_ALLOCATIONS)
+    allocations: list[CostCodeLine] = Field(min_length=0, max_length=MAX_ALLOCATIONS)
 
 
 class DefinePathOfConstruction(_Strict):

@@ -46,4 +46,27 @@ class PathRuleError(AwpError):
 
 
 class StaleVersionError(AwpError):
-    """The path changed since the caller read it (``expected_version`` is not the current)."""
+    """The path or the package changed since the caller read it (``expected_version`` is not the
+    current version)."""
+
+
+class UnknownListCodeError(AwpError):
+    """A code is not a usable value of the code list it must come from (reason, discipline,
+    commodity, unit)."""
+
+
+class CwpRuleError(AwpError):
+    """A rule of a package's fields: dates, budget, quantities, contractor, a missing area."""
+
+
+class CwpStateError(AwpError):
+    """The package is in a state that does not take the command (frozen from Release, closed,
+    void, not yet in development)."""
+
+
+class ReleaseRefusedError(AwpError):
+    """The package does not meet the preconditions of a release."""
+
+
+class PackageRuleError(AwpError):
+    """A rule of an owner package record: type, number, dates."""

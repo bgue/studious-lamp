@@ -23,3 +23,14 @@ MAX_ID: Final = 40  # a record id (ULID) is 26 characters
 
 CODE_PATTERN: Final = r"^[A-Z0-9][A-Z0-9.\-]{0,31}$"
 REASON_CODE_PATTERN: Final = r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"
+
+MAX_QUANTITIES: Final = 50  # rows of a CWP's quantities
+MAX_CONTRACTOR: Final = 120  # characters of a CWP's contractor text
+MAX_STATUS_TEXT: Final = 40  # an owner package's status text
+MAX_SOURCE_SYSTEM: Final = 40
+MAX_PACKAGE_NO: Final = 64  # an owner package number
+MAX_LIST_CODE: Final = 64  # a code of a code list (discipline, commodity, unit)
+MAX_QUANTITY_TEXT: Final = 20  # a quantity as text
+MAX_BUDGET_TEXT: Final = 16  # "10000000.0"
+
+DATE_PATTERN: Final = r"^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
