@@ -20,9 +20,13 @@ from tl_tui import (
     file_text,
     labels_load,
     layout,
+    links_text,
     log_text,
+    properties_text,
+    record_text,
     rfi_text,
     text,
+    trace_text,
 )
 from tl_tui.action_ui import ACTION_UI, ActionUi, FormField, stamp, without_keys
 from tl_tui.client import ClientInterface
@@ -50,12 +54,16 @@ __all__ = [
     "key_label",
     "labels_load",
     "layout",
+    "links_text",
     "load_labels",
     "log_text",
     "plain_lines",
+    "properties_text",
+    "record_text",
     "rfi_text",
     "stamp",
     "text",
+    "trace_text",
     "visible_columns",
     "without_keys",
 ]
