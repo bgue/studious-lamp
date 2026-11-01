@@ -53,7 +53,7 @@ from tl_mod_documents.testing import DocumentsWorld  # noqa: E402
 from tl_tui import display, rfi_text  # noqa: E402
 from tl_tui.action_ui import ACTION_UI  # noqa: E402
 from tl_tui.layout import plain_lines  # noqa: E402
-from tl_web import routers  # noqa: E402
+from tl_web import present, routers  # noqa: E402
 from tl_web.actions import NOT_OFFERED  # noqa: E402
 from tl_web.reads import MIRRORS, UnsupportedRead, WebReadClient  # noqa: E402
 
@@ -697,9 +697,7 @@ def check_actions(world: World) -> None:
     try:
         with mock.patch.object(WebReadClient, "allowed_actions", lambda self, record_id: wide):
             built = ACTION_UI["EscalateTechnical"].build({}, ids["answered"], None)
-            cmd = built.model_copy(
-                update={"actor": principal.actor, "scope": SCOPE, "source": "web"}
-            )
+            cmd = present.stamp(built, actor=principal.actor, scope=SCOPE)
             with use_viewer(viewer_for(principal)):
                 run_command(world.ctx, spec, cmd, principal=principal)
             raise AssertionError("alice escalated")

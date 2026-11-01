@@ -28,7 +28,7 @@ import contextvars
 import functools
 from collections.abc import Callable, Sequence
 from datetime import date
-from typing import Any, get_type_hints
+from typing import TYPE_CHECKING, Any, get_type_hints
 
 from fastapi import Response
 from tl_api.context import ApiContext
@@ -44,11 +44,13 @@ from tl_api.routes import records as records_routes
 from tl_api.routes import reference as reference_routes
 from tl_api.routes import threads as threads_routes
 from tl_core.auth.types import Principal
-from tl_mod_correspondence import reports_technical
-from tl_mod_correspondence import views as correspondence_views
-from tl_mod_correspondence import views_domain as correspondence_domain_views
-from tl_mod_documents import views as document_views
 from tl_schema.forms import FormMetadata
+
+if TYPE_CHECKING:  # annotations only: tl-web does not declare these packages as dependencies
+    from tl_mod_correspondence import reports_technical
+    from tl_mod_correspondence import views as correspondence_views
+    from tl_mod_correspondence import views_domain as correspondence_domain_views
+    from tl_mod_documents import views as document_views
 
 #: Link counts are asked in chunks, as ``ApiClient`` does (the route takes at most 500 ids).
 COUNTS_CHUNK = 200

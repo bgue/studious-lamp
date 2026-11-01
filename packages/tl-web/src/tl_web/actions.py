@@ -9,8 +9,7 @@ status line ``! <message>``; no command runs and no event is written. The comman
 ``tl_api.commands.run_command`` (the one access check: module role, state guard, version,
 validation). CSRF is S1's ``csrf.verify`` as a router dependency.
 
-The command's ``source`` is ``web`` (the terminal's ``stamp`` writes ``tui``); the actor and scope
-are the stamped ones.
+The command is run exactly as ``present.stamp`` leaves it (actor, project scope and source).
 """
 
 from __future__ import annotations
@@ -93,7 +92,7 @@ def _run(
     run_command(
         request.app.state.ctx,
         spec,
-        stamped.model_copy(update={"source": "web"}),
+        stamped,
         principal=principal,
         path=request.url.path,
     )
