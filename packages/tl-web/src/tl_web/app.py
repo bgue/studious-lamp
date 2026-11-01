@@ -28,6 +28,7 @@ from tl_core.auth.env import current_env
 from tl_core.auth.errors import AuthBusyError
 
 from tl_web import csrf, session
+from tl_web.routers import page_routers
 
 HERE = Path(__file__).resolve().parent
 STATIC = HERE / "static"
@@ -167,4 +168,6 @@ def mount(app: FastAPI) -> None:
     app.state.web_secret = csrf.load_secret(os.environ)
     app.add_middleware(WebHeadersMiddleware)
     app.mount("/web/static", StaticFiles(directory=STATIC), name="web-static")
+    for page in page_routers():
+        app.include_router(page)
     app.include_router(router)  # last: its catch-all answers every unknown /web path
