@@ -1,0 +1,11 @@
+<form class="tl-form tl-action-form" method="post" action="{{ url }}" hx-post="{{ url }}" hx-target="#log-status" hx-swap="outerHTML">
+<h2>{{ label }}</h2>
+{% if confirm %}<p>{{ confirm }}</p>
+{% endif %}{% for f in fields %}<p><label for="f-{{ f.name }}">{{ f.label }}</label>
+{% if f.kind == "text" %}<textarea id="f-{{ f.name }}" name="{{ f.name }}" rows="5"{% if f.required %} required{% endif %}></textarea>
+{% elif f.kind == "choice" %}<select id="f-{{ f.name }}" name="{{ f.name }}">{% for c in f.choices %}<option value="{{ c }}"{% if c == f.default %} selected{% endif %}>{{ c }}</option>{% endfor %}</select>
+{% else %}<input type="text" id="f-{{ f.name }}" name="{{ f.name }}"{% if f.required %} required{% endif %}>
+{% endif %}</p>
+{% endfor %}<input type="hidden" name="csrf" value="{{ csrf }}">
+<p><button type="submit">{{ "Yes" if confirm else label }}</button></p>
+</form>
