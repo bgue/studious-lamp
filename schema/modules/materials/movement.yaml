@@ -1,0 +1,193 @@
+id: https://example.org/throughline/modules/materials/movement
+name: tl_mod_materials_movement
+title: Movements, stock and reservations (brief 9, M4)
+description: >-
+  Projection tables of the stock lot's movement events (ADR-0022). None of these is a record: each row is
+  written by the projector of `StockLot.Moved` and removed by it when a balance reaches zero. A movement
+  is one event with a kind, not a record; the movement log reads `cur_materials_movement`. `available` is
+  `on_hand` less `reserved`; the generator has no computed column, so the projector writes it with them.
+  Spec: docs/build-spec/specs/m4-materials.md section 2.
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+  - ../../core/annotations
+  - ../../core/record
+default_range: string
+annotations:
+  tl:module: materials
+
+enums:
+  MovementKind:
+    description: What a movement did (ADR-0022). Receive happens only inside an accepted receipt.
+    permissible_values:
+      receive:
+        description: Stock entered a location on an accepted receipt.
+      issue:
+        description: Stock was consumed, charged to a cost code.
+      transfer:
+        description: Stock moved from one location to another.
+      return:
+        description: Issued stock came back to a location.
+      adjust:
+        description: A count correction, in or out; a reason is required.
+      scrap:
+        description: Damaged or nonconforming stock was disposed of; a reason is required.
+      reserve:
+        description: Available stock was set aside for an MTO line.
+      unreserve:
+        description: A reservation was released.
+  MovementDirection:
+    description: The direction of an adjustment.
+    permissible_values:
+      in:
+        description: The balance goes up.
+      out:
+        description: The balance goes down.
+
+classes:
+  Movement:
+    description: >-
+      One movement of a lot: a row per `StockLot.Moved` event, in ledger order. `seq` is the ledger `seq` of the
+      event. Not a record.
+    annotations:
+      tl:current_state: true
+      tl:table: cur_materials_movement
+      tl:ix_lot: "lot_id, seq"
+      tl:ix_scope_recorded: "scope, recorded_at"
+      tl:ix_mto_line: "mto_line_id"
+      tl:ix_cost_code: "cost_code_id"
+    attributes:
+      seq:
+        identifier: true
+        range: integer
+        required: true
+        description: "Ledger `seq` of the movement event."
+      scope:
+        range: ScopeId
+        required: true
+        description: "The project scope, `project:<id>`."
+      lot_id:
+        range: Ulid
+        required: true
+        description: "The lot moved."
+      kind:
+        range: MovementKind
+        required: true
+        description: "receive, issue, transfer, return, adjust, scrap, reserve or unreserve."
+      qty:
+        range: decimal
+        required: true
+        description: "Quantity moved; greater than zero, at most 3 decimals."
+      uom:
+        required: true
+        description: "Unit of measure; equals the lot's (`StockUom`)."
+      direction:
+        range: MovementDirection
+        description: "in or out; adjust only, else null."
+      from_location_id:
+        range: Ulid
+        description: "The location stock left; null when none."
+      to_location_id:
+        range: Ulid
+        description: "The location stock entered; null when none."
+      cost_code_id:
+        range: Ulid
+        description: "The cost code an issue is charged to; null when none."
+      mto_line_id:
+        range: Ulid
+        description: "The MTO line a reserve, unreserve or issue refers to; null when none."
+      iwp_id:
+        range: Ulid
+        description: "The work package, copied from the MTO line; null when none."
+      requisition_id:
+        range: Ulid
+        description: "The requisition that asked for the issue; null when none."
+      person:
+        description: "Who took the stock; null when none."
+      reason:
+        description: "Reason code (`MovementReason`) or text for adjust and scrap; null when none."
+      actor:
+        required: true
+        description: "Who posted the movement (`user:<name>`)."
+      recorded_at:
+        required: true
+        description: "UTC time the event was recorded (ISO 8601)."
+      correlation_id:
+        description: "Correlation id of the command that posted it."
+  Stock:
+    description: >-
+      The balance of one lot at one location. Not a record. A row at zero (on hand and reserved) is deleted by the
+      projector, not by the schema. `available` is `on_hand` less `reserved`.
+    annotations:
+      tl:current_state: true
+      tl:table: cur_materials_stock
+      tl:ix_location: "location_id"
+    unique_keys:
+      lot_location:
+        description: "One balance per lot and location."
+        unique_key_slots:
+          - lot_id
+          - location_id
+    attributes:
+      scope:
+        range: ScopeId
+        required: true
+        description: "The project scope, `project:<id>`."
+      lot_id:
+        range: Ulid
+        required: true
+        description: "The lot."
+      location_id:
+        range: Ulid
+        required: true
+        description: "The location."
+      on_hand:
+        range: decimal
+        required: true
+        description: "Quantity held at the location, reserved or not."
+      reserved:
+        range: decimal
+        required: true
+        description: "Quantity of it set aside by reservations."
+      available:
+        range: decimal
+        required: true
+        description: "`on_hand` less `reserved`, written by the projector with them."
+  Reservation:
+    description: >-
+      Stock set aside for an MTO line, per lot and location. Not a record. A row at zero is deleted by the projector.
+    annotations:
+      tl:current_state: true
+      tl:table: cur_materials_reservation
+      tl:ix_mto_line: "mto_line_id"
+    unique_keys:
+      lot_location_line:
+        description: "One reservation per lot, location and line."
+        unique_key_slots:
+          - lot_id
+          - location_id
+          - mto_line_id
+    attributes:
+      scope:
+        range: ScopeId
+        required: true
+        description: "The project scope, `project:<id>`."
+      lot_id:
+        range: Ulid
+        required: true
+        description: "The lot."
+      location_id:
+        range: Ulid
+        required: true
+        description: "The location."
+      mto_line_id:
+        range: Ulid
+        required: true
+        description: "The MTO line the stock is set aside for."
+      qty:
+        range: decimal
+        required: true
+        description: "Quantity reserved; greater than zero."

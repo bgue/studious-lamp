@@ -1,0 +1,75 @@
+id: https://example.org/throughline/modules/materials/po_line
+name: tl_mod_materials_po_line
+title: Purchase order line mirror (brief 9, M4)
+description: >-
+  A mirror of one purchase order line of the external purchasing system (P2-Q4 A). The source of truth
+  stays outside; receipts are booked against the mirror and the projector keeps `qty_received`.
+  Spec: docs/build-spec/specs/m4-materials.md section 2.
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+  - ../../core/annotations
+  - ../../core/record
+default_range: string
+annotations:
+  tl:module: materials
+
+classes:
+  POLineRef:
+    title: PO line
+    description: >-
+      One mirrored purchase order line. Record type `materials.POLineRef`; its key is `<po>-<line>`.
+      Offline class `none`: a mirror of the ERP, written centrally.
+    annotations:
+      tl:current_state: true
+      tl:record_types: "materials.POLineRef"
+      tl:offline: none
+      tl:table: cur_materials_po_line
+      tl:ix_po: "scope, po_number, line_no"
+    attributes:
+      id:
+        identifier: true
+        range: Ulid
+        required: true
+        description: "Record id; equals the ledger stream id and the `cur_core_record` id."
+      scope:
+        range: ScopeId
+        required: true
+        description: "The project scope, `project:<id>`."
+      po_number:
+        pattern: "^.{1,30}$"
+        required: true
+        description: "Purchase order number, at most 30 characters."
+      line_no:
+        range: integer
+        required: true
+        description: "Line number on the purchase order."
+      project_item_id:
+        range: Ulid
+        required: true
+        description: "The project item ordered."
+      qty_ordered:
+        range: decimal
+        required: true
+        description: "Quantity ordered; greater than zero, at most 3 decimals."
+      uom:
+        required: true
+        description: "Unit of measure (`StockUom`)."
+      promised_date:
+        description: "ISO date (YYYY-MM-DD) the supplier promised; null when none."
+      supplier_text:
+        pattern: "^.{1,120}$"
+        required: true
+        description: "Supplier name as the order words it, at most 120 characters."
+      qty_received:
+        range: decimal
+        required: true
+        ifabsent: "int(0)"
+        description: "Projected: the quantity received on accepted receipts so far."
+      last_seq:
+        range: integer
+        required: true
+        description: "Ledger `seq` of the last event applied to this row."
