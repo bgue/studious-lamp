@@ -9,8 +9,7 @@ adds a line in a multi-line field, so Ctrl+S sends there); Esc returns ``None``.
 from __future__ import annotations
 
 from collections.abc import Sequence
-from dataclasses import dataclass
-from typing import ClassVar, Literal
+from typing import ClassVar
 
 from textual.app import ComposeResult
 from textual.binding import Binding, BindingType
@@ -19,17 +18,9 @@ from textual.screen import ModalScreen
 from textual.widget import Widget
 from textual.widgets import Input, Static, TextArea
 
+from tl_tui.action_ui import FormField
 
-@dataclass(frozen=True)
-class FormField:
-    """One thing the form asks. ``name`` is the key in the returned dict."""
-
-    name: str
-    label: str
-    kind: Literal["line", "text", "choice"] = "line"
-    choices: tuple[str, ...] = ()
-    required: bool = True
-    default: str = ""
+__all__ = ["ActionFormScreen", "ChoiceField", "FormField"]
 
 
 class ChoiceField(Static, can_focus=True):
