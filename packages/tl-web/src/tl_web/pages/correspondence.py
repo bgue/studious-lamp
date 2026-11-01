@@ -17,7 +17,11 @@ from tl_web.log import WebLog, register
 from tl_web.webroute import web_router
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     from tl_mod_correspondence.views import RegisterLineView
+
+    from tl_web.log import WebAction
 
 router = web_router()
 
@@ -64,6 +68,11 @@ class CorrespondenceWebLog(WebLog["RegisterLineView"]):
             project=self.project,
         )
         return present.plain_lines(page)
+
+    def actions_for(self, row: RegisterLineView) -> Sequence[WebAction]:
+        if row.kind != "item":
+            return []  # a register source line (a transmittal) is not an item with actions
+        return super().actions_for(row)
 
     def summary_text(self) -> str:
         return self._summary

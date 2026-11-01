@@ -13,6 +13,7 @@ import sys
 import tempfile
 from pathlib import Path
 from typing import Any
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[3]
 spec = importlib.util.spec_from_file_location("accept_s4", ROOT / "dev/accept/P2-WEB1/S4.py")
@@ -27,11 +28,13 @@ S4.PAGE_SOURCE = (
 
 from tl_web import present  # noqa: E402
 from tl_web.log import LOGS  # noqa: E402
+from tl_web.reads import WebReadClient  # noqa: E402
 
 PROJECT = S4.PROJECT
 LETTER = "P123-COR-0001"
 SECOND = "P123-COR-0002"
 RESTRICTED = "P123-COR-0003"
+TRANSMITTAL = "TRN-0001"  # a forged register line of kind transmittal (check h)
 SECRET_WORD = "RESTSECRET"
 BASE = f"/web/p/{PROJECT}/correspondence"
 NAMES = present.correspondence_text.REGISTER_COLUMNS
@@ -58,7 +61,7 @@ def setup(world: Any) -> None:
     first letter does.
     """
     world.ids["second"] = world.corr.forge_item(SECOND, subject="Second letter", state="Received")
-    world.ids["restricted"] = world.corr.forge_item(
+    world.ids["restricted_letter"] = world.corr.forge_item(
         RESTRICTED, subject=f"{SECRET_WORD} letter", state="Received", confidentiality="restricted"
     )
 
@@ -137,7 +140,7 @@ def check_hidden(world: Any, alice: Any) -> None:
     ]
     for answer in answers:
         expect(SECRET_WORD not in answer.text, f"{SECRET_WORD} in an answer")
-        expect(world.ids["restricted"] not in answer.text, "the restricted id in an answer")
+        expect(world.ids["restricted_letter"] not in answer.text, "the restricted id in an answer")
     found = S4.Doc(alice.get(f"{BASE}?q={SECRET_WORD.lower()}").text)
     expect(found.rows == [], f"the secret filter found {len(found.rows)} rows")
     S4.passed(f"e: {RESTRICTED} and {SECRET_WORD} are in no answer for alice; it is the 404 page")
@@ -172,6 +175,31 @@ def check_filter(alice: Any) -> None:
     S4.passed(f"g: the filter q narrows the rows to {SECOND}")
 
 
+def check_transmittal(alice: Any) -> None:
+    """A forged transmittal line (kind transmittal), first in the register: the default selection,
+    ``?sel=`` and its panel show the two plain lines and no action buttons, status 200."""
+    real = WebReadClient.list_correspondence
+    number, subject = TRANSMITTAL, "Transmittal to the contractor"
+    lines = [f"{number}  {subject}", "Transmittal. Open it in the terminal for the full list."]
+
+    def with_transmittal(self: WebReadClient, project: str, **kwargs: Any) -> list[Any]:
+        rows = real(self, project, **kwargs)
+        update = {"kind": "transmittal", "id": "TRN-REG-0001", "number": number, "subject": subject}
+        line = rows[0].model_copy(update=update)
+        return [line, *rows]
+
+    with mock.patch.object(WebReadClient, "list_correspondence", with_transmittal):
+        first = alice.get(BASE)
+        selected = alice.get(f"{BASE}?sel={number}")
+        panel = alice.get(f"{BASE}/panel/{number}")
+    for answer in (first, selected, panel):
+        expect(answer.status_code == 200, f"transmittal answer {answer.status_code}")
+        doc = S4.Doc(answer.text)
+        expect(doc.buttons == [], f"actions listed for a transmittal: {doc.buttons}")
+        expect(doc.texts.get("pre", "").split("\n") == lines, f"transmittal panel {doc.texts}")
+    S4.passed(f"h: transmittal {number} has the two plain lines and no actions, status 200")
+
+
 def main() -> int:
     with tempfile.TemporaryDirectory() as tmp:
         world = S4.World(Path(tmp))
@@ -186,6 +214,7 @@ def main() -> int:
             check_hidden(world, alice)
             check_mode(world, alice, root)
             check_filter(alice)
+            check_transmittal(alice)
         finally:
             world.backend.close()
     return 0
