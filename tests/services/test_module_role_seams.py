@@ -424,6 +424,7 @@ def test_every_module_with_a_record_type_is_walked_by_the_require_generic_test()
         "cost",
         "documents",
         "engineering",
+        "materials",
         "schedule",
         "schemareg",
     ]

@@ -45,7 +45,13 @@ def csv_file(tmp_path: Path, name: str = "index.csv") -> Path:
 
 def test_targets_lists_the_built_ins_with_module_and_scope(env: dict[str, str]) -> None:
     result = load(env, "targets")
-    assert result.stdout.splitlines() == ["documents  legacy  project", "tags  legacy  project"]
+    assert result.stdout.splitlines() == [
+        "documents  legacy  project",
+        "materials_item_master  materials  company",
+        "materials_location  materials  project",
+        "materials_po_line  materials  project",
+        "tags  legacy  project",
+    ]
 
 
 def test_targets_lists_a_registered_company_target_in_name_order(env: dict[str, str]) -> None:
