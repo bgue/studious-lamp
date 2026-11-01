@@ -34,8 +34,14 @@ regenerated on the later side, never hand-merged.
 | T02 | `T02-load-targets.md` | piece (D8) | full | S3 | 3 |
 | T01 | `T01-samples-loaders.md` | ticket | lite | T02 | 4 |
 | T10 | `T10-views.md` | ticket | full | S4 | 4 |
-| T03a, T03b | `T03a-api-routes.md`, `T03b-clients.md` | tickets | full | T10, T03a | 5 |
-| T04 | `T04-cli-reports.md` | ticket | full | S5, T10 | 5 |
+| T03a | `T03a-api-routes.md` | ticket | full | T10 | 5 |
+| T03b | (r6) | ticket | full | T03a | 6 |
+| T03c | (r6) reports route | ticket | full | T04b | 6 |
+| T10b | `T10b-total-hours-hidden.md` | ticket (F1 fix) | full | T10 | 5 |
+| S6 | `S6-awp-expected-link.md` | piece (schema, gate: orchestrator) | full | S4 | 5 |
+| T04a | `T04a-cli-reads.md` | ticket (tl awp reads, group) | full | T10 | 5 |
+| T04b | `T04b-reports.md` | ticket (reports, tl awp report) | full | T10, S5 | 5 |
+| T04c | (r6) write verbs, rollup, worker | tickets | full | T04a | 6 |
 | T05a, T05b, T05c | `T05a-cwp-register.md`, `T05b-wbs-cwa-screens.md`, `T05c-path-package-screens.md` | tickets | full | T03b, T05a | 6 |
 | T06, T07 | `T06-mcp-tools.md`, `T07-sim-actor.md` | tickets | full, lite | T03a; T03b, T06 | 6 |
 | T11 | `T11-tests.md` | tests piece | full | S2-S5, T01-T07, T10 | 7 |
