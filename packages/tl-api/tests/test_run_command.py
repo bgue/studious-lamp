@@ -2,7 +2,7 @@
 
 The JSON endpoints and the web action route both call it, so the reserved-field refusal, the
 company-admin check, the effective time and the module-role access check have no second copy.
-Ports of the checks (a), (b) and (c) of ``dev/accept/P2-WEB1/S2.py``.
+Ports of the checks (a), (b) and (c) of the S2 acceptance script.
 """
 
 from __future__ import annotations
