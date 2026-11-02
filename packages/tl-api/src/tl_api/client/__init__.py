@@ -9,6 +9,7 @@ See ``tl_api.client.base`` for how errors map back to exceptions.
 
 from tl_api.client.admin import AdminApi
 from tl_api.client.auth import AuthApi
+from tl_api.client.awp import AwpApi
 from tl_api.client.base import ApiClientBase
 from tl_api.client.correspondence import CorrespondenceApi
 from tl_api.client.cost import CostApi
@@ -43,6 +44,7 @@ class ApiClient(
     CorrespondenceApi,
     DerivationApi,
     ScheduleApi,
+    AwpApi,
     CostApi,
     SchemaRegistryApi,
     AuthApi,
