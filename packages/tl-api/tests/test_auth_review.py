@@ -472,6 +472,17 @@ AGENT_MAY_NOT = {
     "control.command.AssessCommercial",
     "control.command.CloseCommercial",
     "control.command.ReferCommercialToLegal",
+    # the materials controlling acts (P2-I3-S3, P2-Q10): agents never do controller or superuser
+    # acts; the GET routes are open to agents, these writes are not
+    "control.command.DefineItem",
+    "control.command.ReviseItem",
+    "control.command.RetireItem",
+    "control.command.DefineLocation",
+    "control.command.ReviseLocation",
+    "control.command.RetireLocation",
+    "control.command.AdjustStock",
+    "control.command.ScrapStock",
+    "control.command.VoidReceipt",
 }
 FEED_COMMANDS = {
     "PostToFeed",
