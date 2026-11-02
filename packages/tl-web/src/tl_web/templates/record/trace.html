@@ -1,0 +1,3 @@
+<p>{{ head }}</p>
+<nav id="trace-controls" aria-label="Trace controls">{% for c in controls %}<a href="{{ c.url }}"{% if c.current %} aria-current="true"{% endif %}>{{ c.label }}</a> {% endfor %}</nav>
+<pre class="tl-panel-text">{{ lines }}</pre>
