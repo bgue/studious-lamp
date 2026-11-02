@@ -76,6 +76,7 @@ from tl_mod_documents.derivation.validation import ValidationReport
 from tl_mod_documents.handlers.transmittals import CreateTransmittal, IssueTransmittal
 from tl_mod_documents.resolver import RepinDocumentLink
 from tl_mod_engineering.views import TagView
+from tl_mod_materials import views as materials_views
 from tl_mod_schedule import views as schedule_views
 from tl_mod_schedule.compare import Comparison
 from tl_mod_schedule.handlers.activity import LinkActivity
@@ -862,6 +863,93 @@ class ClientInterface(Protocol):
 
     def get_cost_code(self, project: str, code: str) -> cost_views.CostCodeDetailView:
         """One cost code with its children and the figures of every snapshot."""
+        ...
+
+    # --- materials (P2-I3) ---------------------------------------------------------------------
+    #
+    # The same names and signatures as ``tl_api.client.ApiClient`` (the remote client passes them
+    # through). The reads answer the module's views, filtered by the signed-in person's clearance
+    # (ADR-0016); a hidden lot or receipt raises ``LotNotFoundError`` or ``ReceiptNotFoundError``
+    # as a missing one does. The one write door is ``materials_command(name, cmd)``: a name of
+    # ``tl_mod_materials.commands.MATERIALS_COMMANDS`` with its model, else ``ForbiddenError``.
+
+    def list_materials_stock(
+        self,
+        project: str,
+        *,
+        lot: str | None = None,
+        location: str | None = None,
+        item: str | None = None,
+        heat: str | None = None,
+        subtree: bool = False,
+        limit: int = 1000,
+    ) -> list[materials_views.StockRowView]:
+        """The balances by lot and location; rows at zero are not listed."""
+        ...
+
+    def get_materials_lot(self, project: str, key: str) -> materials_views.LotDetailView:
+        """One lot with its balances, reservations and last ten movements."""
+        ...
+
+    def list_materials_movements(
+        self,
+        project: str,
+        *,
+        lot: str | None = None,
+        since: str | None = None,
+        until: str | None = None,
+        kind: str | None = None,
+        limit: int = 1000,
+    ) -> list[materials_views.MovementView]:
+        """The movement log of a project in ledger order."""
+        ...
+
+    def list_materials_receipts(
+        self,
+        project: str,
+        *,
+        open_only: bool = False,
+        missing_mtr: bool = False,
+        limit: int = 1000,
+    ) -> list[materials_views.ReceiptView]:
+        """A project's goods receipts, newest first."""
+        ...
+
+    def get_materials_receipt(self, project: str, number: str) -> materials_views.ReceiptDetailView:
+        """One goods receipt with its lines and files."""
+        ...
+
+    def list_materials_locations(
+        self, project: str, *, limit: int = 1000
+    ) -> list[materials_views.LocationView]:
+        """A project's storage locations in tree order."""
+        ...
+
+    def list_materials_po_lines(
+        self, project: str, *, q: str | None = None, limit: int = 1000
+    ) -> list[materials_views.PoLineView]:
+        """A project's purchase-order lines by key."""
+        ...
+
+    def list_materials_mto_lines(
+        self,
+        project: str,
+        *,
+        work_package: str | None = None,
+        short_only: bool = False,
+        limit: int = 1000,
+    ) -> list[materials_views.MtoLineView]:
+        """A project's take-off lines, by work package when one is named."""
+        ...
+
+    def list_materials_items(
+        self, *, project: str | None = None, limit: int = 1000
+    ) -> list[materials_views.MaterialItemView]:
+        """The company library of items by code; with ``project``, the items it adopted."""
+        ...
+
+    def materials_command(self, name: str, cmd: Command) -> CommandResult:
+        """Run a materials command by name (a model of ``MATERIALS_COMMANDS``, as the person)."""
         ...
 
     # --- the schema workbench (P1-I8; brief 27.8) ----------------------------------------------

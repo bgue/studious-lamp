@@ -179,6 +179,8 @@ from tl_mod_engineering import registry as engineering_registry
 from tl_mod_engineering.commands import API_COMMANDS as ENGINEERING_COMMANDS
 from tl_mod_engineering.names import COMPANY as ENGINEERING_COMPANY
 from tl_mod_engineering.views import TagView, tag_view, tag_views
+from tl_mod_materials import views as materials_views
+from tl_mod_materials.commands import MATERIALS_COMMANDS
 from tl_mod_schedule import views as schedule_views
 from tl_mod_schedule.compare import Comparison
 from tl_mod_schedule.handlers.activity import LinkActivity, handle_link_activity
@@ -1480,6 +1482,123 @@ class EmbeddedClient:
     def get_cost_code(self, project: str, code: str) -> cost_views.CostCodeDetailView:
         with self._uow(True) as uow:
             return cost_views.cost_code_detail(uow.conn(), f"project:{project}", code)
+
+    # --- materials (P2-I3) ---------------------------------------------------------------------
+
+    def list_materials_stock(
+        self,
+        project: str,
+        *,
+        lot: str | None = None,
+        location: str | None = None,
+        item: str | None = None,
+        heat: str | None = None,
+        subtree: bool = False,
+        limit: int = 1000,
+    ) -> list[materials_views.StockRowView]:
+        with self._uow(True) as uow:
+            return materials_views.stock(
+                uow.conn(),
+                f"project:{project}",
+                lot=lot,
+                location=location,
+                item=item,
+                heat=heat,
+                subtree=subtree,
+                limit=limit,
+            )
+
+    def get_materials_lot(self, project: str, key: str) -> materials_views.LotDetailView:
+        with self._uow(True) as uow:
+            return materials_views.lot_detail(uow.conn(), f"project:{project}", key)
+
+    def list_materials_movements(
+        self,
+        project: str,
+        *,
+        lot: str | None = None,
+        since: str | None = None,
+        until: str | None = None,
+        kind: str | None = None,
+        limit: int = 1000,
+    ) -> list[materials_views.MovementView]:
+        with self._uow(True) as uow:
+            return materials_views.movements(
+                uow.conn(),
+                f"project:{project}",
+                lot=lot,
+                since=since,
+                until=until,
+                kind=kind,
+                limit=limit,
+            )
+
+    def list_materials_receipts(
+        self,
+        project: str,
+        *,
+        open_only: bool = False,
+        missing_mtr: bool = False,
+        limit: int = 1000,
+    ) -> list[materials_views.ReceiptView]:
+        with self._uow(True) as uow:
+            return materials_views.receipts(
+                uow.conn(),
+                f"project:{project}",
+                open_only=open_only,
+                missing_mtr=missing_mtr,
+                limit=limit,
+            )
+
+    def get_materials_receipt(self, project: str, number: str) -> materials_views.ReceiptDetailView:
+        with self._uow(True) as uow:
+            return materials_views.receipt_detail(uow.conn(), f"project:{project}", number)
+
+    def list_materials_locations(
+        self, project: str, *, limit: int = 1000
+    ) -> list[materials_views.LocationView]:
+        with self._uow(True) as uow:
+            return materials_views.locations_tree(uow.conn(), f"project:{project}", limit=limit)
+
+    def list_materials_po_lines(
+        self, project: str, *, q: str | None = None, limit: int = 1000
+    ) -> list[materials_views.PoLineView]:
+        with self._uow(True) as uow:
+            return materials_views.po_lines(uow.conn(), f"project:{project}", q, limit=limit)
+
+    def list_materials_mto_lines(
+        self,
+        project: str,
+        *,
+        work_package: str | None = None,
+        short_only: bool = False,
+        limit: int = 1000,
+    ) -> list[materials_views.MtoLineView]:
+        with self._uow(True) as uow:
+            return materials_views.mto_lines(
+                uow.conn(),
+                f"project:{project}",
+                work_package=work_package,
+                short_only=short_only,
+                limit=limit,
+            )
+
+    def list_materials_items(
+        self, *, project: str | None = None, limit: int = 1000
+    ) -> list[materials_views.MaterialItemView]:
+        with self._uow(True) as uow:
+            return materials_views.items(
+                uow.conn(), project=f"project:{project}" if project else None, limit=limit
+            )
+
+    def materials_command(self, name: str, cmd: Command) -> CommandResult:
+        spec = next((c for c in MATERIALS_COMMANDS if c.model.__name__ == name), None)
+        if spec is None or type(cmd) is not spec.model:
+            raise ForbiddenError(f"{name} is not a materials command")
+        with self._uow(False) as uow:
+            self._own_command(cmd.actor)
+            self._command_gate(uow, cmd)
+            return self.own_writes.note(spec.handler(uow, cmd))
 
     # --- the schema workbench (P1-I8) ---------------------------------------------------------
 
