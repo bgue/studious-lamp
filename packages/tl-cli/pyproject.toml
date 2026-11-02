@@ -20,6 +20,7 @@ dependencies = [
   "tl-mod-schedule",
   "tl-mod-schemareg",
   "tl-mod-legacy",
+  "tl-mod-awp",
   "tl-xer",
 ]
 
