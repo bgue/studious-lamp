@@ -1,6 +1,6 @@
 # P2-I1-T04e — `tl awp rollup` and `tl awp worker`
 
-Status: ready (S5, T04c merged; staged after T04d)
+Status: ready (S5, T04c, T04d merged; r9 batch)
 Tier: haiku
 Review: full
 Labels: cli
