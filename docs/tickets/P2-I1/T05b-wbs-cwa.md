@@ -1,6 +1,6 @@
 # P2-I1-T05b — WBS tree and CWA register: Textual-free text modules and screens
 
-Status: draft (r8: split by area to pass the Haiku size check, then ready when T05a is merged)
+Status: draft (r8: split by area to pass the size check, then ready when T05a is merged)
 Tier: haiku
 Review: full
 Labels: tui
