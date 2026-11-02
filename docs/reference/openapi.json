@@ -7565,6 +7565,11 @@
             "title": "Activities",
             "type": "array"
           },
+          "allocated": {
+            "default": false,
+            "title": "Allocated",
+            "type": "boolean"
+          },
           "allocations": {
             "items": {
               "$ref": "#/components/schemas/CwpAllocation"
@@ -7705,6 +7710,11 @@
       "CwpRow": {
         "description": "A construction work package (CWP) as the list shows it.",
         "properties": {
+          "allocated": {
+            "default": false,
+            "title": "Allocated",
+            "type": "boolean"
+          },
           "budget_hours": {
             "anyOf": [
               {
@@ -16067,6 +16077,13 @@
             "title": "Constraint Source",
             "type": "boolean"
           },
+          "cwps": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Cwps",
+            "type": "array"
+          },
           "forecast_date": {
             "anyOf": [
               {
@@ -16111,6 +16128,11 @@
               }
             ],
             "title": "Status Text"
+          },
+          "title": {
+            "default": "",
+            "title": "Title",
+            "type": "string"
           }
         },
         "required": [
@@ -32932,6 +32954,42 @@
         "title": "WaiverView",
         "type": "object"
       },
+      "WbsCwp": {
+        "description": "A CWP allocated to a leaf node: its number, subject, percent and the hours it takes there.",
+        "properties": {
+          "hours": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hours"
+          },
+          "number": {
+            "title": "Number",
+            "type": "string"
+          },
+          "percent": {
+            "title": "Percent",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "number",
+          "title",
+          "percent",
+          "hours"
+        ],
+        "title": "WbsCwp",
+        "type": "object"
+      },
       "WbsLine": {
         "additionalProperties": false,
         "description": "One line of a package's allocation to WBS nodes: the node's code and a percent as text.",
@@ -32968,6 +33026,18 @@
           "code": {
             "title": "Code",
             "type": "string"
+          },
+          "cwp_count": {
+            "default": 0,
+            "title": "Cwp Count",
+            "type": "integer"
+          },
+          "cwps": {
+            "items": {
+              "$ref": "#/components/schemas/WbsCwp"
+            },
+            "title": "Cwps",
+            "type": "array"
           },
           "depth": {
             "title": "Depth",

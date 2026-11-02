@@ -18,6 +18,7 @@ from typing import Any, BinaryIO, Literal
 
 from tl_api.auth import AGENT_MUST_PROPOSE
 from tl_api.client.files import save_download
+from tl_api.routes.awp import CwpDetailView, TimelineRow, _note
 from tl_api.thread_runner import thread_runner
 from tl_core import confidentiality
 from tl_core.actions import Holds, Level, RecordActions, allowed_actions
@@ -80,7 +81,7 @@ from tl_core.services import (
 )
 from tl_core.services.commands import Command, CommandResult, CreateRecord, UpdateRecord
 from tl_core.services.edit import EditRecord, handle_edit_record
-from tl_core.services.errors import ReservedIdentifierError, UnknownFileError
+from tl_core.services.errors import RecordNotFoundError, ReservedIdentifierError, UnknownFileError
 from tl_core.services.feed import EditPost, PostToFeed, handle_edit_post, handle_post
 from tl_core.services.feed_actions import (
     ReactToPost,
@@ -133,6 +134,7 @@ from tl_core.threads.visibility import readable_record
 from tl_core.uow import UnitOfWork
 from tl_core.util import utcnow
 from tl_core.workflow.roles import workflow_roles
+from tl_mod_awp import views as awp_views
 from tl_mod_correspondence import evidence as correspondence_evidence
 from tl_mod_correspondence import reports_commercial, reports_technical
 from tl_mod_correspondence import views as correspondence_views
@@ -1480,6 +1482,77 @@ class EmbeddedClient:
     def get_cost_code(self, project: str, code: str) -> cost_views.CostCodeDetailView:
         with self._uow(True) as uow:
             return cost_views.cost_code_detail(uow.conn(), f"project:{project}", code)
+
+    # --- the awp module (P2-I1 T03b): the reads the API routes serve, under the viewer's filter --
+
+    def list_cwps(
+        self,
+        project: str,
+        *,
+        state: str | None = None,
+        discipline: str | None = None,
+        cwa: str | None = None,
+    ) -> list[awp_views.CwpRow]:
+        with self._uow(True) as uow:
+            return awp_views.cwp_list(
+                uow.conn(), f"project:{project}", state=state, discipline=discipline, cwa=cwa
+            )
+
+    def get_cwp(self, project: str, number: str) -> CwpDetailView:
+        scope = f"project:{project}"
+        with self._uow(True) as uow:
+            detail = awp_views.cwp_detail(uow.conn(), scope, number)
+            if detail is None:
+                raise RecordNotFoundError(f"no CWP {number!r}")
+            links = len(link_queries.links_of(uow, detail.id))
+            files = len(list_files(uow, scope, detail.id))
+            timeline = [
+                TimelineRow(
+                    date=event.recorded_at.date().isoformat(),
+                    who=event.actor,
+                    event=event.event_type,
+                    note=_note(event.payload),
+                )
+                for event in queries.record_history(uow, detail.id)
+            ]
+            return CwpDetailView(
+                **detail.model_dump(),
+                link_count=links,
+                file_count=files,
+                timeline=timeline,
+            )
+
+    def list_cwas(self, project: str) -> list[awp_views.CwaRow]:
+        with self._uow(True) as uow:
+            return awp_views.cwa_list(uow.conn(), f"project:{project}")
+
+    def wbs_tree(self, project: str, *, depth: int | None = None) -> list[awp_views.WbsRow]:
+        with self._uow(True) as uow:
+            return awp_views.wbs_tree(uow.conn(), f"project:{project}", depth=depth)
+
+    def get_wbs_node(self, project: str, code: str) -> awp_views.WbsRow:
+        with self._uow(True) as uow:
+            node = awp_views.wbs_detail(uow.conn(), f"project:{project}", code)
+            if node is None:
+                raise RecordNotFoundError(f"no WBS node {code!r}")
+            return node
+
+    def get_path(self, project: str, version: int | None = None) -> awp_views.PathView:
+        with self._uow(True) as uow:
+            found = awp_views.path(uow.conn(), f"project:{project}", version=version)
+            if found is None:
+                raise RecordNotFoundError(f"no path {project!r} at version {version!r}")
+            return found
+
+    def list_path_versions(self, project: str) -> list[awp_views.PathVersion]:
+        with self._uow(True) as uow:
+            return awp_views.path_versions(uow.conn(), f"project:{project}")
+
+    def list_packages(
+        self, project: str, *, kind: Literal["EWP", "PWP"] | None = None
+    ) -> list[awp_views.PackageRow]:
+        with self._uow(True) as uow:
+            return awp_views.package_list(uow.conn(), f"project:{project}", kind=kind)
 
     # --- the schema workbench (P1-I8) ---------------------------------------------------------
 
