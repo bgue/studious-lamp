@@ -31,6 +31,9 @@ mat-po-lines = "tl_mod_materials.loaders.materials:po_lines_loader"
 [project.entry-points."throughline.publish_targets"]
 mto = "tl_mod_materials.mto:mto_target"
 
+[project.entry-points."throughline.readiness_checks"]
+materials_reserved = "tl_mod_materials.readiness:materials_reserved"
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
