@@ -11,11 +11,14 @@ module's commands under ``POST /commands/<Name>``.
 
 from __future__ import annotations
 
-from typing import Annotated
+from typing import Annotated, Literal
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Response
+from tl_mod_cost import views as cost_views
 from tl_mod_materials import views
+from tl_mod_materials.errors import InvalidValueError
 from tl_mod_materials.limits import MAX_VIEW_ROWS
+from tl_mod_materials.reports import Report, build_report, to_csv
 
 from tl_api.auth import guard
 from tl_api.context import ApiContext, get_ctx
@@ -182,3 +185,63 @@ def get_materials_receipt(
     """One goods receipt with its lines and files. 404 `materials_receipt_not_found`."""
     with ctx.backend(True) as uow:
         return views.receipt_detail(uow.conn(), f"project:{project}", number)
+
+
+ReportName = Literal[
+    "stock_on_hand",
+    "movement_log",
+    "mto_status",
+    "shortages",
+    "heat_trace",
+    "consumables_by_cost_code",
+]
+
+
+@router.get(
+    "/projects/{project}/materials/reports/{name}",
+    operation_id="get_materials_report",
+    response_model=Report,
+    responses={200: {"content": {"text/csv": {}}, "description": "The report as CSV."}},
+)
+def get_materials_report(
+    ctx: Ctx,
+    actor: Reader,
+    project: str,
+    name: ReportName,
+    since: Annotated[
+        str | None, Query(max_length=10, description="First day, an ISO date (movement reports).")
+    ] = None,
+    until: Annotated[
+        str | None, Query(max_length=10, description="Last day, an ISO date (movement reports).")
+    ] = None,
+    heat: Annotated[str | None, Query(max_length=200, description="A heat number.")] = None,
+    format: Annotated[
+        Literal["json", "csv"], Query(description="json, or csv with formula-safe cells.")
+    ] = "json",
+) -> Report | Response:
+    """A materials report of a project. ``heat_trace`` needs ``heat``; a bad date or a missing
+    heat answers 422 ``materials_invalid_value``."""
+    with ctx.backend(True) as uow:
+        conn = uow.conn()
+        codes: dict[str, str] | None = None
+        if name == "consumables_by_cost_code":
+            codes = {c.id: c.code for c in cost_views.cost_codes(conn, f"project:{project}")}
+        try:
+            report = build_report(
+                conn,
+                f"project:{project}",
+                name,
+                since=since,
+                until=until,
+                heat=heat,
+                cost_codes=codes,
+            )
+        except ValueError as exc:
+            raise InvalidValueError(str(exc)) from exc
+    if format == "csv":
+        return Response(
+            content=to_csv(report),
+            media_type="text/csv",
+            headers={"Content-Disposition": f'attachment; filename="{name}.csv"'},
+        )
+    return report
