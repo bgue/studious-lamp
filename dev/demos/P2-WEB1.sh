@@ -191,6 +191,8 @@ PY
   rows "$workdir/amy-log.body" > "$workdir/web-rows.txt"
   diff "$workdir/cli-rows.txt" "$workdir/web-rows.txt" >/dev/null || fail "the log rows differ from tl rfi ls"
   lacks "$workdir/amy-log.body" "data-number=\"$third\"" "the restricted RFI is listed for amy"
+  sign_in "$workdir/jar-dora" dora
+  expect_code "$code" 303 "the dora sign-in"
   fetch "$workdir/jar-dora" dora-log GET /web/p/P123/rfis
   expect_code "$code" 200 "the RFI log for dora"
   has "$workdir/dora-log.body" "data-number=\"$third\"" "the restricted RFI is not listed for dora"
@@ -199,12 +201,13 @@ PY
   has "$workdir/amy-404.body" "<title>Not found" "the restricted RFI does not answer with the generic 404 page"
   echo "PASS clause 2"
 
-  step "[$backend] clause 3: the panel offers Answer only; a POST without the token is refused, with it answered"
+  step "[$backend] clause 3: the panel offers only the rule-table actions; a POST without the token is refused, with it answered"
   fetch "$workdir/jar-amy" amy-panel GET "/web/p/P123/rfis/panel/$second"
   expect_code "$code" 200 "the panel of the issued RFI"
   has "$workdir/amy-panel.body" "$second" "the panel does not name the RFI"
   offered="$(grep -o 'data-command="[A-Za-z]*"' "$workdir/amy-panel.body" | sed 's/^data-command="//; s/"$//' | paste -sd' ' -)"
-  [ "$offered" = "AnswerTechnical" ] || fail "the panel offers: $offered"
+  # a plain user on an awaiting-response technical item: the two user actions of that state (actions.py rules)
+  [ "$offered" = "AnswerTechnical CloseTechnical" ] || fail "the panel offers: $offered"
   fetch "$workdir/jar-amy" amy-log-2 GET /web/p/P123/rfis
   csrf="$(csrf_of "$workdir/amy-log-2.body")"
   [ -n "$csrf" ] || fail "the page carries no CSRF token"
