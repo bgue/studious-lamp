@@ -134,7 +134,7 @@ def test_a_post_without_the_csrf_token_is_refused_before_anything_else(
 
 
 def test_a_refusal_of_run_command_is_shown_as_it_is(fresh_world: Any, htmlkit: Any) -> None:
-    """An offer that is stale or too wide: the module role refuses, the text lands in the status."""
+    """An offer that is stale or too wide: the access check refuses; the text is the status."""
     w = fresh_world
     web = w.web("bob")
     principal = w.principal("bob")
@@ -177,3 +177,49 @@ def test_hidden_unknown_and_other_project_are_one_404(fresh_world: Any, k: Any) 
     )
     assert hidden.status_code == unknown.status_code == elsewhere.status_code == 404
     assert hidden.content == unknown.content == elsewhere.content
+
+
+class Refuser:
+    """An authorizer (or hook) that refuses every command action and records what it was asked."""
+
+    def __init__(self, text: str) -> None:
+        self.text = text
+        self.asked: list[tuple[str, str]] = []
+
+    def authorize(self, principal: Any, action: str, resource: str) -> None:
+        self.asked.append((action, resource))
+        if action.endswith("command.SubmitTechnical"):
+            raise ForbiddenError(self.text)
+
+    def hook(self, actor: str, action: str, resource: str) -> None:
+        self.authorize(None, action, resource)
+
+
+@pytest.mark.parametrize("which", ["authorizer", "hook"])
+def test_a_refusing_authorizer_stops_the_web_action_like_the_endpoint_guard(
+    fresh_world: Any, htmlkit: Any, which: str
+) -> None:
+    """The web route runs the guard's two calls too: a refusal is the status line, nothing runs."""
+    w = fresh_world
+    web = w.web("bob")
+    api = w.api("bob")
+    refuser = Refuser(f"refused by the {which}")
+    ctx = w.app.state.ctx
+    path = f"{P}/records/{w.ids['draft']}/do/SubmitTechnical"
+    with mock.patch.object(
+        ctx, "authorizer" if which == "authorizer" else "authorize",
+        refuser if which == "authorizer" else refuser.hook,
+    ):  # fmt: skip
+        before, draft = w.events(), state_of(w, "draft")
+        refused = do(w, web, "draft", "SubmitTechnical")
+        assert refused.status_code == 403
+        assert htmlkit.parse(refused.text).status() == f"! refused by the {which}"
+        assert w.events() == before and state_of(w, "draft") == draft
+        assert ("command.SubmitTechnical", path) in refuser.asked
+        # the JSON endpoint is refused by the same object with the same text
+        sent = api.post(
+            "/commands/SubmitTechnical", json={"record_id": w.ids["draft"], "expected_version": 1}
+        )
+        assert sent.status_code == 403
+    # the guard allows it again: the same request now runs
+    assert do(w, web, "draft", "SubmitTechnical").status_code == 200

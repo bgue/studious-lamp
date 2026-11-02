@@ -1,4 +1,6 @@
-"""CSRF protection for every unsafe ``/web`` route except sign-in (spec web-client-i1 section 5).
+"""CSRF protection for every unsafe ``/web`` route (spec web-client-i1 section 5).
+
+Sign-in has no session and so no token; it is held to the origin check only (``verify_origin``).
 
 The token is ``base64url(HMAC-SHA256(secret, "csrf|" + sha256(session_token)))`` without padding, so
 it is tied to one session and cannot be computed without the server secret. A request carries it as
@@ -20,6 +22,7 @@ from urllib.parse import urlsplit
 from fastapi import Request
 from tl_api.auth import TOKEN_KEY
 from tl_api.errors import ApiError
+from tl_api.ratelimit import NOT_A_FAILURE_KEY
 from tl_core.auth.env import dev_tokens_allowed
 
 MIN_SECRET_BYTES = 32
@@ -73,6 +76,19 @@ def origin_matches(request: Request) -> bool:
     if not expected:
         expected = f"{request.url.scheme}://{request.headers.get('host', '')}"
     return seen.lower() == expected.lower()
+
+
+async def verify_origin(request: Request) -> None:
+    """A FastAPI dependency for sign-in: 403 ``csrf_refused`` unless the request is from our origin.
+
+    There is no session yet, so no token; the origin check still stops a login CSRF (a foreign page
+    signing the victim in as the attacker). The refusal is the one ``verify`` gives. No password was
+    checked, so the per-source sign-in limit does not count it (a hostile page must not be able to
+    use up the victim's budget).
+    """
+    if not origin_matches(request):
+        request.scope[NOT_A_FAILURE_KEY] = True
+        raise _refused()
 
 
 async def verify(request: Request) -> None:

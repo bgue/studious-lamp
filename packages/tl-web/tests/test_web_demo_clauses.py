@@ -33,7 +33,11 @@ def test_clause_1_sign_in_is_a_303_with_a_strict_cookie_and_the_json_api_ignores
     fresh_world: Any, k: Any
 ) -> None:
     w = fresh_world
-    response = w.client().post("/web/sign-in", data={"username": "bob", "password": k.PASSWORD})
+    response = w.client().post(
+        "/web/sign-in",
+        data={"username": "bob", "password": k.PASSWORD},
+        headers={"Origin": k.OWN},
+    )
     assert response.status_code == 303
     attrs = k.cookie_attrs(response.headers["set-cookie"])
     assert "HttpOnly" in attrs and "SameSite=Strict" in attrs

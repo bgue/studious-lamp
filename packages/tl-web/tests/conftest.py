@@ -208,7 +208,11 @@ class World:
 
     def sign_in(self, name: str, password: str = PASSWORD) -> tuple[Any, str]:
         """``(response, token)`` of ``POST /web/sign-in``; the token is '' when no cookie came."""
-        response = self.client().post("/web/sign-in", data={"username": name, "password": password})
+        response = self.client().post(
+            "/web/sign-in",
+            data={"username": name, "password": password},
+            headers={"Origin": OWN},
+        )
         raw = response.headers.get("set-cookie", "")
         return response, raw.split(";")[0].partition("=")[2]
 
@@ -287,14 +291,15 @@ class World:
                 client.close()
         self.backend.close()
 
-    def make_app(self) -> Any:
+    def make_app(self, limiter: SourceLimiter | None = None) -> Any:
         return create_app(
             self.backend,
             settings=self.settings,
             tokens=TokenStore(self.settings.tokens_path),
             files_service=self.service,
             object_store=self.store,
-            source_limiter=SourceLimiter(10_000),  # no check here trips the per-source limit
+            # no check here trips the per-source limit, unless a test passes a small one
+            source_limiter=limiter or SourceLimiter(10_000),
         )
 
 

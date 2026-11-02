@@ -104,14 +104,18 @@ def sign_in_form(request: Request) -> Response:
     return render(request, "sign_in.html", username="", error=None)
 
 
-@router.post("/sign-in")
+@router.post("/sign-in", dependencies=[Depends(csrf.verify_origin)])
 def sign_in_submit(
     request: Request,
     ctx: Ctx,
     username: Annotated[str, Form()] = "",
     password: Annotated[str, Form()] = "",
 ) -> Response:
-    """The JSON route's own handler does the work: lockout, audit, timing and error text are its."""
+    """The JSON route's own handler does the work: lockout, audit, timing and error text are its.
+
+    The origin is checked first (``csrf.verify_origin``, a login CSRF defence): a foreign or
+    unstated origin is 403 ``csrf_refused`` and no cookie is set.
+    """
     try:
         out = auth_routes.sign_in(auth_routes.SignInBody(username=username, password=password), ctx)
     except Exception as exc:

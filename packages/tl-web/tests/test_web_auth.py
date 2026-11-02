@@ -15,6 +15,7 @@ from typing import Any
 from unittest import mock
 
 import pytest
+from tl_api.ratelimit import SourceLimiter
 from tl_api.settings import web_enabled
 from tl_web.session import cookie_flags
 
@@ -57,16 +58,22 @@ def test_secure_flag_follows_host_and_environment(host: str, env: str, secure: b
 
 def test_secure_flag_on_a_public_host_through_the_app(light_world: Any, k: Any) -> None:
     elsewhere = light_world.client(base="http://tl.example.com")
-    moved = elsewhere.post("/web/sign-in", data={"username": "bob", "password": k.PASSWORD})
+    moved = elsewhere.post(
+        "/web/sign-in",
+        data={"username": "bob", "password": k.PASSWORD},
+        headers={"Origin": "http://tl.example.com"},
+    )
     assert "Secure" in k.cookie_attrs(moved.headers["set-cookie"])
 
 
 @pytest.mark.parametrize("username", ["bob", "nobody"])
-def test_wrong_password_answers_as_the_json_route(light_world: Any, username: str) -> None:
+def test_wrong_password_answers_as_the_json_route(light_world: Any, k: Any, username: str) -> None:
     api = light_world.client()
     expected = api.post("/auth/sign-in", json={"username": username, "password": WRONG})
     response = light_world.client().post(
-        "/web/sign-in", data={"username": username, "password": WRONG}
+        "/web/sign-in",
+        data={"username": username, "password": WRONG},
+        headers={"Origin": k.OWN},
     )
     assert response.status_code == expected.status_code == 401
     assert expected.json()["message"] in html.unescape(response.text)
@@ -75,15 +82,19 @@ def test_wrong_password_answers_as_the_json_route(light_world: Any, username: st
     assert f'value="{username}"' in response.text  # the username is
 
 
-def test_a_hostile_username_is_escaped(light_world: Any) -> None:
+def test_a_hostile_username_is_escaped(light_world: Any, k: Any) -> None:
     evil = "<script>alert(1)</script>"
-    response = light_world.client().post("/web/sign-in", data={"username": evil, "password": WRONG})
+    response = light_world.client().post(
+        "/web/sign-in", data={"username": evil, "password": WRONG}, headers={"Origin": k.OWN}
+    )
     assert response.status_code == 401
     assert "&lt;script&gt;" in response.text and evil not in response.text
 
 
-def test_an_empty_username_is_the_json_routes_422(light_world: Any) -> None:
-    empty = light_world.client().post("/web/sign-in", data={"username": "", "password": WRONG})
+def test_an_empty_username_is_the_json_routes_422(light_world: Any, k: Any) -> None:
+    empty = light_world.client().post(
+        "/web/sign-in", data={"username": "", "password": WRONG}, headers={"Origin": k.OWN}
+    )
     sent = light_world.client().post("/auth/sign-in", json={"username": "", "password": WRONG})
     assert empty.status_code == sent.status_code == 422
 
@@ -97,10 +108,102 @@ def test_the_lockout_is_the_json_routes(light_world: Any, k: Any) -> None:
             break
     assert locked is not None and locked.status_code == 423
     web = light_world.client().post(
-        "/web/sign-in", data={"username": "bob", "password": k.PASSWORD}
+        "/web/sign-in",
+        data={"username": "bob", "password": k.PASSWORD},
+        headers={"Origin": k.OWN},
     )
     assert web.status_code == 423
     assert locked.json()["message"] in html.unescape(web.text)
+
+
+@pytest.mark.parametrize(
+    "headers",
+    [
+        {"Origin": "http://evil.example"},
+        {"Origin": "null"},
+        {"Referer": "http://evil.example/web/sign-in"},
+        {"Origin": "http://127.0.0.1:9"},
+        {},  # neither Origin nor Referer
+    ],
+    ids=["foreign Origin", "null Origin", "foreign Referer", "other port", "no Origin or Referer"],
+)
+def test_sign_in_from_a_foreign_or_unstated_origin_is_refused_before_it_is_tried(
+    fresh_world: Any, k: Any, headers: dict[str, str]
+) -> None:
+    """A login CSRF: the right password from a foreign page is a 403, not a session."""
+    w = fresh_world
+    refused = w.client().post(
+        "/web/sign-in", data={"username": "bob", "password": k.PASSWORD}, headers=headers
+    )
+    assert refused.status_code == 403 and refused.json()["error"] == "csrf_refused"
+    assert "set-cookie" not in refused.headers
+    assert refused.headers["content-security-policy"] == k.CSP
+    # the same body as the CSRF check of every other unsafe route
+    other = w.web("bob")
+    same = other.client.post("/web/sign-out", headers={"Origin": "http://evil.example"})
+    assert same.status_code == 403 and same.content == refused.content
+    # it was refused before the credentials were looked at: a wrong password is no 401
+    wrong = w.client().post(
+        "/web/sign-in", data={"username": "bob", "password": WRONG}, headers=headers
+    )
+    assert wrong.status_code == 403 and "set-cookie" not in wrong.headers
+
+
+def test_sign_in_needs_the_own_origin_and_no_token(fresh_world: Any, k: Any) -> None:
+    w = fresh_world
+    form = {"username": "bob", "password": k.PASSWORD}
+    by_origin = w.client().post("/web/sign-in", data=form, headers={"Origin": k.OWN})
+    assert by_origin.status_code == 303 and "tl_session=" in by_origin.headers["set-cookie"]
+    by_referer = w.client().post(
+        "/web/sign-in", data=form, headers={"Referer": f"{k.OWN}/web/sign-in"}
+    )
+    assert by_referer.status_code == 303
+
+
+def test_failed_web_sign_ins_share_the_json_routes_count_and_answer_429(
+    light_world: Any, k: Any
+) -> None:
+    """Three failures from one source (web and JSON together) stop both routes, with the headers."""
+    w = light_world
+    app = w.make_app(SourceLimiter(3))
+    web = w.client(app=app)
+    api = w.client(app=app)
+    own = {"Origin": k.OWN}
+    wrong = {"username": "bob", "password": WRONG}
+    assert web.post("/web/sign-in", data=wrong, headers=own).status_code == 401
+    assert api.post("/auth/sign-in", json=wrong).status_code == 401  # counted in the same window
+    assert web.post("/web/sign-in", data=wrong, headers=own).status_code == 401
+    limited = web.post(
+        "/web/sign-in", data={"username": "bob", "password": k.PASSWORD}, headers=own
+    )
+    assert limited.status_code == 429
+    assert int(limited.headers["retry-after"]) >= 1
+    assert limited.headers["content-security-policy"] == k.CSP
+    assert "set-cookie" not in limited.headers
+    assert api.post("/auth/sign-in", json=wrong).status_code == 429
+    # a fresh source is not limited
+    assert (
+        w.client(app=w.make_app(SourceLimiter(3)))
+        .post("/web/sign-in", data={"username": "bob", "password": k.PASSWORD}, headers=own)
+        .status_code
+        == 303
+    )
+
+
+def test_foreign_origin_sign_ins_do_not_spend_the_sources_budget(light_world: Any, k: Any) -> None:
+    """No password was checked, so a hostile page cannot lock the victim's address out."""
+    w = light_world
+    web = w.client(app=w.make_app(SourceLimiter(3)))
+    form = {"username": "bob", "password": k.PASSWORD}
+    for _ in range(10):  # well over the limit of 3
+        refused = web.post("/web/sign-in", data=form, headers={"Origin": "http://evil.example"})
+        assert refused.status_code == 403
+    assert web.post("/web/sign-in", data=form, headers={"Origin": k.OWN}).status_code == 303
+    # real failures still count
+    wrong = {"username": "bob", "password": WRONG}
+    for _ in range(3):
+        assert web.post("/web/sign-in", data=wrong, headers={"Origin": k.OWN}).status_code == 401
+    assert web.post("/web/sign-in", data=wrong, headers={"Origin": k.OWN}).status_code == 429
 
 
 def test_the_cookie_authenticates_web_only(light_world: Any) -> None:
