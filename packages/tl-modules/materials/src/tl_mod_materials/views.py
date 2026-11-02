@@ -35,6 +35,7 @@ from tl_mod_materials.names import (
     MTO_LINE_TABLE,
     PO_LINE_TABLE,
     PROJECT_ITEM_TABLE,
+    RECEIPT_DEFINED,
     RECEIPT_LINE_TABLE,
     RECEIPT_TABLE,
     RESERVATION_TABLE,
@@ -116,6 +117,7 @@ class ReservationView(BaseModel):
     mto_line: str  # the MTO line key
     location: str
     qty: Decimal
+    work_package: str | None = None  # the work package number of the reserved line (S5)
 
 
 class MovementView(BaseModel):
@@ -135,6 +137,11 @@ class MovementView(BaseModel):
     person: str | None
     reason: str | None
     actor: str
+    # S5: the keys behind the ids, so a screen reads them without a second call. ``None`` when the
+    # movement names none, or the record is one the viewer may not read.
+    mto_line: str | None = None  # the MTO line key
+    work_package: str | None = None  # the work package number of that line
+    cost_code: str | None = None  # the cost code's code, not its id
 
 
 class LotDetailView(BaseModel):
@@ -397,16 +404,30 @@ def stock(
 
 # --- movements -----------------------------------------------------------------------------------
 
-_MOVEMENT_SELECT = (
-    "SELECT m.seq, m.recorded_at, m.kind, lr.key AS lot, l.heat_no, ir.key AS item_code, m.qty, "
-    "m.uom, m.direction, fl.code AS from_location, tl.code AS to_location, m.mto_line_id, "
-    "m.cost_code_id, m.person, m.reason, m.actor "
-    f"FROM {MOVEMENT_TABLE} m JOIN {LOT_TABLE} l ON l.id = m.lot_id "
-    "JOIN cur_core_record lr ON lr.id = l.id "
-    "JOIN cur_core_record ir ON ir.id = l.project_item_id "
-    f"LEFT JOIN {LOCATION_TABLE} fl ON fl.id = m.from_location_id "
-    f"LEFT JOIN {LOCATION_TABLE} tl ON tl.id = m.to_location_id "
-)
+
+def _movement_select(viewer: Viewer | None) -> tuple[str, dict[str, Any]]:
+    """``(SELECT ... FROM ... joins, params)`` of a movement row. The MTO line, its work package
+    and the cost code join only when the viewer may read them, so a hidden one answers ``None``."""
+    line, params = _hide("ml.id", viewer=viewer)
+    package, found = _hide("wp.id", viewer=viewer)
+    params.update(found)
+    code, found = _hide("cc.id", viewer=viewer)
+    params.update(found)
+    return (
+        "SELECT m.seq, m.recorded_at, m.kind, lr.key AS lot, l.heat_no, ir.key AS item_code, "
+        "m.qty, m.uom, m.direction, fl.code AS from_location, tl.code AS to_location, "
+        "m.mto_line_id, m.cost_code_id, m.person, m.reason, m.actor, "
+        "ml.key AS mto_line, wp.key AS work_package, cc.key AS cost_code "
+        f"FROM {MOVEMENT_TABLE} m JOIN {LOT_TABLE} l ON l.id = m.lot_id "
+        "JOIN cur_core_record lr ON lr.id = l.id "
+        "JOIN cur_core_record ir ON ir.id = l.project_item_id "
+        f"LEFT JOIN {LOCATION_TABLE} fl ON fl.id = m.from_location_id "
+        f"LEFT JOIN {LOCATION_TABLE} tl ON tl.id = m.to_location_id "
+        f"LEFT JOIN cur_core_record ml ON ml.id = m.mto_line_id AND {line} "
+        f"LEFT JOIN {MTO_LINE_TABLE} xl ON xl.id = ml.id "
+        f"LEFT JOIN cur_core_record wp ON wp.id = xl.work_package_id AND {package} "
+        f"LEFT JOIN cur_core_record cc ON cc.id = m.cost_code_id AND {code} "
+    ), params
 
 
 def _movement_row(r: Any) -> MovementView:
@@ -427,6 +448,9 @@ def _movement_row(r: Any) -> MovementView:
         person=r.person,
         reason=r.reason,
         actor=str(r.actor),
+        mto_line=r.mto_line,
+        work_package=r.work_package,
+        cost_code=r.cost_code,
     )
 
 
@@ -463,8 +487,9 @@ def movements(
         else:
             params["until"] = until
         where.append("m.recorded_at < :until")
-    sql = text(f"{_MOVEMENT_SELECT}WHERE {' AND '.join(where)} ORDER BY m.seq LIMIT :limit")
-    rows = conn.execute(sql, {**params, "limit": _limit(limit)})
+    select, joined = _movement_select(viewer)
+    sql = text(f"{select}WHERE {' AND '.join(where)} ORDER BY m.seq LIMIT :limit")
+    rows = conn.execute(sql, {**params, **joined, "limit": _limit(limit)})
     return [_movement_row(r) for r in rows]
 
 
@@ -494,18 +519,23 @@ def lot_detail(
     if head is None:
         raise LotNotFoundError(f"no lot {key!r} in {scope}")
     quantities = stock(conn, scope, lot=key, viewer=viewer)
+    package, package_params = _hide("wp.id", viewer=viewer)
+    line_visible, line_params = _hide("x.mto_line_id", viewer=viewer)
     reservations = conn.execute(
         text(
-            "SELECT mr.key AS mto_line, loc.code AS location, x.qty "
+            "SELECT mr.key AS mto_line, loc.code AS location, x.qty, wp.key AS work_package "
             f"FROM {RESERVATION_TABLE} x JOIN {LOCATION_TABLE} loc ON loc.id = x.location_id "
             "JOIN cur_core_record mr ON mr.id = x.mto_line_id "
-            "WHERE x.lot_id = :lot ORDER BY mr.key, loc.code"
+            f"LEFT JOIN {MTO_LINE_TABLE} xl ON xl.id = x.mto_line_id "
+            f"LEFT JOIN cur_core_record wp ON wp.id = xl.work_package_id AND {package} "
+            f"WHERE x.lot_id = :lot AND {line_visible} ORDER BY mr.key, loc.code"
         ),
-        {"lot": str(head.id)},
+        {**package_params, **line_params, "lot": str(head.id)},
     )
+    select, joined = _movement_select(viewer)
     last = conn.execute(
-        text(f"{_MOVEMENT_SELECT}WHERE m.lot_id = :lot ORDER BY m.seq DESC LIMIT :n"),
-        {"lot": str(head.id), "n": LAST_MOVEMENTS},
+        text(f"{select}WHERE m.lot_id = :lot ORDER BY m.seq DESC LIMIT :n"),
+        {**joined, "lot": str(head.id), "n": LAST_MOVEMENTS},
     )
     return LotDetailView(
         id=str(head.id),
@@ -520,7 +550,12 @@ def lot_detail(
         po_line=head.po_line,
         quantities=quantities,
         reservations=[
-            ReservationView(mto_line=str(r.mto_line), location=str(r.location), qty=dec(r.qty))
+            ReservationView(
+                mto_line=str(r.mto_line),
+                location=str(r.location),
+                qty=dec(r.qty),
+                work_package=r.work_package,
+            )
             for r in reservations
         ],
         movements=[_movement_row(r) for r in last],
@@ -578,6 +613,7 @@ class ReceiptDetailView(ReceiptView):
     decided_by: str | None
     decided_on: str | None
     rejection_reason: str | None
+    received_by: str | None = None  # the actor that filed the receipt (S5)
     line_rows: list[ReceiptLineView]
     files: list[ReceiptFileView]
 
@@ -715,8 +751,19 @@ def receipt_detail(
         ),
         {"id": head.id},
     )
+    # the actor of the receipt's own Defined event, read only when the receipt itself is readable
+    # (it is: ``visible`` above) and the event's stream is not hidden (ADR-0016)
+    event_visible, event_params = _hide("e.stream_id", viewer=viewer)
+    filed = conn.execute(
+        text(
+            "SELECT e.actor FROM events e WHERE e.stream_id = :id AND e.event_type = :kind "
+            f"AND {event_visible} ORDER BY e.seq LIMIT 1"
+        ),
+        {**event_params, "id": head.id, "kind": RECEIPT_DEFINED},
+    ).scalar_one_or_none()
     return ReceiptDetailView(
         **head.model_dump(),
+        received_by=None if filed is None else str(filed),
         created_at=str(row.created_at),
         inspected_by=row.inspected_by,
         inspected_on=row.inspected_on,
@@ -782,7 +829,8 @@ class ReservationRowView(BaseModel):
 
 _LINE_SELECT = (
     "SELECT l.id, lr.key, mr.key AS mto, l.line_no, ir.key AS item_code, ir.title AS item_title, "
-    "l.uom, l.qty, l.reserved_qty, l.issued_qty, l.work_package_id, wp.key AS work_package "
+    "l.uom, l.qty, l.reserved_qty, l.issued_qty, l.work_package_id, l.project_item_id, "
+    "wp.key AS work_package "
     f"FROM {MTO_LINE_TABLE} l JOIN cur_core_record lr ON lr.id = l.id "
     "JOIN cur_core_record mr ON mr.id = l.mto_id "
     "JOIN cur_core_record ir ON ir.id = l.project_item_id "
@@ -887,3 +935,10 @@ def reservations_for_iwp(
         )
         for r in rows
     ]
+
+
+# The names the sibling module ``views_detail`` builds on (S5); public, so it imports no private
+# name.
+LINE_SELECT = _LINE_SELECT
+line_view = _line_view
+hide = _hide

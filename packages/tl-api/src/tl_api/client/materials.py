@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from tl_core.auth.errors import ForbiddenError
 from tl_core.services.commands import Command, CommandResult
-from tl_mod_materials import views
+from tl_mod_materials import views, views_detail
 from tl_mod_materials.commands import MATERIALS_COMMANDS
 
 from tl_api.client.base import ApiClientBase, quote
@@ -121,6 +121,16 @@ class MaterialsApi(ApiClientBase):
         """The company library of items; with ``project``, the items it adopted (``.../items``)."""
         data = self._get_json("/companies/materials/items", {"project": project, "limit": limit})
         return self._models(views.MaterialItemView, data)
+
+    def get_materials_mto_line(self, project: str, key: str) -> views_detail.MtoLineDetailView:
+        """One take-off line with its reservations and open receipts (``.../mto-line``)."""
+        data = self._get_json(f"/projects/{quote(project)}/materials/mto-line", {"key": key})
+        return self._model(views_detail.MtoLineDetailView, data)
+
+    def list_materials_item_projects(self, code: str) -> list[views_detail.ItemProjectView]:
+        """One item's quantities per project (``GET /companies/materials/item-projects``)."""
+        data = self._get_json("/companies/materials/item-projects", {"code": code})
+        return self._models(views_detail.ItemProjectView, data)
 
     def materials_command(self, name: str, cmd: Command) -> CommandResult:
         """Run a materials command by name (``POST /commands/<name>``, the token's actor).

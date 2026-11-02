@@ -180,6 +180,7 @@ from tl_mod_engineering.commands import API_COMMANDS as ENGINEERING_COMMANDS
 from tl_mod_engineering.names import COMPANY as ENGINEERING_COMPANY
 from tl_mod_engineering.views import TagView, tag_view, tag_views
 from tl_mod_materials import views as materials_views
+from tl_mod_materials import views_detail as materials_detail
 from tl_mod_materials.commands import MATERIALS_COMMANDS
 from tl_mod_schedule import views as schedule_views
 from tl_mod_schedule.compare import Comparison
@@ -1590,6 +1591,14 @@ class EmbeddedClient:
             return materials_views.items(
                 uow.conn(), project=f"project:{project}" if project else None, limit=limit
             )
+
+    def get_materials_mto_line(self, project: str, key: str) -> materials_detail.MtoLineDetailView:
+        with self._uow(True) as uow:
+            return materials_detail.mto_line_detail(uow.conn(), f"project:{project}", key)
+
+    def list_materials_item_projects(self, code: str) -> list[materials_detail.ItemProjectView]:
+        with self._uow(True) as uow:
+            return materials_detail.item_projects(uow.conn(), code)
 
     def materials_command(self, name: str, cmd: Command) -> CommandResult:
         spec = next((c for c in MATERIALS_COMMANDS if c.model.__name__ == name), None)
