@@ -483,6 +483,8 @@ AGENT_MAY_NOT = {
     "control.command.AdjustStock",
     "control.command.ScrapStock",
     "control.command.VoidReceipt",
+    # the MTO publish (P2-I3-S4): a controlling act, access word controller (superuser holds it)
+    "control.command.PublishDerivedMto",
 }
 FEED_COMMANDS = {
     "PostToFeed",
