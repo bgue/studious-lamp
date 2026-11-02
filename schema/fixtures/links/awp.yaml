@@ -1,0 +1,25 @@
+# Expected links of an awp construction work package (brief 7.1). LinkML-shaped; the only part read at
+# runtime is the `tl:expects_link` annotation (see schema/core/annotations.yaml), as plain YAML.
+# This repeats the entry in schema/modules/awp/cwp.yaml so the default registry reports the gap; one
+# source of truth for both is a follow-up. Release is never refused for the miss (P2-I1-S4).
+id: https://example.org/throughline/fixtures/links/awp
+name: tl_fixture_awp_links
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+default_range: string
+annotations:
+  tl:module: awp
+
+classes:
+  CWP:
+    annotations:
+      tl:expects_link:
+        - relation: requires
+          direction: out
+          target_type: awp.EWPRef
+          by_state: Released for IWP development
+          label: engineering work package
