@@ -13,10 +13,10 @@ from __future__ import annotations
 import json
 from collections import defaultdict
 from dataclasses import dataclass
-from decimal import Decimal
+from decimal import ROUND_HALF_EVEN, Decimal
 from typing import Any, Final
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import Connection, bindparam, text
 from tl_core.confidentiality import hidden_among, not_hidden
 from tl_mod_schedule.resolver import ActivityLink, links_to_activities
@@ -65,6 +65,9 @@ class PackageRow(BaseModel):
     actual_date: str | None
     constraint_source: bool
     source_system: str | None
+    title: str = ""  # the package record's title
+    # the numbers of the readable, non-void CWPs with a live `requires` link to it, sorted
+    cwps: list[str] = Field(default_factory=list)
 
 
 class CwpRow(BaseModel):
@@ -79,6 +82,7 @@ class CwpRow(BaseModel):
     planned_start: str | None
     planned_finish: str | None
     budget_hours: Decimal | None
+    allocated: bool = False  # the CWP has >= 1 allocation to a readable, non-void WBS node
 
 
 class CwpAllocation(BaseModel):
@@ -106,6 +110,15 @@ class CwaRow(BaseModel):
     retired: bool
 
 
+class WbsCwp(BaseModel):
+    """A CWP allocated to a leaf node: its number, subject, percent and the hours it takes there."""
+
+    number: str
+    title: str
+    percent: Decimal
+    hours: Decimal | None  # budget_hours * percent / 100, 2 places, half-even; None without budget
+
+
 class WbsRow(BaseModel):
     """A WBS node with its rollup: ``total_hours`` is None when the node has no rollup rows."""
 
@@ -118,6 +131,9 @@ class WbsRow(BaseModel):
     retired: bool
     total_hours: Decimal | None
     by_cost_code: dict[str, Decimal]  # the cost code's code to its budget hours
+    cwp_count: int = 0  # distinct readable, non-void CWPs allocated to the node or any descendant
+    # the CWPs allocated to a leaf, filled by wbs_detail only; [] in wbs_tree and for a parent
+    cwps: list[WbsCwp] = Field(default_factory=list)
 
 
 class PathStep(BaseModel):
@@ -162,6 +178,25 @@ class _PathHead:
     key: str
     title: str
     current_version: int
+
+
+@dataclass(frozen=True)
+class _Allocation:
+    """One CWP allocation to a readable, non-void WBS node, of a readable, non-void CWP."""
+
+    cwp_id: str
+    number: str
+    title: str
+    budget_hours: Decimal | None
+    node_id: str
+    percent: Decimal
+
+
+@dataclass(frozen=True)
+class _CwpIndex:
+    counted: dict[str, set[str]]  # node id: the CWP ids allocated to it or to a descendant
+    own: dict[str, list[_Allocation]]  # node id: the allocations to it
+    parents: set[str]  # the node ids that are the parent of some node (a node not in it is a leaf)
 
 
 def _dec(value: Any) -> Decimal | None:
@@ -211,6 +246,8 @@ def _cwp_rows(
             },
         ).mappings()
     )
+    hidden_cwp = _hidden(conn, {str(r["id"]) for r in rows})
+    rows = [r for r in rows if str(r["id"]) not in hidden_cwp]
     hidden_cwa = _hidden(conn, {str(r["cwa_id"]) for r in rows if r["cwa_id"] is not None})
     pairs: list[tuple[Any, CwpRow]] = []
     for r in rows:
@@ -256,38 +293,105 @@ def _cwp_allocations(conn: Connection, scope: str, cwp_id: str) -> list[CwpAlloc
     ]
 
 
+def _live_allocations(conn: Connection, scope: str) -> list[_Allocation]:
+    """The allocations of ``scope`` to a non-void WBS node and of a non-void CWP, both the viewer
+    may read (one query; one hidden check over the node ids and one over the CWP ids)."""
+    rows = list(
+        conn.execute(
+            text(
+                "SELECT a.cwp_id, cr.key, cr.title, c.budget_hours, a.wbs_node_id, a.percent "
+                f"FROM {CWP_ALLOCATION_TABLE} a "
+                f"JOIN {CWP_TABLE} c ON c.id = a.cwp_id "
+                "JOIN cur_core_record cr ON cr.id = c.id "
+                f"JOIN {WBS_NODE_TABLE} n ON n.id = a.wbs_node_id "
+                "JOIN cur_core_record nr ON nr.id = n.id "
+                "WHERE a.scope = :scope AND cr.voided = :voided AND nr.voided = :voided"
+            ),
+            {"scope": scope, "voided": False},
+        ).mappings()
+    )
+    hidden_nodes = _hidden(conn, {str(r["wbs_node_id"]) for r in rows})
+    hidden_cwps = _hidden(conn, {str(r["cwp_id"]) for r in rows})
+    return [
+        _Allocation(
+            cwp_id=str(r["cwp_id"]),
+            number=str(r["key"]),
+            title=str(r["title"]),
+            budget_hours=_dec(r["budget_hours"]),
+            node_id=str(r["wbs_node_id"]),
+            percent=Decimal(str(r["percent"])),
+        )
+        for r in rows
+        if str(r["wbs_node_id"]) not in hidden_nodes and str(r["cwp_id"]) not in hidden_cwps
+    ]
+
+
 def _package_rows(
     conn: Connection, scope: str, kinds: tuple[str, ...], where: str, params: dict[str, Any]
 ) -> list[PackageRow]:
     """The EWP and PWP references of ``kinds`` in ``scope`` the viewer may read, by package number.
     ``where`` is a condition written here, never user input."""
-    found: list[PackageRow] = []
+    fetched: list[tuple[str, Any]] = []
     for record_type in kinds:
         visible, extra = not_hidden("p.id")
         rows = conn.execute(
             text(
-                "SELECT p.id, p.package_no, p.status_text, p.forecast_date, p.actual_date, "
-                "p.constraint_source, p.source_system "
+                "SELECT p.id, r.title, p.package_no, p.status_text, p.forecast_date, "
+                "p.actual_date, p.constraint_source, p.source_system "
                 f"FROM {PACKAGE_TABLE[record_type]} p JOIN cur_core_record r ON r.id = p.id "
                 f"WHERE p.scope = :scope AND r.voided = :voided AND {visible}{where}"
             ),
             {"scope": scope, "voided": False, **params, **extra},
         ).mappings()
-        found.extend(
-            PackageRow(
-                id=str(r["id"]),
-                kind=KIND_WORDS[record_type],
-                package_no=str(r["package_no"]),
-                status_text=_text(r["status_text"]),
-                forecast_date=_text(r["forecast_date"]),
-                actual_date=_text(r["actual_date"]),
-                constraint_source=bool(r["constraint_source"]),
-                source_system=_text(r["source_system"]),
-            )
-            for r in rows
+        fetched.extend((record_type, r) for r in rows)
+    requiring = _package_cwps(conn, scope, [str(r["id"]) for _, r in fetched])
+    found = [
+        PackageRow(
+            id=str(r["id"]),
+            kind=KIND_WORDS[record_type],
+            title=str(r["title"]),
+            package_no=str(r["package_no"]),
+            status_text=_text(r["status_text"]),
+            forecast_date=_text(r["forecast_date"]),
+            actual_date=_text(r["actual_date"]),
+            constraint_source=bool(r["constraint_source"]),
+            source_system=_text(r["source_system"]),
+            cwps=requiring.get(str(r["id"]), []),
         )
+        for record_type, r in fetched
+    ]
     found.sort(key=lambda p: (p.package_no, p.kind))
     return found
+
+
+def _package_cwps(conn: Connection, scope: str, package_ids: list[str]) -> dict[str, list[str]]:
+    """The numbers of the readable, non-void CWPs with a live ``requires`` link to each package,
+    sorted (one query for all packages)."""
+    if not package_ids:
+        return {}
+    rows = list(
+        conn.execute(
+            text(
+                "SELECT l.to_id, cr.id AS cwp_id, cr.key FROM cur_links l "
+                f"JOIN {CWP_TABLE} c ON c.id = l.from_id "
+                "JOIN cur_core_record cr ON cr.id = c.id "
+                "WHERE l.scope = :scope AND l.relation = :relation AND l.status <> 'retracted' "
+                "AND cr.voided = :voided AND l.to_id IN :ids"
+            ).bindparams(bindparam("ids", expanding=True)),
+            {
+                "scope": scope,
+                "relation": CONSTRAINT_RELATION,
+                "voided": False,
+                "ids": sorted(set(package_ids)),
+            },
+        ).mappings()
+    )
+    hidden = _hidden(conn, {str(r["cwp_id"]) for r in rows})
+    numbers: dict[str, set[str]] = defaultdict(set)
+    for r in rows:
+        if str(r["cwp_id"]) not in hidden:
+            numbers[str(r["to_id"])].add(str(r["key"]))
+    return {package: sorted(found) for package, found in numbers.items()}
 
 
 def _kinds(kind: str | None) -> tuple[str, ...]:
@@ -323,7 +427,11 @@ def cwp_list(
             return []
         where += " AND c.cwa_id = :cwa_id"
         params["cwa_id"] = area
-    return [row for _, row in _cwp_rows(conn, scope, where, params)]
+    rows = [row for _, row in _cwp_rows(conn, scope, where, params)]
+    allocated = {alloc.cwp_id for alloc in _live_allocations(conn, scope)}
+    for row in rows:
+        row.allocated = row.id in allocated
+    return rows
 
 
 def cwp_detail(conn: Connection, scope: str, number: str) -> CwpDetail | None:
@@ -334,13 +442,15 @@ def cwp_detail(conn: Connection, scope: str, number: str) -> CwpDetail | None:
         return None
     raw, base = pairs[0]
     cwp_id = base.id
+    allocations = _cwp_allocations(conn, scope, cwp_id)
+    base.allocated = bool(allocations)
     return CwpDetail(
         **base.model_dump(),
         contractor_text=_text(raw["contractor_text"]),
         quantities=None
         if raw["quantities_json"] is None
         else json.loads(str(raw["quantities_json"])),
-        allocations=_cwp_allocations(conn, scope, cwp_id),
+        allocations=allocations,
         packages=_package_rows(
             conn,
             scope,
@@ -389,9 +499,36 @@ def cwa_list(conn: Connection, scope: str) -> list[CwaRow]:
 # --- WBS ------------------------------------------------------------------------------------------
 
 
-def _wbs_nodes(conn: Connection, scope: str, where: str, params: dict[str, Any]) -> list[_Node]:
-    """The live WBS nodes of ``scope`` the viewer may read, with their rollup, in table order.
-    ``where`` is a condition written here, never user input."""
+def _cwp_index(conn: Connection, scope: str) -> _CwpIndex:
+    """The CWPs allocated to each WBS node of ``scope``, counted up the ``parent_id`` chain. Two
+    queries for the whole scope (the allocations, the node chain), so the tree and one node read
+    the same counts."""
+    parent_of = {
+        str(r["id"]): None if r["parent_id"] is None else str(r["parent_id"])
+        for r in conn.execute(
+            text(f"SELECT n.id, n.parent_id FROM {WBS_NODE_TABLE} n WHERE n.scope = :scope"),
+            {"scope": scope},
+        ).mappings()
+    }
+    counted: dict[str, set[str]] = defaultdict(set)
+    own: dict[str, list[_Allocation]] = defaultdict(list)
+    for alloc in _live_allocations(conn, scope):
+        own[alloc.node_id].append(alloc)
+        node: str | None = alloc.node_id
+        seen: set[str] = set()
+        while node is not None and node not in seen:
+            seen.add(node)
+            counted[node].add(alloc.cwp_id)
+            node = parent_of.get(node)
+    parents = {p for p in parent_of.values() if p is not None}
+    return _CwpIndex(counted=dict(counted), own=dict(own), parents=parents)
+
+
+def _wbs_nodes(
+    conn: Connection, scope: str, where: str, params: dict[str, Any], index: _CwpIndex
+) -> list[_Node]:
+    """The live WBS nodes of ``scope`` the viewer may read, with their rollup and CWP count, in
+    table order. ``where`` is a condition written here, never user input."""
     visible, extra = not_hidden("n.id")
     rows = list(
         conn.execute(
@@ -425,6 +562,7 @@ def _wbs_nodes(conn: Connection, scope: str, where: str, params: dict[str, Any])
                     retired=bool(r["retired"]),
                     total_hours=totals.get(node_id),
                     by_cost_code=by_code.get(node_id, {}),
+                    cwp_count=len(index.counted.get(node_id, ())),
                 ),
             )
         )
@@ -509,22 +647,42 @@ def _depth_first(nodes: list[_Node]) -> list[WbsRow]:
     return out
 
 
+def _wbs_cwp(alloc: _Allocation) -> WbsCwp:
+    hours = (
+        None
+        if alloc.budget_hours is None
+        else (alloc.budget_hours * alloc.percent / Decimal(100)).quantize(
+            Decimal("0.01"), rounding=ROUND_HALF_EVEN
+        )
+    )
+    return WbsCwp(number=alloc.number, title=alloc.title, percent=alloc.percent, hours=hours)
+
+
 def wbs_tree(conn: Connection, scope: str, *, depth: int | None = None) -> list[WbsRow]:
-    """The WBS nodes of ``scope`` depth-first, each with its rollup. ``depth=n`` keeps the nodes
-    whose depth is below ``n`` (``depth=1`` is the top node alone)."""
-    rows = _depth_first(_wbs_nodes(conn, scope, "", {}))
+    """The WBS nodes of ``scope`` depth-first, each with its rollup and CWP count (``cwps`` is
+    empty here). ``depth=n`` keeps the nodes whose depth is below ``n`` (``depth=1`` is the top
+    node alone); the counts do not depend on ``depth``."""
+    rows = _depth_first(_wbs_nodes(conn, scope, "", {}, _cwp_index(conn, scope)))
     if depth is None:
         return rows
     return [row for row in rows if row.depth < depth]
 
 
 def wbs_detail(conn: Connection, scope: str, code: str) -> WbsRow | None:
-    """One WBS node by its code, with its rollup. ``None`` for a missing or hidden node."""
+    """One WBS node by its code, with its rollup and CWP count. A leaf also lists its own CWP
+    allocations, by number (``cwps``). ``None`` for a missing or hidden node."""
     node_id = resolve_code(conn, scope, WBS_NODE, code)
     if node_id is None:
         return None
-    nodes = _wbs_nodes(conn, scope, " AND n.id = :node", {"node": node_id})
-    return nodes[0].row if nodes else None
+    index = _cwp_index(conn, scope)
+    nodes = _wbs_nodes(conn, scope, " AND n.id = :node", {"node": node_id}, index)
+    if not nodes:
+        return None
+    row = nodes[0].row
+    if row.id in index.parents:
+        return row
+    own = sorted(index.own.get(row.id, []), key=lambda alloc: alloc.number)
+    return row.model_copy(update={"cwps": [_wbs_cwp(alloc) for alloc in own]})
 
 
 # --- path of construction -------------------------------------------------------------------------
