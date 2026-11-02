@@ -2,8 +2,10 @@
 
 Every answer under ``/web`` carries the same headers (CSP without inline script or style,
 ``nosniff``, ``Referrer-Policy``, ``Cache-Control: no-store`` unless a handler set its own). The
-middleware is pure ASGI and outermost, so a 303 or 401 from the authentication middleware, a 413
-from the body limit and a 404 from the router are covered too.
+middleware is pure ASGI and wraps the whole middleware stack (``mount`` wraps
+``build_middleware_stack``), so a 303 or 401 from the authentication middleware, a 413 from the
+body limit, a 404 from the router and a 500 answered by Starlette's outermost error middleware are
+covered too, with the one header set below (P2-Q10).
 """
 
 from __future__ import annotations
@@ -159,6 +161,20 @@ def not_found(request: Request, rest: str = "") -> Response:
     return render(request, "not_found.html", 404)
 
 
+def _wrap_stack(app: FastAPI) -> None:
+    """Put ``WebHeadersMiddleware`` outside Starlette's ``ServerErrorMiddleware``.
+
+    ``add_middleware`` would sit inside it, and a 500 is answered from there, so it would lack the
+    headers. The stack is built on the first request, after every ``mount`` and ``add_middleware``.
+    """
+    build = app.build_middleware_stack
+
+    def build_wrapped() -> ASGIApp:
+        return WebHeadersMiddleware(build())
+
+    setattr(app, "build_middleware_stack", build_wrapped)  # noqa: B010
+
+
 def mount(app: FastAPI) -> None:
     """Add the web client to ``app``. Call it after every other router and middleware.
 
@@ -166,7 +182,7 @@ def mount(app: FastAPI) -> None:
     test and ci.
     """
     app.state.web_secret = csrf.load_secret(os.environ)
-    app.add_middleware(WebHeadersMiddleware)
+    _wrap_stack(app)
     app.mount("/web/static", StaticFiles(directory=STATIC), name="web-static")
     for page in page_routers():
         app.include_router(page)

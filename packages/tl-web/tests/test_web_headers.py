@@ -83,7 +83,10 @@ def test_a_500_page_has_the_headers_too(world: Any, k: Any) -> None:
     assert response.status_code == 500
     assert response.headers.get("content-security-policy") == k.CSP
     other_headers_ok(response, "500")
+    assert response.headers["cache-control"] == "no-store"
     assert "a read failed" not in response.text  # the text of an error is never shown
+    assert response.json()["error"] == "internal_error"  # the JSON body is unchanged
+    assert response.headers["content-security-policy"].count("default-src") == 1  # set once
 
 
 def test_a_handlers_own_cache_control_is_kept_and_the_csp_cannot_be_weakened(k: Any) -> None:
