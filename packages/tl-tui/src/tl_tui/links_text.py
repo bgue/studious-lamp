@@ -15,6 +15,7 @@ from tl_core.services.link_queries import LinkView
 from tl_tui.text import EMPTY
 
 SUGGESTED = "suggested"
+COLUMNS: tuple[str, ...] = ("", "Key", "Title", "Status", "Pin", "Note")  # the Links tab's headers
 
 
 @dataclass(frozen=True)

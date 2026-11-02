@@ -31,6 +31,7 @@ from tl_tui.client import ClientInterface
 from tl_tui.display import mode_of
 from tl_tui.errors import CLIENT_ERRORS, describe_error
 from tl_tui.links_text import (  # noqa: F401 - the moved names stay importable from here
+    COLUMNS,
     SUGGESTED,
     TableRow,
     _header_row,
@@ -55,8 +56,6 @@ __all__ = [
     "pin_text",
     "status_text",
 ]
-
-COLUMNS: tuple[str, ...] = ("", "Key", "Title", "Status", "Pin", "Note")
 
 
 class LinksTab(Vertical, can_focus=True):

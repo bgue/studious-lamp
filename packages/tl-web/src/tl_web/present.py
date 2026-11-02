@@ -26,6 +26,7 @@ from tl_tui import (
     record_text,
     rfi_text,
     text,
+    thread_text,
     trace_text,
 )
 from tl_tui.action_ui import ACTION_UI, ActionUi, FormField, stamp, without_keys
@@ -63,6 +64,7 @@ __all__ = [
     "rfi_text",
     "stamp",
     "text",
+    "thread_text",
     "trace_text",
     "visible_columns",
     "without_keys",
