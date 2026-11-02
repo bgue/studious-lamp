@@ -13355,6 +13355,329 @@
         "title": "IssuedToken",
         "type": "object"
       },
+      "ItemView": {
+        "properties": {
+          "body": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Body"
+          },
+          "cc": {
+            "items": {
+              "$ref": "#/components/schemas/RecipientView"
+            },
+            "title": "Cc",
+            "type": "array"
+          },
+          "clearances": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/ClearanceView"
+            },
+            "title": "Clearances",
+            "type": "array"
+          },
+          "clocks": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/ClockView"
+            },
+            "title": "Clocks",
+            "type": "array"
+          },
+          "confidentiality": {
+            "title": "Confidentiality",
+            "type": "string"
+          },
+          "delivery": {
+            "title": "Delivery",
+            "type": "string"
+          },
+          "direction": {
+            "title": "Direction",
+            "type": "string"
+          },
+          "domain": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Domain"
+          },
+          "external_ref": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "External Ref"
+          },
+          "from_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "From Name"
+          },
+          "from_party_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "From Party Id"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "issued_on": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Issued On"
+          },
+          "medium": {
+            "title": "Medium",
+            "type": "string"
+          },
+          "number": {
+            "title": "Number",
+            "type": "string"
+          },
+          "received_on": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Received On"
+          },
+          "received_via": {
+            "title": "Received Via",
+            "type": "string"
+          },
+          "rendition_file_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rendition File Id"
+          },
+          "responded_on": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Responded On"
+          },
+          "responds_to_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Responds To Id"
+          },
+          "responds_to_number": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Responds To Number"
+          },
+          "response_due": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Response Due"
+          },
+          "response_required": {
+            "title": "Response Required",
+            "type": "boolean"
+          },
+          "sent_on": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sent On"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          },
+          "subject": {
+            "title": "Subject",
+            "type": "string"
+          },
+          "subtype": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subtype"
+          },
+          "superseded_by_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Superseded By Id"
+          },
+          "thread_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Thread Id"
+          },
+          "thread_number": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Thread Number"
+          },
+          "to": {
+            "items": {
+              "$ref": "#/components/schemas/RecipientView"
+            },
+            "title": "To",
+            "type": "array"
+          },
+          "triaged_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Triaged By"
+          },
+          "triaged_on": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Triaged On"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "number",
+          "subject",
+          "state",
+          "direction",
+          "medium",
+          "received_via",
+          "external_ref",
+          "from_name",
+          "from_party_id",
+          "to",
+          "cc",
+          "sent_on",
+          "received_on",
+          "issued_on",
+          "body",
+          "confidentiality",
+          "domain",
+          "subtype",
+          "thread_id",
+          "thread_number",
+          "responds_to_id",
+          "responds_to_number",
+          "superseded_by_id",
+          "response_required",
+          "response_due",
+          "responded_on",
+          "triaged_on",
+          "triaged_by",
+          "delivery",
+          "rendition_file_id",
+          "version"
+        ],
+        "title": "ItemView",
+        "type": "object"
+      },
       "JobView": {
         "properties": {
           "attempt": {
@@ -14603,6 +14926,90 @@
           "status"
         ],
         "title": "MappingDryRun",
+        "type": "object"
+      },
+      "MaterialItemView": {
+        "properties": {
+          "base_uom": {
+            "title": "Base Uom",
+            "type": "string"
+          },
+          "category": {
+            "title": "Category",
+            "type": "string"
+          },
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "consumable": {
+            "title": "Consumable",
+            "type": "boolean"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "material_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Material Code"
+          },
+          "projects": {
+            "title": "Projects",
+            "type": "integer"
+          },
+          "rating_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rating Text"
+          },
+          "retired": {
+            "title": "Retired",
+            "type": "boolean"
+          },
+          "size_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Size Text"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "code",
+          "title",
+          "category",
+          "base_uom",
+          "size_text",
+          "rating_text",
+          "material_code",
+          "consumable",
+          "retired",
+          "projects"
+        ],
+        "title": "MaterialItemView",
         "type": "object"
       },
       "MeetClockBody": {
@@ -33375,329 +33782,6 @@
         "title": "Recipient",
         "type": "object"
       },
-      "tl_mod_correspondence__views__ItemView": {
-        "properties": {
-          "body": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Body"
-          },
-          "cc": {
-            "items": {
-              "$ref": "#/components/schemas/RecipientView"
-            },
-            "title": "Cc",
-            "type": "array"
-          },
-          "clearances": {
-            "default": [],
-            "items": {
-              "$ref": "#/components/schemas/ClearanceView"
-            },
-            "title": "Clearances",
-            "type": "array"
-          },
-          "clocks": {
-            "default": [],
-            "items": {
-              "$ref": "#/components/schemas/ClockView"
-            },
-            "title": "Clocks",
-            "type": "array"
-          },
-          "confidentiality": {
-            "title": "Confidentiality",
-            "type": "string"
-          },
-          "delivery": {
-            "title": "Delivery",
-            "type": "string"
-          },
-          "direction": {
-            "title": "Direction",
-            "type": "string"
-          },
-          "domain": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Domain"
-          },
-          "external_ref": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "External Ref"
-          },
-          "from_name": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "From Name"
-          },
-          "from_party_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "From Party Id"
-          },
-          "id": {
-            "title": "Id",
-            "type": "string"
-          },
-          "issued_on": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Issued On"
-          },
-          "medium": {
-            "title": "Medium",
-            "type": "string"
-          },
-          "number": {
-            "title": "Number",
-            "type": "string"
-          },
-          "received_on": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Received On"
-          },
-          "received_via": {
-            "title": "Received Via",
-            "type": "string"
-          },
-          "rendition_file_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Rendition File Id"
-          },
-          "responded_on": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Responded On"
-          },
-          "responds_to_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Responds To Id"
-          },
-          "responds_to_number": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Responds To Number"
-          },
-          "response_due": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Response Due"
-          },
-          "response_required": {
-            "title": "Response Required",
-            "type": "boolean"
-          },
-          "sent_on": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Sent On"
-          },
-          "state": {
-            "title": "State",
-            "type": "string"
-          },
-          "subject": {
-            "title": "Subject",
-            "type": "string"
-          },
-          "subtype": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Subtype"
-          },
-          "superseded_by_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Superseded By Id"
-          },
-          "thread_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Thread Id"
-          },
-          "thread_number": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Thread Number"
-          },
-          "to": {
-            "items": {
-              "$ref": "#/components/schemas/RecipientView"
-            },
-            "title": "To",
-            "type": "array"
-          },
-          "triaged_by": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Triaged By"
-          },
-          "triaged_on": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Triaged On"
-          },
-          "version": {
-            "title": "Version",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "id",
-          "number",
-          "subject",
-          "state",
-          "direction",
-          "medium",
-          "received_via",
-          "external_ref",
-          "from_name",
-          "from_party_id",
-          "to",
-          "cc",
-          "sent_on",
-          "received_on",
-          "issued_on",
-          "body",
-          "confidentiality",
-          "domain",
-          "subtype",
-          "thread_id",
-          "thread_number",
-          "responds_to_id",
-          "responds_to_number",
-          "superseded_by_id",
-          "response_required",
-          "response_due",
-          "responded_on",
-          "triaged_on",
-          "triaged_by",
-          "delivery",
-          "rendition_file_id",
-          "version"
-        ],
-        "title": "ItemView",
-        "type": "object"
-      },
       "tl_mod_documents__handlers__transmittals__Recipient": {
         "additionalProperties": false,
         "description": "Who receives a transmittal.",
@@ -33737,90 +33821,6 @@
           "name"
         ],
         "title": "Recipient",
-        "type": "object"
-      },
-      "tl_mod_materials__views__ItemView": {
-        "properties": {
-          "base_uom": {
-            "title": "Base Uom",
-            "type": "string"
-          },
-          "category": {
-            "title": "Category",
-            "type": "string"
-          },
-          "code": {
-            "title": "Code",
-            "type": "string"
-          },
-          "consumable": {
-            "title": "Consumable",
-            "type": "boolean"
-          },
-          "id": {
-            "title": "Id",
-            "type": "string"
-          },
-          "material_code": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Material Code"
-          },
-          "projects": {
-            "title": "Projects",
-            "type": "integer"
-          },
-          "rating_text": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Rating Text"
-          },
-          "retired": {
-            "title": "Retired",
-            "type": "boolean"
-          },
-          "size_text": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Size Text"
-          },
-          "title": {
-            "title": "Title",
-            "type": "string"
-          }
-        },
-        "required": [
-          "id",
-          "code",
-          "title",
-          "category",
-          "base_uom",
-          "size_text",
-          "rating_text",
-          "material_code",
-          "consumable",
-          "retired",
-          "projects"
-        ],
-        "title": "ItemView",
         "type": "object"
       }
     },
@@ -55907,7 +55907,7 @@
               "application/json": {
                 "schema": {
                   "items": {
-                    "$ref": "#/components/schemas/tl_mod_materials__views__ItemView"
+                    "$ref": "#/components/schemas/MaterialItemView"
                   },
                   "title": "Response List Materials Items",
                   "type": "array"
@@ -58656,7 +58656,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/tl_mod_correspondence__views__ItemView"
+                  "$ref": "#/components/schemas/ItemView"
                 }
               }
             },

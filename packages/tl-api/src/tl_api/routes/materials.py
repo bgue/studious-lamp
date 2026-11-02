@@ -157,7 +157,7 @@ def list_materials_items(
         str | None, Query(max_length=200, description="Keep the items this project adopted.")
     ] = None,
     limit: Limit = MAX_VIEW_ROWS,
-) -> list[views.ItemView]:
+) -> list[views.MaterialItemView]:
     """The company library of items by code; with ``project``, the items that project adopted."""
     with ctx.backend(True) as uow:
         return views.items(
