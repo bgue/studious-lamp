@@ -1,4 +1,4 @@
-# P2-WEB1 STATE  r=4 base=08902b0 C=2 ck=0 gate=n/a wt=/home/user/wt/p2-web1
+# P2-WEB1 STATE  r=5 base=866e97b C=2 ck=0 gate=n/a wt=/home/user/wt/p2-web1
 ## BOARD
 S1 p mrg f 3145932 foundation; F1 csrf catch-all fixed; deviations ratified
 S2 p mrg f 3145932 run_command + action_ui (merge 773f38c)
@@ -8,14 +8,17 @@ S4 p mrg f 8fb6905 reads, WebLog, /do; ~1,160 line overrun accepted
 T15 t mrg f 88ddfe7 RFI log page (merge a2f0a1d)
 T01 t mrg f 86b4338 correspondence register; transmittal rows no actions (359a3e6)
 T05 t mrg f 9e5e1b3 PDF viewer page, pdfview.js (merge 0ca0d5f)
-T02 t stg f - document log page; seam panel_image in tree; spec T02-document-log-page.md
-S6 p stg f - record screen piece (was T03+T04); spec S6-record-screen.md
-T03 t todo f - Links + Trace tabs (tab modules); write after S6 merges
-T04 t todo f - Thread + Files tabs (tab modules); write after S6 merges
+T02 t mrg f 567ed55 document log page (merge e16b5bd)
+S6 p mrg f 70f45e4 record screen, Details Properties History (merge 54d80da)
+T03 t stg f - Links + Trace tabs; ticket T03-links-trace-tabs.md
+T04 t stg f - Thread + Files tabs; ticket T04-thread-files-tabs.md
 S5 p todo f - tests piece at C3 (all spec 11 "Tests added" + S6 files)
 T07 t todo l - docs: tl-web README, runbook web-client, AGENTS row
 T08 t todo l - demo dev/demos/P2-WEB1.sh
-T09-T14 t todo f - 6 twin tickets for M3 and M4 logs; wait for M3 and M4 C2
+T09 t todo f - CWP + CWA register twins; staged, waits for p2/i1 merge + T05a
+T10 t todo f - WBS tree + path twins; staged, waits for p2/i1 merge + T05b/c
+T11 t todo f - external packages twin; staged, waits for p2/i1 merge + T05c
+T12-T14 t todo f - M4 twins (stock+movement; receipt+MTO; items+locations); wait for M4 C2
 ## DEC
 D1 2026-11-01 owner: tests deferred; every item leaves dev/accept/P2-WEB1/<id>.py; S5 writes the spec 11 "Tests added" files plus tests/tools/test_check_licences_vendored.py
 D2 2026-11-01 file ids: S1..S4 as spec, S5 = tests, T01..T08 = spec T1..T8, T09..T14 = twins; reports docs/reports/P2-WEB1/<id>.md
@@ -39,17 +42,20 @@ D19 2026-11-01 Q3 closed (orch approved S6). S6 cut: builder moves record_view/p
 D20 2026-11-01 documents web log has no actions in i1: no document command has an ACTION_UI row (terminal builds them inside its screen); T02 overrides actions_for to []. Issue/supersede/void revision and transmittals stay terminal-only; follow-up for the Phase 2 plan, not this increment
 D21 2026-11-01 S6 acceptance carries one pytest line (existing tl-tui record/psets/links/trace tests, move-only regression sniff, as D13 did for S3); new tests stay deferred to S5. Orchestrator may strike the line; then the move is checked by the script only
 D22 2026-11-01 T01 open point left as built: status line counts all loaded rows, the terminal counts the filtered rows; S5 pins the web behaviour; revisit at DONE if the owner wants parity
+D23 2026-11-02 r5 seams (3 code lines + 1 moved): links_text.COLUMNS (moved from widgets/links_tab, imported back), present.thread_text. S6.py nav-order and `?tab=links` checks will fail after T03/T04; accepted, S5 replaces S6.py with tests (D17 pattern); tickets say do not edit it
+D24 2026-11-02 T03/T04 pins: Links has no expected-links lines (expected_links is not a web read); Trace takes depth, dir; Thread is read-only, one page per `before` (Older link, no accumulation); Files draws page 1 of the first PDF only (2 renders at once, 503 otherwise) and links View/Download
+D25 2026-11-02 twins T09-T11 staged, not ready: M3 has API routes (T03a) and CLI reads but NO terminal text module yet (P2-I1 T05a-c screens not built), so checklist item 2 fails today. Activation steps are in each ticket: merge p2/i1, T05 text modules Textual-free, then a <=45-line reads.py seam (awp_routes + 8 mirror rows) by the supervisor. Routes known: list_cwps get_cwp list_cwas wbs_tree get_wbs_node get_path list_path_versions list_packages (project path param)
 ## SEC
 Review at C4 scoped to S1-S4 and S6 (spec 11 Sec rows; offered-now check in S4; hidden record = missing in S6); range 1b93a13..head. Not run.
 ## OPEN
 Q2 security review at C4 needs the owner's yes (wave plan 2) needs owner raised wave plan; orch asked, not blocking
 ## NEXT
-1. Orch: dispatch T02 (review full) and S6 (piece, full) in parallel (disjoint paths; both read log.py, S6 edits it: T02 does not). Merge P items, spawn r5.
-2. r5: write T03 and T04 (tab modules) from the S6 report recipe; commit any held interface. Run the 01-tiers 6 checklist on each.
-3. r5/r6: S5 tests piece once T02, S6 and T03/T04 are in the tree (walk entries need every page, plus the S6 files); C3 follows.
-4. C3: S5, then T07 docs and T08 demo. Twins T09-T14 only after M3 and M4 C2.
-5. C4: full gate and demo by orchestrator; security review (Q2); DONE round writes the report and learnings (proposed ones sit in docs/reports/P2-WEB1/*.md "Learnings").
+1. Orch: dispatch T03 and T04 in parallel (review full each; disjoint files). Merge P items, spawn r6.
+2. r6: S5 tests piece once T03 and T04 are in the tree (all spec 11 "Tests added" plus T02, T03, T04, S6 files; walk entries for every page and tab, five kinds of reader on Thread and Files; count 24 mirrors plus any twin reads).
+3. Twins: when orch merges p2/i1 into p2/web1 and T05a-c are in, r-next fills T09-T11 (Activation in each file), applies the reads.py seam, dispatches. M4 twins T12-T14 are written after M4 C2 (T04a reads in flight).
+4. C3: S5, then T07 docs and T08 demo (twins add demo clauses only if merged by then).
+5. C4: full gate and demo by orchestrator; web security review (Q2, owner's yes); DONE round writes the report and learnings (proposed ones in docs/reports/P2-WEB1/*.md).
 ## REFS
-Spec docs/build-spec/specs/web-client-i1.md (sections 3-8 are the interfaces); wave plan 2; piece specs S1-S4, S6 and tickets T01, T02, T05, T06, T15 in this directory. Acceptance scripts dev/accept/P2-WEB1/. Reports docs/reports/P2-WEB1/ (S4 has the page recipe and S5 seams; T01 has the forge_item and patch-a-read tricks). Trunk claude/wizardly-allen-m2v96s @1b93a13; branch p2/web1 head = base above (state commit follows). Style models: dev/accept/P2-WEB1/T15.py, docs/tickets/P2-WEB1/S3-server-page1.md.
+Spec docs/build-spec/specs/web-client-i1.md (sections 3-8 are the interfaces); wave plan 2; piece specs S1-S4, S6 and tickets T01, T02, T05, T06, T15 in this directory. Acceptance scripts dev/accept/P2-WEB1/. Reports docs/reports/P2-WEB1/ (S4 has the page recipe and S5 seams; T01 has the forge_item and patch-a-read tricks). Trunk claude/wizardly-allen-m2v96s @1b93a13; branch p2/web1 head = base above (state commit follows); T03/T04 recipe = docstring of pages/record.py and docs/reports/P2-WEB1/S6.md. Style models: dev/accept/P2-WEB1/T15.py, docs/tickets/P2-WEB1/S3-server-page1.md.
 ## TRAPS
 Worktree /home/user/wt/p2-web1 only; never /home/user/studious-lamp. dev/tests/ is outside testpaths (use tests/tools/). Never delete /tmp/pytest-of-root, never pkill. `just check` takes >120 s: background. `DisplayMode()` takes no args (set .technical after). Hidden = missing (ADR-0016). New worktrees: `uv sync --all-packages` first; pyright needs NODE_OPTIONS=--max-old-space-size=6144. Commit subjects P2-WEB1-<id>:. Page tickets load S4.World through importlib with S4.PAGE_SOURCE emptied (D17). A TYPE_CHECKING-only row type needs the quoted base WebLog["Row"]. forge_item has no scope argument. Ruff E501 applies in dev/accept. S3.World.upload hardcodes application/pdf. Weekly capacity ~90% (owner stop 95%): one batch per round.
