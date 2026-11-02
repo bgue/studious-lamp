@@ -22,6 +22,7 @@ from pathlib import Path
 
 from tl_adapters.db import as_target, open_uow
 from tl_mod_materials import views
+from tl_mod_materials.names import MOVEMENT_KINDS
 from tl_mod_materials.views import MovementView, StockRowView
 from tl_tui import materials_text as mt
 
@@ -117,7 +118,7 @@ def check_empty_is_dash(h: Harness) -> None:
     no_origin = MovementView(
         seq=2,
         recorded_at="2026-10-02T09:00:00",
-        kind="receipt",
+        kind="receive",
         lot=LOT,
         heat_no=None,
         item_code="PIPE",
@@ -192,10 +193,12 @@ def check_next_kind(_: Harness) -> None:
 
 
 def check_receipt_sign(_: Harness) -> None:
+    expect(set(mt.KIND_WORDS) == set(MOVEMENT_KINDS), "KIND_WORDS keys are not the ledger kinds")
+    expect("receipt" not in mt.KIND_WORDS, "KIND_WORDS keys receipt, which the ledger never stores")
     receipt = MovementView(
         seq=1,
         recorded_at="2026-10-01T09:00:00",
-        kind="receipt",
+        kind="receive",
         lot=LOT,
         heat_no=None,
         item_code="PIPE",

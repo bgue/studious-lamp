@@ -56,7 +56,7 @@ KIND_WORDS: Mapping[str, str] = {
     "return": "Return",
     "adjust": "Adjust",
     "scrap": "Scrap",
-    "receipt": "Receipt",
+    "receive": "Receipt",  # the ledger's kind for a receipt (tl_mod_materials.names.RECEIVE)
     "reserve": "Reserve",
     "unreserve": "Release",
 }
