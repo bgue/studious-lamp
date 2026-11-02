@@ -95,7 +95,6 @@ def _run(
         stamped,
         principal=principal,
         path=request.url.path,
-        guard=True,  # the endpoint guard's authorizer and hook calls: this route has no guard
     )
     done = status_fragment(request, f"{label}: done", error=False)
     done.headers["HX-Refresh"] = "true"  # the rows and the bar follow what the command changed

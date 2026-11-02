@@ -190,6 +190,22 @@ def test_failed_web_sign_ins_share_the_json_routes_count_and_answer_429(
     )
 
 
+def test_foreign_origin_sign_ins_do_not_spend_the_sources_budget(light_world: Any, k: Any) -> None:
+    """No password was checked, so a hostile page cannot lock the victim's address out."""
+    w = light_world
+    web = w.client(app=w.make_app(SourceLimiter(3)))
+    form = {"username": "bob", "password": k.PASSWORD}
+    for _ in range(10):  # well over the limit of 3
+        refused = web.post("/web/sign-in", data=form, headers={"Origin": "http://evil.example"})
+        assert refused.status_code == 403
+    assert web.post("/web/sign-in", data=form, headers={"Origin": k.OWN}).status_code == 303
+    # real failures still count
+    wrong = {"username": "bob", "password": WRONG}
+    for _ in range(3):
+        assert web.post("/web/sign-in", data=wrong, headers={"Origin": k.OWN}).status_code == 401
+    assert web.post("/web/sign-in", data=wrong, headers={"Origin": k.OWN}).status_code == 429
+
+
 def test_the_cookie_authenticates_web_only(light_world: Any) -> None:
     token = light_world.sign_in("bob")[1]
     cookie = light_world.client(token)

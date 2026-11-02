@@ -310,7 +310,7 @@ def run_command(
     principal: Principal,
     effective_at: str | None = None,
     path: str = "",
-    guard: bool = False,
+    guard: bool = True,
 ) -> CommandResult:
     """Everything a command endpoint does once the model is built, once, for every caller.
 
@@ -319,11 +319,11 @@ def run_command(
     second copy. ``path`` is the resource named in an admin refusal (the request path). A refusal is
     raised (``ForbiddenError``, ``CommandAccessError``, ...) before the handler runs.
 
-    ``guard=True`` runs the endpoint guard's two calls first (the role authorizer, then the legacy
-    ``ctx.authorize`` hook, for ``action_for(spec)`` on ``path``): a caller that has no ``guard``
-    dependency (the web action route) passes it and is held to the same check as the JSON endpoint.
-    The JSON endpoints leave it off: their ``guard`` dependency already ran both, before the body
-    was read.
+    ``guard`` (the default, fail closed) runs the endpoint guard's two calls first (the role
+    authorizer, then the legacy ``ctx.authorize`` hook, for ``action_for(spec)`` on ``path``), so a
+    caller with no ``guard`` dependency (the web action route) is held to the same check as the JSON
+    endpoint. The JSON endpoints pass ``guard=False``: their ``guard`` dependency already ran both,
+    before the body was read.
     """
     actor = command.actor
     if guard:
@@ -374,7 +374,7 @@ def _make_endpoint(spec: CommandSpec, body_model: type[BaseModel]) -> Callable[.
         command = spec.model(**fields, actor=actor)
         return run_command(
             ctx, spec, command, principal=principal, effective_at=effective_at,
-            path=request.url.path,  # the guard dependency already ran the two authorizer calls
+            path=request.url.path, guard=False,  # the guard dependency already ran both calls
         )  # fmt: skip
 
     endpoint.__name__ = f"command_{spec.name}"

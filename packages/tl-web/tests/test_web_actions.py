@@ -151,7 +151,7 @@ def test_a_refusal_of_run_command_is_shown_as_it_is(fresh_world: Any, htmlkit: A
         built = present.ACTION_UI["EscalateTechnical"].build({}, w.ids["open_rfi"], None)
         cmd = present.stamp(built, actor=principal.actor, scope="project:P123")
         with use_viewer(viewer_for(principal)), pytest.raises(ForbiddenError) as caught:
-            run_command(w.app.state.ctx, spec, cmd, principal=principal, guard=True)
+            run_command(w.app.state.ctx, spec, cmd, principal=principal)
         before = w.events()
         refused = do(w, web, "open_rfi", "EscalateTechnical")
     assert refused.status_code == 403

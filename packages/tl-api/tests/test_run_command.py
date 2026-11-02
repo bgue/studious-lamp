@@ -140,8 +140,35 @@ def test_the_admin_authorizer_is_asked_at_company_scope_with_the_path_only(
 
     spied = dataclasses.replace(ctx, authorizer=Spy())  # type: ignore[arg-type]
     cmd = command_of(company, actor="user:ada", scope=scope)
-    run_command(spied, company, cmd, principal=principals["ada"], path="/p")
+    run_command(spied, company, cmd, principal=principals["ada"], path="/p", guard=False)
     assert seen == ([("admin.command.AddCodeValue", "/p")] if asked else [])
+
+
+@pytest.mark.parametrize("guard", [True, False])
+def test_the_guard_calls_run_by_default_and_not_when_the_endpoint_ran_them(
+    people: tuple[ApiContext, dict[str, Principal]], guard: bool
+) -> None:
+    """Fail closed: the authorizer and the legacy hook are asked unless the caller says it did."""
+    ctx, principals = people
+    company = stub("AddCodeValue")
+    seen: list[tuple[str, str, str]] = []
+
+    class Spy:
+        def authorize(self, principal: Principal, action: str, resource: str) -> None:
+            seen.append(("authorizer", action, resource))
+
+    def hook(actor: str, action: str, resource: str) -> None:
+        seen.append(("hook", action, resource))
+
+    spied = dataclasses.replace(ctx, authorizer=Spy(), authorize=hook)  # type: ignore[arg-type]
+    cmd = command_of(company, actor="user:ada", scope=P1)
+    if guard:  # the default
+        run_command(spied, company, cmd, principal=principals["ada"], path="/p")
+        assert seen == [("authorizer", "command.AddCodeValue", "/p"),
+                        ("hook", "command.AddCodeValue", "/p")]  # fmt: skip
+    else:
+        run_command(spied, company, cmd, principal=principals["ada"], path="/p", guard=False)
+        assert seen == []
 
 
 @pytest.mark.parametrize(
