@@ -1,6 +1,6 @@
 # P2-I1-T05d — CWP register screen
 
-Status: ready (after T05a merged)
+Status: ready (T05a merged at 1c6aed5)
 Tier: haiku
 Review: full
 Labels: tui
