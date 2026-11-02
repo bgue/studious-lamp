@@ -35,15 +35,17 @@ regenerated on the later side, never hand-merged.
 | T01 | `T01-samples-loaders.md` | ticket | lite | T02 | 4 |
 | T10 | `T10-views.md` | ticket | full | S4 | 4 |
 | T03a | `T03a-api-routes.md` | ticket | full | T10 | 5 |
-| T03b | (r6) | ticket | full | T03a | 6 |
-| T03c | (r6) reports route | ticket | full | T04b | 6 |
+| T03b | `T03b-client-methods.md` | ticket | full | T03a | 6 |
+| T03c | (r7) reports route | ticket | full | T04b, T10c | 7 |
 | T10b | `T10b-total-hours-hidden.md` | ticket (F1 fix) | full | T10 | 5 |
+| T10c | `T10c-view-fields.md` | ticket (fields the logs need, D26) | full | T10, T03a | 6 |
+| T04d | (r7) wbs, cwa, path write verbs | ticket | full | T04c | 7 |
 | S6 | `S6-awp-expected-link.md` | piece (schema, gate: orchestrator) | full | S4 | 5 |
 | T04a | `T04a-cli-reads.md` | ticket (tl awp reads, group) | full | T10 | 5 |
 | T04b | `T04b-reports.md` | ticket (reports, tl awp report) | full | T10, S5 | 5 |
-| T04c | (r6) write verbs, rollup, worker | tickets | full | T04a | 6 |
-| T05a, T05b, T05c | `T05a-cwp-register.md`, `T05b-wbs-cwa-screens.md`, `T05c-path-package-screens.md` | tickets | full | T03b, T05a | 6 |
-| T06, T07 | `T06-mcp-tools.md`, `T07-sim-actor.md` | tickets | full, lite | T03a; T03b, T06 | 6 |
+| T04c | (r7) cwp, package write verbs, rollup, worker | ticket | full | T04a | 6 |
+| T05a, T05b, T05c | `T05a-cwp-register.md`, `T05b-wbs-cwa.md`, `T05c-path-packages.md` | tickets (Textual-free `*_text.py`, D27) | full | T03b, T10c, T05a | 7 |
+| T06, T07 | `T06-mcp-tools.md`, `T07-sim-actor.md` | tickets | full, lite | T03a; T03b, T06 | 6, 7 |
 | T11 | `T11-tests.md` | tests piece | full | S2-S5, T01-T07, T10 | 7 |
 | T08, T09 | `T08-demo.md`, `T09-docs.md` | tickets | full, lite | T11, T05, T06, T07; T04, T05 | 8 |
 
