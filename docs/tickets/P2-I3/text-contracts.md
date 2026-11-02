@@ -59,7 +59,7 @@ T06b-e import `materials_text` and so wait for T06a; they share no other file.
 ## Deferred, no view or field for it (D26; Q6 raised to the orchestrator)
 `MovementView` and `ReservationView` carry ids, not the MTO line key, cost code or work package, so the movement log and the lot panel have no `For`
 column; the receipt has no `received_by`; no route returns the reservations of one MTO line, per-project quantities of an item, or the open receipts of a PO
-line. A later small view piece (Q6) adds them; until then the text modules omit those columns and sections and the T06 reports say so.
+line. Piece S5 (`S5-view-keys.md`, dec Q6 YES, r6) adds them (`MovementView.mto_line/work_package/cost_code`, `ReservationView.work_package`, `ReceiptDetailView.received_by`, `MtoLineDetailView`, `ItemProjectView`); this section is lifted when S5 merges (T06b-e carry the columns, T06g the movement and lot `For`); until then the text modules omit those columns and sections and the T06 reports say so.
 
 ## Tests and acceptance for a text module
 No pytest (D1). The ticket's acceptance script prints, for 80 and 170 columns, the panel `plain_lines` and the first rows of the table from a
