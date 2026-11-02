@@ -153,7 +153,7 @@ def candidates(seed_data: Seed) -> dict[str, list[str]]:
         "job_id": all_ids[:2],
         "proposal_id": [v for k, v in seed_data.extra_ids.items() if k.endswith("_proposal")],
         "account_id": all_ids[:1],
-        "name": ["x"],
+        "name": ["x", "cwp_status"],
         "key": ["x"],
         "kind": ["x"],
         "type_ref": ["x"],

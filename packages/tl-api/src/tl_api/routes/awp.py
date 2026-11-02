@@ -9,15 +9,19 @@ timeline (the ledger events of the CWP, oldest first).
 
 from __future__ import annotations
 
+from decimal import Decimal
 from typing import Annotated, Literal
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Response
 from pydantic import BaseModel
+from sqlalchemy import Connection
 from tl_core.files.queries import list_files
 from tl_core.services.errors import RecordNotFoundError
 from tl_core.services.link_queries import links_of
 from tl_core.services.queries import record_history
-from tl_mod_awp import views
+from tl_mod_awp import reports, views
+from tl_mod_awp.reports import CostFigure
+from tl_mod_cost.views import cost_codes
 
 from tl_api.auth import guard
 from tl_api.context import ApiContext, get_ctx
@@ -163,3 +167,63 @@ def list_packages(
     """A project's EWP and PWP references by package number."""
     with ctx.backend(True) as uow:
         return views.package_list(uow.conn(), f"project:{project}", kind=kind)
+
+
+#: The row model of each awp report: its field names are the report's columns.
+REPORT_MODELS: dict[str, type[BaseModel]] = {
+    "cwp_status": reports.StatusRow,
+    "wbs_vs_cost_code": reports.CostRow,
+    "cwa_sequence": reports.SequenceRow,
+}
+
+
+class ReportView(BaseModel):
+    """An awp report as a table: its name, its column names and its cells as text."""
+
+    name: str
+    columns: list[str]
+    rows: list[list[str]]  # each cell is ``reports.format_value`` of the field
+
+
+def _cost_figures(conn: Connection, project: str) -> dict[str, CostFigure]:
+    """The project's cost codes by code: the title and the stated ``hours_budget`` (or None)."""
+    figures: dict[str, CostFigure] = {}
+    for view in cost_codes(conn, f"project:{project}", limit=20000):
+        hours = view.figures.get("hours_budget")
+        figures[view.code] = CostFigure(
+            title=view.title, hours_budget=None if hours is None else Decimal(str(hours))
+        )
+    return figures
+
+
+@router.get(
+    "/projects/{project}/awp/reports/{name}",
+    operation_id="awp_report",
+    response_model=None,
+    responses={200: {"content": {"text/csv": {}, "application/json": {}}}},
+)
+def awp_report(
+    ctx: Ctx,
+    actor: Reader,
+    project: str,
+    name: str,
+    format: Annotated[Literal["json", "csv"], Query()] = "json",
+) -> ReportView | Response:
+    """One awp report of a project: `cwp_status`, `wbs_vs_cost_code` or `cwa_sequence`, as a
+    table in JSON, or as CSV with `format=csv`. 404 `record_not_found` for any other name."""
+    if name not in REPORT_MODELS:
+        raise RecordNotFoundError(f"no report {name!r}")
+    scope = f"project:{project}"
+    with ctx.backend(True) as uow:
+        conn = uow.conn()
+        if name == "cwp_status":
+            rows: list[BaseModel] = list(reports.cwp_status(conn, scope))
+        elif name == "wbs_vs_cost_code":
+            rows = list(reports.wbs_vs_cost_code(conn, scope, _cost_figures(conn, project)))
+        else:
+            rows = list(reports.cwa_sequence(conn, scope))
+    if format == "csv":
+        return Response(reports.to_csv(rows), media_type="text/csv; charset=utf-8")
+    columns = list(REPORT_MODELS[name].model_fields)
+    cells = [[reports.format_value(getattr(row, column)) for column in columns] for row in rows]
+    return ReportView(name=name, columns=columns, rows=cells)
