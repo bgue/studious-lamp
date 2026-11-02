@@ -135,7 +135,7 @@ def broken() -> object:
 
 
 def readiness() -> None:
-    expect(load_checks() == {}, "load_checks() is {}")
+    expect(set(load_checks()) == {"materials_reserved"}, "load_checks() holds materials_reserved")
     one = plugin("w0b1_a", lambda: Sample("same_name", n_a), "a")
     two = plugin("w0b1_b", lambda: Sample("same_name", n_a), "b")
     expect_raises(
