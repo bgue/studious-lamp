@@ -10,6 +10,18 @@ gap. A name nobody registered is a ``PublishRefusedError`` (422) that lists the 
 
 The publication itself (create-only, one correlation id, exact compensation, ADR-0014) stays in
 :mod:`tl_mod_documents.derivation.publish`; a target only plans its rows and creates its records.
+
+A target other than the built-in ``tags`` and ``documents`` may offer these optional parts (a
+target without them is as before; documents never imports the module that registers the target):
+
+* ``mapping_fields``: the names a mapping may send a column to (``check_mapping`` reads it).
+* ``plan_rows_for(conn, scope, derived, mapped)``: ``plan_rows`` for a target whose keys depend on
+  the derived document the rows came from (``derived`` is a ``rows.DerivedRow``).
+* ``takes_provenance``: ``False`` when the target cannot write the ``provenance`` property set (its
+  records take no ``SetPsetValues``); the publication then does not require the pset to apply.
+* ``compensation_item(conn, record_id, scope)`` and ``reverse(uow, base, record_id, reason)``
+  (:class:`ReversibleTarget`): whether the record a publication made can be rolled back, and the
+  reversing events. Without them a record of the target's type is not reversible.
 """
 
 from __future__ import annotations
@@ -57,6 +69,21 @@ class PublishTarget(Protocol):
         self, uow: Any, base: dict[str, Any], built: Any, provenance: dict[str, str]
     ) -> list[str]:
         """Create the creatable rows with the module's own commands; the ids, in row order."""
+        ...
+
+
+@runtime_checkable
+class ReversibleTarget(Protocol):
+    """The optional reverse hook of a publish target (see the module docstring)."""
+
+    record_type: str
+
+    def compensation_item(self, conn: Any, record_id: str, scope: str) -> tuple[bool, str | None]:
+        """``(reversible, problem)`` for a record the publication made; reads only."""
+        ...
+
+    def reverse(self, uow: Any, base: dict[str, Any], record_id: str, reason: str) -> None:
+        """Append the reversing events of the record (``base`` is the compensation's envelope)."""
         ...
 
 
@@ -115,6 +142,14 @@ def publish_target_for(name: str) -> PublishTarget:
         known = ", ".join(sorted(targets)) or "none installed"
         raise PublishRefusedError(f"no publish target {name!r} (known: {known})")
     return found
+
+
+def reversible_target_for(record_type: str) -> ReversibleTarget | None:
+    """The registered target that creates ``record_type`` and offers the reverse hook, else None."""
+    for target in publish_targets().values():
+        if target.record_type == record_type and isinstance(target, ReversibleTarget):
+            return target
+    return None
 
 
 @contextmanager
