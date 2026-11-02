@@ -62,6 +62,7 @@ from tl_api.routes import (
     health,
     integration,
     links,
+    materials,
     proposals,
     records,
     reference,
@@ -303,6 +304,7 @@ def create_app(
         correspondence,
         schedule,
         cost,
+        materials,  # P2-I3-T04a
         schemareg,  # P1-I8
     ):
         app.include_router(module.router)

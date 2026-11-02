@@ -14476,6 +14476,66 @@
         "title": "LintIssueView",
         "type": "object"
       },
+      "LocationView": {
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "depth": {
+            "title": "Depth",
+            "type": "integer"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "lines": {
+            "title": "Lines",
+            "type": "integer"
+          },
+          "lots": {
+            "title": "Lots",
+            "type": "integer"
+          },
+          "parent_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Code"
+          },
+          "retired": {
+            "title": "Retired",
+            "type": "boolean"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "code",
+          "title",
+          "kind",
+          "parent_code",
+          "depth",
+          "retired",
+          "lots",
+          "lines"
+        ],
+        "title": "LocationView",
+        "type": "object"
+      },
       "LockBody": {
         "additionalProperties": false,
         "description": "Body of ``POST /settings/{key}/lock``.",
@@ -14716,6 +14776,109 @@
         "title": "LookAheadRow",
         "type": "object"
       },
+      "LotDetailView": {
+        "properties": {
+          "heat_no": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Heat No"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "issued_net": {
+            "title": "Issued Net",
+            "type": "string"
+          },
+          "item_code": {
+            "title": "Item Code",
+            "type": "string"
+          },
+          "item_title": {
+            "title": "Item Title",
+            "type": "string"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "movements": {
+            "items": {
+              "$ref": "#/components/schemas/MovementView"
+            },
+            "title": "Movements",
+            "type": "array"
+          },
+          "po_line": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Po Line"
+          },
+          "quantities": {
+            "items": {
+              "$ref": "#/components/schemas/StockRowView"
+            },
+            "title": "Quantities",
+            "type": "array"
+          },
+          "receipt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Receipt"
+          },
+          "receipt_line": {
+            "title": "Receipt Line",
+            "type": "integer"
+          },
+          "reservations": {
+            "items": {
+              "$ref": "#/components/schemas/ReservationView"
+            },
+            "title": "Reservations",
+            "type": "array"
+          },
+          "uom": {
+            "title": "Uom",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "key",
+          "heat_no",
+          "item_code",
+          "item_title",
+          "uom",
+          "issued_net",
+          "receipt",
+          "receipt_line",
+          "po_line",
+          "quantities",
+          "reservations",
+          "movements"
+        ],
+        "title": "LotDetailView",
+        "type": "object"
+      },
       "MappingDryRun": {
         "description": "What the current mapping of an endpoint would do with one payload.",
         "properties": {
@@ -14763,6 +14926,90 @@
           "status"
         ],
         "title": "MappingDryRun",
+        "type": "object"
+      },
+      "MaterialItemView": {
+        "properties": {
+          "base_uom": {
+            "title": "Base Uom",
+            "type": "string"
+          },
+          "category": {
+            "title": "Category",
+            "type": "string"
+          },
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "consumable": {
+            "title": "Consumable",
+            "type": "boolean"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "material_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Material Code"
+          },
+          "projects": {
+            "title": "Projects",
+            "type": "integer"
+          },
+          "rating_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rating Text"
+          },
+          "retired": {
+            "title": "Retired",
+            "type": "boolean"
+          },
+          "size_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Size Text"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "code",
+          "title",
+          "category",
+          "base_uom",
+          "size_text",
+          "rating_text",
+          "material_code",
+          "consumable",
+          "retired",
+          "projects"
+        ],
+        "title": "MaterialItemView",
         "type": "object"
       },
       "MeetClockBody": {
@@ -15206,6 +15453,249 @@
           "uom"
         ],
         "title": "Movement",
+        "type": "object"
+      },
+      "MovementView": {
+        "properties": {
+          "actor": {
+            "title": "Actor",
+            "type": "string"
+          },
+          "cost_code_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cost Code Id"
+          },
+          "direction": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Direction"
+          },
+          "from_location": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "From Location"
+          },
+          "heat_no": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Heat No"
+          },
+          "item_code": {
+            "title": "Item Code",
+            "type": "string"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "lot": {
+            "title": "Lot",
+            "type": "string"
+          },
+          "mto_line_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mto Line Id"
+          },
+          "person": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Person"
+          },
+          "qty": {
+            "title": "Qty",
+            "type": "string"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "recorded_at": {
+            "title": "Recorded At",
+            "type": "string"
+          },
+          "seq": {
+            "title": "Seq",
+            "type": "integer"
+          },
+          "to_location": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "To Location"
+          },
+          "uom": {
+            "title": "Uom",
+            "type": "string"
+          }
+        },
+        "required": [
+          "seq",
+          "recorded_at",
+          "kind",
+          "lot",
+          "heat_no",
+          "item_code",
+          "qty",
+          "uom",
+          "direction",
+          "from_location",
+          "to_location",
+          "mto_line_id",
+          "cost_code_id",
+          "person",
+          "reason",
+          "actor"
+        ],
+        "title": "MovementView",
+        "type": "object"
+      },
+      "MtoLineView": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "issued": {
+            "title": "Issued",
+            "type": "string"
+          },
+          "item_code": {
+            "title": "Item Code",
+            "type": "string"
+          },
+          "item_title": {
+            "title": "Item Title",
+            "type": "string"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "line_no": {
+            "title": "Line No",
+            "type": "integer"
+          },
+          "mto": {
+            "title": "Mto",
+            "type": "string"
+          },
+          "need_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Need By"
+          },
+          "required": {
+            "title": "Required",
+            "type": "string"
+          },
+          "reserved": {
+            "title": "Reserved",
+            "type": "string"
+          },
+          "short": {
+            "title": "Short",
+            "type": "string"
+          },
+          "uom": {
+            "title": "Uom",
+            "type": "string"
+          },
+          "work_package": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Work Package"
+          },
+          "work_package_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Work Package Id"
+          }
+        },
+        "required": [
+          "id",
+          "key",
+          "mto",
+          "line_no",
+          "item_code",
+          "item_title",
+          "uom",
+          "required",
+          "reserved",
+          "issued",
+          "short",
+          "work_package",
+          "work_package_id",
+          "need_by"
+        ],
+        "title": "MtoLineView",
         "type": "object"
       },
       "NotifyArgs": {
@@ -16446,6 +16936,76 @@
           "note"
         ],
         "title": "PlannedLink",
+        "type": "object"
+      },
+      "PoLineView": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "item_code": {
+            "title": "Item Code",
+            "type": "string"
+          },
+          "item_title": {
+            "title": "Item Title",
+            "type": "string"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "line_no": {
+            "title": "Line No",
+            "type": "integer"
+          },
+          "po_number": {
+            "title": "Po Number",
+            "type": "string"
+          },
+          "promised_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Promised Date"
+          },
+          "qty_ordered": {
+            "title": "Qty Ordered",
+            "type": "string"
+          },
+          "qty_received": {
+            "title": "Qty Received",
+            "type": "string"
+          },
+          "supplier_text": {
+            "title": "Supplier Text",
+            "type": "string"
+          },
+          "uom": {
+            "title": "Uom",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "key",
+          "po_number",
+          "line_no",
+          "item_code",
+          "item_title",
+          "qty_ordered",
+          "qty_received",
+          "uom",
+          "promised_date",
+          "supplier_text"
+        ],
+        "title": "PoLineView",
         "type": "object"
       },
       "PostThreadMessageBody": {
@@ -17996,6 +18556,214 @@
         "title": "ReasonBody",
         "type": "object"
       },
+      "ReceiptDetailView": {
+        "properties": {
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "decided_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decided By"
+          },
+          "decided_on": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decided On"
+          },
+          "delivery_ref": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Delivery Ref"
+          },
+          "files": {
+            "items": {
+              "$ref": "#/components/schemas/ReceiptFileView"
+            },
+            "title": "Files",
+            "type": "array"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "inspected_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Inspected By"
+          },
+          "inspected_on": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Inspected On"
+          },
+          "line_rows": {
+            "items": {
+              "$ref": "#/components/schemas/ReceiptLineView"
+            },
+            "title": "Line Rows",
+            "type": "array"
+          },
+          "lines": {
+            "title": "Lines",
+            "type": "integer"
+          },
+          "location": {
+            "title": "Location",
+            "type": "string"
+          },
+          "mtr": {
+            "enum": [
+              "present",
+              "missing",
+              "n/a"
+            ],
+            "title": "Mtr",
+            "type": "string"
+          },
+          "mtr_required": {
+            "title": "Mtr Required",
+            "type": "boolean"
+          },
+          "number": {
+            "title": "Number",
+            "type": "string"
+          },
+          "po_line": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Po Line"
+          },
+          "received_on": {
+            "title": "Received On",
+            "type": "string"
+          },
+          "rejection_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rejection Reason"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          },
+          "supplier_text": {
+            "title": "Supplier Text",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "number",
+          "title",
+          "state",
+          "received_on",
+          "location",
+          "supplier_text",
+          "delivery_ref",
+          "po_line",
+          "lines",
+          "mtr",
+          "mtr_required",
+          "created_at",
+          "inspected_by",
+          "inspected_on",
+          "decided_by",
+          "decided_on",
+          "rejection_reason",
+          "line_rows",
+          "files"
+        ],
+        "title": "ReceiptDetailView",
+        "type": "object"
+      },
+      "ReceiptFileView": {
+        "properties": {
+          "file_id": {
+            "title": "File Id",
+            "type": "string"
+          },
+          "filename": {
+            "title": "Filename",
+            "type": "string"
+          },
+          "slot": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Slot"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "uploaded_at": {
+            "title": "Uploaded At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "file_id",
+          "slot",
+          "filename",
+          "status",
+          "uploaded_at"
+        ],
+        "title": "ReceiptFileView",
+        "type": "object"
+      },
       "ReceiptLineIn": {
         "additionalProperties": false,
         "description": "One line of a delivery. The unit is the item's; ``uom`` may be sent and must equal it.",
@@ -18060,6 +18828,167 @@
           "qty"
         ],
         "title": "ReceiptLineIn",
+        "type": "object"
+      },
+      "ReceiptLineView": {
+        "properties": {
+          "condition": {
+            "title": "Condition",
+            "type": "string"
+          },
+          "heat_no": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Heat No"
+          },
+          "item_code": {
+            "title": "Item Code",
+            "type": "string"
+          },
+          "item_title": {
+            "title": "Item Title",
+            "type": "string"
+          },
+          "line_no": {
+            "title": "Line No",
+            "type": "integer"
+          },
+          "lot": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lot"
+          },
+          "qty": {
+            "title": "Qty",
+            "type": "string"
+          },
+          "serials_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Serials Text"
+          },
+          "uom": {
+            "title": "Uom",
+            "type": "string"
+          }
+        },
+        "required": [
+          "line_no",
+          "item_code",
+          "item_title",
+          "qty",
+          "uom",
+          "heat_no",
+          "condition",
+          "serials_text",
+          "lot"
+        ],
+        "title": "ReceiptLineView",
+        "type": "object"
+      },
+      "ReceiptView": {
+        "properties": {
+          "delivery_ref": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Delivery Ref"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "lines": {
+            "title": "Lines",
+            "type": "integer"
+          },
+          "location": {
+            "title": "Location",
+            "type": "string"
+          },
+          "mtr": {
+            "enum": [
+              "present",
+              "missing",
+              "n/a"
+            ],
+            "title": "Mtr",
+            "type": "string"
+          },
+          "mtr_required": {
+            "title": "Mtr Required",
+            "type": "boolean"
+          },
+          "number": {
+            "title": "Number",
+            "type": "string"
+          },
+          "po_line": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Po Line"
+          },
+          "received_on": {
+            "title": "Received On",
+            "type": "string"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          },
+          "supplier_text": {
+            "title": "Supplier Text",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "number",
+          "title",
+          "state",
+          "received_on",
+          "location",
+          "supplier_text",
+          "delivery_ref",
+          "po_line",
+          "lines",
+          "mtr",
+          "mtr_required"
+        ],
+        "title": "ReceiptView",
         "type": "object"
       },
       "ReceiveCorrespondenceBody": {
@@ -21747,6 +22676,29 @@
           "expires"
         ],
         "title": "RequestWaiverBody",
+        "type": "object"
+      },
+      "ReservationView": {
+        "properties": {
+          "location": {
+            "title": "Location",
+            "type": "string"
+          },
+          "mto_line": {
+            "title": "Mto Line",
+            "type": "string"
+          },
+          "qty": {
+            "title": "Qty",
+            "type": "string"
+          }
+        },
+        "required": [
+          "mto_line",
+          "location",
+          "qty"
+        ],
+        "title": "ReservationView",
         "type": "object"
       },
       "ReserveStockBody": {
@@ -27759,6 +28711,71 @@
           "target"
         ],
         "title": "StatusArgs",
+        "type": "object"
+      },
+      "StockRowView": {
+        "properties": {
+          "available": {
+            "title": "Available",
+            "type": "string"
+          },
+          "heat_no": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Heat No"
+          },
+          "item_code": {
+            "title": "Item Code",
+            "type": "string"
+          },
+          "item_title": {
+            "title": "Item Title",
+            "type": "string"
+          },
+          "location": {
+            "title": "Location",
+            "type": "string"
+          },
+          "location_title": {
+            "title": "Location Title",
+            "type": "string"
+          },
+          "lot": {
+            "title": "Lot",
+            "type": "string"
+          },
+          "on_hand": {
+            "title": "On Hand",
+            "type": "string"
+          },
+          "reserved": {
+            "title": "Reserved",
+            "type": "string"
+          },
+          "uom": {
+            "title": "Uom",
+            "type": "string"
+          }
+        },
+        "required": [
+          "lot",
+          "heat_no",
+          "item_code",
+          "item_title",
+          "location",
+          "location_title",
+          "on_hand",
+          "reserved",
+          "available",
+          "uom"
+        ],
+        "title": "StockRowView",
         "type": "object"
       },
       "SubmitCommercialBody": {
@@ -54845,6 +55862,122 @@
         ]
       }
     },
+    "/companies/materials/items": {
+      "get": {
+        "description": "The company library of items by code; with ``project``, the items that project adopted.",
+        "operationId": "list_materials_items",
+        "parameters": [
+          {
+            "description": "Keep the items this project adopted.",
+            "in": "query",
+            "name": "project",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Keep the items this project adopted.",
+              "title": "Project"
+            }
+          },
+          {
+            "description": "At most this many rows.",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 1000,
+              "description": "At most this many rows.",
+              "maximum": 1000,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/MaterialItemView"
+                  },
+                  "title": "Response List Materials Items",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Materials Items",
+        "tags": [
+          "materials"
+        ]
+      }
+    },
     "/events": {
       "get": {
         "description": "The next events after `after`, oldest first, with the cursor to continue from.",
@@ -59618,6 +60751,1074 @@
         "summary": "Get Document",
         "tags": [
           "documents"
+        ]
+      }
+    },
+    "/projects/{project}/materials/locations": {
+      "get": {
+        "description": "A project's storage locations in tree order.",
+        "operationId": "list_materials_locations",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project",
+            "required": true,
+            "schema": {
+              "title": "Project",
+              "type": "string"
+            }
+          },
+          {
+            "description": "At most this many rows.",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 1000,
+              "description": "At most this many rows.",
+              "maximum": 1000,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/LocationView"
+                  },
+                  "title": "Response List Materials Locations",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Materials Locations",
+        "tags": [
+          "materials"
+        ]
+      }
+    },
+    "/projects/{project}/materials/lots/{key}": {
+      "get": {
+        "description": "One lot with its balances, reservations and last ten movements.\n\n404 `materials_lot_not_found` when there is no such lot (or the reader may not see it).",
+        "operationId": "get_materials_lot",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project",
+            "required": true,
+            "schema": {
+              "title": "Project",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "key",
+            "required": true,
+            "schema": {
+              "title": "Key",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LotDetailView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Materials Lot",
+        "tags": [
+          "materials"
+        ]
+      }
+    },
+    "/projects/{project}/materials/movements": {
+      "get": {
+        "description": "The movement log of a project in ledger order.",
+        "operationId": "list_materials_movements",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project",
+            "required": true,
+            "schema": {
+              "title": "Project",
+              "type": "string"
+            }
+          },
+          {
+            "description": "A lot key.",
+            "in": "query",
+            "name": "lot",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "A lot key.",
+              "title": "Lot"
+            }
+          },
+          {
+            "description": "ISO date or timestamp.",
+            "in": "query",
+            "name": "since",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "ISO date or timestamp.",
+              "title": "Since"
+            }
+          },
+          {
+            "description": "ISO date or timestamp.",
+            "in": "query",
+            "name": "until",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "ISO date or timestamp.",
+              "title": "Until"
+            }
+          },
+          {
+            "description": "A movement kind.",
+            "in": "query",
+            "name": "kind",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "A movement kind.",
+              "title": "Kind"
+            }
+          },
+          {
+            "description": "At most this many rows.",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 1000,
+              "description": "At most this many rows.",
+              "maximum": 1000,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/MovementView"
+                  },
+                  "title": "Response List Materials Movements",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Materials Movements",
+        "tags": [
+          "materials"
+        ]
+      }
+    },
+    "/projects/{project}/materials/mto-lines": {
+      "get": {
+        "description": "A project's take-off lines, by work package when named.",
+        "operationId": "list_materials_mto_lines",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project",
+            "required": true,
+            "schema": {
+              "title": "Project",
+              "type": "string"
+            }
+          },
+          {
+            "description": "A work package code.",
+            "in": "query",
+            "name": "work_package",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 64,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "A work package code.",
+              "title": "Work Package"
+            }
+          },
+          {
+            "description": "Only lines with a shortage.",
+            "in": "query",
+            "name": "short_only",
+            "required": false,
+            "schema": {
+              "default": false,
+              "description": "Only lines with a shortage.",
+              "title": "Short Only",
+              "type": "boolean"
+            }
+          },
+          {
+            "description": "At most this many rows.",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 1000,
+              "description": "At most this many rows.",
+              "maximum": 1000,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/MtoLineView"
+                  },
+                  "title": "Response List Materials Mto Lines",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Materials Mto Lines",
+        "tags": [
+          "materials"
+        ]
+      }
+    },
+    "/projects/{project}/materials/po-lines": {
+      "get": {
+        "description": "A project's purchase-order lines by key.",
+        "operationId": "list_materials_po_lines",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project",
+            "required": true,
+            "schema": {
+              "title": "Project",
+              "type": "string"
+            }
+          },
+          {
+            "description": "In the key, the item or the supplier.",
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "In the key, the item or the supplier.",
+              "title": "Q"
+            }
+          },
+          {
+            "description": "At most this many rows.",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 1000,
+              "description": "At most this many rows.",
+              "maximum": 1000,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PoLineView"
+                  },
+                  "title": "Response List Materials Po Lines",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Materials Po Lines",
+        "tags": [
+          "materials"
+        ]
+      }
+    },
+    "/projects/{project}/materials/receipts": {
+      "get": {
+        "description": "A project's goods receipts, newest first.",
+        "operationId": "list_materials_receipts",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project",
+            "required": true,
+            "schema": {
+              "title": "Project",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Only receipts not yet closed.",
+            "in": "query",
+            "name": "open_only",
+            "required": false,
+            "schema": {
+              "default": false,
+              "description": "Only receipts not yet closed.",
+              "title": "Open Only",
+              "type": "boolean"
+            }
+          },
+          {
+            "description": "Only receipts without a mill test report.",
+            "in": "query",
+            "name": "missing_mtr",
+            "required": false,
+            "schema": {
+              "default": false,
+              "description": "Only receipts without a mill test report.",
+              "title": "Missing Mtr",
+              "type": "boolean"
+            }
+          },
+          {
+            "description": "At most this many rows.",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 1000,
+              "description": "At most this many rows.",
+              "maximum": 1000,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ReceiptView"
+                  },
+                  "title": "Response List Materials Receipts",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Materials Receipts",
+        "tags": [
+          "materials"
+        ]
+      }
+    },
+    "/projects/{project}/materials/receipts/{number}": {
+      "get": {
+        "description": "One goods receipt with its lines and files. 404 `materials_receipt_not_found`.",
+        "operationId": "get_materials_receipt",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project",
+            "required": true,
+            "schema": {
+              "title": "Project",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "number",
+            "required": true,
+            "schema": {
+              "title": "Number",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReceiptDetailView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Materials Receipt",
+        "tags": [
+          "materials"
+        ]
+      }
+    },
+    "/projects/{project}/materials/stock": {
+      "get": {
+        "description": "The balances of a project by lot and location; rows at zero are not listed.",
+        "operationId": "list_materials_stock",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project",
+            "required": true,
+            "schema": {
+              "title": "Project",
+              "type": "string"
+            }
+          },
+          {
+            "description": "A lot key.",
+            "in": "query",
+            "name": "lot",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "A lot key.",
+              "title": "Lot"
+            }
+          },
+          {
+            "description": "A location code.",
+            "in": "query",
+            "name": "location",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "A location code.",
+              "title": "Location"
+            }
+          },
+          {
+            "description": "An item code.",
+            "in": "query",
+            "name": "item",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "An item code.",
+              "title": "Item"
+            }
+          },
+          {
+            "description": "A heat number.",
+            "in": "query",
+            "name": "heat",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "A heat number.",
+              "title": "Heat"
+            }
+          },
+          {
+            "description": "With location: it and all below it.",
+            "in": "query",
+            "name": "subtree",
+            "required": false,
+            "schema": {
+              "default": false,
+              "description": "With location: it and all below it.",
+              "title": "Subtree",
+              "type": "boolean"
+            }
+          },
+          {
+            "description": "At most this many rows.",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 1000,
+              "description": "At most this many rows.",
+              "maximum": 1000,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/StockRowView"
+                  },
+                  "title": "Response List Materials Stock",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Materials Stock",
+        "tags": [
+          "materials"
         ]
       }
     },

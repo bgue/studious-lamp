@@ -57,7 +57,7 @@ MAY_READ = {
 NOT_WALKED = {
     "/stream": "an open stream: tests/test_confidentiality_walk.py::test_the_stream",
 }
-MIN_ROUTES = 70
+MIN_ROUTES = 79  # P2-I3-T04a: 70 + the nine materials GET routes
 FAKE_ID = "01J000000000000000000000"
 
 

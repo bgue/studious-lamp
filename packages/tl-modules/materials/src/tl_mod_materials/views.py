@@ -59,7 +59,7 @@ def _hide(*columns: str, viewer: Viewer | None) -> tuple[str, dict[str, Any]]:
     return " AND ".join(clauses), params
 
 
-class ItemView(BaseModel):
+class MaterialItemView(BaseModel):
     id: str
     code: str
     title: str
@@ -162,7 +162,7 @@ def items(
     project: str | None = None,
     viewer: Viewer | None = None,
     limit: int = MAX_VIEW_ROWS,
-) -> list[ItemView]:
+) -> list[MaterialItemView]:
     """The library by code. ``project`` (``project:<id>``) keeps the items that project adopted."""
     visible, params = _hide("t.id", viewer=viewer)
     copies, copy_params = _hide("p.id", viewer=viewer)
@@ -187,7 +187,7 @@ def items(
         statement, {**params, "scope": COMPANY, "no": False, "limit": _limit(limit)}
     )
     return [
-        ItemView(
+        MaterialItemView(
             id=str(r.id),
             code=str(r.code),
             title=str(r.title),
