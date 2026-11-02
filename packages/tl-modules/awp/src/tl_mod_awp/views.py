@@ -44,6 +44,7 @@ ROLLUP_TABLE: Final = "cur_awp_rollup"
 ROLLUP_MEASURE: Final = "budget_hours"
 ROLLUP_TOTAL: Final = "total"
 ROLLUP_COST_CODE: Final = "cost_code"
+ROLLUP_UNALLOCATED: Final = "unallocated"
 #: The package kind words a view takes and returns, and the record type of each.
 KIND_TYPES: Final = {"EWP": EWP, "PWP": PWP}
 KIND_WORDS: Final = {EWP: "EWP", PWP: "PWP"}
@@ -446,7 +447,11 @@ def _rollup(
     conn: Connection, scope: str, node_ids: set[str]
 ) -> tuple[dict[str, Decimal], dict[str, dict[str, Decimal]]]:
     """Budget hours per node: the total, and the lines per cost code (one query for all nodes).
-    A later rollup row (higher ``as_of_seq``) replaces an earlier one of the same line."""
+    A later rollup row (higher ``as_of_seq``) replaces an earlier one of the same line.
+
+    A node with a cost-code line the viewer may not read gets, as its total, the visible
+    cost-code lines plus its unallocated line; the stored total would reveal the hidden hours.
+    """
     if not node_ids:
         return {}, {}
     statement = text(
@@ -463,15 +468,24 @@ def _rollup(
     )
     hidden_cost = _hidden(conn, {str(r["cost_code_id"]) for r in rows if r["cost_code_id"]})
     totals: dict[str, Decimal] = {}
+    unallocated: dict[str, Decimal] = {}
     by_code: dict[str, dict[str, Decimal]] = defaultdict(dict)
+    partly_hidden: set[str] = set()
     for r in rows:
         subject = str(r["subject_id"])
         if r["line"] == ROLLUP_TOTAL:
             totals[subject] = Decimal(str(r["value"]))
+        elif r["line"] == ROLLUP_UNALLOCATED:
+            unallocated[subject] = Decimal(str(r["value"]))
         elif r["line"] == ROLLUP_COST_CODE and r["cost_code_id"] is not None:
             cost_id = str(r["cost_code_id"])
-            if cost_id not in hidden_cost:
+            if cost_id in hidden_cost:
+                partly_hidden.add(subject)
+            else:
                 by_code[subject][_text(r["cost_code"]) or cost_id] = Decimal(str(r["value"]))
+    for subject in partly_hidden:
+        visible = sum(by_code.get(subject, {}).values(), Decimal(0))
+        totals[subject] = visible + unallocated.get(subject, Decimal(0))
     return totals, dict(by_code)
 
 
