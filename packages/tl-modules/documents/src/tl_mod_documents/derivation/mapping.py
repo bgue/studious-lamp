@@ -7,10 +7,16 @@ is what :func:`check_mapping` validates a mapping document against. The rest of 
 document schema the mapping belongs to, so they are checked here: every mapped column is a property
 of the row schema, the key column is the one mapped to ``number``, a target is one the kind takes,
 nothing is mapped twice, and a translation table is only used on a text column.
+
+The built-in targets are ``tags`` and ``documents``. Any other target registered on the group
+``throughline.publish_targets`` is accepted too, with the fields it names in ``mapping_fields``
+(the generated format schema lists only the two built-ins, so for a registered target the check
+reads a copy of it that lists that target and a plain field name).
 """
 
 from __future__ import annotations
 
+import copy
 import json
 import re
 from collections.abc import Mapping
@@ -22,6 +28,7 @@ import tl_schema.generated as _generated
 from jsonschema import Draft201909Validator
 from pydantic import BaseModel, ValidationError
 
+from tl_mod_documents.derivation.publish_targets import publish_targets
 from tl_mod_documents.names import TARGET_DOCUMENTS, TARGET_KINDS, TARGET_TAGS
 
 TAG_FIELDS = ("number", "class", "service")
@@ -60,6 +67,38 @@ def _format_schema() -> dict[str, Any]:
     return json.loads(path.read_text(encoding="utf-8"))  # type: ignore[no-any-return]
 
 
+_FIELD_NAME = r"[a-z][a-z0-9_]*"
+
+
+def known_targets() -> tuple[str, ...]:
+    """The built-in targets, then the other registered ones, sorted."""
+    extra = sorted(n for n in publish_targets() if n not in TARGET_KINDS)
+    return (*TARGET_KINDS, *extra)
+
+
+def known_target(name: str) -> bool:
+    """Whether ``name`` is a built-in target or a registered one."""
+    return name in TARGET_KINDS or name in publish_targets()
+
+
+def _registered_fields(name: str) -> tuple[str, ...]:
+    return tuple(getattr(publish_targets()[name], "mapping_fields", ("number",)))
+
+
+def _format_for(raw: Mapping[str, Any]) -> dict[str, Any]:
+    """The format schema; for a registered target other than the built-ins, a copy that takes it."""
+    schema = _format_schema()
+    name = raw.get("target")
+    if not isinstance(name, str) or name in TARGET_KINDS or name not in publish_targets():
+        return schema
+    adapted = copy.deepcopy(schema)
+    adapted["$defs"]["PublishTarget"]["enum"] = [name]
+    adapted["$defs"]["PublishColumn"]["properties"]["to"]["pattern"] = (
+        rf"^({_FIELD_NAME}|psets\.{_FIELD_NAME}\.(x\.)?{_FIELD_NAME})$"
+    )
+    return adapted
+
+
 def _is_text(prop: Mapping[str, Any]) -> bool:
     declared = prop.get("type")
     names = [t for t in declared if t != "null"] if isinstance(declared, list) else [declared]  # pyright: ignore[reportUnknownVariableType]
@@ -79,7 +118,7 @@ def check_mapping(
     problems = [
         f"{'.'.join(str(p) for p in e.absolute_path) or '(mapping)'}: {e.message}"
         for e in sorted(
-            Draft201909Validator(_format_schema()).iter_errors(raw),
+            Draft201909Validator(_format_for(raw)).iter_errors(raw),
             key=lambda e: [str(p) for p in e.absolute_path],
         )
     ]
@@ -92,8 +131,8 @@ def check_mapping(
             [f"{'.'.join(str(p) for p in e['loc'])}: {e['msg']}" for e in exc.errors()]
         ) from exc
     properties: Mapping[str, Any] = json_schema.get("properties", {})
-    if mapping.target not in TARGET_KINDS:  # the format already says so; defence in depth
-        problems.append(f"target {mapping.target!r} is not one of {', '.join(TARGET_KINDS)}")
+    if not known_target(mapping.target):  # the format already says so; defence in depth
+        problems.append(f"target {mapping.target!r} is not one of {', '.join(known_targets())}")
     if target_kind is None:
         problems.append("the document schema has no target_kind, so it cannot be published")
     elif mapping.target != target_kind:
@@ -101,7 +140,14 @@ def check_mapping(
             f"the mapping publishes {mapping.target!r} but the schema's target_kind is "
             f"{target_kind!r}"
         )
-    fields = TAG_FIELDS if mapping.target == TARGET_TAGS else DOCUMENT_FIELDS
+    if mapping.target == TARGET_TAGS:
+        fields = TAG_FIELDS
+    elif mapping.target == TARGET_DOCUMENTS:
+        fields = DOCUMENT_FIELDS
+    elif known_target(mapping.target):
+        fields = _registered_fields(mapping.target)
+    else:
+        fields = ()
     seen_columns: set[str] = set()
     seen_targets: set[str] = set()
     for entry in mapping.columns:
