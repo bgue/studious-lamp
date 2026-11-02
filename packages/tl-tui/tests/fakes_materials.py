@@ -16,9 +16,13 @@ from dataclasses import dataclass, field
 
 from tl_core.auth.errors import ForbiddenError
 from tl_core.services.commands import Command, CommandResult
-from tl_mod_materials import views
+from tl_mod_materials import views, views_detail
 from tl_mod_materials.commands import MATERIALS_COMMANDS
-from tl_mod_materials.errors import LotNotFoundError, ReceiptNotFoundError
+from tl_mod_materials.errors import (
+    LotNotFoundError,
+    MtoLineNotFoundError,
+    ReceiptNotFoundError,
+)
 
 #: The receipt states ``open_only`` keeps: not yet accepted, rejected or void.
 OPEN_STATES = ("Received", "Inspected")
@@ -63,6 +67,8 @@ class FakeMaterialsSupport:
     def _init_materials(self) -> None:
         self._materials: dict[str, _ProjectRows] = {}
         self._material_items: list[views.MaterialItemView] = []
+        self._mto_line_details: dict[str, dict[str, views_detail.MtoLineDetailView]] = {}
+        self._item_projects: dict[str, list[views_detail.ItemProjectView]] = {}
         self.materials_commands: list[Command] = []  # every materials command, in call order
 
     # --- seeding -----------------------------------------------------------------------------
@@ -95,6 +101,16 @@ class FakeMaterialsSupport:
     def put_material_items(self, items: Sequence[views.MaterialItemView]) -> None:
         """Replace the company library of items."""
         self._material_items = list(items)
+
+    def put_mto_line_details(
+        self, project: str, details: Sequence[views_detail.MtoLineDetailView]
+    ) -> None:
+        """Replace one project's take-off line details, keyed by ``key``."""
+        self._mto_line_details[project] = {d.key: d for d in details}
+
+    def put_item_projects(self, code: str, rows: Sequence[views_detail.ItemProjectView]) -> None:
+        """Replace the per-project quantities of one item code."""
+        self._item_projects[code] = list(rows)
 
     def _materials_of(self, project: str) -> _ProjectRows:
         return self._materials.get(project, _ProjectRows())
@@ -214,6 +230,15 @@ class FakeMaterialsSupport:
     ) -> list[views.MaterialItemView]:
         """The library; ``project`` is not used here (the fake holds one library)."""
         return self._material_items[:limit]
+
+    def get_materials_mto_line(self, project: str, key: str) -> views_detail.MtoLineDetailView:
+        found = self._mto_line_details.get(project, {}).get(key)
+        if found is None:
+            raise MtoLineNotFoundError(key)
+        return found
+
+    def list_materials_item_projects(self, code: str) -> list[views_detail.ItemProjectView]:
+        return list(self._item_projects.get(code, []))
 
     # --- the write door ----------------------------------------------------------------------
 

@@ -13355,6 +13355,44 @@
         "title": "IssuedToken",
         "type": "object"
       },
+      "ItemProjectView": {
+        "properties": {
+          "available": {
+            "title": "Available",
+            "type": "string"
+          },
+          "on_hand": {
+            "title": "On Hand",
+            "type": "string"
+          },
+          "project": {
+            "title": "Project",
+            "type": "string"
+          },
+          "reserved": {
+            "title": "Reserved",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "uom": {
+            "title": "Uom",
+            "type": "string"
+          }
+        },
+        "required": [
+          "project",
+          "title",
+          "on_hand",
+          "reserved",
+          "available",
+          "uom"
+        ],
+        "title": "ItemProjectView",
+        "type": "object"
+      },
       "ItemView": {
         "properties": {
           "body": {
@@ -15461,6 +15499,17 @@
             "title": "Actor",
             "type": "string"
           },
+          "cost_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cost Code"
+          },
           "cost_code_id": {
             "anyOf": [
               {
@@ -15516,6 +15565,17 @@
           "lot": {
             "title": "Lot",
             "type": "string"
+          },
+          "mto_line": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mto Line"
           },
           "mto_line_id": {
             "anyOf": [
@@ -15576,6 +15636,17 @@
           "uom": {
             "title": "Uom",
             "type": "string"
+          },
+          "work_package": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Work Package"
           }
         },
         "required": [
@@ -15597,6 +15668,121 @@
           "actor"
         ],
         "title": "MovementView",
+        "type": "object"
+      },
+      "MtoLineDetailView": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "issued": {
+            "title": "Issued",
+            "type": "string"
+          },
+          "item_code": {
+            "title": "Item Code",
+            "type": "string"
+          },
+          "item_title": {
+            "title": "Item Title",
+            "type": "string"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "line_no": {
+            "title": "Line No",
+            "type": "integer"
+          },
+          "mto": {
+            "title": "Mto",
+            "type": "string"
+          },
+          "need_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Need By"
+          },
+          "open_receipts": {
+            "items": {
+              "$ref": "#/components/schemas/OpenReceiptView"
+            },
+            "title": "Open Receipts",
+            "type": "array"
+          },
+          "required": {
+            "title": "Required",
+            "type": "string"
+          },
+          "reservations": {
+            "items": {
+              "$ref": "#/components/schemas/ReservationRowView"
+            },
+            "title": "Reservations",
+            "type": "array"
+          },
+          "reserved": {
+            "title": "Reserved",
+            "type": "string"
+          },
+          "short": {
+            "title": "Short",
+            "type": "string"
+          },
+          "uom": {
+            "title": "Uom",
+            "type": "string"
+          },
+          "work_package": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Work Package"
+          },
+          "work_package_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Work Package Id"
+          }
+        },
+        "required": [
+          "id",
+          "key",
+          "mto",
+          "line_no",
+          "item_code",
+          "item_title",
+          "uom",
+          "required",
+          "reserved",
+          "issued",
+          "short",
+          "work_package",
+          "work_package_id",
+          "need_by",
+          "reservations",
+          "open_receipts"
+        ],
+        "title": "MtoLineDetailView",
         "type": "object"
       },
       "MtoLineView": {
@@ -15820,6 +16006,44 @@
           "schema_code"
         ],
         "title": "OpenDerivedDocumentBody",
+        "type": "object"
+      },
+      "OpenReceiptView": {
+        "properties": {
+          "number": {
+            "title": "Number",
+            "type": "string"
+          },
+          "qty": {
+            "title": "Qty",
+            "type": "string"
+          },
+          "received_on": {
+            "title": "Received On",
+            "type": "string"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          },
+          "supplier_text": {
+            "title": "Supplier Text",
+            "type": "string"
+          },
+          "uom": {
+            "title": "Uom",
+            "type": "string"
+          }
+        },
+        "required": [
+          "number",
+          "state",
+          "received_on",
+          "qty",
+          "uom",
+          "supplier_text"
+        ],
+        "title": "OpenReceiptView",
         "type": "object"
       },
       "OpenReviewCycleBody": {
@@ -18670,6 +18894,17 @@
               }
             ],
             "title": "Po Line"
+          },
+          "received_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Received By"
           },
           "received_on": {
             "title": "Received On",
@@ -22716,6 +22951,56 @@
         "title": "RequestWaiverBody",
         "type": "object"
       },
+      "ReservationRowView": {
+        "properties": {
+          "item_code": {
+            "title": "Item Code",
+            "type": "string"
+          },
+          "iwp_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Iwp Id"
+          },
+          "location": {
+            "title": "Location",
+            "type": "string"
+          },
+          "lot": {
+            "title": "Lot",
+            "type": "string"
+          },
+          "mto_line": {
+            "title": "Mto Line",
+            "type": "string"
+          },
+          "mto_line_id": {
+            "title": "Mto Line Id",
+            "type": "string"
+          },
+          "qty": {
+            "title": "Qty",
+            "type": "string"
+          }
+        },
+        "required": [
+          "lot",
+          "location",
+          "mto_line",
+          "mto_line_id",
+          "qty",
+          "item_code",
+          "iwp_id"
+        ],
+        "title": "ReservationRowView",
+        "type": "object"
+      },
       "ReservationView": {
         "properties": {
           "location": {
@@ -22729,6 +23014,17 @@
           "qty": {
             "title": "Qty",
             "type": "string"
+          },
+          "work_package": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Work Package"
           }
         },
         "required": [
@@ -55900,6 +56196,102 @@
         ]
       }
     },
+    "/companies/materials/item-projects": {
+      "get": {
+        "description": "The quantities of one company item in each project that adopted it; unknown item: ``[]``.",
+        "operationId": "list_materials_item_projects",
+        "parameters": [
+          {
+            "description": "An item code.",
+            "in": "query",
+            "name": "code",
+            "required": true,
+            "schema": {
+              "description": "An item code.",
+              "maxLength": 200,
+              "minLength": 1,
+              "title": "Code",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ItemProjectView"
+                  },
+                  "title": "Response List Materials Item Projects",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Materials Item Projects",
+        "tags": [
+          "materials"
+        ]
+      }
+    },
     "/companies/materials/items": {
       "get": {
         "description": "The company library of items by code; with ``project``, the items that project adopted.",
@@ -61172,6 +61564,107 @@
           }
         ],
         "summary": "List Materials Movements",
+        "tags": [
+          "materials"
+        ]
+      }
+    },
+    "/projects/{project}/materials/mto-line": {
+      "get": {
+        "description": "One take-off line with its lot reservations and the open receipts for its item.\n\nThe key is a query value: it holds ``/`` and ``@``. 404 `materials_mto_line_not_found` when\nthere is no such line (or the reader may not see it).",
+        "operationId": "get_materials_mto_line",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project",
+            "required": true,
+            "schema": {
+              "title": "Project",
+              "type": "string"
+            }
+          },
+          {
+            "description": "A take-off line key, as listed.",
+            "in": "query",
+            "name": "key",
+            "required": true,
+            "schema": {
+              "description": "A take-off line key, as listed.",
+              "maxLength": 200,
+              "minLength": 1,
+              "title": "Key",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MtoLineDetailView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Materials Mto Line",
         "tags": [
           "materials"
         ]

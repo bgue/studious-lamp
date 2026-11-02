@@ -15,7 +15,7 @@ from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, Query, Response
 from tl_mod_cost import views as cost_views
-from tl_mod_materials import views
+from tl_mod_materials import views, views_detail
 from tl_mod_materials.errors import InvalidValueError
 from tl_mod_materials.limits import MAX_VIEW_ROWS
 from tl_mod_materials.reports import Report, build_report, to_csv
@@ -152,6 +152,24 @@ def list_materials_mto_lines(
         )
 
 
+@router.get("/projects/{project}/materials/mto-line", operation_id="get_materials_mto_line")
+def get_materials_mto_line(
+    ctx: Ctx,
+    actor: Reader,
+    project: str,
+    key: Annotated[
+        str, Query(min_length=1, max_length=200, description="A take-off line key, as listed.")
+    ],
+) -> views_detail.MtoLineDetailView:
+    """One take-off line with its lot reservations and the open receipts for its item.
+
+    The key is a query value: it holds ``/`` and ``@``. 404 `materials_mto_line_not_found` when
+    there is no such line (or the reader may not see it).
+    """
+    with ctx.backend(True) as uow:
+        return views_detail.mto_line_detail(uow.conn(), f"project:{project}", key)
+
+
 @router.get("/companies/materials/items", operation_id="list_materials_items")
 def list_materials_items(
     ctx: Ctx,
@@ -166,6 +184,17 @@ def list_materials_items(
         return views.items(
             uow.conn(), project=f"project:{project}" if project else None, limit=limit
         )
+
+
+@router.get("/companies/materials/item-projects", operation_id="list_materials_item_projects")
+def list_materials_item_projects(
+    ctx: Ctx,
+    actor: Reader,
+    code: Annotated[str, Query(min_length=1, max_length=200, description="An item code.")],
+) -> list[views_detail.ItemProjectView]:
+    """The quantities of one company item in each project that adopted it; unknown item: ``[]``."""
+    with ctx.backend(True) as uow:
+        return views_detail.item_projects(uow.conn(), code)
 
 
 @router.get("/projects/{project}/materials/lots/{key:path}", operation_id="get_materials_lot")

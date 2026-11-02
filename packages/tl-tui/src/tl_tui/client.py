@@ -77,6 +77,7 @@ from tl_mod_documents.handlers.transmittals import CreateTransmittal, IssueTrans
 from tl_mod_documents.resolver import RepinDocumentLink
 from tl_mod_engineering.views import TagView
 from tl_mod_materials import views as materials_views
+from tl_mod_materials import views_detail as materials_detail
 from tl_mod_schedule import views as schedule_views
 from tl_mod_schedule.compare import Comparison
 from tl_mod_schedule.handlers.activity import LinkActivity
@@ -946,6 +947,14 @@ class ClientInterface(Protocol):
         self, *, project: str | None = None, limit: int = 1000
     ) -> list[materials_views.MaterialItemView]:
         """The company library of items by code; with ``project``, the items it adopted."""
+        ...
+
+    def get_materials_mto_line(self, project: str, key: str) -> materials_detail.MtoLineDetailView:
+        """One take-off line with its lot reservations and the open receipts for its item."""
+        ...
+
+    def list_materials_item_projects(self, code: str) -> list[materials_detail.ItemProjectView]:
+        """The quantities of one company item in each project that adopted it."""
         ...
 
     def materials_command(self, name: str, cmd: Command) -> CommandResult:
