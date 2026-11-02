@@ -51,12 +51,24 @@ def test_the_csp_and_the_other_headers_are_on_every_answer(
             413,
         ),
         "sign-in 401": (
-            w.client().post("/web/sign-in", data={"username": "bob", "password": WRONG}),
+            w.client().post(
+                "/web/sign-in",
+                data={"username": "bob", "password": WRONG},
+                headers={"Origin": k.OWN},
+            ),
             401,
         ),
         "sign-in 303": (
-            w.client().post("/web/sign-in", data={"username": "bob", "password": k.PASSWORD}),
+            w.client().post(
+                "/web/sign-in",
+                data={"username": "bob", "password": k.PASSWORD},
+                headers={"Origin": k.OWN},
+            ),
             303,
+        ),
+        "sign-in 403": (
+            w.client().post("/web/sign-in", data={"username": "bob", "password": k.PASSWORD}),
+            403,
         ),
     }
     for name, (response, status) in answers.items():
@@ -107,7 +119,7 @@ def test_a_handlers_own_cache_control_is_kept_and_the_csp_cannot_be_weakened(k: 
 # --- body limits ------------------------------------------------------------------------------
 
 
-def test_sign_in_cuts_a_body_over_16_kib(light_world: Any) -> None:
+def test_sign_in_cuts_a_body_over_16_kib(light_world: Any, k: Any) -> None:
     big = "p" * (17 * 1024)
     response = light_world.client().post("/web/sign-in", data={"username": "bob", "password": big})
     assert response.status_code == 413
@@ -119,7 +131,9 @@ def test_sign_in_cuts_a_body_over_16_kib(light_world: Any) -> None:
         headers={"Content-Type": "application/x-www-form-urlencoded"},
     )
     assert chunked.status_code == 413  # declared or chunked
-    small = light_world.client().post("/web/sign-in", data={"username": "bob", "password": WRONG})
+    small = light_world.client().post(
+        "/web/sign-in", data={"username": "bob", "password": WRONG}, headers={"Origin": k.OWN}
+    )
     assert small.status_code in (401, 423)
 
 

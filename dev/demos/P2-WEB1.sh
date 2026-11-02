@@ -81,7 +81,7 @@ record_of() { # record_of FILE NUMBER: the record id of a log row, from its data
 }
 csrf_of() { sed -n 's/.*csrf-token" content="\([^"]*\)".*/\1/p' "$1" | head -1; }
 sign_in() { # sign_in JAR NAME: a web sign-in; the cookie goes into JAR
-  code="$(curl -s -c "$1" -o "$workdir/$2.body" -D "$workdir/$2.head" -w '%{http_code}' \
+  code="$(curl -s -H "Origin: $TL_DEMO_URL" -c "$1" -o "$workdir/$2.body" -D "$workdir/$2.head" -w '%{http_code}' \
     --data-urlencode "username=$2" --data-urlencode "password@$workdir/$2.pw" \
     "$TL_DEMO_URL/web/sign-in")"
 }

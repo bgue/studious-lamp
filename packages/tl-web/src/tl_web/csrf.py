@@ -1,4 +1,6 @@
-"""CSRF protection for every unsafe ``/web`` route except sign-in (spec web-client-i1 section 5).
+"""CSRF protection for every unsafe ``/web`` route (spec web-client-i1 section 5).
+
+Sign-in has no session and so no token; it is held to the origin check only (``verify_origin``).
 
 The token is ``base64url(HMAC-SHA256(secret, "csrf|" + sha256(session_token)))`` without padding, so
 it is tied to one session and cannot be computed without the server secret. A request carries it as
@@ -73,6 +75,16 @@ def origin_matches(request: Request) -> bool:
     if not expected:
         expected = f"{request.url.scheme}://{request.headers.get('host', '')}"
     return seen.lower() == expected.lower()
+
+
+async def verify_origin(request: Request) -> None:
+    """A FastAPI dependency for sign-in: 403 ``csrf_refused`` unless the request is from our origin.
+
+    There is no session yet, so no token; the origin check still stops a login CSRF (a foreign page
+    signing the victim in as the attacker). The refusal is the one ``verify`` gives.
+    """
+    if not origin_matches(request):
+        raise _refused()
 
 
 async def verify(request: Request) -> None:

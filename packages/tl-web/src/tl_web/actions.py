@@ -6,8 +6,8 @@ terminal's ``ACTION_UI`` **and** in the ``allowed_actions`` the server gives thi
 record at the moment of the request: never a form field, never an earlier page. A refusal is the
 status line ``! <message>``; no command runs and no event is written. The command is built with
 ``ActionUi.build``, stamped with the actor and the project scope, and run by
-``tl_api.commands.run_command`` (the one access check: module role, state guard, version,
-validation). CSRF is S1's ``csrf.verify`` as a router dependency.
+``tl_api.commands.run_command`` (the one access check: authorizer and hook, module role, state
+guard, version, validation). CSRF is S1's ``csrf.verify`` as a router dependency.
 
 The command is run exactly as ``present.stamp`` leaves it (actor, project scope and source).
 """
@@ -95,6 +95,7 @@ def _run(
         stamped,
         principal=principal,
         path=request.url.path,
+        guard=True,  # the endpoint guard's authorizer and hook calls: this route has no guard
     )
     done = status_fragment(request, f"{label}: done", error=False)
     done.headers["HX-Refresh"] = "true"  # the rows and the bar follow what the command changed

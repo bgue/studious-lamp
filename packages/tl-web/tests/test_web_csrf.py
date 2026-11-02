@@ -1,7 +1,8 @@
 """CSRF on every unsafe ``/web`` route, and no GET that changes state (S1 check e, S5 pin 4).
 
 ``test_every_unsafe_web_route_is_csrf_checked`` enumerates ``app.routes``: a route added later
-without ``csrf.verify`` fails it with no edit to this file. Sign-in is the one named exemption.
+without ``csrf.verify`` fails it with no edit to this file. Sign-in is the one named exemption
+from the token; it keeps the origin check.
 """
 
 from __future__ import annotations
@@ -12,8 +13,8 @@ from typing import Any
 import pytest
 
 UNSAFE = {"POST", "PUT", "PATCH", "DELETE"}
-#: Unsafe routes that carry no CSRF token on purpose. Sign-in has no session yet: there is nothing
-#: to forge a request against, and the form is protected by the lockout and the rate limit instead.
+#: Unsafe routes that carry no CSRF token on purpose. Sign-in has no session yet, so no token; it
+#: is held to the origin check (a login CSRF) and to the lockout and the rate limit.
 EXEMPT = {("POST", "/web/sign-in")}
 #: What a path parameter is filled with when the walk calls a route; an unlisted name gets "x".
 FILL = {"project": "P123", "command": "CloseTechnical", "rest": "nowhere", "log": "rfis"}
@@ -28,6 +29,27 @@ def fill(template: str, world: Any) -> str:
         "number": world.numbers["open_rfi"],
     }
     return PARAM.sub(lambda m: values.get(m.group(1), "x"), template)
+
+
+def check_origin_only(world: Any, k: Any, method: str, template: str) -> None:
+    """A token-exempt route: another origin is the standard refusal; the own needs no token."""
+    form = {"username": "bob", "password": k.PASSWORD}
+    refusals = {
+        "foreign Origin": {"Origin": "http://evil.example"},
+        "null Origin": {"Origin": "null"},
+        "foreign Referer": {"Referer": "http://evil.example/web/"},
+        "no Origin, no Referer": {},
+    }
+    bodies = set()
+    for what, headers in refusals.items():
+        response = world.client().request(method, template, data=form, headers=headers)
+        assert response.status_code == 403, f"{method} {template}: {what}: {response.status_code}"
+        assert response.json()["error"] == "csrf_refused", f"{method} {template}: {what}"
+        assert "set-cookie" not in response.headers, f"{method} {template}: {what}"
+        bodies.add(response.content)
+    assert len(bodies) == 1
+    own = world.client().request(method, template, data=form, headers={"Origin": k.OWN})
+    assert own.status_code == 303, f"{method} {template}: the own origin, no token"
 
 
 def test_the_walk_finds_the_unsafe_routes(world: Any, k: Any) -> None:
@@ -45,6 +67,7 @@ def test_every_unsafe_web_route_is_csrf_checked(fresh_world: Any, k: Any) -> Non
     checked = 0
     for method, template in k.web_routes(world.app, UNSAFE):
         if (method, template) in EXEMPT:
+            check_origin_only(world, k, method, template)
             continue
         url = fill(template, world)
         me, other = world.web("bob"), world.web("ctl")
