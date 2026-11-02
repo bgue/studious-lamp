@@ -22532,6 +22532,44 @@
         "title": "ReplaceSignedRenditionBody",
         "type": "object"
       },
+      "Report": {
+        "description": "One report: its columns, its rows of text cells, and whether a view hit its bound.",
+        "properties": {
+          "columns": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Columns",
+            "type": "array"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "rows": {
+            "items": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "title": "Rows",
+            "type": "array"
+          },
+          "truncated": {
+            "title": "Truncated",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name",
+          "columns",
+          "rows",
+          "truncated"
+        ],
+        "title": "Report",
+        "type": "object"
+      },
       "RequestSchemaChangesBody": {
         "additionalProperties": false,
         "properties": {
@@ -61623,6 +61661,185 @@
           }
         ],
         "summary": "Get Materials Receipt",
+        "tags": [
+          "materials"
+        ]
+      }
+    },
+    "/projects/{project}/materials/reports/{name}": {
+      "get": {
+        "description": "A materials report of a project. ``heat_trace`` needs ``heat``; a bad date or a missing\nheat answers 422 ``materials_invalid_value``.",
+        "operationId": "get_materials_report",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project",
+            "required": true,
+            "schema": {
+              "title": "Project",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "enum": [
+                "stock_on_hand",
+                "movement_log",
+                "mto_status",
+                "shortages",
+                "heat_trace",
+                "consumables_by_cost_code"
+              ],
+              "title": "Name",
+              "type": "string"
+            }
+          },
+          {
+            "description": "First day, an ISO date (movement reports).",
+            "in": "query",
+            "name": "since",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 10,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "First day, an ISO date (movement reports).",
+              "title": "Since"
+            }
+          },
+          {
+            "description": "Last day, an ISO date (movement reports).",
+            "in": "query",
+            "name": "until",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 10,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Last day, an ISO date (movement reports).",
+              "title": "Until"
+            }
+          },
+          {
+            "description": "A heat number.",
+            "in": "query",
+            "name": "heat",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "A heat number.",
+              "title": "Heat"
+            }
+          },
+          {
+            "description": "json, or csv with formula-safe cells.",
+            "in": "query",
+            "name": "format",
+            "required": false,
+            "schema": {
+              "default": "json",
+              "description": "json, or csv with formula-safe cells.",
+              "enum": [
+                "json",
+                "csv"
+              ],
+              "title": "Format",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Report"
+                }
+              },
+              "text/csv": {}
+            },
+            "description": "The report as CSV."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Materials Report",
         "tags": [
           "materials"
         ]
