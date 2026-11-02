@@ -246,8 +246,6 @@ def _cwp_rows(
             },
         ).mappings()
     )
-    hidden_cwp = _hidden(conn, {str(r["id"]) for r in rows})
-    rows = [r for r in rows if str(r["id"]) not in hidden_cwp]
     hidden_cwa = _hidden(conn, {str(r["cwa_id"]) for r in rows if r["cwa_id"] is not None})
     pairs: list[tuple[Any, CwpRow]] = []
     for r in rows:

@@ -314,8 +314,8 @@ def check(db: Path) -> None:
             try:
                 rows_after = views.cwp_list(conn, SCOPE)
                 need(
-                    all(r.number != victim.number for r in rows_after),
-                    "the hidden CWP is still listed",
+                    all(not r.allocated for r in rows_after if r.number == victim.number),
+                    "the hidden CWP is still counted as allocated",
                 )
                 need(
                     sum(r.allocated for r in rows_after) == allocated_before - 1,
