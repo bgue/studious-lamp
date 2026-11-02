@@ -1,6 +1,6 @@
 # P2-I1-T05b — WBS tree and CWA register: Textual-free text modules and screens
 
-Status: draft (ready when T05a is merged)
+Status: draft (r8: split by area to pass the Haiku size check, then ready when T05a is merged)
 Tier: haiku
 Review: full
 Labels: tui
@@ -34,7 +34,7 @@ def cwa_page(line: CwaLine, *, panel: bool = False, technical: bool = False) -> 
 The CWA screen loads `list_cwas`, `get_path`, `list_cwps` (three client calls, no per-row call). The WBS screen loads `wbs_tree` once and `get_wbs_node` for the panel.
 
 ## Context, Allowed paths, Acceptance
-- Context: `awp_text.py` and `widgets/cwp_register.py` (T05a, merged), `correspondence_text.py` (pattern), `layout.py` lines 98-146, `tests/fakes_awp.py`.
+- Context: `awp_text.py` (T05a, merged), `widgets/tag_register.py` (the screen pattern), `correspondence_text.py` (pattern), `layout.py` lines 98-146, `tests/fakes_awp.py`.
 - Allowed: `tl_tui/wbs_text.py`, `tl_tui/cwa_text.py`, `widgets/wbs_screen.py`, `widgets/cwa_register.py` (create); `dev/accept/P2-I1/T05b.py`, `docs/reports/P2-I1/T05b.md` (create). Nav entries are supervisor glue.
 - Acceptance: setup, `just check`, `uv run python dev/accept/P2-I1/T05b.py` (PASS no textual for both modules; cells and pages on the seed fake; indent; key `u`; mount at 80 and 170 columns; ends `T05b ok`). No pytest.
 - Tests to add: none (T11 `test_wbs_screen.py`, `test_cwa_register.py`). Report <= 60 lines, deviations first, tui-layout checklist. Subject `P2-I1-T05b: ...`; trailer as T05a.
