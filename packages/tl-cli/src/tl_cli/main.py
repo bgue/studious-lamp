@@ -42,6 +42,7 @@ from tl_cli import (
     admin_token,
     admin_user,
     archive,
+    awp,
     backup,
     comm,
     config,
@@ -148,6 +149,7 @@ app.add_typer(derive.app, name="derive")
 app.add_typer(xer.app, name="xer")
 app.add_typer(load.app, name="load")
 app.add_typer(cost.app, name="cost")
+app.add_typer(awp.app, name="awp")
 app.add_typer(transmittal.app, name="transmittal")
 app.add_typer(review.app, name="review")
 app.add_typer(corr.app, name="corr")
