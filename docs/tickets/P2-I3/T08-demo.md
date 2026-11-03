@@ -63,3 +63,13 @@ Standard report (`docs/templates/haiku-report.md`, ≤ 60 lines): deviations fir
 
 ## Decision
 (supervisor or orchestrator writes here)
+
+## Retry notes (orchestrator, 2026-11-03, after review of b822444)
+Branch `p2/i3-t08-demo` is pushed. The demo passes on SQLite and Postgres. Fix these on the same branch, then re-review:
+- **F1:** take option (a). In clause 1, mara's `DefineItem` is really accepted (POST `/commands/DefineItem` as mara,
+  expect 200). Clause 10 then expects the 50 sample items plus that one, so the count line is `Showing 51 of 51`.
+- **F2:** clause 11 asserts the from, to and by of each clause-4 movement: the L2 to TC1 transfer, the return to L2,
+  and the issue from L2 with the person and the actors. The kind filter asserts that its one row is an issue.
+- **F3:** make the deviation count in the report match its list.
+- **F4:** commit subjects use `P2-I3-T08: ...`.
+- Demo logs go in the run's temp dir, never in `/` (a `/demo-sqlite1.log` was left at the filesystem root).
