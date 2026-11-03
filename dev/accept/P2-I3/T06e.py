@@ -300,9 +300,12 @@ def screen_check(size: tuple[int, int]) -> None:
                     await settle(pilot)
                 expect(len(screen.lines) == 3, f"{len(screen.lines)} lines after three adds")
                 screen.query_one("#entry-lines").focus()
-                await pilot.press("ctrl+d")  # removes the highlighted (first) line
+                expect(
+                    "[Del] Remove line" in screen_text(app), "the keys row lacks [Del] Remove line"
+                )
+                await pilot.press("delete")  # removes the highlighted (first) line
                 await settle(pilot)
-                expect(len(screen.lines) == 2, f"{len(screen.lines)} lines after Ctrl+D")
+                expect(len(screen.lines) == 2, f"{len(screen.lines)} lines after Delete")
                 expect(screen.lines[0]["qty"] == "3.5", f"the first line is {screen.lines[0]}")
                 await pilot.press("ctrl+s")
                 await settle(pilot)
@@ -342,7 +345,7 @@ def screen_check(size: tuple[int, int]) -> None:
                 expect(not isinstance(app.screen, ReceiptEntryScreen), "Esc did not close")
 
         asyncio.run(scenario())
-    passed(f"entry screen at {width}x{height}: PO hint, bad location, add, Ctrl+D, save, Esc")
+    passed(f"entry screen at {width}x{height}: PO hint, bad location, add, Delete, save, Esc")
 
 
 def check_item_crumb() -> None:

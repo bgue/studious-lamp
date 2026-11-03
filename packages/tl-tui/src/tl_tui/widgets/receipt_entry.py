@@ -2,7 +2,8 @@
 
 A full-size modal, not in the navigation yet. The header fields are above; a line is typed in the
 entry row (Item, Qty, Heat, Condition) and added to the list with ``Enter`` in the Condition input;
-``Ctrl+D`` removes the highlighted line (the list has the focus for it). ``Ctrl+S`` sends
+``Delete`` removes the highlighted line (the list has the focus for it; ``Ctrl+D`` stays the app's
+technical-details key). ``Ctrl+S`` sends
 ``CreateReceipt`` through ``client.materials_command``. Every word and every check lives in
 ``tl_tui.receipt_entry_text``; this screen mounts them and makes the one command call. A refusal
 from the service goes to the status line and the form stays open with what was typed. After a
@@ -61,7 +62,7 @@ class ReceiptEntryScreen(ModalScreen[None]):
 
     BINDINGS: ClassVar[list[BindingType]] = [
         Binding("ctrl+s", "save", "Save", show=False),
-        Binding("ctrl+d", "remove_line", "Remove line", show=False),
+        Binding("delete", "remove_line", "Remove line", show=False),
         Binding("escape", "close", "Close", show=False),
     ]
 
