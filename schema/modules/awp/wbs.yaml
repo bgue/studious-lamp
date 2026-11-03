@@ -1,0 +1,106 @@
+id: https://example.org/throughline/modules/awp/wbs
+name: tl_mod_awp_wbs
+title: Work breakdown structure (brief 9, M3)
+description: >-
+  A `WBSNode` is one node of the GC work breakdown structure, keyed by its code. A node has at most one parent and at most eight levels (depth 0 to 7). Only a leaf node is allocated to cost codes; `WbsAllocation` holds that list. Spec: docs/build-spec/specs/m3-wbs-cwp.md section 2.
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+  - ../../core/annotations
+  - ../../core/record
+default_range: string
+annotations:
+  tl:module: awp
+
+classes:
+  WBSNode:
+    title: WBS node
+    description: >-
+      One node of the work breakdown structure. Record type `awp.WBSNode`; its key is the typed code
+      (unique per project) and its title the node name. Not a workflow record: a node is active or retired.
+    annotations:
+      tl:current_state: true
+      tl:record_types: "awp.WBSNode"
+      tl:offline: none
+      tl:table: cur_awp_wbs_node
+      tl:ix_scope_parent: "scope, parent_id, position"
+    unique_keys:
+      scope_code:
+        description: A code names one node in a project.
+        unique_key_slots:
+          - scope
+          - code
+    attributes:
+      id:
+        identifier: true
+        range: Ulid
+        required: true
+        description: Record id; equals the ledger stream id and the `cur_core_record` id.
+      scope:
+        range: ScopeId
+        required: true
+        description: The project scope, `project:<id>`.
+      code:
+        required: true
+        pattern: "^[A-Z0-9][A-Z0-9.\\-]{0,31}$"
+        description: The node code as the GC writes it; the record key.
+      parent_id:
+        range: Ulid
+        description: The parent `awp.WBSNode`; null at the root.
+      depth:
+        range: integer
+        required: true
+        minimum_value: 0
+        maximum_value: 7
+        description: Levels below the root, 0 at the root.
+      position:
+        range: integer
+        required: true
+        description: Place among the siblings, from 1.
+      retired:
+        range: boolean
+        required: true
+        ifabsent: "false"
+        description: True once the node is retired; a retired node takes no new allocation.
+      last_seq:
+        range: integer
+        required: true
+        description: Ledger `seq` of the last event applied to this row.
+
+  WbsAllocation:
+    description: >-
+      One line of the cost code allocation of a leaf node. Not a record: written by the projector of
+      `WBSNode.CostCodesMapped`, which replaces the node's list. A node's lines sum to exactly 100.00.
+    annotations:
+      tl:current_state: true
+      tl:table: cur_awp_wbs_allocation
+      tl:ix_node: "node_id"
+      tl:ix_cost_code: "cost_code_id"
+    attributes:
+      row_id:
+        identifier: true
+        required: true
+        description: "`<node id>:<cost code id>`."
+      scope:
+        range: ScopeId
+        required: true
+        description: The project scope, `project:<id>`.
+      node_id:
+        range: Ulid
+        required: true
+        description: The `awp.WBSNode`.
+      cost_code_id:
+        range: Ulid
+        required: true
+        description: The `cost.CostCode` record.
+      percent:
+        required: true
+        pattern: "^(100\\.00|[1-9][0-9]?\\.[0-9]{2}|0\\.(0[1-9]|[1-9][0-9]))$"
+        description: 'Share of the node, text with two decimals from "0.01" to "100.00".'
+      last_seq:
+        range: integer
+        required: true
+        description: Ledger `seq` of the event that wrote the row.

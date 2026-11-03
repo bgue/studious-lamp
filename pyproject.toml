@@ -46,6 +46,7 @@ tl-mod-cost = { workspace = true }
 tl-mod-schedule = { workspace = true }
 tl-mod-schemareg = { workspace = true }
 tl-mod-legacy = { workspace = true }
+tl-mod-awp = { workspace = true }
 
 [tool.ruff]
 line-length = 100

@@ -63,6 +63,8 @@ CORRESPONDENCE_TOOLS = {  # P1-I5: five reads and one proposal (an agent only pr
 }
 CORRESPONDENCE_PROPOSE_TOOLS = {"propose_triage"}
 SCHEDULE_PROPOSE_TOOLS = {"propose_publish_schedule_snapshot"}
+AWP_READ_TOOLS = {"list_cwps", "get_cwp", "wbs_tree", "path_of_construction"}  # T06
+AWP_PROPOSE_TOOLS = {"propose_cwp"}  # T06
 SCHEDULE_READ_TOOLS = {
     "list_schedules",
     "get_schedule",
@@ -88,6 +90,7 @@ READING = (
     | THREAD_READ
     | CORRESPONDENCE_TOOLS
     | SCHEDULE_READ_TOOLS
+    | AWP_READ_TOOLS
 )
 TOOLS = (
     READING
@@ -95,6 +98,7 @@ TOOLS = (
     | DERIVATION_PROPOSE_TOOLS
     | CORRESPONDENCE_PROPOSE_TOOLS
     | SCHEDULE_PROPOSE_TOOLS
+    | AWP_PROPOSE_TOOLS
     | {"post_feed", "post_thread_message", "propose_dispatch"}
 )
 

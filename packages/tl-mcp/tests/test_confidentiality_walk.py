@@ -41,7 +41,7 @@ def values(hidden: Hidden) -> dict[str, list[Any]]:
     return {
         "project": ["P123"],
         "scope": [SCOPE],
-        "number": [*hidden.numbers.values(), "P123-THR-0001"],
+        "number": [*hidden.numbers.values(), "P123-THR-0001", "P123-CWP-CIV-0001"],
         "record": [*all_ids, *hidden.numbers.values()],
         "record_id": all_ids,
         "derived": ["x"],
@@ -52,7 +52,7 @@ def values(hidden: Hidden) -> dict[str, list[Any]]:
         "q": ["", *TOKENS.values()],
         "schedule": ["MAIN", "x"],
         "activity_id": ["x"],
-        "code": ["MER", "x"],
+        "code": ["MER", "x", "1.1.1"],
     }
 
 

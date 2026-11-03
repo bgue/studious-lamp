@@ -95,6 +95,7 @@ from tl_core.threads import messages as thread_messages
 from tl_core.uow import UnitOfWork
 from tl_core.util import effective_time
 from tl_core.workflow.roles import workflow_roles
+from tl_mod_awp.commands import AWP_COMMANDS
 from tl_mod_correspondence.commands import API_COMMANDS as CORRESPONDENCE_COMMANDS
 from tl_mod_cost.commands import API_COMMANDS as COST_COMMANDS
 from tl_mod_documents.commands import API_COMMANDS as DOCUMENT_COMMANDS
@@ -216,6 +217,7 @@ COMMANDS: tuple[CommandSpec, ...] = (
     CommandSpec(AcceptEnrichment, handle_accept_enrichment),
     CommandSpec(RejectEnrichment, handle_reject_enrichment),
     *_module_specs("correspondence", CORRESPONDENCE_COMMANDS),
+    *_module_specs("awp", AWP_COMMANDS),
     *_module_specs("cost", COST_COMMANDS),
     *_module_specs("schedule", SCHEDULE_COMMANDS),
     *_module_specs("schemareg", SCHEMAREG_COMMANDS),

@@ -1,0 +1,33 @@
+id: https://example.org/throughline/modules/awp
+name: tl_mod_awp
+title: "The awp module (M3, advanced work packaging: WBS, path of construction, CWA, CWP)"
+description: >-
+  Advanced work packaging, part 1 (brief 9, M3). A `WBSNode` is one node of the general contractor's work
+  breakdown structure; a leaf node is allocated to cost codes in percent (`WbsAllocation`). The
+  `PathOfConstruction` is the ordered list of construction work areas (`CWA`) with every version kept
+  (`PathStep`). A `CWP`, a construction work package, is numbered from a pattern, belongs to a CWA, is
+  allocated to WBS nodes in percent (`CwpAllocation`) and moves through the `awp-cwp` workflow. `EWPRef` and
+  `PWPRef` mirror the owner's engineering and procurement packages. The budget rollup (CWP to WBS node to
+  cost code) is kept per node in `cur_awp_rollup` and is written by a server job only.
+
+  Storage rule (ADR-0010): every record of this module is a row of `cur_core_record` and a row of the
+  module's own current-state table, joined on `id`. Child and rollup tables are not records. Module spec:
+  docs/build-spec/specs/m3-wbs-cwp.md.
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+  - ../../core/annotations
+  - ../../core/record
+  - wbs
+  - path
+  - cwa
+  - cwp
+  - external_package
+  - rollup
+  - events
+default_range: string
+annotations:
+  tl:module: awp

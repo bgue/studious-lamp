@@ -42,6 +42,7 @@ from tl_mod_schedule.handlers.snapshots import OpenScheduleSnapshot, StartSchedu
 from tl_mod_schedule.views import ActivityPage, ScheduleDetailView, ScheduleView
 
 from tl_sim.clock import SimClock
+from tl_sim.mcp_caller import McpUnavailableError
 
 EFFECTIVE_AT_HEADER = "X-TL-Effective-At"
 RECORD_TYPE_CODE = "REC"  # the only record type in Phase 0 (core.Record)
@@ -106,6 +107,13 @@ class ApiLike(Protocol):
     ) -> list[ProposalView]: ...
     def accept_proposal(self, proposal_id: str) -> ProposalView: ...
     def reject_proposal(self, proposal_id: str, reason: str) -> ProposalView: ...
+
+
+@runtime_checkable
+class AwpDesk(Protocol):
+    """What a workface planner needs on top of ``SimClient`` (not part of it): the path's areas."""
+
+    def areas(self) -> list[str]: ...
 
 
 @runtime_checkable
@@ -306,6 +314,21 @@ class HttpSimClient:
             raise ProposeUnavailableError("no MCP caller is wired for this actor")
         self._clock.tick()
         return self._mcp.call_tool(tool, arguments)
+
+    def areas(self) -> list[str]:
+        """The CWA codes of the current path of construction, in path order (``AwpDesk``).
+
+        The tool answers ``PathView | None``, so the structured answer may sit under ``result``; a
+        null or empty path is no areas. A step whose area the viewer may not read has no code.
+        """
+        if self._mcp is None:
+            raise McpUnavailableError("no MCP caller is wired for this actor")
+        answer = self._mcp.call_tool(
+            "path_of_construction", {"project": self._scope.removeprefix("project:")}
+        )
+        if "steps" not in answer and "result" in answer:
+            answer = answer["result"] or {}
+        return [str(step["cwa"]) for step in answer.get("steps") or [] if step.get("cwa")]
 
     def query(self, q: str, *, limit: int = 100) -> list[dict[str, Any]]:
         return self._api.query_records(self._scope, q, limit=min(limit, MAX_QUERY))

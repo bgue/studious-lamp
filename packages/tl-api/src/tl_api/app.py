@@ -53,6 +53,7 @@ from tl_api.routes import (
     actions,
     admin,
     auth,
+    awp,
     correspondence,
     cost,
     derivation,
@@ -335,6 +336,7 @@ def create_app(
         schedule,
         cost,
         schemareg,  # P1-I8
+        awp,  # P2-I1 T03a: the awp read routes
     ):
         app.include_router(module.router)
     app.include_router(commands.router)
