@@ -1,11 +1,11 @@
 # P2-I1-T11 — The increment's tests, five-reader walk and capped mutants
 
-Status: ready when T04e, T05c, T05e, T05f, T07 are merged (C3). Written r9.
+Status: ready when T04e, T05e, T05f, T07 (merged r10), T05g and T05c are merged (C3). Written r9, notes r10.
 Tier: builder
 Kind: piece
 Review: full
 Labels: tests
-Depends on: S2-S6, T01-T07, T10, T10b, T10c (all merged)
+Depends on: S2-S6, T01-T07, T05g, T10, T10b, T10c (all merged at dispatch)
 Branch: `p2/i1-t11-tests`
 Worktree: `/home/user/wt/i1-t11` (from `p2/i1` head)
 
@@ -41,6 +41,14 @@ CLI (`packages/tl-cli/tests/`): reads and groups (T04a), reports (T04b, D28: unk
 TUI (`packages/tl-tui/tests/`): `test_client_awp.py` (ApiClient, embedded and fake answer the same CWP); `test_text_modules_no_textual.py` (import each of `awp_text`, `details/awp`, `wbs_text`, `cwa_text`, `path_text`, `package_text` with `sys.modules["textual"] = None`); `test_awp_text.py` (T05a: empty Timeline heading with `No events recorded`, D38; budget and discipline in the summary and Scope; discipline label from the code list when loaded, else the code); screens `test_cwp_register`, `test_wbs_screen`, `test_cwa_register`, `test_path_screen` (+ package log) at 80 and 170 columns, plain-walk entry, keys, missing-data status. Pins from the reports: WBS cost-code cell `N · P%` (P = codes' hours over `total_hours`, `N · —` without a total); `Parent of N` counts direct children; `Leaf · Retired`; CWP register `Budget h` is left-aligned (no hook, T05d). Read widget text INSIDE the pilot (`app.screen` raises after `run_test` exits).
 Sim (`packages/tl-sim/tests/test_workface_planner.py`): T07 as its acceptance (3 proposals, pending, 3 accepted, order of draws, no areas, refused area), `ACTOR_NAMES` order (assistant, workface_planner, approver), off by default, `ROLE_NAMES` and the provisioned list unchanged (D45).
 Schema (`packages/tl-schema/tests/test_awp_schema.py`): S2 (the generated awp classes, pinned lists R-P2-4, the eight no-card events in `POLICY_EVENT_TYPES`, D6).
+
+## Notes added r10 (decisions D49-D52 in STATE.md)
+- T05g: `PathVersion.reason_code` (`test_views.py`): v1 None; v2+ the first non-null step reason in position order; a hidden area's step contributes nothing; v1 None even if a step carries a reason.
+- T05c (path screen, `test_path_screen.py`): state line "Defined ..." for v1 and "Re-sequenced ... by ... · reason Access" later; sections order CWPs, Steps changed, Versions; compare marks `↑n ↓n new gone`; `v` toggles the compare rows, status "No earlier version" at v1; `[` `]` change version; Budget h `—` when no CWP of the area has a budget.
+- T07 report error: it says `HttpSimClient` lacks `_project`; it has a property (`client.py:444`). Pin `areas()` as built (project from `_scope`; `McpUnavailableError`; a step with `cwa` None is skipped).
+- T05e/T05f pins: CWA state words `Active`/`Retired`; `Position N of M` (M = steps of the path); no path -> positions `—` (RecordNotFoundError from `get_path`); package log column order Type then Status; Type hidden only with two or more rows of one kind (use two EWPs); `t`/`c` narrow the rows already read, F5 reads again; Enter is a no-op on CWA and package logs.
+- T04e: `worker --once --requeue` after a `rollup` request prints `requeued 0`, then runs the queued job (not an orphan).
+- The tour (C4) cannot reach the awp screens until the nav ticket (T05h) lands; T11 pushes each screen directly in the pilot.
 
 ## Mutants (capped, rule 4; in your own worktree; report in 3 lines)
 One sentinel mutant (proves the baseline passes and the harness kills) plus at most 5 targeted mutants from the "Guards" lists of the S3, S4, S5, T02 reports (suggested: sum = 100 `common.py:202`; Release preconditions `handlers/cwp.py:455-461`; largest remainder `rollup.py:155`; 500-node bound `worker.py:141`; D-c re-check `worker.py:172`). Mutate by editing the one `src` line in the working tree, run only the one test file that should kill it, then `git checkout -- <file>`. Never commit a mutant; `git status` clean of `src` at the end.

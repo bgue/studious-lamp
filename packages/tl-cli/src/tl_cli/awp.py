@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import typer
 
-from tl_cli import awp_read, awp_report, awp_write, awp_write2
+from tl_cli import awp_read, awp_report, awp_run, awp_write, awp_write2
 
 app = typer.Typer(
     help="Work packaging: CWPs, CWAs, the WBS, the path of construction and packages.",
@@ -18,3 +18,4 @@ awp_read.register(app)
 awp_write.register(app)  # after the reads: it joins their cwp and package groups
 awp_write2.register(app)  # wbs, cwa and path verbs (T04d); joins the read groups too
 awp_report.register(app)
+awp_run.register(app)  # rollup and worker verbs (T04e)

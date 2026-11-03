@@ -239,7 +239,8 @@ def seed_awp(client: FakeAwpSupport, project: str = PROJECT) -> None:
         awp_views.PathVersion(version=1, recorded_at="2026-10-01T09:00:00+00:00",
                               actor="user:sue", step_count=1, is_current=False),
         awp_views.PathVersion(version=2, recorded_at="2026-10-15T09:00:00+00:00",
-                              actor="user:sue", step_count=2, is_current=True),
+                              actor="user:sue", step_count=2, is_current=True,
+                              reason_code="Access"),
     ]  # fmt: skip
     packages = [
         awp_views.PackageRow(
