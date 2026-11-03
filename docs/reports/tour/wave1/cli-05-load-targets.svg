@@ -1,0 +1,74 @@
+<svg class="rich-terminal" viewBox="0 0 1482 245.2" xmlns="http://www.w3.org/2000/svg">
+    <!-- Generated with Rich https://www.textualize.io -->
+    <style>
+
+    
+    
+
+    .terminal-1980741938-matrix {
+        font-family: Fira Code, monospace;
+        font-size: 20px;
+        line-height: 24.4px;
+        font-variant-east-asian: full-width;
+    }
+
+    .terminal-1980741938-title {
+        font-size: 18px;
+        font-weight: bold;
+        font-family: arial;
+    }
+
+    .terminal-1980741938-r1 { fill: #98a84b;font-weight: bold }
+.terminal-1980741938-r2 { fill: #c5c8c6;font-weight: bold }
+.terminal-1980741938-r3 { fill: #c5c8c6 }
+    </style>
+
+    <defs>
+    <clipPath id="terminal-1980741938-clip-terminal">
+      <rect x="0" y="0" width="1463.0" height="194.2" />
+    </clipPath>
+    <clipPath id="terminal-1980741938-line-0">
+    <rect x="0" y="1.5" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1980741938-line-1">
+    <rect x="0" y="25.9" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1980741938-line-2">
+    <rect x="0" y="50.3" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1980741938-line-3">
+    <rect x="0" y="74.7" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1980741938-line-4">
+    <rect x="0" y="99.1" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1980741938-line-5">
+    <rect x="0" y="123.5" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1980741938-line-6">
+    <rect x="0" y="147.9" width="1464" height="24.65"/>
+            </clipPath>
+    </defs>
+
+    <rect fill="#292929" stroke="rgba(255,255,255,0.35)" stroke-width="1" x="1" y="1" width="1480" height="243.2" rx="8"/><text class="terminal-1980741938-title" fill="#c5c8c6" text-anchor="middle" x="740" y="27">tl&#160;load&#160;targets</text>
+            <g transform="translate(26,22)">
+            <circle cx="0" cy="0" r="7" fill="#ff5f57"/>
+            <circle cx="22" cy="0" r="7" fill="#febc2e"/>
+            <circle cx="44" cy="0" r="7" fill="#28c840"/>
+            </g>
+        
+    <g transform="translate(9, 41)" clip-path="url(#terminal-1980741938-clip-terminal)">
+    
+    <g class="terminal-1980741938-matrix">
+    <text class="terminal-1980741938-r1" x="0" y="20" textLength="73.2" clip-path="url(#terminal-1980741938-line-0)">demo$&#160;</text><text class="terminal-1980741938-r2" x="73.2" y="20" textLength="183" clip-path="url(#terminal-1980741938-line-0)">tl&#160;load&#160;targets</text><text class="terminal-1980741938-r3" x="1464" y="20" textLength="12.2" clip-path="url(#terminal-1980741938-line-0)">
+</text><text class="terminal-1980741938-r3" x="0" y="44.4" textLength="256.2" clip-path="url(#terminal-1980741938-line-1)">awp_cwa&#160;&#160;awp&#160;&#160;project</text><text class="terminal-1980741938-r3" x="1464" y="44.4" textLength="12.2" clip-path="url(#terminal-1980741938-line-1)">
+</text><text class="terminal-1980741938-r3" x="0" y="68.8" textLength="256.2" clip-path="url(#terminal-1980741938-line-2)">awp_wbs&#160;&#160;awp&#160;&#160;project</text><text class="terminal-1980741938-r3" x="1464" y="68.8" textLength="12.2" clip-path="url(#terminal-1980741938-line-2)">
+</text><text class="terminal-1980741938-r3" x="0" y="93.2" textLength="317.2" clip-path="url(#terminal-1980741938-line-3)">documents&#160;&#160;legacy&#160;&#160;project</text><text class="terminal-1980741938-r3" x="1464" y="93.2" textLength="12.2" clip-path="url(#terminal-1980741938-line-3)">
+</text><text class="terminal-1980741938-r3" x="0" y="117.6" textLength="500.2" clip-path="url(#terminal-1980741938-line-4)">materials_item_master&#160;&#160;materials&#160;&#160;company</text><text class="terminal-1980741938-r3" x="1464" y="117.6" textLength="12.2" clip-path="url(#terminal-1980741938-line-4)">
+</text><text class="terminal-1980741938-r3" x="0" y="142" textLength="463.6" clip-path="url(#terminal-1980741938-line-5)">materials_location&#160;&#160;materials&#160;&#160;project</text><text class="terminal-1980741938-r3" x="1464" y="142" textLength="12.2" clip-path="url(#terminal-1980741938-line-5)">
+</text><text class="terminal-1980741938-r3" x="0" y="166.4" textLength="451.4" clip-path="url(#terminal-1980741938-line-6)">materials_po_line&#160;&#160;materials&#160;&#160;project</text><text class="terminal-1980741938-r3" x="1464" y="166.4" textLength="12.2" clip-path="url(#terminal-1980741938-line-6)">
+</text><text class="terminal-1980741938-r3" x="0" y="190.8" textLength="256.2" clip-path="url(#terminal-1980741938-line-7)">tags&#160;&#160;legacy&#160;&#160;project</text><text class="terminal-1980741938-r3" x="1464" y="190.8" textLength="12.2" clip-path="url(#terminal-1980741938-line-7)">
+</text>
+    </g>
+    </g>
+</svg>

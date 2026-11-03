@@ -1,0 +1,127 @@
+[
+  {
+    "file": "web-01-sign-in.png",
+    "title": "Sign in",
+    "caption": "The sign-in page asks for a name and a password and nothing else."
+  },
+  {
+    "file": "web-02-rfi-log.png",
+    "title": "RFI log with the record panel",
+    "caption": "The RFI log lists every RFI the person may see, and the panel beside it shows the selected one with the actions it offers."
+  },
+  {
+    "file": "web-03-rfi-details.png",
+    "title": "An RFI: Details",
+    "caption": "The Details tab gives the question, the answer, the key facts and the timeline of one RFI."
+  },
+  {
+    "file": "web-04-rfi-properties.png",
+    "title": "An RFI: Properties",
+    "caption": "The Properties tab lists the extra fields of the record and whether they meet the standard."
+  },
+  {
+    "file": "web-05-rfi-history.png",
+    "title": "An RFI: History",
+    "caption": "The History tab lists every change to the RFI, newest first, with who made it."
+  },
+  {
+    "file": "web-06-rfi-links.png",
+    "title": "An RFI: Links",
+    "caption": "The Links tab shows what the RFI points to and what points to it."
+  },
+  {
+    "file": "web-07-rfi-trace.png",
+    "title": "An RFI: Trace",
+    "caption": "The Trace tab follows the links outward to show where the RFI leads."
+  },
+  {
+    "file": "web-08-rfi-thread.png",
+    "title": "An RFI: Thread",
+    "caption": "The Thread tab reads the conversation on the RFI, oldest message first."
+  },
+  {
+    "file": "web-09-rfi-files.png",
+    "title": "An RFI: Files",
+    "caption": "The Files tab lists the attachments with their kind, size and page count."
+  },
+  {
+    "file": "web-10-correspondence-log.png",
+    "title": "Correspondence log",
+    "caption": "The correspondence log lists letters and emails in and out, with the selected letter in the panel."
+  },
+  {
+    "file": "web-11-document-log.png",
+    "title": "Document log with a page-1 image",
+    "caption": "The document log shows the first page of a PDF revision beside its number, title and state."
+  },
+  {
+    "file": "web-12-pdf-viewer.png",
+    "title": "PDF viewer",
+    "caption": "The viewer opens a PDF in the page, with page controls, without leaving the web client."
+  },
+  {
+    "file": "web-13-refusal.png",
+    "title": "A refused action",
+    "caption": "An action that is not offered on a record is refused in plain words, and nothing changes."
+  },
+  {
+    "file": "web-14-hidden-404.png",
+    "title": "A hidden record",
+    "caption": "A record the person may not see answers exactly as one that does not exist."
+  },
+  {
+    "file": "web-15-rfi-log-phone.png",
+    "title": "RFI log on a phone",
+    "caption": "At phone width the RFI log stacks the list and the panel in one column."
+  },
+  {
+    "file": "tui-01-cwp-register-wide.svg",
+    "title": "CWP register, 170 columns",
+    "caption": "The CWP register lists the construction work packages with state, area and hours; the highlighted one is described beside the list."
+  },
+  {
+    "file": "tui-02-cwp-register-narrow.svg",
+    "title": "CWP register, 100 columns",
+    "caption": "At 100 columns the same register moves the panel below the list."
+  },
+  {
+    "file": "tui-03-wbs-tree.svg",
+    "title": "WBS tree",
+    "caption": "The work breakdown structure is a tree of nodes with the cost codes mapped to each leaf."
+  },
+  {
+    "file": "tui-04-cwa-register.svg",
+    "title": "CWA register",
+    "caption": "The construction work areas appear in the order of the path of construction, with their CWPs."
+  },
+  {
+    "file": "tui-05-cwp-record.svg",
+    "title": "A CWP record",
+    "caption": "Enter on a CWP opens its record: allocation to the WBS, packages, activity links and timeline."
+  },
+  {
+    "file": "cli-01-awp-cwp-ls.svg",
+    "title": "tl awp cwp ls",
+    "caption": "The CWPs of the project, one line each: number, state, discipline, area, hours and title."
+  },
+  {
+    "file": "cli-02-awp-wbs-tree.svg",
+    "title": "tl awp wbs tree",
+    "caption": "The WBS printed depth first, each level indented, with the cost codes of the leaves."
+  },
+  {
+    "file": "cli-03-awp-reports.svg",
+    "title": "tl awp report",
+    "caption": "The three awp reports: CWP status by state, WBS against cost code, and the area sequence."
+  },
+  {
+    "file": "cli-04-awp-path-and-packages.svg",
+    "title": "tl awp path, cwa and package",
+    "caption": "The path of construction with its versions, the work areas, and the engineering and procurement packages."
+  },
+  {
+    "file": "cli-05-load-targets.svg",
+    "title": "tl load targets",
+    "caption": "The load targets the legacy loader knows, now including the awp and materials ones."
+  }
+]

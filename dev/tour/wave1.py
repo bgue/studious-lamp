@@ -121,6 +121,16 @@ def demo(ws: Workspace, *args: str) -> str:
     return ws.tl(*args, who="demo")
 
 
+def has_command(group: str, verb: str) -> bool:
+    """Whether ``tl <group> <verb>`` is mounted on the tree being previewed."""
+    import typer.main
+    from tl_cli.main import app
+
+    top = typer.main.get_command(app)
+    sub = getattr(top, "commands", {}).get(group)
+    return verb in getattr(sub, "commands", {})
+
+
 def awp_world(ws: Workspace) -> None:
     """Areas, a WBS with cost codes, five CWPs in different states, a path, two packages."""
     (ws.root / "cost.csv").write_text(COST_CSV, encoding="utf-8")
@@ -194,6 +204,13 @@ def awp_world(ws: Workspace) -> None:
             demo(ws, "awp", "cwp", "allocate", number, *P, "--wbs", f"{wbs}:100")
         for move in moves:
             demo(ws, "awp", "cwp", "move", number, move, *P)
+    if has_command(
+        "awp", "rollup"
+    ):  # the rollup worker: the WBS budgets and the cost report fill in
+        demo(ws, "awp", "rollup", *P)
+        demo(ws, "awp", "worker", "--once")
+    else:
+        not_built("awp rollup (tl awp rollup): the WBS rollups and the cost report show no hours")
     demo(
         ws, "awp", "path", "define", *P, "--step", "A", "--step", "B", "--step", "C", "--step", "D"
     )
@@ -506,9 +523,10 @@ def cli_shots(ws: Workspace) -> None:
         "The load targets the legacy loader knows, now including the awp and materials ones.",
         [("load", "targets")],
     )  # fmt: skip
+    import typer.main
     from tl_cli.main import app as cli_app
 
-    groups = {g.name for g in cli_app.registered_groups}
+    groups = set(getattr(typer.main.get_command(cli_app), "commands", {}))
     found = next((g for g in ("materials", "mat") if g in groups), None)
     if found is None:
         not_built("cli-06-materials-stock (tl materials)")
