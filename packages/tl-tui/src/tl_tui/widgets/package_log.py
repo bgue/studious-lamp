@@ -64,8 +64,9 @@ class PackageLogScreen(LogScreen[PackageRow]):
         return PACKAGE_COLUMNS
 
     def load_rows(self) -> Sequence[PackageRow]:
-        self.views = self.client.list_packages(self.project)
-        return self._narrowed()
+        """Runs off the UI thread: it reads the list and sets nothing on the screen. The
+        screen takes the list over in ``_fill`` on the UI thread (see there)."""
+        return self.client.list_packages(self.project)
 
     def row_key(self, row: PackageRow) -> str:
         return row.id
@@ -108,6 +109,14 @@ class PackageLogScreen(LogScreen[PackageRow]):
             if (self.kind is None or view.kind == self.kind)
             and (not self.constraints_only or view.constraint_source)
         ]
+
+    def _fill(self, keep: str | None = None, *, reread: bool = False) -> None:
+        """The base applies the rows here on the UI thread. A fresh read (``reread``) is the
+        whole list: it becomes ``views``, and ``rows`` is that list after the screen's filters."""
+        if reread:
+            self.views = list(self.rows)
+            self.rows = self._narrowed()
+        super()._fill(keep, reread=reread)
 
     def _refilter(self) -> None:
         """Narrow the rows already read (no call to the client); the cursor stays on its row."""

@@ -127,8 +127,15 @@ def check_summary() -> None:
 def check_page() -> None:
     text = plain_lines(package_page(EWP, panel=True), width=80)
     print("\n".join(text))
-    for heading in ("Dates", "Source", "CWPs (3)"):
+    for heading in ("Dates", "Source", "CWPs"):
         need(heading in [line.strip() for line in text], f"no heading {heading!r}")
+    stripped = [line.strip() for line in text]
+    under_cwps: list[str] = []
+    for line in stripped[stripped.index("CWPs") + 1 :]:
+        if not line:
+            break
+        under_cwps.append(line)
+    need(under_cwps == ["1", "2", "3"], f"CWP numbers under the CWPs heading: {under_cwps}")
     need("EWP-101 · Piping spool drawings" in text[0], "identity line")
     need(any("Source system" in line and "Aveva" in line for line in text), "source system")
     plain_pwp = plain_lines(package_page(PWP), width=80)

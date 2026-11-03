@@ -76,16 +76,15 @@ def package_summary(row: PackageRow) -> str:
 def package_page(row: PackageRow, *, panel: bool = False, technical: bool = False) -> Page:
     """The package as a page: the identity and status lines, then the Dates, Source and CWPs
     sections. A panel adds the summary line; technical mode adds the record id."""
-    heading = f"{CWPS} ({len(row.cwps)})" if row.cwps else CWPS
     rows: list[DetailRow] = [
         DetailRow("Forecast", _date(row.forecast_date), section=DATES),
         DetailRow("Actual", _date(row.actual_date), section=DATES),
         DetailRow("Source system", shown(row.source_system), section=SOURCE),
     ]
     if row.cwps:
-        rows += [DetailRow("", number, section=heading) for number in row.cwps]
+        rows += [DetailRow("", number, section=CWPS) for number in row.cwps]
     else:
-        rows.append(DetailRow("", NO_CWPS, section=heading))
+        rows.append(DetailRow("", NO_CWPS, section=CWPS))
     rows.append(DetailRow("Id", row.id, True, TECHNICAL_SECTION, False))
     return rows_page(
         rows,
