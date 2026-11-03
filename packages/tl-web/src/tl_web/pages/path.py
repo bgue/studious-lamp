@@ -39,9 +39,10 @@ COMPARE = "1"
 
 
 def _version(request: Request) -> int | None:
-    """``?version=N`` for N >= 1 (ASCII digits only); anything else is absent: the current one."""
+    """``?version=N`` for N >= 1 (ASCII digits only, at most nine); anything else is absent: the
+    current one."""
     raw = request.query_params.get("version", "")
-    if raw.isascii() and raw.isdigit() and int(raw) >= 1:
+    if raw.isascii() and raw.isdigit() and len(raw) <= 9 and int(raw) >= 1:
         return int(raw)
     return None
 

@@ -268,12 +268,14 @@ def test_version_1_with_compare_shows_the_steps_and_no_earlier_version(
     assert doc.status() == "No earlier version"
 
 
-@pytest.mark.parametrize("raw", ["0", "abc", "-1", ""])
+@pytest.mark.parametrize("raw", ["0", "abc", "-1", "", "9" * 5000, "0" * 5000])
 def test_a_bad_version_is_the_current_version(
     world: Any, htmlkit: Any, fakes: Any, raw: str
 ) -> None:
     bob = world.web("bob").client
-    asked = htmlkit.parse(bob.get(PAGE, params={"version": raw}).text)
+    response = bob.get(PAGE, params={"version": raw})
+    assert response.status_code == 200
+    asked = htmlkit.parse(response.text)
     current = htmlkit.parse(bob.get(PAGE).text)
     assert asked.status() == current.status() == present.layout.join_facts("2 steps", "version 2")
     assert asked.rows("log-table") == current.rows("log-table")

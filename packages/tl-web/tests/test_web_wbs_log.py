@@ -216,11 +216,13 @@ def test_unallocated_equals_the_text_module_unallocated_leaves(
     assert doc.status() == "1 of 3 nodes · unallocated leaves"
 
 
-@pytest.mark.parametrize("value", ["abc", "99"])
+@pytest.mark.parametrize("value", ["abc", "99", "9" * 5000])
 def test_a_bad_depth_is_as_if_absent(world: Any, htmlkit: Any, fakes: Any, value: str) -> None:
     bob = world.web("bob").client
     plain = htmlkit.parse(bob.get(PAGE).text)
-    cut = htmlkit.parse(bob.get(PAGE, params={"depth": value}).text)
+    response = bob.get(PAGE, params={"depth": value})
+    assert response.status_code == 200
+    cut = htmlkit.parse(response.text)
     assert cut.rows("log-table") == plain.rows("log-table")
     assert len(cut.log_rows()) == 3
     assert cut.status() == "3 of 3 nodes"
