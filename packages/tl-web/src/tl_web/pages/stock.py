@@ -58,7 +58,9 @@ class StockWebLog(WebLog["StockRowView"]):
         return present.materials_text.STOCK_COLUMNS
 
     def drop_order(self) -> Sequence[str]:
-        return present.materials_text.STOCK_DROP
+        # Web only: Location never drops (two lots of one heat in two bays must stay told apart).
+        # The terminal keeps materials_text.STOCK_DROP.
+        return ("UOM",)
 
     def load_rows(self) -> list[StockRowView]:
         lot = _text(self.request, "lot")
