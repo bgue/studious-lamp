@@ -742,12 +742,13 @@ def test_every_awp_get_route_shows_a_reader_only_what_they_may_read(
     headers = {"Authorization": f"Bearer {seeded.tokens[reader]}"}
     answers = {p: client.get(p, headers=headers) for p in AWP_GET_PATHS}
     assert all(a.status_code < 500 for a in answers.values()), reader
-    if reader == "bot":
-        return  # an agent has no awp read word: every route is closed to it, nothing to leak
     for path, response in answers.items():
-        assert response.status_code in (200, 404), (reader, path, response.status_code)
+        # an agent's word may close a route (403); nobody gets anything else but an answer or a 404
+        allowed = (200, 403, 404) if reader == "bot" else (200, 404)
+        assert response.status_code in allowed, (reader, path, response.status_code)
     blob = " ".join(a.text for a in answers.values() if a.status_code == 200)
-    assert "P123-CWP-PIP-0001" in blob  # the reader does read some
+    if reader != "bot":
+        assert "P123-CWP-PIP-0001" in blob  # the reader does read some
     hidden = {
         "restricted_cwp": (AWP_RESTRICTED_CWP, awp_seeded.ids["restricted_cwp"]),
         "private_cwp": (AWP_PRIVATE_CWP, awp_seeded.ids["private_cwp"]),
@@ -755,14 +756,10 @@ def test_every_awp_get_route_shows_a_reader_only_what_they_may_read(
         "area": (f'"code":"{AWP_RESTRICTED_AREA}"', awp_seeded.ids["area"]),
     }
     for kind, markers in hidden.items():
+        if awp_may_read(reader, kind):
+            continue
         for marker in markers:
-            assert (marker in blob) == awp_may_read(reader, kind) or marker not in blob, (
-                reader,
-                kind,
-                marker,
-            )
-            if not awp_may_read(reader, kind):
-                assert marker not in blob, (reader, kind, marker)
+            assert marker not in blob, (reader, kind, marker)
     detail_restricted = answers[f"/projects/P123/awp/cwps/{AWP_RESTRICTED_CWP}"]
     detail_private = answers[f"/projects/P123/awp/cwps/{AWP_PRIVATE_CWP}"]
     assert (detail_restricted.status_code == 200) == awp_may_read(reader, "restricted_cwp")
