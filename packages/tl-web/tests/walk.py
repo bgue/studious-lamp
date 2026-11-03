@@ -173,8 +173,13 @@ def _file(suffix: str) -> Callable[[Target], list[Probe]]:
 
 
 def _panels(t: Target) -> list[Probe]:
-    """The panel route of the three logs, each asked for this record's number."""
-    return [p for slug in ("rfis", "correspondence", "documents") for p in _panel(slug)(t)]
+    """The panel route of every log page in ``WALK``, each asked for this record's number."""
+    slugs = [
+        m[1].rsplit("/", 1)[1]
+        for m in WALK
+        if m[1].startswith("/web/p/{project}/") and m[1].count("/") == 4
+    ]
+    return [p for slug in slugs for p in _panel(slug)(t)]
 
 
 def _files_only(t: Target) -> bool:
@@ -189,6 +194,16 @@ WALK: dict[tuple[str, str], Row] = {
         "letters, RFIs, early warnings, transmittals", _page("correspondence")
     ),
     ("GET", "/web/p/{project}/documents"): Row("document numbers and titles", _page("documents")),
+    # --- T09 rows (CWP register): add them under this line
+
+    # --- T09b rows (CWA register): add them under this line
+
+    # --- T10 rows (WBS tree): add them under this line
+
+    # --- T11 rows (packages): add them under this line
+
+    # --- T16 rows (path): add them under this line
+
     ("GET", "/web/p/{project}/{log}/panel/{number:path}"): Row(
         "the panel of one row of a log: details, files, clocks, links", _panels
     ),

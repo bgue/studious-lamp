@@ -23,6 +23,8 @@ P = "P123"
 SCOPE = "project:P123"
 #: Public attributes of ``WebReadClient`` that are not reads (none today).
 NOT_READS: frozenset[str] = frozenset()
+#: Reads of one awp record: this world holds none, so the route and the mirror both refuse (404).
+ABSENT = frozenset({"get_cwp", "get_wbs_node", "get_path"})
 
 
 def public_methods() -> set[str]:
@@ -50,7 +52,7 @@ def as_json(value: Any) -> Any:
 
 
 def test_the_mirror_count_is_pinned(k: Any) -> None:
-    assert len(MIRRORS) == 24, (
+    assert len(MIRRORS) == 31, (
         "MIRRORS in tl_web/reads.py changed size: twin tickets raise this number in their own "
         "ticket (and add the read to this test's CASES)"
     )
@@ -132,6 +134,13 @@ def cases(w: Any) -> dict[str, tuple[tuple[Any, ...], dict[str, Any], dict[str, 
         "conformance": ((rfi,), {}, {"record_id": rfi}),
         "trace": ((item,), {}, {"record_id": item}),
         "list_accounts": ((), {}, {}),
+        "list_cwps": ((P,), {}, {"project": P}),
+        "get_cwp": ((P, "CWP-1"), {}, {"project": P, "number": "CWP-1"}),
+        "list_cwas": ((P,), {}, {"project": P}),
+        "wbs_tree": ((P,), {}, {"project": P}),
+        "get_wbs_node": ((P, "1.1"), {}, {"project": P, "code": "1.1"}),
+        "get_path": ((P,), {}, {"project": P}),
+        "list_packages": ((P,), {}, {"project": P}),
     }
 
 
@@ -160,6 +169,11 @@ def test_each_mirror_returns_what_the_json_route_returns_for_the_same_viewer(
             continue  # the plain user is refused (test below)
         path, query = json_path(world, method, params)
         sent = api.get(path, params=query)
+        if method in ABSENT:
+            assert sent.status_code == 404, f"{reader} {method}: {sent.status_code}"
+            with pytest.raises(Exception, match="no "):
+                getattr(client, method)(*args, **kwargs)
+            continue
         assert sent.status_code == 200, f"{reader} {method}: {sent.status_code} {sent.text[:200]}"
         got = as_json(getattr(client, method)(*args, **kwargs))
         assert got == dropping_none(sent.json()), f"{reader} {method} differs from {path}"

@@ -13,7 +13,9 @@ from typing import cast
 
 from tl_tui import (
     action_ui,
+    awp_text,
     correspondence_text,
+    cwa_text,
     details,
     display,
     document_text,
@@ -22,12 +24,14 @@ from tl_tui import (
     layout,
     links_text,
     log_text,
+    package_text,
     properties_text,
     record_text,
     rfi_text,
     text,
     thread_text,
     trace_text,
+    wbs_text,
 )
 from tl_tui.action_ui import ACTION_UI, ActionUi, FormField, stamp, without_keys
 from tl_tui.client import ClientInterface
@@ -45,8 +49,10 @@ __all__ = [
     "Page",
     "action_ui",
     "as_client",
+    "awp_text",
     "breadcrumb_text",
     "correspondence_text",
+    "cwa_text",
     "details",
     "display",
     "document_text",
@@ -58,6 +64,7 @@ __all__ = [
     "links_text",
     "load_labels",
     "log_text",
+    "package_text",
     "plain_lines",
     "properties_text",
     "record_text",
@@ -67,6 +74,7 @@ __all__ = [
     "thread_text",
     "trace_text",
     "visible_columns",
+    "wbs_text",
     "without_keys",
 ]
 

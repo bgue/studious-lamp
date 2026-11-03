@@ -29,6 +29,11 @@ PAGE_MODULES = (
     "tl_web.pages.rfis",
     "tl_web.pages.correspondence",
     "tl_web.pages.documents",
+    "tl_web.pages.cwps",
+    "tl_web.pages.cwas",
+    "tl_web.pages.wbs",
+    "tl_web.pages.packages",
+    "tl_web.pages.path",
     "tl_web.pages.record",
     "tl_web.pages.viewer",
 )

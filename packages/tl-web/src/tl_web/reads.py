@@ -35,6 +35,7 @@ from tl_api.context import ApiContext
 from tl_api.errors import body_for
 from tl_api.routes import actions as actions_routes
 from tl_api.routes import admin as admin_routes
+from tl_api.routes import awp as awp_routes
 from tl_api.routes import correspondence as correspondence_routes
 from tl_api.routes import documents as documents_routes
 from tl_api.routes import engineering as engineering_routes
@@ -82,6 +83,13 @@ MIRRORS: dict[str, str] = {
     "get_record_by_id": "get_record",
     "conformance": "get_conformance",
     "trace": "get_record_trace",
+    "list_cwps": "list_cwps",
+    "get_cwp": "get_cwp",
+    "list_cwas": "list_cwas",
+    "wbs_tree": "wbs_tree",
+    "get_wbs_node": "get_wbs_node",
+    "get_path": "get_path",
+    "list_packages": "list_packages",
 }
 
 
@@ -391,3 +399,26 @@ class WebReadClient:
         return self._call(
             threads_routes.get_thread, record_id=record_id, limit=limit, before_seq=before_seq
         )
+
+    # --- awp (M3): CWPs, areas, WBS, path of construction, packages ---------------------------
+
+    def list_cwps(self, project: str, **filters: Any) -> Any:
+        return self._call(awp_routes.list_cwps, project=project, **filters)
+
+    def get_cwp(self, project: str, number: str) -> Any:
+        return self._call(awp_routes.get_cwp, project=project, number=number)
+
+    def list_cwas(self, project: str) -> Any:
+        return self._call(awp_routes.list_cwas, project=project)
+
+    def wbs_tree(self, project: str, *, depth: int | None = None) -> Any:
+        return self._call(awp_routes.wbs_tree, project=project, depth=depth)
+
+    def get_wbs_node(self, project: str, code: str) -> Any:
+        return self._call(awp_routes.get_wbs_node, project=project, code=code)
+
+    def get_path(self, project: str, version: int | None = None) -> Any:
+        return self._call(awp_routes.get_path, project=project, version=version)
+
+    def list_packages(self, project: str, *, kind: str | None = None) -> Any:
+        return self._call(awp_routes.list_packages, project=project, kind=kind)
