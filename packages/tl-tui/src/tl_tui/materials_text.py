@@ -6,8 +6,8 @@ screens mount these functions and the web twins (``tl_web/present.py``) call the
 two never differ in columns, words or signs.
 
 Quantities are ``Decimal`` in and text out (``qty_text``). A missing value is ``—`` (``EMPTY``),
-never ``None`` and never a bare ``-``. The ``For`` columns and the reservation ``For`` are not here
-(D26): they wait for the S5 view keys.
+never ``None`` and never a bare ``-``. The ``For`` columns (the movement log and the lot panel's
+reservations) read the S5 view keys ``work_package`` and ``cost_code`` (T06g).
 """
 
 from __future__ import annotations
@@ -47,8 +47,18 @@ STOCK_COLUMNS: tuple[str, ...] = (
     "UOM",
 )
 STOCK_DROP: tuple[str, ...] = ("UOM", "Location")  # least needed first
-MOVEMENT_COLUMNS: tuple[str, ...] = ("Date", "Kind", "Lot", "Item", "Qty", "From", "To", "By")
-MOVEMENT_DROP: tuple[str, ...] = ("By", "Item", "To", "From")  # least needed first
+MOVEMENT_COLUMNS: tuple[str, ...] = (
+    "Date",
+    "Kind",
+    "Lot",
+    "Item",
+    "Qty",
+    "For",
+    "From",
+    "To",
+    "By",
+)
+MOVEMENT_DROP: tuple[str, ...] = ("By", "Item", "To", "From", "For")  # least needed first
 
 KIND_WORDS: Mapping[str, str] = {
     "issue": "Issue",
@@ -66,12 +76,14 @@ STOCK_KEYS = "/ filter  l lot  i item  h heat  z subtree  F5 reload  Esc close"
 MOVEMENT_KEYS = "k kind  p period  F5 reload  Esc close"
 
 LOT_QUANTITY_COLUMNS: tuple[str, ...] = ("Location", "On hand", "Reserved", "Available")
-LOT_RESERVATION_COLUMNS: tuple[str, ...] = ("MTO line", "Location", "Qty")
+LOT_RESERVATION_COLUMNS: tuple[str, ...] = ("MTO line", "For", "Location", "Qty")
 LOT_MOVEMENT_COLUMNS: tuple[str, ...] = ("Date", "Kind", "Qty", "From", "To", "By")
 LAST_MOVEMENTS = 10  # the lot panel's movement table
 
 _THREE_DECIMALS = Decimal("0.001")
 _MTR_MARKS: Mapping[str, str] = {"present": "✓", "missing": "—", "n/a": "n/a"}
+#: The sign of a movement with no ``direction``, by ledger kind (as ``tl mat movements``, D35).
+_SIGN_BY_KIND: Mapping[str, str] = {"receive": "+", "return": "+", "issue": "-", "scrap": "-"}
 _PERIOD_DAYS: Mapping[str, int] = {"7 days": 7, "30 days": 30}
 _PERIOD_WORDS: Mapping[str, str] = {
     "7 days": "last 7 days",
@@ -272,6 +284,7 @@ def lot_page(
                 LOT_RESERVATION_COLUMNS,
                 (
                     _shown(r.mto_line),
+                    _shown(r.work_package),
                     _shown(titles.get(r.location) or r.location),
                     qty_text(r.qty),
                 ),
@@ -329,12 +342,16 @@ def lot_lines(
 
 
 def movement_columns_for(rows: Sequence[MovementView]) -> tuple[str, ...]:
-    """``MOVEMENT_COLUMNS`` without By, Item, To and From where every row has the same value."""
+    """``MOVEMENT_COLUMNS`` without each column whose value is the same in every row.
+
+    The droppable columns are By, Item, To, From and For.
+    """
     constant = {
         "By": {r.actor for r in rows},
         "Item": {r.item_code for r in rows},
         "To": {r.to_location for r in rows},
         "From": {r.from_location for r in rows},
+        "For": {r.work_package or r.cost_code for r in rows},
     }
     drop = {name for name, values in constant.items() if len(values) <= 1}
     return tuple(column for column in MOVEMENT_COLUMNS if column not in drop)
@@ -364,6 +381,8 @@ def _movement_cell(view: MovementView, column: str, labels: Labels | None, techn
         return _shown(view.item_code)
     if column == "Qty":
         return _signed_qty(view)
+    if column == "For":
+        return _shown(view.work_package or view.cost_code)
     if column == "From":
         return _shown(view.from_location)
     if column == "To":
@@ -374,7 +393,9 @@ def _movement_cell(view: MovementView, column: str, labels: Labels | None, techn
 
 
 def _signed_qty(view: MovementView) -> str:
-    """``+12`` for a receipt in, ``-3`` for an issue out, unsigned when no direction."""
+    """``+12`` for a receipt in, ``-3`` for an issue out. With no ``direction`` the sign follows the
+    kind: ``receive`` and ``return`` are +, ``issue`` and ``scrap`` are -; other kinds are unsigned.
+    A zero stays ``0``."""
     magnitude = qty_text(abs(view.qty))
     if magnitude == "0":
         return magnitude
@@ -382,7 +403,10 @@ def _signed_qty(view: MovementView) -> str:
         return f"+{magnitude}"
     if view.direction == "out":
         return f"-{magnitude}"
-    return qty_text(view.qty)
+    sign = _SIGN_BY_KIND.get(view.kind)
+    if sign is None:
+        return qty_text(view.qty)
+    return f"{sign}{magnitude}"
 
 
 def movement_summary(
