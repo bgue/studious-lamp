@@ -199,6 +199,9 @@ WALK: dict[tuple[str, str], Row] = {
     # --- T09b rows (CWA register): add them under this line
 
     # --- T10 rows (WBS tree): add them under this line
+    ("GET", "/web/p/{project}/wbs"): Row(
+        "WBS codes and titles, cost codes, CWP numbers and titles", _page("wbs")
+    ),
 
     # --- T11 rows (packages): add them under this line
 
