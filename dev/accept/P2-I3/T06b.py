@@ -42,6 +42,7 @@ from tl_mod_materials.views import (  # noqa: E402
 )
 from tl_tui.app import TlApp  # noqa: E402
 from tl_tui.embedded import EmbeddedClient  # noqa: E402
+from tl_tui.layout import WAITING_STYLE, Note, Page, Section, page_lines  # noqa: E402
 from tl_tui.receipt_text import (  # noqa: E402
     KEYS,
     RECEIPT_COLUMNS,
@@ -49,6 +50,7 @@ from tl_tui.receipt_text import (  # noqa: E402
     RIGHT,
     columns_for,
     receipt_lines,
+    receipt_page,
     row_cells,
 )
 from tl_tui.widgets.receipt_log import ReceiptLogScreen  # noqa: E402
@@ -213,6 +215,38 @@ def check_empty_and_mtr() -> None:
     passed("Files table lists the MTR slot first and drops the missing-MTR line once it is there")
 
 
+def files_section(page: Page) -> Section:
+    return next(section for section in page.sections if section.heading == "Files")
+
+
+def styled_segments(page: Page, text: str) -> list[tuple[str, str]]:
+    """Every rendered segment that reads ``text``, with its style."""
+    return [seg for line in page_lines(page) for seg in line if seg[0] == text]
+
+
+def check_mtr_note() -> None:
+    missing = receipt_page(detail(mtr="missing", mtr_required=True))
+    first = files_section(missing).items[0]
+    assert isinstance(first, Note), f"the first Files item is {first!r}, not a Note"
+    assert first.style == WAITING_STYLE == "yellow", first
+    assert styled_segments(missing, "MTR required to accept") == [
+        ("MTR required to accept", WAITING_STYLE)
+    ], "the MTR line is not in the waiting style"
+    passed("missing MTR is a Note in the waiting style, first in the Files section")
+    files = [
+        ReceiptFileView(
+            file_id="F-1", slot="mtr", filename="mtr-7781.pdf", status="available", uploaded_at="x"
+        )
+    ]
+    attached = receipt_page(detail(mtr="present", mtr_required=True, files=files))
+    assert not any(isinstance(item, Note) for item in files_section(attached).items), "a Note"
+    empty = receipt_page(detail())
+    assert files_section(empty).note == "No files", files_section(empty)
+    assert files_section(empty).items == (), "the No files section has items"
+    assert styled_segments(empty, "No files") == [("No files", "")], "No files is styled"
+    passed("an MTR attached or not required has no Note; No files stays plain")
+
+
 def check_lines_table() -> None:
     same_uom = receipt_lines(detail(line_rows=[line(1, "EA"), line(2, "EA", "H-1")]))
     assert "UOM" not in same_uom[same_uom.index("Lines") + 1], same_uom
@@ -285,7 +319,7 @@ def main() -> int:
         print(f"FAIL ledger: {LEDGER} is missing (run dev/accept/P2-I3/S3.py --keep first)")
         return 1
     checks: list[Check] = [check_columns_for, check_rejection, check_empty_and_mtr]
-    checks += [check_lines_table, check_import_leaves_textual]
+    checks += [check_mtr_note, check_lines_table, check_import_leaves_textual]
     try:
         with tempfile.TemporaryDirectory() as tmp:
             db = Path(tmp) / "tl.db"

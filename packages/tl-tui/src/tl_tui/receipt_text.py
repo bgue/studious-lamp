@@ -22,6 +22,7 @@ from tl_mod_materials.views import (
 from tl_tui.display import Labels, humanize
 from tl_tui.layout import (
     Item,
+    Note,
     Page,
     Prop,
     Section,
@@ -229,12 +230,12 @@ def _inspection_section(detail: ReceiptDetailView, labels: Labels | None) -> Sec
 
 def _files_section(detail: ReceiptDetailView) -> Section:
     """The files as one table, the MTR slot first. An MTR the receipt needs and lacks is one plain
-    line before the table; it is not a file row, since no file exists. The layout has no coloured
-    note line yet (a follow-up), so the line carries no colour. With no files the section reads
-    ``No files`` (the layout shows a section note only when the section has no items)."""
+    line before the table, in the waiting colour; it is not a file row, since no file exists. With
+    no files the section reads ``No files`` (plain: the layout shows a section note only when the
+    section has no items)."""
     items: list[Item] = []
     if detail.mtr_required and detail.mtr == "missing":
-        items.append(MTR_NOTE)
+        items.append(Note(MTR_NOTE))
     items.extend(TableRow(FILE_COLUMNS, _file_cells(file)) for file in _mtr_first(detail.files))
     return Section("Files", tuple(items), note="" if detail.files else NO_FILES)
 
