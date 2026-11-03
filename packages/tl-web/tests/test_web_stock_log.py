@@ -170,6 +170,14 @@ def test_the_panel_of_the_first_row_is_the_terminal_lot_page(
     assert htmlkit.parse(panel.text).pre().split("\n") == expected_panel(fakes, PIPE_A, MTR)
 
 
+def test_on_the_web_location_never_drops_and_uom_may(world: Any, htmlkit: Any, fakes: Any) -> None:
+    """Two lots of one heat in two bays stay told apart: only UOM may be hidden on the web."""
+    doc = htmlkit.parse(world.web("bob").client.get(PAGE).text)
+    heads = {th.text(): th.get("class").split() for th in doc.by_id("log-table").find_all("th")}
+    assert "tl-drop" not in heads["Location"]
+    assert "tl-drop" in heads["UOM"]
+
+
 def test_the_status_line_is_the_summary(world: Any, htmlkit: Any, fakes: Any) -> None:
     doc = htmlkit.parse(world.web("bob").client.get(PAGE).text)
     assert doc.status() == "Showing 4 of 4 stock rows"
