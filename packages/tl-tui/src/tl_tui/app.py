@@ -653,10 +653,23 @@ class TlApp(App[None]):
         from tl_core.settings.layers import project_of_scope
 
         project = project_of_scope(self.scope)
+        if which == "items":
+            from tl_tui.widgets.item_library import ItemLibraryScreen
+
+            self.push_screen(ItemLibraryScreen(self.client, project))
+            return
         if project is None:
             self.notify("The materials logs need a project.", severity="warning")
             return
-        if which == "stock":
+        if which == "receipts":
+            from tl_tui.widgets.receipt_log import ReceiptLogScreen
+
+            self.push_screen(ReceiptLogScreen(self.client, project))
+        elif which == "locations":
+            from tl_tui.widgets.location_screen import LocationScreen
+
+            self.push_screen(LocationScreen(self.client, project))
+        elif which == "stock":
             from tl_tui.widgets.stock_screen import StockScreen
 
             self.push_screen(StockScreen(self.client, project))
@@ -677,6 +690,15 @@ class TlApp(App[None]):
 
     def action_mto_lines(self) -> None:
         self._push_materials("mto")
+
+    def action_receipts(self) -> None:
+        self._push_materials("receipts")
+
+    def action_items(self) -> None:
+        self._push_materials("items")
+
+    def action_locations(self) -> None:
+        self._push_materials("locations")
 
     def action_settings(self) -> None:
         """about:config: the settings of this project, with their origin and history."""
