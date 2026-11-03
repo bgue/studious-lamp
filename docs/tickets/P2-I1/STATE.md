@@ -1,4 +1,4 @@
-# P2-I1 STATE  r=9 base=aa07c37 C=2 ck=0 gate=n/a wt=/home/user/wt/p2-i1
+# P2-I1 STATE  r=10 base=1b93a13 C=2 ck=0 gate=n/a wt=/home/user/wt/p2-i1
 ## BOARD
 S2 p mrg f 99ad743 schema awp merged; APPROVALS logged
 S3 p mrg f f482aad awp package merged; rev pass
@@ -14,21 +14,23 @@ T04a t mrg f 0ba277f tl awp reads; tl-mod-awp dep added by orch
 T04b t mrg f 00565d1 reports + tl awp report; mounted r6 (glue)
 T03b t mrg f 86e2662 client methods; C2; short subject kept (D35)
 T06 t mrg f 2420368 MCP tools + propose_cwp; pins; APPROVALS aeac490
+T05g t stg f - PathVersion.reason_code; ticket ready r10
+T05h t todo f - nav + palette entries for the five awp screens; spec after T05c
 T10c t mrg f dca4731 view fields; 2 att; second _hidden pass dropped
 T03c t mrg f 24b64bc API reports route + CSV
 T04c t mrg f 1645726 cwp+package verbs; subject T04c: kept (D37)
 T04d t mrg f a6e9002 wbs, cwa, path verbs; rev pass; mounted r9 (glue)
 T05a t mrg f 1c6aed5 awp_text + details/awp
 T05b t mrg f a90661e WBS tree + wbs_text; rev pass; Qs D47
-T05c t disp f - path screen + path_text; r9 batch
+T05c t stg f 4995e85 blk r9; re-spec r10 (D49-D50); after T05g
 T05d t mrg f 979cba2 CWP register screen; rev pass
-T05e t disp f - CWA register + cwa_text; r9 batch
-T05f t stg f - packages log + package_text; ready, batch r10
-T07 t stg l - sim AwpDesk, workface_planner; ready (D43-D45), batch r10
-T04e t disp f - rollup + worker (awp_run.py); r9 batch
-T11 p stg f - tests + capped mutants + five-reader walk; spec T11-tests.md ready, after T05f T07 merged
-T08 t todo f - demo; after T11
-T09 t todo l - docs; after T04c, T04d, T04e, T05
+T05e t mrg f ff9d980 CWA register; 2 att; subject kept (D51)
+T05f t mrg f e6b59f5 packages log; 2 att; subject kept (D51)
+T07 t mrg l 8d9b344 sim AwpDesk, planner; 2s subject only (D51)
+T04e t mrg f dbf684c rollup + worker; mounted r10 (glue dc72b6a)
+T11 p stg f - tests, 5 mutants, walk; spec ready + r10 notes; after T05g T05c
+T08 t todo f - demo; after T11 and T05h
+T09 t todo l - docs; after T05c merged
 ## DEC
 D1 2026-11-01 round 1 file names: S2 S3 S4 S5 T01..T11 as spec §10 ids; table in README.md
 D2 2026-11-01 no model names in committed files; trailer = harness trailer, not discussed
@@ -78,6 +80,10 @@ D45 2026-11-02 r9 T07 fact 3: planner is an AGENT (only agent:sim-assistant has 
 D46 2026-11-02 r9 batch = T04e T05c T05e (disjoint paths); T05f + T07 next (5-file check for T07 = 5 source files, script and report not counted); T11 spec written (T11-tests.md), gate = just gate on the touched dirs + gate-pg awp
 D47 2026-11-02 r9 T05b Qs accepted as built (cost-code cell N . P% of total_hours; Parent of N = direct children; Leaf . Retired; no DROP_FIRST, Subject shortens); T05d: Budget h left-aligned, summary composed in screen; T04d: mutually exclusive option pairs and `path define` no-step refusals accepted, empty `revise` pinned at T11; all in T11-tests.md
 D48 2026-11-02 r9 glue done: tl_cli/awp.py mounts awp_write2.register(app) (2 lines); awp_run (T04e) next
+D49 2026-11-03 r10 T05c blocked on views: PathVersion gets reason_code (T05g, first non-null step reason of v>1, None for v1); path_page takes previous: PathView (one get_path per version change), labels; no per-row call
+D50 2026-11-03 r10 T05c answers: compare keys on cwa code, None skipped; sections CWPs (selected step), Steps changed, Versions; Budget h "—" without a budget; PathReason from labels.code_labels via load_labels(("awp.CWP",)); `v` toggles steps/compare rows
+D51 2026-11-03 r10 board: T04e T05e T05f T07 merged; old subjects T04e: T05e: T05f: T07: stay (no rewrite); T05e Active/Retired, Enter no-op, CWA_DROP in cwa_text, T05f column order Type/Status, T07 McpUnavailableError and None-cwa skip accepted; T07 report error (HttpSimClient has _project property, client.py:444) noted in T11
+D52 2026-11-03 r10 the five awp screens have NO entry key or palette command (no app action, commands.py, keymap.py): the tour cannot reach them; T05h (after T05c) adds palette commands + app actions + keymap rows, owner wants a screenshot of every screen
 ## SEC
 F1 LO fixed@- S2 report 65>60 lines; waived
 F2 LO fixed@adfbd1d S3 dropped redundant scope indexes
@@ -92,13 +98,13 @@ T10F3 LO open hidden-CWP check impossible (no class on awp records): T11 fixture
 ## OPEN
 (none)
 ## NEXT
-1. r9 DISPATCH (orchestrator, ONE workflow of 3, disjoint paths): T04e docs/tickets/P2-I1/T04e-cli-rollup-worker.md p2/i1-t04e-rollup-worker t f | T05c .../T05c-path.md p2/i1-t05c-path t f | T05e .../T05e-cwa.md p2/i1-t05e-cwa t f. Setup per worktree: `uv sync --all-packages`; `.accept/p2-i1.db` via `uv run python dev/accept/P2-I1/S4.py --keep .accept/p2-i1.db` when missing (not committed); acceptance `NODE_OPTIONS=--max-old-space-size=6144 just check` (background) + ticket script, no pytest. Subject `P2-I1-<id>: ...`, trailer per ticket.
-2. After r9 merges, glue (mine, <= 50 lines): `tl_cli/awp.py` add `awp_run` import + `awp_run.register(app)` after awp_write2 (T04e); nav "Work packaging" > CWPs/WBS/CWAs/Path/Packages and palette entries in `nav_tree.py`, `app.py` once per merged screen; `DROP_FIRST`/`SHORTENABLE` names in `layout.py` named in screen reports.
-3. r10 (fresh supervisor; verify board vs git log): DISPATCH T05f (.../T05f-packages.md p2/i1-t05f-packages t f) + T07 (.../T07-sim-actor.md p2/i1-t07-sim t l); both ready, disjoint (tl_tui vs tl_sim). Then glue (item 2).
-4. After T05f and T07 merge = C3 reached by tickets: DISPATCH T11 (piece, docs/tickets/P2-I1/T11-tests.md p2/i1-t11-tests p f), alone; its gate is `just gate <touched dirs>` and gate-pg awp, tests must RUN and pass; findings in its report go to D-records; src defects become Haiku fix tickets (never supervisor edits).
-5. C3 -> C4: T08 demo (dev/demos/P2-I1.sh, p2_i1_demo.py; prepare sim project by hand, D43; `tl sim assert` once), then `just demo P2-I1` sqlite + pg, tour once; T09 docs (after T04e T05f merged; throughline-docs skill). Increment report <= 80 lines from STATE.
-6. Capacity: weekly use is near the owner's stop line; the r9 batch may run next week. This STATE.md plus the tickets above dispatch without re-reading anything else.
+1. r10 DISPATCH (orchestrator): T05g docs/tickets/P2-I1/T05g-path-version-reason.md p2/i1-t05g-reason t f, alone (worktree /home/user/wt/i1/t05g). Setup `uv sync --all-packages`; `NODE_OPTIONS=--max-old-space-size=6144 just check`; ticket script; no pytest. Then merge into p2/i1.
+2. After T05g merged: in /home/user/wt/i1/t05c run `git merge p2/i1` (clean, only the old blocked report is on the branch), then DISPATCH T05c (ticket re-specced, branch p2/i1-t05c-path, t f). T05c is the last screen.
+3. r11 (fresh supervisor, after T05c merges): write T05h (nav: palette AppCommands in commands.py, app actions in app.py, keymap.py rows, nav pins; Haiku-size check first; 5 screens: CWPs, WBS, CWAs, Path, Packages; project scope only, "needs a project" notice like action_tags) and DISPATCH T05h + T11 together (disjoint: tl-tui src vs tl-tui/tests + other test dirs). T11 gate = just gate on the touched dirs + gate-pg awp; findings to D-records, src defects become Haiku fix tickets.
+4. C3 reached when T05c T05h T11 merged. C4: T08 demo (dev/demos/P2-I1.sh, p2_i1_demo.py; sim project awp data by hand, D43; `tl sim assert` once), `just demo P2-I1` sqlite then pg, tour once (screens below), T09 docs (throughline-docs skill). Increment report <= 80 lines from STATE.
+5. Screens (screenshot list for the owner). Merged: CWP register (widgets/cwp_register.py, keys d discipline, s state, c by CWA, / filter, F5), WBS tree (wbs_screen.py; 1-8 depth, 0 all, u unallocated), CWA register (cwa_register.py; r retired), External packages log (package_log.py; t type, c constraint sources), CWP detail panel (details/awp). To come: Path of construction (path_screen.py; [ ] version, v compare). Entry keys today: NONE (D52); after T05h: palette commands (name them in T05h; no new function key unless free).
+6. Capacity: weekly use is near the owner's stop line; this STATE.md plus the tickets dispatch without re-reading anything else.
 ## REFS
-Spec docs/build-spec/specs/m3-wbs-cwp.md; tickets in docs/tickets/P2-I1/: ready T04e-cli-rollup-worker T05c-path T05e-cwa T05f-packages T07-sim-actor T11-tests (piece); reports docs/reports/P2-I1/*.md; tickets docs/tickets/P2-I1/ (T03b T06 T10c done); acceptance scripts dev/accept/P2-I1/ (S5.py worker; T10b.py copy-the-seed; S4.py lines 404-490 packages, links, proposal); CLI pattern tl_cli/cost*.py, awp_read.py; routes tl_api/routes/awp.py; client pattern tl_api/client/schedule.py, tl_tui/embedded.py:1347; text pattern tl_tui/correspondence_text.py; walks test_confidentiality_walk.py (api :142, mcp :36).
+Spec docs/build-spec/specs/m3-wbs-cwp.md; tickets in docs/tickets/P2-I1/: ready T05g-path-version-reason, T05c-path (after T05g), T11-tests (piece); reports docs/reports/P2-I1/*.md; tickets docs/tickets/P2-I1/ (T03b T06 T10c done); acceptance scripts dev/accept/P2-I1/ (S5.py worker; T10b.py copy-the-seed; S4.py lines 404-490 packages, links, proposal); CLI pattern tl_cli/cost*.py, awp_read.py; routes tl_api/routes/awp.py; client pattern tl_api/client/schedule.py, tl_tui/embedded.py:1347; text pattern tl_tui/correspondence_text.py; walks test_confidentiality_walk.py (api :142, mcp :36).
 ## TRAPS
 Worktree /home/user/wt/p2-i1 only; never /home/user/studious-lamp. `just check` takes > 120 s and needs NODE_OPTIONS=--max-old-space-size=6144: run in background. `uv sync` after editing a pyproject. dev/tests/ is outside testpaths. Never delete /tmp/pytest-of-root, never pkill. Record keys are per project across types (D9). The seed ledger has no rollup rows and no packages (scripts copy it and add, D25). No awp or cost record has a confidentiality class: hidden checks patch `views._hidden` (D22). Root `--db` goes before the group: `tl --db X awp ...`. Use `git diff --minimal` for openapi.json. Two tickets that regenerate openapi.json must not share a batch (T10c, T03c). `.accept/` is not in .gitignore: never `git add -A`. `python -c` via uv prints a UV_NATIVE_TLS warning: harmless.
