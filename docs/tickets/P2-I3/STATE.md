@@ -1,4 +1,4 @@
-# P2-I3 STATE  r=8 base=1b93a13 C=2 ck=0 gate=n/a wt=/home/user/wt/p2-i3
+# P2-I3 STATE  r=9 base=1b93a13 C=2 ck=0 gate=n/a wt=/home/user/wt/p2-i3
 ## BOARD
 S1 p mrg f 485f3b4 schema merged; APPROVALS logged
 S2 p mrg f af76b84 package + pins; e543b97 adds tl-mod-legacy dep + uv.lock; C1 done
@@ -11,17 +11,17 @@ T04a t mrg f bad05ef 9 GET routes; 10 agent pins; MaterialItemView rename; APPRO
 T04b t mrg f b1cbd75 client methods + materials_command + fake (e64703a); ck0
 T05a t mrg f 60b4c77 reports.py (6 reports, CSV) + report route (261067d); ck0
 T05b t mrg f 7c559df CLI reads (9 verbs + report); merge cdbd388; sign fallback, loc header accepted (D35)
-T05c t stg f - CLI write verbs (receipt receive, move, reserve, mto assign); r9; tl mat mounted (D40), mat.py has receipt/mto groups
-T05d t stg f - CLI reads of S5: mto show (detail), item projects; r9
+T05c t disp f - CLI writes (receipt receive|inspect|accept|reject|void, move, mto assign) in mat_write.py; T05c-cli-writes.md
+T05d t disp f - mto show + item-projects in mat_detail.py; T05d-cli-detail.md
 T06a t mrg f d0971d6 materials_text.py; 2s accepted; merge 0503ef0 (47d76c3 + fix, D35)
 T06f t mrg f 33af41d StockScreen + MovementLogScreen; merge fedd934; rev pass; D41
-T06g t disp f - materials_text For (movement, lot reservations) + receive sign (D35); T06g-for-columns.md; p2/i3-t06g-for-columns
+T06g t mrg f 1f7ef4a For columns + receive signs; merge c464f6a; subject T06g: kept (D45)
 S5 p mrg f 08ee349 view keys + 2 GET routes; merge 46e96e7; APPROVALS 9d13710
-T06b t esc f - Files row esc -> dec D39 (MTR line); implementer resumed on its branch by orch (not re-dispatched)
-T06c t disp f - item_text.py + ItemLibraryScreen (+ Projects table); T06c-item-library.md; p2/i3-t06c-item-library
+T06b t mrg f 922a711 receipt_text + ReceiptLogScreen; MTR line (D39); merge dbcb4f9
+T06c t mrg f c3610f1 item_text + ItemLibraryScreen; merge edb6055; crumb fix in T06e (D45)
 T06d t mrg f 641051a mto_text.py + MtoLinesScreen; merge 2046d54; rev pass; D41
-T06h t disp f - location_text.py + LocationScreen (+ s opens StockScreen); T06h-location-screen.md; p2/i3-t06h-location-screen
-T06e t stg f - receipt_entry_text.py + ReceiptEntryScreen; after T06b mrg
+T06h t mrg f 4a91f61 location_text + LocationScreen; merge 423b515; D45
+T06e t disp f - receipt_entry_text + ReceiptEntryScreen, no MTR upload (D42); + item library crumb; T06e-receipt-entry.md
 T07 t mrg f 3f8599c nine MCP reads + propose_reservation; MATERIALS_MCP_ACTIONS (a38d5a3); APPROVALS 01ba7bc
 T08 t stg l - sim MaterialsDesk + actor; deps mrg; ticket r8 (needs sim files read)
 T11 p todo f - tests + mutants of S1-S4; at C3 (Sonnet). T09 demo (needs P2-I1 merged); T10 docs lite
@@ -59,29 +59,36 @@ D38 2026-11-03 r7 T06a left the superseded 47d76c3 in history (merge 0503ef0 car
 D39 2026-11-03 r8 T06b esc (fake Files row for the MTR note) decided (c): plain amber line `MTR required to accept` before the Files table, no fake row; section note `No files`. Recorded in T06b Decision and text-contracts.md Receipts bullet
 D40 2026-11-03 r8 glue 9bc864b: tl_cli.main mounts `mat` (tl mat reads were unreachable); tl_tui commands.py + app.py get keyless palette entries Stock, Movements, MTO lines (action_stock/_movements/_mto_lines via one helper). Keys, nav panel, keymap rows, receipts/items/locations entries stay with NEXT 5 (P2-I1 and P2-WEB1 edit the same registries; screenshots come from the acceptance scripts, which push the screens on TlApp)
 D41 2026-11-03 r8 rulings: T06f (movement `k` filters the rows read, `h` on a row without heat is a no-op, empty Labels() on both screens, commit subject form) and T06d (Document/Revision parsed from the line key, filter text in the summary, failed detail text, labels ignored) accepted. Proposed learning: LogScreen._draw_actions always offers `[Enter] Open record` (can_open=True) on a read-only log; leave until the record screens (web twins)
+D42 2026-11-03 r9 ClientInterface has no file upload (no register/complete upload; ApiClient has it, EmbeddedClient only reads files), so T06e saves CreateReceipt and does not attach the MTR; its status line says to attach on the receipt (tl file put, slot mtr). Needs a small builder piece S6 (client upload method on ClientInterface, EmbeddedClient, ApiClient, fake) before T09; raised as Q8
+D43 2026-11-03 r9 preview `tl mat receipt ls --project P123` exit 2 = unknown verb: the T05b verb is `list`, and every other tl group says `ls`. Glue in mat.py adds `ls` aliases for receipt and mto (list stays); T05d acceptance checks both
+D44 2026-11-03 r9 glue: palette entries Receipts, Items (company level when no project), Locations (app.py _push_materials, commands.py); mat_write.py and mat_detail.py stubs (register no-op) called from mat.py so T05c and T05d own disjoint files
+D45 2026-11-03 r9 rulings on r8 reports: T06g subject `T06g:` kept, no rewrite (blocked question answered: accept); T06h missing-parent reading (names the direct parent, stops) and literal `1 lots` kept; T06c Category shows humanized code (labels=None) kept, `used in 0 projects` on a failed read kept; T06c breadcrumb becomes `Company` (T06e one-liner); T06b amber styling stays plain (Q9)
 ## SEC
 (none; Sec rows S1-S4, T03, T04a, T07 recorded in spec §9, review only if the owner asks)
 ## OPEN
 Q3 RejectReceipt user vs superuser: spec default user (owner decisions 15); no action needed owner raised spec §11
 Q5 S3 report asks: reserve check is literal `reserved + qty <= line qty` (issued not added) while coverage counts both; `by_module` loosens nothing; Adopt on an ItemMaster is a project word at company scope, so a plain user is never offered it (row may belong on ProjectItem). Defaults kept; T11 pins them; veto needs orch raised S3
 Q7 T03 defaults kept: no planned_start means blocked; a fully received PO line still promises its item; T11 pins both; veto needs orch raised T03
+Q8 client file upload for the receipt entry MTR (D42): builder piece S6 or waive to a later increment needs orch raised T06e
+Q9 amber note line for `MTR required to accept` needs a layout.py change (Section note style); small ticket after C3 or waive needs orch raised T06b
 ## NEXT
-1. Orch: one ticket-batch-v2 workflow of T06c, T06h, T06g (all review full; disjoint: item_text/item_library, location_text/location_screen, materials_text/movement_screen). Resume the T06b implementer with D39. Collect SVGs in .accept/shots/ (T06c-items-*, T06h-locations-*, T06g-stock-*, T06g-movements-*, plus T06b-receipts-*).
-2. r9 after those mrg: T06e (after T06b mrg), T05c (quote tl_cli/mat.py: receipt and mto groups exist), T05d, T08 (read sim files); three per batch, disjoint paths.
-3. r10: T11 tests piece (C3). Tests must RUN: `just gate <touched test dirs>`. Scope: spec §9 tests list, mutant guards in the S2/S3/S4/S5 reports, five-reader walks over T04a/T05a/T07/S5, T06 text modules (packages/tl-tui/tests/test_{materials,receipt,mto,item,location}_text.py), CLI tests packages/tl-cli/tests/test_cli_mat_*.py, pins D29/Q5/Q7/D35.
+1. Orch: one ticket-batch-v2 workflow of T06e, T05c, T05d (review full each; disjoint: receipt_entry+item_library / mat_write / mat_detail). Collect SVGs T06e-entry-80/170 in .accept/shots/. Then C3 needs only T08, T11.
+2. r10: T08 (read tl-sim client.py and an actor first; MaterialsDesk + actors/materials_coordinator.py), Q8 decision (S6 or waive), T10 docs lite staged after T05c/T05d merge.
+3. r11: T11 tests piece (C3). Tests must RUN: `just gate <touched test dirs>`. Scope: spec §9 tests list, mutant guards in the S2/S3/S4/S5 reports, five-reader walks over T04a/T05a/T07/S5, T06 text modules (packages/tl-tui/tests/test_{materials,receipt,mto,item,location,receipt_entry}_text.py), CLI tests packages/tl-cli/tests/test_cli_mat_*.py (incl. the ls aliases, write verbs), pins D29/Q5/Q7/D35.
 4. T07 may swap its mto_lines scan for mto_line_detail via a small ticket (D33).
-5. Registry glue by supervisor, last, after P2-I1 merges: MCP_ACTIONS from MATERIALS_MCP_ACTIONS, register_materials_tools in server.py, keys and nav entries and keymap rows for the six screens (palette has three, D40; add Receipts, Items, Locations), pinned lists, tl-mod-materials in tl-tui and tl-mcp pyproject (D32); regenerate, uv lock. `tl mat` mount is done.
-6. C4: demo P2-I3 sqlite+pg incl. the M3 clause, tour once (screens registered by then). T09 demo (needs P2-I1 merged), T10 docs lite.
-7. Seed ledger .accept/p2-i3.db is built by dev/accept/P2-I3/S3.py --keep (untracked, gitignored, ~2m15s; a new worktree has none: every T06 acceptance starts with it); rebuild after a schema change.
+5. Registry glue by supervisor, last, after P2-I1 merges: MCP_ACTIONS from MATERIALS_MCP_ACTIONS, register_materials_tools in server.py, keys and nav entries and keymap rows for the six screens (palette has all six since r9, D44), pinned lists, tl-mod-materials in tl-tui and tl-mcp pyproject (D32); regenerate, uv lock. `tl mat` mount and ls aliases are done.
+6. C4: demo P2-I3 sqlite+pg incl. the M3 clause, tour once (screens registered by then). T09 demo (needs P2-I1 merged), T10 docs.
+7. Seed ledger .accept/p2-i3.db is built by dev/accept/P2-I3/S3.py --keep (untracked, gitignored, ~2m15s; a new worktree has none: every acceptance starts with it); rebuild after a schema change.
 ## REFS
 Spec docs/build-spec/specs/m4-materials.md §9 (table), §10 (demo). Reports: docs/reports/P2-I3/{S1,S2,S3,S4,S5,T01a,T01b,T03,T04a,T04b,T05a,T05b,T06a,T07}.md.
 S5 guards for T11: views.py:756 (received_by filter, equivalent to the t.id check: test the hidden receipt raises), views_detail.py:177 (hidden-project filter), :42 (open-receipt states, used at :130). Screens: widgets/tag_register.py is the precedent; LogTable has no right-align hook.
 Mutation guards for T11: S2 limits.py:27, handlers/locations.py:172 and :244, targets.py:342, projectors/stock.py:216 and :211; S3 handlers/receipts.py:850 (MTR), handlers/movements.py:389 (negative balance), :449 (reserve over line qty), :385 (consumable cost code), commands.py:104 (word of AdjustStock); S4 guards listed in its spec.
 S3 facts: receipt commands take stream_id (+expected_version for Accept); `Movement` has from_location/to_location codes; Accept needs state Inspected; `RULES` rows read by shape (record_type|type, condition, label, command|command_name, word); `Rule` lives in actions.py; ids for MTOLine samples are 27 chars (fixtures only).
 Seed ledger facts: project:P123, receipt P123-RCPT-0001 (heat H-7781, MTR attached), lots @1 @2, MTO ISO-1234@A/MTO 3 lines for awp.CWP P123-CWP-PIP-0001, actors user:materials-super, user:plain.
-Tickets this round: docs/tickets/P2-I3/{T06c-item-library,T06h-location-screen,T06g-for-columns}.md (T06b-receipt-log.md has the D39 Decision); reports T06f, T06d merged; screen contracts text-contracts.md (r7: D26 lifted, Screens section). Reports S5, T05b, T06a merged. Reports T04b, T07, T05a, S4, T03, T04a in docs/reports/P2-I3/. Every item: setup uv sync --all-packages, NODE_OPTIONS=--max-old-space-size=6144 just check, acceptance script, no pytest except T11; subject P2-I3-<id>: ...
+Tickets this round: docs/tickets/P2-I3/{T06e-receipt-entry,T05c-cli-writes,T05d-cli-detail}.md; reports T06b, T06c, T06h, T06g, T06f, T06d merged; screen contracts text-contracts.md (r7: D26 lifted, Screens section). Reports S5, T05b, T06a merged. Reports T04b, T07, T05a, S4, T03, T04a in docs/reports/P2-I3/. Every item: setup uv sync --all-packages, NODE_OPTIONS=--max-old-space-size=6144 just check, acceptance script, no pytest except T11; subject P2-I3-<id>: ...
 Security sweep per D1/spec §9 only if the owner asks; T04a/T07/T05a walks over classified records are T11's.
 ## TRAPS
+Layout: Section.note shows only when a section has no items; a plain str item carries no colour. Seed P123: no leaf with stock (L2 holds stock, child TC1), 2 receive movements without direction, no reservations (For columns need a client that adds some). Receipt accept needs expected_version = common.version_of(uow, id).
 T06a second attempt added a commit instead of amending (fine). A text module that imports a widget leaks textual: acceptance checks sys.modules in a fresh subprocess. LogScreen.keep_columns keeps a `State` column by default: logs without one override it. `.accept/` is empty in a new worktree: S3.py --keep first.
 New worktrees: `uv sync --all-packages` first; pyright needs NODE_OPTIONS=--max-old-space-size=6144 (both in every acceptance). Worktree /home/user/wt/p2-i3 only; never /home/user/studious-lamp. dev/tests/ is outside testpaths (use tests/tools/). Never delete /tmp/pytest-of-root, never pkill. `just check` takes >120 s: background it. Do not rm -r dev/accept (tracked W0 scripts). P2-I1 and P2-WEB1 run beside: registries (tl_api/{auth,app,commands}.py, pyproject.toml, uv.lock, docs/reference/openapi.json) regenerate on merge, M4 merges last. A load target name cannot hold a dot. SQLite returns NUMERIC as float: read Decimal(str(x)). A reused worktree keeps its old base: check `git rev-list --left-right --count p2/i3...HEAD` before starting (p2/i3-s4-mto is behind by S3, T01b). A new dir under packages/tl-modules/ without a pyproject.toml breaks every uv run. A SQLite open_uow takes BEGIN IMMEDIATE on entry (barrier before the with). `bronze` needs include_confidential and a LakeConfig for internal runs. A new entry point is invisible until `uv sync --all-packages`. A base merge can add an undecided agent action: run test_auth_review after each. Two view models with one class name in different modules rename each other in openapi: use distinct names. views.MAX_VIEW_ROWS is pyright-private: import limits.MAX_VIEW_ROWS.
 
