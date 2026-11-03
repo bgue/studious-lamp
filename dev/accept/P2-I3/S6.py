@@ -40,6 +40,7 @@ from tl_core.auth import accounts  # noqa: E402
 from tl_core.auth.errors import ForbiddenError  # noqa: E402
 from tl_core.files.service import FileResult  # noqa: E402
 from tl_core.modules import ConfidentialSource, load_modules, use_modules  # noqa: E402
+from tl_core.services.commands import CreateRecord  # noqa: E402
 from tl_core.services.errors import RecordNotFoundError  # noqa: E402
 from tl_mod_materials.handlers.receipts import (  # noqa: E402
     AcceptReceipt,
@@ -250,6 +251,29 @@ def check_api_and_fake_agree(w: World) -> None:
     expect(again.already_attached, "fake: the same bytes twice were not already_attached")
     raised(lambda: fake.attach_record_file("NO-SUCH", path), RecordNotFoundError)
     raised(lambda: fake.attach_record_file(record_id, w.tmp / "nope.pdf"), FileNotFoundError)
+    fake.hide_record(record_id)
+    raised(lambda: fake.attach_record_file(record_id, path, slot="mtr"), RecordNotFoundError)
+
+
+def check_scope_from_the_record(w: World) -> None:
+    """A record of another scope than the receipt's: the scope is the record's, never a default."""
+    made = w.embedded.create_record(
+        CreateRecord(
+            actor=ALICE,
+            source="tui",
+            scope="company",
+            record_type="core.Record",
+            key="S6-" + uuid.uuid4().hex[:8].upper(),
+            title="Company record",
+        )
+    )
+    for label, client in (("embedded", w.embedded), ("api", w.api)):
+        path = w.pdf(f"company-{label}.pdf", "company record")
+        result = client.attach_record_file(made.stream_id, path)
+        expect(result.record_id == made.stream_id and result.slot is None, f"{label}: {result}")
+        expect(result.status == "available", f"{label}: status {result.status}")
+    names = sorted(i.filename for i in w.embedded.list_record_files(made.stream_id))
+    expect(names == ["company-api.pdf", "company-embedded.pdf"], f"listed {names}")
 
 
 def check_embedded_lists_api_upload(w: World) -> None:
@@ -282,6 +306,7 @@ CHECKS: list[tuple[str, Callable[[World], None]]] = [
     ("an actor without the word is refused, no event", check_no_word),
     ("a missing path raises FileNotFoundError, no event", check_missing_path),
     ("ApiClient and the fake return equal shapes", check_api_and_fake_agree),
+    ("a company-scope record takes a file: the scope is the record's", check_scope_from_the_record),
     ("the embedded client lists the API client's file", check_embedded_lists_api_upload),
     ("attach_record_file: one signature on all client classes", check_methods_on_all_classes),
 ]
