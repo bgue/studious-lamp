@@ -1,0 +1,75 @@
+id: https://example.org/throughline/modules/materials/lot
+name: tl_mod_materials_lot
+title: Stock lots (brief 9, M4)
+description: >-
+  A stock lot is the quantity of one project item received on one line of one receipt, with its heat number.
+  Movements of the lot are events on its stream (ADR-0022); balances per location are in
+  `cur_materials_stock`. Spec: docs/build-spec/specs/m4-materials.md section 2.
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+  - ../../core/annotations
+  - ../../core/record
+default_range: string
+annotations:
+  tl:module: materials
+
+classes:
+  StockLot:
+    title: Stock lot
+    description: >-
+      One lot. Record type `materials.StockLot`; its key is `<receipt number>@<line>` (`P123-RCPT-0031@1`).
+      Offline class `draft_only`: issue, transfer and return are captured offline as drafts and posted on sync.
+    annotations:
+      tl:current_state: true
+      tl:record_types: "materials.StockLot"
+      tl:offline: draft_only
+      tl:table: cur_materials_lot
+      tl:ix_receipt: "receipt_id, receipt_line"
+      tl:ix_item: "project_item_id"
+    unique_keys:
+      receipt_line:
+        description: "A line of a receipt makes one lot."
+        unique_key_slots:
+          - receipt_id
+          - receipt_line
+    attributes:
+      id:
+        identifier: true
+        range: Ulid
+        required: true
+        description: "Record id; equals the ledger stream id and the `cur_core_record` id."
+      scope:
+        range: ScopeId
+        required: true
+        description: "The project scope, `project:<id>`."
+      project_item_id:
+        range: Ulid
+        required: true
+        description: "The project item."
+      heat_no:
+        pattern: "^[A-Za-z0-9][A-Za-z0-9./\\-]{0,39}$"
+        description: "Heat number; null when the item has none."
+      receipt_id:
+        range: Ulid
+        required: true
+        description: "The receipt the lot came from."
+      receipt_line:
+        range: integer
+        required: true
+        description: "The line of that receipt."
+      uom:
+        required: true
+        description: "Unit of measure of the lot (`StockUom`)."
+      issued_net:
+        range: decimal
+        required: true
+        ifabsent: "int(0)"
+        description: "Projected: the sum of issues less the sum of returns."
+      last_seq:
+        range: integer
+        required: true
+        description: "Ledger `seq` of the last event applied to this row."

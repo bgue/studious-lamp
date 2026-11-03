@@ -34,6 +34,13 @@ APP_COMMANDS: tuple[AppCommand, ...] = (
     AppCommand("cwas", "Work areas: CWAs and their order on the path", "", "cwas"),
     AppCommand("path", "Path of construction: the order of the areas, by version", "", "path"),
     AppCommand("packages", "External packages: EWP and PWP, forecast and actual", "", "packages"),
+    # P2-I3 materials logs: palette only until the key map is settled with the registry glue.
+    AppCommand("stock", "Stock: lots on hand by location", "", "stock"),
+    AppCommand("movements", "Movements: receipts, issues, transfers, holds", "", "movements"),
+    AppCommand("mto-lines", "Take-off lines: required, reserved, issued, short", "", "mto_lines"),
+    AppCommand("receipts", "Receipts: deliveries, inspection, MTR", "", "receipts"),
+    AppCommand("items", "Items: the company item library", "", "items"),
+    AppCommand("locations", "Locations: storage places and what they hold", "", "locations"),
     AppCommand("settings", "about:config: settings and their history", "F9", "settings"),
     AppCommand("admin", "Accounts and agent tokens (admins)", "F10", "admin"),
     AppCommand("review", "Review queue: accept or reject proposed values", "Ctrl+R", "review"),

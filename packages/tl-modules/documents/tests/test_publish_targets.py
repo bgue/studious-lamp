@@ -103,7 +103,9 @@ def test_the_group_name_is_the_documented_one() -> None:
 
 def test_the_installed_targets_are_tags_and_documents_in_name_order() -> None:
     found = publish_targets()
-    assert list(found) == ["documents", "tags"]
+    # the workspace also installs other modules' targets (materials registers ``mto``)
+    assert list(found) == sorted(found)
+    assert {"documents", "tags"} <= set(found)
     assert (found["tags"].module, found["tags"].record_type) == ("documents", "engineering.Tag")
     assert (found["documents"].module, found["documents"].record_type) == (
         "documents",
@@ -169,7 +171,7 @@ def test_an_unknown_target_is_a_publish_refusal_that_lists_the_known_ones() -> N
     with pytest.raises(PublishRefusedError) as caught:
         publish_target_for("nope")
     assert "'nope'" in str(caught.value)
-    assert "known: documents, tags" in str(caught.value)
+    assert "known: documents, " in str(caught.value) and "tags" in str(caught.value)
 
 
 def test_with_none_installed_the_refusal_says_so() -> None:
@@ -184,7 +186,8 @@ def test_use_publish_targets_replaces_the_registry_for_the_block_only() -> None:
         assert list(publish_targets()) == ["mine"]
         with pytest.raises(PublishRefusedError):
             publish_target_for("tags")
-    assert list(publish_targets()) == ["documents", "tags"]
+    assert {"documents", "tags"} <= set(publish_targets())
+    assert "mine" not in publish_targets()
     assert publish_target_for("tags").name == "tags"
 
 

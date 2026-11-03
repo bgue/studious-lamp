@@ -1,0 +1,10 @@
+code,title,kind,parent_code
+P123,Project P123 site,project,
+WH1,Main warehouse,warehouse,P123
+L1,Laydown 1,laydown,WH1
+L2,Laydown 2,laydown,WH1
+TC1,Toolcrib 1,toolcrib,L2
+GB1,Gang box 1,gang_box,TC1
+L3,Laydown 3,laydown,WH1
+TC2,Toolcrib 2,toolcrib,L1
+GB2,Gang box 2,gang_box,TC2

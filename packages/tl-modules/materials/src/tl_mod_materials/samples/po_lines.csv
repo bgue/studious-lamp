@@ -1,0 +1,16 @@
+po_number,line_no,item_code,qty_ordered,uom,promised_date,supplier_text
+4471,1,PIPE-CS-6-SCH40-A106,120,m,2026-12-14,Northline Pipe Supply
+4471,2,ELB-LR-90-6-SCH40,8,EA,2026-12-14,Northline Pipe Supply
+4471,3,FLG-WN-6-150-A105,20,EA,2026-12-10,Acme Valves
+4471,4,FLG-BL-6-150-A105,4,EA,2026-12-10,Acme Valves
+4471,5,VLV-GT-6-150-A216,3,EA,2026-12-18,Acme Valves
+4471,6,BOLT-STUD-5-8-B7,40,SET,2026-12-10,Acme Valves
+4472,1,CBL-CU-3C-6,1500,m,2026-11-30,Coastal Electrical Supply
+4472,2,INS-MW-50-6,14.250,m3,2026-11-20,Thermal Cover Ltd
+4472,3,PLT-6MM-CS-1200X2400,12,EA,2026-11-25,Metro Steel Service
+4472,4,STR-W8X31-A992,60.500,m,2026-11-25,Metro Steel Service
+4472,5,INS-AL-CLAD-0.6,4,ROLL,2026-11-28,Thermal Cover Ltd
+4472,6,PNT-EPOXY-PRIM-L,200,L,2026-11-18,Prime Coat Paints
+4472,7,CON-GLOVE-NIT-L,10,BOX,2026-11-05,Safety First Distributors
+4472,8,INS-PT-0-10BAR,6,EA,2026-12-01,Instrument Direct
+4472,9,GSK-SW-6-150-316,24,EA,2026-12-02,Acme Valves
