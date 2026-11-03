@@ -21,8 +21,6 @@ from tl_mod_materials.views import (
 
 from tl_tui.display import Labels, humanize
 from tl_tui.layout import (
-    WAITING_STYLE,
-    Cell,
     Item,
     Page,
     Prop,
@@ -37,7 +35,7 @@ from tl_tui.layout import (
     shown as _shown,
 )
 from tl_tui.materials_text import day, mtr_mark, qty_text, who
-from tl_tui.text import EMPTY, unit_label
+from tl_tui.text import unit_label
 
 RECEIPT_COLUMNS: tuple[str, ...] = (
     "Number",
@@ -230,16 +228,15 @@ def _inspection_section(detail: ReceiptDetailView, labels: Labels | None) -> Sec
 
 
 def _files_section(detail: ReceiptDetailView) -> Section:
-    """The files as one table, the MTR slot first. An MTR the receipt needs and lacks is the first
-    row, its status in amber (the layout has no coloured note line, so it is a styled cell)."""
+    """The files as one table, the MTR slot first. An MTR the receipt needs and lacks is one plain
+    line before the table; it is not a file row, since no file exists. The layout has no coloured
+    note line yet (a follow-up), so the line carries no colour. With no files the section reads
+    ``No files`` (the layout shows a section note only when the section has no items)."""
     items: list[Item] = []
     if detail.mtr_required and detail.mtr == "missing":
-        items.append(TableRow(FILE_COLUMNS, (MTR_SLOT, EMPTY, Cell(MTR_NOTE, WAITING_STYLE))))
-    for file in _mtr_first(detail.files):
-        items.append(TableRow(FILE_COLUMNS, _file_cells(file)))
-    if not detail.files:
-        items.append(NO_FILES)
-    return Section("Files", tuple(items))
+        items.append(MTR_NOTE)
+    items.extend(TableRow(FILE_COLUMNS, _file_cells(file)) for file in _mtr_first(detail.files))
+    return Section("Files", tuple(items), note="" if detail.files else NO_FILES)
 
 
 def _mtr_first(files: Sequence[ReceiptFileView]) -> list[ReceiptFileView]:

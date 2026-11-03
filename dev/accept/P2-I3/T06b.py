@@ -181,9 +181,20 @@ def check_empty_and_mtr() -> None:
     lines = receipt_lines(detail())
     assert any(text.startswith("Inspected by") and text.endswith("—") for text in lines), lines
     assert "Receiving inspection  n/a until quality inspections exist" in lines, lines
+    assert "No files" in receipt_lines(detail()), "no files reads No files"
     missing = receipt_lines(detail(mtr="missing", mtr_required=True))
-    assert any("required to accept" in text for text in missing), missing
-    assert "No files" in missing, missing
+    assert "MTR required to accept" in missing, missing
+    assert not any(text.startswith("mtr") for text in missing), "a file row for a missing MTR"
+    assert missing.index("Files") < missing.index("MTR required to accept"), missing
+    photo_only = [
+        ReceiptFileView(
+            file_id="F-3", slot="photo", filename="p.jpg", status="available", uploaded_at="x"
+        )
+    ]
+    with_photo = receipt_lines(detail(mtr="missing", mtr_required=True, files=photo_only))
+    slot_head = next(i for i, text in enumerate(with_photo) if text.startswith("Slot"))
+    assert with_photo.index("MTR required to accept") < slot_head, with_photo
+    assert not any(text.startswith("mtr") for text in with_photo), "a file row for a missing MTR"
     files = [
         ReceiptFileView(
             file_id="F-2", slot="photo", filename="pallet.jpg", status="available", uploaded_at="x"
@@ -197,8 +208,9 @@ def check_empty_and_mtr() -> None:
     photo_row = next(i for i, text in enumerate(with_files) if text.startswith("photo"))
     assert mtr_row < photo_row, "the MTR slot is not first"
     assert not any("required to accept" in text for text in with_files), with_files
-    passed("empty values read —; Receiving inspection is last; missing MTR is said")
-    passed("Files table lists the MTR slot first and drops the amber note once the MTR is there")
+    passed("empty values read —; Receiving inspection is last; No files when no file exists")
+    passed("missing MTR is a plain line before the Files table, never a file row")
+    passed("Files table lists the MTR slot first and drops the missing-MTR line once it is there")
 
 
 def check_lines_table() -> None:
