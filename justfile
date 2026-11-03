@@ -123,9 +123,10 @@ demo id:
     bash dev/demos/{{id}}.sh
 
 # Regenerate the screenshot tour (SVGs and transcripts) for a phase, 0 or 1, or the `highlights` tour
+# (`just tour wave1`: the web client, awp and materials preview, docs/reports/tour/wave1)
 # (only the everyday screens, docs/reports/tour/highlights); `out` overrides the output directory
 tour phase="1" out="":
-    uv run python dev/tour/{{ if phase == "highlights" { "highlights" } else { "phase" + phase } }}.py {{ if out == "" { "" } else { "--out " + out } }}
+    uv run python dev/tour/{{ if phase == "highlights" { "highlights" } else if phase == "wave1" { "wave1" } else { "phase" + phase } }}.py {{ if out == "" { "" } else { "--out " + out } }}
 
 # Regenerate both screenshot tours, phase 0 then phase 1
 tour-all:
