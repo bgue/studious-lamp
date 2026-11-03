@@ -74,4 +74,5 @@ lines your harness requires followed by `Claude-Session: https://claude.ai/code/
 (implementer writes here)
 
 ## Decision
-(supervisor writes here)
+r8 (D39), answering the Files-row esc: no fake row in the Files table. When `mtr_required` and the MTR slot has no file, the panel shows the plain line `MTR required to accept` (amber) directly under the `Files` heading, before the Files table; the table then lists only real files.
+With no files at all the section note is `No files`; with a missing required MTR both read: the line, then `No files`. Edit `receipt_text.py` only for it (and the acceptance script's check); the contract line in text-contracts.md is updated by the supervisor.

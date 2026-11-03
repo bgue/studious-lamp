@@ -41,7 +41,7 @@ T06b-e, T06h import `materials_text` and share no other file.
   (not Accepted, Rejected, Void), `m` missing MTR (the route's flags). `receipt_page(detail: ReceiptDetailView)`: identity `number · title`; state `<state> · since <day>`
   (the day of the last decision, else inspection, else receipt); summary `PO <po_line> · N lines · <location>`; sections Lines (table Line, Item, Qty, UOM, Heat, Condition),
   Delivery (Supplier, PO line, Delivery ref, Received on, **Received by**), Inspection (Inspected by, Inspected on, Decided by, Decided on, Rejection reason when Rejected;
-  `Receiving inspection  n/a until quality inspections exist`), Files (MTR slot first; amber `required to accept` when `mtr_required` and missing).
+  `Receiving inspection  n/a until quality inspections exist`), Files (MTR slot first; when `mtr_required` and the MTR is missing, the plain amber line `MTR required to accept` before the table, no fake row; D39).
 - **Items** (`item_text`): `ITEM_COLUMNS = (Number, Subject, State, Category, UOM, Projects)`; Number is `code`; State `Active` or `Retired`; Category via the code-list label.
   `item_page(item: MaterialItemView, projects: Sequence[ItemProjectView])`: summary `<Category> · <UOM> · used in N projects`; sections Specification (Size, Rating, Material,
   Consumable `Yes`/`No`) and **Projects** (table Project, On hand, Reserved, Available; note `Not used in any project`; D37: `ItemProjectView.title` is the project id, so the column is the id).
