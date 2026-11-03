@@ -10,6 +10,8 @@ over HTTP. `for_target` opens the ledger as a `tl_adapters.backend` backend (a S
 from __future__ import annotations
 
 import dataclasses
+import hashlib
+import mimetypes
 from collections.abc import Callable, Generator, Iterator, Sequence
 from contextlib import AbstractContextManager, contextmanager
 from datetime import date, datetime, timedelta
@@ -57,7 +59,7 @@ from tl_core.extypes.service import (
 )
 from tl_core.extypes.types import TypeStatus
 from tl_core.files.queries import FileInfo, list_files
-from tl_core.files.service import FileService
+from tl_core.files.service import CompleteUpload, FileResult, FileService, RegisterUpload
 from tl_core.files.types import ObjectStore
 from tl_core.integration import registry as integration_registry
 from tl_core.integration.actor_access import held_access
@@ -80,7 +82,11 @@ from tl_core.services import (
 )
 from tl_core.services.commands import Command, CommandResult, CreateRecord, UpdateRecord
 from tl_core.services.edit import EditRecord, handle_edit_record
-from tl_core.services.errors import ReservedIdentifierError, UnknownFileError
+from tl_core.services.errors import (
+    RecordNotFoundError,
+    ReservedIdentifierError,
+    UnknownFileError,
+)
 from tl_core.services.feed import EditPost, PostToFeed, handle_edit_post, handle_post
 from tl_core.services.feed_actions import (
     ReactToPost,
@@ -287,6 +293,17 @@ class EmbeddedAuthenticator:
         with self._uow(True) as uow:
             usable = account_queries.demo_account_enabled(uow.conn())
         return f"dev setup: sign in as {DEMO_USERNAME} / {DEMO_USERNAME}" if usable else None
+
+
+def _hash_file(path: Path) -> tuple[str, int]:
+    """SHA-256 hex digest and byte count of the file at ``path``, read in blocks."""
+    digest = hashlib.sha256()
+    size = 0
+    with path.open("rb") as handle:
+        while block := handle.read(1024 * 1024):
+            digest.update(block)
+            size += len(block)
+    return digest.hexdigest(), size
 
 
 def _copy(source: BinaryIO, out: BinaryIO) -> None:
@@ -551,6 +568,53 @@ class EmbeddedClient:
             return save_download(dest_dir, opened.info, lambda out: _copy(opened.data, out))
         finally:
             opened.data.close()
+
+    def attach_record_file(
+        self,
+        record_id: str,
+        path: Path,
+        *,
+        slot: str | None = None,
+        content_type: str | None = None,
+    ) -> FileResult:
+        """The upload flow of ``/uploads`` run in process: register, then complete with the bytes
+        unless the store already holds them. The access words are the service's own checks."""
+        service = self._file_service()
+        digest, size = _hash_file(path)  # an unreadable path raises before any write
+        media = content_type or mimetypes.guess_type(path.name)[0] or "application/octet-stream"
+        with self._uow(True) as uow:
+            record = queries.get_record_by_id(uow, record_id)  # a hidden record reads as missing
+        if record is None:
+            raise RecordNotFoundError(f"no record {record_id!r}")
+        scope = str(record["scope"])  # from the record, never from the caller
+        with self._uow(False) as uow:
+            ticket = service.register_upload(
+                uow,
+                RegisterUpload(
+                    actor=self.actor,
+                    source="tui",
+                    scope=scope,
+                    record_id=record_id,
+                    slot=slot,
+                    filename=path.name,
+                    content_type=media,
+                    size=size,
+                    sha256=digest,
+                ),
+            )
+        done = CompleteUpload(
+            actor=self.actor, source="tui", scope=scope, upload_id=ticket.upload_id
+        )
+        with self._uow(False) as uow:
+            if ticket.exists:
+                result = service.complete_upload(uow, done)
+            else:
+                with path.open("rb") as handle:
+                    result = service.complete_upload(uow, done, handle)
+        self.own_writes.note(
+            CommandResult(stream_id=result.file_id, key=None, version=1, events=result.events)
+        )
+        return result
 
     # --- extension record types ---------------------------------------------------------------
 

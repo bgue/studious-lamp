@@ -17,6 +17,7 @@ from tl_core.actions import ActionOffer, RecordActions
 from tl_core.addable import AddableProperties
 from tl_core.auth.errors import ForbiddenError
 from tl_core.files.queries import FileInfo
+from tl_core.files.service import FileResult
 from tl_core.services.commands import Command, CommandResult
 from tl_core.services.errors import RecordNotFoundError, UnknownFileError
 from tl_mod_documents.commands import API_COMMANDS as DOCUMENT_COMMANDS
@@ -34,6 +35,7 @@ class FakeActionsSupport:
         self._addable: dict[str, AddableProperties] = {}
         self._record_files: dict[str, list[FileInfo]] = {}
         self._file_bytes: dict[str, bytes] = {}
+        self.attached_files: list[tuple[str, str, str | None]] = []  # (record, file name, slot)
         self._known_files: set[str] = set()  # file ids this client listed (their scope is known)
         self.module_commands: list[tuple[str, str, Command]] = []  # (module, name, command)
         self.is_module_controller = True  # False: a controller's command raises ForbiddenError
@@ -137,6 +139,49 @@ class FakeActionsSupport:
             raise UnknownFileError(f"no file {file_id!r}")
         data = self._file_bytes[file_id]
         return save_download(dest_dir, info, lambda out: out.write(data))
+
+    def attach_record_file(
+        self,
+        record_id: str,
+        path: Path,
+        *,
+        slot: str | None = None,
+        content_type: str | None = None,
+    ) -> FileResult:
+        self.calls.append("attach_record_file")  # type: ignore[attr-defined]
+        records: dict[str, Any] = getattr(self, "_records", {})
+        known = record_id in records or record_id in self._record_files or record_id in self._offers
+        if record_id in self._hidden_records or not known:
+            raise RecordNotFoundError(f"no record {record_id!r}")
+        data = path.read_bytes()  # an unreadable path raises FileNotFoundError, nothing recorded
+        digest = hashlib.sha256(data).hexdigest()
+        current = self._record_files.get(record_id, [])
+        same = next((i for i in current if i.sha256 == digest and i.slot == slot), None)
+        if same is not None:
+            return self._file_result(same, already_attached=True)
+        self.attached_files.append((record_id, path.name, slot))
+        info = self.add_record_file(
+            record_id,
+            path.name,
+            data,
+            slot=slot,
+            content_type=content_type or "application/octet-stream",
+        )
+        return self._file_result(info, already_attached=False)
+
+    @staticmethod
+    def _file_result(info: FileInfo, *, already_attached: bool) -> FileResult:
+        return FileResult(
+            file_id=info.file_id,
+            record_id=info.record_id,
+            slot=info.slot,
+            revision=info.revision,
+            sha256=info.sha256,
+            size=info.size,
+            status=info.status,
+            deduplicated=info.deduplicated,
+            already_attached=already_attached,
+        )
 
     def document_command(self, name: str, cmd: Command) -> CommandResult:
         return self._module_command("documents", DOCUMENT_COMMANDS, name, cmd)

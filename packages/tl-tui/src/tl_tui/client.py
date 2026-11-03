@@ -20,6 +20,7 @@ from tl_core.auth.types import AccountKind, AccountView, AgentTokenView
 from tl_core.extypes.service import BodyStoredOut, BodyView, TypeDetail, TypeSummary
 from tl_core.extypes.types import TypeStatus
 from tl_core.files.queries import FileInfo
+from tl_core.files.service import FileResult
 from tl_core.ledger import Event
 from tl_core.links.expected import MissingLink
 from tl_core.numbering.detect import KeyChip
@@ -182,6 +183,24 @@ class ClientInterface(Protocol):
         path: the name is made safe, the mode is 0600, nothing is overwritten (a numeric suffix is
         added), and the size and SHA-256 are verified before the call returns (a mismatch deletes
         the file and raises). A hidden file and a missing one raise the same ``UnknownFileError``.
+        """
+        ...
+
+    def attach_record_file(
+        self,
+        record_id: str,
+        path: Path,
+        *,
+        slot: str | None = None,
+        content_type: str | None = None,
+    ) -> FileResult:
+        """Hash and register the file at ``path``, send the bytes unless the store already has
+        them, complete the upload and return the ``FileResult`` (T06j attaches the MTR with it).
+
+        A hidden or missing record raises ``RecordNotFoundError`` (the same text for both); a person
+        without the access word raises ``ForbiddenError``; an unreadable ``path`` raises
+        ``FileNotFoundError`` before anything is written; a ``rejected`` result is returned, not
+        raised. The same bytes attached twice answer ``already_attached`` with no second event.
         """
         ...
 
