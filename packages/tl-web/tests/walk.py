@@ -238,6 +238,11 @@ WALK: dict[tuple[str, str], Row] = {
     ),
 
     # --- T13b rows (MTO lines): add them under this line
+    ("GET", "/web/p/{project}/mto"): Row(
+        "take-off line keys with the item titles, quantities, work packages and need-by dates, "
+        "the line panel with its source, coverage, reservations and open receipts",
+        _page("mto"),
+    ),
 
     # --- T14 rows (items): add them under this line
 
