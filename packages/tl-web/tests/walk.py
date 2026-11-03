@@ -211,6 +211,10 @@ WALK: dict[tuple[str, str], Row] = {
     ),
 
     # --- T16 rows (path): add them under this line
+    ("GET", "/web/p/{project}/path"): Row(
+        "step numbers, area codes and titles, reasons, CWP numbers, version dates and who",
+        _page("path"),
+    ),
 
     ("GET", "/web/p/{project}/{log}/panel/{number:path}"): Row(
         "the panel of one row of a log: details, files, clocks, links", _panels
