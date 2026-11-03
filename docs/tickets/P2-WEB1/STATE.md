@@ -1,4 +1,4 @@
-# P2-WEB1 STATE  r=6 base=d8c8e45 C=2 ck=0 gate=n/a wt=/home/user/wt/p2-web1
+# P2-WEB1 STATE  r=7 base=c9a2b23 C=2 ck=0 gate=n/a wt=/home/user/wt/p2-web1
 ## BOARD
 S1 p mrg f 3145932 foundation; F1 csrf catch-all fixed; deviations ratified
 S2 p mrg f 3145932 run_command + action_ui (merge 773f38c)
@@ -12,13 +12,16 @@ T02 t mrg f 567ed55 document log page (merge e16b5bd)
 S6 p mrg f 70f45e4 record screen, Details Properties History (merge 54d80da)
 T03 t mrg f 14f0536 Links + Trace tabs (merge 9de8bac)
 T04 t mrg f 979699a Thread + Files tabs (merge d8c8e45)
-S5 p disp f - tests piece, spec S5-tests.md, branch p2/web1-s5-tests
-T07 t todo l - docs: tl-web README, runbook web-client, AGENTS row
-T08 t disp l - demo dev/demos/P2-WEB1.sh, ticket T08-demo-script.md
-T09 t todo f - CWP + CWA register twins; staged, waits for p2/i1 merge + T05a
-T10 t todo f - WBS tree + path twins; staged, waits for p2/i1 merge + T05b/c
-T11 t todo f - external packages twin; staged, waits for p2/i1 merge + T05c
-T12-T14 t todo f - M4 twins (stock+movement; receipt+MTO; items+locations); wait for M4 C2
+S5 p mrg f 230e2ae tests piece, 338 tests; +500 headers fix (merge c89e9bc)
+T08 t mrg l 250a7d3 demo script P2-WEB1.sh, sqlite+postgres 5/5 (merge fb0c930)
+SECFIX p mrg f b817341 F1 login CSRF, F2 guard default-on, F3 rate-limit tests (merge 0118cb0)
+T07 t todo l - docs: tl-web README, runbook web-client, AGENTS row; r8 after twins merge
+T09 t stg f - CWP register page, ticket T09-cwp-register-page.md, ready, branch p2/web1-t09-cwp
+T09b t stg f - CWA register page, T09b-cwa-register-page.md, ready, branch p2/web1-t09b-cwa
+T10 t stg f - WBS tree page only, T10-wbs-tree-page.md, ready, branch p2/web1-t10-wbs
+T11 t stg f - packages page, T11-external-packages-page.md, ready, branch p2/web1-t11-packages
+T16 t todo f - path page; staged, waits P2-I1 T05c path_text, then list_path_versions seam
+T12-T14 t todo f - M4 twins (stock+movement; receipt+MTO; items+locations); wait for M4 screens (p2/i3)
 ## DEC
 D1 2026-11-01 owner: tests deferred; every item leaves dev/accept/P2-WEB1/<id>.py; S5 writes the spec 11 "Tests added" files plus tests/tools/test_check_licences_vendored.py
 D2 2026-11-01 file ids: S1..S4 as spec, S5 = tests, T01..T08 = spec T1..T8, T09..T14 = twins; reports docs/reports/P2-WEB1/<id>.md
@@ -49,16 +52,26 @@ D26 2026-11-02 r6 orch dec: S5 = one tests piece (builder, full) for every merge
 D27 2026-11-02 T08 demo is a separate Haiku ticket (T08-demo-script.md), independent of S5, copies P1-UX2.sh seed and P1-I0.sh serve; uses the real viewer route /web/p/{project}/files/{id}/view (spec 12 omits the /web/p prefix); users demo (admin) amy dora; sqlite and postgres. Orchestrator runs it at C4
 D28 2026-11-02 T03/T04 questions answered: NotImplementedError lines ("... services are not installed yet") accepted as built; commit prefix P2-WEB1-<id> is right; rule 10 (<= 5 decisive lines per command) applies
 D29 2026-11-02 T09-T11 staged tickets cite dev/accept/P2-WEB1/T02.py and an acceptance script; S5 deletes them. At activation rewrite each twin: tests in the ticket as pytest on the S5 harness plus one WALK entry and the mirror count bump, no acceptance script
+D30 2026-11-03 r7 seam (6cfcfb9): 7 awp mirrors in reads.py (list_cwps get_cwp list_cwas wbs_tree get_wbs_node get_path list_packages; MIRRORS 24 to 31), present re-exports awp_text cwa_text wbs_text package_text, 5 empty page stubs named in PAGE_MODULES (cwps cwas wbs packages path) so no twin edits a shared list, walk._panels takes its slugs from WALK, one marker per twin in WALK. Mirror test: the 3 single-record reads are checked as the same 404 (ABSENT; the world holds no awp record). Own diff over the 50 cap: 39 code, 30 stubs, ~40 held-test/marker lines, 55-line provided recipe
+D31 2026-11-03 CWP web page: only ?q= filter; terminal d s c keys (discipline, state, group by CWA) not in i1; summary "N CWPs" pinned in the ticket (terminal builds it inside its screen)
+D32 2026-11-03 CWA web page shows all areas, retired too (summary "N CWAs, M retired"): the panel partial is asked without query strings, a hidden-by-default row would 404 there
+D33 2026-11-03 WBS panel has no fallback to the listing row when get_wbs_node fails (terminal has one): hidden = missing, one 404 page. ?depth= and ?unallocated=1 are the web keys
+D34 2026-11-03 splits by 01-tiers 6 items 1 and 4: T09 to T09 (CWP) + T09b (CWA); T10 to T10 (WBS) + T16 (path, text module absent). Common recipe docs/tickets/P2-WEB1/TWINS.md; pytest on the S5 harness over the tl-tui awp fake (loaded by path), no acceptance script (D29)
+D35 2026-11-03 screenshots: each twin test calls shoot() from provided/shot_recipe.py (uvicorn thread + Node playwright, 1440x900) into /home/user/wt/p2-web1/.accept/shots/<id>-<slug>.png (absolute, survives worktree removal); .accept/ in .gitignore; a test, not a skip, so a box without chromium fails loudly
 ## SEC
-Review at C4 scoped to S1-S4 and S6 (spec 11 Sec rows; offered-now check in S4; hidden record = missing in S6); range 1b93a13..head. Not run; orch dispatches it at C4, S5 tests are its proofs.
+F1 MD fixed@b817341 login CSRF: verify_origin on POST /web/sign-in, refusal not counted by the rate limiter
+F2 LO fixed@b817341 run_command(guard=True) default; JSON endpoint passes guard=False
+F3 LO fixed@b817341 rate-limit tests for web sign-in (429, Retry-After, shared count with /auth/sign-in)
+Security review done and re-checked P; APPROVALS line fb9c78e. Twins add no write route (no ACTION_UI row).
 ## OPEN
-Q2 security review at C4 needs the owner's yes (wave plan 2) needs owner raised wave plan; orch asked, not blocking
+Q3 awp walking test: AGENTS.md wants a five-reader walk for a route that carries record text, but the S5 world holds no awp record. Twin tests use the tl-tui fake plus the unpatched empty world (WALK rows are route-level, vacuous on content). A real walk needs an awp seeder with a hidden CWP/area in the world: one Haiku ticket after the twins, or accept that the JSON routes' walk (P2-I1) is the proof; needs orch raised r7
+Q4 Postgres: S5 reported seed_hidden_world fails on Postgres (AttachFile needs the user access word for documents), so just gate-pg packages/tl-web errors at baseline (tl-api confidentiality walk[postgres] too); needs orch raised S5
 ## NEXT
-1. Orch: dispatch S5 (builder, full) and T08 (Haiku, lite) in parallel; disjoint files. Merge P items, spawn r7.
-2. r7: decide any 2s/gr/blk on S5 or T08. T07 docs (tl-web README, runbook web-client, AGENTS row) once S5 is merged: dispatch lite.
-3. Twins: when orch merges p2/i1 into p2/web1 and T05a-c are in, fill T09-T11 (Activation in each file; D29), apply the reads.py seam, bump the mirror count in the S5 test. M4 twins T12-T14 after M4 C2.
-4. C3: S5, T07, T08 merged (+ twins if ready). C4: full gate, gate-pg on packages/tl-web, demo, web security review (Q2); DONE round writes the report and learnings.
+1. Orch: dispatch T09 T09b T10 T11 (ticket-batch-v2, review full each; 2 heavy test runs at once). They touch disjoint files; walk.py edits sit under separate markers. Merge P items, spawn r8.
+2. r8: decide any 2s/gr/blk. T16: when P2-I1 T05c (path_text) is in p2/web1, add list_path_versions mirror (MIRRORS 32), present re-export, mirror case, fill T16, dispatch. T07 docs (lite) once the twins are merged: README tl-web, runbook web-client, AGENTS row, twins list.
+3. M4 twins T12-T14 after M4 screens (p2/i3); write them from TWINS.md.
+4. C3: twins + T07 merged. C4: full gate, gate-pg packages/tl-web (Q4 first), demo P2-WEB1, DONE round (report, learnings; S5/T08/SECFIX learnings are in their reports).
 ## REFS
-Spec docs/build-spec/specs/web-client-i1.md (sections 3-8 are the interfaces); wave plan 2; piece specs S1-S4, S6 and tickets T01, T02, T05, T06, T15 in this directory. Acceptance scripts dev/accept/P2-WEB1/. Reports docs/reports/P2-WEB1/ (S4 has the page recipe and S5 seams; T01 has the forge_item and patch-a-read tricks). Trunk claude/wizardly-allen-m2v96s @1b93a13; branch p2/web1 head = base above (state commit follows); trunk base 1b93a13; T03/T04 recipe = docstring of pages/record.py and docs/reports/P2-WEB1/S6.md. Style model: docs/tickets/P2-WEB1/S3-server-page1.md (dev/accept scripts go with S5, D26). Tests piece S5-tests.md, demo ticket T08-demo-script.md.
+Spec docs/build-spec/specs/web-client-i1.md (sections 3-8 are the interfaces); wave plan 2; piece specs S1-S4, S6 and tickets T01, T02, T05, T06, T15 in this directory. Acceptance scripts dev/accept/P2-WEB1/. Reports docs/reports/P2-WEB1/ (S4 has the page recipe and S5 seams; T01 has the forge_item and patch-a-read tricks). T03/T04 recipe = docstring of pages/record.py and docs/reports/P2-WEB1/S6.md. Style model: docs/tickets/P2-WEB1/S3-server-page1.md (dev/accept scripts go with S5, D26). Tests piece S5-tests.md, demo ticket T08-demo-script.md. Twin recipe TWINS.md; screenshot helper provided/shot_recipe.py; awp text modules tl_tui/{awp,cwa,wbs,package}_text.py; awp routes tl_api/routes/awp.py; fake data packages/tl-tui/tests/fakes_awp.py. Trunk claude/wizardly-allen-m2v96s @1b93a13, p2/i1 merged at c7b5276.
 ## TRAPS
-Worktree /home/user/wt/p2-web1 only; never /home/user/studious-lamp. dev/tests/ is outside testpaths (use tests/tools/). Never delete /tmp/pytest-of-root, never pkill. `just check` takes >120 s: background. `DisplayMode()` takes no args (set .technical after). Hidden = missing (ADR-0016). New worktrees: `uv sync --all-packages` first; pyright needs NODE_OPTIONS=--max-old-space-size=6144. Commit subjects P2-WEB1-<id>:. Page tickets load S4.World through importlib with S4.PAGE_SOURCE emptied (D17). A TYPE_CHECKING-only row type needs the quoted base WebLog["Row"]. forge_item has no scope argument. Ruff E501 applies in dev/accept. S3.World.upload hardcodes application/pdf. Weekly capacity ~90% (owner stop 95%): one batch per round.
+Worktree /home/user/wt/p2-web1 only; never /home/user/studious-lamp. dev/tests/ is outside testpaths (use tests/tools/). Never delete /tmp/pytest-of-root, never pkill. `just check` takes >120 s: background. `DisplayMode()` takes no args (set .technical after). Hidden = missing (ADR-0016). New worktrees: `uv sync --all-packages` first; pyright needs NODE_OPTIONS=--max-old-space-size=6144. Commit subjects P2-WEB1-<id>:. Page tickets load S4.World through importlib with S4.PAGE_SOURCE emptied (D17). A TYPE_CHECKING-only row type needs the quoted base WebLog["Row"]. forge_item has no scope argument. Ruff E501 applies in dev/accept. S3.World.upload hardcodes application/pdf. Weekly capacity ~90% (owner stop 95%): one batch per round. The panel partial is asked without the page's query strings (log.row_for loads the unfiltered list): a page may narrow rows by query, never hide rows by default. Only present.py imports tl_tui (test_web_imports, TYPE_CHECKING included): write a tl_tui type as present.<module>.<Name>. test_page_modules asserts every PAGE_MODULES name exists: a stub first. Twin tests in parallel: tl-web gate is ~4 min; heavy runs max 2.
