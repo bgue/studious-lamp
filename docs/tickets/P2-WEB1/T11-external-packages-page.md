@@ -1,29 +1,55 @@
 # P2-WEB1-T11 — External packages (EWP and PWP) page
 
-Status: staged (waiting for the p2/i1 merge into p2/web1; see Activation)
+Status: ready
 Tier: haiku
 Kind: ticket
 Review: full
 Labels: web
-Depends on: S4, T02 (merged); P2-I1 C2 merged into p2/web1; P2-I1 T05c (terminal screens)
+Depends on: S4, T02, the awp reads seam (6cfcfb9), P2-I1 T05f (`package_text`, merged)
 Branch: `p2/web1-t11-packages`
 
 ## Goal
-One web log, the EWP and PWP package references of a project, twin of the terminal packages screen: <fill: slug and text module>. One log, so the ticket is small; the script also pins the `?kind=EWP|PWP` filter.
+`GET /web/p/{project}/packages` shows the EWP and PWP references of a project in the log standard, with the terminal's columns, cells, panel and summary, and the `?kind=EWP|PWP` and `?constraints=1` filters. One module, `tl_web/pages/packages.py` (stub exists).
 
-## Reads (known now: routes in `p2/i1` `packages/tl-api/src/tl_api/routes/awp.py`, views in `tl_mod_awp.views`)
-- `list_packages(project, kind=None) -> list[PackageRow]` (`id kind package_no status_text forecast_date actual_date constraint_source source_system`); `kind` is `EWP`, `PWP` or absent (anything else means absent). No detail read: the panel is built from the row.
+## Pins (this file wins; the common recipe is `docs/tickets/P2-WEB1/TWINS.md`)
+1. `LOG_NAME = "Packages"`, `columns = present.package_text.PACKAGE_COLUMNS` (no drop order). Row `PackageRow`, base `WebLog["PackageRow"]`.
+2. `load_rows`: one read `everything = self.client.list_packages(self.project)`; `kind` from `?kind=` (only `EWP` or `PWP`, else `None`), `constraints_only` from `?constraints=1`. Rows: those of `everything` with `kind` and `row.constraint_source` as asked. `row_key = row.id`; `row_record = (row.package_no, row.title)`; cells `present.package_text.package_cells(row)`.
+3. Summary: `present.package_text.summary_line(len(rows), len(everything), kind=kind, constraints_only=constraints_only, text="")`.
+4. Panel (no read): `present.plain_lines(present.package_text.package_page(row, panel=True, technical=self.technical))`.
+
+## Interfaces (verbatim from the tree)
+```python
+# tl_tui/package_text.py (re-exported as present.package_text)
+PACKAGE_COLUMNS; def package_cells(row) -> tuple[str, ...]; def package_page(row, *, panel=False, technical=False) -> Page
+def summary_line(shown_rows, total, *, kind, constraints_only, text) -> str
+# WebReadClient.list_packages(project, *, kind=None) -> list[PackageRow]
+# PackageRow: id kind package_no status_text forecast_date actual_date constraint_source source_system title cwps
+```
+
+## Context (read these, nothing else)
+- `docs/tickets/P2-WEB1/TWINS.md`
+- `packages/tl-web/src/tl_web/pages/documents.py`, `packages/tl-web/tests/test_web_document_log.py` (models)
+- `packages/tl-tui/src/tl_tui/package_text.py`, `packages/tl-tui/tests/fakes_awp.py`
+- `docs/tickets/P2-WEB1/provided/shot_recipe.py`
+may explore: (none)
 
 ## Allowed paths
-- `packages/tl-web/src/tl_web/pages/packages.py` (create)
-- `dev/accept/P2-WEB1/T11.py`, `docs/reports/P2-WEB1/T11.md` (create)
+- `packages/tl-web/src/tl_web/pages/packages.py` (replace the stub)
+- `packages/tl-web/tests/test_web_package_log.py` (create)
+- `packages/tl-web/tests/walk.py` (only: your row under `# --- T11 rows`)
+- `docs/reports/P2-WEB1/T11.md` (create)
 
-## Activation (STAGED: do not dispatch before every line below is true; the supervisor then fills the `<fill>` marks and sets Status: ready)
-1. `p2/i1` is merged into `p2/web1` (orchestrator, at M3 C2), so `tl_api.routes.awp` and `tl_mod_awp.views` are in the tree.
-2. The matching terminal screens (`P2-I1` T05a/T05b/T05c) are merged and their text (columns, `row_cells`, `detail_lines`, `summary_line`, the panel) is in a Textual-free `tl_tui/*_text.py` module that `tl_web/present.py` can re-export. If a screen keeps that text inside a widget, the supervisor raises it (4) to the M3 supervisor instead of writing the ticket; a twin never moves terminal code.
-3. Supervisor seam, one commit, <= 45 lines: `from tl_api.routes import awp as awp_routes` and the mirror methods + `MIRRORS` rows for the reads named below in `tl_web/reads.py` (pattern of `links_of`: `self._call(awp_routes.<fn>, project=project, ...)`), the text-module re-export in `present.py`, and the new mirror count in the S5 spec. The route functions take `project` as a path parameter (not a scope).
-4. Run the `01-tiers.md` 6 checklist on the filled ticket; one "no" means split it.
+## Tests to add
+`test_web_package_log.py`: cases (a)-(j) for slug `packages` with the fake's one EWP and one PWP; `?kind=PWP` leaves the PWP and the status line names it (`summary_line(1, 2, kind="PWP", ...)`); `?kind=xyz` is ignored; `?constraints=1` equals the constraint sources only. Case (f) does not apply (the panel reads nothing): say so. Screenshot `T11-packages.png`.
 
-## Common pins (all twins; model: `pages/documents.py`, `dev/accept/P2-WEB1/T02.py`)
-Row types are imported under `TYPE_CHECKING` only and the base is quoted: `WebLog["CwpRow"]`. Cells, summary, panel text and the sort are the terminal's own functions via `tl_web.present`. Hidden or unknown = the one 404 page. No `|safe`. Actions: only if an `ACTION_UI` row exists for the log's commands (then `actions_for` as `rfis.py`), else `actions_for` returns `[]` (D20). Tests are deferred (S5); the acceptance script patches the reads with `mock.patch.object(WebReadClient, ...)` as T02 does, and checks: registration, seven regions in order, headers and cells equal the terminal functions, panel text, `?q=` filter, 404 byte-equality for unknown and hidden, no-cookie 303, plain mode versus root `?mode=technical`.
-Acceptance: `uv sync --all-packages`, `NODE_OPTIONS=--max-old-space-size=6144 just check`, `uv run python dev/accept/P2-WEB1/<id>.py`; no pytest. Report <= 60 lines. Commit subject `P2-WEB1-<id>: ...`, no model names; end the message with the attribution trailer the harness requires, then `Claude-Session: https://claude.ai/code/session_01MSkuXpRjf5XzVwbAVQNqK4`; do not discuss the trailer.
+## Acceptance
+As TWINS.md. Report: also the `ls -l` of `T11-packages.png`.
+
+## Escalation triggers
+- *Blocked* if `package_text` needs a Textual import or a mirror raises `UnsupportedRead`.
+
+## Blocked
+(implementer writes here)
+
+## Decision
+(supervisor or orchestrator writes here)
