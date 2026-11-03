@@ -24,7 +24,16 @@ SCOPE = "project:P123"
 #: Public attributes of ``WebReadClient`` that are not reads (none today).
 NOT_READS: frozenset[str] = frozenset()
 #: Reads of one awp record: this world holds none, so the route and the mirror both refuse (404).
-ABSENT = frozenset({"get_cwp", "get_wbs_node", "get_path"})
+ABSENT = frozenset(
+    {
+        "get_cwp",
+        "get_wbs_node",
+        "get_path",
+        "get_materials_lot",
+        "get_materials_receipt",
+        "get_materials_mto_line",
+    }
+)
 
 
 def public_methods() -> set[str]:
@@ -52,7 +61,7 @@ def as_json(value: Any) -> Any:
 
 
 def test_the_mirror_count_is_pinned(k: Any) -> None:
-    assert len(MIRRORS) == 32, (
+    assert len(MIRRORS) == 42, (
         "MIRRORS in tl_web/reads.py changed size: twin tickets raise this number in their own "
         "ticket (and add the read to this test's CASES)"
     )
@@ -142,6 +151,16 @@ def cases(w: Any) -> dict[str, tuple[tuple[Any, ...], dict[str, Any], dict[str, 
         "get_path": ((P,), {}, {"project": P}),
         "list_path_versions": ((P,), {}, {"project": P}),
         "list_packages": ((P,), {}, {"project": P}),
+        "list_materials_stock": ((P,), {}, {"project": P}),
+        "get_materials_lot": ((P, "LOT-1"), {}, {"project": P, "key": "LOT-1"}),
+        "list_materials_movements": ((P,), {}, {"project": P}),
+        "list_materials_receipts": ((P,), {}, {"project": P}),
+        "get_materials_receipt": ((P, "GR-1"), {}, {"project": P, "number": "GR-1"}),
+        "list_materials_locations": ((P,), {}, {"project": P}),
+        "list_materials_mto_lines": ((P,), {}, {"project": P}),
+        "get_materials_mto_line": ((P, "MTO-1"), {}, {"project": P, "key": "MTO-1"}),
+        "list_materials_items": ((), {"project": P}, {"project": P}),
+        "list_materials_item_projects": (("ITEM-1",), {}, {"code": "ITEM-1"}),
     }
 
 

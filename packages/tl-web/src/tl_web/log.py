@@ -159,6 +159,10 @@ class WebLog[Row]:
         """The record id of the row."""
         raise NotImplementedError
 
+    def row_open_key(self, row: Row) -> str | None:
+        """The record id the Open link goes to; ``None`` for a row with no record page (no link)."""
+        return self.row_key(row)
+
     def row_cells(self, row: Row) -> Sequence[str]:
         """Plain text per column, never raw codes (``self.technical``: an admin asked for them)."""
         raise NotImplementedError
@@ -226,6 +230,12 @@ class WebLog[Row]:
     def _action_views(self, record_id: str, actions: Sequence[WebAction]) -> list[dict[str, Any]]:
         return action_views(self.project, record_id, actions)
 
+    def _open_url(self, row: Row) -> str:
+        key = self.row_open_key(row)
+        if key is None:
+            return ""
+        return f"/web/p/{self.project}/records/{quote(key, safe='')}{self._mode_query()}"
+
     def _selected_context(self, row: Row | None) -> dict[str, Any]:
         number, title = self.row_record(row) if row is not None else ("", "")
         crumb = present.breadcrumb_text(
@@ -237,12 +247,7 @@ class WebLog[Row]:
             "panel": self.panel_text(row) if row is not None else ["Nothing here."],
             "panel_image": self.panel_image(row) if row is not None else "",
             "actions": self._action_views(self.row_key(row), actions) if row is not None else [],
-            "open_url": (
-                f"/web/p/{self.project}/records/{quote(self.row_key(row), safe='')}"
-                f"{self._mode_query()}"
-                if row is not None
-                else ""
-            ),
+            "open_url": self._open_url(row) if row is not None else "",
         }
 
     # --- the two answers ----------------------------------------------------------------------
@@ -284,8 +289,7 @@ class WebLog[Row]:
                 "selected": r is selected,
                 "cells": [{"text": c[i], "cls": columns[n]["cls"]} for n, i in enumerate(shown)],
                 "panel_url": self._panel_url(self.row_record(r)[0]),
-                "open_url": f"/web/p/{self.project}/records/{quote(self.row_key(r), safe='')}"
-                f"{self._mode_query()}",
+                "open_url": self._open_url(r),
             }
             for r, c in kept
         ]

@@ -41,6 +41,7 @@ from tl_api.routes import documents as documents_routes
 from tl_api.routes import engineering as engineering_routes
 from tl_api.routes import files as files_routes
 from tl_api.routes import links as links_routes
+from tl_api.routes import materials as materials_routes
 from tl_api.routes import records as records_routes
 from tl_api.routes import reference as reference_routes
 from tl_api.routes import threads as threads_routes
@@ -91,6 +92,16 @@ MIRRORS: dict[str, str] = {
     "get_path": "get_path",
     "list_path_versions": "list_path_versions",
     "list_packages": "list_packages",
+    "list_materials_stock": "list_materials_stock",
+    "get_materials_lot": "get_materials_lot",
+    "list_materials_movements": "list_materials_movements",
+    "list_materials_receipts": "list_materials_receipts",
+    "get_materials_receipt": "get_materials_receipt",
+    "list_materials_locations": "list_materials_locations",
+    "list_materials_mto_lines": "list_materials_mto_lines",
+    "get_materials_mto_line": "get_materials_mto_line",
+    "list_materials_items": "list_materials_items",
+    "list_materials_item_projects": "list_materials_item_projects",
 }
 
 
@@ -426,3 +437,35 @@ class WebReadClient:
 
     def list_packages(self, project: str, *, kind: str | None = None) -> Any:
         return self._call(awp_routes.list_packages, project=project, kind=kind)
+
+    # --- materials (M4): stock, movements, receipts, take-off lines, items, locations ---------
+
+    def list_materials_stock(self, project: str, **filters: Any) -> Any:
+        return self._call(materials_routes.list_materials_stock, project=project, **filters)
+
+    def get_materials_lot(self, project: str, key: str) -> Any:
+        return self._call(materials_routes.get_materials_lot, project=project, key=key)
+
+    def list_materials_movements(self, project: str, **filters: Any) -> Any:
+        return self._call(materials_routes.list_materials_movements, project=project, **filters)
+
+    def list_materials_receipts(self, project: str, **filters: Any) -> Any:
+        return self._call(materials_routes.list_materials_receipts, project=project, **filters)
+
+    def get_materials_receipt(self, project: str, number: str) -> Any:
+        return self._call(materials_routes.get_materials_receipt, project=project, number=number)
+
+    def list_materials_locations(self, project: str, **filters: Any) -> Any:
+        return self._call(materials_routes.list_materials_locations, project=project, **filters)
+
+    def list_materials_mto_lines(self, project: str, **filters: Any) -> Any:
+        return self._call(materials_routes.list_materials_mto_lines, project=project, **filters)
+
+    def get_materials_mto_line(self, project: str, key: str) -> Any:
+        return self._call(materials_routes.get_materials_mto_line, project=project, key=key)
+
+    def list_materials_items(self, **filters: Any) -> Any:
+        return self._call(materials_routes.list_materials_items, **filters)
+
+    def list_materials_item_projects(self, code: str) -> Any:
+        return self._call(materials_routes.list_materials_item_projects, code=code)

@@ -24,6 +24,12 @@ PAGE_MODULES: tuple[str, ...] = (
     "tl_web.pages.wbs",
     "tl_web.pages.packages",
     "tl_web.pages.path",
+    "tl_web.pages.stock",
+    "tl_web.pages.movements",
+    "tl_web.pages.receipts",
+    "tl_web.pages.mto",
+    "tl_web.pages.items",
+    "tl_web.pages.locations",
     "tl_web.pages.record",
     "tl_web.pages.viewer",
 )

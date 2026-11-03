@@ -48,7 +48,7 @@ document.addEventListener("keydown", (event) => {
     move(event.key === "ArrowDown" ? 1 : -1);
   } else if (event.key === "Enter") {
     const row = selected();
-    if (row && event.target === document.body) window.location.assign(row.dataset.open);
+    if (row && row.dataset.open && event.target === document.body) window.location.assign(row.dataset.open);
   } else if (event.key === "/" && box) {
     event.preventDefault();
     box.focus();
@@ -71,7 +71,7 @@ document.addEventListener("click", (event) => {
 
 document.addEventListener("dblclick", (event) => {
   const row = event.target instanceof Element ? event.target.closest("#log-table tbody tr[data-number]") : null;
-  if (row) window.location.assign(row.dataset.open);
+  if (row && row.dataset.open) window.location.assign(row.dataset.open);
 });
 
 // An answer for a row that is no longer selected is dropped. A refusal (4xx/5xx) the server sent
