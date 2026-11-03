@@ -70,6 +70,13 @@ class MoveKind(StrEnum):
     scrap = "scrap"
 
 
+class Direction(StrEnum):
+    """The side of an adjust: ``in`` lands at ``--to``, ``out`` leaves ``--from``."""
+
+    in_ = "in"
+    out = "out"
+
+
 #: Each kind's command model and handler (the `_Batch` command that carries one Movement).
 MOVES: dict[MoveKind, tuple[type[Command], Callable[[UnitOfWork, Any], Any]]] = {
     MoveKind.issue: (IssueStock, handle_issue_stock),
@@ -262,11 +269,19 @@ def move_cmd(
     ] = None,
     reason: Annotated[str | None, typer.Option("--reason", help="Why (adjust, scrap).")] = None,
     person: Annotated[str | None, typer.Option("--person", help="Who receives the issue.")] = None,
+    direction: Annotated[
+        Direction | None,
+        typer.Option(
+            "--direction", help="Adjust only, required: in lands at --to, out leaves --from."
+        ),
+    ] = None,
     actor: Actor = DEV_ACTOR,
 ) -> None:
     """Post one stock movement of a lot; KIND is one of the seven movement kinds."""
     db: DbTarget = ctx.obj
     model, handler = MOVES[kind]
+    if kind is MoveKind.adjust and direction is None:
+        fail("move adjust needs --direction in or out")
     with service_errors(), open_uow(db) as uow:
         movement = Movement(
             lot_key=lot,
@@ -278,6 +293,7 @@ def move_cmd(
             mto_line_id=for_line,
             reason=reason,
             person=person,
+            direction=direction.value if direction is not None else None,
         )
         command = model.model_validate(
             {

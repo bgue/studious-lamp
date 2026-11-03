@@ -7,9 +7,11 @@ and exits 1. Run from any directory:
 
     uv run python dev/accept/P2-I3/T05c.py
 
-The write verbs need a dev setting for the seed's actors: ``main`` sets ``TL_ENV`` to ``dev``
-when it is unset, as the justfile does, so ``user:materials-super`` holds the ``user`` word on the
-file ledger.
+The accounts the checks act as are made in the copy through the account and module-role commands
+(``accounts.create_account``, ``grant_module_role``), as the other acceptance scripts do:
+``boss`` is an admin, ``materials-super`` is a plain account with an explicit ``superuser`` grant on
+materials for P123. ``user:plain`` has no account; ``main`` sets ``TL_ENV`` to ``dev`` when it is
+unset (as the justfile does), so that account-less actor holds only the ``user`` word.
 """
 
 import os
@@ -25,6 +27,8 @@ from pathlib import Path
 from sqlalchemy import text
 from tl_adapters.db import DbTarget, as_target, open_uow
 from tl_cli.mat import app as mat_app
+from tl_core.auth import accounts
+from tl_core.auth.module_grants import GrantModuleRole, grant_module_role
 from tl_core.ledger import NewEvent
 from tl_core.util import new_ulid
 from tl_mod_materials import views
@@ -152,6 +156,44 @@ def make_work_package(db: DbTarget, number: str) -> None:
             actor=SUPER,
             source="cli",
             correlation_id=new_ulid(),
+        )
+
+
+def make_accounts(db: DbTarget) -> None:
+    """The accounts the checks act as, in the copy: an admin who grants, and the materials super."""
+    with open_uow(db) as uow:
+        accounts.create_account(
+            uow,
+            username="boss",
+            display_name="Boss",
+            kind="person",
+            roles=["admin"],
+            password=None,
+            by="user:root",
+        )
+    with open_uow(db) as uow:
+        super_view = accounts.create_account(
+            uow,
+            username="materials-super",
+            display_name="Materials Super",
+            kind="person",
+            roles=["user"],
+            password=None,
+            by="user:boss",
+        )
+    with open_uow(db) as uow:
+        grant_module_role(
+            uow,
+            GrantModuleRole(
+                actor="user:boss",
+                source="cli",
+                scope="company",
+                account_id=super_view.account_id,
+                project=SCOPE,
+                module="materials",
+                role="superuser",
+                reason="materials superuser on P123 (acceptance)",
+            ),
         )
 
 
@@ -321,23 +363,53 @@ def check_bad_line_writes_nothing(h: Harness) -> None:
     expect(after == before, f"events went from {before} to {after}")
 
 
-def check_plain_user_refused(h: Harness) -> None:
-    refused = h.run(
-        "receipt",
-        "receive",
-        "--location",
-        "L3",
-        "--received-on",
-        "2026-11-03",
-        "--line",
-        f"{ELBOW}:1",
-        "--project",
-        PROJECT,
-        "--actor",
-        PLAIN,
+ADJUST_OUT = (
+    "move",
+    "adjust",
+    "--lot",
+    LOT1,
+    "--qty",
+    "1",
+    "--uom",
+    "EA",
+    "--from",
+    "L2",
+    "--direction",
+    "out",
+    "--reason",
+    "count",
+)
+REFUSED_ADJUST = (
+    f"error: forbidden: AdjustStock needs the controller access word for materials on {SCOPE}"
+)
+
+
+def check_controller_act_refused_for_plain(h: Harness) -> None:
+    """``move adjust`` (materials.adjust, controller) is refused for the plain user, admitted for
+    the materials super; adjust without --direction is refused before any write."""
+    missing = h.write(
+        "move",
+        "adjust",
+        "--lot",
+        LOT1,
+        "--qty",
+        "1",
+        "--uom",
+        "EA",
+        "--from",
+        "L2",
+        "--reason",
+        "count",
         code=1,
     )
-    expect("forbidden" in refused.stderr, f"stderr is {refused.stderr[:200]!r}")
+    expect("needs --direction" in missing.stderr, f"stderr is {missing.stderr[:200]!r}")
+    refused = h.run(*ADJUST_OUT, "--project", PROJECT, "--actor", PLAIN, code=1)
+    expect(
+        REFUSED_ADJUST in refused.stderr,
+        f"plain user: stderr is {refused.stderr[:200]!r}, want {REFUSED_ADJUST!r}",
+    )
+    admitted = h.write(*ADJUST_OUT)
+    expect(lines_of(admitted) == [f"adjust 1 EA lot {LOT1}"], admitted.output)
 
 
 CHECKS: list[tuple[str, Callable[[Harness], None]]] = [
@@ -362,7 +434,11 @@ CHECKS: list[tuple[str, Callable[[Harness], None]]] = [
         check_mto_assign,
     ),
     ("a bad --line exits 1 and the event count is unchanged", check_bad_line_writes_nothing),
-    ("the plain user is refused on receipt receive (materials.receive)", check_plain_user_refused),
+    (
+        "move adjust (controller) is refused for user:plain with the standard text, admitted for "
+        "the materials super; adjust without --direction exits 1",
+        check_controller_act_refused_for_plain,
+    ),
 ]
 
 
@@ -378,6 +454,7 @@ def main() -> int:
             shutil.copy(src, root / ("tl.db" + src.name[len(LEDGER.name) :]))
         target = as_target(db)
         make_work_package(target, WP_NEW)
+        make_accounts(target)
         harness = Harness(target, CliRunner())
         for name, check in CHECKS:
             try:
