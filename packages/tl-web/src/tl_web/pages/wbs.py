@@ -32,7 +32,7 @@ UNALLOCATED = "1"
 def _depth(request: Request) -> int | None:
     """``?depth=N`` as an integer from 1 to 8; anything else is absent."""
     raw = request.query_params.get("depth", "")
-    if raw.isascii() and raw.isdigit() and 1 <= int(raw) <= 8:
+    if raw.isascii() and raw.isdigit() and len(raw) <= 9 and 1 <= int(raw) <= 8:
         return int(raw)
     return None
 
