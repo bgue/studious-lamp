@@ -61,7 +61,7 @@ class ItemLibraryScreen(LogScreen[MaterialItemView]):
     # --- the log's hooks -----------------------------------------------------------------
 
     def log_project(self) -> str:
-        return self.project or ""
+        return self.project or "Company"
 
     def columns(self) -> Sequence[str]:
         return columns_for(self.rows)
