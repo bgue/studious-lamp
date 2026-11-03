@@ -34,7 +34,7 @@ from tl_tui.materials_text import (
 from tl_tui.widgets.log_screen import LogAction, LogScreen
 
 #: The movement properties of the panel, in order (the table columns of the log, plus Qty).
-PANEL_COLUMNS: tuple[str, ...] = ("Date", "Kind", "Lot", "Item", "Qty", "From", "To", "By")
+PANEL_COLUMNS: tuple[str, ...] = ("Date", "Kind", "Lot", "Item", "Qty", "For", "From", "To", "By")
 
 
 class MovementLogScreen(LogScreen[MovementView]):
