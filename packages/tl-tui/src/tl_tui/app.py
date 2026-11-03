@@ -646,6 +646,51 @@ class TlApp(App[None]):
             return
         self.push_screen(TagRegisterScreen(self.client, project))
 
+    def _push_awp(self, which: str) -> None:
+        """Open an awp screen of this project (P2-I1; palette entries, no key)."""
+        if self._modal_open():
+            return
+        from tl_core.settings.layers import project_of_scope
+
+        from tl_tui.widgets.cwa_register import CwaRegisterScreen
+        from tl_tui.widgets.cwp_register import CwpRegisterScreen
+        from tl_tui.widgets.package_log import PackageLogScreen
+        from tl_tui.widgets.path_screen import PathScreen
+        from tl_tui.widgets.wbs_screen import WbsScreen
+
+        project = project_of_scope(self.scope)
+        if project is None:
+            self.notify("The work packaging screens need a project.", severity="warning")
+            return
+        screens = {
+            "cwps": CwpRegisterScreen,
+            "wbs": WbsScreen,
+            "cwas": CwaRegisterScreen,
+            "path": PathScreen,
+            "packages": PackageLogScreen,
+        }
+        self.push_screen(screens[which](self.client, project))
+
+    def action_cwps(self) -> None:
+        """Work packages: the CWP register of this project (palette only)."""
+        self._push_awp("cwps")
+
+    def action_wbs(self) -> None:
+        """The WBS tree of this project and its cost codes (palette only)."""
+        self._push_awp("wbs")
+
+    def action_cwas(self) -> None:
+        """Work areas: the CWA register of this project, in path order (palette only)."""
+        self._push_awp("cwas")
+
+    def action_path(self) -> None:
+        """The path of construction of this project, by version (palette only)."""
+        self._push_awp("path")
+
+    def action_packages(self) -> None:
+        """External packages: the EWP and PWP log of this project (palette only)."""
+        self._push_awp("packages")
+
     def action_settings(self) -> None:
         """about:config: the settings of this project, with their origin and history."""
         if self._modal_open():
