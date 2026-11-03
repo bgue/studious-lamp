@@ -36,7 +36,6 @@ from tl_cli.derive_support import (
     DEV_ACTOR,
     Actor,
     OptProject,
-    Project,
     acting,
     cell,
     fail,
@@ -45,9 +44,12 @@ from tl_cli.derive_support import (
 )
 from tl_cli.session import require_admin
 
-app = typer.Typer(help="Load legacy exports (CSV, XLSX) into a project.", no_args_is_help=True)
+app = typer.Typer(
+    help="Load legacy exports (CSV, XLSX) into a project or the company.", no_args_is_help=True
+)
 
 _Run = Annotated[str, typer.Argument(help="The run: system/table#n (dms/register#1) or its id.")]
+_Company = Annotated[bool, typer.Option("--company", help="A company run (not a project one).")]
 _Lake = Annotated[
     str | None,
     typer.Option(
@@ -75,10 +77,6 @@ def _errors() -> Iterator[None]:
 
 def _service(db: DbTarget, lake_dir: str | None = None) -> LoadService:
     return LoadService(db, file_service(), lake=LakeConfig.at(lake_dir))
-
-
-def _scope(project: str) -> str:
-    return f"project:{project}"
 
 
 def _line(run: RunRow) -> str:
@@ -118,12 +116,7 @@ def open_run(
         ),
     ] = None,
     project: OptProject = None,
-    company: Annotated[
-        bool,
-        typer.Option(
-            "--company", help="Open the run for a company target (not for a project one)."
-        ),
-    ] = False,
+    company: _Company = False,
     actor: Actor = DEV_ACTOR,
 ) -> None:
     """Keep the file and record a run for it. Prints `opened <key> <id>`.
@@ -149,12 +142,19 @@ def open_run(
 
 
 @app.command("extract")
-def extract(ctx: typer.Context, run: _Run, project: Project, actor: Actor = DEV_ACTOR) -> None:
+def extract(
+    ctx: typer.Context,
+    run: _Run,
+    project: OptProject = None,
+    company: _Company = False,
+    actor: Actor = DEV_ACTOR,
+) -> None:
     """Read the file in the resource envelope and keep its rows (prints row and column counts)."""
     db: DbTarget = ctx.obj
     require_admin(db)
+    scope = scope_of(project, company)
     with _errors():
-        done = _service(db).extract(_scope(project), run, actor=acting(db, actor))
+        done = _service(db).extract(scope, run, actor=acting(db, actor))
     typer.echo(f"extracted {done.key} rows {done.row_count} columns {done.column_count}")
 
 
@@ -162,20 +162,22 @@ def extract(ctx: typer.Context, run: _Run, project: Project, actor: Actor = DEV_
 def profile(
     ctx: typer.Context,
     run: _Run,
-    project: Project,
+    project: OptProject = None,
+    company: _Company = False,
     show: Annotated[bool, typer.Option("--show", help="Print the stored profile.")] = False,
     actor: Actor = DEV_ACTOR,
 ) -> None:
     """Profile the rows (columns, shapes, keys, repeats); with --show, print a finished profile."""
     db: DbTarget = ctx.obj
     require_admin(db)
+    scope = scope_of(project, company)
     service = _service(db)
     with _errors():
         if not show:
-            service.profile(_scope(project), run, actor=acting(db, actor))
-            typer.echo(f"profiled {service.get(_scope(project), run).key}")
+            service.profile(scope, run, actor=acting(db, actor))
+            typer.echo(f"profiled {service.get(scope, run).key}")
             return
-        body = service.profile_of(_scope(project), run)
+        body = service.profile_of(scope, run)
     typer.echo(f"rows {body['rows']}  duplicate rows {body['duplicate_rows']}")
     for column in body["columns"]:
         keyish = " key-candidate" if column["key_candidate"] else ""
@@ -190,7 +192,8 @@ def profile(
 def bronze(
     ctx: typer.Context,
     run: _Run,
-    project: Project,
+    project: OptProject = None,
+    company: _Company = False,
     lake_dir: _Lake = None,
     include_confidential: Annotated[
         bool,
@@ -209,25 +212,33 @@ def bronze(
     """
     db: DbTarget = ctx.obj
     require_admin(db)
+    scope = scope_of(project, company)
     with _errors():
         service = _service(db, lake_dir)
         written = service.bronze(
-            _scope(project),
+            scope,
             run,
             actor=acting(db, actor),
             include_confidential=include_confidential,
         )
-        key = service.get(_scope(project), run).key
+        key = service.get(scope, run).key
     typer.echo(f"bronze {key} rows {written}")
 
 
 @app.command("plan")
-def plan(ctx: typer.Context, run: _Run, project: Project, actor: Actor = DEV_ACTOR) -> None:
+def plan(
+    ctx: typer.Context,
+    run: _Run,
+    project: OptProject = None,
+    company: _Company = False,
+    actor: Actor = DEV_ACTOR,
+) -> None:
     """Map the rows and count what a load would do (new, existing, invalid); writes nothing else."""
     db: DbTarget = ctx.obj
     require_admin(db)
+    scope = scope_of(project, company)
     with _errors():
-        done, planned = _service(db).plan(_scope(project), run, actor=acting(db, actor))
+        done, planned = _service(db).plan(scope, run, actor=acting(db, actor))
     typer.echo(
         f"planned {done.key} new {done.plan_new} existing {done.plan_existing} "
         f"invalid {done.plan_invalid}"
@@ -242,7 +253,8 @@ def plan(ctx: typer.Context, run: _Run, project: Project, actor: Actor = DEV_ACT
 def load(
     ctx: typer.Context,
     run: _Run,
-    project: Project,
+    project: OptProject = None,
+    company: _Company = False,
     expect_new: Annotated[
         int | None, typer.Option("--expect-new", min=0, help="The new rows you saw in the plan.")
     ] = None,
@@ -251,10 +263,11 @@ def load(
     """Write the new rows as one correlated batch (create-only; rows that exist are left alone)."""
     db: DbTarget = ctx.obj
     require_admin(db)
+    scope = scope_of(project, company)
     with _errors():
         service = _service(db)
-        outcome = service.load(_scope(project), run, actor=acting(db, actor), expect_new=expect_new)
-        key = service.get(_scope(project), run).key
+        outcome = service.load(scope, run, actor=acting(db, actor), expect_new=expect_new)
+        key = service.get(scope, run).key
     typer.echo(
         f"loaded {key} created {outcome.created} existing {outcome.skipped_existing} "
         f"invalid {outcome.skipped_invalid} correlation {outcome.correlation_id}"
@@ -265,15 +278,17 @@ def load(
 def reconcile(
     ctx: typer.Context,
     run: _Run,
-    project: Project,
+    project: OptProject = None,
+    company: _Company = False,
     show: Annotated[bool, typer.Option("--show", help="Print the problems of the report.")] = False,
     actor: Actor = DEV_ACTOR,
 ) -> None:
     """Compare the project with the file and keep the report. Prints the mismatch count."""
     db: DbTarget = ctx.obj
     require_admin(db)
+    scope = scope_of(project, company)
     with _errors():
-        done, report = _service(db).reconcile(_scope(project), run, actor=acting(db, actor))
+        done, report = _service(db).reconcile(scope, run, actor=acting(db, actor))
     typer.echo(
         f"reconciled {done.key} matched {report['matched']} mismatches {report['mismatches']} "
         f"left-alone-that-differ {report['left_alone_that_differ']}"
@@ -287,17 +302,20 @@ def reconcile(
 def compensate(
     ctx: typer.Context,
     run: _Run,
-    project: Project,
+    project: OptProject = None,
+    company: _Company = False,
+    *,
     reason: Annotated[str, typer.Option("--reason", help="Why the batch is taken back.")],
     actor: Actor = DEV_ACTOR,
 ) -> None:
     """End the records this run created, all or nothing, by the ids the run recorded."""
     db: DbTarget = ctx.obj
     require_admin(db)
+    scope = scope_of(project, company)
     with _errors():
         service = _service(db)
-        outcome = service.compensate(_scope(project), run, actor=acting(db, actor), reason=reason)
-        key = service.get(_scope(project), run).key
+        outcome = service.compensate(scope, run, actor=acting(db, actor), reason=reason)
+        key = service.get(scope, run).key
     typer.echo(f"compensated {key} reversed {outcome.reversed}")
 
 
@@ -305,30 +323,35 @@ def compensate(
 def void(
     ctx: typer.Context,
     run: _Run,
-    project: Project,
+    project: OptProject = None,
+    company: _Company = False,
+    *,
     reason: Annotated[str, typer.Option("--reason", help="Why the run is abandoned.")],
     actor: Actor = DEV_ACTOR,
 ) -> None:
     """Abandon a run that has not loaded anything."""
     db: DbTarget = ctx.obj
     require_admin(db)
+    scope = scope_of(project, company)
     with _errors():
-        done = _service(db).void(_scope(project), run, actor=acting(db, actor), reason=reason)
+        done = _service(db).void(scope, run, actor=acting(db, actor), reason=reason)
     typer.echo(f"voided {done.key}")
 
 
 @app.command("ls")
 def ls(
     ctx: typer.Context,
-    project: Project,
+    project: OptProject = None,
+    company: _Company = False,
     state: Annotated[str | None, typer.Option("--state")] = None,
     limit: Annotated[int, typer.Option("--limit", min=1, max=500)] = 100,
 ) -> None:
     """List the runs of a project, newest first: key, state, loader, file."""
     db: DbTarget = ctx.obj
     require_admin(db)
+    scope = scope_of(project, company)
     with _errors():
-        runs = _service(db).runs(_scope(project), state=state, limit=limit)
+        runs = _service(db).runs(scope, state=state, limit=limit)
     for run in runs:
         typer.echo(_line(run))
 
@@ -337,21 +360,21 @@ def ls(
 def show(
     ctx: typer.Context,
     run: _Run,
-    project: Project,
+    project: OptProject = None,
+    company: _Company = False,
     report: Annotated[bool, typer.Option("--report", help="Print the stored report.")] = False,
     as_json: Annotated[bool, typer.Option("--json")] = False,
 ) -> None:
     """One run: its state, counts and files (`--report` the reconciliation report as JSON)."""
     db: DbTarget = ctx.obj
     require_admin(db)
+    scope = scope_of(project, company)
     with _errors():
         service = _service(db)
         if report:
-            typer.echo(
-                json.dumps(service.report_of(_scope(project), run), indent=2, sort_keys=True)
-            )
+            typer.echo(json.dumps(service.report_of(scope, run), indent=2, sort_keys=True))
             return
-        found = service.get(_scope(project), run)
+        found = service.get(scope, run)
     fields = {
         "run": found.key,
         "id": found.id,
