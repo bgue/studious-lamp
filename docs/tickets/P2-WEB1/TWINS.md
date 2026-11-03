@@ -61,3 +61,11 @@ uv run pytest packages/tl-web/tests/<your test file> packages/tl-web/tests/test_
 Paste the last 5 lines of each. Report `docs/reports/P2-WEB1/<id>.md`, at most 60 lines, deviations first. Commit subject
 `P2-WEB1-<id>: <summary>`, no model names in any file; end the message with the attribution trailer the harness requires,
 then `Claude-Session: https://claude.ai/code/session_01MSkuXpRjf5XzVwbAVQNqK4`; do not discuss the trailer.
+
+## Learned in T09 to T11 (r8)
+- Write `load_fake()` one statement per line (the snippet above breaks ruff E702 and E501 if pasted verbatim).
+- Recipe (i) applies only if the panel shows a technical-only row: a text function may mark it `panel=False` (CWP, package); then only the REFUSAL half is tested, and the report says so.
+- The log drops a column whose value is equal in every row (two or more rows): a test must not expect it. A text constant that a module does not re-export (`cwa_text.EMPTY`) is imported from `tl_tui.text` through `present.text`.
+- `WebLog.row_for` runs `load_rows()` on the panel route too: state set there (`self._tree`) is valid in `panel_text`.
+- HTML collapses leading spaces: an indent made of spaces in a cell does not show in the browser (WBS, locations). Not a defect of the page.
+- Commit subject is `P2-WEB1-<id>: ...` whatever the round text says; a first commit with the wrong subject is not rewritten.
