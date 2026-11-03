@@ -1,0 +1,50 @@
+/* Throughline web client: plain styles, no inline style anywhere (the CSP forbids it). */
+:root { color-scheme: light dark; font-family: system-ui, sans-serif; }
+body { margin: 0; line-height: 1.4; }
+header.tl-bar { display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 1rem; border-bottom: 1px solid #8884; }
+main { padding: 1rem; max-width: 60rem; }
+form.tl-form label { display: block; margin: 0.75rem 0 0.25rem; }
+form.tl-form input[type="text"], form.tl-form input[type="password"] { width: 100%; max-width: 20rem; padding: 0.4rem; }
+.tl-error { color: #b00020; font-weight: 600; }
+
+/* The log standard (spec web-client-i1, section 7): crumb, filter, list, panel, actions, keys, status.
+   The panel sits right of the list from 1280 CSS px (about 160 columns), below it otherwise. */
+main:has(.tl-log) { max-width: none; }
+.tl-log { display: flex; flex-direction: column; gap: 0.5rem; }
+.tl-crumb { font-weight: 700; }
+.tl-filter input[type="search"] { width: 100%; max-width: 24rem; padding: 0.35rem; }
+.tl-body { display: flex; flex-direction: column; gap: 0.5rem; }
+.tl-table { overflow-x: hidden; }
+.tl-table table { width: 100%; border-collapse: collapse; }
+.tl-table th, .tl-table td { padding: 0.2rem 0.6rem; text-align: left; white-space: nowrap; }
+.tl-table th { border-bottom: 1px solid #8886; font-weight: 600; }
+.tl-table .tl-flex { width: 100%; max-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.tl-table tbody tr { cursor: pointer; }
+.tl-table tbody tr:nth-child(even) { background: #8881; }
+.tl-table tbody tr[aria-selected="true"] { background: Highlight; color: HighlightText; }
+.tl-table tbody tr:focus-visible { outline: 2px solid Highlight; outline-offset: -2px; }
+.tl-panel { border-top: 2px solid #8888; padding: 0.5rem; min-height: 8rem; max-height: 50vh; overflow-y: auto; }
+.tl-panel-img { display: block; max-width: 100%; max-height: 24rem; margin: 0 0 0.5rem; border: 1px solid #8888; }
+.tl-panel-text { margin: 0; font-family: ui-monospace, monospace; white-space: pre-wrap; overflow-wrap: anywhere; }
+.tl-actions { min-height: 1.5rem; display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+.tl-action { font: inherit; padding: 0.15rem 0.5rem; }
+.tl-keys, .tl-muted { color: #888; }
+.tl-status { min-height: 1.4rem; overflow-wrap: anywhere; }
+.tl-action-form textarea, .tl-action-form input[type="text"], .tl-action-form select { width: 100%; max-width: 40rem; box-sizing: border-box; }
+@media (min-width: 1280px) {
+  .tl-body { display: grid; grid-template-columns: 3fr 2fr; align-items: start; }
+  .tl-panel { border-top: 0; border-left: 2px solid #8888; max-height: 70vh; }
+}
+/* narrow screens give the subject room: the least needed columns go (no sideways scroll) */
+@media (max-width: 899px) { .tl-table .tl-drop { display: none; } }
+@media (min-width: 1280px) and (max-width: 1599px) { .tl-table .tl-drop { display: none; } }
+/* the record screen: the tab bar (links, the current one marked) */
+#rec-tabs { display: flex; flex-wrap: wrap; gap: 0.25rem; border-bottom: 1px solid #8886; }
+#rec-tabs a { padding: 0.3rem 0.8rem; text-decoration: none; color: inherit; border-radius: 0.3rem 0.3rem 0 0; }
+#rec-tabs a:hover { background: #8882; }
+#rec-tabs a[aria-current="page"] { font-weight: 700; border: 1px solid #8886; border-bottom-color: Canvas; margin-bottom: -1px; }
+.tl-rec-header h1 { margin: 0; font-size: 1.3rem; }
+.tl-rec-header p { margin: 0.2rem 0 0.5rem; }
+.tl-history { border-collapse: collapse; }
+.tl-history th, .tl-history td { padding: 0.2rem 0.6rem; text-align: left; vertical-align: top; }
+.tl-history th { border-bottom: 1px solid #8886; }
