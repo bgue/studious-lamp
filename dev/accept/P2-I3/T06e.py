@@ -319,12 +319,30 @@ def screen_check(size: tuple[int, int]) -> None:
                 expect(table.cursor_row == 1, f"the cursor is on row {table.cursor_row}, not 1")
                 expect(screen.lines[1]["qty"] == "1", f"row 1 is {screen.lines[1]}, not line 3")
                 passed("Delete on line 2 of 3: two rows, the cursor stays on row 1 (old line 3)")
-                await pilot.press("delete")  # the last row goes; the cursor moves up to it
+                # a third line, then Delete on the last of three rows: the cursor must stay on
+                # row 1 (a reset to row 0 after clear() would pass a two-row check)
+                screen.query_one("#l-item", Input).focus()
+                await type_into(pilot, po_line.item_code)
+                await pilot.press("enter")  # to Qty
+                await type_into(pilot, "2")
+                await pilot.press("enter", "enter", "enter")
                 await settle(pilot)
-                expect(len(screen.lines) == 1, f"{len(screen.lines)} lines after the second Delete")
-                expect(table.cursor_row == 0, f"the cursor is on row {table.cursor_row}, not 0")
-                passed("Delete on the last row: the cursor is on the new last row")
-                # line 2 goes back, so the save below books two lines
+                expect(len(screen.lines) == 3, f"{len(screen.lines)} lines after the third add")
+                screen.query_one("#entry-lines").focus()
+                await pilot.press("down")  # to row 2, the new last row
+                await settle(pilot)
+                expect(table.cursor_row == 2, f"the cursor is on row {table.cursor_row}, not 2")
+                await pilot.press("delete")  # the last row goes; the cursor moves up to row 1
+                await settle(pilot)
+                expect(len(screen.lines) == 2 and table.row_count == 2, "not two rows after Delete")
+                expect(table.cursor_row == 1, f"the cursor is on row {table.cursor_row}, not 1")
+                passed("Delete on the last row of three: the cursor is on the new last row (row 1)")
+                await pilot.press("up")  # row 0: its line goes, leaving one line for the re-add
+                await settle(pilot)
+                await pilot.press("delete")
+                await settle(pilot)
+                expect(len(screen.lines) == 1, f"{len(screen.lines)} lines after the row-0 Delete")
+                # the line count goes back to two, so the save below books two lines
                 screen.query_one("#l-item", Input).focus()
                 await type_into(pilot, po_line.item_code)
                 await pilot.press("enter")  # to Qty
