@@ -1,11 +1,11 @@
 # P2-WEB1-T14 — items page
 
-Status: staged (activation list in `M4-TWINS.md`)
+Status: ready (r9; the seam, p2/i3 and the Open-link hook are in the tree)
 Tier: haiku
 Kind: ticket
 Review: full
 Labels: web
-Depends on: S4, T09b, p2/i3 merged into p2/web1, the materials reads seam (r9), T17 (seed)
+Depends on: S4, T09b, T17 merged (the seed); in the tree: p2/i3, the ten materials mirrors, the page stub, `WebLog.row_open_key`
 Branch: `p2/web1-t14-items`
 
 ## Goal
@@ -16,6 +16,7 @@ Branch: `p2/web1-t14-items`
 2. `load_rows`: `list_materials_items(project=self.project, limit=500)`, all kept in `self._all`; `?state=Active|Retired` narrows after the read as the screen does (`retired` flag); anything else absent.
 3. Panel: `projects = list_materials_item_projects(row.code)`; `present.plain_lines(present.item_text.item_page(row, projects, self.labels, technical=self.technical))`. This read is company-wide: the mirror calls the JSON route, so the viewer filter is the route's; do not filter or add to it. No catch (the terminal's "projects could not be read" line is not twinned: a failed read is the error page).
 4. Summary `present.item_text.summary_line(len(rows), len(self._all), state=, project=self.project, text="")`.
+6. Open link (D41): this row has no record page, so override `row_open_key(self, row) -> None` (the page then shows no Open link and every row's `data-open` is empty). Case (h) is therefore: `doc.buttons() == []`, no `a#log-open`, and no `data-open` value on any row.
 
 ## Context (read these, nothing else)
 - `docs/tickets/P2-WEB1/TWINS.md`, `M4-TWINS.md`

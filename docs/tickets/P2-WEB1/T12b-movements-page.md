@@ -1,11 +1,11 @@
 # P2-WEB1-T12b — movements page
 
-Status: staged (activation list in `M4-TWINS.md`)
+Status: ready (r9; the seam, p2/i3 and the Open-link hook are in the tree)
 Tier: haiku
 Kind: ticket
 Review: full
 Labels: web
-Depends on: S4, T09b, p2/i3 merged into p2/web1, the materials reads seam (r9), T17 (seed)
+Depends on: S4, T09b, T17 merged (the seed); in the tree: p2/i3, the ten materials mirrors, the page stub, `WebLog.row_open_key`
 Branch: `p2/web1-t12b-movements`
 
 ## Goal
@@ -17,6 +17,7 @@ Branch: `p2/web1-t12b-movements`
 3. `row_key = str(row.seq)`; `row_record = (f"#{row.seq}", the Kind cell)`. Number `#12` is in the panel URL: quote it (the base class does).
 4. Panel (no call), as the screen's `panel_text`: cells `movement_cells(row, MOVEMENT_COLUMNS, self.labels)` (the screen's `PANEL_COLUMNS` is the same nine) as one property line each, plus `Reason` (`row.reason`) and `Person` (`row.person`), in a `present.layout.Page(identity=present.layout.identity_line(f"#{row.seq}", kind_cell), sections=(present.layout.Section("", props),))` with `present.layout.prop(name, value)`; render with `present.plain_lines`.
 5. Summary `present.materials_text.movement_summary(len(rows), len(all_read), kind=, period=, lot=)`.
+6. Open link (D41): this row has no record page, so override `row_open_key(self, row) -> None` (the page then shows no Open link and every row's `data-open` is empty). Case (h) is therefore: `doc.buttons() == []`, no `a#log-open`, and no `data-open` value on any row.
 
 ## Context (read these, nothing else)
 - `docs/tickets/P2-WEB1/TWINS.md`, `M4-TWINS.md`

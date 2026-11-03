@@ -1,11 +1,11 @@
 # P2-WEB1-T14b — locations page
 
-Status: staged (activation list in `M4-TWINS.md`)
+Status: ready (r9; the seam, p2/i3 and the Open-link hook are in the tree)
 Tier: haiku
 Kind: ticket
 Review: full
 Labels: web
-Depends on: S4, T09b, p2/i3 merged into p2/web1, the materials reads seam (r9), T17 (seed)
+Depends on: S4, T09b, T17 merged (the seed); in the tree: p2/i3, the ten materials mirrors, the page stub, `WebLog.row_open_key`
 Branch: `p2/web1-t14b-locations`
 
 ## Goal
@@ -17,6 +17,7 @@ Branch: `p2/web1-t14b-locations`
 3. Panel: `stock = list_materials_stock(project, location=row.code, limit=500)`; `present.plain_lines(present.location_text.location_page(row, self._all, stock, self.labels, technical=self.technical))` . A 404 is the one 404 page.
 4. Summary `present.location_text.summary_line(len(rows), len(self._all), text="")`.
 5. HTML collapses the two leading spaces per depth that `location_cells` puts in Subject (T10 saw the same for the WBS): the text is right, the page shows no indent. Do not work around it; note it in the report (a CSS rule is a separate decision).
+6. Open link (D41): this row has no record page, so override `row_open_key(self, row) -> None` (the page then shows no Open link and every row's `data-open` is empty). Case (h) is therefore: `doc.buttons() == []`, no `a#log-open`, and no `data-open` value on any row.
 
 ## Context (read these, nothing else)
 - `docs/tickets/P2-WEB1/TWINS.md`, `M4-TWINS.md`

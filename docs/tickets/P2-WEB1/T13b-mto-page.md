@@ -1,11 +1,11 @@
 # P2-WEB1-T13b — MTO lines page
 
-Status: staged (activation list in `M4-TWINS.md`)
+Status: ready (r9; the seam, p2/i3 and the Open-link hook are in the tree)
 Tier: haiku
 Kind: ticket
 Review: full
 Labels: web
-Depends on: S4, T09b, p2/i3 merged into p2/web1, the materials reads seam (r9), T17 (seed)
+Depends on: S4, T09b, T17 merged (the seed); in the tree: p2/i3, the ten materials mirrors, the page stub, `WebLog.row_open_key`
 Branch: `p2/web1-t13b-mto`
 
 ## Goal
@@ -16,6 +16,7 @@ Branch: `p2/web1-t13b-mto`
 2. Query strings `?short=1` (short lines only) and `?wp=<work package number>` (text, else absent), passed as `short_only`, `work_package` to `list_materials_mto_lines(project, work_package=, short_only=, limit=500)`.
 3. Panel: `detail = get_materials_mto_line(project, row.key)`; `present.plain_lines(present.mto_text.mto_page(detail, self.labels, technical=self.technical))`. A 404 is the one 404 page.
 4. Summary `present.mto_text.summary_line(len(rows), total, short_only=, work_package=, text="")`.
+6. Open link (D41): this row has no record page, so override `row_open_key(self, row) -> None` (the page then shows no Open link and every row's `data-open` is empty). Case (h) is therefore: `doc.buttons() == []`, no `a#log-open`, and no `data-open` value on any row.
 
 ## Context (read these, nothing else)
 - `docs/tickets/P2-WEB1/TWINS.md`, `M4-TWINS.md`

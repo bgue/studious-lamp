@@ -1,18 +1,18 @@
 # P2-WEB1-T17 — materials seed for the M4 twin tests
 
-Status: staged (needs p2/i3 merged into p2/web1)
+Status: ready (r9; p2/i3 is merged into p2/web1)
 Tier: haiku
 Kind: ticket
 Review: lite
 Labels: web, test
-Depends on: p2/i3 merged into p2/web1 (`fakes_materials.py`, `tl_mod_materials.views`, `views_detail`)
+Depends on: (met) p2/i3 merged into p2/web1 (`fakes_materials.py`, `tl_mod_materials.views`, `views_detail`)
 Branch: `p2/web1-t17-materials-seed`
 
 ## Goal
 `seed_materials(fake, project="P123")` fills a `FakeMaterialsSupport` (after `_init_materials()`) with a small consistent world, so the six M4 twin tests (T12 to T14b) share one data set, as `seed_awp` does for the M3 twins. Test support only; no product code.
 
 ## Pins
-1. One new module `packages/tl-tui/tests/fakes_materials_seed.py` with `seed_materials(fake, project: str = "P123") -> None`. It imports only `tl_mod_materials.views` and `views_detail` (no sibling test module: the web tests load it by path). It calls `fake.put_materials(...)`, `put_material_items`, `put_mto_line_details`, `put_item_projects`.
+1. One new module `packages/tl-tui/tests/fakes_materials_seed.py` with `seed_materials(fake, project: str = "P123") -> None`. It imports only `tl_mod_materials.views` and `views_detail` (no sibling test module: the web tests load it by path). It calls `fake.put_materials(project, ...)` ONCE (it replaces the project's rows; pass stock, movements, receipts, locations, mto_lines, lots, receipt_details together), `put_material_items`, `put_mto_line_details`, `put_item_projects`.
 2. The world (one story, ids and codes consistent across every list and detail):
    - 4 company items: 3 active, 1 retired (different categories and UOMs; `put_material_items`).
    - Locations: a root `WH`, children `WH-A` and `WH-B`, one grandchild `WH-A-1` (`depth`, `parent_code` right).

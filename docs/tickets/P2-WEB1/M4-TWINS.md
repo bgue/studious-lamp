@@ -1,6 +1,6 @@
 # P2-WEB1 M4 twins (T12, T12b, T13, T13b, T14, T14b; T17 seeds their data): what differs from TWINS.md
 
-Status: staged. Nothing here is dispatchable until the ACTIVATION list is true (supervisor r9, after the orchestrator merged p2/i3).
+Status: active (r9). ACTIVATION steps 1, 2 and 4 are done; step 3 (T17) is the first dispatch, then T12 T12b T13, then T13b T14 T14b.
 The recipe is `TWINS.md`; this file only states what the six materials pages change. Each page is the web twin of one P2-I3 screen
 (`widgets/stock_screen.py`, `movement_screen.py`, `receipt_log.py`, `mto_screen.py`, `item_library.py`, `location_screen.py`) and uses
 its text module (`tl_tui/materials_text.py`, `receipt_text.py`, `mto_text.py`, `item_text.py`, `location_text.py`), reached as
@@ -26,4 +26,20 @@ its text module (`tl_tui/materials_text.py`, `receipt_text.py`, `mto_text.py`, `
 - Numbers (`row_record[0]`) must be unique per row and are the panel URL: pinned per ticket.
 - A 404 from any read (`body_for(exc)[0] == 404`; the materials errors map to `materials_*_not_found`, not only `record_not_found`) is the one
   404 page: do not catch it, except where the ticket says. Quantities are shown by the module's `qty_text`; never format a number yourself.
+- Open link (D41): none of the six pages has a record page for its rows, so each overrides `row_open_key` to return `None`
+  (`WebLog` hides the link and leaves `data-open` empty). TWINS.md case (h) becomes: no buttons, no `a#log-open`, no row `data-open`.
+- Loader (one statement per line; the seed file is loaded the same way):
+```python
+def load_fake():
+    base = REPO / "packages/tl-tui/tests"
+    fake_mod = _load("tl_web_tests_fakes_materials", base / "fakes_materials.py")
+    seed_mod = _load("tl_web_tests_fakes_materials_seed", base / "fakes_materials_seed.py")
+    fake = fake_mod.FakeMaterialsSupport()
+    fake._init_materials()
+    seed_mod.seed_materials(fake, "P123")
+    return fake
+```
+  with `_load(name, path)` = the five lines `spec_from_file_location` ... `exec_module` of `TWINS.md`. Patch with
+  `mock.patch.object(WebReadClient, "<read>", lambda self, *a, **kw: getattr(fake, "<read>")(*a, **kw))`; the fake's list reads
+  take the same keyword arguments as the mirrors.
 - Read only: `actions_for` returns `[]`. No `|safe`, no new template or CSS. Gate: the three walk tests as in TWINS.md.

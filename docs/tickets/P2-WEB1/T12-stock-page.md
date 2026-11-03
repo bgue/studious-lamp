@@ -1,11 +1,11 @@
 # P2-WEB1-T12 — stock page
 
-Status: staged (activation list in `M4-TWINS.md`)
+Status: ready (r9; the seam, p2/i3 and the Open-link hook are in the tree)
 Tier: haiku
 Kind: ticket
 Review: full
 Labels: web
-Depends on: S4, T09b, p2/i3 merged into p2/web1, the materials reads seam (r9), T17 (seed)
+Depends on: S4, T09b, T17 merged (the seed); in the tree: p2/i3, the ten materials mirrors, the page stub, `WebLog.row_open_key`
 Branch: `p2/web1-t12-stock`
 
 ## Goal
@@ -17,6 +17,7 @@ Branch: `p2/web1-t12-stock`
 3. `row_key = f"{row.lot}@{row.location}"`; `row_record = (that same text, row.item_title)` (unique per row; the lot key may hold `/`, the panel route takes it as it is).
 4. Panel: `detail = get_materials_lot(project, row.lot)`; `mtr` = the filename of the `mtr` slot file of `get_materials_receipt(project, detail.receipt)` when `detail.receipt` is set, a 404 there means `None` (the only catch); `present.plain_lines(present.materials_text.lot_page(detail, row, self.labels, mtr=mtr, technical=self.technical))`.
 5. Summary: `present.materials_text.stock_summary(len(rows), len(rows), item=, location=, heat=, lot=, subtree=)` from the filters (read its signature).
+6. Open link (D41): this row has no record page, so override `row_open_key(self, row) -> None` (the page then shows no Open link and every row's `data-open` is empty). Case (h) is therefore: `doc.buttons() == []`, no `a#log-open`, and no `data-open` value on any row.
 
 ## Context (read these, nothing else)
 - `docs/tickets/P2-WEB1/TWINS.md`, `M4-TWINS.md`
