@@ -34,7 +34,7 @@ ROLE_NAMES = (
     "rfi_author",
     "client_rep",
 )  # the project team, people (user:sim-*)
-ACTOR_NAMES = (*ROLE_NAMES, "assistant", "approver")  # the order they act in each day
+ACTOR_NAMES = (*ROLE_NAMES, "assistant", "workface_planner", "approver")  # the order each day
 
 
 class Strict(BaseModel):
@@ -174,6 +174,12 @@ class ApproverParams(Strict):
     accept_rate: float = Field(default=1.0, ge=0, le=1)  # chance each pending proposal is accepted
 
 
+class WorkfacePlannerParams(Strict):
+    """The workface planner, an agent: proposes CWPs over MCP in the path's areas, creates none."""
+
+    cwps_per_day: Count = 1
+
+
 class ActorsConfig(Strict):
     """Per-actor parameters. ``null`` in the YAML switches an actor off."""
 
@@ -186,6 +192,7 @@ class ActorsConfig(Strict):
     rfi_author: RfiAuthorParams | None = None  # off unless named: a controller issues the RFIs
     client_rep: ClientRepParams | None = None  # off unless named: answers what is issued
     assistant: AssistantParams | None = None  # off unless the scenario names it: needs MCP
+    workface_planner: WorkfacePlannerParams | None = None  # off unless named: needs CWAs and a path
     approver: ApproverParams | None = None
 
     def enabled(self) -> list[str]:
