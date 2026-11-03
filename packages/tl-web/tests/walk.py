@@ -201,6 +201,9 @@ WALK: dict[tuple[str, str], Row] = {
     # --- T10 rows (WBS tree): add them under this line
 
     # --- T11 rows (packages): add them under this line
+    ("GET", "/web/p/{project}/packages"): Row(
+        "package numbers, subjects and the CWP numbers that require them", _page("packages")
+    ),
 
     # --- T16 rows (path): add them under this line
 
