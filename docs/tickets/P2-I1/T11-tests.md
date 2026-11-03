@@ -1,6 +1,6 @@
 # P2-I1-T11 — The increment's tests, five-reader walk and capped mutants
 
-Status: ready when T04e, T05e, T05f, T07 (merged r10), T05g and T05c are merged (C3). Written r9, notes r10.
+Status: ready (T05g and T05c merged; dispatch r11 with T05h, paths disjoint). Written r9, notes r10, r11.
 Tier: builder
 Kind: piece
 Review: full
@@ -18,6 +18,7 @@ Every deferred test of the increment (R-P2-4: pieces and tickets were gated by a
 - `packages/tl-api/tests/test_api_awp.py`; append-only awp cases in `packages/tl-api/tests/test_confidentiality_walk.py` (walk at :142) and `packages/tl-mcp/tests/test_confidentiality_walk.py` (:36)
 - `packages/tl-mcp/tests/test_awp_tools.py`
 - `packages/tl-cli/tests/{test_cli_awp,test_awp_write,test_awp_write2,test_awp_run,test_reports}.py`
+- `packages/tl-tui/tests/test_awp_nav.py` only if T05h is already on `p2/i1` at your start (palette ids `cwps wbs cwas path packages`, keyless, each `action_<id>` pushes its screen for a project scope, company scope pushes nothing and notifies); otherwise list it under *Blocked* as remaining
 - `packages/tl-tui/tests/{test_client_awp,test_awp_text,test_text_modules_no_textual,test_cwp_register,test_wbs_screen,test_cwa_register,test_path_screen}.py` (the package log joins `test_path_screen.py`)
 - `packages/tl-sim/tests/test_workface_planner.py`
 - load-target and loader tests under the module's tests dir (`test_targets.py`, `test_loaders.py`, `test_fixtures.py`)
@@ -48,7 +49,8 @@ Schema (`packages/tl-schema/tests/test_awp_schema.py`): S2 (the generated awp cl
 - T07 report error: it says `HttpSimClient` lacks `_project`; it has a property (`client.py:444`). Pin `areas()` as built (project from `_scope`; `McpUnavailableError`; a step with `cwa` None is skipped).
 - T05e/T05f pins: CWA state words `Active`/`Retired`; `Position N of M` (M = steps of the path); no path -> positions `—` (RecordNotFoundError from `get_path`); package log column order Type then Status; Type hidden only with two or more rows of one kind (use two EWPs); `t`/`c` narrow the rows already read, F5 reads again; Enter is a no-op on CWA and package logs.
 - T04e: `worker --once --requeue` after a `rollup` request prints `requeued 0`, then runs the queued job (not an orphan).
-- The tour (C4) cannot reach the awp screens until the nav ticket (T05h) lands; T11 pushes each screen directly in the pilot.
+- The tour (C4) reaches the awp screens through T05h's palette entries (r11 dispatches T05h beside T11); T11 pushes each screen directly in the pilot.
+- Gate overlap r11: T05h runs no pytest, so T11's `just gate` is the only suite running.
 
 ## Mutants (capped, rule 4; in your own worktree; report in 3 lines)
 One sentinel mutant (proves the baseline passes and the harness kills) plus at most 5 targeted mutants from the "Guards" lists of the S3, S4, S5, T02 reports (suggested: sum = 100 `common.py:202`; Release preconditions `handlers/cwp.py:455-461`; largest remainder `rollup.py:155`; 500-node bound `worker.py:141`; D-c re-check `worker.py:172`). Mutate by editing the one `src` line in the working tree, run only the one test file that should kill it, then `git checkout -- <file>`. Never commit a mutant; `git status` clean of `src` at the end.

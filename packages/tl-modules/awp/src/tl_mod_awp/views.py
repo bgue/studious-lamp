@@ -161,6 +161,7 @@ class PathVersion(BaseModel):
     actor: str
     step_count: int
     is_current: bool
+    reason_code: str | None = None  # PathReason code of the re-sequencing that made this version
 
 
 # --- row helpers ----------------------------------------------------------------------------------
@@ -764,8 +765,15 @@ def path(conn: Connection, scope: str, version: int | None = None) -> PathView |
     )
 
 
+def _resequenced_by(steps: list[dict[str, Any]]) -> str | None:
+    """The first non-null reason among a version's readable steps, in position order."""
+    return next((_text(s["reason_code"]) for s in steps if s["reason_code"] is not None), None)
+
+
 def path_versions(conn: Connection, scope: str) -> list[PathVersion]:
-    """The versions of the path of ``scope``, newest first, counting the readable steps only."""
+    """The versions of the path of ``scope``, newest first, counting the readable steps only.
+    Version 1 is the definition and has no reason; a later version takes its reason from its
+    readable steps."""
     head = _path_head(conn, scope)
     if head is None:
         return []
@@ -779,6 +787,7 @@ def path_versions(conn: Connection, scope: str) -> list[PathVersion]:
             actor=str(steps[0]["actor"]),
             step_count=len(steps),
             is_current=version == head.current_version,
+            reason_code=None if version == 1 else _resequenced_by(steps),
         )
         for version, steps in sorted(by_version.items(), reverse=True)
     ]

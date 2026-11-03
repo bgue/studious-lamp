@@ -16603,6 +16603,17 @@
             "title": "Is Current",
             "type": "boolean"
           },
+          "reason_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason Code"
+          },
           "recorded_at": {
             "title": "Recorded At",
             "type": "string"
