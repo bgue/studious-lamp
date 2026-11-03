@@ -16,6 +16,7 @@ members = [
     "tl-extract",
     "tl-lake",
     "tl-mcp",
+    "tl-mod-awp",
     "tl-mod-correspondence",
     "tl-mod-cost",
     "tl-mod-documents",
@@ -2712,6 +2713,7 @@ dependencies = [
     { name = "pydantic" },
     { name = "tl-adapters" },
     { name = "tl-core" },
+    { name = "tl-mod-awp" },
     { name = "tl-mod-correspondence" },
     { name = "tl-mod-cost" },
     { name = "tl-mod-documents" },
@@ -2731,6 +2733,7 @@ requires-dist = [
     { name = "pydantic", specifier = ">=2" },
     { name = "tl-adapters", editable = "packages/tl-adapters" },
     { name = "tl-core", editable = "packages/tl-core" },
+    { name = "tl-mod-awp", editable = "packages/tl-modules/awp" },
     { name = "tl-mod-correspondence", editable = "packages/tl-modules/correspondence" },
     { name = "tl-mod-cost", editable = "packages/tl-modules/cost" },
     { name = "tl-mod-documents", editable = "packages/tl-modules/documents" },
@@ -2754,6 +2757,7 @@ dependencies = [
     { name = "tl-api" },
     { name = "tl-core" },
     { name = "tl-lake" },
+    { name = "tl-mod-awp" },
     { name = "tl-mod-correspondence" },
     { name = "tl-mod-cost" },
     { name = "tl-mod-documents" },
@@ -2777,6 +2781,7 @@ requires-dist = [
     { name = "tl-api", editable = "packages/tl-api" },
     { name = "tl-core", editable = "packages/tl-core" },
     { name = "tl-lake", editable = "packages/tl-lake" },
+    { name = "tl-mod-awp", editable = "packages/tl-modules/awp" },
     { name = "tl-mod-correspondence", editable = "packages/tl-modules/correspondence" },
     { name = "tl-mod-cost", editable = "packages/tl-modules/cost" },
     { name = "tl-mod-documents", editable = "packages/tl-modules/documents" },
@@ -2910,6 +2915,33 @@ requires-dist = [
     { name = "tl-mod-schemareg", editable = "packages/tl-modules/schemareg" },
     { name = "tl-schema", editable = "packages/tl-schema" },
     { name = "tl-tui", editable = "packages/tl-tui" },
+]
+
+[[package]]
+name = "tl-mod-awp"
+version = "0.0.1"
+source = { editable = "packages/tl-modules/awp" }
+dependencies = [
+    { name = "pydantic" },
+    { name = "sqlalchemy" },
+    { name = "tl-adapters" },
+    { name = "tl-core" },
+    { name = "tl-mod-engineering" },
+    { name = "tl-mod-legacy" },
+    { name = "tl-mod-schedule" },
+    { name = "tl-schema" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "pydantic", specifier = ">=2" },
+    { name = "sqlalchemy", specifier = ">=2" },
+    { name = "tl-adapters", editable = "packages/tl-adapters" },
+    { name = "tl-core", editable = "packages/tl-core" },
+    { name = "tl-mod-engineering", editable = "packages/tl-modules/engineering" },
+    { name = "tl-mod-legacy", editable = "packages/tl-modules/legacy" },
+    { name = "tl-mod-schedule", editable = "packages/tl-modules/schedule" },
+    { name = "tl-schema", editable = "packages/tl-schema" },
 ]
 
 [[package]]

@@ -35,6 +35,7 @@ from tl_lake.guard import MAX_SQL_CHARS
 from tl_mod_documents.derivation import store as derivation_store
 
 from tl_mcp import resources, tools
+from tl_mcp.awp_tools import register_awp_tools
 from tl_mcp.context import Authorizer, McpContext, UowFactory
 from tl_mcp.correspondence_tools import register_correspondence_tools
 from tl_mcp.derivation_tools import register_derivation_tools
@@ -143,6 +144,7 @@ def build_server(
     register_correspondence_tools(server, ctx)
     register_schedule_tools(server, ctx)
     register_schedule_read_tools(server, ctx)
+    register_awp_tools(server, ctx)
 
     @server.tool(annotations=READ_ONLY)
     def search_records(

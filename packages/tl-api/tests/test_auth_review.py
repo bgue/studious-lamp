@@ -485,6 +485,20 @@ AGENT_MAY_NOT = {
     "control.command.VoidReceipt",
     # the MTO publish (P2-I3-S4): a controlling act, access word controller (superuser holds it)
     "control.command.PublishDerivedMto",
+    # the awp module (P2-I1): the superuser's acts; an agent proposes
+    "control.command.DefineWbsNode",
+    "control.command.ReviseWbsNode",
+    "control.command.RetireWbsNode",
+    "control.command.MapWbsToCostCodes",
+    "control.command.DefinePathOfConstruction",
+    "control.command.MoveCwaInPath",
+    "control.command.RetireCwa",
+    "control.command.ReleaseCwp",
+    "control.command.ReturnCwp",
+    "control.command.CloseCwp",
+    "control.command.ReopenCwp",
+    "control.command.VoidCwp",
+    "control.command.VoidExternalPackage",
 }
 FEED_COMMANDS = {
     "PostToFeed",

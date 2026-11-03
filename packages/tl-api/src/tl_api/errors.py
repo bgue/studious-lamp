@@ -27,6 +27,7 @@ from tl_core.services import errors as svc
 from tl_core.threads import errors as thr
 from tl_core.webhooks import subscriptions as wh
 from tl_core.workflow.engine import GuardResult
+from tl_mod_awp import errors as awp
 from tl_mod_correspondence import errors as corr
 from tl_mod_cost import errors as cost
 from tl_mod_documents import errors as doc
@@ -276,6 +277,22 @@ def _rows() -> tuple[ErrorSpec, ...]:
         s(thr.DispatchStaleError, "dispatch_stale", 409),
         s(thr.DispatchRefusedError, "dispatch_refused", 422),
         s(thr.DispatchSyntaxError, "dispatch_syntax", 422),
+        # --- awp module (P2-I1): WBS, path of construction, areas, packages ---------------------
+        s(awp.AwpError, "awp_error", 422),
+        s(awp.AwpScopeError, "awp_scope", 422),
+        s(awp.CodeNotFoundError, "awp_code_not_found", 404),
+        s(awp.DuplicateCodeError, "awp_duplicate_code", 409),
+        s(awp.WbsRuleError, "wbs_rule", 422),
+        s(awp.AllocationError, "allocation_invalid", 422),
+        s(awp.RetiredError, "awp_retired", 409),
+        s(awp.InUseError, "awp_in_use", 409),
+        s(awp.PathRuleError, "path_rule", 422),
+        s(awp.StaleVersionError, "awp_stale_version", 409),
+        s(awp.UnknownListCodeError, "awp_unknown_list_code", 422),
+        s(awp.CwpRuleError, "cwp_rule", 422),
+        s(awp.CwpStateError, "cwp_state", 409),
+        s(awp.ReleaseRefusedError, "release_refused", 422),
+        s(awp.PackageRuleError, "package_rule", 422),
         # --- cost module (P1-I4): cost codes and period snapshots -------------------------------
         s(cost.CostError, "cost_error", 422),
         s(cost.CostScopeError, "cost_scope", 422),

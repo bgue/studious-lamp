@@ -26,6 +26,13 @@ Every ledger event type that can reach a webhook subscriber, generated from the 
 | [`Adoption.Pinned`](#adoptionpinned) | `tl.core.Adoption.Pinned.v1` | A project pinned a version of a company package. |
 | [`AgentToken.Issued`](#agenttokenissued) | `tl.core.AgentToken.Issued.v1` | An agent token was issued. |
 | [`AgentToken.Revoked`](#agenttokenrevoked) | `tl.core.AgentToken.Revoked.v1` | An agent token was revoked and no longer authenticates. |
+| [`CWA.Defined`](#cwadefined) | `tl.core.CWA.Defined.v1` | A construction work area was defined. |
+| [`CWA.Retired`](#cwaretired) | `tl.core.CWA.Retired.v1` | An area was retired. |
+| [`CWA.Revised`](#cwarevised) | `tl.core.CWA.Revised.v1` | The name or location of an area changed. |
+| [`CWP.AllocatedToWbs`](#cwpallocatedtowbs) | `tl.core.CWP.AllocatedToWbs.v1` | The WBS allocation of a package was replaced. |
+| [`CWP.Defined`](#cwpdefined) | `tl.core.CWP.Defined.v1` | A construction work package was created. |
+| [`CWP.Released`](#cwpreleased) | `tl.core.CWP.Released.v1` | A package was released for IWP development. |
+| [`CWP.Revised`](#cwprevised) | `tl.core.CWP.Revised.v1` | Fields of a construction work package changed. |
 | [`CodeValue.Closed`](#codevalueclosed) | `tl.core.CodeValue.Closed.v1` | A code value was superseded by another or retired; it still resolves for old records. |
 | [`CodeValue.Defined`](#codevaluedefined) | `tl.core.CodeValue.Defined.v1` | A value was added to a code list. |
 | [`Commercial.Assessed`](#commercialassessed) | `tl.core.Commercial.Assessed.v1` | The other party assessed an issued Commercial item: agreed, disputed or partially agreed, with the value they assessed. |
@@ -62,6 +69,8 @@ Every ledger event type that can reach a webhook subscriber, generated from the 
 | [`Document.Updated`](#documentupdated) | `tl.core.Document.Updated.v1` | The register fields of a document changed (the title changes through the core `Record.Updated`). |
 | [`DocumentSchema.Defined`](#documentschemadefined) | `tl.core.DocumentSchema.Defined.v1` | A version of a document schema was registered. |
 | [`DocumentSchema.Retired`](#documentschemaretired) | `tl.core.DocumentSchema.Retired.v1` | A version of a document schema was retired; documents that named it keep it. |
+| [`EWPRef.Defined`](#ewprefdefined) | `tl.core.EWPRef.Defined.v1` | An engineering work package of the owner was recorded. |
+| [`EWPRef.Updated`](#ewprefupdated) | `tl.core.EWPRef.Updated.v1` | The status, dates or constraint flag of an engineering package changed. |
 | [`Enricher.Disabled`](#enricherdisabled) | `tl.core.Enricher.Disabled.v1` | An enricher was switched off. |
 | [`Enricher.Enabled`](#enricherenabled) | `tl.core.Enricher.Enabled.v1` | An enricher was switched on. |
 | [`Enricher.Registered`](#enricherregistered) | `tl.core.Enricher.Registered.v1` | An enricher was registered. |
@@ -119,10 +128,14 @@ Every ledger event type that can reach a webhook subscriber, generated from the 
 | [`Numbering.Allocated`](#numberingallocated) | `tl.core.Numbering.Allocated.v1` | A number was allocated from a counter. |
 | [`POLineRef.Defined`](#polinerefdefined) | `tl.core.POLineRef.Defined.v1` | A purchase order line was mirrored into the project. |
 | [`POLineRef.Updated`](#polinerefupdated) | `tl.core.POLineRef.Updated.v1` | The mirror of a purchase order line changed; only the fields that changed are present. |
+| [`PWPRef.Defined`](#pwprefdefined) | `tl.core.PWPRef.Defined.v1` | A procurement work package of the owner was recorded. |
+| [`PWPRef.Updated`](#pwprefupdated) | `tl.core.PWPRef.Updated.v1` | The status, dates or constraint flag of a procurement package changed. |
 | [`Party.ContactAdded`](#partycontactadded) | `tl.core.Party.ContactAdded.v1` | A contact was added to a party. |
 | [`Party.ContactEnded`](#partycontactended) | `tl.core.Party.ContactEnded.v1` | A contact was ended. |
 | [`Party.Defined`](#partydefined) | `tl.core.Party.Defined.v1` | A party was entered, with its first contacts. |
 | [`Party.Retired`](#partyretired) | `tl.core.Party.Retired.v1` | A party was retired. |
+| [`PathOfConstruction.Defined`](#pathofconstructiondefined) | `tl.core.PathOfConstruction.Defined.v1` | The path of construction was defined (version 1). |
+| [`PathOfConstruction.Resequenced`](#pathofconstructionresequenced) | `tl.core.PathOfConstruction.Resequenced.v1` | A CWA was moved in the path; the event holds the full new list. |
 | [`ProcessingJob.Cancelled`](#processingjobcancelled) | `tl.core.ProcessingJob.Cancelled.v1` | A queued job was cancelled before a worker took it. |
 | [`ProcessingJob.Defined`](#processingjobdefined) | `tl.core.ProcessingJob.Defined.v1` | A processing job was queued. |
 | [`ProcessingJob.Failed`](#processingjobfailed) | `tl.core.ProcessingJob.Failed.v1` | The claimed attempt failed. |
@@ -212,6 +225,11 @@ Every ledger event type that can reach a webhook subscriber, generated from the 
 | [`TypeRegistration.Deprecated`](#typeregistrationdeprecated) | `tl.core.TypeRegistration.Deprecated.v1` | The owner retired a version. |
 | [`TypeRegistration.Quarantined`](#typeregistrationquarantined) | `tl.core.TypeRegistration.Quarantined.v1` | A type package failed validation, or its files changed under a version that is already registered. |
 | [`TypeRegistration.Registered`](#typeregistrationregistered) | `tl.core.TypeRegistration.Registered.v1` | A type package validated and was registered. |
+| [`WBSNode.BudgetRolledUp`](#wbsnodebudgetrolledup) | `tl.core.WBSNode.BudgetRolledUp.v1` | The rollup job found a new budget figure for a node. |
+| [`WBSNode.CostCodesMapped`](#wbsnodecostcodesmapped) | `tl.core.WBSNode.CostCodesMapped.v1` | The cost code allocation of a leaf node was replaced. |
+| [`WBSNode.Defined`](#wbsnodedefined) | `tl.core.WBSNode.Defined.v1` | A WBS node was defined. |
+| [`WBSNode.Retired`](#wbsnoderetired) | `tl.core.WBSNode.Retired.v1` | A WBS node was retired. |
+| [`WBSNode.Revised`](#wbsnoderevised) | `tl.core.WBSNode.Revised.v1` | A WBS node was renamed, moved or re-ordered. |
 | [`Waiver.Approved`](#waiverapproved) | `tl.core.Waiver.Approved.v1` | An administrator approved the waiver; the effective schema of the project changes. |
 | [`Waiver.Requested`](#waiverrequested) | `tl.core.Waiver.Requested.v1` | Someone asked to relax one property for a project until a date. |
 | [`Waiver.Revoked`](#waiverrevoked) | `tl.core.Waiver.Revoked.v1` | An administrator revoked the waiver (or refused a request). |
@@ -1376,6 +1394,382 @@ An agent token was revoked and no longer authenticates. Internal: never delivere
   "tlseq": 48211933,
   "tlstreamversion": 7,
   "type": "tl.core.AgentToken.Revoked.v1"
+}
+```
+
+## CWA.Defined
+
+A construction work area was defined.
+
+- CloudEvents type: `tl.core.CWA.Defined.v1`
+- Ledger payload class: `CWADefinedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `code` | string | yes | The area code. |
+| `location_text` | string or null | no | Where the area is, in words. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "code": "A1",
+      "location_text": "North of the main rack"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/CWA.Defined/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.CWA.Defined.v1"
+}
+```
+
+## CWA.Retired
+
+An area was retired.
+
+- CloudEvents type: `tl.core.CWA.Retired.v1`
+- Ledger payload class: `CWARetiredPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `reason` | string | yes | Why the area was retired. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "reason": "Scope removed"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/CWA.Retired/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.CWA.Retired.v1"
+}
+```
+
+## CWA.Revised
+
+The name or location of an area changed.
+
+- CloudEvents type: `tl.core.CWA.Revised.v1`
+- Ledger payload class: `CWARevisedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `changes` | any | yes |  |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "changes": {
+        "location_text": [
+          null,
+          "North of the main rack"
+        ]
+      }
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/CWA.Revised/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.CWA.Revised.v1"
+}
+```
+
+## CWP.AllocatedToWbs
+
+The WBS allocation of a package was replaced.
+
+- CloudEvents type: `tl.core.CWP.AllocatedToWbs.v1`
+- Ledger payload class: `CWPAllocatedToWbsPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `allocations` | any | yes |  |
+| `feed_policy` | string | yes | The feed policy the handler fixed when it wrote the event; always "none" (no feed card). |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "allocations": [
+        {
+          "percent": "100.00",
+          "wbs_code": "1.2.3",
+          "wbs_node_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P7"
+        }
+      ],
+      "feed_policy": "none"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/CWP.AllocatedToWbs/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.CWP.AllocatedToWbs.v1"
+}
+```
+
+## CWP.Defined
+
+A construction work package was created.
+
+- CloudEvents type: `tl.core.CWP.Defined.v1`
+- Ledger payload class: `CWPDefinedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `budget_hours` | string or null | no | Decimal text with one decimal, or null. |
+| `contractor_text` | string or null | no | The contractor in words, or null. |
+| `cwa_id` | string or null | no | The area, or null. |
+| `discipline` | string | yes | Code of the code list `Discipline`. |
+| `planned_finish` | string or null | no | YYYY-MM-DD, or null. |
+| `planned_start` | string or null | no | YYYY-MM-DD, or null. |
+| `quantities` | any | no | List of at most 50 `{commodity, qty, uom}` rows, or null. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "budget_hours": "1250.0",
+      "contractor_text": "Acme Mechanical",
+      "cwa_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P7",
+      "discipline": "PIP",
+      "planned_finish": "2026-12-18",
+      "planned_start": "2026-11-02",
+      "quantities": [
+        {
+          "commodity": "piping",
+          "qty": "480.0",
+          "uom": "m"
+        }
+      ]
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/CWP.Defined/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.CWP.Defined.v1"
+}
+```
+
+## CWP.Released
+
+A package was released for IWP development.
+
+- CloudEvents type: `tl.core.CWP.Released.v1`
+- Ledger payload class: `CWPReleasedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `by` | string | yes | The actor that released it (`user:<id>`). |
+| `record_hash` | string | yes | SHA-256 of the package as released, hex. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "by": "user:01J9Z6Q4W3X2Y1V0T9S8R7Q6P1",
+      "record_hash": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/CWP.Released/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.CWP.Released.v1"
+}
+```
+
+## CWP.Revised
+
+Fields of a construction work package changed.
+
+- CloudEvents type: `tl.core.CWP.Revised.v1`
+- Ledger payload class: `CWPRevisedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `changes` | any | yes |  |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "changes": {
+        "budget_hours": [
+          "1250.0",
+          "1300.0"
+        ]
+      }
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/CWP.Revised/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.CWP.Revised.v1"
 }
 ```
 
@@ -3529,6 +3923,117 @@ A version of a document schema was retired; documents that named it keep it.
   "tlseq": 48211933,
   "tlstreamversion": 7,
   "type": "tl.core.DocumentSchema.Retired.v1"
+}
+```
+
+## EWPRef.Defined
+
+An engineering work package of the owner was recorded.
+
+- CloudEvents type: `tl.core.EWPRef.Defined.v1`
+- Ledger payload class: `EWPRefDefinedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `actual_date` | string or null | no | YYYY-MM-DD, or null. |
+| `constraint_source` | boolean | yes | True when the package can hold back field work. |
+| `forecast_date` | string or null | no | YYYY-MM-DD, or null. |
+| `package_no` | string | yes | The package number as the owner writes it. |
+| `source_system` | string or null | no | The owner's system, or null. |
+| `status_text` | string or null | no | The status in the owner's words, or null. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "actual_date": null,
+      "constraint_source": true,
+      "forecast_date": "2026-11-20",
+      "package_no": "EWP-0042",
+      "source_system": "Owner portal",
+      "status_text": "In review"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/EWPRef.Defined/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.EWPRef.Defined.v1"
+}
+```
+
+## EWPRef.Updated
+
+The status, dates or constraint flag of an engineering package changed.
+
+- CloudEvents type: `tl.core.EWPRef.Updated.v1`
+- Ledger payload class: `EWPRefUpdatedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `changes` | any | yes |  |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "changes": {
+        "status_text": [
+          "In review",
+          "Approved"
+        ]
+      }
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/EWPRef.Updated/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.EWPRef.Updated.v1"
 }
 ```
 
@@ -6677,6 +7182,117 @@ The mirror of a purchase order line changed; only the fields that changed are pr
 }
 ```
 
+## PWPRef.Defined
+
+A procurement work package of the owner was recorded.
+
+- CloudEvents type: `tl.core.PWPRef.Defined.v1`
+- Ledger payload class: `PWPRefDefinedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `actual_date` | string or null | no | YYYY-MM-DD, or null. |
+| `constraint_source` | boolean | yes | True when the package can hold back field work. |
+| `forecast_date` | string or null | no | YYYY-MM-DD, or null. |
+| `package_no` | string | yes | The package number as the owner writes it. |
+| `source_system` | string or null | no | The owner's system, or null. |
+| `status_text` | string or null | no | The status in the owner's words, or null. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "actual_date": null,
+      "constraint_source": true,
+      "forecast_date": "2026-11-20",
+      "package_no": "PWP-0042",
+      "source_system": "Owner portal",
+      "status_text": "In review"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/PWPRef.Defined/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.PWPRef.Defined.v1"
+}
+```
+
+## PWPRef.Updated
+
+The status, dates or constraint flag of a procurement package changed.
+
+- CloudEvents type: `tl.core.PWPRef.Updated.v1`
+- Ledger payload class: `PWPRefUpdatedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `changes` | any | yes |  |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "changes": {
+        "status_text": [
+          "In review",
+          "Approved"
+        ]
+      }
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/PWPRef.Updated/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.PWPRef.Updated.v1"
+}
+```
+
 ## Party.ContactAdded
 
 A contact was added to a party.
@@ -6894,6 +7510,131 @@ A party was retired.
   "tlseq": 48211933,
   "tlstreamversion": 7,
   "type": "tl.core.Party.Retired.v1"
+}
+```
+
+## PathOfConstruction.Defined
+
+The path of construction was defined (version 1).
+
+- CloudEvents type: `tl.core.PathOfConstruction.Defined.v1`
+- Ledger payload class: `PathOfConstructionDefinedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `feed_policy` | string | yes | The feed policy the handler fixed when it wrote the event; always "none" (no feed card). |
+| `steps` | any | yes |  |
+| `version` | integer | yes | 1. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "feed_policy": "none",
+      "steps": [
+        {
+          "cwa_code": "A1",
+          "cwa_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P7",
+          "reason_code": null
+        }
+      ],
+      "version": 1
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/PathOfConstruction.Defined/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.PathOfConstruction.Defined.v1"
+}
+```
+
+## PathOfConstruction.Resequenced
+
+A CWA was moved in the path; the event holds the full new list.
+
+- CloudEvents type: `tl.core.PathOfConstruction.Resequenced.v1`
+- Ledger payload class: `PathOfConstructionResequencedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `feed_policy` | string | yes | The feed policy the handler fixed when it wrote the event; always "none" (no feed card). |
+| `note` | string or null | no | Free text, or null. |
+| `reason_code` | string | yes | Code of the code list `PathReason`. |
+| `steps` | any | yes |  |
+| `version` | integer | yes | The new version, the earlier one plus 1. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "feed_policy": "none",
+      "note": null,
+      "reason_code": "Access",
+      "steps": [
+        {
+          "cwa_code": "A2",
+          "cwa_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P8",
+          "reason_code": "Access"
+        },
+        {
+          "cwa_code": "A1",
+          "cwa_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P7",
+          "reason_code": null
+        }
+      ],
+      "version": 2
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/PathOfConstruction.Resequenced/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.PathOfConstruction.Resequenced.v1"
 }
 ```
 
@@ -12035,6 +12776,293 @@ A type package validated and was registered. The package files stay where they a
   "tlseq": 48211933,
   "tlstreamversion": 7,
   "type": "tl.core.TypeRegistration.Registered.v1"
+}
+```
+
+## WBSNode.BudgetRolledUp
+
+The rollup job found a new budget figure for a node.
+
+- CloudEvents type: `tl.core.WBSNode.BudgetRolledUp.v1`
+- Ledger payload class: `WBSNodeBudgetRolledUpPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `as_of_seq` | integer | yes | The ledger `seq` the run read. |
+| `by_cost_code` | any | yes |  |
+| `feed_policy` | string | yes | The feed policy the handler fixed when it wrote the event; always "none" (no feed card). |
+| `run_id` | string | yes | The id of the run. |
+| `total` | string | yes | Budget hours of the node, decimal text with one decimal (`"1250.0"`). |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "as_of_seq": 1204,
+      "by_cost_code": [
+        {
+          "cost_code_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P7",
+          "value": "750.0"
+        },
+        {
+          "cost_code_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P8",
+          "value": "500.0"
+        }
+      ],
+      "feed_policy": "none",
+      "run_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+      "total": "1250.0"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/WBSNode.BudgetRolledUp/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.WBSNode.BudgetRolledUp.v1"
+}
+```
+
+## WBSNode.CostCodesMapped
+
+The cost code allocation of a leaf node was replaced.
+
+- CloudEvents type: `tl.core.WBSNode.CostCodesMapped.v1`
+- Ledger payload class: `WBSNodeCostCodesMappedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `allocations` | any | yes |  |
+| `feed_policy` | string | yes | The feed policy the handler fixed when it wrote the event; always "none" (no feed card). |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "allocations": [
+        {
+          "code": "4210-PIP-WLD",
+          "cost_code_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P7",
+          "percent": "60.00"
+        },
+        {
+          "code": "4210-PIP-ERC",
+          "cost_code_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P8",
+          "percent": "40.00"
+        }
+      ],
+      "feed_policy": "none"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/WBSNode.CostCodesMapped/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.WBSNode.CostCodesMapped.v1"
+}
+```
+
+## WBSNode.Defined
+
+A WBS node was defined.
+
+- CloudEvents type: `tl.core.WBSNode.Defined.v1`
+- Ledger payload class: `WBSNodeDefinedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `code` | string | yes | The node code. |
+| `depth` | integer | yes | Levels below the root, 0 to 7. |
+| `feed_policy` | string | yes | The feed policy the handler fixed when it wrote the event; always "none" (no feed card). |
+| `parent_id` | string or null | no | The parent node, or null at the root. |
+| `position` | integer | yes | Place among the siblings, from 1. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "code": "1.2.3",
+      "depth": 2,
+      "feed_policy": "none",
+      "parent_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P6",
+      "position": 1
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/WBSNode.Defined/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.WBSNode.Defined.v1"
+}
+```
+
+## WBSNode.Retired
+
+A WBS node was retired.
+
+- CloudEvents type: `tl.core.WBSNode.Retired.v1`
+- Ledger payload class: `WBSNodeRetiredPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `feed_policy` | string | yes | The feed policy the handler fixed when it wrote the event; always "none" (no feed card). |
+| `reason` | string | yes | Why the node was retired. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "feed_policy": "none",
+      "reason": "Merged into 1.2.4"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/WBSNode.Retired/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.WBSNode.Retired.v1"
+}
+```
+
+## WBSNode.Revised
+
+A WBS node was renamed, moved or re-ordered.
+
+- CloudEvents type: `tl.core.WBSNode.Revised.v1`
+- Ledger payload class: `WBSNodeRevisedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `changes` | any | yes |  |
+| `feed_policy` | string | yes | The feed policy the handler fixed when it wrote the event; always "none" (no feed card). |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "changes": {
+        "position": [
+          1,
+          2
+        ]
+      },
+      "feed_policy": "none"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/WBSNode.Revised/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.WBSNode.Revised.v1"
 }
 ```
 

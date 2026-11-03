@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any, Literal, Protocol
 
 from pydantic import BaseModel
+from tl_api.routes.awp import CwpDetailView
 from tl_core.actions import RecordActions
 from tl_core.addable import AddableProperties
 from tl_core.auth.module_grants import ModuleRoleResult
@@ -49,6 +50,7 @@ from tl_core.threads.dispatch import DispatchFromThread
 from tl_core.threads.messages import EditThreadMessage, PostThreadMessage, RetractThreadMessage
 from tl_core.threads.planner import PreviewResult
 from tl_core.threads.queries import ThreadPage
+from tl_mod_awp import views as awp_views
 from tl_mod_correspondence import evidence as correspondence_evidence
 from tl_mod_correspondence import reports_commercial, reports_technical
 from tl_mod_correspondence import views as correspondence_views
@@ -959,6 +961,54 @@ class ClientInterface(Protocol):
 
     def materials_command(self, name: str, cmd: Command) -> CommandResult:
         """Run a materials command by name (a model of ``MATERIALS_COMMANDS``, as the person)."""
+        ...
+
+    # --- the awp module: CWPs, CWAs, the WBS, the path, packages (P2-I1 T03b) ------------------
+    #
+    # The same names and signatures as ``tl_api.client.ApiClient``. A missing or hidden CWP, WBS
+    # node or path raises the service's ``RecordNotFoundError`` (``get_path``: also when there is
+    # no path at that version). ``get_cwp`` returns the route model: the detail with its link
+    # count, file count and timeline.
+
+    def list_cwps(
+        self,
+        project: str,
+        *,
+        state: str | None = None,
+        discipline: str | None = None,
+        cwa: str | None = None,
+    ) -> list[awp_views.CwpRow]:
+        """A project's CWPs by number, filtered by state, discipline and CWA code."""
+        ...
+
+    def get_cwp(self, project: str, number: str) -> CwpDetailView:
+        """One CWP with its fields, allocation, packages, activities, links, files and timeline."""
+        ...
+
+    def list_cwas(self, project: str) -> list[awp_views.CwaRow]:
+        """A project's construction work areas by code, retired ones flagged."""
+        ...
+
+    def wbs_tree(self, project: str, *, depth: int | None = None) -> list[awp_views.WbsRow]:
+        """The WBS nodes depth-first, each with its rollup; ``depth`` keeps the nodes above it."""
+        ...
+
+    def get_wbs_node(self, project: str, code: str) -> awp_views.WbsRow:
+        """One WBS node by its code, with its rollup."""
+        ...
+
+    def get_path(self, project: str, version: int | None = None) -> awp_views.PathView:
+        """The path of construction at a version (the current one by default)."""
+        ...
+
+    def list_path_versions(self, project: str) -> list[awp_views.PathVersion]:
+        """The versions of the path, newest first."""
+        ...
+
+    def list_packages(
+        self, project: str, *, kind: Literal["EWP", "PWP"] | None = None
+    ) -> list[awp_views.PackageRow]:
+        """The EWP and PWP references by package number; ``kind`` keeps one of them."""
         ...
 
     # --- the schema workbench (P1-I8; brief 27.8) ----------------------------------------------

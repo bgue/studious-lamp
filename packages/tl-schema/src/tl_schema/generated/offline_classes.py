@@ -7,6 +7,12 @@ from typing import Final, Literal
 OfflineClass = Literal["full", "draft_only", "none"]
 
 OFFLINE_CLASSES: Final[dict[str, OfflineClass]] = {
+    "awp.CWA": "none",
+    "awp.CWP": "draft_only",
+    "awp.EWPRef": "none",
+    "awp.PWPRef": "none",
+    "awp.PathOfConstruction": "none",
+    "awp.WBSNode": "none",
     "core.Record": "full",
     "correspondence.CommercialItem": "none",
     "correspondence.ContractClause": "none",
