@@ -631,3 +631,201 @@ def test_repin_a_link_from_a_hidden_post_and_a_taken_post_id_say_nothing_about_t
     assert (
         taken.status_code == 409 and "found" not in taken.text
     )  # says taken, not what or at what version
+
+
+# --- awp (P2-I1-T11): every awp route as five readers -----------------------------------------
+#
+# No awp record has a class (D22), so the test gives some one with a test-only confidential source
+# (a table of ids and classes); it covers the WBS nodes, the areas and the packages of the seed.
+
+AWP_RESTRICTED_CWP = "P123-CWP-PIP-0002"  # on node 1.1.2
+AWP_PRIVATE_CWP = "P123-CWP-PIP-0004"  # on node 1.2.3
+AWP_RESTRICTED_NODE = "1.1.2"
+AWP_RESTRICTED_AREA = "A2"
+AWP_READS_RESTRICTED = {"ctl", "boss"}  # a document controller and an admin
+AWP_READS_PRIVATE = {"amy"}  # the one account named on the privileged package
+
+
+@dataclass
+class AwpSeed:
+    ids: dict[str, str]
+    reports_run: bool
+
+
+@pytest.fixture
+def awp_seeded(harness: Harness, seeded: Seed, monkeypatch: pytest.MonkeyPatch) -> AwpSeed:
+    from sqlalchemy import bindparam, text
+    from test_api_awp import seed_awp
+    from tl_adapters.db import open_uow
+    from tl_core import confidentiality as cf
+    from tl_core.modules import ConfidentialSource, confidential_sources
+
+    world = seed_awp(harness, rollup=True)
+    cwps = {
+        r["key"]: r["id"]
+        for r in world.rows("SELECT id, key FROM cur_core_record WHERE type = 'awp.CWP'")
+    }
+    ids = {
+        "restricted_cwp": cwps[AWP_RESTRICTED_CWP],
+        "private_cwp": cwps[AWP_PRIVATE_CWP],
+        "node": world.id_of(AWP_RESTRICTED_NODE),
+        "area": world.id_of(AWP_RESTRICTED_AREA, "awp.CWA"),
+    }
+    wanted = {
+        ids["restricted_cwp"]: "restricted",
+        ids["private_cwp"]: "privileged",
+        ids["node"]: "restricted",
+        ids["area"]: "restricted",
+    }
+    types = ["awp.WBSNode", "awp.CWA", "awp.CWP", "awp.EWPRef", "awp.PWPRef"]
+    with open_uow(world.db) as uow:
+        conn = uow.conn()
+        conn.execute(text("CREATE TABLE t11_class (id TEXT PRIMARY KEY, cls TEXT NOT NULL)"))
+        conn.execute(
+            text("CREATE TABLE t11_clear (record_id TEXT NOT NULL, account TEXT NOT NULL)")
+        )
+        found = conn.execute(
+            text("SELECT id FROM cur_core_record WHERE type IN :t").bindparams(
+                bindparam("t", expanding=True)
+            ),
+            {"t": types},
+        )
+        for (record_id,) in found.all():
+            conn.execute(
+                text("INSERT INTO t11_class (id, cls) VALUES (:i, :c)"),
+                {"i": record_id, "c": wanted.get(record_id, "internal")},
+            )
+        conn.execute(
+            text("INSERT INTO t11_clear (record_id, account) VALUES (:r, :a)"),
+            {"r": ids["private_cwp"], "a": "user:amy"},
+        )
+    source = ConfidentialSource(
+        record_types=frozenset(types),
+        table="t11_class",
+        id_column="id",
+        class_column="cls",
+        clearance_table="t11_clear",
+    )
+    monkeypatch.setattr(cf, "confidential_sources", lambda: [*confidential_sources(), source])
+    return AwpSeed(ids, True)
+
+
+AWP_GET_PATHS = [
+    "/projects/P123/awp/cwps",
+    "/projects/P123/awp/cwps/P123-CWP-PIP-0001",
+    f"/projects/P123/awp/cwps/{AWP_RESTRICTED_CWP}",
+    f"/projects/P123/awp/cwps/{AWP_PRIVATE_CWP}",
+    "/projects/P123/awp/cwas",
+    "/projects/P123/awp/wbs",
+    "/projects/P123/awp/wbs/1",
+    f"/projects/P123/awp/wbs/{AWP_RESTRICTED_NODE}",
+    "/projects/P123/awp/path",
+    "/projects/P123/awp/path/versions",
+    "/projects/P123/awp/packages",
+    "/projects/P123/awp/reports/cwp_status",
+    "/projects/P123/awp/reports/wbs_vs_cost_code",
+    "/projects/P123/awp/reports/cwa_sequence",
+]
+
+
+def awp_may_read(reader: str, kind: str) -> bool:
+    if kind == "private_cwp":
+        return reader in AWP_READS_PRIVATE
+    return reader in AWP_READS_RESTRICTED
+
+
+@pytest.mark.parametrize("reader", sorted(MAY_READ))
+def test_every_awp_get_route_shows_a_reader_only_what_they_may_read(
+    harness: Harness, seeded: Seed, awp_seeded: AwpSeed, reader: str
+) -> None:
+    client = harness.client_for(None)
+    headers = {"Authorization": f"Bearer {seeded.tokens[reader]}"}
+    answers = {p: client.get(p, headers=headers) for p in AWP_GET_PATHS}
+    assert all(a.status_code < 500 for a in answers.values()), reader
+    for path, response in answers.items():
+        # an agent's word may close a route (403); nobody gets anything else but an answer or a 404
+        allowed = (200, 403, 404) if reader == "bot" else (200, 404)
+        assert response.status_code in allowed, (reader, path, response.status_code)
+    blob = " ".join(a.text for a in answers.values() if a.status_code == 200)
+    if reader != "bot":
+        assert "P123-CWP-PIP-0001" in blob  # the reader does read some
+    hidden = {
+        "restricted_cwp": (AWP_RESTRICTED_CWP, awp_seeded.ids["restricted_cwp"]),
+        "private_cwp": (AWP_PRIVATE_CWP, awp_seeded.ids["private_cwp"]),
+        "node": (f'"code":"{AWP_RESTRICTED_NODE}"', awp_seeded.ids["node"]),
+        "area": (f'"code":"{AWP_RESTRICTED_AREA}"', awp_seeded.ids["area"]),
+    }
+    for kind, markers in hidden.items():
+        if awp_may_read(reader, kind):
+            continue
+        for marker in markers:
+            assert marker not in blob, (reader, kind, marker)
+    detail_restricted = answers[f"/projects/P123/awp/cwps/{AWP_RESTRICTED_CWP}"]
+    detail_private = answers[f"/projects/P123/awp/cwps/{AWP_PRIVATE_CWP}"]
+    assert (detail_restricted.status_code == 200) == awp_may_read(reader, "restricted_cwp")
+    assert (detail_private.status_code == 200) == awp_may_read(reader, "private_cwp")
+    assert (answers[f"/projects/P123/awp/wbs/{AWP_RESTRICTED_NODE}"].status_code == 200) == (
+        awp_may_read(reader, "node")
+    )
+
+
+@pytest.mark.parametrize("reader", ["bob", "amy"])
+def test_a_hidden_cwp_or_node_answers_exactly_as_one_that_never_existed(
+    harness: Harness, seeded: Seed, awp_seeded: AwpSeed, reader: str
+) -> None:
+    client = harness.client_for(None)
+    headers = {"Authorization": f"Bearer {seeded.tokens[reader]}"}
+    pairs = [
+        (
+            f"/projects/P123/awp/cwps/{AWP_RESTRICTED_CWP}",
+            "/projects/P123/awp/cwps/P123-CWP-PIP-8888",
+        ),
+        (f"/projects/P123/awp/wbs/{AWP_RESTRICTED_NODE}", "/projects/P123/awp/wbs/8.8.8"),
+    ]
+    if reader == "bob":
+        pairs.append(
+            (
+                f"/projects/P123/awp/cwps/{AWP_PRIVATE_CWP}",
+                "/projects/P123/awp/cwps/P123-CWP-PIP-8888",
+            )
+        )
+    for hidden_path, absent_path in pairs:
+        hidden = client.get(hidden_path, headers=headers)
+        absent = client.get(absent_path, headers=headers)
+        assert hidden.status_code == absent.status_code == 404, hidden_path
+        assert hidden.json()["error"] == absent.json()["error"]
+        key_a, key_b = hidden_path.rsplit("/", 1)[1], absent_path.rsplit("/", 1)[1]
+        assert hidden.text.replace(key_a, "X") == absent.text.replace(key_b, "X"), hidden_path
+        assert sorted(hidden.headers) == sorted(absent.headers)
+
+
+def test_the_awp_commands_that_take_an_id_answer_a_hidden_record_as_nothing(
+    harness: Harness, seeded: Seed, awp_seeded: AwpSeed
+) -> None:
+    """The ids the awp commands take: a hidden correspondence item or classed awp record answers
+    as an id that names nothing (status, error and text but for the id)."""
+    client = harness.client_for(None)
+    headers = {"Authorization": f"Bearer {seeded.tokens['bob']}"}
+    cases = [
+        ("RetireWbsNode", {"node": None, "reason": "x"}),
+        ("ReviseWbsNode", {"node": None, "title": "x"}),
+        ("MapWbsToCostCodes", {"node": None, "allocations": []}),
+        ("RetireCwa", {"cwa": None, "reason": "x"}),
+        ("StartCwpDevelopment", {"cwp": None}),
+        ("VoidCwp", {"id": None, "reason": "x"}),
+        ("UpdateExternalPackage", {"id": None, "status_text": "x"}),
+    ]
+    hidden_ids = [
+        seeded.ids["restricted"],
+        awp_seeded.ids["restricted_cwp"],
+        awp_seeded.ids["node"],
+    ]
+    for name, body in cases:
+        field = next(k for k, v in body.items() if v is None)
+        for hidden_id in hidden_ids:
+            answers = [
+                _answer(client, name, {**body, field: target}, headers)
+                for target in (hidden_id, FAKE_ID)
+            ]
+            assert answers[0].status_code == answers[1].status_code, (name, answers[0].text[:200])
+            assert answers[0].text.replace(hidden_id, FAKE_ID) == answers[1].text, (name, hidden_id)

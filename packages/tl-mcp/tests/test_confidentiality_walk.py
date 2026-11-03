@@ -206,3 +206,86 @@ def test_no_resource_shows_what_the_actor_may_not_read(
     assert calls >= 8
     seen = resource_text(server, f"tl://record/project:P123/{hidden.numbers['open']}")
     assert hidden.numbers["open"] in seen or "open" in seen.lower()
+
+
+# --- awp (P2-I1-T11): hidden answers like missing -----------------------------------------------
+#
+# No awp record has a class (D22). The test gives some one with a test-only confidential source
+# (a table of ids and classes): a restricted package, node and area, which an agent and a plain
+# user may not read.
+
+
+@pytest.fixture
+def awp_classed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, db: DbTarget
+) -> Iterator[tuple[McpHarness, dict[str, str]]]:
+    from sqlalchemy import bindparam, text
+    from test_awp_tools import seed_awp
+    from tl_adapters.db import open_uow
+    from tl_core import confidentiality as cf
+    from tl_core.modules import ConfidentialSource, confidential_sources
+
+    monkeypatch.delenv("TL_SCHEMA_DIR", raising=False)
+    env = McpHarness.build(tmp_path, target=db)
+    world = seed_awp(env.db)
+    cwps = {
+        r["key"]: r["id"]
+        for r in world.rows("SELECT id, key FROM cur_core_record WHERE type = 'awp.CWP'")
+    }
+    ids = {
+        "cwp": cwps["P123-CWP-PIP-0002"],
+        "node": world.id_of("1.1.2"),
+        "area": world.id_of("A2", "awp.CWA"),
+    }
+    types = ["awp.WBSNode", "awp.CWA", "awp.CWP", "awp.EWPRef", "awp.PWPRef"]
+    with open_uow(world.db) as uow:
+        conn = uow.conn()
+        conn.execute(text("CREATE TABLE t11_class (id TEXT PRIMARY KEY, cls TEXT NOT NULL)"))
+        found = conn.execute(
+            text("SELECT id FROM cur_core_record WHERE type IN :t").bindparams(
+                bindparam("t", expanding=True)
+            ),
+            {"t": types},
+        )
+        for (record_id,) in found.all():
+            cls = "restricted" if record_id in ids.values() else "internal"
+            conn.execute(
+                text("INSERT INTO t11_class (id, cls) VALUES (:i, :c)"), {"i": record_id, "c": cls}
+            )
+    source = ConfidentialSource(
+        record_types=frozenset(types), table="t11_class", id_column="id", class_column="cls"
+    )
+    monkeypatch.setattr(cf, "confidential_sources", lambda: [*confidential_sources(), source])
+    try:
+        yield env, ids
+    finally:
+        env.close()
+
+
+@pytest.mark.parametrize("actor", ["agent:triage", "user:bob"])
+def test_the_awp_read_tools_answer_a_hidden_record_as_a_missing_one(
+    awp_classed: tuple[McpHarness, dict[str, str]], actor: str, tmp_path: Path
+) -> None:
+    env, ids = awp_classed
+    server = build_server(env.factory, actor=actor, lake_dir=tmp_path / "lake")
+    listed = text_of(server, "list_cwps", {"project": "P123"})
+    assert "P123-CWP-PIP-0001" in listed  # the actor reads some
+    assert "P123-CWP-PIP-0002" not in listed
+    assert ids["cwp"] not in listed
+    tree = text_of(server, "wbs_tree", {"project": "P123"})
+    assert '"code":"1.1.1"' in tree
+    assert '"code":"1.1.2"' not in tree
+    assert ids["node"] not in tree
+    path = text_of(server, "path_of_construction", {"project": "P123"})
+    assert '"cwa":"A1"' in path
+    assert '"cwa":"A2"' not in path
+    assert ids["area"] not in path
+    hidden = text_of(server, "get_cwp", {"project": "P123", "number": "P123-CWP-PIP-0002"})
+    absent = text_of(server, "get_cwp", {"project": "P123", "number": "P123-CWP-PIP-8888"})
+    assert hidden.startswith("ERROR")
+    assert hidden.replace("P123-CWP-PIP-0002", "X") == absent.replace("P123-CWP-PIP-8888", "X")
+    detail = text_of(server, "get_cwp", {"project": "P123", "number": "P123-CWP-PIP-0003"})
+    assert '"cwa":null' in detail  # the hidden area is left off the package, not named
+    assert ids["area"] not in detail
+    for state in ("Planned", "Closed"):
+        assert ids["cwp"] not in text_of(server, "list_cwps", {"project": "P123", "state": state})
