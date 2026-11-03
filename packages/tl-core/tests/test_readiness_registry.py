@@ -50,8 +50,8 @@ def load(*entries: Entry) -> dict[str, ReadinessCheck]:
     return load_checks(entries)  # type: ignore[arg-type]
 
 
-def test_no_check_is_installed_by_default() -> None:
-    assert load_checks() == {}
+def test_only_the_materials_check_is_installed_by_default() -> None:
+    assert set(load_checks()) == {"materials_reserved"}
     assert load_checks([]) == {}
 
 

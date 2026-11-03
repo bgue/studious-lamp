@@ -1,0 +1,81 @@
+# Acme materials standards, first edition (brief 9 M4). Data only: the code lists of the materials module.
+# `StockUom` is the unit of measure of stock and is a list of its own: the engineering `UnitOfMeasure` is
+# closed and has no `EA`, and stock needs counts (each, set, box, roll) beside lengths and masses. Quantity
+# columns of the materials module use `StockUom`, never `UnitOfMeasure`. There is no conversion between units.
+standards: co.acme.materials
+version: "1.0.0"
+title: Acme materials standards
+description: "The code lists of the materials module for the sample company Acme: item categories, location kinds, receipt conditions, movement reasons and stock units."
+owner: "role:standards-steward"
+effective_from: "2026-01-01"
+
+code_lists:
+  ItemCategory:
+    label: Item category
+    definition: "The class of material an item belongs to; it decides, with the project setting, whether a receipt needs a mill test report."
+    value_list_policy: extensible
+    values:
+      - {code: pipe, label: Pipe}
+      - {code: fitting, label: Pipe fitting}
+      - {code: flange, label: Flange}
+      - {code: valve, label: Valve}
+      - {code: bolting, label: "Bolts, nuts and studs"}
+      - {code: structural, label: Structural steel}
+      - {code: plate, label: Plate}
+      - {code: cable, label: Cable}
+      - {code: instrument, label: Instrument}
+      - {code: electrical, label: Electrical item}
+      - {code: insulation, label: Insulation}
+      - {code: paint, label: Paint and coating}
+      - {code: consumable, label: Consumable}
+      - {code: concrete, label: Concrete and grout}
+      - {code: other, label: Other}
+
+  LocationKind:
+    label: Location kind
+    definition: "What kind of place a stock location is in the project's location tree."
+    value_list_policy: closed
+    values:
+      - {code: project, label: "The project (root of the tree)"}
+      - {code: warehouse, label: Warehouse}
+      - {code: laydown, label: Laydown area}
+      - {code: toolcrib, label: Tool crib}
+      - {code: gang_box, label: Gang box}
+
+  ConditionCode:
+    label: Condition on receipt
+    definition: "The state an item was found in when the delivery was received."
+    value_list_policy: closed
+    values:
+      - {code: good, label: Good}
+      - {code: damaged, label: Damaged}
+      - {code: wrong_item, label: Wrong item}
+      - {code: nonconforming, label: Nonconforming}
+
+  MovementReason:
+    label: Movement reason
+    definition: "Why stock was adjusted or scrapped."
+    value_list_policy: extensible
+    values:
+      - {code: count_correction, label: Count correction}
+      - {code: damaged, label: Damaged}
+      - {code: lost, label: Lost}
+      - {code: found, label: Found}
+      - {code: wrong_item, label: Wrong item delivered}
+      - {code: expired, label: Expired}
+      - {code: other, label: Other}
+
+  StockUom:
+    label: Stock unit of measure
+    definition: "The unit in which a stock item is counted or measured, with its UCUM code and dimension."
+    value_list_policy: closed
+    values:
+      - {code: EA, label: Each, attributes: {ucum: "1", dimension: count}}
+      - {code: SET, label: Set, attributes: {ucum: "1", dimension: count}}
+      - {code: BOX, label: Box, attributes: {ucum: "1", dimension: count}}
+      - {code: ROLL, label: Roll, attributes: {ucum: "1", dimension: count}}
+      - {code: L, label: Litre, attributes: {ucum: L, dimension: volume}}
+      - {code: m, label: Metre, attributes: {ucum: m, dimension: length}}
+      - {code: kg, label: Kilogram, attributes: {ucum: kg, dimension: mass}}
+      - {code: lb, label: Pound (mass), attributes: {ucum: "[lb_av]", dimension: mass}}
+      - {code: m3, label: Cubic metre, attributes: {ucum: m3, dimension: volume}}

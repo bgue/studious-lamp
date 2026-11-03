@@ -1,0 +1,46 @@
+# File slots of a receipt (brief 9 M4, 20.1): the mill test reports (MTRs), certificates, the packing slip
+# and photos of the delivery. All keep every upload (cardinality many). No slot has `required_in_states`:
+# the MTR is required only when an item's category is in the project setting
+# `materials.receipt.mtr_required_categories`, which Accept checks.
+id: https://example.org/throughline/fixtures/files/materials-receipt
+name: tl_fixture_materials_receipt_files
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+default_range: string
+annotations:
+  tl:module: materials
+
+classes:
+  Receipt:
+    annotations:
+      tl:file_slots:
+        - name: mtr
+          label: Mill test report
+          cardinality: many
+          accepted_types:
+            - application/pdf
+            - image/*
+          max_size: 52428800
+          retention_class: project
+        - name: certificate
+          label: Certificate
+          cardinality: many
+          max_size: 52428800
+          retention_class: project
+        - name: packing_slip
+          label: Packing slip
+          cardinality: many
+          max_size: 52428800
+          retention_class: project
+        - name: photo
+          label: Photo of the delivery
+          cardinality: many
+          accepted_types:
+            - image/*
+          max_size: 52428800
+          capture_hint: camera
+          retention_class: project

@@ -100,6 +100,7 @@ from tl_mod_correspondence.commands import API_COMMANDS as CORRESPONDENCE_COMMAN
 from tl_mod_cost.commands import API_COMMANDS as COST_COMMANDS
 from tl_mod_documents.commands import API_COMMANDS as DOCUMENT_COMMANDS
 from tl_mod_engineering.commands import API_COMMANDS
+from tl_mod_materials.commands import MATERIALS_COMMANDS
 from tl_mod_schedule.commands import API_COMMANDS as SCHEDULE_COMMANDS
 from tl_mod_schemareg.commands import API_COMMANDS as SCHEMAREG_COMMANDS
 
@@ -219,6 +220,7 @@ COMMANDS: tuple[CommandSpec, ...] = (
     *_module_specs("correspondence", CORRESPONDENCE_COMMANDS),
     *_module_specs("awp", AWP_COMMANDS),
     *_module_specs("cost", COST_COMMANDS),
+    *_module_specs("materials", MATERIALS_COMMANDS),
     *_module_specs("schedule", SCHEDULE_COMMANDS),
     *_module_specs("schemareg", SCHEMAREG_COMMANDS),
 )

@@ -1,0 +1,38 @@
+# Workflow of a receipt (brief 9 M4). A receipt is Received when the delivery is booked, Inspected once
+# someone has looked at it, Accepted when its lines become stock (one lot per line), Rejected when the
+# delivery is refused (from Received or Inspected), Void when it was booked in error before a decision.
+# The moves are made by the materials module's commands (CreateReceipt, InspectReceipt, AcceptReceipt,
+# RejectReceipt, VoidReceipt); people cannot run them directly. No role guards: who may do what is the
+# access word of each command (ADR-0013). The `expected_links` guard on accept is the hook for the
+# receiving inspection of Phase 3 quality (P2-Q8 A): no link is expected of a receipt until then, so
+# the guard passes (n/a).
+id: materials.receipt
+version: 1
+record_type: materials.Receipt
+scope: company
+initial_state: Received
+states:
+  - name: Received
+  - name: Inspected
+  - name: Accepted
+  - name: Rejected
+  - name: Void
+transitions:
+  - name: inspect
+    label: Inspect the delivery
+    from: [Received]
+    to: Inspected
+  - name: accept
+    label: Accept the receipt
+    from: [Inspected]
+    to: Accepted
+    guards:
+      - kind: expected_links
+  - name: reject
+    label: Reject the receipt
+    from: [Received, Inspected]
+    to: Rejected
+  - name: void
+    label: Void the receipt
+    from: [Received, Inspected]
+    to: Void
