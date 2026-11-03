@@ -242,6 +242,11 @@ WALK: dict[tuple[str, str], Row] = {
     # --- T14 rows (items): add them under this line
 
     # --- T14b rows (locations): add them under this line
+    ("GET", "/web/p/{project}/locations"): Row(
+        "location codes and titles, kinds, parent paths, lot keys and heat numbers, item codes, "
+        "on-hand quantities, child location codes and titles",
+        _page("locations"),
+    ),
 
     ("GET", "/web/p/{project}/{log}/panel/{number:path}"): Row(
         "the panel of one row of a log: details, files, clocks, links", _panels
