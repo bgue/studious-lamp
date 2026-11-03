@@ -219,6 +219,11 @@ WALK: dict[tuple[str, str], Row] = {
     # --- T12 rows (stock): add them under this line
 
     # --- T12b rows (movements): add them under this line
+    ("GET", "/web/p/{project}/movements"): Row(
+        "movement dates and kinds, lot keys, item codes, signed quantities, locations, who, "
+        "reasons",
+        _page("movements"),
+    ),
 
     # --- T13 rows (receipts): add them under this line
 
