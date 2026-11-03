@@ -184,6 +184,8 @@ class PathScreen(LogScreen[PathRow]):
             self.say(NO_EARLIER)
             return
         self.wanted = self.view.version - 1
+        if self.wanted == 1:
+            self.compare = False  # version 1 has no earlier version to compare with: the steps
         self.reload()
 
     def action_next_version(self) -> None:

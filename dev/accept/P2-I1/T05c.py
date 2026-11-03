@@ -191,6 +191,21 @@ def check_keys() -> None:
         await pilot.press("v")
         await settle(pilot)
         need(not screen.compare and len(screen.shown) == 2, "v again shows the steps")
+        await pilot.press("v")
+        await settle(pilot)
+        need(screen.compare, "v turns the comparison on again")
+        await pilot.press("left_square_bracket")
+        await settle(pilot)
+        need(
+            screen.view is not None and screen.view.version == 1,
+            "[ with compare on shows version 1",
+        )
+        need(not screen.compare, "[ to version 1 turns the comparison off")
+        need(len(screen.shown) == 1, f"version 1 shows its steps: {len(screen.shown)}")
+        await pilot.press("right_square_bracket")
+        await settle(pilot)
+        need(screen.view is not None and screen.view.version == 2, "] shows version 2 again")
+        need(len(screen.shown) == 2, f"version 2 shows its steps again: {len(screen.shown)}")
         await pilot.press("left_square_bracket")
         await settle(pilot)
         await pilot.press("v")
