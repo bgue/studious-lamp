@@ -52,7 +52,7 @@ def as_json(value: Any) -> Any:
 
 
 def test_the_mirror_count_is_pinned(k: Any) -> None:
-    assert len(MIRRORS) == 31, (
+    assert len(MIRRORS) == 32, (
         "MIRRORS in tl_web/reads.py changed size: twin tickets raise this number in their own "
         "ticket (and add the read to this test's CASES)"
     )
@@ -140,6 +140,7 @@ def cases(w: Any) -> dict[str, tuple[tuple[Any, ...], dict[str, Any], dict[str, 
         "wbs_tree": ((P,), {}, {"project": P}),
         "get_wbs_node": ((P, "1.1"), {}, {"project": P, "code": "1.1"}),
         "get_path": ((P,), {}, {"project": P}),
+        "list_path_versions": ((P,), {}, {"project": P}),
         "list_packages": ((P,), {}, {"project": P}),
     }
 

@@ -89,6 +89,7 @@ MIRRORS: dict[str, str] = {
     "wbs_tree": "wbs_tree",
     "get_wbs_node": "get_wbs_node",
     "get_path": "get_path",
+    "list_path_versions": "list_path_versions",
     "list_packages": "list_packages",
 }
 
@@ -419,6 +420,9 @@ class WebReadClient:
 
     def get_path(self, project: str, version: int | None = None) -> Any:
         return self._call(awp_routes.get_path, project=project, version=version)
+
+    def list_path_versions(self, project: str) -> Any:
+        return self._call(awp_routes.list_path_versions, project=project)
 
     def list_packages(self, project: str, *, kind: str | None = None) -> Any:
         return self._call(awp_routes.list_packages, project=project, kind=kind)
