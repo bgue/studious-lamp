@@ -28,6 +28,7 @@ SHOTS = ROOT / ".accept" / "shots"
 PROJECT = "P123"
 ACTOR = "user:alice"
 SIZES = ((80, 30), (170, 40))
+KEYS_TEXT = "Ctrl+S save  Enter add line  Del remove line  Esc close"  # the keys row, pinned
 PO_KEY = "4471-2"  # a seed PO line for one item; both lines of the receipt carry that item
 LOCATION = "L2"
 BAD_LOCATION = "ZZ9"
@@ -37,7 +38,7 @@ sys.path.insert(0, str(ROOT / "packages" / "tl-tui" / "tests"))  # the Textual t
 
 from helpers import screen_text, settle, static_of  # noqa: E402
 from textual.pilot import Pilot  # noqa: E402
-from textual.widgets import Input  # noqa: E402
+from textual.widgets import DataTable, Input  # noqa: E402
 from tl_adapters.sqlite.factory import SqliteUowFactory  # noqa: E402
 from tl_mod_materials.handlers.receipts import CreateReceipt  # noqa: E402
 from tl_mod_materials.limits import MAX_RECEIPT_LINES  # noqa: E402
@@ -301,12 +302,54 @@ def screen_check(size: tuple[int, int]) -> None:
                 expect(len(screen.lines) == 3, f"{len(screen.lines)} lines after three adds")
                 screen.query_one("#entry-lines").focus()
                 expect(
-                    "[Del] Remove line" in screen_text(app), "the keys row lacks [Del] Remove line"
+                    KEYS == KEYS_TEXT and static_of(screen, "#entry-keys") == KEYS_TEXT,
+                    f"the keys row is {static_of(screen, '#entry-keys')!r}",
                 )
-                await pilot.press("delete")  # removes the highlighted (first) line
+                expect(
+                    "Del&#160;remove&#160;line" in app.export_screenshot(title="New receipt"),
+                    "the SVG keys row lacks Del remove line",
+                )
+                passed("the keys row reads Ctrl+S save  Enter add line  Del remove line  Esc close")
+                table = screen.query_one("#entry-lines", DataTable)
+                await pilot.press("down")  # to line 2, the 3.5 line
                 await settle(pilot)
-                expect(len(screen.lines) == 2, f"{len(screen.lines)} lines after Delete")
-                expect(screen.lines[0]["qty"] == "3.5", f"the first line is {screen.lines[0]}")
+                await pilot.press("delete")  # removes line 2; the old line 3 moves up under it
+                await settle(pilot)
+                expect(len(screen.lines) == 2 and table.row_count == 2, "not two rows after Delete")
+                expect(table.cursor_row == 1, f"the cursor is on row {table.cursor_row}, not 1")
+                expect(screen.lines[1]["qty"] == "1", f"row 1 is {screen.lines[1]}, not line 3")
+                passed("Delete on line 2 of 3: two rows, the cursor stays on row 1 (old line 3)")
+                # a third line, then Delete on the last of three rows: the cursor must stay on
+                # row 1 (a reset to row 0 after clear() would pass a two-row check)
+                screen.query_one("#l-item", Input).focus()
+                await type_into(pilot, po_line.item_code)
+                await pilot.press("enter")  # to Qty
+                await type_into(pilot, "2")
+                await pilot.press("enter", "enter", "enter")
+                await settle(pilot)
+                expect(len(screen.lines) == 3, f"{len(screen.lines)} lines after the third add")
+                screen.query_one("#entry-lines").focus()
+                await pilot.press("down")  # to row 2, the new last row
+                await settle(pilot)
+                expect(table.cursor_row == 2, f"the cursor is on row {table.cursor_row}, not 2")
+                await pilot.press("delete")  # the last row goes; the cursor moves up to row 1
+                await settle(pilot)
+                expect(len(screen.lines) == 2 and table.row_count == 2, "not two rows after Delete")
+                expect(table.cursor_row == 1, f"the cursor is on row {table.cursor_row}, not 1")
+                passed("Delete on the last row of three: the cursor is on the new last row (row 1)")
+                await pilot.press("up")  # row 0: its line goes, leaving one line for the re-add
+                await settle(pilot)
+                await pilot.press("delete")
+                await settle(pilot)
+                expect(len(screen.lines) == 1, f"{len(screen.lines)} lines after the row-0 Delete")
+                # the line count goes back to two, so the save below books two lines
+                screen.query_one("#l-item", Input).focus()
+                await type_into(pilot, po_line.item_code)
+                await pilot.press("enter")  # to Qty
+                await type_into(pilot, "3.5")
+                await pilot.press("enter", "enter", "enter")
+                await settle(pilot)
+                expect(len(screen.lines) == 2, f"{len(screen.lines)} lines after the re-add")
                 await pilot.press("ctrl+s")
                 await settle(pilot)
                 expect(

@@ -42,7 +42,7 @@ MAX_LINES = 50
 #: The most PO line or location hint lines shown under a field.
 HINT_LIMIT = 5
 DEFAULT_CONDITION = "good"
-KEYS = "Ctrl+S save  Enter add line  [Del] Remove line  Esc close"
+KEYS = "Ctrl+S save  Enter add line  Del remove line  Esc close"
 
 ITEM_REQUIRED_MESSAGE = "Pick an item of this project."
 LOCATION_MESSAGE = "Pick a location of this project."

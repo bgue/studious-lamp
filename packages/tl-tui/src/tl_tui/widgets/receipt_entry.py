@@ -225,13 +225,14 @@ class ReceiptEntryScreen(ModalScreen[None]):
 
     def _refresh_lines(self) -> None:
         table = self.query_one("#entry-lines", DataTable)
+        row = table.cursor_row  # table.clear() puts the cursor back on row 0
         table.clear()
         for number, line in enumerate(self.lines, start=1):
             item = self.items.get(line["item"])
             uom = item.base_uom if item is not None else None
             table.add_row(str(number), line_summary(line, uom), key=str(number))
         if self.lines:
-            table.move_cursor(row=min(table.cursor_row or 0, len(self.lines) - 1))
+            table.move_cursor(row=min(row or 0, len(self.lines) - 1))
 
     def action_save(self) -> None:
         """Send ``CreateReceipt``; a refusal stays on the form with what was typed."""
