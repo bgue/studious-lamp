@@ -1,0 +1,67 @@
+id: https://example.org/throughline/modules/awp/rollup
+name: tl_mod_awp_rollup
+title: Budget rollup (brief 9, M3)
+description: >-
+  The budget rollup of a WBS node, kept per node and cost code. Written by the server job `awp.rollup` only; never edited. Spec: docs/build-spec/specs/m3-wbs-cwp.md section 4.
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+  - ../../core/annotations
+  - ../../core/record
+default_range: string
+annotations:
+  tl:module: awp
+
+classes:
+  AwpRollup:
+    description: >-
+      One figure of the rollup of a WBS node. Not a record: a row of `total`, `cost_code` or `unallocated`
+      lines per node and measure, replaced when a run finds the figure changed. Values are decimal text with
+      one decimal. `as_of_seq` is the ledger position the run read and `run_id` names the run.
+    annotations:
+      tl:current_state: true
+      tl:table: cur_awp_rollup
+      tl:ix_subject: "scope, subject_kind, subject_id, measure"
+      tl:ix_run: "run_id"
+    attributes:
+      row_id:
+        identifier: true
+        required: true
+        description: "`<subject id>:<measure>:<line>:<cost code id or ->`."
+      scope:
+        range: ScopeId
+        required: true
+        description: The project scope, `project:<id>`.
+      subject_kind:
+        required: true
+        description: What the figure is about; `wbs_node` (the only kind in this increment).
+      subject_id:
+        range: Ulid
+        required: true
+        description: The record the figure is about (the `awp.WBSNode` for `wbs_node`).
+      line:
+        required: true
+        description: "`total`, `cost_code` or `unallocated`."
+      cost_code_id:
+        range: Ulid
+        description: The `cost.CostCode`; set only on `cost_code` lines.
+      measure:
+        required: true
+        description: "`budget_hours` (a later increment adds `earned_hours`)."
+      value:
+        required: true
+        description: 'The figure, decimal text with one decimal (`"1250.0"`).'
+      as_of_seq:
+        range: integer
+        required: true
+        description: The ledger `seq` the run that wrote the figure read.
+      run_id:
+        required: true
+        description: The id of the run that wrote the figure.
+      last_seq:
+        range: integer
+        required: true
+        description: Ledger `seq` of the event that wrote the row.
