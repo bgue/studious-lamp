@@ -646,6 +646,38 @@ class TlApp(App[None]):
             return
         self.push_screen(TagRegisterScreen(self.client, project))
 
+    def _push_materials(self, which: str) -> None:
+        """Open a materials log of this project (P2-I3; palette entries, no key yet)."""
+        if self._modal_open():
+            return
+        from tl_core.settings.layers import project_of_scope
+
+        project = project_of_scope(self.scope)
+        if project is None:
+            self.notify("The materials logs need a project.", severity="warning")
+            return
+        if which == "stock":
+            from tl_tui.widgets.stock_screen import StockScreen
+
+            self.push_screen(StockScreen(self.client, project))
+        elif which == "movements":
+            from tl_tui.widgets.movement_screen import MovementLogScreen
+
+            self.push_screen(MovementLogScreen(self.client, project))
+        else:
+            from tl_tui.widgets.mto_screen import MtoLinesScreen
+
+            self.push_screen(MtoLinesScreen(self.client, project))
+
+    def action_stock(self) -> None:
+        self._push_materials("stock")
+
+    def action_movements(self) -> None:
+        self._push_materials("movements")
+
+    def action_mto_lines(self) -> None:
+        self._push_materials("mto")
+
     def action_settings(self) -> None:
         """about:config: the settings of this project, with their origin and history."""
         if self._modal_open():

@@ -29,6 +29,10 @@ APP_COMMANDS: tuple[AppCommand, ...] = (
     AppCommand("feed", "Activity feed of the open record, or of the project", "F", "feed"),
     AppCommand("post", "Post to the feed", "p", "post"),
     AppCommand("tags", "Tag register: the project's tags and what they lack", "F8", "tags"),
+    # P2-I3 materials logs: palette only until the key map is settled with the registry glue.
+    AppCommand("stock", "Stock: lots on hand by location", "", "stock"),
+    AppCommand("movements", "Movements: receipts, issues, transfers, holds", "", "movements"),
+    AppCommand("mto-lines", "Take-off lines: required, reserved, issued, short", "", "mto_lines"),
     AppCommand("settings", "about:config: settings and their history", "F9", "settings"),
     AppCommand("admin", "Accounts and agent tokens (admins)", "F10", "admin"),
     AppCommand("review", "Review queue: accept or reject proposed values", "Ctrl+R", "review"),
