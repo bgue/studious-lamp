@@ -2,7 +2,7 @@
 //   node tools/build-single-file.mjs [--all] [--no-ifc] [--keep] [--skip-vite]
 // Reads  web/.single-build/  (index.html, one JS chunk, one CSS file)
 // Writes web/dist-single/xray-viewer.html  (web/dist-single/xray-viewer-no-ifc.html with --no-ifc)
-// Embedded models: building, fzk-haus, plumbing (+ synth5k with --all). The scratch directory is removed unless --keep.
+// Embedded models: building, fzk-haus, plumbing, debris-demo (+ synth5k with --all). The scratch directory is removed unless --keep.
 // IFC reader: the web-ifc wasm is embedded as base64 (window.__xrayIfcWasm) and the worker is already inside the JS chunk
 // (see src/model/ifcRuntime.single.ts). --no-ifc builds without the reader: no wasm, no worker, no web-ifc code.
 // --template [--variant ifc|none] builds the templates used by tools/xray-pack.mjs instead: web/dist-single/xray-template-ifc.html
@@ -41,6 +41,7 @@ const MODELS = template ? [] : [
   { name: 'building', src: 'buildingSMART Simple-Scene: Building-Structural + Building-Architecture + Building-Hvac (IFC4)' },
   { name: 'fzk-haus', src: 'KIT FZK-Haus (AC20-FZK-Haus.ifc, from the IfcOpenShell repository)' },
   { name: 'plumbing', src: 'buildingSMART Simple-Scene: Infra-Plumbing (IFC4)' },
+  { name: 'debris-demo', src: 'synthetic 400-element building with scattered debris for the cleanup tool (tools/synth_model.py --debris 24)' },
   ...(all ? [{ name: 'synth5k', src: 'synthetic 5,000-element benchmark model (tools/synth_model.py)' }] : []),
 ];
 

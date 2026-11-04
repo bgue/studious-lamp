@@ -1622,7 +1622,7 @@ export const CONTROL_HELP: Record<string, HelpEntry> = {
     'Report: Appendix L, Hover info and properties',
   ),
   'Hover info/property filter': h(
-    'The text box lists patterns, in priority order, that choose the rows of the card. Patterns match the whole key and ignore case. The default list covers object type, external flag, load bearing, fire rating and reference. It also covers the length, width, height and net volume of any quantity set that starts with Qto.',
+    'The text box lists patterns, in priority order, that choose the rows of the card. Patterns match the whole key and ignore case. The default list covers object type, external flag, load bearing, fire rating and reference. It also covers length, width, height and net volume in quantity sets. The set name must start with Qto or end with Quantities.',
     'Type the names of the facts that you care about and the card shows those first. A star stands for any text.',
     'Separate patterns with commas. Use * for any run of characters. If no pattern matches an element, the card shows its first rows.',
     'Report: Appendix L, Hover info and properties',

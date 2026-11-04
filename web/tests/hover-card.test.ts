@@ -22,7 +22,7 @@ describe('property filter', () => {
   it('parses comma separated patterns', () => {
     expect(parsePatterns(' a.b ,, *.c , ')).toEqual(['a.b', '*.c']);
     expect(parsePatterns('')).toEqual([]);
-    expect(parsePatterns(DEFAULT_PROPERTY_FILTER).length).toBe(9);
+    expect(parsePatterns(DEFAULT_PROPERTY_FILTER).length).toBe(13);
   });
   it('matches globs over the whole key, case-insensitively, with literal dots', () => {
     expect(matchesGlob('Pset_WallCommon.IsExternal', '*.IsExternal')).toBe(true);
@@ -41,6 +41,9 @@ describe('property filter', () => {
       'Qto_WallBaseQuantities.Length', 'Qto_WallBaseQuantities.Width', 'Qto_WallBaseQuantities.Height', 'Qto_WallBaseQuantities.NetVolume',
     ]);
     expect(selectRows(props, ['Qto*', 'Qto_WallBaseQuantities.Width']).length).toBe(4);
+    // ArchiCAD / IFC2x3 spelling: the set is named BaseQuantities
+    const archi = { 'Attr.ObjectType': 'Wall', 'BaseQuantities.Length': 4.2, 'BaseQuantities.Width': 0.3, 'BaseQuantities.GrossArea': 9, 'BaseQuantities.NetVolume': 1.2 };
+    expect(selectRows(archi, parsePatterns(DEFAULT_PROPERTY_FILTER), 99).map(([k]) => k)).toEqual(['Attr.ObjectType', 'BaseQuantities.Length', 'BaseQuantities.Width', 'BaseQuantities.NetVolume']);
     expect(selectRows(props, ['*.Reference', '*']).map(([k]) => k)[0]).toBe('Pset_WallCommon.Reference');
   });
   it('caps at the row limit and handles empty input', () => {

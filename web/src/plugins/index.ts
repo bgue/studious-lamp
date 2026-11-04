@@ -18,10 +18,11 @@ import { penetrationsPlugin } from './penetrations';
 import { measurePlugin } from './measure';
 import { bcfPlugin } from './bcf';
 import { pointcloudPlugin } from './pointcloud';
+import { xrPlugin } from './xr';
 import { bootPlugin } from './boot';
 import { helpPlugin } from './help';
 import { panelDockPlugin } from './panelDock';
 import { exportParamsPlugin } from './exportParams';
 
 // help runs after every panel-building plugin so it can see all controls; panelDock last so it wraps the finished panel.
-export const PLUGINS: AppPlugin[] = [fileLoaderPlugin, classStylesPlugin, sidebarPlugin, cinematicPlugin, oitPlugin, viewModesPlugin, imagingPlugin, sectionPlugin, cleanupPlugin, hoverInfoPlugin, presetsPlugin, penetrationsPlugin, measurePlugin, bcfPlugin, pointcloudPlugin, toolbarPlugin, keymapPlugin, exportParamsPlugin, helpPlugin, panelDockPlugin, bootPlugin];
+export const PLUGINS: AppPlugin[] = [fileLoaderPlugin, classStylesPlugin, sidebarPlugin, cinematicPlugin, oitPlugin, viewModesPlugin, imagingPlugin, sectionPlugin, cleanupPlugin, hoverInfoPlugin, presetsPlugin, penetrationsPlugin, measurePlugin, bcfPlugin, pointcloudPlugin, xrPlugin, toolbarPlugin, keymapPlugin, exportParamsPlugin, helpPlugin, panelDockPlugin, bootPlugin];

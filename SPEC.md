@@ -58,7 +58,14 @@ xray-ref/
     src/model/loader.ts        glb + json -> SceneModel + geometry          [Agent B]
     src/model/ifcImport.ts     RawModel[] -> glb + sidecar -> LoadedModel; worker client   [Agent P]
     src/model/ifcRaw.ts        web-ifc extraction to RawModel (worker side)                [Agent P]
+    src/model/ifcBuild.ts, ifcEdges.ts, ifcBvh.ts, mergedArrays.ts   direct path: flat arrays, edges, serialised BVH in the worker
+    src/model/ifcProps.ts      property extraction rules shared with tools/glb_common.py
     src/plugins/fileLoader.ts  "Open model" panel folder, file picker, drag and drop       [Agent P]
+    src/plugins/*.ts           one module per feature, listed in plugins/index.ts (see "Extensions")
+    src/input/, src/tools/, src/ui/, src/presets/, src/bcf/, src/cleanup/, src/penetrations/, src/measure/,
+    src/viewModes/, src/imaging/, src/section/, src/pointcloud/, src/cinematic/   feature code and pure maths
+    tools/xray-pack.mjs        (under web/) model + viewer -> one HTML file
+    web/docs-features/*.md     one document per feature; docs/SETTINGS.md generated tooltips table
     src/render/geometry.ts     GeometryProvider over merged geometry + BVH  [Agent B]
     src/render/renderer.ts     ghost pass, focus pass, edge pass            [Agent B]
     src/app.ts, index.html     integration, UI, debug overlay               [Agent D]
@@ -78,6 +85,8 @@ xray-ref/
   the shift is recorded in `model.json.originShift`.
 - Base colour per element stored in `model.json.elements[i].color` (RGBA 0..1), not in glTF materials,
   so the viewer owns all material state.
+- The viewer matches a node to a sidecar record by `extras.id`, else by `node.name` = `globalId`. The element id used everywhere
+  at run time is the dense index of the record in `elements` (a record's own `id` should equal it).
 
 ### model.json (sidecar)
 
@@ -99,7 +108,8 @@ xray-ref/
       "material": "Concrete",
       "color": [0.8, 0.8, 0.8, 1.0],
       "bounds": [minx, miny, minz, maxx, maxy, maxz],
-      "file": "Building-Structural.ifc"
+      "file": "Building-Structural.ifc",
+      "props": { "Pset_WallCommon.IsExternal": true, "Qto_WallBaseQuantities.Length": 4.17 }
     }
   ],
   "relations": {
@@ -107,15 +117,29 @@ xray-ref/
     "fills": [[openingExpressId, fillerId]],
     "hosts": [[fillerId, hostId]],
     "ports":  [[elementIdA, elementIdB]],
-    "systems": [ { "name": "Supply Air", "elements": [3, 4, 5] } ]
-  }
+    "systems": [ { "name": "Supply Air", "elements": [3, 4, 5] } ],
+    "openings": [ { "expressId": 456, "host": 7, "bounds": [minx, miny, minz, maxx, maxy, maxz] } ]
+  },
+  "styles": { "Steel": { "alphaMax": 0.8 } },
+  "materialAliases": { "Steel": ["IfcMember", "IfcBeam:steel"] }
 }
 ```
+
+Optional fields, all tolerated when absent (the loader supplies defaults; `schema` itself is not enforced for a glb with a sidecar):
+`elements[].props`, `relations.openings`, `styles` and `materialAliases` (class styles baked in by `--config`, see README), `file`,
+`material`, `name`. A record's bounds are kept as authored when they are finite, ordered and not all zero; otherwise they are taken
+from the geometry.
 
 - `bounds` are in the glb coordinate frame (after shift and Y-up conversion).
 - `hosts` is derived by the converter from voids and fills: filler -> opening -> host.
 - `ports` are element-level pairs derived from IfcRelConnectsPorts / IfcDistributionPort.
-- Opening elements (IfcOpeningElement) are not exported as geometry.
+- Opening elements (IfcOpeningElement) are not exported as geometry. Their bounds are kept in `relations.openings`.
+- `props` (optional, per element): at most 24 entries; keys `Attr.<Name>`, `<PsetName>.<PropName>`, `<QtoName>.<QuantityName>`; values
+  string (at most 80 characters), finite number or boolean; SI units (m, m2, m3, kg), reals to 4 significant digits. The loader
+  drops entries of any other type. Written by `ifc2glb.py --props none|common|all` and by the in-browser reader (`common`).
+- `relations.openings` (optional): `[{ expressId, host, bounds }]`. `expressId` is the opening's (the second value of a `voids`
+  pair), `host` the voided element's id, `bounds` in the same glb frame as element bounds. Absent means the source has no opening
+  data (the penetration schedule then reports `unknown`).
 - A glb without a sidecar is still loadable: the loader synthesises elements from nodes,
   with `ifcClass` taken from `extras.ifcClass`, else guessed from the node name
   (contains "slab", "wall", "beam", "column", "duct", "pipe", "tray"), else "Unknown".
@@ -139,6 +163,10 @@ The viewer can also produce this format itself, from the user's own files (`src/
 - The result goes through the same path as a converted model: `build` writes glb bytes and the `xray-model/1` sidecar in memory
   (`source.converter` is `web-ifc 0.0.78 (in-browser)`) and calls `parseModel(glb, sidecar)`. A `.glb` (optionally with a
   `.json` sidecar of the same base name, or any `.json` whose `schema` is `xray-model/1`) goes straight to `parseModel`.
+- Direct path: by default the worker also writes the merged vertex arrays (`position`, `normal`, `elementId`, `index`, per-element
+  ranges), the crease edges and a serialised BVH, and `MergedGeometry.fromArrays` wraps them on the main thread, skipping the glb
+  round trip. `edges` (`auto`, `all`, `none`) and `properties` (`common`, `none`) are options of the Open model folder. The glb
+  path above is still used by `xray-pack` and by the parity tests. See `web/docs-features/large-ifc.md`.
 - Parity with the converter is a test (`web/tests/ifc-import-parity.test.ts`): same class counts, element bounds within 1 cm,
   same relation counts, storeys and materials. Documented differences: colours come from web-ifc (surface colour; the converter
   uses ifcopenshell's diffuse colour and its built-in per-class colours for unstyled elements), and meshes are not byte-identical.
@@ -189,11 +217,54 @@ See `web/src/types.ts`. The important ones:
 - Edge pass: `EdgesGeometry` per element (threshold 30 degrees) merged into one `LineSegments`
   with the same `elementId` attribute, drawn after the ghost pass with alpha = max(edgeAlpha, element alpha),
   hidden when the element is hidden.
-- Sorting: single merged geometry means no per-object sort. The ghost pass uses weighted blended order-independent transparency (McGuire and Bavoil 2013) when float colour buffers are available, so blend order no longer matters; with it off, blend-order artifacts are expected.
+- Sorting: single merged geometry means no per-object sort. The ghost pass uses weighted blended order-independent transparency (McGuire and Bavoil 2013) when float colour buffers are available, so blend order no longer matters; with it off, blend-order artifacts are expected. Under OIT, pass 2 renders into accumulation and revealage targets and a composite adds the result over the opaque image; the per-fragment alpha above is unchanged.
 - `GeometryProvider` uses three-mesh-bvh on the merged geometry with `firstHitOnly = false`
   and maps triangle index -> element id through the range table. `surfaceDistance` may use
   `closestPointToGeometry` between per-element sub-geometries, or a bounds-based lower bound
   with a mesh refinement only when the bound is below the buffer.
+
+## Extensions
+
+Everything beyond the core (loader, renderer, `XrayController`, Algorithms 1 to 9) is a plugin in `web/src/plugins/`, registered in
+`plugins/index.ts`. A plugin implements `AppPlugin` (`install`, `onModel`, `onStatic`, `onFrame`, `afterFrame`; all optional) and
+extends the viewer through three registries: actions (`src/input/actions.ts`, `registerAction`: keys, cheat sheet and palette come
+free), tools (`src/tools/registry.ts`, `registerTool`: a button and drawer in the action panel) and params sections
+(`src/ui/params.ts`, `registerParamSection(name, { collect, apply, share? })`: part of the `xray-params/1` document, presets and
+`xray-pack --params`; `share: true` puts it in the share URL). A section name must not clash with a core key (`xray`,
+`classification`, `sightlines`, `overrides`, `display`, `farMode`, `tiersMode`, `tiers`, `rendering`, `cinematic`, `camera`, `selectionSets`,
+`classStyles`, `materialAliases`). Each plugin has a document in `web/docs-features/`.
+
+| Plugin | Params section | Actions | Tool id |
+| --- | --- | --- | --- |
+| `fileLoader` | none (options in the Open model folder) | none | `open` (built in), `largeModel` |
+| `classStyles` | core keys `classStyles`, `materialAliases` | none | none |
+| `sidebar` | none | `panel.left`, `sidebar.filter`, `visibility.*`, `select.*` (from `input/commands.ts`) | none |
+| `cinematic` | core key `cinematic` (the plugin's config) | none registered | none |
+| `oit` | core key `rendering` | none | none |
+| `viewModes` | `viewModes` (shared) | `mode.behind`, `mode.behind.cycleTreatment`, `mode.peel`, `mode.peel.grow`, `mode.peel.shrink` | `viewModes` |
+| `imaging` | `imaging` (shared) | `imaging.cycle` | `imaging` |
+| `section` | `section` (shared) | `section.toggleBox`, `section.fitSelection`, `section.togglePlane`, `section.clear` | `section` |
+| `cleanup` | `cleanup` | `cleanup.preview`, `cleanup.hide`, `cleanup.restore` | `cleanup` |
+| `hoverInfo` | `hoverInfo` | `hover.toggle` | none |
+| `presets` | none (share link `#preset=`) | `preset.1` to `preset.9`, `presets.open` | `presets` |
+| `penetrations` | `penetrations` | `penetrations.analyse` | `penetrations` |
+| `measure` | `measure`, `clearance` | `measure.clear`, `clearance.toggle` | `measure`, `clearance` |
+| `bcf` | `bcf` | `bcf.open`, `bcf.create`, `bcf.export`, `bcf.clear` | `bcf` |
+| `pointcloud` | `pointcloud` | `pointcloud.open`, `pointcloud.toggle`, `pointcloud.deviation` | `pointcloud` |
+| `toolbar` | none | `toolbar.toggle`, `tool.<id>` | none |
+| `keymap` | `keymap` (overrides) | `help.cheatsheet`, `palette.open`, `keys.edit`, `keys.reset`, `nav.*`, `view.*` | none |
+| `exportParams`, `help`, `panelDock`, `boot` | none | none | none |
+
+The built-in tools `xray` and `cleanup`/`viewModes` are registered by `src/tools/builtin.ts`; the id `xr` is reserved for a WebXR
+tool. Scripting objects: `window.__xray` (core), `__xrayViewModes`, `__xrayImaging`, `__xraySection`, `__xrayCleanup`,
+`__xrayPresets`, `__xrayPenetrations`, `__xrayMeasure`, `__xrayClearance`, `__xrayBcf`, `__xrayPointCloud`, `__xrayToolbar`,
+`__xrayParams`, `__xrayHelp`. A packaged page reads `window.__xrayBoot` once (see `web/docs-features/xray-pack.md`).
+
+Sidecar additions made for plugins (both optional; see "model.json" above for the full format):
+
+- `elements[].props`: `{ "<Set>.<Name>": string | number | boolean }`, at most 24 entries, SI values; read by the hover card and the
+  sidebar Properties list.
+- `relations.openings`: `[{ expressId, host, bounds }]`, bounds in the glb frame; read by the penetration schedule.
 
 ## Acceptance criteria
 
@@ -211,7 +282,8 @@ See `web/src/types.ts`. The important ones:
    frame time, Algorithm 2 time for 300 samples, and Algorithm 1 time. Targets on a laptop GPU:
    16 ms frame, 5 ms sightlines, 50 ms classification. Record actual numbers in `bench/RESULTS.md`
    with the note that swiftshader numbers are not GPU numbers.
-6. `README.md` at the repo root: how to convert, run, test, bench, and a short map of the code to the report's algorithms.
+6. `README.md` at the repo root: how to convert, run, test, bench, and a map of the code to the report's algorithms (1 to 3 and 7 to 9
+   from the report; 10 and 11 are the view modes, 12 floating detection, 13 the penetration schedule).
 
 ## Reporting
 

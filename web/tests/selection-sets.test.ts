@@ -117,7 +117,7 @@ describe('persistence', () => {
 
 describe('default sets', () => {
   it('has a table entry for every sample model', () => {
-    expect(Object.keys(DEFAULT_SETS).sort()).toEqual(['building', 'fzk-haus', 'plumbing', 'synth5k']);
+    expect(Object.keys(DEFAULT_SETS).sort()).toEqual(['building', 'debris-demo', 'fzk-haus', 'plumbing', 'synth5k']);
     expect(DEFAULT_SETS['building']!.map((d) => d.name)).toEqual(['Duct run', 'Roof beams']);
     expect(DEFAULT_SETS['fzk-haus']!.map((d) => d.name)).toEqual(['Rafters', 'Ground floor walls']);
     expect(DEFAULT_SETS['synth5k']!.map((d) => d.name)).toEqual(['Level 0 ducts', 'Risers']);

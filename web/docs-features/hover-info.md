@@ -32,12 +32,13 @@ under the pointer as it was up to 80 ms earlier; it matters only when the pointe
 | `all properties in sidebar` | off | Sidebar list shows every property instead of the filtered ones. |
 
 Default `property filter`:
-`Attr.ObjectType, *.IsExternal, *.LoadBearing, *.FireRating, *.Reference, Qto*.Length, Qto*.Width, Qto*.Height, Qto*.NetVolume`
+`Attr.ObjectType, *.IsExternal, *.LoadBearing, *.FireRating, *.Reference, Qto*.Length, Qto*.Width, Qto*.Height, Qto*.NetVolume, *Quantities.Length, *Quantities.Width, *Quantities.Height, *Quantities.NetVolume`
 
 Patterns match the whole key, case-insensitively; `*` is any run of characters, `?` one character. Rows are chosen pattern
-by pattern, in the order written; the keys one pattern matches keep the element's own order; a key is shown once. When the
-filter keeps nothing of an element (for example a file whose quantity set is named `BaseQuantities` rather than
-`Qto_*BaseQuantities` and has no `IsExternal`), the card shows the element's first `max rows` properties instead.
+by pattern, in the order written; the keys one pattern matches keep the element's own order; a key is shown once. The
+`*Quantities.*` patterns catch the ArchiCAD and IFC2x3 spelling `BaseQuantities.Length` (the FZK house) as well as
+`Qto_WallBaseQuantities.Length`. When the filter keeps nothing of an element (for example a set named `Dimensions`
+and no `IsExternal`), the card shows the element's first `max rows` properties instead.
 
 The settings are exported in the params document as section `hoverInfo` (not part of the share URL).
 

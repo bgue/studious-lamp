@@ -14,6 +14,13 @@ Layout (IFC frame, Z up, metres): a k x k grid of 6 m bays and `s` storeys of 3.
 Every duct/pipe whose box overlaps a slab box (positive volume) gets a synthetic opening: voids
 [slab, opening], fills [opening, mep], hosts [mep, slab]. Slabs themselves stay solid boxes.
 Exactly N elements are produced (structure first, MEP fills the remainder).
+
+--debris D (a cleanup demo; use a small -n such as 400): the model is the same kind of building with D small floating items
+scattered in its rooms (bolts: IfcFastener, 3 to 4 cm; offcuts: IfcMember, 12 to 45 cm; none touches anything) plus seven fixed
+probes, all named "Debris ...": a stray cluster of three touching 12 cm boxes ("Debris cluster A/B/C"), one far stray 300 m away
+("Debris far stray"), two exact copies of existing beams ("Debris duplicate beam 1/2") and one wall of zero thickness
+("Debris zero-thickness wall"). The total is still N elements (the building is built with N - D - 7). Used for
+web/public/models/debris-demo and the "Debris" selection set.
 """
 from __future__ import annotations
 
@@ -76,8 +83,12 @@ def choose_dims(n: int) -> tuple[int, int]:
     return best
 
 
-def generate(n: int, seed: int):
+def generate(n: int, seed: int, debris: int = 0):
     rng = np.random.default_rng(seed)
+    n_base = n - (debris + DEBRIS_FIXED) if debris > 0 else n
+    if n_base < 20:
+        raise SystemExit("--debris: -n must leave room for the building (n - debris - 7 >= 20)")
+    n = n_base  # `add` stops at n; debris is appended after the building
     s, k = choose_dims(n)
     E = [i * STOREY_H for i in range(s + 1)]  # level elevations (top of slab)
     items: list[dict] = []
@@ -157,9 +168,76 @@ def generate(n: int, seed: int):
                 run.append(b)
         for a, b in zip(run, run[1:]):
             ports.append([a, b])
-    if len(items) < n:
-        print(f"warning: only {len(items)} of {n} elements could be generated", file=sys.stderr)
+    if len(items) < n_base:
+        print(f"warning: only {len(items)} of {n_base} elements could be generated", file=sys.stderr)
+    if debris > 0:
+        add_debris(items, boxes, debris, seed, s, k, E)
     return items, boxes, ports, s, k, n_struct, E
+
+
+DEBRIS_FIXED = 7  # cluster 3 + far stray 1 + duplicates 2 + zero-thickness 1
+DEBRIS_COLOR = [0.85, 0.35, 0.2, 1.0]
+
+
+def add_debris(items: list, boxes: list, d: int, seed: int, s: int, k: int, E: list) -> list[int]:
+    """Append d scattered floating items and the fixed probes. Returns the ids added (all named 'Debris ...')."""
+    rng = np.random.default_rng(seed + 1000)
+    L = k * BAY
+    zmax = E[s] - 1.0
+    first = len(items)
+
+    def put(cls, name, mn, mx, material, tag):
+        z = 0.5 * (mn[2] + mx[2])
+        storey = int(max(0, min(s, z // STOREY_H)))
+        items.append({"ifcClass": cls, "name": name, "storey": storey, "material": material, "color": DEBRIS_COLOR,
+                      "expressId": 100 + len(items), "_role": ("debris", tag)})
+        boxes.append((np.array(mn, float), np.array(mx, float)))
+
+    def clear(mn, mx, margin=0.08) -> bool:
+        lo, hi = np.asarray(mn) - margin, np.asarray(mx) + margin
+        for bmn, bmx in boxes:
+            if np.all(np.minimum(hi, bmx) - np.maximum(lo, bmn) > 0):
+                return False
+        return True
+
+    def free_spot(size):
+        for _ in range(2000):
+            c = np.array([rng.uniform(0.6, L - 0.6), rng.uniform(0.6, L - 0.6), rng.uniform(0.4, zmax)])
+            mn, mx = c - np.asarray(size) / 2, c + np.asarray(size) / 2
+            if clear(mn, mx):
+                return mn, mx
+        raise RuntimeError("no free spot for debris; use a larger model")
+
+    n_bolts = (d * 3 + 2) // 5
+    for i in range(d):
+        if i < n_bolts:
+            e = float(rng.uniform(0.03, 0.04))
+            mn, mx = free_spot((e, e, e * float(rng.uniform(1.0, 1.6))))
+            put("IfcFastener", f"Debris bolt {i + 1:02d}", mn, mx, "Steel", "bolt")
+        else:
+            sz = rng.uniform(0.05, 0.12, 3)
+            sz[int(rng.integers(0, 3))] = rng.uniform(0.2, 0.45)
+            mn, mx = free_spot(sz)
+            put("IfcMember", f"Debris offcut {i - n_bolts + 1:02d}", mn, mx, "Timber", "offcut")
+    # stray cluster: three boxes of 12 cm touching each other (a 0.36 m run), away from everything else. The default
+    # cleanup mode ('single elements') keeps them (each has a contact); mode 'small clusters' matches all three.
+    mn0, mx0 = free_spot((0.36, 0.12, 0.12))
+    for j, tag in enumerate("ABC"):
+        a = mn0 + np.array([0.12 * j, 0.0, 0.0])
+        put("IfcBuildingElementProxy", f"Debris cluster {tag}", a, a + 0.12, "Timber", "cluster")
+    # far stray, 300 m from the building
+    put("IfcBuildingElementProxy", "Debris far stray", (L + 300.0, 0.0, 0.0), (L + 300.3, 0.3, 0.3), "Steel", "far")
+    # two exact copies of existing beams (lowest id stays, the copies z-fight)
+    beams = [i for i, it in enumerate(items[:first]) if it["ifcClass"] == "IfcBeam"]
+    for j in range(2):
+        src = beams[(j * 7 + 3) % len(beams)]
+        put("IfcBeam", f"Debris duplicate beam {j + 1}", boxes[src][0], boxes[src][1], items[src]["material"], "duplicate")
+        items[-1]["storey"] = items[src]["storey"]
+    # one wall of zero thickness standing on the first slab, touching the structure
+    z0 = E[0]
+    put("IfcWall", "Debris zero-thickness wall", (BAY * 0.5, BAY * 0.5, z0), (BAY * 0.5 + 1.2, BAY * 0.5, z0 + 2.0), "Brick", "degenerate")
+    items[-1]["storey"] = 0
+    return list(range(first, len(items)))
 
 
 def synth_props(it: dict, mn, mx, s: int) -> dict | None:
@@ -210,8 +288,12 @@ def synth_props(it: dict, mn, mx, s: int) -> dict | None:
     return glb_common.finalize_props(e)
 
 
-def build(n: int, seed: int, out_base: str, config: str | None = None) -> dict:
-    items, boxes, ports, s, k, n_struct, E = generate(n, seed)
+def debris_props(it: dict):
+    return glb_common.finalize_props([("Attr.ObjectType", it["name"], glb_common.GROUP_ATTR)])
+
+
+def build(n: int, seed: int, out_base: str, config: str | None = None, debris: int = 0) -> dict:
+    items, boxes, ports, s, k, n_struct, E = generate(n, seed, debris)
     # hosts: MEP boxes that overlap a slab box with positive volume
     slab_ids = [i for i, it in enumerate(items) if it["ifcClass"] == "IfcSlab"]
     sl_min = np.array([boxes[i][0] for i in slab_ids]).reshape(-1, 3)
@@ -240,7 +322,7 @@ def build(n: int, seed: int, out_base: str, config: str | None = None) -> dict:
     for i, (it, (mn, mx)) in enumerate(zip(items, boxes)):
         v, f, nrm = glb_common.box_mesh(mn, mx)
         out_items.append({**it, "globalId": guid(i, seed), "verts": v, "faces": f, "normals": nrm,
-                          "file": os.path.basename(out_base) + ".synth", "props": synth_props(it, mn, mx, s)})
+                          "file": os.path.basename(out_base) + ".synth", "props": synth_props(it, mn, mx, s) if it["_role"] is None or it["_role"][0] != "debris" else debris_props(it)})
     storeys = [{"id": i, "name": f"Level {i}" if i < s else "Roof", "elevation": E[i]} for i in range(s + 1)]
     systems = [
         {"name": "Supply Air", "elements": [i for i, it in enumerate(items) if it["ifcClass"] == "IfcDuctSegment"]},
@@ -250,7 +332,7 @@ def build(n: int, seed: int, out_base: str, config: str | None = None) -> dict:
     relations = {"voids": voids, "fills": fills, "hosts": hosts, "ports": ports, "systems": systems}
     if openings:
         relations["openings"] = openings
-    source = {"files": [f"synthetic(n={n},seed={seed})"], "converter": "synth_model.py", "ifcSchema": "none"}
+    source = {"files": [f"synthetic(n={n},seed={seed}" + (f",debris={debris})" if debris else ")")], "converter": "synth_model.py", "ifcSchema": "none"}
     os.makedirs(os.path.dirname(os.path.abspath(out_base)), exist_ok=True)
     extra = glb_common.load_style_config(config) if config else None
     side = glb_common.write_model(out_base, out_items, storeys, relations, source, extra)
@@ -263,10 +345,13 @@ def main(argv=None) -> None:
     ap.add_argument("-n", type=int, default=5000, help="number of elements (default 5000)")
     ap.add_argument("-o", "--out", required=True, help="output base path (writes .glb and .json)")
     ap.add_argument("--seed", type=int, default=1)
+    ap.add_argument("--debris", type=int, default=0, metavar="D",
+                    help="cleanup demo: add D small floating items plus 7 probes (cluster, far stray, duplicates, zero-thickness); "
+                         "-n stays the total element count")
     ap.add_argument("--config", metavar="XRAY_CONFIG_JSON",
                     help="xray-config/1 file; classStyles and materialAliases are baked into model.json")
     a = ap.parse_args(argv)
-    side = build(a.n, a.seed, a.out, a.config)
+    side = build(a.n, a.seed, a.out, a.config, a.debris)
     els = side["elements"]
     s, k, ns = side["_dims"]
     print(f"wrote {a.out}.glb ({os.path.getsize(a.out + '.glb')} bytes), {a.out}.json ({os.path.getsize(a.out + '.json')} bytes)")

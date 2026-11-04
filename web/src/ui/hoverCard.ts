@@ -7,7 +7,7 @@ import type { PropValue } from '../model/ifcProps';
 export type { PropValue };
 
 export const DEFAULT_PROPERTY_FILTER =
-  'Attr.ObjectType, *.IsExternal, *.LoadBearing, *.FireRating, *.Reference, Qto*.Length, Qto*.Width, Qto*.Height, Qto*.NetVolume';
+  'Attr.ObjectType, *.IsExternal, *.LoadBearing, *.FireRating, *.Reference, Qto*.Length, Qto*.Width, Qto*.Height, Qto*.NetVolume, *Quantities.Length, *Quantities.Width, *Quantities.Height, *Quantities.NetVolume';
 
 // ---------------------------------------------------------------- property filter (pure)
 

@@ -196,7 +196,7 @@ try {
     ctl('all properties in sidebar').setValue(true);
     const all = [document.querySelector('.props-list summary').textContent, document.querySelectorAll('.props-list dt').length];
     ctl('all properties in sidebar').setValue(false);
-    ctl('property filter').setValue('Attr.ObjectType, *.IsExternal, *.LoadBearing, *.FireRating, *.Reference, Qto*.Length, Qto*.Width, Qto*.Height, Qto*.NetVolume');
+    ctl('property filter').setValue('Attr.ObjectType, *.IsExternal, *.LoadBearing, *.FireRating, *.Reference, Qto*.Length, Qto*.Width, Qto*.Height, Qto*.NetVolume, *Quantities.Length, *Quantities.Width, *Quantities.Height, *Quantities.NetVolume');
     return { filtered, all };
   });
   console.log('filter:', JSON.stringify(filt));

@@ -63,6 +63,8 @@ export const DEFAULT_SETS: Readonly<Record<string, readonly DefaultSetDef[]>> = 
     { name: 'Risers', nameContains: 'riser' },
   ],
   plumbing: [{ name: 'All pipes', classes: ['IfcPipeSegment'] }],
+  // Every item the debris generator added is named "Debris ..." (bolts, offcuts, stray cluster, far stray, duplicate beams, zero-thickness wall).
+  'debris-demo': [{ name: 'Debris', nameContains: 'debris' }],
 };
 
 export const STORAGE_PREFIX = 'xray.sets.';
