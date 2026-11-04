@@ -67,6 +67,12 @@ const CSS = `
 .xt-item .x{background:transparent;border:0;color:var(--sb-dim,#8d99a8);cursor:pointer;font-size:14px;line-height:1;padding:0 3px}
 .xt-item .x:hover{color:#ff7a7a}
 body.xt-on #xray-overlay{left:calc(var(--sb-w, 300px) + ${STRIP_W + 8}px) !important}
+/* Narrow screens (index.html): the tree and dock rails overlay the stage, so the strip starts after the left rail and the
+   drawer stops before the right one. */
+@media (max-width: 700px){
+  .xt-strip{left:var(--sb-rail,28px)}
+  .xt-drawer{left:calc(var(--sb-rail,28px) + ${STRIP_W}px);max-width:calc(100% - var(--sb-rail,28px) - var(--dk-rail,28px) - ${STRIP_W}px)}
+}
 @keyframes xt-pulse{0%{r:6;opacity:1;stroke-width:3}100%{r:34;opacity:0;stroke-width:1}}
 `;
 
