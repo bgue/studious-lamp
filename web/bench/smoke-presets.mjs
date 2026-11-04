@@ -214,7 +214,7 @@ try {
       // User preset: save, reload, it persists; apply restores it. Then a share link.
       await page.evaluate(() => { window.__xrayPresets.apply('coordination'); window.__xray.app.settings.sightlines.alphaMin = 0.05; });
       const saved = await page.evaluate(() => window.__xrayPresets.save('Smoke look', ['sightlines', 'display', 'farMode', 'viewModes', 'imaging', 'section', 'cinematic'], 'Saved by the smoke test.'));
-      check('user preset saved with the sections of this build', saved.preset.id === 'smoke-look' && saved.preset.params.sightlines.alphaMin === 0.05 && !('imaging' in saved.preset.params), `missing: ${JSON.stringify(saved.missing)}`);
+      check('user preset saved with the sections of this build', saved.preset.id === 'smoke-look' && saved.preset.params.sightlines.alphaMin === 0.05 && 'imaging' in saved.preset.params && saved.missing.length === 0, `missing: ${JSON.stringify(saved.missing)}`);
       const share = await page.evaluate(() => window.__xrayPresets.shareUrl('smoke-look'));
       await page.reload();
       await page.waitForFunction('window.__xrayReady === true || window.__xrayError', null, { timeout: 180000 });
