@@ -15,9 +15,11 @@ import {
   shareFromHash,
   shareSubset,
   shareUrl,
+  snapshotSections,
   toPython,
   VIEWER_VERSION,
 } from '../src/ui/params';
+import { fakeSection } from './presets-helpers';
 import type { ParamsApp, ParamsEnv } from '../src/ui/params';
 import { modelOf } from './sidebar-model';
 import pkg from '../package.json';
@@ -331,6 +333,33 @@ describe('defaults', () => {
     expect(f.app.settings.overrides.userPinFloor).toBe(d.overrides.userPinFloor);
     expect(f.app.display).toEqual({ edgeAlpha: 0.8, ghostDesaturate: 0.8, inFront: true });
     expect(f.app.controller.settings.classStyles).toEqual({ IfcSlab: { alphaMax: 0.9 } });
+  });
+});
+
+describe('defaults of plugin sections', () => {
+  it('a snapshot taken after the first model restores plugin sections that defaultParams does not cover', () => {
+    const modes = fakeSection('viewModes', { peel: { enabled: false, radius: 1 } });
+    const keys = fakeSection('keymap', { overrides: { a: ['x'] } });
+    try {
+      const f = fresh();
+      const factory = snapshotSections(collectParams(f.app, f.env));
+      expect(factory).toEqual({ viewModes: { peel: { enabled: false, radius: 1 } } }); // keymap left out
+      tweak(f);
+      modes.state.peel.enabled = true;
+      modes.state.peel.radius = 3;
+      keys.state.overrides = { a: ['y'] };
+      const bad = applyParams(f.app, { ...defaultParams(f.app), ...factory }, { env: f.env });
+      expect(bad).toEqual([]);
+      expect(modes.state.peel).toEqual({ enabled: false, radius: 1 });
+      expect(keys.state.overrides).toEqual({ a: ['y'] });
+      expect(f.app.settings.farMode).toBe('opaque');
+      // the snapshot is a copy, not a live reference
+      modes.state.peel.enabled = true;
+      expect(factory['viewModes']).toEqual({ peel: { enabled: false, radius: 1 } });
+    } finally {
+      modes.off();
+      keys.off();
+    }
   });
 });
 

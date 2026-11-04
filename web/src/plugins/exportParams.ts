@@ -16,6 +16,7 @@ import {
   defaultParams,
   shareFromHash,
   shareUrl,
+  snapshotSections,
   toPython,
 } from '../ui/params';
 import type { XrayParams } from '../ui/params';
@@ -34,6 +35,8 @@ declare global {
 }
 
 let pendingShare: Partial<XrayParams> | null = null;
+/** Plugin sections as they were after the first model (their factory values), for "Reset to defaults". */
+let factorySections: Record<string, unknown> | null = null;
 let fileInput: HTMLInputElement | null = null;
 let msgTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -78,7 +81,11 @@ async function loadConfig(): Promise<unknown> {
 
 async function resetToDefaults(app: ViewerApp): Promise<string[]> {
   const cfg = await loadConfig();
-  return applyParams(app, defaultParams(app, cfg));
+  // defaultParams covers the core sections only; the plugin sections (view modes, imaging, section, ...) go back to
+  // the values they had after the first model, and the clearance colouring (not a params field) is switched off.
+  const bad = applyParams(app, { ...defaultParams(app, cfg), ...(factorySections ?? {}) });
+  (window as unknown as { __xrayClearance?: { setEnabled(on: boolean): void } }).__xrayClearance?.setEnabled(false);
+  return bad;
 }
 
 function applyShared(app: ViewerApp, share: Partial<XrayParams>): string[] {
@@ -160,6 +167,7 @@ export const exportParamsPlugin: AppPlugin = {
   },
 
   onModel(app) {
+    if (!factorySections) factorySections = snapshotSections(collectParams(app));
     const share = pendingShare;
     if (!share) return;
     pendingShare = null;

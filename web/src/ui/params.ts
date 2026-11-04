@@ -642,6 +642,21 @@ export function defaultParams(app: ParamsApp, config?: unknown): Partial<XrayPar
   };
 }
 
+/**
+ * The registered plugin sections (viewModes, imaging, section, ...) of a collected document, cloned. Taken once after
+ * the first model, it is the factory value of those sections, which `defaultParams` does not know; "Reset to defaults"
+ * applies it after the core defaults. `keymap` is left out by default (shortcuts have their own reset).
+ */
+export function snapshotSections(p: Partial<XrayParams>, except: readonly string[] = ['keymap']): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  const doc = p as Record<string, unknown>;
+  for (const name of SECTIONS.keys()) {
+    if (except.includes(name) || doc[name] === undefined) continue;
+    out[name] = clone(doc[name]);
+  }
+  return out;
+}
+
 // ---------------------------------------------------------------- share URL
 
 /** The keys carried in a share URL. */
