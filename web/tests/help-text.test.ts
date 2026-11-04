@@ -83,7 +83,7 @@ describe('help texts', () => {
     const sections = [
       'Purpose', 'Design rationale', 'Terminology', 'Algorithm 1', 'Algorithm 2', 'Rendering in Bonsai/Blender',
       'Parameters and defaults', 'Worked example', 'Limitations and extensions', 'Onboarding checklist',
-      'Appendix A', 'Appendix B', 'Appendix C', 'Appendix D', 'Appendix E',
+      'Appendix A', 'Appendix B', 'Appendix C', 'Appendix D', 'Appendix E', 'Appendix F', 'Appendix G', 'Appendix H', 'Appendix I', 'Appendix J', 'Appendix K', 'Appendix L',
     ];
     for (const [key, e] of entries) {
       expect(e.ref, key).toMatch(/^Report: /);
@@ -168,9 +168,12 @@ EXTRA_FORMS.delete('smoothed');
 const singleTerms = new Set(GLOSSARY.filter((g) => !/[\s-]/.test(g.term)).map((g) => stem(g.term)));
 const phraseTerms = GLOSSARY.filter((g) => /[\s-]/.test(g.term)).map((g) => ` ${wordsOf(g.term).join(' ')} `);
 
+// Function words in a key ("Stages of the last load") never count as the name of the control.
+const FUNCTION_WORDS = new Set(['the', 'and', 'for', 'from', 'with', 'all', 'not', 'off']);
+
 /** Words of the entry key (folder title and control name) that Impact must not repeat. Tokens under 3 letters are ignored. */
 function keyWords(key: string): Set<string> {
-  return new Set(wordsOf(key).filter((w) => w.length >= 3).map(stem));
+  return new Set(wordsOf(key).filter((w) => w.length >= 3 && !FUNCTION_WORDS.has(w)).map(stem));
 }
 
 /** Every banned word found in an Impact text, for the failure message. */

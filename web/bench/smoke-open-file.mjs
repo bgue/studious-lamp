@@ -141,7 +141,7 @@ try {
   });
   console.log('panel:', JSON.stringify(layout));
   check(layout.hasFolder && layout.isFirst, "folder 'Open model' is the first thing in the panel");
-  check(JSON.stringify(layout.names) === JSON.stringify(['Open IFC or glb file', 'Cancel load', 'Load status']), 'control names');
+  check(JSON.stringify(layout.names) === JSON.stringify(['Open IFC or glb file', 'Cancel load', 'Load status', 'edges', 'properties', 'Model stats']), 'control names (open, cancel, status, then the large-model options and stats)');
   check(layout.cancelDisabled && layout.statusDisabled && layout.statusIsText, 'Cancel disabled at rest, status is a disabled text field');
   check(layout.accept === '.ifc,.ifczip,.glb,.json' && layout.multiple === true, 'input accept/multiple');
 
@@ -182,6 +182,25 @@ try {
       });
       await page.waitForTimeout(1200);
       await page.screenshot({ path: resolve(here, single ? 'open-file-fzk-single.png' : 'open-file-fzk.png') });
+    }
+
+    // large-model options (edges, properties) and the Model stats line
+    {
+      const statsOf = () => page.evaluate(() => window.__xray.app.panel.controllersRecursive().find((c) => c.property === 'stats').getValue());
+      const edgeCount = () => page.evaluate(() => window.__xray.app.loaded.geometry.edges.getAttribute('position').count);
+      const propCount = () => page.evaluate(() => window.__xray.app.controller.model.elements.filter((e) => e.props && Object.keys(e.props).length > 0).length);
+      const st = await statsOf();
+      check(/^82 elements, [\d,]+ triangles, [\d.]+ MB buffers, [\d.]+ s$/.test(st), `(c) Model stats line: "${st}"`);
+      const e0 = await edgeCount();
+      const p0 = await propCount();
+      check(e0 > 0 && p0 > 0, '(c) default edges and properties present');
+      await page.evaluate(() => { const ctl = (p) => window.__xray.app.panel.controllersRecursive().find((c) => c.property === p); ctl('edges').setValue('none'); ctl('properties').setValue('none'); });
+      const none = await open([m('AC20-FZK-Haus.ifc')]);
+      record('(c2) AC20-FZK-Haus.ifc, edges none, properties none', none);
+      check(/^Loaded 82 elements in /.test(none.status), '(c2) loads with both options off');
+      check((await edgeCount()) === 0, '(c2) edges: none gives an empty edge geometry');
+      check((await propCount()) === 0, '(c2) properties: none reads no properties');
+      await page.evaluate(() => { const ctl = (p) => window.__xray.app.panel.controllersRecursive().find((c) => c.property === p); ctl('edges').setValue('auto'); ctl('properties').setValue('common'); });
     }
 
     // the same file through the real button: the worker and wasm start while the (simulated) file dialog is open

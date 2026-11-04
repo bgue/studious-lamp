@@ -248,13 +248,9 @@ async function importInWorker(inputs: IfcInput[], opts: ImportOptions, t0: numbe
     opts.onProgress?.({ phase: 'upload', elements: m.elements.length });
     await nextTick(); // let the status text paint before the arrays are wrapped
     if (opts.signal?.aborted) throw new ImportCancelled();
-    const __a = performance.now();
     const geometry = MergedGeometry.fromArrays(m.arrays);
-    const __b = performance.now();
     await nextTick();
-    const __c = performance.now();
     const loaded = assembleLoaded(m.head, m.elements, geometry);
-    console.info('[ifc-import] main steps ' + JSON.stringify({ fromArrays: Math.round(__b - __a), assemble: Math.round(performance.now() - __c) }));
     const t3 = performance.now();
     const timings = zeroTimings();
     for (const s of summaries) { timings.openMs += s.openMs; timings.meshMs += s.meshMs; timings.relationsMs += s.relationsMs; }
@@ -368,15 +364,14 @@ class IfcReader {
         this.pending = null;
         p.resolve(m.summary);
       } else if (m.type === 'records') {
-        const __r = performance.now();
         const p = this.pending;
-        if (p?.kind === 'merge') { for (let k = 0; k < m.records.length; k++) p.elements.push(normaliseRecord(m.records[k]!, m.from + k)); if (performance.now() - __r > 20) console.info('[ifc-import] records chunk ms ' + Math.round(performance.now() - __r)); }
+        if (p?.kind === 'merge') for (let k = 0; k < m.records.length; k++) p.elements.push(normaliseRecord(m.records[k]!, m.from + k));
       } else if (m.type === 'merged') {
         const p = this.pending;
         if (p?.kind !== 'merge') return;
         this.pending = null;
         p.resolve({
-          head: m.head, elements: p.elements, arrays: m.arrays, report: m.report, edgesSkipped: m.edgesSkipped, bvhBuilt: m.bvhBuilt,
+          head: JSON.parse(m.headJson) as Omit<Sidecar, 'elements'>, elements: p.elements, arrays: m.arrays, report: m.report, edgesSkipped: m.edgesSkipped, bvhBuilt: m.bvhBuilt,
           timings: m.timings, lastWorkerMessageAt: performance.now(),
         });
       } else if (m.type === 'error') {

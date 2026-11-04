@@ -112,7 +112,7 @@ describe('built-in presets', () => {
 });
 
 describe('public/xray.presets.json', () => {
-  const text = readFileSync(new URL('../public/xray.presets.json', import.meta.url), 'utf8');
+  const text = readFileSync(new URL('../public/xray.presets.json', import.meta.url).pathname, 'utf8');
   it('is a valid xray-presets/1 document equal to the TS built-ins', () => {
     const { presets, errors } = parsePresetsDocument(text, true);
     expect(errors).toEqual([]);

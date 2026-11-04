@@ -15,6 +15,7 @@ import { spawn, execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, resolve } from 'node:path';
+import { loadavg } from 'node:os';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -91,7 +92,7 @@ async function run(n, file) {
   const tag = `--xray-bench-${process.pid}-${n}`;
   const browser = await pw.chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--enable-precise-memory-info', tag] });
   const pid = browserPid(tag);
-  const out = { n, mode: single ? 'single' : 'dev', label, edges: edgesOpt || 'default', props: propsOpt || 'default' };
+  const out = { n, mode: single ? 'single' : 'dev', label, edges: edgesOpt || 'default', props: propsOpt || 'default', loadAvgAtStart: Math.round(loadavg()[0] * 10) / 10 };
   try {
     const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
     const errors = [];
@@ -135,7 +136,9 @@ async function run(n, file) {
     out.options = opts;
 
     let peakRss = out.baselineRssMb;
-    const sampler = setInterval(() => { peakRss = Math.max(peakRss, treeRssMb(pid)); }, 300);
+    const rssSeries = [];
+    const wallStart = Date.now();
+    const sampler = setInterval(() => { const r = treeRssMb(pid); peakRss = Math.max(peakRss, r); rssSeries.push([Date.now() - wallStart, Math.round(r)]); }, 300);
 
     const t0 = await page.evaluate(() => performance.now());
     const wall0 = Date.now();
@@ -148,6 +151,7 @@ async function run(n, file) {
       await new Promise((r) => setTimeout(r, 200));
     }
     const wallMs = Date.now() - wall0;
+    out.loadAvgAtEnd = Math.round(loadavg()[0] * 10) / 10;
     // first frame after the load
     const frameMs = await page.evaluate(() => new Promise((res) => { const a = performance.now(); requestAnimationFrame(() => requestAnimationFrame(() => res(performance.now() - a))); }));
     clearInterval(sampler);
@@ -163,6 +167,8 @@ async function run(n, file) {
     out.longTaskTop = tail.map(([s, d]) => [Math.round(s - t0), Math.round(d)]).sort((a, c) => c[1] - a[1]).slice(0, 5);
     out.peakHeapMb = Math.round(Math.max(0, ...b.heap.filter(([t]) => t >= t0).map(([, h]) => h)) / 1048576);
     out.peakRssMb = Math.round(peakRss);
+    out.rssSeries = rssSeries.filter((_, i) => i % Math.max(1, Math.ceil(rssSeries.length / 50)) === 0);
+    const peakAt = rssSeries.reduce((a, b) => (b[1] > a[1] ? b : a), [0, 0])[0];
     out.rssAfterMb = Math.round(treeRssMb(pid));
     out.heapAfterMb = Math.round((await page.evaluate('performance.memory ? performance.memory.usedJSHeapSize : 0')) / 1048576);
 
@@ -174,6 +180,7 @@ async function run(n, file) {
     }
     const names = STAGES.map(([k]) => k).filter((k) => k in stages);
     out.stageStartMs = stages;
+    out.peakRssAtStage = [...names].reverse().find((k) => stages[k] <= peakAt) ?? null;
     out.stageMs = {};
     for (let i = 0; i < names.length - 1; i++) out.stageMs[names[i]] = stages[names[i + 1]] - stages[names[i]];
     out.statusCount = b.status.length;
@@ -214,7 +221,7 @@ try {
     const r = await run(n, file);
     results.push(r);
     writeFileSync(resolve(outDir, `large-ifc-${label}-${r.mode}-${n}.json`), JSON.stringify(r, null, 2));
-    console.log(JSON.stringify({ ...r, consoleInfo: undefined, longTaskTop: undefined }, null, 1));
+    console.log(JSON.stringify({ ...r, consoleInfo: undefined, longTaskTop: undefined, rssSeries: undefined, errors: undefined }, null, 1));
     console.log('longest tasks (start ms, duration ms):', JSON.stringify(r.longTaskTop));
   }
 } finally {

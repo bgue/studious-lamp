@@ -1,8 +1,12 @@
 // Headless check of the help tooltips: starts vite (bench/vite.smoke.config.mjs), opens /?model=building,
 // hovers the bufferBase slider for 500 ms, screenshots bench/help-tooltip.png and asserts the popover: one title and
 // four labelled lines in the order Intent, Impact, Use, Ref. A second hover on "layer falloff" is screenshotted to
-// bench/help-tooltip-layer.png.
+// bench/help-tooltip-layer.png. Then it hovers the Peelback radius slider (bench/help-tooltip-peel.png) and a strip
+// button of the action panel (bench/help-tooltip-toolbar.png). Finally, for each of the models building, fzk-haus and
+// synth5k, it opens every tool drawer of the action panel once (window.__xrayToolbar.open), opens the keyboard dialogs
+// and the BCF topic dialog, and fails on any "[help] no help text" console warning.
 // Usage: node bench/help-smoke.mjs [--out bench/help-tooltip.png] [--out-layer bench/help-tooltip-layer.png]
+//        [--out-peel bench/help-tooltip-peel.png] [--out-toolbar bench/help-tooltip-toolbar.png]
 import { spawn } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { dirname, resolve } from 'node:path';
@@ -14,6 +18,10 @@ const outIdx = process.argv.indexOf('--out');
 const out = outIdx > 0 ? resolve(process.argv[outIdx + 1]) : resolve(here, 'help-tooltip.png');
 const layerIdx = process.argv.indexOf('--out-layer');
 const outLayer = layerIdx > 0 ? resolve(process.argv[layerIdx + 1]) : resolve(here, 'help-tooltip-layer.png');
+const peelIdx = process.argv.indexOf('--out-peel');
+const outPeel = peelIdx > 0 ? resolve(process.argv[peelIdx + 1]) : resolve(here, 'help-tooltip-peel.png');
+const tbIdx = process.argv.indexOf('--out-toolbar');
+const outToolbar = tbIdx > 0 ? resolve(process.argv[tbIdx + 1]) : resolve(here, 'help-tooltip-toolbar.png');
 const port = Number(process.env.SMOKE_PORT ?? 5197);
 const LABELS = ['Intent', 'Impact', 'Use', 'Ref'];
 
@@ -212,6 +220,43 @@ try {
   await page.waitForTimeout(550);
   check('enabled again: popover shows', (await shownState()).show);
 
+
+  // 10. the Peelback radius slider of the View modes folder, and a strip button of the action panel
+  await page.mouse.move(1000, 400);
+  await page.evaluate(() => {
+    const g = window.__xray.app.panel;
+    for (const f of g.foldersRecursive()) { const t = f._title; if (t === 'View modes' || t === 'Peelback') f.open(); }
+  });
+  await page.waitForTimeout(300);
+  const prow = page.locator('[data-help-key="Peelback/radius (m)"]');
+  await prow.waitFor({ timeout: 5000 });
+  await prow.evaluate((e) => e.scrollIntoView({ block: 'center' }));
+  await page.waitForTimeout(150);
+  const pbox = await prow.boundingBox();
+  await page.mouse.move(pbox.x + 20, pbox.y + pbox.height / 2);
+  await page.waitForTimeout(550);
+  const ps = await shownState();
+  await page.screenshot({ path: outPeel });
+  console.log('screenshot:', outPeel);
+  console.log('peelback radius popover:', JSON.stringify(ps.text));
+  check('Peelback radius popover has 4 labelled lines, Impact second', ps.show && JSON.stringify(ps.labels) === JSON.stringify(LABELS) && /radius/.test(ps.text.split('\n')[0] ?? ''), ps.labels.join(', '));
+  check('Peelback radius popover lies inside the viewport', ps.rect && ps.rect.left >= 0 && ps.rect.right <= 1600 && ps.rect.top >= 0 && ps.rect.bottom <= 900);
+  await page.mouse.move(1000, 400);
+  await page.waitForTimeout(100);
+  const sb = page.locator('.xt-btn-tool[data-tool="viewModes"]');
+  await sb.waitFor({ timeout: 5000 });
+  const sbb = await sb.boundingBox();
+  await page.mouse.move(sbb.x + sbb.width / 2, sbb.y + sbb.height / 2);
+  await page.waitForTimeout(550);
+  const ts = await shownState();
+  await page.screenshot({ path: outToolbar });
+  console.log('screenshot:', outToolbar);
+  console.log('strip button popover:', JSON.stringify(ts.text));
+  check('strip button popover has 4 labelled lines, titled with the tool', ts.show && JSON.stringify(ts.labels) === JSON.stringify(LABELS) && /View modes/.test(ts.text.split('\n')[0] ?? ''), ts.labels.join(', '));
+  check('strip button popover lies inside the viewport', ts.rect && ts.rect.left >= 0 && ts.rect.right <= 1600 && ts.rect.top >= 0 && ts.rect.bottom <= 900);
+  check('the CSS tip of the strip button is hidden while help is on', await page.evaluate(() => getComputedStyle(document.querySelector('.xt-btn-tool'), '::after').display === 'none'));
+  await page.mouse.move(1000, 400);
+
   // 9. coverage: every registered row has a text
   const cov = await page.evaluate(() => {
     const all = [...document.querySelectorAll('[data-help-key]')].map((e) => e.getAttribute('data-help-key'));
@@ -229,10 +274,87 @@ try {
   });
   console.log(`texts without a row in the page now: ${unused.length}`);
   for (const k of unused) console.log('  unused text:', k);
+
+  // 11. every tool drawer, the dialogs and the models: no "[help]" warning
+  await page.close();
+  const MODELS = ['building', 'fzk-haus', 'synth5k'];
+  for (const model of MODELS) {
+    const pg = await browser.newPage({ viewport: { width: 1600, height: 900 } });
+    const warn = [];
+    const errs = [];
+    pg.on('console', (m) => {
+      if (m.type() === 'warning' && m.text().startsWith('[help]')) warn.push(m.text());
+      else if (m.type() === 'error') errs.push(m.text());
+    });
+    pg.on('pageerror', (e) => errs.push(`[pageerror] ${e.message}`));
+    await pg.goto(`http://127.0.0.1:${port}/?model=${model}`, { waitUntil: 'domcontentloaded', timeout: 180000 });
+    await pg.waitForFunction('window.__xrayReady === true || window.__xrayError', null, { timeout: 180000 });
+    await pg.waitForTimeout(1500);
+    const ids = await pg.evaluate('window.__xrayToolbar.tools()');
+    const seen = [];
+    for (const id of ids) {
+      await pg.evaluate((t) => window.__xrayToolbar.open(t), id);
+      await pg.waitForTimeout(450);
+      const info = await pg.evaluate(() => {
+        const d = document.getElementById('xray-toolbar-drawer');
+        return { open: !!d && !d.classList.contains('hidden'), title: d?.querySelector('.xt-title')?.textContent ?? '' };
+      });
+      // Fill the dynamic parts of the drawer once: topics for BCF, a measurement, the analysis for penetrations.
+      if (id === 'bcf') {
+        await pg.evaluate(async () => { const b = window.__xrayBcf; if (b && b.topics.length === 0) { try { b.createTopic({ title: 'Help smoke topic', description: 'x', type: 'Issue', status: 'Open', priority: 'Normal', labels: ['a'], author: 'smoke', globalIds: [] }); await b.addComment(b.topics[0].guid, 'a comment', {}); } catch (e) { /* keep going */ } } });
+        await pg.waitForTimeout(300);
+        await pg.evaluate(() => { const t = document.querySelector('[data-topic]'); if (t) t.click(); });
+        await pg.waitForTimeout(300);
+        await pg.evaluate(() => document.querySelector('.bcf-btn[data-act="new"]')?.click());
+        await pg.waitForTimeout(300);
+        await pg.evaluate(() => [...document.querySelectorAll('.bcf-modal .bcf-btn')].find((b) => b.textContent === 'Cancel')?.click());
+      }
+      if (id === 'measure') {
+        await pg.evaluate(() => { const m = window.__xrayMeasure; if (m) { m.click([0, 0, 0], 0); m.click([1, 0, 0], 0); } });
+        await pg.waitForTimeout(300);
+      }
+      if (id === 'presets') {
+        await pg.evaluate(() => [...document.querySelectorAll('#xray-toolbar-drawer .xt-btn')].find((b) => /Save current/.test(b.textContent))?.click());
+        await pg.waitForTimeout(300);
+        await pg.evaluate(() => [...document.querySelectorAll('#xray-toolbar-drawer .xt-btn')].find((b) => /^Duplicate$/.test(b.textContent))?.click());
+        await pg.waitForTimeout(300);
+        await pg.evaluate(() => [...document.querySelectorAll('#xray-toolbar-drawer .xt-btn')].find((b) => /^Edit$/.test(b.textContent))?.click());
+        await pg.waitForTimeout(300);
+      }
+      await pg.waitForTimeout(200);
+      seen.push(`${id}${info.open ? `(${info.title})` : '(no drawer)'}`);
+    }
+    // keyboard dialogs: palette (Ctrl+K), shortcut sheet (?), shortcut editor (button of the sheet)
+    await pg.evaluate(() => document.activeElement && document.activeElement.blur());
+    await pg.keyboard.press('Control+k');
+    await pg.waitForTimeout(400);
+    await pg.keyboard.press('Escape');
+    await pg.keyboard.press('Shift+?');
+    await pg.waitForTimeout(400);
+    await pg.evaluate(() => [...document.querySelectorAll('.kx-sheet .kx-btn')].find((b) => b.textContent === 'Edit shortcuts')?.click());
+    await pg.waitForTimeout(500);
+    await pg.keyboard.press('Escape');
+    await pg.waitForTimeout(300);
+    const covg = await pg.evaluate(() => {
+      const all = [...document.querySelectorAll('[data-help-key]')].map((e) => e.getAttribute('data-help-key'));
+      return { total: all.length, missing: [...new Set(all.filter((k) => !window.__xrayHelp.lookup(k)))] };
+    });
+    console.log(`model ${model}: tools ${seen.join(', ')}`);
+    console.log(`  rows with a key: ${covg.total}; without a text: ${covg.missing.length}; [help] warnings: ${warn.length}; console errors: ${errs.length}`);
+    for (const w of [...new Set(warn)]) console.log('  ' + w);
+    for (const m of covg.missing) console.log('  uncovered: ' + m);
+    for (const e of errs.slice(0, 5)) console.log('  error: ' + e);
+    check(`${model}: all ${ids.length} tools opened`, seen.length === ids.length && ids.length >= 10, ids.join(','));
+    check(`${model}: no "[help] no help text" warning`, warn.length === 0, `${warn.length} warnings`);
+    check(`${model}: every element with a help key has a text`, covg.missing.length === 0, `${covg.missing.length} missing`);
+    await pg.close();
+  }
+
   console.log(`console warnings from the attach step: ${warnings.length}`);
   for (const w of [...new Set(warnings)]) console.log('  ' + w);
   console.log(`console errors: ${errors.length}`);
   for (const e of errors.slice(0, 10)) console.log('  ' + e);
+  check('no [help] warning on the first page', warnings.length === 0, `${warnings.length} warnings`);
   check('no console errors', errors.length === 0);
 } catch (e) {
   console.error(e);

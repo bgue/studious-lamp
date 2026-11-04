@@ -9,7 +9,7 @@ import { VIEWMODE_GLSL } from './viewModeGlsl';
 const STATE_FETCH = /* glsl */ `
 uniform sampler2D stateA; // rgb = colour (sRGB, 0..1), a = alpha
 uniform sampler2D stateB; // r = flags (bit0 focus, bit1 hidden, bit2 pinned, bit3 selected), g = edge glow, b = sweep hold alpha (0 = not in the sweep), a = view-mode occluder mask (1 = occluder)
-uniform sampler2D stateC; // rgb = world-space displacement (exploded context)
+uniform sampler2D stateC; // rgb = world-space displacement (exploded context), a = X-ray density of the element (imaging)
 uniform int texWidth;
 attribute float elementId;
 
@@ -20,6 +20,7 @@ flat varying float vGlow;
 flat varying float vHold;
 flat varying float vElem;
 flat varying float vVmOcc;
+flat varying float vDensity;
 
 vec3 gOffset; // displacement of the current element, set by fetchState()
 
@@ -36,7 +37,9 @@ int fetchState() {
   vHold = b.b;
   vElem = float(id);
   vVmOcc = b.a;
-  gOffset = texelFetch(stateC, tc, 0).rgb;
+  vec4 cc = texelFetch(stateC, tc, 0);
+  gOffset = cc.rgb;
+  vDensity = cc.a;
   return int(b.r + 0.5);
 }
 `;
@@ -179,6 +182,7 @@ void main() {
   bool focus = flagFocus(vFlags);
   bool hidden = flagHidden(vFlags);
   if (hidden) discard;
+  if (clipN > 0 && clipCut(vWorldPos)) discard; // section planes
 
   vec3 n = normalize(vWorldNormal);
   bool hovered = vmHovered(vElem);
@@ -208,6 +212,7 @@ void main() {
   if (member) col = mix(col, sweepColor, 0.85 * sweepBandAt(s));
   if (vm.rim > 0.0) col = mix(col, peelRimCol, 0.85 * vm.rim);
   if (vm.cap) col = vmCapColour(bhOn > 0.5 && bhMode > 1.5 ? bhCap : peelCapCol);
+  if (clipN > 0 && clipCapOn > 0.5 && !gl_FrontFacing) col = vmCapColour(clipCapCol); // back face revealed by a section
   if (hovered) col = mix(col, hoverColor, 0.4) + 0.06;
   gl_FragColor = vec4(col, 1.0);
 #endif
@@ -267,6 +272,7 @@ void main() {
   if (!gl_FrontFacing) n = -n;
   vec3 col = shade(vColor, n) + 0.04;
   if (flagSelected(vFlags)) col = mix(col, vec3(1.0, 0.85, 0.2), 0.35);
+  if (clipN > 0 && clipCapOn > 0.5 && !gl_FrontFacing) col = vmCapColour(clipCapCol);
   if (hovered) col = mix(col, hoverColor, 0.4) + 0.06;
   col *= 1.0 + focusBoost;
   gl_FragColor = vec4(col, 1.0);
@@ -327,11 +333,24 @@ varying vec3 vWorldPos;
 uniform float edgeAlpha;
 uniform vec3 glowColor;
 uniform float glowStrength;
+uniform vec3 imgEdgeCol;   // imaging: faint tissue edges
+uniform float imgEdgeAlpha;
 
 void main() {
   if (flagHidden(vFlags)) discard;
+  if (clipN > 0 && clipCut(vWorldPos)) discard; // section planes
   bool focus = flagFocus(vFlags);
-#if defined( EDGES_GLOW )
+#if defined( EDGES_IMG )
+  if (focus) discard;
+  float imgCover = 1.0;
+  if (vmAny > 0.5) {
+    VmOut vm = vmEval(vWorldPos, vAlpha, vVmOcc, false);
+    imgCover = vm.cover;
+    if (vm.cover < 0.01) discard;
+  }
+  float ia = imgEdgeAlpha * imgCover;
+  gl_FragColor = vec4(imgEdgeCol * ia, ia);
+#elif defined( EDGES_GLOW )
   if (focus || vGlow < 0.5) discard;
   gl_FragColor = vec4(glowColor * glowStrength, glowStrength); // premultiplied; additive or over
 #else

@@ -30,6 +30,9 @@ beforeAll(async () => {
   api = await createIfcApi({ url: wasm });
 }, 60000);
 
+/** three-mesh-bvh keeps its buffers in underscore fields. */
+interface Internals { _roots: ArrayBuffer[]; _indirectBuffer: Uint32Array | null }
+
 async function extractAll(paths: string[]): Promise<RawModel[]> {
   const out: RawModel[] = [];
   for (const p of paths) out.push(await extractIfc(api, new Uint8Array(readFileSync(p)), p.split('/').pop()!));
@@ -84,6 +87,11 @@ function expectIdentical(glb: LoadedModel, direct: LoadedModel): void {
   expect(worst).toBeLessThan(1e-6);
   expect(sameArray(b.edges.getAttribute('position').array, a.edges.getAttribute('position').array), 'edge positions').toBe(true);
   expect(sameArray(b.edges.getAttribute('elementId').array, a.edges.getAttribute('elementId').array), 'edge ids').toBe(true);
+  // bounding volumes (precomputed in the worker for the direct path)
+  expect(b.geometry.boundingBox!.min.toArray()).toEqual(a.geometry.boundingBox!.min.toArray());
+  expect(b.geometry.boundingBox!.max.toArray()).toEqual(a.geometry.boundingBox!.max.toArray());
+  expect(b.geometry.boundingSphere!.center.toArray()).toEqual(a.geometry.boundingSphere!.center.toArray());
+  expect(b.geometry.boundingSphere!.radius).toBe(a.geometry.boundingSphere!.radius);
   // the same lookups
   for (const tri of [0, 1, 7, (a.geometry.getIndex()!.count / 3) - 1]) expect(b.elementOfTriangle(tri)).toBe(a.elementOfTriangle(tri));
   expect(noNegZero(b.totalBounds().min.toArray())).toEqual(noNegZero(a.totalBounds().min.toArray()));
@@ -132,7 +140,7 @@ describe('worker BVH', () => {
     const raws = await extractAll([resolve(models, 'AC20-FZK-Haus.ifc')]);
     const data = buildModelData(raws);
     const glb = await parseModel(data.glb, data.sidecar);
-    const lazy = glb.geometry.bvh; // MergedGeometry's own indirect build
+    const lazy = glb.geometry.bvh as unknown as Internals; // MergedGeometry's own indirect build
     const built = buildMergedData(raws, { edges: 'none' });
     const ser = buildBvh(built.arrays);
     expect(ser.roots.length).toBe(lazy._roots.length);
@@ -142,13 +150,13 @@ describe('worker BVH', () => {
     built.arrays.bvh = ser;
     const direct = MergedGeometry.fromArrays(built.arrays);
     // installed, not rebuilt: the getter returns the deserialised object whose buffers are the ones we gave it
-    expect(direct.bvh._roots[0]).toBe(ser.roots[0]);
-    expect(direct.bvh._indirectBuffer).toBe(ser.indirectBuffer);
+    expect((direct.bvh as unknown as Internals)._roots[0]).toBe(ser.roots[0]);
+    expect((direct.bvh as unknown as Internals)._indirectBuffer).toBe(ser.indirectBuffer);
     // and it answers like the lazy one
     const b = glb.geometry.totalBounds();
     const c = b.getCenter(new Vector3());
     const ray = new Ray(new Vector3(c.x, b.max.y + 5, c.z), new Vector3(0, -1, 0));
-    const h1 = lazy.raycast(ray, DoubleSide, 0, 100).map((h) => [h.faceIndex, Math.round(h.distance * 1e4)]);
+    const h1 = glb.geometry.bvh.raycast(ray, DoubleSide, 0, 100).map((h) => [h.faceIndex, Math.round(h.distance * 1e4)]);
     const h2 = direct.bvh.raycast(ray, DoubleSide, 0, 100).map((h) => [h.faceIndex, Math.round(h.distance * 1e4)]);
     expect(h1.length).toBeGreaterThan(0);
     expect(h2).toEqual(h1);

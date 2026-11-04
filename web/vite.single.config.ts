@@ -22,7 +22,9 @@ function ifcRuntimeVariant(): Plugin {
     name: 'xray-ifc-runtime-variant',
     enforce: 'pre',
     resolveId(source, importer) {
-      if (!importer || !/(^|\/)ifcRuntime$/.test(source)) return null;
+      if (!importer) return null;
+      if (/(^|\/)workerRuntime$/.test(source) && importer.includes('/pointcloud/')) return resolve(here, 'src/pointcloud/workerRuntime.single.ts');
+      if (!/(^|\/)ifcRuntime$/.test(source)) return null;
       return target;
     },
   };

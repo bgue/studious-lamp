@@ -21,6 +21,9 @@ export interface MergedArrays {
   edgeElementId: Float32Array;
   /** [start, count] per element in edge vertices (2 Uint32 per element). */
   edgeRanges: Uint32Array;
+  /** Bounding box of `position` ([minx, miny, minz, maxx, maxy, maxz]) and sphere ([cx, cy, cz, radius]), when precomputed off the main thread. */
+  boundingBox?: number[];
+  boundingSphere?: number[];
   /** three-mesh-bvh serialisation of the indirect BVH over position/index, when the worker built it. */
   bvh?: SerializedBvh | null;
 }

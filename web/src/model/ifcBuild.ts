@@ -404,12 +404,14 @@ export function buildMergedData(raws: RawModel[], opts: MergedBuildOptions = {})
   }
   progress?.({ phase: 'merge', done: n, total: n });
   const t2 = performance.now();
+  const { box, sphere } = boundingVolumes(position);
 
   const mode = opts.edges ?? 'auto';
   const edgesSkipped = mode === 'none' || (mode === 'auto' && n > AUTO_EDGES_MAX_ELEMENTS);
   const arrays: MergedArrays = {
     elementCount: n, position, normal, elementId, index, ranges, vertexRanges, bounds,
     edgePosition: new Float32Array(0), edgeElementId: new Float32Array(0), edgeRanges: new Uint32Array(n * 2),
+    boundingBox: box, boundingSphere: sphere,
   };
   if (edgesSkipped) {
     progress?.({ phase: 'edges', done: 0, total: n, skipped: mode === 'none' ? 'none' : 'auto' });
@@ -433,6 +435,29 @@ export function buildMergedData(raws: RawModel[], opts: MergedBuildOptions = {})
     head: sidecarHead(pr), records, arrays, report: pr.report, edgesSkipped,
     timings: { prepareMs: t1 - t0, mergeMs: t2 - t1, edgesMs: t3 - t2 },
   };
+}
+
+/** Box and sphere of a position array exactly as BufferGeometry.computeBoundingBox / computeBoundingSphere get them. */
+export function boundingVolumes(position: Float32Array): { box: number[]; sphere: number[] } {
+  const box = [Infinity, Infinity, Infinity, -Infinity, -Infinity, -Infinity];
+  for (let i = 0; i < position.length; i += 3) {
+    const x = position[i]!, y = position[i + 1]!, z = position[i + 2]!;
+    if (x < box[0]!) box[0] = x;
+    if (y < box[1]!) box[1] = y;
+    if (z < box[2]!) box[2] = z;
+    if (x > box[3]!) box[3] = x;
+    if (y > box[4]!) box[4] = y;
+    if (z > box[5]!) box[5] = z;
+  }
+  if (position.length === 0) return { box, sphere: [0, 0, 0, 0] };
+  const cx = (box[0]! + box[3]!) * 0.5, cy = (box[1]! + box[4]!) * 0.5, cz = (box[2]! + box[5]!) * 0.5;
+  let r2 = 0;
+  for (let i = 0; i < position.length; i += 3) {
+    const dx = cx - position[i]!, dy = cy - position[i + 1]!, dz = cz - position[i + 2]!;
+    const d = dx * dx + dy * dy + dz * dz;
+    if (d > r2) r2 = d;
+  }
+  return { box, sphere: [cx, cy, cz, Math.sqrt(r2)] };
 }
 
 const EMPTY_F32 = new Float32Array(0);

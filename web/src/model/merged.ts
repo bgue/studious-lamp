@@ -8,6 +8,7 @@ import {
   EdgesGeometry,
   Matrix3,
   Matrix4,
+  Sphere,
   Vector3,
 } from 'three';
 import { MeshBVH } from 'three-mesh-bvh';
@@ -78,8 +79,15 @@ export class MergedGeometry {
       geometry.setAttribute('normal', new BufferAttribute(a.normal, 3));
       geometry.setAttribute('elementId', new BufferAttribute(a.elementId, 1));
       geometry.setIndex(new BufferAttribute(a.index, 1));
-      geometry.computeBoundingBox();
-      geometry.computeBoundingSphere();
+      if (a.boundingBox && a.boundingSphere && a.position.length > 0) {
+        // computed in the worker: the same numbers computeBoundingBox/Sphere would give, without a pass over every vertex here
+        const bb = a.boundingBox, bs = a.boundingSphere;
+        geometry.boundingBox = new Box3(new Vector3(bb[0], bb[1], bb[2]), new Vector3(bb[3], bb[4], bb[5]));
+        geometry.boundingSphere = new Sphere(new Vector3(bs[0], bs[1], bs[2]), bs[3]);
+      } else {
+        geometry.computeBoundingBox();
+        geometry.computeBoundingSphere();
+      }
       this.geometry = geometry;
       const ids: number[] = [];
       for (let e = 0; e < n; e++) if (a.ranges[e * 2 + 1]! > 0) ids.push(e);

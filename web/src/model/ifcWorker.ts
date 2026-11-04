@@ -53,7 +53,8 @@ export type WorkerOut =
   | { type: 'records'; from: number; records: ElementRecord[] }
   | {
     type: 'merged';
-    head: Omit<Sidecar, 'elements'>;
+    /** JSON of the sidecar without elements: one string is much cheaper to hand over than 100k small relation arrays. */
+    headJson: string;
     arrays: MergedArrays;
     report: BuildReport;
     edgesSkipped: boolean;
@@ -147,7 +148,7 @@ ctx.onmessage = async (ev) => {
       }
       post({ type: 'progress', id: -1, progress: { phase: 'transfer' } });
       post({
-        type: 'merged', head: built.head, arrays: built.arrays, report: built.report, edgesSkipped: built.edgesSkipped, bvhBuilt,
+        type: 'merged', headJson: JSON.stringify(built.head), arrays: built.arrays, report: built.report, edgesSkipped: built.edgesSkipped, bvhBuilt,
         timings: { ...built.timings, bvhMs, releaseMs },
       }, mergedTransferables(built.arrays));
     }

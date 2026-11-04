@@ -38,9 +38,15 @@ export function classNameOf(title: string): string {
   return title.replace(/\s*\[alias\]\s*$/, '').replace(/\s*\(\d+\)\s*$/, '').trim();
 }
 
-/** Key of a folder: its title, or the pattern key for a per-class folder. */
+/** The "Classes" sub folder of Model cleanup shares its title with the one in Class styles: give it its own key. */
+export const CLEANUP_CLASSES_KEY = 'Model cleanup/Classes';
+
+/** Key of a folder: its title, the pattern key for a per-class folder, or a parent qualified key for a title that two folders share. */
 export function folderKey(g: GuiLike): string {
-  return isClassFolder(g) ? CLASS_FOLDER_KEY : folderTitle(g);
+  if (isClassFolder(g)) return CLASS_FOLDER_KEY;
+  const t = folderTitle(g);
+  if (t === 'Classes' && g.parent && folderTitle(g.parent) === 'Model cleanup') return CLEANUP_CLASSES_KEY;
+  return t;
 }
 
 /** Key of a control: "<folder key>/<display name>". */
@@ -173,6 +179,134 @@ export const ELEMENT_RULES: ReadonlyArray<{ selector: string; key: string | ((el
   { selector: '.props-head .btn', key: 'Sidebar/Copy GlobalId', title: 'Copy GlobalId' },
 ];
 
+// ---------------------------------------------------------------- tool strip, drawers and dialogs
+
+/** One rule for an element that no lil-gui control owns. It returns the candidate keys, best first, or null. */
+export interface DomRule {
+  selector: string;
+  keys: (el: Element, drawer: string) => string[] | null;
+  title: (el: Element, drawer: string) => string;
+}
+
+const txt = (e: Element | null | undefined): string => (e?.textContent ?? '').replace(/\s+/g, ' ').trim();
+/** A button or heading label without the count in it: "Export CSV (12)" and "Comments (3)" lose the count. */
+const bare = (s: string): string => s.replace(/\s*\(\d+\)\s*$/, '').replace(/\s+\d+$/, '').trim();
+const lblOf = (e: Element): string => txt(e.querySelector('.xt-lbl'));
+const prevSection = (e: Element): string => {
+  for (let n: Element | null = e; n; n = n.parentElement) {
+    for (let p = n.previousElementSibling; p; p = p.previousElementSibling) {
+      if (p.classList.contains('xt-sec')) return txt(p);
+    }
+    if (n.classList.contains('xt-body')) break;
+  }
+  return '';
+};
+
+/** The title of the open tool drawer, or "" when the element lies outside a drawer. */
+export function drawerTitleOf(e: Element): string {
+  const d = e.closest('#xray-toolbar-drawer');
+  return d ? txt(d.querySelector('.xt-title')) : '';
+}
+
+/** Key prefix of a drawer: "<tool label> drawer". */
+export const drawerKeyOf = (title: string): string => `${title} drawer`;
+
+const D = (d: string, name: string): string => `${drawerKeyOf(d)}/${name}`;
+
+/** Folders of the parameter panel that hold the same controls as a drawer. A drawer widget falls back to these texts. */
+export const DRAWER_FOLDERS: Readonly<Record<string, readonly string[]>> = {
+  'View modes': ['Behind only', 'Peelback'],
+  Cleanup: ['Floating', 'Tiny', 'Distant strays', 'Duplicates', 'Degenerate', 'Model cleanup', 'Model cleanup/Classes'],
+  Imaging: ['Imaging', 'MRI slice'],
+  Scan: ['Point cloud'],
+  'Large model': ['Open model'],
+};
+
+/** A shortcut hint such as "(C)" or "(Alt+C)" at the end of a label. A unit such as "(m)" stays. */
+const noHint = (s: string): string => s.replace(/\s*\((?:\w+\+)*[A-Z]\)$/, '');
+
+/** Candidate keys of a drawer widget: its own text first, then the same control in the parameter panel. */
+const same = (d: string, name: string): string[] => {
+  const names = noHint(name) === name ? [name] : [name, noHint(name)];
+  const folders = DRAWER_FOLDERS[d] ?? [d];
+  return [...names.map((n) => D(d, n)), ...names.flatMap((n) => folders.map((f) => `${f}/${n}`))];
+};
+
+/** Rules for the action panel strip and the drawers. The tests of the help text check that each key has an entry. */
+export const TOOL_RULES: ReadonlyArray<DomRule> = [
+  { selector: '.xt-btn-tool[data-tool]', keys: (e) => [`Tool strip/${e.getAttribute('aria-label') ?? ''}`], title: (e) => e.getAttribute('aria-label') ?? 'Tool' },
+  { selector: '.xt-strip', keys: () => ['Tool strip'], title: () => 'Tool strip' },
+  { selector: '.xt-close', keys: () => ['Tool drawer/Close button'], title: () => 'Close button' },
+  { selector: '.xt-grip', keys: () => ['Tool drawer/Resize edge'], title: () => 'Resize edge' },
+  { selector: '.xt-title, .xt-head', keys: (_e, d) => [drawerKeyOf(d)], title: (_e, d) => drawerKeyOf(d) },
+  { selector: '.xt-sec', keys: (e, d) => [D(d, `${txt(e)} (heading)`), ...(d === 'Presets' ? [D(d, 'Preset group (heading)')] : [])], title: (e) => txt(e) },
+  { selector: '.xt-table th', keys: (e, d) => [D(d, `Column: ${txt(e)}`)], title: (e) => `${txt(e)} column` },
+  { selector: '.xt-table tbody tr[data-pen]', keys: (_e, d) => [D(d, 'Table row')], title: () => 'Table row' },
+  { selector: '.xt-table', keys: (e, d) => [e.querySelector('th') ? D(d, 'Schedule table') : D(d, `Table: ${prevSection(e)}`)], title: (e) => (e.querySelector('th') ? 'Schedule table' : `${prevSection(e)} table`) },
+  { selector: '.xt-slider, .xt-select', keys: (e, d) => same(d, lblOf(e)), title: (e) => lblOf(e) },
+  { selector: '.xp-ticks .xt-check', keys: (_e, d) => [D(d, 'Section tick')], title: () => 'Section tick' },
+  { selector: '.xt-check', keys: (e, d) => same(d, txt(e)), title: (e) => txt(e) },
+  { selector: '.xt-chip', keys: (e, d) => {
+    const sec = prevSection(e);
+    return [sec === 'Status' ? D(d, `Chip: ${bare(txt(e))}`) : D(d, `Chip: ${sec || 'filter'}`)];
+  }, title: (e) => bare(txt(e)) },
+  { selector: '.xt-item .x', keys: (_e, d) => [D(d, 'Delete measurement')], title: () => 'Delete measurement' },
+  { selector: '.xt-item', keys: (_e, d) => [D(d, 'Measurement row')], title: () => 'Measurement row' },
+  { selector: '.xp-key', keys: (_e, d) => [D(d, 'Key badge')], title: () => 'Key badge' },
+  { selector: '.xp-badge', keys: (_e, d) => [D(d, 'Active badge')], title: () => 'Active badge' },
+  { selector: '.xp-skip', keys: (_e, d) => [D(d, 'Skipped list')], title: () => 'Skipped list' },
+  { selector: '.xp-form input[type=text]', keys: (e, d) => [D(d, /desc/i.test(e.getAttribute('aria-label') ?? '') ? 'Description box' : 'Name box')], title: (e) => e.getAttribute('aria-label') ?? 'Text box' },
+  { selector: '.xp-card', keys: (_e, d) => [D(d, 'Preset card')], title: () => 'Preset card' },
+  { selector: '.bcf-modal .bcf-btn', keys: (e) => [`BCF topic dialog/${bare(txt(e))}`], title: (e) => bare(txt(e)) },
+  { selector: '.bcf-modal .bcf-in', keys: () => ['BCF topic dialog/Field'], title: () => 'Dialog field' },
+  { selector: '.bcf-btn', keys: (e, d) => same(d, bare(txt(e))), title: (e) => bare(txt(e)) },
+  { selector: 'textarea[data-bcf-comment]', keys: (_e, d) => [D(d, 'Comment box')], title: () => 'Comment box' },
+  { selector: '.bcf-detail select', keys: (_e, d) => [D(d, 'Topic status list')], title: () => 'Topic status list' },
+  { selector: 'input.bcf-in', keys: (_e, d) => [D(d, 'Search box')], title: () => 'Search box' },
+  { selector: 'select.bcf-in', keys: (_e, d) => [D(d, 'Status filter')], title: () => 'Status filter' },
+  { selector: '.bcf-detail label', keys: (_e, d) => [D(d, 'Attach view tick')], title: () => 'Attach view tick' },
+  { selector: '.bcf-h', keys: (e, d) => [D(d, `${bare(txt(e))} (heading)`)], title: (e) => bare(txt(e)) },
+  { selector: '.bcf-snap', keys: (_e, d) => [D(d, 'Snapshot')], title: () => 'Snapshot' },
+  { selector: '.bcf-comment', keys: (_e, d) => [D(d, 'Comment')], title: () => 'Comment' },
+  { selector: '.bcf-item', keys: (_e, d) => [D(d, 'Topic row')], title: () => 'Topic row' },
+  { selector: '.xt-btn', keys: (e, d) => same(d, bare(txt(e))), title: (e) => bare(txt(e)) },
+  { selector: '.pc-result', keys: (_e, d) => [D(d, 'Deviation result')], title: () => 'Deviation result' },
+  { selector: '.xt-status, .bcf-status', keys: (_e, d) => [D(d, 'Status line')], title: () => 'Status line' },
+];
+
+/** Rules for the keyboard dialogs: command palette, shortcut sheet and shortcut editor. */
+export const DIALOG_RULES: ReadonlyArray<DomRule> = [
+  { selector: '.kx-palette .kx-input', keys: () => ['Command palette/Search box'], title: () => 'Search box' },
+  { selector: '.kx-palette .kx-item', keys: () => ['Command palette/Result row'], title: () => 'Result row' },
+  { selector: '.kx-sheet .kx-input', keys: () => ['Shortcut sheet/Search box'], title: () => 'Search box' },
+  { selector: '.kx-sheet .kx-btn', keys: (e) => [`Shortcut sheet/${txt(e)}`], title: (e) => txt(e) },
+  { selector: '.kx-sheet .kx-row', keys: () => ['Shortcut sheet/Shortcut row'], title: () => 'Shortcut row' },
+  { selector: '.kx-edit .kx-input', keys: () => ['Shortcut editor/Filter box'], title: () => 'Filter box' },
+  { selector: '.kx-edit tr .kx-btn', keys: () => ['Shortcut editor/Reset row'], title: () => 'Reset row' },
+  { selector: '.kx-edit .kx-btn', keys: (e) => [`Shortcut editor/${txt(e)}`], title: (e) => txt(e) },
+  { selector: '.kx-edit .kx-add', keys: () => ['Shortcut editor/Add key cell'], title: () => 'Add key cell' },
+  { selector: '.kx-edit .kx-cell', keys: () => ['Shortcut editor/Key cell'], title: () => 'Key cell' },
+];
+
+/** Match the DOM rules against one element. The first rule that matches and gives a key with a text wins; else the first key. */
+export function domTarget(e: Element): HelpTarget | null {
+  const d = drawerTitleOf(e);
+  const rules = d ? TOOL_RULES : [TOOL_RULES[0]!, TOOL_RULES[1]!, ...DIALOG_RULES];
+  for (const r of rules) {
+    if (!e.matches(r.selector)) continue;
+    const keys = r.keys(e, d);
+    if (!keys || keys.length === 0 || keys[0]!.endsWith('/')) continue;
+    const found = keys.find((k) => lookupHelp(k)) ?? keys[0]!;
+    return { key: found, title: r.title(e, d) };
+  }
+  return null;
+}
+
+/** Elements of a drawer or dialog that carry help: the check on the drawer content uses this list. */
+export const DOM_CANDIDATES =
+  '.xt-btn-tool, .xt-title, .xt-close, .xt-grip, .xt-sec, .xt-table, .xt-table th, .xt-slider, .xt-select, .xt-check, .xt-chip, .xt-btn, .xt-status, .xt-item, .xp-card, .xp-key, .xp-badge, .xp-skip, .xp-form input[type=text], .pc-result, ' +
+  '.bcf-btn, .bcf-in, .bcf-h, .bcf-item, .bcf-snap, .bcf-comment, .bcf-status, .bcf-detail label, .kx-input, .kx-btn, .kx-cell, .kx-row, .kx-item';
+
 // ---------------------------------------------------------------- popover
 
 export const HELP_DELAY_MS = 350;
@@ -199,6 +333,7 @@ const CSS = `
 #xray-help .hp-label { color: #3b9cff; font-weight: 600; }
 #xray-help .hp-line.hp-impact .hp-label { color: #e0b252; }
 #xray-help .hp-line.hp-ref .hp-text { color: #8d99a8; }
+body.xh-on .xt-btn-tool[data-tool]::after { display: none !important; }
 `;
 
 export interface PopoverOptions {

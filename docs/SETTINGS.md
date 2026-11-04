@@ -37,6 +37,44 @@ Switch the tooltips off with `window.__xrayHelp.disable()` or `localStorage["xra
 - [Export / import](#export-import)
 - [Panel dock](#panel-dock)
 - [Sidebar](#sidebar)
+- [View modes](#view-modes)
+- [Behind only](#behind-only)
+- [Peelback](#peelback)
+- [Model cleanup](#model-cleanup)
+- [Floating](#floating)
+- [Tiny](#tiny)
+- [Distant strays](#distant-strays)
+- [Duplicates](#duplicates)
+- [Degenerate](#degenerate)
+- [Model cleanup/Classes](#model-cleanupclasses)
+- [Hover info](#hover-info)
+- [Presets](#presets)
+- [Penetrations](#penetrations)
+- [Measure](#measure)
+- [Clearance](#clearance)
+- [BCF](#bcf)
+- [Keyboard](#keyboard)
+- [Imaging](#imaging)
+- [MRI slice](#mri-slice)
+- [Section](#section)
+- [Point cloud](#point-cloud)
+- [Tool strip](#tool-strip)
+- [Tool drawer](#tool-drawer)
+- [BCF topic dialog](#bcf-topic-dialog)
+- [Command palette](#command-palette)
+- [Shortcut sheet](#shortcut-sheet)
+- [Shortcut editor](#shortcut-editor)
+- [Presets drawer](#presets-drawer)
+- [View modes drawer](#view-modes-drawer)
+- [Measure drawer](#measure-drawer)
+- [BCF drawer](#bcf-drawer)
+- [Clearance drawer](#clearance-drawer)
+- [Penetrations drawer](#penetrations-drawer)
+- [Large model drawer](#large-model-drawer)
+- [Cleanup drawer](#cleanup-drawer)
+- [Imaging drawer](#imaging-drawer)
+- [Section drawer](#section-drawer)
+- [Scan drawer](#scan-drawer)
 
 ## Glossary
 
@@ -78,6 +116,18 @@ The texts use these terms with one meaning each.
 | fly-through | A camera move along a smooth path through the keyframes. |
 | turntable | A slow orbit of the camera around the model. |
 | dolly | A camera move along the run of the focus objects. |
+| peel | A cut that removes the context in front of the focus inside a window. The window follows the outline of the focus. |
+| cap | A flat hatched face that closes the cut of a solid, so that the cut shows as a section. |
+| section box | A box that clips the model per pixel on all 6 sides. Only the content inside the box stays visible. |
+| section plane | A single plane that clips the model per pixel on 1 side. |
+| penetration | A place where an MEP element passes through a structural host such as a slab or a wall. |
+| clearance | The shortest distance between the surface of a context element and the focus. |
+| deviation | The distance from a point of a point cloud to the nearest model surface. |
+| preset | A named set of viewer settings. A preset changes many settings in 1 step and never changes the model. |
+| palette | A named set of colours for an imaging style. It sets the ground, the tone of the material and the glow. |
+| radiograph | An imaging style that draws the context by accumulated material thickness through an attenuation curve. The focus is bright and glows. |
+| slab slice | A thin slab through the focus in the MRI style. The slab draws grey and crisp and the surroundings draw faint. |
+| viewpoint | A saved camera pose with selected, hidden and coloured elements and clip planes. A BCF topic stores it. |
 
 ## Writing rules
 
@@ -162,6 +212,9 @@ Impact follows the same sentence rules and adds these:
 | Open IFC or glb file | The button opens a file picker for your own model files. The viewer reads the files in the browser and sends nothing out. You can also drop files on the viewer. | Click and a window lets you pick a building from your computer. You can also drag it onto the picture. | Click the button. Choose a model file from your computer. Read the status line for the result. | Report: Appendix B, WebGL |
 | Cancel load | The button stops a load in progress. The viewer keeps the current model. | Click while a new building is coming in and it stops. The building you see now stays on screen. | Click the button when a load takes too long or you chose the wrong file. | Report: Appendix B, WebGL |
 | Load status | The field shows the progress of a load, then the result or an error. You cannot edit it. | The text shows progress while a building comes in. It then says whether it worked or what went wrong. | Read the field after you choose a file. Read the error text if the model does not appear. | Report: Appendix B, WebGL |
+| edges | The list sets whether the loader builds edge lines for an IFC file. The value auto skips edge lines above 50,000 elements. | Choose none, or auto on a big building, and the file loads faster. The sharp outlines then go missing. Choose all to keep every outline. | Select auto for most files. Select none for a huge file. Select all to force edge lines. The choice applies to the next IFC file that you open. | Report: Appendix K, Packaging, point clouds and large models |
+| properties | The list sets whether the loader reads the properties of each element from an IFC file. The value none skips property extraction for speed. | Choose none and a big file loads faster. The info card and the side list then have no facts to show. Choose common to keep them. | Select common to keep the usual facts. Select none for the fastest load. The choice applies to the next IFC file that you open. | Report: Appendix L, Hover info and properties |
+| Model stats | The read-only field shows the size of the last model. It lists the elements, the triangles and the load time. | A short text of numbers tells you how big the building is and how long it took to load. | Read the line after a load. Open the Large model tool for all figures. | Report: Appendix K, Packaging, point clouds and large models |
 
 ## Class styles
 
@@ -388,3 +441,501 @@ Impact follows the same sentence rules and adds these:
 | Rename set | The button changes the name of the set. | Click, type a new label, and press Enter. The group keeps its parts and gets the new label. | Click the button. Type a new name. Press Enter. | Report: Onboarding checklist |
 | Delete set | The button removes the set from the list. The objects stay in the model. | Click and the group disappears from the list. The parts stay in the building. | Click the button only when you no longer need the set. | Report: Onboarding checklist |
 | Copy GlobalId | The button copies the GlobalId of the first selected object to the clipboard. | Click and the unique code of the picked part goes onto the clipboard. Paste it into another program to find the same part. | Select an object. Click the button and paste the id into your BIM tool. | Report: Onboarding checklist |
+
+## View modes
+
+| Setting | Intent | Impact | Use | Ref |
+| --- | --- | --- | --- | --- |
+| *Folder: View modes* | The folder holds the 2 cutaway views, behind only and peelback. Both cut the context per pixel and never cut the focus. | These controls cut holes in whatever hides the selected item. You can use one cut at a time or both together. | Select an object first. Open a sub folder to change a cut. | Report: Appendix F, View modes |
+
+## Behind only
+
+| Setting | Intent | Impact | Use | Ref |
+| --- | --- | --- | --- | --- |
+| *Folder: Behind only* | The folder controls the behind-only view. A plane across the line of sight removes or fades the context in front of the focus. | These controls take away the walls and slabs between you and the selected item. What lies past it stays solid. | Select an object. Turn the view on. Change the offset to keep more or less solid context around the focus. | Report: Appendix F, View modes |
+| enabled | The switch turns the behind-only view on or off. It needs a selected object. Press the B key for the same action. | On: the walls and slabs in the way vanish or fade, so you see past them. Off: nothing is cut. | Select an object. Turn the switch on to see what lies past it. | Report: Appendix F, View modes |
+| front treatment | The list sets what happens to the context in front of the cut plane. The value cut removes it. The value ghost fades it. The value cut + cap removes it and paints flat caps. | Choose cut and the blockers vanish. Choose the second and they turn faint but stay. Choose the third and solid parts look sliced open with a hatched face. | Select cut for a clean picture of the back. Select ghost to keep a faint sense of place. Select cut + cap to see solids as sections. Press Shift+B to cycle. | Report: Appendix F, View modes |
+| offset (m) | The slider moves the cut plane toward the camera by this distance in metres. A negative value cuts into the focus. | Move the slider right and a thicker shell of walls and slabs stays around the selected item. Move it left and the cut gets closer, then goes inside the item. | Increase the value to keep more solid context around the focus. Decrease the value to cut closer. Use a negative value to cut into the focus. | Report: Appendix F, View modes |
+| front alpha | The slider sets the alpha of the context in front of the plane for the ghost treatment. | Move the slider left and the parts in the way turn almost invisible. Move it right and they stay solid. It acts on the faint choice alone. | Increase the value to keep the blockers more visible. Decrease the value to fade them more. | Report: Appendix F, View modes |
+| orientation | The list sets the direction of the cut plane. The value camera follows the view. The value locked freezes the plane. The value horizontal cuts a plan. | Choose camera and the cut turns as you orbit. Choose locked and it stays put while you orbit. Choose horizontal and it slices flat from above, like a plan drawing. | Select camera to cut along your line of sight. Select locked to freeze the plane. Select horizontal for a plan cut. | Report: Appendix F, View modes |
+| apply to | The list sets which context objects the cut affects. The value all context cuts every context object. The value occluders only cuts the occluders. | Choose the first and every wall and slab in the way gets cut. Choose the second and just the parts that really block the selected item get cut. | Select all context for a clean picture. Select occluders only to keep the rest of the building intact. | Report: Appendix F, View modes |
+| keep x-ray behind | The switch keeps the sightline alpha of the context behind the plane. When it is off, that context draws fully solid. | On: parts past the cut still fade where they block the view. Off: everything past the cut turns solid. | Turn the switch on to keep the x-ray look behind the plane. Turn it off to get solid structure behind the focus. | Report: Appendix F, View modes |
+| cap colour | The colour picker sets the colour of the flat caps in the cut + cap treatment. | Pick a shade and the hatched faces that close the cut change to it. | Choose a colour that stands out from your model colours. | Report: Appendix F, View modes |
+
+## Peelback
+
+| Setting | Intent | Impact | Use | Ref |
+| --- | --- | --- | --- | --- |
+| *Folder: Peelback* | The folder controls the peelback. A peel cuts a window through the context in front of the focus. The window follows the outline of the focus. | These controls cut a hole in the walls and slabs in front of the selected item. The rest of each wall stays in place. | Select an object. Turn the peelback on. Change the radius to make the window larger or smaller. | Report: Appendix F, View modes |
+| enabled | The switch turns the peelback on or off. It needs a selected object. Press the P key for the same action. | On: a window opens in the walls and slabs in front of the selected item. Off: nothing is cut. | Select an object. Turn the switch on to open a window to it. | Report: Appendix F, View modes |
+| radius (m) | The slider sets the radius of the peel window at the depth of the focus, in metres. | Move the slider right and the hole around the selected item grows. Move it left and the hole shrinks to a thin outline. | Increase the value to see more of the surroundings. Decrease the value to keep more of the walls. Press Alt+= or Alt+- to change it by 25 percent. | Report: Appendix F, View modes |
+| slope | The slider sets how much the window radius grows for each metre between the surface and the focus. | Move the slider right and the hole widens toward you, like a cone. At 0 the hole keeps the same width. | Increase the value for a wide opening at the surface. Set the value to 0 for a straight tunnel. | Report: Appendix F, View modes |
+| feather (m) | The slider sets the width of the soft edge of the window, in metres. | Move the slider right and the hole gets a soft, fading border. At 0 the border is sharp. | Increase the value for a smooth edge. Decrease the value for a crisp edge. | Report: Appendix F, View modes |
+| rim band | The switch draws a band of the accent colour on the surface at the edge of the window. | On: a coloured ring marks the border of the hole. Off: the border has no mark. | Turn the switch on to find the window quickly. Turn it off for a clean look. | Report: Appendix F, View modes |
+| rim colour | The colour picker sets the colour of the rim band. | Pick a shade and the ring around the hole changes to it. | Choose a colour that stands out from your model colours. | Report: Appendix F, View modes |
+| cap colour | The colour picker sets the colour of the flat caps on the revealed back faces inside the window. | Pick a shade and the flat faces inside the cut change to it. | Choose a colour that stands out from your model colours. | Report: Appendix F, View modes |
+| outside | The list sets how the context outside the window looks. The value x-ray keeps the x-ray result. The value solid draws it fully solid. | Choose the first and the rest of the building keeps fading around the hole. Choose solid and everything around the hole looks solid. | Select x-ray to combine the peel with the fading. Select solid to see the peel alone. | Report: Appendix F, View modes |
+| apply to | The list sets which context objects the peel affects. The value all context affects every context object. The value occluders only affects the occluders. | Choose the first and every wall and slab in front gets a hole. Choose the second and just the parts that really block the selected item get one. | Select all context for a clean window. Select occluders only to keep the rest of the building intact. | Report: Appendix F, View modes |
+| animate | The switch grows the window radius from 0 over 500 ms when the peel starts or when the selection changes. | On: the hole grows smoothly each time. Off: the hole appears at once. | Turn the switch on for a smooth reveal. Turn it off for screenshots. | Report: Appendix F, View modes |
+
+## Model cleanup
+
+| Setting | Intent | Impact | Use | Ref |
+| --- | --- | --- | --- | --- |
+| *Folder: Model cleanup* | The folder finds debris in the model and hides it. The hide is reversible and the viewer does not change the model file. | These controls find stray bits, such as loose pieces and tiny parts, and tuck them out of sight. You can bring them back. | Set the rules. Click Preview matches to check them. Click Hide matches to hide them. | Report: Appendix H, Model cleanup |
+| Preview matches | The button tints the matches magenta. The viewer frames them when fewer than 50 elements match. | Click and the pieces that the rules found turn pink, so you can check them before you hide them. | Set the rules first. Click the button. Use Select matches when a match hides inside a wall. | Report: Appendix H, Model cleanup |
+| Hide matches | The button hides the matches and records which ids it hid. The model file does not change. | The found pieces vanish from the picture. No part gets deleted. | Click Preview matches first. Click the button to hide the matches. | Report: Appendix H, Model cleanup |
+| Restore cleanup | The button shows again only the elements that the cleanup hid. Elements that you hid yourself stay hidden. | The pieces that this tool hid come back. Parts that you hid by hand stay out of sight. | Click the button to undo the hide of the matches. | Report: Appendix H, Model cleanup |
+| Select matches | The button selects all matches, so that you can find them in the sidebar and frame them. | Click and the found pieces light up as your picked group, even those that sit inside walls. | Click the button when a match hides inside another object. | Report: Appendix H, Model cleanup |
+| Export report | The button downloads a JSON file with the ids, GlobalIds, classes, names and reasons of the matches. | Click and a file of the found pieces, with the reason for each, lands in your downloads. | Click the button to share the list with other people. | Report: Appendix H, Model cleanup |
+| Cleanup status | The read-only field shows the result of the last cleanup step. | A short text tells you how many pieces the rules found or hid. | Read the line after each step. | Report: Appendix H, Model cleanup |
+| apply on load | The switch runs the cleanup rules and hides the matches each time a model loads. | On: the debris is gone as soon as a building appears. Off: you decide when to hide it. | Turn the switch on for models that always need the same clean up. | Report: Appendix H, Model cleanup |
+
+## Floating
+
+| Setting | Intent | Impact | Use | Ref |
+| --- | --- | --- | --- | --- |
+| *Folder: Floating* | The folder holds the rule for floating elements. A floating element does not touch the main structure and is smaller than the limit. | This rule finds small pieces that hang in the air away from the rest of the building. | Turn the rule on. Choose how to measure size. Set the limit. Click Preview matches. | Report: Appendix H, Model cleanup |
+| enabled | The switch turns the floating rule on or off. | On: small loose pieces count as debris. Off: this rule finds nothing. | Turn the switch on to find pieces that hang away from the building. | Report: Appendix H, Model cleanup |
+| size metric | The list sets how the rule measures size. The choices are largest dimension, bounds volume, mesh volume and triangle count. | Each choice changes what small means. Length judges the longest side. Volume judges the space a part fills. Triangle count judges the detail. | Select largest dimension for most models. Select a volume for thin, long parts. Select triangle count for mesh detail. | Report: Appendix H, Model cleanup |
+| threshold | The slider sets the size limit of the floating rule. A part below the limit matches. The unit follows the size metric. | Move the slider right and bigger loose pieces count as debris. Move it left and only the tiny ones count. | Increase the value to catch larger pieces. Decrease the value to keep more of the model. | Report: Appendix H, Model cleanup |
+| mode | The list sets what the rule matches. The value single elements matches elements with no contact. The value small clusters matches whole small groups. | Choose the first and only pieces that touch nothing match. Choose clusters and whole small groups of touching pieces match. | Select single elements for lone pieces. Select small clusters for small groups of pieces. | Report: Appendix H, Model cleanup |
+| contact tolerance (m) | The slider sets the largest gap in metres at which 2 elements still count as touching. | Move the slider right and pieces with a small gap between them count as joined. At 0 they must touch exactly. | Increase the value if the model has small gaps between parts. Decrease the value for exact contact. | Report: Appendix H, Model cleanup |
+| precise contacts | The switch checks the real mesh distance and not only the bounding boxes of 2 elements. | On: a part that sits close to a curved wall counts as loose if it does not truly touch it. Off: the box around the wall counts as touching. | Turn the switch on if curved or diagonal parts hide debris. Turn it off for speed. | Report: Appendix H, Model cleanup |
+
+## Tiny
+
+| Setting | Intent | Impact | Use | Ref |
+| --- | --- | --- | --- | --- |
+| *Folder: Tiny* | The folder holds the rule for tiny elements. An element is tiny when its largest side is below the limit. | This rule finds very small parts, such as screws or specks, that you can hardly see. | Turn the rule on. Set the largest side in metres. | Report: Appendix H, Model cleanup |
+| enabled | The switch turns the tiny rule on or off. | On: very small parts count as debris. Off: this rule finds nothing. | Turn the switch on to find specks and small fasteners. | Report: Appendix H, Model cleanup |
+| max size (m) | The slider sets the largest side in metres that a tiny element may have. | Move the slider right and bigger bits count as debris. Move it left and only specks count. | Increase the value to match more small parts. The default is 0.05 m. | Report: Appendix H, Model cleanup |
+
+## Distant strays
+
+| Setting | Intent | Impact | Use | Ref |
+| --- | --- | --- | --- | --- |
+| *Folder: Distant strays* | The folder holds the rule for distant strays. A stray lies much further from the model centre than the rest of the model. | This rule finds objects that sit way off from the building, such as markers left at the wrong place. | Turn the rule on. Increase the factor if the rule matches too many objects. | Report: Appendix H, Model cleanup |
+| enabled | The switch turns the distant strays rule on or off. | On: objects that sit way off from the building count as debris. Off: this rule finds nothing. | Turn the switch on to find markers and objects at the origin. | Report: Appendix H, Model cleanup |
+| distance factor | The slider sets the factor k. A bounds centre further than k times the robust radius from the median centre matches. | Move the slider right and an object must sit much further out to count as lost. Move it left and more objects count. | Increase the value to match fewer objects. The default is 6. | Report: Appendix H, Model cleanup |
+
+## Duplicates
+
+| Setting | Intent | Impact | Use | Ref |
+| --- | --- | --- | --- | --- |
+| *Folder: Duplicates* | The folder holds the rule for duplicate elements. Duplicates have the same class, the same triangle count and the same bounds. | This rule finds copies that lie on top of each other and flicker when you look at them. | Turn the rule on to hide the extra copies. Check the preview before you hide. | Report: Appendix H, Model cleanup |
+| enabled | The switch turns the duplicate rule on or off. The lowest id stays and the others match. | On: extra copies on the same spot count as debris, and the first copy stays. Off: this rule finds nothing. | Turn the switch on to remove flicker from copies that lie on top of each other. | Report: Appendix H, Model cleanup |
+
+## Degenerate
+
+| Setting | Intent | Impact | Use | Ref |
+| --- | --- | --- | --- | --- |
+| *Folder: Degenerate* | The folder holds the rule for degenerate elements. A degenerate element has no triangles, a broken bound or a class that is not physical. | This rule finds empty or broken parts that draw nothing useful, plus labels and grid lines that slipped in. | Turn the rule on. Keep it on for most models. | Report: Appendix H, Model cleanup |
+| enabled | The switch turns the degenerate rule on or off. | On: empty or broken parts count as debris. Off: this rule finds nothing. | Turn the switch on to find parts that draw nothing useful. | Report: Appendix H, Model cleanup |
+
+## Model cleanup/Classes
+
+| Setting | Intent | Impact | Use | Ref |
+| --- | --- | --- | --- | --- |
+| *Folder: Model cleanup/Classes* | The folder holds quick switches for whole groups of classes. Each switch matches every element of the listed classes. | These switches remove whole kinds of parts at once, such as furniture or screws. | Turn a switch on to match that group. Click Preview matches to check the result. | Report: Appendix H, Model cleanup |
+| proxies | The switch matches every IfcBuildingElementProxy element. | On: generic parts with no clear kind count as debris. Off: they stay. | Turn the switch on if the model holds many unnamed generic parts. | Report: Appendix H, Model cleanup |
+| furniture | The switch matches every IfcFurnishingElement, IfcFurniture and IfcSystemFurnitureElement element. | On: tables, chairs and other room fittings count as debris. Off: they stay. | Turn the switch on to remove furniture from a services review. | Report: Appendix H, Model cleanup |
+| accessories and fasteners | The switch matches every IfcDiscreteAccessory, IfcFastener and IfcMechanicalFastener element. | On: small bolts, clips and fittings count as debris. Off: they stay. | Turn the switch on to remove small hardware from the picture. | Report: Appendix H, Model cleanup |
+
+## Hover info
+
+| Setting | Intent | Impact | Use | Ref |
+| --- | --- | --- | --- | --- |
+| *Folder: Hover info* | The folder controls the info card that follows the pointer. The card names the element and lists some of its properties. | These controls decide when a small card with facts appears next to the mouse, and what it tells you. | Rest the pointer on an element. Hold Alt to freeze the card. Press the I key to switch the card on or off. | Report: Appendix L, Hover info and properties |
+| show on hover | The switch turns the hover card on or off. Press the I key for the same action. | On: a small card with facts appears when the mouse rests on a part. Off: no card appears. | Turn the switch off if the card gets in your way. | Report: Appendix L, Hover info and properties |
+| delay (ms) | The slider sets the rest time in milliseconds before the card appears. | Move the slider right and you wait longer for the card. At 0 it appears at once. | Increase the value if the card appears too often. The default is 350 ms. | Report: Appendix L, Hover info and properties |
+| max rows | The slider sets the number of property rows on the card, from 0 to 24. | Move the slider right and the card lists more facts. At 0 it shows the name only. | Increase the value to read more facts. Decrease the value for a small card. | Report: Appendix L, Hover info and properties |
+| show x-ray state | The switch adds a footer line with the bucket and the alpha of the element. The line shows only while x-ray is on. | On: the card also tells you how much the part fades and why. Off: the card leaves that line out. | Turn the switch on to learn why a part looks faded. | Report: Appendix L, Hover info and properties |
+| highlight | The switch outlines the hovered element while the card shows. | On: the part under the mouse gets a bright outline. Off: it looks as usual. | Turn the switch on to see which part the card describes. | Report: Appendix L, Hover info and properties |
+| property filter | The text box lists patterns, in priority order, that choose the rows of the card. Patterns match the whole key and ignore case. The default list covers object type, external flag, load bearing, fire rating and reference. It also covers the length, width, height and net volume of any quantity set that starts with Qto. | Type the names of the facts that you care about and the card shows those first. A star stands for any text. | Separate patterns with commas. Use * for any run of characters. If no pattern matches an element, the card shows its first rows. | Report: Appendix L, Hover info and properties |
+| all properties in sidebar | The switch lists every property of the first selected element in the sidebar, and not only the filtered ones. | On: the side list shows all the facts of the picked part. Off: it shows the short list. | Turn the switch on to read every fact. Turn it off to read the short list. | Report: Appendix L, Hover info and properties |
+
+## Presets
+
+| Setting | Intent | Impact | Use | Ref |
+| --- | --- | --- | --- | --- |
+| *Folder: Presets* | The folder holds the preset controls. A preset is a named look that sets many settings in 1 step. | These controls switch the whole picture to a ready-made look with one click. You can also save your own looks. | Choose a name. Click Apply preset. Press a key from 1 to 9 for the same action. | Report: Appendix I, Presets and keyboard |
+| preset | The list selects the preset to apply. The built-in presets come first and your own presets follow. | Pick a name from the list. The picture stays the same until you click the Apply button. | Select a name. Click Apply preset. | Report: Appendix I, Presets and keyboard |
+| Apply preset | The button applies the chosen preset. The model, the selection and the camera stay as they are. | Click and many settings jump to the chosen look in one step. The building and your camera stay put. | Select a preset first. Click the button. Press a key from 1 to 9 for the first 9 presets. | Report: Appendix I, Presets and keyboard |
+| Save current as preset | The button opens the Presets tool with a form. The form stores the current settings under a name. | Click and a form lets you name the picture that you set up. You can return to it with one click. | Set up the picture. Click the button. Type a name. Tick the sections to store. | Report: Appendix I, Presets and keyboard |
+| Export presets | The button downloads your own presets as a JSON file. The built-in presets are not in the file. | Click and your saved looks go into a file that you can keep or send to a colleague. | Save at least 1 preset first. Click the button. | Report: Appendix I, Presets and keyboard |
+| Import presets | The button adds presets from a JSON file. Imported presets always become your own presets. | Click and pick a file of looks. They join your list. | Click the button. Choose a file from a colleague. Read the status line for problems. | Report: Appendix I, Presets and keyboard |
+| Preset status | The read-only field names the active preset, or the settings that a preset skipped. | A short text tells you which look is on now. It also lists parts that did not apply. | Read the line after you apply a preset. | Report: Appendix I, Presets and keyboard |
+
+## Penetrations
+
+| Setting | Intent | Impact | Use | Ref |
+| --- | --- | --- | --- | --- |
+| *Folder: Penetrations* | The folder controls the penetration schedule. A penetration is a place where an MEP element passes through a structural host. | These controls list where pipes and ducts go through slabs and walls, and tell you if a cut-out is ready. | Click Analyse penetrations. Choose the scope. Click Export penetrations CSV to save the list. | Report: Appendix J, Coordination tools |
+| Analyse penetrations | The button runs the analysis. It finds where MEP elements cross structural hosts and sets the opening status of each crossing. | Click and the viewer builds a list of places where pipes and ducts go through slabs and walls. Round dots mark them on the model. | Click the button after you change the scope or the model. Open the Penetrations tool to read the list. | Report: Appendix J, Coordination tools |
+| Export penetrations CSV | The button downloads the filtered rows as a CSV file. | Click and the list that you see goes into a spreadsheet file. | Click Analyse penetrations first. Filter the rows in the drawer. Click the button. | Report: Appendix J, Coordination tools |
+| scope | The list sets which MEP elements the analysis tests. The value focus classes tests all MEP elements. The value focus only tests the focus set. | Choose the first and every pipe and duct in the building gets checked. Choose the second and only the picked run gets checked. | Select focus classes for a full schedule. Select focus only to check a single run. | Report: Appendix J, Coordination tools |
+| markers | The switch draws a coloured marker at each listed crossing. | On: coloured dots sit on the building at each crossing. Off: the dots disappear. | Turn the switch off if the dots hide your view. | Report: Appendix J, Coordination tools |
+| Penetration status | The read-only field shows the counts by opening status and the time of the analysis. | A short text counts the crossings with a cut-out, without one and not known. | Read the line after each analysis. | Report: Appendix J, Coordination tools |
+
+## Measure
+
+| Setting | Intent | Impact | Use | Ref |
+| --- | --- | --- | --- | --- |
+| *Folder: Measure* | The folder controls the measure tool. The tool shows the distance between 2 points or between 2 elements. | These controls let you click on the building and read a length in metres or millimetres. | Open the Measure tool in the action panel. Click 2 points on the model. | Report: Appendix J, Coordination tools |
+| mode | The list sets what the tool measures. The value point to point measures between 2 surface points. The value element to element measures the shortest gap between 2 elements. | Choose the first and you click 2 spots on surfaces. Choose the second and you click 2 parts to read their closest gap. | Select point to point for a length. Select element to element for a gap between 2 parts. | Report: Appendix J, Coordination tools |
+| units | The list sets the unit of the labels. The value m shows metres with 3 decimals. The value mm shows whole millimetres. | Choose metres and a length reads like 2.345. Choose millimetres and it reads like 2345. | Select mm for detail work. Select m for room sizes. | Report: Appendix J, Coordination tools |
+| snap to vertices | The switch moves a click to the nearest vertex of the hit triangle when the vertex lies within 12 px. | On: your click jumps to the closest corner of the surface if one lies close. Off: the click lands exactly where you point. | Turn the switch on to measure from corner to corner. Turn it off to measure at any spot. | Report: Appendix J, Coordination tools |
+| Clear measurements | The button deletes all dimension lines from the model. | Click and every dimension line disappears from the model. | Export the measurements first if you need them. Click the button to start again. | Report: Appendix J, Coordination tools |
+
+## Clearance
+
+| Setting | Intent | Impact | Use | Ref |
+| --- | --- | --- | --- | --- |
+| *Folder: Clearance* | The folder controls the clearance colouring. The colouring shows the clearance of each context element to the focus. | These controls paint walls and slabs red, amber or blue by how close they sit to the selected item. | Select an object. Turn the colouring on. Set the limits for tight and ok. | Report: Appendix J, Coordination tools |
+| enabled | The switch turns the clearance colouring on or off. The colouring needs a selected object. | On: walls and slabs turn red, amber or blue by how close they sit to the selected item. Off: the normal colours return. | Select an object. Turn the switch on. Read the legend at the bottom right. | Report: Appendix J, Coordination tools |
+| tight (m) | The slider sets the distance in metres below which a context element counts as tight. | Move the slider right and more parts count as too close and show amber. Move it left and fewer do. | Increase the value to find narrow gaps early. The default is 0.05 m. | Report: Appendix J, Coordination tools |
+| max range (m) | The slider sets the range in metres up to which the colouring reaches. Elements beyond the range keep their colour. | Move the slider right and parts that sit further away get a colour too. Move it left and only close parts get one. | Decrease the value to speed up the check. The default is 0.5 m. | Report: Appendix J, Coordination tools |
+| Clearance status | The read-only field shows the number of elements in each band and the compute time. | A short text counts the red, amber and blue parts and says how long the check took. | Read the line after each change. | Report: Appendix J, Coordination tools |
+
+## BCF
+
+| Setting | Intent | Impact | Use | Ref |
+| --- | --- | --- | --- | --- |
+| *Folder: BCF* | The folder controls BIM Collaboration Format issues. A BCF topic stores a title, comments and viewpoints. | These controls read, write and share issue notes with other people in the project team. | Click Open BCF to read a file. Click Create topic from view to note a new issue. | Report: Appendix J, Coordination tools |
+| Open BCF | The button opens a file picker for a BCF file. You can also drop a file on the page. | Click and pick an issue file from your computer. Its notes appear in the list. | Click the button. Choose a .bcf or .bcfzip file. | Report: Appendix J, Coordination tools |
+| Create topic from view | The button asks for a title and details. It then stores a topic with a snapshot and a viewpoint of the current camera. | Click and fill in a short form. The app saves a note that remembers what you see now. | Frame the issue in the picture. Click the button. Fill in the form. | Report: Appendix J, Coordination tools |
+| Export BCF 2.1 | The button downloads every topic as a BCF 2.1 file. | Click and all issue notes go into one file that most programs can read. | Select this version for the widest support. | Report: Appendix J, Coordination tools |
+| Export BCF 3.0 | The button downloads every topic as a BCF 3.0 file. | Click and all issue notes go into one file in the newer layout. | Select this version when all partners read BCF 3.0. | Report: Appendix J, Coordination tools |
+| Clear viewpoint | The button undoes what the viewpoint changed. It shows the elements that BCF hid and removes its colours and clip planes. | Click and the parts that an issue note hid come back with their normal colours and no cuts. Your camera stays. | Click the button after you review a topic. | Report: Appendix J, Coordination tools |
+| BCF status | The read-only field shows what the last BCF step did, such as what applied and what it skipped. | A short text tells you what the last step did and what it had to skip. | Read the line after you apply a viewpoint. | Report: Appendix J, Coordination tools |
+
+## Keyboard
+
+| Setting | Intent | Impact | Use | Ref |
+| --- | --- | --- | --- | --- |
+| *Folder: Keyboard* | The folder controls keyboard navigation and the shortcut tools. Keys move the camera and run actions. | These controls set how fast the keys move the picture, and open the lists of all keys. | Change a speed here. Click Shortcuts to see every key. | Report: Appendix I, Presets and keyboard |
+| keyboard navigation | The switch turns the camera keys on or off. | On: the arrow keys and W A S D move the camera. Off: those keys do nothing. | Turn the switch off if you type in other tools. | Report: Appendix I, Presets and keyboard |
+| orbit speed (deg/s) | The slider sets the orbit speed of the arrow keys in degrees per second. | Move the slider right and the arrow keys spin the picture faster. Move it left and they spin it slower. | Hold Ctrl for slow moves. Increase the value for fast turns. | Report: Appendix I, Presets and keyboard |
+| pan speed | The slider sets the pan speed of the Shift and arrow keys as a factor. | Move the slider right and the picture slides faster when you hold the keys. | Increase the value for big models. Decrease the value for fine work. | Report: Appendix I, Presets and keyboard |
+| move speed | The slider sets the speed factor of the fly keys W A S D Q E. | Drag the slider right and the camera flies faster when you hold a key. | Increase the value for large buildings. Decrease the value for small rooms. | Report: Appendix I, Presets and keyboard |
+| invert vertical | The switch reverses the direction of the vertical keys. | On: the up and down arrow keys swap their direction. Off: they act in the usual way. | Turn the switch on if the up key feels wrong. | Report: Appendix I, Presets and keyboard |
+| smooth moves | The switch eases jumps to a stored view, such as front or top. When it is off, the camera jumps at once. | On: the picture glides when you jump to a new angle. Off: it jumps at once. | Turn the switch off for instant views. | Report: Appendix I, Presets and keyboard |
+| Shortcuts (?) | The button opens the list of all shortcuts. Press the ? key for the same action. | Click and a list of every key and its job appears. | Click the button. Type in the search box to find a key. | Report: Appendix I, Presets and keyboard |
+| Edit shortcuts | The button opens the editor for shortcuts. The editor sets, adds and removes keys for each action. | Click and you can give any action a new key. Red cells warn you of a clash. | Click the button. Click a key cell. Press the new keys. | Report: Appendix I, Presets and keyboard |
+| Command palette (Ctrl+K) | The button opens the command palette. The palette searches actions and settings by name. | Click and a search box lets you find any action or setting by typing a few letters. | Click the button or press Ctrl+K. Type a name. Press Enter. | Report: Appendix I, Presets and keyboard |
+| Reset shortcuts | The button restores the default shortcuts. | Click and all your own key changes go away. The standard keys return. | Click the button if a changed key causes trouble. | Report: Appendix I, Presets and keyboard |
+
+## Imaging
+
+| Setting | Intent | Impact | Use | Ref |
+| --- | --- | --- | --- | --- |
+| *Folder: Imaging* | The folder controls the imaging styles. A style draws the model as a radiograph or as an MRI slab slice. | These controls turn the building picture into a scan, like a hospital photo or a thin slice of a body. | Choose a style. Change the exposure and the contrast until the picture looks right. | Report: Appendix G, Imaging and sectioning |
+| style | The list sets the imaging style. The value standard is the normal renderer. The value radiograph draws the context by material thickness. The value mri draws a grey slab slice. | Each choice redraws the whole picture. The first is the normal picture. One looks like a hospital photo of dense parts. The last shows a thin grey cut through the selected item. | Select a style. Select an object to see the bright focus. Press the M key to cycle the styles. | Report: Appendix G, Imaging and sectioning |
+| palette | The list sets the palette of the imaging styles. A palette sets the ground, the tone of the material and the glow. | Each choice changes the colours of the scan. One has a dark ground with bright parts. Another has a light ground. | Select classic for a dark ground. Select negative for a light ground. Select fluoro for a green screen look. | Report: Appendix G, Imaging and sectioning |
+| exposure | The slider sets the exposure. It scales the accumulated thickness before the attenuation curve. | Move the slider right and the whole scan gets brighter. Move it left and it gets darker. | Increase the value for thin buildings. Decrease the value for dense models. | Report: Appendix G, Imaging and sectioning |
+| contrast | The slider sets the steepness of the attenuation curve. | Move the slider right and thick and thin parts differ more. Move it left and the scan looks flat. | Increase the value to separate dense parts. Decrease the value for a soft picture. | Report: Appendix G, Imaging and sectioning |
+| bone glow | The slider sets the strength of the glow around the focus. The focus draws bright in both styles. | Move the slider right and the selected item shines more. At 0 it has no halo. | Increase the value to find the focus quickly. Decrease the value for a plain look. | Report: Appendix G, Imaging and sectioning |
+| tissue edges | The switch draws the edge lines of the context in the imaging styles. | On: the outlines of walls and slabs show clearly in the grey picture. Off: they melt into the grey. | Turn the switch on to read the shape of the context. Turn it off for a smooth scan look. | Report: Appendix G, Imaging and sectioning |
+
+## MRI slice
+
+| Setting | Intent | Impact | Use | Ref |
+| --- | --- | --- | --- | --- |
+| *Folder: MRI slice* | The folder controls the MRI slab slice. The slab draws grey and crisp. The surroundings draw faint. | These controls pick a thin grey cut through the selected item and fade the rest. The cut can move by itself. | Choose the axis and the thickness. Move the position. Turn the scan on to sweep the slab. | Report: Appendix G, Imaging and sectioning |
+| axis | The list sets the axis across which the slab slice moves. The value camera uses the line of sight. | Choose another entry and the grey cut turns to face another side of the building. | Select camera to slice along your line of sight. Select x, y or z for a fixed direction. | Report: Appendix G, Imaging and sectioning |
+| thickness (m) | The slider sets the thickness of the slab slice in metres. | Move the slider right and the grey cut gets thicker and shows more of the building. Move it left and the cut gets thin. | Increase the value to show more material. Decrease the value for a crisp slice. | Report: Appendix G, Imaging and sectioning |
+| position | The slider sets the position of the slab slice along the axis. The range is 0 to 1 across the focus. | Move the slider and the grey cut slides through the selected item from one end to the other. | Move the value to look at each part of the focus. | Report: Appendix G, Imaging and sectioning |
+| scan | The switch moves the slab slice along the axis by itself. When it is off, the slab stays at the chosen position. | On: the grey cut travels through the building on its own, like a hospital machine. Off: it stays where you put it. | Turn the switch on to review the whole focus. Turn it off to stop at a single position. | Report: Appendix G, Imaging and sectioning |
+| scan speed | The slider sets the speed of the moving slab slice, as a fraction of the sweep per second. | Move the slider right and the cut travels faster. Move it left and it travels slower. | Decrease the value to study details. Increase the value for a quick pass. | Report: Appendix G, Imaging and sectioning |
+
+## Section
+
+| Setting | Intent | Impact | Use | Ref |
+| --- | --- | --- | --- | --- |
+| *Folder: Section* | The folder controls the section box and the section plane. Both clip every pass per pixel and draw flat hatched caps. | These controls cut the building open with a block of space or a flat cut. Then you see the inside. | Turn the box or the plane on. Fit the box to the selection. Drag the handles to adjust it. | Report: Appendix G, Imaging and sectioning |
+| box | The switch turns the section box on or off. The box clips every pass per pixel and draws flat hatched caps. Press the C key for the same action. | On: everything outside a block of space is cut away and the inside shows as a clean slice. Off: the whole building returns. | Click Fit box to selection first. Turn the switch on. Drag the handles to resize the box. | Report: Appendix G, Imaging and sectioning |
+| Fit box to selection | The button sizes the section box to the bounds of the selected objects plus the margin. It also turns the box on. | Click and the cut block shrinks to wrap the picked parts with a little room around them. | Select objects first. Click the button. Press Shift+C for the same action. | Report: Appendix G, Imaging and sectioning |
+| Fit box to model | The button sizes the section box to the bounds of the whole model plus the margin. It also turns the box on. | Click and the cut block grows to wrap the whole building. | Click the button to start from the full model. Drag the handles to cut in. | Report: Appendix G, Imaging and sectioning |
+| margin (m) | The slider sets the extra space in metres that a fit adds on all sides of the bounds. | Move the slider right and the cut block gets roomier around the parts. At 0 it hugs them. | Increase the value to keep a margin of context. Click a fit button to apply the change. | Report: Appendix G, Imaging and sectioning |
+| plane | The switch turns the section plane on or off. The plane clips 1 side of the model. Press Alt+C for the same action. | On: everything on one side of a flat cut disappears. Off: the whole building returns. | Choose the axis. Turn the switch on. Move the offset. | Report: Appendix G, Imaging and sectioning |
+| axis | The list sets the axis across which the section plane stands. The choices are x, y, z and camera. | Choose another entry and the flat cut turns to face another side of the building. | Select y for a plan cut. Select x or z for an elevation. Select camera to cut across your line of sight. | Report: Appendix G, Imaging and sectioning |
+| offset (m) | The slider moves the section plane along the axis, in metres from the fitted centre. | Move the slider and the flat cut slides through the building. More of the building disappears or returns. | Move the value until the plane shows the part that you need. | Report: Appendix G, Imaging and sectioning |
+| flip | The switch reverses the side of the section plane that stays visible. | On: the other half of the building stays. Off: the first half stays. | Turn the switch on to look at the opposite side of the cut. | Report: Appendix G, Imaging and sectioning |
+| caps | The switch draws flat hatched caps where the section box or the section plane cuts a solid. | On: cut solids show a flat hatched face, like an architect drawing. Off: you look into the hollow parts. | Turn the switch on for a clear section. Turn it off to see the inside of the shells. | Report: Appendix G, Imaging and sectioning |
+| cap colour | The colour picker sets the colour of the hatched caps. | Pick a shade and the flat faces on the cut change to it. | Choose a colour that stands out from your model colours. | Report: Appendix G, Imaging and sectioning |
+| show handles | The switch shows the box outline and the handles that you drag to move the box faces. | On: small round grips appear that you can drag. Off: the grips go away and the cut stays fixed. | Turn the switch off for screenshots. | Report: Appendix G, Imaging and sectioning |
+| Clear section | The button turns off the section box and the section plane. | Click and every cut goes away and the whole building returns. | Click the button to start again. | Report: Appendix G, Imaging and sectioning |
+
+## Point cloud
+
+| Setting | Intent | Impact | Use | Ref |
+| --- | --- | --- | --- | --- |
+| *Folder: Point cloud* | The folder controls point clouds. The viewer loads PLY, PCD, XYZ, PTS and LAS files and aligns them to the model. | These controls show scan dots from a site survey next to the building and check them against it. | Click Open point cloud. Align the cloud to the model. Click Compute deviation to see the errors. | Report: Appendix K, Packaging, point clouds and large models |
+| Open point cloud | The button opens a file picker for a point cloud file. The viewer reads PLY, PCD, XYZ, PTS and LAS files in the browser. | Click and pick a scan file from your computer. Its dots appear next to the building. | Click the button. Choose a file. You can also drop the file on the viewer. | Report: Appendix K, Packaging, point clouds and large models |
+| visible | The switch shows or hides the point cloud. | On: the scan dots show. Off: they disappear but stay loaded. | Turn the switch off to compare the building alone. | Report: Appendix K, Packaging, point clouds and large models |
+| point size | The slider sets the size of each point in pixels. | Move the slider right and the dots get bigger and fill the gaps. Move it left and they get finer. | Increase the value for sparse scans. Decrease the value for dense scans. | Report: Appendix K, Packaging, point clouds and large models |
+| colour by | The list sets how the points get colour: rgb, intensity, height, classification or deviation from the model surface. | Each choice paints the dots in a new way. The ways are true shade, brightness, height, surface kind and error. | Select rgb for the scanner colours. Select deviation after you click Compute deviation. | Report: Appendix K, Packaging, point clouds and large models |
+| point budget | The slider sets the largest number of points that the viewer keeps. A larger cloud is decimated to this number. | Move the slider right and the scan looks denser but may update slower. Move it left and the picture stays quick but thin. | Decrease the value if the frame rate falls. Increase the value for detail. The new value applies when you release the slider. | Report: Appendix K, Packaging, point clouds and large models |
+| coordinates | The list sets the coordinate system in which the viewer reads the points. The value project uses the IFC project frame. The value viewer uses the viewer frame. | Choose another entry and the scan can jump to a different place next to the building. | Select project for a scan in site coordinates. Select viewer for a scan already in the viewer frame. | Report: Appendix K, Packaging, point clouds and large models |
+| Auto-align to model | The button matches the bounds centres of the cloud and the model. It then tries 0, 90, 180 and 270 degrees about the vertical axis. | Click and the scan slides and turns to sit on the building. | Click the button after you load a scan. Fine tune with the offsets and the rotation. | Report: Appendix K, Packaging, point clouds and large models |
+| offset x | The field moves the point cloud along the x axis of the viewer, in metres. | Type a number and the whole scan shifts sideways through the building. | Enter a value in metres. Use it to fine tune the fit. | Report: Appendix K, Packaging, point clouds and large models |
+| offset y | The field moves the point cloud along the y axis of the viewer, in metres. The y axis points up. | Type a number and the whole scan rises or sinks next to the building. | Enter a value in metres. Use it to match the level of the scan. | Report: Appendix K, Packaging, point clouds and large models |
+| offset z | The field moves the point cloud along the z axis of the viewer, in metres. | Type a number and the whole scan shifts forward or back through the building. | Enter a value in metres. Use it to fine tune the fit. | Report: Appendix K, Packaging, point clouds and large models |
+| rotation (deg) | The slider turns the point cloud about the vertical axis, in degrees. | Move the slider and the scan turns in place. Use it when the scan sits at a wrong angle. | Click Auto-align to model first. Then change the value in small steps. | Report: Appendix K, Packaging, point clouds and large models |
+| Compute deviation | The button measures the deviation of each point from the model surface. Green is within the tolerance, amber up to twice, red beyond. | Click and the dots turn green where the building matches. They turn amber where it is a little off and red where it is way off. | Align the cloud first. Click the button. Wait for the result line. | Report: Appendix K, Packaging, point clouds and large models |
+| tolerance (m) | The field sets the tolerance in metres. A point within it is green. A point up to twice it is amber. A point beyond is red. | Type a larger number and more dots count as good. Type a smaller number and the check gets strict. | Set the tolerance of your project. Click Compute deviation again after a change. | Report: Appendix K, Packaging, point clouds and large models |
+| deviation scope | The list sets which model elements the deviation test compares the points with. The value all elements uses the whole model. The value focus only uses the focus set. | Choose the first and the scan gets checked against the whole building. Choose the second and just against the picked parts, which runs faster. | Select all elements for a full check. Select focus only to check 1 system. | Report: Appendix K, Packaging, point clouds and large models |
+| Remove point cloud | The button removes the point cloud from the viewer and frees its memory. | Click and the scan dots disappear. The building stays. | Click the button before you load another scan. | Report: Appendix K, Packaging, point clouds and large models |
+| Point cloud status | The read-only field shows the file name, the point count and the state of the last step. | A short text tells you what you have loaded and how the work is going. | Read the line after each step. | Report: Appendix K, Packaging, point clouds and large models |
+
+## Tool strip
+
+| Setting | Intent | Impact | Use | Ref |
+| --- | --- | --- | --- | --- |
+| *Folder: Tool strip* | The strip holds 1 button for each tool of the action panel. A button opens the drawer of its tool or switches the tool. | This column of icons holds the extra helpers. Click an icon to open its panel or to switch the helper on. | Click a button to open its drawer. Press the T key to show or hide the strip. | Report: Onboarding checklist |
+| Presets | The button opens the drawer of the Presets tool. The drawer lists the built-in presets and your own presets. | Click to see ready-made looks for the whole picture. One click on a card switches to that look. | Click the button to open the drawer. Press a key from 1 to 9 to apply a preset at once. | Report: Appendix I, Presets and keyboard |
+| Open model | The button opens the file picker for an IFC or glb file. The tool has no drawer. | Click and a window asks you for a building file from your computer. | Click the button. Choose a file. You can also drop files on the viewer. | Report: Appendix K, Packaging, point clouds and large models |
+| X-ray | The button turns the x-ray on or off. The tool has no drawer. The button shows blue while x-ray is on. | Click and the walls and slabs in the way fade, or they turn solid again. | Click the button or press the X key. | Report: Purpose |
+| View modes | The button opens the drawer of the View modes tool. The drawer holds the main controls of behind only and peelback. | Click to open quick controls that cut holes in what hides the selected item. | Select an object. Click the button. Turn a cut on. | Report: Appendix F, View modes |
+| Measure | The button opens the drawer of the Measure tool. Clicks on the canvas then measure distances. | Click to turn the mouse into a ruler. Click on the building to read a length. | Click the button. Click 2 points on the model. | Report: Appendix J, Coordination tools |
+| BCF | The button opens the drawer of the BCF tool. The drawer opens, reviews, creates and exports BCF topics. | Click to open the issue list. You can read, add and share notes tied to views of the building. | Click the button. Click Open BCF. Click a topic to review it. | Report: Appendix J, Coordination tools |
+| Clearance | The button opens the drawer of the Clearance tool. The button shows blue while the colouring is on. | Click to open the closeness check. It paints parts red, amber or blue by their distance to the selected item. | Select an object. Click the button. Turn the colouring on. | Report: Appendix J, Coordination tools |
+| Penetrations | The button opens the drawer of the Penetrations tool. The drawer holds the penetration schedule. | Click to open the list of places where pipes and ducts go through slabs and walls. | Click the button. Click Analyse. Click a row to fly to the crossing. | Report: Appendix J, Coordination tools |
+| Large model | The button opens the drawer of the Large model tool. The drawer shows the size, the buffers and the stage timings of the last model. | Click to see how big the building is and which load step took the longest. | Open a file first. Click the button. Read the figures. | Report: Appendix K, Packaging, point clouds and large models |
+| Cleanup | The button opens the drawer of the Cleanup tool. The drawer finds and hides floating or tiny debris. | Click to open helpers that find and hide stray bits of the building. | Click the button. Turn rules on. Click Preview. | Report: Appendix H, Model cleanup |
+| Imaging | The button opens the drawer of the Imaging tool. The button shows blue while a style other than standard is on. The M key cycles the styles. | Click to open the scan looks that turn the picture into a hospital style photo or slice. | Select an object. Click the button. Choose a style. | Report: Appendix G, Imaging and sectioning |
+| Section | The button opens the drawer of the Section tool. The button shows blue while the box or the plane is on. | Click to open helpers that cut the building open with a block or a flat cut. | Click the button. Click Fit to selection. Drag the handles. | Report: Appendix G, Imaging and sectioning |
+| Scan | The button opens the drawer of the point cloud tool. The drawer opens a scan and checks it against the model. | Click to open helpers that bring in dots from a site survey and check them against the building. | Click the button. Click Open point cloud. Click Compute deviation. | Report: Appendix K, Packaging, point clouds and large models |
+
+## Tool drawer
+
+| Setting | Intent | Impact | Use | Ref |
+| --- | --- | --- | --- | --- |
+| *Folder: Tool drawer* | The drawer shows the settings and the results of the open tool. Only 1 drawer is open at a time. | This panel slides out next to the icons and shows the controls of the helper you chose. | Drag the right edge to change the width. Press Escape to close the drawer. | Report: Onboarding checklist |
+| Close button | The button closes the drawer. The tool keeps its settings. Press Escape for the same action. | Click and the side panel slides away and gives the picture more room. | Click the button when you finish with the tool. | Report: Onboarding checklist |
+| Resize edge | The edge changes the width of the drawer when you drag it. The viewer keeps the width for later drawers. | Drag it and the side panel gets wider or narrower. A wide panel shows long tables better. | Drag the edge left or right. | Report: Onboarding checklist |
+
+## BCF topic dialog
+
+| Setting | Intent | Impact | Use | Ref |
+| --- | --- | --- | --- | --- |
+| *Folder: BCF topic dialog* | The dialog collects the title, type, status, priority, labels and assignee of a new BCF topic. | This window asks a few short questions and then saves a note that remembers what you see now. | Fill in the title. Click Create topic to store the topic with a snapshot. | Report: Appendix J, Coordination tools |
+| Field | The field holds a detail of the new topic, such as the title, description, type, status or priority. | Type a short text or pick from the list. These details travel with the issue note. | Fill in the title at least. | Report: Appendix J, Coordination tools |
+| Create topic | The button stores the topic with a snapshot and a viewpoint of the current camera. | Click and the note joins the list, with a small picture of what you see now. | Fill in the title. Click the button. | Report: Appendix J, Coordination tools |
+| Cancel | The button closes the dialog and stores nothing. | Click and the window goes away. No note gets made. | Click the button to stop. | Report: Appendix J, Coordination tools |
+
+## Command palette
+
+| Setting | Intent | Impact | Use | Ref |
+| --- | --- | --- | --- | --- |
+| *Folder: Command palette* | The palette is a search list of every action and setting. Press Ctrl+K to open it. | This search box finds any action or setting by name, so you do not need to remember keys. | Type a few letters. Press Enter to run the chosen row. Press Escape to close the list. | Report: Appendix I, Presets and keyboard |
+| Search box | The text box filters the list of actions and settings while you type. | Type a few letters and the list shrinks to the actions that match. | Type a word. Press the Down key to choose a row. Press Enter to run it. | Report: Appendix I, Presets and keyboard |
+| Result row | The row names an action or setting with its path and keys. A click runs the action. | Click an item and the viewer does the job at once, with no hunt through panels. | Click the row or press Enter on it. | Report: Appendix I, Presets and keyboard |
+
+## Shortcut sheet
+
+| Setting | Intent | Impact | Use | Ref |
+| --- | --- | --- | --- | --- |
+| *Folder: Shortcut sheet* | The sheet lists every shortcut by group. Press the ? key to open it. | This list shows which key does what, so you can learn the keys quickly. | Type in the search box to filter the list. Click Edit shortcuts to change a key. | Report: Appendix I, Presets and keyboard |
+| Search box | The text box filters the shortcut list while you type. | Type a word and only the keys that match stay on the list. | Type the name of an action. | Report: Appendix I, Presets and keyboard |
+| Edit shortcuts | The button closes the sheet and opens the shortcut editor. | Click and you can change any key to suit your own habits. | Click the button to change a key. | Report: Appendix I, Presets and keyboard |
+| Close | The button closes the shortcut sheet. Escape does the same. | Click and the list goes away and you can work on the picture again. | Click the button or press Escape. | Report: Appendix I, Presets and keyboard |
+| Shortcut row | The row names an action with the keys that run it. | Each entry tells you the job and the keys for it, so you can learn them. | Read the keys. Press them in the viewer. | Report: Appendix I, Presets and keyboard |
+
+## Shortcut editor
+
+| Setting | Intent | Impact | Use | Ref |
+| --- | --- | --- | --- | --- |
+| *Folder: Shortcut editor* | The editor sets, adds and removes the keys of each action. Red cells mark keys that 2 actions share. | This window lets you give any action your own key. A red cell warns you of a clash. | Click a key cell. Press the new keys. Press Backspace to remove the key. | Report: Appendix I, Presets and keyboard |
+| Filter box | The text box filters the list of actions while you type. | Type a word and only the matching actions stay on the list. | Type the name of an action. | Report: Appendix I, Presets and keyboard |
+| Export JSON | The button downloads your changed shortcuts as a JSON file. | Click and your key changes go into a file that you can keep or share. | Click the button to back up your keys. | Report: Appendix I, Presets and keyboard |
+| Import JSON | The button reads shortcuts from a JSON file and applies them. | Click and pick a file of keys. Your keys change to match it. | Click the button. Choose a file from a colleague. | Report: Appendix I, Presets and keyboard |
+| Reset all | The button restores the default shortcuts for every action. | Click and every key change that you made goes away. | Click the button if the keys become confusing. | Report: Appendix I, Presets and keyboard |
+| Close | The button closes the shortcut editor. Escape does the same. | Click and the window goes away. Your key changes stay. | Click the button or press Escape. | Report: Appendix I, Presets and keyboard |
+| Reset row | The button restores the default keys of 1 action. | Click and the keys of this action go back to their standard form. | Click the button next to an action that you changed. | Report: Appendix I, Presets and keyboard |
+| Key cell | The cell shows 1 key of an action. A click starts the capture of a new key. | Click it, then press the combination you want. The old one gives way to the new one. | Click the cell. Press the new keys. Press Backspace to remove the key. Press Escape to cancel. | Report: Appendix I, Presets and keyboard |
+| Add key cell | The cell adds another key to an action. A click starts the capture of the key. | Click it, then press the combination you want. The action then answers to one more. | Click the cell. Press the new keys. | Report: Appendix I, Presets and keyboard |
+
+## Presets drawer
+
+| Setting | Intent | Impact | Use | Ref |
+| --- | --- | --- | --- | --- |
+| *Folder: Presets drawer* | The heading names the Presets drawer. The drawer lists the built-in presets and your own presets as cards. | This panel shows ready-made looks as cards. One click on a card switches the whole picture. | Click Apply on a card. Click Save current as preset to keep your own look. | Report: Appendix I, Presets and keyboard |
+| Apply | The button applies the preset of its card. The model, the selection and the camera stay as they are. | Click and the picture switches to the look of this card in one step. | Click the button on a card. Read the status line for skipped settings. | Report: Appendix I, Presets and keyboard |
+| Edit | The button opens the name and description of your own preset for editing. Built-in presets have no Edit button. | Click and two text boxes let you rename the look and change its note. | Click the button. Change the text. Click Save. | Report: Appendix I, Presets and keyboard |
+| Delete | The button deletes your own preset. Built-in presets have no Delete button. | Click and the card disappears from the list. The look is gone for good. | Click Export first if you want a copy. Click the button to delete. | Report: Appendix I, Presets and keyboard |
+| Share | The button copies a link that applies your own preset. The link holds the preset in its address. | Click and you get a link that you can send. A colleague who opens it sees your look. | Click the button. Paste the link in a message. Send it only to people that you trust. | Report: Appendix I, Presets and keyboard |
+| Duplicate | The button makes a copy of the preset as your own preset. It works for built-in presets too. | Click and a new card appears that you can change. The original stays unchanged. | Click the button. Click Edit on the copy to rename it. | Report: Appendix I, Presets and keyboard |
+| Save | The button stores the form. A new preset keeps the ticked sections of the current settings. An edit keeps the new name and description. | Click and your look joins your own group of looks. A name must be there first. | Type a name. Tick at least 1 section. Click the button. | Report: Appendix I, Presets and keyboard |
+| Cancel | The button closes the form and stores nothing. | Click and the form goes away. Your list stays unchanged. | Click the button to stop. | Report: Appendix I, Presets and keyboard |
+| Name box | The text box holds the name of the preset. | Type a short title. It shows on the card and in the list of looks. | Type a name that tells the purpose of the look. | Report: Appendix I, Presets and keyboard |
+| Description box | The text box holds a short description of the preset in 1 sentence. | Type a short note. It shows under the name on the card. | Write 1 sentence that says what the look shows. | Report: Appendix I, Presets and keyboard |
+| Section tick | The tick adds a group of settings to the new preset. Only ticked groups are stored. | Mark the parts of the picture that the look must change. Leave the others alone. | Tick the sections to store. Leave the rest unticked. | Report: Appendix I, Presets and keyboard |
+| Preset card | The card shows 1 preset with its name, key, description and buttons. | Each panel is a ready-made look. The coloured one marks the look that is on now. | Read the description. Click Apply to use the look. | Report: Appendix I, Presets and keyboard |
+| Key badge | The badge shows the number key that applies the preset. Only the first 9 presets have a key. | The small number tells you which button on the keyboard jumps to this look. | Press the key in the viewer. | Report: Appendix I, Presets and keyboard |
+| Active badge | The badge marks the preset that is active. The mark clears when you change any setting afterwards. | The word tells you that the picture still matches this look. | Look for the badge to learn which look is on. | Report: Appendix I, Presets and keyboard |
+| Skipped list | The text lists the settings that the preset could not apply in this build or model. | The note tells you which parts of the look did not switch on. The rest worked. | Read the list. Ignore it if the skipped parts do not matter to you. | Report: Appendix I, Presets and keyboard |
+| Review (heading) | The heading names the group Review. Its presets set up the x-ray view for model checks. | These looks help you check services against the building structure. | Open a card of this group to apply it. | Report: Appendix I, Presets and keyboard |
+| Cutaway (heading) | The heading names the group Cutaway. Its presets turn on the behind-only view, the peelback or the section box. | These looks cut the building open to show the selected item. | Select an object. Click Apply on a card of this group. | Report: Appendix I, Presets and keyboard |
+| Imaging (heading) | The heading names the group Imaging. Its presets turn on the radiograph or the MRI style. | These looks turn the picture into a scan. | Select an object. Click Apply on a card of this group. | Report: Appendix I, Presets and keyboard |
+| Presentation (heading) | The heading names the group Presentation. Its presets turn on effects for a polished picture. | These looks add glow, sky and smooth camera moves for showing the model to others. | Click Apply on a card of this group before you present. | Report: Appendix I, Presets and keyboard |
+| Basic (heading) | The heading names the group Basic. Its presets return the viewer to a plain state. | These looks give you the normal building picture without any effect. | Click Apply on a card of this group to start again. | Report: Appendix I, Presets and keyboard |
+| My presets (heading) | The heading names the group My presets. It lists the presets that you saved or imported. | These looks are yours. You can rename, delete and share them. | Save a preset to fill this group. | Report: Appendix I, Presets and keyboard |
+| Preset group (heading) | The heading names a group of presets that an installation added. | These looks come from your team or your installation. | Open a card of this group to apply it. | Report: Appendix I, Presets and keyboard |
+| Save current as preset (heading) | The heading names the form that stores the current settings as a new preset. | This form turns the picture that you set up into a look that you can reuse. | Fill in the name. Tick the sections. Click Save. | Report: Appendix I, Presets and keyboard |
+| Status line | The text line shows the result of the last preset action. | A short text tells you what just happened, such as saved, applied or skipped. | Read the line after each action. | Report: Appendix I, Presets and keyboard |
+| Export | The button downloads your own presets as a JSON file. The built-in presets are not in the file. | Click and your saved looks go into a file that you can keep or send to a colleague. | Save at least 1 preset first. Click the button. | Report: Appendix I, Presets and keyboard |
+| Import | The button adds presets from a JSON file. Imported presets always become your own presets. | Click and pick a file of looks. They join your list. | Click the button. Choose a file from a colleague. Read the status line for problems. | Report: Appendix I, Presets and keyboard |
+
+## View modes drawer
+
+| Setting | Intent | Impact | Use | Ref |
+| --- | --- | --- | --- | --- |
+| *Folder: View modes drawer* | The heading names the View modes drawer. The drawer holds the main controls of behind only and peelback. | This panel holds the quick controls that cut holes in what hides the selected item. | Select an object. Turn a cut on. Change the sliders until the view is clear. | Report: Appendix F, View modes |
+| Behind only (heading) | The heading names the group of the behind-only view controls. | The controls below remove what stands between you and the selected item. | Turn the view on. Change the offset and the front treatment. | Report: Appendix F, View modes |
+| Partial peelback (heading) | The heading names the group of the peelback controls. | The controls below cut a hole around the selected item and keep the rest of the walls. | Turn the peelback on. Change the radius and the feather. | Report: Appendix F, View modes |
+| Behind-only view (B) | The switch turns the behind-only view on or off. It needs a selected object. Press the B key for the same action. | On: the walls and slabs in the way vanish or fade, so you see past them. Off: nothing is cut. | Select an object. Turn the switch on to see what lies past it. | Report: Appendix F, View modes |
+| Peelback (P) | The switch turns the peelback on or off. It needs a selected object. Press the P key for the same action. | On: a window opens in the walls and slabs in front of the selected item. Off: nothing is cut. | Select an object. Turn the switch on to open a window to it. | Report: Appendix F, View modes |
+
+## Measure drawer
+
+| Setting | Intent | Impact | Use | Ref |
+| --- | --- | --- | --- | --- |
+| *Folder: Measure drawer* | The heading names the Measure drawer. Clicks on the canvas measure while the drawer is open. | This panel turns the mouse into a ruler. Dimension lines stay on the model after you close it. | Choose a mode. Click 2 points or 2 elements. Press Escape to cancel a pending point. | Report: Appendix J, Coordination tools |
+| Export CSV | The button downloads the measurements as a CSV file in IFC world coordinates. | Click and your lengths go into a spreadsheet file. | Click the button after you finish measuring. | Report: Appendix J, Coordination tools |
+| Measurement row | The row shows 1 measurement with its label and length. | Each item is a length that you took. The same dimension shows on the model. | Read the length. Click the cross to delete the row. | Report: Appendix J, Coordination tools |
+| Delete measurement | The button deletes 1 measurement. | Click and that length disappears from the list and from the model. | Click the cross on the row. | Report: Appendix J, Coordination tools |
+| Status line | The text line says what to click next, or shows the last distance. | A short text guides you through the next click and shows the last length. | Read the line while you measure. | Report: Appendix J, Coordination tools |
+| Snap to vertices (12 px) | The switch moves a click to the nearest vertex of the hit triangle when the vertex lies within 12 px. | On: your click jumps to the closest corner of the surface if one lies close. Off: the click lands exactly where you point. | Turn the switch on to measure from corner to corner. Turn it off to measure at any spot. | Report: Appendix J, Coordination tools |
+| Clear | The button deletes all dimension lines from the model. | Click and every dimension line disappears from the model. | Export the measurements first if you need them. Click the button to start again. | Report: Appendix J, Coordination tools |
+
+## BCF drawer
+
+| Setting | Intent | Impact | Use | Ref |
+| --- | --- | --- | --- | --- |
+| *Folder: BCF drawer* | The heading names the BCF drawer. The drawer lists BCF topics and shows the detail of the chosen topic. | This panel lists issue notes and lets you open, read, add and share them. | Click Open BCF or drop a file on the page. Click a topic to read it. | Report: Appendix J, Coordination tools |
+| Apply | The button applies 1 viewpoint of the topic. It moves the camera, selects, hides and colours elements and sets clip planes. | Click and the picture jumps to what the issue note shows, with the same cuts and colours. | Click the button on a viewpoint. Read the status line for skipped parts. | Report: Appendix J, Coordination tools |
+| Clear | The button clears the applied viewpoint. It is on only for the viewpoint that is active. | Click and the picture returns to your own state, without the hides, colours and cuts of the note. | Click the button after you review a viewpoint. | Report: Appendix J, Coordination tools |
+| Add comment | The button adds your comment to the topic. It can attach the current view as a new viewpoint. | Click and your text joins the thread of the issue note, with a picture if you ask for it. | Type a comment. Tick attach current view if needed. Click the button. | Report: Appendix J, Coordination tools |
+| Status filter | The list filters the topics by status. | Pick a state and only the issue notes in that state stay on the list. | Select All statuses to see every topic. | Report: Appendix J, Coordination tools |
+| Search box | The text box filters the topics by title, description, assignee, labels and comments. | Type a word and only the issue notes that hold it stay on the list. | Type part of a word. Clear the box to see every topic. | Report: Appendix J, Coordination tools |
+| Topic row | The row shows 1 topic with its status, priority and counts. A click selects the topic. | Each item is an issue note. A click opens its picture, text and comments below. | Click the row to read the topic. | Report: Appendix J, Coordination tools |
+| Topic status list | The list sets the status of the selected topic. | Pick a value and the issue note changes state, for example from open to closed. | Select the new status. Export the topics to share the change. | Report: Appendix J, Coordination tools |
+| Snapshot | The picture shows the snapshot that the first viewpoint of the topic stores. | The small picture shows what the author saw when they made the note. | Look at the picture. Click Apply to see it live. | Report: Appendix J, Coordination tools |
+| Viewpoints (heading) | The heading names the list of viewpoints of the selected topic. | The buttons below jump to the views that the author saved. | Click Apply on a viewpoint. | Report: Appendix J, Coordination tools |
+| Comments (heading) | The heading names the comments of the selected topic. The number is the count. | The notes below are the talk about this issue, oldest first. | Read the comments. Add your own below. | Report: Appendix J, Coordination tools |
+| Comment | The box shows 1 comment with its author, date and text. | Each box is one message in the talk about the issue. | Read the comment. | Report: Appendix J, Coordination tools |
+| Comment box | The text box holds the comment that you add to the topic. | Type your reply here. It joins the issue note when you click the add button. | Type a comment. Click Add comment. | Report: Appendix J, Coordination tools |
+| Attach view tick | The tick attaches the current camera, selection and clip planes to your comment as a new viewpoint. | Mark it and your reply carries a picture of what you see now. | Tick the box when the comment is about the current view. | Report: Appendix J, Coordination tools |
+| Status line | The text line shows what the last BCF step did, such as what applied and what it skipped. | A short text tells you what the last step did and what it had to skip. | Read the line after you open a file or apply a viewpoint. | Report: Appendix J, Coordination tools |
+| New topic | The button asks for a title and details. It then stores a topic with a snapshot and a viewpoint of the current camera. | Click and fill in a short form. The app saves a note that remembers what you see now. | Frame the issue in the picture. Click the button. Fill in the form. | Report: Appendix J, Coordination tools |
+| Export 2.1 | The button downloads every topic as a BCF 2.1 file. | Click and all issue notes go into one file that most programs can read. | Select this version for the widest support. | Report: Appendix J, Coordination tools |
+| Export 3.0 | The button downloads every topic as a BCF 3.0 file. | Click and all issue notes go into one file in the newer layout. | Select this version when all partners read BCF 3.0. | Report: Appendix J, Coordination tools |
+
+## Clearance drawer
+
+| Setting | Intent | Impact | Use | Ref |
+| --- | --- | --- | --- | --- |
+| *Folder: Clearance drawer* | The heading names the Clearance drawer. The drawer sets the bands and shows the counts per band. | This panel paints nearby walls and slabs by how close they sit to the selected item. | Select an object. Turn the colouring on. Read the counts in the status line. | Report: Appendix J, Coordination tools |
+| Bands (heading) | The heading names the group of the 2 band limits, tight and max range. | The sliders below set when a part counts as too close and how wide the check reaches. | Change the limits to fit your clash rules. | Report: Appendix J, Coordination tools |
+| Recompute | The button recomputes the clearance for the current focus. It turns the colouring on when it is off. | Click and the colours update for the item you picked now. | Select a new object. Click the button. | Report: Appendix J, Coordination tools |
+| Status line | The text line shows the number of elements in each band and the compute time. | A short text counts the red, amber and blue parts and says how long the check took. | Read the line after each change. | Report: Appendix J, Coordination tools |
+| Show clearance of the context to the focus | The switch turns the clearance colouring on or off. The colouring needs a selected object. | On: walls and slabs turn red, amber or blue by how close they sit to the selected item. Off: the normal colours return. | Select an object. Turn the switch on. Read the legend at the bottom right. | Report: Appendix J, Coordination tools |
+
+## Penetrations drawer
+
+| Setting | Intent | Impact | Use | Ref |
+| --- | --- | --- | --- | --- |
+| *Folder: Penetrations drawer* | The heading names the Penetrations drawer. The drawer holds the penetration schedule with filters and a sortable table. | This panel lists where pipes and ducts go through slabs and walls, with a cut-out check for each. | Click Analyse. Filter the rows with the chips. Click a row to fly to the crossing. | Report: Appendix J, Coordination tools |
+| Create BCF topics | The button creates 1 BCF topic for each selected row, or for each filtered row when none is selected. | Click and each crossing becomes an issue note with a picture, ready to send to the team. | Click the rows to select them. Click the button. The button is off when BCF is not available. | Report: Appendix J, Coordination tools |
+| Status (heading) | The heading names the status filter. The chips below filter the rows by opening status. | The chips below let you keep only the crossings with a cut-out, without one or not known. | Click a chip to filter. Click it again to clear the filter. | Report: Appendix J, Coordination tools |
+| Storey (heading) | The heading names the storey filter. The chips below filter the rows by the storey of the host. | The chips below let you look at one level of the building at a time. | Click a chip to filter. Click it again to clear the filter. | Report: Appendix J, Coordination tools |
+| Host class (heading) | The heading names the host class filter. The chips below filter the rows by the class of the host. | The chips below let you look at slabs, walls or beams one kind at a time. | Click a chip to filter. Click it again to clear the filter. | Report: Appendix J, Coordination tools |
+| Chip: no opening | The chip filters the rows to penetrations where the host has opening data but no opening at the place. The number is the count. | Click and the list keeps the crossings that have no cut-out. The number tells you how many there are. | Click the chip to find missing openings. Click again to clear. | Report: Appendix J, Coordination tools |
+| Chip: opening | The chip filters the rows to penetrations where an opening contains the place. The number is the count. | Click and the list keeps the crossings that have a cut-out. The number tells you how many there are. | Click the chip to check the planned openings. Click again to clear. | Report: Appendix J, Coordination tools |
+| Chip: unknown | The chip filters the rows to penetrations of a model with no opening data. The number is the count. | Click and the list keeps the crossings that no data can judge. The number tells you how many there are. | Click the chip to see which rows need a better source file. Click again to clear. | Report: Appendix J, Coordination tools |
+| Chip: Storey | The chip filters the rows to the penetrations of 1 storey. | Click and the list keeps the crossings of that level only. | Click the chip to filter. Click again to clear. | Report: Appendix J, Coordination tools |
+| Chip: Host class | The chip filters the rows to the penetrations of 1 host class. | Click and the list keeps the crossings of that kind of structure only. | Click the chip to filter. Click again to clear. | Report: Appendix J, Coordination tools |
+| Column: # | The column header sorts the table by the penetration number. | Click and the rows line up by their running number. | Click the header. Click it again to reverse the order. | Report: Appendix J, Coordination tools |
+| Column: Element | The column header sorts the table by the MEP element. | Click and the rows line up by the name of the pipe or duct. | Click the header. Click it again to reverse the order. | Report: Appendix J, Coordination tools |
+| Column: Host | The column header sorts the table by the structural host. | Click and the rows line up by the name of the slab or wall. | Click the header. Click it again to reverse the order. | Report: Appendix J, Coordination tools |
+| Column: Storey | The column header sorts the table by the storey of the host. | Click and the rows line up by level. | Click the header. Click it again to reverse the order. | Report: Appendix J, Coordination tools |
+| Column: Size | The column header sorts the table by the 2 smaller extents of the MEP bounds in mm. The size is approximate for inclined runs. | Click and the rows line up from small crossings to large ones. | Click the header. Click it again to reverse the order. | Report: Appendix J, Coordination tools |
+| Column: Thk | The column header sorts the table by the thickness of the host, which is its smallest extent in mm. | Click and the rows line up from thin walls to thick slabs. | Click the header. Click it again to reverse the order. | Report: Appendix J, Coordination tools |
+| Column: Status | The column header sorts the table by the opening status: opening, no opening or unknown. | Click and the rows with the same cut-out result group together. | Click the header. Click it again to reverse the order. | Report: Appendix J, Coordination tools |
+| Column: Gap | The column header sorts the table by the clearance between the MEP section and the opening, in mm. A negative gap means that the opening is too small. | Click and the rows line up from the tightest fit to the loosest fit. | Click the header. Click it again to reverse the order. | Report: Appendix J, Coordination tools |
+| Table row | The row shows 1 penetration. A click selects the MEP element and flies the camera to the crossing. | Click here and the picture glides to that crossing and a pulse marks it. | Click the row. Hold Ctrl or Shift to select more rows. | Report: Appendix J, Coordination tools |
+| Schedule table | The table lists the filtered penetrations. It shows the first 500 rows. Export the rest. | This list tells you where each pipe or duct crosses a slab or wall, and whether a cut-out waits there. | Sort with the headers. Filter with the chips. Click a row to fly to it. | Report: Appendix J, Coordination tools |
+| Status line | The text line shows the counts by opening status, the numbers of MEP elements and hosts, and the analysis time. | A short text counts the crossings with a cut-out, without one and not known. | Read the line after each analysis. | Report: Appendix J, Coordination tools |
+| Analyse | The button runs the analysis. It finds where MEP elements cross structural hosts and sets the opening status of each crossing. | Click and the viewer builds a list of places where pipes and ducts go through slabs and walls. Round dots mark them on the model. | Click the button after you change the scope or the model. Open the Penetrations tool to read the list. | Report: Appendix J, Coordination tools |
+| Export CSV | The button downloads the filtered rows as a CSV file. | Click and the list that you see goes into a spreadsheet file. | Click Analyse penetrations first. Filter the rows in the drawer. Click the button. | Report: Appendix J, Coordination tools |
+| Markers on the model | The switch draws a coloured marker at each listed crossing. | On: coloured dots sit on the building at each crossing. Off: the dots disappear. | Turn the switch off if the dots hide your view. | Report: Appendix J, Coordination tools |
+
+## Large model drawer
+
+| Setting | Intent | Impact | Use | Ref |
+| --- | --- | --- | --- | --- |
+| *Folder: Large model drawer* | The heading names the Large model drawer. The drawer shows the size, the buffers and the stage timings of the last model. | This panel tells you how big the building is and which load step took the most time. | Read the figures after a load. Change edges and properties in the Open model folder. | Report: Appendix K, Packaging, point clouds and large models |
+| Model (heading) | The heading names the table with the size of the model. | The table below counts the parts and triangles and shows memory use and load time. | Read the figures after a load. | Report: Appendix K, Packaging, point clouds and large models |
+| Table: Model | The table lists the name and the counts of elements, triangles and vertices. It also lists buffers, BVH state and load time. | The figures tell you how heavy the building is for your computer. | Compare the figures with another file to see which file is heavy. | Report: Appendix K, Packaging, point clouds and large models |
+| Stages of the last load (heading) | The heading names the table with the timing of each stage of the last file load. | The table below shows which step took the most time. | Read the times after you open an IFC file. | Report: Appendix K, Packaging, point clouds and large models |
+| Table: Stages of the last load | The table lists each stage of the last file load with its time. | The times tell you which step to speed up first, for example by turning edges or properties off. | Read the longest time first. | Report: Appendix K, Packaging, point clouds and large models |
+
+## Cleanup drawer
+
+| Setting | Intent | Impact | Use | Ref |
+| --- | --- | --- | --- | --- |
+| *Folder: Cleanup drawer* | The heading names the Cleanup drawer. The drawer holds the rule switches and the actions of the cleanup. | This panel finds stray bits of the building and lets you hide them and bring them back. | Turn rules on. Click Preview. Click Hide to hide the matches. Click Restore to undo. | Report: Appendix H, Model cleanup |
+| Rules (heading) | The heading names the group of the cleanup rules. | The switches below pick which kinds of debris the tool looks for. | Turn on the rules that you need. | Report: Appendix H, Model cleanup |
+| Actions (heading) | The heading names the group of the cleanup actions. | The buttons below show, hide or bring back the debris that the rules found. | Click Preview first. Click Hide when the preview looks right. | Report: Appendix H, Model cleanup |
+| Floating elements | The switch turns the floating rule on or off. | On: small loose pieces count as debris. Off: this rule finds nothing. | Turn the switch on to find pieces that hang away from the building. | Report: Appendix H, Model cleanup |
+| Tiny elements | The switch turns the tiny rule on or off. | On: very small parts count as debris. Off: this rule finds nothing. | Turn the switch on to find specks and small fasteners. | Report: Appendix H, Model cleanup |
+| Distant strays | The switch turns the distant strays rule on or off. | On: objects that sit way off from the building count as debris. Off: this rule finds nothing. | Turn the switch on to find markers and objects at the origin. | Report: Appendix H, Model cleanup |
+| Duplicates | The switch turns the duplicate rule on or off. The lowest id stays and the others match. | On: extra copies on the same spot count as debris, and the first copy stays. Off: this rule finds nothing. | Turn the switch on to remove flicker from copies that lie on top of each other. | Report: Appendix H, Model cleanup |
+| Degenerate | The switch turns the degenerate rule on or off. | On: empty or broken parts count as debris. Off: this rule finds nothing. | Turn the switch on to find parts that draw nothing useful. | Report: Appendix H, Model cleanup |
+| Preview | The button tints the matches magenta. The viewer frames them when fewer than 50 elements match. | Click and the pieces that the rules found turn pink, so you can check them before you hide them. | Set the rules first. Click the button. Use Select matches when a match hides inside a wall. | Report: Appendix H, Model cleanup |
+| Hide | The button hides the matches and records which ids it hid. The model file does not change. | The found pieces vanish from the picture. No part gets deleted. | Click Preview matches first. Click the button to hide the matches. | Report: Appendix H, Model cleanup |
+| Restore | The button shows again only the elements that the cleanup hid. Elements that you hid yourself stay hidden. | The pieces that this tool hid come back. Parts that you hid by hand stay out of sight. | Click the button to undo the hide of the matches. | Report: Appendix H, Model cleanup |
+| Status line | The read-only field shows the result of the last cleanup step. | A short text tells you how many pieces the rules found or hid. | Read the line after each step. | Report: Appendix H, Model cleanup |
+
+## Imaging drawer
+
+| Setting | Intent | Impact | Use | Ref |
+| --- | --- | --- | --- | --- |
+| *Folder: Imaging drawer* | The heading names the Imaging drawer. The drawer holds the imaging style, the palette and the MRI slab controls. | This panel turns the picture into a scan look and tunes how bright and how sharp it is. | Choose a style. Select an object. Change the sliders. Press the M key to cycle the styles. | Report: Appendix G, Imaging and sectioning |
+| Style (heading) | The heading names the group of the imaging style controls. | The controls below pick the scan look and tune its brightness and glow. | Choose a style. Change the sliders. | Report: Appendix G, Imaging and sectioning |
+| MRI slice (heading) | The heading names the group of the MRI slab slice controls. | The controls below place and move the thin grey cut. | Choose the axis. Change the position and the thickness. | Report: Appendix G, Imaging and sectioning |
+| Standard view | The button sets the imaging style to standard. The normal renderer returns. | Click and the scan look goes away and the normal picture returns. | Click the button to leave the scan look. | Report: Appendix G, Imaging and sectioning |
+| Status line | The text line shows the state of the imaging path or the reason why imaging is not available. | A short text tells you if the scan look works on your computer. | Read the line if the picture does not change. | Report: Appendix G, Imaging and sectioning |
+
+## Section drawer
+
+| Setting | Intent | Impact | Use | Ref |
+| --- | --- | --- | --- | --- |
+| *Folder: Section drawer* | The heading names the Section drawer. The drawer holds the section box, the section plane and the caps. | This panel cuts the building open with a block or a flat cut and shows the inside. | Click Fit to selection. Drag the handles on the model. Click Clear section to remove the cuts. | Report: Appendix G, Imaging and sectioning |
+| Section box (heading) | The heading names the group of the section box controls. | The controls below cut the building to a block of space. | Click Fit to selection. Drag the handles on the model. | Report: Appendix G, Imaging and sectioning |
+| Section plane (heading) | The heading names the group of the section plane controls. | The controls below cut the building with one flat cut. | Choose the axis. Move the offset. | Report: Appendix G, Imaging and sectioning |
+| Caps (heading) | The heading names the group of the cap controls. | The controls below decide how the cut faces of solids look. | Turn the caps on. Choose their colour. | Report: Appendix G, Imaging and sectioning |
+| min x | The field shows and sets 1 corner coordinate of the section box, in metres. The 6 fields follow the handles. | Type a number and that side of the cut block moves to it. The fields also follow your drags. | Type a value in metres. Press Enter. The box turns on. | Report: Appendix G, Imaging and sectioning |
+| Status line | The text line shows the state of the section clipping or the reason why it is not available. | A short text tells you if the cuts work on your computer. | Read the line if the picture does not change. | Report: Appendix G, Imaging and sectioning |
+| Fit to selection | The button sizes the section box to the bounds of the selected objects plus the margin. It also turns the box on. | Click and the cut block shrinks to wrap the picked parts with a little room around them. | Select objects first. Click the button. Press Shift+C for the same action. | Report: Appendix G, Imaging and sectioning |
+| Fit to model | The button sizes the section box to the bounds of the whole model plus the margin. It also turns the box on. | Click and the cut block grows to wrap the whole building. | Click the button to start from the full model. Drag the handles to cut in. | Report: Appendix G, Imaging and sectioning |
+| min y | The field shows and sets 1 corner coordinate of the section box, in metres. The 6 fields follow the handles. | Type a number and that side of the cut block moves to it. The fields also follow your drags. | Type a value in metres. Press Enter. The box turns on. | Report: Appendix G, Imaging and sectioning |
+| min z | The field shows and sets 1 corner coordinate of the section box, in metres. The 6 fields follow the handles. | Type a number and that side of the cut block moves to it. The fields also follow your drags. | Type a value in metres. Press Enter. The box turns on. | Report: Appendix G, Imaging and sectioning |
+| max x | The field shows and sets 1 corner coordinate of the section box, in metres. The 6 fields follow the handles. | Type a number and that side of the cut block moves to it. The fields also follow your drags. | Type a value in metres. Press Enter. The box turns on. | Report: Appendix G, Imaging and sectioning |
+| max y | The field shows and sets 1 corner coordinate of the section box, in metres. The 6 fields follow the handles. | Type a number and that side of the cut block moves to it. The fields also follow your drags. | Type a value in metres. Press Enter. The box turns on. | Report: Appendix G, Imaging and sectioning |
+| max z | The field shows and sets 1 corner coordinate of the section box, in metres. The 6 fields follow the handles. | Type a number and that side of the cut block moves to it. The fields also follow your drags. | Type a value in metres. Press Enter. The box turns on. | Report: Appendix G, Imaging and sectioning |
+
+## Scan drawer
+
+| Setting | Intent | Impact | Use | Ref |
+| --- | --- | --- | --- | --- |
+| *Folder: Scan drawer* | The heading names the Scan drawer. The drawer opens a point cloud, aligns it and checks it against the model. | This panel brings in dots of the real site and shows where the building differs from the plan. | Click Open point cloud. Align the cloud. Click Compute deviation. | Report: Appendix K, Packaging, point clouds and large models |
+| size attenuation | The switch makes points nearer to the camera look larger than points far away. | On: the dots grow as you move closer, like real objects. Off: all dots keep the same width on screen. | Turn the switch off if far dots vanish. Turn it on for a natural look. | Report: Appendix K, Packaging, point clouds and large models |
+| Apply budget | The button decimates the cloud again to the point budget. The cut uses a uniform random sample. | Click and the dots get fewer or more to match the slider, which can speed up the picture. | Set the point budget. Click the button. | Report: Appendix K, Packaging, point clouds and large models |
+| Deviation result | The text shows the share within tolerance, the mean and 95th percentile deviation, and the unrelated points. | These lines tell you how well the dots fit the building in plain numbers. | Read the result after Compute deviation. | Report: Appendix K, Packaging, point clouds and large models |
+| Display (heading) | The heading names the group of the display controls of the point cloud. | The controls below change how the dots look. | Change the size and the colour mode. | Report: Appendix K, Packaging, point clouds and large models |
+| Alignment (heading) | The heading names the group of the alignment controls of the point cloud. | The controls below move and turn the dots until they sit on the building. | Click Auto-align to model. Fine tune with the offsets. | Report: Appendix K, Packaging, point clouds and large models |
+| Deviation from model (heading) | The heading names the group of the deviation controls. | The controls below check how well the dots match the building. | Set the tolerance. Click Compute deviation. | Report: Appendix K, Packaging, point clouds and large models |
+| Status line | The text line shows the file name, the point count and the state of the last step. | A short text tells you what you have loaded and how the work is going. | Read the line after each step. | Report: Appendix K, Packaging, point clouds and large models |

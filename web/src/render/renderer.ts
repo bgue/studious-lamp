@@ -9,6 +9,8 @@ import {
   CustomBlending,
   GLSL3,
   HalfFloatType,
+  LinearFilter,
+  UnsignedByteType,
   OneFactor,
   OneMinusSrcAlphaFactor,
   Box3,
@@ -40,7 +42,7 @@ import {
   WebGLRenderTarget,
   DirectionalLight,
 } from 'three';
-import type { IUniform } from 'three';
+import type { IUniform, TextureDataType } from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import type { Classification, ElementId, RenderState } from '../types';
 import { FLAG_FOCUS, FLAG_HIDDEN } from '../types';
@@ -51,6 +53,11 @@ import { JFA_START, PEEL_EPS, PEEL_MAX_ELLIPSES, boxScreenEllipse, jfaSteps, pee
 import type { FrontTreatment, Plane, ScreenEllipse } from '../viewModes/maths';
 import { OPAQUE_ALPHA } from './ghostMath';
 import type { OitWeightMode } from './oitMath';
+import { IMG_BLUR_FRAG, IMG_COMPOSITE_FRAG, IMG_FULLSCREEN_VERT, IMG_SLAB_FRAG, IMG_THICK_FRAG } from './imagingGlsl';
+import { PALETTE_TABLE, densityForMaterial } from '../imaging/maths';
+import type { ImagingPalette, Slab } from '../imaging/maths';
+import { MAX_CLIP_PLANES, normalizePlane, planeToVec4, pointKept } from '../section/maths';
+import type { ClipPlane } from '../section/maths';
 
 type Uniforms = Record<string, IUniform>;
 
@@ -81,6 +88,20 @@ export interface PeelRender {
 }
 
 export type PeelPath = 'off' | 'gpu-jfa' | 'cpu-ellipse';
+
+/** Imaging style handed to the renderer (the plugin owns the settings; see imaging/config.ts). */
+export interface ImagingRender {
+  style: 'radiograph' | 'mri';
+  palette: ImagingPalette;
+  exposure: number;
+  contrast: number;
+  boneGlow: number;
+  tissueEdges: boolean;
+  /** MRI: the slab (imaging/maths.ts slabFor). Null: no slice (only the faint tissue shows). */
+  slab: Slab | null;
+  /** MRI: light the slab edges. */
+  scan: boolean;
+}
 
 /** Resolution of the peel mask relative to the render target. */
 const PEEL_SCALE = 0.5;
@@ -197,6 +218,37 @@ export class XrayRenderer {
   private readonly tmpColor = new Color();
   private readonly tmpSize = new Vector2();
 
+  // Section clip planes (setClipPlanes) and imaging styles (setImaging; render/imagingGlsl.ts).
+  private clipPlanes: ClipPlane[] | null = null;
+  /** Incremented by every setClipPlanes call, so a plugin can tell that someone else changed the planes. */
+  clipVersion = 0;
+  private imaging: ImagingRender | null = null;
+  private imgFailure: string | null = null;
+  private readonly imgBlend: boolean;
+  private imgThickRT: WebGLRenderTarget | null = null;
+  private imgSlabRT: WebGLRenderTarget | null = null;
+  private imgGlow: WebGLRenderTarget[] = [];
+  private imgSize = '';
+  private readonly imgThickScene = new Scene();
+  private readonly imgSlabScene = new Scene();
+  private readonly imgPassScene = new Scene();
+  private readonly imgFinalScene = new Scene();
+  private imgThickMesh: Mesh | null = null;
+  private imgSlabMesh: Mesh | null = null;
+  private imgEdges: LineSegments | null = null;
+  private imgPassQuad: Mesh | null = null;
+  private imgFinalQuad: Mesh | null = null;
+  private imgBlurMat: ShaderMaterial | null = null;
+  private imgCompositeMat: ShaderMaterial | null = null;
+  private readonly imgSlabU: Uniforms = {
+    imgSlab: { value: new Vector4(0, 1, 0, 0) },
+    imgHalf: { value: 0.15 },
+    imgScan: { value: 0 },
+    imgCamSide: { value: new Vector3(1, 0, 0) },
+  };
+  /** Counters for tests and benchmarks: frames drawn through the imaging path. */
+  imagingFrames = 0;
+
   private readonly raycaster = new Raycaster();
   private readonly ndc = new Vector2();
   private readonly changeListeners = new Set<() => void>();
@@ -310,11 +362,18 @@ export class XrayRenderer {
       peelEllN: { value: 0 },
       hoverId: { value: -1 },
       hoverColor: { value: new Vector3(1, 0.85, 0.2) },
+      clipN: { value: 0 },
+      clipP: { value: Array.from({ length: MAX_CLIP_PLANES }, () => new Vector4(0, 0, 1, 0)) },
+      clipCapOn: { value: 1 },
+      clipCapCol: { value: new Vector3(0.93, 0.78, 0.5) },
+      imgEdgeCol: { value: new Vector3(0.7, 0.8, 0.9) },
+      imgEdgeAlpha: { value: 0.1 },
     };
     this.peelDummy = new DataTexture(new Float32Array(4), 1, 1, RGBAFormat, FloatType);
     this.peelDummy.needsUpdate = true;
     this.shared.peelTex!.value = this.peelDummy;
     this.peelFloatOk = ext.has('EXT_color_buffer_float');
+    this.imgBlend = ext.has('EXT_color_buffer_float') && ext.has('EXT_float_blend');
     this.syncLights();
     this.resize();
   }
@@ -352,6 +411,10 @@ export class XrayRenderer {
     this.shared.stateA!.value = this.texA;
     this.shared.stateB!.value = this.texB;
     this.shared.stateC!.value = this.texC;
+    // Imaging: the X-ray density of every element (from its material name) lives in stateC.a, uploaded once per model.
+    for (let i = 0; i < n; i++) this.dataC[i * 4 + 3] = densityForMaterial(elements[i]!.material);
+    this.texC.needsUpdate = true;
+    this.setClipPlanes(null); // the planes belong to the previous model
     this.shared.sweepEnabled!.value = 0;
     this.shared.gradeStrength!.value = 0;
     this.sweepHold = null;
@@ -545,6 +608,7 @@ export class XrayRenderer {
     this.focusMesh = focus;
     this.edgesCtx = edgesCtx;
     this.edgesFocus = edgesFocus;
+    this.buildImagingMeshes(g);
     this.applyPassOrder();
   }
 
@@ -556,6 +620,13 @@ export class XrayRenderer {
     if (this.peelMaskMesh) this.peelScene.remove(this.peelMaskMesh);
     this.peelMaskMesh = null;
     this.peelStale = true;
+    for (const o of [this.imgThickMesh, this.imgSlabMesh]) if (o) {
+      this.imgThickScene.remove(o);
+      this.imgSlabScene.remove(o);
+    }
+    if (this.imgEdges) this.imgFinalScene.remove(this.imgEdges);
+    this.imgThickMesh = this.imgSlabMesh = null;
+    this.imgEdges = null;
     for (const o of [this.oitDepthOpaque, this.oitDepthFocus, this.oitGhost]) if (o) this.oitScene.remove(o);
     this.oitDepthOpaque = this.oitDepthFocus = this.oitGhost = null;
     for (const m of this.materials) m.dispose();
@@ -713,6 +784,7 @@ export class XrayRenderer {
    * render target (also multisampled): the composite is an ordinary draw into the current target.
    */
   renderScene(): void {
+    if (this.imaging && !this.focusOnlyStash && this.renderImaging(this.imaging)) return;
     if (!this.focusOnlyStash) {
       this.prepareViewModes();
       const compose = this.oitOn && (this.anyGhost || this.vmGhost) && this.renderOitTarget();
@@ -1222,6 +1294,312 @@ export class XrayRenderer {
   }
   private pickEllipseFresh = false;
 
+
+  // ------------------------------------------------------------------ section clip planes
+
+  /**
+   * Section planes (up to MAX_CLIP_PLANES = 8; extra ones are ignored). Each plane's normal points to the KEPT half-space
+   * (viewer coordinates). Applied per fragment in every pass (opaque, ghost / OIT, focus, edges, glow, imaging), so elements
+   * are split exactly. With `cap` (default true when the options are omitted) the back faces a cut reveals are painted flat
+   * in `capColor` with a light hatch; the cap colour is kept when not given. null or [] removes the planes.
+   */
+  setClipPlanes(planes: ReadonlyArray<{ normal: ArrayLike<number>; point: ArrayLike<number> }> | null, opts?: { cap?: boolean; capColor?: ArrayLike<number> }): void {
+    const list: ClipPlane[] = [];
+    for (const p of planes ?? []) {
+      const n = normalizePlane({ normal: [p.normal[0]!, p.normal[1]!, p.normal[2]!], point: [p.point[0]!, p.point[1]!, p.point[2]!] });
+      if (n && list.length < MAX_CLIP_PLANES) list.push(n);
+    }
+    this.clipPlanes = list.length ? list : null;
+    const u = this.shared;
+    u.clipN!.value = list.length;
+    const arr = u.clipP!.value as Vector4[];
+    list.forEach((p, i) => {
+      const v = planeToVec4(p);
+      arr[i]!.set(v[0], v[1], v[2], v[3]);
+    });
+    u.clipCapOn!.value = opts?.cap === false ? 0 : 1;
+    if (opts?.capColor) (u.clipCapCol!.value as Vector3).set(opts.capColor[0]!, opts.capColor[1]!, opts.capColor[2]!);
+    this.clipVersion++;
+    this.peelStale = true;
+    this.dirty = true;
+  }
+
+  /** The active section planes (unit normals, viewer coordinates), or null. */
+  getClipPlanes(): Array<{ normal: [number, number, number]; point: [number, number, number] }> | null {
+    return this.clipPlanes ? this.clipPlanes.map((p) => ({ normal: [...p.normal], point: [...p.point] })) : null;
+  }
+
+  /** Is the surface point removed by a section plane (picking skips such hits)? */
+  private cutByClip(point: Vector3): boolean {
+    return this.clipPlanes !== null && !pointKept(this.clipPlanes, [point.x, point.y, point.z]);
+  }
+
+  // ------------------------------------------------------------------ imaging styles
+
+  /** Radiograph / MRI rendering needs float colour buffers; false otherwise (the standard renderer is used). */
+  get imagingSupported(): boolean {
+    return this.oitExtension !== '' && this.imgFailure === null;
+  }
+
+  /** One line for the UI. */
+  get imagingStatus(): string {
+    if (this.oitExtension === '') return 'unavailable: no float colour buffers';
+    if (this.imgFailure) return `failed: ${this.imgFailure}`;
+    return `${this.imgBlend ? 'float32' : 'float16 (no EXT_float_blend: less precise)'} thickness target${this.imaging ? `, ${this.imaging.style} on` : ''}`;
+  }
+
+  /** Draw the frame as a radiograph or an MRI slice instead of the normal scene. null restores the normal renderer exactly. */
+  setImaging(p: ImagingRender | null): void {
+    this.imaging = p;
+    if (!p) this.freeImaging();
+  }
+
+  private buildImagingMeshes(g: LoadedModel['geometry']): void {
+    const thickMat = new ShaderMaterial({
+      vertexShader: MESH_VERT,
+      fragmentShader: IMG_THICK_FRAG,
+      uniforms: this.shared,
+      side: DoubleSide,
+      transparent: true,
+      blending: CustomBlending,
+      blendEquation: AddEquation,
+      blendSrc: OneFactor,
+      blendDst: OneFactor,
+      blendEquationAlpha: AddEquation,
+      blendSrcAlpha: OneFactor,
+      blendDstAlpha: OneFactor,
+      depthTest: false,
+      depthWrite: false,
+    });
+    const slabMat = new ShaderMaterial({
+      vertexShader: MESH_VERT,
+      fragmentShader: IMG_SLAB_FRAG,
+      uniforms: { ...this.shared, ...this.imgSlabU },
+      side: DoubleSide,
+      blending: NoBlending,
+      depthTest: true,
+      depthWrite: true,
+    });
+    const edgeMat = new ShaderMaterial({
+      vertexShader: EDGE_VERT,
+      fragmentShader: EDGE_FRAG,
+      uniforms: this.shared,
+      defines: { EDGES_IMG: '' },
+      transparent: true,
+      premultipliedAlpha: true,
+      blending: NormalBlending,
+      depthTest: false,
+      depthWrite: false,
+    });
+    this.materials.push(thickMat, slabMat, edgeMat);
+    const thick = new Mesh(g.geometry, thickMat);
+    const slab = new Mesh(g.geometry, slabMat);
+    const edges = new LineSegments(g.edges, edgeMat);
+    for (const o of [thick, slab, edges]) o.frustumCulled = false;
+    thick.name = 'xray-img-thickness';
+    slab.name = 'xray-img-slab';
+    edges.name = 'xray-img-edges';
+    edges.renderOrder = 1;
+    this.imgThickScene.add(thick);
+    this.imgSlabScene.add(slab);
+    this.imgFinalScene.add(edges);
+    this.imgThickMesh = thick;
+    this.imgSlabMesh = slab;
+    this.imgEdges = edges;
+  }
+
+  private makeImgTarget(w: number, h: number, type: TextureDataType, depth: boolean, samples: number, linear: boolean): WebGLRenderTarget | null {
+    const rt = new WebGLRenderTarget(w, h, { type, format: RGBAFormat, depthBuffer: depth, samples });
+    rt.texture.minFilter = rt.texture.magFilter = linear ? LinearFilter : NearestFilter;
+    rt.texture.generateMipmaps = false;
+    const r = this.renderer;
+    const gl = r.getContext();
+    const prev = r.getRenderTarget();
+    while (gl.getError() !== gl.NO_ERROR) { /* drain */ }
+    r.setRenderTarget(rt);
+    const ok = gl.checkFramebufferStatus(gl.FRAMEBUFFER) === gl.FRAMEBUFFER_COMPLETE && gl.getError() === gl.NO_ERROR;
+    r.setRenderTarget(prev);
+    if (!ok) {
+      rt.dispose();
+      return null;
+    }
+    return rt;
+  }
+
+  private freeImaging(): void {
+    this.imgThickRT?.dispose();
+    this.imgSlabRT?.dispose();
+    for (const t of this.imgGlow) t.dispose();
+    this.imgThickRT = this.imgSlabRT = null;
+    this.imgGlow = [];
+    this.imgSize = '';
+  }
+
+  /** (Re)create the imaging targets for a render target of w x h. False when they cannot be built. */
+  private ensureImagingTargets(w: number, h: number): boolean {
+    const key = `${w}x${h}`;
+    if (this.imgThickRT && this.imgSize === key) return true;
+    this.freeImaging();
+    const thick = this.makeImgTarget(w, h, this.imgBlend ? FloatType : HalfFloatType, false, 0, false);
+    const slab = thick ? this.makeImgTarget(w, h, UnsignedByteType, true, Math.min(4, this.renderer.capabilities.maxSamples), false) ?? this.makeImgTarget(w, h, UnsignedByteType, true, 0, false) : null;
+    const hw = Math.max(1, Math.ceil(w / 2));
+    const hh = Math.max(1, Math.ceil(h / 2));
+    const qw = Math.max(1, Math.ceil(w / 4));
+    const qh = Math.max(1, Math.ceil(h / 4));
+    const sizes: Array<[number, number]> = [[hw, hh], [hw, hh], [qw, qh], [qw, qh]];
+    const glow: WebGLRenderTarget[] = [];
+    if (thick && slab) for (const [gw, gh] of sizes) {
+      const t = this.makeImgTarget(gw, gh, HalfFloatType, false, 0, true);
+      if (!t) break;
+      glow.push(t);
+    }
+    if (!thick || !slab || glow.length < 4) {
+      thick?.dispose();
+      slab?.dispose();
+      for (const t of glow) t.dispose();
+      this.imgFailure = 'incomplete framebuffer for the imaging targets';
+      console.warn(`Imaging disabled: ${this.imgFailure}`);
+      return false;
+    }
+    this.imgThickRT = thick;
+    this.imgSlabRT = slab;
+    this.imgGlow = glow;
+    this.imgSize = key;
+    return true;
+  }
+
+  private ensureImagingMaterials(): void {
+    if (this.imgPassQuad) return;
+    const tri = this.oitQuad.geometry;
+    this.imgBlurMat = new ShaderMaterial({
+      vertexShader: IMG_FULLSCREEN_VERT,
+      fragmentShader: IMG_BLUR_FRAG,
+      uniforms: { tSrc: { value: null }, srcScale: { value: 1 }, stepPx: { value: new Vector2(1, 0) }, srcMode: { value: 0 }, imgExposure: { value: 1 } },
+      depthTest: false,
+      depthWrite: false,
+      blending: NoBlending,
+      side: DoubleSide,
+    });
+    this.imgCompositeMat = new ShaderMaterial({
+      vertexShader: IMG_FULLSCREEN_VERT,
+      fragmentShader: IMG_COMPOSITE_FRAG,
+      uniforms: {
+        tThick: { value: null },
+        tSlab: { value: null },
+        tGlowA: { value: null },
+        tGlowB: { value: null },
+        imgRes: { value: new Vector2(1, 1) },
+        imgStyle: { value: 0 },
+        imgExposure: { value: 1 },
+        imgContrast: { value: 1 },
+        imgBoneGlow: { value: 1 },
+        imgGlowOn: { value: 0 },
+        palBg: { value: new Vector3() },
+        palTissue: { value: new Vector3() },
+        palBone: { value: new Vector3() },
+        palGlow: { value: new Vector3() },
+      },
+      depthTest: false,
+      depthWrite: false,
+      blending: NoBlending,
+      side: DoubleSide,
+    });
+    this.imgPassQuad = new Mesh(tri, this.imgBlurMat);
+    this.imgPassQuad.frustumCulled = false;
+    this.imgPassScene.add(this.imgPassQuad);
+    this.imgFinalQuad = new Mesh(tri, this.imgCompositeMat);
+    this.imgFinalQuad.frustumCulled = false;
+    this.imgFinalQuad.renderOrder = 0;
+    this.imgFinalScene.add(this.imgFinalQuad);
+  }
+
+  /**
+   * The imaging frame: thickness pass (all visible elements, additive), the MRI slab pass, the bone glow blur and
+   * the full-screen composite into the current target. Returns false (standard renderer) when unsupported.
+   */
+  private renderImaging(im: ImagingRender): boolean {
+    if (!this.imagingSupported || !this.imgThickMesh) return false;
+    const { w, h } = this.targetSize();
+    if (!this.ensureImagingTargets(w, h)) return false;
+    this.ensureImagingMaterials();
+    this.prepareViewModes();
+    this.camera.updateMatrixWorld();
+
+    const pal = PALETTE_TABLE[im.palette];
+    const mri = im.style === 'mri';
+    const slab = mri ? im.slab : null;
+    const cm = this.imgCompositeMat!;
+    const cu = cm.uniforms;
+    (cu.palBg!.value as Vector3).set(...pal.bg);
+    (cu.palTissue!.value as Vector3).set(...pal.tissue);
+    (cu.palBone!.value as Vector3).set(...pal.bone);
+    (cu.palGlow!.value as Vector3).set(...pal.glow);
+    cu.imgStyle!.value = mri ? 1 : 0;
+    cu.imgExposure!.value = im.exposure;
+    cu.imgContrast!.value = im.contrast;
+    cu.imgBoneGlow!.value = im.boneGlow;
+    (cu.imgRes!.value as Vector2).set(w, h);
+    const glowOn = im.boneGlow > 0;
+    cu.imgGlowOn!.value = glowOn ? 1 : 0;
+    (this.shared.imgEdgeCol!.value as Vector3).set(...pal.edge);
+    this.shared.imgEdgeAlpha!.value = 0.1;
+    if (this.imgEdges) this.imgEdges.visible = im.tissueEdges && !mri;
+    if (slab) {
+      const su = this.imgSlabU;
+      (su.imgSlab!.value as Vector4).set(slab.normal[0], slab.normal[1], slab.normal[2], slab.centre);
+      su.imgHalf!.value = slab.half;
+      su.imgScan!.value = im.scan ? 1 : 0;
+      const cp = this.camera.position;
+      (su.imgCamSide!.value as Vector3).x = slab.normal[0] * cp.x + slab.normal[1] * cp.y + slab.normal[2] * cp.z - slab.centre >= 0 ? 1 : -1;
+    }
+    if (this.imgSlabMesh) this.imgSlabMesh.visible = slab !== null;
+
+    const r = this.renderer;
+    const dst = r.getRenderTarget();
+    const autoClear = r.autoClear;
+    const clearAlpha = r.getClearAlpha();
+    r.getClearColor(this.tmpColor);
+    r.autoClear = true;
+    r.setClearColor(0x000000, 0);
+
+    r.setRenderTarget(this.imgThickRT);
+    r.render(this.imgThickScene, this.camera);
+    if (mri) {
+      r.setRenderTarget(this.imgSlabRT);
+      r.render(this.imgSlabScene, this.camera);
+    }
+    if (glowOn) {
+      const bm = this.imgBlurMat!;
+      const bu = bm.uniforms;
+      bu.imgExposure!.value = im.exposure;
+      this.imgPassQuad!.material = bm;
+      const [a1, a2, b1, b2] = this.imgGlow as [WebGLRenderTarget, WebGLRenderTarget, WebGLRenderTarget, WebGLRenderTarget];
+      const blur = (src: WebGLRenderTarget, dstRT: WebGLRenderTarget, scale: number, sx: number, sy: number, mode: number): void => {
+        bu.tSrc!.value = src.texture;
+        bu.srcScale!.value = scale;
+        (bu.stepPx!.value as Vector2).set(sx, sy);
+        bu.srcMode!.value = mode;
+        r.setRenderTarget(dstRT);
+        r.render(this.imgPassScene, this.camera);
+      };
+      blur(this.imgThickRT!, a1, 2, 2, 0, 0);
+      blur(a1, a2, 1, 0, 1, 1);
+      blur(a2, b1, 2, 4, 0, 1);
+      blur(b1, b2, 1, 0, 2, 1);
+      cu.tGlowA!.value = a2.texture;
+      cu.tGlowB!.value = b2.texture;
+    }
+    cu.tThick!.value = this.imgThickRT!.texture;
+    cu.tSlab!.value = this.imgSlabRT!.texture;
+
+    r.setClearColor(this.tmpColor, clearAlpha);
+    r.setRenderTarget(dst);
+    r.render(this.imgFinalScene, this.camera);
+    r.autoClear = autoClear;
+    this.imagingFrames++;
+    return true;
+  }
+
   // ------------------------------------------------------------------ sweep, depth grade, offsets
 
   /**
@@ -1264,7 +1642,8 @@ export class XrayRenderer {
   }
 
   clearElementOffsets(): void {
-    this.dataC.fill(0);
+    const C = this.dataC;
+    for (let i = 0; i < C.length; i += 4) C[i] = C[i + 1] = C[i + 2] = 0; // keep the density in the alpha channel
     this.offsetsDirty = true;
   }
 
@@ -1334,7 +1713,7 @@ export class XrayRenderer {
         const a = alpha[id]!;
         const hidden = (f & FLAG_HIDDEN) !== 0 || a < 0;
         const clickThrough = (f & FLAG_FOCUS) === 0 && a < 0.3;
-        if (!hidden && !clickThrough && !this.cutByViewMode(id, hit.point)) return id;
+        if (!hidden && !clickThrough && !this.cutByViewMode(id, hit.point) && !this.cutByClip(hit.point)) return id;
       }
       near = hit.distance + 1e-4;
     }
@@ -1347,6 +1726,7 @@ export class XrayRenderer {
     this.disposeMeshes();
     this.freeOitTarget();
     this.freePeelTargets();
+    this.freeImaging();
     this.peelInitMat?.dispose();
     this.peelStepMat?.dispose();
     this.peelDummy.dispose();

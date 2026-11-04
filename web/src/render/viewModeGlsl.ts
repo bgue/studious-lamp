@@ -3,10 +3,28 @@
 
 import { JFA_START, PEEL_CAP_SLACK, PEEL_MAX_ELLIPSES, PEEL_TILT, VM_FULL } from '../viewModes/maths';
 
+import { MAX_CLIP_PLANES } from '../section/maths';
+
 const f = (x: number): string => (Number.isInteger(x) ? x.toFixed(1) : String(x));
+
+/** Section clip planes (renderer.setClipPlanes): a fragment is cut when it is on the removed side of any plane. */
+export const CLIP_GLSL = /* glsl */ `
+uniform int clipN;                  // number of planes, 0 = none (the common case: one integer compare)
+uniform vec4 clipP[${MAX_CLIP_PLANES}];  // xyz = unit normal toward the kept side, w: kept when dot(n, p) + w >= 0
+uniform float clipCapOn;            // back faces revealed by a cut are painted with clipCapCol
+uniform vec3 clipCapCol;
+bool clipCut(vec3 wp) {
+  for (int i = 0; i < ${MAX_CLIP_PLANES}; i++) {
+    if (i >= clipN) break;
+    if (dot(clipP[i].xyz, wp) + clipP[i].w < 0.0) return true;
+  }
+  return false;
+}
+`;
 
 /** Uniform declarations and the per-fragment evaluation, included by the mesh and the edge fragment shaders. */
 export const VIEWMODE_GLSL = /* glsl */ `
+${CLIP_GLSL}
 const float PEEL_CAP_SLACK = ${f(PEEL_CAP_SLACK)};
 const float PEEL_TILT = ${f(PEEL_TILT)};
 const float VM_FULL = ${f(VM_FULL)}; // coverage above this is untouched
@@ -138,10 +156,12 @@ bool vmHovered(float id) { return abs(id - hoverId) < 0.5; }
 
 /** Fragment shader of the peel mask: view depth of the nearest focus fragment in r, 1 in g. */
 export const PEEL_MASK_FRAG = /* glsl */ `
+${CLIP_GLSL}
 flat varying float vFlags;
 varying vec3 vWorldPos;
 void main() {
   if ((int(vFlags + 0.5) & 1) == 0 || (int(vFlags + 0.5) & 2) != 0) discard;
+  if (clipN > 0 && clipCut(vWorldPos)) discard;
   float z = -(viewMatrix * vec4(vWorldPos, 1.0)).z;
   gl_FragColor = vec4(z, 1.0, 0.0, 1.0);
 }

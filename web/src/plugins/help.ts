@@ -16,8 +16,12 @@ import {
   classOf,
   controllerAltKey,
   controllerKey,
+  domTarget,
+  DOM_CANDIDATES,
+  drawerTitleOf,
   folderKey,
   folderTitle,
+  helpEnabled,
   lookupHelp,
   type ControllerLike,
   type GuiLike,
@@ -94,6 +98,8 @@ export function resolveTarget(node: Node | null): Anchored | null {
       if (!key) continue;
       return { key, title: typeof r.title === 'function' ? r.title(el) : r.title, anchor: el };
     }
+    const dom = domTarget(el);
+    if (dom) return { ...dom, anchor: el };
   }
   return null;
 }
@@ -108,6 +114,48 @@ function setStored(v: 'on' | 'off'): void {
 
 function attachAll(app: ViewerApp): void {
   if (app.panel) attach(app.panel);
+  scanTools();
+}
+
+/** Warn once for each element of the strip, a drawer or a dialog that has no help text. Same message as attach(). */
+export function scanTools(root: ParentNode = document): number {
+  let missing = 0;
+  for (const node of Array.from(root.querySelectorAll(DOM_CANDIDATES))) {
+    const t = domTarget(node);
+    if (!t) continue;
+    node.setAttribute('data-help-key', t.key);
+    node.setAttribute('data-help-title', t.title);
+    if (lookupHelp(t.key)) continue;
+    missing++;
+    const kind = node.closest('#xray-toolbar-drawer') ? `drawer "${drawerTitleOf(node)}"` : node.closest('#xray-toolbar') ? 'tool strip' : 'dialog';
+    const id = `${kind}:${t.key}`;
+    if (!warned.has(id)) {
+      warned.add(id);
+      console.warn(`[help] no help text for ${kind} "${t.key}"`);
+    }
+  }
+  return missing;
+}
+
+let toolObserver: MutationObserver | null = null;
+let scanTimer: ReturnType<typeof setTimeout> | null = null;
+
+/** Scan the strip, drawers and dialogs now and whenever they change. */
+function watchTools(): void {
+  scanTools();
+  if (toolObserver || typeof MutationObserver === 'undefined') return;
+  toolObserver = new MutationObserver(() => {
+    if (scanTimer) return;
+    scanTimer = setTimeout(() => {
+      scanTimer = null;
+      scanTools();
+    }, 60);
+  });
+  toolObserver.observe(document.body, { childList: true, subtree: true });
+}
+
+function setBodyClass(on: boolean): void {
+  document.body.classList.toggle('xh-on', on);
 }
 
 export const helpPlugin: AppPlugin = {
@@ -119,16 +167,20 @@ export const helpPlugin: AppPlugin = {
       enable() {
         setStored('on');
         popover?.setEnabled(true);
+        setBodyClass(true);
       },
       disable() {
         setStored('off');
         popover?.setEnabled(false);
+        setBodyClass(false);
       },
       lookup: (key) => lookupHelp(key),
       keys: () => Object.keys(HELP),
       popover,
     };
+    setBodyClass(helpEnabled());
     attachAll(app);
+    watchTools();
   },
 
   onModel(app) {

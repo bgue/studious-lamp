@@ -16,6 +16,7 @@ import {
   type GuiLike,
 } from '../src/ui/help';
 import { HELP } from '../src/ui/helpText';
+import { CLEANUP_CLASSES_KEY, DRAWER_FOLDERS, DOM_CANDIDATES, TOOL_RULES, DIALOG_RULES } from '../src/ui/help';
 
 // A fake lil-gui: a folder has a title (as $title text, like lil-gui) and a parent; a controller has _name, property and a parent.
 function folder(title: string, parent: GuiLike | null = null, how: '$title' | '_title' = '$title'): GuiLike {
@@ -189,5 +190,42 @@ describe('popover renderer', () => {
     expect(el.children.length).toBe(5);
     expect(el.children[0]!.textContent).toBe('two');
     expect(el.children[2]!.children[1]!.textContent).toContain('IfcWall');
+  });
+});
+
+
+describe('keys of the later folders', () => {
+  const cleanup = folder('Model cleanup', root);
+  const cleanupClasses = folder('Classes', cleanup);
+
+  it('gives the Classes folder of Model cleanup its own key, apart from the one in Class styles', () => {
+    expect(folderKey(cleanupClasses)).toBe(CLEANUP_CLASSES_KEY);
+    expect(folderKey(classes)).toBe('Classes');
+    expect(controllerKey(ctl(cleanupClasses, 'proxies', 'proxies'))).toBe('Model cleanup/Classes/proxies');
+    expect(lookupHelp('Model cleanup/Classes')).toBeDefined();
+    expect(lookupHelp('Model cleanup/Classes/proxies')).toBeDefined();
+    expect(isClassFolder(cleanupClasses)).toBe(false);
+  });
+
+  it('has a text for every folder and control that the plugins add', () => {
+    const keys = [
+      'View modes', 'Behind only', 'Peelback', 'Behind only/front treatment', 'Peelback/radius (m)', 'Model cleanup', 'Floating', 'Tiny',
+      'Distant strays', 'Duplicates', 'Degenerate', 'Floating/size metric', 'Hover info', 'Hover info/property filter', 'Presets',
+      'Presets/Apply preset', 'Penetrations', 'Measure', 'Clearance', 'BCF', 'Keyboard', 'Keyboard/Reset shortcuts', 'Imaging', 'MRI slice',
+      'Imaging/bone glow', 'MRI slice/scan speed', 'Section', 'Section/Fit box to selection', 'Section/Clear section', 'Point cloud',
+      'Point cloud/Compute deviation', 'Point cloud/Point cloud status', 'Open model/edges', 'Open model/properties', 'Open model/Model stats',
+      'Tool strip/Presets', 'Tool strip/Scan', 'Tool drawer', 'Peelback drawer'.replace('Peelback', 'View modes'),
+    ];
+    for (const k of keys) expect(lookupHelp(k), k).toBeDefined();
+  });
+
+  it('keeps the drawer rules, the dialog rules and the candidate selector in step', () => {
+    expect(TOOL_RULES.length).toBeGreaterThan(20);
+    expect(DIALOG_RULES.length).toBeGreaterThan(5);
+    for (const sel of ['.xt-btn-tool', '.xt-sec', '.xt-slider', '.bcf-btn', '.kx-input']) expect(DOM_CANDIDATES).toContain(sel);
+    for (const [drawer, folders] of Object.entries(DRAWER_FOLDERS)) {
+      expect(folders.length, drawer).toBeGreaterThan(0);
+      for (const f of folders) expect(lookupHelp(f), `${drawer} -> ${f}`).toBeDefined();
+    }
   });
 });
