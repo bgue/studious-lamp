@@ -139,19 +139,7 @@ export async function parseModel(glb: ArrayBuffer, sidecar?: unknown): Promise<L
     g.meshes.map((m) => ({ geometry: m.geometry as BufferGeometry, matrix: m.matrixWorld.clone() as Matrix4 }));
 
   if (records) {
-    elements = records.map((r, i) => ({
-      id: i,
-      globalId: r.globalId ?? `element-${i}`,
-      expressId: r.expressId,
-      ifcClass: r.ifcClass ?? 'Unknown',
-      name: r.name,
-      storey: r.storey ?? null,
-      material: r.material,
-      color: normaliseColor(r.color),
-      bounds: (r.bounds ?? [0, 0, 0, 0, 0, 0]) as ElementRecord['bounds'],
-      file: r.file,
-      props: sanitizeProps(r.props),
-    }));
+    elements = records.map(normaliseRecord);
     for (let i = 0; i < elements.length; i++) parts.push([]);
     for (const g of order) {
       if (g.sidecarIndex >= 0) parts[g.sidecarIndex]!.push(...partsOf(g));
@@ -159,15 +147,7 @@ export async function parseModel(glb: ArrayBuffer, sidecar?: unknown): Promise<L
     }
     storeys = side?.storeys ?? [];
     originShift = side?.originShift ?? [0, 0, 0];
-    const rel = side?.relations ?? {};
-    relations = {
-      voids: rel.voids ?? [],
-      fills: rel.fills ?? [],
-      hosts: rel.hosts ?? [],
-      ports: rel.ports ?? [],
-      systems: rel.systems ?? [],
-      ...(Array.isArray(rel.openings) && rel.openings.length > 0 ? { openings: rel.openings } : {}),
-    };
+    relations = normaliseRelations(side?.relations);
   } else {
     // Synthesised elements. If every node carries a unique numeric extras.id, honour that order.
     const allIds = order.length > 0 && order.every((g) => g.extrasId !== null);
@@ -194,18 +174,7 @@ export async function parseModel(glb: ArrayBuffer, sidecar?: unknown): Promise<L
 
   const geometry = new MergedGeometry(parts);
 
-  // Bounds: sidecar bounds stay as authored when present and sane; otherwise take them from geometry.
-  elements.forEach((el, i) => {
-    const gb = geometry.bounds[i]!;
-    if (!gb.isEmpty()) {
-      if (!records || !validBounds(el.bounds)) el.bounds = boxToArray(gb);
-    } else if (validBounds(el.bounds)) {
-      geometry.bounds[i]!.set(
-        new Vector3(el.bounds[0], el.bounds[1], el.bounds[2]),
-        new Vector3(el.bounds[3], el.bounds[4], el.bounds[5]),
-      );
-    }
-  });
+  reconcileBounds(elements, geometry, !!records);
 
   const byGlobalId = new Map<string, number>();
   for (const el of elements) byGlobalId.set(el.globalId, el.id);
@@ -221,6 +190,70 @@ export async function parseModel(glb: ArrayBuffer, sidecar?: unknown): Promise<L
   };
   if (side?.styles) model.styles = side.styles;
   if (side?.materialAliases) model.materialAliases = side.materialAliases;
+  return { model, geometry };
+}
+
+/** One sidecar element record -> the SceneModel element (defaults, colour and props normalised). `i` is its dense index. */
+export function normaliseRecord(r: Partial<ElementRecord> & { id?: number }, i: number): ElementRecord {
+  return {
+    id: i,
+    globalId: r.globalId ?? `element-${i}`,
+    expressId: r.expressId,
+    ifcClass: r.ifcClass ?? 'Unknown',
+    name: r.name,
+    storey: r.storey ?? null,
+    material: r.material,
+    color: normaliseColor(r.color),
+    bounds: (r.bounds ?? [0, 0, 0, 0, 0, 0]) as ElementRecord['bounds'],
+    file: r.file,
+    props: sanitizeProps(r.props),
+  } as ElementRecord;
+}
+
+export function normaliseRelations(rel: Partial<Relations> | undefined): Relations {
+  const r = rel ?? {};
+  return {
+    voids: r.voids ?? [],
+    fills: r.fills ?? [],
+    hosts: r.hosts ?? [],
+    ports: r.ports ?? [],
+    systems: r.systems ?? [],
+    ...(Array.isArray(r.openings) && r.openings.length > 0 ? { openings: r.openings } : {}),
+  };
+}
+
+/** Bounds: sidecar bounds stay as authored when present and sane; otherwise take them from geometry (and the other way for empty meshes). */
+export function reconcileBounds(elements: ElementRecord[], geometry: MergedGeometry, hasRecords: boolean): void {
+  elements.forEach((el, i) => {
+    const gb = geometry.bounds[i]!;
+    if (!gb.isEmpty()) {
+      if (!hasRecords || !validBounds(el.bounds)) el.bounds = boxToArray(gb);
+    } else if (validBounds(el.bounds)) {
+      geometry.bounds[i]!.set(
+        new Vector3(el.bounds[0], el.bounds[1], el.bounds[2]),
+        new Vector3(el.bounds[3], el.bounds[4], el.bounds[5]),
+      );
+    }
+  });
+}
+
+/** A LoadedModel from a sidecar head (everything but the elements), the normalised elements and the merged geometry. */
+export function assembleLoaded(
+  head: { originShift?: [number, number, number]; storeys?: StoreyRecord[]; relations?: Partial<Relations> },
+  elements: ElementRecord[], geometry: MergedGeometry,
+): LoadedModel {
+  reconcileBounds(elements, geometry, true);
+  const byGlobalId = new Map<string, number>();
+  for (const el of elements) byGlobalId.set(el.globalId, el.id);
+  const model: SceneModel = {
+    schema: 'xray-model/1',
+    units: 'm',
+    originShift: head.originShift ?? [0, 0, 0],
+    storeys: head.storeys ?? [],
+    elements,
+    relations: normaliseRelations(head.relations),
+    byGlobalId,
+  };
   return { model, geometry };
 }
 

@@ -15,6 +15,8 @@ const port = Number(process.env.SMOKE_PORT ?? 5311);
 const which = process.argv[2] ?? 'all';
 const VIEW = { width: 1400, height: 760 };
 const CLIP = { x: 300, y: 0, width: 800, height: 760 };
+const STEPS = process.env.SMOKE_STEPS ? process.env.SMOKE_STEPS.split(',') : null; // cpu, orbit, pick, hover
+const step = (n) => !STEPS || STEPS.includes(n);
 const ONLY = process.env.SMOKE_CASES ? process.env.SMOKE_CASES.split(',') : null;
 
 function loadPlaywright() {
@@ -197,57 +199,69 @@ try {
       log(name.padEnd(18), 'vs off', JSON.stringify(await diff(page, off, shots[name])), 'peelPath', st.peelPath, 'refreshes', st.peelRefreshes, st.plane ? `plane d=${st.plane.d.toFixed(2)}` : '', still);
     }
 
-    if (ONLY && !process.env.SMOKE_TAIL) { await page.close(); continue; }
+    if (ONLY && !STEPS) { await page.close(); continue; }
     // CPU fallback
+    if (step('cpu')) {
     await mode(null, { ...pe });
     await page.evaluate(() => window.__xray.renderer.setPeelPath('cpu'));
     shots.cpu = await shot('peel-cpu', 1400);
     log('peel (CPU ellipses)  vs off', JSON.stringify(await diff(page, off, shots.cpu)), 'vs gpu', JSON.stringify(await diff(page, shots.peel, shots.cpu)), 'path', (await page.evaluate(() => window.__xrayViewModes.status())).peelPath);
+    }
 
     // Orbit: the window stays on the focus
+    if (step('orbit')) {
     await mode(null, { ...pe });
     for (const [i, v] of orbit.entries()) {
       await setView(v);
       shots[`orbit${i}`] = await shot(`peel-orbit-${'ab'[i]}`, 1400);
     }
+    }
+    await setView(view);
     // Picking inside the window: probe the pick at the focus centre with peel on and off
+    if (step('pick')) {
     const pick = await page.evaluate(async ([ids]) => {
       const r = window.__xray.renderer;
       const app = window.__xray.app;
-      const sleep = (ms) => new Promise((x) => setTimeout(x, ms));
+      const frames = async (n = 3) => { for (let i = 0; i < n; i++) await new Promise((x) => requestAnimationFrame(x)); };
       const els = app.loaded.model.elements;
       const c = [0, 1, 2].map((a) => ids.reduce((s, i) => s + (els[i].bounds[a] + els[i].bounds[a + 3]) / 2, 0) / ids.length);
       const v = r.camera.position.constructor;
       const p = new v(...c).project(r.camera);
       const res = {};
-      // x-ray off: every context element is opaque, so only the cut rule can let the pick through
-      app.setXray(false);
-      await sleep(400);
+      // every context element opaque (the click-through rule for ghosts would otherwise hide the effect); the
+      // controller does not rewrite the alphas once it has converged
+      const alphaBackup = r.state.alpha.slice();
+      for (let i = 0; i < r.state.alpha.length; i++) if (!ids.includes(i) && r.state.alpha[i] >= 0) r.state.alpha[i] = 1;
+      await frames();
       window.__xrayViewModes.setPeel({ enabled: true, animate: false });
-      await sleep(400);
+      await frames();
       res.peelOn = r.pick(p.x, p.y);
       window.__xrayViewModes.setPeel({ enabled: false, animate: true });
-      await sleep(200);
+      await frames();
       res.peelOff = r.pick(p.x, p.y);
       window.__xrayViewModes.setBehind({ enabled: true, frontTreatment: 'cut' });
-      await sleep(200);
+      await frames();
       res.behindOn = r.pick(p.x, p.y);
       window.__xrayViewModes.setBehind({ enabled: false });
-      app.setXray(true);
+      r.state.alpha.set(alphaBackup);
+      r.markDirty();
       res.focus = ids.includes(res.peelOn) ? 'focus' : els[res.peelOn]?.ifcClass ?? null;
       res.focusOff = ids.includes(res.peelOff) ? 'focus' : els[res.peelOff]?.ifcClass ?? null;
       res.behind = ids.includes(res.behindOn) ? 'focus' : els[res.behindOn]?.ifcClass ?? null;
       return res;
     }, [setup.ids]);
-    log('pick at the focus centre (x-ray off): peel on ->', pick.focus, ', peel off ->', pick.focusOff, ', behind-only cut on ->', pick.behind);
+    log('pick at the focus centre (context forced opaque): peel on ->', pick.focus, ', peel off ->', pick.focusOff, ', behind-only cut on ->', pick.behind);
+    }
 
     // Hover highlight
+    if (step('hover')) {
     await mode(null, null);
     await setView(view);
     await page.evaluate((id) => window.__xray.renderer.setHoverHighlight(id, [1, 0.2, 0.6]), setup.ids[0]);
     shots.hover = await shot('hover');
     log('hover highlight vs off', JSON.stringify(await diff(page, off, shots.hover)));
     await page.evaluate(() => window.__xray.renderer.setHoverHighlight(null));
+    }
 
     // Both off: identical to the original frame
     await reset();

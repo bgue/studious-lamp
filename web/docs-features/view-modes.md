@@ -1,6 +1,6 @@
 # View modes: behind-only and partial peelback
 
-Two renderer features that decide per fragment, not per object, what hides the focus. A large slab that crosses the cut is split: part of it is removed, the rest stays. Both live in the `View modes` folder of the panel (sub-folders `Behind only` and `Peelback`) and can be on at the same time (the peel wins inside its window). With both off the frame is identical to the viewer without them (a byte-for-byte equal screenshot is part of `bench/smoke-viewmodes.mjs`).
+Two renderer features that decide per fragment, not per object, what hides the focus. The focus is the controller's focus set (the selection plus its connected run, or the whole system when the selected element belongs to one); with nothing selected, or with X-ray off (the classification is then empty), both modes are inactive. A large slab that crosses the cut is split: part of it is removed, the rest stays. Both live in the `View modes` folder of the panel (sub-folders `Behind only` and `Peelback`) and can be on at the same time (the peel wins inside its window). With both off the frame is identical to the viewer without them (a byte-for-byte equal screenshot is part of `bench/smoke-viewmodes.mjs`).
 
 ## Behind only
 

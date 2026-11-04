@@ -63,7 +63,15 @@ export type IfcProgress =
   | { phase: 'open'; file: string; bytes: number }
   | { phase: 'meshing'; file: string; done: number; total: number }
   | { phase: 'relations'; file: string }
-  | { phase: 'build' };
+  | { phase: 'build' }
+  /** Direct path, worker side: elements copied into the merged arrays. */
+  | { phase: 'merge'; done: number; total: number }
+  | { phase: 'edges'; done: number; total: number; skipped?: 'auto' | 'none' }
+  | { phase: 'bvh'; percent: number; triangles: number }
+  /** Arrays are on their way to the main thread. */
+  | { phase: 'transfer' }
+  /** Main thread: wrapping the arrays into geometry (the GPU upload follows on the first frame). */
+  | { phase: 'upload'; elements: number };
 
 // ---------------------------------------------------------------- converter conventions
 

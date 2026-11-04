@@ -6,9 +6,12 @@ import type { AppPlugin, ViewerApp } from '../app';
 import { parseModel } from '../model/loader';
 import type { LoadedModel } from '../model/loader';
 import {
-  IFC_READER_AVAILABLE, IfcReaderUnavailable, ImportCancelled, importIfc, isZip, prewarmIfcReader, unzipIfc,
+  AUTO_EDGES_MAX_ELEMENTS, IFC_READER_AVAILABLE, IfcReaderUnavailable, ImportCancelled, importIfc, isZip, prewarmIfcReader, unzipIfc,
 } from '../model/ifcImport';
-import type { IfcInput, IfcProgress } from '../model/ifcImport';
+import type { EdgesOption, IfcInput, IfcProgress, StageTimings } from '../model/ifcImport';
+import { registerTool } from '../tools/registry';
+import { note, section } from '../tools/ui';
+import { el } from '../ui/dom';
 import { installDropZone } from '../ui/dropZone';
 
 /** Above this total size the loader warns (and carries on). */
@@ -107,7 +110,85 @@ export function progressText(p: IfcProgress, fileCount = 1): string {
       return `Reading relations${fileCount > 1 ? ` (${p.file})` : ''}`;
     case 'build':
       return 'Building model';
+    case 'merge':
+      return `Merging ${p.done} of ${p.total} elements`;
+    case 'edges':
+      if (p.skipped === 'auto') return `Edges skipped (auto: over ${AUTO_EDGES_MAX_ELEMENTS.toLocaleString('en-US')} elements)`;
+      if (p.skipped === 'none') return 'Edges skipped (edges: none)';
+      return `Edges ${p.done} of ${p.total} elements`;
+    case 'bvh':
+      return `BVH ${p.percent}% (${(p.triangles / 1e6).toFixed(2)} M triangles)`;
+    case 'transfer':
+      return 'Transferring geometry';
+    case 'upload':
+      return `Uploading ${p.elements} elements`;
   }
+}
+
+// ---------------------------------------------------------------- large-model options and stats
+
+/** Large-model options of the `Open model` folder. They apply to the next IFC file opened. */
+export interface LargeModelOptions {
+  /** `auto` skips the edge geometry above 50,000 elements; `all` always builds it; `none` never does. */
+  edges: EdgesOption;
+  /** `common` reads the common property sets and attributes for hover cards; `none` skips property extraction. */
+  properties: 'common' | 'none';
+}
+
+/** What the `largeModel` drawer and the `Model stats` line show. */
+export interface ModelInfo {
+  modelName: string;
+  elements: number;
+  triangles: number;
+  vertices: number;
+  edgeSegments: number;
+  /** Typed-array bytes of the geometry buffers. */
+  bufferBytes: number;
+  /** Null when the model was not opened from a file in this session. */
+  loadSeconds: number | null;
+  edgesSkipped: boolean;
+  bvh: 'worker' | 'lazy' | 'n/a';
+  options: LargeModelOptions | null;
+  /** Ordered stage name and milliseconds; empty when unknown. */
+  stages: Array<[string, number]>;
+}
+
+export const formatBytesMb = (bytes: number): string => `${(bytes / 1048576).toFixed(1)} MB`;
+
+export function statsLine(i: ModelInfo): string {
+  const n = (x: number): string => Math.round(x).toLocaleString('en-US');
+  return `${n(i.elements)} elements, ${n(i.triangles)} triangles, ${formatBytesMb(i.bufferBytes)} buffers, ${i.loadSeconds === null ? 'load time n/a' : `${i.loadSeconds.toFixed(1)} s`}`;
+}
+
+/** Stats of a model that is already in memory (a built-in model, a glb, or an IFC from an earlier load). */
+export function infoFromLoaded(loaded: LoadedModel, modelName: string): ModelInfo {
+  const g = loaded.geometry;
+  const bytes = (a: { array: ArrayLike<number> & { byteLength: number } } | undefined): number => a?.array.byteLength ?? 0;
+  const bufferBytes = bytes(g.geometry.getAttribute('position')) + bytes(g.geometry.getAttribute('normal')) + bytes(g.geometry.getAttribute('elementId'))
+    + bytes(g.geometry.getIndex() ?? undefined) + bytes(g.edges.getAttribute('position')) + bytes(g.edges.getAttribute('elementId'));
+  return {
+    modelName,
+    elements: loaded.model.elements.length,
+    triangles: (g.geometry.getIndex()?.count ?? 0) / 3,
+    vertices: g.geometry.getAttribute('position').count,
+    edgeSegments: g.edges.getAttribute('position').count / 2,
+    bufferBytes,
+    loadSeconds: null,
+    edgesSkipped: false,
+    bvh: 'n/a',
+    options: null,
+    stages: [],
+  };
+}
+
+/** Stage list shown by the drawer, in pipeline order (zero entries are dropped, except the ones that always apply). */
+export function stageList(t: Partial<StageTimings> & { uploadMs?: number }): Array<[string, number]> {
+  const rows: Array<[string, number | undefined]> = [
+    ['Reading files', t.readMs], ['Opening IFC', t.openMs], ['Meshing', t.meshMs], ['Relations and properties', t.relationsMs],
+    ['Releasing web-ifc', t.releaseMs], ['Preparing (storeys, dedupe)', t.prepareMs], ['Merging', t.mergeMs], ['Edges', t.edgesMs],
+    ['BVH (worker)', t.bvhMs], ['Transfer and wrap', t.handoffMs], ['GPU upload to first frames', t.uploadMs], ['Total', t.totalMs],
+  ];
+  return rows.filter((r): r is [string, number] => r[1] !== undefined && (r[1] > 0 || r[0] === 'Total'));
 }
 
 // ---------------------------------------------------------------- plugin
@@ -136,11 +217,26 @@ async function readSidecar<T extends File>(glb: T, sidecars: T[]): Promise<unkno
 /** One file as a short word for status messages. */
 const plural = (n: number, w: string): string => `${n} ${w}${n === 1 ? '' : 's'}`;
 
+const LARGE_ICON = '<svg viewBox="0 0 20 20" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 3 3 6.5l7 3.5 7-3.5z"/><path d="M3 10l7 3.5 7-3.5"/><path d="M3 13.5l7 3.5 7-3.5"/></svg>';
+
 export const fileLoaderPlugin: AppPlugin = (() => {
   let app: ViewerApp | null = null;
   let loading = false;
   let abort: AbortController | null = null;
-  const ui = { open: (): void => undefined, cancel: (): void => undefined, status: 'Ready. Drop .ifc or .glb files on the viewer' };
+  const ui = { open: (): void => undefined, cancel: (): void => undefined, status: 'Ready. Drop .ifc or .glb files on the viewer', stats: 'No model yet' };
+  /** Applied to the next IFC file opened. */
+  const large: LargeModelOptions = { edges: 'auto', properties: 'common' };
+  let info: ModelInfo | null = null;
+  let statsCtl: { updateDisplay(): unknown; domElement: HTMLElement } | null = null;
+  const infoListeners = new Set<() => void>();
+  const setInfo = (next: ModelInfo): void => {
+    info = next;
+    ui.stats = statsLine(next);
+    statsCtl?.updateDisplay();
+    const input = statsCtl?.domElement.querySelector('input');
+    if (input) input.title = ui.stats;
+    for (const l of infoListeners) l();
+  };
   let statusCtl: { updateDisplay(): unknown; domElement: HTMLElement } | null = null;
   let cancelCtl: { disable(d?: boolean): unknown } | null = null;
   let messageTimer: ReturnType<typeof setTimeout> | null = null;
@@ -193,6 +289,9 @@ export const fileLoaderPlugin: AppPlugin = (() => {
       return;
     }
     const t0 = performance.now();
+    let readMs = 0;
+    let importTimings: Partial<StageTimings> = {};
+    let importInfo: Pick<ModelInfo, 'edgesSkipped' | 'bvh' | 'edgeSegments'> | null = null;
     abort = new AbortController();
     const signal = abort.signal;
     setLoading(true);
@@ -239,11 +338,18 @@ export const fileLoaderPlugin: AppPlugin = (() => {
           // transferable copy that is exactly the file (a zip entry may be a view)
           inputs.push({ name, data: bytes.byteOffset === 0 && bytes.byteLength === bytes.buffer.byteLength ? (bytes.buffer as ArrayBuffer) : (bytes.slice().buffer as ArrayBuffer) });
         }
-        const res = await importIfc(inputs, { signal, onProgress: (p) => setStatus(progressText(p, inputs.length)) });
+        readMs = performance.now() - t0;
+        const res = await importIfc(inputs, {
+          signal, onProgress: (p) => setStatus(progressText(p, inputs.length)),
+          edges: large.edges, props: large.properties,
+        });
         loaded = res.loaded;
+        importTimings = res.timings;
+        importInfo = { edgesSkipped: res.stats.edgesSkipped, bvh: res.stats.bvh, edgeSegments: res.stats.edgeSegments };
         console.info('[ifc-import]', JSON.stringify({
           files: inputs.length, mode: res.mode, extractMs: Math.round(res.extractMs), buildMs: Math.round(res.buildMs),
-          elements: loaded.model.elements.length, ...res.report,
+          elements: loaded.model.elements.length, edges: large.edges, properties: large.properties,
+          stages: Object.fromEntries(Object.entries(res.timings).map(([k, v]) => [k, Math.round(v)])), ...res.report,
         }));
         if (res.report.duplicatesSkipped > 0 || res.report.renamed > 0) {
           console.info(`IFC federation: ${res.report.duplicatesSkipped} duplicate elements skipped, ${res.report.renamed} GlobalId clashes renamed`);
@@ -251,8 +357,27 @@ export const fileLoaderPlugin: AppPlugin = (() => {
       }
       if (signal.aborted) throw new ImportCancelled();
       const name = uniqueName(plan.name);
+      if (plan.kind === 'ifc') {
+        setStatus(progressText({ phase: 'upload', elements: loaded.model.elements.length }));
+        await new Promise((r) => setTimeout(r, 0)); // let the text paint before the geometry is handed to the renderer
+        if (signal.aborted) throw new ImportCancelled();
+      }
+      const tUp = performance.now();
       app.openLoaded(loaded, name);
       const secs = (performance.now() - t0) / 1000;
+      const base = infoFromLoaded(loaded, name);
+      const next: ModelInfo = {
+        ...base, loadSeconds: secs, options: plan.kind === 'ifc' ? { ...large } : null,
+        edgeSegments: importInfo?.edgeSegments ?? base.edgeSegments, edgesSkipped: importInfo?.edgesSkipped ?? false, bvh: importInfo?.bvh ?? 'n/a',
+        stages: stageList({ ...importTimings, readMs, uploadMs: performance.now() - tUp, totalMs: performance.now() - t0 }),
+      };
+      setInfo(next);
+      // the geometry reaches the GPU on the first frames; add that to the drawer once they have run
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        if (info !== next) return;
+        next.stages = stageList({ ...importTimings, readMs, uploadMs: performance.now() - tUp, totalMs: performance.now() - t0 });
+        for (const l of infoListeners) l();
+      }));
       const ignored = plan.ignored.length > 0 ? `; ignored ${plural(plan.ignored.length, 'unsupported file')}` : '';
       setStatus(`Loaded ${loaded.model.elements.length} elements in ${secs.toFixed(1)} s${ignored}`);
       banner(null);
@@ -270,8 +395,58 @@ export const fileLoaderPlugin: AppPlugin = (() => {
     }
   }
 
+  /** Drawer of the `largeModel` tool: stats and stage timings of the last load. */
+  function largePanel(box: HTMLElement): () => void {
+    const body = el('div');
+    box.append(body);
+    const render = (): void => {
+      body.textContent = '';
+      if (!info) {
+        body.append(note('No model loaded yet.'));
+        return;
+      }
+      const n = (x: number): string => Math.round(x).toLocaleString('en-US');
+      const table = (rows: Array<[string, string]>): HTMLElement => {
+        const t = el('table', 'xt-table');
+        for (const [k, v] of rows) {
+          const tr = el('tr');
+          tr.append(el('td', undefined, undefined, k), el('td', undefined, { style: 'text-align:right' }, v));
+          t.append(tr);
+        }
+        return t;
+      };
+      body.append(
+        section('Model'),
+        table([
+          ['Name', info.modelName],
+          ['Elements', n(info.elements)],
+          ['Triangles', n(info.triangles)],
+          ['Vertices', n(info.vertices)],
+          ['Edge segments', info.edgesSkipped ? 'skipped' : n(info.edgeSegments)],
+          ['Buffers', formatBytesMb(info.bufferBytes)],
+          ['BVH', info.bvh === 'worker' ? 'built in the worker' : info.bvh === 'lazy' ? 'built on first use' : 'built on first use'],
+          ['Load time', info.loadSeconds === null ? 'n/a' : `${info.loadSeconds.toFixed(2)} s`],
+          ...(info.options ? [['edges', info.options.edges], ['properties', info.options.properties]] as Array<[string, string]> : []),
+        ]),
+      );
+      if (info.stages.length > 0) {
+        body.append(section('Stages of the last load'), table(info.stages.map(([k, ms]) => [k, ms >= 1000 ? `${(ms / 1000).toFixed(2)} s` : `${Math.round(ms)} ms`] as [string, string])));
+      } else {
+        body.append(note('No stage timings: this model was not opened from a file in this session.'));
+      }
+      body.append(note(`edges: auto skips the edge lines above ${AUTO_EDGES_MAX_ELEMENTS.toLocaleString('en-US')} elements. Options apply to the next IFC file you open.`));
+    };
+    infoListeners.add(render);
+    render();
+    return () => { infoListeners.delete(render); };
+  }
+
   return {
     name: 'fileLoader',
+    onModel(a) {
+      // a model that did not come from a file load (picker, built-in): numbers without timings
+      if (a.loaded && (!info || info.modelName !== a.modelName)) setInfo(infoFromLoaded(a.loaded, a.modelName));
+    },
     install(a) {
       app = a;
       const gui = a.panel;
@@ -302,9 +477,19 @@ export const fileLoaderPlugin: AppPlugin = (() => {
       const status = folder.add(ui, 'status').name('Load status');
       status.disable();
       statusCtl = status as unknown as typeof statusCtl;
+      folder.add(large, 'edges', ['auto', 'all', 'none']).name('edges');
+      folder.add(large, 'properties', ['common', 'none']).name('properties');
+      const stats = folder.add(ui, 'stats').name('Model stats');
+      stats.disable();
+      statsCtl = stats as unknown as typeof statsCtl;
       // the folder goes first in the panel, above the model picker
       const children = (gui as unknown as { $children: HTMLElement }).$children;
       children.insertBefore(folder.domElement, children.firstChild);
+
+      registerTool({
+        id: 'largeModel', label: 'Large model', title: 'Size, buffers and per-stage timings of the model opened last',
+        icon: LARGE_ICON, order: 95, drawerWidth: 340, panel: (box) => largePanel(box),
+      });
 
       installDropZone({ text: 'Drop IFC or glb files to open', onFiles: (files) => void openFiles(files), onDragStart: prewarmIfcReader });
     },

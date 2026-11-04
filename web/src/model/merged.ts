@@ -11,7 +11,10 @@ import {
   Vector3,
 } from 'three';
 import { MeshBVH } from 'three-mesh-bvh';
+import type { SerializedBVH } from 'three-mesh-bvh';
 import type { ElementId } from '../types';
+import { EDGE_THRESHOLD_DEG } from './ifcEdges';
+import type { MergedArrays } from './mergedArrays';
 
 export interface IndexRange {
   start: number;
@@ -24,7 +27,7 @@ export interface MeshPart {
   matrix: Matrix4;
 }
 
-export const EDGE_THRESHOLD_DEG = 30;
+export { EDGE_THRESHOLD_DEG };
 
 /**
  * Layout guarantees:
@@ -50,7 +53,56 @@ export class MergedGeometry {
   private bvhCache: MeshBVH | null = null;
   private readonly subCache = new Map<ElementId, BufferGeometry>();
 
-  constructor(parts: MeshPart[][]) {
+  constructor(parts: MeshPart[][], prebuilt?: MergedArrays) {
+    if (prebuilt) {
+      // Direct path (see MergedGeometry.fromArrays): the arrays are already laid out as described above.
+      const a = prebuilt;
+      const n = a.elementCount;
+      this.elementCount = n;
+      const pairs = (u: Uint32Array): IndexRange[] => {
+        const out: IndexRange[] = new Array(n);
+        for (let e = 0; e < n; e++) out[e] = { start: u[e * 2]!, count: u[e * 2 + 1]! };
+        return out;
+      };
+      this.ranges = pairs(a.ranges);
+      this.vertexRanges = pairs(a.vertexRanges);
+      this.edgeRanges = pairs(a.edgeRanges);
+      this.bounds = new Array(n);
+      for (let e = 0; e < n; e++) {
+        const b = new Box3();
+        if (a.ranges[e * 2 + 1]! > 0) b.set(new Vector3(a.bounds[e * 6]!, a.bounds[e * 6 + 1]!, a.bounds[e * 6 + 2]!), new Vector3(a.bounds[e * 6 + 3]!, a.bounds[e * 6 + 4]!, a.bounds[e * 6 + 5]!));
+        this.bounds[e] = b;
+      }
+      const geometry = new BufferGeometry();
+      geometry.setAttribute('position', new BufferAttribute(a.position, 3));
+      geometry.setAttribute('normal', new BufferAttribute(a.normal, 3));
+      geometry.setAttribute('elementId', new BufferAttribute(a.elementId, 1));
+      geometry.setIndex(new BufferAttribute(a.index, 1));
+      geometry.computeBoundingBox();
+      geometry.computeBoundingSphere();
+      this.geometry = geometry;
+      const ids: number[] = [];
+      for (let e = 0; e < n; e++) if (a.ranges[e * 2 + 1]! > 0) ids.push(e);
+      this.rangeIds = Uint32Array.from(ids);
+      this.rangeStarts = Uint32Array.from(ids, (e) => a.ranges[e * 2]!);
+      const edges = new BufferGeometry();
+      edges.setAttribute('position', new BufferAttribute(a.edgePosition, 3));
+      edges.setAttribute('elementId', new BufferAttribute(a.edgeElementId, 1));
+      if (a.edgePosition.length > 0) {
+        edges.computeBoundingBox();
+        edges.computeBoundingSphere();
+      } else if (geometry.boundingBox && geometry.boundingSphere) {
+        // no edges (skipped): keep a sane culling volume instead of an empty one
+        edges.boundingBox = geometry.boundingBox.clone();
+        edges.boundingSphere = geometry.boundingSphere.clone();
+      }
+      this.edges = edges;
+      if (a.bvh) {
+        // built off the main thread; install it so the lazy getter below never rebuilds. The index is already in place.
+        this.bvhCache = MeshBVH.deserialize({ version: 1, roots: a.bvh.roots, index: null, indirectBuffer: a.bvh.indirectBuffer } as unknown as SerializedBVH, geometry, { setIndex: false });
+      }
+      return;
+    }
     const n = parts.length;
     this.elementCount = n;
 
@@ -191,6 +243,14 @@ export class MergedGeometry {
     edges.computeBoundingSphere();
     this.edges = edges;
     this.edgeRanges = edgeRanges;
+  }
+
+  /**
+   * Wrap flat arrays that were laid out like the constructor lays them out (see `buildMergedData` in ifcBuild.ts): no
+   * glTF, no per-element copies. Takes ownership of the arrays. `arrays.bvh`, when present, is installed as `bvh`.
+   */
+  static fromArrays(arrays: MergedArrays): MergedGeometry {
+    return new MergedGeometry([], arrays);
   }
 
   /** Element owning triangle `tri` (index into the merged index buffer / 3), or -1. */

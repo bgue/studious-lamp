@@ -112,6 +112,10 @@ for (const m of MODELS) {
 }
 const configPath = join(root, 'public', 'xray.config.json');
 const config = existsSync(configPath) ? JSON.parse(readFileSync(configPath, 'utf8')) : null;
+// Presets override (public/xray.presets.json, schema xray-presets/1): entries with a built-in id replace it, new ids are added.
+// Embedded in every variant (also the templates) as window.__xrayEmbeddedPresets, so the page never has to fetch it.
+const presetsPath = join(root, 'public', 'xray.presets.json');
+const presetsDoc = existsSync(presetsPath) ? JSON.parse(readFileSync(presetsPath, 'utf8')) : null;
 // web-ifc.wasm (browser build, single thread), gzipped and base64-encoded; at run time the page inflates it with
 // DecompressionStream, and the inlined worker serves the bytes to web-ifc through a Blob URL. Left out with --no-ifc.
 let wasmBytes = 0;
@@ -140,9 +144,9 @@ if (!noIfc) {
 const embedScript = template
   // tools/xray-pack.mjs replaces everything between the two marker comments (models and window.__xrayBoot) and the <title>
   ? '<script>\n/* XRAY-PACK:INJECT-BEGIN */\nwindow.__xrayEmbeddedModels = {};\n/* XRAY-PACK:INJECT-END */\n</script>\n<script>\n' +
-    scriptSafe(`window.__xrayEmbeddedConfig = ${JSON.stringify(config)};`) + '\n</script>\n' + wasmScript
+    scriptSafe(`window.__xrayEmbeddedConfig = ${JSON.stringify(config)};\nwindow.__xrayEmbeddedPresets = ${JSON.stringify(presetsDoc)};`) + '\n</script>\n' + wasmScript
   : '<script>\n' +
-    scriptSafe(`window.__xrayEmbeddedModels = ${JSON.stringify(embedded)};\nwindow.__xrayEmbeddedConfig = ${JSON.stringify(config)};`) +
+    scriptSafe(`window.__xrayEmbeddedModels = ${JSON.stringify(embedded)};\nwindow.__xrayEmbeddedConfig = ${JSON.stringify(config)};\nwindow.__xrayEmbeddedPresets = ${JSON.stringify(presetsDoc)};`) +
     '\n</script>\n' + wasmScript;
 
 // ---- Assemble: embed data first, then the app module.
