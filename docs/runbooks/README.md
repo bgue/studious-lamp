@@ -11,6 +11,7 @@ Operational procedures, one file per alert or recovery path (§24.6). Template: 
 - `rebuild-projections.md` — rebuild the `cur_*` tables from the ledger.
 - `schema-package-change.md` — change a company or project pset package.
 - `tui-dev.md` — run the TUI on the dev ledger.
+- `web-client.md` — run the web client (`/web`) on the dev ledger: sign-in, cookie, CSRF, the demo, troubleshooting (P2-WEB1).
 - `workflow-link-numbering-config.md` — change a workflow, an expected link or a numbering pattern.
 - `webhook-operations.md` — dead-letter queue, replay, secret rotation, disabled subscriptions (P0-I5).
 - `ledger-archive-and-verify.md` — seal the ledger into signed segments, verify the archive and the database, read the first divergence (P0-I7).
