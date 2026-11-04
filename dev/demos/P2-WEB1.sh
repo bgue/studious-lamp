@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Demo for P2-WEB1 (the web client, clauses 1 to 5 of the web client spec, over HTTP): `just demo P2-WEB1`.
+# Demo for P2-WEB1 (the web client, clauses 1 to 7 of the web client spec, over HTTP): `just demo P2-WEB1`.
 #
-# The five clauses, each ending in a PASS line, once on SQLite and once on Postgres, over HTTP with
+# The seven clauses, each ending in a PASS line, once on SQLite and once on Postgres, over HTTP with
 # curl and a cookie jar against a real `tl serve` on a free loopback port:
 #   1  sign-in (`curl -c jar ... /web/sign-in`) gives 303 and a session cookie with HttpOnly and
 #      SameSite=Strict; the JSON API ignores the cookie (401 on /commands/AnswerTechnical);
@@ -13,7 +13,12 @@
 #   4  the document log shows a page-1 image for a PDF revision; /web/p/P123/files/{id}/view serves
 #      the viewer with the CSP header; /web/files/{id}/content returns bytes whose SHA-256 the file
 #      info states;
-#   5  ?mode=technical shows record ids for the admin (demo) and the "for admins" status line for amy.
+#   5  ?mode=technical shows record ids for the admin (demo) and the "for admins" status line for amy;
+#   6  the work-packaging logs (cwps, cwas, wbs, packages, path) for amy: 200, the eight region ids in
+#      order, and the text of the row the admin seeded with the CLI;
+#   7  the materials logs (stock, movements, receipts, mto, items, locations) for amy: 200, the eight
+#      region ids in order, the empty-state words (no materials verbs seed them yet); locations with
+#      ?mode=technical is 200; an unknown project answers the generic 404 page.
 # The script holds no business logic: it drives the CLI to seed and the server to check.
 #
 # Backends: `TL_DEMO_BACKENDS` is a space-separated list, default "sqlite postgres". Postgres is a
@@ -80,6 +85,9 @@ record_of() { # record_of FILE NUMBER: the record id of a log row, from its data
   sed -n "s#.*data-number=\"$2\"[^>]*data-open=\"[^\"]*/records/\([^\"?]*\)[^\"]*\".*#\1#p" "$1" | head -1
 }
 csrf_of() { sed -n 's/.*csrf-token" content="\([^"]*\)".*/\1/p' "$1" | head -1; }
+region_ids_of() { # region_ids_of FILE: the region ids of a page in order, as REGION_IDS lists them
+  grep -o 'id="[a-z-]*"' "$1" | grep -v '^id="log-open"$' | paste -sd' ' -
+}
 sign_in() { # sign_in JAR NAME: a web sign-in; the cookie goes into JAR
   code="$(curl -s -H "Origin: $TL_DEMO_URL" -c "$1" -o "$workdir/$2.body" -D "$workdir/$2.head" -w '%{http_code}' \
     --data-urlencode "username=$2" --data-urlencode "password@$workdir/$2.pw" \
@@ -155,6 +163,14 @@ open(sys.argv[1], "wb").write(bytes(out))
 PY
   as amy tl doc rendition add ISO-1234 A "$workdir/iso-1234.pdf" --project P123 --kind pdf >/dev/null
   as demo tl doc rev issue ISO-1234 A --project P123 --status IFR >/dev/null
+
+  step "[$backend] seed: a CWA, a CWP in it, a WBS node with a child, an EWP reference, a one-step path (no materials write verbs yet)"
+  as demo tl awp cwa define CWA-01 --project P123 --title "Level 1 east" >/dev/null
+  as demo tl awp cwp create --project P123 --discipline PIP --title "Piping spool fabrication" --cwa CWA-01 >/dev/null
+  as demo tl awp wbs define 1 --project P123 --title "Plant" >/dev/null
+  as demo tl awp wbs define 1.1 --project P123 --title "Piping" --parent 1 >/dev/null
+  as demo tl awp package record --project P123 --type ewp --number EWP-100 --title "Piping isometrics package" --no-constraint-source >/dev/null
+  as demo tl awp path define --project P123 --step CWA-01 >/dev/null
 
   step "[$backend] the server on a free loopback port, waiting on /health"
   port="$(python3 -c 'import socket; s = socket.socket(); s.bind(("127.0.0.1", 0)); print(s.getsockname()[1])')"
@@ -265,9 +281,39 @@ PY
   lacks "$workdir/amy-tech-panel.body" "Record id" "amy sees a record id in the panel"
   echo "PASS clause 5"
 
+  step "[$backend] clause 6: the work-packaging logs for amy: the region ids in order, the seeded rows"
+  for slug in cwps cwas wbs packages path; do
+    fetch "$workdir/jar-amy" "amy-$slug" GET "/web/p/P123/$slug"
+    expect_code "$code" 200 "the $slug log for amy"
+    regions="$(region_ids_of "$workdir/amy-$slug.body")"
+    [ "$regions" = "$REGION_IDS" ] || fail "the $slug region ids are: $regions"
+  done
+  has "$workdir/amy-cwps.body" "Piping spool fabrication" "the CWP log shows no seeded CWP"
+  has "$workdir/amy-cwas.body" "Level 1 east" "the CWA log shows no seeded CWA"
+  has "$workdir/amy-wbs.body" "Piping" "the WBS log shows no seeded node"
+  has "$workdir/amy-packages.body" "EWP-100" "the package log shows no seeded EWP"
+  has "$workdir/amy-path.body" "CWA-01" "the path log shows no seeded step"
+  echo "PASS clause 6"
+
+  step "[$backend] clause 7: the materials logs for amy (empty: no CLI seed); ?mode=technical on locations; an unknown project"
+  for slug in stock movements receipts mto items locations; do
+    fetch "$workdir/jar-amy" "amy-$slug" GET "/web/p/P123/$slug"
+    expect_code "$code" 200 "the $slug log for amy"
+    regions="$(region_ids_of "$workdir/amy-$slug.body")"
+    [ "$regions" = "$REGION_IDS" ] || fail "the $slug region ids are: $regions"
+    has "$workdir/amy-$slug.body" "No items\\." "the $slug log shows no empty-state words"
+  done
+  fetch "$workdir/jar-amy" amy-locations-technical GET "/web/p/P123/locations?mode=technical"
+  expect_code "$code" 200 "the locations log in technical mode for amy"
+  # a slug that is not a project id (PROJECT_ID, log.py) is an unknown project: the generic 404 page
+  fetch "$workdir/jar-amy" amy-unknown-project GET "/web/p/-no-such-project/stock"
+  expect_code "$code" 404 "the stock log of an unknown project"
+  has "$workdir/amy-unknown-project.body" "<title>Not found" "an unknown project does not answer the generic 404 page"
+  echo "PASS clause 7"
+
   stop_server
   drop_pg
-  echo "[$backend] clauses 1-5 passed"
+  echo "[$backend] clauses 1-7 passed"
 }
 
 for backend in ${TL_DEMO_BACKENDS:-sqlite postgres}; do
