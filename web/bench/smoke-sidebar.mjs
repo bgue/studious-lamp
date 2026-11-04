@@ -82,7 +82,7 @@ try {
   const selected = await page.evaluate('window.__xray.app.selection.length');
   check('clicking the duct row selects one element', selected === 1, `selection=${selected}`);
   check('selected row is highlighted', (await page.locator('.tr.sel').count()) >= 1);
-  const footer = await page.locator('.props-grid dd').allTextContents();
+  const footer = await page.locator('.props-grid dd .pv-t').allTextContents(); // the value text; each row also has a ⋯ menu button
   console.log('properties:', JSON.stringify(footer));
   check('properties footer shows a globalId and class', footer[0]?.length > 5 && footer[1] === 'IfcDuctSegment');
   const buckets = await page.locator('.tr.k-element .dot').first().getAttribute('class');
@@ -119,10 +119,10 @@ try {
 
   // Sets tab: seeded defaults for the building model.
   await page.locator('.sb-tab', { hasText: 'Sets' }).click();
-  const names = await page.locator('.set .name').allTextContents();
+  const names = await page.locator('.set-row .set-name').allTextContents(); // one-line rows (wave 5): the name is the apply button
   console.log('sets:', JSON.stringify(names));
   check('default sets are seeded', names.includes('Duct run') && names.includes('Roof beams'));
-  await page.locator('.set', { hasText: 'Duct run' }).locator('button', { hasText: 'Apply' }).click();
+  await page.locator('.set-row', { hasText: 'Duct run' }).locator('.set-name').click();
   await page.waitForTimeout(300);
   const n = await page.evaluate('window.__xray.app.selection.length');
   check('Apply selects the set', n === 3, `selection=${n}`);
