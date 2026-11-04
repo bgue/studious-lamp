@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { INJECT_BEGIN, INJECT_END, PackError, buildBoot, fromBase64, injectTemplate, injectionScript, parseArgs, scriptSafe, toBase64 } from '../tools/pack/lib.mjs';
-import { resolveSelect } from '../src/plugins/boot';
+import { resolveSelect, withSchema } from '../src/plugins/boot';
 
 const TEMPLATE = `<!doctype html><html><head><title>BIM X-ray viewer</title></head><body>
 <script>
@@ -95,5 +95,19 @@ describe('boot selection', () => {
     const r = resolveSelect({ elements, byGlobalId }, ['class:IfcBeam', 'nope', 'g-wall']);
     expect(r.ids).toEqual([1]);
     expect(r.missing).toEqual(['class:IfcBeam', 'nope']);
+  });
+});
+
+describe('boot params schema', () => {
+  it('fills in the schema of a partial params file and of the --camera document', () => {
+    const cam = { position: [1, 2, 3], target: [0, 0, 0] };
+    expect(withSchema({ camera: cam })).toEqual({ schema: 'xray-params/1', camera: cam });
+    expect(withSchema({ sightlines: { alphaMin: 0.05 } })).toEqual({ schema: 'xray-params/1', sightlines: { alphaMin: 0.05 } });
+  });
+
+  it('keeps a schema the document names (a wrong one is still reported by applyParams) and passes non-objects through', () => {
+    expect(withSchema({ schema: 'xray-params/2', xray: true })).toEqual({ schema: 'xray-params/2', xray: true });
+    expect(withSchema(null)).toBe(null);
+    expect(withSchema([1])).toEqual([1]);
   });
 });

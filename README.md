@@ -110,7 +110,7 @@ attachment. You choose the starting parameters, preset, selection, visible tools
 ```sh
 cd web
 npm run pack -- ../models/AC20-FZK-Haus.ifc -o fzk.html
-npm run pack -- Building-Structural.ifc Building-Architecture.ifc Building-Hvac.ifc -o building.html --select class:IfcWindow --kiosk
+npm run pack -- Building-Structural.ifc Building-Architecture.ifc Building-Hvac.ifc -o building.html --select class:IfcDuctSegment --kiosk
 ```
 
 Inputs are `.ifc` / `.ifczip` (federated) or one `.glb`. IFC files are converted in node by the same TypeScript reader the

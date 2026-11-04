@@ -51,9 +51,9 @@ Exit codes: `0` ok, `1` usage error (bad option, missing `-o`, output exists), `
 # an IFC with the viewer's defaults
 node tools/xray-pack.mjs ../models/AC20-FZK-Haus.ifc -o fzk.html
 
-# three federated IFC files, windows selected, panels hidden for a presentation
+# three federated IFC files, the duct selected, panels hidden for a presentation
 node tools/xray-pack.mjs Building-Structural.ifc Building-Architecture.ifc Building-Hvac.ifc \
-  -o building.html --name building --select class:IfcWindow --kiosk --title "Building review"
+  -o building.html --name building --select class:IfcDuctSegment --kiosk --title "Building review"
 
 # a tuned look from an exported params file, with only three tools and the measure drawer open
 node tools/xray-pack.mjs public/models/building.glb -o review.html --params tuned.json \

@@ -5,7 +5,7 @@ import type { AppPlugin, ViewerApp } from '../app';
 import { runAction } from '../input/actions';
 import { bootConfig } from '../tools/registry';
 import type { XrayBoot } from '../tools/registry';
-import { applyParams } from '../ui/params';
+import { PARAMS_SCHEMA, applyParams } from '../ui/params';
 import type { ParamsApp } from '../ui/params';
 import type { ElementId } from '../types';
 
@@ -21,6 +21,14 @@ interface ToolbarApi {
 const win = (): { __xrayPresets?: PresetsApi; __xrayToolbar?: ToolbarApi } => window as unknown as { __xrayPresets?: PresetsApi; __xrayToolbar?: ToolbarApi };
 
 const warn = (msg: string): void => console.warn(`[xray-boot] ${msg}`);
+
+/**
+ * A boot params document with the schema filled in when it has none: xray-pack accepts partial params files without
+ * `schema` and writes the camera on its own, and applyParams would report the missing schema as an ignored key.
+ */
+export function withSchema(p: unknown): unknown {
+  return p && typeof p === 'object' && !Array.isArray(p) ? { schema: PARAMS_SCHEMA, ...(p as Record<string, unknown>) } : p;
+}
 
 /** Map select entries (GlobalIds and `class:IfcX`) to element ids. Entries that match nothing are returned in `missing`. */
 export function resolveSelect(
@@ -79,12 +87,12 @@ function applyBoot(app: ViewerApp, boot: BootWithCamera): void {
   }
 
   if (boot.params !== undefined) {
-    const bad = applyParams(app as unknown as ParamsApp, boot.params);
+    const bad = applyParams(app as unknown as ParamsApp, withSchema(boot.params));
     if (bad.length > 0) warn(`ignored parameter keys: ${bad.join(', ')}`);
   }
 
   if (boot.camera) {
-    const bad = applyParams(app as unknown as ParamsApp, { camera: boot.camera }, { reclassify: false });
+    const bad = applyParams(app as unknown as ParamsApp, withSchema({ camera: boot.camera }), { reclassify: false });
     if (bad.length > 0) warn('ignored camera: expected position and target as three numbers each');
   }
 
