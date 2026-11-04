@@ -103,6 +103,12 @@ class TlApp(App[None]):
         Binding("ctrl+o", "schema", "Schema workbench", show=False),
         Binding("f12", "schedules", "Schedules", show=False),
         Binding("ctrl+g", "domains", "RFIs and notices", show=False),
+        Binding("S", "stock", "Stock", show=False),
+        Binding("M", "movements", "Movements", show=False),
+        Binding("E", "receipts", "Receipts", show=False),
+        Binding("D", "mto_lines", "MTO lines", show=False),
+        Binding("I", "items", "Items", show=False),
+        Binding("W", "locations", "Locations", show=False),
         # priority: reaches the app under a modal. The key has its own action so that check_action
         # can step aside in text fields without silencing the palette entry (D18).
         Binding("ctrl+d", "toggle_technical_key", "Technical details", show=False, priority=True),

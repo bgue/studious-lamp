@@ -132,6 +132,12 @@ KEYMAP: tuple[KeyEntry, ...] = (
         "TlApp",
         "ctrl+g",
     ),
+    KeyEntry("App", "S", "Stock: lots on hand by location", "TlApp", "S"),
+    KeyEntry("App", "M", "Movements: receipts, issues, transfers, holds", "TlApp", "M"),
+    KeyEntry("App", "E", "Receipts: deliveries, inspection, MTR", "TlApp", "E"),
+    KeyEntry("App", "D", "Take-off lines: required, reserved, issued, short", "TlApp", "D"),
+    KeyEntry("App", "I", "Items: the company item library", "TlApp", "I"),
+    KeyEntry("App", "W", "Locations: storage places and what they hold", "TlApp", "W"),
     KeyEntry("App", "Ctrl+Q", "Quit"),
     KeyEntry(
         "Grid",
