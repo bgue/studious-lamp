@@ -83,7 +83,7 @@ describe('help texts', () => {
     const sections = [
       'Purpose', 'Design rationale', 'Terminology', 'Algorithm 1', 'Algorithm 2', 'Rendering in Bonsai/Blender',
       'Parameters and defaults', 'Worked example', 'Limitations and extensions', 'Onboarding checklist',
-      'Appendix A', 'Appendix B', 'Appendix C', 'Appendix D', 'Appendix E', 'Appendix F', 'Appendix G', 'Appendix H', 'Appendix I', 'Appendix J', 'Appendix K', 'Appendix L',
+      'Appendix A', 'Appendix B', 'Appendix C', 'Appendix D', 'Appendix E', 'Appendix F', 'Appendix G', 'Appendix H', 'Appendix I', 'Appendix J', 'Appendix K', 'Appendix L', 'Appendix M',
     ];
     for (const [key, e] of entries) {
       expect(e.ref, key).toMatch(/^Report: /);

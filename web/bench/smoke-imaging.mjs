@@ -72,6 +72,23 @@ async function meanRgb(page, a) {
   }, a.toString('base64'));
 }
 
+/** Luminance statistics of a screenshot (the tool strip on the left is skipped): mean, 10th and 90th percentile, share of near-white pixels. */
+async function lumaStats(page, a) {
+  return page.evaluate(async (x) => {
+    const bmp = await createImageBitmap(await (await fetch('data:image/png;base64,' + x)).blob());
+    const c = new OffscreenCanvas(bmp.width, bmp.height);
+    const g = c.getContext('2d');
+    g.drawImage(bmp, 0, 0);
+    const d = g.getImageData(60, 0, bmp.width - 60, bmp.height).data;
+    const L = [];
+    let white = 0;
+    for (let i = 0; i < d.length; i += 4) { L.push(0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]); if (d[i] >= 245 && d[i + 1] >= 245 && d[i + 2] >= 245) white++; }
+    L.sort((p, q) => p - q);
+    const q = (f) => L[Math.floor(f * (L.length - 1))];
+    return { mean: +(L.reduce((p, v) => p + v, 0) / L.length).toFixed(1), p10: +q(0.1).toFixed(1), p50: +q(0.5).toFixed(1), p90: +q(0.9).toFixed(1), nearWhite: +(white / L.length).toFixed(4) };
+  }, a.toString('base64'));
+}
+
 const SCENES = {
   fzk: {
     model: 'fzk-haus',
@@ -178,6 +195,13 @@ try {
       for (const pal of ['classic', 'negative', 'fluoro']) {
         await img({ style: 'radiograph', palette: pal });
         const s = await shot(`radiograph-${pal}`, 1200);
+        if (pal === 'classic') {
+          const st = await page.evaluate(() => window.__xrayImaging.status());
+          const on = await lumaStats(page, s);
+          log('radiograph classic, auto exposure on: factor', st.autoExposure.toFixed(3), 'measures', st.measures, 'luma', JSON.stringify(on));
+          if (!(st.measures > 0)) fail(`${key}: the automatic exposure never measured`);
+          if (on.p90 - on.p10 < 20 || on.nearWhite > 0.1) fail(`${key}: the radiograph has no readable structure (${JSON.stringify(on)})`);
+        }
         log(`radiograph ${pal}`.padEnd(24), 'mean rgb', JSON.stringify(await meanRgb(page, s)), 'vs standard', JSON.stringify(await diff(page, base, s)));
       }
       await img({ style: 'radiograph', palette: 'classic' });
@@ -195,7 +219,20 @@ try {
       await shot('radiograph-hot', 900);
     } else {
       await img({ style: 'radiograph', palette: 'classic' });
-      await shot('radiograph', 1200);
+      const radio = await shot('radiograph', 1200);
+      {
+        const st = await page.evaluate(() => window.__xrayImaging.status());
+        const on = await lumaStats(page, radio);
+        await img({ autoExposure: false });
+        const off = await lumaStats(page, await shot('radiograph-noauto', 1200));
+        await img({ autoExposure: true });
+        log('radiograph classic, auto exposure on: factor', st.autoExposure.toFixed(3), 'measures', st.measures, 'luma', JSON.stringify(on));
+        log('radiograph classic, auto exposure off (exposure 1):', 'luma', JSON.stringify(off));
+        if (!(st.measures > 0)) fail(`${key}: the automatic exposure never measured`);
+        if (st.autoExposure > 0.5) fail(`${key}: the tall model should need a much lower exposure than 1 (factor ${st.autoExposure})`);
+        if (on.p90 - on.p10 < 20 || on.nearWhite > 0.1) fail(`${key}: the radiograph has no readable structure (${JSON.stringify(on)})`);
+        if (!(off.p10 > on.p10 + 10)) log('note: without the automatic exposure the picture is not much flatter here');
+      }
       // MRI through the riser, horizontal slice (axis y)
       await img({ style: 'mri', palette: 'classic', mri: { axis: 'y', thickness: 0.3, position: 0.5, scan: false } });
       const my = await shot('mri-y', 1500);

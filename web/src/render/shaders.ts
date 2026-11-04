@@ -48,6 +48,7 @@ const FLAG_HELPERS = /* glsl */ `
 bool flagFocus(float f)    { return (int(f + 0.5) & 1) != 0; }
 bool flagHidden(float f)   { return (int(f + 0.5) & 2) != 0; }
 bool flagSelected(float f) { return (int(f + 0.5) & 8) != 0; }
+bool flagClosed(float f)   { return (int(f + 0.5) & 16) != 0; } // closed solid: caps are painted for these only
 `;
 
 const FOG_HELPERS = /* glsl */ `
@@ -191,7 +192,9 @@ void main() {
   if (focus) discard;
   // View modes (behind-only, peelback): per-fragment cut, solid-behind and cap decisions.
   VmOut vm = VmOut(vAlpha, 1.0, 0.0, false, false);
-  if (vmAny > 0.5) vm = vmEval(vWorldPos, vAlpha, vVmOcc, !gl_FrontFacing);
+  // A back face counts as a cut face (cap) only on a closed solid; an open element (a pane, a sheet) just shows its back face shaded.
+  bool capBack = !gl_FrontFacing && flagClosed(vFlags);
+  if (vmAny > 0.5) vm = vmEval(vWorldPos, vAlpha, vVmOcc, capBack);
   if (vm.cover < VM_FULL) discard; // cut, or inside the feather (drawn by the ghost pass)
   bool member = sweepEnabled > 0.5 && vHold > 0.0;
   float s = 0.0;
@@ -212,7 +215,7 @@ void main() {
   if (member) col = mix(col, sweepColor, 0.85 * sweepBandAt(s));
   if (vm.rim > 0.0) col = mix(col, peelRimCol, 0.85 * vm.rim);
   if (vm.cap) col = vmCapColour(bhOn > 0.5 && bhMode > 1.5 ? bhCap : peelCapCol);
-  if (clipN > 0 && clipCapOn > 0.5 && !gl_FrontFacing) col = vmCapColour(clipCapCol); // back face revealed by a section
+  if (clipN > 0 && clipCapOn > 0.5 && capBack) col = vmCapColour(clipCapCol); // back face of a closed solid revealed by a section
   if (hovered) col = mix(col, hoverColor, 0.4) + 0.06;
   gl_FragColor = vec4(col, 1.0);
 #endif
@@ -272,7 +275,7 @@ void main() {
   if (!gl_FrontFacing) n = -n;
   vec3 col = shade(vColor, n) + 0.04;
   if (flagSelected(vFlags)) col = mix(col, vec3(1.0, 0.85, 0.2), 0.35);
-  if (clipN > 0 && clipCapOn > 0.5 && !gl_FrontFacing) col = vmCapColour(clipCapCol);
+  if (clipN > 0 && clipCapOn > 0.5 && !gl_FrontFacing && flagClosed(vFlags)) col = vmCapColour(clipCapCol);
   if (hovered) col = mix(col, hoverColor, 0.4) + 0.06;
   col *= 1.0 + focusBoost;
   gl_FragColor = vec4(col, 1.0);

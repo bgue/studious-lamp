@@ -41,6 +41,7 @@ import {
   WebGLRenderer,
   WebGLRenderTarget,
   DirectionalLight,
+  Ray,
 } from 'three';
 import type { IUniform, TextureDataType } from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
@@ -53,8 +54,9 @@ import { JFA_START, PEEL_EPS, PEEL_MAX_ELLIPSES, boxScreenEllipse, jfaSteps, pee
 import type { FrontTreatment, Plane, ScreenEllipse } from '../viewModes/maths';
 import { OPAQUE_ALPHA } from './ghostMath';
 import type { OitWeightMode } from './oitMath';
-import { IMG_BLUR_FRAG, IMG_COMPOSITE_FRAG, IMG_FULLSCREEN_VERT, IMG_SLAB_FRAG, IMG_THICK_FRAG } from './imagingGlsl';
-import { PALETTE_TABLE, densityForMaterial } from '../imaging/maths';
+import { IMG_BLUR_FRAG, IMG_COMPOSITE_FRAG, IMG_DECIMATE_FRAG, IMG_FULLSCREEN_VERT, IMG_SLAB_FRAG, IMG_THICK_FRAG } from './imagingGlsl';
+import { PALETTE_TABLE, autoExposureFor, densityForMaterial, smoothExposure } from '../imaging/maths';
+import { computeClosedFlags } from '../model/closedMesh';
 import type { ImagingPalette, Slab } from '../imaging/maths';
 import { MAX_CLIP_PLANES, normalizePlane, planeToVec4, pointKept } from '../section/maths';
 import type { ClipPlane } from '../section/maths';
@@ -94,6 +96,8 @@ export interface ImagingRender {
   style: 'radiograph' | 'mri';
   palette: ImagingPalette;
   exposure: number;
+  /** Measure the thickness distribution and scale the tissue exposure so its 90th percentile maps to about 0.8 (the exposure is then a multiplier). */
+  autoExposure?: boolean;
   contrast: number;
   boneGlow: number;
   tissueEdges: boolean;
@@ -116,6 +120,9 @@ export type PostPipeline = (r: XrayRenderer) => void;
 const GLOW_OFFSETS: Array<[number, number]> = [[-1.4, -1.4], [1.4, -1.4], [-1.4, 1.4], [1.4, 1.4]];
 
 const MAX_TEX_WIDTH = 4096;
+
+/** Bit 4 of the flags channel in the state texture: the element is a closed solid (set at upload, never in RenderState.flags). */
+const CLOSED_BIT = 16;
 
 const FOCUS_CATEGORY_COLORS: Array<[string, [number, number, number]]> = [
   ['Duct', [0.15, 0.6, 0.95]],
@@ -144,6 +151,10 @@ export class XrayRenderer {
   private texB: DataTexture;
   private texC: DataTexture;
   private offsetsDirty = false;
+  /** Per element: 1 when the mesh is a closed solid (model/closedMesh.ts). Caps are painted for closed elements only. */
+  private closed: Uint8Array = new Uint8Array(0);
+  /** Time the closed-solid check took for the current model, ms. */
+  closedMs = 0;
   private sweepHold: Float32Array | null = null;
   private dirty = true;
   private inFront = true;
@@ -230,6 +241,19 @@ export class XrayRenderer {
   private imgSlabRT: WebGLRenderTarget | null = null;
   private imgGlow: WebGLRenderTarget[] = [];
   private imgSize = '';
+  // Automatic exposure (imaging/maths.ts autoExposureFor): a 64 x 64 decimation of the thickness target is read back every
+  // few frames; the smoothed factor multiplies the tissue exposure.
+  private imgDecRT: WebGLRenderTarget | null = null;
+  private imgDecMat: ShaderMaterial | null = null;
+  private imgAutoE: number | null = null;
+  private imgAutoFrame = 0;
+  private imgAutoPending = false;
+  private imgAutoGen = 0;
+  private imgAutoFailure = '';
+  private readonly imgAutoBuf = new Float32Array(64 * 64 * 4);
+  private readonly imgAutoSamples = new Float32Array(64 * 64);
+  /** Counters for tests: how many exposure measurements were taken. */
+  imagingAutoMeasures = 0;
   private readonly imgThickScene = new Scene();
   private readonly imgSlabScene = new Scene();
   private readonly imgPassScene = new Scene();
@@ -250,6 +274,11 @@ export class XrayRenderer {
   /** Counters for tests and benchmarks: frames drawn through the imaging path. */
   imagingFrames = 0;
 
+  // Focus drawn in front (depth Always) with section caps on: its own depth test, so only the nearest face of a focus solid
+  // decides (see syncFocusDepth).
+  private focusDepthReset: Mesh | null = null;
+  private focusSelfDepth = false;
+  private readonly tmpWorld = new Vector3();
   private readonly raycaster = new Raycaster();
   private readonly ndc = new Vector2();
   private readonly changeListeners = new Set<() => void>();
@@ -302,6 +331,23 @@ export class XrayRenderer {
     this.oitQuad.visible = false;
     this.oitQuad.name = 'xray-oit-composite';
     this.scene.add(this.oitQuad);
+    // Writes the far depth everywhere, no colour: drawn just before the focus when a section shows caps (syncFocusDepth).
+    const resetMat = new ShaderMaterial({
+      vertexShader: 'void main() { gl_Position = vec4(position.xy, 1.0, 1.0); }',
+      fragmentShader: 'void main() { gl_FragColor = vec4(0.0); }',
+      colorWrite: false,
+      depthTest: true,
+      depthFunc: AlwaysDepth,
+      depthWrite: true,
+      transparent: true,
+      blending: NoBlending,
+      side: DoubleSide,
+    });
+    this.focusDepthReset = new Mesh(tri, resetMat);
+    this.focusDepthReset.frustumCulled = false;
+    this.focusDepthReset.visible = false;
+    this.focusDepthReset.name = 'xray-focus-depth-reset';
+    this.scene.add(this.focusDepthReset);
 
     this.sun.position.set(-0.4, 0.8, 0.45).multiplyScalar(50);
     this.hemi.intensity = 0.62;
@@ -415,6 +461,11 @@ export class XrayRenderer {
     // Imaging: the X-ray density of every element (from its material name) lives in stateC.a, uploaded once per model.
     for (let i = 0; i < n; i++) this.dataC[i * 4 + 3] = densityForMaterial(elements[i]!.material);
     this.texC.needsUpdate = true;
+    // Caps (section, behind-only, peel, MRI slab) are painted for closed solids only: one edge-manifold check per model,
+    // stored as bit 4 of the flags channel (stateB.r) at upload.
+    const tc = performance.now();
+    this.closed = computeClosedFlags(loaded.geometry.geometry.getAttribute('position').array, loaded.geometry.geometry.getIndex()!.array, loaded.geometry.ranges, loaded.geometry.vertexRanges);
+    this.closedMs = performance.now() - tc;
     this.setClipPlanes(null); // the planes belong to the previous model
     this.shared.sweepEnabled!.value = 0;
     this.shared.gradeStrength!.value = 0;
@@ -646,7 +697,7 @@ export class XrayRenderer {
   private applyPassOrder(): void {
     if (!this.opaqueMesh || !this.ghostMesh || !this.focusMesh || !this.edgesCtx || !this.edgesFocus || !this.focusMaterial) return;
     const fm = this.focusMaterial;
-    fm.depthFunc = this.inFront ? AlwaysDepth : LessEqualDepth;
+    fm.depthFunc = this.inFront && !this.focusSelfDepth ? AlwaysDepth : LessEqualDepth;
     fm.transparent = this.inFront;
     fm.needsUpdate = true;
     this.opaqueMesh.renderOrder = 0;
@@ -660,6 +711,7 @@ export class XrayRenderer {
       this.edgesCtx.renderOrder = 3;
     }
     this.edgesFocus.renderOrder = 4;
+    if (this.focusDepthReset) this.focusDepthReset.renderOrder = this.focusMesh.renderOrder - 0.5;
     // The OIT composite takes the ghost pass's slot, so edges and the (in front) focus draw over it.
     this.oitQuad.renderOrder = this.ghostMesh.renderOrder;
     if (this.oitDepthFocus) this.oitDepthFocus.visible = !this.inFront;
@@ -724,6 +776,7 @@ export class XrayRenderer {
     const glow = this.glowMask;
     const hold = this.sweepHold;
     const vmMask = this.vmMask && this.vmMask.length === this.n ? this.vmMask : null;
+    const closed = this.closed.length === this.n ? this.closed : null;
     let ghost = false;
     let fsig = 0; // signature of what the peel mask depends on: the focus and hidden flags
     const peelBits = FLAG_FOCUS | FLAG_HIDDEN;
@@ -735,7 +788,7 @@ export class XrayRenderer {
       const a = alpha[i]!;
       A[o + 3] = a;
       // alpha < 0 (types.HIDDEN) also means hidden
-      B[o] = a < 0 ? flags[i]! | FLAG_HIDDEN : flags[i]!;
+      B[o] = (a < 0 ? flags[i]! | FLAG_HIDDEN : flags[i]!) | (closed && closed[i] ? CLOSED_BIT : 0);
       fsig = (Math.imul(fsig, 31) + (B[o]! & peelBits)) | 0;
       B[o + 1] = glow ? glow[i]! : 0; // edge-glow membership
       B[o + 2] = hold ? hold[i]! : 0; // sweep hold alpha (0: not in the sweep)
@@ -765,8 +818,54 @@ export class XrayRenderer {
     (u.lightDir!.value as Vector3).copy(this.sun.position).sub(this.sun.target.position).normalize();
   }
 
+  /**
+   * Test hook: draw the order-independent ghosts also inside an XR session. Off by default and not meant for use: the OIT
+   * target is one single-view texture, while an XR frame draws two views, which on a real headset may sit in different
+   * textures or array layers (see docs-features/webxr.md, "Order-independent ghosts").
+   */
+  xrForceOit = false;
+
+  /** True while a WebXR session presents (three then renders every pass into the XR framebuffer with the stereo camera). */
+  get xrPresenting(): boolean {
+    return this.renderer.xr.enabled && this.renderer.xr.isPresenting;
+  }
+
+  /**
+   * What an XR frame leaves out of what is switched on, one phrase each (for the XR status line). The passes that draw through
+   * private single-view targets cannot share the stereo framebuffer: imaging, order-independent ghosts, the peel window and
+   * the post effects. Behind-only, sections, caps and the sorted ghost pass are drawn per eye as usual.
+   */
+  xrFallbacks(): string[] {
+    const out: string[] = [];
+    if (this.imaging) out.push(`imaging ${this.imaging.style} drawn as standard`);
+    if (this.post) out.push('post effects off');
+    if (this.oitOn) out.push('ghosts use the sorted pass, not order-independent blending');
+    if (this.peel) out.push('peelback window off');
+    return out;
+  }
+
+  /** World position of the head inside an XR session (set by the XR plugin each frame, null outside a session). */
+  xrHeadWorld: Vector3 | null = null;
+
+  /** World position of the camera: the camera's own position, or the head position when it sits in an XR rig. */
+  cameraWorldPosition(out: Vector3 = new Vector3()): Vector3 {
+    // In a session the head (between the eyes) is what looks: the XR plugin sets it every frame. The user camera itself sits at the left eye.
+    if (this.xrHeadWorld && this.xrPresenting) return out.copy(this.xrHeadWorld);
+    if (this.camera.parent) {
+      this.camera.updateWorldMatrix(true, false);
+      return out.setFromMatrixPosition(this.camera.matrixWorld);
+    }
+    return out.copy(this.camera.position);
+  }
+
+  /** Tell the camera listeners (the sightline scheduler) that the camera moved without the orbit controls (WebXR head motion). */
+  notifyCameraChanged(): void {
+    for (const cb of this.changeListeners) cb();
+  }
+
   render(): void {
-    this.controls.update();
+    const xr = this.xrPresenting;
+    if (!xr) this.controls.update();
     this.upload();
     if (this.offsetsDirty) {
       this.texC.needsUpdate = true;
@@ -774,7 +873,8 @@ export class XrayRenderer {
       this.peelStale = true;
     }
     this.syncLights();
-    if (this.post) this.post(this);
+    // Post effects are screen-space and single-view: not in an XR session (the plain stereo draw runs instead).
+    if (this.post && !xr) this.post(this);
     else this.renderScene();
   }
 
@@ -785,11 +885,15 @@ export class XrayRenderer {
    * render target (also multisampled): the composite is an ordinary draw into the current target.
    */
   renderScene(): void {
-    if (this.imaging && !this.focusOnlyStash && this.renderImaging(this.imaging)) return;
+    // In an XR session every renderer.render call draws with the stereo camera into the XR framebuffer, so the passes that
+    // go through private single-view targets (imaging, OIT, peel flood) are off: the sorted ghost path draws instead.
+    const xr = this.xrPresenting;
+    if (this.imaging && !xr && !this.focusOnlyStash && this.renderImaging(this.imaging)) return;
     if (!this.focusOnlyStash) {
       this.prepareViewModes();
-      const compose = this.oitOn && (this.anyGhost || this.vmGhost) && this.renderOitTarget();
-      if (this.ghostMesh) this.ghostMesh.visible = !this.oitOn;
+      const oit = this.oitOn && (!xr || this.xrForceOit);
+      const compose = oit && (this.anyGhost || this.vmGhost) && this.renderOitTarget();
+      if (this.ghostMesh) this.ghostMesh.visible = !oit;
       this.oitQuad.visible = compose;
     }
     this.renderer.render(this.scene, this.camera);
@@ -1100,11 +1204,13 @@ export class XrayRenderer {
     if (this.clipPlanes) {
       // Caps only show a cut when the viewer looks in from the removed side of some plane; from the kept side a visible
       // back face is an open or flipped mesh, not a revealed interior.
-      const c = this.camera.position;
+      const c = this.cameraWorldPosition(this.tmpWorld);
       u.clipCapOn!.value = this.clipCapWanted && !pointKept(this.clipPlanes, [c.x, c.y, c.z]) ? 1 : 0;
     }
+    this.syncFocusDepth();
     const peel = this.peel;
-    if (!peel || !this.peelMaskMesh || peel.focus.length === 0) {
+    // The peel window is screen-space (a mask target and a flood in the camera's image): not drawn in an XR session.
+    if (!peel || !this.peelMaskMesh || peel.focus.length === 0 || this.xrPresenting) {
       u.peelOn!.value = 0;
       this.peelPathNow = 'off';
       u.vmAny!.value = this.behind ? 1 : 0;
@@ -1125,6 +1231,20 @@ export class XrayRenderer {
       this.peelPathNow = 'cpu-ellipse';
     }
     u.vmAny!.value = 1;
+  }
+
+  /**
+   * With caps on, the focus (drawn in front with depth Always) needs a depth test of its own: otherwise the back faces of a
+   * focus solid overpaint its front faces in draw order and show the cap colour over the whole element. A depth reset
+   * just before the focus pass and LessEqual for it keep the focus in front of everything and let the nearest face decide.
+   * Only while a section with caps is on and the camera looks in from the cut side; else the pass is the unchanged one.
+   */
+  private syncFocusDepth(): void {
+    const want = this.inFront && this.clipPlanes !== null && this.shared.clipCapOn!.value > 0.5;
+    if (want === this.focusSelfDepth) return;
+    this.focusSelfDepth = want;
+    if (this.focusMaterial) this.focusMaterial.depthFunc = this.inFront && !want ? AlwaysDepth : LessEqualDepth;
+    if (this.focusDepthReset) this.focusDepthReset.visible = want;
   }
 
   private freePeelTargets(): void {
@@ -1272,7 +1392,7 @@ export class XrayRenderer {
   /** Is the surface point hit by the picker removed by a view mode (cut, or almost transparent)? Approximate for the peel. */
   private cutByViewMode(id: ElementId, point: Vector3): boolean {
     const b = this.behind;
-    const p = this.peel;
+    const p = this.xrPresenting ? null : this.peel; // the peel window is not drawn in an XR session, so it does not cut picks either
     if (!b && !p) return false;
     const flags = this.state.flags[id]!;
     if ((flags & FLAG_FOCUS) !== 0) return false;
@@ -1353,7 +1473,13 @@ export class XrayRenderer {
   get imagingStatus(): string {
     if (this.oitExtension === '') return 'unavailable: no float colour buffers';
     if (this.imgFailure) return `failed: ${this.imgFailure}`;
-    return `${this.imgBlend ? 'float32' : 'float16 (no EXT_float_blend: less precise)'} thickness target${this.imaging ? `, ${this.imaging.style} on` : ''}`;
+    const auto = this.imaging?.autoExposure && this.imaging.style === 'radiograph' ? (this.imgAutoFailure ? `, auto exposure off (${this.imgAutoFailure})` : this.imgAutoE !== null ? `, auto exposure x${this.imgAutoE.toFixed(2)}` : ', auto exposure measuring') : '';
+    return `${this.imgBlend ? 'float32' : 'float16 (no EXT_float_blend: less precise)'} thickness target${this.imaging ? `, ${this.imaging.style} on` : ''}${auto}`;
+  }
+
+  /** The factor the automatic exposure currently applies to the tissue exposure (1 when it is off or has not measured yet). */
+  get imagingAutoExposure(): number {
+    return this.imaging?.autoExposure && this.imaging.style === 'radiograph' && !this.imgAutoFailure ? this.imgAutoE ?? 1 : 1;
   }
 
   /** Draw the frame as a radiograph or an MRI slice instead of the normal scene. null restores the normal renderer exactly. */
@@ -1438,9 +1564,15 @@ export class XrayRenderer {
     this.imgThickRT?.dispose();
     this.imgSlabRT?.dispose();
     for (const t of this.imgGlow) t.dispose();
+    this.imgDecRT?.dispose();
+    this.imgDecRT = null;
     this.imgThickRT = this.imgSlabRT = null;
     this.imgGlow = [];
     this.imgSize = '';
+    this.imgAutoE = null;
+    this.imgAutoFrame = 0;
+    this.imgAutoPending = false;
+    this.imgAutoGen++;
   }
 
   /** (Re)create the imaging targets for a render target of w x h. False when they cannot be built. */
@@ -1499,6 +1631,7 @@ export class XrayRenderer {
         imgRes: { value: new Vector2(1, 1) },
         imgStyle: { value: 0 },
         imgExposure: { value: 1 },
+        imgTissueExposure: { value: 1 },
         imgContrast: { value: 1 },
         imgBoneGlow: { value: 1 },
         imgGlowOn: { value: 0 },
@@ -1512,6 +1645,15 @@ export class XrayRenderer {
       blending: NoBlending,
       side: DoubleSide,
     });
+    this.imgDecMat = new ShaderMaterial({
+      vertexShader: IMG_FULLSCREEN_VERT,
+      fragmentShader: IMG_DECIMATE_FRAG,
+      uniforms: { tSrc: { value: null } },
+      depthTest: false,
+      depthWrite: false,
+      blending: NoBlending,
+      side: DoubleSide,
+    });
     this.imgPassQuad = new Mesh(tri, this.imgBlurMat);
     this.imgPassQuad.frustumCulled = false;
     this.imgPassScene.add(this.imgPassQuad);
@@ -1519,6 +1661,58 @@ export class XrayRenderer {
     this.imgFinalQuad.frustumCulled = false;
     this.imgFinalQuad.renderOrder = 0;
     this.imgFinalScene.add(this.imgFinalQuad);
+  }
+
+  /**
+   * Automatic exposure: decimate the thickness target to a 64 x 64 grid (one sample per cell), read it back asynchronously (a
+   * fenced pixel buffer, no pipeline stall; the first time at once, then every 4th frame) and smooth the factor that maps the 90th percentile of the non-empty
+   * context thickness to 0.8. Needs EXT_color_buffer_float for the readback; without it the factor stays 1 (the status line says so).
+   */
+  private measureAutoExposure(): void {
+    if (this.imgAutoFailure) return;
+    if (!this.peelFloatOk) {
+      this.imgAutoFailure = 'no EXT_color_buffer_float';
+      return;
+    }
+    const first = this.imgAutoE === null;
+    if (this.imgAutoPending || (!first && ++this.imgAutoFrame % 4 !== 0)) return;
+    if (!this.imgDecRT) {
+      this.imgDecRT = this.makeImgTarget(64, 64, FloatType, false, 0, false);
+      if (!this.imgDecRT) {
+        this.imgAutoFailure = 'incomplete 64 x 64 float target';
+        return;
+      }
+    }
+    const r = this.renderer;
+    const dec = this.imgDecRT;
+    const mat = this.imgDecMat!;
+    mat.uniforms.tSrc!.value = this.imgThickRT!.texture;
+    this.imgPassQuad!.material = mat;
+    r.setRenderTarget(dec);
+    r.render(this.imgPassScene, this.camera);
+    const buf = this.imgAutoBuf;
+    const apply = (): void => {
+      const samples = this.imgAutoSamples;
+      for (let i = 0; i < samples.length; i++) samples[i] = buf[i * 4]!;
+      this.imagingAutoMeasures++;
+      const e = autoExposureFor(samples);
+      if (e !== null) this.imgAutoE = smoothExposure(this.imgAutoE, e);
+      else if (this.imgAutoE === null) this.imgAutoE = 1; // an empty frame: no factor yet, but stop asking synchronously
+    };
+    this.imgAutoPending = true;
+    const gen = this.imgAutoGen;
+    r.readRenderTargetPixelsAsync(dec, 0, 0, 64, 64, buf).then(
+      () => {
+        if (gen !== this.imgAutoGen) return;
+        this.imgAutoPending = false;
+        apply();
+      },
+      () => {
+        if (gen !== this.imgAutoGen) return;
+        this.imgAutoPending = false;
+        this.imgAutoFailure = 'readback failed';
+      },
+    );
   }
 
   /**
@@ -1544,6 +1738,7 @@ export class XrayRenderer {
     (cu.palGlow!.value as Vector3).set(...pal.glow);
     cu.imgStyle!.value = mri ? 1 : 0;
     cu.imgExposure!.value = im.exposure;
+    cu.imgTissueExposure!.value = im.exposure;
     cu.imgContrast!.value = im.contrast;
     cu.imgBoneGlow!.value = im.boneGlow;
     (cu.imgRes!.value as Vector2).set(w, h);
@@ -1572,6 +1767,10 @@ export class XrayRenderer {
 
     r.setRenderTarget(this.imgThickRT);
     r.render(this.imgThickScene, this.camera);
+    if (im.autoExposure && !mri) {
+      this.measureAutoExposure();
+      cu.imgTissueExposure!.value = im.exposure * (this.imgAutoFailure ? 1 : this.imgAutoE ?? 1);
+    }
     if (mri) {
       r.setRenderTarget(this.imgSlabRT);
       r.render(this.imgSlabScene, this.camera);
@@ -1656,6 +1855,8 @@ export class XrayRenderer {
   }
 
   resize(): void {
+    // three refuses (and warns) to resize while an XR session presents; the session owns the framebuffer size.
+    if (this.xrPresenting) return;
     const w = this.canvas.clientWidth || this.canvas.width || 1;
     const h = this.canvas.clientHeight || this.canvas.height || 1;
     this.renderer.setSize(w, h, false);
@@ -1706,7 +1907,21 @@ export class XrayRenderer {
     this.ndc.set(ndcX, ndcY);
     this.camera.updateMatrixWorld();
     this.raycaster.setFromCamera(this.ndc, this.camera);
-    const ray = this.raycaster.ray;
+    return this.pickWithRay(this.raycaster.ray);
+  }
+
+  /** Same eligibility rules as pick(), for a world ray (a WebXR controller ray, or any other pointer). */
+  pickRay(origin: Vector3, direction: Vector3): ElementId | null {
+    if (!this.loaded) return null;
+    this.camera.updateMatrixWorld();
+    return this.pickWithRay(new Ray(origin.clone(), direction.clone().normalize()));
+  }
+
+  /** Distance from the ray origin to the surface of the last element a pick returned (world units). */
+  lastPickDistance = 0;
+
+  private pickWithRay(ray: Ray): ElementId | null {
+    if (!this.loaded) return null;
     const g = this.loaded.geometry;
     const bvh = g.bvh;
     const { alpha, flags } = this.state;
@@ -1721,11 +1936,19 @@ export class XrayRenderer {
         const a = alpha[id]!;
         const hidden = (f & FLAG_HIDDEN) !== 0 || a < 0;
         const clickThrough = (f & FLAG_FOCUS) === 0 && a < 0.3;
-        if (!hidden && !clickThrough && !this.cutByViewMode(id, hit.point) && !this.cutByClip(hit.point)) return id;
+        if (!hidden && !clickThrough && !this.cutByViewMode(id, hit.point) && !this.cutByClip(hit.point)) {
+          this.lastPickDistance = hit.distance;
+          return id;
+        }
       }
       near = hit.distance + 1e-4;
     }
     return null;
+  }
+
+  /** Per-element closed-solid flags of the current model (1 = closed). Caps are painted for these only. */
+  get closedFlags(): Uint8Array {
+    return this.closed;
   }
 
   dispose(): void {
@@ -1739,6 +1962,7 @@ export class XrayRenderer {
     this.peelStepMat?.dispose();
     this.peelDummy.dispose();
     this.oitQuadMaterial.dispose();
+    (this.focusDepthReset?.material as ShaderMaterial | undefined)?.dispose();
     this.oitQuad.geometry.dispose();
     this.texA.dispose();
     this.texB.dispose();

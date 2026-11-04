@@ -377,6 +377,12 @@ export const FOLDER_HELP: Record<string, HelpEntry> = {
     'Click Open point cloud. Align the cloud to the model. Click Compute deviation to see the errors.',
     'Report: Appendix K, Packaging, point clouds and large models',
   ),
+  WebXR: h(
+    'The folder controls the experimental WebXR mode. It starts a virtual reality or an augmented reality session on a headset or a phone.',
+    'These controls put you inside the building with a headset, or place a small copy on a real table.',
+    'Click Enter VR or Enter AR. The buttons show only when the device supports the mode.',
+    'Report: Appendix M, WebXR',
+  ),
   'Tool strip': h(
     'The strip holds 1 button for each tool of the action panel. A button opens the drawer of its tool or switches the tool.',
     'This column of icons holds the extra helpers. Click an icon to open its panel or to switch the helper on.',
@@ -479,6 +485,12 @@ export const FOLDER_HELP: Record<string, HelpEntry> = {
     'This panel brings in dots of the real site and shows where the building differs from the plan.',
     'Click Open point cloud. Align the cloud. Click Compute deviation.',
     'Report: Appendix K, Packaging, point clouds and large models',
+  ),
+  'WebXR drawer': h(
+    'The heading names the WebXR drawer. The drawer holds the buttons that start and end a session.',
+    'This panel puts you inside the building with a headset, or on a real table with a phone.',
+    'Click Enter VR or Enter AR. Click Leave XR session to return to the screen.',
+    'Report: Appendix M, WebXR',
   ),
 };
 
@@ -1863,8 +1875,14 @@ export const CONTROL_HELP: Record<string, HelpEntry> = {
     'Select classic for a dark ground. Select negative for a light ground. Select fluoro for a green screen look.',
     'Report: Appendix G, Imaging and sectioning',
   ),
+  'Imaging/auto exposure': h(
+    'The switch sets the exposure by itself. The viewer measures the thickness of the context and fits the brightness to the model.',
+    'On: tall or thick buildings stay readable, because the picture adapts to how much material each view crosses. Off: the brightness stays fixed.',
+    'Leave the switch on for most models. Turn it off to set the brightness only with the exposure slider.',
+    'Report: Appendix G, Imaging and sectioning',
+  ),
   'Imaging/exposure': h(
-    'The slider sets the exposure. It scales the accumulated thickness before the attenuation curve.',
+    'The slider sets the exposure. It scales the accumulated thickness before the attenuation curve. With the automatic exposure on, it multiplies the automatic value.',
     'Move the slider right and the whole scan gets brighter. Move it left and it gets darker.',
     'Increase the value for thin buildings. Decrease the value for dense models.',
     'Report: Appendix G, Imaging and sectioning',
@@ -2186,6 +2204,12 @@ export const CONTROL_HELP: Record<string, HelpEntry> = {
     'Click to open helpers that bring in dots from a site survey and check them against the building.',
     'Click the button. Click Open point cloud. Click Compute deviation.',
     'Report: Appendix K, Packaging, point clouds and large models',
+  ),
+  'Tool strip/WebXR': h(
+    'The button opens the drawer of the WebXR tool. The button shows blue while a session runs. It shows only on a device that supports virtual or augmented reality.',
+    'Click to open the buttons that start a session on a headset or a phone.',
+    'Click the button. Click Enter VR or Enter AR.',
+    'Report: Appendix M, WebXR',
   ),
   'Tool drawer/Close button': h(
     'The button closes the drawer. The tool keeps its settings. Press Escape for the same action.',
@@ -2822,6 +2846,50 @@ export const CONTROL_HELP: Record<string, HelpEntry> = {
     'A short text tells you what you have loaded and how the work is going.',
     'Read the line after each step.',
     'Report: Appendix K, Packaging, point clouds and large models',
+  ),
+
+  // ------------------------------------------------------------------ WebXR (experimental)
+  'WebXR/Enter VR': h(
+    'The button starts an immersive virtual reality session at real scale. The camera starts at the position of the orbit camera.',
+    'Click and the building surrounds you in the headset, at its real size, from the spot where you stood.',
+    'Put on the headset. Click the button. Point a controller at an object and pull the trigger to select it. Use the thumbsticks to turn and walk.',
+    'Report: Appendix M, WebXR',
+  ),
+  'WebXR/Enter AR': h(
+    'The button starts an augmented reality session. A ring on a real surface shows where the viewer places the model.',
+    'Click and the building appears in your room, seen through the camera of your phone or headset.',
+    'Point the device at a table or at the floor. Tap to place the model. Choose the size first.',
+    'Report: Appendix M, WebXR',
+  ),
+  'WebXR/AR scale': h(
+    'The list sets the size of the model in augmented reality. The value 1:1 is real size. The value tabletop 1:50 shrinks the model 50 times.',
+    'Choose 1:1 and the building stands life size around you. Choose the other entry and it sits on your table like a small model.',
+    'Select 1:1 to walk through the building. Select tabletop 1:50 to look at it from above.',
+    'Report: Appendix M, WebXR',
+  ),
+  'WebXR/XR status': h(
+    'The read-only text shows the state of the WebXR session and the drawing steps that the session leaves out.',
+    'A short line tells you if the device is ready and which looks stay off inside the headset.',
+    'Read the line if the picture in the headset looks plainer than on the screen.',
+    'Report: Appendix M, WebXR',
+  ),
+  'WebXR/pointer rays': h(
+    'The switch shows a line from each controller or hand. The line ends where it meets an object.',
+    'On: a coloured line shows where you aim, and it turns yellow on an object. Off: you aim without a line.',
+    'Turn the switch on to see where you aim. Turn it off for a clear view of the model.',
+    'Report: Appendix M, WebXR',
+  ),
+  'WebXR drawer/Leave XR session': h(
+    'The button ends the running session. The normal picture and the orbit camera return.',
+    'Click and you come back to the screen, with the view you had before the headset.',
+    'Click the button to end the session.',
+    'Report: Appendix M, WebXR',
+  ),
+  'WebXR drawer/Status line': h(
+    'The text line shows the state of the session and the looks that the session leaves out.',
+    'A short text tells you if the headset works and what is missing from the picture there.',
+    'Read the line if the picture in the headset looks plainer than on the screen.',
+    'Report: Appendix M, WebXR',
   ),
 };
 

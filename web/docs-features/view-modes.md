@@ -19,7 +19,7 @@ The cut plane is perpendicular to the view direction (the camera's forward vecto
 | `keep x-ray behind` | Fragments behind the plane keep their sightline alpha instead of becoming solid. |
 | `cap colour` | Colour of the cap of `cut + cap`. |
 
-How an element is split between passes: the opaque pass draws the fragments behind the plane (also of elements that the sightline pass made translucent) and discards the front ones; the ghost pass draws the front ones (treatment `ghost`) and discards the behind ones. Edges follow the same rule, so no edges float in a cut (in `ghost` the front edges are drawn faintly). The cap is the opaque pass being double sided: a back face that is visible behind the plane can only be seen through a cut, so painting every such back face in the cap colour sections a solid. Limit: an open (non-closed) mesh behind the plane shows its back faces in the cap colour too.
+How an element is split between passes: the opaque pass draws the fragments behind the plane (also of elements that the sightline pass made translucent) and discards the front ones; the ghost pass draws the front ones (treatment `ghost`) and discards the behind ones. Edges follow the same rule, so no edges float in a cut (in `ghost` the front edges are drawn faintly). The cap is the opaque pass being double sided: a back face that is visible behind the plane can only be seen through a cut, so painting every such back face in the cap colour sections a solid. Caps are painted for closed solids only (see "Closed solids" in `docs-features/section.md`): an open element (a single-sided pane or sheet) behind the plane shows its back faces shaded like any other face.
 
 ## Peelback (partial peelback)
 
@@ -74,6 +74,6 @@ The BVH picker works on the undisplaced geometry and knows nothing about the sha
 
 - The peel window is the nearest-focus-pixel field at half resolution: a 1 to 2 pixel stair step at the rim (hidden by the feather).
 - The peel uses one depth per focus pixel, so a focus that is deep along the view axis (a duct running away from the camera) cuts with the depth of its nearest silhouette pixel.
-- Back faces are the only cap: a thick solid cut by a peel shows its far wall, not a cap at the cut itself.
+- Back faces are the only cap: a thick solid cut by a peel shows its far wall, not a cap at the cut itself. Only closed solids get the cap colour (`section.md`, "Closed solids").
 - Context drawn by other plugins into the scene with their own materials is not cut.
 - Picking is approximate for the peel (see above) and ignores the feather and the rim.

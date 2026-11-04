@@ -226,7 +226,7 @@ See `web/src/types.ts`. The important ones:
 ## Extensions
 
 Everything beyond the core (loader, renderer, `XrayController`, Algorithms 1 to 9) is a plugin in `web/src/plugins/`, registered in
-`plugins/index.ts`. A plugin implements `AppPlugin` (`install`, `onModel`, `onStatic`, `onFrame`, `afterFrame`; all optional) and
+`plugins/index.ts`. A plugin implements `AppPlugin` (`install`, `onModel`, `onStatic`, `beforeFrame`, `onFrame`, `afterFrame`; all optional) and
 extends the viewer through three registries: actions (`src/input/actions.ts`, `registerAction`: keys, cheat sheet and palette come
 free), tools (`src/tools/registry.ts`, `registerTool`: a button and drawer in the action panel) and params sections
 (`src/ui/params.ts`, `registerParamSection(name, { collect, apply, share? })`: part of the `xray-params/1` document, presets and
@@ -251,13 +251,14 @@ free), tools (`src/tools/registry.ts`, `registerTool`: a button and drawer in th
 | `measure` | `measure`, `clearance` | `measure.clear`, `clearance.toggle` | `measure`, `clearance` |
 | `bcf` | `bcf` | `bcf.open`, `bcf.create`, `bcf.export`, `bcf.clear` | `bcf` |
 | `pointcloud` | `pointcloud` | `pointcloud.open`, `pointcloud.toggle`, `pointcloud.deviation` | `pointcloud` |
+| `xr` | `xr` (scale, pointer rays) | `xr.vr`, `xr.ar` (no default keys) | `xr` (only when supported) |
 | `toolbar` | none | `toolbar.toggle`, `tool.<id>` | none |
 | `keymap` | `keymap` (overrides) | `help.cheatsheet`, `palette.open`, `keys.edit`, `keys.reset`, `nav.*`, `view.*` | none |
 | `exportParams`, `help`, `panelDock`, `boot` | none | none | none |
 
-The built-in tools `xray` and `cleanup`/`viewModes` are registered by `src/tools/builtin.ts`; the id `xr` is reserved for a WebXR
-tool. Scripting objects: `window.__xray` (core), `__xrayViewModes`, `__xrayImaging`, `__xraySection`, `__xrayCleanup`,
-`__xrayPresets`, `__xrayPenetrations`, `__xrayMeasure`, `__xrayClearance`, `__xrayBcf`, `__xrayPointCloud`, `__xrayToolbar`,
+The built-in tools `xray` and `cleanup`/`viewModes` are registered by `src/tools/builtin.ts`; the tool `xr` (WebXR, experimental,
+`src/plugins/xr.ts`, `src/xr/`) shows only when `navigator.xr` supports VR or AR. Scripting objects: `window.__xray` (core), `__xrayViewModes`, `__xrayImaging`, `__xraySection`, `__xrayCleanup`,
+`__xrayPresets`, `__xrayXr`, `__xrayPenetrations`, `__xrayMeasure`, `__xrayClearance`, `__xrayBcf`, `__xrayPointCloud`, `__xrayToolbar`,
 `__xrayParams`, `__xrayHelp`. A packaged page reads `window.__xrayBoot` once (see `web/docs-features/xray-pack.md`).
 
 Sidecar additions made for plugins (both optional; see "model.json" above for the full format):

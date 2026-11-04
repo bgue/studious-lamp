@@ -58,6 +58,7 @@ Switch the tooltips off with `window.__xrayHelp.disable()` or `localStorage["xra
 - [MRI slice](#mri-slice)
 - [Section](#section)
 - [Point cloud](#point-cloud)
+- [WebXR](#webxr)
 - [Tool strip](#tool-strip)
 - [Tool drawer](#tool-drawer)
 - [BCF topic dialog](#bcf-topic-dialog)
@@ -75,6 +76,7 @@ Switch the tooltips off with `window.__xrayHelp.disable()` or `localStorage["xra
 - [Imaging drawer](#imaging-drawer)
 - [Section drawer](#section-drawer)
 - [Scan drawer](#scan-drawer)
+- [WebXR drawer](#webxr-drawer)
 
 ## Glossary
 
@@ -633,7 +635,8 @@ Impact follows the same sentence rules and adds these:
 | *Folder: Imaging* | The folder controls the imaging styles. A style draws the model as a radiograph or as an MRI slab slice. | These controls turn the building picture into a scan, like a hospital photo or a thin slice of a body. | Choose a style. Change the exposure and the contrast until the picture looks right. | Report: Appendix G, Imaging and sectioning |
 | style | The list sets the imaging style. The value standard is the normal renderer. The value radiograph draws the context by material thickness. The value mri draws a grey slab slice. | Each choice redraws the whole picture. The first is the normal picture. One looks like a hospital photo of dense parts. The last shows a thin grey cut through the selected item. | Select a style. Select an object to see the bright focus. Press the M key to cycle the styles. | Report: Appendix G, Imaging and sectioning |
 | palette | The list sets the palette of the imaging styles. A palette sets the ground, the tone of the material and the glow. | Each choice changes the colours of the scan. One has a dark ground with bright parts. Another has a light ground. | Select classic for a dark ground. Select negative for a light ground. Select fluoro for a green screen look. | Report: Appendix G, Imaging and sectioning |
-| exposure | The slider sets the exposure. It scales the accumulated thickness before the attenuation curve. | Move the slider right and the whole scan gets brighter. Move it left and it gets darker. | Increase the value for thin buildings. Decrease the value for dense models. | Report: Appendix G, Imaging and sectioning |
+| auto exposure | The switch sets the exposure by itself. The viewer measures the thickness of the context and fits the brightness to the model. | On: tall or thick buildings stay readable, because the picture adapts to how much material each view crosses. Off: the brightness stays fixed. | Leave the switch on for most models. Turn it off to set the brightness only with the exposure slider. | Report: Appendix G, Imaging and sectioning |
+| exposure | The slider sets the exposure. It scales the accumulated thickness before the attenuation curve. With the automatic exposure on, it multiplies the automatic value. | Move the slider right and the whole scan gets brighter. Move it left and it gets darker. | Increase the value for thin buildings. Decrease the value for dense models. | Report: Appendix G, Imaging and sectioning |
 | contrast | The slider sets the steepness of the attenuation curve. | Move the slider right and thick and thin parts differ more. Move it left and the scan looks flat. | Increase the value to separate dense parts. Decrease the value for a soft picture. | Report: Appendix G, Imaging and sectioning |
 | bone glow | The slider sets the strength of the glow around the focus. The focus draws bright in both styles. | Move the slider right and the selected item shines more. At 0 it has no halo. | Increase the value to find the focus quickly. Decrease the value for a plain look. | Report: Appendix G, Imaging and sectioning |
 | tissue edges | The switch draws the edge lines of the context in the imaging styles. | On: the outlines of walls and slabs show clearly in the grey picture. Off: they melt into the grey. | Turn the switch on to read the shape of the context. Turn it off for a smooth scan look. | Report: Appendix G, Imaging and sectioning |
@@ -689,6 +692,17 @@ Impact follows the same sentence rules and adds these:
 | Remove point cloud | The button removes the point cloud from the viewer and frees its memory. | Click and the scan dots disappear. The building stays. | Click the button before you load another scan. | Report: Appendix K, Packaging, point clouds and large models |
 | Point cloud status | The read-only field shows the file name, the point count and the state of the last step. | A short text tells you what you have loaded and how the work is going. | Read the line after each step. | Report: Appendix K, Packaging, point clouds and large models |
 
+## WebXR
+
+| Setting | Intent | Impact | Use | Ref |
+| --- | --- | --- | --- | --- |
+| *Folder: WebXR* | The folder controls the experimental WebXR mode. It starts a virtual reality or an augmented reality session on a headset or a phone. | These controls put you inside the building with a headset, or place a small copy on a real table. | Click Enter VR or Enter AR. The buttons show only when the device supports the mode. | Report: Appendix M, WebXR |
+| Enter VR | The button starts an immersive virtual reality session at real scale. The camera starts at the position of the orbit camera. | Click and the building surrounds you in the headset, at its real size, from the spot where you stood. | Put on the headset. Click the button. Point a controller at an object and pull the trigger to select it. Use the thumbsticks to turn and walk. | Report: Appendix M, WebXR |
+| Enter AR | The button starts an augmented reality session. A ring on a real surface shows where the viewer places the model. | Click and the building appears in your room, seen through the camera of your phone or headset. | Point the device at a table or at the floor. Tap to place the model. Choose the size first. | Report: Appendix M, WebXR |
+| AR scale | The list sets the size of the model in augmented reality. The value 1:1 is real size. The value tabletop 1:50 shrinks the model 50 times. | Choose 1:1 and the building stands life size around you. Choose the other entry and it sits on your table like a small model. | Select 1:1 to walk through the building. Select tabletop 1:50 to look at it from above. | Report: Appendix M, WebXR |
+| XR status | The read-only text shows the state of the WebXR session and the drawing steps that the session leaves out. | A short line tells you if the device is ready and which looks stay off inside the headset. | Read the line if the picture in the headset looks plainer than on the screen. | Report: Appendix M, WebXR |
+| pointer rays | The switch shows a line from each controller or hand. The line ends where it meets an object. | On: a coloured line shows where you aim, and it turns yellow on an object. Off: you aim without a line. | Turn the switch on to see where you aim. Turn it off for a clear view of the model. | Report: Appendix M, WebXR |
+
 ## Tool strip
 
 | Setting | Intent | Impact | Use | Ref |
@@ -707,6 +721,7 @@ Impact follows the same sentence rules and adds these:
 | Imaging | The button opens the drawer of the Imaging tool. The button shows blue while a style other than standard is on. The M key cycles the styles. | Click to open the scan looks that turn the picture into a hospital style photo or slice. | Select an object. Click the button. Choose a style. | Report: Appendix G, Imaging and sectioning |
 | Section | The button opens the drawer of the Section tool. The button shows blue while the box or the plane is on. | Click to open helpers that cut the building open with a block or a flat cut. | Click the button. Click Fit to selection. Drag the handles. | Report: Appendix G, Imaging and sectioning |
 | Scan | The button opens the drawer of the point cloud tool. The drawer opens a scan and checks it against the model. | Click to open helpers that bring in dots from a site survey and check them against the building. | Click the button. Click Open point cloud. Click Compute deviation. | Report: Appendix K, Packaging, point clouds and large models |
+| WebXR | The button opens the drawer of the WebXR tool. The button shows blue while a session runs. It shows only on a device that supports virtual or augmented reality. | Click to open the buttons that start a session on a headset or a phone. | Click the button. Click Enter VR or Enter AR. | Report: Appendix M, WebXR |
 
 ## Tool drawer
 
@@ -939,3 +954,11 @@ Impact follows the same sentence rules and adds these:
 | Alignment (heading) | The heading names the group of the alignment controls of the point cloud. | The controls below move and turn the dots until they sit on the building. | Click Auto-align to model. Fine tune with the offsets. | Report: Appendix K, Packaging, point clouds and large models |
 | Deviation from model (heading) | The heading names the group of the deviation controls. | The controls below check how well the dots match the building. | Set the tolerance. Click Compute deviation. | Report: Appendix K, Packaging, point clouds and large models |
 | Status line | The text line shows the file name, the point count and the state of the last step. | A short text tells you what you have loaded and how the work is going. | Read the line after each step. | Report: Appendix K, Packaging, point clouds and large models |
+
+## WebXR drawer
+
+| Setting | Intent | Impact | Use | Ref |
+| --- | --- | --- | --- | --- |
+| *Folder: WebXR drawer* | The heading names the WebXR drawer. The drawer holds the buttons that start and end a session. | This panel puts you inside the building with a headset, or on a real table with a phone. | Click Enter VR or Enter AR. Click Leave XR session to return to the screen. | Report: Appendix M, WebXR |
+| Leave XR session | The button ends the running session. The normal picture and the orbit camera return. | Click and you come back to the screen, with the view you had before the headset. | Click the button to end the session. | Report: Appendix M, WebXR |
+| Status line | The text line shows the state of the session and the looks that the session leaves out. | A short text tells you if the headset works and what is missing from the picture there. | Read the line if the picture in the headset looks plainer than on the screen. | Report: Appendix M, WebXR |

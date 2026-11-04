@@ -19,7 +19,7 @@ export interface ImagingApi {
   /** Merge any subset of the settings; returns the dotted names it could not use. */
   set(partial: unknown): string[];
   /** Renderer-side state for tests: supported, status line, frames drawn through the imaging path, current slab. */
-  status(): { supported: boolean; status: string; frames: number; slab: unknown };
+  status(): { supported: boolean; status: string; frames: number; slab: unknown; autoExposure: number; measures: number };
 }
 
 declare global {
@@ -105,6 +105,7 @@ function push(app: ViewerApp, dt: number): void {
     style: c.style,
     palette: c.palette,
     exposure: c.exposure,
+    autoExposure: c.autoExposure,
     contrast: c.contrast,
     boneGlow: c.boneGlow,
     tissueEdges: c.tissueEdges,
@@ -122,7 +123,7 @@ const api: ImagingApi = {
   },
   status() {
     const r = appRef?.renderer;
-    return { supported: r?.imagingSupported ?? false, status: r?.imagingStatus ?? '', frames: r?.imagingFrames ?? 0, slab: lastSlab };
+    return { supported: r?.imagingSupported ?? false, status: r?.imagingStatus ?? '', frames: r?.imagingFrames ?? 0, slab: lastSlab, autoExposure: r?.imagingAutoExposure ?? 1, measures: r?.imagingAutoMeasures ?? 0 };
   },
 };
 
@@ -146,6 +147,7 @@ function drawer(box: HTMLElement): (() => void) | void {
   box.appendChild(section('Style'));
   add(select('style', STYLES, () => config.style, (v) => api.set({ style: v })));
   add(select('palette', PALETTES, () => config.palette, (v) => api.set({ palette: v })));
+  add(check('auto exposure', () => config.autoExposure, (v) => api.set({ autoExposure: v })));
   add(slider('exposure', 0.05, 4, 0.01, () => config.exposure, (v) => api.set({ exposure: v }), f2));
   add(slider('contrast', 0.2, 3, 0.01, () => config.contrast, (v) => api.set({ contrast: v }), f2));
   add(slider('bone glow', 0, 3, 0.01, () => config.boneGlow, (v) => api.set({ boneGlow: v }), f2));
@@ -158,7 +160,7 @@ function drawer(box: HTMLElement): (() => void) | void {
   add(slider('scan speed', 0.02, 1, 0.01, () => config.mri.scanSpeed, (v) => api.set({ mri: { scanSpeed: v } }), f2));
   const st = statusLine('');
   box.appendChild(st);
-  box.appendChild(note('Radiograph: soft tissue by accumulated density x thickness, the focus as bright bone. MRI: a crisp slice through the focus bounds with faint tissue around it. Key M cycles the style.'));
+  box.appendChild(note('Radiograph: soft tissue by accumulated density x thickness, the focus as bright bone. Auto exposure fits the brightness to the model, the exposure slider then scales it. MRI: a crisp slice through the focus bounds with faint tissue around it. Key M cycles the style.'));
   box.appendChild(button('Standard view', () => api.set({ style: 'standard' }), { title: 'Back to the normal renderer' }));
   const upd = (): void => {
     widgets.forEach((w) => w.update());
@@ -215,6 +217,7 @@ export const imagingPlugin: AppPlugin = {
     root.close();
     root.add(config, 'style', [...STYLES]).name('style');
     root.add(config, 'palette', [...PALETTES]).name('palette');
+    root.add(config, 'autoExposure').name('auto exposure');
     root.add(config, 'exposure', 0.05, 4, 0.01).name('exposure');
     root.add(config, 'contrast', 0.2, 3, 0.01).name('contrast');
     root.add(config, 'boneGlow', 0, 3, 0.01).name('bone glow');

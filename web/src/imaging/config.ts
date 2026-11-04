@@ -19,6 +19,8 @@ export interface ImagingConfig {
   style: ImagingStyle;
   palette: ImagingPalette;
   exposure: number;
+  /** Scale the tissue exposure so the 90th percentile of the context thickness maps to about 0.8; `exposure` then multiplies it. */
+  autoExposure: boolean;
   contrast: number;
   boneGlow: number;
   tissueEdges: boolean;
@@ -30,6 +32,7 @@ export function defaultImaging(): ImagingConfig {
     style: 'standard',
     palette: 'classic',
     exposure: 1,
+    autoExposure: true,
     contrast: 1,
     boneGlow: 1,
     tissueEdges: true,
@@ -74,7 +77,8 @@ export function mergeImaging(into: ImagingConfig, p: unknown, prefix = 'imaging'
         break;
       }
       case 'tissueEdges':
-        if (typeof v === 'boolean') into.tissueEdges = v;
+      case 'autoExposure':
+        if (typeof v === 'boolean') into[k] = v;
         else ok = false;
         break;
       case 'mri':

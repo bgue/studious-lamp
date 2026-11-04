@@ -25,6 +25,7 @@ plugins (see "Development"), so every feature below is a separate module with it
   - BCF 2.0, 2.1 and 3.0 issues with viewpoints ([bcf.md](web/docs-features/bcf.md)).
   - Point clouds and as-built deviation ([pointcloud.md](web/docs-features/pointcloud.md)).
   - Model cleanup: find and hide floating, tiny, duplicate or distant debris ([cleanup.md](web/docs-features/cleanup.md)).
+  - WebXR, experimental: walk through the model in VR or place it on a table in AR ([webxr.md](web/docs-features/webxr.md)).
 - **Input and output**
   - Open `.ifc`, `.ifczip` and `.glb` in the browser; large files are handled in a worker ([large-ifc.md](web/docs-features/large-ifc.md)).
   - Selection sets, class styles, parameter export and import, share links.
@@ -130,9 +131,11 @@ at a time; Escape closes it. Every tool also has a folder in the parameter panel
   with a plane square to the view; partial peelback (`p`) cuts a window shaped like the focus silhouette. Both decide per
   fragment, so large slabs are split rather than hidden whole.
 - **Imaging** ([imaging.md](web/docs-features/imaging.md)). Radiograph and MRI-slice looks with the focus as the glowing
-  "bone"; key `m` cycles `standard`, `radiograph`, `mri`.
+  "bone"; key `m` cycles `standard`, `radiograph`, `mri`. `auto exposure` (default on) fits the radiograph brightness to the
+  thickness of the model, so a tall stack of floors stays readable.
 - **Section** ([section.md](web/docs-features/section.md)). A section box fitted to the selection or the model with draggable
-  face handles, plus a section plane; keys `c`, `Shift+c`, `Alt+c`. BCF clipping planes use the same renderer call.
+  face handles, plus a section plane; keys `c`, `Shift+c`, `Alt+c`. BCF clipping planes use the same renderer call. Caps are
+  painted on closed solids only.
 - **Measure** ([measure.md](web/docs-features/measure.md)). Point to point (with vertex snapping) and element to element
   (minimum surface distance), dimension lines on the model, CSV export.
 - **Clearance** ([measure.md](web/docs-features/measure.md)). Colours the context by distance to the focus: clash (red), tight
@@ -145,6 +148,10 @@ at a time; Escape closes it. Every tool also has a folder in the parameter panel
   the points by deviation from the model (tolerance 2 cm by default). `tools/make_pointcloud.py` makes a sample scan.
 - **Cleanup** ([cleanup.md](web/docs-features/cleanup.md)). Rules for floating, tiny, distant, duplicate and degenerate elements
   and class groups; preview, hide and restore without changing the model. The `debris-demo` model has examples of each (below).
+- **WebXR** ([webxr.md](web/docs-features/webxr.md)), experimental. Feature detected; the `WebXR` folder and tool appear only on a
+  device that supports VR or AR. VR at real scale from the orbit camera with controller rays, trigger to select, squeeze for
+  X-ray, snap turn and walking; AR with a hit-test ring, placement, and the scales `1:1` and `tabletop 1:50`. Developed and
+  tested against the iwer emulator, not on a headset.
 - **Presets** ([presets.md](web/docs-features/presets.md)). Named looks, user presets, share links.
 - **Large model** ([large-ifc.md](web/docs-features/large-ifc.md)). Size, buffers and per-stage timings of the model opened from a file.
 

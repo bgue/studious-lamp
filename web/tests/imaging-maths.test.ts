@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  BONE_DENSITY, CONTRAST_PIVOT, DEFAULT_DENSITY, K_TISSUE, PALETTE_TABLE, advanceScan, attenuate, contrastCurve, densityForMaterial, extentAlong, mriGrey, paletteMap, phaseToPosition, positionToPhase, slabFor, windowLevel,
+  AUTO_MIN_SAMPLES, AUTO_TARGET, BONE_DENSITY, CONTRAST_PIVOT, DEFAULT_DENSITY, K_TISSUE, PALETTE_TABLE, advanceScan, attenuate, autoExposureFor, nonZeroPercentile, smoothExposure, contrastCurve, densityForMaterial, extentAlong, mriGrey, paletteMap, phaseToPosition, positionToPhase, slabFor, windowLevel,
 } from '../src/imaging/maths';
 import type { Box6 } from '../src/imaging/maths';
 import { cloneImaging, defaultImaging, mergeImaging } from '../src/imaging/config';
@@ -199,7 +199,7 @@ describe('MRI scan timing', () => {
 describe('imaging config', () => {
   it('has the documented defaults', () => {
     expect(defaultImaging()).toEqual({
-      style: 'standard', palette: 'classic', exposure: 1, contrast: 1, boneGlow: 1, tissueEdges: true,
+      style: 'standard', palette: 'classic', exposure: 1, autoExposure: true, contrast: 1, boneGlow: 1, tissueEdges: true,
       mri: { axis: 'camera', thickness: 0.3, position: 0.5, scan: false, scanSpeed: 0.25 },
     });
   });
@@ -222,5 +222,75 @@ describe('imaging config', () => {
     expect(c.style).toBe('radiograph');
     expect(mergeImaging(c, 5)).toEqual(['imaging']);
     expect(mergeImaging(c, undefined)).toEqual([]);
+  });
+});
+
+describe('automatic exposure', () => {
+  const ramp = (n: number, hi: number): number[] => Array.from({ length: n }, (_, i) => ((i + 1) / n) * hi);
+
+  it('maps the 90th percentile of the non-zero thickness to 0.8 intensity', () => {
+    for (const hi of [0.3, 4, 60, 900]) {
+      const t = ramp(1000, hi);
+      const e = autoExposureFor(t)!;
+      const p90 = nonZeroPercentile(t, 0.9)!.value;
+      expect(attenuate(p90, e, K_TISSUE)).toBeCloseTo(AUTO_TARGET, 6);
+    }
+  });
+
+  it('ignores empty pixels (zero or negative thickness) and gives the same factor with or without them', () => {
+    const t = ramp(500, 12);
+    const padded = [...t, ...new Array(3000).fill(0), ...new Array(200).fill(-0.5)];
+    expect(autoExposureFor(padded)).toBeCloseTo(autoExposureFor(t)!, 9);
+  });
+
+  it('makes a tall and a flat model read alike: the exposure falls as the thickness grows', () => {
+    const flat = autoExposureFor(ramp(1000, 1.5))!;
+    const tall = autoExposureFor(ramp(1000, 150))!;
+    expect(tall).toBeLessThan(flat / 50);
+    // after the automatic factor the median pixel of both lands at about the same intensity
+    const med = (hi: number, e: number): number => attenuate(hi / 2, e, K_TISSUE);
+    expect(med(150, tall)).toBeCloseTo(med(1.5, flat), 1);
+  });
+
+  it('returns null for an empty or nearly empty frame and clamps absurd values', () => {
+    expect(autoExposureFor([])).toBeNull();
+    expect(autoExposureFor(new Array(AUTO_MIN_SAMPLES - 1).fill(2))).toBeNull();
+    expect(autoExposureFor(new Array(100).fill(1e-9))).toBeNull();
+    expect(autoExposureFor(new Array(100).fill(1e9))!).toBeGreaterThan(0);
+    expect(autoExposureFor(new Array(100).fill(0.0011))!).toBeLessThanOrEqual(40);
+  });
+
+  it('smooths in the log domain, takes the first value as it is and ignores tiny changes', () => {
+    expect(smoothExposure(null, 3)).toBe(3);
+    expect(smoothExposure(1, 1.01)).toBe(1);
+    const up = smoothExposure(1, 4, 0.5);
+    expect(up).toBeCloseTo(2, 9); // halfway to 4 in the log domain
+    let v: number | null = 1;
+    for (let i = 0; i < 40; i++) v = smoothExposure(v, 0.1, 0.4);
+    expect(v).toBeCloseTo(0.1, 1);
+  });
+
+  it('is on by default, validated and shared through the imaging params', () => {
+    const c = defaultImaging();
+    expect(c.autoExposure).toBe(true);
+    expect(mergeImaging(c, { autoExposure: false })).toEqual([]);
+    expect(c.autoExposure).toBe(false);
+    expect(mergeImaging(c, { autoExposure: 'yes' })).toEqual(['imaging.autoExposure']);
+    expect(c.autoExposure).toBe(false);
+    expect(cloneImaging(c).autoExposure).toBe(false);
+  });
+
+  it('keeps the bone, the MRI level and the MRI context on the exposure slider and the radiograph tissue on its own uniform', () => {
+    expect(IMG_COMPOSITE_FRAG).toContain('uniform float imgTissueExposure');
+    expect(IMG_COMPOSITE_FRAG).toMatch(/imgAtt\(th\.r, [\d.]+, imgTissueExposure\)/);
+    expect(IMG_COMPOSITE_FRAG).toMatch(/imgAtt\(th\.g, [\d.]+, imgExposure\)/);
+    expect(IMG_COMPOSITE_FRAG).toMatch(/faint = [\d.]+ \* imgAtt\(th\.r, [\d.]+, imgExposure\)/);
+  });
+});
+
+describe('caps only on closed solids (shader contract)', () => {
+  it('paints caps and slab caps only where the element carries the closed flag (bit 4)', () => {
+    expect(IMG_SLAB_FRAG).toContain('bool capBack = !gl_FrontFacing && flagClosed(vFlags)');
+    expect(IMG_SLAB_FRAG).toContain('& 16');
   });
 });

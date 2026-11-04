@@ -63,6 +63,57 @@ export function contrastCurve(i: number, contrast: number): number {
   return v < 0 ? 0 : v > 1 ? 1 : v;
 }
 
+// ---------------------------------------------------------------- automatic exposure
+
+/** The 90th percentile of the non-zero context thickness is mapped to this tissue intensity. */
+export const AUTO_TARGET = 0.8;
+export const AUTO_PERCENTILE = 0.9;
+/** Thickness samples (density * metres, already in the target's units) below this count as empty. */
+export const AUTO_EMPTY = 1e-3;
+/** Fewer non-empty samples than this: no measurement (the exposure stays where it was). */
+export const AUTO_MIN_SAMPLES = 24;
+/** Limits of the automatic factor. */
+export const AUTO_LIMITS: readonly [number, number] = [0.002, 40];
+
+/** The p-quantile (0..1) of the samples above `empty`, and how many there are. Null when none. */
+export function nonZeroPercentile(samples: ArrayLike<number>, p: number, empty = AUTO_EMPTY): { value: number; count: number } | null {
+  const v: number[] = [];
+  for (let i = 0; i < samples.length; i++) {
+    const x = samples[i]!;
+    if (x > empty && Number.isFinite(x)) v.push(x);
+  }
+  if (v.length === 0) return null;
+  v.sort((a, b) => a - b);
+  const q = Math.min(1, Math.max(0, p)) * (v.length - 1);
+  const lo = Math.floor(q);
+  const hi = Math.min(v.length - 1, lo + 1);
+  return { value: v[lo]! + (v[hi]! - v[lo]!) * (q - lo), count: v.length };
+}
+
+/**
+ * The factor E for which `attenuate(T90, E, k)` equals `target`, with T90 the 90th percentile of the non-empty context
+ * thickness samples: E = -ln(1 - target) / (k * T90). The exposure slider multiplies this factor. Null when there are
+ * too few non-empty samples (an empty or nearly empty frame).
+ */
+export function autoExposureFor(samples: ArrayLike<number>, target = AUTO_TARGET, percentile = AUTO_PERCENTILE, k = K_TISSUE): number | null {
+  const q = nonZeroPercentile(samples, percentile);
+  if (!q || q.count < AUTO_MIN_SAMPLES) return null;
+  const e = -Math.log(1 - Math.min(Math.max(target, 0.01), 0.99)) / (k * q.value);
+  return Math.min(AUTO_LIMITS[1], Math.max(AUTO_LIMITS[0], e));
+}
+
+/**
+ * One smoothing step in the log domain (a factor of 2 up or down feels the same): `rate` is the share of the gap closed
+ * per measurement. The first measurement (prev null) is taken as it is. A gap under 2 % is ignored, so the picture does
+ * not breathe while the camera is still.
+ */
+export function smoothExposure(prev: number | null, next: number, rate = 0.4): number {
+  if (prev === null || !(prev > 0)) return next;
+  const d = Math.log(next / prev);
+  if (Math.abs(d) < 0.02) return prev;
+  return prev * Math.exp(d * Math.min(1, Math.max(0, rate)));
+}
+
 // ---------------------------------------------------------------- palettes
 
 export interface PaletteColours {

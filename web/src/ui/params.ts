@@ -7,7 +7,7 @@
 //
 // No DOM access except the optional `window` fallbacks in ParamsEnv; the module is testable with a fake app.
 
-import pkg from '../../package.json';
+import { version as pkgVersion } from '../../package.json';
 import { idsToGlobalIds, loadSets, saveSets } from '../selectionSets';
 import type { SelectionSet, StorageLike } from '../selectionSets';
 import type { ControllerSettings } from '../controller';
@@ -44,7 +44,7 @@ export function registerParamSection(name: string, section: ParamSection): () =>
 export function paramSectionNames(): string[] {
   return [...SECTIONS.keys()];
 }
-export const VIEWER_VERSION: string = pkg.version;
+export const VIEWER_VERSION: string = pkgVersion;
 
 type Vec3 = [number, number, number];
 

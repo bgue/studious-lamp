@@ -27,6 +27,11 @@ export interface AppPlugin {
   onModel?(app: ViewerApp): void;
   /** After the selection, classification or settings changed (Algorithm 1 has run). */
   onStatic?(app: ViewerApp): void;
+  /**
+   * First hook of every frame, before the controller tick and every onFrame. dt in ms. Runs also inside a WebXR session, where
+   * the plugin moves the XR rig and brings the camera up to date for the hooks that follow (plugins/xr.ts).
+   */
+  beforeFrame?(app: ViewerApp, now: number, dt: number): void;
   /** Before the frame renders. dt in ms. Return true to force a render state upload. */
   onFrame?(app: ViewerApp, now: number, dt: number): boolean | void;
   /** After the frame rendered. */
@@ -161,7 +166,8 @@ export class ViewerApp {
     this.renderer.render();
     this.renderer.renderer.getContext().finish();
     window.__xrayReady = true;
-    requestAnimationFrame(this.frame);
+    // three's animation loop: window.requestAnimationFrame outside an XR session, the session's own inside one.
+    this.renderer.renderer.setAnimationLoop(this.frame);
   }
 
   /** Load a model by name. Falls back to the procedural model with a visible message on failure. */
@@ -304,7 +310,8 @@ export class ViewerApp {
       this.slTimer = null;
     }
     this.slLast = performance.now();
-    this.controller.updateSightlines(this.renderer.camera.position);
+    // The camera's world position: the orbit camera itself, or the head inside a WebXR session (the camera then sits in a rig).
+    this.controller.updateSightlines(this.renderer.cameraWorldPosition());
   }
 
   /** Camera moved: run Algorithm 2 at most once per SIGHTLINE_INTERVAL_MS, plus once after the last move. */
@@ -328,6 +335,7 @@ export class ViewerApp {
     const t0 = performance.now();
     const dt = now - this.lastFrameTime;
     this.lastFrameTime = now;
+    for (const p of this.plugins) p.beforeFrame?.(this, now, dt);
     let dirty = this.controller.tick();
     for (const p of this.plugins) if (p.onFrame?.(this, now, dt)) dirty = true;
     if (dirty) this.renderer.markDirty();
@@ -352,7 +360,6 @@ export class ViewerApp {
       this.lastOverlay = now;
       this.updateOverlay();
     }
-    requestAnimationFrame(this.frame);
   };
 
   private updateOverlay(): void {

@@ -17,6 +17,7 @@ const f = (x: number): string => (Number.isInteger(x) ? x.toFixed(1) : String(x)
 const FLAGS = /* glsl */ `
 bool flagFocus(float f)  { return (int(f + 0.5) & 1) != 0; }
 bool flagHidden(float f) { return (int(f + 0.5) & 2) != 0; }
+bool flagClosed(float f) { return (int(f + 0.5) & 16) != 0; }
 `;
 
 const VARYINGS = /* glsl */ `
@@ -75,8 +76,10 @@ void main() {
   if (flagHidden(vFlags)) discard;
   if (clipN > 0 && clipCut(vWorldPos)) discard;
   bool focus = flagFocus(vFlags);
+  // A back face is a cap only on a closed solid. A back face of an open element (a pane, a sheet) is drawn like a front face.
+  bool capBack = !gl_FrontFacing && flagClosed(vFlags);
   if (!focus && vmAny > 0.5) {
-    VmOut vm = vmEval(vWorldPos, vAlpha, vVmOcc, !gl_FrontFacing);
+    VmOut vm = vmEval(vWorldPos, vAlpha, vVmOcc, capBack);
     if (vm.cover < VM_FULL) discard;
   }
   // u > 0 toward the camera.
@@ -86,9 +89,10 @@ void main() {
   float lvl = mriGrey(vDensity);
   if (focus) lvl = 1.0;
   float edge = 0.0;
-  if (gl_FrontFacing) {
+  if (!capBack) {
     if (u < -imgHalf) { gl_FragColor = vec4(0.0); return; } // beyond the slab: nothing, but it hides what is behind
     vec3 n = normalize(vWorldNormal);
+    if (!gl_FrontFacing) n = -n;
     lvl *= 0.72 + 0.28 * clamp(dot(n, normalize(cameraPosition - vWorldPos)), 0.0, 1.0);
     if (imgScan > 0.5) edge = smoothstep(imgHalf - min(0.04, imgHalf * 0.6), imgHalf, abs(u));
   } else {
@@ -143,7 +147,8 @@ uniform sampler2D tGlowA;
 uniform sampler2D tGlowB;
 uniform vec2 imgRes;
 uniform float imgStyle;     // 0 radiograph, 1 mri
-uniform float imgExposure;
+uniform float imgExposure;       // the exposure slider: bone, and the MRI level
+uniform float imgTissueExposure; // slider times the automatic exposure: the radiograph tissue attenuation (the MRI keeps the slider)
 uniform float imgContrast;
 uniform float imgBoneGlow;
 uniform float imgGlowOn;
@@ -152,7 +157,7 @@ uniform vec3 palTissue;
 uniform vec3 palBone;
 uniform vec3 palGlow;
 
-float imgAtt(float t, float k) { return 1.0 - exp(-imgExposure * k * max(t, 0.0)); }
+float imgAtt(float t, float k, float ex) { return 1.0 - exp(-ex * k * max(t, 0.0)); }
 float imgContrastCurve(float i) { return clamp((i - ${f(CONTRAST_PIVOT)}) * imgContrast + ${f(CONTRAST_PIVOT)}, 0.0, 1.0); }
 
 void main() {
@@ -164,11 +169,11 @@ void main() {
   float tissue;
   float bone;
   if (imgStyle < 0.5) {
-    tissue = imgContrastCurve(imgAtt(th.r, ${f(K_TISSUE)}));
-    bone = imgContrastCurve(imgAtt(th.g, ${f(K_BONE)}));
+    tissue = imgContrastCurve(imgAtt(th.r, ${f(K_TISSUE)}, imgTissueExposure));
+    bone = imgContrastCurve(imgAtt(th.g, ${f(K_BONE)}, imgExposure));
   } else {
-    float faint = ${f(MRI_FAINT)} * imgAtt(th.r, ${f(K_TISSUE)});
-    float faintBone = ${f(MRI_FAINT_BONE)} * imgAtt(th.g, ${f(K_BONE)});
+    float faint = ${f(MRI_FAINT)} * imgAtt(th.r, ${f(K_TISSUE)}, imgExposure);
+    float faintBone = ${f(MRI_FAINT_BONE)} * imgAtt(th.g, ${f(K_BONE)}, imgExposure);
     vec4 s = texelFetch(tSlab, p, 0);
     float cov = s.a;
     vec3 sl = s.rgb / max(cov, 1e-4);
@@ -181,5 +186,17 @@ void main() {
   vec3 base = palBg + (palTissue - palBg) * clamp(tissue, 0.0, 1.0);
   vec3 col = base + (palBone - base) * clamp(bone, 0.0, 1.0) + (palGlow - palBg) * max(glow, 0.0);
   gl_FragColor = vec4(clamp(col, 0.0, 1.0), 1.0);
+}
+`;
+
+/** Decimation for the automatic exposure: a 64 x 64 grid of single samples of the thickness target (r = context, g = bone). */
+export const IMG_DECIMATE_FRAG = /* glsl */ `
+uniform sampler2D tSrc;
+void main() {
+  ivec2 sz = textureSize(tSrc, 0);
+  vec2 g = (floor(gl_FragCoord.xy) + 0.5) / 64.0;
+  ivec2 p = clamp(ivec2(g * vec2(sz)), ivec2(0), sz - 1);
+  vec4 v = texelFetch(tSrc, p, 0);
+  gl_FragColor = vec4(v.r, v.g, 0.0, 1.0);
 }
 `;
