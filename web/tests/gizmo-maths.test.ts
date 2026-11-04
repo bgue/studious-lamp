@@ -218,15 +218,15 @@ describe('ring drag angle from the projected centre (ellipseAngle)', () => {
   // A ring of screen radii rx, ry about (cx, cy), samples at t = j/N * 2 pi; sign -1 runs clockwise on screen.
   const ellipse = (rx: number, ry: number, sign = 1, cx = 100, cy = 50) => {
     const angles: number[] = [];
-    let minR = Infinity;
+    const radii: number[] = [];
     for (let j = 0; j < 180; j++) {
       const t = (j / 180) * Math.PI * 2;
       const x = rx * Math.cos(t);
       const y = sign * ry * Math.sin(t);
       angles.push(Math.atan2(y, x));
-      minR = Math.min(minR, Math.hypot(x, y));
+      radii.push(Math.hypot(x, y));
     }
-    return { c: [cx, cy] as [number, number], angles, minR };
+    return { c: [cx, cy] as [number, number], angles, radii };
   };
   it('matches the true angle on a face-on ring at any distance outside the dead zone', () => {
     const e = ellipse(46, 46);
@@ -246,7 +246,12 @@ describe('ring drag angle from the projected centre (ellipseAngle)', () => {
     const right = ellipseAngle(e, 100 + 30, 50)!;
     expect(Math.abs(wrapAngle(top - right))).toBeCloseTo(Math.PI / 2, 3);
   });
-  it('is null in the dead zone at the centre', () => {
+  it('is null in the dead zone at the centre, which follows the ring shape', () => {
     expect(ellipseAngle(ellipse(46, 46), 105, 52)).toBeNull();
+    const flat = ellipse(46, 15, -1);
+    expect(ellipseAngle(flat, 100, 50 - 5)).toBeNull(); // 5 px across the narrow axis: inside 40 % of 15 px
+    expect(ellipseAngle(flat, 100 + 15, 50)).toBeNull(); // 15 px along the wide axis: inside 40 % of 46 px
+    expect(ellipseAngle(flat, 100 + 25, 50)).not.toBeNull();
+    expect(ellipseAngle(flat, 100, 50 - 8)).not.toBeNull(); // 8 px across the narrow axis: outside 40 % of 15 px
   });
 });

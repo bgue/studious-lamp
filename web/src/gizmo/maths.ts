@@ -248,20 +248,21 @@ export function ringAngle(o: V3, d: V3, centre: V3, axis: V3, ref: V3): number |
 /** A ring as seen at the start of a drag: its projected centre and samples, angle t from the start normal about the ring axis. */
 export interface RingEllipse {
   c: V2;
-  /** Screen angle about `c` of the sample at t = j / RING_SAMPLES * 2 pi. */
+  /** Screen angle about `c` of the sample at t = j / n * 2 pi. */
   angles: number[];
-  /** Screen radius of the ring (smallest distance of a sample from `c`), for the dead zone at the centre. */
-  minR: number;
+  /** Screen distance of that sample from `c` (the ring's radius in that direction), for the dead zone at the centre. */
+  radii: number[];
 }
+
 /**
  * The ring angle t under a screen point: the screen direction of the point from the ring's projected centre, matched on
  * the projected ring (an ellipse when the ring is oblique). Unlike the ray-plane angle it does not race when the ring is
- * oblique and the pointer is close to the centre. Null inside the dead zone (40 % of the ring's screen radius).
+ * oblique. Null inside the dead zone: closer to the centre than 40 % of the ring's radius in that direction, where any
+ * angle would swing with the smallest move.
  */
 export function ellipseAngle(e: RingEllipse, x: number, y: number): number | null {
   const dx = x - e.c[0];
   const dy = y - e.c[1];
-  if (Math.hypot(dx, dy) < 0.4 * e.minR) return null;
   const a = Math.atan2(dy, dx);
   const n = e.angles.length;
   for (let j = 0; j < n; j++) {
@@ -271,6 +272,8 @@ export function ellipseAngle(e: RingEllipse, x: number, y: number): number | nul
     // The samples run monotonically round the centre (either way): find the segment holding the pointer direction.
     if (span > 0 ? off >= 0 && off <= span : off <= 0 && off >= span) {
       const f = span === 0 ? 0 : off / span;
+      const ringR = e.radii[j]! + (e.radii[(j + 1) % n]! - e.radii[j]!) * f;
+      if (Math.hypot(dx, dy) < 0.4 * ringR) return null;
       return ((j + f) / n) * Math.PI * 2;
     }
   }

@@ -170,7 +170,7 @@ export function installPlaneHandles(app: ViewerApp, section: SectionApi): PlaneH
         const e2 = cross(k, n0);
         const c = proj(pivot);
         const angles: number[] = [];
-        let minR = Infinity;
+        const radii: number[] = [];
         let front = true;
         for (let j = 0; j < RING_SAMPLES; j++) {
           const t = (j / RING_SAMPLES) * Math.PI * 2;
@@ -178,10 +178,10 @@ export function installPlaneHandles(app: ViewerApp, section: SectionApi): PlaneH
           const sp = ov.project(w);
           if (!sp.front) front = false;
           angles.push(Math.atan2(sp.y - c[1], sp.x - c[0]));
-          minR = Math.min(minR, Math.hypot(sp.x - c[0], sp.y - c[1]));
+          radii.push(Math.hypot(sp.x - c[0], sp.y - c[1]));
         }
-        if (front && minR > 2) {
-          ellipse = { c: [c[0] + rect.left, c[1] + rect.top], angles, minR };
+        if (front && Math.min(...radii) > 2) {
+          ellipse = { c: [c[0] + rect.left, c[1] + rect.top], angles, radii };
           a0 = ellipseAngle(ellipse, ev.clientX, ev.clientY);
         }
         if (a0 === null) {
