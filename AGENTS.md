@@ -67,6 +67,7 @@ Details: `docs/build-spec/03-repo-and-toolchain.md`.
 | API, MCP, TUI, CLI | `packages/tl-api/`, `packages/tl-mcp/`, `packages/tl-tui/`, `packages/tl-cli/` |
 | Cross-package tests (parity, e2e, property) | `tests/` |
 | Dev environment (compose, seed, demos) | `dev/` |
+| Web client (server-rendered pages under `/web`, `TL_WEB`; package README `packages/tl-web/README.md`; demo `dev/demos/P2-WEB1.sh`) | `packages/tl-web/`; runbook `docs/runbooks/web-client.md` |
 | Tickets, reports, ADRs, templates | `docs/tickets/`, `docs/reports/`, `docs/adr/`, `docs/templates/` |
 | Project memory | `docs/memory/LEARNINGS.md` (active), `docs/memory/archive/` |
 | Runbooks | `docs/runbooks/` |
