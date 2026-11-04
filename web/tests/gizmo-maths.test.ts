@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  EDGE_BAND, allRegions, axisDragMetres, cubeCells, faceLabelAxes, isUnrolled, naturalUp, offsetThrough, planeAxes, planeSettingsFor, regionDirection,
+  EDGE_BAND, allRegions, axisDragMetres, cubeCells, ellipseAngle, faceLabelAxes, isUnrolled, naturalUp, offsetThrough, planeAxes, planeSettingsFor, regionDirection,
   regionKind, regionName, regionNear, regionView, rollView, rotateAbout, rotatePlaneAxis, ringAngle, snapAngle, turnView, turntableOffset, viewBasis, wrapAngle,
 } from '../src/gizmo/maths';
 import type { Region, V3, View } from '../src/gizmo/maths';
@@ -211,5 +211,42 @@ describe('section config: tilted plane', () => {
     const k = cloneSection(c);
     expect(k.plane.normal).not.toBe(c.plane.normal);
     expect(mergeSection(c, { plane: { normal: [0, 0, 0] } }).bad).toEqual(['section.plane.normal']);
+  });
+});
+
+describe('ring drag angle from the projected centre (ellipseAngle)', () => {
+  // A ring of screen radii rx, ry about (cx, cy), samples at t = j/N * 2 pi; sign -1 runs clockwise on screen.
+  const ellipse = (rx: number, ry: number, sign = 1, cx = 100, cy = 50) => {
+    const angles: number[] = [];
+    let minR = Infinity;
+    for (let j = 0; j < 180; j++) {
+      const t = (j / 180) * Math.PI * 2;
+      const x = rx * Math.cos(t);
+      const y = sign * ry * Math.sin(t);
+      angles.push(Math.atan2(y, x));
+      minR = Math.min(minR, Math.hypot(x, y));
+    }
+    return { c: [cx, cy] as [number, number], angles, minR };
+  };
+  it('matches the true angle on a face-on ring at any distance outside the dead zone', () => {
+    const e = ellipse(46, 46);
+    for (const deg of [0, 30, 90, 135, 200, 300]) {
+      for (const r of [20, 46, 200]) {
+        const a = ellipseAngle(e, 100 + r * Math.cos(deg * D), 50 + r * Math.sin(deg * D));
+        expect(wrapAngle(a! - deg * D)).toBeCloseTo(0, 3);
+      }
+    }
+  });
+  it('gives the ellipse parameter on an oblique ring and follows its direction', () => {
+    const e = ellipse(46, 15, -1);
+    const a = ellipseAngle(e, 100 + 46 * Math.cos(1), 50 - 15 * Math.sin(1));
+    expect(a!).toBeCloseTo(1, 3);
+    // A pointer move across the narrow axis turns at most a quarter turn, not a jump.
+    const top = ellipseAngle(e, 100, 50 - 30)!;
+    const right = ellipseAngle(e, 100 + 30, 50)!;
+    expect(Math.abs(wrapAngle(top - right))).toBeCloseTo(Math.PI / 2, 3);
+  });
+  it('is null in the dead zone at the centre', () => {
+    expect(ellipseAngle(ellipse(46, 46), 105, 52)).toBeNull();
   });
 });

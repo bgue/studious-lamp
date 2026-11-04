@@ -8,8 +8,8 @@ import type { ViewerApp } from '../app';
 import type { SectionApi } from '../plugins/section';
 import { getOverlay, svgEl } from '../ui/overlay';
 import type { Overlay } from '../ui/overlay';
-import { add, axisDragMetres, cross, normalize, offsetThrough, planeAxes, planeSettingsFor, ringAngle, rotatePlaneAxis, scale, snapAngle, sub, wrapAngle } from './maths';
-import type { V2, V3 } from './maths';
+import { add, axisDragMetres, cross, ellipseAngle, normalize, offsetThrough, planeAxes, planeSettingsFor, ringAngle, rotatePlaneAxis, scale, snapAngle, sub, wrapAngle } from './maths';
+import type { RingEllipse, V2, V3 } from './maths';
 
 const AXIS_COL: Record<string, string> = { x: '#ff6b5e', y: '#58d68d', z: '#5dade2', custom: '#f5b041' };
 const RING_COL = ['#f8c471', '#c39bd3'];
@@ -25,7 +25,9 @@ export interface PlaneHandles {
 
 type Drag =
   | { kind: 'arrow'; x: number; y: number; offset0: number; axisScreen: V2 }
-  | { kind: 'ring'; ring: number; x: number; y: number; n0: V3; k: V3; pivot: V3; centre: V3; flip0: boolean; a0: number | null; tScreen: V2 | null; radius: number };
+  | { kind: 'ring'; ring: number; x: number; y: number; n0: V3; k: V3; pivot: V3; centre: V3; flip0: boolean; a0: number | null; tScreen: V2 | null; radius: number; ellipse: RingEllipse | null; last: number };
+
+const RING_SAMPLES = 180;
 
 export function installPlaneHandles(app: ViewerApp, section: SectionApi): PlaneHandles {
   const ov = getOverlay(app);
@@ -161,9 +163,32 @@ export function installPlaneHandles(app: ViewerApp, section: SectionApi): PlaneH
       const radius = RING_PX / pxPerMetre(pivot);
       let a0: number | null = null;
       let tScreen: V2 | null = null;
+      let ellipse: RingEllipse | null = null;
       if (Math.abs(view[0] * k[0] + view[1] * k[1] + view[2] * k[2]) > 0.3) {
-        const r = camRay(ev);
-        a0 = ringAngle(r.o, r.d, pivot, k, n0);
+        // Sample the ring once (the camera does not move during the drag): t is the tilt angle about k from n0.
+        const rect = app.canvas.getBoundingClientRect();
+        const e2 = cross(k, n0);
+        const c = proj(pivot);
+        const angles: number[] = [];
+        let minR = Infinity;
+        let front = true;
+        for (let j = 0; j < RING_SAMPLES; j++) {
+          const t = (j / RING_SAMPLES) * Math.PI * 2;
+          const w = add(pivot, add(scale(n0, Math.cos(t) * radius), scale(e2, Math.sin(t) * radius)));
+          const sp = ov.project(w);
+          if (!sp.front) front = false;
+          angles.push(Math.atan2(sp.y - c[1], sp.x - c[0]));
+          minR = Math.min(minR, Math.hypot(sp.x - c[0], sp.y - c[1]));
+        }
+        if (front && minR > 2) {
+          ellipse = { c: [c[0] + rect.left, c[1] + rect.top], angles, minR };
+          a0 = ellipseAngle(ellipse, ev.clientX, ev.clientY);
+        }
+        if (a0 === null) {
+          ellipse = null;
+          const r = camRay(ev);
+          a0 = ringAngle(r.o, r.d, pivot, k, n0);
+        }
       }
       if (a0 === null) {
         // The ring is seen edge on: drag along the ring's tangent at the grabbed point instead.
@@ -180,12 +205,16 @@ export function installPlaneHandles(app: ViewerApp, section: SectionApi): PlaneH
         const t = normalize(cross(k, sub(g, pivot)));
         tScreen = screenOf(g, t, radius / 8);
       }
-      start(ev, el, { kind: 'ring', ring: i, x: ev.clientX, y: ev.clientY, n0, k, pivot, centre, flip0: section.config.plane.flip, a0, tScreen, radius });
+      start(ev, el, { kind: 'ring', ring: i, x: ev.clientX, y: ev.clientY, n0, k, pivot, centre, flip0: section.config.plane.flip, a0, tScreen, radius, ellipse, last: 0 });
     });
     el.addEventListener('pointermove', (ev) => {
       if (!drag || drag.kind !== 'ring' || drag.ring !== i) return;
       let raw: number | null = null;
-      if (drag.a0 !== null) {
+      if (drag.a0 !== null && drag.ellipse) {
+        // Inside the dead zone at the centre the tilt holds (an angle there would race).
+        const a = ellipseAngle(drag.ellipse, ev.clientX, ev.clientY);
+        raw = a !== null ? wrapAngle(a - drag.a0) : drag.last;
+      } else if (drag.a0 !== null) {
         const r = camRay(ev);
         const a = ringAngle(r.o, r.d, drag.pivot, drag.k, drag.n0);
         if (a !== null) raw = wrapAngle(a - drag.a0);
@@ -194,6 +223,7 @@ export function installPlaneHandles(app: ViewerApp, section: SectionApi): PlaneH
         if (m !== null) raw = m / drag.radius;
       }
       if (raw === null) return;
+      drag.last = raw;
       const ang = snapAngle(raw, 15, ev.shiftKey);
       const n = rotatePlaneAxis(drag.n0, drag.k, ang);
       const s = planeSettingsFor(n, offsetThrough(drag.centre, drag.pivot, n), drag.flip0);

@@ -8,14 +8,14 @@ import { Box3, Vector3 } from 'three';
 import type { AppPlugin, ViewerApp } from '../app';
 import { getAction, registerAction, runAction } from '../input/actions';
 import { formatChord, getKeymap } from '../input/keymap';
-import { isPseudoOrtho, pushHistory } from '../input/navigation';
+import { isPseudoOrtho, navSettings, pushHistory } from '../input/navigation';
 import { cancelGizmoMove, currentView, isGizmoMoving, frameFrom, gizmoCameraFrame, orbitCamera, turnTo } from '../gizmo/camera';
 import { createCubeView } from '../gizmo/cubeView';
 import type { CubeView } from '../gizmo/cubeView';
 import { installPlaneHandles } from '../gizmo/planeHandles';
 import type { PlaneHandles } from '../gizmo/planeHandles';
-import { naturalUp, normalize, regionName, regionNear, regionView, rollView, turnView } from '../gizmo/maths';
-import type { Region, View } from '../gizmo/maths';
+import { isVertical, naturalUp, normalize, regionName, regionNear, regionView, rollView, rotateAbout, turnView } from '../gizmo/maths';
+import type { Region, V3, View } from '../gizmo/maths';
 import type { SectionApi } from './section';
 import { registerParamSection } from '../ui/params';
 
@@ -51,6 +51,7 @@ let cube: CubeView | null = null;
 let handles: PlaneHandles | null = null;
 let lastSig = '';
 let lastButtons = 0;
+let lastFit = 0;
 let refreshButtons: (() => void) | null = null;
 let guiShow: { updateDisplay(): unknown } | null = null;
 
@@ -199,6 +200,7 @@ const CSS = `
 #xray-gizmo .xg-btn:hover:not(:disabled){background:#243049;border-color:#3a4a66}
 #xray-gizmo .xg-btn[aria-pressed=true]{background:#1f4a7a;border-color:#3b9cff;color:#fff}
 #xray-gizmo .xg-btn:disabled{opacity:.4;cursor:default}
+#xray-gizmo .xg-btn.xg-foreign{background:#5a4214;border-color:#e0a83a;color:#ffd27a}
 #xray-gizmo .xg-btn:focus-visible,#xray-gizmo .xg-cell:focus-visible{outline:2px solid #3b9cff;outline-offset:1px}
 #xray-gizmo .xg-ax-x{color:#ff8a80}#xray-gizmo .xg-ax-y{color:#7ee2a8}#xray-gizmo .xg-ax-z{color:#85c1e9}
 #xray-gizmo .xg-btn[aria-pressed=true].xg-ax-x,#xray-gizmo .xg-btn[aria-pressed=true].xg-ax-y,#xray-gizmo .xg-btn[aria-pressed=true].xg-ax-z{color:#fff}
@@ -219,6 +221,12 @@ const CSS = `
 #xray-gizmo.collapsed .xg-sec,#xray-gizmo.collapsed .xg-nav{display:none}
 #xray-gizmo.collapsed .xg-open{display:flex}
 @media (max-width:700px){#xray-gizmo{right:36px}}
+/* Not enough room beside an open tool drawer (fitLayout): drop the section strip, then show only the cube button, then hide. */
+#xray-gizmo.fit-nav:not(.peek) .xg-sec{display:none}
+#xray-gizmo.fit-button:not(.peek) .xg-sec,#xray-gizmo.fit-button:not(.peek) .xg-nav{display:none}
+#xray-gizmo.fit-button:not(.peek) .xg-open{display:flex}
+#xray-gizmo.fit-none:not(.peek){display:none}
+#xray-gizmo.peek{z-index:15}
 `;
 
 const I = (body: string): string => `<svg viewBox="0 0 16 16" aria-hidden="true">${body}</svg>`;
@@ -331,9 +339,17 @@ function build(app: ViewerApp): void {
     runAction(app, 'view.projection');
     refreshButtons?.();
   });
-  const mn = btn('xg-min', ICONS.min, 'Collapse the gizmo', 'Gizmo/Collapse', () => setCollapsed(true));
+  const mn = btn('xg-min', ICONS.min, 'Collapse the gizmo', 'Gizmo/Collapse', () => {
+    if (peek) {
+      peek = false; // back beside the drawer
+      applyState();
+    } else setCollapsed(true);
+  });
   nav.append(rccw, rcw, tl, tr, hm, pj, mn);
-  const open = btn('xg-open', ICONS.cube, 'Open the view cube and section tools', 'Gizmo/Open gizmo', () => setCollapsed(false));
+  const open = btn('xg-open', ICONS.cube, 'Open the view cube and section tools', 'Gizmo/Open gizmo', () => {
+    if (fit !== 'full' && fit !== 'nav') peek = true; // no room beside the drawer: open over it
+    setCollapsed(false);
+  });
   el.append(sec, nav, open);
   stage.appendChild(el);
 
@@ -369,15 +385,23 @@ function build(app: ViewerApp): void {
   refreshButtons = (): void => {
     const s = section();
     const c = s?.config;
+    // Planes of a BCF viewpoint are in force: the section settings are not what the view shows, so nothing is lit but
+    // Clear, which is marked and says how many planes it removes.
+    const foreign = s?.foreignPlanes?.() ?? 0;
+    const own = !!c && !foreign;
     const pressed = (b: HTMLButtonElement, v: boolean): void => b.setAttribute('aria-pressed', String(v));
-    pressed(px, !!c && c.plane.enabled && c.plane.axis === 'x');
-    pressed(py, !!c && c.plane.enabled && c.plane.axis === 'y');
-    pressed(pz, !!c && c.plane.enabled && c.plane.axis === 'z');
-    pressed(bx, !!c?.box.enabled);
-    pressed(fl, !!c && c.plane.enabled && c.plane.flip);
-    fl.disabled = !c?.plane.enabled;
+    pressed(px, own && c!.plane.enabled && c!.plane.axis === 'x');
+    pressed(py, own && c!.plane.enabled && c!.plane.axis === 'y');
+    pressed(pz, own && c!.plane.enabled && c!.plane.axis === 'z');
+    pressed(bx, own && c!.box.enabled);
+    pressed(fl, own && c!.plane.enabled && c!.plane.flip);
+    fl.disabled = !own || !c!.plane.enabled;
     pressed(cp, !!c?.caps);
     cl.disabled = !c || (!c.box.enabled && !c.plane.enabled && !(app.renderer.getClipPlanes()?.length));
+    cl.classList.toggle('xg-foreign', foreign > 0);
+    cl.setAttribute('aria-label', foreign ? `Clear the ${foreign} clip plane${foreign === 1 ? '' : 's'} of the BCF viewpoint` : 'Clear the section');
+    if (foreign) cl.title = `${foreign} clip plane${foreign === 1 ? '' : 's'} from a BCF viewpoint in force. Click to remove them`;
+    else if (cl.title.includes('BCF viewpoint')) titles();
     pressed(pj, isPseudoOrtho());
     pj.setAttribute('aria-label', isPseudoOrtho() ? 'Orthographic projection, on' : 'Orthographic projection, off');
   };
@@ -443,8 +467,41 @@ function applyState(): void {
   if (!root) return;
   root.hidden = !state.visible;
   root.classList.toggle('collapsed', state.collapsed);
+  for (const f of ['nav', 'button', 'none'] as const) root.classList.toggle(`fit-${f}`, fit === f);
+  root.classList.toggle('peek', peek && !state.collapsed);
   lastSig = '';
   guiShow?.updateDisplay();
+}
+
+// ---------------------------------------------------------------- room beside the tool drawer
+
+type Fit = 'full' | 'nav' | 'button' | 'none';
+/** How much of the gizmo fits between the open tool drawer (or the strip) and the right edge of the stage. */
+let fit: Fit = 'full';
+/** Opened from the cube button while there is no room: drawn over the drawer until the drawer closes or "-". */
+let peek = false;
+const FULL_W = 65 + 6 + 132;
+const NAV_W = 132;
+const BTN_W = 34;
+
+function fitLayout(): void {
+  const stage = root?.parentElement;
+  if (!root || !stage || !state.visible) return;
+  const sr = stage.getBoundingClientRect();
+  if (!sr.width) return;
+  const right = parseFloat(getComputedStyle(root).right) || 10;
+  let left = sr.left;
+  for (const sel of ['#xray-toolbar', '#xray-toolbar-drawer']) {
+    const e = document.querySelector<HTMLElement>(sel);
+    if (!e || e.classList.contains('hidden') || e.getClientRects().length === 0) continue;
+    left = Math.max(left, e.getBoundingClientRect().right);
+  }
+  const free = sr.right - right - left - 8;
+  const next: Fit = free >= FULL_W ? 'full' : free >= NAV_W ? 'nav' : free >= BTN_W ? 'button' : 'none';
+  if (next === fit) return;
+  fit = next;
+  if (fit === 'full') peek = false;
+  applyState();
 }
 
 function setVisible(v: boolean): void {
@@ -471,6 +528,59 @@ function redrawCube(app: ViewerApp): void {
   const v = currentView(app);
   const r = regionNear(v.direction, 1);
   cube.draw(v, r);
+}
+
+// ---------------------------------------------------------------- unroll on orbit
+
+const UNROLL_MS = 160;
+let orbitDown: { x: number; y: number } | null = null;
+/** Running unroll: the roll angle (about the view axis, from the natural up) at the start. */
+let unroll: { start: number; theta0: number } | null = null;
+
+function viewDir(app: ViewerApp): V3 {
+  const { camera, controls } = app.renderer;
+  return normalize([camera.position.x - controls.target.x, camera.position.y - controls.target.y, camera.position.z - controls.target.z]);
+}
+
+function startUnroll(app: ViewerApp, now: number): void {
+  const up = app.renderer.camera.up;
+  if (Math.abs(up.y - 1) < 1e-9) return;
+  const d = viewDir(app);
+  if (isVertical(d, 1e-3)) {
+    up.set(0, 1, 0);
+    return;
+  }
+  const t = naturalUp(d);
+  const u: V3 = [up.x, up.y, up.z];
+  const c: V3 = [t[1] * u[2] - t[2] * u[1], t[2] * u[0] - t[0] * u[2], t[0] * u[1] - t[1] * u[0]];
+  const theta0 = Math.atan2(c[0] * d[0] + c[1] * d[1] + c[2] * d[2], t[0] * u[0] + t[1] * u[1] + t[2] * u[2]);
+  if (!navSettings.smoothMoves || Math.abs(theta0) < 1e-6) {
+    up.set(0, 1, 0);
+    return;
+  }
+  unroll = { start: now, theta0 };
+}
+
+/** Per frame: ease camera.up from the rolled up to world up about the (moving) view axis. True while it runs. */
+function unrollFrame(app: ViewerApp, now: number): boolean {
+  const u = unroll;
+  if (!u) return false;
+  if (isGizmoMoving()) {
+    unroll = null; // a cube click took over
+    return false;
+  }
+  const up = app.renderer.camera.up;
+  const k = Math.min(1, Math.max(0, (now - u.start) / UNROLL_MS));
+  const d = viewDir(app);
+  if (k >= 1 || isVertical(d, 1e-3)) {
+    unroll = null;
+    up.set(0, 1, 0);
+    return true;
+  }
+  const e = 1 - (1 - k) * (1 - k); // ease out
+  const r = rotateAbout(naturalUp(d), d, (1 - e) * u.theta0);
+  up.set(r[0], r[1], r[2]);
+  return true;
 }
 
 // ---------------------------------------------------------------- plugin
@@ -522,8 +632,20 @@ export const gizmoPlugin: AppPlugin = {
     const s = section();
     if (s) handles = installPlaneHandles(app, s);
     // A pointer on the canvas takes the camera back from a running gizmo move.
-    app.canvas.addEventListener('pointerdown', () => cancelGizmoMove());
+    app.canvas.addEventListener('pointerdown', (e) => {
+      cancelGizmoMove();
+      orbitDown = e.button === 0 ? { x: e.clientX, y: e.clientY } : null;
+    });
     app.canvas.addEventListener('wheel', () => cancelGizmoMove(), { passive: true });
+    // The orbit controls turn about world Y: a rolled view (cube roll buttons, an interrupted move) eases back to world up
+    // as soon as a mouse orbit starts, so the drag feels like the usual turntable.
+    app.canvas.addEventListener('pointermove', (e) => {
+      if (!orbitDown || !(e.buttons & 1)) return;
+      if (Math.hypot(e.clientX - orbitDown.x, e.clientY - orbitDown.y) < 3) return;
+      orbitDown = null;
+      startUnroll(app, performance.now());
+    });
+    window.addEventListener('pointerup', () => (orbitDown = null));
 
     const gui = app.panel;
     if (gui) {
@@ -539,11 +661,16 @@ export const gizmoPlugin: AppPlugin = {
   },
 
   onFrame(app, now) {
-    gizmoCameraFrame(app, now);
+    const moved = gizmoCameraFrame(app, now);
+    return unrollFrame(app, now) || moved;
   },
 
   afterFrame(app, now) {
     redrawCube(app);
+    if (now - lastFit > 150) {
+      lastFit = now;
+      fitLayout();
+    }
     if (now - lastButtons > 400) {
       lastButtons = now;
       refreshButtons?.(); // the projection and the planes can change by key or by a BCF viewpoint

@@ -3,7 +3,10 @@
 An on-screen tool in the bottom-right corner of the stage (30 px above the bottom edge, clear of the status bar and of the
 right dock): a navigation cube with roll, turn, home and projection buttons, and a compact section strip. Key `v` (action
 `gizmo.toggle`) or the panel checkbox `Gizmo / show` hides it; the `-` button collapses it to a small cube button. On a
-screen 700 px wide or less it starts collapsed and sits 36 px from the right edge (clear of the dock rail). The state is
+screen 700 px wide or less it starts collapsed and sits 36 px from the right edge (clear of the dock rail). When an open
+tool drawer leaves too little room beside it, the gizmo drops the section strip, then shows only the cube button, then
+hides (without changing the saved state); the cube button then opens it over the drawer until `-` or the drawer closes.
+Legends (clearance, point cloud deviation) sit left of the gizmo, or above it when there is no room. The state is
 kept in `localStorage` `xray.gizmo` and in the params section `gizmo` (`{ visible, collapsed }`, not in the share URL).
 
 ## Navigation cube
@@ -46,7 +49,7 @@ Roll and turn are also palette actions without default keys: `gizmo.rollCw`, `gi
 | Box | Off: fit the section box to the selection (else the model) and turn it on (`Shift+c`). On: turn it off (`c` toggles). |
 | Flip | Keep the other side of the plane. |
 | Caps | Hatched caps on cut closed solids. |
-| Clear | Remove box, plane and any foreign (BCF) clip planes. |
+| Clear | Remove box, plane and any foreign (BCF) clip planes. While the planes of a BCF viewpoint are in force it is amber and says how many planes it removes, and X, Y, Z, Box and Flip are not lit (the section settings are not what the view shows). |
 
 Pressed buttons carry `aria-pressed`; tooltips (native `title`, rebuilt from the current key bindings) name the keys, and
 every button has an `aria-label` and a `data-help-key` with an Intent / Impact / Use / Ref entry (`Gizmo/...` in
@@ -61,7 +64,9 @@ While the section plane is on (axis x, y, z or custom; not `camera`) and `show h
   of the axis (`axisDragMetres`), so the plane follows the pointer; a live readout shows the offset in metres. When the
   axis points at the viewer, dragging up pushes along it;
 - 2 rings about the in-plane axes: drag to tilt the plane about the handle point, in 15 degree steps (Shift: free).
-  The angle is where the pointer ray meets the ring plane (`ringAngle`); a ring seen edge on is dragged along its tangent.
+  The angle is the screen direction of the pointer from the ring's projected centre, matched on the projected ring (an
+  ellipse when oblique; `ellipseAngle`), so the speed does not race near the centre; inside 40 % of the ring's screen
+  radius the tilt holds. A ring seen nearly edge on is dragged along its tangent.
   A tilted plane is stored as axis `custom` with `plane.normal`; one that lands on a world axis turns back into x, y or z.
 
 The section box keeps its 6 face handles (`plugins/section.ts`), now with a readout of the face coordinate and the box size.
@@ -89,6 +94,6 @@ share URL).
 ## Limits
 
 - Orthographic is the keyboard plugin's 2 degree approximation.
-- A rolled side view keeps `camera.up` rolled; mouse orbiting stays a turntable about world Y, which feels odd while
-  rolled. Click a face or Home to return.
+- A rolled side view keeps `camera.up` rolled until the next mouse orbit: as soon as a left-button drag on the canvas
+  starts, the roll eases back to world up (160 ms, or at once with smooth moves off), so the drag is the usual turntable.
 - The handles are drawn without depth testing, like the box handles.
