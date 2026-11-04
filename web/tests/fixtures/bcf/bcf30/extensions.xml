@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Extensions>
+  <TopicTypes><TopicType>Issue</TopicType><TopicType>Clash</TopicType></TopicTypes>
+  <TopicStatuses><TopicStatus>Open</TopicStatus><TopicStatus>Closed</TopicStatus></TopicStatuses>
+  <Priorities><Priority>Normal</Priority><Priority>Critical</Priority></Priorities>
+  <TopicLabels><TopicLabel>Structure</TopicLabel></TopicLabels>
+  <Users><User>dave@example.org</User></Users>
+  <Stages><Stage>Construction</Stage></Stages>
+</Extensions>

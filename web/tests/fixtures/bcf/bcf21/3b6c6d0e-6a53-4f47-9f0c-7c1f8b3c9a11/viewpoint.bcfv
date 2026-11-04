@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<VisualizationInfo Guid="f4e8c1a0-2b7d-4a59-b3c6-9d8e7f6a5b41" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <Components>
+    <ViewSetupHints SpacesVisible="false" SpaceBoundariesVisible="false" OpeningsVisible="true"/>
+    <Selection>
+      <Component IfcGuid="2XPyKWY018sA1ygZKgQPtU">
+        <OriginatingSystem>Test</OriginatingSystem>
+        <AuthoringToolId>263</AuthoringToolId>
+      </Component>
+      <Component IfcGuid="3PfS__Y_DBAfq5naM6zD2Z"/>
+      <Component IfcGuid="0000000000000000000000"/>
+    </Selection>
+    <Visibility DefaultVisibility="false">
+      <Exceptions>
+        <Component IfcGuid="2XPyKWY018sA1ygZKgQPtU"/>
+        <Component IfcGuid="3PfS__Y_DBAfq5naM6zD2Z"/>
+      </Exceptions>
+    </Visibility>
+    <Coloring>
+      <Color Color="FF0000">
+        <Component IfcGuid="2XPyKWY018sA1ygZKgQPtU"/>
+      </Color>
+      <Color Color="0000FF80">
+        <Component IfcGuid="3PfS__Y_DBAfq5naM6zD2Z"/>
+      </Color>
+    </Coloring>
+  </Components>
+  <OrthogonalCamera>
+    <CameraViewPoint><X>10</X><Y>-20</Y><Z>30</Z></CameraViewPoint>
+    <CameraDirection><X>0</X><Y>1</Y><Z>0</Z></CameraDirection>
+    <CameraUpVector><X>0</X><Y>0</Y><Z>1</Z></CameraUpVector>
+    <ViewToWorldScale>12.5</ViewToWorldScale>
+  </OrthogonalCamera>
+  <Lines>
+    <Line>
+      <StartPoint><X>0</X><Y>0</Y><Z>0</Z></StartPoint>
+      <EndPoint><X>1</X><Y>1</Y><Z>1</Z></EndPoint>
+    </Line>
+  </Lines>
+  <ClippingPlanes>
+    <ClippingPlane>
+      <Location><X>0</X><Y>0</Y><Z>3</Z></Location>
+      <Direction><X>0</X><Y>0</Y><Z>1</Z></Direction>
+    </ClippingPlane>
+  </ClippingPlanes>
+</VisualizationInfo>

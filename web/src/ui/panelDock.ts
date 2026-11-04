@@ -6,6 +6,7 @@
 // (index.html applies it before first paint, like `sb-collapsed` for the left sidebar).
 
 import { el } from './dom';
+import { registerAction } from '../input/actions';
 
 export const DOCK_KEY = 'xray.dock';
 export const DOCK_TRANSITION_MS = 220;
@@ -73,10 +74,13 @@ export class PanelDock {
     host.addEventListener('transitionend', (e) => {
       if (e.propertyName === 'width') this.onResize();
     });
-    window.addEventListener('keydown', (e) => {
-      const t = e.target as HTMLElement | null;
-      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)) return;
-      if (e.key === ']' && !e.ctrlKey && !e.metaKey && !e.altKey) this.setCollapsed(!this.state.collapsed);
+    // `]` toggles the dock through the action registry (keymap plugin owns the key).
+    registerAction({
+      id: 'panel.right',
+      label: 'Toggle parameter panel',
+      group: 'Panels',
+      keys: [']'],
+      run: () => this.setCollapsed(!this.state.collapsed),
     });
     this.apply();
   }

@@ -19,6 +19,7 @@ import { SetsView } from '../ui/setsView';
 import { TreeView } from '../ui/treeView';
 import { boxFromTuple, requestFrame } from '../ui/fit';
 import { debounce, el } from '../ui/dom';
+import { registerAction } from '../input/actions';
 
 const STATE_KEY = 'xray.sidebar';
 const REFRESH_MS = 250;
@@ -264,12 +265,17 @@ function buildDom(app: ViewerApp, sidebar: HTMLElement): Ui {
       filter.value = '';
       tree.setFilter('');
       updateFilterInfo(u);
+    } else if (e.key === 'Escape') {
+      filter.blur();
     }
   });
-  window.addEventListener('keydown', (e) => {
-    const t = e.target as HTMLElement | null;
-    if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT')) return;
-    if (e.key === '[' && !e.ctrlKey && !e.metaKey && !e.altKey) setCollapsed(u, !u.state.collapsed);
+  // `[` toggles the sidebar through the action registry (keymap plugin owns the key).
+  registerAction({
+    id: 'panel.left',
+    label: 'Toggle model tree',
+    group: 'Panels',
+    keys: ['['],
+    run: () => setCollapsed(u, !u.state.collapsed),
   });
 
   // The canvas fills #stage; whenever the stage changes size (toggle, window, mobile overlay) resize the renderer.

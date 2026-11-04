@@ -5,6 +5,10 @@
 // Embedded models: building, fzk-haus, plumbing (+ synth5k with --all). The scratch directory is removed unless --keep.
 // IFC reader: the web-ifc wasm is embedded as base64 (window.__xrayIfcWasm) and the worker is already inside the JS chunk
 // (see src/model/ifcRuntime.single.ts). --no-ifc builds without the reader: no wasm, no worker, no web-ifc code.
+// --template [--variant ifc|none] builds the templates used by tools/xray-pack.mjs instead: web/dist-single/xray-template-ifc.html
+// (with the IFC reader) and xray-template.html (without), no sample models, no footer note, and one clearly marked injection
+// block (XRAY-PACK:INJECT-BEGIN ... XRAY-PACK:INJECT-END) that holds window.__xrayEmbeddedModels = {}. Both variants are built
+// unless --variant picks one. Templates build in their own scratch directory.
 // --skip-vite reuses an existing .single-build (only valid when it was built with the same --no-ifc setting).
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
@@ -14,15 +18,26 @@ import { fileURLToPath } from 'node:url';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, '..');
-const buildDir = join(root, '.single-build');
+const template = process.argv.includes('--template');
+const variantArg = (() => { const i = process.argv.indexOf('--variant'); return i > 0 ? process.argv[i + 1] : ''; })();
+if (template && !variantArg) {
+  // run each variant in a child process: the vite config reads XRAY_NO_IFC once
+  for (const v of ['none', 'ifc']) {
+    const r = spawnSync(process.execPath, [fileURLToPath(import.meta.url), '--template', '--variant', v], { stdio: 'inherit' });
+    if (r.status !== 0) process.exit(r.status ?? 1);
+  }
+  process.exit(0);
+}
+if (template && variantArg !== 'ifc' && variantArg !== 'none') { console.error('build-single-file: --variant must be ifc or none'); process.exit(1); }
+const buildDir = join(root, template ? `.single-build-template-${variantArg}` : '.single-build');
 const modelsDir = join(root, 'public', 'models');
 const all = process.argv.includes('--all');
 const keep = process.argv.includes('--keep');
-const noIfc = process.argv.includes('--no-ifc');
+const noIfc = template ? variantArg === 'none' : process.argv.includes('--no-ifc');
 const skipVite = process.argv.includes('--skip-vite');
-const outFile = join(root, 'dist-single', noIfc ? 'xray-viewer-no-ifc.html' : 'xray-viewer.html');
+const outFile = join(root, 'dist-single', template ? (noIfc ? 'xray-template.html' : 'xray-template-ifc.html') : noIfc ? 'xray-viewer-no-ifc.html' : 'xray-viewer.html');
 
-const MODELS = [
+const MODELS = template ? [] : [
   { name: 'building', src: 'buildingSMART Simple-Scene: Building-Structural + Building-Architecture + Building-Hvac (IFC4)' },
   { name: 'fzk-haus', src: 'KIT FZK-Haus (AC20-FZK-Haus.ifc, from the IfcOpenShell repository)' },
   { name: 'plumbing', src: 'buildingSMART Simple-Scene: Infra-Plumbing (IFC4)' },
@@ -35,7 +50,7 @@ const die = (m) => { console.error('build-single-file: ' + m); process.exit(1); 
 if (!skipVite) {
   const viteBin = join(root, 'node_modules', 'vite', 'bin', 'vite.js');
   const r = spawnSync(process.execPath, [viteBin, 'build', '--config', 'vite.single.config.ts'], {
-    cwd: root, stdio: 'inherit', env: { ...process.env, XRAY_NO_IFC: noIfc ? '1' : '' },
+    cwd: root, stdio: 'inherit', env: { ...process.env, XRAY_NO_IFC: noIfc ? '1' : '', XRAY_SINGLE_OUT: template ? buildDir : '' },
   });
   if (r.status !== 0) die('vite build failed');
 }
@@ -82,7 +97,7 @@ html = html.replace(/<link\b[^>]*\brel="modulepreload"[^>]*>\s*/g, '');
 html = html.replace(/\s+crossorigin(="[^"]*")?/g, '');
 
 // ---- Title.
-html = html.replace(/<title>[^<]*<\/title>/, `<title>BIM X-ray viewer (single file${noIfc ? ', no IFC reader' : ''})</title>`);
+html = html.replace(/<title>[^<]*<\/title>/, `<title>${template ? 'BIM X-ray viewer' : `BIM X-ray viewer (single file${noIfc ? ', no IFC reader' : ''})`}</title>`);
 
 // ---- Embedded data.
 const embedded = {};
@@ -122,10 +137,13 @@ if (!noIfc) {
     '     is part of the IFC worker script and web-ifc.wasm is the wasm below (both gzip + base64). Source and licence: https://www.mozilla.org/MPL/2.0/ -->\n' +
     `<script>\nwindow.__xrayIfcWorkerGz = "${workerB64}";\nwindow.__xrayIfcWasm = "${b64}";\nwindow.__xrayIfcWasmEnc = "gzip";\n</script>\n`;
 }
-const embedScript =
-  '<script>\n' +
-  scriptSafe(`window.__xrayEmbeddedModels = ${JSON.stringify(embedded)};\nwindow.__xrayEmbeddedConfig = ${JSON.stringify(config)};`) +
-  '\n</script>\n' + wasmScript;
+const embedScript = template
+  // tools/xray-pack.mjs replaces everything between the two marker comments (models and window.__xrayBoot) and the <title>
+  ? '<script>\n/* XRAY-PACK:INJECT-BEGIN */\nwindow.__xrayEmbeddedModels = {};\n/* XRAY-PACK:INJECT-END */\n</script>\n<script>\n' +
+    scriptSafe(`window.__xrayEmbeddedConfig = ${JSON.stringify(config)};`) + '\n</script>\n' + wasmScript
+  : '<script>\n' +
+    scriptSafe(`window.__xrayEmbeddedModels = ${JSON.stringify(embedded)};\nwindow.__xrayEmbeddedConfig = ${JSON.stringify(config)};`) +
+    '\n</script>\n' + wasmScript;
 
 // ---- Assemble: embed data first, then the app module.
 const moduleScript = `<script type="module">\n${scriptSafe(appJs)}\n</script>\n`;
@@ -139,7 +157,7 @@ const note =
   MODELS.map((m) => `<b>${m.name}</b> (${m.src})`).join('; ') +
   (noIfc ? '. Built without the IFC reader: only glb files can be opened.' : '. Open your own .ifc or .glb files from the panel (Open model) or drop them on the viewer.') +
   '</div>\n';
-html = html.replace(/<\/body>/, () => note + '</body>');
+if (!template) html = html.replace(/<\/body>/, () => note + '</body>');
 
 if (/\bsrc="\.?\.?\/(assets|src)\//.test(html) || /<link[^>]+href="\.?\.?\/assets/.test(html)) die('a relative asset reference remains in the output');
 
@@ -149,6 +167,7 @@ if (!keep) rmSync(buildDir, { recursive: true, force: true });
 
 const size = statSync(outFile).size;
 console.log(`wrote ${outFile}`);
+if (template) console.log('  template: injection block XRAY-PACK:INJECT-BEGIN/END, no sample models');
 console.log(`  app JS ${fmtMB(jsBytes)} (1 chunk${noIfc ? ', no IFC reader' : ''}), embedded: ${sizes.join('; ')}`);
 console.log(noIfc ? '  IFC reader: not included (--no-ifc)' : `  IFC reader: worker script ${fmtMB(workerBytes)} -> ${fmtMB(workerEmbedded)} and web-ifc.wasm ${fmtMB(wasmBytes)} -> ${fmtMB(wasmEmbedded)} embedded as gzip + base64`);
 console.log(`  total ${size} bytes (${fmtMB(size)})${all ? ' [--all]' : ''}${noIfc ? ' [--no-ifc]' : ''}`);

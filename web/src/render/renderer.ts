@@ -32,8 +32,10 @@ import {
   Scene,
   ShaderMaterial,
   Sphere,
+  Matrix4,
   Vector2,
   Vector3,
+  Vector4,
   WebGLRenderer,
   WebGLRenderTarget,
   DirectionalLight,
@@ -44,10 +46,44 @@ import type { Classification, ElementId, RenderState } from '../types';
 import { FLAG_FOCUS, FLAG_HIDDEN } from '../types';
 import type { LoadedModel } from '../model/loader';
 import { EDGE_FRAG, EDGE_VERT, MESH_FRAG, MESH_VERT, OIT_COMPOSITE_FRAG, OIT_COMPOSITE_VERT } from './shaders';
+import { PEEL_FULLSCREEN_VERT, PEEL_INIT_FRAG, PEEL_MASK_FRAG, PEEL_STEP_FRAG } from './viewModeGlsl';
+import { JFA_START, PEEL_EPS, PEEL_MAX_ELLIPSES, boxScreenEllipse, jfaSteps, peelCutsPoint } from '../viewModes/maths';
+import type { FrontTreatment, Plane, ScreenEllipse } from '../viewModes/maths';
 import { OPAQUE_ALPHA } from './ghostMath';
 import type { OitWeightMode } from './oitMath';
 
 type Uniforms = Record<string, IUniform>;
+
+/** Behind-only: what the shaders need (see viewModes/maths.ts for the plane convention). */
+export interface BehindRender {
+  plane: Plane;
+  treatment: FrontTreatment;
+  frontAlpha: number;
+  keepXray: boolean;
+  occludersOnly: boolean;
+  capColour: readonly [number, number, number];
+}
+
+/** Partial peelback: radius is already scaled by the grow animation. */
+export interface PeelRender {
+  r0: number;
+  slope: number;
+  feather: number;
+  /** Depth tolerance, metres. */
+  eps?: number;
+  rim: boolean;
+  rimColour: readonly [number, number, number];
+  capColour: readonly [number, number, number];
+  solidOutside: boolean;
+  occludersOnly: boolean;
+  /** Focus element ids (for the CPU fallback and for picking). */
+  focus: readonly number[];
+}
+
+export type PeelPath = 'off' | 'gpu-jfa' | 'cpu-ellipse';
+
+/** Resolution of the peel mask relative to the render target. */
+const PEEL_SCALE = 0.5;
 
 /**
  * Replaces the plain scene render (see setPostPipeline). The function is responsible for drawing the
@@ -110,6 +146,33 @@ export class XrayRenderer {
   private focusOnlyBackground: Scene['background'] = null;
   private readonly materials: ShaderMaterial[] = [];
   private focusMaterial: ShaderMaterial | null = null;
+
+  // View modes (render/viewModeGlsl.ts, viewModes/maths.ts).
+  private behind: BehindRender | null = null;
+  private peel: PeelRender | null = null;
+  private vmMask: Uint8Array | null = null;
+  private vmGhost = false;
+  private readonly peelScene = new Scene();
+  private readonly peelPassScene = new Scene();
+  private peelMaskMesh: Mesh | null = null;
+  private peelQuad: Mesh | null = null;
+  private peelInitMat: ShaderMaterial | null = null;
+  private peelStepMat: ShaderMaterial | null = null;
+  private peelMaskRT: WebGLRenderTarget | null = null;
+  private peelA: WebGLRenderTarget | null = null;
+  private peelB: WebGLRenderTarget | null = null;
+  private peelFailure: string | null = null;
+  private peelForceCpu = false;
+  private peelStale = true;
+  private peelSig = 0;
+  private peelKey = new Float64Array(35);
+  private peelPathNow: PeelPath = 'off';
+  private peelDummy: DataTexture;
+  private readonly peelFloatOk: boolean;
+  private readonly viewProj = new Matrix4();
+  private peelEllipses: ScreenEllipse[] = [];
+  /** Counters for tests and benchmarks: how often the mask + flood ran. */
+  peelRefreshes = 0;
 
   // Weighted blended OIT for the ghost pass (see render/oitMath.ts). The ghost pass of the main scene is
   // replaced by a full-screen composite (oitQuad, at the ghost's draw-order slot) of two attachments that
@@ -222,7 +285,36 @@ export class XrayRenderer {
       glowStrength: { value: 0.3 },
       glowRes: { value: new Vector2(1, 1) },
       oitFlat: { value: 0 },
+      vmAny: { value: 0 },
+      bhOn: { value: 0 },
+      bhMode: { value: 0 },
+      bhOccOnly: { value: 0 },
+      bhKeep: { value: 0 },
+      bhFrontAlpha: { value: 0.12 },
+      bhPlane: { value: new Vector4(0, 0, -1, 0) },
+      bhCap: { value: new Vector3(0.93, 0.78, 0.5) },
+      peelOn: { value: 0 },
+      peelOccOnly: { value: 0 },
+      peelSolid: { value: 0 },
+      peelRimOn: { value: 0 },
+      peelCapOn: { value: 1 },
+      peelP: { value: new Vector4(0.4, 0.6, 0.08, PEEL_EPS) },
+      peelRimCol: { value: new Vector3(1, 0.55, 0.12) },
+      peelCapCol: { value: new Vector3(0.93, 0.78, 0.5) },
+      peelTex: { value: null },
+      peelTexSize: { value: new Vector2(1, 1) },
+      peelRes: { value: new Vector2(1, 1) },
+      peelProjY: { value: 1 },
+      peelEll: { value: Array.from({ length: PEEL_MAX_ELLIPSES }, () => new Vector4(0, 0, 1, 1)) },
+      peelEllZ: { value: new Array<number>(PEEL_MAX_ELLIPSES).fill(0) },
+      peelEllN: { value: 0 },
+      hoverId: { value: -1 },
+      hoverColor: { value: new Vector3(1, 0.85, 0.2) },
     };
+    this.peelDummy = new DataTexture(new Float32Array(4), 1, 1, RGBAFormat, FloatType);
+    this.peelDummy.needsUpdate = true;
+    this.shared.peelTex!.value = this.peelDummy;
+    this.peelFloatOk = ext.has('EXT_color_buffer_float');
     this.syncLights();
     this.resize();
   }
@@ -431,6 +523,23 @@ export class XrayRenderer {
     this.oitDepthOpaque = dOpaque;
     this.oitDepthFocus = dFocus;
     this.oitGhost = oitGhost;
+    // Peel mask: the focus set again, colour = view depth, in a private scene.
+    const maskMat = new ShaderMaterial({
+      vertexShader: MESH_VERT,
+      fragmentShader: PEEL_MASK_FRAG,
+      uniforms: this.shared,
+      defines: { PASS_FOCUS: '' },
+      side: DoubleSide,
+      depthTest: true,
+      depthWrite: true,
+      blending: NoBlending,
+    });
+    this.materials.push(maskMat);
+    const maskMesh = new Mesh(g.geometry, maskMat);
+    maskMesh.frustumCulled = false;
+    maskMesh.name = 'xray-peel-mask';
+    this.peelScene.add(maskMesh);
+    this.peelMaskMesh = maskMesh;
     this.opaqueMesh = opaque;
     this.ghostMesh = ghost;
     this.focusMesh = focus;
@@ -444,6 +553,9 @@ export class XrayRenderer {
       if (o) this.scene.remove(o);
     }
     this.edgesGlow = [];
+    if (this.peelMaskMesh) this.peelScene.remove(this.peelMaskMesh);
+    this.peelMaskMesh = null;
+    this.peelStale = true;
     for (const o of [this.oitDepthOpaque, this.oitDepthFocus, this.oitGhost]) if (o) this.oitScene.remove(o);
     this.oitDepthOpaque = this.oitDepthFocus = this.oitGhost = null;
     for (const m of this.materials) m.dispose();
@@ -539,7 +651,10 @@ export class XrayRenderer {
     const B = this.dataB;
     const glow = this.glowMask;
     const hold = this.sweepHold;
+    const vmMask = this.vmMask && this.vmMask.length === this.n ? this.vmMask : null;
     let ghost = false;
+    let fsig = 0; // signature of what the peel mask depends on: the focus and hidden flags
+    const peelBits = FLAG_FOCUS | FLAG_HIDDEN;
     for (let i = 0; i < this.n; i++) {
       const o = i * 4;
       A[o] = color[i * 3]!;
@@ -549,11 +664,17 @@ export class XrayRenderer {
       A[o + 3] = a;
       // alpha < 0 (types.HIDDEN) also means hidden
       B[o] = a < 0 ? flags[i]! | FLAG_HIDDEN : flags[i]!;
+      fsig = (Math.imul(fsig, 31) + (B[o]! & peelBits)) | 0;
       B[o + 1] = glow ? glow[i]! : 0; // edge-glow membership
       B[o + 2] = hold ? hold[i]! : 0; // sweep hold alpha (0: not in the sweep)
+      B[o + 3] = vmMask ? vmMask[i]! : 1; // view-mode occluder mask
       if (!ghost && a >= 0 && a < OPAQUE_ALPHA && (flags[i]! & (FLAG_FOCUS | FLAG_HIDDEN)) === 0) ghost = true;
     }
     this.anyGhost = ghost;
+    if (fsig !== this.peelSig) {
+      this.peelSig = fsig;
+      this.peelStale = true;
+    }
     this.texA.needsUpdate = true;
     this.texB.needsUpdate = true;
     this.dirty = false;
@@ -578,6 +699,7 @@ export class XrayRenderer {
     if (this.offsetsDirty) {
       this.texC.needsUpdate = true;
       this.offsetsDirty = false;
+      this.peelStale = true;
     }
     this.syncLights();
     if (this.post) this.post(this);
@@ -592,7 +714,8 @@ export class XrayRenderer {
    */
   renderScene(): void {
     if (!this.focusOnlyStash) {
-      const compose = this.oitOn && this.anyGhost && this.renderOitTarget();
+      this.prepareViewModes();
+      const compose = this.oitOn && (this.anyGhost || this.vmGhost) && this.renderOitTarget();
       if (this.ghostMesh) this.ghostMesh.visible = !this.oitOn;
       this.oitQuad.visible = compose;
     }
@@ -812,6 +935,293 @@ export class XrayRenderer {
     this.dirty = true;
   }
 
+  // ------------------------------------------------------------------ view modes
+
+  /**
+   * Behind-only view: per fragment, context in front of `plane` (perpendicular to the view, through the focus's
+   * nearest point) is cut, ghosted or cut with a cap; context behind it is drawn solid. null turns it off.
+   * Elements split between passes: the opaque pass keeps the behind part, the ghost pass the front part (ghost treatment).
+   */
+  setBehind(p: BehindRender | null): void {
+    this.behind = p;
+    const u = this.shared;
+    u.bhOn!.value = p ? 1 : 0;
+    if (p) {
+      (u.bhPlane!.value as Vector4).set(p.plane.nx, p.plane.ny, p.plane.nz, p.plane.d);
+      u.bhMode!.value = p.treatment === 'cut' ? 0 : p.treatment === 'ghost' ? 1 : 2;
+      u.bhFrontAlpha!.value = p.frontAlpha;
+      u.bhKeep!.value = p.keepXray ? 1 : 0;
+      u.bhOccOnly!.value = p.occludersOnly ? 1 : 0;
+      (u.bhCap!.value as Vector3).set(p.capColour[0], p.capColour[1], p.capColour[2]);
+    }
+    this.vmGhost = (p !== null && p.treatment === 'ghost') || (this.peel !== null && this.peel.feather > 0);
+    u.vmAny!.value = p || this.peel ? 1 : 0;
+  }
+
+  /**
+   * Partial peelback: a window through the context in front of the focus, shaped like the focus silhouette
+   * (low-resolution mask with depth, jump-flooded to the nearest focus pixel and its depth; see viewModeGlsl.ts).
+   * null turns it off.
+   */
+  setPeel(p: PeelRender | null): void {
+    this.peel = p;
+    const u = this.shared;
+    if (p) {
+      (u.peelP!.value as Vector4).set(p.r0, p.slope, p.feather, p.eps ?? PEEL_EPS);
+      u.peelSolid!.value = p.solidOutside ? 1 : 0;
+      u.peelOccOnly!.value = p.occludersOnly ? 1 : 0;
+      u.peelRimOn!.value = p.rim ? 1 : 0;
+      (u.peelRimCol!.value as Vector3).set(p.rimColour[0], p.rimColour[1], p.rimColour[2]);
+      (u.peelCapCol!.value as Vector3).set(p.capColour[0], p.capColour[1], p.capColour[2]);
+    } else {
+      u.peelOn!.value = 0;
+      this.peelPathNow = 'off';
+    }
+    this.vmGhost = (this.behind !== null && this.behind.treatment === 'ghost') || (p !== null && p.feather > 0);
+    u.vmAny!.value = this.behind || p ? 1 : 0;
+  }
+
+  /** 1 = occluder (host, near, far that blocks), per element; used by the 'occluders only' scope. null: every element counts. */
+  setViewModeMask(mask: Uint8Array | null): void {
+    this.vmMask = mask;
+    this.dirty = true;
+  }
+
+  /** Which peel implementation ran on the last frame: 'gpu-jfa' (mask + jump flooding), 'cpu-ellipse' (fallback) or 'off'. */
+  get peelPath(): PeelPath {
+    return this.peelPathNow;
+  }
+
+  /** Why the GPU path is not used ('' when it is available). */
+  get peelGpuStatus(): string {
+    if (this.peelForceCpu) return 'CPU path forced';
+    if (!this.peelFloatOk) return 'no EXT_color_buffer_float';
+    return this.peelFailure ?? '';
+  }
+
+  /** Force the CPU ellipse fallback ('cpu') or let the renderer pick ('auto'). */
+  setPeelPath(mode: 'auto' | 'cpu'): void {
+    this.peelForceCpu = mode === 'cpu';
+    this.peelStale = true;
+  }
+
+  /**
+   * Tint one element (and brighten its edges) without touching the state flags. null clears. Cheap: a uniform
+   * compared against the element id in the fragment shaders. Takes effect on the next frame.
+   */
+  setHoverHighlight(id: number | null, color?: [number, number, number]): void {
+    this.shared.hoverId!.value = id === null || id < 0 ? -1 : id;
+    if (color) (this.shared.hoverColor!.value as Vector3).set(color[0], color[1], color[2]);
+  }
+
+  private targetSize(): { w: number; h: number } {
+    const dst = this.renderer.getRenderTarget();
+    if (dst) return { w: dst.width, h: dst.height };
+    this.renderer.getDrawingBufferSize(this.tmpSize);
+    return { w: Math.max(1, Math.floor(this.tmpSize.x)), h: Math.max(1, Math.floor(this.tmpSize.y)) };
+  }
+
+  /** Per-frame setup of the view-mode uniforms; runs the peel mask and flood when the camera or the focus changed. */
+  private prepareViewModes(): void {
+    const u = this.shared;
+    const peel = this.peel;
+    if (!peel || !this.peelMaskMesh || peel.focus.length === 0) {
+      u.peelOn!.value = 0;
+      this.peelPathNow = 'off';
+      u.vmAny!.value = this.behind ? 1 : 0;
+      return;
+    }
+    const { w, h } = this.targetSize();
+    (u.peelRes!.value as Vector2).set(w, h);
+    u.peelProjY!.value = this.camera.projectionMatrix.elements[5];
+    this.camera.updateMatrixWorld();
+    let gpu = this.peelFloatOk && !this.peelForceCpu && this.peelFailure === null;
+    if (gpu) gpu = this.refreshPeelMask(w, h, peel);
+    if (gpu) {
+      u.peelOn!.value = 1;
+      this.peelPathNow = 'gpu-jfa';
+    } else {
+      this.fillEllipses(w, h, peel);
+      u.peelOn!.value = 2;
+      this.peelPathNow = 'cpu-ellipse';
+    }
+    u.vmAny!.value = 1;
+  }
+
+  private freePeelTargets(): void {
+    this.peelMaskRT?.dispose();
+    this.peelA?.dispose();
+    this.peelB?.dispose();
+    this.peelMaskRT = this.peelA = this.peelB = null;
+    this.shared.peelTex!.value = this.peelDummy;
+    this.peelStale = true;
+  }
+
+  private makeFloatTarget(w: number, h: number, depth: boolean): WebGLRenderTarget | null {
+    const rt = new WebGLRenderTarget(w, h, { type: FloatType, format: RGBAFormat, depthBuffer: depth, samples: 0 });
+    rt.texture.minFilter = rt.texture.magFilter = NearestFilter;
+    rt.texture.generateMipmaps = false;
+    const r = this.renderer;
+    const gl = r.getContext();
+    const prev = r.getRenderTarget();
+    while (gl.getError() !== gl.NO_ERROR) { /* drain */ }
+    r.setRenderTarget(rt);
+    const ok = gl.checkFramebufferStatus(gl.FRAMEBUFFER) === gl.FRAMEBUFFER_COMPLETE && gl.getError() === gl.NO_ERROR;
+    r.setRenderTarget(prev);
+    if (!ok) {
+      rt.dispose();
+      return null;
+    }
+    return rt;
+  }
+
+  /** Mask + jump flood into this.peelTex. False when float targets cannot be built (the CPU path then runs). */
+  private refreshPeelMask(w: number, h: number, peel: PeelRender): boolean {
+    const mw = Math.max(1, Math.ceil(w * PEEL_SCALE));
+    const mh = Math.max(1, Math.ceil(h * PEEL_SCALE));
+    if (!this.peelMaskRT || this.peelMaskRT.width !== mw || this.peelMaskRT.height !== mh) {
+      this.freePeelTargets();
+      const m = this.makeFloatTarget(mw, mh, true);
+      const a = m ? this.makeFloatTarget(mw, mh, false) : null;
+      const b = a ? this.makeFloatTarget(mw, mh, false) : null;
+      if (!m || !a || !b) {
+        m?.dispose();
+        a?.dispose();
+        this.peelFailure = 'incomplete framebuffer for RGBA32F';
+        console.warn(`Peelback GPU path disabled: ${this.peelFailure}`);
+        return false;
+      }
+      this.peelMaskRT = m;
+      this.peelA = a;
+      this.peelB = b;
+    }
+    // Skip the work when nothing it depends on changed (camera, projection, target size, element state, focus set).
+    const key = this.peelKey;
+    const vi = this.camera.matrixWorldInverse.elements;
+    const pr = this.camera.projectionMatrix.elements;
+    let changed = this.peelStale;
+    for (let i = 0; i < 16; i++) {
+      if (key[i] !== vi[i]) changed = true;
+      if (key[16 + i] !== pr[i]) changed = true;
+    }
+    let sig = peel.focus.length;
+    for (const id of peel.focus) sig = (sig * 31 + id) % 1000003;
+    if (key[32] !== w || key[33] !== h || key[34] !== sig) changed = true;
+    if (!changed && this.shared.peelTex!.value !== this.peelDummy) return true;
+    for (let i = 0; i < 16; i++) {
+      key[i] = vi[i]!;
+      key[16 + i] = pr[i]!;
+    }
+    key[32] = w;
+    key[33] = h;
+    key[34] = sig;
+    this.peelStale = false;
+    this.peelRefreshes++;
+
+    const r = this.renderer;
+    const dst = r.getRenderTarget();
+    const autoClear = r.autoClear;
+    const clearAlpha = r.getClearAlpha();
+    r.getClearColor(this.tmpColor);
+    r.autoClear = true;
+    r.setClearColor(0x000000, 0);
+    r.setRenderTarget(this.peelMaskRT);
+    r.render(this.peelScene, this.camera);
+    r.autoClear = false;
+
+    if (!this.peelQuad) {
+      this.peelInitMat = new ShaderMaterial({ vertexShader: PEEL_FULLSCREEN_VERT, fragmentShader: PEEL_INIT_FRAG, uniforms: { tMask: { value: null } }, depthTest: false, depthWrite: false, blending: NoBlending, side: DoubleSide });
+      this.peelStepMat = new ShaderMaterial({ vertexShader: PEEL_FULLSCREEN_VERT, fragmentShader: PEEL_STEP_FRAG, uniforms: { tSeed: { value: null }, jump: { value: 1 } }, depthTest: false, depthWrite: false, blending: NoBlending, side: DoubleSide });
+      this.peelQuad = new Mesh(this.oitQuad.geometry, this.peelInitMat);
+      this.peelQuad.frustumCulled = false;
+      this.peelPassScene.add(this.peelQuad);
+    }
+    this.peelInitMat!.uniforms.tMask!.value = this.peelMaskRT.texture;
+    this.peelQuad.material = this.peelInitMat!;
+    let src = this.peelA!;
+    let other = this.peelB!;
+    r.setRenderTarget(src);
+    r.render(this.peelPassScene, this.camera);
+    this.peelQuad.material = this.peelStepMat!;
+    for (const jump of jfaSteps(JFA_START)) {
+      this.peelStepMat!.uniforms.tSeed!.value = src.texture;
+      this.peelStepMat!.uniforms.jump!.value = jump;
+      r.setRenderTarget(other);
+      r.render(this.peelPassScene, this.camera);
+      const t = src;
+      src = other;
+      other = t;
+    }
+    r.setClearColor(this.tmpColor, clearAlpha);
+    r.autoClear = autoClear;
+    r.setRenderTarget(dst);
+    this.shared.peelTex!.value = src.texture;
+    (this.shared.peelTexSize!.value as Vector2).set(mw, mh);
+    return true;
+  }
+
+  /** Screen ellipses (pixels, bottom-left origin) of the focus elements, at most PEEL_MAX_ELLIPSES, the largest first. */
+  private computeEllipses(w: number, h: number, focus: readonly number[]): ScreenEllipse[] {
+    const els = this.loaded?.model.elements;
+    if (!els) return [];
+    this.camera.updateMatrixWorld();
+    this.viewProj.multiplyMatrices(this.camera.projectionMatrix, this.camera.matrixWorldInverse);
+    const out: ScreenEllipse[] = [];
+    for (const id of focus) {
+      const b = els[id]?.bounds;
+      if (!b) continue;
+      const e = boxScreenEllipse(this.viewProj.elements, this.camera.matrixWorldInverse.elements, b, w, h);
+      if (e) out.push(e);
+    }
+    out.sort((a, b) => b.ax * b.ay - a.ax * a.ay);
+    return out.slice(0, PEEL_MAX_ELLIPSES);
+  }
+
+  private fillEllipses(w: number, h: number, peel: PeelRender): void {
+    const list = this.computeEllipses(w, h, peel.focus);
+    this.peelEllipses = list;
+    const u = this.shared;
+    const ell = u.peelEll!.value as Vector4[];
+    const z = u.peelEllZ!.value as number[];
+    list.forEach((e, i) => {
+      ell[i]!.set(e.cx, e.cy, e.ax, e.ay);
+      z[i] = e.z;
+    });
+    u.peelEllN!.value = list.length;
+  }
+
+  /** Is the surface point hit by the picker removed by a view mode (cut, or almost transparent)? Approximate for the peel. */
+  private cutByViewMode(id: ElementId, point: Vector3): boolean {
+    const b = this.behind;
+    const p = this.peel;
+    if (!b && !p) return false;
+    const flags = this.state.flags[id]!;
+    if ((flags & FLAG_FOCUS) !== 0) return false;
+    const occ = this.vmMask ? this.vmMask[id] === 1 : true;
+    if (b && (!b.occludersOnly || occ)) {
+      const front = b.plane.nx * point.x + b.plane.ny * point.y + b.plane.nz * point.z < b.plane.d;
+      if (front && (b.treatment !== 'ghost' || b.frontAlpha < 0.3)) return true;
+    }
+    if (p && p.focus.length > 0 && (!p.occludersOnly || occ)) {
+      const { w, h } = this.targetSize();
+      if (!this.pickEllipseFresh) {
+        this.peelEllipses = this.computeEllipses(w, h, p.focus);
+        this.pickEllipseFresh = true;
+      }
+      const v = point.clone().applyMatrix4(this.camera.matrixWorldInverse);
+      const c = point.clone().applyMatrix4(this.viewProj);
+      const wClip = point.x * this.viewProj.elements[3]! + point.y * this.viewProj.elements[7]! + point.z * this.viewProj.elements[11]! + this.viewProj.elements[15]!;
+      if (wClip > 1e-4) {
+        const x = (c.x * 0.5 + 0.5) * w;
+        const y = (c.y * 0.5 + 0.5) * h;
+        const maths = { r0: p.r0, slope: p.slope, feather: p.feather, eps: p.eps ?? PEEL_EPS };
+        if (peelCutsPoint(this.peelEllipses, x, y, -v.z, maths, (this.camera.fov * Math.PI) / 180, h)) return true;
+      }
+    }
+    return false;
+  }
+  private pickEllipseFresh = false;
+
   // ------------------------------------------------------------------ sweep, depth grade, offsets
 
   /**
@@ -914,6 +1324,7 @@ export class XrayRenderer {
     const bvh = g.bvh;
     const { alpha, flags } = this.state;
     let near = 0;
+    this.pickEllipseFresh = false;
     for (let iter = 0; iter < 512; iter++) {
       const hit = bvh.raycastFirst(ray, DoubleSide, near, Infinity);
       if (!hit || hit.faceIndex == null) return null;
@@ -923,7 +1334,7 @@ export class XrayRenderer {
         const a = alpha[id]!;
         const hidden = (f & FLAG_HIDDEN) !== 0 || a < 0;
         const clickThrough = (f & FLAG_FOCUS) === 0 && a < 0.3;
-        if (!hidden && !clickThrough) return id;
+        if (!hidden && !clickThrough && !this.cutByViewMode(id, hit.point)) return id;
       }
       near = hit.distance + 1e-4;
     }
@@ -935,6 +1346,10 @@ export class XrayRenderer {
     this.controls.dispose();
     this.disposeMeshes();
     this.freeOitTarget();
+    this.freePeelTargets();
+    this.peelInitMat?.dispose();
+    this.peelStepMat?.dispose();
+    this.peelDummy.dispose();
     this.oitQuadMaterial.dispose();
     this.oitQuad.geometry.dispose();
     this.texA.dispose();

@@ -12,9 +12,14 @@ import { cleanupPlugin } from './cleanup';
 import { hoverInfoPlugin } from './hoverInfo';
 import { presetsPlugin } from './presets';
 import { keymapPlugin } from './keymap';
+import { toolbarPlugin } from './toolbar';
+import { penetrationsPlugin } from './penetrations';
+import { measurePlugin } from './measure';
+import { bcfPlugin } from './bcf';
+import { bootPlugin } from './boot';
 import { helpPlugin } from './help';
 import { panelDockPlugin } from './panelDock';
 import { exportParamsPlugin } from './exportParams';
 
 // help runs after every panel-building plugin so it can see all controls; panelDock last so it wraps the finished panel.
-export const PLUGINS: AppPlugin[] = [fileLoaderPlugin, classStylesPlugin, sidebarPlugin, cinematicPlugin, oitPlugin, viewModesPlugin, imagingPlugin, cleanupPlugin, hoverInfoPlugin, presetsPlugin, keymapPlugin, exportParamsPlugin, helpPlugin, panelDockPlugin];
+export const PLUGINS: AppPlugin[] = [fileLoaderPlugin, classStylesPlugin, sidebarPlugin, cinematicPlugin, oitPlugin, viewModesPlugin, imagingPlugin, cleanupPlugin, hoverInfoPlugin, presetsPlugin, penetrationsPlugin, measurePlugin, bcfPlugin, toolbarPlugin, keymapPlugin, exportParamsPlugin, helpPlugin, panelDockPlugin, bootPlugin];

@@ -162,6 +162,54 @@ def generate(n: int, seed: int):
     return items, boxes, ports, s, k, n_struct, E
 
 
+def synth_props(it: dict, mn, mx, s: int) -> dict | None:
+    """Plausible hover-info properties for a synthetic box element (same key format as ifc2glb.py --props common)."""
+    cls = it["ifcClass"]
+    dx, dy, dz = (float(x) for x in (mx - mn))
+    r = lambda x: glb_common.normalize_number("IfcReal", x, {})  # noqa: E731 - 4 significant digits
+    e: list = []
+    A, C, Q = glb_common.GROUP_ATTR, glb_common.GROUP_COMMON, glb_common.GROUP_QTY
+    role = it.get("_role")
+    top = bool(role) and role[0] == "slab" and role[1] == s
+    if cls == "IfcWall":
+        e += [("Attr.ObjectType", f"Wall:{it['material']} 200", A), ("Attr.PredefinedType", "STANDARD", A),
+              ("Pset_WallCommon.IsExternal", True, C), ("Pset_WallCommon.LoadBearing", False, C),
+              ("Pset_WallCommon.FireRating", "EI60", C), ("Pset_WallCommon.Reference", "W-200-" + it["material"][:2].upper(), C)]
+        ln = max(dx, dy)
+        e += [("Qto_WallBaseQuantities.Length", r(ln), Q), ("Qto_WallBaseQuantities.Width", r(min(dx, dy)), Q),
+              ("Qto_WallBaseQuantities.Height", r(dz), Q), ("Qto_WallBaseQuantities.NetVolume", r(dx * dy * dz), Q)]
+    elif cls == "IfcSlab":
+        e += [("Attr.ObjectType", "Floor:Concrete 250", A), ("Attr.PredefinedType", "ROOF" if top else "FLOOR", A),
+              ("Pset_SlabCommon.IsExternal", top, C), ("Pset_SlabCommon.LoadBearing", True, C),
+              ("Pset_SlabCommon.FireRating", "REI90", C), ("Pset_SlabCommon.Reference", "S-250", C)]
+        e += [("Qto_SlabBaseQuantities.Length", r(max(dx, dy)), Q), ("Qto_SlabBaseQuantities.Width", r(min(dx, dy)), Q),
+              ("Qto_SlabBaseQuantities.Depth", r(dz), Q), ("Qto_SlabBaseQuantities.NetArea", r(dx * dy), Q),
+              ("Qto_SlabBaseQuantities.NetVolume", r(dx * dy * dz), Q)]
+    elif cls == "IfcBeam":
+        e += [("Attr.ObjectType", "Beam:Concrete 300x500", A), ("Attr.PredefinedType", "BEAM", A),
+              ("Pset_BeamCommon.IsExternal", False, C), ("Pset_BeamCommon.LoadBearing", True, C),
+              ("Pset_BeamCommon.FireRating", "R90", C), ("Pset_BeamCommon.Reference", "B-300x500", C)]
+        e += [("Qto_BeamBaseQuantities.Length", r(max(dx, dy)), Q), ("Qto_BeamBaseQuantities.CrossSectionArea", r(min(dx, dy) * dz), Q),
+              ("Qto_BeamBaseQuantities.NetVolume", r(dx * dy * dz), Q)]
+    elif cls == "IfcColumn":
+        e += [("Attr.ObjectType", "Column:Concrete 400x400", A), ("Attr.PredefinedType", "COLUMN", A),
+              ("Pset_ColumnCommon.IsExternal", False, C), ("Pset_ColumnCommon.LoadBearing", True, C),
+              ("Pset_ColumnCommon.FireRating", "R90", C), ("Pset_ColumnCommon.Reference", "C-400", C)]
+        e += [("Qto_ColumnBaseQuantities.Length", r(dz), Q), ("Qto_ColumnBaseQuantities.CrossSectionArea", r(dx * dy), Q),
+              ("Qto_ColumnBaseQuantities.NetVolume", r(dx * dy * dz), Q)]
+    elif cls in ("IfcDuctSegment", "IfcPipeSegment"):
+        duct = cls == "IfcDuctSegment"
+        nm = "Duct" if duct else "Pipe"
+        e += [("Attr.ObjectType", f"{nm} 600x300" if duct else "Pipe PVC 100", A), ("Attr.PredefinedType", "RIGIDSEGMENT", A),
+              (f"Pset_{nm}SegmentTypeCommon.Reference", "D-600x300" if duct else "P-100", C),
+              (f"Pset_{nm}SegmentTypeCommon.IsExternal", False, C)]
+        ln = max(dx, dy, dz)
+        e += [(f"Qto_{nm}SegmentBaseQuantities.Length", r(ln), Q)]
+        if duct:
+            e += [("Qto_DuctSegmentBaseQuantities.CrossSectionArea", r(0.6 * 0.3), Q)]
+    return glb_common.finalize_props(e)
+
+
 def build(n: int, seed: int, out_base: str, config: str | None = None) -> dict:
     items, boxes, ports, s, k, n_struct, E = generate(n, seed)
     # hosts: MEP boxes that overlap a slab box with positive volume
@@ -169,6 +217,7 @@ def build(n: int, seed: int, out_base: str, config: str | None = None) -> dict:
     sl_min = np.array([boxes[i][0] for i in slab_ids]).reshape(-1, 3)
     sl_max = np.array([boxes[i][1] for i in slab_ids]).reshape(-1, 3)
     voids, fills, hosts = [], [], []
+    openings = []   # {expressId, host, bounds (IFC frame; write_model converts)}: overlap box grown by 10 mm
     opening = OPENING_BASE
     for i, it in enumerate(items):
         if it["ifcClass"] not in ("IfcDuctSegment", "IfcPipeSegment"):
@@ -181,13 +230,17 @@ def build(n: int, seed: int, out_base: str, config: str | None = None) -> dict:
             voids.append([host, opening])
             fills.append([opening, i])
             hosts.append([i, host])
+            lo_b = np.maximum(sl_min[si], mn) - 0.01
+            hi_b = np.minimum(sl_max[si], mx) + 0.01
+            openings.append({"expressId": opening, "host": host,
+                             "bounds": [float(x) for x in np.concatenate([lo_b, hi_b])]})
 
     # build meshes + storeys
     out_items = []
     for i, (it, (mn, mx)) in enumerate(zip(items, boxes)):
         v, f, nrm = glb_common.box_mesh(mn, mx)
         out_items.append({**it, "globalId": guid(i, seed), "verts": v, "faces": f, "normals": nrm,
-                          "file": os.path.basename(out_base) + ".synth"})
+                          "file": os.path.basename(out_base) + ".synth", "props": synth_props(it, mn, mx, s)})
     storeys = [{"id": i, "name": f"Level {i}" if i < s else "Roof", "elevation": E[i]} for i in range(s + 1)]
     systems = [
         {"name": "Supply Air", "elements": [i for i, it in enumerate(items) if it["ifcClass"] == "IfcDuctSegment"]},
@@ -195,6 +248,8 @@ def build(n: int, seed: int, out_base: str, config: str | None = None) -> dict:
     ]
     systems = [x for x in systems if x["elements"]]
     relations = {"voids": voids, "fills": fills, "hosts": hosts, "ports": ports, "systems": systems}
+    if openings:
+        relations["openings"] = openings
     source = {"files": [f"synthetic(n={n},seed={seed})"], "converter": "synth_model.py", "ifcSchema": "none"}
     os.makedirs(os.path.dirname(os.path.abspath(out_base)), exist_ok=True)
     extra = glb_common.load_style_config(config) if config else None

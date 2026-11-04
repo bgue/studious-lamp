@@ -5,6 +5,7 @@ import type { BufferGeometry, Material, Mesh, Object3D } from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import type { ClassStyles, ElementRecord, Relations, SceneModel, StoreyRecord } from '../types';
 import { MergedGeometry } from './merged';
+import { sanitizeProps } from './ifcProps';
 import type { MeshPart } from './merged';
 
 export { MergedGeometry, EDGE_THRESHOLD_DEG } from './merged';
@@ -149,6 +150,7 @@ export async function parseModel(glb: ArrayBuffer, sidecar?: unknown): Promise<L
       color: normaliseColor(r.color),
       bounds: (r.bounds ?? [0, 0, 0, 0, 0, 0]) as ElementRecord['bounds'],
       file: r.file,
+      props: sanitizeProps(r.props),
     }));
     for (let i = 0; i < elements.length; i++) parts.push([]);
     for (const g of order) {
@@ -164,6 +166,7 @@ export async function parseModel(glb: ArrayBuffer, sidecar?: unknown): Promise<L
       hosts: rel.hosts ?? [],
       ports: rel.ports ?? [],
       systems: rel.systems ?? [],
+      ...(Array.isArray(rel.openings) && rel.openings.length > 0 ? { openings: rel.openings } : {}),
     };
   } else {
     // Synthesised elements. If every node carries a unique numeric extras.id, honour that order.

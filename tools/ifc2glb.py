@@ -230,13 +230,167 @@ def expand_to_exported(obj, eid_by_ent: dict, depth: int = 0) -> list:
     return out
 
 
+# ---------------------------------------------------------------- element properties (hover info)
+# Mirrors web/src/model/ifcRaw.ts readProps; the rules (keys, groups, cap, rounding) live in glb_common.py.
+
+_PREFIX = {"EXA": 1e18, "PETA": 1e15, "TERA": 1e12, "GIGA": 1e9, "MEGA": 1e6, "KILO": 1e3, "HECTO": 1e2, "DECA": 10.0,
+           "DECI": 0.1, "CENTI": 0.01, "MILLI": 0.001, "MICRO": 1e-6, "NANO": 1e-9}
+_UNIT_KIND = {"LENGTHUNIT": "length", "AREAUNIT": "area", "VOLUMEUNIT": "volume", "MASSUNIT": "mass"}
+
+
+def _si_factor(u) -> float:
+    pre = _PREFIX.get(str(attr(u, "Prefix") or ""), 1.0)
+    return pre * (0.001 if str(attr(u, "Name") or "") == "GRAM" else 1.0)
+
+
+def unit_scales(ifc) -> dict:
+    """SI factors (m, m2, m3, kg) per file unit from the project's IfcUnitAssignment."""
+    out = {"length": 1.0, "area": 1.0, "volume": 1.0, "mass": 1.0}
+    try:
+        proj = ifc.by_type("IfcProject")[0]
+        for u in proj.UnitsInContext.Units:
+            kind = _UNIT_KIND.get(str(attr(u, "UnitType") or ""))
+            if kind is None:
+                continue
+            if safe_is_a(u, "IfcSIUnit"):
+                out[kind] = _si_factor(u)
+            elif safe_is_a(u, "IfcConversionBasedUnit"):
+                mwu = u.ConversionFactor
+                base = mwu.UnitComponent
+                out[kind] = float(mwu.ValueComponent.wrappedValue) * (_si_factor(base) if base is not None else 1.0)
+    except Exception:
+        pass
+    return out
+
+
+def _prop_value(nv, scales):
+    if nv is None:
+        return None
+    try:
+        w = nv.wrappedValue
+        tname = nv.is_a()
+    except Exception:
+        return None
+    if isinstance(w, bool):
+        return w
+    if tname in ("IfcLogical", "IfcBoolean"):
+        return None
+    if isinstance(w, str):
+        return w if w != "" else None
+    if isinstance(w, (int, float)):
+        return glb_common.normalize_number(tname, w, scales)
+    return None
+
+
+_QTY_VALUE = {"IfcQuantityLength": ("LengthValue", "IfcLengthMeasure"), "IfcQuantityArea": ("AreaValue", "IfcAreaMeasure"),
+              "IfcQuantityVolume": ("VolumeValue", "IfcVolumeMeasure"), "IfcQuantityCount": ("CountValue", "IfcCountMeasure"),
+              "IfcQuantityWeight": ("WeightValue", "IfcMassMeasure"), "IfcQuantityTime": ("TimeValue", "IfcTimeMeasure")}
+
+
+def parse_definition(d, mode: str, scales: dict) -> list:
+    """(key, value, group) for one IfcPropertySet or IfcElementQuantity."""
+    out = []
+    name = str(attr(d, "Name") or "") or ("Pset" if safe_is_a(d, "IfcPropertySet") else "Qto")
+    if safe_is_a(d, "IfcPropertySet"):
+        group = glb_common.property_group(name, mode)
+        if group is None:
+            return out
+        for p in attr(d, "HasProperties", ()) or ():
+            pname = str(attr(p, "Name") or "")
+            if not pname:
+                continue
+            value = None
+            if safe_is_a(p, "IfcPropertySingleValue"):
+                value = _prop_value(attr(p, "NominalValue"), scales)
+            elif safe_is_a(p, "IfcPropertyEnumeratedValue"):
+                parts = [_prop_value(x, scales) for x in (attr(p, "EnumerationValues", ()) or ())]
+                parts = [x for x in parts if x is not None]
+                if parts:
+                    value = ", ".join(str(x) if not isinstance(x, bool) else str(x).lower() for x in parts)
+            if value is not None:
+                out.append((f"{name}.{pname}", value, group))
+    elif safe_is_a(d, "IfcElementQuantity"):
+        for q in attr(d, "Quantities", ()) or ():
+            spec = next((v for k, v in _QTY_VALUE.items() if safe_is_a(q, k)), None)
+            qname = str(attr(q, "Name") or "")
+            if spec is None or not qname:
+                continue
+            group = glb_common.quantity_group(name, qname, mode)
+            if group is None:
+                continue
+            raw = attr(q, spec[0])
+            if raw is None:
+                continue
+            value = glb_common.normalize_number(spec[1], raw, scales)
+            if value is not None:
+                out.append((f"{name}.{qname}", value, group))
+    return out
+
+
+def collect_props(ifc, prods: list, mode: str) -> dict:
+    """express id -> props dict for the exported products of one file (empty when mode is 'none')."""
+    out = {}
+    if mode == "none":
+        return out
+    scales = unit_scales(ifc)
+    defs_of: dict[int, list] = collections.defaultdict(list)
+    for r in sorted(ifc.by_type("IfcRelDefinesByProperties"), key=lambda r: r.id()):
+        d = attr(r, "RelatingPropertyDefinition")
+        if d is None or isinstance(d, tuple) or not hasattr(d, "id"):
+            continue
+        for o in attr(r, "RelatedObjects", ()) or ():
+            defs_of[o.id()].append(d)
+    cache: dict[int, list] = {}
+    for p in prods:
+        pt = attr(p, "PredefinedType")
+        entries = glb_common.attribute_entries(
+            attr(p, "ObjectType"), attr(p, "Tag"), attr(p, "Description"), pt if isinstance(pt, str) else None)
+        for d in defs_of.get(p.id(), ()):
+            if d.id() not in cache:
+                cache[d.id()] = parse_definition(d, mode, scales)
+            entries.extend(cache[d.id()])
+        props = glb_common.finalize_props(entries)
+        if props:
+            out[p.id()] = props
+    return out
+
+
+# ---------------------------------------------------------------- opening bounds
+
+def opening_bounds(ifc, settings, nthreads: int, open_host: dict, ifc_ents: dict) -> list[dict]:
+    """Bounds (IFC frame, world, metres) of every opening element that voids an exported host.
+
+    IfcOpeningElement geometry is not drawn, but its bounds go into relations.openings so tools can tell
+    whether a penetration lies inside an opening. write_model converts the bounds to the glb frame.
+    """
+    out: list[dict] = []
+    if not ifc_ents:
+        return out
+    it = ifcopenshell.geom.iterator(settings, ifc, nthreads, include=list(ifc_ents.values()))
+    got: dict[int, np.ndarray] = {}
+    if it.initialize():
+        while True:
+            sh = it.get()
+            pid = sh.id if isinstance(sh.id, int) else sh.product.id()
+            v = np.asarray(sh.geometry.verts, np.float64).reshape(-1, 3)
+            if len(v):
+                got[pid] = np.concatenate([v.min(0), v.max(0)])
+            if not it.next():
+                break
+    for oid in sorted(got):
+        out.append({"expressId": oid, "host": open_host[oid], "bounds": [float(x) for x in got[oid]]})
+    return out
+
+
 # ---------------------------------------------------------------- main conversion
 
-def convert(files: list[str], out_base: str, keep_markers: bool = False, config: str | None = None) -> dict:
+def convert(files: list[str], out_base: str, keep_markers: bool = False, config: str | None = None,
+            props_mode: str = "common") -> dict:
     items: list[dict] = []
     storey_keys: dict[tuple, dict] = {}       # (name, elev) -> {name, elevation}
     per_file_storey: list[dict[int, tuple]] = []
     voids, fills, hosts, ports = [], [], [], []
+    openings: list[dict] = []   # {expressId, host, bounds (IFC frame, converted in write_model)}
     port_seen, host_seen = set(), set()
     systems: dict[str, list[int]] = collections.OrderedDict()
     schemas = []
@@ -256,6 +410,7 @@ def convert(files: list[str], out_base: str, keep_markers: bool = False, config:
         fname = os.path.basename(path)
         prods = exportable(ifc, keep_markers)
         by_id = {p.id(): p for p in prods}
+        file_props = collect_props(ifc, prods, props_mode)
         st_map: dict[int, tuple] = {}
         for st in ifc.by_type("IfcBuildingStorey"):
             key = (str(st.Name or ""), round(storey_elevation(st, scale), 4))
@@ -321,7 +476,7 @@ def convert(files: list[str], out_base: str, keep_markers: bool = False, config:
                 "globalId": gid, "expressId": pid, "ifcClass": p.is_a(), "name": attr(p, "Name") or "",
                 "storey": None, "material": material_name(p),
                 "color": style_color(geo, p.is_a()),
-                "verts": v, "faces": f, "normals": n, "file": fname,
+                "verts": v, "faces": f, "normals": n, "file": fname, "props": file_props.get(pid),
             })
             pending_storey_ref.append((eid, skey))
 
@@ -334,6 +489,9 @@ def convert(files: list[str], out_base: str, keep_markers: bool = False, config:
             oid = r.RelatedOpeningElement.id()
             open_host[oid] = h
             voids.append([h, oid])
+        openings.extend(opening_bounds(ifc, settings, nthreads, open_host, ifc_ents={
+            r.RelatedOpeningElement.id(): r.RelatedOpeningElement
+            for r in ifc.by_type("IfcRelVoidsElement") if r.RelatedOpeningElement.id() in open_host}))
         for r in ifc.by_type("IfcRelFillsElement"):
             oid = r.RelatingOpeningElement.id()
             fe = eid_by_ent.get(r.RelatedBuildingElement.id())
@@ -381,6 +539,8 @@ def convert(files: list[str], out_base: str, keep_markers: bool = False, config:
     source = {"files": [os.path.basename(p) for p in files], "converter": "ifc2glb.py", "ifcSchema": schema}
     relations = {"voids": voids, "fills": fills, "hosts": hosts, "ports": ports,
                  "systems": [{"name": n, "elements": e} for n, e in systems.items()]}
+    if openings:
+        relations["openings"] = openings
     os.makedirs(os.path.dirname(os.path.abspath(out_base)), exist_ok=True)
     extra = glb_common.load_style_config(config) if config else None
     side = glb_common.write_model(out_base, items, storeys, relations, source, extra)
@@ -419,8 +579,12 @@ def main(argv=None) -> None:
     ap.add_argument("--config", metavar="XRAY_CONFIG_JSON",
                     help="xray-config/1 file (web/public/xray.config.json); its classStyles and materialAliases "
                          "are baked into model.json as 'styles' and 'materialAliases'")
+    ap.add_argument("--props", choices=("none", "common", "all"), default="common",
+                    help="element properties written to model.json for hover info: none; common (default) = "
+                         "Attr.ObjectType/Tag/Description/PredefinedType, single values of Pset_*Common and the base "
+                         "quantities Length..NetWeight; all = every single-value property and quantity. At most 24 per element")
     a = ap.parse_args(argv)
-    side = convert(a.ifc, a.out, a.keep_markers, a.config)
+    side = convert(a.ifc, a.out, a.keep_markers, a.config, a.props)
     summary(side, a.out)
 
 

@@ -4,10 +4,11 @@
 
 import { GHOST_GLSL } from './ghostMath';
 import { OIT_GLSL } from './oitMath';
+import { VIEWMODE_GLSL } from './viewModeGlsl';
 
 const STATE_FETCH = /* glsl */ `
 uniform sampler2D stateA; // rgb = colour (sRGB, 0..1), a = alpha
-uniform sampler2D stateB; // r = flags (bit0 focus, bit1 hidden, bit2 pinned, bit3 selected), g = edge glow, b = sweep hold alpha (0 = not in the sweep)
+uniform sampler2D stateB; // r = flags (bit0 focus, bit1 hidden, bit2 pinned, bit3 selected), g = edge glow, b = sweep hold alpha (0 = not in the sweep), a = view-mode occluder mask (1 = occluder)
 uniform sampler2D stateC; // rgb = world-space displacement (exploded context)
 uniform int texWidth;
 attribute float elementId;
@@ -17,6 +18,8 @@ flat varying float vAlpha;
 flat varying float vFlags;
 flat varying float vGlow;
 flat varying float vHold;
+flat varying float vElem;
+flat varying float vVmOcc;
 
 vec3 gOffset; // displacement of the current element, set by fetchState()
 
@@ -31,6 +34,8 @@ int fetchState() {
   vFlags = b.r;
   vGlow = b.g;
   vHold = b.b;
+  vElem = float(id);
+  vVmOcc = b.a;
   gOffset = texelFetch(stateC, tc, 0).rgb;
   return int(b.r + 0.5);
 }
@@ -76,6 +81,7 @@ export const MESH_VERT = /* glsl */ `
 ${GHOST_GLSL}
 ${STATE_FETCH}
 uniform float sweepEnabled;
+uniform float vmAny;
 varying vec3 vWorldNormal;
 varying vec3 vWorldPos;
 
@@ -94,9 +100,9 @@ void main() {
   bool reject = hidden;
 #if defined( PASS_OPAQUE )
   // During a sweep, ghost-bound members that were opaque before are also drawn here (the part the plane has not reached).
-  reject = reject || focus || (vAlpha < OPAQUE_ALPHA && !(sweepEnabled > 0.5 && vHold >= OPAQUE_ALPHA));
+  reject = reject || focus || (vAlpha < OPAQUE_ALPHA && !(sweepEnabled > 0.5 && vHold >= OPAQUE_ALPHA) && vmAny < 0.5);
 #elif defined( PASS_GHOST )
-  reject = reject || focus || vAlpha >= OPAQUE_ALPHA;
+  reject = reject || focus || (vAlpha >= OPAQUE_ALPHA && vmAny < 0.5);
 #elif defined( PASS_FOCUS )
   reject = reject || !focus;
 #endif
@@ -109,6 +115,7 @@ ${GHOST_GLSL}
 ${FLAG_HELPERS}
 ${FOG_HELPERS}
 ${SWEEP_HELPERS}
+${VIEWMODE_GLSL}
 #if defined( OIT )
 // Weighted blended OIT (render/oitMath.ts): the ghost pass writes accumulation and revealage (GLSL3 material).
 layout(location = 0) out highp vec4 oitAccum;
@@ -119,6 +126,8 @@ flat varying vec3 vColor;
 flat varying float vAlpha;
 flat varying float vFlags;
 flat varying float vHold;
+flat varying float vElem;
+flat varying float vVmOcc;
 varying vec3 vWorldNormal;
 varying vec3 vWorldPos;
 
@@ -172,13 +181,21 @@ void main() {
   if (hidden) discard;
 
   vec3 n = normalize(vWorldNormal);
+  bool hovered = vmHovered(vElem);
 
 #if defined( PASS_OPAQUE )
   if (focus) discard;
+  // View modes (behind-only, peelback): per-fragment cut, solid-behind and cap decisions.
+  VmOut vm = VmOut(vAlpha, 1.0, 0.0, false, false);
+  if (vmAny > 0.5) vm = vmEval(vWorldPos, vAlpha, vVmOcc, !gl_FrontFacing);
+  if (vm.cover < VM_FULL) discard; // cut, or inside the feather (drawn by the ghost pass)
   bool member = sweepEnabled > 0.5 && vHold > 0.0;
   float s = 0.0;
   if (member) s = sweepDist(vWorldPos);
-  if (vAlpha < OPAQUE_ALPHA) {
+  if (vm.alpha != vAlpha) {
+    // A view mode changed the alpha: below OPAQUE the fragment belongs to the ghost pass.
+    if (vm.alpha < OPAQUE_ALPHA) discard;
+  } else if (vAlpha < OPAQUE_ALPHA) {
     // Ghost-bound element: only the part the sweep has not reached yet is drawn here, opaque.
     if (!member || vHold < OPAQUE_ALPHA || s <= 0.0) discard;
   }
@@ -189,14 +206,23 @@ void main() {
   vec3 col = surfaceColour(vColor, n, vFlags, vWorldPos, 0.0, 0.0);
   col = applyFog(col, distance(cameraPosition, vWorldPos));
   if (member) col = mix(col, sweepColor, 0.85 * sweepBandAt(s));
+  if (vm.rim > 0.0) col = mix(col, peelRimCol, 0.85 * vm.rim);
+  if (vm.cap) col = vmCapColour(bhOn > 0.5 && bhMode > 1.5 ? bhCap : peelCapCol);
+  if (hovered) col = mix(col, hoverColor, 0.4) + 0.06;
   gl_FragColor = vec4(col, 1.0);
 #endif
 
 #elif defined( PASS_GHOST )
-  if (focus || vAlpha >= OPAQUE_ALPHA) discard;
-  float aBase = vAlpha;
+  if (focus) discard;
+  VmOut vm = VmOut(vAlpha, 1.0, 0.0, false, false);
+  if (vmAny > 0.5) vm = vmEval(vWorldPos, vAlpha, vVmOcc, false);
+  if (vm.cover < 0.002) discard;
+  bool feather = vm.cover < VM_FULL;
+  // Solid fragments belong to the opaque pass, except in the peel feather where they fade out here.
+  if (vm.alpha >= OPAQUE_ALPHA && !feather) discard;
+  float aBase = vm.alpha;
   float band = 0.0;
-  if (sweepEnabled > 0.5 && vHold > 0.0) {
+  if (vm.alpha == vAlpha && sweepEnabled > 0.5 && vHold > 0.0) {
     float s = sweepDist(vWorldPos);
     band = sweepBandAt(s);
     if (s > 0.0) {
@@ -212,11 +238,17 @@ void main() {
   float t = 1.0 - aBase;
   // Rim: opacity grows toward grazing angles (silhouettes read), never below a minimum fill.
   float fill = max(aBase, MIN_FILL_ALPHA);
-  float a = mix(fill, 1.0, RIM_OPACITY * rim);
+  float a = aBase >= OPAQUE_ALPHA ? 1.0 : mix(fill, 1.0, RIM_OPACITY * rim);
   vec3 col = surfaceColour(vColor, n, vFlags, vWorldPos, t, rim);
   col = applyFog(col, distance(cameraPosition, vWorldPos));
   col = mix(col, sweepColor, 0.85 * band);
   a = mix(a, 1.0, band);
+  if (vm.rim > 0.0) col = mix(col, peelRimCol, 0.85 * vm.rim);
+  a *= vm.cover;
+  if (hovered) {
+    col = mix(col, hoverColor, 0.4) + 0.06;
+    a = mix(a, 1.0, 0.35);
+  }
 #if defined( OIT )
   // Same premultiplied colour and alpha as the sorted path; only the output differs. The revealage
   // attachment holds -ln(1 - a), summed with the same ONE,ONE blend as the accumulation (see oitMath.ts).
@@ -235,6 +267,7 @@ void main() {
   if (!gl_FrontFacing) n = -n;
   vec3 col = shade(vColor, n) + 0.04;
   if (flagSelected(vFlags)) col = mix(col, vec3(1.0, 0.85, 0.2), 0.35);
+  if (hovered) col = mix(col, hoverColor, 0.4) + 0.06;
   col *= 1.0 + focusBoost;
   gl_FragColor = vec4(col, 1.0);
 #endif
@@ -281,11 +314,14 @@ ${GHOST_GLSL}
 ${FLAG_HELPERS}
 ${FOG_HELPERS}
 ${SWEEP_HELPERS}
+${VIEWMODE_GLSL}
 flat varying vec3 vColor;
 flat varying float vAlpha;
 flat varying float vFlags;
 flat varying float vGlow;
 flat varying float vHold;
+flat varying float vElem;
+flat varying float vVmOcc;
 varying float vDist;
 varying vec3 vWorldPos;
 uniform float edgeAlpha;
@@ -304,17 +340,40 @@ void main() {
 #else
   if (focus) discard;
 #endif
+  // View modes: edges follow the surfaces. No edges inside a cut; solid behind a plane; faint in a ghosted front.
+  float aEl = vAlpha;
+  float cover = 1.0;
+  bool vmFront = false;
+  float vmRim = 0.0;
+#if defined( EDGES_CTX )
+  if (vmAny > 0.5) {
+    VmOut vm = vmEval(vWorldPos, vAlpha, vVmOcc, false);
+    aEl = vm.alpha;
+    cover = vm.cover;
+    vmFront = vm.front;
+    vmRim = vm.rim;
+    if (cover < 0.01) discard;
+  }
+#endif
   float a = max(edgeAlpha, vAlpha);
+  if (aEl != vAlpha) a = max(edgeAlpha, aEl);
   // Opaque elements: near-black tinted by the element colour. Ghosts: dark slate (the more transparent, the
   // more slate), which contrasts with the light background and with a dark graded fill alike.
   vec3 col = mix(vec3(0.07, 0.09, 0.12), vColor * 0.35, 0.5);
-  col = mix(col, INK_COLOUR, clamp(1.0 - vAlpha, 0.0, 1.0));
+  col = mix(col, INK_COLOUR, clamp(1.0 - aEl, 0.0, 1.0));
   col = applyFog(col, vDist);
-  if (sweepEnabled > 0.5 && vHold > 0.0) {
+  if (sweepEnabled > 0.5 && vHold > 0.0 && aEl == vAlpha) {
     // Sweep reveal: the edges at the plane light up at full strength.
     float band = sweepBandAt(sweepDist(vWorldPos));
     col = mix(col, sweepColor, band);
     a = mix(a, 1.0, band);
+  }
+  if (vmFront) a *= 0.35;
+  if (vmRim > 0.0) col = mix(col, peelRimCol, 0.85 * vmRim);
+  a *= cover;
+  if (vmHovered(vElem)) {
+    col = mix(col, hoverColor, 0.75);
+    a = 1.0;
   }
   gl_FragColor = vec4(col * a, a); // premultiplied
 #endif

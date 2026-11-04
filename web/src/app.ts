@@ -11,6 +11,9 @@ import { XrayController, defaultSettings } from './controller';
 import type { ControllerSettings, ControllerStats, ElementInfo } from './controller';
 import type { Classification, ElementId } from './types';
 import { PLUGINS } from './plugins';
+import { registerAction } from './input/actions';
+import { getKeymap } from './input/keymap';
+import { bootConfig } from './tools/registry';
 
 /**
  * Extension point. A plugin owns its own module and DOM; it must not edit app.ts.
@@ -405,12 +408,19 @@ export class ViewerApp {
       this.hoverId = null;
     });
     window.addEventListener('resize', () => this.renderer.resize());
-    window.addEventListener('keydown', (e) => {
-      const t = e.target as HTMLElement | null;
-      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT')) return;
-      if (e.key === 'x' || e.key === 'X') this.setXray(!this.settings.xray);
-      else if (e.key === 'f' || e.key === 'F') this.frameAll();
-      else if (e.key === 'Escape') this.clearSelection();
+    // Keys go through the action registry (src/input/actions.ts); the keymap plugin owns dispatch, rebinding and
+    // the navigation actions. These are the viewer's own base actions; plugins/keymap.ts refines `view.frame`.
+    registerAction({ id: 'xray.toggle', label: 'Toggle x-ray', group: 'Visibility', keys: ['x'], run: (app) => app.setXray(!app.settings.xray) });
+    registerAction({ id: 'view.frame', label: 'Frame all', group: 'Views', keys: ['f'], run: (app) => app.frameAll() });
+    registerAction({
+      id: 'select.clear',
+      label: 'Clear selection',
+      group: 'Selection',
+      keys: ['Escape'],
+      run: (app) => {
+        if (getKeymap()?.closeOverlays()) return;
+        app.clearSelection();
+      },
     });
   }
 
@@ -487,7 +497,9 @@ export class ViewerApp {
 
 async function main(): Promise<void> {
   const params = new URLSearchParams(location.search);
-  const name = params.get('model') ?? 'building';
+  // Initial model: a packaged page's boot model, else ?model=, else the first embedded model, else 'building'.
+  const embedded = window.__xrayEmbeddedModels ? Object.keys(window.__xrayEmbeddedModels) : [];
+  const name = bootConfig().model ?? params.get('model') ?? embedded[0] ?? 'building';
   const canvas = document.getElementById('c') as HTMLCanvasElement;
   const app = new ViewerApp(canvas);
   for (const p of PLUGINS) app.use(p);

@@ -22,8 +22,27 @@ export interface XrayAction {
   run(app: ViewerApp, ev?: KeyboardEvent): void;
   /** Optional: return false to skip (the key then falls through to other handlers). */
   enabled?(app: ViewerApp): boolean;
-  /** Optional: continuous action held down (navigation). Called every frame while held, with dt in ms. */
-  hold?(app: ViewerApp, dt: number): void;
+  /**
+   * Optional: continuous action held down (navigation). Called every frame while held, with dt in ms and the
+   * modifier keys currently down (a hold action may scale its speed by them, see `modifiers`).
+   */
+  hold?(app: ViewerApp, dt: number, mods?: HoldMods): void;
+  /** Optional: let auto-repeat key events run a discrete action again (zoom steps). Default false. */
+  repeat?: boolean;
+  /**
+   * Optional: modifier keys that may be down in addition to the chord, without changing which action runs
+   * (a hold action reads them from `hold(..., mods)`). An exact chord of another action always wins.
+   */
+  modifiers?: Array<'ctrl' | 'shift' | 'alt' | 'meta'>;
+  /** Optional: one line of help for the cheat sheet and the palette. */
+  description?: string;
+}
+
+export interface HoldMods {
+  ctrl: boolean;
+  shift: boolean;
+  alt: boolean;
+  meta: boolean;
 }
 
 const ACTIONS = new Map<string, XrayAction>();

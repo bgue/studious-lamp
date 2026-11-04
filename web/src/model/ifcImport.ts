@@ -61,6 +61,7 @@ interface Item {
   name: string;
   storeyKey: number; // index into the merged storey list, or -1
   material: string;
+  props?: Record<string, string | number | boolean>;
   color: [number, number, number, number];
   pos: Float32Array;
   nor: Float32Array;
@@ -99,6 +100,7 @@ export function buildModelData(raws: RawModel[]): BuiltData {
   const voids: Array<[number, number]> = [];
   const fills: Array<[number, number]> = [];
   const hosts: Array<[number, number]> = [];
+  const openingsRaw: Array<{ expressId: number; host: number; bounds: number[] }> = []; // IFC frame, absolute
   const ports: Array<[number, number]> = [];
   const portSeen = new Set<string>();
   const hostSeen = new Set<string>();
@@ -155,7 +157,7 @@ export function buildModelData(raws: RawModel[]): BuiltData {
       }
       eidByExpress.set(el.expressId, items.length);
       items.push({
-        gid, expressId: el.expressId, ifcClass: el.ifcClass, name: el.name, storeyKey: sk, material: el.materialName,
+        gid, expressId: el.expressId, ifcClass: el.ifcClass, name: el.name, storeyKey: sk, material: el.materialName, props: el.props,
         color: el.color ? [el.color[0], el.color[1], el.color[2], el.color[3]] : classColor(el.ifcClass),
         pos, nor, idx, origin: [origin[0], origin[1], origin[2]], lo, hi, file: raw.fileName,
       });
@@ -168,6 +170,10 @@ export function buildModelData(raws: RawModel[]): BuiltData {
       if (he === undefined) continue;
       openHost.set(o, he);
       voids.push([he, o]);
+    }
+    for (const op of raw.openings ?? []) {
+      const he = eidByExpress.get(op.host);
+      if (he !== undefined) openingsRaw.push({ expressId: op.expressId, host: he, bounds: op.bounds });
     }
     for (const [o, f] of raw.fills) {
       const fe = eidByExpress.get(f);
@@ -248,8 +254,18 @@ export function buildModelData(raws: RawModel[]): BuiltData {
       color: [round(it.color[0], 4), round(it.color[1], 4), round(it.color[2], 4), round(it.color[3], 4)],
       bounds: b.map((x) => round(x, 5)) as ElementRecord['bounds'],
       file: it.file,
+      ...(it.props ? { props: it.props } : {}),
     });
   }
+
+  // opening bounds: same shift and Y-up rotation as the elements; the key is omitted when the model has none
+  const openings = openingsRaw.map((o) => {
+    const b = o.bounds;
+    const x0 = b[0]! - shift[0], x1 = b[3]! - shift[0];
+    const y0 = b[1]! - shift[1], y1 = b[4]! - shift[1];
+    const z0 = b[2]! - shift[2], z1 = b[5]! - shift[2];
+    return { expressId: o.expressId, host: o.host, bounds: [x0, z0, -y1, x1, z1, -y0].map((x) => round(x, 5)) as [number, number, number, number, number, number] };
+  });
 
   const schemas = [...new Set(raws.map((r) => r.schema))];
   const sidecar: Sidecar = {
@@ -263,7 +279,10 @@ export function buildModelData(raws: RawModel[]): BuiltData {
     originShift: shift,
     storeys,
     elements,
-    relations: { voids, fills, hosts, ports, systems: [...systems].map(([name, els]) => ({ name, elements: els })) },
+    relations: {
+      voids, fills, hosts, ports, systems: [...systems].map(([name, els]) => ({ name, elements: els })),
+      ...(openings.length > 0 ? { openings } : {}),
+    },
   };
   return { glb: writeGlb(meshes), sidecar, report };
 }

@@ -21,6 +21,8 @@ export interface RawElement {
   /** Per-vertex normals (same length as `positions`). When present, `positions`/`indices` are already welded and
    *  crease-smoothed (extract does this off the main thread); when absent `build` runs `smoothMesh`. */
   normals?: Float32Array;
+  /** Hover-info properties (see ifcProps.ts for the key format, ordering and caps). */
+  props?: Record<string, string | number | boolean>;
 }
 
 export interface RawStorey {
@@ -43,6 +45,11 @@ export interface RawModel {
   voids: Array<[number, number]>;
   /** [openingExpressId, fillerExpressId] */
   fills: Array<[number, number]>;
+  /**
+   * Bounds of the opening elements that void an exported host: world IFC frame (Z up, metres), absolute
+   * (not relative to `origin`), [minx, miny, minz, maxx, maxy, maxz]. Opening geometry itself is never exported.
+   */
+  openings?: Array<{ expressId: number; host: number; bounds: [number, number, number, number, number, number] }>;
   /** Element-level pairs [expressIdA, expressIdB], already resolved through the ports. */
   ports: Array<[number, number]>;
   /** Members are express ids of elements (already expanded through aggregates, as the converter does). */

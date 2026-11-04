@@ -12,6 +12,10 @@ import * as WebIFC from 'web-ifc';
 import type { IfcAPI } from 'web-ifc';
 import { isMarker, isSkippedClass, SYSTEM_CLASSES, smoothMesh } from './ifcShared';
 import type { IfcProgress, RawElement, RawModel, RawStorey } from './ifcShared';
+import {
+  SI_SCALES, attributeEntries, finalizeProps, normalizeNumber, propertyGroup, quantityGroup,
+} from './ifcProps';
+import type { PropEntry, PropValue, PropsMode, UnitScales } from './ifcProps';
 
 export type WasmSource = { url: string } | { bytes: ArrayBuffer | Uint8Array };
 
@@ -21,6 +25,8 @@ export interface ExtractHooks {
   cancelled?(): boolean;
   /** Awaited between chunks (main-thread fallback hands the event loop back here). */
   yieldNow?(): Promise<void>;
+  /** Which element properties to read (see ifcProps.ts). Default `common`. */
+  props?: PropsMode;
 }
 
 export class IfcReadError extends Error {
@@ -141,6 +147,132 @@ function lengthScale(api: IfcAPI, model: number): number {
   return 1;
 }
 
+/** SI factors of the project units (LENGTH, AREA, VOLUME, MASS) as tools/glb_common.py `unit_scales` computes them. */
+function unitScales(api: IfcAPI, model: number): UnitScales {
+  const out: UnitScales = { ...SI_SCALES };
+  try {
+    const proj = ids(api, model, WebIFC.IFCPROJECT)[0];
+    if (proj === undefined) return out;
+    const ua = api.GetLine(model, refId(api.GetLine(model, proj).UnitsInContext) ?? -1);
+    for (const u of refList(ua?.Units)) {
+      const line = api.GetLine(model, u);
+      const kind = { LENGTHUNIT: 'length', AREAUNIT: 'area', VOLUMEUNIT: 'volume', MASSUNIT: 'mass' }[str(line?.UnitType)] as keyof UnitScales | undefined;
+      if (!kind) continue;
+      const typeName = api.GetNameFromTypeCode(line.type);
+      if (typeName === 'IfcSIUnit') {
+        out[kind] = (PREFIX[str(line.Prefix)] ?? 1) * (str(line.Name) === 'GRAM' ? 0.001 : 1);
+      } else if (typeName === 'IfcConversionBasedUnit') {
+        const mwu = api.GetLine(model, refId(line.ConversionFactor) ?? -1);
+        const f = num(mwu?.ValueComponent) ?? 1;
+        const base = api.GetLine(model, refId(mwu?.UnitComponent) ?? -1);
+        out[kind] = f * (base ? (PREFIX[str(base.Prefix)] ?? 1) * (str(base.Name) === 'GRAM' ? 0.001 : 1) : 1);
+      }
+    }
+  } catch { /* SI defaults */ }
+  return out;
+}
+
+/** An IfcValue (`{ name: 'IFCLABEL', value }` or `{ name, _representationValue }`) as a property value, or null. */
+function propValue(x: Line, scales: UnitScales): PropValue | null {
+  if (x === null || x === undefined || typeof x !== 'object') return null;
+  const name = String(x.name ?? '');
+  const v = x.value;
+  if (typeof v === 'boolean') return v;
+  if (name === 'IFCLOGICAL' || name === 'IFCBOOLEAN') {
+    if (v === 'T' || v === '.T.') return true;
+    if (v === 'F' || v === '.F.') return false;
+    return null;
+  }
+  if (typeof v === 'string') return v === '' ? null : v;
+  const n = typeof x._representationValue === 'number' ? x._representationValue : typeof v === 'number' ? v : null;
+  return n === null ? null : normalizeNumber(name, n, scales);
+}
+
+const QTY_VALUE: Record<string, [string, string]> = {
+  IfcQuantityLength: ['LengthValue', 'IFCLENGTHMEASURE'],
+  IfcQuantityArea: ['AreaValue', 'IFCAREAMEASURE'],
+  IfcQuantityVolume: ['VolumeValue', 'IFCVOLUMEMEASURE'],
+  IfcQuantityCount: ['CountValue', 'IFCCOUNTMEASURE'],
+  IfcQuantityWeight: ['WeightValue', 'IFCMASSMEASURE'],
+  IfcQuantityTime: ['TimeValue', 'IFCTIMEMEASURE'],
+};
+
+/**
+ * One pass over IfcRelDefinesByProperties builds element -> definitions; each property set / quantity set is parsed once
+ * and shared by every element it describes. Mirrors tools/ifc2glb.py `element_props`.
+ */
+function readProps(
+  api: IfcAPI, model: number, mode: PropsMode, exported: Set<number>, attrs: Map<number, PropEntry[]>,
+  line: (eid: number) => Line,
+): Map<number, Record<string, PropValue>> {
+  const out = new Map<number, Record<string, PropValue>>();
+  if (mode === 'none') return out;
+  const scales = unitScales(api, model);
+  const defsOf = new Map<number, number[]>();
+  for (const rid of ids(api, model, WebIFC.IFCRELDEFINESBYPROPERTIES).sort((a, b) => a - b)) {
+    const r = line(rid);
+    if (!r) continue;
+    const d = refId(r.RelatingPropertyDefinition);
+    if (d === null) continue;
+    for (const o of refList(r.RelatedObjects)) {
+      if (!exported.has(o)) continue;
+      let list = defsOf.get(o);
+      if (!list) defsOf.set(o, (list = []));
+      list.push(d);
+    }
+  }
+  const cache = new Map<number, PropEntry[]>();
+  const parse = (did: number): PropEntry[] => {
+    const hit = cache.get(did);
+    if (hit) return hit;
+    const entries: PropEntry[] = [];
+    cache.set(did, entries);
+    const d = line(did);
+    if (!d) return entries;
+    const t = api.GetNameFromTypeCode(d.type);
+    const setName = str(d.Name) || (t === 'IfcPropertySet' ? 'Pset' : 'Qto');
+    if (t === 'IfcPropertySet') {
+      for (const pid of refList(d.HasProperties)) {
+        const p = line(pid);
+        if (!p) continue;
+        const pt = api.GetNameFromTypeCode(p.type);
+        const pname = str(p.Name);
+        const group = propertyGroup(setName, mode);
+        if (group === null || !pname) continue;
+        let value: PropValue | null = null;
+        if (pt === 'IfcPropertySingleValue') value = propValue(p.NominalValue, scales);
+        else if (pt === 'IfcPropertyEnumeratedValue' && Array.isArray(p.EnumerationValues)) {
+          const parts = p.EnumerationValues.map((x: Line) => propValue(x, scales)).filter((x: PropValue | null) => x !== null);
+          if (parts.length > 0) value = parts.join(', ');
+        }
+        if (value !== null) entries.push({ key: `${setName}.${pname}`, value, group });
+      }
+    } else if (t === 'IfcElementQuantity') {
+      for (const qid of refList(d.Quantities)) {
+        const q = line(qid);
+        if (!q) continue;
+        const spec = QTY_VALUE[api.GetNameFromTypeCode(q.type)];
+        const qname = str(q.Name);
+        if (!spec || !qname) continue;
+        const group = quantityGroup(setName, qname, mode);
+        if (group === null) continue;
+        const raw = num(q[spec[0]]);
+        if (raw === null) continue;
+        const value = normalizeNumber(spec[1], raw, scales);
+        if (value !== null) entries.push({ key: `${setName}.${qname}`, value, group });
+      }
+    }
+    return entries;
+  };
+  for (const eid of exported) {
+    const entries: PropEntry[] = [...(attrs.get(eid) ?? [])];
+    for (const did of defsOf.get(eid) ?? []) entries.push(...parse(did));
+    const props = finalizeProps(entries);
+    if (props) out.set(eid, props);
+  }
+  return out;
+}
+
 // ---------------------------------------------------------------- geometry of one product
 
 /** embind vectors need delete() in the browser build; the node build hands out plain objects. */
@@ -253,7 +385,7 @@ export async function extractIfc(api: IfcAPI, data: Uint8Array, fileName: string
   const model = api.OpenModel(data, { COORDINATE_TO_ORIGIN: false });
   if (model < 0) throw new IfcReadError(`${fileName} could not be parsed as IFC`, 'invalid');
   try {
-    return await extractModel(api, model, fileName, progress, check);
+    return await extractModel(api, model, fileName, progress, check, hooks.props ?? 'common');
   } finally {
     try { api.CloseModel(model); } catch { /* already closed */ }
   }
@@ -261,7 +393,7 @@ export async function extractIfc(api: IfcAPI, data: Uint8Array, fileName: string
 
 async function extractModel(
   api: IfcAPI, model: number, fileName: string,
-  progress: (p: IfcProgress) => void, check: () => Promise<void>,
+  progress: (p: IfcProgress) => void, check: () => Promise<void>, propsMode: PropsMode,
 ): Promise<RawModel> {
   let schema = 'IFC';
   try { schema = api.GetModelSchema(model); } catch { /* keep */ }
@@ -319,6 +451,7 @@ async function extractModel(
 
   // ---- geometry, chunked so progress and cancellation work
   const frame: Frame = { origin: null };
+  const attrs = new Map<number, PropEntry[]>();
   const elements: RawElement[] = [];
   let done = 0;
   const total = candidates.length;
@@ -335,6 +468,13 @@ async function extractModel(
         stats.markers++;
         freeVector(mesh.geometries);
         return;
+      }
+      if (propsMode !== 'none') {
+        const pd = l?.PredefinedType;
+        attrs.set(eid, attributeEntries({
+          objectType: str(l?.ObjectType), tag: str(l?.Tag), description: str(l?.Description),
+          predefinedType: pd && typeof pd === 'object' ? str(pd) : '',
+        }));
       }
       const built = buildElementMesh(api, model, mesh, frame);
       if (!built) {
@@ -484,7 +624,10 @@ async function extractModel(
     return out;
   };
 
+  const propsOf = readProps(api, model, propsMode, exported, attrs, line);
   for (const el of elements) {
+    const pr = propsOf.get(el.expressId);
+    if (pr) el.props = pr;
     el.storeyExpressId = storeyOf(el.expressId);
     const m = materialOf.get(el.expressId) ?? (typeOf.has(el.expressId) ? materialOf.get(typeOf.get(el.expressId)!) : undefined);
     el.materialName = m !== undefined ? materialName(m) : '';
@@ -496,6 +639,32 @@ async function extractModel(
     const h = refId(r.RelatingBuildingElement);
     const o = refId(r.RelatedOpeningElement);
     if (h !== null && o !== null && exported.has(h)) voids.push([h, o]);
+  }
+  // opening bounds (the geometry of IfcOpeningElement is never exported, only its bounds go to the sidecar)
+  const openings: NonNullable<RawModel['openings']> = [];
+  {
+    const hostOf = new Map<number, number>();
+    for (const [h, o] of voids) if (!hostOf.has(o)) hostOf.set(o, h);
+    const oids = [...hostOf.keys()];
+    const org = frame.origin ?? [0, 0, 0];
+    for (let c0 = 0; c0 < oids.length; c0 += CHUNK) {
+      await check();
+      streamMeshes(api, model, oids.slice(c0, c0 + CHUNK), (mesh) => {
+        const built = buildElementMesh(api, model, mesh, frame);
+        if (!built) return;
+        const b: [number, number, number, number, number, number] = [Infinity, Infinity, Infinity, -Infinity, -Infinity, -Infinity];
+        const pos = built.positions;
+        for (let i = 0; i < pos.length; i += 3) {
+          for (let k = 0; k < 3; k++) {
+            const v = pos[i + k]! + org[k]!;
+            if (v < b[k]!) b[k] = v;
+            if (v > b[k + 3]!) b[k + 3] = v;
+          }
+        }
+        openings.push({ expressId: mesh.expressID, host: hostOf.get(mesh.expressID)!, bounds: b });
+      });
+    }
+    openings.sort((a, b) => a.expressId - b.expressId);
   }
   const fills: Array<[number, number]> = [];
   for (const r of rels(WebIFC.IFCRELFILLSELEMENT)) {
@@ -560,6 +729,7 @@ async function extractModel(
     storeys,
     voids,
     fills,
+    openings,
     ports,
     systems: [...systems].map(([name, els]) => ({ name, elements: els })),
     stats,

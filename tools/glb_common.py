@@ -11,12 +11,95 @@ frame) as `originShift`.
 from __future__ import annotations
 
 import json
+import re
 import struct
 from typing import Any
 
 import numpy as np
 
 SCHEMA = "xray-model/1"
+
+
+# ---------------------------------------------------------------- element properties (hover info)
+# Rules mirrored by web/src/model/ifcProps.ts; keep both in sync (web/tests/ifc-import-parity.test.ts checks them).
+# Key format: Attr.ObjectType|Tag|Description|PredefinedType, <PsetName>.<PropName>, <QtoName>.<QuantityName>.
+# Groups in output order: 0 attributes, 1 Pset_*Common single values, 2 whitelisted base quantities, 3 others (--props all).
+
+PROPS_CAP = 24
+PROPS_STR_MAX = 80
+COMMON_QTY_NAMES = frozenset((
+    "Length", "Width", "Height", "Depth", "Perimeter", "NetArea", "GrossArea", "NetVolume", "GrossVolume",
+    "NetSideArea", "GrossSideArea", "CrossSectionArea", "OuterSurfaceArea", "NetWeight"))
+GROUP_ATTR, GROUP_COMMON, GROUP_QTY, GROUP_OTHER = 0, 1, 2, 3
+_LENGTH_TYPES = frozenset(("ifclengthmeasure", "ifcpositivelengthmeasure", "ifcnonnegativelengthmeasure"))
+_INTEGER_TYPES = frozenset(("ifcinteger", "ifccountmeasure", "ifctimestamp"))
+
+
+def is_common_pset(name: str) -> bool:
+    return re.match(r"^Pset_.*Common$", name) is not None
+
+
+def is_base_qto_set(name: str) -> bool:
+    return re.match(r"^Qto_.*BaseQuantities$", name) is not None or name == "BaseQuantities"
+
+
+def property_group(set_name: str, mode: str):
+    if mode == "none":
+        return None
+    if is_common_pset(set_name):
+        return GROUP_COMMON
+    return GROUP_OTHER if mode == "all" else None
+
+
+def quantity_group(set_name: str, qty_name: str, mode: str):
+    if mode == "none":
+        return None
+    if is_base_qto_set(set_name) and qty_name in COMMON_QTY_NAMES:
+        return GROUP_QTY
+    return GROUP_OTHER if mode == "all" else None
+
+
+def normalize_number(type_name: str, x, scales: dict):
+    """Number of an IFC value of type `type_name`: measures in SI, integers exact, reals to 4 significant digits."""
+    t = type_name.lower()
+    if isinstance(x, float) and (x != x or x in (float("inf"), float("-inf"))):
+        return None
+    if t in _INTEGER_TYPES:
+        return int(x) if float(x).is_integer() else float(x)
+    v = float(x)
+    if t in _LENGTH_TYPES:
+        v = v * scales["length"]
+    elif t == "ifcareameasure":
+        v = v * scales["area"]
+    elif t == "ifcvolumemeasure":
+        v = v * scales["volume"]
+    elif t == "ifcmassmeasure":
+        v = v * scales["mass"]
+    if v != v or v in (float("inf"), float("-inf")):
+        return None
+    r = float(f"{v:.4g}")
+    return int(r) if r.is_integer() and abs(r) < 1e15 else r
+
+
+def attribute_entries(object_type, tag, description, predefined_type) -> list:
+    out = []
+    for k, v in (("ObjectType", object_type), ("Tag", tag), ("Description", description),
+                 ("PredefinedType", predefined_type)):
+        if isinstance(v, str) and v != "" and v != "NOTDEFINED":
+            out.append((f"Attr.{k}", v, GROUP_ATTR))
+    return out
+
+
+def finalize_props(entries: list, cap: int = PROPS_CAP):
+    """entries: (key, value, group). Stable by group, first key wins, capped, strings clipped. None when empty."""
+    out: dict = {}
+    for key, value, _g in sorted(entries, key=lambda e: e[2]):
+        if len(out) >= cap:
+            break
+        if key in out:
+            continue
+        out[key] = value[:PROPS_STR_MAX] if isinstance(value, str) else value
+    return out or None
 
 
 def box_mesh(mn, mx):
@@ -158,7 +241,19 @@ def write_model(out_base: str, items: list[dict], storeys: list[dict], relations
             "bounds": [round(float(x), 5) for x in b],
             "file": it.get("file"),
         })
+        if it.get("props"):
+            elements[-1]["props"] = it["props"]
     write_glb(out_base + ".glb", meshes)
+    if relations.get("openings"):
+        # opening bounds arrive in the IFC frame (min xyz, max xyz); same shift and Y-up rotation as the elements
+        op = []
+        for o in relations["openings"]:
+            b = np.asarray(o["bounds"], np.float64)
+            corners = np.array([[x, y, z] for x in (b[0], b[3]) for y in (b[1], b[4]) for z in (b[2], b[5])])
+            g = to_glb(corners, True)
+            op.append({"expressId": o["expressId"], "host": o["host"],
+                       "bounds": [round(float(x), 5) for x in np.concatenate([g.min(0), g.max(0)])]})
+        relations = {**relations, "openings": op}
     side = {
         "schema": SCHEMA,
         "source": source,

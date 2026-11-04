@@ -3,6 +3,9 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
+  "bin": {
+    "xray-pack": "tools/xray-pack.mjs"
+  },
   "scripts": {
     "dev": "vite --host 127.0.0.1 --port 5173",
     "build": "tsc --noEmit && vite build",
@@ -11,7 +14,9 @@
     "typecheck": "tsc --noEmit",
     "bundle": "tsc --noEmit && node tools/build-single-file.mjs",
     "zip": "bash ../tools/make_zip.sh",
-    "docs": "node tools/gen-settings-doc.mjs"
+    "docs": "node tools/gen-settings-doc.mjs",
+    "pack": "node tools/xray-pack.mjs",
+    "template": "node tools/build-single-file.mjs --template"
   },
   "dependencies": {
     "lil-gui": "0.21.0",

@@ -12,6 +12,8 @@ import { fileURLToPath } from 'node:url';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const noIfc = process.env.XRAY_NO_IFC === '1';
+// tools/build-single-file.mjs --template builds into its own scratch directory (so it cannot clash with a plain bundle run)
+const outDir = process.env.XRAY_SINGLE_OUT || '.single-build';
 
 /** Redirect every import of src/model/ifcRuntime to the variant for this bundle. */
 function ifcRuntimeVariant(): Plugin {
@@ -31,7 +33,7 @@ export default defineConfig({
   publicDir: false, // models and config are embedded by the post-processing script, not copied
   plugins: [ifcRuntimeVariant()],
   build: {
-    outDir: '.single-build',
+    outDir,
     emptyOutDir: true,
     assetsInlineLimit: 100_000_000,
     cssCodeSplit: false,

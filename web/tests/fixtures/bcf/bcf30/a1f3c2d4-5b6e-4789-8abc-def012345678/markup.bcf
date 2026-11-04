@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Markup>
+  <Header>
+    <Files>
+      <File IfcProject="0J$yPqHBD12v72Y4tGsLzu" IsExternal="true">
+        <Filename>AC20-FZK-Haus.ifc</Filename>
+        <Date>2019-03-04T09:00:00Z</Date>
+      </File>
+    </Files>
+  </Header>
+  <Topic Guid="a1f3c2d4-5b6e-4789-8abc-def012345678" ServerAssignedId="PRJ-7" TopicType="Issue" TopicStatus="Open">
+    <ReferenceLinks><ReferenceLink>https://example.org/t/7</ReferenceLink></ReferenceLinks>
+    <Title>Column offset</Title>
+    <Priority>Critical</Priority>
+    <Labels><Label>Structure</Label><Label>Level 2</Label></Labels>
+    <CreationDate>2022-06-01T12:00:00.250Z</CreationDate>
+    <CreationAuthor>dave@example.org</CreationAuthor>
+    <AssignedTo>dave@example.org</AssignedTo>
+    <Stage>Construction</Stage>
+    <Description>Column is 5 cm off the grid.</Description>
+    <DocumentReferences>
+      <DocumentReference Guid="b2c3d4e5-f6a7-4b8c-9d0e-1f2a3b4c5d6e">
+        <DocumentGuid>0a1b2c3d-4e5f-4a7b-8c9d-0e1f2a3b4c5d</DocumentGuid>
+        <Description>Site notes</Description>
+      </DocumentReference>
+    </DocumentReferences>
+    <Comments>
+      <Comment Guid="c3d4e5f6-a7b8-4c9d-8e1f-2a3b4c5d6e7f">
+        <Date>2022-06-01T12:05:00Z</Date>
+        <Author>dave@example.org</Author>
+        <Comment>Measured on site.</Comment>
+        <Viewpoint Guid="d4e5f6a7-b8c9-4d0e-9f2a-3b4c5d6e7f80"/>
+      </Comment>
+    </Comments>
+    <Viewpoints>
+      <ViewPoint Guid="d4e5f6a7-b8c9-4d0e-9f2a-3b4c5d6e7f80">
+        <Viewpoint>view1.bcfv</Viewpoint>
+        <Snapshot>view1.png</Snapshot>
+      </ViewPoint>
+    </Viewpoints>
+  </Topic>
+</Markup>

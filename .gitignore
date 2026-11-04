@@ -5,3 +5,5 @@ web/.single-build/
 __pycache__/
 *.pyc
 xray-ref.zip
+web/.single-build-template-*/
+web/tools/pack/reader.mjs

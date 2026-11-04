@@ -25,6 +25,11 @@ export interface ElementRecord {
   /** [minx, miny, minz, maxx, maxy, maxz] in viewer coordinates */
   bounds: [number, number, number, number, number, number];
   file?: string;
+  /**
+   * Optional hover-info properties, at most 24: `Attr.ObjectType|Tag|Description|PredefinedType`,
+   * `<PsetName>.<PropName>`, `<QtoName>.<QuantityName>`. SI values (m, m2, m3, kg), reals to 4 significant digits.
+   */
+  props?: Record<string, string | number | boolean>;
 }
 
 export interface Relations {
@@ -37,6 +42,11 @@ export interface Relations {
   /** element-level port connections */
   ports: Array<[ElementId, ElementId]>;
   systems: Array<{ name: string; elements: ElementId[] }>;
+  /**
+   * Bounds of the opening elements (IfcOpeningElement geometry is not drawn): viewer coordinates, like element
+   * bounds. Absent when the source has no opening data. `host` is the voided element, `expressId` the opening's.
+   */
+  openings?: Array<{ expressId: number; host: ElementId; bounds: [number, number, number, number, number, number] }>;
 }
 
 export interface SceneModel {

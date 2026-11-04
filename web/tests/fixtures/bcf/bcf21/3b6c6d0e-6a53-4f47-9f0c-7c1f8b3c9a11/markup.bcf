@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Markup xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <Header>
+    <File IfcProject="0J$yPqHBD12v72Y4tGsLzu" IfcSpatialStructureElement="1xS3BCk291UvhgP2dvNsgp" isExternal="true">
+      <Filename>AC20-FZK-Haus.ifc</Filename>
+      <Date>2019-03-04T09:00:00Z</Date>
+      <Reference>../AC20-FZK-Haus.ifc</Reference>
+    </File>
+  </Header>
+  <Topic Guid="3b6c6d0e-6a53-4f47-9f0c-7c1f8b3c9a11" TopicType="Clash" TopicStatus="Open">
+    <ReferenceLink>https://example.org/issues/42</ReferenceLink>
+    <Title>Duct clashes with wall &amp; beam</Title>
+    <Priority>High</Priority>
+    <Index>3</Index>
+    <Labels>Architecture</Labels>
+    <Labels>MEP</Labels>
+    <CreationDate>2021-03-04T10:15:30+01:00</CreationDate>
+    <CreationAuthor>alice@example.org</CreationAuthor>
+    <ModifiedDate>2021-03-05T08:00:00Z</ModifiedDate>
+    <ModifiedAuthor>bob@example.org</ModifiedAuthor>
+    <DueDate>2021-04-01T00:00:00Z</DueDate>
+    <AssignedTo>bob@example.org</AssignedTo>
+    <Stage>Design</Stage>
+    <Description>The duct crosses the wall at level 1.&#10;See viewpoint.</Description>
+    <BimSnippet SnippetType="ifc" isExternal="false">
+      <Reference>snippet.ifc</Reference>
+      <ReferenceSchema>https://example.org/IFC4.exp</ReferenceSchema>
+    </BimSnippet>
+    <DocumentReference Guid="c0b4b6f4-1e0e-4c19-8c43-7b6e0e6d7a01" isExternal="true">
+      <ReferencedDocument>https://example.org/spec.pdf</ReferencedDocument>
+      <Description>Specification</Description>
+    </DocumentReference>
+    <RelatedTopic Guid="8e5f1d52-0a6e-4b88-a6a3-0f9b7d2c4e22"/>
+  </Topic>
+  <Comment Guid="d1f0a9e2-5d2e-4f6c-9c7e-0a1b2c3d4e5f">
+    <Date>2021-03-04T10:20:00Z</Date>
+    <Author>alice@example.org</Author>
+    <Comment>Please check.</Comment>
+    <Viewpoint Guid="f4e8c1a0-2b7d-4a59-b3c6-9d8e7f6a5b41"/>
+  </Comment>
+  <Comment Guid="e2a1b0c9-6e3f-4a7d-8d8f-1b2c3d4e5f60">
+    <Date>2021-03-05T08:00:00Z</Date>
+    <Author>bob@example.org</Author>
+    <Comment>On it.</Comment>
+  </Comment>
+  <Viewpoints Guid="f4e8c1a0-2b7d-4a59-b3c6-9d8e7f6a5b41">
+    <Viewpoint>viewpoint.bcfv</Viewpoint>
+    <Snapshot>snapshot.png</Snapshot>
+    <Index>0</Index>
+  </Viewpoints>
+</Markup>
