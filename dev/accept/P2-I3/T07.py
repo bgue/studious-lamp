@@ -25,10 +25,8 @@ from mcp.types import CallToolResult
 from tl_adapters.db import as_target, make_uow_factory
 from tl_api.auth import Forbidden
 from tl_core.services import proposals
-from tl_lake import LakeConfig, LakeQueryService
-from tl_mcp.context import McpContext
 from tl_mcp.errors import MAX_PART
-from tl_mcp.materials_tools import MATERIALS_MCP_ACTIONS, register_materials_tools
+from tl_mcp.materials_tools import MATERIALS_MCP_ACTIONS
 from tl_mcp.server import build_server
 
 SEED = Path(__file__).resolve().parents[3] / ".accept" / "p2-i3.db"
@@ -88,18 +86,10 @@ def run() -> int:
         hook = Hook()
         lake = root / "lake"
         server = build_server(factory, actor=ACTOR, authorize_hook=hook, lake_dir=lake)
-        ctx = McpContext(
-            factory=factory,
-            actor=ACTOR,
-            authorize=hook,
-            lake=LakeQueryService(
-                LakeConfig.at(lake), default_limit=100, max_limit=1000, max_bytes=1024 * 1024
-            ),
-        )
-        before_names = {t.name for t in asyncio.run(server.list_tools())}
-        register_materials_tools(server, ctx)
+        # build_server registers the materials tools itself since T13: the ten tools are the
+        # server's tools whose names the materials actions carry.
         tools = {t.name: t for t in asyncio.run(server.list_tools())}
-        new_names = set(tools) - before_names
+        new_names = {name for name in tools if f"mcp.{name}" in MATERIALS_MCP_ACTIONS}
 
         def check(name: str, fn: Callable[[], None]) -> None:
             nonlocal failures
