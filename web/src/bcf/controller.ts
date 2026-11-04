@@ -25,6 +25,8 @@ type PlaneLike = { normal: Vec3 | { x: number; y: number; z: number }; point: Ve
 interface ClipApi {
   setClipPlanes?(planes: Array<{ normal: Vec3; point: Vec3 }> | null, opts?: { cap?: boolean }): void;
   getClipPlanes?(): PlaneLike[] | null | undefined;
+  /** Bumped by every setClipPlanes (renderer.ts); lets clear leave planes alone that someone set after us. */
+  clipVersion?: number;
 }
 
 const v3 = (v: Vec3 | { x: number; y: number; z: number }): Vec3 => (Array.isArray(v) ? [v[0], v[1], v[2]] : [(v as { x: number }).x, (v as { y: number }).y, (v as { z: number }).z]);
@@ -139,6 +141,7 @@ export class BcfController {
   private readonly hides = new CleanupHides();
   private savedColors: Map<number, [number, number, number]> | null = null;
   private clipOwned = false;
+  private clipVersion: number | undefined = undefined;
   private boundsFor: object | null = null;
   private bounds: Box6 | null = null;
   private lastPrune = 0;
@@ -146,6 +149,8 @@ export class BcfController {
   pinsVisible = true;
   /** Which topics show a pin (the drawer sets its filter); null: all. */
   pinFilter: ((t: BcfTopic) => boolean) | null = null;
+  /** Open BCF drawers. Pins show while a drawer is open; with none, only the pin of the topic whose viewpoint is applied. */
+  private drawers = 0;
   /** Bumped on every markup change (pins, annotations): views re-render on it. */
   markupRev = 0;
   /** The live markup view (pins.ts), set by it; the topic dialog starts pin placement through it. */
@@ -370,6 +375,7 @@ export class BcfController {
     if (plan.clip.length && this.canClip) {
       this.clipApi().setClipPlanes!(plan.clip);
       this.clipOwned = true;
+      this.clipVersion = this.clipApi().clipVersion;
     }
     app.runSightlinesNow();
     app.renderer.markDirty();
@@ -394,7 +400,9 @@ export class BcfController {
       this.savedColors = null;
     }
     if (this.clipOwned) {
-      this.clipApi().setClipPlanes?.(null);
+      // Only our planes: if the section tool took the planes over since (a plane, box or Clear), leave its planes alone.
+      const api = this.clipApi();
+      if (this.clipVersion === undefined || api.clipVersion === undefined || api.clipVersion === this.clipVersion) api.setClipPlanes?.(null);
       this.clipOwned = false;
     }
     const was = this.applied !== null || shown > 0;
@@ -683,9 +691,27 @@ export class BcfController {
     return this.project.topics.indexOf(t) + 1;
   }
 
-  /** Topics whose pin is drawn: pins on, a pin, and passing the drawer filter. */
+  /** The BCF drawer mounts (true) or unmounts (false); pins follow it. */
+  setDrawerOpen(open: boolean): void {
+    this.drawers = Math.max(0, this.drawers + (open ? 1 : -1));
+    this.markupRev++;
+    this.emit();
+  }
+
+  get drawerOpen(): boolean {
+    return this.drawers > 0;
+  }
+
+  /**
+   * Topics whose pin is drawn: pins on and a pin; while the drawer is open, those passing its filter (and the selected one);
+   * with the drawer closed, only the topic whose viewpoint is applied (pins are review markup, not part of the model view).
+   */
   pinnedTopics(): BcfTopic[] {
     if (!this.pinsVisible) return [];
+    if (!this.drawers) {
+      const active = this.applied?.topic;
+      return active ? this.project.topics.filter((t) => t.pin && t.guid === active) : [];
+    }
     return this.project.topics.filter((t) => t.pin && (!this.pinFilter || this.pinFilter(t) || t.guid === this.selectedTopic));
   }
 

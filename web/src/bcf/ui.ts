@@ -347,8 +347,9 @@ export function buildDrawer(container: HTMLElement, c: BcfController, view: BcfM
   };
 
   const chip = (text: string, cls: string): HTMLSpanElement => el('span', `bcf-chip ${cls}`, undefined, text);
-  // Pins follow the list filter while the drawer is open.
+  // Pins show, and follow the list filter, while the drawer is open.
   c.pinFilter = matches;
+  c.setDrawerOpen(true);
   let measureOpen = false;
   let annText = '';
 
@@ -712,6 +713,7 @@ export function buildDrawer(container: HTMLElement, c: BcfController, view: BcfM
     view?.cancel(true);
     if (view) view.onEdit = null;
     if (c.pinFilter === matches) c.pinFilter = null;
+    c.setDrawerOpen(false);
     view?.invalidate();
     root.remove();
     for (const u of urls.values()) URL.revokeObjectURL(u);

@@ -28,6 +28,8 @@ export interface SectionApi {
   clear(): void;
   /** The planes this plugin would send to the renderer right now. */
   planes(): ClipPlane[];
+  /** Clip planes that someone else set on the renderer (a BCF viewpoint) and that are in force now; 0 when none. */
+  foreignPlanes(): number;
   /** The point the plane offset is measured from: the box centre, else the model centre. */
   centre(): Vec3;
   /** Unit axis direction of the plane before the flip (offset grows along it); the view direction for axis `camera`. */
@@ -165,6 +167,12 @@ const api: SectionApi = {
   fitToModel: () => doFit('model'),
   clear: clearAll,
   planes: () => (appRef ? computePlanes(appRef) : []),
+  foreignPlanes() {
+    const r = appRef?.renderer;
+    if (!r) return 0;
+    const n = r.getClipPlanes()?.length ?? 0;
+    return n && (foreign || r.clipVersion !== ownedVersion) ? n : 0;
+  },
   centre: () => (appRef ? centre(appRef) : [0, 0, 0]),
   planeAxis() {
     if (appRef) appRef.renderer.camera.getWorldDirection(fwd);
@@ -181,7 +189,15 @@ const api: SectionApi = {
 function pushPlanes(app: ViewerApp): void {
   const r = app.renderer;
   if (r.clipVersion !== ownedVersion && pushedAny) foreign = true; // someone else (a BCF viewpoint) took the planes
-  if (foreign) return;
+  if (foreign) {
+    if (r.getClipPlanes()) return;
+    // The foreign planes were removed (BCF "Clear viewpoint"): the section settings take the planes back.
+    foreign = false;
+    lastPlanes = [];
+    pushedAny = false;
+    ownedVersion = r.clipVersion;
+    for (const l of listeners) l();
+  }
   const want = config.box.enabled || config.plane.enabled;
   if (!want && !pushedAny) return;
   if (want && config.box.enabled && !currentBox() && app.loaded) fit(app, config.box.fit);
