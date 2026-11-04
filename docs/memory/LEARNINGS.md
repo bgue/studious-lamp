@@ -236,3 +236,15 @@ The impact report of a package is stored in an event the whole company can read,
 - **L-P1-UX2-3** · 2026-10-22 · tags: tui, standards
   The columns of a company standard hold codes (`STR`, `ISO`, `PIP`, `47`). A screen shows plain words only if the standard's code lists are read: `list_code_lists(scope)` gives `{list: {code: label}}` and `labels_load` keys each list by its column and by its list name. A new log that shows a standards column needs one test with a code in the cell (plain shows the label, technical keeps the code).
   Evidence: S3 report (D10), `labels_load.py`, `test_standard_code_labels.py`. Status: active
+
+- **L-P2-WEB1-1** · 2026-11-04 · tags: process, tests
+  A page that is a twin of a terminal screen is only a Haiku ticket when the terminal logic is already a Textual-free module (01-tiers 6 item 2). S4's first checklist run failed for the record screen and the awp and M4 screens; one builder piece that moves the logic (S6) made the tabs and twins cheap. Run the checklist after the interface is in the tree, and split twins one page each.
+  Evidence: D16, D19, D25, D34, D39. Status: active
+
+- **L-P2-WEB1-2** · 2026-11-04 · tags: web, security
+  A server-rendered POST needs the origin check even when it carries no token: sign-in had none, which made login CSRF possible (F1). Fail closed for the guard (`run_command(guard=True)` default; the JSON endpoint opts out), and count a refused origin as no failure in the rate limiter.
+  Evidence: SECFIX report, F1 to F3, `b817341`. Status: active
+
+- **L-P2-WEB1-3** · 2026-11-04 · tags: web, tests
+  Test seeds that attach files or hold hidden records may only work on SQLite: `seed_hidden_world` fails on Postgres, so `gate-pg` on a new package errors at baseline. Check the seed on both adapters when the first page test is written, and name the unknown-project answer (empty 200 versus 404) in the spec.
+  Evidence: Q4, T20 orchestrator decision. Status: active
