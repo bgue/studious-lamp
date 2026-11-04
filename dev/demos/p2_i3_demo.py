@@ -10,8 +10,8 @@ Token and lake files go to ``P2_I3_WORKDIR``, the demo's own temporary directory
 
 Modes (first argument):
 
-* ``clause1-people``: mara (company materials superuser) passes the access gate of DefineItem; pete
-  (project user) is answered 403 by the API. Nothing is written, so the library keeps its 50 items.
+* ``clause1-people``: mara (company materials superuser) DefineItem is accepted (200) and persisted,
+  so the library holds 51 items; pete (project user) is answered 403 by the API.
 * ``clause2``: sue (project superuser) defines the five-level location chain P123 > WH1 > L2 > TC1
   > GB1 through the API; pete's DefineLocation is answered 403.
 * ``clause4``: the consumable issue without a cost code is answered 422; the stock of P123 equals
@@ -23,7 +23,7 @@ Modes (first argument):
 * ``clause8``: the API, the TUI screens (stock, receipts, MTO lines at 170 columns) and the MCP
   stock tool agree; an agent's propose_reservation is pending until sue accepts it.
 * ``clause9``: the API refuses the four bad quantities of the shell, with the same fixed message.
-* ``clause10-11``: the item library (50 items, project counts) and the location tree (five levels,
+* ``clause10-11``: the item library (51 items, project counts) and the location tree (five levels,
   lot counts) at 170 columns.
 """
 
@@ -48,13 +48,11 @@ from tl_api.app import create_app
 from tl_api.settings import ApiSettings
 from tl_api.tokens import TokenStore
 from tl_core.auth import sessions
-from tl_core.auth.module_roles import holder_for_principal, require_command_access
 from tl_core.files.service import FileService
 from tl_core.readiness import ContractWorld, IwpFacts, check_readiness_contract, load_checks
 from tl_mod_documents.derivation import store as derivation_store
 from tl_mod_documents.derivation import views as derivation_views
 from tl_mod_materials import views
-from tl_mod_materials.handlers.items import DefineItem
 from tl_tui.app import TlApp
 from tl_tui.embedded import EmbeddedClient
 from tl_tui.widgets.item_library import ItemLibraryScreen
@@ -159,25 +157,23 @@ def mto_lines(world: World, work_package: str | None = None) -> list[Any]:
 
 
 def clause1_people() -> None:
+    """mara's DefineItem is accepted and persisted: the library then holds the 50 sample items
+    and this probe (51 of 51). pete's DefineItem is answered 403."""
     world = World()
     try:
-        command = DefineItem(
-            actor="user:mara",
-            source="demo",
-            scope=COMPANY,
-            code="CON-PROBE-1",
-            title="Probe",
-            category="consumable",
-            base_uom="EA",
-            consumable=True,
+        accepted = world.client("mara").post(
+            "/commands/DefineItem",
+            json={
+                "scope": COMPANY,
+                "code": "CON-PROBE-1",
+                "title": "Probe",
+                "category": "consumable",
+                "base_uom": "EA",
+                "consumable": True,
+            },
         )
-        # the access gate the API runs before the handler; nothing is written here, so the
-        # library keeps the 50 sample items that clause 10 counts
-        with world.backend(True) as uow:
-            require_command_access(
-                uow.conn(), command, holder=holder_for_principal(world.principal("mara"))
-            )
-        passed(1, "mara (company materials superuser) may DefineItem: the access gate admits her")
+        check(accepted.status_code == 200, f"mara's DefineItem: {accepted.status_code}")
+        passed(1, "mara (company materials superuser) DefineItem is accepted: 200, persisted")
         refused = world.client("pete").post(
             "/commands/DefineItem",
             json={
@@ -418,8 +414,14 @@ def screen_text(app: Any) -> str:
     return "\n".join(strip.text.rstrip() for strip in strips)
 
 
-def tui_text(world: World, actor: str, make: Callable[[Any], Any]) -> str:
-    """The text of one TUI screen pushed on TlApp over the embedded client, at 170 x 40."""
+def tui_text(
+    world: World,
+    actor: str,
+    make: Callable[[Any], Any],
+    ready: Callable[[str], bool] | None = None,
+) -> str:
+    """The text of one TUI screen pushed on TlApp over the embedded client, at 170 x 40.
+    ``ready`` says when the rows the caller checks are on the screen (a bounded wait)."""
     client = EmbeddedClient(world.backend, actor=actor)
     app = TlApp(client, scope=P123, actor=actor)
     captured: dict[str, str] = {}
@@ -433,13 +435,21 @@ def tui_text(world: World, actor: str, make: Callable[[Any], Any]) -> str:
                 if "Showing" in screen_text(app):
                     break
                 await pilot.pause(0.1)
-            previous = ""
-            for _ in range(50):  # and until the table has been drawn: the text stops changing
-                await settle(pilot)
-                current = screen_text(app)
-                if current == previous:
+            for _ in range(150):  # and the rows the caller checks are drawn (a panel mounts late)
+                if ready is None or ready(screen_text(app)):
                     break
+                await pilot.pause(0.1)
+            # and until the table has been drawn: the text must read the same five times in a row
+            # (a panel that mounts a moment later changes the column widths; Postgres is slower)
+            previous, same = "", 0
+            for _ in range(200):
+                await settle(pilot)
+                await pilot.pause(0.2)
+                current = screen_text(app)
+                same = same + 1 if current == previous else 0
                 previous = current
+                if same >= 5:
+                    break
             captured["text"] = previous
 
     asyncio.run(scenario())
@@ -501,16 +511,29 @@ def clause8() -> None:
             )
             check(has_row(stock_text, *cells), f"the stock screen lacks {row['lot']}: {cells}")
         passed(8, f"the stock screen (170 columns) shows the {len(stock)} API stock rows")
-        receipts_text = tui_text(world, "user:pete", lambda c: ReceiptLogScreen(c, PROJECT))
+        receipts_text = tui_text(
+            world,
+            "user:pete",
+            lambda c: ReceiptLogScreen(c, PROJECT),
+            ready=lambda t: all(has_row(t, r["number"], r["state"]) for r in receipts),
+        )
         for row in receipts:
             check(
                 has_row(receipts_text, row["number"], row["state"]),
-                f"the receipts screen lacks {row['number']}",
+                f"the receipts screen lacks {row['number']} {row['state']}:\n{receipts_text}",
             )
         passed(8, f"the receipts screen shows the {len(receipts)} API receipts with their states")
-        mto_text = tui_text(world, "user:pete", lambda c: MtoLinesScreen(c, PROJECT))
+        mto_text = tui_text(
+            world,
+            "user:pete",
+            lambda c: MtoLinesScreen(c, PROJECT),
+            ready=lambda t: mto[0]["key"] in t,
+        )
+        # The table cuts the Number column short; the full key shows in the panel of the
+        # highlighted line (the first one, as the API lists it). Each line's quantities are a row.
+        check(mto[0]["key"] in mto_text, f"the MTO screen lacks {mto[0]['key']}:\n{mto_text}")
         for row in mto:
-            cells = (row["key"], qty(row["required"]), qty(row["reserved"]), qty(row["short"]))
+            cells = (qty(row["required"]), qty(row["reserved"]), qty(row["short"]))
             check(has_row(mto_text, *cells), f"the MTO screen lacks {cells}:\n{mto_text}")
         passed(8, f"the MTO lines screen shows the {len(mto)} API take-off lines and quantities")
         server = mcp_server(world)
@@ -584,15 +607,17 @@ def clause9() -> None:
 
 
 def clause10_11() -> None:
-    """The item library (50 items, project counts) and the location tree (five levels, lot
+    """The item library (51 items, project counts) and the location tree (five levels, lot
     counts) at 170 columns; the screens show what the ledger holds."""
     world = World()
     try:
         items = tui_text(world, "user:pete", lambda c: ItemLibraryScreen(c))
-        check("Showing 50 of 50 items" in items, "the item library does not show 50 of 50 items")
+        check("Showing 51 of 51 items" in items, "the item library does not show 51 of 51 items")
         check("Projects" in items, "the item library has no Projects column")
         passed(
-            10, "the item library shows the 50 sample items, with project counts, at 170 columns"
+            10,
+            "the item library shows the 50 sample items and mara's probe, with project counts, "
+            "at 170 columns",
         )
         locations = tui_text(world, "user:pete", lambda c: LocationScreen(c, PROJECT))
         api = world.client("pete").get(f"/projects/{PROJECT}/materials/locations").json()

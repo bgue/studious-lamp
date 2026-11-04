@@ -24,7 +24,8 @@
 #      an agent's propose_reservation is pending until sue accepts it (driver);
 #   9  a quantity with Arabic-Indic digits, a negative, 4 decimal places or over the bound is refused
 #      with the fixed message, on the CLI and through the API (driver);
-#   10 the item library shows the 50 items with project counts, and the locations screen shows the
+#   10 the item library shows the 51 items (the 50 sample items and mara's probe) with project
+#      counts, and the locations screen shows the
 #      five-level tree with lot counts, at 170 columns (driver);
 #   11 the movement log lists the clause-4 movements in order with kind, from, to and by, and
 #      filtered by kind `issue` shows one row.
@@ -76,6 +77,13 @@ refuse() { # refuse TEXT cmd...: the command must fail and say TEXT
   local text="$1" out; shift
   if out="$("$@" 2>&1)"; then echo "$out"; fail "this was accepted: $*"; fi
   echo "$out"; expect "$text" "$out"
+}
+movement_is() { # movement_is KIND FROM TO BY LISTING: the first row of KIND has that from, to and by
+  local row
+  row="$(printf '%s\n' "$5" | awk -v k="$1" '$2 == k' | head -n 1)"
+  [ -n "$row" ] || fail "no $1 movement in the listing"
+  printf '%s\n' "$row" | awk -v f="$2" -v t="$3" -v b="$4" '$7 == f && $8 == t && $9 == b { ok = 1 } END { exit !ok }' \
+    || fail "the $1 movement is not from $2 to $3 by $4: $row"
 }
 pdf() { # pdf NAME: a rendition file for a revision (the rendition step checks the kind, not the bytes)
   printf '%%PDF-1.7 %s\n' "$1" >"$workdir/$1.pdf"
@@ -291,8 +299,14 @@ YAML
   out="$(as pete tl mat movements --project P123)"; echo "$out"
   kinds="$(printf '%s\n' "$out" | awk '$2 ~ /^(receive|issue|transfer|return|adjust)$/ {printf "%s ", $2}')"
   [ "$kinds" = "receive receive receive issue transfer return adjust " ] || fail "the movement kinds are: $kinds"
+  movement_is issue L2 - user:pete "$out"
+  movement_is transfer L2 TC1 user:pete "$out"
+  movement_is return - L2 user:pete "$out"
+  movement_is adjust L2 - user:sue "$out"
   out="$(as pete tl mat movements --project P123 --kind issue)"; echo "$out"
   expect "movements: 1" "$out"
+  filtered="$(printf '%s\n' "$out" | awk 'NR > 1 {printf "%s ", $2}')"
+  [ "$filtered" = "issue " ] || fail "the kind issue filter shows the kinds: $filtered"
   clause 11
 
   drop_pg
