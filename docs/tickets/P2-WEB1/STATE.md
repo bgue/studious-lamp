@@ -1,4 +1,4 @@
-# P2-WEB1 STATE  r=10 base=904dfb0 C=2 ck=0 gate=n/a wt=/home/user/wt/p2-web1
+# P2-WEB1 STATE  r=11 base=53e0033 C=4 ck=0 gate=n/a wt=/home/user/wt/p2-web1
 ## BOARD
 S1 p mrg f 3145932 foundation; F1 csrf catch-all fixed; deviations ratified
 S2 p mrg f 3145932 run_command + action_ui (merge 773f38c)
@@ -16,7 +16,7 @@ S5 p mrg f 230e2ae tests piece, 338 tests; +500 headers fix (merge c89e9bc)
 T08 t mrg l 250a7d3 demo script P2-WEB1.sh, sqlite+postgres 5/5 (merge fb0c930)
 T19 t mrg l e9798e3 stock keeps Location, panel text pre (merge da07d37)
 SEC-C4 - mrg - da07d37..904dfb0 review: 9 none
-T20 t disp l - demo clauses 6, 7: sign in, open the 11 twin pages; r10 dispatch
+T20 t mrg l 0a9e5d4 demo clauses 6, 7; unknown project = empty 200 accepted (merge 53e0033)
 SECFIX p mrg f b817341 F1 login CSRF, F2 guard default-on, F3 rate-limit tests (merge 0118cb0)
 T09 t mrg f 31e80f1 CWP register page; panel drops Id row (panel=False) accepted
 T09b t mrg f 7208d55 CWA register page
@@ -31,7 +31,7 @@ T13b t mrg f 1aa1dd9 M4 page merged
 T14 t mrg f bcaeaf6 M4 page merged
 T14b t mrg f aa20143 M4 page merged
 T18 t mrg f - digit-string tidy merged
-T07 t disp l - docs: README, runbook, AGENTS row; r10 dispatch
+T07 t mrg l b3f8815 docs; subject only, accepted (merge 61aeca6)
 ## DEC
 D1 2026-11-01 owner: tests deferred; every item leaves dev/accept/P2-WEB1/<id>.py; S5 writes the spec 11 "Tests added" files plus tests/tools/test_check_licences_vendored.py
 D2 2026-11-01 file ids: S1..S4 as spec, S5 = tests, T01..T08 = spec T1..T8, T09..T14 = twins; reports docs/reports/P2-WEB1/<id>.md
@@ -91,9 +91,10 @@ Q5, Q6 closed r9 (D41, D42).
 Q7 CLOSED r10 (SEC-C4: 9 none). Was: the WEB1 milestone security review on the twin range must cover the items panel (T14: list_materials_item_projects is company-wide, other projects' quantities, filtered only by the JSON route's viewer) and a five-reader walk of the ten materials mirrors; note it in the C4 dispatch
 Q8 The M4 twin pages have no record pages (D41); the panel shows the same words the terminal record page does. Follow-up for the Phase 2 plan, not WEB1; needs owner raised r9
 ## NEXT
-1. Orch: dispatch T07 (docs) and T20 (demo) as one workflow; merge when P. C3 = T07 merged.
-2. C4 (later round): full gate, gate-pg packages/tl-web (Q4 first, owner capacity), demo P2-WEB1 sqlite+pg once, tour once, DONE round (report, learnings).
-3. Follow-ups for the Phase 2 plan: record pages for M4 rows (Q8), locations tree look (D46), awp seeder walk (Q3).
+1. Wave close: whole-suite gate on integrated branch (trunk + p2/i1 + p2/i3 + p2/web1), merge to trunk.
+2. C4 reached r11: demo 7/7 sq+pg, tl-web 481/481 at T19, SEC-C4 9 none. Report docs/reports/P2-WEB1.md; learnings L-P2-WEB1-1..3.
+3. Follow-ups: D46 locations look, P3-I8 unknown-project 404 and item_projects membership filter, Q4 web test seed on Postgres, stream-test flake, Q3, Q8.
+
 ## REFS
 Spec docs/build-spec/specs/web-client-i1.md (sections 3-8 are the interfaces); wave plan 2; piece specs S1-S4, S6 and tickets T01, T02, T05, T06, T15 in this directory. Acceptance scripts dev/accept/P2-WEB1/. Reports docs/reports/P2-WEB1/ (S4 has the page recipe and S5 seams; T01 has the forge_item and patch-a-read tricks). T03/T04 recipe = docstring of pages/record.py and docs/reports/P2-WEB1/S6.md. Style model: docs/tickets/P2-WEB1/S3-server-page1.md (dev/accept scripts go with S5, D26). Tests piece S5-tests.md, demo ticket T08-demo-script.md. Twin recipe TWINS.md (with Learned); M4 recipe M4-TWINS.md; T16 and T17 tickets; screenshot helper provided/shot_recipe.py; awp text modules tl_tui/{awp,cwa,wbs,package}_text.py; awp routes tl_api/routes/awp.py; fake data packages/tl-tui/tests/fakes_awp.py. Trunk claude/wizardly-allen-m2v96s @1b93a13; p2/i1 merged again d854e18; p2/web1 head fa86730 before the r9 commits (p2/i3 merged 4b01dab, T16 merged fa86730). M4 recipe M4-TWINS.md (now with Open-link rule and loader); T18-query-int-tidy.md. M4 text contracts: docs/tickets/P2-I3/text-contracts.md on p2/i3.
 ## TRAPS
