@@ -2974,7 +2974,7 @@ export const CONTROL_HELP: Record<string, HelpEntry> = {
     'Report: Appendix J, Coordination tools',
   ),
   'BCF drawer/Show pins': h(
-    'The button shows or hides the numbered markers of the topics on the model. The markers follow the topic filter.',
+    'The button shows or hides the numbered markers of the topics on the model while this drawer is open. The markers follow the topic filter. With the drawer closed only the marker of the applied viewpoint shows.',
     'Click and the numbered dots of the issue notes appear on the building or go away.',
     'Click the button to turn the markers on or off. Click a marker to open its topic.',
     'Report: Appendix J, Coordination tools',
