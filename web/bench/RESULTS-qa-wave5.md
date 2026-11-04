@@ -69,7 +69,7 @@ script passes.
    a. **Rolled orbit.** A rolled view eases back to world up (160 ms, or at once with smooth moves off) as soon as a
       left-button drag starts on the canvas (`src/plugins/gizmo.ts:545` `startUnroll`, `:565` `unrollFrame`).
    b. **Ring sensitivity.** The tilt angle is the pointer's direction from the ring's projected centre, matched on the
-      projected ring (ellipse) sampled at drag start (`ellipseAngle`, `src/gizmo/maths.ts:261`; used in
+      projected ring (ellipse) sampled at drag start (`ellipseAngle`, `src/gizmo/maths.ts:263`; used in
       `src/gizmo/planeHandles.ts:184` and `:215`), with a hold zone of 40 % of the ring radius in that direction. Unit
       tests in `tests/gizmo-maths.test.ts`. Commits `7b49f00`, `d833148`.
 
