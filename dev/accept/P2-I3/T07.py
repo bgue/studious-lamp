@@ -86,8 +86,8 @@ def run() -> int:
         hook = Hook()
         lake = root / "lake"
         server = build_server(factory, actor=ACTOR, authorize_hook=hook, lake_dir=lake)
-        # build_server registers the materials tools itself since T13; registering again is a no-op
-        # check of the same names, so the ten tools are the ones whose names the actions carry.
+        # build_server registers the materials tools itself since T13: the ten tools are the
+        # server's tools whose names the materials actions carry.
         tools = {t.name: t for t in asyncio.run(server.list_tools())}
         new_names = {name for name in tools if f"mcp.{name}" in MATERIALS_MCP_ACTIONS}
 
