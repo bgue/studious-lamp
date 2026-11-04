@@ -93,22 +93,26 @@ try {
     const r = (id) => document.querySelector(id).getBoundingClientRect();
     const c = document.getElementById('c');
     const dpr = window.devicePixelRatio;
-    return { sb: r('#sidebar').width, stage: r('#stage').width, cw: c.clientWidth, ch: c.clientHeight, bw: c.width, bh: c.height, dpr, vw: window.innerWidth, vh: window.innerHeight };
+    const dock = document.querySelector('#dock');
+    return { sb: r('#sidebar').width, dock: dock ? dock.getBoundingClientRect().width : 0, stage: r('#stage').width, cw: c.clientWidth, ch: c.clientHeight, bw: c.width, bh: c.height, dpr, vw: window.innerWidth, vh: window.innerHeight };
   });
   let g = await geo();
   console.log('layout (expanded):', JSON.stringify(g));
   check('sidebar is 300 px', Math.round(g.sb) === 300);
-  check('canvas fills the remaining width', g.cw === g.vw - 300 && g.ch === g.vh);
+  // the right dock (parameter panel) takes its own column
+  check('canvas fills the remaining width', g.cw === g.vw - 300 - Math.round(g.dock) && g.ch === g.vh, `${g.cw} vs ${g.vw} - 300 - ${g.dock}`);
   check('canvas drawing buffer matches CSS size (not stretched)', Math.abs(g.bw - g.cw * g.dpr) <= 1 && Math.abs(g.bh - g.ch * g.dpr) <= 1);
 
   // Collapse with "[" and check the rail, then the state persists across a reload.
   await page.mouse.click(1000, 450); // focus the page body away from inputs
   await page.keyboard.press('[');
+  // the click above may start a selection (sightlines) that holds the main thread on a slow software GPU
+  await page.waitForFunction(() => Math.round(document.querySelector('#sidebar').getBoundingClientRect().width) === 28, null, { timeout: 10000 }).catch(() => {});
   await page.waitForTimeout(500);
   g = await geo();
   console.log('layout (collapsed):', JSON.stringify(g));
   check('collapsed sidebar is a 28 px rail', Math.round(g.sb) === 28);
-  check('canvas grew to fill and the buffer was resized', g.cw === g.vw - 28 && Math.abs(g.bw - g.cw * g.dpr) <= 1);
+  check('canvas grew to fill and the buffer was resized', g.cw === g.vw - 28 - Math.round(g.dock) && Math.abs(g.bw - g.cw * g.dpr) <= 1, `${g.cw}`);
   await page.reload();
   await page.waitForFunction('window.__xrayReady === true', null, { timeout: 120000 });
   check('collapsed state persisted in localStorage', await page.evaluate(() => document.body.classList.contains('sb-collapsed')));
