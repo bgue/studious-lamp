@@ -1,0 +1,13 @@
+{
+  "schema": "xray-config/1",
+  "classStyles": {
+    "Steel": { "alphaMax": 0.8 },
+    "Concrete": {},
+    "IfcColumn": { "floor": 0.5 },
+    "IfcGrid": { "hidden": true }
+  },
+  "materialAliases": {
+    "Steel": ["IfcMember", "IfcBeam:steel", "IfcColumn:steel", "IfcPlate"],
+    "Concrete": ["IfcSlab", "IfcWall", "IfcWallStandardCase", "IfcBeam:concrete", "IfcColumn:concrete", "IfcFooting"]
+  }
+}

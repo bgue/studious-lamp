@@ -1,0 +1,28 @@
+{
+  "name": "xray-ref",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1 --port 5173",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --host 127.0.0.1 --port 4173",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "bundle": "tsc --noEmit && node tools/build-single-file.mjs",
+    "zip": "bash ../tools/make_zip.sh",
+    "docs": "node tools/gen-settings-doc.mjs"
+  },
+  "dependencies": {
+    "lil-gui": "0.21.0",
+    "three": "0.187.0",
+    "three-mesh-bvh": "0.9.17",
+    "web-ifc": "0.0.78"
+  },
+  "devDependencies": {
+    "@types/three": "0.187.0",
+    "typescript": "5.9.3",
+    "vite": "8.3.5",
+    "vitest": "5.0.5"
+  }
+}

@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>BIM X-ray viewer</title>
+    <script>
+      // Apply the persisted sidebar state before first paint (no flash). Mirrors src/plugins/sidebar.ts.
+      (function () {
+        var collapsed = window.matchMedia && window.matchMedia('(max-width: 700px)').matches;
+        try {
+          var s = JSON.parse(localStorage.getItem('xray.sidebar') || 'null');
+          if (s && typeof s.collapsed === 'boolean') collapsed = s.collapsed;
+        } catch (e) {}
+        document.addEventListener('DOMContentLoaded', function () {
+          if (collapsed) document.body.classList.add('sb-collapsed');
+        });
+      })();
+      // Same for the right-hand parameter dock (localStorage 'xray.dock'). Mirrors src/plugins/panelDock.ts.
+      (function () {
+        var collapsed = window.matchMedia && window.matchMedia('(max-width: 700px)').matches;
+        try {
+          var s = JSON.parse(localStorage.getItem('xray.dock') || 'null');
+          if (s && typeof s.collapsed === 'boolean') collapsed = s.collapsed;
+        } catch (e) {}
+        document.addEventListener('DOMContentLoaded', function () {
+          if (collapsed) document.body.classList.add('dk-collapsed');
+        });
+      })();
+    </script>
+    <style>
+      :root {
+        --sb-bg: #141820;
+        --sb-fg: #dfe6ee;
+        --sb-dim: #8d99a8;
+        --sb-line: #262d3a;
+        --sb-hover: #1c2230;
+        --sb-sel: #1f4a7a;
+        --sb-accent: #3b9cff;
+        --sb-w: 300px;
+        --sb-rail: 28px;
+      }
+      body.sb-collapsed { --sb-w: var(--sb-rail); }
+      :root { --dk-w: 300px; --dk-rail: 28px; }
+      body.dk-collapsed { --dk-w: var(--dk-rail); }
+      html, body { margin: 0; height: 100%; background: #e9edf2; overflow: hidden; }
+
+      /* Page layout: sidebar | stage (canvas) | dock (lil-gui parameter panel). */
+      #app { display: flex; width: 100%; height: 100%; }
+      #stage { position: relative; flex: 1 1 0; min-width: 0; height: 100%; overflow: hidden; }
+      /* Absolutely positioned so the canvas's intrinsic size (its width/height attributes) never stretches the layout. */
+      #stage canvas { position: absolute; left: 0; top: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+
+      /* The app's debug overlay is position:fixed at left:8px; keep it clear of the sidebar. */
+      #xray-overlay { left: calc(var(--sb-w) + 8px) !important; transition: left 0.15s ease; }
+
+      #sidebar {
+        flex: 0 0 var(--sb-w);
+        width: var(--sb-w);
+        box-sizing: border-box;
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        overflow: hidden;
+        background: var(--sb-bg);
+        color: var(--sb-fg);
+        font: 12px/1.35 system-ui, -apple-system, 'Segoe UI', sans-serif;
+        border-right: 1px solid var(--sb-line);
+        transition: width 0.15s ease, flex-basis 0.15s ease;
+        z-index: 20;
+      }
+      #sidebar * { box-sizing: border-box; }
+      #sidebar button, #sidebar input { font: inherit; color: inherit; }
+
+      .sb-top { display: flex; align-items: center; gap: 4px; padding: 4px; border-bottom: 1px solid var(--sb-line); flex: 0 0 auto; }
+      .sb-toggle {
+        flex: 0 0 20px; width: 20px; height: 22px; padding: 0; line-height: 18px; text-align: center;
+        background: transparent; border: 1px solid var(--sb-line); border-radius: 3px; cursor: pointer; font-size: 16px;
+      }
+      .sb-toggle:hover { background: var(--sb-hover); border-color: #3a4558; }
+      .sb-tabs { display: flex; gap: 2px; min-width: 0; }
+      .sb-tab { background: transparent; border: 0; border-bottom: 2px solid transparent; padding: 3px 10px; cursor: pointer; color: var(--sb-dim); }
+      .sb-tab:hover { color: var(--sb-fg); }
+      .sb-tab.active { color: var(--sb-fg); border-bottom-color: var(--sb-accent); }
+      .sb-rail-label {
+        display: none; writing-mode: vertical-rl; transform: rotate(180deg); align-self: center; margin-top: 10px;
+        color: var(--sb-dim); cursor: pointer; letter-spacing: 0.05em; white-space: nowrap;
+      }
+
+      .sb-body { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; min-width: 300px; }
+      .sb-pane { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+      .sb-filter { display: flex; align-items: center; gap: 6px; padding: 6px 6px 4px; flex: 0 0 auto; }
+      .sb-filter .inp { flex: 1 1 auto; min-width: 0; }
+      .sb-filter-info { color: var(--sb-dim); white-space: nowrap; }
+
+      .inp {
+        background: #0e1218; border: 1px solid var(--sb-line); border-radius: 3px; padding: 3px 6px; height: 24px; outline: none;
+      }
+      .inp:focus { border-color: var(--sb-accent); }
+      .btn {
+        background: #1b2230; border: 1px solid #2d3748; border-radius: 3px; padding: 2px 8px; cursor: pointer; height: 22px; white-space: nowrap;
+      }
+      .btn:hover:not(:disabled) { background: #243049; border-color: #3a4a66; }
+      .btn:disabled { opacity: 0.45; cursor: default; }
+      .btn.primary { background: #1f4a7a; border-color: #2d6aa8; }
+      .btn.primary:hover { background: #26598f; }
+      .btn.danger:hover { background: #5a2a2a; border-color: #8a3a3a; }
+
+      /* Virtualised tree. */
+      .tv { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+      .tv-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden; position: relative; }
+      .tv-spacer { position: relative; width: 100%; }
+      .tv-win { position: absolute; left: 0; right: 0; top: 0; }
+      .tr {
+        display: flex; align-items: center; gap: 4px; height: 22px; padding-right: 6px; cursor: pointer; user-select: none; white-space: nowrap;
+      }
+      .tr:hover { background: var(--sb-hover); }
+      .tr.sel { background: var(--sb-sel); }
+      .tr.sel:hover { background: #26598f; }
+      .tr.hid .lbl { opacity: 0.45; text-decoration: line-through; }
+      .tr.k-storey .lbl, .tr.k-systems .lbl { font-weight: 600; }
+      .tr .lbl { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+      .tr .cnt, .set .cnt { color: var(--sb-dim); font-size: 11px; flex: 0 0 auto; }
+      .caret { flex: 0 0 12px; width: 12px; height: 12px; position: relative; }
+      .caret:not(.none)::before {
+        content: ''; position: absolute; left: 3px; top: 2px; border-style: solid; border-width: 4px 0 4px 6px;
+        border-color: transparent transparent transparent #9fb0c4;
+      }
+      .caret.open::before { left: 2px; top: 3px; border-width: 6px 4px 0 4px; border-color: #9fb0c4 transparent transparent transparent; }
+      .eye { flex: 0 0 16px; height: 16px; display: flex; align-items: center; justify-content: center; color: #6f7c8d; border-radius: 3px; }
+      .eye:hover { color: var(--sb-fg); background: #2a3447; }
+      .eye.off { color: #e0813a; }
+      .eye.part { color: #b7a46a; }
+      .dot { flex: 0 0 9px; width: 9px; height: 9px; border-radius: 50%; background: transparent; }
+      .dot.b-focus { background: #3b82f6; }
+      .dot.b-host { background: #ef4444; }
+      .dot.b-near { background: #f59e0b; }
+      .dot.b-far { background: #7d8794; }
+      .dot.b-none { background: transparent; box-shadow: inset 0 0 0 1px #2d3748; }
+      .tv-empty { padding: 12px; color: var(--sb-dim); }
+
+      /* Sets. */
+      .sets { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+      .sets-top { padding: 6px; display: flex; flex-direction: column; gap: 6px; flex: 0 0 auto; }
+      .sets-top .row { display: flex; gap: 6px; }
+      .sets-top .row .inp { flex: 1 1 auto; min-width: 0; }
+      .sets-msg { color: var(--sb-dim); min-height: 14px; }
+      .sets-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 0 6px 6px; }
+      .set { border: 1px solid var(--sb-line); border-radius: 4px; padding: 5px 6px; margin-bottom: 5px; background: #10141b; }
+      .set-head { display: flex; align-items: center; gap: 6px; }
+      .set-head .name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; font-weight: 600; }
+      .set-head .name:hover { color: var(--sb-accent); }
+      .set-head .inp { flex: 1 1 auto; min-width: 0; height: 22px; }
+      .set-btns { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 5px; }
+
+      /* Properties footer. */
+      .props { flex: 0 0 auto; border-top: 1px solid var(--sb-line); padding: 6px 8px 8px; min-width: 300px; background: #10141b; }
+      .props-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+      .props-title { font-weight: 600; color: var(--sb-dim); text-transform: uppercase; font-size: 10px; letter-spacing: 0.06em; }
+      .props-empty { color: var(--sb-dim); padding: 4px 0; }
+      .props-grid { display: grid; grid-template-columns: 104px 1fr; gap: 1px 8px; margin: 0; }
+      .props-grid dt { color: var(--sb-dim); }
+      .props-grid dd { margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-variant-numeric: tabular-nums; }
+      .props-more { color: var(--sb-dim); margin-top: 3px; }
+
+      /* Collapsed: a 28 px rail with only the toggle (and a vertical label). */
+      body.sb-collapsed .sb-tabs, body.sb-collapsed .sb-body, body.sb-collapsed .props { display: none; }
+      body.sb-collapsed .sb-top { flex-direction: column; padding: 4px 3px; border-bottom: 0; }
+      body.sb-collapsed .sb-rail-label { display: block; }
+
+      /* ------------------------------------------------------------------ right dock (lil-gui) */
+      #dock {
+        flex: 0 0 var(--dk-w);
+        width: var(--dk-w);
+        box-sizing: border-box;
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        overflow: hidden;
+        background: var(--sb-bg);
+        color: var(--sb-fg);
+        font: 12px/1.35 system-ui, -apple-system, 'Segoe UI', sans-serif;
+        border-left: 1px solid var(--sb-line);
+        transition: width 0.15s ease, flex-basis 0.15s ease;
+        z-index: 20;
+      }
+      #dock * { box-sizing: border-box; }
+      #dock button { font: inherit; color: inherit; }
+      .dk-top { display: flex; align-items: center; gap: 6px; padding: 4px; border-bottom: 1px solid var(--sb-line); flex: 0 0 auto; }
+      .dk-toggle {
+        flex: 0 0 20px; width: 20px; height: 22px; padding: 0; line-height: 18px; text-align: center;
+        background: transparent; border: 1px solid var(--sb-line); border-radius: 3px; cursor: pointer; font-size: 16px;
+      }
+      .dk-toggle:hover { background: var(--sb-hover); border-color: #3a4558; }
+      .dk-title { color: var(--sb-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .dk-rail-label {
+        display: none; writing-mode: vertical-rl; transform: rotate(180deg); align-self: center; margin-top: 10px;
+        color: var(--sb-dim); cursor: pointer; letter-spacing: 0.05em; white-space: nowrap;
+      }
+      .dk-body { flex: 1 1 auto; min-height: 0; min-width: 300px; display: flex; flex-direction: column; }
+
+      /* lil-gui inside the dock: not fixed, fills the column, scrolls inside, sidebar colours. */
+      #dock .lil-gui.lil-root {
+        --width: 100%;
+        --background-color: var(--sb-bg);
+        --title-background-color: #10141b;
+        --widget-color: #2a3447;
+        --hover-color: #35425a;
+        --focus-color: #3f4f6b;
+        --font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+        position: static; width: 100%; max-height: none; flex: 1 1 auto; min-height: 0; z-index: auto;
+      }
+      #dock .lil-gui.lil-root.lil-closed { flex: 0 0 auto; }
+      #dock .lil-gui.lil-root > .lil-children { flex: 1 1 auto; min-height: 0; }
+      /* Top-level folder titles stay visible while their folder scrolls. */
+      #dock .lil-gui.lil-root > .lil-children > .lil-gui > .lil-title {
+        position: sticky; top: 0; z-index: 3; background: var(--title-background-color);
+      }
+
+      body.dk-collapsed .dk-title, body.dk-collapsed .dk-body { display: none; }
+      body.dk-collapsed .dk-top { flex-direction: column; padding: 4px 3px; border-bottom: 0; }
+      body.dk-collapsed .dk-rail-label { display: block; }
+
+      /* Narrow screens: the sidebar overlays the canvas instead of pushing it. */
+      @media (max-width: 700px) {
+        #app { position: relative; }
+        #sidebar {
+          position: absolute; left: 0; top: 0; bottom: 0; flex: none; width: min(var(--sb-w), 85vw); box-shadow: 2px 0 12px rgba(0, 0, 0, 0.35);
+        }
+        body.sb-collapsed #sidebar { width: var(--sb-rail); }
+        #stage { flex: 1 1 100%; width: 100%; }
+        #xray-overlay { left: calc(var(--sb-rail) + 8px) !important; }
+        .sb-body, .props { min-width: 0; }
+        #dock {
+          position: absolute; right: 0; top: 0; bottom: 0; flex: none; width: min(var(--dk-w), 85vw); box-shadow: -2px 0 12px rgba(0, 0, 0, 0.35);
+        }
+        body.dk-collapsed #dock { width: var(--dk-rail); }
+        .dk-body { min-width: 0; }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app">
+      <aside id="sidebar" aria-label="Model sidebar"></aside>
+      <div id="stage"><canvas id="c"></canvas></div>
+      <aside id="dock" aria-label="X-ray parameters"></aside>
+    </div>
+    <script type="module" src="/src/app.ts"></script>
+  </body>
+</html>

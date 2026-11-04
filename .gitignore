@@ -1,0 +1,7 @@
+node_modules/
+web/dist/
+web/dist-single/
+web/.single-build/
+__pycache__/
+*.pyc
+xray-ref.zip
