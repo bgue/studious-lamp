@@ -165,11 +165,11 @@ export const FOLDER_HELP: Record<string, HelpEntry> = {
     'Turn the bloom on to find the focus quickly in a busy model.',
     'Report: Limitations and extensions',
   ),
-  'Host edge glow': h(
-    'The folder controls the glowing outline of host objects. The outline shows where the focus passes through the structure.',
-    'These controls add a bright line around the walls and slabs that the selected item crosses.',
-    'Turn the glow on to see the points where a run penetrates a slab or a wall.',
-    'Report: Terminology, host',
+  'Edge glow': h(
+    'The folder controls a glowing outline. The glow scope sets which objects get the outline.',
+    'These controls draw a bright line around the item you picked, and on request around the parts close to it.',
+    'Turn the glow on. Select focus for the selection only. Select near or all for more objects.',
+    'Report: Terminology, focus',
   ),
   'Sweep reveal': h(
     'The folder controls the reveal in which a sweep plane moves from the camera through the occluders.',
@@ -284,13 +284,13 @@ export const FOLDER_HELP: Record<string, HelpEntry> = {
   Tiny: h(
     'The folder holds the rule for tiny elements. An element is tiny when its largest side is below the limit.',
     'This rule finds very small parts, such as screws or specks, that you can hardly see.',
-    'Turn the rule on. Set the largest side in metres.',
+    'Turn the rule on. Set the largest side. Pick mm, cm or m in the length unit list.',
     'Report: Appendix H, Model cleanup',
   ),
   'Distant strays': h(
     'The folder holds the rule for distant strays. A stray lies much further from the model centre than the rest of the model.',
     'This rule finds objects that sit way off from the building, such as markers left at the wrong place.',
-    'Turn the rule on. Increase the factor if the rule matches too many objects.',
+    'Turn the rule on. Increase the factor or the min gap if the rule matches too many objects.',
     'Report: Appendix H, Model cleanup',
   ),
   Duplicates: h(
@@ -370,6 +370,12 @@ export const FOLDER_HELP: Record<string, HelpEntry> = {
     'These controls cut the building open with a block of space or a flat cut. Then you see the inside.',
     'Turn the box or the plane on. Fit the box to the selection. Drag the handles to adjust it.',
     'Report: Appendix G, Imaging and sectioning',
+  ),
+  Gizmo: h(
+    'The folder controls the view cube and the section strip in the lower right corner of the 3D view.',
+    'Untick the box and the little block with its buttons leaves the picture. Tick it and it comes back.',
+    'Press the V key to show or hide the tools. Click the minus button to fold them into 1 button.',
+    'Report: Appendix I, Presets and keyboard',
   ),
   'Point cloud': h(
     'The folder controls point clouds. The viewer loads PLY, PCD, XYZ, PTS and LAS files and aligns them to the model.',
@@ -541,7 +547,7 @@ export const CONTROL_HELP: Record<string, HelpEntry> = {
   ),
 
   // ------------------------------------------------------------------ Classification (Alg 1)
-  'Classification (Alg 1)/bufferBase': h(
+  'Classification (Alg 1)/bufferBase (m)': h(
     'The slider sets the base buffer in metres. A context object inside the buffer of a focus object is near.',
     'Move the slider right and more walls and slabs close to the selected item start to fade. Move it left and fewer fade.',
     'Increase the value to make more objects near. Decrease the value to keep the ghosting close to the focus.',
@@ -553,13 +559,13 @@ export const CONTROL_HELP: Record<string, HelpEntry> = {
     'Increase the value to give thick ducts a wider buffer. Set the value to 0 to use the base buffer for all objects.',
     'Report: Algorithm 1, line 4',
   ),
-  'Classification (Alg 1)/bufferLo': h(
+  'Classification (Alg 1)/bufferLo (m)': h(
     'The slider sets the smallest buffer in metres. The buffer never falls below this value.',
     'Move the slider right and even thin pipes make walls and slabs close to them fade. Move it left and thin pipes affect fewer parts.',
     'Increase the value to stop thin pipes from getting a tiny buffer. Keep the value below the high limit.',
     'Report: Parameters and defaults',
   ),
-  'Classification (Alg 1)/bufferHi': h(
+  'Classification (Alg 1)/bufferHi (m)': h(
     'The slider sets the largest buffer in metres. The buffer never rises above this value.',
     'Move the slider left and big ducts affect fewer walls and slabs. Move it right and they reach out to more of the building.',
     'Decrease the value to stop large ducts from ghosting distant structure. Increase the value to include more structure around large ducts.',
@@ -828,34 +834,34 @@ export const CONTROL_HELP: Record<string, HelpEntry> = {
     'Report: Limitations and extensions',
   ),
 
-  // ------------------------------------------------------------------ Cinematic: Host edge glow
-  'Host edge glow/Edge glow': h(
-    'The switch adds a glowing outline to host objects. The outline marks where the focus meets the structure.',
-    'On: a bright line shows around the walls and slabs that the selected item crosses. Off: they look normal.',
-    'Turn the switch on to find penetrations of slabs and walls.',
+  // ------------------------------------------------------------------ Cinematic: Edge glow
+  'Edge glow/Edge glow': h(
+    'The switch adds a glowing outline to the objects of the glow scope. The default scope is the focus.',
+    'On: a bright line shows around the item you picked. Off: it looks normal.',
+    'Turn the switch on to find the selection quickly in a busy model.',
+    'Report: Terminology, focus',
+  ),
+  'Edge glow/glow scope': h(
+    'The list sets which objects glow. The value focus glows the focus. The value near adds the host and near objects. The value all glows every visible object.',
+    'Choose the first and only the item you picked gets a bright line. The middle choice adds the walls and slabs close to it. The last choice lines every part.',
+    'Select focus for a clear view. Select near to see the penetrations. Select all for a line drawing of the model.',
     'Report: Terminology, host',
   ),
-  'Host edge glow/Include near': h(
-    'The switch adds the outlines of near objects to the glow. Without it only host objects glow.',
-    'On: walls and slabs close to the selected item get the bright line too. Off: only the ones it crosses get it.',
-    'Turn the switch on to see all occluders. Turn it off to see the host objects only.',
-    'Report: Terminology, near',
-  ),
-  'Host edge glow/Additive': h(
+  'Edge glow/Additive': h(
     'The switch adds the glow colour to the image instead of replacing the colour below.',
     'On: the line adds light to what lies behind it, so it shines on dark parts. Off: it looks flat and solid.',
     'Turn the switch on for a bright glow on dark ghosts. Turn it off for a flat outline.',
     'Report: Appendix B, WebGL',
   ),
-  'Host edge glow/Strength': h(
+  'Edge glow/Strength': h(
     'The slider sets the brightness of the edge glow.',
     'Move the slider right and the bright line gets bolder and brighter. Move it left and it almost disappears.',
     'Increase the value to make the outline stand out. Decrease the value for a quiet outline.',
     'Report: Limitations and extensions',
   ),
-  'Host edge glow/Colour': h(
+  'Edge glow/Colour': h(
     'The colour box sets the colour of the edge glow.',
-    'Pick a shade for the bright line around crossed walls and slabs. A shade unlike the selected item makes it stand out.',
+    'Pick a shade for the bright line. A shade unlike the selected item makes it stand out.',
     'Click the box. Pick a colour that differs from the focus colour.',
     'Report: Limitations and extensions',
   ),
@@ -1335,6 +1341,108 @@ export const CONTROL_HELP: Record<string, HelpEntry> = {
     'Select an object. Click the button and paste the id into your BIM tool.',
     'Report: Onboarding checklist',
   ),
+  'Sidebar/New criteria set': h(
+    'The button opens an editor for a criteria set. A criteria set holds rules, and the viewer finds the matching objects.',
+    'Click and a small form opens. You describe the parts you want, such as outside walls, and the list fills itself.',
+    'Click the button. Add conditions or type a query. Click Save set.',
+    'Report: Onboarding checklist',
+  ),
+  'Sidebar/Set filter box': h(
+    'The box shows only the selection sets whose name or query contains the typed text.',
+    'Type a few letters and the long list shrinks to the groups that match. Clear the text to see every group again.',
+    'Type part of a name. Press the Down arrow key to move into the list. Press Escape to clear the text.',
+    'Report: Onboarding checklist',
+  ),
+  'Sidebar/Set menu': h(
+    'The button opens the actions of the set: update, rename, edit criteria, duplicate and delete.',
+    'Click and a short list of choices drops down for this saved group. Pick a choice to change or copy the group.',
+    'Click the button or press Enter. Use the arrow keys to move. Press Escape to close.',
+    'Report: Onboarding checklist',
+  ),
+  'Sidebar/Criteria badge': h(
+    'The funnel icon marks a criteria set. The viewer finds its objects again from its query on each model load and each apply.',
+    'This group keeps itself up to date. When the building changes, the group picks up the new matching parts.',
+    'Hover the icon to read the query. Open the set menu to edit the query.',
+    'Report: Onboarding checklist',
+  ),
+  'Sidebar/Re-evaluate set': h(
+    'The menu item runs the query of the criteria set again and stores the objects that match now.',
+    'Click and the group checks the building again. Parts that now fit join it, and parts that no longer fit leave it.',
+    'Click the item after a change to the model or to its properties.',
+    'Report: Onboarding checklist',
+  ),
+  'Sidebar/Edit criteria': h(
+    'The menu item opens the criteria editor with the query and the name of the set.',
+    'Click and the form opens with the rules of this group. Change a rule and the count updates as you type.',
+    'Click the item. Change the conditions or the query. Click Save changes.',
+    'Report: Onboarding checklist',
+  ),
+  'Sidebar/Duplicate set': h(
+    'The menu item adds a copy of the set below it, with the word copy after the name.',
+    'Click and a twin of this group appears under it. You can change the twin and keep the first group intact.',
+    'Click the item before you change a set, to keep the old version.',
+    'Report: Onboarding checklist',
+  ),
+  'Sidebar/Criteria set name': h(
+    'The box holds the name of the criteria set.',
+    'Type a label here. The label shows in the list of saved groups after you save.',
+    'Type a short name that says what the rules find.',
+    'Report: Onboarding checklist',
+  ),
+  'Sidebar/Match all or any': h(
+    'The list sets how the conditions combine. The value all needs every condition. The value any needs at least 1 condition.',
+    'Choose all and a part must meet every rule. Choose the second choice and a part needs to meet only a single rule.',
+    'Select all to narrow the result. Select any to widen it.',
+    'Report: Onboarding checklist',
+  ),
+  'Sidebar/Add condition': h(
+    'The button adds an empty condition row to the builder.',
+    'Click and a new blank rule appears. Fill it in to narrow or widen the result.',
+    'Click the button. Pick a field, an operator and a value.',
+    'Report: Onboarding checklist',
+  ),
+  'Sidebar/Condition field': h(
+    'The box names the attribute or the property that the condition tests. The list offers the columns of this model.',
+    'Start to type and a list suggests what the parts of this building carry, such as a fire rating.',
+    'Type part of a name. Select a column from the list.',
+    'Report: Onboarding checklist',
+  ),
+  'Sidebar/Condition operator': h(
+    'The list sets the comparison of the condition. LIKE matches a pattern, IN matches a list and IS NULL matches a missing value.',
+    'Pick equal to keep exact matches, or a pattern choice to find names that start or end with some text.',
+    'Select = for an exact value. Select LIKE and type % as a wildcard.',
+    'Report: Onboarding checklist',
+  ),
+  'Sidebar/Condition value': h(
+    'The box holds the value that the condition compares with. The list suggests the values found in this model, most frequent first.',
+    'Start to type and the box suggests the entries that the parts really have, the common ones at the top.',
+    'Type or select a value. Separate the items of an IN list with commas.',
+    'Report: Onboarding checklist',
+  ),
+  'Sidebar/Query box': h(
+    'The box holds the query text in a subset of SQL. The builder rows write this text, and you can edit it directly.',
+    'Power users can type the rules by hand here. A red message points at the exact spot of a typing mistake.',
+    'Type conditions with AND, OR and NOT. Put property names in double quotes. Press Ctrl+Enter to save.',
+    'Report: Onboarding checklist',
+  ),
+  'Sidebar/Preview matches': h(
+    'The button selects and frames the objects that match the query, without a save.',
+    'Click and the parts that fit the rules light up, so you can check them before you keep the group.',
+    'Click the button to check the result. Change the rules if needed.',
+    'Report: Onboarding checklist',
+  ),
+  'Sidebar/Save criteria set': h(
+    'The button stores the criteria set with its name and query. The set list shows it with a funnel icon.',
+    'Click and the group joins your list. It keeps its rules, so it stays current when the building changes.',
+    'Enter a name. Fix any error. Click the button.',
+    'Report: Onboarding checklist',
+  ),
+  'Sidebar/Property menu': h(
+    'The button opens actions for this row: select by value or by presence, copy the value, save a criteria set.',
+    'Click, or right-click the row, to pick every part with the same entry, such as all outside walls.',
+    'Click the button or right-click a row. Pick an action.',
+    'Report: Onboarding checklist',
+  ),
 
   // ------------------------------------------------------------------ Open model: large-model options
   'Open model/edges': h(
@@ -1524,7 +1632,7 @@ export const CONTROL_HELP: Record<string, HelpEntry> = {
     'Report: Appendix H, Model cleanup',
   ),
   'Floating/threshold': h(
-    'The slider sets the size limit of the floating rule. A part below the limit matches. The unit follows the size metric.',
+    'The slider sets the size limit of the floating rule. A part below the limit matches. The unit follows the size metric and the length unit.',
     'Move the slider right and bigger loose pieces count as debris. Move it left and only the tiny ones count.',
     'Increase the value to catch larger pieces. Decrease the value to keep more of the model.',
     'Report: Appendix H, Model cleanup',
@@ -1536,7 +1644,7 @@ export const CONTROL_HELP: Record<string, HelpEntry> = {
     'Report: Appendix H, Model cleanup',
   ),
   'Floating/contact tolerance (m)': h(
-    'The slider sets the largest gap in metres at which 2 elements still count as touching.',
+    'The slider sets the largest gap at which 2 elements still count as touching. The length unit list sets the unit.',
     'Move the slider right and pieces with a small gap between them count as joined. At 0 they must touch exactly.',
     'Increase the value if the model has small gaps between parts. Decrease the value for exact contact.',
     'Report: Appendix H, Model cleanup',
@@ -1554,9 +1662,9 @@ export const CONTROL_HELP: Record<string, HelpEntry> = {
     'Report: Appendix H, Model cleanup',
   ),
   'Tiny/max size (m)': h(
-    'The slider sets the largest side in metres that a tiny element may have.',
+    'The slider sets the largest side that a tiny element may have. The length unit list sets the unit.',
     'Move the slider right and bigger bits count as debris. Move it left and only specks count.',
-    'Increase the value to match more small parts. The default is 0.05 m.',
+    'Increase the value to match more small parts. The default is 0.05 m, which is 50 mm.',
     'Report: Appendix H, Model cleanup',
   ),
   'Distant strays/enabled': h(
@@ -1569,6 +1677,24 @@ export const CONTROL_HELP: Record<string, HelpEntry> = {
     'The slider sets the factor k. A bounds centre further than k times the robust radius from the median centre matches.',
     'Move the slider right and an object must sit much further out to count as lost. Move it left and more objects count.',
     'Increase the value to match fewer objects. The default is 6.',
+    'Report: Appendix H, Model cleanup',
+  ),
+  'Distant strays/min gap (m)': h(
+    'The field sets the smallest distance between a stray and the box of the main model. The value 0 turns the limit off.',
+    'Raise the value and only objects well outside the building count as lost. At 0 the factor alone decides.',
+    'Set the value to a distance that you trust, such as 50 m. Keep 0 to use the factor only.',
+    'Report: Appendix H, Model cleanup',
+  ),
+  'Distant strays/max size (m)': h(
+    'The field sets the largest side that a stray may have. A larger object never matches. The value 0 accepts any object.',
+    'Set a small value and only little markers out on their own count as lost. At 0 big lost parts count too.',
+    'Set the value to keep large misplaced parts, such as a site model, out of the matches.',
+    'Report: Appendix H, Model cleanup',
+  ),
+  'Model cleanup/length unit': h(
+    'The list sets the unit of every length limit of the cleanup. The choices are mm, cm and m. The rules keep metres.',
+    'Choose mm and the sizes and gaps show in millimetres. Choose m and they show in metres. The result stays the same.',
+    'Select mm for small parts such as fasteners. Select m for distances across the site.',
     'Report: Appendix H, Model cleanup',
   ),
   'Duplicates/enabled': h(
@@ -1798,6 +1924,110 @@ export const CONTROL_HELP: Record<string, HelpEntry> = {
     'A short text tells you what the last step did and what it had to skip.',
     'Read the line after you apply a viewpoint.',
     'Report: Appendix J, Coordination tools',
+  ),
+
+  // ------------------------------------------------------------------ Gizmo (plugins/gizmo.ts)
+  'Gizmo/show': h(
+    'The switch shows or hides the view cube and the section strip. The V key does the same.',
+    'On: a small block with labelled sides sits in the lower right corner. Off: the corner stays empty.',
+    'Turn the switch off for clean screenshots. Press V to turn it on again.',
+    'Report: Appendix I, Presets and keyboard',
+  ),
+  'Gizmo/View cube': h(
+    'The cube turns with the camera. A click on a face, an edge or a corner moves the camera to look from that side.',
+    'Click the side marked Top and the camera swings above the building. Drag the block to spin the picture.',
+    'Click a face for a straight look and an edge or a corner for an angled look. Drag to orbit. Press Alt+7 for top, Alt+1 for front and Alt+3 for right.',
+    'Report: Appendix I, Presets and keyboard',
+  ),
+  'Gizmo/Roll clockwise': h(
+    'The button turns the camera 90 degrees about the line of sight. The picture turns clockwise on the screen.',
+    'Click and the whole picture tips a quarter turn to the right, like a page that you rotate.',
+    'Click the button to read a plan from another side. Click a face of the cube to undo the tilt.',
+    'Report: Appendix I, Presets and keyboard',
+  ),
+  'Gizmo/Roll counter-clockwise': h(
+    'The button turns the camera 90 degrees about the line of sight. The picture turns counter-clockwise on the screen.',
+    'Click and the whole picture tips a quarter turn to the left, like a page that you rotate.',
+    'Click the button to read a plan from another side. Click a face of the cube to undo the tilt.',
+    'Report: Appendix I, Presets and keyboard',
+  ),
+  'Gizmo/Turn left': h(
+    'The button moves the camera 90 degrees around the vertical axis through the target, to the left.',
+    'Click and you walk a quarter of the way around the building, so you see the next side.',
+    'Click the button 4 times to go once around the model.',
+    'Report: Appendix I, Presets and keyboard',
+  ),
+  'Gizmo/Turn right': h(
+    'The button moves the camera 90 degrees around the vertical axis through the target, to the right.',
+    'Click and you walk a quarter of the way around the building the other way, to the next side.',
+    'Click the button 4 times to go once around the model.',
+    'Report: Appendix I, Presets and keyboard',
+  ),
+  'Gizmo/Home': h(
+    'The button frames the whole model from the default corner. The camera moves there in a smooth arc.',
+    'Click and the full building comes back into the picture, seen from above at an angle.',
+    'Click the button when you lose your way. Press the Home key to frame all without the arc.',
+    'Report: Appendix I, Presets and keyboard',
+  ),
+  'Gizmo/Projection': h(
+    'The button switches between the perspective camera and an orthographic approximation with a 2 degree field of view.',
+    'On: lines that run in parallel stay parallel, like on a drawing board. Off: distant parts look smaller.',
+    'Click the button for plans and elevations. Press Alt+5 or Numpad 5 for the same action.',
+    'Report: Appendix I, Presets and keyboard',
+  ),
+  'Gizmo/Collapse': h(
+    'The button folds the view cube and the section strip into 1 small button.',
+    'Click and the corner tools shrink to a single square, so you see more of the building.',
+    'Click the small square to open the tools again. Press V to hide them completely.',
+    'Report: Appendix I, Presets and keyboard',
+  ),
+  'Gizmo/Open gizmo': h(
+    'The button opens the view cube and the section strip again.',
+    'Click and the labelled block and its buttons come back in the corner.',
+    'Click the button to reach the cube and the cut tools.',
+    'Report: Appendix I, Presets and keyboard',
+  ),
+  'Gizmo/Plane X': h(
+    'The button adds a section plane square to the x axis through the centre of the selection or the model.',
+    'Click and the building splits from side to side, so you look inside it. Click again and the cut goes away.',
+    'Click the button for a cut across the model. Drag the arrow on the model to move the cut.',
+    'Report: Appendix G, Imaging and sectioning',
+  ),
+  'Gizmo/Plane Y': h(
+    'The button adds a horizontal section plane through the centre of the selection or the model. The cut is a plan.',
+    'Click and the upper part of the building goes away, so you look down into the rooms from above.',
+    'Select a storey or a room first. Press Alt+C to turn the cut on or off.',
+    'Report: Appendix G, Imaging and sectioning',
+  ),
+  'Gizmo/Plane Z': h(
+    'The button adds a section plane square to the z axis through the centre of the selection or the model.',
+    'Click and the building splits from front to back, so you look inside it. Click again and the cut goes away.',
+    'Click the button for a cut along the length. Drag a ring on the model to tilt the cut.',
+    'Report: Appendix G, Imaging and sectioning',
+  ),
+  'Gizmo/Section box': h(
+    'The button fits a section box to the selection, else to the model, and turns it on.',
+    'Click and only the chosen parts and a little space around them stay in the picture.',
+    'Select the parts first. Drag the round handles on the model to resize. Press Shift+C for the same fit and C to toggle.',
+    'Report: Appendix G, Imaging and sectioning',
+  ),
+  'Gizmo/Flip plane': h(
+    'The button keeps the other side of the section plane.',
+    'Click and the half that you saw goes away and the hidden half comes back.',
+    'Click the button to look at the cut from the other side.',
+    'Report: Appendix G, Imaging and sectioning',
+  ),
+  'Gizmo/Caps': h(
+    'The switch draws flat hatched caps where a cut goes through a closed solid.',
+    'On: cut walls look solid with a striped face. Off: you look into hollow shells.',
+    'Turn the switch off to see inside thin parts. Turn it on for a clear drawing.',
+    'Report: Appendix G, Imaging and sectioning',
+  ),
+  'Gizmo/Clear section': h(
+    'The button turns off the section box and the section plane and removes every clip plane.',
+    'Click and every cut goes away and the whole building returns.',
+    'Click the button to start again.',
+    'Report: Appendix G, Imaging and sectioning',
   ),
 
   // ------------------------------------------------------------------ Keyboard
@@ -2523,6 +2753,30 @@ export const CONTROL_HELP: Record<string, HelpEntry> = {
     'Read the line after each change.',
     'Report: Appendix J, Coordination tools',
   ),
+  'Status bar': h(
+    'The bar shows the model, the x-ray state, the bucket counts, the element under the pointer and the frame time.',
+    'This thin line at the bottom tells you what you look at and how fast the picture draws. Red text is a message.',
+    'Rest the pointer on the line for all details. Click the info button or the model name for the model credits.',
+    'Report: Onboarding checklist',
+  ),
+  'Status bar/Model name': h(
+    'The segment names the model and counts its elements. A click opens the details and the credits of the models.',
+    'It tells you which building you look at and how many parts it has. Click it to see where it comes from.',
+    'Click the segment to read the credits of the built-in models.',
+    'Report: Onboarding checklist',
+  ),
+  'Status bar/Details button': h(
+    'The button opens a panel with the timings of Algorithm 1 and 2, the ray count and the model credits.',
+    'Click it and a small box opens with every number and the source of each demo building.',
+    'Click the button to open the box. Click it again or outside the box to close it.',
+    'Report: Algorithm 2',
+  ),
+  'Status bar/Dismiss button': h(
+    'The button removes the red message from the bar.',
+    'Click the cross and the red text goes away. The rest stays as it is.',
+    'Click the cross after you read the message.',
+    'Report: Onboarding checklist',
+  ),
   'Cleanup drawer/Rules (heading)': h(
     'The heading names the group of the cleanup rules.',
     'The switches below pick which kinds of debris the tool looks for.',
@@ -2717,6 +2971,60 @@ export const CONTROL_HELP: Record<string, HelpEntry> = {
     'The heading names the comments of the selected topic. The number is the count.',
     'The notes below are the talk about this issue, oldest first.',
     'Read the comments. Add your own below.',
+    'Report: Appendix J, Coordination tools',
+  ),
+  'BCF drawer/Show pins': h(
+    'The button shows or hides the numbered markers of the topics on the model. The markers follow the topic filter.',
+    'Click and the numbered dots of the issue notes appear on the building or go away.',
+    'Click the button to turn the markers on or off. Click a marker to open its topic.',
+    'Report: Appendix J, Coordination tools',
+  ),
+  'BCF drawer/Place pin': h(
+    'The button starts the placement of the topic marker. The next click on the model sets the 3D point of the topic.',
+    'Click it, then click the building, and a numbered dot marks that spot for the issue note.',
+    'Click the button. Click a surface of the model. Press Esc to stop.',
+    'Report: Appendix J, Coordination tools',
+  ),
+  'BCF drawer/Remove pin': h(
+    'The button removes the marker from the selected topic.',
+    'Click and the numbered dot of this issue note goes away from the building.',
+    'Click the button. Click Place pin to set a new marker.',
+    'Report: Appendix J, Coordination tools',
+  ),
+  'BCF drawer/Add callout': h(
+    'The button starts a callout on the active viewpoint. The next click selects the target element and the anchor point.',
+    'Click it, then click a part of the building, and a text box with a line points at that part.',
+    'Type the text first. Click the button. Click an element of the model.',
+    'Report: Appendix J, Coordination tools',
+  ),
+  'BCF drawer/Add note': h(
+    'The button starts a text note on the active viewpoint. The next click sets a free 3D point for the note.',
+    'Click it, then click the building, and a yellow sticky text stays at that spot.',
+    'Type the text first. Click the button. Click the model where the note goes.',
+    'Report: Appendix J, Coordination tools',
+  ),
+  'BCF drawer/Add arrow': h(
+    'The button starts an arrow on the active viewpoint. The arrow points at the element that you click next.',
+    'Click it, then click a part of the building, and a red pointer aims at that part.',
+    'Click the button. Click an element of the model. Drag the label to move the tail.',
+    'Report: Appendix J, Coordination tools',
+  ),
+  'BCF drawer/Link measurement': h(
+    'The button lists the current measurements. A click on 1 measurement copies its end points and length into a callout.',
+    'Pick a distance you took with the ruler and it stays on the issue note with its value.',
+    'Measure with the Measure tool first. Click the button. Click a row of the list.',
+    'Report: Appendix J, Coordination tools',
+  ),
+  'BCF drawer/Delete': h(
+    'The button removes 1 annotation from the viewpoint.',
+    'Click and that text box and its line go away from the picture.',
+    'Click the button on the row of the annotation.',
+    'Report: Appendix J, Coordination tools',
+  ),
+  'BCF drawer/Markup (heading)': h(
+    'The heading names the markup of the selected topic: the topic marker and the annotations of its viewpoints.',
+    'The tools below put numbered dots, text boxes and arrows on the building for this issue.',
+    'Click a button below. Click a row to see the annotation. Drag a text box to move it.',
     'Report: Appendix J, Coordination tools',
   ),
   'BCF drawer/Comment': h(

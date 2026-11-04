@@ -12,6 +12,7 @@ import { writeZip } from './zip';
 import type { ZipInput } from './zip';
 import { esc, num } from './xml';
 import { IFC_GUID_RE, GUID_RE, newGuid, nowIso } from './model';
+import { SIDECAR_NAME, annotationGuids, baseSnapshotName, needsBurn, sidecarJson } from './sidecar';
 import type {
   BcfColoring, BcfComment, BcfComponent, BcfProject, BcfTopic, BcfVersion, BcfViewpoint, BcfViewpointRef,
 } from './model';
@@ -406,6 +407,20 @@ function writeExtensions(project: BcfProject): string {
 export interface WriteOptions {
   date?: Date;
   compress?: boolean;
+  /**
+   * Burn the viewer markup (pin, annotations) into a snapshot: returns the new PNG, or null to keep the snapshot as is.
+   * Called for each viewpoint whose topic has a pin or which has annotations. Browser only (needs a canvas).
+   */
+  composeSnapshot?: (topic: BcfTopic, ref: BcfViewpointRef) => Promise<Uint8Array | null>;
+}
+
+/** The viewpoint as written: the elements the annotations point at join the selection, so other tools highlight them. */
+export function viewpointWithMarkup(vp: BcfViewpoint, ref: BcfViewpointRef): BcfViewpoint {
+  const extra = annotationGuids(ref.annotations);
+  if (!extra.length) return vp;
+  const have = new Set(vp.selection.map((c) => c.ifcGuid).filter(Boolean));
+  const add = extra.filter((g) => !have.has(g)).map((g) => ({ ifcGuid: g }));
+  return add.length ? { ...vp, selection: [...vp.selection, ...add] } : vp;
 }
 
 /** Serialise a project as a .bcf / .bcfzip archive of the given version. */
@@ -447,10 +462,22 @@ export async function writeBcf(project: BcfProject, version: BcfVersion = '2.1',
     const folder = v3 ? t.guid.toLowerCase() : t.guid;
     const refs = viewpointNames(t, version);
     add(`${folder}/markup.bcf`, writeMarkup({ ...t, viewpoints: refs }, version));
+    const bases = new Map<string, string>();
     for (const r of refs) {
-      if (r.viewpointFile && r.data) add(`${folder}/${r.viewpointFile}`, writeViewpoint({ ...r.data, guid: r.guid }, version));
-      if (r.snapshotFile && r.snapshot) files.push({ name: `${folder}/${r.snapshotFile}`, data: r.snapshot, store: true });
+      if (r.viewpointFile && r.data) add(`${folder}/${r.viewpointFile}`, writeViewpoint(viewpointWithMarkup({ ...r.data, guid: r.guid }, r), version));
+      if (r.snapshotFile && r.snapshot) {
+        // Burned snapshot under the name the markup gives (what every BCF tool shows); the clean one beside it for us.
+        const burned = opts.composeSnapshot && needsBurn(t, r) ? await opts.composeSnapshot(t, r) : null;
+        if (burned) {
+          const base = baseSnapshotName(r.guid, version);
+          bases.set(r.guid, base);
+          files.push({ name: `${folder}/${r.snapshotFile}`, data: burned, store: true });
+          files.push({ name: `${folder}/${base}`, data: r.snapshot, store: true });
+        } else files.push({ name: `${folder}/${r.snapshotFile}`, data: r.snapshot, store: true });
+      }
     }
+    const side = sidecarJson(t, version, bases);
+    if (side) add(`${folder}/${SIDECAR_NAME}`, side);
   }
   return writeZip(files, opts);
 }

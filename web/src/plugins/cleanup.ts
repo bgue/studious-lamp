@@ -16,6 +16,11 @@ import {
 import type { CleanupRules, CleanupResult, SizeMetric } from '../cleanup/analysis';
 import { CleanupHides } from '../cleanup/hides';
 import { mergedCleanupGeometry } from '../cleanup/geometryAdapter';
+import {
+  DEFAULT_LENGTH_UNIT, LENGTH_UNITS, displayRange, fromDisplay, isLengthUnit, metricFromDisplay, metricIsLength, metricLabel, metricToDisplay,
+  metricUnit, toDisplay, withUnit,
+} from '../cleanup/units';
+import type { LengthUnit } from '../cleanup/units';
 
 export interface CleanupReport {
   schema: 'xray-cleanup/1';
@@ -38,6 +43,8 @@ interface Persisted {
 const HIGHLIGHT: [number, number, number] = [1, 0.1, 0.75];
 const FRAME_LIMIT = 50;
 const STATUS_IDLE = 'No analysis yet';
+/** The length unit of the cleanup thresholds is a display preference of the viewer, not of a model. */
+const UNIT_KEY = 'xray.cleanup.lengthUnit';
 
 function store(): Storage | null {
   try {
@@ -81,7 +88,12 @@ export function sanitiseRules(v: unknown, bad?: string[], path = 'rules'): Clean
       precise: bool(f['precise'], d.floating.precise),
     },
     tiny: { enabled: bool(t['enabled'], d.tiny.enabled), maxSize: num(t['maxSize'], d.tiny.maxSize) },
-    strays: { enabled: bool(s['enabled'], d.strays.enabled), factor: num(s['factor'], d.strays.factor, 0.1) },
+    strays: {
+      enabled: bool(s['enabled'], d.strays.enabled),
+      factor: num(s['factor'], d.strays.factor, 0.1),
+      minGap: num(s['minGap'], d.strays.minGap),
+      maxSize: num(s['maxSize'], d.strays.maxSize),
+    },
     duplicates: { enabled: bool(obj(o['duplicates'])['enabled'], d.duplicates.enabled) },
     degenerate: { enabled: bool(obj(o['degenerate'])['enabled'], d.degenerate.enabled) },
     classes: { proxies: bool(c['proxies'], false), furniture: bool(c['furniture'], false), accessories: bool(c['accessories'], false) },
@@ -102,6 +114,8 @@ class CleanupController {
   rules = defaultRules();
   thresholds: Record<string, number> = { ...METRIC_DEFAULT_THRESHOLD };
   applyOnLoad = false;
+  /** Display unit of every length threshold (rules keep metres). */
+  lengthUnit: LengthUnit = DEFAULT_LENGTH_UNIT;
   status = STATUS_IDLE;
   lastReport: CleanupReport | null = null;
   private last: CleanupResult | null = null;
@@ -111,7 +125,28 @@ class CleanupController {
   private lastOwned = 0;
   private lastPrune = 0;
 
-  constructor(private readonly app: ViewerApp) {}
+  /** Panel controls that show a length; they get a new label and range when the unit changes. */
+  readonly unitListeners: Array<() => void> = [];
+
+  constructor(private readonly app: ViewerApp) {
+    try {
+      const u = store()?.getItem(UNIT_KEY);
+      if (isLengthUnit(u)) this.lengthUnit = u;
+    } catch {
+      /* ignore */
+    }
+  }
+
+  setLengthUnit(unit: LengthUnit): void {
+    if (!isLengthUnit(unit)) return;
+    this.lengthUnit = unit;
+    try {
+      store()?.setItem(UNIT_KEY, unit);
+    } catch {
+      /* ignore */
+    }
+    this.refreshGui();
+  }
 
   attach(folder: GUI): void {
     this.folder = folder;
@@ -367,6 +402,7 @@ class CleanupController {
   }
 
   refreshGui(): void {
+    for (const f of this.unitListeners) f();
     this.folder?.controllersRecursive().forEach((c) => c.updateDisplay());
   }
 }
@@ -383,6 +419,10 @@ declare global {
       hide(): CleanupReport | null;
       restore(): number;
       readonly lastReport: CleanupReport | null;
+      /** The live rules (SI units: metres, m³). Treat as read-only; change them with setRules. */
+      readonly rules: CleanupRules;
+      /** Display unit of the length thresholds: mm, cm or m. */
+      lengthUnit: LengthUnit;
     };
   }
 }
@@ -413,6 +453,15 @@ export const cleanupPlugin: AppPlugin = {
       get lastReport() {
         return c.lastReport;
       },
+      get rules() {
+        return c.rules;
+      },
+      get lengthUnit() {
+        return c.lengthUnit;
+      },
+      set lengthUnit(u: LengthUnit) {
+        c.setLengthUnit(u);
+      },
     };
   },
 
@@ -440,24 +489,77 @@ function buildGui(gui: GUI, c: CleanupController): void {
         return true;
       },
     });
+  // Lengths: the rules keep metres, the controls show the chosen unit. Each control keeps its label base and range in
+  // metres and is relabelled ("max size (mm)") when the unit changes. The help lookup maps "(mm)" and "(cm)" to "(m)".
+  const length = <T extends object>(
+    f: GUI, get: () => T, prop: keyof T & string, label: string, range: [number, number, number] | [number, null, number],
+  ): void => {
+    const view = new Proxy({} as Record<string, number>, {
+      get: (_t, k) => (k === prop ? toDisplay((get() as Record<string, number>)[prop]!, c.lengthUnit) : undefined),
+      set: (_t, k, v) => {
+        if (k === prop) (get() as Record<string, number>)[prop] = fromDisplay(Number(v), c.lengthUnit);
+        return true;
+      },
+    });
+    const ctl = f.add(view, prop).onChange(changed);
+    const sync = (): void => {
+      const [lo, hi, step] = range;
+      const r = displayRange(lo, hi ?? 0, step, c.lengthUnit);
+      ctl.min(r.min).step(r.step);
+      if (hi !== null) ctl.max(r.max);
+      ctl.name(withUnit(label, c.lengthUnit));
+      ctl.updateDisplay();
+    };
+    sync();
+    c.unitListeners.push(sync);
+  };
+
+  const unitView = new Proxy({} as { lengthUnit: LengthUnit }, {
+    get: (_t, k) => (k === 'lengthUnit' ? c.lengthUnit : undefined),
+    set: (_t, k, v) => {
+      if (k === 'lengthUnit') c.setLengthUnit(v as LengthUnit);
+      return true;
+    },
+  });
+  folder.add(unitView, 'lengthUnit', [...LENGTH_UNITS]).name('length unit');
+
   const fl = proxy(() => c.rules.floating);
   const ff = folder.addFolder('Floating');
   ff.add(fl, 'enabled').name('enabled').onChange(changed);
-  ff.add(fl, 'metric', [...SIZE_METRICS]).name('size metric').onChange((v: SizeMetric) => c.setMetric(v));
-  ff.add(fl, 'threshold').min(0).step(0.01).name('threshold').onChange(changed);
+  const metricOptions = Object.fromEntries(SIZE_METRICS.map((m) => [metricLabel(m), m]));
+  ff.add(fl, 'metric', metricOptions).name('size metric').onChange((v: SizeMetric) => c.setMetric(v));
+  // The floating threshold: a length (follows the unit), a volume in m³ or a triangle count.
+  const thView = new Proxy({} as { threshold: number }, {
+    get: (_t, k) => (k === 'threshold' ? metricToDisplay(c.rules.floating.metric, c.rules.floating.threshold, c.lengthUnit) : undefined),
+    set: (_t, k, v) => {
+      if (k === 'threshold') c.rules.floating.threshold = metricFromDisplay(c.rules.floating.metric, Number(v), c.lengthUnit);
+      return true;
+    },
+  });
+  const th = ff.add(thView, 'threshold').min(0).onChange(changed);
+  const syncThreshold = (): void => {
+    const m = c.rules.floating.metric;
+    th.step(metricIsLength(m) ? toDisplay(0.01, c.lengthUnit) : m === 'triangle count' ? 1 : 0.001);
+    th.name(withUnit('threshold', metricUnit(m, c.lengthUnit)));
+    th.updateDisplay();
+  };
+  syncThreshold();
+  c.unitListeners.push(syncThreshold);
   ff.add(fl, 'mode', [...FLOATING_MODES]).name('mode').onChange(changed);
-  ff.add(fl, 'contactTolerance', 0, 0.5, 0.001).name('contact tolerance (m)').onChange(changed);
+  length(ff, () => c.rules.floating, 'contactTolerance', 'contact tolerance', [0, 0.5, 0.001]);
   ff.add(fl, 'precise').name('precise contacts').onChange(changed);
 
   const ft = folder.addFolder('Tiny');
   const tiny = proxy(() => c.rules.tiny);
   ft.add(tiny, 'enabled').name('enabled').onChange(changed);
-  ft.add(tiny, 'maxSize', 0, 1, 0.001).name('max size (m)').onChange(changed);
+  length(ft, () => c.rules.tiny, 'maxSize', 'max size', [0, 1, 0.001]);
 
   const fs = folder.addFolder('Distant strays');
   const strays = proxy(() => c.rules.strays);
   fs.add(strays, 'enabled').name('enabled').onChange(changed);
-  fs.add(strays, 'factor', 1, 50, 0.5).name('distance factor').onChange(changed);
+  fs.add(strays, 'factor', 1, 50, 0.5).name('distance factor (× radius)').onChange(changed);
+  length(fs, () => c.rules.strays, 'minGap', 'min gap', [0, null, 0.1]);
+  length(fs, () => c.rules.strays, 'maxSize', 'max size', [0, null, 0.01]);
 
   const fd = folder.addFolder('Duplicates');
   fd.add(proxy(() => c.rules.duplicates), 'enabled').name('enabled').onChange(changed);

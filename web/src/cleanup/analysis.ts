@@ -4,7 +4,8 @@
 //   floating    contact graph (bounds gap <= tolerance) -> connected components; a component is floating when it is not
 //               the main component and its size is below the threshold
 //   tiny        largest bounds dimension below a threshold, regardless of contact
-//   strays      bounds centre further than k times the robust radius of the model from the median centre
+//   strays      bounds centre further than k times the robust radius of the model from the median centre, and (optional)
+//               at least `minGap` metres outside the box of the main model and no larger than `maxSize` metres
 //   duplicates  same class, same triangle count, bounds equal within 2 mm: keep the lowest id
 //   degenerate  no triangles, non-finite bounds, a bounds dimension below 0.1 mm, or a non-physical class
 //   classes     quick toggles: proxies, furniture, accessories and fasteners
@@ -55,7 +56,15 @@ export interface CleanupRules {
     precise: boolean;
   };
   tiny: { enabled: boolean; maxSize: number };
-  strays: { enabled: boolean; factor: number };
+  strays: {
+    enabled: boolean;
+    /** k: a stray's centre lies further than k times the robust radius from the median centre. No unit. */
+    factor: number;
+    /** Metres. The stray must also lie at least this far outside the box of the other (main) elements. 0: no limit. */
+    minGap: number;
+    /** Metres. Only elements whose largest dimension is at most this count as strays. 0: any size. */
+    maxSize: number;
+  };
   duplicates: { enabled: boolean };
   degenerate: { enabled: boolean };
   classes: { proxies: boolean; furniture: boolean; accessories: boolean };
@@ -65,7 +74,7 @@ export function defaultRules(): CleanupRules {
   return {
     floating: { enabled: true, metric: 'largest dimension (m)', threshold: 0.5, mode: 'single elements', contactTolerance: 0.01, precise: false },
     tiny: { enabled: true, maxSize: 0.05 },
-    strays: { enabled: true, factor: 6 },
+    strays: { enabled: true, factor: 6, minGap: 0, maxSize: 0 },
     duplicates: { enabled: true },
     degenerate: { enabled: true },
     classes: { proxies: false, furniture: false, accessories: false },
@@ -117,6 +126,17 @@ export function largestDimension(b: Bounds6): number {
 
 export function boundsVolume(b: Bounds6): number {
   return Math.max(0, b[3] - b[0]) * Math.max(0, b[4] - b[1]) * Math.max(0, b[5] - b[2]);
+}
+
+/** Euclidean gap between a box and the box lo..hi (0 when they overlap); Infinity when lo..hi is empty. */
+export function boxGap(b: Bounds6, lo: readonly number[], hi: readonly number[]): number {
+  if (!(lo[0]! <= hi[0]!)) return Infinity;
+  let s = 0;
+  for (let a = 0; a < 3; a++) {
+    const d = Math.max(0, lo[a]! - b[3 + a]!, b[a]! - hi[a]!);
+    s += d * d;
+  }
+  return Math.sqrt(s);
 }
 
 function fmt(v: number): string {
@@ -360,11 +380,32 @@ export function analyse(elements: readonly CleanupElement[], rulesIn?: Partial<C
     const dist = cx.map((x, i) => Math.hypot(x - mx, cy[i]! - my, cz[i]! - mz));
     const radius = median(dist);
     if (radius > 1e-6) {
-      const limit = rules.strays.factor * radius;
+      const st = rules.strays;
+      const limit = st.factor * radius;
+      // Box of the main model: every element inside the limit. The gap of a candidate is measured to that box.
+      const lo = [Infinity, Infinity, Infinity];
+      const hi = [-Infinity, -Infinity, -Infinity];
       for (let i = 0; i < valid.length; i++) {
-        if (dist[i]! > limit) {
-          add(elements[valid[i]!]!.id, 'strays', `distant stray: ${fmt(dist[i]!)} m from the model centre > ${fmt(rules.strays.factor)} x robust radius ${fmt(radius)} m`);
+        if (dist[i]! > limit) continue;
+        const b = elements[valid[i]!]!.bounds;
+        for (let a = 0; a < 3; a++) {
+          if (b[a]! < lo[a]!) lo[a] = b[a]!;
+          if (b[3 + a]! > hi[a]!) hi[a] = b[3 + a]!;
         }
+      }
+      const minGap = Math.max(0, st.minGap ?? 0);
+      const maxSize = Math.max(0, st.maxSize ?? 0);
+      for (let i = 0; i < valid.length; i++) {
+        if (!(dist[i]! > limit)) continue;
+        const b = elements[valid[i]!]!.bounds;
+        const size = largestDimension(b);
+        if (maxSize > 0 && size > maxSize) continue;
+        const gap = boxGap(b, lo, hi);
+        if (minGap > 0 && !(gap >= minGap)) continue;
+        let why = `distant stray: ${fmt(dist[i]!)} m from the model centre > ${fmt(st.factor)} x robust radius ${fmt(radius)} m`;
+        if (minGap > 0) why += `, ${fmt(gap)} m outside the main model >= ${fmt(minGap)} m`;
+        if (maxSize > 0) why += `, largest dimension ${fmt(size)} m <= ${fmt(maxSize)} m`;
+        add(elements[valid[i]!]!.id, 'strays', why);
       }
     }
   }

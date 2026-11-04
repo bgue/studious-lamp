@@ -66,7 +66,6 @@ const CSS = `
 .xt-item .grow{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .xt-item .x{background:transparent;border:0;color:var(--sb-dim,#8d99a8);cursor:pointer;font-size:14px;line-height:1;padding:0 3px}
 .xt-item .x:hover{color:#ff7a7a}
-body.xt-on #xray-overlay{left:calc(var(--sb-w, 300px) + ${STRIP_W + 8}px) !important}
 /* Narrow screens (index.html): the tree and dock rails overlay the stage, so the strip starts after the left rail and the
    drawer stops before the right one. */
 @media (max-width: 700px){

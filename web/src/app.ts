@@ -1,4 +1,4 @@
-// X-ray viewer: wires the loader, renderer, XrayController, lil-gui panel and debug overlay.
+// X-ray viewer: wires the loader, renderer, XrayController, lil-gui panel and the status bar (src/ui/statusBar.ts).
 //   /?model=building|fzk-haus|plumbing|synth5k|debris-demo|procedural
 
 import GUI from 'lil-gui';
@@ -14,6 +14,7 @@ import { PLUGINS } from './plugins';
 import { registerAction } from './input/actions';
 import { getKeymap } from './input/keymap';
 import { bootConfig } from './tools/registry';
+import { StatusBar } from './ui/statusBar';
 
 /**
  * Extension point. A plugin owns its own module and DOM; it must not edit app.ts.
@@ -78,10 +79,6 @@ declare global {
   }
 }
 
-function fmt(n: number, digits = 2): string {
-  return Number.isFinite(n) ? n.toFixed(digits) : '-';
-}
-
 export class ViewerApp {
   readonly canvas: HTMLCanvasElement;
   readonly renderer: XrayRenderer;
@@ -99,8 +96,8 @@ export class ViewerApp {
   readonly display = { edgeAlpha: 0.8, ghostDesaturate: 0.8, inFront: true, debugBuckets: false };
 
   private gui: GUI | null = null;
-  private overlay: HTMLDivElement;
-  private messageEl: HTMLDivElement;
+  /** The thin status bar along the bottom of #stage (id xray-overlay); it also shows showMessage() as a red segment. */
+  readonly status: StatusBar;
   private readonly floorParams = {
     pinFloor: this.settings.overrides.userPinFloor,
   };
@@ -134,25 +131,15 @@ export class ViewerApp {
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
     this.renderer = new XrayRenderer(canvas);
-    this.overlay = this.makeDiv('xray-overlay',
-      'position:fixed;left:8px;bottom:8px;z-index:10;padding:6px 8px;background:rgba(20,24,30,0.82);color:#dfe6ee;' +
-      'font:11px/1.35 ui-monospace,Menlo,Consolas,monospace;white-space:pre;pointer-events:none;border-radius:4px;max-width:46vw');
-    this.messageEl = this.makeDiv('xray-message',
-      'position:fixed;left:50%;top:10px;transform:translateX(-50%);z-index:11;padding:6px 12px;background:#7a2b1f;color:#fff;' +
-      'font:13px system-ui,sans-serif;border-radius:4px;display:none;max-width:70vw');
+    // Inside #stage, so the bar follows the sidebar, the dock and the phone layout (index.html). A page without #stage
+    // (a test harness) gets it on the body.
+    const stage = document.getElementById('stage') ?? canvas.parentElement ?? document.body;
+    this.status = new StatusBar(stage);
   }
 
-  private makeDiv(id: string, css: string): HTMLDivElement {
-    const d = document.createElement('div');
-    d.id = id;
-    d.style.cssText = css;
-    document.body.appendChild(d);
-    return d;
-  }
-
+  /** Show a message as the red segment of the status bar (with a dismiss button); null clears it. */
   showMessage(text: string | null): void {
-    this.messageEl.textContent = text ?? '';
-    this.messageEl.style.display = text ? 'block' : 'none';
+    this.status.setMessage(text);
   }
 
   // ---------------------------------------------------------------- loading
@@ -365,22 +352,22 @@ export class ViewerApp {
   private updateOverlay(): void {
     const c = this.controller;
     const s = c.stats;
-    const lines = [
-      `model ${this.modelName}   elements ${s.elements}   x-ray ${c.settings.xray ? 'on' : 'off'}${c.settings.tiersMode ? ' (tiers)' : ''}`,
-      `focus ${s.buckets.focus}  host ${s.buckets.host}  near ${s.buckets.near}  far ${s.buckets.far}`,
-      `Alg1 ${fmt(s.classifyMs)} ms   Alg2 ${fmt(s.sightlinesMs)} ms, ${s.rays} rays`,
-      `frame ${fmt(this.stats.frameMs, 1)} ms (cpu ${fmt(this.stats.frameCpuMs, 1)} ms, ${this.recent.length} frames)`,
-    ];
-    const id = this.hoverId ?? (c.selection.size > 0 ? [...c.selection][0]! : null);
+    const id = this.hoverId ?? (c.selection.size > 0 ? c.selection.values().next().value! : null);
     const info: ElementInfo | null = id === null ? null : c.describe(id);
-    if (info) {
-      lines.push(
-        `${this.hoverId !== null ? 'hover' : 'selected'} #${info.id} ${info.ifcClass}${info.name ? ` "${info.name}"` : ''}`,
-        `  bucket ${info.bucket}  weight ${fmt(info.proximityWeight)}  occlusion ${fmt(info.occlusion)}`,
-        `  target alpha ${fmt(info.targetAlpha)}  alpha ${fmt(info.alpha)}`,
-      );
-    }
-    this.overlay.textContent = lines.join('\n');
+    this.status.update({
+      model: this.modelName,
+      elements: s.elements,
+      xray: c.settings.xray,
+      tiers: c.settings.tiersMode,
+      buckets: s.buckets,
+      element: info ? { ...info, name: info.name ?? null, hovered: this.hoverId !== null } : null,
+      classifyMs: s.classifyMs,
+      sightlinesMs: s.sightlinesMs,
+      rays: s.rays,
+      frameMs: s.frameMs,
+      frameCpuMs: s.frameCpuMs,
+      frames: this.recent.length,
+    });
   }
 
   // ---------------------------------------------------------------- input
@@ -456,10 +443,10 @@ export class ViewerApp {
     gui.add(s, 'tiersMode').name('Tiers mode').onChange(re);
 
     const fc = gui.addFolder('Classification (Alg 1)');
-    fc.add(s.classification, 'bufferBase', 0, 2, 0.01).onChange(re);
+    fc.add(s.classification, 'bufferBase', 0, 2, 0.01).name('bufferBase (m)').onChange(re);
     fc.add(s.classification, 'bufferScale', 0, 2, 0.01).onChange(re);
-    fc.add(s.classification, 'bufferLo', 0, 2, 0.01).onChange(re);
-    fc.add(s.classification, 'bufferHi', 0, 5, 0.01).onChange(re);
+    fc.add(s.classification, 'bufferLo', 0, 2, 0.01).name('bufferLo (m)').onChange(re);
+    fc.add(s.classification, 'bufferHi', 0, 5, 0.01).name('bufferHi (m)').onChange(re);
     fc.add(s.classification, 'storeyBand', 0, 5, 1).onChange(re);
 
     const fs = gui.addFolder('Sightlines (Alg 2)');

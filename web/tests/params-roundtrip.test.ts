@@ -319,6 +319,22 @@ describe('unknown and invalid input', () => {
   });
 });
 
+describe('cinematic edge glow scope', () => {
+  it('maps the old glowNear switch to glowScope and rejects an unknown scope', () => {
+    const f = fresh();
+    (f.cfg as Record<string, unknown>)['glowScope'] = 'focus';
+    expect(applyParams(f.app, { schema: PARAMS_SCHEMA, cinematic: { glowNear: true } }, { env: f.env })).toEqual([]);
+    expect((f.cfg as Record<string, unknown>)['glowScope']).toBe('near');
+    expect(applyParams(f.app, { schema: PARAMS_SCHEMA, cinematic: { glowNear: false } }, { env: f.env })).toEqual([]);
+    expect((f.cfg as Record<string, unknown>)['glowScope']).toBe('focus');
+    // A new document wins over the old key when both are present.
+    expect(applyParams(f.app, { schema: PARAMS_SCHEMA, cinematic: { glowNear: true, glowScope: 'all' } }, { env: f.env })).toEqual([]);
+    expect((f.cfg as Record<string, unknown>)['glowScope']).toBe('all');
+    expect(applyParams(f.app, { schema: PARAMS_SCHEMA, cinematic: { glowScope: 'host' } }, { env: f.env })).toEqual(['cinematic.glowScope']);
+    expect((f.cfg as Record<string, unknown>)['glowScope']).toBe('all');
+  });
+});
+
 describe('defaults', () => {
   it('defaultParams applied to a tweaked app restores the default settings', () => {
     const f = fresh();

@@ -3,7 +3,10 @@
 import { el } from '../ui/dom';
 import type { BcfController } from './controller';
 import { DEFAULT_PRIORITIES, DEFAULT_STATUSES, DEFAULT_TYPES } from './controller';
-import type { BcfTopic } from './model';
+import type { BcfAnnotation, BcfTopic, BcfViewpointRef } from './model';
+import type { BcfMarkupView, PlaceKind } from './pins';
+import { hasMarkup } from './sidecar';
+import { formatLength } from '../measure/maths';
 
 const STYLE_ID = 'bcf-styles';
 const CSS = `
@@ -45,6 +48,21 @@ const CSS = `
 .bcf-form label { display: flex; flex-direction: column; gap: 3px; color: #8d99a8; font-size: 11px; }
 .bcf-form .bcf-in { width: 100%; color: #dfe6ee; }
 .bcf-form h3 { margin: 0 0 2px; font-size: 14px; }
+.bcf-btn[aria-pressed=true] { background: var(--bcf-sel); border-color: var(--bcf-accent); }
+.bcf-btn.placing { outline: 2px solid #ff7a2f; }
+.bcf-ann-in { background: #0e1218; color: var(--bcf-fg); border: 1px solid var(--bcf-line); border-radius: 4px; padding: 3px 6px; font: inherit; min-width: 0; flex: 1 1 120px; }
+.bcf-ann-in:focus { outline: 1px solid var(--bcf-accent); }
+.bcf-anns { display: flex; flex-direction: column; gap: 4px; }
+.bcf-ann { border: 1px solid var(--bcf-line); border-radius: 4px; padding: 4px 6px; display: flex; flex-direction: column; gap: 3px; cursor: pointer; }
+.bcf-ann:hover { background: var(--bcf-hover); }
+.bcf-ann.sel { border-color: var(--bcf-accent); }
+.bcf-ann .bcf-row { flex-wrap: nowrap; }
+.bcf-ann-t { font-size: 10.5px; padding: 0 6px; border-radius: 9px; line-height: 16px; white-space: nowrap; }
+.bcf-ann-t.callout { background: #4a2a12; color: #ffb27a; } .bcf-ann-t.note { background: #4a4212; color: #ffe97a; } .bcf-ann-t.arrow { background: #4a1426; color: #ff8fab; }
+.bcf-mlist { display: flex; flex-direction: column; border: 1px solid var(--bcf-line); border-radius: 4px; max-height: 140px; overflow: auto; }
+.bcf-mrow { padding: 4px 8px; border-bottom: 1px solid var(--bcf-line); cursor: pointer; display: flex; gap: 8px; }
+.bcf-mrow:last-child { border-bottom: 0; }
+.bcf-mrow:hover { background: var(--bcf-hover); }
 `;
 
 function ensureStyles(): void {
@@ -183,6 +201,12 @@ export function openTopicDialog(c: BcfController, onDone?: (t: BcfTopic) => void
   const snapLabel = el('label');
   snapLabel.style.cssText = 'flex-direction:row;align-items:center;gap:6px';
   snapLabel.append(snap, document.createTextNode('Attach a snapshot of the current view'));
+  const pinPick = el('input');
+  pinPick.type = 'checkbox';
+  pinPick.id = 'bcf-f-pinpick';
+  const pinLabel = el('label');
+  pinLabel.style.cssText = 'flex-direction:row;align-items:center;gap:6px';
+  pinLabel.append(pinPick, document.createTextNode('Click the model to place the pin (else: middle of the selection)'));
 
   form.append(field('Title', title), field('Description', desc));
   const r1 = el('div', 'bcf-row');
@@ -190,7 +214,7 @@ export function openTopicDialog(c: BcfController, onDone?: (t: BcfTopic) => void
     f.style.flex = '1 1 90px';
     r1.appendChild(f);
   }
-  form.append(r1, field('Labels', labels), field('Assigned to', assigned), field('Author', author), snapLabel);
+  form.append(r1, field('Labels', labels), field('Assigned to', assigned), field('Author', author), snapLabel, pinLabel);
   const msg = el('div', 'bcf-status');
   const row = el('div', 'bcf-row');
   row.style.justifyContent = 'flex-end';
@@ -239,6 +263,7 @@ export function openTopicDialog(c: BcfController, onDone?: (t: BcfTopic) => void
         snapshot: snap.checked,
       });
       close();
+      if (pinPick.checked) c.markup?.start('pin', t.guid);
       onDone?.(t);
     } catch (e) {
       msg.textContent = e instanceof Error ? e.message : String(e);
@@ -248,7 +273,7 @@ export function openTopicDialog(c: BcfController, onDone?: (t: BcfTopic) => void
 
 // ---------------------------------------------------------------- drawer
 
-export function buildDrawer(container: HTMLElement, c: BcfController): () => void {
+export function buildDrawer(container: HTMLElement, c: BcfController, view: BcfMarkupView | null = c.markup): () => void {
   ensureStyles();
   const root = el('div', 'bcf-root');
   root.id = 'bcf-drawer';
@@ -270,7 +295,9 @@ export function buildDrawer(container: HTMLElement, c: BcfController): () => voi
   b30.setAttribute('data-act', 'export-3.0');
   const bClear = mk('Clear viewpoint', () => void c.clearViewpoint());
   bClear.setAttribute('data-act', 'clear');
-  bar.append(bOpen, bNew, b21, b30, bClear);
+  const bPins = mk('Show pins', () => c.setPinsVisible(!c.pinsVisible));
+  bPins.setAttribute('data-act', 'pins');
+  bar.append(bOpen, bNew, b21, b30, bClear, bPins);
 
   const status = el('div', 'bcf-status');
   status.setAttribute('data-bcf-status', '');
@@ -303,10 +330,12 @@ export function buildDrawer(container: HTMLElement, c: BcfController): () => voi
   statusSel.onchange = () => {
     filterStatus = statusSel.value;
     renderList();
+    view?.invalidate();
   };
   search.oninput = () => {
     query = search.value.trim().toLowerCase();
     renderList();
+    view?.invalidate();
   };
   search.addEventListener('keydown', (e) => e.stopPropagation());
 
@@ -318,6 +347,10 @@ export function buildDrawer(container: HTMLElement, c: BcfController): () => voi
   };
 
   const chip = (text: string, cls: string): HTMLSpanElement => el('span', `bcf-chip ${cls}`, undefined, text);
+  // Pins follow the list filter while the drawer is open.
+  c.pinFilter = matches;
+  let measureOpen = false;
+  let annText = '';
 
   function renderList(): void {
     const statuses = [...new Set(c.topics.map((t) => t.topicStatus).filter(Boolean))];
@@ -340,6 +373,7 @@ export function buildDrawer(container: HTMLElement, c: BcfController): () => voi
       chips.style.gap = '4px';
       if (t.topicStatus) chips.appendChild(chip(t.topicStatus, statusClass(t.topicStatus)));
       if (t.priority) chips.appendChild(chip(t.priority, priorityClass(t.priority)));
+      if (t.pin) chips.appendChild(chip(`pin ${c.pinNumber(t)}`, 'lbl'));
       if (t.viewpoints.length) chips.appendChild(chip(`${t.viewpoints.length} view${t.viewpoints.length === 1 ? '' : 's'}`, 'lbl'));
       if (t.comments.length) chips.appendChild(chip(`${t.comments.length} comment${t.comments.length === 1 ? '' : 's'}`, 'lbl'));
       row.appendChild(chips);
@@ -362,6 +396,7 @@ export function buildDrawer(container: HTMLElement, c: BcfController): () => voi
       img.src = urlFor(first.guid, first.snapshot, first.snapshotMime ?? 'image/png');
       img.alt = 'Snapshot';
       detail.appendChild(img);
+      if (hasMarkup(t)) void markedSnapshot(t, first, img);
     }
     detail.appendChild(el('div', 'bcf-title', undefined, t.title));
     const chips = el('div', 'bcf-row');
@@ -408,6 +443,8 @@ export function buildDrawer(container: HTMLElement, c: BcfController): () => voi
       detail.appendChild(vps);
     }
 
+    renderMarkup(t);
+
     detail.appendChild(el('div', 'bcf-h', undefined, `Comments (${t.comments.length})`));
     for (const cm of t.comments) {
       const box = el('div', 'bcf-comment');
@@ -436,22 +473,217 @@ export function buildDrawer(container: HTMLElement, c: BcfController): () => voi
     detail.append(ta, ar);
   }
 
+  // ---------------------------------------------------------------- markup: pins and annotations
+
+  const marked = new Map<string, { sig: string; url: string }>();
+  /** Show the snapshot with the markup burned in, as the export writes it (cached per markup state). */
+  async function markedSnapshot(t: BcfTopic, ref: BcfViewpointRef, img: HTMLImageElement): Promise<void> {
+    const sig = JSON.stringify([t.pin, ref.annotations, c.pinNumber(t)]);
+    const have = marked.get(ref.guid);
+    if (have?.sig === sig) {
+      img.src = have.url;
+      return;
+    }
+    const bytes = await c.composeSnapshot(t, ref);
+    if (!bytes || !img.isConnected) return;
+    if (have) URL.revokeObjectURL(have.url);
+    const url = URL.createObjectURL(new Blob([bytes as Uint8Array<ArrayBuffer>], { type: ref.snapshotMime ?? 'image/png' }));
+    marked.set(ref.guid, { sig, url });
+    img.src = url;
+  }
+
+  const kindLabel: Record<string, string> = { callout: 'Add callout', note: 'Add note', arrow: 'Add arrow' };
+
+  /** Apply the viewpoint that annotations go to, so new annotations show at once. */
+  function ensureApplied(t: BcfTopic): BcfViewpointRef | null {
+    const ref = c.annotationViewpoint(t.guid);
+    if (!ref) {
+      c.setStatus('This topic has no viewpoint to annotate');
+      return null;
+    }
+    if (c.applied?.viewpoint !== ref.guid) c.applyViewpoint(t.guid, ref.guid);
+    return ref;
+  }
+
+  function describe(a: BcfAnnotation): string {
+    const an = a.anchor;
+    if (an.kind === 'measurement' && an.measurement) {
+      const m = an.measurement;
+      const names = (m.elementGuids ?? []).map(elementName);
+      return `measurement ${m.label || formatLength(m.distance, 'm')}${names.length ? `: ${names.join(' to ')}` : ''}`;
+    }
+    if (an.kind === 'element' && an.elementGuid) return `element ${elementName(an.elementGuid)}`;
+    return 'free point';
+  }
+  function elementName(gid: string): string {
+    const model = c.app.loaded ? c.app.controller.model : null;
+    const id = model?.byGlobalId.get(gid);
+    const e = id !== undefined ? model!.elements[id] : undefined;
+    if (!e) return `${gid} (not in model)`;
+    const n = e.name && e.name.trim() ? e.name : e.ifcClass.replace(/^Ifc/, '');
+    return `${n} (${e.ifcClass.replace(/^Ifc/, '')})`;
+  }
+
+  function renderMarkup(t: BcfTopic): void {
+    detail.appendChild(el('div', 'bcf-h', undefined, 'Markup'));
+    const placing = view?.placing?.topic === t.guid ? view.placing.kind : null;
+    const pinRow = el('div', 'bcf-row');
+    const place = (kind: PlaceKind): void => {
+      if (!view) return;
+      if (view.placing?.kind === kind && view.placing.topic === t.guid) {
+        view.cancel();
+        return;
+      }
+      if (kind !== 'pin' && !ensureApplied(t)) return;
+      // The typed text goes to this annotation only; the box clears for the next one.
+      if (view.start(kind, t.guid, annText.trim()) && kind !== 'pin') annText = '';
+    };
+    const bPin = el('button', `bcf-btn${placing === 'pin' ? ' placing' : ''}`, undefined, 'Place pin');
+    bPin.setAttribute('data-act', 'place-pin');
+    bPin.disabled = !view || !c.app.loaded;
+    bPin.onclick = () => place('pin');
+    pinRow.appendChild(bPin);
+    if (t.pin) {
+      const bRm = el('button', 'bcf-btn', undefined, 'Remove pin');
+      bRm.setAttribute('data-act', 'remove-pin');
+      bRm.onclick = () => c.setPin(t.guid, null);
+      pinRow.appendChild(bRm);
+      const where = t.pin.elementGuid ? ` on ${elementName(t.pin.elementGuid)}` : '';
+      pinRow.appendChild(el('span', 'bcf-meta', undefined, `Pin ${c.pinNumber(t)}${where}`));
+    } else pinRow.appendChild(el('span', 'bcf-meta', undefined, 'No pin'));
+    detail.appendChild(pinRow);
+
+    const ref = c.annotationViewpoint(t.guid);
+    const can = !!view && !!ref && !!c.app.loaded;
+    const txtRow = el('div', 'bcf-row');
+    const txt = el('input', 'bcf-ann-in');
+    txt.placeholder = 'Text for the next callout, note or arrow';
+    txt.value = annText;
+    txt.setAttribute('data-bcf-anntext', '');
+    txt.oninput = () => { annText = txt.value; };
+    txt.addEventListener('keydown', (e) => e.stopPropagation());
+    txtRow.appendChild(txt);
+    detail.appendChild(txtRow);
+    const addRow = el('div', 'bcf-row');
+    for (const kind of ['callout', 'note', 'arrow'] as const) {
+      const b = el('button', `bcf-btn${placing === kind ? ' placing' : ''}`, undefined, kindLabel[kind]);
+      b.setAttribute('data-act', `add-${kind}`);
+      b.disabled = !can;
+      b.title = ref ? '' : 'The topic has no viewpoint';
+      b.onclick = () => place(kind);
+      addRow.appendChild(b);
+    }
+    const bLink = el('button', 'bcf-btn', undefined, 'Link measurement');
+    bLink.setAttribute('data-act', 'link-measurement');
+    bLink.setAttribute('aria-pressed', String(measureOpen));
+    bLink.disabled = !can;
+    bLink.onclick = () => {
+      measureOpen = !measureOpen;
+      lastKey = '';
+      renderDetail();
+    };
+    addRow.appendChild(bLink);
+    detail.appendChild(addRow);
+
+    if (measureOpen && can) {
+      const ms = view!.measurements();
+      const ml = el('div', 'bcf-mlist');
+      ml.setAttribute('data-bcf-measures', '');
+      if (!ms.length) ml.appendChild(el('div', 'bcf-empty', undefined, 'No measurements. Measure with the Measure tool first; the dimensions stay on the model.'));
+      const linked = new Set((ref!.annotations ?? []).map((a) => a.anchor.measurement?.sourceId).filter((x) => x !== undefined));
+      for (const m of ms) {
+        const r = el('div', 'bcf-mrow');
+        r.setAttribute('data-measure-id', String(m.id));
+        const names = [m.elementA, m.elementB].filter((x): x is number => x !== undefined).map((id) => c.app.controller.model.elements[id]?.name || `#${id}`);
+        r.append(el('span', undefined, undefined, `#${m.id}`), el('strong', undefined, undefined, formatLength(m.distance, 'm')),
+          el('span', 'bcf-meta', undefined, `${m.kind === 'point' ? 'point to point' : names.join(' to ')}${linked.has(m.id) ? ' (linked)' : ''}`));
+        r.onclick = () => {
+          if (!ensureApplied(t)) return;
+          view!.linkMeasurement(t.guid, m, annText.trim() || undefined);
+          annText = '';
+          measureOpen = false;
+        };
+        ml.appendChild(r);
+      }
+      detail.appendChild(ml);
+    }
+
+    // Annotation list, per viewpoint.
+    const withAnn = t.viewpoints.filter((v) => v.annotations?.length);
+    if (!withAnn.length) {
+      detail.appendChild(el('div', 'bcf-meta', undefined, ref ? 'No annotations. Add one: the viewpoint applies and the next click on the model anchors it.' : 'The topic has no viewpoint to annotate.'));
+      return;
+    }
+    const list = el('div', 'bcf-anns');
+    list.setAttribute('data-bcf-anns', '');
+    for (const v of withAnn) {
+      const vi = t.viewpoints.indexOf(v);
+      if (t.viewpoints.length > 1) list.appendChild(el('div', 'bcf-meta', undefined, `Viewpoint ${vi + 1}${c.applied?.viewpoint === v.guid ? ' (applied)' : ''}`));
+      for (const a of v.annotations!) {
+        const row = el('div', `bcf-ann${view?.selected === a.guid ? ' sel' : ''}`);
+        row.setAttribute('data-ann', a.guid);
+        const top = el('div', 'bcf-row');
+        top.appendChild(el('span', `bcf-ann-t ${a.type}`, undefined, a.type));
+        const inp = el('input', 'bcf-ann-in');
+        inp.value = a.text;
+        inp.placeholder = a.type === 'arrow' ? '(no text)' : 'Text';
+        inp.setAttribute('data-ann', a.guid);
+        inp.addEventListener('keydown', (e) => e.stopPropagation());
+        inp.addEventListener('click', (e) => e.stopPropagation());
+        inp.oninput = () => c.updateAnnotation(a.guid, { text: inp.value }, true);
+        inp.onchange = () => c.updateAnnotation(a.guid, { text: inp.value });
+        const del = el('button', 'bcf-btn', undefined, 'Delete');
+        del.setAttribute('data-act', 'delete-annotation');
+        del.onclick = (e) => {
+          e.stopPropagation();
+          c.removeAnnotation(a.guid);
+        };
+        top.append(inp, del);
+        row.append(top, el('div', 'bcf-meta', undefined, describe(a)));
+        row.onclick = () => {
+          view?.focus(a.guid);
+          lastKey = '';
+          renderDetail();
+        };
+        list.appendChild(row);
+      }
+    }
+    detail.appendChild(list);
+  }
+
+  if (view) {
+    view.onEdit = (guid) => {
+      const inp = root.querySelector<HTMLInputElement>(`input.bcf-ann-in[data-ann="${guid}"]`);
+      if (!inp) return false;
+      inp.focus();
+      inp.select();
+      return true;
+    };
+  }
+
   const render = (): void => {
     status.textContent = c.status;
+    bPins.setAttribute('aria-pressed', String(c.pinsVisible));
     renderList();
     renderDetail();
   };
   // Re-render on controller changes, but keep a half typed comment when only the status line changed.
   let lastKey = '';
-  const off = c.onChange(() => {
-    const key = `${c.selectedTopic}|${c.project.topics.length}|${c.project.topics.map((t) => `${t.topicStatus}${t.comments.length}${t.viewpoints.length}`).join(',')}|${c.applied?.viewpoint ?? ''}`;
+  const refresh = (): void => {
+    const key = `${c.selectedTopic}|${c.project.topics.length}|${c.project.topics.map((t) => `${t.topicStatus}${t.comments.length}${t.viewpoints.length}`).join(',')}|${c.applied?.viewpoint ?? ''}|${c.markupRev}|${view?.placing?.kind ?? ''}|${view?.selected ?? ''}`;
     status.textContent = c.status;
-    if (key !== lastKey) {
+    bPins.setAttribute('aria-pressed', String(c.pinsVisible));
+    // Typing in an annotation box or dragging a text box only redraws the overlay; the drawer catches up afterwards.
+    const typing = document.activeElement instanceof HTMLElement && root.contains(document.activeElement) && document.activeElement.matches('.bcf-ann-in');
+    if (key !== lastKey && !typing && !view?.dragging) {
       lastKey = key;
       renderList();
       renderDetail();
     }
-  });
+  };
+  const off = c.onChange(refresh);
+  const offView = view?.onChange(refresh);
+  root.addEventListener('focusout', () => setTimeout(refresh, 0));
   render();
 
   // Drop onto the drawer.
@@ -476,9 +708,16 @@ export function buildDrawer(container: HTMLElement, c: BcfController): () => voi
 
   return () => {
     off();
+    offView?.();
+    view?.cancel(true);
+    if (view) view.onEdit = null;
+    if (c.pinFilter === matches) c.pinFilter = null;
+    view?.invalidate();
     root.remove();
     for (const u of urls.values()) URL.revokeObjectURL(u);
     urls.clear();
+    for (const m of marked.values()) URL.revokeObjectURL(m.url);
+    marked.clear();
   };
 }
 

@@ -34,7 +34,7 @@ const slab = folder('IfcSlab (12)', classes);
 const alias = folder('Concrete (4) [alias]', classes);
 const cin = folder('Cinematic', root);
 const bloom = folder('Focus bloom', cin);
-const edge = folder('Host edge glow', cin);
+const edge = folder('Edge glow', cin);
 
 describe('key derivation', () => {
   it('keys a folder by its title', () => {
@@ -48,7 +48,7 @@ describe('key derivation', () => {
     expect(controllerKey(ctl(root, 'Model', 'model'))).toBe('X-ray/Model');
     expect(controllerKey(ctl(classification, undefined, 'bufferBase'))).toBe('Classification (Alg 1)/bufferBase');
     expect(controllerKey(ctl(bloom, 'Strength', 'bloomStrength'))).toBe('Focus bloom/Strength');
-    expect(controllerKey(ctl(edge, 'Strength', 'glowStrength'))).toBe('Host edge glow/Strength');
+    expect(controllerKey(ctl(edge, 'Strength', 'glowStrength'))).toBe('Edge glow/Strength');
   });
 
   it('gives the same display name in two folders two different keys', () => {
@@ -109,7 +109,7 @@ describe('lookup', () => {
   it('derives a key with a text for every control the panel builds today', () => {
     const cases: Array<[GuiLike, string | undefined, string]> = [
       [root, 'Model', 'model'], [root, 'X-ray (X)', 'xray'], [root, 'Tiers mode', 'tiersMode'],
-      [classification, undefined, 'bufferBase'], [classification, undefined, 'storeyBand'],
+      [classification, 'bufferBase (m)', 'bufferBase'], [classification, undefined, 'storeyBand'],
       [slab, 'alpha min', 'alphaMin'], [slab, undefined, 'hidden'], [slab, undefined, 'color'], [slab, 'Reset this class', 'reset'],
       [bloom, 'Selective bloom', 'bloom'], [edge, 'Colour', 'glowColor'],
     ];

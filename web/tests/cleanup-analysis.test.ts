@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { analyse, defaultRules, meshVolumeOf, summarise } from '../src/cleanup/analysis';
+import { analyse, boxGap, defaultRules, meshVolumeOf, summarise } from '../src/cleanup/analysis';
 import type { CleanupElement, CleanupRules } from '../src/cleanup/analysis';
 import { CleanupHides } from '../src/cleanup/hides';
 import { makeCleanupScene } from './fixtures/cleanup-scene';
@@ -121,6 +121,27 @@ describe('tiny, strays, duplicates, degenerate, classes', () => {
     expect(r.ids).toEqual([ids.stray]);
     expect(r.matches.get(ids.stray)!.reasons[0]).toMatch(/distant stray/);
     expect(analyse(scene.elements, only('strays', { factor: 1 }), scene.geometry).ids.length).toBeGreaterThan(1);
+  });
+
+  it('distant strays: min gap (m) and max size (m) narrow the matches', () => {
+    // The stray lies about 600 m out; a 1000 m gap drops it, a 100 m gap keeps it and says so.
+    const kept = analyse(scene.elements, only('strays', { minGap: 100 }), scene.geometry);
+    expect(kept.ids).toEqual([ids.stray]);
+    expect(kept.matches.get(ids.stray)!.reasons[0]).toMatch(/m outside the main model >= 100 m/);
+    expect(analyse(scene.elements, only('strays', { minGap: 1000 }), scene.geometry).ids).toEqual([]);
+    // It is 0.8 m wide: a 0.5 m size limit drops it, 1 m keeps it, 0 means any size.
+    expect(analyse(scene.elements, only('strays', { maxSize: 0.5 }), scene.geometry).ids).toEqual([]);
+    expect(analyse(scene.elements, only('strays', { maxSize: 1 }), scene.geometry).ids).toEqual([ids.stray]);
+    expect(analyse(scene.elements, only('strays', { maxSize: 0 }), scene.geometry).ids).toEqual([ids.stray]);
+    // A low factor matches main elements too, but none of them lies 100 m outside the main box.
+    expect(analyse(scene.elements, only('strays', { factor: 1, minGap: 100 }), scene.geometry).ids).toEqual([ids.stray]);
+  });
+
+  it('boxGap measures the Euclidean gap to a box and is 0 on overlap', () => {
+    expect(boxGap([3, 0, 0, 4, 1, 1], [0, 0, 0], [1, 1, 1])).toBeCloseTo(2);
+    expect(boxGap([4, 5, 0, 5, 6, 1], [0, 0, 0], [1, 1, 1])).toBeCloseTo(5);
+    expect(boxGap([0.5, 0.5, 0.5, 2, 2, 2], [0, 0, 0], [1, 1, 1])).toBe(0);
+    expect(boxGap([0, 0, 0, 1, 1, 1], [Infinity, Infinity, Infinity], [-Infinity, -Infinity, -Infinity])).toBe(Infinity);
   });
 
   it('duplicates keep the lowest id', () => {

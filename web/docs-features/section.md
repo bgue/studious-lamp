@@ -9,7 +9,7 @@ A section box fitted to the selection or the model with six draggable face handl
 | `Fit box to model` | The same for the whole model. |
 | `margin (m)` | Metres added around the fitted bounds, default 0.5. Changing it refits. |
 | `plane` | The section plane clips (`Alt+c`). It works together with the box. |
-| `axis` | `x`, `y`, `z` (viewer axes, `y` is vertical) or `camera` (square to the view, follows the camera every frame). |
+| `axis` | `x`, `y`, `z` (viewer axes, `y` is vertical), `camera` (square to the view, follows the camera every frame) or `custom` (the tilted axis `plane.normal`, set by the gizmo's rings, see [gizmo.md](gizmo.md)). |
 | `offset (m)` | Metres from the fitted centre (the box centre, or the model centre without a box) along the axis. |
 | `flip` | Keep the other side. The kept side is the positive side of the axis (camera: away from the viewer). |
 | `caps` | Paint the back faces a cut reveals flat in the cap colour with a light hatch. |
@@ -17,7 +17,7 @@ A section box fitted to the selection or the model with six draggable face handl
 | `show handles` | Draw the box outline (faint, dashed) and the six face handles on the shared SVG overlay. |
 | `Clear section` | Switch box and plane off, forget the box and remove every clip plane (also planes set by a BCF viewpoint). |
 
-The box handles are round dots at the face centres, coloured by axis. Dragging one moves that face along its axis: the pointer ray is projected on the axis line (closest point of two lines), the grab offset is kept, and a face stops 5 cm from the opposite one. The drawer shows the min and max in numeric fields that follow the handles and can be typed into.
+The box handles are round dots at the face centres, coloured by axis. Dragging one moves that face along its axis: the pointer ray is projected on the axis line (closest point of two lines), the grab offset is kept, and a face stops 5 cm from the opposite one. While a face is dragged, a readout next to it shows the face coordinate and the box size in metres. The section plane has its own arrow and ring handles (gizmo plugin, [gizmo.md](gizmo.md)). The drawer shows the min and max in numeric fields that follow the handles and can be typed into.
 
 ## Renderer API
 
@@ -47,8 +47,8 @@ Applying a viewpoint with clipping planes calls `setClipPlanes(plan.clip)`: clip
 
 ## Scripting and params
 
-- `window.__xraySection = { config, set(partial), fitToSelection(), fitToModel(), clear(), planes() }`. `set` takes any subset of the settings and returns the names it could not use.
-- Params section `section` (`{ box: { enabled, fit, margin, min, max }, plane: { enabled, axis, offset, flip }, caps, capColor, showHandles }`, shared in the URL). `min` and `max` are extras: the explicit box after a fit or a drag (null until the first fit). A preset that only sets `box.enabled`, `fit` or `margin` gets a fit when it is applied.
+- `window.__xraySection = { config, set(partial), fitToSelection(), fitToModel(), clear(), planes(), centre(), planeAxis(), onChange(cb) }`. `set` takes any subset of the settings and returns the names it could not use. `centre()` is the point the offset is measured from, `planeAxis()` the unit axis before the flip.
+- Params section `section` (`{ box: { enabled, fit, margin, min, max }, plane: { enabled, axis, offset, flip, normal? }, caps, capColor, showHandles }`, shared in the URL). `min` and `max` are extras: the explicit box after a fit or a drag (null until the first fit). A preset that only sets `box.enabled`, `fit` or `margin` gets a fit when it is applied.
 - Actions: `section.toggleBox` (`c`), `section.fitSelection` (`Shift+c`), `section.togglePlane` (`Alt+c`), `section.clear`.
 
 ## Developer notes

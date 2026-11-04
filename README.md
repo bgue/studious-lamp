@@ -17,7 +17,7 @@ plugins (see "Development"), so every feature below is a separate module with it
   - View modes: behind-only cut and partial peelback ([view-modes.md](web/docs-features/view-modes.md)).
   - Imaging looks: radiograph and MRI slice ([imaging.md](web/docs-features/imaging.md)).
   - Section box and section plane with caps ([section.md](web/docs-features/section.md)).
-  - Cinematic effects: fly-to, flythrough, tour, sweep and reveal, exploded storeys, bloom, depth grading.
+  - Cinematic effects: fly-to, flythrough, tour, sweep and reveal, exploded storeys, bloom, edge glow, depth grading.
   - Presets: twelve named looks on keys `1` to `9` ([presets.md](web/docs-features/presets.md)).
 - **Coordination**
   - Measure (point to point, element to element) and clearance colouring ([measure.md](web/docs-features/measure.md)).
@@ -28,7 +28,8 @@ plugins (see "Development"), so every feature below is a separate module with it
   - WebXR, experimental: walk through the model in VR or place it on a table in AR ([webxr.md](web/docs-features/webxr.md)).
 - **Input and output**
   - Open `.ifc`, `.ifczip` and `.glb` in the browser; large files are handled in a worker ([large-ifc.md](web/docs-features/large-ifc.md)).
-  - Selection sets, class styles, parameter export and import, share links.
+  - Selection sets, static or by criteria query ([sets-query.md](web/docs-features/sets-query.md)), class styles, parameter
+    export and import, share links.
   - `xray-pack`: model plus viewer in one HTML file ([xray-pack.md](web/docs-features/xray-pack.md)).
   - A single-file viewer, `xray-viewer.html`, that runs from disk.
 - **Navigation**
@@ -68,7 +69,7 @@ Open IFC and glb files from disk without the Python converter and without a serv
   GlobalId, class and bounds is skipped, the same GlobalId with different geometry is renamed `<GlobalId>~<n>`). One glb takes the
   `.json` of the same base name as its sidecar; without one, classes are guessed from node names.
 - Wrong input (mixed IFC and glb, several glb, a lone `.json`, unsupported types, empty or corrupt files) gives a one-line message
-  in Load status and in the red banner; the model on screen stays. Over 100 MB in total the loader warns and carries on.
+  in Load status and in the red segment of the status bar; the model on screen stays. Over 100 MB in total the loader warns and carries on.
 - The model is named `file:<first file name>` (` +N more` when federated) and is added to the Model picker for the session only.
   Selection sets and class styles are kept per name in `localStorage`.
 
@@ -124,6 +125,18 @@ A vertical icon strip at the left edge of the canvas (key `t` shows or hides it)
 at a time; Escape closes it. Every tool also has a folder in the parameter panel (top right), palette commands (Ctrl+K) and a
 `window.__xray*` scripting object. [toolbar.md](web/docs-features/toolbar.md) describes the strip and the shared overlay.
 
+**Status bar.** A one-line, 22 px bar along the bottom of the canvas, between the strip and the parameter dock (it follows both
+when they collapse, and the phone layout): model name and element count, x-ray on or off (and tiers), the bucket counts
+focus, host, near and far, the hovered or selected element (`#id class "name"`) and the frame time. Its tooltip and the `ⓘ`
+button (or a click on the model name) show the full details (Algorithm 1 and 2 timings, rays, the bucket, occlusion and alpha
+of the element) and the credits of the built-in models ("About models"; a single-file bundle lists its embedded models and
+says that it needs no server). Messages (loading, errors, imports) appear as a red segment with a dismiss button instead of a
+banner over the canvas. The bar keeps the id `xray-overlay` (the message text `xray-message`); `src/ui/statusBar.ts`.
+
+**Edge glow** (Cinematic, `Edge glow` folder). A glowing outline whose `glow scope` is `focus` (default: the focus set), `near`
+(focus, host and near buckets) or `all` (every visible element). It follows the selection and the classification. Older
+parameter documents with `glowNear: true` load as `near`.
+
 - **X-ray** (key `X`). Switches the ghosting of occluders on and off. The settings are the report's: buffer, samples, alpha
   range, gamma, smoothing, occluder scope, layer weighting, far mode, tiers, pins and floors (see "Defaults" in `SPEC.md` and
   "Deviations from the report" below).
@@ -136,6 +149,11 @@ at a time; Escape closes it. Every tool also has a folder in the parameter panel
 - **Section** ([section.md](web/docs-features/section.md)). A section box fitted to the selection or the model with draggable
   face handles, plus a section plane; keys `c`, `Shift+c`, `Alt+c`. BCF clipping planes use the same renderer call. Caps are
   painted on closed solids only.
+- **Gizmo** ([gizmo.md](web/docs-features/gizmo.md)). A navigation cube in the bottom-right corner of the stage: click a face,
+  edge or corner to look from there, drag to orbit, roll or turn 90 degrees, home, perspective / orthographic. Next to it a
+  section strip: planes X / Y / Z through the selection, a box fitted to the selection, flip, caps, clear. The section plane
+  gets an arrow (push / pull with a metre readout) and rings (tilt in 15 degree steps, Shift free) on the model. Key `v`
+  hides it; on a phone it collapses to a button.
 - **Measure** ([measure.md](web/docs-features/measure.md)). Point to point (with vertex snapping) and element to element
   (minimum surface distance), dimension lines on the model, CSV export.
 - **Clearance** ([measure.md](web/docs-features/measure.md)). Colours the context by distance to the focus: clash (red), tight
@@ -143,11 +161,14 @@ at a time; Escape closes it. Every tool also has a folder in the parameter panel
 - **Penetrations** ([penetrations.md](web/docs-features/penetrations.md)). A schedule of where MEP elements pass through slabs,
   walls and beams, with orientation, size and opening status; markers on the model, CSV export, and BCF topics from rows.
 - **BCF** ([bcf.md](web/docs-features/bcf.md)). Open or drop `.bcf` / `.bcfzip`, apply viewpoints (camera, selection, hides,
-  colours, clip planes), create topics with snapshots, comment, export BCF 2.1 or 3.0.
+  colours, clip planes), create topics with snapshots, comment, export BCF 2.1 or 3.0. Topics are pinned to a 3D point (numbered
+  markers on the model) and viewpoints carry callouts, notes, arrows and linked measurements; they live in a side file
+  `xray-markup.json` per topic folder (the BCF XML still validates) and are burned into the exported snapshot.
 - **Point cloud** ([pointcloud.md](web/docs-features/pointcloud.md)). Open LAS, PLY, PCD, XYZ or PTS scans, align them, and colour
   the points by deviation from the model (tolerance 2 cm by default). `tools/make_pointcloud.py` makes a sample scan.
 - **Cleanup** ([cleanup.md](web/docs-features/cleanup.md)). Rules for floating, tiny, distant, duplicate and degenerate elements
-  and class groups; preview, hide and restore without changing the model. The `debris-demo` model has examples of each (below).
+  and class groups; preview, hide and restore without changing the model. Every threshold names its unit; lengths show in mm, cm
+  or m (`length unit`) and are stored in metres. The `debris-demo` model has examples of each (below).
 - **WebXR** ([webxr.md](web/docs-features/webxr.md)), experimental. Feature detected; the `WebXR` folder and tool appear only on a
   device that supports VR or AR. VR at real scale from the orbit camera with controller rays, trigger to select, squeeze for
   X-ray, snap turn and walking; AR with a hit-test ring, placement, and the scales `1:1` and `tabletop 1:50`. Developed and
@@ -165,6 +186,28 @@ web/public/models/debris-demo`) with 14 floating bolts and 10 offcuts, a cluster
 away, two duplicate beams and a zero-thickness wall, all named `Debris ...` and listed in the selection set **Debris**. With the
 cleanup defaults the floating, tiny, distant, duplicate and degenerate rules match all of them except the cluster (its boxes touch
 each other; set the floating `mode` to `small clusters` to include it) and no structure.
+
+## Selection sets
+
+The **Sets** tab of the sidebar keeps named groups of elements per model ([sets-query.md](web/docs-features/sets-query.md)).
+A static set lists elements saved from the selection. A criteria set stores a query and finds its members again on every
+model load and every apply:
+
+```sql
+class IN ('IfcWall', 'IfcWallStandardCase') AND "Pset_WallCommon.IsExternal" = TRUE AND "BaseQuantities.NetVolume" > 2
+```
+
+The language is a SQL `WHERE` subset (`= != < <= > >=`, `LIKE`, `IN`, `BETWEEN`, `IS NULL`, `AND OR NOT`, parentheses) over
+one row per element: `class`, `name`, `storey`, `storeyElevation`, `material`, `globalId`, `id`, bounds (`xMin` ... `zMax`,
+`sizeX/Y/Z`, `volume`) and every property key in double quotes. Missing values are NULL with SQL three-valued logic; strings
+compare without case. It is a small parser in `web/src/query/` (no SQLite), about 20 ms for 100,000 elements.
+**New criteria set** opens a row builder (field, operator, value, with suggestions from the model) that writes the query,
+next to a raw query box, a live match count with inline errors, and **Preview**. Each set is one line: click the name to
+select and frame, **+** to add, **⋯** for Update or Re-evaluate, Rename, Edit criteria, Duplicate and Delete; a filter box
+finds a set among many. Right-click a row of the properties footer (or its **⋯**) to select all elements with the same
+value or the same property, copy the value, or save the equivalent query as a criteria set. Sets are stored by GlobalId
+in `localStorage` (`xray.sets.<model>`) and exported as `xray-sets/1` JSON; criteria sets add `kind` and `query` and stay
+readable by older versions as static sets.
 
 ## Keyboard
 
@@ -188,7 +231,7 @@ every button of the parameter panel.
 | `H`, `Shift+H`, `Alt+H` | Hide selected, hide everything not selected, unhide all |
 | `[`, `]`, `/` | Model tree, parameter panel, tree filter |
 | `B`, `P`, `M`, `C` | Behind-only, peelback, imaging cycle, section box |
-| `I`, `T` | Hover info, action panel |
+| `I`, `T`, `V` | Hover info, action panel, view cube and section strip |
 | `1` to `9` | Presets |
 
 ## Presets
@@ -319,7 +362,7 @@ a plain `web/dist` build cannot be opened by double-click because browsers block
 
 ### Plugin architecture
 
-`src/app.ts` is the core: loader, renderer, `XrayController`, the lil-gui panel and the overlay. Everything else is a plugin
+`src/app.ts` is the core: loader, renderer, `XrayController`, the lil-gui panel and the status bar. Everything else is a plugin
 listed in `src/plugins/index.ts` (order matters: hooks run in this order; `help` runs after every panel-building plugin,
 `panelDock` last, `boot` at the very end).
 
@@ -361,7 +404,7 @@ To add a plugin:
 | 13. Penetration schedule (sweep, intersect, orientation, opening status) | `web/src/penetrations/analysis.ts` | see the file header |
 | Geometry queries (ray all-hits, distance, samples) | `web/src/render/geometry.ts` | `BvhGeometryProvider` |
 | Update sequence and per-frame easing | `web/src/controller.ts` | `XrayController.reclassify`, `updateSightlines`, `tick` |
-| UI, input, debounce, overlay | `web/src/app.ts` | `ViewerApp` |
+| UI, input, debounce, status bar | `web/src/app.ts`, `web/src/ui/statusBar.ts` | `ViewerApp`, `StatusBar` |
 | Ghost, focus and edge passes; order-independent transparency | `web/src/render/renderer.ts`, `shaders.ts`, `ghostMath.ts`, `oitMath.ts` | `XrayRenderer` |
 
 The report's algorithms 4 to 6 are not tagged in the code.
@@ -415,7 +458,7 @@ Coordination tools
 - Cleanup: bounds-based contacts treat a box as solid (turn on `precise contacts` for curved elements); matches are hidden, not deleted.
 - Clearance colours whole elements, not regions; the host of the focus always shows as clash. It shares `renderer.state.color` with the cleanup preview and debug colours: switch one off before the other.
 - Penetrations: every overlapping MEP and host pair counts, including an element ending inside the host; the schedule is a candidate list. A sidecar without opening bounds reports `unknown` (reconvert, or open the IFC in the browser). At most 500 rows are listed.
-- BCF: orthographic cameras are approximated; viewpoint roll, lines, bitmaps and colour alpha are ignored; elements match by GlobalId only; existing topics can change status and gain comments but not other fields; no zip64.
+- BCF: orthographic cameras are approximated; viewpoint roll, lines, bitmaps and colour alpha are ignored; elements match by GlobalId only; existing topics can change status and gain comments but not other fields; no zip64; pins and annotations reach other tools only as the burned snapshot and the viewpoint selection.
 - Point clouds: one cloud at a time; no LAZ or E57 (convert with PDAL or LAStools); auto-align is a bounds-centre match plus a 90 degree search, not a registration; deviation is distance to the nearest surface, measured up to 5 times the tolerance.
 - Presets reset and apply settings only; the active mark is a settings comparison and can be cleared by an unrelated animation.
 

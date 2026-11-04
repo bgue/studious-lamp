@@ -28,6 +28,12 @@ export interface SectionApi {
   clear(): void;
   /** The planes this plugin would send to the renderer right now. */
   planes(): ClipPlane[];
+  /** The point the plane offset is measured from: the box centre, else the model centre. */
+  centre(): Vec3;
+  /** Unit axis direction of the plane before the flip (offset grows along it); the view direction for axis `camera`. */
+  planeAxis(): Vec3;
+  /** Call `cb` after every settings change (drawer, panel, gizmo, handle drag). Returns an unsubscribe function. */
+  onChange(cb: () => void): () => void;
 }
 
 declare global {
@@ -110,7 +116,7 @@ function computePlanes(app: ViewerApp): ClipPlane[] {
   let plane: ClipPlane | null = null;
   if (config.plane.enabled) {
     app.renderer.camera.getWorldDirection(fwd);
-    plane = sectionPlane(config.plane.axis, centre(app), config.plane.offset, config.plane.flip, [fwd.x, fwd.y, fwd.z]);
+    plane = sectionPlane(config.plane.axis, centre(app), config.plane.offset, config.plane.flip, [fwd.x, fwd.y, fwd.z], config.plane.normal);
   }
   return planesFor(currentBox(), config.box.enabled, plane);
 }
@@ -159,6 +165,15 @@ const api: SectionApi = {
   fitToModel: () => doFit('model'),
   clear: clearAll,
   planes: () => (appRef ? computePlanes(appRef) : []),
+  centre: () => (appRef ? centre(appRef) : [0, 0, 0]),
+  planeAxis() {
+    if (appRef) appRef.renderer.camera.getWorldDirection(fwd);
+    return sectionPlane(config.plane.axis, [0, 0, 0], 0, false, [fwd.x, fwd.y, fwd.z], config.plane.normal).normal;
+  },
+  onChange(cb) {
+    listeners.add(cb);
+    return () => listeners.delete(cb);
+  },
 };
 
 // ---------------------------------------------------------------- per frame
@@ -197,6 +212,10 @@ function installHandles(app: ViewerApp): void {
   });
   for (const l of lines) layer.appendChild(l);
   for (const d of dots) layer.appendChild(d);
+  // Live readout while a face is dragged: the face coordinate and the box size along that axis, in metres.
+  const readout = svgEl('text', { 'font-size': 12, 'font-family': 'system-ui, sans-serif', fill: '#ffffff', stroke: '#141820', 'stroke-width': 3, 'paint-order': 'stroke', visibility: 'hidden' });
+  readout.setAttribute('class', 'xs-readout');
+  layer.appendChild(readout);
   layer.style.display = 'none';
 
   let drag: { index: number; box: SectionBox; handle: Handle; grabT: number } | null = null;
@@ -231,6 +250,9 @@ function installHandles(app: ViewerApp): void {
       config.box.min = nb.min;
       config.box.max = nb.max;
       config.box.enabled = true;
+      const a = drag.handle.axis;
+      const at = drag.handle.side === 'min' ? nb.min[a] : nb.max[a];
+      readout.textContent = `${'xyz'[a]} ${at.toFixed(2)} m, size ${(nb.max[a] - nb.min[a]).toFixed(2)} m`;
       touch();
       refreshGui();
       ov.invalidate();
@@ -238,6 +260,7 @@ function installHandles(app: ViewerApp): void {
     const end = (ev: PointerEvent): void => {
       if (drag && drag.index === i) {
         drag = null;
+        readout.setAttribute('visibility', 'hidden');
         dot.style.cursor = 'grab';
         try { dot.releasePointerCapture(ev.pointerId); } catch { /* already released */ }
       }
@@ -272,6 +295,11 @@ function installHandles(app: ViewerApp): void {
       d.setAttribute('visibility', p.front ? 'visible' : 'hidden');
       d.setAttribute('cx', String(p.x));
       d.setAttribute('cy', String(p.y));
+      if (drag && drag.index === i) {
+        readout.setAttribute('x', String(p.x + 12));
+        readout.setAttribute('y', String(p.y - 10));
+        readout.setAttribute('visibility', p.front ? 'visible' : 'hidden');
+      }
     });
   };
   ov.onUpdate(update);

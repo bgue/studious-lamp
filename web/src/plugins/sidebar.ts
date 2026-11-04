@@ -1,4 +1,6 @@
 // Sidebar plugin: collapsible left panel with a model tree ("Model"), selection sets ("Sets") and a properties footer.
+// Sets can be static (explicit members) or criteria sets (a query, src/query); the properties footer has a context
+// menu that selects by value through the same query engine.
 //
 // Layout lives in index.html (#app > #sidebar + #stage > canvas). This module fills #sidebar, owns its state
 // (collapsed flag and active tab, persisted in localStorage under `xray.sidebar`) and keeps the renderer sized.
@@ -20,6 +22,8 @@ import { TreeView } from '../ui/treeView';
 import { boxFromTuple, requestFrame } from '../ui/fit';
 import { debounce, el } from '../ui/dom';
 import { registerAction } from '../input/actions';
+import { runQuery } from '../query';
+import { showToast } from '../ui/keymapView';
 
 const STATE_KEY = 'xray.sidebar';
 const REFRESH_MS = 250;
@@ -163,6 +167,7 @@ function propsData(app: ViewerApp): PropsData | null {
     ifcClass: info.ifcClass,
     name: info.name ?? '',
     storey: storey ? storey.name : 'No storey',
+    storeyName: storey ? storey.name : null,
     material: e.material ?? '',
     bucket: info.bucket,
     proximityWeight: info.proximityWeight,
@@ -229,7 +234,28 @@ function buildDom(app: ViewerApp, sidebar: HTMLElement): Ui {
   setsPane.append(sets.root);
   body.append(modelPane, setsPane);
 
-  const props = new PropsView();
+  const props = new PropsView({
+    // Same selection path as the tree and the sets (app.selectIds through selectFromUi).
+    selectWhere: (query, additive) => {
+      const r = runQuery(app.controller.model, query);
+      if (r.error) {
+        showToast(r.error.message, 2500);
+        return;
+      }
+      if (r.ids.length === 0) {
+        showToast('No element matches');
+        return;
+      }
+      selectFromUi(ui!, r.ids, additive);
+      showToast(`${additive ? 'Added' : 'Selected'} ${r.ids.length} element${r.ids.length === 1 ? '' : 's'}`);
+    },
+    saveCriteria: (query, name) => {
+      const u = ui!;
+      if (u.state.collapsed) setCollapsed(u, false);
+      if (u.state.tab !== 'sets') setTab(u, 'sets');
+      sets.newCriteriaSet(query, name);
+    },
+  });
   sidebar.append(top, railLabel, body, props.root);
 
   const u: Ui = {

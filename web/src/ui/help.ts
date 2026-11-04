@@ -87,10 +87,30 @@ function buildIndex(): void {
   }
 }
 
-/** Find the help entry of a key: exact match first, then the loose match. */
-export function lookupHelp(key: string): HelpEntry | undefined {
+function lookupOne(key: string): HelpEntry | undefined {
   if (!exactIndex || !looseIndex) buildIndex();
   return exactIndex!.get(key) ?? looseIndex!.get(normalizeKey(key));
+}
+
+/** A unit at the end of a label: "max size (mm)" gives "max size" and "mm". */
+const UNIT_SUFFIX = /\s*\(([^()]*)\)$/;
+
+/**
+ * Find the help entry of a key: exact match first, then the loose match. A control whose label shows a unit the user
+ * picked ("max size (mm)", "max size (cm)") uses the entry of its metre key ("max size (m)"). A label whose unit
+ * follows another setting ("threshold (m³)") falls back to the key without the unit ("threshold").
+ */
+export function lookupHelp(key: string): HelpEntry | undefined {
+  const hit = lookupOne(key);
+  if (hit) return hit;
+  const m = UNIT_SUFFIX.exec(key);
+  if (!m) return undefined;
+  const base = key.slice(0, m.index);
+  if (m[1] === 'mm' || m[1] === 'cm') {
+    const metre = lookupOne(`${base} (m)`);
+    if (metre) return metre;
+  }
+  return base.endsWith('/') || base === '' ? undefined : lookupOne(base);
 }
 
 /** Replace the {class} placeholder. */

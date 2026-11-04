@@ -9,9 +9,11 @@ import { registerAction } from '../input/actions';
 import { registerTool } from '../tools/registry';
 import { registerParamSection } from '../ui/params';
 import { BcfController } from '../bcf/controller';
-import type { ApplyReport, CreateTopicOptions, TopicSpec } from '../bcf/controller';
+import type { AnnotationSpec, ApplyReport, CreateTopicOptions, TopicSpec } from '../bcf/controller';
+import { BcfMarkupView } from '../bcf/pins';
+import type { PlaceKind } from '../bcf/pins';
 import { bcfFileInput, buildDrawer, installDrop, openTopicDialog, pickBcfFile } from '../bcf/ui';
-import type { BcfProject, BcfTopic, BcfVersion } from '../bcf/model';
+import type { BcfAnnotation, BcfProject, BcfTopic, BcfVersion, Vec3 } from '../bcf/model';
 
 declare global {
   interface Window {
@@ -29,6 +31,23 @@ declare global {
       exportZip(version?: BcfVersion): Promise<Uint8Array>;
       /** exportZip, then download the file. */
       download(version?: BcfVersion): Promise<Uint8Array>;
+      /** Pin a topic to a point (viewer coordinates); null removes it. */
+      setPin(topicGuid: string, point: Vec3 | null, elementGuid?: string): void;
+      /** Add a callout, note or arrow (anchor points in viewer coordinates) to the active viewpoint of a topic. */
+      addAnnotation(topicGuid: string, spec: AnnotationSpec, viewpointGuid?: string): BcfAnnotation;
+      updateAnnotation(guid: string, patch: { text?: string; offset?: [number, number] }): boolean;
+      removeAnnotation(guid: string): boolean;
+      /** Copies of the annotations of a topic by viewpoint guid. */
+      annotations(topicGuid: string): Record<string, BcfAnnotation[]>;
+      /** Link measurement `id` of the measure tool as a callout on the active viewpoint of the topic. */
+      linkMeasurement(topicGuid: string, measurementId: number, text?: string): BcfAnnotation | null;
+      /** Start click-to-place (Escape cancels); placeAt clicks at a client position. */
+      startPlacement(kind: PlaceKind, topicGuid: string, text?: string): boolean;
+      placeAt(clientX: number, clientY: number): boolean;
+      cancelPlacement(): void;
+      pinsVisible: boolean;
+      /** The snapshot of a viewpoint with the markup burned in, as written on export. */
+      composeSnapshot(topicGuid: string, viewpointGuid?: string): Promise<Uint8Array | null>;
     };
   }
 }
@@ -38,6 +57,7 @@ const ICON =
   '<path d="M3.5 4.5h13v9h-6l-3.5 3v-3h-3.5z"/><path d="M6.5 8h7M6.5 10.5h4.5"/></svg>';
 
 let ctl: BcfController | null = null;
+let markup: BcfMarkupView | null = null;
 
 function obj(v: unknown): Record<string, unknown> {
   return v && typeof v === 'object' ? (v as Record<string, unknown>) : {};
@@ -49,6 +69,8 @@ export const bcfPlugin: AppPlugin = {
   install(app: ViewerApp): void {
     const c = new BcfController(app);
     ctl = c;
+    const view = new BcfMarkupView(c);
+    markup = view;
 
     registerTool({
       id: 'bcf',
@@ -56,7 +78,7 @@ export const bcfPlugin: AppPlugin = {
       title: 'BCF issues: open, review, create and export BIM Collaboration Format topics',
       icon: ICON,
       order: 80,
-      panel: (container) => buildDrawer(container, c),
+      panel: (container) => buildDrawer(container, c, view),
     });
 
     const gui = app.panel;
@@ -101,15 +123,41 @@ export const bcfPlugin: AppPlugin = {
       addComment: (t, x, o) => c.addComment(t, x, o),
       exportZip: (v) => c.exportZip(v),
       download: (v) => c.download(v),
+      setPin: (t, p, g) => c.setPin(t, p, g),
+      addAnnotation: (t, spec, v) => c.addAnnotation(t, spec, v),
+      updateAnnotation: (g, p) => c.updateAnnotation(g, p),
+      removeAnnotation: (g) => c.removeAnnotation(g),
+      annotations: (t) => c.annotations(t),
+      linkMeasurement: (t, id, text) => {
+        const m = view.measurements().find((x) => x.id === id);
+        if (!m) return null;
+        return c.addAnnotation(t, { type: 'callout', text, anchor: { kind: 'measurement', measurement: m } });
+      },
+      startPlacement: (k, t, text) => view.start(k, t, text),
+      placeAt: (x, y) => view.placeAtClient(x, y),
+      cancelPlacement: () => view.cancel(),
+      get pinsVisible() {
+        return c.pinsVisible;
+      },
+      set pinsVisible(on: boolean) {
+        c.setPinsVisible(on);
+      },
+      composeSnapshot: (t, v) => {
+        const topic = c.topic(t);
+        const ref = topic && (v ? topic.viewpoints.find((r) => r.guid === v) : topic.viewpoints.find((r) => r.snapshot));
+        return topic && ref ? c.composeSnapshot(topic, ref) : Promise.resolve(null);
+      },
     };
   },
 
   onModel(): void {
+    markup?.cancel(true);
     ctl?.onModel();
   },
 
   afterFrame(_app: ViewerApp, now: number): void {
     ctl?.tick(now);
+    markup?.tick();
   },
 };
 

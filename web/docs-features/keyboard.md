@@ -62,11 +62,13 @@ same registry, so a plugin that registers an action gets a key, a cheat sheet ro
 | Frame selection (or all when nothing is selected) | `f` |
 | Frame selection | `.`, `code:NumpadDecimal` |
 | Frame all | `Home` |
+| Roll 90° clockwise / counter-clockwise, turn 90° left / right (view cube buttons) | unbound by default; actions `gizmo.rollCw`, `gizmo.rollCcw`, `gizmo.turnLeft`, `gizmo.turnRight` |
 
 ### Selection, visibility, panels, other
 
 | Action | Keys |
 | --- | --- |
+| Show or hide the view cube and section strip | `v` |
 | Clear selection (closes overlays first) | `Escape` |
 | Select all visible | `Ctrl+a` |
 | Invert selection | `Ctrl+i` |

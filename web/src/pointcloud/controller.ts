@@ -624,8 +624,8 @@ export class PointCloudController {
     void BAND_LABELS;
     if (!this.legendOff) {
       this.legendOff = ov.onUpdate((o) => {
-        // bottom right of the stage, clear of the debug text bottom left
-        this.legendLayer?.setAttribute('transform', `translate(${Math.max(8, o.width - 190 - 12)},${Math.max(8, o.height - 22 - 4 * 18 - 12)})`);
+        // bottom right of the stage, above the 22 px status bar (src/ui/statusBar.ts STATUS_H)
+        this.legendLayer?.setAttribute('transform', `translate(${Math.max(8, o.width - 190 - 12)},${Math.max(8, o.height - 22 - 4 * 18 - 12 - 22)})`);
       });
     }
     this.legendLayer.style.display = '';

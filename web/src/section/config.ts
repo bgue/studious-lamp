@@ -5,7 +5,7 @@ import type { Vec3 } from './maths';
 export type RGB = [number, number, number];
 export const FITS = ['selection', 'model'] as const;
 export type Fit = (typeof FITS)[number];
-export const PLANE_AXES = ['x', 'y', 'z', 'camera'] as const;
+export const PLANE_AXES = ['x', 'y', 'z', 'camera', 'custom'] as const;
 export type PlaneAxisName = (typeof PLANE_AXES)[number];
 
 export interface BoxConfig {
@@ -24,6 +24,8 @@ export interface PlaneConfig {
   /** Metres from the fitted centre. */
   offset: number;
   flip: boolean;
+  /** Axis direction of a tilted plane (axis 'custom', set by the gizmo's rotation rings). Absent until first used. */
+  normal?: Vec3;
 }
 
 export interface SectionConfig {
@@ -46,7 +48,7 @@ export function defaultSection(): SectionConfig {
 }
 
 export function cloneSection(c: SectionConfig): SectionConfig {
-  return { box: { ...c.box, min: c.box.min ? [...c.box.min] : null, max: c.box.max ? [...c.box.max] : null }, plane: { ...c.plane }, caps: c.caps, capColor: [...c.capColor], showHandles: c.showHandles };
+  return { box: { ...c.box, min: c.box.min ? [...c.box.min] : null, max: c.box.max ? [...c.box.max] : null }, plane: { ...c.plane, ...(c.plane.normal ? { normal: [...c.plane.normal] as Vec3 } : {}) }, caps: c.caps, capColor: [...c.capColor], showHandles: c.showHandles };
 }
 
 const num = (v: unknown, lo: number, hi: number): number | undefined => (typeof v === 'number' && Number.isFinite(v) ? Math.min(hi, Math.max(lo, v)) : undefined);
@@ -176,6 +178,13 @@ function mergePlane(into: PlaneConfig, p: unknown, prefix: string, res: MergeRes
       case 'offset': {
         const n = num(v, -1000, 1000);
         if (n !== undefined) into.offset = n;
+        else ok = false;
+        break;
+      }
+      case 'normal': {
+        const c = vec3(v);
+        const l = c ? Math.hypot(c[0], c[1], c[2]) : 0;
+        if (c && l > 1e-9) into.normal = [c[0] / l, c[1] / l, c[2] / l];
         else ok = false;
         break;
       }

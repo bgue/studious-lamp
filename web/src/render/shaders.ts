@@ -308,7 +308,7 @@ void main() {
   bool reject = hidden;
 #if defined( EDGES_GLOW )
   gl_Position.xy += glowOffset * (2.0 / glowRes) * gl_Position.w;
-  reject = reject || focus || vGlow < 0.5;
+  reject = reject || vGlow < 0.5; // the focus may glow too (glow scope 'focus', plugins/cinematic.ts)
 #elif defined( EDGES_FOCUS )
   reject = reject || !focus;
 #else
@@ -354,7 +354,7 @@ void main() {
   float ia = imgEdgeAlpha * imgCover;
   gl_FragColor = vec4(imgEdgeCol * ia, ia);
 #elif defined( EDGES_GLOW )
-  if (focus || vGlow < 0.5) discard;
+  if (vGlow < 0.5) discard;
   gl_FragColor = vec4(glowColor * glowStrength, glowStrength); // premultiplied; additive or over
 #else
 #if defined( EDGES_FOCUS )

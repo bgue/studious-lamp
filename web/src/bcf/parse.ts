@@ -7,6 +7,7 @@ import type { ZipEntry } from './zip';
 import { child, childNum, childText, childrenOf, decodeXmlBytes, parseXml, textOf } from './xml';
 import type { XNode } from './xml';
 import { emptyExtensions, newGuid, nowIso, normaliseColor } from './model';
+import { SIDECAR_NAME, applySidecar, parseSidecar } from './sidecar';
 import type {
   BcfCamera, BcfClippingPlane, BcfColoring, BcfComment, BcfComponent, BcfDocument, BcfDocumentReference, BcfHeaderFile,
   BcfProject, BcfSnippet, BcfTopic, BcfViewpoint, BcfViewpointRef, BcfVisibility, Vec3,
@@ -424,6 +425,30 @@ export async function parseBcf(data: Uint8Array | ArrayBuffer, opts: ParseOption
           }
         }
         if (ref.problem) warn(`topic ${topic.guid}: ${ref.problem}`);
+      }
+      // Viewer markup side file (pins, annotations). Other tools ignore it; a broken one only warns.
+      const side = get(`${folder}${SIDECAR_NAME}`);
+      if (side) {
+        try {
+          const s = parseSidecar(new TextDecoder().decode(await side.read()));
+          const { baseSnapshots, missing } = applySidecar(topic, s);
+          for (const p of s.problems) warn(`topic ${topic.guid}: ${SIDECAR_NAME}: ${p}`);
+          if (missing.length) warn(`topic ${topic.guid}: ${SIDECAR_NAME}: no viewpoint ${missing.join(', ')}`);
+          // The snapshot in the markup has the markup burned in; the clean one is what the viewer keeps and burns again.
+          for (const [guid, name] of baseSnapshots) {
+            const ref = topic.viewpoints.find((r) => r.guid === guid);
+            const be = get(folder + name);
+            if (!ref || !be || opts.snapshots === false) continue;
+            const bytes = await be.read();
+            const mime = sniffImage(bytes);
+            if (mime) {
+              ref.snapshot = bytes;
+              ref.snapshotMime = mime;
+            }
+          }
+        } catch (e) {
+          warn(`topic ${topic.guid}: ${SIDECAR_NAME}: ${(e as Error).message}`);
+        }
       }
       project.topics.push(topic);
     } catch (e) {

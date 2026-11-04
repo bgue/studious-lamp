@@ -9,6 +9,7 @@ import { fileLoaderPlugin } from './fileLoader';
 import { viewModesPlugin } from './viewModes';
 import { imagingPlugin } from './imaging';
 import { sectionPlugin } from './section';
+import { gizmoPlugin } from './gizmo';
 import { cleanupPlugin } from './cleanup';
 import { hoverInfoPlugin } from './hoverInfo';
 import { presetsPlugin } from './presets';
@@ -25,4 +26,4 @@ import { panelDockPlugin } from './panelDock';
 import { exportParamsPlugin } from './exportParams';
 
 // help runs after every panel-building plugin so it can see all controls; panelDock last so it wraps the finished panel.
-export const PLUGINS: AppPlugin[] = [fileLoaderPlugin, classStylesPlugin, sidebarPlugin, cinematicPlugin, oitPlugin, viewModesPlugin, imagingPlugin, sectionPlugin, cleanupPlugin, hoverInfoPlugin, presetsPlugin, penetrationsPlugin, measurePlugin, bcfPlugin, pointcloudPlugin, xrPlugin, toolbarPlugin, keymapPlugin, exportParamsPlugin, helpPlugin, panelDockPlugin, bootPlugin];
+export const PLUGINS: AppPlugin[] = [fileLoaderPlugin, classStylesPlugin, sidebarPlugin, cinematicPlugin, oitPlugin, viewModesPlugin, imagingPlugin, sectionPlugin, gizmoPlugin, cleanupPlugin, hoverInfoPlugin, presetsPlugin, penetrationsPlugin, measurePlugin, bcfPlugin, pointcloudPlugin, xrPlugin, toolbarPlugin, keymapPlugin, exportParamsPlugin, helpPlugin, panelDockPlugin, bootPlugin];

@@ -142,27 +142,23 @@ if (!noIfc) {
     '     is part of the IFC worker script and web-ifc.wasm is the wasm below (both gzip + base64). Source and licence: https://www.mozilla.org/MPL/2.0/ -->\n' +
     `<script>\nwindow.__xrayIfcWorkerGz = "${workerB64}";\nwindow.__xrayIfcWasm = "${b64}";\nwindow.__xrayIfcWasmEnc = "gzip";\n</script>\n`;
 }
+// Model credits and a note about the build: the status bar shows them (model segment tooltip and its "About models"
+// popover, src/ui/statusBar.ts) instead of a banner over the canvas.
+const credits = Object.fromEntries(MODELS.map((m) => [m.name, m.src]));
+const buildNote = 'Self-contained file: no server or network needed.' +
+  (noIfc ? ' Built without the IFC reader: only glb files can be opened.' : ' Open your own .ifc or .glb files from the panel (Open model) or drop them on the viewer.');
+const creditScript = scriptSafe((MODELS.length ? `window.__xrayModelCredits = ${JSON.stringify(credits)};\n` : '') + `window.__xrayBuildNote = ${JSON.stringify(buildNote)};`) + '\n';
 const embedScript = template
   // tools/xray-pack.mjs replaces everything between the two marker comments (models and window.__xrayBoot) and the <title>
   ? '<script>\n/* XRAY-PACK:INJECT-BEGIN */\nwindow.__xrayEmbeddedModels = {};\n/* XRAY-PACK:INJECT-END */\n</script>\n<script>\n' +
-    scriptSafe(`window.__xrayEmbeddedConfig = ${JSON.stringify(config)};\nwindow.__xrayEmbeddedPresets = ${JSON.stringify(presetsDoc)};`) + '\n</script>\n' + wasmScript
+    scriptSafe(`window.__xrayEmbeddedConfig = ${JSON.stringify(config)};\nwindow.__xrayEmbeddedPresets = ${JSON.stringify(presetsDoc)};`) + '\n' + creditScript + '</script>\n' + wasmScript
   : '<script>\n' +
     scriptSafe(`window.__xrayEmbeddedModels = ${JSON.stringify(embedded)};\nwindow.__xrayEmbeddedConfig = ${JSON.stringify(config)};\nwindow.__xrayEmbeddedPresets = ${JSON.stringify(presetsDoc)};`) +
-    '\n</script>\n' + wasmScript;
+    '\n' + creditScript + '</script>\n' + wasmScript;
 
 // ---- Assemble: embed data first, then the app module.
 const moduleScript = `<script type="module">\n${scriptSafe(appJs)}\n</script>\n`;
 html = html.replace(/\u0000APP_SCRIPT_0\u0000/, () => embedScript + moduleScript);
-
-// ---- Footer note (only in the single-file output).
-const note =
-  '<div id="single-file-note" style="position:fixed;left:calc(var(--sb-w, 300px) + 8px);top:6px;z-index:5;max-width:min(560px,45vw);padding:3px 8px;' +
-  'background:rgba(20,24,30,0.78);color:#9fb0c4;font:10px/1.35 system-ui,sans-serif;border-radius:4px;pointer-events:none">' +
-  'Self-contained file: no server or network needed. Embedded models: ' +
-  MODELS.map((m) => `<b>${m.name}</b> (${m.src})`).join('; ') +
-  (noIfc ? '. Built without the IFC reader: only glb files can be opened.' : '. Open your own .ifc or .glb files from the panel (Open model) or drop them on the viewer.') +
-  '</div>\n';
-if (!template) html = html.replace(/<\/body>/, () => note + '</body>');
 
 if (/\bsrc="\.?\.?\/(assets|src)\//.test(html) || /<link[^>]+href="\.?\.?\/assets/.test(html)) die('a relative asset reference remains in the output');
 

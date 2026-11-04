@@ -14,12 +14,12 @@ A vertical icon strip at the left edge of the canvas (44 px, inside the stage, s
 | Open model | no drawer: runs the Open model button of the parameter panel |
 | X-ray | no drawer: toggles x-ray (same as key `X`), highlighted when on |
 | View modes | Behind-only and peelback toggles, front treatment, offset, front alpha, radius, slope, feather (the full set is in the View modes folder) |
-| Cleanup | rule enables, the floating threshold, Preview, Hide and Restore, a status line |
+| Cleanup | `length unit` (mm, cm, m), rule enables, the floating threshold, the tiny `max size`, the strays `distance factor` and `min gap`, Preview, Hide and Restore, a status line |
 | Measure | see measure.md |
 | Clearance | see measure.md |
 | Penetrations | see penetrations.md |
 
-The Cleanup drawer starts from the rules of the last cleanup report (or the defaults): there is no getter for the live rules, so after reloading a page whose stored rules differ, press Preview once to see the effect.
+The Cleanup drawer reads and writes the live rules (`window.__xrayCleanup.rules`, `setRules`) and shares the length unit with the Model cleanup folder (`window.__xrayCleanup.lengthUnit`); every threshold label names its unit.
 
 ## Commands and scripting
 

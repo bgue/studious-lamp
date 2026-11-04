@@ -93,7 +93,7 @@ describe('help texts', () => {
 
   it('has a text for the settings named in the task', () => {
     const must = [
-      'Classification (Alg 1)/bufferBase', 'Sightlines (Alg 2)/occluderScope', 'Sightlines (Alg 2)/farWeight',
+      'Classification (Alg 1)/bufferBase (m)', 'Sightlines (Alg 2)/occluderScope', 'Sightlines (Alg 2)/farWeight',
       'Sightlines (Alg 2)/layerWeighting', 'Sightlines (Alg 2)/layerFalloff', 'Sightlines (Alg 2)/layerBudget',
       'Rendering/order-independent ghosts', 'Rendering/depthWeight', 'Rendering/OIT antialiasing', 'Export / import/Export JSON', 'Panel dock/Collapse toggle', 'Class styles/*', 'Class styles/*/alphaMax',
       'Class styles/*/alphaMin', 'Class styles/*/floor', 'Class styles/*/hidden', 'Class styles/*/color',
@@ -251,7 +251,7 @@ describe('help texts: Impact line', () => {
 
 describe('popover lines', () => {
   it('lists Intent, Impact, Use, Ref in this order, each with the text of the entry', () => {
-    const e = HELP['Classification (Alg 1)/bufferBase']!;
+    const e = HELP['Classification (Alg 1)/bufferBase (m)']!;
     const lines = popoverLines(e);
     expect(lines.map((l) => l.label)).toEqual(['Intent', 'Impact', 'Use', 'Ref']);
     expect(lines.map((l) => l.text)).toEqual([e.intent, e.impact, e.use, e.ref]);

@@ -5,6 +5,8 @@
 import type { ViewerApp } from '../app';
 import { defaultRules } from '../cleanup/analysis';
 import type { CleanupRules } from '../cleanup/analysis';
+import { LENGTH_UNITS, displayRange, fromDisplay, metricFromDisplay, metricIsLength, metricToDisplay, metricUnit, toDisplay, withUnit } from '../cleanup/units';
+import type { LengthUnit } from '../cleanup/units';
 import { FRONT_TREATMENTS } from '../viewModes/maths';
 import type { FrontTreatment } from '../viewModes/maths';
 import { ICONS } from './icons';
@@ -56,8 +58,9 @@ function cleanupPanel(box: HTMLElement): (() => void) | void {
     box.appendChild(note('The cleanup feature is not available in this build.'));
     return;
   }
-  // No getter for the live rules: start from the last report's rules, else the defaults, and keep our own copy in step.
-  const rules: CleanupRules = JSON.parse(JSON.stringify(api.lastReport?.rules ?? defaultRules())) as CleanupRules;
+  // The live rules keep SI units (metres, m³); lengths show in the unit the user picks here or in the Model cleanup folder.
+  const live = (): CleanupRules => api.rules ?? api.lastReport?.rules ?? defaultRules();
+  const unit = (): LengthUnit => api.lengthUnit ?? 'm';
   const status = statusLine(api.lastReport ? `${api.lastReport.summary}` : 'No analysis yet');
   const widgets: Widget[] = [];
   const add = (w: Widget): void => {
@@ -69,25 +72,47 @@ function cleanupPanel(box: HTMLElement): (() => void) | void {
     api.setRules(patch);
     status.set('Rules changed, press Preview matches');
   };
-  box.appendChild(section('Rules'));
-  add(check('Floating elements', () => rules.floating.enabled, (v) => { rules.floating.enabled = v; set({ floating: { enabled: v } }); }));
-  add(slider('threshold', 0, 5, 0.01, () => rules.floating.threshold, (v) => { rules.floating.threshold = v; set({ floating: { threshold: v } }); }, (v) => v.toFixed(2)));
-  add(check('Tiny elements', () => rules.tiny.enabled, (v) => { rules.tiny.enabled = v; set({ tiny: { enabled: v } }); }));
-  add(check('Distant strays', () => rules.strays.enabled, (v) => { rules.strays.enabled = v; set({ strays: { enabled: v } }); }));
-  add(check('Duplicates', () => rules.duplicates.enabled, (v) => { rules.duplicates.enabled = v; set({ duplicates: { enabled: v } }); }));
-  add(check('Degenerate', () => rules.degenerate.enabled, (v) => { rules.degenerate.enabled = v; set({ degenerate: { enabled: v } }); }));
-  add(check('Proxies', () => rules.classes.proxies, (v) => { rules.classes.proxies = v; set({ classes: { proxies: v } }); }));
-  add(check('Furniture', () => rules.classes.furniture, (v) => { rules.classes.furniture = v; set({ classes: { furniture: v } }); }));
-  add(check('Accessories and fasteners', () => rules.classes.accessories, (v) => { rules.classes.accessories = v; set({ classes: { accessories: v } }); }));
-  box.appendChild(section('Actions'));
-  const after = (r: { summary: string; total: number } | null, verb: string): void => status.set(r ? `${r.summary} (${r.total} ${verb})` : 'No model');
-  box.appendChild(row(
-    button('Preview', () => after(api.preview(), 'previewed'), { primary: true, title: 'Tint the matches magenta' }),
-    button('Hide', () => after(api.hide(), 'hidden'), { title: 'Hide the matches (non-destructive)' }),
-    button('Restore', () => status.set(`Restored ${api.restore()} elements`), { title: 'Show what cleanup hid' }),
-  ));
-  box.appendChild(status);
-  box.appendChild(note('Slider thresholds apply to the size metric chosen in the Model cleanup folder (default: largest dimension in metres).'));
+  const num = (v: number): string => String(Number(v.toPrecision(4)));
+  /** A length slider: range in metres, label and value in the display unit. */
+  const length = (label: string, lo: number, hi: number, step: number, get: () => number, put: (m: number) => void): Widget => {
+    const r = displayRange(lo, hi, step, unit());
+    return slider(withUnit(label, unit()), r.min, r.max, r.step, () => toDisplay(get(), unit()), (v) => put(fromDisplay(v, unit())), num);
+  };
+  const render = (): void => {
+    box.textContent = '';
+    widgets.length = 0;
+    box.appendChild(section('Rules'));
+    add(select('length unit', LENGTH_UNITS, unit, (v) => {
+      api.lengthUnit = v;
+      render();
+    }));
+    add(check('Floating elements', () => live().floating.enabled, (v) => set({ floating: { enabled: v } })));
+    const metric = live().floating.metric;
+    const th = metricIsLength(metric) ? displayRange(0, 5, 0.01, unit()) : metric === 'triangle count' ? { min: 0, max: 5000, step: 10 } : { min: 0, max: 1, step: 0.001 };
+    add(slider(withUnit('threshold', metricUnit(metric, unit())), th.min, th.max, th.step,
+      () => metricToDisplay(metric, live().floating.threshold, unit()),
+      (v) => set({ floating: { threshold: metricFromDisplay(metric, v, unit()) } }), num));
+    add(check('Tiny elements', () => live().tiny.enabled, (v) => set({ tiny: { enabled: v } })));
+    add(length('max size', 0, 1, 0.001, () => live().tiny.maxSize, (m) => set({ tiny: { maxSize: m } })));
+    add(check('Distant strays', () => live().strays.enabled, (v) => set({ strays: { enabled: v } })));
+    add(slider('distance factor (× radius)', 1, 50, 0.5, () => live().strays.factor, (v) => set({ strays: { factor: v } }), num));
+    add(length('min gap', 0, 200, 0.5, () => live().strays.minGap ?? 0, (m) => set({ strays: { minGap: m } })));
+    add(check('Duplicates', () => live().duplicates.enabled, (v) => set({ duplicates: { enabled: v } })));
+    add(check('Degenerate', () => live().degenerate.enabled, (v) => set({ degenerate: { enabled: v } })));
+    add(check('Proxies', () => live().classes.proxies, (v) => set({ classes: { proxies: v } })));
+    add(check('Furniture', () => live().classes.furniture, (v) => set({ classes: { furniture: v } })));
+    add(check('Accessories and fasteners', () => live().classes.accessories, (v) => set({ classes: { accessories: v } })));
+    box.appendChild(section('Actions'));
+    const after = (r: { summary: string; total: number } | null, verb: string): void => status.set(r ? `${r.summary} (${r.total} ${verb})` : 'No model');
+    box.appendChild(row(
+      button('Preview', () => after(api.preview(), 'previewed'), { primary: true, title: 'Tint the matches magenta' }),
+      button('Hide', () => after(api.hide(), 'hidden'), { title: 'Hide the matches (non-destructive)' }),
+      button('Restore', () => status.set(`Restored ${api.restore()} elements`), { title: 'Show what cleanup hid' }),
+    ));
+    box.appendChild(status);
+    box.appendChild(note('The threshold uses the size metric of the Model cleanup folder. More options, such as the contact tolerance, are there too.'));
+  };
+  render();
   return undefined;
 }
 

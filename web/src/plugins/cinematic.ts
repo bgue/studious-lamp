@@ -46,6 +46,8 @@ import {
 } from '../cinematic/flythrough';
 import type { Keyframe, KeyframeToggles, Recording } from '../cinematic/flythrough';
 import { collectSamples, occluderSet } from '../algo';
+import { DEFAULT_GLOW_SCOPE, GLOW_SCOPES, glowIds } from '../cinematic/glow';
+import type { GlowScope } from '../cinematic/glow';
 import { defaultSetsFor, globalIdsToIds, idsToGlobalIds, loadSets, unionBounds } from '../selectionSets';
 
 export interface CinematicConfig {
@@ -70,7 +72,8 @@ export interface CinematicConfig {
   edgeGlow: boolean;
   glowStrength: number;
   glowColor: string;
-  glowNear: boolean;
+  /** Which elements glow: the focus, focus + host + near, or every visible element. Replaces the old `glowNear` switch. */
+  glowScope: GlowScope;
   glowAdditive: boolean;
   /** Sweep reveal: a plane travels from the camera through the occluders. */
   sweep: { enabled: boolean; mode: RevealMode; durationMs: number; bandWidth: number };
@@ -108,7 +111,7 @@ export function defaultConfig(allOff = false, newOff = allOff): CinematicConfig 
     edgeGlow: false,
     glowStrength: 0.45,
     glowColor: '#ff7a1a',
-    glowNear: true,
+    glowScope: DEFAULT_GLOW_SCOPE,
     glowAdditive: true,
     sweep: { enabled: !newOff, mode: 'both', durationMs: DEFAULT_SWEEP_MS, bandWidth: DEFAULT_BAND_M },
     grade: { enabled: !newOff, strength: 0.5 },
@@ -928,9 +931,9 @@ export class Cinematic {
       this.r.setEdgeGlow(null);
       return;
     }
-    const cls = app.controller.classification;
-    const ids = new Set<number>(cls.host);
-    if (this.cfg.glowNear) for (const id of cls.near) ids.add(id);
+    const ctl = app.controller;
+    // Hidden elements need no filter here: the glow shader skips them, also after a later hide or unhide.
+    const ids = glowIds(this.cfg.glowScope, ctl.classification, ctl.model.elements.length);
     this.r.setEdgeGlow(ids, hexToRgb(this.cfg.glowColor), { strength: this.cfg.glowStrength, additive: this.cfg.glowAdditive });
   }
 
@@ -1019,9 +1022,9 @@ export class Cinematic {
     bl.add(cfg, 'bloomStrength', 0, 3, 0.05).name('Strength').onChange((v: number) => (this.bloom.settings.strength = v));
     bl.add(cfg, 'bloomRadius', 0, 1, 0.01).name('Radius').onChange((v: number) => (this.bloom.settings.radius = v));
 
-    const eg = f.addFolder('Host edge glow');
+    const eg = f.addFolder('Edge glow');
     eg.add(cfg, 'edgeGlow').name('Edge glow').onChange(() => this.applyGlow());
-    eg.add(cfg, 'glowNear').name('Include near').onChange(() => this.applyGlow());
+    eg.add(cfg, 'glowScope', [...GLOW_SCOPES]).name('glow scope').onChange(() => this.applyGlow());
     eg.add(cfg, 'glowAdditive').name('Additive').onChange(() => this.applyGlow());
     eg.add(cfg, 'glowStrength', 0, 2, 0.01).name('Strength').onChange(() => this.applyGlow());
     eg.addColor(cfg, 'glowColor').name('Colour').onChange(() => this.applyGlow());

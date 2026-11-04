@@ -23,7 +23,7 @@ Switch the tooltips off with `window.__xrayHelp.disable()` or `localStorage["xra
 - [Camera fly-to](#camera-fly-to)
 - [Scene dressing](#scene-dressing)
 - [Focus bloom](#focus-bloom)
-- [Host edge glow](#host-edge-glow)
+- [Edge glow](#edge-glow)
 - [Sweep reveal](#sweep-reveal)
 - [Depth-graded ghosting](#depth-graded-ghosting)
 - [Sightlines](#sightlines)
@@ -57,6 +57,7 @@ Switch the tooltips off with `window.__xrayHelp.disable()` or `localStorage["xra
 - [Imaging](#imaging)
 - [MRI slice](#mri-slice)
 - [Section](#section)
+- [Gizmo](#gizmo)
 - [Point cloud](#point-cloud)
 - [WebXR](#webxr)
 - [Tool strip](#tool-strip)
@@ -77,6 +78,8 @@ Switch the tooltips off with `window.__xrayHelp.disable()` or `localStorage["xra
 - [Section drawer](#section-drawer)
 - [Scan drawer](#scan-drawer)
 - [WebXR drawer](#webxr-drawer)
+- [Status ba](#status-ba)
+- [Status bar](#status-bar)
 
 ## Glossary
 
@@ -165,10 +168,10 @@ Impact follows the same sentence rules and adds these:
 | Setting | Intent | Impact | Use | Ref |
 | --- | --- | --- | --- | --- |
 | *Folder: Classification (Alg 1)* | The folder holds the settings of the static classification. The classification sorts each context object into host, near or far. | These controls pick which walls and slabs fade around the selected item. Change one and the faded group grows or shrinks. | Change a value here to move objects between the buckets. The camera does not affect these settings. | Report: Algorithm 1, lines 1 to 11 |
-| bufferBase | The slider sets the base buffer in metres. A context object inside the buffer of a focus object is near. | Move the slider right and more walls and slabs close to the selected item start to fade. Move it left and fewer fade. | Increase the value to make more objects near. Decrease the value to keep the ghosting close to the focus. | Report: Algorithm 1, line 4 |
+| bufferBase (m) | The slider sets the base buffer in metres. A context object inside the buffer of a focus object is near. | Move the slider right and more walls and slabs close to the selected item start to fade. Move it left and fewer fade. | Increase the value to make more objects near. Decrease the value to keep the ghosting close to the focus. | Report: Algorithm 1, line 4 |
 | bufferScale | The slider sets how much the buffer grows with the cross section of a focus object. The buffer equals the base plus the scale times the cross section. | Move the slider right and thick pipes and ducts pull more walls and slabs into the fade zone. At 0 every item reaches the same distance. | Increase the value to give thick ducts a wider buffer. Set the value to 0 to use the base buffer for all objects. | Report: Algorithm 1, line 4 |
-| bufferLo | The slider sets the smallest buffer in metres. The buffer never falls below this value. | Move the slider right and even thin pipes make walls and slabs close to them fade. Move it left and thin pipes affect fewer parts. | Increase the value to stop thin pipes from getting a tiny buffer. Keep the value below the high limit. | Report: Parameters and defaults |
-| bufferHi | The slider sets the largest buffer in metres. The buffer never rises above this value. | Move the slider left and big ducts affect fewer walls and slabs. Move it right and they reach out to more of the building. | Decrease the value to stop large ducts from ghosting distant structure. Increase the value to include more structure around large ducts. | Report: Parameters and defaults |
+| bufferLo (m) | The slider sets the smallest buffer in metres. The buffer never falls below this value. | Move the slider right and even thin pipes make walls and slabs close to them fade. Move it left and thin pipes affect fewer parts. | Increase the value to stop thin pipes from getting a tiny buffer. Keep the value below the high limit. | Report: Parameters and defaults |
+| bufferHi (m) | The slider sets the largest buffer in metres. The buffer never rises above this value. | Move the slider left and big ducts affect fewer walls and slabs. Move it right and they reach out to more of the building. | Decrease the value to stop large ducts from ghosting distant structure. Increase the value to include more structure around large ducts. | Report: Parameters and defaults |
 | storeyBand | The slider sets how many storeys above and below the focus storey count as context. Objects on other storeys are not context. | At 0 only walls and slabs on the same level as the selected item can fade. Higher values add levels above and below. | Set the value to 0 to use the storey of the focus only. Increase the value to include the storeys above and below. | Report: Algorithm 1, line 2 |
 
 ## Sightlines (Alg 2)
@@ -280,16 +283,16 @@ Impact follows the same sentence rules and adds these:
 | Strength | The slider sets the brightness of the bloom. | Move the slider right and the glow around the selected item gets brighter. Very high values wash out its colour. | Increase the value for a strong glow. Decrease the value if the focus colour washes out. | Report: Limitations and extensions |
 | Radius | The slider sets how far the bloom spreads. | Move the slider right and the glow spreads wider and softer. Move it left and it hugs the item tightly. | Increase the value for a wide, soft glow. Decrease the value for a tight glow. | Report: Limitations and extensions |
 
-## Host edge glow
+## Edge glow
 
 | Setting | Intent | Impact | Use | Ref |
 | --- | --- | --- | --- | --- |
-| *Folder: Host edge glow* | The folder controls the glowing outline of host objects. The outline shows where the focus passes through the structure. | These controls add a bright line around the walls and slabs that the selected item crosses. | Turn the glow on to see the points where a run penetrates a slab or a wall. | Report: Terminology, host |
-| Edge glow | The switch adds a glowing outline to host objects. The outline marks where the focus meets the structure. | On: a bright line shows around the walls and slabs that the selected item crosses. Off: they look normal. | Turn the switch on to find penetrations of slabs and walls. | Report: Terminology, host |
-| Include near | The switch adds the outlines of near objects to the glow. Without it only host objects glow. | On: walls and slabs close to the selected item get the bright line too. Off: only the ones it crosses get it. | Turn the switch on to see all occluders. Turn it off to see the host objects only. | Report: Terminology, near |
+| *Folder: Edge glow* | The folder controls a glowing outline. The glow scope sets which objects get the outline. | These controls draw a bright line around the item you picked, and on request around the parts close to it. | Turn the glow on. Select focus for the selection only. Select near or all for more objects. | Report: Terminology, focus |
+| Edge glow | The switch adds a glowing outline to the objects of the glow scope. The default scope is the focus. | On: a bright line shows around the item you picked. Off: it looks normal. | Turn the switch on to find the selection quickly in a busy model. | Report: Terminology, focus |
+| glow scope | The list sets which objects glow. The value focus glows the focus. The value near adds the host and near objects. The value all glows every visible object. | Choose the first and only the item you picked gets a bright line. The middle choice adds the walls and slabs close to it. The last choice lines every part. | Select focus for a clear view. Select near to see the penetrations. Select all for a line drawing of the model. | Report: Terminology, host |
 | Additive | The switch adds the glow colour to the image instead of replacing the colour below. | On: the line adds light to what lies behind it, so it shines on dark parts. Off: it looks flat and solid. | Turn the switch on for a bright glow on dark ghosts. Turn it off for a flat outline. | Report: Appendix B, WebGL |
 | Strength | The slider sets the brightness of the edge glow. | Move the slider right and the bright line gets bolder and brighter. Move it left and it almost disappears. | Increase the value to make the outline stand out. Decrease the value for a quiet outline. | Report: Limitations and extensions |
-| Colour | The colour box sets the colour of the edge glow. | Pick a shade for the bright line around crossed walls and slabs. A shade unlike the selected item makes it stand out. | Click the box. Pick a colour that differs from the focus colour. | Report: Limitations and extensions |
+| Colour | The colour box sets the colour of the edge glow. | Pick a shade for the bright line. A shade unlike the selected item makes it stand out. | Click the box. Pick a colour that differs from the focus colour. | Report: Limitations and extensions |
 
 ## Sweep reveal
 
@@ -443,6 +446,23 @@ Impact follows the same sentence rules and adds these:
 | Rename set | The button changes the name of the set. | Click, type a new label, and press Enter. The group keeps its parts and gets the new label. | Click the button. Type a new name. Press Enter. | Report: Onboarding checklist |
 | Delete set | The button removes the set from the list. The objects stay in the model. | Click and the group disappears from the list. The parts stay in the building. | Click the button only when you no longer need the set. | Report: Onboarding checklist |
 | Copy GlobalId | The button copies the GlobalId of the first selected object to the clipboard. | Click and the unique code of the picked part goes onto the clipboard. Paste it into another program to find the same part. | Select an object. Click the button and paste the id into your BIM tool. | Report: Onboarding checklist |
+| New criteria set | The button opens an editor for a criteria set. A criteria set holds rules, and the viewer finds the matching objects. | Click and a small form opens. You describe the parts you want, such as outside walls, and the list fills itself. | Click the button. Add conditions or type a query. Click Save set. | Report: Onboarding checklist |
+| Set filter box | The box shows only the selection sets whose name or query contains the typed text. | Type a few letters and the long list shrinks to the groups that match. Clear the text to see every group again. | Type part of a name. Press the Down arrow key to move into the list. Press Escape to clear the text. | Report: Onboarding checklist |
+| Set menu | The button opens the actions of the set: update, rename, edit criteria, duplicate and delete. | Click and a short list of choices drops down for this saved group. Pick a choice to change or copy the group. | Click the button or press Enter. Use the arrow keys to move. Press Escape to close. | Report: Onboarding checklist |
+| Criteria badge | The funnel icon marks a criteria set. The viewer finds its objects again from its query on each model load and each apply. | This group keeps itself up to date. When the building changes, the group picks up the new matching parts. | Hover the icon to read the query. Open the set menu to edit the query. | Report: Onboarding checklist |
+| Re-evaluate set | The menu item runs the query of the criteria set again and stores the objects that match now. | Click and the group checks the building again. Parts that now fit join it, and parts that no longer fit leave it. | Click the item after a change to the model or to its properties. | Report: Onboarding checklist |
+| Edit criteria | The menu item opens the criteria editor with the query and the name of the set. | Click and the form opens with the rules of this group. Change a rule and the count updates as you type. | Click the item. Change the conditions or the query. Click Save changes. | Report: Onboarding checklist |
+| Duplicate set | The menu item adds a copy of the set below it, with the word copy after the name. | Click and a twin of this group appears under it. You can change the twin and keep the first group intact. | Click the item before you change a set, to keep the old version. | Report: Onboarding checklist |
+| Criteria set name | The box holds the name of the criteria set. | Type a label here. The label shows in the list of saved groups after you save. | Type a short name that says what the rules find. | Report: Onboarding checklist |
+| Match all or any | The list sets how the conditions combine. The value all needs every condition. The value any needs at least 1 condition. | Choose all and a part must meet every rule. Choose the second choice and a part needs to meet only a single rule. | Select all to narrow the result. Select any to widen it. | Report: Onboarding checklist |
+| Add condition | The button adds an empty condition row to the builder. | Click and a new blank rule appears. Fill it in to narrow or widen the result. | Click the button. Pick a field, an operator and a value. | Report: Onboarding checklist |
+| Condition field | The box names the attribute or the property that the condition tests. The list offers the columns of this model. | Start to type and a list suggests what the parts of this building carry, such as a fire rating. | Type part of a name. Select a column from the list. | Report: Onboarding checklist |
+| Condition operator | The list sets the comparison of the condition. LIKE matches a pattern, IN matches a list and IS NULL matches a missing value. | Pick equal to keep exact matches, or a pattern choice to find names that start or end with some text. | Select = for an exact value. Select LIKE and type % as a wildcard. | Report: Onboarding checklist |
+| Condition value | The box holds the value that the condition compares with. The list suggests the values found in this model, most frequent first. | Start to type and the box suggests the entries that the parts really have, the common ones at the top. | Type or select a value. Separate the items of an IN list with commas. | Report: Onboarding checklist |
+| Query box | The box holds the query text in a subset of SQL. The builder rows write this text, and you can edit it directly. | Power users can type the rules by hand here. A red message points at the exact spot of a typing mistake. | Type conditions with AND, OR and NOT. Put property names in double quotes. Press Ctrl+Enter to save. | Report: Onboarding checklist |
+| Preview matches | The button selects and frames the objects that match the query, without a save. | Click and the parts that fit the rules light up, so you can check them before you keep the group. | Click the button to check the result. Change the rules if needed. | Report: Onboarding checklist |
+| Save criteria set | The button stores the criteria set with its name and query. The set list shows it with a funnel icon. | Click and the group joins your list. It keeps its rules, so it stays current when the building changes. | Enter a name. Fix any error. Click the button. | Report: Onboarding checklist |
+| Property menu | The button opens actions for this row: select by value or by presence, copy the value, save a criteria set. | Click, or right-click the row, to pick every part with the same entry, such as all outside walls. | Click the button or right-click a row. Pick an action. | Report: Onboarding checklist |
 
 ## View modes
 
@@ -492,6 +512,7 @@ Impact follows the same sentence rules and adds these:
 | Export report | The button downloads a JSON file with the ids, GlobalIds, classes, names and reasons of the matches. | Click and a file of the found pieces, with the reason for each, lands in your downloads. | Click the button to share the list with other people. | Report: Appendix H, Model cleanup |
 | Cleanup status | The read-only field shows the result of the last cleanup step. | A short text tells you how many pieces the rules found or hid. | Read the line after each step. | Report: Appendix H, Model cleanup |
 | apply on load | The switch runs the cleanup rules and hides the matches each time a model loads. | On: the debris is gone as soon as a building appears. Off: you decide when to hide it. | Turn the switch on for models that always need the same clean up. | Report: Appendix H, Model cleanup |
+| length unit | The list sets the unit of every length limit of the cleanup. The choices are mm, cm and m. The rules keep metres. | Choose mm and the sizes and gaps show in millimetres. Choose m and they show in metres. The result stays the same. | Select mm for small parts such as fasteners. Select m for distances across the site. | Report: Appendix H, Model cleanup |
 
 ## Floating
 
@@ -500,26 +521,28 @@ Impact follows the same sentence rules and adds these:
 | *Folder: Floating* | The folder holds the rule for floating elements. A floating element does not touch the main structure and is smaller than the limit. | This rule finds small pieces that hang in the air away from the rest of the building. | Turn the rule on. Choose how to measure size. Set the limit. Click Preview matches. | Report: Appendix H, Model cleanup |
 | enabled | The switch turns the floating rule on or off. | On: small loose pieces count as debris. Off: this rule finds nothing. | Turn the switch on to find pieces that hang away from the building. | Report: Appendix H, Model cleanup |
 | size metric | The list sets how the rule measures size. The choices are largest dimension, bounds volume, mesh volume and triangle count. | Each choice changes what small means. Length judges the longest side. Volume judges the space a part fills. Triangle count judges the detail. | Select largest dimension for most models. Select a volume for thin, long parts. Select triangle count for mesh detail. | Report: Appendix H, Model cleanup |
-| threshold | The slider sets the size limit of the floating rule. A part below the limit matches. The unit follows the size metric. | Move the slider right and bigger loose pieces count as debris. Move it left and only the tiny ones count. | Increase the value to catch larger pieces. Decrease the value to keep more of the model. | Report: Appendix H, Model cleanup |
+| threshold | The slider sets the size limit of the floating rule. A part below the limit matches. The unit follows the size metric and the length unit. | Move the slider right and bigger loose pieces count as debris. Move it left and only the tiny ones count. | Increase the value to catch larger pieces. Decrease the value to keep more of the model. | Report: Appendix H, Model cleanup |
 | mode | The list sets what the rule matches. The value single elements matches elements with no contact. The value small clusters matches whole small groups. | Choose the first and only pieces that touch nothing match. Choose clusters and whole small groups of touching pieces match. | Select single elements for lone pieces. Select small clusters for small groups of pieces. | Report: Appendix H, Model cleanup |
-| contact tolerance (m) | The slider sets the largest gap in metres at which 2 elements still count as touching. | Move the slider right and pieces with a small gap between them count as joined. At 0 they must touch exactly. | Increase the value if the model has small gaps between parts. Decrease the value for exact contact. | Report: Appendix H, Model cleanup |
+| contact tolerance (m) | The slider sets the largest gap at which 2 elements still count as touching. The length unit list sets the unit. | Move the slider right and pieces with a small gap between them count as joined. At 0 they must touch exactly. | Increase the value if the model has small gaps between parts. Decrease the value for exact contact. | Report: Appendix H, Model cleanup |
 | precise contacts | The switch checks the real mesh distance and not only the bounding boxes of 2 elements. | On: a part that sits close to a curved wall counts as loose if it does not truly touch it. Off: the box around the wall counts as touching. | Turn the switch on if curved or diagonal parts hide debris. Turn it off for speed. | Report: Appendix H, Model cleanup |
 
 ## Tiny
 
 | Setting | Intent | Impact | Use | Ref |
 | --- | --- | --- | --- | --- |
-| *Folder: Tiny* | The folder holds the rule for tiny elements. An element is tiny when its largest side is below the limit. | This rule finds very small parts, such as screws or specks, that you can hardly see. | Turn the rule on. Set the largest side in metres. | Report: Appendix H, Model cleanup |
+| *Folder: Tiny* | The folder holds the rule for tiny elements. An element is tiny when its largest side is below the limit. | This rule finds very small parts, such as screws or specks, that you can hardly see. | Turn the rule on. Set the largest side. Pick mm, cm or m in the length unit list. | Report: Appendix H, Model cleanup |
 | enabled | The switch turns the tiny rule on or off. | On: very small parts count as debris. Off: this rule finds nothing. | Turn the switch on to find specks and small fasteners. | Report: Appendix H, Model cleanup |
-| max size (m) | The slider sets the largest side in metres that a tiny element may have. | Move the slider right and bigger bits count as debris. Move it left and only specks count. | Increase the value to match more small parts. The default is 0.05 m. | Report: Appendix H, Model cleanup |
+| max size (m) | The slider sets the largest side that a tiny element may have. The length unit list sets the unit. | Move the slider right and bigger bits count as debris. Move it left and only specks count. | Increase the value to match more small parts. The default is 0.05 m, which is 50 mm. | Report: Appendix H, Model cleanup |
 
 ## Distant strays
 
 | Setting | Intent | Impact | Use | Ref |
 | --- | --- | --- | --- | --- |
-| *Folder: Distant strays* | The folder holds the rule for distant strays. A stray lies much further from the model centre than the rest of the model. | This rule finds objects that sit way off from the building, such as markers left at the wrong place. | Turn the rule on. Increase the factor if the rule matches too many objects. | Report: Appendix H, Model cleanup |
+| *Folder: Distant strays* | The folder holds the rule for distant strays. A stray lies much further from the model centre than the rest of the model. | This rule finds objects that sit way off from the building, such as markers left at the wrong place. | Turn the rule on. Increase the factor or the min gap if the rule matches too many objects. | Report: Appendix H, Model cleanup |
 | enabled | The switch turns the distant strays rule on or off. | On: objects that sit way off from the building count as debris. Off: this rule finds nothing. | Turn the switch on to find markers and objects at the origin. | Report: Appendix H, Model cleanup |
 | distance factor | The slider sets the factor k. A bounds centre further than k times the robust radius from the median centre matches. | Move the slider right and an object must sit much further out to count as lost. Move it left and more objects count. | Increase the value to match fewer objects. The default is 6. | Report: Appendix H, Model cleanup |
+| min gap (m) | The field sets the smallest distance between a stray and the box of the main model. The value 0 turns the limit off. | Raise the value and only objects well outside the building count as lost. At 0 the factor alone decides. | Set the value to a distance that you trust, such as 50 m. Keep 0 to use the factor only. | Report: Appendix H, Model cleanup |
+| max size (m) | The field sets the largest side that a stray may have. A larger object never matches. The value 0 accepts any object. | Set a small value and only little markers out on their own count as lost. At 0 big lost parts count too. | Set the value to keep large misplaced parts, such as a site model, out of the matches. | Report: Appendix H, Model cleanup |
 
 ## Duplicates
 
@@ -669,6 +692,29 @@ Impact follows the same sentence rules and adds these:
 | cap colour | The colour picker sets the colour of the hatched caps. | Pick a shade and the flat faces on the cut change to it. | Choose a colour that stands out from your model colours. | Report: Appendix G, Imaging and sectioning |
 | show handles | The switch shows the box outline and the handles that you drag to move the box faces. | On: small round grips appear that you can drag. Off: the grips go away and the cut stays fixed. | Turn the switch off for screenshots. | Report: Appendix G, Imaging and sectioning |
 | Clear section | The button turns off the section box and the section plane. | Click and every cut goes away and the whole building returns. | Click the button to start again. | Report: Appendix G, Imaging and sectioning |
+
+## Gizmo
+
+| Setting | Intent | Impact | Use | Ref |
+| --- | --- | --- | --- | --- |
+| *Folder: Gizmo* | The folder controls the view cube and the section strip in the lower right corner of the 3D view. | Untick the box and the little block with its buttons leaves the picture. Tick it and it comes back. | Press the V key to show or hide the tools. Click the minus button to fold them into 1 button. | Report: Appendix I, Presets and keyboard |
+| show | The switch shows or hides the view cube and the section strip. The V key does the same. | On: a small block with labelled sides sits in the lower right corner. Off: the corner stays empty. | Turn the switch off for clean screenshots. Press V to turn it on again. | Report: Appendix I, Presets and keyboard |
+| View cube | The cube turns with the camera. A click on a face, an edge or a corner moves the camera to look from that side. | Click the side marked Top and the camera swings above the building. Drag the block to spin the picture. | Click a face for a straight look and an edge or a corner for an angled look. Drag to orbit. Press Alt+7 for top, Alt+1 for front and Alt+3 for right. | Report: Appendix I, Presets and keyboard |
+| Roll clockwise | The button turns the camera 90 degrees about the line of sight. The picture turns clockwise on the screen. | Click and the whole picture tips a quarter turn to the right, like a page that you rotate. | Click the button to read a plan from another side. Click a face of the cube to undo the tilt. | Report: Appendix I, Presets and keyboard |
+| Roll counter-clockwise | The button turns the camera 90 degrees about the line of sight. The picture turns counter-clockwise on the screen. | Click and the whole picture tips a quarter turn to the left, like a page that you rotate. | Click the button to read a plan from another side. Click a face of the cube to undo the tilt. | Report: Appendix I, Presets and keyboard |
+| Turn left | The button moves the camera 90 degrees around the vertical axis through the target, to the left. | Click and you walk a quarter of the way around the building, so you see the next side. | Click the button 4 times to go once around the model. | Report: Appendix I, Presets and keyboard |
+| Turn right | The button moves the camera 90 degrees around the vertical axis through the target, to the right. | Click and you walk a quarter of the way around the building the other way, to the next side. | Click the button 4 times to go once around the model. | Report: Appendix I, Presets and keyboard |
+| Home | The button frames the whole model from the default corner. The camera moves there in a smooth arc. | Click and the full building comes back into the picture, seen from above at an angle. | Click the button when you lose your way. Press the Home key to frame all without the arc. | Report: Appendix I, Presets and keyboard |
+| Projection | The button switches between the perspective camera and an orthographic approximation with a 2 degree field of view. | On: lines that run in parallel stay parallel, like on a drawing board. Off: distant parts look smaller. | Click the button for plans and elevations. Press Alt+5 or Numpad 5 for the same action. | Report: Appendix I, Presets and keyboard |
+| Collapse | The button folds the view cube and the section strip into 1 small button. | Click and the corner tools shrink to a single square, so you see more of the building. | Click the small square to open the tools again. Press V to hide them completely. | Report: Appendix I, Presets and keyboard |
+| Open gizmo | The button opens the view cube and the section strip again. | Click and the labelled block and its buttons come back in the corner. | Click the button to reach the cube and the cut tools. | Report: Appendix I, Presets and keyboard |
+| Plane X | The button adds a section plane square to the x axis through the centre of the selection or the model. | Click and the building splits from side to side, so you look inside it. Click again and the cut goes away. | Click the button for a cut across the model. Drag the arrow on the model to move the cut. | Report: Appendix G, Imaging and sectioning |
+| Plane Y | The button adds a horizontal section plane through the centre of the selection or the model. The cut is a plan. | Click and the upper part of the building goes away, so you look down into the rooms from above. | Select a storey or a room first. Press Alt+C to turn the cut on or off. | Report: Appendix G, Imaging and sectioning |
+| Plane Z | The button adds a section plane square to the z axis through the centre of the selection or the model. | Click and the building splits from front to back, so you look inside it. Click again and the cut goes away. | Click the button for a cut along the length. Drag a ring on the model to tilt the cut. | Report: Appendix G, Imaging and sectioning |
+| Section box | The button fits a section box to the selection, else to the model, and turns it on. | Click and only the chosen parts and a little space around them stay in the picture. | Select the parts first. Drag the round handles on the model to resize. Press Shift+C for the same fit and C to toggle. | Report: Appendix G, Imaging and sectioning |
+| Flip plane | The button keeps the other side of the section plane. | Click and the half that you saw goes away and the hidden half comes back. | Click the button to look at the cut from the other side. | Report: Appendix G, Imaging and sectioning |
+| Caps | The switch draws flat hatched caps where a cut goes through a closed solid. | On: cut walls look solid with a striped face. Off: you look into hollow shells. | Turn the switch off to see inside thin parts. Turn it on for a clear drawing. | Report: Appendix G, Imaging and sectioning |
+| Clear section | The button turns off the section box and the section plane and removes every clip plane. | Click and every cut goes away and the whole building returns. | Click the button to start again. | Report: Appendix G, Imaging and sectioning |
 
 ## Point cloud
 
@@ -840,6 +886,15 @@ Impact follows the same sentence rules and adds these:
 | Snapshot | The picture shows the snapshot that the first viewpoint of the topic stores. | The small picture shows what the author saw when they made the note. | Look at the picture. Click Apply to see it live. | Report: Appendix J, Coordination tools |
 | Viewpoints (heading) | The heading names the list of viewpoints of the selected topic. | The buttons below jump to the views that the author saved. | Click Apply on a viewpoint. | Report: Appendix J, Coordination tools |
 | Comments (heading) | The heading names the comments of the selected topic. The number is the count. | The notes below are the talk about this issue, oldest first. | Read the comments. Add your own below. | Report: Appendix J, Coordination tools |
+| Show pins | The button shows or hides the numbered markers of the topics on the model. The markers follow the topic filter. | Click and the numbered dots of the issue notes appear on the building or go away. | Click the button to turn the markers on or off. Click a marker to open its topic. | Report: Appendix J, Coordination tools |
+| Place pin | The button starts the placement of the topic marker. The next click on the model sets the 3D point of the topic. | Click it, then click the building, and a numbered dot marks that spot for the issue note. | Click the button. Click a surface of the model. Press Esc to stop. | Report: Appendix J, Coordination tools |
+| Remove pin | The button removes the marker from the selected topic. | Click and the numbered dot of this issue note goes away from the building. | Click the button. Click Place pin to set a new marker. | Report: Appendix J, Coordination tools |
+| Add callout | The button starts a callout on the active viewpoint. The next click selects the target element and the anchor point. | Click it, then click a part of the building, and a text box with a line points at that part. | Type the text first. Click the button. Click an element of the model. | Report: Appendix J, Coordination tools |
+| Add note | The button starts a text note on the active viewpoint. The next click sets a free 3D point for the note. | Click it, then click the building, and a yellow sticky text stays at that spot. | Type the text first. Click the button. Click the model where the note goes. | Report: Appendix J, Coordination tools |
+| Add arrow | The button starts an arrow on the active viewpoint. The arrow points at the element that you click next. | Click it, then click a part of the building, and a red pointer aims at that part. | Click the button. Click an element of the model. Drag the label to move the tail. | Report: Appendix J, Coordination tools |
+| Link measurement | The button lists the current measurements. A click on 1 measurement copies its end points and length into a callout. | Pick a distance you took with the ruler and it stays on the issue note with its value. | Measure with the Measure tool first. Click the button. Click a row of the list. | Report: Appendix J, Coordination tools |
+| Delete | The button removes 1 annotation from the viewpoint. | Click and that text box and its line go away from the picture. | Click the button on the row of the annotation. | Report: Appendix J, Coordination tools |
+| Markup (heading) | The heading names the markup of the selected topic: the topic marker and the annotations of its viewpoints. | The tools below put numbered dots, text boxes and arrows on the building for this issue. | Click a button below. Click a row to see the annotation. Drag a text box to move it. | Report: Appendix J, Coordination tools |
 | Comment | The box shows 1 comment with its author, date and text. | Each box is one message in the talk about the issue. | Read the comment. | Report: Appendix J, Coordination tools |
 | Comment box | The text box holds the comment that you add to the topic. | Type your reply here. It joins the issue note when you click the add button. | Type a comment. Click Add comment. | Report: Appendix J, Coordination tools |
 | Attach view tick | The tick attaches the current camera, selection and clip planes to your comment as a new viewpoint. | Mark it and your reply carries a picture of what you see now. | Tick the box when the comment is about the current view. | Report: Appendix J, Coordination tools |
@@ -962,3 +1017,17 @@ Impact follows the same sentence rules and adds these:
 | *Folder: WebXR drawer* | The heading names the WebXR drawer. The drawer holds the buttons that start and end a session. | This panel puts you inside the building with a headset, or on a real table with a phone. | Click Enter VR or Enter AR. Click Leave XR session to return to the screen. | Report: Appendix M, WebXR |
 | Leave XR session | The button ends the running session. The normal picture and the orbit camera return. | Click and you come back to the screen, with the view you had before the headset. | Click the button to end the session. | Report: Appendix M, WebXR |
 | Status line | The text line shows the state of the session and the looks that the session leaves out. | A short text tells you if the headset works and what is missing from the picture there. | Read the line if the picture in the headset looks plainer than on the screen. | Report: Appendix M, WebXR |
+
+## Status ba
+
+| Setting | Intent | Impact | Use | Ref |
+| --- | --- | --- | --- | --- |
+|  | The bar shows the model, the x-ray state, the bucket counts, the element under the pointer and the frame time. | This thin line at the bottom tells you what you look at and how fast the picture draws. Red text is a message. | Rest the pointer on the line for all details. Click the info button or the model name for the model credits. | Report: Onboarding checklist |
+
+## Status bar
+
+| Setting | Intent | Impact | Use | Ref |
+| --- | --- | --- | --- | --- |
+| Model name | The segment names the model and counts its elements. A click opens the details and the credits of the models. | It tells you which building you look at and how many parts it has. Click it to see where it comes from. | Click the segment to read the credits of the built-in models. | Report: Onboarding checklist |
+| Details button | The button opens a panel with the timings of Algorithm 1 and 2, the ray count and the model credits. | Click it and a small box opens with every number and the source of each demo building. | Click the button to open the box. Click it again or outside the box to close it. | Report: Algorithm 2 |
+| Dismiss button | The button removes the red message from the bar. | Click the cross and the red text goes away. The rest stays as it is. | Click the cross after you read the message. | Report: Onboarding checklist |

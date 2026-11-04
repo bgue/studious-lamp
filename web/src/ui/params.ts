@@ -8,12 +8,13 @@
 // No DOM access except the optional `window` fallbacks in ParamsEnv; the module is testable with a fake app.
 
 import { version as pkgVersion } from '../../package.json';
-import { idsToGlobalIds, loadSets, saveSets } from '../selectionSets';
+import { copySet, idsToGlobalIds, loadSets, saveSets } from '../selectionSets';
 import type { SelectionSet, StorageLike } from '../selectionSets';
 import type { ControllerSettings } from '../controller';
 import { defaultSettings } from '../controller';
 import type { ClassStyles } from '../types';
 import { mergeAliases, mergeStyles, parseConfig } from '../styles';
+import { glowScopeFromLegacy, isGlowScope } from '../cinematic/glow';
 import type { MaterialAliases } from '../styles';
 
 export const PARAMS_SCHEMA = 'xray-params/1';
@@ -353,8 +354,18 @@ function applyCinematic(cfg: Record<string, unknown>, src: unknown, path: string
     bad.push(path);
     return;
   }
-  for (const [k, v] of Object.entries(src)) {
+  for (let [k, v] of Object.entries(src)) {
     if (TRANSIENT_CINEMATIC.has(k) && path === 'cinematic') continue;
+    // Older documents: the `glowNear` switch became the `glowScope` list (true: 'near', false: 'focus').
+    if (path === 'cinematic' && k === 'glowNear' && typeof v === 'boolean' && 'glowScope' in cfg) {
+      if ('glowScope' in src) continue;
+      k = 'glowScope';
+      v = glowScopeFromLegacy(v);
+    }
+    if (path === 'cinematic' && k === 'glowScope' && !isGlowScope(v)) {
+      bad.push(`${path}.${k}`);
+      continue;
+    }
     const cur = cfg[k];
     if (!(k in cfg)) {
       bad.push(`${path}.${k}`);
@@ -574,7 +585,7 @@ export function applyParams(app: ParamsApp, params: unknown, opts: ApplyOptions 
       Array.isArray(list) &&
       list.every((x) => isObj(x) && typeof x['name'] === 'string' && Array.isArray(x['globalIds']) && x['globalIds'].every((g) => typeof g === 'string'));
     if (!ok || !storage) bad.push('selectionSets');
-    else if (!saveSets(storage, app.modelName, (list as SelectionSet[]).map((x) => ({ name: x.name, globalIds: [...x.globalIds] })))) bad.push('selectionSets');
+    else if (!saveSets(storage, app.modelName, (list as SelectionSet[]).map(copySet))) bad.push('selectionSets');
     else {
       // The sets view reads storage in onModel; run just the sidebar's hook so it shows the imported sets.
       const sb = app.plugins?.find((q) => q.name === 'sidebar');

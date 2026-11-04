@@ -4,6 +4,8 @@
 // reconversion of the IFC file (ids are array indices and may change; globalIds do not).
 //
 // Storage layout: localStorage key `xray.sets.<modelName>` -> JSON { version: 1, sets: [{ name, globalIds }] }.
+// A criteria set also has `kind: "criteria"` and `query` (src/query); its globalIds are the members found by the last
+// evaluation, so readers that do not know criteria (older viewers, the cinematic tour) still see a static set.
 // A missing key means "first load of this model": the default sets in DEFAULT_SETS are seeded. An existing key
 // with an empty list means the user deleted everything, so nothing is seeded again.
 
@@ -12,6 +14,21 @@ import type { ElementId, ElementRecord, SceneModel } from './types';
 export interface SelectionSet {
   name: string;
   globalIds: string[];
+  /** Absent for a static set (explicit members). "criteria": members come from `query`. */
+  kind?: 'criteria';
+  /** Criteria query (SQL WHERE subset, src/query). Present only when kind is "criteria". */
+  query?: string;
+}
+
+/** True for a criteria set (members re-evaluated from its query). */
+export function isCriteria(s: SelectionSet): s is SelectionSet & { kind: 'criteria'; query: string } {
+  return s.kind === 'criteria' && typeof s.query === 'string';
+}
+
+/** A clean copy: static sets keep only name and globalIds, criteria sets also kind and query. */
+export function copySet(s: SelectionSet): SelectionSet {
+  const globalIds = [...(s.globalIds ?? [])];
+  return isCriteria(s) ? { name: s.name, globalIds, kind: 'criteria', query: s.query } : { name: s.name, globalIds };
 }
 
 /** The subset of the Web Storage API that this module uses. Lets tests pass an in-memory shim. */
@@ -155,7 +172,10 @@ export function defaultSetsFor(model: SceneModel, modelName: string): SelectionS
 function isSet(x: unknown): x is SelectionSet {
   if (!x || typeof x !== 'object') return false;
   const o = x as Record<string, unknown>;
-  return typeof o['name'] === 'string' && Array.isArray(o['globalIds']) && o['globalIds'].every((g) => typeof g === 'string');
+  if (typeof o['name'] !== 'string') return false;
+  const gids = o['globalIds'];
+  if (gids === undefined) return o['kind'] === 'criteria' && typeof o['query'] === 'string'; // hand-written criteria set
+  return Array.isArray(gids) && gids.every((g) => typeof g === 'string');
 }
 
 /** Parse the stored JSON. Returns null for anything that is not a valid payload. */
@@ -165,7 +185,7 @@ export function parseStored(text: string | null): SelectionSet[] | null {
     const v: unknown = JSON.parse(text);
     const list = Array.isArray(v) ? v : (v as { sets?: unknown } | null)?.sets;
     if (!Array.isArray(list)) return null;
-    return list.filter(isSet).map((s) => ({ name: s.name, globalIds: [...s.globalIds] }));
+    return list.filter(isSet).map(copySet);
   } catch {
     return null;
   }
@@ -216,6 +236,24 @@ export function addSet(sets: readonly SelectionSet[], name: string, globalIds: s
   return [...sets, { name: uniqueName(sets, name), globalIds: [...globalIds] }];
 }
 
+/** Append a criteria set with its query and the members found now. */
+export function addCriteriaSet(sets: readonly SelectionSet[], name: string, query: string, globalIds: string[]): SelectionSet[] {
+  return [...sets, { name: uniqueName(sets, name), globalIds: [...globalIds], kind: 'criteria', query }];
+}
+
+/** Change the query (and members) of a set; a static set becomes a criteria set. */
+export function setQuery(sets: readonly SelectionSet[], index: number, query: string, globalIds: string[]): SelectionSet[] {
+  return sets.map((s, i) => (i === index ? { name: s.name, globalIds: [...globalIds], kind: 'criteria', query } : s));
+}
+
+/** Insert a copy of a set after it, named "<name> copy" (made unique). */
+export function duplicateSet(sets: readonly SelectionSet[], index: number): SelectionSet[] {
+  const src = sets[index];
+  if (!src) return [...sets];
+  const copy = { ...copySet(src), name: uniqueName(sets, `${src.name} copy`) };
+  return [...sets.slice(0, index + 1), copy, ...sets.slice(index + 1)];
+}
+
 export function removeSet(sets: readonly SelectionSet[], index: number): SelectionSet[] {
   return sets.filter((_, i) => i !== index);
 }
@@ -247,8 +285,8 @@ export function mergeImported(existing: readonly SelectionSet[], imported: reado
   const out = existing.map((s) => ({ ...s }));
   for (const s of imported) {
     const i = out.findIndex((x) => x.name === s.name);
-    if (i >= 0) out[i] = { name: s.name, globalIds: [...s.globalIds] };
-    else out.push({ name: s.name, globalIds: [...s.globalIds] });
+    if (i >= 0) out[i] = copySet(s);
+    else out.push(copySet(s));
   }
   return out;
 }

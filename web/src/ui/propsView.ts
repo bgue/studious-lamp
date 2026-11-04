@@ -1,7 +1,31 @@
 // Properties footer: details of the first selected element.
+//
+// Every attribute row (Class, Name, Storey, Material, GlobalId) and property row has a context menu (right-click, or the
+// "⋯" button that shows on hover and always on touch screens): select or add all elements with the same value, select
+// all with the property, copy the value, save the equivalent criteria query as a set. Queries run through ../query.
 
+import { equalsQuery, quoteIdent } from '../query';
 import { copyText, el } from './dom';
 import { propLabel } from './hoverCard';
+import { openMenu } from './popupMenu';
+import type { MenuItem } from './popupMenu';
+
+/** What the property context menu does; the sidebar implements it. */
+export interface PropsActions {
+  /** Select the elements that match a criteria query (additive: add them to the selection). */
+  selectWhere(query: string, additive: boolean): void;
+  /** Open the criteria-set editor with this query and name. */
+  saveCriteria(query: string, name: string): void;
+}
+
+/** The query column of an attribute row, for the context menu. Rows without one only offer Copy value. */
+const FIELD_COLUMN: Partial<Record<keyof PropsData, string>> = {
+  globalId: 'globalId',
+  ifcClass: 'class',
+  name: 'name',
+  storey: 'storey',
+  material: 'material',
+};
 
 export type PropRow = [key: string, value: string | number | boolean];
 
@@ -38,6 +62,14 @@ function ensureListStyle(): void {
     .props-list-rows dd { margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; font-variant-numeric: tabular-nums; }
     .props-list-rows .pl-hit { color: var(--sb-accent, #4c9aff); }
     .props-list-rows dt:hover, .props-list-rows dd:hover { color: var(--sb-fg, #dfe6ee); }
+    .props-grid dd, .props-list-rows dd { display: flex; align-items: center; gap: 2px; }
+    .props .pv-t { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .props .pv-more { flex: 0 0 auto; width: 20px; height: 16px; padding: 0; line-height: 12px; font-size: 13px; background: transparent;
+      border: 1px solid transparent; border-radius: 3px; color: var(--sb-dim, #8b9bb0); cursor: pointer; visibility: hidden; }
+    .props .pv-more:hover, .props .pv-more:focus-visible, .props .pv-more[aria-expanded="true"] { color: var(--sb-fg, #dfe6ee); border-color: #3a4558; background: #1b2230; outline: none; }
+    .props dd:hover .pv-more, .props dt:hover + dd .pv-more, .props .pv-more:focus, .props .pv-more[aria-expanded="true"] { visibility: visible; }
+    .props .pv-row-hit { background: var(--sb-hover, #1c2230); }
+    @media (hover: none) { .props .pv-more { visibility: visible; width: 26px; height: 22px; } }
   `;
   document.head.appendChild(st);
 }
@@ -55,6 +87,8 @@ export interface PropsData {
   alpha: number;
   /** Selected elements beyond the first. */
   more: number;
+  /** Raw storey name for queries (null: no storey). Defaults to `storey`. */
+  storeyName?: string | null;
 }
 
 const FIELDS: Array<[keyof PropsData, string]> = [
@@ -88,8 +122,10 @@ export class PropsView {
   private last: PropsData | null = null;
   private gid = '';
   private flash: ReturnType<typeof setTimeout> | null = null;
+  private readonly texts = new Map<string, HTMLSpanElement>();
+  private rowRaw: Array<[string, string | number | boolean]> = [];
 
-  constructor() {
+  constructor(private readonly actions: PropsActions | null = null) {
     this.root = el('div', 'props');
     const head = el('div', 'props-head');
     head.append(el('span', 'props-title', {}, 'Properties'));
@@ -99,9 +135,12 @@ export class PropsView {
     this.empty = el('div', 'props-empty', {}, 'No selection');
     this.grid = el('dl', 'props-grid');
     for (const [key, label] of FIELDS) {
-      const dt = el('dt', '', {}, label);
-      const dd = el('dd');
+      const dt = el('dt', '', { 'data-field': key }, label);
+      const dd = el('dd', '', { 'data-field': key });
+      const t = el('span', 'pv-t');
+      dd.append(t, this.moreBtn(label));
       this.values.set(key, dd);
+      this.texts.set(key, t);
       this.grid.append(dt, dd);
     }
     this.moreEl = el('div', 'props-more');
@@ -121,7 +160,20 @@ export class PropsView {
         localStorage.setItem(OPEN_KEY, this.listEl.open ? '1' : '0');
       } catch { /* private mode */ }
     });
+    this.root.addEventListener('contextmenu', (ev) => {
+      const cell = (ev.target as HTMLElement).closest<HTMLElement>('.props-grid dt, .props-grid dd, .props-list-rows dt[data-row], .props-list-rows dd[data-row]');
+      if (!cell || !this.last) return;
+      ev.preventDefault();
+      this.openRowMenu(cell, { x: ev.clientX, y: ev.clientY });
+    });
+    this.root.addEventListener('click', (ev) => {
+      const b = (ev.target as HTMLElement).closest<HTMLElement>('.pv-more');
+      if (!b) return;
+      ev.stopPropagation();
+      this.openRowMenu(b.closest<HTMLElement>('dd')!, b);
+    });
     this.listRows.addEventListener('click', async (ev) => {
+      if ((ev.target as HTMLElement).closest('.pv-more')) return;
       const t = (ev.target as HTMLElement).closest('dt, dd') as HTMLElement | null;
       if (!t) return;
       const row = t.dataset.row;
@@ -156,9 +208,10 @@ export class PropsView {
     }
     for (const [key] of FIELDS) {
       const dd = this.values.get(key)!;
+      const t = this.texts.get(key)!;
       const text = fmtVal(d[key]);
-      if (dd.textContent !== text) {
-        dd.textContent = text;
+      if (t.textContent !== text) {
+        t.textContent = text;
         dd.title = text;
       }
     }
@@ -184,16 +237,93 @@ export class PropsView {
     this.listSummary.textContent = res.rows.length === res.total ? `Properties (${res.total})` : `Properties (${res.rows.length} of ${res.total})`;
     this.listRows.textContent = '';
     this.rowValues = [];
+    this.rowRaw = res.rows.map(([k, v]) => [k, v]);
     const labelCount = new Map<string, number>();
     for (const [k] of res.rows) labelCount.set(propLabel(k), (labelCount.get(propLabel(k)) ?? 0) + 1);
     res.rows.forEach(([k, v], i) => {
       const label = labelCount.get(propLabel(k)) === 1 ? propLabel(k) : k; // the set name only where the bare name is ambiguous
       const text = typeof v === 'boolean' ? (v ? 'Yes' : 'No') : String(v);
       const dt = el('dt', '', { 'data-row': String(i), title: `${k} (click to copy the value)` }, label);
-      const dd = el('dd', '', { 'data-row': String(i), title: text }, text);
+      const dd = el('dd', '', { 'data-row': String(i), title: text });
+      dd.append(el('span', 'pv-t', {}, text), this.moreBtn(label));
       this.rowValues.push(text);
       this.listRows.append(dt, dd);
     });
     if (res.rows.length === 0) this.listRows.append(el('dt', '', {}, 'No property matches the filter'));
+  }
+
+  private moreBtn(label: string): HTMLButtonElement {
+    return el(
+      'button',
+      'pv-more',
+      { type: 'button', 'aria-haspopup': 'menu', 'aria-expanded': 'false', 'aria-label': `Actions for ${label}`, title: 'Select by this value, copy, save as set', 'data-help-key': 'Sidebar/Property menu', 'data-help-title': 'Property menu' },
+      '⋯',
+    );
+  }
+
+  /** The query column, raw value and labels of an attribute or property cell; null when the cell has none. */
+  private cellInfo(cell: HTMLElement): { column: string | null; value: string | number | boolean | null; label: string; text: string } | null {
+    const d = this.last;
+    if (!d) return null;
+    const field = cell.dataset['field'] as keyof PropsData | undefined;
+    if (field) {
+      const label = FIELDS.find(([k]) => k === field)?.[1] ?? field;
+      const col = FIELD_COLUMN[field] ?? null;
+      let value: string | number | boolean | null = d[field] as string | number;
+      if (field === 'storey') value = d.storeyName !== undefined ? d.storeyName : d.storey;
+      if ((field === 'name' || field === 'material') && value === '') value = null;
+      return { column: col, value, label, text: fmtVal(d[field]) };
+    }
+    const row = cell.dataset['row'];
+    const raw = row === undefined ? undefined : this.rowRaw[Number(row)];
+    if (!raw) return null;
+    const [k, v] = raw;
+    return { column: k, value: v, label: propLabel(k), text: typeof v === 'boolean' ? (v ? 'Yes' : 'No') : String(v) };
+  }
+
+  private openRowMenu(cell: HTMLElement, at: HTMLElement | { x: number; y: number }): void {
+    const info = this.cellInfo(cell);
+    if (!info) return;
+    const { column, value, label, text } = info;
+    const pair = Array.from(cell.parentElement?.children ?? []).filter(
+      (n) => (n as HTMLElement).dataset['row'] === cell.dataset['row'] && (n as HTMLElement).dataset['field'] === cell.dataset['field'],
+    ) as HTMLElement[];
+    for (const n of pair) n.classList.add('pv-row-hit');
+    const eq = column !== null && this.actions ? equalsQuery(column, value) : null;
+    const nullable = column !== null && column !== 'class' && column !== 'globalId';
+    const items: MenuItem[] = [];
+    if (eq) {
+      items.push(
+        { label: 'Select all with this value', act: 'eq', title: eq },
+        { label: 'Add to selection all with this value', act: 'eqAdd', title: eq },
+      );
+      if (nullable) items.push({ label: 'Select all with this property', act: 'has', title: `${quoteIdent(column!)} IS NOT NULL` });
+    }
+    items.push({ label: 'Copy value', act: 'copy', disabled: text === '-' });
+    if (eq) items.push({ label: 'Save as criteria set…', act: 'save', title: eq });
+    const heading = column && !FIELD_COLUMN[cell.dataset['field'] as keyof PropsData] ? column : `${label}: ${text}`;
+    openMenu({
+      at,
+      items,
+      heading,
+      label: `Actions for ${label}`,
+      returnFocus: at instanceof HTMLElement ? at : null,
+      onClose: () => {
+        for (const n of pair) n.classList.remove('pv-row-hit');
+      },
+      onPick: (act) => {
+        if (act === 'copy') {
+          void copyText(text);
+          return;
+        }
+        if (!eq || !this.actions || column === null) return;
+        if (act === 'eq' || act === 'eqAdd') this.actions.selectWhere(eq, act === 'eqAdd');
+        else if (act === 'has') this.actions.selectWhere(`${quoteIdent(column)} IS NOT NULL`, false);
+        else if (act === 'save') {
+          const name = cell.dataset['field'] === 'ifcClass' ? text : value === null ? `No ${label.toLowerCase()}` : `${label} = ${text}`;
+          this.actions.saveCriteria(eq, name);
+        }
+      },
+    });
   }
 }

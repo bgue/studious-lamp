@@ -93,6 +93,66 @@ export interface BcfViewpointRef {
   snapshotMime?: 'image/png' | 'image/jpeg';
   /** Why the viewpoint file could not be read. */
   problem?: string;
+  /** Viewer markup on this viewpoint (side file xray-markup.json, see sidecar.ts). */
+  annotations?: BcfAnnotation[];
+  /** The camera that took the snapshot (IFC coordinates). Used to burn the markup into the snapshot. */
+  snapshotView?: BcfSnapshotView;
+}
+
+// ---------------------------------------------------------------- viewer markup (pins and annotations)
+// BCF 2.1 / 3.0 have no place for these. They live in a side file of the topic folder (sidecar.ts); all points are IFC
+// project coordinates, like the viewpoint cameras.
+
+/** The 3D point a topic is pinned to. */
+export interface BcfPin {
+  position: Vec3;
+  /** IfcGuid of the element under the pin, when it was picked on one. */
+  elementGuid?: string;
+}
+
+/** A measurement captured into an annotation, so it survives without the measure tool. IFC coordinates. */
+export interface BcfMeasureLink {
+  kind: 'point' | 'element';
+  a: Vec3;
+  b: Vec3;
+  /** Metres. */
+  distance: number;
+  /** The label as shown, such as "2.345 m". */
+  label: string;
+  elementGuids?: string[];
+  /** The measure tool id at link time (informational). */
+  sourceId?: number;
+}
+
+export interface BcfAnchor {
+  kind: 'element' | 'measurement' | 'point';
+  /** IFC coordinates. Element: the picked point on it. Measurement: the middle of the dimension line. */
+  point: Vec3;
+  elementGuid?: string;
+  measurement?: BcfMeasureLink;
+}
+
+export const ANNOTATION_TYPES = ['callout', 'note', 'arrow'] as const;
+export type BcfAnnotationType = (typeof ANNOTATION_TYPES)[number];
+
+export interface BcfAnnotation {
+  guid: string;
+  type: BcfAnnotationType;
+  text: string;
+  anchor: BcfAnchor;
+  /** Text box position relative to the anchor, as fractions of the view height (x right, y down). */
+  offset: [number, number];
+  author?: string;
+  date?: string;
+}
+
+export interface BcfSnapshotView {
+  position: Vec3;
+  direction: Vec3;
+  up: Vec3;
+  /** Vertical field of view, degrees. */
+  fov: number;
+  aspect: number;
 }
 
 export interface BcfComment {
@@ -153,6 +213,8 @@ export interface BcfTopic {
   relatedTopics: string[];
   comments: BcfComment[];
   viewpoints: BcfViewpointRef[];
+  /** Viewer markup: the 3D point of the topic (side file, see sidecar.ts). */
+  pin?: BcfPin;
 }
 
 export interface BcfExtensions {

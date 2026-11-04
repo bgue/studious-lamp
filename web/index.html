@@ -51,8 +51,7 @@
       /* Absolutely positioned so the canvas's intrinsic size (its width/height attributes) never stretches the layout. */
       #stage canvas { position: absolute; left: 0; top: 0; width: 100%; height: 100%; display: block; touch-action: none; }
 
-      /* The app's debug overlay is position:fixed at left:8px; keep it clear of the sidebar. */
-      #xray-overlay { left: calc(var(--sb-w) + 8px) !important; transition: left 0.15s ease; }
+      /* The status bar (#xray-overlay, src/ui/statusBar.ts) lies along the bottom of #stage and styles itself. */
 
       #sidebar {
         flex: 0 0 var(--sb-w);
@@ -146,12 +145,6 @@
       .sets-top .row .inp { flex: 1 1 auto; min-width: 0; }
       .sets-msg { color: var(--sb-dim); min-height: 14px; }
       .sets-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 0 6px 6px; }
-      .set { border: 1px solid var(--sb-line); border-radius: 4px; padding: 5px 6px; margin-bottom: 5px; background: #10141b; }
-      .set-head { display: flex; align-items: center; gap: 6px; }
-      .set-head .name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; font-weight: 600; }
-      .set-head .name:hover { color: var(--sb-accent); }
-      .set-head .inp { flex: 1 1 auto; min-width: 0; height: 22px; }
-      .set-btns { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 5px; }
 
       /* Properties footer. */
       .props { flex: 0 0 auto; border-top: 1px solid var(--sb-line); padding: 6px 8px 8px; min-width: 300px; background: #10141b; }
@@ -229,8 +222,8 @@
         }
         body.sb-collapsed #sidebar { width: var(--sb-rail); }
         #stage { flex: 1 1 100%; width: 100%; }
-        #xray-overlay { left: calc(var(--sb-rail) + 8px) !important; }
         .sb-body, .props { min-width: 0; }
+        .props { max-height: 38vh; overflow-y: auto; }
         #dock {
           position: absolute; right: 0; top: 0; bottom: 0; flex: none; width: min(var(--dk-w), 85vw); box-shadow: -2px 0 12px rgba(0, 0, 0, 0.35);
         }

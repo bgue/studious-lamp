@@ -179,17 +179,21 @@ export function dragHandle(b: SectionBox, h: Handle, rayO: Vec3, rayD: Vec3, gra
 
 // ---------------------------------------------------------------- plane
 
-export type PlaneAxis = 'x' | 'y' | 'z' | 'camera';
+export type PlaneAxis = 'x' | 'y' | 'z' | 'camera' | 'custom';
 
 /**
  * The section plane through `centre` shifted by `offset` metres along the axis (camera: along the view direction).
  * The kept side is the positive side of the axis (camera: away from the viewer); `flip` keeps the other side.
+ * Axis 'custom' uses the direction `custom` (a tilted plane; vertical when it is missing or zero).
  */
-export function sectionPlane(axis: PlaneAxis, centre: Vec3, offset: number, flip: boolean, camForward: Vec3): ClipPlane {
+export function sectionPlane(axis: PlaneAxis, centre: Vec3, offset: number, flip: boolean, camForward: Vec3, custom?: Vec3 | null): ClipPlane {
   let n: Vec3;
   if (axis === 'camera') {
     const l = len(camForward) || 1;
     n = [camForward[0] / l, camForward[1] / l, camForward[2] / l];
+  } else if (axis === 'custom') {
+    const l = custom ? len(custom) : 0;
+    n = custom && l > 1e-9 ? [custom[0] / l, custom[1] / l, custom[2] / l] : [0, 1, 0];
   } else {
     n = [axis === 'x' ? 1 : 0, axis === 'y' ? 1 : 0, axis === 'z' ? 1 : 0];
   }

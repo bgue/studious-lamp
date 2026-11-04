@@ -10,8 +10,16 @@ import { parseBcf } from './parse';
 import { writeBcf } from './write';
 import { boxAround, captureViewpoint, frameCamera, planViewpoint, topicGlobalIds, unionBox } from './plan';
 import type { Box6, PlanCamera, ViewpointPlan } from './plan';
-import { emptyProject, newGuid, nowIso, toIfcGuid } from './model';
-import type { BcfComment, BcfProject, BcfTopic, BcfVersion, BcfViewpointRef, Vec3 } from './model';
+import { emptyProject, ifcToViewer, newGuid, nowIso, toIfcGuid, viewerToIfc } from './model';
+import type { BcfAnnotation, BcfAnnotationType, BcfComment, BcfMeasureLink, BcfProject, BcfTopic, BcfVersion, BcfViewpointRef, Vec3 } from './model';
+import { defaultOffset, drawOps, layoutSnapshot, snapshotCamera, snapshotProjector, snapshotScale } from './annotate';
+import type { Ctx2D } from './annotate';
+import type { BcfMarkupView } from './pins';
+import { annotationGuids, cloneAnnotation, needsBurn } from './sidecar';
+import { cameraRay, firstSurfaceHit } from '../measure/geometry';
+import { formatLength } from '../measure/maths';
+import type { Measurement } from '../measure/maths';
+import { Ray, Vector3 } from 'three';
 
 type PlaneLike = { normal: Vec3 | { x: number; y: number; z: number }; point: Vec3 | { x: number; y: number; z: number } };
 interface ClipApi {
@@ -48,6 +56,22 @@ export interface CreateTopicOptions {
   globalIds?: string[];
   /** Camera in viewer coordinates for the viewpoint. */
   camera?: { position: Vec3; target: Vec3 };
+  /**
+   * Pin point in viewer coordinates. Default: the centre of the bounds of `globalIds` (or of the selection), else the
+   * surface point in the middle of the view. null: no pin.
+   */
+  pin?: Vec3 | null;
+  /** GlobalId of the element under the pin. */
+  pinElement?: string;
+}
+
+/** An annotation to add; points in viewer coordinates. */
+export interface AnnotationSpec {
+  type: BcfAnnotationType;
+  text?: string;
+  anchor: { kind: 'element' | 'point'; point: Vec3; elementGuid?: string } | { kind: 'measurement'; measurement: Measurement };
+  /** Text box offset, fractions of the view height (default per type). */
+  offset?: [number, number];
 }
 
 export interface TopicSpec {
@@ -68,6 +92,9 @@ export interface TopicSpec {
   priority?: string;
   assignedTo?: string;
 }
+
+/** Elements drawn below this alpha are see-through: picking passes them first and they hide no pin. */
+const GHOST_ALPHA = 0.5;
 
 export const DEFAULT_TYPES = ['Issue', 'Clash', 'Request', 'Remark', 'Fault', 'Inquiry'];
 export const DEFAULT_STATUSES = ['Open', 'In Progress', 'Resolved', 'Closed'];
@@ -115,6 +142,14 @@ export class BcfController {
   private boundsFor: object | null = null;
   private bounds: Box6 | null = null;
   private lastPrune = 0;
+  /** Show topic pins on the model. */
+  pinsVisible = true;
+  /** Which topics show a pin (the drawer sets its filter); null: all. */
+  pinFilter: ((t: BcfTopic) => boolean) | null = null;
+  /** Bumped on every markup change (pins, annotations): views re-render on it. */
+  markupRev = 0;
+  /** The live markup view (pins.ts), set by it; the topic dialog starts pin placement through it. */
+  markup: BcfMarkupView | null = null;
 
   constructor(readonly app: ViewerApp) {
     const s = storage();
@@ -420,6 +455,9 @@ export class BcfController {
       clip,
     });
     const ref: BcfViewpointRef = { guid: res.viewpoint.guid, data: res.viewpoint };
+    const c = res.viewpoint.camera;
+    // The camera that takes the snapshot, unclamped (the 2.1 writer clamps the field of view), for the markup burn-in.
+    if (c) ref.snapshotView = { position: [...c.position], direction: [...c.direction], up: [...c.up], fov: cam.fov, aspect: cam.aspect };
     return { ref, skippedIds: res.skippedIds, exceptions: res.exceptions };
   }
 
@@ -478,6 +516,13 @@ export class BcfController {
         restore?.();
       }
     }
+    const pin = o.pin === undefined ? this.defaultPin(o.globalIds) : o.pin;
+    if (pin) {
+      topic.pin = { position: viewerToIfc(pin, this.shift) };
+      const pe = o.pin !== undefined ? o.pinElement : this.lastDefaultPinElement;
+      if (pe) topic.pin.elementGuid = pe;
+      this.markupRev++;
+    }
     this.project.topics.push(topic);
     this.dirty = true;
     this.selectedTopic = topic.guid;
@@ -505,7 +550,7 @@ export class BcfController {
         }
         out.push(this.createTopic({
           title: s.title, description: s.description, labels: s.labels, type: s.type, status: s.status, priority: s.priority, assignedTo: s.assignedTo,
-          globalIds: gids.length ? gids : undefined, camera, snapshot,
+          globalIds: gids.length ? gids : undefined, camera, snapshot, ...(s.location ? { pin: s.location } : {}),
         }));
       }
     } finally {
@@ -609,10 +654,246 @@ export class BcfController {
     this.emit();
   }
 
+  // ---------------------------------------------------------------- markup: pins and annotations
+
+  /** The model origin shift (IFC frame), zeros without a model. */
+  get shift(): Vec3 {
+    const s = this.app.loaded?.model.originShift;
+    return s ? [s[0], s[1], s[2]] : [0, 0, 0];
+  }
+
+  private markupChanged(t?: BcfTopic): void {
+    this.markupRev++;
+    this.dirty = true;
+    if (t) {
+      t.modifiedDate = nowIso();
+      t.modifiedAuthor = this.authorOf();
+    }
+    this.emit();
+  }
+
+  setPinsVisible(on: boolean): void {
+    this.pinsVisible = on;
+    this.markupRev++;
+    this.emit();
+  }
+
+  /** Pin number shown on the marker: the position of the topic in the list, from 1. */
+  pinNumber(t: BcfTopic): number {
+    return this.project.topics.indexOf(t) + 1;
+  }
+
+  /** Topics whose pin is drawn: pins on, a pin, and passing the drawer filter. */
+  pinnedTopics(): BcfTopic[] {
+    if (!this.pinsVisible) return [];
+    return this.project.topics.filter((t) => t.pin && (!this.pinFilter || this.pinFilter(t) || t.guid === this.selectedTopic));
+  }
+
+  private lastDefaultPinElement: string | undefined;
+
+  /** Default pin: centre of the bounds of the GlobalIds (or the selection), else the surface in the middle of the view. */
+  defaultPin(globalIds?: string[]): Vec3 | null {
+    this.lastDefaultPinElement = undefined;
+    if (!this.app.loaded) return null;
+    let ids = (globalIds ?? []).map((g) => this.model.byGlobalId.get(g)).filter((x): x is number => x !== undefined);
+    if (!ids.length && !globalIds?.length) ids = this.app.selection;
+    const box = ids.length ? this.elementBounds(ids) : null;
+    if (box) {
+      if (ids.length === 1) this.lastDefaultPinElement = this.model.elements[ids[0]!]!.globalId;
+      return [(box[0] + box[3]) / 2, (box[1] + box[4]) / 2, (box[2] + box[5]) / 2];
+    }
+    const hit = this.pick(0, 0);
+    if (!hit) return null;
+    this.lastDefaultPinElement = this.model.elements[hit.element]?.globalId;
+    return hit.point;
+  }
+
+  /**
+   * First surface under a view point (NDC, -1..1, y up), the ray test of the measure tool. Ghosted elements (drawn
+   * see-through) are passed first, so the click lands on what the user sees; when only ghosts are under the cursor, they count.
+   */
+  pick(ndcX: number, ndcY: number): { point: Vec3; element: number } | null {
+    const loaded = this.app.loaded;
+    if (!loaded) return null;
+    const cam = this.app.renderer.camera;
+    cam.updateMatrixWorld();
+    const ray = cameraRay(cam, ndcX, ndcY);
+    const hides = this.app.controller.settings.overrides.userHides;
+    const alpha = this.app.renderer.state.alpha;
+    const hit = firstSurfaceHit(loaded.geometry, ray, (id) => hides.has(id) || (alpha[id] ?? 1) < GHOST_ALPHA)
+      ?? firstSurfaceHit(loaded.geometry, ray, (id) => hides.has(id) || (alpha[id] ?? 1) < 0);
+    return hit ? { point: [hit.point.x, hit.point.y, hit.point.z], element: hit.element } : null;
+  }
+
+  private readonly ray = new Ray();
+  /** True when geometry hides the viewer-frame point `p` from `eye` (default: the camera). Hidden and ghosted elements do not count. */
+  occluded(p: Vec3, eye?: Vec3): boolean {
+    const loaded = this.app.loaded;
+    if (!loaded) return false;
+    const e = eye ?? (() => { const c = this.app.renderer.camera.position; return [c.x, c.y, c.z] as Vec3; })();
+    const d = Math.hypot(p[0] - e[0], p[1] - e[1], p[2] - e[2]);
+    if (d < 1e-6) return false;
+    this.ray.origin.set(e[0], e[1], e[2]);
+    this.ray.direction.copy(new Vector3(p[0] - e[0], p[1] - e[1], p[2] - e[2]).multiplyScalar(1 / d));
+    const hides = this.app.controller.settings.overrides.userHides;
+    const alpha = this.app.renderer.state.alpha;
+    const hit = firstSurfaceHit(loaded.geometry, this.ray, (id) => hides.has(id) || (alpha[id] ?? 1) < GHOST_ALPHA, 64);
+    return !!hit && hit.distance < d - Math.max(0.03, d * 0.003);
+  }
+
+  /** Pin a topic to a viewer-frame point (null removes the pin). */
+  setPin(topicGuid: string, point: Vec3 | null, elementGuid?: string): void {
+    const t = this.topic(topicGuid);
+    if (!t) throw new Error(`No topic ${topicGuid}`);
+    if (point) {
+      t.pin = { position: viewerToIfc(point, this.shift) };
+      if (elementGuid) t.pin.elementGuid = elementGuid;
+    } else delete t.pin;
+    this.status = point ? `Pin placed for ${t.title}` : `Pin removed from ${t.title}`;
+    this.markupChanged(t);
+  }
+
+  /** Viewer-frame position of a topic pin. */
+  pinPoint(t: BcfTopic): Vec3 | null {
+    return t.pin ? ifcToViewer(t.pin.position, this.shift) : null;
+  }
+
+  /** The viewpoint that annotations go to: the applied one when it belongs to the topic, else the first with data. */
+  annotationViewpoint(topicGuid: string): BcfViewpointRef | undefined {
+    const t = this.topic(topicGuid);
+    if (!t) return undefined;
+    if (this.applied?.topic === topicGuid) {
+      const r = t.viewpoints.find((v) => v.guid === this.applied!.viewpoint);
+      if (r?.data) return r;
+    }
+    return t.viewpoints.find((v) => v.data);
+  }
+
+  /** Annotations drawn now: those of the applied viewpoint. */
+  visibleAnnotations(): { topic: BcfTopic; ref: BcfViewpointRef; list: BcfAnnotation[] } | null {
+    if (!this.applied) return null;
+    const t = this.topic(this.applied.topic);
+    const r = t?.viewpoints.find((v) => v.guid === this.applied!.viewpoint);
+    return t && r ? { topic: t, ref: r, list: r.annotations ?? [] } : null;
+  }
+
+  findAnnotation(guid: string): { topic: BcfTopic; ref: BcfViewpointRef; ann: BcfAnnotation } | null {
+    for (const t of this.project.topics) for (const r of t.viewpoints) {
+      const a = r.annotations?.find((x) => x.guid === guid);
+      if (a) return { topic: t, ref: r, ann: a };
+    }
+    return null;
+  }
+
+  /** Capture a measurement of the measure tool (viewer frame) as a link in IFC coordinates. */
+  measureLink(m: Measurement): BcfMeasureLink {
+    const sh = this.shift;
+    const link: BcfMeasureLink = { kind: m.kind, a: viewerToIfc([...m.a], sh), b: viewerToIfc([...m.b], sh), distance: m.distance, label: formatLength(m.distance, 'm'), sourceId: m.id };
+    const els = this.model?.elements ?? [];
+    const gids = [m.elementA, m.elementB].filter((x): x is number => x !== undefined).map((id) => els[id]?.globalId).filter((g): g is string => !!g);
+    if (gids.length) link.elementGuids = gids;
+    return link;
+  }
+
+  /** Add an annotation to a viewpoint of a topic (default: annotationViewpoint). The annotated elements join its selection. */
+  addAnnotation(topicGuid: string, spec: AnnotationSpec, viewpointGuid?: string): BcfAnnotation {
+    const t = this.topic(topicGuid);
+    if (!t) throw new Error(`No topic ${topicGuid}`);
+    const ref = viewpointGuid ? t.viewpoints.find((v) => v.guid === viewpointGuid) : this.annotationViewpoint(topicGuid);
+    if (!ref?.data) throw new Error('The topic has no viewpoint to annotate');
+    const sh = this.shift;
+    let a: BcfAnnotation;
+    const base = { guid: newGuid(), type: spec.type, offset: spec.offset ?? defaultOffset(spec.type, ref.annotations?.length ?? 0), author: this.authorOf(), date: nowIso() };
+    if (spec.anchor.kind === 'measurement') {
+      const m = this.measureLink(spec.anchor.measurement);
+      const mid: Vec3 = [(m.a[0] + m.b[0]) / 2, (m.a[1] + m.b[1]) / 2, (m.a[2] + m.b[2]) / 2];
+      a = { ...base, text: spec.text ?? m.label, anchor: { kind: 'measurement', point: mid, measurement: m } };
+    } else {
+      a = { ...base, text: spec.text ?? '', anchor: { kind: spec.anchor.kind, point: viewerToIfc(spec.anchor.point, sh) } };
+      if (spec.anchor.elementGuid) a.anchor.elementGuid = spec.anchor.elementGuid;
+    }
+    (ref.annotations ??= []).push(a);
+    // Other BCF tools highlight the annotated elements through the viewpoint selection.
+    const have = new Set(ref.data.selection.map((c) => c.ifcGuid));
+    for (const g of annotationGuids([a])) if (!have.has(g)) ref.data.selection.push({ ifcGuid: g });
+    this.status = `${spec.type[0]!.toUpperCase()}${spec.type.slice(1)} added to ${t.title}`;
+    this.markupChanged(t);
+    return a;
+  }
+
+  /** Change the text or box offset of an annotation. `quiet`: redraw only (no drawer refresh, used while typing or dragging). */
+  updateAnnotation(guid: string, patch: { text?: string; offset?: [number, number] }, quiet = false): boolean {
+    const f = this.findAnnotation(guid);
+    if (!f) return false;
+    if (patch.text !== undefined) f.ann.text = patch.text;
+    if (patch.offset) f.ann.offset = [patch.offset[0], patch.offset[1]];
+    if (quiet) {
+      this.markupRev++;
+      this.dirty = true;
+      this.emit();
+    } else this.markupChanged(f.topic);
+    return true;
+  }
+
+  removeAnnotation(guid: string): boolean {
+    const f = this.findAnnotation(guid);
+    if (!f) return false;
+    f.ref.annotations = f.ref.annotations!.filter((a) => a.guid !== guid);
+    if (!f.ref.annotations.length) delete f.ref.annotations;
+    this.status = 'Annotation deleted';
+    this.markupChanged(f.topic);
+    return true;
+  }
+
+  /** Copies of a topic's annotations per viewpoint (scripting and tests). */
+  annotations(topicGuid: string): Record<string, BcfAnnotation[]> {
+    const out: Record<string, BcfAnnotation[]> = {};
+    for (const r of this.topic(topicGuid)?.viewpoints ?? []) if (r.annotations?.length) out[r.guid] = r.annotations.map(cloneAnnotation);
+    return out;
+  }
+
+  /**
+   * The snapshot of a viewpoint with the markup burned in (its annotations and the topic pin), as PNG (JPEG for a JPEG
+   * snapshot). Null when the viewpoint has no annotations, or without a canvas. The projection uses the camera that took
+   * the snapshot.
+   */
+  async composeSnapshot(t: BcfTopic, ref: BcfViewpointRef): Promise<Uint8Array | null> {
+    if (!needsBurn(t, ref) || typeof document === 'undefined') return null;
+    const view = snapshotCamera(ref.snapshotView, ref.data?.camera ?? null);
+    if (!view) return null;
+    const mime = ref.snapshotMime ?? 'image/png';
+    let bmp: ImageBitmap;
+    try {
+      bmp = await createImageBitmap(new Blob([ref.snapshot as Uint8Array<ArrayBuffer>], { type: mime }));
+    } catch {
+      return null;
+    }
+    const w = bmp.width;
+    const h = bmp.height;
+    const cv = document.createElement('canvas');
+    cv.width = w;
+    cv.height = h;
+    const g = cv.getContext('2d');
+    if (!g) return null;
+    g.drawImage(bmp, 0, 0);
+    bmp.close?.();
+    const sh = this.shift;
+    const eye = ifcToViewer(view.position, sh);
+    const ops = layoutSnapshot(t.pin ? { pin: t.pin, label: String(this.pinNumber(t)) } : null, ref.annotations ?? [], {
+      width: w, height: h, shift: sh, scale: snapshotScale(h),
+      project: snapshotProjector(view, sh, w, h),
+      occluded: this.app.loaded ? (p) => this.occluded(p, eye) : undefined,
+    });
+    if (!ops.length) return null;
+    drawOps(g as unknown as Ctx2D, ops);
+    const blob = await new Promise<Blob | null>((res) => cv.toBlob(res, mime, 0.92));
+    return blob ? new Uint8Array(await blob.arrayBuffer()) : null;
+  }
+
   // ---------------------------------------------------------------- export
 
   async exportZip(version: BcfVersion = this.exportVersion): Promise<Uint8Array> {
-    const bytes = await writeBcf(this.project, version);
+    const bytes = await writeBcf(this.project, version, { composeSnapshot: (t, r) => this.composeSnapshot(t, r) });
     this.dirty = false;
     const n = this.project.topics.length;
     this.setStatus(`Exported BCF ${version}: ${n} topic${n === 1 ? '' : 's'}, ${(bytes.length / 1024).toFixed(0)} KB`);

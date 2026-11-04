@@ -87,7 +87,7 @@ try {
   });
 
   // 1. hover bufferBase for 500 ms
-  const row = page.locator('[data-help-key="Classification (Alg 1)/bufferBase"]');
+  const row = page.locator('[data-help-key="Classification (Alg 1)/bufferBase (m)"]');
   await row.waitFor({ timeout: 5000 });
   let box = await row.boundingBox();
   await page.mouse.move(box.x + 20, box.y + box.height / 2);
@@ -102,7 +102,7 @@ try {
   check('popover visible after hover', s.show);
   check('popover has 1 title and 4 lines', s.titles === 1 && s.lines === 4, `titles=${s.titles} lines=${s.lines}`);
   check('the lines are labelled Intent, Impact, Use, Ref in this order', JSON.stringify(s.labels) === JSON.stringify(LABELS), s.labels.join(', '));
-  check('the second line is the Impact text of the entry', s.labels[1] === 'Impact' && s.texts[1] === (await page.evaluate("window.__xrayHelp.lookup('Classification (Alg 1)/bufferBase').impact")) && s.texts[1].length > 20, s.texts[1]);
+  check('the second line is the Impact text of the entry', s.labels[1] === 'Impact' && s.texts[1] === (await page.evaluate("window.__xrayHelp.lookup('Classification (Alg 1)/bufferBase (m)').impact")) && s.texts[1].length > 20, s.texts[1]);
   check('the Impact text differs from the Intent text', s.texts[0] !== s.texts[1]);
   check('popover is at most 360 px wide', s.rect && s.rect.width <= 360.5, `width=${s.rect?.width}`);
   check('popover lies inside the viewport', s.rect && s.rect.left >= 0 && s.rect.right <= 1600 && s.rect.top >= 0 && s.rect.bottom <= 900);
