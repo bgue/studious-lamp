@@ -6,6 +6,7 @@ import type { XrayTool } from '../tools/registry';
 import { clampDrawerWidth } from '../tools/toolbarModel';
 import { getKeymap } from '../input/keymap';
 import { el } from './dom';
+import { STATUS_H } from './statusBar';
 
 export const STRIP_W = 44;
 export const DRAWER_W = 320;
@@ -21,7 +22,7 @@ const CSS = `
 .xt-btn-tool:focus-visible{outline:2px solid var(--sb-accent,#3b9cff);outline-offset:1px}
 .xt-btn-tool::after{content:attr(data-tip);position:absolute;left:calc(100% + 8px);top:50%;transform:translateY(-50%);white-space:nowrap;background:#0e1218;color:#dfe6ee;border:1px solid #2d3748;border-radius:4px;padding:3px 7px;font-size:11px;opacity:0;pointer-events:none;transition:opacity .12s;z-index:30}
 .xt-btn-tool:hover::after,.xt-btn-tool:focus-visible::after{opacity:1}
-.xt-drawer{position:absolute;left:${STRIP_W}px;top:0;bottom:0;width:${DRAWER_W}px;z-index:14;box-sizing:border-box;display:flex;flex-direction:column;background:rgba(20,24,32,.97);color:var(--sb-fg,#dfe6ee);
+.xt-drawer{position:absolute;left:${STRIP_W}px;top:0;bottom:${STATUS_H}px;width:${DRAWER_W}px;z-index:14;box-sizing:border-box;display:flex;flex-direction:column;background:rgba(20,24,32,.97);color:var(--sb-fg,#dfe6ee);
   border-right:1px solid var(--sb-line,#262d3a);box-shadow:4px 0 14px rgba(0,0,0,.35);font:12px/1.35 system-ui,-apple-system,'Segoe UI',sans-serif}
 .xt-drawer *{box-sizing:border-box}
 .xt-head{display:flex;align-items:center;gap:6px;padding:8px 10px;border-bottom:1px solid var(--sb-line,#262d3a);flex:0 0 auto}

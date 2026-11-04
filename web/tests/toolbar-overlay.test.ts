@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { Matrix4, PerspectiveCamera } from 'three';
-import { projectToScreen } from '../src/ui/overlay';
+import { legendSpot, projectToScreen } from '../src/ui/overlay';
 
 function viewProj(cam: PerspectiveCamera): Matrix4 {
   cam.updateMatrixWorld();
@@ -52,5 +52,23 @@ describe('overlay projection', () => {
     cam.lookAt(5, 0, 0);
     const p = projectToScreen(viewProj(cam).elements, 800, 400, 5, 0, 0);
     expect(p.x).toBeCloseTo(400, 6);
+  });
+});
+
+describe('legend placement (legendSpot)', () => {
+  const none = { top: 0, right: 0, bottom: 0, left: 0 };
+  it('sits bottom right above the status bar', () => {
+    expect(legendSpot(800, 600, { ...none, bottom: 22 }, null, 200, 100)).toEqual({ x: 800 - 12 - 200, y: 600 - 22 - 8 - 100 });
+  });
+  it('goes left of the gizmo when there is room, else above it, and stacks in the same column', () => {
+    const gizmo = { x: 590, y: 440, w: 200, h: 130 };
+    expect(legendSpot(800, 600, { ...none, bottom: 22 }, gizmo, 200, 100)).toEqual({ x: 590 - 8 - 200, y: 600 - 22 - 8 - 100 });
+    const narrow = { ...none, bottom: 22, left: 400 };
+    expect(legendSpot(800, 600, narrow, gizmo, 200, 100)).toEqual({ x: 800 - 12 - 200, y: 440 - 8 - 100 });
+    // a narrower legend stacked on a wider one follows the column choice of the wider one
+    expect(legendSpot(800, 600, { ...none, bottom: 22, left: 375 }, gizmo, 190, 94, 120, 210).y).toBe(440 - 8 - 120 - 94);
+  });
+  it('stays inside the stage when a drawer leaves no room', () => {
+    expect(legendSpot(424, 700, { ...none, bottom: 22, left: 364 }, null, 210, 112).x).toBe(424 - 12 - 210);
   });
 });

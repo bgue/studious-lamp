@@ -170,7 +170,7 @@ export class BcfMarkupView {
     const m = this.vp.elements;
     const w = ov.width;
     const h = ov.height;
-    return { width: w, height: h, shift: this.c.shift, scale: 1, project: (p) => projectPoint(m, w, h, p), occluded: (p) => this.c.occluded(p) };
+    return { width: w, height: h, shift: this.c.shift, scale: 1, insets: ov.insets, project: (p) => projectPoint(m, w, h, p), occluded: (p) => this.c.occluded(p) };
   }
 
   private draw(ov: Overlay): void {

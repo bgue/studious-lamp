@@ -11,6 +11,10 @@ import type { Overlay } from '../ui/overlay';
 import { CLASH_COLOUR, clearanceColour, computeClearance, DEFAULT_CLEARANCE, legendStops, TIGHT_COLOUR } from './clearance';
 import type { Band, ClearanceSettings } from './clearance';
 
+/** Height of the clearance legend (px); the point cloud legend stacks above it. */
+export const CLEARANCE_LEGEND_H = 112;
+export const CLEARANCE_LEGEND_W = 210;
+
 export class ClearanceTool {
   enabled = false;
   readonly settings: ClearanceSettings = { ...DEFAULT_CLEARANCE };
@@ -164,12 +168,12 @@ export class ClearanceTool {
     layer.textContent = '';
     if (!this.enabled) return;
     const s = this.settings;
-    const w = 210;
-    const x = Math.max(8, ov.width - w - 14);
-    const y = Math.max(8, ov.height - 124);
+    const w = CLEARANCE_LEGEND_W;
+    // Bottom right, above the status bar and beside (or above) the gizmo.
+    const { x, y } = ov.legendSpot(w, CLEARANCE_LEGEND_H);
     const css = (c: readonly number[]): string => `rgb(${Math.round(c[0]! * 255)},${Math.round(c[1]! * 255)},${Math.round(c[2]! * 255)})`;
     const g = svgEl('g', { 'data-legend': 'clearance' });
-    g.appendChild(svgEl('rect', { x, y, width: w, height: 112, rx: 6, fill: 'rgba(14,18,24,0.88)', stroke: '#2d3748' }));
+    g.appendChild(svgEl('rect', { x, y, width: w, height: CLEARANCE_LEGEND_H, rx: 6, fill: 'rgba(14,18,24,0.88)', stroke: '#2d3748' }));
     const text = (tx: number, ty: number, str: string, weight = 400): SVGTextElement => {
       const t = svgEl('text', { x: tx, y: ty, fill: '#dfe6ee', 'font-size': 11.5, 'font-family': 'system-ui,sans-serif', 'font-weight': weight });
       t.textContent = str;

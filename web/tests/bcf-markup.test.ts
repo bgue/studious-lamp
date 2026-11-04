@@ -255,6 +255,18 @@ describe('snapshot compositing', () => {
     expect(layoutSnapshot({ pin: off, label: '3' }, [], ctxFor())).toEqual([]);
   });
 
+  it('moves a pin under the viewer chrome (status bar, drawer) to an edge marker inside the free area', () => {
+    const pin = { position: at([0, 0, 0]) }; // projects to the centre (500, 300)
+    const ctx = { ...ctxFor(), insets: { top: 0, right: 0, bottom: 22, left: 600 } };
+    const ops = layoutPin(pin, '3', ctx);
+    expect(ops.every((o) => o.role === 'edge')).toBe(true);
+    const c = ops.find((o) => o.op === 'circle') as Extract<DrawOp, { op: 'circle' }>;
+    expect(c.x).toBeGreaterThanOrEqual(600 + 16 - 1e-9);
+    expect(c.y).toBeLessThanOrEqual(600 - 22 - 16 + 1e-9);
+    // no insets: the plain pin
+    expect(layoutPin(pin, '3', ctxFor()).every((o) => o.role === 'pin')).toBe(true);
+  });
+
   it('paints the operations on a canvas context in order', () => {
     const calls: string[] = [];
     const g: Ctx2D = {

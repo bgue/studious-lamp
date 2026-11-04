@@ -2,6 +2,7 @@
 // and the deviation check. UI (drawer, lil-gui) and the window API only talk to this class.
 
 import { BufferAttribute, BufferGeometry, Plane, Points, PointsMaterial, Vector3 } from 'three';
+import { CLEARANCE_LEGEND_H, CLEARANCE_LEGEND_W } from '../measure/clearanceTool';
 import type { MeshBVH } from 'three-mesh-bvh';
 import type { ViewerApp } from '../app';
 import { applyFrame, autoAlign, cloudFrame, mapPositions } from './align';
@@ -624,8 +625,11 @@ export class PointCloudController {
     void BAND_LABELS;
     if (!this.legendOff) {
       this.legendOff = ov.onUpdate((o) => {
-        // bottom right of the stage, above the 22 px status bar (src/ui/statusBar.ts STATUS_H)
-        this.legendLayer?.setAttribute('transform', `translate(${Math.max(8, o.width - 190 - 12)},${Math.max(8, o.height - 22 - 4 * 18 - 12 - 22)})`);
+        // Bottom right of the stage, above the status bar and beside (or above) the gizmo; above the clearance legend
+        // when that one shows (src/measure/clearanceTool.ts).
+        const clearance = (window as unknown as { __xrayClearance?: { enabled?: boolean } }).__xrayClearance?.enabled === true;
+        const p = o.legendSpot(190, 22 + 4 * 18, clearance ? CLEARANCE_LEGEND_H + 8 : 0, clearance ? CLEARANCE_LEGEND_W : 190);
+        this.legendLayer?.setAttribute('transform', `translate(${p.x},${p.y})`);
       });
     }
     this.legendLayer.style.display = '';

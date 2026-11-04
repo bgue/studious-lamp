@@ -51,6 +51,45 @@ export function projectToScreen(m: ArrayLike<number>, width: number, height: num
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
+/** CSS pixels of the canvas covered by viewer chrome along each edge (status bar, tool strip and drawer, phone rails). */
+export interface Insets {
+  top: number;
+  right: number;
+  bottom: number;
+  left: number;
+}
+export interface Rect {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+/** Chrome that can lie over the canvas edges: the tool strip and drawer, the tree and dock (rails on phones), the status bar. */
+const EDGE_CHROME = ['#xray-toolbar', '#xray-toolbar-drawer', '#sidebar', '#dock', '#xray-overlay'];
+
+function shown(e: Element | null): e is HTMLElement {
+  if (!(e instanceof HTMLElement) || e.hidden || e.getClientRects().length === 0) return false;
+  return getComputedStyle(e).visibility !== 'hidden';
+}
+
+/**
+ * Where a legend of `w` x `h` px goes, in canvas pixels: the bottom right corner inside the insets, left of the gizmo
+ * (or above it when there is no room beside it), `stack` px higher for a legend that sits above another one. Pure.
+ */
+export function legendSpot(width: number, height: number, ins: Insets, gizmo: Rect | null, w: number, h: number, stack = 0, colW = w): { x: number; y: number } {
+  let right = width - ins.right - 12;
+  let bottom = height - ins.bottom - 8;
+  // `colW`: the widest legend of the column, so stacked legends make the same choice.
+  if (gizmo && gizmo.w > 0 && gizmo.h > 0 && gizmo.y < bottom) {
+    if (gizmo.x - 8 - colW >= ins.left + 8) right = Math.min(right, gizmo.x - 8);
+    else bottom = Math.min(bottom, gizmo.y - 8);
+  }
+  // No room right of an open drawer: stay inside the stage (partly under the drawer) rather than past its right edge.
+  const x = right - w >= ins.left + 8 ? right - w : Math.max(8, right - w);
+  return { x, y: Math.max(ins.top + 8, bottom - stack - h) };
+}
+
 export class Overlay {
   readonly svg: SVGSVGElement;
   width = 1;
@@ -58,6 +97,9 @@ export class Overlay {
   private readonly layers = new Map<string, SVGGElement>();
   private readonly listeners = new Set<(ov: Overlay) => void>();
   private readonly viewProj = new Matrix4();
+  /** Chrome over the canvas edges and the gizmo box (canvas pixels), refreshed every frame. */
+  insets: Insets = { top: 0, right: 0, bottom: 0, left: 0 };
+  gizmo: Rect | null = null;
   private signature = '';
   private dirty = true;
 
@@ -106,13 +148,40 @@ export class Overlay {
     this.height = Math.max(1, this.app.canvas.clientHeight);
     cam.updateMatrixWorld();
     this.viewProj.multiplyMatrices(cam.projectionMatrix, cam.matrixWorldInverse);
+    this.refreshChrome();
+  }
+
+  private refreshChrome(): void {
+    const c = this.app.canvas.getBoundingClientRect();
+    const ins: Insets = { top: 0, right: 0, bottom: 0, left: 0 };
+    for (const sel of EDGE_CHROME) {
+      const e = document.querySelector(sel);
+      if (!shown(e)) continue;
+      const r = e.getBoundingClientRect();
+      if (!r.width || !r.height || r.right <= c.left || r.left >= c.right || r.bottom <= c.top || r.top >= c.bottom) continue;
+      if (r.height >= c.height * 0.6) {
+        if (r.left - c.left < c.right - r.right) ins.left = Math.max(ins.left, r.right - c.left);
+        else ins.right = Math.max(ins.right, c.right - r.left);
+      } else if (r.bottom >= c.bottom - 1) ins.bottom = Math.max(ins.bottom, c.bottom - r.top);
+    }
+    this.insets = ins;
+    const g = document.getElementById('xray-gizmo');
+    const gr = shown(g) ? g.getBoundingClientRect() : null;
+    this.gizmo = gr && gr.width ? { x: gr.left - c.left, y: gr.top - c.top, w: gr.width, h: gr.height } : null;
+  }
+
+  /** Legend position (see legendSpot) for this overlay's size, chrome and gizmo. */
+  legendSpot(w: number, h: number, stack = 0, colW = w): { x: number; y: number } {
+    return legendSpot(this.width, this.height, this.insets, this.gizmo, w, h, stack, colW);
   }
 
   /** Per frame (after render): refresh the matrices and run the listeners when the view or the data changed. */
   update(): void {
     this.refreshMatrices();
     const e = this.viewProj.elements;
-    let sig = `${this.width}x${this.height}`;
+    const ins = this.insets;
+    const gz = this.gizmo;
+    let sig = `${this.width}x${this.height}|${ins.top},${ins.right},${ins.bottom},${ins.left}|${gz ? `${gz.x},${gz.y},${gz.w},${gz.h}` : '-'}`;
     for (let i = 0; i < 16; i++) sig += `,${e[i]!.toFixed(6)}`;
     if (!this.dirty && sig === this.signature) return;
     this.signature = sig;

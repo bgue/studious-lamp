@@ -156,6 +156,9 @@ export interface LayoutContext {
   shift: Vec3;
   /** Size multiplier: 1 on screen (CSS px), larger for big snapshots. */
   scale?: number;
+  /** Live view only: pixels along each edge covered by viewer chrome (status bar, tool drawer, rails). A pin there is
+   *  drawn as an edge marker inside the free area. */
+  insets?: { top: number; right: number; bottom: number; left: number };
 }
 
 /** Lines shown in an annotation box: the text, plus the measurement label when the text does not already hold it. */
@@ -241,17 +244,24 @@ export function layoutPin(pin: BcfPin, label: string, ctx: LayoutContext, opts: 
   const pv = ifcToViewer(pin.position, ctx.shift);
   const P = ctx.project(pv);
   const ops: DrawOp[] = [];
-  if (!P.visible) {
-    if (opts.edge === false) return ops;
+  const ins = ctx.insets ?? { top: 0, right: 0, bottom: 0, left: 0 };
+  const inFree = P.visible && P.x >= ins.left && P.x <= ctx.width - ins.right && P.y >= ins.top && P.y <= ctx.height - ins.bottom;
+  if (!inFree) {
+    if (opts.edge === false && !P.visible) return ops;
     const margin = 16 * s;
-    const hw = ctx.width / 2 - margin;
-    const hh = ctx.height / 2 - margin;
-    const l = Math.hypot(P.dx, P.dy);
-    const ux = l > 1e-9 ? P.dx / l : 0;
-    const uy = l > 1e-9 ? P.dy / l : 1;
+    // The free area: the view minus the chrome along its edges.
+    const cx0 = (ins.left + ctx.width - ins.right) / 2;
+    const cy0 = (ins.top + ctx.height - ins.bottom) / 2;
+    const hw = Math.max(1, (ctx.width - ins.left - ins.right) / 2 - margin);
+    const hh = Math.max(1, (ctx.height - ins.top - ins.bottom) / 2 - margin);
+    const dx = P.visible ? P.x - cx0 : P.dx;
+    const dy = P.visible ? P.y - cy0 : P.dy;
+    const l = Math.hypot(dx, dy);
+    const ux = l > 1e-9 ? dx / l : 0;
+    const uy = l > 1e-9 ? dy / l : 1;
     const t = Math.min(Math.abs(ux) > 1e-9 ? hw / Math.abs(ux) : Infinity, Math.abs(uy) > 1e-9 ? hh / Math.abs(uy) : Infinity);
-    const x = ctx.width / 2 + ux * t;
-    const y = ctx.height / 2 + uy * t;
+    const x = cx0 + ux * t;
+    const y = cy0 + uy * t;
     const r = 9 * s;
     ops.push({ op: 'poly', points: [x + ux * (r + 7 * s), y + uy * (r + 7 * s), x - uy * r * 0.7, y + ux * r * 0.7, x + uy * r * 0.7, y - ux * r * 0.7], fill, stroke: HALO, width: 1 * s, key, role: 'edge', alpha: 0.85 });
     ops.push({ op: 'circle', x, y, r, fill, stroke: '#ffffff', width: 1.5 * s, key, role: 'edge', alpha: 0.85 });
