@@ -222,6 +222,7 @@ export class XrayRenderer {
   private clipPlanes: ClipPlane[] | null = null;
   /** Incremented by every setClipPlanes call, so a plugin can tell that someone else changed the planes. */
   clipVersion = 0;
+  private clipCapWanted = true;
   private imaging: ImagingRender | null = null;
   private imgFailure: string | null = null;
   private readonly imgBlend: boolean;
@@ -1096,6 +1097,12 @@ export class XrayRenderer {
   /** Per-frame setup of the view-mode uniforms; runs the peel mask and flood when the camera or the focus changed. */
   private prepareViewModes(): void {
     const u = this.shared;
+    if (this.clipPlanes) {
+      // Caps only show a cut when the viewer looks in from the removed side of some plane; from the kept side a visible
+      // back face is an open or flipped mesh, not a revealed interior.
+      const c = this.camera.position;
+      u.clipCapOn!.value = this.clipCapWanted && !pointKept(this.clipPlanes, [c.x, c.y, c.z]) ? 1 : 0;
+    }
     const peel = this.peel;
     if (!peel || !this.peelMaskMesh || peel.focus.length === 0) {
       u.peelOn!.value = 0;
@@ -1317,7 +1324,8 @@ export class XrayRenderer {
       const v = planeToVec4(p);
       arr[i]!.set(v[0], v[1], v[2], v[3]);
     });
-    u.clipCapOn!.value = opts?.cap === false ? 0 : 1;
+    this.clipCapWanted = opts?.cap !== false;
+    u.clipCapOn!.value = this.clipCapWanted ? 1 : 0;
     if (opts?.capColor) (u.clipCapCol!.value as Vector3).set(opts.capColor[0]!, opts.capColor[1]!, opts.capColor[2]!);
     this.clipVersion++;
     this.peelStale = true;

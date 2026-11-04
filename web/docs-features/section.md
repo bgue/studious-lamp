@@ -29,7 +29,7 @@ renderer.clipVersion   // incremented by every setClipPlanes call
 
 Planes are in viewer coordinates; each normal points to the KEPT half-space (the BCF plan code flips the BCF direction). Up to 8 planes (a box needs 6, a plane 1, one is spare; the brief said 6, 8 is a superset). `cap` defaults to true when `opts` is omitted, which is what makes an applied BCF viewpoint clip and cap. `getClipPlanes` returns the unit-normalised planes. `setModel` removes them (they belong to the old model).
 
-Every pass tests them per fragment (`clipCut` in `viewModeGlsl.ts`): opaque, ghost, OIT, focus, context and focus edges, edge glow, the peel mask, and the imaging thickness, slab and edge passes, so an element is split exactly, and edges of the cut part are not drawn. Caps use the back-face method of behind-only: in the opaque and focus passes a back face that is visible while planes are active is painted in the cap colour. Limits are the same as there (an open mesh shows its back faces in the cap colour; a ghosted element has no caps because the ghost pass culls back faces). Behind-only and peelback keep working with planes on (they are independent per-fragment tests, and the peel mask is rebuilt when the planes change). Picking skips a hit that a plane removes (`renderer.pick`).
+Every pass tests them per fragment (`clipCut` in `viewModeGlsl.ts`): opaque, ghost, OIT, focus, context and focus edges, edge glow, the peel mask, and the imaging thickness, slab and edge passes, so an element is split exactly, and edges of the cut part are not drawn. Caps use the back-face method of behind-only: in the opaque and focus passes a back face that is visible while planes are active is painted in the cap colour, but only while the camera is on the removed side of at least one plane (from the kept side no cut face is ever visible, so a visible back face is then an open or flipped mesh and keeps its normal shading). Limits are the same as there (an open mesh shows its back faces in the cap colour; a ghosted element has no caps because the ghost pass culls back faces). Behind-only and peelback keep working with planes on (they are independent per-fragment tests, and the peel mask is rebuilt when the planes change). Picking skips a hit that a plane removes (`renderer.pick`).
 
 ## Who owns the planes
 
@@ -52,7 +52,7 @@ Applying a viewpoint with clipping planes calls `setClipPlanes(plan.clip)`: clip
 
 ## Limits
 
-- Caps are back faces, not true cap polygons: a cut through an open mesh shows its inner side in the cap colour, and a ghosted (x-ray) element is cut without a cap.
+- Caps are back faces, not true cap polygons: with the camera outside the kept region, a thin single-sided element (a window pane seen from behind) is painted in the cap colour too, and a ghosted (x-ray) element is cut without a cap.
 - The box is axis-aligned in the viewer frame.
 - The handles are drawn on the SVG overlay without depth testing: a handle behind the model is still visible.
 - Picking and the BVH ignore explode offsets (as before), so a pick near a cut of an exploded element may differ.
