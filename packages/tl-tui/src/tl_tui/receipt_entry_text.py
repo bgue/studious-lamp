@@ -2,18 +2,22 @@
 
 The form's field list, the hint lines under the PO line and Location fields, the validation of the
 header and of one line, the status-line texts and the command the form sends. No Textual, no
-client call, no clock (the date is a parameter), no I/O. The screen mounts these functions and the
-web twin calls the same ones, so the two never differ in fields, words or the command they send.
+client call, no clock (the date is a parameter). The one file check, ``check_mtr_path``, reads the
+file system (it asks whether the typed path is a readable file; nothing is read or written). The
+screen mounts these functions and the web twin calls the same ones, so the two never differ in
+fields, words or the command they send.
 
 A missing value is ``—`` (``EMPTY``), never ``None`` and never a bare ``-``.
 """
 
 from __future__ import annotations
 
+import os
 import re
 from collections.abc import Collection, Mapping, Sequence
 from datetime import date
 from decimal import Decimal
+from pathlib import Path
 
 from tl_mod_materials.handlers.receipts import CONDITIONS, CreateReceipt, ReceiptLineIn
 from tl_mod_materials.views import LocationView, MaterialItemView, PoLineView
@@ -30,6 +34,8 @@ HEADER_FIELDS: tuple[tuple[str, str], ...] = (
     ("received_on", "Received on"),
     ("location", "Location"),
 )
+#: The optional MTR file field as ``(key, label)``: not a header field (no check, no command field).
+MTR_FIELD: tuple[str, str] = ("mtr", "MTR file")
 #: The entry row's fields as ``(key, label)``; UOM is read from the item, not typed.
 LINE_FIELDS: tuple[tuple[str, str], ...] = (
     ("item", "Item"),
@@ -73,6 +79,28 @@ def condition_message() -> str:
 def saved_text(number: str) -> str:
     """The status line after a receipt is booked: it names what is left (the MTR, D42)."""
     return f"Saved {number}. {MTR_SENTENCE}"
+
+
+def saved_attached_text(number: str, name: str) -> str:
+    """The status line after a receipt is booked and its MTR file is attached (slot ``mtr``)."""
+    return f"Saved {number}. MTR {name} attached."
+
+
+def saved_not_attached_text(number: str, reason: str) -> str:
+    """The status line after a receipt is booked but its MTR file did not attach."""
+    return f"Saved {number}. MTR not attached: {reason}. {MTR_SENTENCE}"
+
+
+def check_mtr_path(raw: str) -> str | None:
+    """``None`` when the MTR path is blank or a readable file; else ``No such file: <raw>``. A
+    directory counts as no file. Checked before the save, so a typo books nothing."""
+    text = raw.strip()
+    if not text:
+        return None
+    path = Path(text).expanduser()
+    if path.is_file() and os.access(path, os.R_OK):
+        return None
+    return f"No such file: {text}"
 
 
 def added_text(code: str) -> str:

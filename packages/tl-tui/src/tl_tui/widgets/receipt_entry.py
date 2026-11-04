@@ -8,13 +8,15 @@ technical-details key). ``Ctrl+S`` sends
 ``tl_tui.receipt_entry_text``; this screen mounts them and makes the one command call. A refusal
 from the service goes to the status line and the form stays open with what was typed. After a
 save the lines are cleared (so a second save cannot book the same delivery again) and the status
-line names what is left: the MTR (D42, no upload call in the client yet).
+line names what is left: the MTR. The optional ``MTR file`` field is a local path: when it is
+typed, the file is attached to the new receipt in slot ``mtr`` after the save (D42, D46; S6).
 """
 
 from __future__ import annotations
 
 from collections.abc import Sequence
 from datetime import date
+from pathlib import Path
 from typing import ClassVar
 
 from textual.app import ComposeResult
@@ -30,26 +32,33 @@ from tl_tui.receipt_entry_text import (
     HEADER_FIELDS,
     KEYS,
     LINE_FIELDS,
+    MTR_FIELD,
     NOT_SAVED_TEXT,
     added_text,
     build_command,
     check_count,
     check_header,
     check_line,
+    check_mtr_path,
     line_summary,
     location_hints,
     po_line_chosen,
     po_line_hints,
+    saved_attached_text,
+    saved_not_attached_text,
     saved_text,
 )
 
 #: The inputs in tab order; ``Enter`` moves to the next one, and in the last one adds the line.
 _INPUT_ORDER: tuple[str, ...] = tuple(
-    [f"h-{key}" for key, _ in HEADER_FIELDS] + [f"l-{key}" for key, _ in LINE_FIELDS]
+    [f"h-{key}" for key, _ in HEADER_FIELDS]
+    + [f"h-{MTR_FIELD[0]}"]
+    + [f"l-{key}" for key, _ in LINE_FIELDS]
 )
 _LINE_INPUT = "l-condition"
 _ERROR_IDS: dict[str, str] = {
     **{key: f"err-{key}" for key, _ in HEADER_FIELDS},
+    MTR_FIELD[0]: f"err-{MTR_FIELD[0]}",
     **{key: "err-entry" for key, _ in LINE_FIELDS},
     "lines": "err-lines",
 }
@@ -109,6 +118,10 @@ class ReceiptEntryScreen(ModalScreen[None]):
                     yield Static("", markup=False, classes="entry-hint", id=f"hint-{key}")
                 yield Static("", markup=False, classes="entry-error", id=f"err-{key}")
             with Horizontal(classes="entry-row"):
+                yield Static(MTR_FIELD[1], markup=False, classes="entry-label")
+                yield Input(id=f"h-{MTR_FIELD[0]}")
+            yield Static("", markup=False, classes="entry-error", id=f"err-{MTR_FIELD[0]}")
+            with Horizontal(classes="entry-row"):
                 yield Static("Item", markup=False, classes="entry-label")
                 yield Input(id="l-item", classes="entry-cell")
                 yield Static("Qty", markup=False, classes="entry-label")
@@ -156,6 +169,9 @@ class ReceiptEntryScreen(ModalScreen[None]):
     def _header_values(self) -> dict[str, str]:
         return {key: self.query_one(f"#h-{key}", Input).value for key, _ in HEADER_FIELDS}
 
+    def _mtr_value(self) -> str:
+        return self.query_one(f"#h-{MTR_FIELD[0]}", Input).value.strip()
+
     def _entry_values(self) -> dict[str, str]:
         return {key: self.query_one(f"#l-{key}", Input).value for key, _ in LINE_FIELDS}
 
@@ -163,7 +179,7 @@ class ReceiptEntryScreen(ModalScreen[None]):
 
     def on_input_changed(self, event: Input.Changed) -> None:
         field = (event.input.id or "").removeprefix("h-")
-        if event.input.id in {f"h-{key}" for key, _ in HEADER_FIELDS}:
+        if event.input.id in {f"h-{key}" for key, _ in (*HEADER_FIELDS, MTR_FIELD)}:
             self.query_one(f"#err-{field}", Static).update("")  # the typed field is no longer wrong
         if event.input.id == "h-po_line":
             self._complete_po_line(event.value)
@@ -235,11 +251,16 @@ class ReceiptEntryScreen(ModalScreen[None]):
             table.move_cursor(row=min(row or 0, len(self.lines) - 1))
 
     def action_save(self) -> None:
-        """Send ``CreateReceipt``; a refusal stays on the form with what was typed."""
+        """Send ``CreateReceipt``; a refusal stays on the form with what was typed. A typed MTR
+        path is checked before the save and attached to the saved receipt after it."""
         header = self._header_values()
         locations = [location.code for location in self.locations]
         errors = check_header(header, locations, date.today())
         errors += check_count(len(self.lines))
+        mtr_raw = self._mtr_value()
+        mtr_problem = check_mtr_path(mtr_raw)
+        if mtr_problem is not None:
+            errors.append((MTR_FIELD[0], mtr_problem))
         self._show_errors(errors)
         if errors:
             self.say(NOT_SAVED_TEXT, error=True)
@@ -252,7 +273,24 @@ class ReceiptEntryScreen(ModalScreen[None]):
             return
         self.lines = []
         self._refresh_lines()
-        self.say(saved_text(result.key or result.stream_id))
+        number = result.key or result.stream_id
+        if not mtr_raw:
+            self.say(saved_text(number))
+            return
+        self.say(self._attach_mtr(result.stream_id, number, mtr_raw))
+
+    def _attach_mtr(self, record_id: str, number: str, raw: str) -> str:
+        """Attach the MTR file to the saved receipt; the receipt stays saved whatever happens."""
+        name = Path(raw).name
+        try:
+            attached = self.client.attach_record_file(
+                record_id, Path(raw).expanduser(), slot=MTR_FIELD[0]
+            )
+        except (*CLIENT_ERRORS, OSError) as exc:
+            return saved_not_attached_text(number, describe_error(exc))
+        if attached.status == "rejected":
+            return saved_not_attached_text(number, "the file was rejected")
+        return saved_attached_text(number, name)  # available, or quarantined until its scan ends
 
     def action_close(self) -> None:
         self.dismiss(None)

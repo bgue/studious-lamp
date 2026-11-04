@@ -4,6 +4,10 @@ Run from the repo root after ``dev/accept/P2-I3/S3.py --keep .accept/p2-i3.db``:
 ``uv run python dev/accept/P2-I3/T06e.py``. Exit 0 with one ``PASS <check>`` line per check.
 Each screen check works on its own copy of the ledger. The screenshots go to
 ``.accept/shots/T06e-entry-80.svg`` and ``.accept/shots/T06e-entry-170.svg`` (untracked).
+
+P2-I3-T06j adds the optional MTR file: the text checks, a fake-client save with and without a
+file, and one real-ledger save then attach (``list_record_files`` shows slot ``mtr``). The form
+with the MTR field is saved to ``.accept/shots/T06j-80.svg`` and ``.accept/shots/T06j-170.svg``.
 """
 
 from __future__ import annotations
@@ -19,6 +23,7 @@ from collections.abc import Callable
 from datetime import date, timedelta
 from decimal import Decimal
 from pathlib import Path
+from typing import Any
 
 os.environ.setdefault("TL_ENV", "test")  # the dev ledger rule, as the other P2-W0 scripts set it
 
@@ -30,40 +35,53 @@ ACTOR = "user:alice"
 SIZES = ((80, 30), (170, 40))
 KEYS_TEXT = "Ctrl+S save  Enter add line  Del remove line  Esc close"  # the keys row, pinned
 PO_KEY = "4471-2"  # a seed PO line for one item; both lines of the receipt carry that item
+ITEM_CODE = "ELB-LR-90-6-SCH40"  # the item of the fake library and of the seed's PO line
 LOCATION = "L2"
 BAD_LOCATION = "ZZ9"
 RECEIPT = "P123-RCPT-0002"  # the seed holds P123-RCPT-0001
 LONE_DASH = re.compile(r"(?<!\S)-(?!\S)")
 sys.path.insert(0, str(ROOT / "packages" / "tl-tui" / "tests"))  # the Textual test helpers
 
+from fakes import FakeClient  # noqa: E402
 from helpers import screen_text, settle, static_of  # noqa: E402
 from textual.pilot import Pilot  # noqa: E402
 from textual.widgets import DataTable, Input  # noqa: E402
+from tl_adapters.db import as_target, open_uow  # noqa: E402
 from tl_adapters.sqlite.factory import SqliteUowFactory  # noqa: E402
+from tl_core.auth import accounts  # noqa: E402
+from tl_core.services.commands import Command, CommandResult  # noqa: E402
 from tl_mod_materials.handlers.receipts import CreateReceipt  # noqa: E402
 from tl_mod_materials.limits import MAX_RECEIPT_LINES  # noqa: E402
 from tl_mod_materials.views import LocationView, MaterialItemView, PoLineView  # noqa: E402
 from tl_tui.app import TlApp  # noqa: E402
+from tl_tui.client import ClientInterface  # noqa: E402
 from tl_tui.embedded import EmbeddedClient  # noqa: E402
 from tl_tui.receipt_entry_text import (  # noqa: E402
     HEADER_FIELDS,
     KEYS,
     LINE_FIELDS,
     MAX_LINES,
+    MTR_FIELD,
     added_text,
     build_command,
     check_count,
     check_header,
     check_line,
+    check_mtr_path,
     line_summary,
     location_hints,
     po_line_hints,
+    saved_attached_text,
+    saved_not_attached_text,
     saved_text,
 )
 from tl_tui.widgets.item_library import ItemLibraryScreen  # noqa: E402
 from tl_tui.widgets.receipt_entry import ReceiptEntryScreen  # noqa: E402
 
 Check = Callable[[], None]
+MTR_NAME = "mtr-cert.pdf"
+MTR_RECORD = "RCPT-REC-1"  # the record id the fake gives the booked receipt (its stream id)
+MTR_BYTES = b"%PDF-1.4\nmill test report\n%%EOF\n"
 
 
 class Failure(Exception):
@@ -407,6 +425,196 @@ def check_item_crumb() -> None:
     passed("the company item library crumb reads Company › Items")
 
 
+# --- part 3: the optional MTR file (P2-I3-T06j) ---------------------------------------------
+
+
+class ReceiptFake(FakeClient):
+    """Books the receipt under ``MTR_RECORD``, a record the fake knows, so an attach works. With
+    ``known=False`` the receipt answers as ``MAT-1``, which the fake does not hold, so an attach
+    raises ``RecordNotFoundError``."""
+
+    def __init__(self, *, known: bool = True) -> None:
+        super().__init__()
+        self.known = known
+        self.put_materials(PROJECT, locations=[location(LOCATION, "Laydown 2")])
+        self.put_material_items([item(ITEM_CODE)])
+
+    def materials_command(self, name: str, cmd: Command) -> CommandResult:
+        super().materials_command(name, cmd)
+        stream = MTR_RECORD if self.known else "MAT-1"
+        if self.known:
+            self.set_actions(MTR_RECORD)  # makes the record known to the fake's attach
+        return CommandResult(stream_id=stream, key=RECEIPT, version=1, events=[])
+
+
+class LedgerClient(EmbeddedClient):
+    """The embedded client, remembering the stream id of the last command (the receipt's id)."""
+
+    last_stream_id: str | None = None
+
+    def materials_command(self, name: str, cmd: Command) -> CommandResult:
+        result = super().materials_command(name, cmd)
+        self.last_stream_id = result.stream_id
+        return result
+
+
+def write_mtr(folder: Path) -> Path:
+    path = folder / MTR_NAME
+    path.write_bytes(MTR_BYTES)
+    return path
+
+
+def fill_and_save(
+    client: ClientInterface, mtr: str, size: tuple[int, int], *, shot: bool = True
+) -> dict[str, Any]:
+    """Fill the header and one line on the form, type ``mtr`` into the MTR field, press Ctrl+S.
+    Returns the status line, the lines left on the form and the field error under the MTR."""
+    width, height = size
+    app = TlApp(client, scope=f"project:{PROJECT}", actor=ACTOR)
+    seen: dict[str, Any] = {}
+
+    async def scenario() -> None:
+        async with app.run_test(size=size) as pilot:
+            await settle(pilot)
+            app.push_screen(ReceiptEntryScreen(client, PROJECT, ACTOR))
+            await settle(pilot)
+            screen = app.screen
+            assert isinstance(screen, ReceiptEntryScreen)
+            screen.query_one("#h-supplier", Input).value = "Northline Pipe Supply"
+            screen.query_one("#h-delivery_ref", Input).value = "DN-7781"
+            screen.query_one("#h-location", Input).value = LOCATION
+            screen.query_one("#l-item", Input).value = ITEM_CODE
+            screen.query_one("#l-qty", Input).value = "2"
+            screen.action_add_line()
+            screen.query_one("#h-mtr", Input).value = mtr
+            await settle(pilot)
+            if shot:
+                SHOTS.mkdir(parents=True, exist_ok=True)
+                svg = app.export_screenshot(title="New receipt")
+                (SHOTS / f"T06j-{width}.svg").write_text(svg, encoding="utf-8")
+            await pilot.press("ctrl+s")
+            await settle(pilot)
+            seen["status"] = static_of(screen, "#entry-status")
+            seen["lines"] = list(screen.lines)
+            seen["error"] = static_of(screen, "#err-mtr")
+            seen["screen"] = screen
+
+    asyncio.run(scenario())
+    return seen
+
+
+def check_mtr_text() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        here = Path(tmp)
+        real = write_mtr(here)
+        expect(check_mtr_path("") is None and check_mtr_path("   ") is None, "blank has a message")
+        expect(check_mtr_path(str(real)) is None, "a readable file has a message")
+        gone = str(here / "nope.pdf")
+        expect(check_mtr_path(gone) == f"No such file: {gone}", f"missing: {check_mtr_path(gone)}")
+        expect(check_mtr_path(str(here)) == f"No such file: {here}", "a directory is a file")
+    expect(
+        saved_attached_text(RECEIPT, MTR_NAME) == f"Saved {RECEIPT}. MTR {MTR_NAME} attached.",
+        "saved_attached_text",
+    )
+    expect(
+        saved_not_attached_text(RECEIPT, "the file was rejected")
+        == f"Saved {RECEIPT}. MTR not attached: the file was rejected. "
+        "Attach the MTR on the receipt (tl file put, slot mtr).",
+        "saved_not_attached_text",
+    )
+    expect(MTR_FIELD == ("mtr", "MTR file"), f"MTR_FIELD is {MTR_FIELD}")
+    passed("MTR path: blank and readable file pass, a missing path or a directory is refused")
+
+
+def check_mtr_fake_saves() -> None:
+    for size in SIZES:
+        with tempfile.TemporaryDirectory() as tmp:
+            real = write_mtr(Path(tmp))
+            client = ReceiptFake()
+            seen = fill_and_save(client, str(real), size)
+            expect(
+                client.attached_files == [(MTR_RECORD, MTR_NAME, "mtr")], str(client.attached_files)
+            )
+            expect(seen["status"] == saved_attached_text(RECEIPT, MTR_NAME), f"{seen['status']!r}")
+            expect(seen["lines"] == [], "the lines were not cleared after the save")
+            expect(len(client.materials_commands) == 1, "the receipt was not booked once")
+    passed("good save with a file: attached in slot mtr, status Saved <n>. MTR <name> attached.")
+
+    client = ReceiptFake()
+    seen = fill_and_save(client, "", (170, 40), shot=False)
+    expect(client.attached_files == [], f"a blank path attached {client.attached_files}")
+    expect(seen["status"] == saved_text(RECEIPT), f"{seen['status']!r}")
+    expect(seen["lines"] == [], "the lines were not cleared after a save without a file")
+    passed("good save with no path: nothing attached, status keeps saved_text")
+
+    client = ReceiptFake()
+    with tempfile.TemporaryDirectory() as tmp:
+        gone = str(Path(tmp) / "nope.pdf")
+        seen = fill_and_save(client, gone, (170, 40), shot=False)
+    expect(seen["error"] == f"No such file: {gone}", f"the field error is {seen['error']!r}")
+    expect(client.materials_commands == [], "a receipt was booked with a missing file")
+    expect(client.attached_files == [], "a file was attached with a missing path")
+    expect(len(seen["lines"]) == 1, "the lines were cleared on a refused save")
+    passed("missing path: No such file on the form, no receipt booked, lines kept")
+
+    client = ReceiptFake(known=False)
+    with tempfile.TemporaryDirectory() as tmp:
+        seen = fill_and_save(client, str(write_mtr(Path(tmp))), (170, 40), shot=False)
+    status = str(seen["status"])
+    expect(len(client.materials_commands) == 1, "the receipt was not booked")
+    expect(status.startswith(f"Saved {RECEIPT}. MTR not attached: "), f"status is {status!r}")
+    expect(seen["lines"] == [], "the lines were not cleared after the save")
+    passed("attach raises RecordNotFoundError: receipt stays saved, status names MTR not attached")
+
+
+def check_mtr_real_ledger() -> None:
+    previous = os.environ.get("TL_ENV")
+    os.environ["TL_ENV"] = "dev"  # the harness's dev token file is honoured in dev (as S6.py)
+    api_tests = str(ROOT / "packages" / "tl-api" / "tests")
+    sys.path.insert(0, api_tests)
+    try:
+        from harness import ALICE, Harness  # noqa: PLC0415 (the API test harness, as S6 builds it)
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            target = as_target(copy_ledger(root))
+            api_root = root / "api"
+            api_root.mkdir()
+            harness = Harness.build(api_root, target=target)
+            try:
+                with open_uow(target) as uow:
+                    accounts.create_account(
+                        uow,
+                        username="alice",
+                        display_name="Alice",
+                        kind="person",
+                        roles=["user"],
+                        password=None,
+                        by="user:seed",
+                    )
+                client = LedgerClient(harness.backend, actor=ALICE, object_store=harness.store)
+                seen = fill_and_save(client, str(write_mtr(root)), (170, 40), shot=False)
+                status = str(seen["status"])
+                expect(status == saved_attached_text(RECEIPT, MTR_NAME), f"status is {status!r}")
+                record_id = client.last_stream_id
+                expect(record_id is not None, "the save gave no stream id")
+                files = client.list_record_files(str(record_id))
+                expect(
+                    [(f.slot, f.filename) for f in files] == [("mtr", MTR_NAME)],
+                    f"files on the receipt: {[(f.slot, f.filename) for f in files]}",
+                )
+                expect(ITEM_CODE in {i.code for i in client.list_materials_items()}, "the item")
+            finally:
+                harness.close()
+    finally:
+        sys.path.remove(api_tests)
+        if previous is None:
+            os.environ.pop("TL_ENV", None)
+        else:
+            os.environ["TL_ENV"] = previous
+    passed("real ledger (EmbeddedClient): save then attach, list_record_files shows slot mtr")
+
+
 def main() -> int:
     if not LEDGER.exists():
         print(f"FAIL ledger: {LEDGER} is missing (run dev/accept/P2-I3/S3.py --keep first)")
@@ -425,6 +633,9 @@ def main() -> int:
         for size in SIZES:
             screen_check(size)
         check_item_crumb()
+        check_mtr_text()
+        check_mtr_fake_saves()
+        check_mtr_real_ledger()
     except Failure as exc:
         print(f"FAIL {exc}")
         return 1
