@@ -36,8 +36,10 @@ events of the schedule module (``OPERATOR_EVENTS``), ``Record.Created`` of a ``s
 ``Link.Flagged`` / ``Link.Repinned`` written by ``svc:schedule``. Since P1-I6 every event an
 operator writes on a ``correspondence.*`` record (the controller who issues the RFIs the author
 sent, and the clocks and letter that follow) is excused too, and so are the records such an
-operator made of that type. Any other event of an operator, and any record of another type, is
-judged like a simulated actor's. The report counts what was
+operator made of that type. Since P2-I1 the awp setup an operator defines by hand (``CWA.Defined``,
+``PathOfConstruction.Defined``, and ``Record.Created`` of an ``awp.*`` record) is excused too.
+Any other event of an operator, and any record of another type, is judged like a simulated
+actor's. The report counts what was
 excused (``excused``). A file event of anyone else must be on a record the log names (or
 one an operator made): a file cannot be attached to a record nobody intended.
 
@@ -68,6 +70,7 @@ SCANNER = "svc:scanner"
 QUEUED_EVENT = "ScheduleSnapshot.Queued"
 SCHEDULE_TYPES = "schedule."  # the record types of the schedule module
 CORRESPONDENCE_TYPES = "correspondence."  # the record types of the correspondence module
+AWP_TYPES = "awp."  # the record types of the awp (area and path of construction) module
 SERVICE = "svc:schedule"
 #: The events of the schedule module, which an operator (a controller, the worker) writes.
 OPERATOR_EVENTS = frozenset(
@@ -86,6 +89,8 @@ OPERATOR_EVENTS = frozenset(
         "ActivityRef.PresenceChanged",
     }
 )
+#: The awp setup an operator defines by hand (``tl awp cwa define``, ``path define``).
+AWP_OPERATOR_EVENTS = frozenset({"CWA.Defined", "PathOfConstruction.Defined"})
 #: Written by an operator on the stream of a ``schedule.*`` record.
 OPERATOR_STREAM_EVENTS = frozenset({"Record.Created", "Workflow.Transitioned", *FILE_EVENTS})
 #: The flags the module's worker writes on links to activities.
@@ -236,10 +241,12 @@ def run_assertions(
         """An event of the setup that an operator may write (see the module docstring): the
         schedule's, and anything on a correspondence record (the controller who issues the RFIs)."""
         kind = str(event["event_type"])
-        if kind in OPERATOR_EVENTS:
+        if kind in OPERATOR_EVENTS or kind in AWP_OPERATOR_EVENTS:
             return True
         stream_type = type_of.get(record_of(event), "")
         if stream_type.startswith(CORRESPONDENCE_TYPES):
+            return True
+        if kind == "Record.Created" and stream_type.startswith(AWP_TYPES):
             return True
         if kind in OPERATOR_STREAM_EVENTS:
             return stream_type.startswith(SCHEDULE_TYPES)
@@ -261,7 +268,7 @@ def run_assertions(
     for key in sorted(set(by_key) - created):
         if creator.get(str(by_key[key]["id"])) in expected.operators and str(
             by_key[key]["type"]
-        ).startswith((SCHEDULE_TYPES, CORRESPONDENCE_TYPES)):
+        ).startswith((SCHEDULE_TYPES, CORRESPONDENCE_TYPES, AWP_TYPES)):
             report.excused += 1  # a schedule or a clock made by hand before or beside the run
             continue
         fail("unexpected_record", key, "key", None, by_key[key].get("title"))
