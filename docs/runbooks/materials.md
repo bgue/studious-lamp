@@ -117,7 +117,7 @@ Purpose: load the item library and locations, receive and accept deliveries with
     ```
     Expected: `<key>  <item>  required <q>  reserved <q>  issued <q>  short <q>  for <wp>` per line; `assigned 2 lines to P123-IWP-0001`. Assign is refused for a line that has stock against it.
 
-15. Reserve stock for a take-off line, and release a reservation. The `--for-line` value is the take-off line's record id (see open questions).
+15. Reserve stock for a take-off line, and release a reservation. The `--for-line` value is the take-off line's record id. No read command prints that id yet (follow-up: `--for-line` should take the line key); until then read the `id` of the line from the API, `GET /projects/P123/materials/mto-lines`.
     ```
     uv run tl mat move reserve --project P123 --lot <lot-key> --qty 2 --uom EA --from <location-code> --for-line <line-record-id>
     uv run tl mat move unreserve --project P123 --lot <lot-key> --qty 2 --uom EA --from <location-code> --for-line <line-record-id>
