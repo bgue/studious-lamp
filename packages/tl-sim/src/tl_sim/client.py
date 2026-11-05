@@ -117,6 +117,18 @@ class AwpDesk(Protocol):
 
 
 @runtime_checkable
+class MaterialsDesk(Protocol):
+    """What a materials coordinator needs on top of ``SimClient`` (not part of it): the short
+    take-off lines, the stock, and a proposal to reserve stock for a line."""
+
+    def short_lines(self, *, limit: int = 50) -> list[dict[str, Any]]: ...
+    def stock(self, *, limit: int = 200) -> list[dict[str, Any]]: ...
+    def propose_reservation(
+        self, lot: str, location: str, mto_line: str, qty: str
+    ) -> dict[str, Any]: ...
+
+
+@runtime_checkable
 class ProposalDesk(Protocol):
     """What a person working the review queue needs on top of ``SimClient`` (not part of it)."""
 
@@ -329,6 +341,35 @@ class HttpSimClient:
         if "steps" not in answer and "result" in answer:
             answer = answer["result"] or {}
         return [str(step["cwa"]) for step in answer.get("steps") or [] if step.get("cwa")]
+
+    def _rows(self, tool: str, arguments: dict[str, Any]) -> list[dict[str, Any]]:
+        """The rows a list tool answers; its structured result sits under ``result``."""
+        if self._mcp is None:
+            raise McpUnavailableError("no MCP caller is wired for this actor")
+        answer = self._mcp.call_tool(tool, arguments)
+        return [dict(row) for row in answer.get("result") or []]
+
+    def short_lines(self, *, limit: int = 50) -> list[dict[str, Any]]:
+        """The project's take-off lines that are short of stock (``MaterialsDesk``)."""
+        arguments = {"project": self._project, "short_only": True, "limit": limit}
+        return self._rows("list_mto_lines", arguments)
+
+    def stock(self, *, limit: int = 200) -> list[dict[str, Any]]:
+        """The project's stock balances, one row per lot and location (``MaterialsDesk``)."""
+        return self._rows("list_material_stock", {"project": self._project, "limit": limit})
+
+    def propose_reservation(
+        self, lot: str, location: str, mto_line: str, qty: str
+    ) -> dict[str, Any]:
+        """File a proposal to reserve ``qty`` of ``lot`` at ``location`` for ``mto_line``."""
+        arguments = {
+            "project": self._project,
+            "lot": lot,
+            "location": location,
+            "mto_line": mto_line,
+            "qty": qty,
+        }
+        return self.propose("propose_reservation", arguments)
 
     def query(self, q: str, *, limit: int = 100) -> list[dict[str, Any]]:
         return self._api.query_records(self._scope, q, limit=min(limit, MAX_QUERY))
