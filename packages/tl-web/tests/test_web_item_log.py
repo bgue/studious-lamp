@@ -100,11 +100,10 @@ def labels_for(w: Any, name: str) -> Any:
     return present.load_labels(present.as_client(w.reads(name)), SCOPE, ("core.Record",))
 
 
-def expected_panel(fake: Any, labels: Any, code: str, *, technical: bool = False) -> list[str]:
+def expected_panel(fake: Any, labels: Any, code: str, *, technical: bool = False) -> present.Page:
     item = next(v for v in fake.list_materials_items(project=PROJECT) if v.code == code)
     projects = fake.list_materials_item_projects(code)
-    page = present.item_text.item_page(item, projects, labels, technical=technical)
-    return present.plain_lines(page)
+    return present.item_text.item_page(item, projects, labels, technical=technical)
 
 
 @pytest.fixture
@@ -154,7 +153,7 @@ def test_the_panel_lines_are_the_item_page(world: Any, htmlkit: Any, fakes: Any)
     panel = world.web("bob").client.get(f"{PAGE}/panel/{PIPE}")
     assert panel.status_code == 200
     want = expected_panel(fakes, labels_for(world, "bob"), PIPE)
-    assert htmlkit.parse(panel.text).pre().split("\n") == want
+    assert htmlkit.missing_facts(htmlkit.parse(panel.text).root, want) == []
 
 
 def test_the_status_line_is_the_summary(world: Any, htmlkit: Any, fakes: Any) -> None:
@@ -202,14 +201,19 @@ def test_plain_versus_technical(world: Any, htmlkit: Any, fakes: Any) -> None:
     labels = labels_for(world, "bob")
     plain = htmlkit.parse(world.web("bob").client.get(PAGE, params={"mode": "technical"}).text)
     assert plain.status() == present.REFUSAL
-    assert plain.pre("log-panel").split("\n") == expected_panel(fakes, labels, PIPE)
+    assert (
+        htmlkit.missing_facts(plain.by_id("log-panel"), expected_panel(fakes, labels, PIPE)) == []
+    )
 
     boss = htmlkit.parse(world.web("boss").client.get(PAGE, params={"mode": "technical"}).text)
     assert boss.status() != present.REFUSAL
-    shown = boss.pre("log-panel").split("\n")
-    assert shown == expected_panel(fakes, labels, PIPE, technical=True)
-    assert shown != expected_panel(fakes, labels, PIPE)
-    assert any("ITM-1" in line for line in shown)
+    shown = boss.by_id("log-panel")
+    assert htmlkit.missing_facts(shown, expected_panel(fakes, labels, PIPE, technical=True)) == []
+    plain_page = expected_panel(fakes, labels, PIPE)
+    assert htmlkit.page_facts(expected_panel(fakes, labels, PIPE, technical=True)) != (
+        htmlkit.page_facts(plain_page)
+    )
+    assert "ITM-1" in htmlkit.visible(shown)
 
 
 def test_retired_keeps_the_retired_item_and_an_unknown_state_is_ignored(
@@ -229,18 +233,22 @@ def test_the_panel_lists_the_projects_with_their_quantities(
     world: Any, htmlkit: Any, fakes: Any
 ) -> None:
     bob = world.web("bob").client
-    lines = htmlkit.parse(bob.get(f"{PAGE}/panel/{PIPE}").text).pre().split("\n")
-    assert any("Project" in line for line in lines)
+    panel = htmlkit.parse(bob.get(f"{PAGE}/panel/{PIPE}").text).root
+    page = expected_panel(fakes, labels_for(world, "bob"), PIPE)
+    assert htmlkit.missing_facts(panel, page) == []
+    assert any("Project" in fact for fact in htmlkit.page_facts(page))
     # quantities are the module's qty_text (no trailing zeros): 15.500 shows as 15.5
-    assert any(line.split() == [PROJECT, "15.5", "4.25", "11.25"] for line in lines)
-    assert any(line.split() == ["P456", "30", "0", "30"] for line in lines)
-    assert "Not used in any project" not in lines
+    rows = [[td.text() for td in tr.find_all("td")] for tr in panel.find_all("tr")]
+    assert [PROJECT, "15.5", "4.25", "11.25"] in rows
+    assert ["P456", "30", "0", "30"] in rows
+    assert "Not used in any project" not in htmlkit.visible(panel)
 
 
 def test_an_item_used_in_no_project_says_so(world: Any, htmlkit: Any, fakes: Any) -> None:
-    lines = htmlkit.parse(world.web("bob").client.get(f"{PAGE}/panel/{VALVE}").text).pre()
-    assert "Not used in any project" in lines.split("\n")
-    assert lines.split("\n") == expected_panel(fakes, labels_for(world, "bob"), VALVE)
+    panel = htmlkit.parse(world.web("bob").client.get(f"{PAGE}/panel/{VALVE}").text).root
+    page = expected_panel(fakes, labels_for(world, "bob"), VALVE)
+    assert "Not used in any project" in htmlkit.page_facts(page)
+    assert htmlkit.missing_facts(panel, page) == []
 
 
 def test_the_real_world_answers_with_an_empty_table_and_404_panels(

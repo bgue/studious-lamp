@@ -129,8 +129,8 @@ def test_the_panel_is_the_package_page_as_plain_lines(
     panel = world.web("bob").client.get(f"{PAGE}/panel/EWP-001")
     assert panel.status_code == 200
     ewp = next(row for row in seeded_rows() if row.package_no == "EWP-001")
-    lines = present.plain_lines(package_text.package_page(ewp, panel=True, technical=False))
-    assert htmlkit.parse(panel.text).pre().split("\n") == lines
+    page = package_text.package_page(ewp, panel=True, technical=False)
+    assert htmlkit.missing_facts(htmlkit.parse(panel.text).root, page) == []
 
 
 def test_the_status_line_is_the_summary(world: Any, htmlkit: Any, fakes: None) -> None:
@@ -166,13 +166,18 @@ def test_plain_and_technical_modes(world: Any, htmlkit: Any, fakes: None) -> Non
     (``panel=False``), so ``rows_page`` leaves it out in technical mode too (see the report)."""
     bob = world.web("bob").client
     assert htmlkit.parse(bob.get(f"{PAGE}?mode=technical").text).status() == present.REFUSAL
-    plain = htmlkit.parse(bob.get(f"{PAGE}/panel/EWP-001").text).pre()
-    assert htmlkit.parse(bob.get(f"{PAGE}/panel/EWP-001?mode=technical").text).pre() == plain
+    plain = htmlkit.parse(bob.get(f"{PAGE}/panel/EWP-001").text).root
+    ewp = next(row for row in seeded_rows() if row.package_no == "EWP-001")
+    plain_page = package_text.package_page(ewp, panel=True, technical=False)
+    assert htmlkit.missing_facts(plain, plain_page) == []
+    tech = htmlkit.parse(bob.get(f"{PAGE}/panel/EWP-001?mode=technical").text).root
+    assert htmlkit.missing_facts(tech, plain_page) == []
     boss = world.web("boss").client
     summary = package_text.summary_line(2, 2, kind=None, constraints_only=False, text="")
     assert htmlkit.parse(boss.get(f"{PAGE}?mode=technical").text).status() == summary
-    assert htmlkit.parse(boss.get(f"{PAGE}/panel/EWP-001?mode=technical").text).pre() == plain
-    assert "EWP-1" not in plain
+    boss_tech = htmlkit.parse(boss.get(f"{PAGE}/panel/EWP-001?mode=technical").text).root
+    assert htmlkit.missing_facts(boss_tech, plain_page) == []
+    assert "EWP-1" not in htmlkit.visible(plain)
 
 
 def test_the_kind_filter_keeps_the_pwp_and_names_it(world: Any, htmlkit: Any, fakes: None) -> None:

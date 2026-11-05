@@ -52,12 +52,9 @@ class CwpWebLog(WebLog["CwpRow"]):
     def row_cells(self, row: CwpRow) -> tuple[str, ...]:
         return present.awp_text.cwp_cells(row, self.labels)
 
-    def panel_text(self, row: CwpRow | None) -> list[str]:
-        if row is None:
-            return ["Nothing here."]
+    def panel_page(self, row: CwpRow) -> present.Page:
         full = self.client.get_cwp(self.project, row.number)
-        page = present.awp_text.cwp_page(full, self.labels, technical=self.technical, panel=True)
-        return present.plain_lines(page)
+        return present.awp_text.cwp_page(full, self.labels, technical=self.technical, panel=True)
 
     def actions_for(self, row: CwpRow) -> Sequence[WebAction]:
         return []  # no awp command has an ACTION_UI row (writes come with P2-I2)

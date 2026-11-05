@@ -134,11 +134,10 @@ def row_of(fake: Any, key: str) -> Any:
     return next(r for r in stock_of(fake) if f"{r.lot}@{r.location}" == key)
 
 
-def expected_panel(fake: Any, key: str, mtr: str | None) -> list[str]:
+def expected_panel(fake: Any, key: str, mtr: str | None) -> present.Page:
     row = row_of(fake, key)
     detail = fake.get_materials_lot(PROJECT, row.lot)
-    page = present.materials_text.lot_page(detail, row, present.Labels(), mtr=mtr, technical=False)
-    return present.plain_lines(page)
+    return present.materials_text.lot_page(detail, row, present.Labels(), mtr=mtr, technical=False)
 
 
 def test_the_page_is_mounted_and_registered() -> None:
@@ -167,7 +166,10 @@ def test_the_panel_of_the_first_row_is_the_terminal_lot_page(
 ) -> None:
     panel = world.web("bob").client.get(f"{PAGE}/panel/{PIPE_A}")
     assert panel.status_code == 200
-    assert htmlkit.parse(panel.text).pre().split("\n") == expected_panel(fakes, PIPE_A, MTR)
+    assert (
+        htmlkit.missing_facts(htmlkit.parse(panel.text).root, expected_panel(fakes, PIPE_A, MTR))
+        == []
+    )
 
 
 def test_on_the_web_location_never_drops_and_uom_may(world: Any, htmlkit: Any, fakes: Any) -> None:
@@ -230,7 +232,7 @@ def test_plain_viewer_asking_for_technical_gets_the_refusal_and_the_plain_panel(
 ) -> None:
     doc = htmlkit.parse(world.web("bob").client.get(PAGE, params={"mode": "technical"}).text)
     assert doc.status() == present.REFUSAL
-    assert doc.pre("log-panel").split("\n") == expected_panel(fakes, PIPE_A, MTR)
+    assert htmlkit.missing_facts(doc.by_id("log-panel"), expected_panel(fakes, PIPE_A, MTR)) == []
 
 
 def test_admin_asking_for_technical_gets_the_lot_id_the_plain_panel_lacks(
@@ -238,15 +240,16 @@ def test_admin_asking_for_technical_gets_the_lot_id_the_plain_panel_lacks(
 ) -> None:
     """The lot panel has a technical-only row (the lot id under Traceability): case (i) applies."""
     doc = htmlkit.parse(world.web("boss").client.get(PAGE, params={"mode": "technical"}).text)
-    shown = doc.pre("log-panel")
+    shown = doc.by_id("log-panel")
     row = row_of(fakes, PIPE_A)
     detail = fakes.get_materials_lot(PROJECT, row.lot)
-    technical = present.plain_lines(
-        present.materials_text.lot_page(detail, row, present.Labels(), mtr=MTR, technical=True)
+    technical = present.materials_text.lot_page(
+        detail, row, present.Labels(), mtr=MTR, technical=True
     )
-    assert shown.split("\n") == technical
-    assert technical != expected_panel(fakes, PIPE_A, MTR)
-    assert detail.id in shown
+    assert htmlkit.missing_facts(shown, technical) == []
+    plain = expected_panel(fakes, PIPE_A, MTR)
+    assert htmlkit.page_facts(technical) != htmlkit.page_facts(plain)
+    assert detail.id in htmlkit.visible(shown)
 
 
 def test_each_filter_keeps_the_matching_rows(world: Any, htmlkit: Any, fakes: Any) -> None:
@@ -311,7 +314,10 @@ def test_a_lot_with_no_heat_shows_its_lot_key_and_its_panel(
     assert len(lot_cell) == 1
     panel = bob.get(f"{PAGE}/panel/{BOLT}")
     assert panel.status_code == 200
-    assert htmlkit.parse(panel.text).pre().split("\n") == expected_panel(fakes, BOLT, MTR)
+    assert (
+        htmlkit.missing_facts(htmlkit.parse(panel.text).root, expected_panel(fakes, BOLT, MTR))
+        == []
+    )
 
 
 def test_the_panel_of_a_lot_whose_receipt_is_not_found_shows_no_mtr(
@@ -324,13 +330,19 @@ def test_the_panel_of_a_lot_whose_receipt_is_not_found_shows_no_mtr(
         panel = world.web("bob").client.get(f"{PAGE}/panel/{PIPE_A}")
     assert panel.status_code == 200
     assert MTR not in panel.text
-    assert htmlkit.parse(panel.text).pre().split("\n") == expected_panel(fakes, PIPE_A, None)
+    assert (
+        htmlkit.missing_facts(htmlkit.parse(panel.text).root, expected_panel(fakes, PIPE_A, None))
+        == []
+    )
 
 
 def test_the_panel_of_a_lot_with_a_slash_in_its_key(world: Any, htmlkit: Any, fakes: Any) -> None:
     panel = world.web("bob").client.get(f"{PAGE}/panel/{BOLT}")
     assert panel.status_code == 200
-    assert htmlkit.parse(panel.text).pre().split("\n") == expected_panel(fakes, BOLT, MTR)
+    assert (
+        htmlkit.missing_facts(htmlkit.parse(panel.text).root, expected_panel(fakes, BOLT, MTR))
+        == []
+    )
 
 
 def test_the_real_world_has_no_stock_and_no_panel(world: Any, htmlkit: Any) -> None:

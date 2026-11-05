@@ -130,7 +130,7 @@ def test_clause_5_technical_mode_shows_ids_to_an_admin_and_the_notice_to_a_plain
         .client.get(f"{P}/correspondence/panel/{number}", params={"mode": "technical"})
         .text
     )
-    assert rid in boss.pre()
+    assert rid in htmlkit.visible(boss.root)  # the panel is HTML: the id is in its text
     bob = htmlkit.parse(
         w.web("bob").client.get(f"{P}/correspondence", params={"mode": "technical"}).text
     )

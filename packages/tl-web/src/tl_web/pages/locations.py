@@ -64,14 +64,11 @@ class LocationWebLog(WebLog["LocationView"]):
             row, present.location_text.LOCATION_COLUMNS, technical=self.technical
         )
 
-    def panel_text(self, row: LocationView | None) -> list[str]:
-        if row is None:
-            return ["Nothing here."]
+    def panel_page(self, row: LocationView) -> present.Page:
         stock = self.client.list_materials_stock(self.project, location=row.code, limit=ROW_LIMIT)
-        page = present.location_text.location_page(
+        return present.location_text.location_page(
             row, self._all, stock, self.labels, technical=self.technical
         )
-        return present.plain_lines(page)
 
     def actions_for(self, row: LocationView) -> Sequence[WebAction]:
         return []  # read only: the location screen offers no action

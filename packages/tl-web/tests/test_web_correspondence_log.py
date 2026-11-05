@@ -54,15 +54,13 @@ def test_the_panel_of_a_letter_is_plain_lines_of_item_page(world: Any, htmlkit: 
     number = world.numbers["open"]
     reader = world.reads("bob")
     item = reader.get_correspondence("P123", number)
-    lines = present.plain_lines(
-        present.correspondence_text.item_page(
-            item, None, labels_for(world, "bob"), technical=False,
-            client=present.as_client(reader), project="P123",
-        )
+    page = present.correspondence_text.item_page(
+        item, None, labels_for(world, "bob"), technical=False,
+        client=present.as_client(reader), project="P123",
     )  # fmt: skip
     panel = world.web("bob").client.get(f"{BASE}/panel/{number}")
     assert panel.status_code == 200
-    assert htmlkit.parse(panel.text).pre().split("\n") == lines
+    assert htmlkit.missing_facts(htmlkit.parse(panel.text).root, page) == []
 
 
 def test_the_status_line_counts_all_loaded_rows_even_when_a_filter_narrows(
@@ -113,16 +111,14 @@ def test_technical_mode_is_refused_for_a_plain_user_and_shows_ids_for_an_admin(
     assert world.ids["open"] not in htmlkit.parse(plain.text).visible_text()
     reader = world.reads("boss")
     item = reader.get_correspondence("P123", number)
-    lines = present.plain_lines(
-        present.correspondence_text.item_page(
-            item, None, labels_for(world, "boss"), technical=True,
-            client=present.as_client(reader), project="P123",
-        )
+    page = present.correspondence_text.item_page(
+        item, None, labels_for(world, "boss"), technical=True,
+        client=present.as_client(reader), project="P123",
     )  # fmt: skip
-    assert world.ids["open"] in "\n".join(lines)
+    assert world.ids["open"] in " ".join(htmlkit.page_facts(page))
     panel = world.web("boss").client.get(f"{BASE}/panel/{number}?mode=technical")
     assert panel.status_code == 200
-    assert htmlkit.parse(panel.text).pre().split("\n") == lines
+    assert htmlkit.missing_facts(htmlkit.parse(panel.text).root, page) == []
     admin = htmlkit.parse(world.web("boss").client.get(f"{BASE}?mode=technical").text)
     assert present.REFUSAL not in admin.status()
 
@@ -139,7 +135,7 @@ def test_a_register_source_line_has_two_plain_lines_and_no_actions(
     note, no action buttons, status 200."""
     real = WebReadClient.list_correspondence
     number, subject = "TRN-0001", "Transmittal to the contractor"
-    lines = [f"{number}  {subject}", "Transmittal. Open it in the terminal for the full list."]
+    lines = [f"{number} {subject}", "Transmittal. Open it in the terminal for the full list."]
 
     def with_transmittal(self: WebReadClient, project: str, **kwargs: Any) -> list[Any]:
         rows = real(self, project, **kwargs)
@@ -157,7 +153,7 @@ def test_a_register_source_line_has_two_plain_lines_and_no_actions(
         assert answer.status_code == 200
         doc = htmlkit.parse(answer.text)
         assert doc.buttons() == []
-        assert doc.pre().split("\n") == lines
+        assert all(line in htmlkit.visible(doc.root) for line in lines)
 
 
 def test_a_real_transmittal_line_is_a_source_line_too(world: Any, htmlkit: Any) -> None:
@@ -165,7 +161,7 @@ def test_a_real_transmittal_line_is_a_source_line_too(world: Any, htmlkit: Any) 
     number = world.numbers["transmittal"]
     panel = htmlkit.parse(bob.get(f"{BASE}/panel/{number}").text)
     assert panel.buttons() == []
-    assert panel.pre().split("\n")[0].startswith(number)
+    assert number in htmlkit.visible(panel.root)
 
 
 def test_no_cookie_is_a_redirect_to_sign_in(world: Any) -> None:

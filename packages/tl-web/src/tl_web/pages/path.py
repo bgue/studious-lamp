@@ -137,10 +137,10 @@ class PathWebLog(WebLog["present.path_text.PathLine | present.path_text.Moved"])
             return present.path_text.compare_cells(row)
         return present.path_text.path_cells(row, self.labels)
 
-    def panel_text(self, row: PathRow | None) -> list[str]:
-        if row is None or self.view is None:
-            return ["Nothing here."]
-        page = present.path_text.path_page(
+    def panel_page(self, row: PathRow) -> present.Page:
+        if self.view is None:
+            return present.layout.Page(sections=(present.layout.Section("", note="Nothing here."),))
+        return present.path_text.path_page(
             self.view,
             self.versions,
             self._line_of(row),
@@ -148,7 +148,6 @@ class PathWebLog(WebLog["present.path_text.PathLine | present.path_text.Moved"])
             labels=self.labels,
             panel=True,
         )
-        return present.plain_lines(page)
 
     def _line_of(self, row: PathRow) -> present.path_text.PathLine | None:
         """The step the row is, or the step of the CWA a comparison row names (None when none)."""

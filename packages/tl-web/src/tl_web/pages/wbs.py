@@ -74,13 +74,9 @@ class WbsWebLog(WebLog["WbsRow"]):
     def row_cells(self, row: WbsRow) -> tuple[str, ...]:
         return present.wbs_text.wbs_cells(row, self._tree)
 
-    def panel_text(self, row: WbsRow | None) -> list[str]:
-        if row is None:
-            return ["Nothing here."]
+    def panel_page(self, row: WbsRow) -> present.Page:
         full = self.client.get_wbs_node(self.project, row.code)
-        return present.plain_lines(
-            present.wbs_text.wbs_page(full, self._tree, panel=True, technical=self.technical)
-        )
+        return present.wbs_text.wbs_page(full, self._tree, panel=True, technical=self.technical)
 
     def actions_for(self, row: WbsRow) -> Sequence[WebAction]:
         return []  # no awp command has an ACTION_UI row; writes come with P2-I2

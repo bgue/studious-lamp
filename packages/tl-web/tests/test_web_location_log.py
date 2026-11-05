@@ -126,14 +126,14 @@ def cells_of(fake: Any, code: str) -> tuple[str, ...]:
     return present.location_text.row_cells(row, COLUMNS)
 
 
-def expected_panel(fake: Any, code: str) -> list[str]:
+def expected_panel(fake: Any, code: str) -> present.Page:
     locations = locations_of(fake)
     row = next(loc for loc in locations if loc.code == code)
     stock = fake.list_materials_stock(PROJECT, location=code, limit=LIMIT)
     page = present.location_text.location_page(
         row, locations, stock, present.Labels(), technical=False
     )
-    return present.plain_lines(page)
+    return page
 
 
 def test_the_page_is_mounted_and_registered() -> None:
@@ -176,18 +176,20 @@ def test_the_panel_of_a_bay_is_the_terminal_location_page(
 ) -> None:
     panel = world.web("bob").client.get(f"{PAGE}/panel/{BAY_A}")
     assert panel.status_code == 200
-    assert htmlkit.parse(panel.text).pre().split("\n") == expected_panel(fakes, BAY_A)
+    assert htmlkit.missing_facts(htmlkit.parse(panel.text).root, expected_panel(fakes, BAY_A)) == []
 
 
 def test_the_panel_of_the_root_lists_its_children(world: Any, htmlkit: Any, fakes: Any) -> None:
     panel = world.web("bob").client.get(f"{PAGE}/panel/{ROOT}")
     assert panel.status_code == 200
-    lines = htmlkit.parse(panel.text).pre().split("\n")
-    assert lines == expected_panel(fakes, ROOT)
-    assert "Children" in lines
-    assert any(BAY_A in line and "Bay A" in line for line in lines)
-    assert any(BAY_B in line and "Bay B" in line for line in lines)
-    assert "No stock here" in lines
+    root = htmlkit.parse(panel.text).root
+    page = expected_panel(fakes, ROOT)
+    assert htmlkit.missing_facts(root, page) == []
+    assert "Children" in htmlkit.page_facts(page)
+    shown = htmlkit.visible(root)
+    assert BAY_A in shown and "Bay A" in shown
+    assert BAY_B in shown and "Bay B" in shown
+    assert "No stock here" in htmlkit.page_facts(page)
 
 
 def test_the_panel_of_a_leaf_with_stock_lists_its_contents(
@@ -195,8 +197,9 @@ def test_the_panel_of_a_leaf_with_stock_lists_its_contents(
 ) -> None:
     panel = world.web("bob").client.get(f"{PAGE}/panel/{BAY_B}")
     assert panel.status_code == 200
-    shown = htmlkit.parse(panel.text).pre()
-    assert shown.split("\n") == expected_panel(fakes, BAY_B)
+    root = htmlkit.parse(panel.text).root
+    assert htmlkit.missing_facts(root, expected_panel(fakes, BAY_B)) == []
+    shown = htmlkit.visible(root)
     assert "Lot" in shown and "Item" in shown and "On hand" in shown
     assert "H4471" in shown and "PIPE-6S" in shown
     assert "E7018-26B" in shown and "WELD-E7018" in shown
@@ -212,9 +215,9 @@ def test_the_panel_of_a_leaf_with_no_stock_shows_the_empty_note(
     with mock.patch.object(WebReadClient, "list_materials_stock", no_stock):
         panel = world.web("bob").client.get(f"{PAGE}/panel/{BAY_B}")
     assert panel.status_code == 200
-    shown = htmlkit.parse(panel.text).pre()
-    assert "No stock here" in shown
-    assert "Lot" not in shown
+    root = htmlkit.parse(panel.text).root
+    assert "No stock here" in htmlkit.visible(root)
+    assert "Lot" not in [th.text() for th in root.find_all("th")]
 
 
 def test_the_status_line_is_the_summary(world: Any, htmlkit: Any, fakes: Any) -> None:
@@ -269,7 +272,7 @@ def test_plain_viewer_asking_for_technical_gets_the_refusal_and_the_plain_panel(
 ) -> None:
     doc = htmlkit.parse(world.web("bob").client.get(PAGE, params={"mode": "technical"}).text)
     assert doc.status() == present.REFUSAL
-    assert doc.pre("log-panel").split("\n") == expected_panel(fakes, ROOT)
+    assert htmlkit.missing_facts(doc.by_id("log-panel"), expected_panel(fakes, ROOT)) == []
 
 
 def test_admin_asking_for_technical_gets_the_location_id_the_plain_panel_lacks(
@@ -278,16 +281,17 @@ def test_admin_asking_for_technical_gets_the_location_id_the_plain_panel_lacks(
     """The location panel has a technical-only section (the location id, Location): case (i)
     applies."""
     doc = htmlkit.parse(world.web("boss").client.get(PAGE, params={"mode": "technical"}).text)
-    shown = doc.pre("log-panel")
+    shown = doc.by_id("log-panel")
     locations = locations_of(fakes)
     row = next(loc for loc in locations if loc.code == ROOT)
     stock = fakes.list_materials_stock(PROJECT, location=ROOT, limit=LIMIT)
-    technical = present.plain_lines(
-        present.location_text.location_page(row, locations, stock, present.Labels(), technical=True)
+    technical = present.location_text.location_page(
+        row, locations, stock, present.Labels(), technical=True
     )
-    assert shown.split("\n") == technical
-    assert technical != expected_panel(fakes, ROOT)
-    assert row.id in shown
+    assert htmlkit.missing_facts(shown, technical) == []
+    plain = expected_panel(fakes, ROOT)
+    assert htmlkit.page_facts(technical) != htmlkit.page_facts(plain)
+    assert row.id in htmlkit.visible(shown)
 
 
 def test_the_real_world_has_no_locations_and_no_panel(world: Any, htmlkit: Any) -> None:

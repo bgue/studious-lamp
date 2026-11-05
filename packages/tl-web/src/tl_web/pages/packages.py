@@ -68,12 +68,8 @@ class PackageWebLog(WebLog["PackageRow"]):
     def row_cells(self, row: PackageRow) -> tuple[str, ...]:
         return present.package_text.package_cells(row)
 
-    def panel_text(self, row: PackageRow | None) -> list[str]:
-        if row is None:
-            return ["Nothing here."]
-        return present.plain_lines(
-            present.package_text.package_page(row, panel=True, technical=self.technical)
-        )
+    def panel_page(self, row: PackageRow) -> present.Page:
+        return present.package_text.package_page(row, panel=True, technical=self.technical)
 
     def actions_for(self, row: PackageRow) -> Sequence[WebAction]:
         return []  # no awp command has an ACTION_UI row (writes come with P2-I2)

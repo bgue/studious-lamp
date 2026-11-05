@@ -107,15 +107,16 @@ class StockWebLog(WebLog["StockRowView"]):
     def panel_text(self, row: StockRowView | None) -> list[str]:
         if row is None:
             return ["No stock on hand"]
+        return super().panel_text(row)
+
+    def panel_page(self, row: StockRowView) -> present.Page:
         detail = self.client.get_materials_lot(self.project, row.lot)
-        return present.plain_lines(
-            present.materials_text.lot_page(
-                detail,
-                row,
-                self.labels,
-                mtr=self._mtr_of(detail.receipt),
-                technical=self.technical,
-            )
+        return present.materials_text.lot_page(
+            detail,
+            row,
+            self.labels,
+            mtr=self._mtr_of(detail.receipt),
+            technical=self.technical,
         )
 
     def actions_for(self, row: StockRowView) -> Sequence[WebAction]:

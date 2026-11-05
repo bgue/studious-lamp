@@ -128,8 +128,8 @@ def lines_of(fake: Any) -> list[cwa_text.CwaLine]:
     )
 
 
-def expected_panel(line: cwa_text.CwaLine, technical: bool = False) -> list[str]:
-    return present.plain_lines(cwa_text.cwa_page(line, panel=True, technical=technical))
+def expected_panel(line: cwa_text.CwaLine, technical: bool = False) -> present.Page:
+    return cwa_text.cwa_page(line, panel=True, technical=technical)
 
 
 def test_the_page_is_mounted_and_registered() -> None:
@@ -169,8 +169,9 @@ def test_the_panel_is_the_terminal_panel_including_a_retired_area(
     panel = world.web("bob").client.get(f"{PAGE}/panel/{code}")
     assert panel.status_code == 200
     line = next(line for line in lines_of(load_fake()) if line.row.code == code)
-    assert htmlkit.parse(panel.text).pre().split("\n") == expected_panel(line)
-    assert ("Retired" in expected_panel(line)) == (code == "A2")
+    assert htmlkit.missing_facts(htmlkit.parse(panel.text).root, expected_panel(line)) == []
+    retired = any("Retired" in fact for fact in htmlkit.page_facts(expected_panel(line)))
+    assert retired == (code == "A2")
 
 
 def test_the_status_line_is_the_summary(world: Any, htmlkit: Any, fakes: None) -> None:
@@ -201,9 +202,10 @@ def test_no_path_yet_gives_no_positions_and_the_page_answers(world: Any, htmlkit
         assert all(cells[2] == EMPTY for cells in full)
         assert doc.rows("log-table") == htmlkit.project_cells(headers, COLUMNS, full)
         assert doc.status() == present.layout.join_facts("2 CWAs", "1 retired")
-        panel = htmlkit.parse(bob.get(f"{PAGE}/panel/A1").text).pre().split("\n")
+        panel = htmlkit.parse(bob.get(f"{PAGE}/panel/A1").text).root
         line = next(line for line in lines_of(load_fake()) if line.row.code == "A1")
-        assert panel == expected_panel(dataclasses.replace(line, position=None, steps=0))
+        want = expected_panel(dataclasses.replace(line, position=None, steps=0))
+        assert htmlkit.missing_facts(panel, want) == []
 
 
 def test_no_cookie_is_a_redirect_to_sign_in(world: Any, fakes: None) -> None:
@@ -223,12 +225,12 @@ def test_plain_and_technical_wording(world: Any, htmlkit: Any, fakes: None) -> N
     line = next(line for line in lines_of(load_fake()) if line.row.code == "A1")
     bob = htmlkit.parse(world.web("bob").client.get(f"{PAGE}?mode=technical&sel=A1").text)
     assert bob.status() == present.REFUSAL
-    assert bob.pre("log-panel").split("\n") == expected_panel(line)
+    assert htmlkit.missing_facts(bob.by_id("log-panel"), expected_panel(line)) == []
     boss = htmlkit.parse(world.web("boss").client.get(f"{PAGE}?mode=technical&sel=A1").text)
-    technical = boss.pre("log-panel").split("\n")
-    assert technical == expected_panel(line, technical=True)
-    assert any("CWA-A1" in text for text in technical)
-    assert not any("CWA-A1" in text for text in expected_panel(line))
+    boss_panel = boss.by_id("log-panel")
+    assert htmlkit.missing_facts(boss_panel, expected_panel(line, technical=True)) == []
+    assert "CWA-A1" in htmlkit.visible(boss_panel)
+    assert not any("CWA-A1" in fact for fact in htmlkit.page_facts(expected_panel(line)))
 
 
 def test_a_real_world_without_awp_data_is_an_empty_register(world: Any, htmlkit: Any) -> None:
