@@ -100,6 +100,9 @@ class MovementWebLog(WebLog["MovementView"]):
     def panel_text(self, row: MovementView | None) -> list[str]:
         if row is None:
             return ["No movements"]
+        return super().panel_text(row)
+
+    def panel_page(self, row: MovementView) -> present.Page:
         cells = present.materials_text.movement_cells(row, self.columns(), self.labels)
         props = [
             present.layout.prop(name, cell)
@@ -107,11 +110,10 @@ class MovementWebLog(WebLog["MovementView"]):
         ]
         props.append(present.layout.prop("Reason", row.reason))
         props.append(present.layout.prop("Person", row.person))
-        page = present.layout.Page(
+        return present.layout.Page(
             identity=present.layout.identity_line(f"#{row.seq}", _kind_word(row)),
             sections=(present.layout.Section("", tuple(props)),),
         )
-        return present.plain_lines(page)
 
     def actions_for(self, row: MovementView) -> Sequence[WebAction]:
         return []  # read only: a movement has no command

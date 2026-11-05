@@ -240,3 +240,34 @@ def project_cells(
     """``full`` (all columns, ``names`` order) cut to the columns the page shows (``headers``)."""
     positions = [list(names).index(h) for h in headers]
     return [[cells[i] for i in positions] for cells in full]
+
+
+def page_facts(page: Any) -> list[str]:
+    """The texts a layout ``Page`` must show as HTML: identity, state, summary, each heading, the
+    note of an empty section, each ``Prop`` label and value (``—`` when empty), each ``TableRow``
+    column and cell, and each prose line. Duck-typed on ``tl_tui.layout`` (no import needed)."""
+    facts: list[str] = [page.identity, page.state, page.summary]
+    for sec in page.sections:
+        facts.append(sec.heading)
+        if not sec.items:
+            facts.append(sec.note)
+        for item in sec.items:
+            if isinstance(item, str):
+                facts.append(item)
+            elif hasattr(item, "cells"):
+                facts.extend(item.columns)
+                facts.extend(c if isinstance(c, str) else c.text for c in item.cells)
+            else:
+                facts.extend([item.label, item.value or "—"])  # "—": an empty value shows a dash
+    return [" ".join(f.split()) for f in facts if f and f.strip()]
+
+
+def visible(node: Node) -> str:
+    """The text of ``node`` with every run of white space made one space."""
+    return " ".join(node.text().split())
+
+
+def missing_facts(root: Node, page: Any) -> list[str]:
+    """The ``page_facts`` that ``root`` (the HTML of the panel) does not show, in order."""
+    shown = visible(root)
+    return [fact for fact in page_facts(page) if fact not in shown]

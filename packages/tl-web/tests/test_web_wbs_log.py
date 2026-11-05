@@ -112,10 +112,10 @@ def tree_of(fake: Any) -> list[Any]:
     return fake.wbs_tree(PROJECT)
 
 
-def expected_panel(fake: Any, code: str) -> list[str]:
+def expected_panel(fake: Any, code: str) -> present.Page:
     tree = tree_of(fake)
     node = fake.get_wbs_node(PROJECT, code)
-    return present.plain_lines(present.wbs_text.wbs_page(node, tree, panel=True, technical=False))
+    return present.wbs_text.wbs_page(node, tree, panel=True, technical=False)
 
 
 def test_the_page_is_mounted_and_registered() -> None:
@@ -143,7 +143,7 @@ def test_the_panel_of_a_dotted_code_is_the_terminal_page(
 ) -> None:
     panel = world.web("bob").client.get(f"{PAGE}/panel/1.1")
     assert panel.status_code == 200
-    assert htmlkit.parse(panel.text).pre().split("\n") == expected_panel(fakes, "1.1")
+    assert htmlkit.missing_facts(htmlkit.parse(panel.text).root, expected_panel(fakes, "1.1")) == []
 
 
 def test_the_status_line_is_the_summary(world: Any, htmlkit: Any, fakes: Any) -> None:
@@ -195,7 +195,7 @@ def test_plain_viewer_asking_for_technical_gets_the_refusal_and_the_plain_panel(
 ) -> None:
     doc = htmlkit.parse(world.web("bob").client.get(PAGE, params={"mode": "technical"}).text)
     assert doc.status() == present.REFUSAL
-    assert doc.pre("log-panel").split("\n") == expected_panel(fakes, "1")
+    assert htmlkit.missing_facts(doc.by_id("log-panel"), expected_panel(fakes, "1")) == []
 
 
 def test_depth_one_leaves_one_row_and_the_status_says_depth(

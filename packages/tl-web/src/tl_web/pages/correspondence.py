@@ -53,13 +53,11 @@ class CorrespondenceWebLog(WebLog["RegisterLineView"]):
     def row_cells(self, row: RegisterLineView) -> tuple[str, ...]:
         return present.correspondence_text.register_cells(row, self.labels)
 
-    def panel_text(self, row: RegisterLineView | None) -> list[str]:
-        if row is None:
-            return ["Nothing here."]
+    def panel_page(self, row: RegisterLineView) -> present.Page | None:
         if row.kind != "item":
-            return [f"{row.number}  {row.subject}", TRANSMITTAL_NOTE]
+            return None  # a transmittal's panel is its two lines, from panel_text
         item = self.client.get_correspondence(self.project, row.number)
-        page = present.correspondence_text.item_page(
+        return present.correspondence_text.item_page(
             item,
             None,
             self.labels,
@@ -67,7 +65,13 @@ class CorrespondenceWebLog(WebLog["RegisterLineView"]):
             client=present.as_client(self.client),
             project=self.project,
         )
-        return present.plain_lines(page)
+
+    def panel_text(self, row: RegisterLineView | None) -> list[str]:
+        if row is None:
+            return ["Nothing here."]
+        if row.kind != "item":
+            return [f"{row.number}  {row.subject}", TRANSMITTAL_NOTE]
+        return super().panel_text(row)
 
     def actions_for(self, row: RegisterLineView) -> Sequence[WebAction]:
         if row.kind != "item":

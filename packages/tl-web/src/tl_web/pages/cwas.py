@@ -57,11 +57,8 @@ class CwaWebLog(WebLog["present.cwa_text.CwaLine"]):
     def row_cells(self, row: present.cwa_text.CwaLine) -> tuple[str, ...]:
         return present.cwa_text.cwa_cells(row)
 
-    def panel_text(self, row: present.cwa_text.CwaLine | None) -> list[str]:
-        if row is None:
-            return ["Nothing here."]
-        page = present.cwa_text.cwa_page(row, panel=True, technical=self.technical)
-        return present.plain_lines(page)
+    def panel_page(self, row: present.cwa_text.CwaLine) -> present.Page:
+        return present.cwa_text.cwa_page(row, panel=True, technical=self.technical)
 
     def actions_for(self, row: present.cwa_text.CwaLine) -> Sequence[WebAction]:
         return []  # the CWA commands have no ACTION_UI row; writes come with P2-I2

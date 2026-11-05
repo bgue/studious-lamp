@@ -67,12 +67,9 @@ class ItemWebLog(WebLog["MaterialItemView"]):
             row, present.item_text.ITEM_COLUMNS, self.labels, technical=self.technical
         )
 
-    def panel_text(self, row: MaterialItemView | None) -> list[str]:
-        if row is None:
-            return ["Nothing here."]
+    def panel_page(self, row: MaterialItemView) -> present.Page:
         projects = self.client.list_materials_item_projects(row.code)
-        page = present.item_text.item_page(row, projects, self.labels, technical=self.technical)
-        return present.plain_lines(page)
+        return present.item_text.item_page(row, projects, self.labels, technical=self.technical)
 
     def actions_for(self, row: MaterialItemView) -> Sequence[WebAction]:
         return []  # read only: the item library offers no action

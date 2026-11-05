@@ -99,12 +99,10 @@ def test_the_panel_of_one_cwp_is_the_cwp_page_as_plain_lines(
     number = fake.list_cwps("P123")[0].number
     panel = world.web("bob").client.get(f"{PAGE}/panel/{number}")
     assert panel.status_code == 200
-    want = present.plain_lines(
-        present.awp_text.cwp_page(
-            fake.get_cwp("P123", number), labels_for(world, "bob"), technical=False, panel=True
-        )
+    want = present.awp_text.cwp_page(
+        fake.get_cwp("P123", number), labels_for(world, "bob"), technical=False, panel=True
     )
-    assert htmlkit.parse(panel.text).pre().split("\n") == want
+    assert htmlkit.missing_facts(htmlkit.parse(panel.text).root, want) == []
 
 
 def test_the_status_line_is_the_summary(world: Any, htmlkit: Any, fakes: None) -> None:

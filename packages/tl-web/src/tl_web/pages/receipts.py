@@ -63,12 +63,9 @@ class ReceiptWebLog(WebLog["ReceiptView"]):
             row, present.receipt_text.RECEIPT_COLUMNS, self.labels, technical=self.technical
         )
 
-    def panel_text(self, row: ReceiptView | None) -> list[str]:
-        if row is None:
-            return ["Nothing here."]
+    def panel_page(self, row: ReceiptView) -> present.Page:
         detail = self.client.get_materials_receipt(self.project, row.number)
-        page = present.receipt_text.receipt_page(detail, self.labels, technical=self.technical)
-        return present.plain_lines(page)
+        return present.receipt_text.receipt_page(detail, self.labels, technical=self.technical)
 
     def actions_for(self, row: ReceiptView) -> Sequence[WebAction]:
         return []  # read only: the receipt commands have no ACTION_UI row yet (P2-I2)

@@ -65,12 +65,9 @@ class MtoWebLog(WebLog["MtoLineView"]):
     def row_cells(self, row: MtoLineView) -> tuple[str, ...]:
         return present.mto_text.row_cells(row, self.columns(), technical=self.technical)
 
-    def panel_text(self, row: MtoLineView | None) -> list[str]:
-        if row is None:
-            return ["Nothing here."]
+    def panel_page(self, row: MtoLineView) -> present.Page:
         detail = self.client.get_materials_mto_line(self.project, row.key)
-        page = present.mto_text.mto_page(detail, self.labels, technical=self.technical)
-        return present.plain_lines(page)
+        return present.mto_text.mto_page(detail, self.labels, technical=self.technical)
 
     def actions_for(self, row: MtoLineView) -> Sequence[WebAction]:
         return []  # read only: the take-off lines have no ACTION_UI row

@@ -129,18 +129,17 @@ def step_of(fake: Any, version: int, code: str) -> present.path_text.PathLine:
     return next(line for line in lines_of(fake, version) if line.step.cwa == code)
 
 
-def panel_lines(
+def panel_page(
     fake: Any,
     version: int,
     line: present.path_text.PathLine | None,
     previous: int | None = None,
-) -> list[str]:
+) -> present.Page:
     view = fake.get_path(PROJECT, version)
     earlier = None if previous is None else fake.get_path(PROJECT, previous)
-    page = present.path_text.path_page(
+    return present.path_text.path_page(
         view, fake.list_path_versions(PROJECT), line, previous=earlier, panel=True
     )
-    return present.plain_lines(page)
 
 
 def row_panel(client: Any, doc: Any, number: str) -> list[str]:
@@ -177,7 +176,8 @@ def test_the_panel_of_a_step_is_the_terminal_page_of_the_version(
     bob = world.web("bob").client
     doc = htmlkit.parse(bob.get(PAGE).text)
     panel = htmlkit.parse(row_panel(bob, doc, "2"))
-    assert panel.pre().split("\n") == panel_lines(fakes, 2, step_of(fakes, 2, "A2"), previous=1)
+    want = panel_page(fakes, 2, step_of(fakes, 2, "A2"), previous=1)
+    assert htmlkit.missing_facts(panel.root, want) == []
 
 
 def test_the_status_line_is_the_summary(world: Any, htmlkit: Any, fakes: Any) -> None:
@@ -213,8 +213,8 @@ def test_plain_viewer_asking_for_technical_gets_the_refusal_and_the_plain_panel(
 ) -> None:
     doc = htmlkit.parse(world.web("bob").client.get(PAGE, params={"mode": "technical"}).text)
     assert doc.status() == present.REFUSAL
-    want = panel_lines(fakes, 2, step_of(fakes, 2, "A1"), previous=1)
-    assert doc.pre("log-panel").split("\n") == want
+    want = panel_page(fakes, 2, step_of(fakes, 2, "A1"), previous=1)
+    assert htmlkit.missing_facts(doc.by_id("log-panel"), want) == []
 
 
 def test_version_1_rows_and_status_are_the_text_module_of_version_1(
@@ -230,8 +230,9 @@ def test_version_1_rows_and_status_are_the_text_module_of_version_1(
     # version 1's page (no earlier version, so no changed steps)
     assert "version=1" in row_panel_link(doc, "1")
     panel = htmlkit.parse(row_panel(bob, doc, "1"))
-    assert panel.pre().split("\n") == panel_lines(fakes, 1, step_of(fakes, 1, "A1"))
-    assert panel.pre().split("\n") != panel_lines(fakes, 2, step_of(fakes, 2, "A1"), previous=1)
+    assert htmlkit.missing_facts(panel.root, panel_page(fakes, 1, step_of(fakes, 1, "A1"))) == []
+    other = panel_page(fakes, 2, step_of(fakes, 2, "A1"), previous=1)
+    assert htmlkit.missing_facts(panel.root, other) != []  # version 2's page is not version 1's
 
 
 def row_panel_link(doc: Any, number: str) -> str:
@@ -252,7 +253,8 @@ def test_compare_rows_are_the_compare_cells_of_the_two_versions(
     link = row_panel_link(doc, "A2")
     assert "version=2" in link and "compare=1" in link
     panel = htmlkit.parse(row_panel(bob, doc, "A2"))
-    assert panel.pre().split("\n") == panel_lines(fakes, 2, step_of(fakes, 2, "A2"), previous=1)
+    want = panel_page(fakes, 2, step_of(fakes, 2, "A2"), previous=1)
+    assert htmlkit.missing_facts(panel.root, want) == []
 
 
 def test_version_1_with_compare_shows_the_steps_and_no_earlier_version(
@@ -295,9 +297,8 @@ def test_the_panel_of_the_compare_row_is_the_version_it_compares(
     doc = htmlkit.parse(bob.get(COMPARE_PAGE).text)
     link = row_panel_link(doc, "A1")
     assert "version=2" in link and "compare=1" in link
-    assert htmlkit.parse(row_panel(bob, doc, "A1")).pre().split("\n") == panel_lines(
-        fakes, 2, step_of(fakes, 2, "A1"), previous=1
-    )
+    want = panel_page(fakes, 2, step_of(fakes, 2, "A1"), previous=1)
+    assert htmlkit.missing_facts(htmlkit.parse(row_panel(bob, doc, "A1")).root, want) == []
 
 
 def test_a_real_world_without_a_path_is_an_empty_register(world: Any, htmlkit: Any) -> None:

@@ -101,10 +101,9 @@ def labels_for(w: Any, name: str) -> Any:
     return present.load_labels(present.as_client(w.reads(name)), SCOPE, ("core.Record",))
 
 
-def expected_panel(fake: Any, labels: Any, number: str, *, technical: bool = False) -> list[str]:
+def expected_page(fake: Any, labels: Any, number: str, *, technical: bool = False) -> Any:
     detail = fake.get_materials_receipt(PROJECT, number)
-    page = present.receipt_text.receipt_page(detail, labels, technical=technical)
-    return present.plain_lines(page)
+    return present.receipt_text.receipt_page(detail, labels, technical=technical)
 
 
 @pytest.fixture
@@ -148,8 +147,9 @@ def test_regions_headers_and_cells_equal_the_terminal_cells(
 def test_the_panel_lines_are_the_receipt_page(world: Any, htmlkit: Any, fakes: Any) -> None:
     panel = world.web("bob").client.get(f"{PAGE}/panel/RCV-0001")
     assert panel.status_code == 200
-    want = expected_panel(fakes, labels_for(world, "bob"), "RCV-0001")
-    assert htmlkit.parse(panel.text).pre().split("\n") == want
+    want = expected_page(fakes, labels_for(world, "bob"), "RCV-0001")
+    assert htmlkit.parse(panel.text).pre() == ""  # no terminal text: the page is HTML
+    assert htmlkit.missing_facts(htmlkit.parse(panel.text).root, want) == []
 
 
 def test_the_status_line_is_the_summary(world: Any, htmlkit: Any, fakes: Any) -> None:
@@ -196,14 +196,17 @@ def test_plain_versus_technical(world: Any, htmlkit: Any, fakes: Any) -> None:
     labels = labels_for(world, "bob")
     plain = htmlkit.parse(world.web("bob").client.get(PAGE, params={"mode": "technical"}).text)
     assert plain.status() == present.REFUSAL
-    assert plain.pre("log-panel").split("\n") == expected_panel(fakes, labels, "RCV-0001")
+    assert (
+        htmlkit.missing_facts(plain.by_id("log-panel"), expected_page(fakes, labels, "RCV-0001"))
+        == []
+    )
 
     boss = htmlkit.parse(world.web("boss").client.get(PAGE, params={"mode": "technical"}).text)
     assert boss.status() != present.REFUSAL
-    shown = boss.pre("log-panel").split("\n")
-    assert shown == expected_panel(fakes, labels, "RCV-0001", technical=True)
-    assert shown != expected_panel(fakes, labels, "RCV-0001")
-    assert any("RCV-1" in line for line in shown)
+    tech = expected_page(fakes, labels, "RCV-0001", technical=True)
+    assert htmlkit.missing_facts(boss.by_id("log-panel"), tech) == []
+    assert htmlkit.page_facts(tech) != htmlkit.page_facts(expected_page(fakes, labels, "RCV-0001"))
+    assert "RCV-1" in htmlkit.visible(boss.by_id("log-panel"))
 
 
 def test_open_only_drops_the_accepted_receipt(world: Any, htmlkit: Any, fakes: Any) -> None:
@@ -219,7 +222,7 @@ def test_missing_mtr_keeps_the_receipt_and_its_panel_has_the_mtr_line(
     found = htmlkit.parse(bob.get(PAGE, params={"mtr": "missing"}).text)
     assert [r.get("data-number") for r in found.log_rows()] == ["RCV-0003"]
     panel = htmlkit.parse(bob.get(f"{PAGE}/panel/RCV-0003").text)
-    assert MTR_LINE in panel.pre().split("\n")
+    assert MTR_LINE in htmlkit.visible(panel.root)
 
 
 def test_a_rejected_receipt_panel_has_the_rejection_reason(
@@ -253,13 +256,11 @@ def test_a_rejected_receipt_panel_has_the_rejection_reason(
     ):
         panel = world.web("bob").client.get(f"{PAGE}/panel/RCV-0004")
     assert panel.status_code == 200
-    lines = htmlkit.parse(panel.text).pre().split("\n")
-    want = present.plain_lines(
-        present.receipt_text.receipt_page(rejected, labels_for(world, "bob"), technical=False)
-    )
-    assert lines == want
-    assert any("Rejection reason" in line for line in lines)
-    assert any(reason in line for line in lines)
+    want = present.receipt_text.receipt_page(rejected, labels_for(world, "bob"), technical=False)
+    got = htmlkit.parse(panel.text)
+    assert htmlkit.missing_facts(got.root, want) == []
+    assert "Rejection reason" in htmlkit.visible(got.root)
+    assert reason in htmlkit.visible(got.root)
 
 
 def test_an_unknown_open_value_is_ignored(world: Any, htmlkit: Any, fakes: Any) -> None:

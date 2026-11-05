@@ -150,9 +150,12 @@ def test_the_panel_of_a_key_with_a_slash_and_an_at_sign_is_the_text_page(
     assert panel.status_code == 200
     detail = fakes.get_materials_mto_line("P123", MTO_1)
     page = present.mto_text.mto_page(detail, labels_for(world, "bob"), technical=False)
-    lines = htmlkit.parse(panel.text).pre().split("\n")
-    assert lines == present.plain_lines(page)
-    assert lines[0] == f"{MTO_1} · Carbon steel pipe 6 in Sch 40"
+    got = htmlkit.parse(panel.text)
+    assert htmlkit.missing_facts(got.root, page) == []
+    assert (
+        got.root.find("h2", class_="tl-page-id").text()
+        == f"{MTO_1} · Carbon steel pipe 6 in Sch 40"
+    )
 
 
 def test_the_status_line_is_the_summary(world: Any, htmlkit: Any, fakes: Any) -> None:
@@ -217,36 +220,49 @@ def test_a_covered_line_reads_covered_and_a_short_one_reads_short(
     world: Any, htmlkit: Any, fakes: Any
 ) -> None:
     bob = world.web("bob").client
-    covered = htmlkit.parse(bob.get(f"{PAGE}/panel/{MTO_3}").text).pre().split("\n")
-    short = htmlkit.parse(bob.get(f"{PAGE}/panel/{MTO_1}").text).pre().split("\n")
-    assert covered[1] == "Covered"
-    assert short[1] == "Short 3.25 M"
+    covered = htmlkit.parse(bob.get(f"{PAGE}/panel/{MTO_3}").text).root
+    short = htmlkit.parse(bob.get(f"{PAGE}/panel/{MTO_1}").text).root
+    badges = [n.text() for n in covered.find_all("span")]
+    assert "Covered" in badges
+    assert "Short 3.25 M" in [n.text() for n in short.find_all("span")]
 
 
 def test_reservations_and_open_receipts_tables(world: Any, htmlkit: Any, fakes: Any) -> None:
     bob = world.web("bob").client
-    lines = htmlkit.parse(bob.get(f"{PAGE}/panel/{MTO_1}").text).pre().split("\n")
-    assert "Reservations" in lines and "Open receipts" in lines
-    assert "Lot      Location  Qty" in lines and "PL-4471  WH-A      4.25" in lines
-    assert "RCV-0003  Received  2026-11-02   6" in lines
-    none = htmlkit.parse(bob.get(f"{PAGE}/panel/{MTO_2}").text).pre().split("\n")
-    assert "No reservations" in none and "No open receipts" in none
+    detail = fakes.get_materials_mto_line("P123", MTO_1)
+    page = present.mto_text.mto_page(detail, labels_for(world, "bob"), technical=False)
+    lines = htmlkit.parse(bob.get(f"{PAGE}/panel/{MTO_1}").text).root
+    assert htmlkit.missing_facts(lines, page) == []
+    assert {"Reservations", "Open receipts", "Lot", "Location", "Qty"} <= {
+        h.text() for h in lines.find_all("h3")
+    } | {h.text() for h in lines.find_all("th")}
+    assert "PL-4471" in [c.text() for c in lines.find_all("td")]
+    assert "RCV-0003" in [c.text() for c in lines.find_all("td")]
+    empty = fakes.get_materials_mto_line("P123", MTO_2)
+    none_page = present.mto_text.mto_page(empty, labels_for(world, "bob"), technical=False)
+    none = htmlkit.parse(bob.get(f"{PAGE}/panel/{MTO_2}").text).root
+    assert htmlkit.missing_facts(none, none_page) == []
+    assert "No reservations" in htmlkit.page_facts(none_page)
+    assert "No open receipts" in htmlkit.page_facts(none_page)
 
 
 def test_plain_versus_technical(world: Any, htmlkit: Any, fakes: Any) -> None:
     bob = world.web("bob").client
     refused = htmlkit.parse(bob.get(PAGE, params={"mode": "technical"}).text)
     assert refused.status() == present.REFUSAL
-    plain = htmlkit.parse(bob.get(f"{PAGE}/panel/{MTO_1}").text).pre()
+    plain = htmlkit.parse(bob.get(f"{PAGE}/panel/{MTO_1}").text)
     bob_tech = htmlkit.parse(bob.get(f"{PAGE}/panel/{MTO_1}", params={"mode": "technical"}).text)
-    assert bob_tech.pre() == plain
+    detail = fakes.get_materials_mto_line("P123", MTO_1)
+    plain_page = present.mto_text.mto_page(detail, labels_for(world, "bob"), technical=False)
+    assert htmlkit.missing_facts(bob_tech.root, plain_page) == []  # a plain viewer gets plain
+    assert htmlkit.missing_facts(plain.root, plain_page) == []
     boss = world.web("boss").client
     tech = htmlkit.parse(boss.get(f"{PAGE}/panel/{MTO_1}", params={"mode": "technical"}).text)
     detail = fakes.get_materials_mto_line("P123", MTO_1)
     want = present.mto_text.mto_page(detail, labels_for(world, "boss"), technical=True)
-    assert tech.pre().split("\n") == present.plain_lines(want)
-    assert "Id        MTL-1" in tech.pre().split("\n")
-    assert "MTL-1" not in plain
+    assert htmlkit.missing_facts(tech.root, want) == []
+    assert "MTL-1" in htmlkit.visible(tech.root)
+    assert "MTL-1" not in htmlkit.visible(plain.root)
 
 
 def test_the_real_world_has_an_empty_table_and_404_panels(world: Any, htmlkit: Any) -> None:

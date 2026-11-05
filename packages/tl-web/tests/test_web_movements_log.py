@@ -112,7 +112,7 @@ def shown_positions(full: list[tuple[str, ...]]) -> list[int]:
     return present.visible_columns(list(COLUMNS), full, KEEP)
 
 
-def expected_panel(row: Any, labels: Any) -> list[str]:
+def expected_panel(row: Any, labels: Any) -> present.Page:
     cells = present.materials_text.movement_cells(row, COLUMNS, labels)
     props = [present.layout.prop(name, cell) for name, cell in zip(COLUMNS, cells, strict=True)]
     props.append(present.layout.prop("Reason", row.reason))
@@ -122,7 +122,7 @@ def expected_panel(row: Any, labels: Any) -> list[str]:
         identity=present.layout.identity_line(f"#{row.seq}", kind),
         sections=(present.layout.Section("", tuple(props)),),
     )
-    return present.plain_lines(page)
+    return page
 
 
 @pytest.fixture
@@ -174,7 +174,8 @@ def test_the_panel_of_each_movement_is_the_terminal_panel(
     for row in all_rows(fakes):
         panel = bob.get(f"{PAGE}/panel/{number_of(row.seq)}")
         assert panel.status_code == 200
-        assert htmlkit.parse(panel.text).pre().split("\n") == expected_panel(row, labels)
+        got = htmlkit.parse(panel.text)
+        assert htmlkit.missing_facts(got.root, expected_panel(row, labels)) == []
 
 
 def test_the_panel_has_reason_and_person(world: Any, htmlkit: Any, fakes: Any) -> None:
@@ -184,10 +185,9 @@ def test_the_panel_has_reason_and_person(world: Any, htmlkit: Any, fakes: Any) -
     with_person = next(m for m in rows if m.person)
     reason = htmlkit.parse(bob.get(f"{PAGE}/panel/{number_of(with_reason.seq)}").text)
     person = htmlkit.parse(bob.get(f"{PAGE}/panel/{number_of(with_person.seq)}").text)
-    reason_lines = reason.pre().split("\n")
-    person_lines = person.pre().split("\n")
-    assert any(line.startswith("Reason") and with_reason.reason in line for line in reason_lines)
-    assert any(line.startswith("Person") and with_person.person in line for line in person_lines)
+    labels = labels_for(world)
+    assert htmlkit.missing_facts(reason.root, expected_panel(with_reason, labels)) == []
+    assert htmlkit.missing_facts(person.root, expected_panel(with_person, labels)) == []
 
 
 def test_the_status_line_is_the_summary(world: Any, htmlkit: Any, fakes: Any) -> None:
