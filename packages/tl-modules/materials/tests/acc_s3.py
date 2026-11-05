@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import csv
 import hashlib
 import io
 import threading
@@ -26,6 +27,8 @@ from tl_core.services import proposals
 from tl_core.services.commands import Command, CommandResult
 from tl_core.services.settings import ChangeSetting, handle_change_setting
 from tl_core.util import new_ulid
+from tl_mod_legacy.model import Grid
+from tl_mod_legacy.targets import installed_targets
 from tl_mod_materials import views
 from tl_mod_materials.actions import RULES, rule_rows
 from tl_mod_materials.api import PostedMovement, post_movements
@@ -1608,3 +1611,127 @@ def check_views(w: World) -> None:
 
 
 # --- the seed ledger -----------------------------------------------------------------------------
+
+
+def grid_of(path: Path) -> Grid:
+    with path.open(newline="", encoding="utf-8") as handle:
+        rows = list(csv.reader(handle))
+    return Grid(columns=rows[0], rows=[list(r) for r in rows[1:]])
+
+
+def load(w: World, kind: str, scope: str, grid: Grid, actor: str) -> int:
+    target = installed_targets()[kind]
+    with open_uow(w.target, readonly=True) as uow:
+        plan = target.plan(uow.conn(), scope, None, grid)  # type: ignore[arg-type]
+    assert not plan.invalid, plan.invalid
+    with open_uow(w.target) as uow:
+        made = target.apply(
+            uow,
+            scope,
+            None,  # pyright: ignore[reportArgumentType]
+            plan,
+            actor=actor,
+            source="legacy:seed",
+            correlation_id=new_ulid(),
+            confidentiality=None,
+        )
+    return len(made)
+
+
+def seed(w: World) -> None:
+    """The ledger T04..T08 and the demo start from; a superuser and a plain user are two actors."""
+    samples = Path(__import__("tl_mod_materials").__file__).parent / "samples"
+    project = w.project
+    assert load(w, "materials_item_master", COMPANY, grid_of(samples / "items.csv"), SUPER) == 50
+    assert load(w, "materials_location", project, grid_of(samples / "locations.csv"), SUPER) == 9
+    assert load(w, "materials_po_line", project, grid_of(samples / "po_lines.csv"), PLAIN) == 15
+    w.run(
+        handle_change_setting,
+        ChangeSetting,
+        actor=SUPER,
+        key=MTR_KEY,
+        layer=project,
+        value=["flange"],
+    )
+    lines = [
+        {"item_code": "FLG-WN-6-150-A105", "qty": "12.000", "heat_no": "H-7781"},
+        {"item_code": "FLG-WN-6-150-A105", "qty": "8.000", "heat_no": "H-7781"},
+    ]
+    made = w.run(
+        handle_create_receipt,
+        CreateReceipt,
+        actor=PLAIN,
+        received_on="2026-10-28",
+        location_code="L2",
+        po_line="4471-3",
+        delivery_ref="DN-8841",
+        lines=lines,
+    )
+    w.run(handle_inspect_receipt, InspectReceipt, actor=PLAIN, stream_id=made.stream_id)
+    w.attach_mtr(made.stream_id)
+    version = w.one("SELECT version FROM cur_core_record WHERE id = :i", i=made.stream_id)[
+        "version"
+    ]
+    w.run(
+        handle_accept_receipt,
+        AcceptReceipt,
+        actor=PLAIN,
+        stream_id=made.stream_id,
+        expected_version=version,
+    )
+    cwp = w.create("awp.CWP", "P123-CWP-PIP-0001", "Piping package 1")
+    mto = w.create(
+        "materials.MTO",
+        "ISO-1234@A/MTO",
+        "MTO ISO-1234 rev A",
+        [
+            NewEvent(
+                event_type="MTO.Defined",
+                payload={
+                    "derived_document_id": new_ulid(),
+                    "revision_id": new_ulid(),
+                    "line_count": 3,
+                },
+            )
+        ],
+    )
+    for n, (code, qty, uom) in enumerate(
+        [
+            ("FLG-WN-6-150-A105", "20.000", "EA"),
+            ("ELB-LR-90-6-SCH40", "8.000", "EA"),
+            ("PIPE-CS-6-SCH40-A106", "120.000", "m"),
+        ],
+        start=1,
+    ):
+        w.create(
+            "materials.MTOLine",
+            f"ISO-1234@A/MTO/{n:03d}",
+            f"Line {n}",
+            [
+                NewEvent(
+                    event_type="MTOLine.Defined",
+                    payload={
+                        "mto_id": mto,
+                        "line_no": n,
+                        "project_item_id": w.id_of(code),
+                        "qty": qty,
+                        "uom": uom,
+                        "tag_id": None,
+                        "work_package_id": cwp,
+                    },
+                )
+            ],
+        )
+    # the seed reads back as the spec says
+    assert len(w.rows("SELECT 1 FROM cur_materials_item_master")) == 50
+    assert w.one("SELECT COUNT(*) AS n FROM cur_materials_location")["n"] == 9
+    assert w.one("SELECT MAX(depth) AS d FROM cur_materials_location")["d"] == 4
+    assert w.one("SELECT COUNT(*) AS n FROM cur_materials_po_line")["n"] == 15
+    assert w.one("SELECT COUNT(*) AS n FROM cur_materials_lot")["n"] == 2
+    assert w.one("SELECT COUNT(*) AS n FROM cur_materials_mto_line")["n"] == 3
+    assert dec(
+        w.one(
+            "SELECT qty_received FROM cur_materials_po_line pl JOIN cur_core_record r "
+            "ON r.id = pl.id WHERE r.key = '4471-3'"
+        )["qty_received"]
+    ) == D(20)
