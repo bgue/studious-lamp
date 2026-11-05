@@ -1,6 +1,6 @@
 # P2-WEB1-T21 — The other 13 logs show their panel as a Page (web look v2, part 2)
 
-Status: staged (after S7 merges)
+Status: ready (S7 merged)
 Tier: haiku
 Kind: ticket
 Review: lite
