@@ -28,3 +28,4 @@ Operational procedures, one file per alert or recovery path (§24.6). Template: 
 - `derivation-pipeline.md` — register a document schema, run the worker, read a failed job, preview and approve a publication, take it back, requeue after a restore (P1-I3).
 - `correspondence.md` — receive, triage, reply, response clocks, email in, restricting an item and the register export (P1-I5).
 - `schedule-snapshots.md` — upload, build, publish and compare P6 schedule snapshots, the worker, reconcile after a restore, the orphan-flagging job, and the cost snapshot import (P1-I4).
+- `awp.md` — load a WBS, CWAs and a path, compensate and reload, the rollup worker, the five screens (P2-I1).
