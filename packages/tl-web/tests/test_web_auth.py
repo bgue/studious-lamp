@@ -373,3 +373,14 @@ def test_tl_web_on_with_tl_web_missing_is_a_start_error(
 def test_the_environment_is_restored_after_the_switch_tests(k: Any) -> None:
     assert os.environ.get("TL_ENV") == "test"
     assert os.environ.get("TL_WEB_SECRET") == k.SECRET
+
+
+def test_the_sign_in_heading_and_form_sit_inside_the_card(light_world: Any, htmlkit: Any) -> None:
+    """P2-WEB1-T23: the heading is inside the centred card, with the form, not above it."""
+    doc = htmlkit.parse(light_world.client().get("/web/sign-in").text)
+    cards = [n for n in doc.all() if "tl-sign-in" in n.get("class").split()]
+    assert len(cards) == 1 and "tl-card" in cards[0].get("class").split()
+    assert [h.text() for h in cards[0].find_all("h1")] == ["Sign in"]
+    form = cards[0].find("form")
+    assert form is not None and form.get("action") == "/web/sign-in"
+    assert [h.text() for h in doc.all() if h.tag == "h1"] == ["Sign in"]

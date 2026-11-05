@@ -261,15 +261,17 @@ def test_a_log_lists_the_rows_the_json_route_lists_and_counts_only_those(
             assert target.number not in got, f"{reader}: {target.kind} is a row of {slug}"
         status = page.status()
         if slug == "rfis":
-            assert status == present.rfi_text.rfi_summary(reads.list_rfis("P123"))
+            want_line = present.rfi_text.rfi_summary(reads.list_rfis("P123"))
+            assert status == present.web_summary(want_line)  # the web's middle dots (T23)
         elif slug == "correspondence":
-            assert status == present.correspondence_text.summary_line("register", len(want))
+            want_line = present.correspondence_text.summary_line("register", len(want))
+            assert status == present.web_summary(want_line)
         else:
             expected = present.document_text.summary_line(
                 len(want), len(want), state=None, doc_type=None, include_void=False, text="",
                 labels=labels(("documents.Document",)),
             )  # fmt: skip
-            assert status == expected
+            assert status == present.web_summary(expected)
         assert (
             str(len(want)) in status or slug == "rfis"
         )  # the count in the line is the visible one

@@ -294,3 +294,9 @@ def test_action_views_build_the_urls_of_the_post_route_and_its_form() -> None:
     assert views[0]["url"] == "/web/p/P123/records/id%2Fwith%20space/do/SubmitTechnical"
     assert views[0]["form_url"] == views[0]["url"] + "/form"
     assert views[0]["key_label"] == "a"
+
+
+def test_the_web_status_line_joins_the_facts_with_middle_dots() -> None:
+    """P2-WEB1-T23: the terminal's `` | `` between the facts is `` · `` on the web."""
+    assert present.web_summary("5 items | answered 0 | open 5") == "5 items · answered 0 · open 5"
+    assert present.web_summary("Nothing here.") == "Nothing here."

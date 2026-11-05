@@ -357,3 +357,14 @@ def test_the_real_world_has_no_stock_and_no_panel(world: Any, htmlkit: Any) -> N
 def test_the_stock_page_screenshot(world: Any, fakes: Any) -> None:
     path = shoot(world.app, world.web("bob").token, PAGE, SHOT)
     assert path.exists()
+
+
+def test_the_lot_line_is_the_panel_summary_and_not_a_badge(
+    world: Any, htmlkit: Any, fakes: Any
+) -> None:
+    """P2-WEB1-T23: the web shows "Lot … · receipt …" in the summary; no grey badge carries it."""
+    doc = htmlkit.parse(world.web("bob").client.get(f"{PAGE}/panel/{PIPE_A}").text)
+    badges = [n.text() for n in doc.all() if "tl-badge" in n.get("class").split()]
+    summaries = [n.text() for n in doc.all() if "tl-summary" in n.get("class").split()]
+    assert not any(b.startswith("Lot ") for b in badges)
+    assert any(s.startswith("Lot PL-4471 · receipt RCV-0001") for s in summaries)

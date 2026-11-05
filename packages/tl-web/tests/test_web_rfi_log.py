@@ -152,7 +152,7 @@ def test_the_panel_is_the_terminals_page_as_html(world: Any, htmlkit: Any) -> No
 def test_the_status_line_is_the_rfi_summary(world: Any, htmlkit: Any) -> None:
     summary = present.rfi_text.rfi_summary(world.reads("bob").list_rfis("P123"))
     got = htmlkit.parse(world.web("bob").client.get(f"{P}/rfis").text).status()
-    assert got == summary
+    assert got == present.web_summary(summary)  # the web's middle dots (T23)
 
 
 def test_hidden_rfis_answer_the_bytes_of_an_unknown_number_and_leave_no_text(

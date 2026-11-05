@@ -327,7 +327,7 @@ class WebLog[Row]:
             columns=columns,
             rows=table_rows,
             key_hints=self.KEY_HINTS,
-            text=notice or summary,
+            text=notice or present.web_summary(summary),
             **self._selected_context(selected),
         )
 
@@ -341,7 +341,7 @@ class WebLog[Row]:
         return render(
             self.request,
             "panel.html",
-            text=notice or summary,
+            text=notice or present.web_summary(summary),
             oob=True,
             **self._selected_context(row),
         )

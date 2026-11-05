@@ -58,6 +58,7 @@ __all__ = [
     "as_client",
     "page_blocks",
     "state_tone",
+    "web_summary",
     "awp_text",
     "breadcrumb_text",
     "correspondence_text",
@@ -102,6 +103,11 @@ def tone(style: str) -> str:
     """The badge tone of a ``layout`` style word: green done, yellow waiting, red bad, else
     neutral."""
     return _TONES.get(style, "neutral")
+
+
+def web_summary(text: str) -> str:
+    """The web's status line: the terminal's `` | `` between facts shown as `` · ``."""
+    return text.replace(" | ", " · ")
 
 
 def state_tone(text: str) -> str:

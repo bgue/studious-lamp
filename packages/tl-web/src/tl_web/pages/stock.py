@@ -11,6 +11,7 @@ the MTR file name of its receipt. A row has no record page, so the Open link is 
 
 from __future__ import annotations
 
+from dataclasses import replace
 from typing import TYPE_CHECKING
 
 from fastapi import Request, Response
@@ -111,13 +112,17 @@ class StockWebLog(WebLog["StockRowView"]):
 
     def panel_page(self, row: StockRowView) -> present.Page:
         detail = self.client.get_materials_lot(self.project, row.lot)
-        return present.materials_text.lot_page(
+        page = present.materials_text.lot_page(
             detail,
             row,
             self.labels,
             mtr=self._mtr_of(detail.receipt),
             technical=self.technical,
         )
+        # The web shows the lot line ("Lot … · receipt …") in the summary, not as a state badge.
+        # The terminal keeps it as the state (materials_text.lot_page is unchanged).
+        summary = " · ".join(part for part in (page.state, page.summary) if part)
+        return replace(page, state="", summary=summary)
 
     def actions_for(self, row: StockRowView) -> Sequence[WebAction]:
         return []  # read only
