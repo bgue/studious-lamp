@@ -9,7 +9,6 @@ from tl_sim.actors.base import Recorder
 from tl_sim.assertions import AssertionReport, Expected, run_assertions
 from tl_sim.testing import OPERATOR, REAL_TIME, FakeWorld, make_context
 
-
 PLAYED = {date(2026, 11, 2)}
 OPERATORS = frozenset({OPERATOR})
 
