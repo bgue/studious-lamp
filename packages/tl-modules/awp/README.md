@@ -81,7 +81,7 @@ The CWP record's Details tab uses the same renderer as the panels (`tl_tui/detai
 
 ### MCP read tools
 
-From `packages/tl-mcp/src/tl_mcp/awp_tools.py`. Each is authorised as `mcp.<tool>` (`tl_mcp/identity.py`).
+From `packages/tl-mcp/src/tl_mcp/awp_tools.py`. An agent may call a tool only when its identity lists the tool as `mcp.<tool>` (`tl_mcp/identity.py`); each read tool then passes the same `document.read` check as every other read (`guarded`), answered under the agent's own viewer, and `propose_cwp` only files a proposal a person accepts.
 
 | Tool | Arguments | Returns |
 |---|---|---|
