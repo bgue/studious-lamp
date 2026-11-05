@@ -34,7 +34,7 @@ class MaterialsCoordinator(BaseActor):  name = "materials_coordinator"
 Working day (`act`), in this order, draws from `ctx.rng` only where stated:
 1. Draw `n = draw(params.reservations_per_day, ctx.rng)`. If 0, stop.
 2. The client must be a `MaterialsDesk` (`ProposeUnavailableError` otherwise). Read `short_lines()`; with none, stop. Read `stock()`; keep rows with a positive `available`; with none, stop.
-3. For each of the `n` proposals, in order: draw a short line `ctx.rng.choice(lines)` (lines sorted by key), then a stock row `ctx.rng.choice(rows)` (rows sorted by lot, location) whose `item_code` equals the line's `item_code` (when none match, skip this proposal without drawing again). Quantity is the smaller of the row's `available` and the line's `short`, as a plain decimal string; propose it.
+3. For each of the `n` proposals, in order: draw a short line `ctx.rng.choice(lines)` (lines sorted by key), then a stock row `ctx.rng.choice(rows)` (rows sorted by lot, location) whose `item_code` equals the line's `item_code`. Quantity is the smaller of the row's `available` and the line's `short`, as a plain decimal string; propose it.
 Each proposal is recorded like the planner's (`rec` call and `Rec` fields: copy what `workface_planner.py` does). A refused proposal (the tool raises) is recorded as the planner records it and the day goes on.
 
 ## Context (read these, nothing else)
