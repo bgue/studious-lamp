@@ -10,6 +10,7 @@ import type { ColourMode } from './colour';
 import type { CoordMode } from './align';
 import type { DeviationScope, PointCloudController } from './controller';
 import { DEFAULT_BUDGET } from './controller';
+import { formatDistance } from './register';
 import { DROP_EXTENSIONS, extensionOf, isPointCloudName } from './readers';
 
 const ACCEPT = DROP_EXTENSIONS.join(',');
@@ -69,6 +70,7 @@ export const ICON =
 
 export function buildDrawer(container: HTMLElement, c: PointCloudController, _app: ViewerApp): () => void {
   void _app;
+  const buttons: Array<() => void> = [];
   const ws: Widget[] = [];
   const root = el('div', 'pc-drawer');
   root.id = 'pointcloud-drawer';
@@ -80,7 +82,7 @@ export function buildDrawer(container: HTMLElement, c: PointCloudController, _ap
     return w;
   };
 
-  put(note('As-built check: open a scan (.las, .ply, .pcd, .xyz, .pts, .txt; or drop it on the viewer), align it to the model, then compute the deviation.'));
+  put(note('As-built check: open a scan (.las, .e57, .ply, .pcd, .xyz, .pts, .txt; or drop it on the viewer), align it to the model, then compute the deviation.'));
   const open = button('Open point cloud', () => pickPointCloud(c), { primary: true });
   const remove = button('Remove point cloud', () => c.remove());
   put(row(open, remove));
@@ -100,12 +102,62 @@ export function buildDrawer(container: HTMLElement, c: PointCloudController, _ap
   put(section('Alignment'));
   addW(select<CoordMode>('coordinates', COORD_MODES, () => c.settings.coordinates, (v) => c.setCoordinates(v)));
   put(button('Auto-align to model', () => void c.autoAlign(true), { title: 'Match bounds centres, then try 0/90/180/270 degrees about the vertical axis' }));
-  const num = (label: string, get: () => number, set: (v: number) => void): Widget => addW(number(label, -1e6, 0.01, get, (v) => { set(v); c.setAlignment(); }));
+  addW(check('keep vertical', () => c.settings.keepVertical, (v) => { c.settings.keepVertical = v; c.resolvePairs(); }));
+  addW(check('allow scale', () => c.settings.allowScale, (v) => { c.settings.allowScale = v; c.resolvePairs(); }));
+  const pairBtn = button('Align by 3 points', () => void c.startPairs(), { title: 'Click a point on the cloud, then the same point on the model; 3 times or more' });
+  put(pairBtn);
+  // the guided 3-point mode: pairs, residuals, warnings and its own buttons
+  const pairBox = el('div', 'pc-pairs');
+  pairBox.setAttribute('data-pc-pairs', '');
+  const pairList = el('div', 'xt-note pc-pair-list');
+  const undoPick = button('Undo last', () => c.undoPair(), { title: 'Remove the last picked point' });
+  const cancelPick = button('Cancel', () => c.cancelPairs(), { title: 'Leave the 3-point mode without a change (Esc)' });
+  const applyPick = button('Apply alignment', () => void c.applyPairs(), { primary: true, title: 'Move the cloud with the solved transform' });
+  pairBox.append(pairList, row(undoPick, cancelPick, applyPick));
+  put(pairBox);
+  const icpBtn = button('Refine (ICP)', () => (c.icpRunning ? c.cancelWork() : void c.refine()), { title: 'Fit the cloud to the model surfaces (point-to-plane ICP)' });
+  put(icpBtn);
+  const undoAl = button('Undo alignment', () => void c.undoAlignment(), { title: 'Back to the transform before the last alignment step' });
+  const resetAl = button('Reset alignment', () => c.resetAlignment(), { title: 'No offset, no rotation, no registration' });
+  put(row(undoAl, resetAl));
+  buttons.push(() => {
+    const busy = c.busy;
+    pairBtn.setDisabled(!c.loaded ? 'Open a point cloud first' : c.pairMode ? 'Picking: use Cancel or Esc to stop' : false);
+    pairBox.style.display = c.pairMode ? '' : 'none';
+    const running = busy && c.icpRunning;
+    icpBtn.textContent = running ? 'Stop ICP' : 'Refine (ICP)';
+    icpBtn.setDisabled(!c.loaded ? 'Open a point cloud first' : c.pairMode ? 'Finish the 3-point alignment first' : busy && !running ? 'Wait for the current step' : false);
+    undoAl.setDisabled(c.canUndoAlignment ? false : 'Nothing to undo');
+    resetAl.setDisabled(!c.loaded ? 'Open a point cloud first' : false);
+    if (c.pairMode) {
+      const ps = c.pairs!;
+      const sol = c.pairSolution;
+      const done = c.completePairs;
+      const lines: string[] = [];
+      ps.forEach((p, i) => {
+        const k = done.findIndex((q) => q.cloud === p.cloud);
+        const r = sol?.ok && k >= 0 ? `residual ${formatDistance(sol.residuals[k]!)}` : p.model ? 'picked' : p.cloud ? 'cloud picked, now the model' : '';
+        lines.push(`Pair ${i + 1}: ${r}`);
+      });
+      if (!ps.length) lines.push('Click point 1 on the cloud (cyan), then the same point on the model (orange).');
+      if (sol?.ok && done.length >= 2) lines.push(`RMS ${formatDistance(sol.rms)} over ${done.length} pairs${c.settings.allowScale ? `, scale ${sol.scale.toFixed(4)}` : ''}.`);
+      for (const w of sol?.warnings ?? []) lines.push(`Warning: ${w}`);
+      pairList.replaceChildren(...lines.map((l) => {
+        const d = el('div', l.startsWith('Warning') ? 'pc-warn' : undefined, undefined, l);
+        if (l.startsWith('Warning')) d.style.color = '#ffb347';
+        return d;
+      }));
+      undoPick.setDisabled(ps.length ? false : 'Nothing picked yet');
+      applyPick.setDisabled(sol?.ok && done.length >= 3 ? false : 'Pick 3 pairs first');
+    }
+  });
+  // shown to 0.1 mm (a solved offset has 16 digits); the setting keeps full precision until the field is edited
+  const num = (label: string, get: () => number, set: (v: number) => void): Widget => addW(number(label, -1e6, 0.01, () => +get().toFixed(4), (v) => { set(v); c.setAlignment(); }));
   num('offset x', () => c.settings.offsetX, (v) => (c.settings.offsetX = v));
   num('offset y', () => c.settings.offsetY, (v) => (c.settings.offsetY = v));
   num('offset z', () => c.settings.offsetZ, (v) => (c.settings.offsetZ = v));
   addW(slider('rotation (deg)', -180, 180, 0.1, () => c.settings.rotationDeg, (v) => { c.settings.rotationDeg = v; c.setAlignment(); }, (v) => `${v.toFixed(1)}`));
-  put(note('Offsets are in metres in the viewer frame (x east, y up, z south) and move the cloud after the coordinate mapping.'));
+  put(note('Offsets are in metres in the viewer frame (x east, y up, z south) and move the cloud after the coordinate mapping and the registration. A phone scan (Y up) uses coordinates viewer: Align by 3 points, then Refine (ICP).'));
 
   put(section('Deviation from model'));
   addW(number('tolerance (m)', 0.001, 0.005, () => c.settings.tolerance, (v) => c.setTolerance(v)));
@@ -122,9 +174,14 @@ export function buildDrawer(container: HTMLElement, c: PointCloudController, _ap
       ? `Within tolerance: ${(d.shareWithin * 100).toFixed(1)}% of related points. Mean ${(d.mean * 100).toFixed(1)} cm, 95th percentile ${(d.p95 * 100).toFixed(1)} cm. Unrelated (> ${(d.maxDistance * 100).toFixed(1)} cm): ${(d.unrelatedShare * 100).toFixed(1)}%. Measured ${d.sampled.toLocaleString('en-US')} points in ${(c.stats.deviationMs / 1000).toFixed(1)} s.`
       : '';
     remove.disabled = !c.loaded;
+    for (const b of buttons) b();
   };
   refresh();
-  return c.onChange(refresh);
+  const off = c.onChange(refresh);
+  return () => {
+    off();
+    c.cancelPairs(); // the pair list lives in this drawer
+  };
 }
 
 export function buildGui(gui: GUI, c: PointCloudController): void {
@@ -134,6 +191,13 @@ export function buildGui(gui: GUI, c: PointCloudController): void {
   const acts = {
     open: () => pickPointCloud(c),
     align: () => void c.autoAlign(true),
+    pairs: () => {
+      window.__xrayToolbar?.open('pointcloud');
+      if (!c.pairMode) c.startPairs();
+    },
+    refine: () => void c.refine(),
+    undo: () => void c.undoAlignment(),
+    reset: () => c.resetAlignment(),
     deviation: () => void c.computeDeviation(),
     remove: () => c.remove(),
   };
@@ -145,6 +209,12 @@ export function buildGui(gui: GUI, c: PointCloudController): void {
   folder.add(s, 'budget', 100_000, 10_000_000, 100_000).name('point budget').onFinishChange((v: number) => void c.setBudget(v).catch(() => undefined));
   folder.add(s, 'coordinates', COORD_MODES).name('coordinates').onChange((v: CoordMode) => c.setCoordinates(v));
   folder.add(acts, 'align').name('Auto-align to model');
+  folder.add(s, 'keepVertical').name('keep vertical').onChange(() => c.resolvePairs());
+  folder.add(s, 'allowScale').name('allow scale').onChange(() => c.resolvePairs());
+  folder.add(acts, 'pairs').name('Align by 3 points');
+  folder.add(acts, 'refine').name('Refine (ICP)');
+  folder.add(acts, 'undo').name('Undo alignment');
+  folder.add(acts, 'reset').name('Reset alignment');
   folder.add(s, 'offsetX', -1000, 1000, 0.01).name('offset x').onChange(() => c.setAlignment());
   folder.add(s, 'offsetY', -1000, 1000, 0.01).name('offset y').onChange(() => c.setAlignment());
   folder.add(s, 'offsetZ', -1000, 1000, 0.01).name('offset z').onChange(() => c.setAlignment());

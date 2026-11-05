@@ -1,12 +1,21 @@
 // Point cloud controller: owns the THREE.Points in the main scene, the display and alignment settings, the loader
 // and the deviation check. UI (drawer, lil-gui) and the window API only talk to this class.
 
-import { BufferAttribute, BufferGeometry, Plane, Points, PointsMaterial, Vector3 } from 'three';
+import { BufferAttribute, BufferGeometry, Matrix4, Plane, Points, PointsMaterial, Vector3 } from 'three';
+import type { BufferGeometry as Geom } from 'three';
 import { CLEARANCE_LEGEND_H, CLEARANCE_LEGEND_W } from '../measure/clearanceTool';
+import { cameraRay, firstSurfaceHit } from '../measure/geometry';
+import { snapToVertex } from '../measure/maths';
 import type { MeshBVH } from 'three-mesh-bvh';
 import type { ViewerApp } from '../app';
-import { applyFrame, autoAlign, cloudFrame, mapPositions } from './align';
+import { applyFrame, autoAlign, cloudFrame, decomposeTotal, mapPositions } from './align';
 import type { AutoAlignResult, CloudFrame, CoordMode } from './align';
+import { icp, voxelSample } from './icp';
+import type { ClosestFn, IcpResult } from './icp';
+import { buildScreenIndex, pickNearest } from './pick';
+import type { ScreenIndex } from './pick';
+import { apply as applyMat, formatDistance, identity, scaleOf, solvePairs, transformError, yawDeg } from './register';
+import type { Mat4, PairSolution } from './register';
 import { PointCloudLoader } from './client';
 import { BAND_COLORS, BAND_LABELS, bandOf, buildColours } from './colour';
 import type { ColourMode } from './colour';
@@ -32,14 +41,37 @@ export interface PointCloudSettings {
   offsetY: number;
   offsetZ: number;
   rotationDeg: number;
+  /** Registration (column-major 4x4, cloud frame -> viewer) under the offset / rotation nudge. Identity by default. */
+  matrix: number[];
+  /** 3-point alignment and ICP keep the cloud upright: yaw and translation only. */
+  keepVertical: boolean;
+  /** 3-point alignment may also scale the cloud (uniform). */
+  allowScale: boolean;
   tolerance: number;
   scope: DeviationScope;
+}
+
+/** Default number of cloud points that ICP matches against the model. */
+export const ICP_SAMPLES = 20_000;
+
+export interface PointPair {
+  /** Cloud frame (before any alignment), so the pair survives alignment changes. */
+  cloud: Vec3 | null;
+  /** Viewer frame, on the model surface. */
+  model: Vec3 | null;
+}
+
+interface AlignSnapshot {
+  offset: Vec3;
+  rotationDeg: number;
+  matrix: number[];
+  alignment: string;
 }
 
 export function defaultPointCloudSettings(): PointCloudSettings {
   return {
     visible: true, pointSize: 2, sizeAttenuation: false, colourBy: 'rgb', budget: DEFAULT_BUDGET, coordinates: 'project',
-    offsetX: 0, offsetY: 0, offsetZ: 0, rotationDeg: 0, tolerance: 0.02, scope: 'all elements',
+    offsetX: 0, offsetY: 0, offsetZ: 0, rotationDeg: 0, matrix: identity(), keepVertical: true, allowScale: false, tolerance: 0.02, scope: 'all elements',
   };
 }
 
@@ -58,6 +90,8 @@ export interface PointCloudStats {
   deviationMs: number;
   deviationScope: DeviationScope | null;
   alignment: string;
+  /** Last ICP run (null until one ran on this cloud). */
+  icp: { iterations: number; converged: boolean; reverted: boolean; rmsBefore: number; rmsAfter: number; inlierFraction: number; samples: number; ms: number; reason: string } | null;
 }
 
 interface DeviationState {
@@ -74,7 +108,7 @@ const v3 = (v: Vec3 | { x: number; y: number; z: number }): Vec3 => (Array.isArr
 
 export class PointCloudController {
   readonly settings: PointCloudSettings = defaultPointCloudSettings();
-  status = 'No point cloud loaded. Open a .las, .ply, .pcd, .xyz, .pts or .txt file.';
+  status = 'No point cloud loaded. Open a .las, .e57, .ply, .pcd, .xyz, .pts or .txt file.';
   busy = false;
   info: LoadInfo | null = null;
   readonly stats: PointCloudStats = emptyStats();
@@ -98,6 +132,14 @@ export class PointCloudController {
   private legendLayer: SVGGElement | null = null;
   private legendShown = false;
   private heights: Float32Array | null = null;
+  private undoStack: AlignSnapshot[] = [];
+  /** Bumped whenever the drawn positions, the transform or the drawn subset change (screen index cache key). */
+  private version = 0;
+  private screen: { sig: string; idx: ScreenIndex } | null = null;
+  /** 3-point alignment: picked pairs, or null when the mode is off. */
+  pairs: PointPair[] | null = null;
+  pairSolution: PairSolution | null = null;
+  private icpToken = -1;
 
   constructor(private readonly app: ViewerApp) {
     // Opaque queue: drawn before the ghost pass, so the ghost (which writes depth) blends over the points instead of
@@ -171,6 +213,10 @@ export class PointCloudController {
       this.stats.deviation = null;
       this.stats.deviationScope = null;
       this.stats.alignment = '';
+      this.stats.icp = null;
+      this.undoStack = [];
+      this.pairs = null;
+      this.pairSolution = null;
       if (this.settings.colourBy === 'deviation') this.settings.colourBy = 'rgb';
       this.buildObjects();
       this.syncStats();
@@ -194,10 +240,14 @@ export class PointCloudController {
     this.shown = null;
     this.info = null;
     this.dev = null;
+    this.undoStack = [];
+    this.pairs = null;
+    this.pairSolution = null;
+    this.screen = null;
     Object.assign(this.stats, emptyStats());
     this.busy = false;
     this.hideLegend();
-    this.setStatus('No point cloud loaded. Open a .las, .ply, .pcd, .xyz, .pts or .txt file.');
+    this.setStatus('No point cloud loaded. Open a .las, .e57, .ply, .pcd, .xyz, .pts or .txt file.');
     this.app.renderer.markDirty();
   }
 
@@ -210,6 +260,8 @@ export class PointCloudController {
     this.mapped = null;
     this.frame = null;
     this.heights = null;
+    this.screen = null;
+    this.version++;
   }
 
   // ---------------------------------------------------------------- build / update
@@ -254,7 +306,8 @@ export class PointCloudController {
   private updateFrame(): void {
     if (!this.info || !this.points) return;
     const s = this.settings;
-    this.frame = cloudFrame(this.info, { mode: s.coordinates, shift: this.shift(), offset: [s.offsetX, s.offsetY, s.offsetZ], rotationDeg: s.rotationDeg });
+    this.frame = cloudFrame(this.info, { mode: s.coordinates, shift: this.shift(), offset: [s.offsetX, s.offsetY, s.offsetZ], rotationDeg: s.rotationDeg, registration: s.matrix });
+    this.version++;
     this.points.matrix.copy(this.frame.matrix);
     this.points.matrixWorldNeedsUpdate = true;
     this.points.updateMatrixWorld(true);
@@ -306,6 +359,7 @@ export class PointCloudController {
     // a sampled deviation draws only the measured points (the rest has no value to show)
     if (dev && dev.indices.length < sh.count) g.setIndex(new BufferAttribute(dev.indices, 1));
     else if (g.getIndex()) g.setIndex(null);
+    this.version++;
     this.updateOverlay(dev);
     this.updateLegend();
     this.app.renderer.markDirty();
@@ -363,8 +417,10 @@ export class PointCloudController {
 
   /** `coordinates` changed: remap axes. */
   setCoordinates(mode: CoordMode): void {
+    const changed = mode !== this.settings.coordinates;
     this.settings.coordinates = mode;
     if (!this.shown || !this.info) return;
+    if (changed && this.pairs) this.cancelPairs(); // picked cloud points are in the old axis mapping
     this.mapped = mapPositions(this.shown.positions, mode);
     const g = this.geom!;
     g.setAttribute('position', new BufferAttribute(this.mapped, 3));
@@ -494,10 +550,12 @@ export class PointCloudController {
       pivot: f0.pivot, samplesRelPivot: sample, modelMin: [b.min.x, b.min.y, b.min.z], modelMax: [b.max.x, b.max.y, b.max.z],
       distance: dist ? (x, y, z) => dist(x, y, z, 1e9) : undefined, rotate,
     });
+    this.pushUndo();
     s.offsetX = r.offset[0];
     s.offsetY = r.offset[1];
     s.offsetZ = r.offset[2];
     s.rotationDeg = r.rotationDeg;
+    s.matrix = identity();
     this.setAlignment();
     this.stats.alignment = r.description;
     this.setStatus(`Auto-align: ${r.description}`);
@@ -642,6 +700,374 @@ export class PointCloudController {
     this.legendShown = false;
   }
 
+  // ---------------------------------------------------------------- general transform, undo
+
+  /** Total transform from the cloud frame (axis-mapped, before alignment) to the viewer, column-major. */
+  get totalMatrix(): Mat4 {
+    return this.frame ? this.frame.total.slice() : identity();
+  }
+
+  /** Cloud-frame position (axis-mapped, before alignment, double) of shown point i. */
+  cloudPoint(i: number): Vec3 | null {
+    if (!this.mapped || !this.frame) return null;
+    const b = this.frame.base;
+    return [this.mapped[i * 3]! + b[0], this.mapped[i * 3 + 1]! + b[1], this.mapped[i * 3 + 2]! + b[2]];
+  }
+
+  /** Viewer position of a cloud-frame point under the current alignment. */
+  toViewer(c: Vec3): Vec3 {
+    return applyMat(this.totalMatrix, c);
+  }
+
+  get canUndoAlignment(): boolean {
+    return this.undoStack.length > 0;
+  }
+
+  private snapshot(): AlignSnapshot {
+    const s = this.settings;
+    return { offset: [s.offsetX, s.offsetY, s.offsetZ], rotationDeg: s.rotationDeg, matrix: s.matrix.slice(), alignment: this.stats.alignment };
+  }
+
+  private restore(a: AlignSnapshot): void {
+    const s = this.settings;
+    [s.offsetX, s.offsetY, s.offsetZ] = a.offset;
+    s.rotationDeg = a.rotationDeg;
+    s.matrix = a.matrix.slice();
+    this.setAlignment();
+    this.stats.alignment = a.alignment;
+  }
+
+  private pushUndo(): void {
+    this.undoStack.push(this.snapshot());
+    if (this.undoStack.length > 20) this.undoStack.shift();
+  }
+
+  /**
+   * Set the total transform (cloud frame -> viewer). A yaw plus a translation is stored as offset + rotation; anything
+   * else as the registration matrix with a zero nudge. Pushes the previous alignment on the undo stack.
+   */
+  applyTotal(total: Mat4, description: string): void {
+    if (!this.frame) return;
+    this.pushUndo();
+    const parts = decomposeTotal(total, this.frame.pivot);
+    const s = this.settings;
+    [s.offsetX, s.offsetY, s.offsetZ] = parts.offset;
+    s.rotationDeg = parts.rotationDeg;
+    s.matrix = parts.registration;
+    this.setAlignment();
+    this.stats.alignment = description;
+    this.emit();
+  }
+
+  /** Back to the alignment before the last Auto-align, 3-point alignment, ICP or reset. */
+  undoAlignment(): boolean {
+    const a = this.undoStack.pop();
+    if (!a) {
+      this.setStatus('Nothing to undo.');
+      return false;
+    }
+    this.restore(a);
+    this.setStatus('Alignment undone: back to the previous transform.');
+    return true;
+  }
+
+  /** Offset, rotation and registration back to zero / identity. */
+  resetAlignment(): void {
+    this.pushUndo();
+    const s = this.settings;
+    s.offsetX = s.offsetY = s.offsetZ = 0;
+    s.rotationDeg = 0;
+    s.matrix = identity();
+    this.setAlignment();
+    this.setStatus('Alignment reset: no offset, no rotation, no registration.');
+  }
+
+  /** One line describing the current transform: heading, tilt, scale, translation of the bounds centre. */
+  describeTransform(): string {
+    const m = this.totalMatrix;
+    const s = scaleOf(m);
+    // tilt: angle between the transformed vertical and the vertical
+    const tilt = (Math.acos(Math.min(1, Math.max(-1, m[5]! / s))) * 180) / Math.PI;
+    return `heading ${yawDeg(m).toFixed(2)} deg${tilt > 0.005 ? `, tilt ${tilt.toFixed(2)} deg` : ''}${Math.abs(s - 1) > 1e-6 ? `, scale ${s.toFixed(4)}` : ''}`;
+  }
+
+  // ---------------------------------------------------------------- picking
+
+  /** Shown cloud point under a client position (nearest on screen within `radiusPx`, frontmost surface first). */
+  pickCloudAt(clientX: number, clientY: number, radiusPx = 8): { index: number; cloud: Vec3; world: Vec3 } | null {
+    if (!this.points || !this.mapped || !this.frame || !this.settings.visible) return null;
+    const r = this.app.canvas.getBoundingClientRect();
+    const idx = this.screenIndex(r.width, r.height);
+    const i = pickNearest(idx, clientX - r.left, clientY - r.top, { radiusPx, innerPx: this.settings.pointSize / 2 + 1 });
+    if (i < 0) return null;
+    return { index: i, cloud: this.cloudPoint(i)!, world: this.pointPosition(i)! };
+  }
+
+  private screenIndex(width: number, height: number): ScreenIndex {
+    const cam = this.app.renderer.camera;
+    cam.updateMatrixWorld();
+    const view = new Matrix4().multiplyMatrices(cam.matrixWorldInverse, this.frame!.matrix);
+    const clip = new Matrix4().multiplyMatrices(cam.projectionMatrix, view);
+    const planes = this.material.clippingPlanes;
+    const sig = `${this.version}|${width}x${height}|${clip.elements.map((v) => v.toPrecision(10)).join(',')}|${this.clipSig}`;
+    if (this.screen && this.screen.sig === sig) return this.screen.idx;
+    const index = this.geom?.getIndex();
+    const M = this.frame!.matrix.elements;
+    const keep = planes && planes.length
+      ? (x: number, y: number, z: number): boolean => {
+        const wx = M[0]! * x + M[4]! * y + M[8]! * z + M[12]!, wy = M[1]! * x + M[5]! * y + M[9]! * z + M[13]!, wz = M[2]! * x + M[6]! * y + M[10]! * z + M[14]!;
+        for (const p of planes) if (p.normal.x * wx + p.normal.y * wy + p.normal.z * wz + p.constant < 0) return false;
+        return true;
+      }
+      : undefined;
+    const idx = buildScreenIndex({
+      positions: this.mapped!, clip: clip.elements, view: view.elements, width, height, cell: 8,
+      indices: index ? (index.array as Uint32Array) : null, keep,
+    });
+    this.screen = { sig, idx };
+    return idx;
+  }
+
+  /**
+   * Model surface point under a client position, as the measure tool picks it: first surface along the camera ray,
+   * skipping hidden elements (ghosted ones count), snapped to a vertex of the hit triangle within 12 px.
+   */
+  pickModelAt(clientX: number, clientY: number, snapPx = 12): { point: Vec3; element: number; snapped: boolean } | null {
+    const app = this.app;
+    const loaded = app.loaded;
+    if (!loaded) return null;
+    const r = app.canvas.getBoundingClientRect();
+    const px = clientX - r.left, py = clientY - r.top;
+    const cam = app.renderer.camera;
+    cam.updateMatrixWorld();
+    const ray = cameraRay(cam, (px / r.width) * 2 - 1, -((py / r.height) * 2 - 1));
+    const hides = app.controller.settings.overrides.userHides;
+    const alpha = app.renderer.state.alpha;
+    const hit = firstSurfaceHit(loaded.geometry, ray, (id) => hides.has(id) || (alpha[id] ?? 1) < 0);
+    if (!hit) return null;
+    const p: Vec3 = [hit.point.x, hit.point.y, hit.point.z];
+    if (snapPx <= 0) return { point: p, element: hit.element, snapped: false };
+    const ov = getOverlay(app);
+    const s = snapToVertex(p, hit.triangle, { x: px, y: py }, (v) => ov.project(v), snapPx);
+    return { point: [s.point[0], s.point[1], s.point[2]], element: hit.element, snapped: s.snapped };
+  }
+
+  // ---------------------------------------------------------------- 3-point alignment
+
+  get pairMode(): boolean {
+    return !!this.pairs;
+  }
+
+  /** What the next click picks. */
+  get pairStep(): 'cloud' | 'model' {
+    const last = this.pairs?.[this.pairs.length - 1];
+    return last && last.cloud && !last.model ? 'model' : 'cloud';
+  }
+
+  get completePairs(): Array<{ cloud: Vec3; model: Vec3 }> {
+    return (this.pairs ?? []).filter((p): p is { cloud: Vec3; model: Vec3 } => !!p.cloud && !!p.model);
+  }
+
+  startPairs(): boolean {
+    if (!this.loaded) {
+      this.setStatus('Align by 3 points needs a point cloud. Open one first.');
+      return false;
+    }
+    if (!this.app.loaded) {
+      this.setStatus('Align by 3 points needs a model.');
+      return false;
+    }
+    this.pairs = [];
+    this.pairSolution = null;
+    this.setStatus(this.pairPrompt());
+    return true;
+  }
+
+  cancelPairs(): void {
+    if (!this.pairs) return;
+    this.pairs = null;
+    this.pairSolution = null;
+    this.setStatus('Align by 3 points cancelled: the alignment did not change.');
+  }
+
+  /** Remove the last pick (half a pair, or the model point of the last pair). */
+  undoPair(): void {
+    const ps = this.pairs;
+    if (!ps || !ps.length) return;
+    const last = ps[ps.length - 1]!;
+    if (last.model) last.model = null;
+    else ps.pop();
+    this.resolvePairs();
+  }
+
+  addCloudPoint(c: Vec3): void {
+    if (!this.pairs) return;
+    if (this.pairStep === 'model') this.pairs[this.pairs.length - 1]!.cloud = c; // re-pick the pending cloud point
+    else this.pairs.push({ cloud: c, model: null });
+    this.resolvePairs();
+  }
+
+  addModelPoint(v: Vec3): void {
+    if (!this.pairs || this.pairStep !== 'model') return;
+    this.pairs[this.pairs.length - 1]!.model = v;
+    this.resolvePairs();
+  }
+
+  /** Solve again with the complete pairs and the current keep vertical / allow scale. */
+  resolvePairs(): void {
+    if (!this.pairs) return;
+    const done = this.completePairs;
+    const s = this.settings;
+    this.pairSolution = done.length ? solvePairs(done.map((p) => p.cloud), done.map((p) => p.model), { keepVertical: s.keepVertical, allowScale: s.allowScale }) : null;
+    this.setStatus(this.pairPrompt());
+  }
+
+  pairPrompt(): string {
+    const ps = this.pairs;
+    if (!ps) return this.status;
+    const n = this.completePairs.length;
+    const k = ps.length + (this.pairStep === 'cloud' ? 1 : 0);
+    const next = this.pairStep === 'cloud' ? `Click point ${k} on the cloud` : `Click the matching point ${k} on the model`;
+    const sol = this.pairSolution;
+    const tail = n >= 3 && sol?.ok ? `, or Apply (RMS ${formatDistance(sol.rms)})` : n > 0 && n < 3 ? ` (${n} of 3 pairs)` : '';
+    return `${next}${tail}. Esc undoes a pending point, then cancels.`;
+  }
+
+  /** Apply the pair solution as the new alignment. Returns false when there is none. */
+  applyPairs(): boolean {
+    const sol = this.pairSolution;
+    const n = this.completePairs.length;
+    if (!this.pairs || !sol || !sol.ok || n < 3) {
+      this.setStatus(sol && !sol.ok ? sol.warnings.join(' ') : 'Pick 3 pairs first.');
+      return false;
+    }
+    const before = this.totalMatrix;
+    const desc = `3-point alignment from ${n} pairs (${this.settings.keepVertical ? 'keep vertical' : 'full 3D'}${this.settings.allowScale ? `, scale ${sol.scale.toFixed(4)}` : ''}): RMS ${formatDistance(sol.rms)}.`;
+    this.pairs = null;
+    this.pairSolution = null;
+    this.applyTotal(sol.matrix, desc);
+    const ch = transformError(before, sol.matrix, this.frame?.pivot ?? [0, 0, 0]);
+    this.setStatus(`${desc} Moved ${formatDistance(ch.translation)}, turned ${ch.rotationDeg.toFixed(2)} deg; ${this.describeTransform()}. Refine (ICP) fits it to the surfaces.`);
+    return true;
+  }
+
+  // ---------------------------------------------------------------- ICP
+
+  /** Closest surface point and unit normal for the scope (normals from the hit triangle), or null without geometry. */
+  closestFn(scope: DeviationScope): ClosestFn | null {
+    const geo = this.app.loaded?.geometry;
+    if (!geo) return null;
+    let trees: MeshBVH[];
+    if (scope === 'all elements') trees = [geo.bvh];
+    else {
+      const focus = this.app.controller.classification.focus;
+      trees = [...focus].map((id) => geo.subGeometry(id)?.boundsTree as MeshBVH | undefined).filter((t): t is MeshBVH => !!t);
+    }
+    if (!trees.length) return null;
+    const p = new Vector3();
+    const tgt = { point: new Vector3(), distance: 0, faceIndex: 0 };
+    const normalOf = (g: Geom, f: number, out: number[]): void => {
+      const pos = g.getAttribute('position');
+      const idx = g.getIndex();
+      const i0 = idx ? idx.getX(f * 3) : f * 3, i1 = idx ? idx.getX(f * 3 + 1) : f * 3 + 1, i2 = idx ? idx.getX(f * 3 + 2) : f * 3 + 2;
+      const ax = pos.getX(i1) - pos.getX(i0), ay = pos.getY(i1) - pos.getY(i0), az = pos.getZ(i1) - pos.getZ(i0);
+      const bx = pos.getX(i2) - pos.getX(i0), by = pos.getY(i2) - pos.getY(i0), bz = pos.getZ(i2) - pos.getZ(i0);
+      const nx = ay * bz - az * by, ny = az * bx - ax * bz, nz = ax * by - ay * bx;
+      const l = Math.hypot(nx, ny, nz) || 1;
+      out[0] = nx / l; out[1] = ny / l; out[2] = nz / l;
+    };
+    return (x, y, z, max, out) => {
+      p.set(x, y, z);
+      let best = Infinity;
+      let lim = max;
+      for (const t of trees) {
+        const r = t.closestPointToPoint(p, tgt, 0, lim);
+        if (r && r.distance < best) {
+          best = r.distance;
+          lim = Math.min(lim, best);
+          out.p[0] = r.point.x; out.p[1] = r.point.y; out.p[2] = r.point.z;
+          normalOf(t.geometry, r.faceIndex, out.n);
+        }
+      }
+      return best;
+    };
+  }
+
+  /**
+   * Fine registration: trimmed point-to-plane ICP of a spatially uniform sample of the shown points against the model
+   * surface (the deviation scope decides which surfaces). Applies the result when it improved the fit; reverts and
+   * says so otherwise. Resolves with the result, or null when cancelled or not possible.
+   */
+  async refine(opts: { samples?: number; maxIterations?: number; startDistance?: number; trim?: number; minDistance?: number } = {}): Promise<IcpResult | null> {
+    if (!this.shown || !this.mapped || !this.frame) {
+      this.setStatus('Refine (ICP) needs a point cloud. Open one first.');
+      return null;
+    }
+    const scope = this.settings.scope;
+    const closest = this.closestFn(scope);
+    if (!closest) {
+      this.setStatus(scope === 'focus only' ? 'Refine (ICP) with scope "focus only" needs a selection.' : 'Refine (ICP) needs a model with geometry.');
+      return null;
+    }
+    this.cancel = false;
+    const token = ++this.token;
+    this.busy = true;
+    this.icpToken = token;
+    const t0 = performance.now();
+    this.setStatus('Refine (ICP): choosing sample points...');
+    try {
+      const pick = voxelSample(this.mapped, opts.samples ?? ICP_SAMPLES);
+      const b = this.frame.base;
+      const pts = new Float64Array(pick.length * 3);
+      for (let k = 0; k < pick.length; k++) {
+        const j = pick[k]! * 3;
+        pts[k * 3] = this.mapped[j]! + b[0];
+        pts[k * 3 + 1] = this.mapped[j + 1]! + b[1];
+        pts[k * 3 + 2] = this.mapped[j + 2]! + b[2];
+      }
+      const keepVertical = this.settings.keepVertical;
+      const r = await icp({
+        points: pts, initial: this.totalMatrix, closest, keepVertical, maxIterations: opts.maxIterations, startDistance: opts.startDistance, trim: opts.trim, minDistance: opts.minDistance,
+        onProgress: (it, rms) => { if (token === this.token) this.setStatus(`Refine (ICP): iteration ${it}, RMS ${formatDistance(rms)}`); },
+        onSearch: (k, n) => { if (token === this.token) this.setStatus(`Refine (ICP): trying start heading ${k} of ${n}`); },
+        isCancelled: () => this.cancel || token !== this.token,
+      });
+      if (!r || token !== this.token) {
+        if (token === this.token) this.setStatus('Refine (ICP) stopped: the alignment did not change.');
+        return null;
+      }
+      const ms = performance.now() - t0;
+      this.stats.icp = {
+        iterations: r.iterations, converged: r.converged, reverted: r.reverted, rmsBefore: r.before.rms, rmsAfter: r.after.rms,
+        inlierFraction: r.after.inlierFraction, samples: pick.length, ms, reason: r.reason,
+      };
+      const head = `ICP (${keepVertical ? 'keep vertical' : 'full 3D'}, ${pick.length.toLocaleString('en-US')} points, ${scope})`;
+      const nums = `RMS ${formatDistance(r.before.rms)} -> ${formatDistance(r.after.rms)} within ${formatDistance(r.scoreDistance)}, inliers ${(r.before.inlierFraction * 100).toFixed(0)}% -> ${(r.after.inlierFraction * 100).toFixed(0)}%`;
+      if (r.ok) {
+        const ch = transformError(this.totalMatrix, r.matrix, this.frame.pivot);
+        const desc = `${head}: ${r.iterations} iterations${r.searchYawDeg ? ` from a start turned ${r.searchYawDeg} deg` : ''}, ${r.converged ? 'converged' : r.reason}; ${nums}.`;
+        this.applyTotal(r.matrix, desc);
+        this.setStatus(`${desc} Moved ${formatDistance(ch.translation)}, turned ${ch.rotationDeg.toFixed(3)} deg in ${(ms / 1000).toFixed(1)} s.`);
+      } else {
+        this.setStatus(`${head}: ${r.reason}. ${nums}.`);
+      }
+      return r;
+    } finally {
+      if (token === this.token) this.busy = false;
+      this.emit();
+    }
+  }
+
+  /** An ICP run is in progress. */
+  get icpRunning(): boolean {
+    return this.busy && this.icpToken === this.token;
+  }
+
+  /** Stop a running deviation or ICP. */
+  cancelWork(): void {
+    this.cancel = true;
+  }
+
   // ---------------------------------------------------------------- queries for tests
 
   /** World (viewer) position of shown point i. */
@@ -654,7 +1080,7 @@ export class PointCloudController {
 function emptyStats(): PointCloudStats {
   return {
     loaded: false, name: '', format: '', originalCount: 0, shownCount: 0, parseMs: 0, decimateMs: 0, mode: '', warnings: [], deviation: null,
-    deviationMs: 0, deviationScope: null, alignment: '',
+    deviationMs: 0, deviationScope: null, alignment: '', icp: null,
   };
 }
 

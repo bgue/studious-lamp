@@ -7,7 +7,7 @@ export type Vec3 = [number, number, number];
 
 export interface PointCloudData {
   name: string;
-  /** 'las' | 'ply' | 'pcd' | 'xyz' | 'pts' | 'txt' */
+  /** 'las' | 'e57' | 'ply' | 'pcd' | 'xyz' | 'pts' | 'txt' */
   format: string;
   count: number;
   /** Source frame position (double) that `positions` are relative to. */

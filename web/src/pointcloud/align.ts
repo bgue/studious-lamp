@@ -5,12 +5,18 @@
 // so a rotation about the viewer's vertical axis (Y) by an angle is a rotation about IFC Z by the same angle.
 //
 // A cloud is drawn with the transform
-//   p' = Ry(theta) * (g + base - pivot) + pivot + offset
+//   p' = N * A * (g + base)              N = T(A pivot + offset) * Ry(theta) * T(-A pivot)
 // where g is the Float32 position relative to the cloud's double precision origin, already axis-mapped; base is the
-// mapped origin (double, minus the shift: small when cloud and model share a frame); pivot is the mapped bounds centre.
+// mapped origin (double, minus the shift: small when cloud and model share a frame); pivot is the mapped bounds centre;
+// A is the registration, a general rigid (or similarity) 4x4 set by 3-point alignment or ICP (identity by default);
+// N is the manual nudge (offset x/y/z, rotation about the vertical through the registered bounds centre). With A the
+// identity this is the original  p' = Ry(theta) * (g + base - pivot) + pivot + offset.
+// c = g + base is "the cloud frame" of the registration code: N * A is the total transform from c to the viewer.
 // Everything large is combined in double inside the 4x4 matrix, so the Float32 vertex data stays small.
 
 import { Matrix4 } from 'three';
+import { apply, identity, isIdentity, isYawOnly, mul, rotationY, translation, yawDeg } from './register';
+import type { Mat4 } from './register';
 import type { Vec3 } from './types';
 
 export type CoordMode = 'project' | 'viewer';
@@ -46,6 +52,8 @@ export interface FrameParams {
   shift: Vec3;
   offset: Vec3;
   rotationDeg: number;
+  /** Registration A (column-major 4x4, cloud frame c -> viewer). Identity when absent. */
+  registration?: ArrayLike<number>;
 }
 
 export interface CloudGeometryInfo {
@@ -59,7 +67,10 @@ export interface CloudFrame {
   base: Vec3;
   /** Mapped bounds centre in the viewer frame (before offset and rotation). */
   pivot: Vec3;
+  /** g -> viewer (what three.js draws with). */
   matrix: Matrix4;
+  /** Cloud frame c = g + base -> viewer: N * A. */
+  total: Mat4;
 }
 
 const toViewer = (p: Vec3, f: FrameParams): Vec3 => (f.mode === 'project' ? projectToViewer(p, f.shift) : [p[0], p[1], p[2]]);
@@ -72,10 +83,43 @@ export function cloudFrame(info: CloudGeometryInfo, f: FrameParams): CloudFrame 
     (info.boundsMin[2] + info.boundsMax[2]) / 2,
   ];
   const pivot = toViewer(centre, f);
-  const m = new Matrix4().makeTranslation(pivot[0] + f.offset[0], pivot[1] + f.offset[1], pivot[2] + f.offset[2]);
-  m.multiply(new Matrix4().makeRotationY((f.rotationDeg * Math.PI) / 180));
-  m.multiply(new Matrix4().makeTranslation(base[0] - pivot[0], base[1] - pivot[1], base[2] - pivot[2]));
-  return { base, pivot, matrix: m };
+  const rad = (f.rotationDeg * Math.PI) / 180;
+  const A = f.registration && f.registration.length === 16 && !isIdentity(f.registration) ? Array.from(f.registration) : null;
+  if (!A) {
+    // the original composition, operation for operation
+    const m = new Matrix4().makeTranslation(pivot[0] + f.offset[0], pivot[1] + f.offset[1], pivot[2] + f.offset[2]);
+    m.multiply(new Matrix4().makeRotationY(rad));
+    m.multiply(new Matrix4().makeTranslation(base[0] - pivot[0], base[1] - pivot[1], base[2] - pivot[2]));
+    return { base, pivot, matrix: m, total: mul(m.elements, translation(-base[0], -base[1], -base[2])) };
+  }
+  const total = mul(nudge(apply(A, pivot), f.offset, rad), A);
+  const m = new Matrix4().fromArray(mul(total, translation(base[0], base[1], base[2])));
+  return { base, pivot, matrix: m, total };
+}
+
+/** N = T(centre + offset) * Ry(rad) * T(-centre). */
+function nudge(centre: Vec3, offset: Vec3, rad: number): Mat4 {
+  return mul(translation(centre[0] + offset[0], centre[1] + offset[1], centre[2] + offset[2]), mul(rotationY(rad), translation(-centre[0], -centre[1], -centre[2])));
+}
+
+export interface AlignmentParts {
+  offset: Vec3;
+  rotationDeg: number;
+  /** Identity when the transform is a yaw plus a translation (then offset and rotation say it all). */
+  registration: Mat4;
+}
+
+/**
+ * Split a total transform (cloud frame c -> viewer) into the stored parts. A yaw plus a translation becomes
+ * offset + rotation about the bounds centre `pivot` (registration identity), so the panel shows the real numbers.
+ * Anything else (a tilt, a scale) is stored as the registration with a zero nudge.
+ */
+export function decomposeTotal(total: ArrayLike<number>, pivot: Vec3): AlignmentParts {
+  if (isYawOnly(total)) {
+    const q = apply(total, pivot);
+    return { offset: [q[0] - pivot[0], q[1] - pivot[1], q[2] - pivot[2]], rotationDeg: yawDeg(total), registration: identity() };
+  }
+  return { offset: [0, 0, 0], rotationDeg: 0, registration: Array.from(total) };
 }
 
 /** Viewer position of a mapped relative position g. */
