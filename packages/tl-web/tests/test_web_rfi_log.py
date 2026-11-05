@@ -88,23 +88,34 @@ def test_a_row_is_selected(world: Any, htmlkit: Any) -> None:
     assert [r.get("aria-selected") for r in doc.log_rows()].count("true") == 1
 
 
-def test_the_panel_is_the_terminals_plain_lines(world: Any, htmlkit: Any) -> None:
+def test_the_panel_is_the_terminals_page_as_html(world: Any, htmlkit: Any) -> None:
     number = world.numbers["open_rfi"]
     reader = world.reads("bob")
     view = reader.get_rfi("P123", number)
-    lines = present.plain_lines(
-        present.rfi_text.rfi_page(
-            view,
-            labels_for(world, "bob"),
-            technical=False,
-            client=present.as_client(reader),
-            project="P123",
-        )
+    page = present.rfi_text.rfi_page(
+        view,
+        labels_for(world, "bob"),
+        technical=False,
+        client=present.as_client(reader),
+        project="P123",
     )
     panel = world.web("bob").client.get(f"{P}/rfis/panel/{number}")
     assert panel.status_code == 200
     got = htmlkit.parse(panel.text)
-    assert got.pre().split("\n") == lines
+    assert got.pre() == ""  # no terminal text: the page is HTML
+    root = got.by_id("log-panel") or got.root
+    assert root.find("h2", class_="tl-page-id").text() == page.identity
+    assert (
+        root.find("span", class_=f"tl-badge tl-{present.state_tone(page.state)}").text()
+        == page.state
+    )
+    assert [h.text() for h in root.find_all("h3")] == [sec.heading for sec in page.sections]
+    props = [p for sec in page.sections for p in sec.items if isinstance(p, present.layout.Prop)]
+    assert props
+    shown = [n.text() for n in root.find_all("dt")] + [n.text() for n in root.find_all("dd")]
+    for prop in props:
+        assert prop.label in shown
+        assert (prop.value or present.layout.EMPTY) in shown
     for region in ("log-crumb", "log-actions", "log-status"):
         node = got.by_id(region)
         assert node is not None and node.get("hx-swap-oob") == "true", region

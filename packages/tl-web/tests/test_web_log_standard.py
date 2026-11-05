@@ -184,7 +184,7 @@ def test_the_actions_bar_lists_the_offers_of_the_selected_row(fake: Any, htmlkit
     assert asking.get("hx-get") == "/web/p/P123/records/id-1/do/AnswerTechnical/form"
     assert asking.get("hx-target") == "#log-panel"
     assert "hx-post" not in asking.attrs
-    assert plain.text().startswith("[a] Do it")
+    assert plain.text().split() == ["Do", "it", "a"]  # label, then the <kbd> key
     other = htmlkit.parse(fake.client("bob").get(PAGE, params={"sel": "WL-2"}).text)
     assert other.buttons() == []
     link = other.by_id("log-open")

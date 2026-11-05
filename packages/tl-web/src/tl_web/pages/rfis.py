@@ -45,18 +45,15 @@ class RfiWebLog(WebLog["RfiLogLine"]):
     def row_cells(self, row: RfiLogLine):
         return present.rfi_text.rfi_cells(row, self.labels, technical=self.technical)
 
-    def panel_text(self, row: RfiLogLine | None) -> list[str]:
-        if row is None:
-            return []
+    def panel_page(self, row: RfiLogLine) -> present.Page:
         view = self.client.get_rfi(self.project, row.number)
-        page = present.rfi_text.rfi_page(
+        return present.rfi_text.rfi_page(
             view,
             self.labels,
             technical=self.technical,
             client=present.as_client(self.client),
             project=self.project,
         )
-        return present.plain_lines(page)
 
     def summary_text(self) -> str:
         return self._summary

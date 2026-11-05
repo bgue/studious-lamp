@@ -2,9 +2,9 @@
 
 A web log is the terminal's ``LogScreen`` with the same hooks and one template. A page module
 subclasses ``WebLog`` (``LOG_NAME``, ``KEY_HINTS``, ``columns``, ``load_rows``, ``row_key``,
-``row_cells``, ``row_record``, ``panel_text``, ``summary_text``; ``actions_for`` is usually the
-default), calls ``register(slug, cls)`` and adds its own ``GET /web/p/{project}/{slug}`` that
-answers
+``row_cells``, ``row_record``, ``panel_page`` (or ``panel_text``), ``summary_text``;
+``actions_for`` is usually the default), calls ``register(slug, cls)`` and adds its own
+``GET /web/p/{project}/{slug}`` that answers
 ``MyLog.page(request, project, q=q, sel=sel, mode=mode)``. This module owns the htmx partial
 ``GET /web/p/{project}/{log}/panel/{number:path}``.
 
@@ -171,9 +171,18 @@ class WebLog[Row]:
         """``(number, title)`` of the record, for the breadcrumb and the panel URL."""
         raise NotImplementedError
 
+    def panel_page(self, row: Row) -> present.Page | None:
+        """The panel of ``row`` as a layout ``Page`` (rendered as HTML), or ``None`` for a log
+        whose panel is free text (it then implements ``panel_text``)."""
+        return None
+
     def panel_text(self, row: Row | None) -> list[str]:
-        """The panel of ``row`` as the terminal's plain lines (``present.plain_lines(page)``)."""
-        raise NotImplementedError
+        """The panel of ``row`` as the terminal's plain lines; by default the plain lines of
+        ``panel_page``."""
+        page = self.panel_page(row) if row is not None else None
+        if page is None:
+            raise NotImplementedError
+        return present.plain_lines(page)
 
     def panel_image(self, row: Row) -> str:
         """The URL of a picture for the top of the panel (a page-1 preview), or ``""`` for none.
@@ -242,9 +251,20 @@ class WebLog[Row]:
             self.project, self.LOG_NAME, number or None, title or None, 1000
         )
         actions = self.actions_for(row) if row is not None else []
+        page = self.panel_page(row) if row is not None else None
+        if row is None:
+            lines = ["Nothing here."]
+        elif page is None:
+            lines = self.panel_text(row)
+        else:
+            lines = present.plain_lines(page)
         return {
             "crumb": crumb,
-            "panel": self.panel_text(row) if row is not None else ["Nothing here."],
+            "panel": lines,
+            "panel_page": page,
+            "tone": present.tone,
+            "state_tone": present.state_tone,
+            "page_blocks": present.page_blocks,
             "panel_image": self.panel_image(row) if row is not None else "",
             "actions": self._action_views(self.row_key(row), actions) if row is not None else [],
             "open_url": self._open_url(row) if row is not None else "",
@@ -287,7 +307,10 @@ class WebLog[Row]:
             {
                 "number": self.row_record(r)[0],
                 "selected": r is selected,
-                "cells": [{"text": c[i], "cls": columns[n]["cls"]} for n, i in enumerate(shown)],
+                "cells": [
+                    {"text": c[i], "cls": columns[n]["cls"], "badge": _badge(names[i], c[i])}
+                    for n, i in enumerate(shown)
+                ],
                 "panel_url": self._panel_url(self.row_record(r)[0]),
                 "open_url": self._open_url(r),
             }
@@ -308,7 +331,7 @@ class WebLog[Row]:
             **self._selected_context(selected),
         )
 
-    def panel_page(self, number: str, notice: str | None) -> Response:
+    def panel_response(self, number: str, notice: str | None) -> Response:
         """The htmx partial: the panel of one row, with the actions bar, the breadcrumb and the
         status line out of band. A hidden or unknown number is the one 404 page."""
         row = self.row_for(number)
@@ -322,6 +345,14 @@ class WebLog[Row]:
             oob=True,
             **self._selected_context(row),
         )
+
+
+def _badge(column: str, text: str) -> str:
+    """The tone of a State cell (``done``, ``waiting``, ``bad``, ``neutral``); ``""`` for any other
+    cell or an empty one."""
+    if column != "State" or not text.strip():
+        return ""
+    return present.state_tone(text)
 
 
 def _column_class(name: str, flex: bool, drop: bool) -> str:
@@ -356,4 +387,4 @@ def panel(request: Request, project: str, log: str, number: str, mode: str = "")
     if cls is None or not PROJECT_ID.fullmatch(project):
         return not_found_page(request)
     instance, notice = cls.for_request(request, project, mode)
-    return instance.panel_page(number, notice)
+    return instance.panel_response(number, notice)
