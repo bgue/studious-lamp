@@ -1,4 +1,4 @@
-# P2-I3 STATE  r=11 base=8142349 C=2 ck=0 gate=n/a wt=/home/user/wt/p2-i3
+# P2-I3 STATE  r=12 base=e381b39 C=2 ck=0 gate=n/a wt=/home/user/wt/p2-i3
 ## BOARD
 S1 p mrg f 485f3b4 schema merged; APPROVALS logged
 S2 p mrg f af76b84 package + pins; e543b97 adds tl-mod-legacy dep + uv.lock; C1 done
@@ -23,14 +23,14 @@ T06d t mrg f 641051a mto_text.py + MtoLinesScreen; merge 2046d54; rev pass; D41
 T06h t mrg f 4a91f61 location_text + LocationScreen; merge 423b515; D45
 T06e t mrg f cc81803 receipt entry + Company crumb; merge 7a7f4c1; Delete key; no MTR upload (D42)
 T07 t mrg f 3f8599c nine MCP reads + propose_reservation; MATERIALS_MCP_ACTIONS (a38d5a3); APPROVALS 01ba7bc
-T12 t stg f - sim MaterialsDesk + actor; T12-sim-desk.md; disjoint from T06j (tl-sim); merge before T11 (D49)
+T12 t mrg f e381b39 sim MaterialsDesk + coordinator; merge e381b39; D51
 S6 p mrg f 05b1f13 client attach_record_file; merge a2a6502; embedded.py import conflict resolved by orch
 T06i t mrg f 63eb4ef cursor, KEYS style, amber Note; merge addf25a
-T08 t disp f - demo; r2 esc@b822444 decided D48; r3 running (wf, same branch); T08a mrg 79f87ec (tl load --company)
-T11 p stg f - tests + 6 mutants; gate RUNS tests; T11-tests.md; after S6, T06i, T08 (C3)
-T06j t stg f - MTR upload in ReceiptEntryScreen; T06j-mtr-upload.md; extends T06e.py
-T13 t stg f - registry glue (was NEXT 5); T13-registry-glue.md; after T06j (D50)
-T10 t todo l - docs lite, after T11
+T08 t mrg f 36e4e28 demo 11/11 sqlite+pg; r3 P; T08a mrg 79f87ec
+T11 p disp f - tests + 6 mutants; running now; T11-tests.md; gate RUNS tests
+T06j t mrg f 2d89f4d MTR upload on receipt entry; subject T06j: kept
+T13 t mrg f 29a8f6b MCP tools + keys + palette; nav panel dropped (D52); full review P
+T10 t stg l - docs lite; T10-docs.md; dispatch after T11 merges
 ## DEC
 D1 2026-11-01 owner policy: tests at T11 (C3), pieces leave dev/accept/P2-I3/<id>.py + smoke, no pytest, no security review, tour at C4
 D2 2026-11-01 UOM: S1 adds code list StockUom (EA SET BOX ROLL L m kg lb m3) to co.acme.materials@1.0.0; UnitOfMeasure has no EA (Q1 answered by orch)
@@ -74,6 +74,8 @@ D47 2026-11-03 r10 LO rulings: T06e cursor jump and KEYS style go to T06i (KEYS 
 D48 2026-11-04 r11 T08 r2 esc rulings (orch): F1 HI DefineItem really accepted (a), clause 10 = 51; F2 MD clause 11 asserts from/to/by; F3/F4 LO; retry notes in T08-demo.md. p2/i1 merged into p2/i3 (Q10 awp path); T08a added --company to tl load run verbs
 D49 2026-11-04 r11 T12 may run beside T06j (tl-sim vs tl-tui, no shared file), not beside anything touching dev/demos; it must merge before T11 (T11 gate includes tl-sim). Mirrors WorkfacePlanner
 D50 2026-11-04 r11 registry glue is Haiku ticket T13 (full), not supervisor work: serial after T06j (both edit tl-tui; T13 edits app.py/keymap). Ticket total 26
+D51 2026-11-05 r12 T12 esc decided (orch b): one row drawn from all positive rows, skip on item mismatch, ambiguous clause struck; refused proposal records nothing; tl-sim 395 P
+D52 2026-11-05 r12 T13 blk -> orch: nav panel dropped (no module has entries); T07.py reads build_server tools 13/13
 ## SEC
 (none; Sec rows S1-S4, T03, T04a, T07 recorded in spec §9, review only if the owner asks)
 ## OPEN
@@ -82,19 +84,18 @@ Q5 S3 report asks: reserve check is literal `reserved + qty <= line qty` (issued
 Q7 T03 defaults kept: no planned_start means blocked; a fully received PO line still promises its item; T11 pins both; veto needs orch raised T03
 Q10 closed r11: p2/i1 merged, T12 scheduled (D49)
 ## NEXT
-1. Orch: T08 r3 result (wf running). Then batch A: T06j + T12 (disjoint: tl-tui | tl-sim; review full each), no T08 overlap needed. Then T13 alone (serial after T06j merge; uv.lock, registries).
-2. T11 (piece, spec ready) after T08, T12, T13 merged: tests RUN, `just gate <dirs>` + `just gate-pg packages/tl-modules/materials`, 1 sentinel + 5 mutants; adds test_materials_coordinator.py. Then C3.
-3. T10 docs lite after T11 (write at the round that stages it; load throughline-docs).
-4. T07 may swap its mto_lines scan for mto_line_detail via a small ticket (D33).
-5. C4: `just demo P2-I3` sqlite+pg (T08), tour once (screens registered by T13). Increment report, README/AGENTS.md updates in the DONE round.
-6. Seed ledger .accept/p2-i3.db is built by dev/accept/P2-I3/S3.py --keep (untracked, gitignored, ~2m15s; a new worktree has none: every acceptance starts with it); rebuild after a schema change.
+1. Orch: T11 (running) merge -> then dispatch T10 (docs lite) -> C3.
+2. C4: `just demo P2-I3` on head sqlite+pg (orch), tour once. Increment report, README/AGENTS.md updates in the DONE round.
+3. T07 may swap its mto_lines scan for mto_line_detail via a small ticket (D33).
+4. Seed ledger .accept/p2-i3.db is built by dev/accept/P2-I3/S3.py --keep (untracked, ~2m15s).
+5. DONE report round: increment report docs/reports/P2-I3.md from STATE.md.
 ## REFS
 Spec docs/build-spec/specs/m4-materials.md §9 (table), §10 (demo). Reports: docs/reports/P2-I3/{S1,S2,S3,S4,S5,T01a,T01b,T03,T04a,T04b,T05a,T05b,T06a,T07}.md.
 S5 guards for T11: views.py:756 (received_by filter, equivalent to the t.id check: test the hidden receipt raises), views_detail.py:177 (hidden-project filter), :42 (open-receipt states, used at :130). Screens: widgets/tag_register.py is the precedent; LogTable has no right-align hook.
 Mutation guards for T11: S2 limits.py:27, handlers/locations.py:172 and :244, targets.py:342, projectors/stock.py:216 and :211; S3 handlers/receipts.py:850 (MTR), handlers/movements.py:389 (negative balance), :449 (reserve over line qty), :385 (consumable cost code), commands.py:104 (word of AdjustStock); S4 guards listed in its spec.
 S3 facts: receipt commands take stream_id (+expected_version for Accept); `Movement` has from_location/to_location codes; Accept needs state Inspected; `RULES` rows read by shape (record_type|type, condition, label, command|command_name, word); `Rule` lives in actions.py; ids for MTOLine samples are 27 chars (fixtures only).
 Seed ledger facts: project:P123, receipt P123-RCPT-0001 (heat H-7781, MTR attached), lots @1 @2, MTO ISO-1234@A/MTO 3 lines for awp.CWP P123-CWP-PIP-0001, actors user:materials-super, user:plain.
-Tickets: docs/tickets/P2-I3/{T06j-mtr-upload,T12-sim-desk,T13-registry-glue,T11-tests,T08-demo}.md. Reports S6, T06i, T08a merged. S6 facts: CreateReceipt result.stream_id is the receipt record id; after Accept only certificate/photo attach; embedded client needs TL_ENV=dev or object_store. Reports T06e, T05c, T05d merged (docs/reports/P2-I3/); screen contracts text-contracts.md (D26 lifted, Screens section). T06e learnings: TlApp binds ctrl+d with priority (check app.py bindings before picking a key); SVG export writes `&#160;` for spaces (grep `Remove&#160;line`). T05c: a controller check needs an account with an explicit module grant (dev ledger gives user: actors only the user word); ForbiddenError text `<Command> needs the <word> access word for <module> on <scope>`. T05d: seed locations are L2 etc., keys have no random suffix: read them from the copy. Every item: setup uv sync --all-packages, NODE_OPTIONS=--max-old-space-size=6144 just check, acceptance script, no pytest except T11; subject P2-I3-<id>: ...
+Tickets: docs/tickets/P2-I3/{T11-tests,T10-docs,T08-demo}.md. Reports S6, T06i, T08a merged. S6 facts: CreateReceipt result.stream_id is the receipt record id; after Accept only certificate/photo attach; embedded client needs TL_ENV=dev or object_store. Reports T06e, T05c, T05d merged (docs/reports/P2-I3/); screen contracts text-contracts.md (D26 lifted, Screens section). T06e learnings: TlApp binds ctrl+d with priority (check app.py bindings before picking a key); SVG export writes `&#160;` for spaces (grep `Remove&#160;line`). T05c: a controller check needs an account with an explicit module grant (dev ledger gives user: actors only the user word); ForbiddenError text `<Command> needs the <word> access word for <module> on <scope>`. T05d: seed locations are L2 etc., keys have no random suffix: read them from the copy. Every item: setup uv sync --all-packages, NODE_OPTIONS=--max-old-space-size=6144 just check, acceptance script, no pytest except T11; subject P2-I3-<id>: ...
 Security sweep per D1/spec §9 only if the owner asks; T04a/T07/T05a walks over classified records are T11's.
 ## TRAPS
 Layout: Section.note shows only when a section has no items; a plain str item carries no colour. Seed P123: no leaf with stock (L2 holds stock, child TC1), 2 receive movements without direction, no reservations (For columns need a client that adds some). Receipt accept needs expected_version = common.version_of(uow, id).
