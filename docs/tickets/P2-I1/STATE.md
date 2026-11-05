@@ -1,4 +1,4 @@
-# P2-I1 STATE  r=14 base=624dd86 C=3 ck=0 gate=n/a wt=/home/user/wt/p2-i1
+# P2-I1 STATE  r=15 base=724f0f2 C=4 ck=0 gate=n/a wt=/home/user/wt/p2-i1
 ## BOARD
 S2 p mrg f 99ad743 schema awp merged; APPROVALS logged
 S3 p mrg f f482aad awp package merged; rev pass
@@ -29,8 +29,8 @@ T05f t mrg f e6b59f5 packages log; 2 att; subject kept (D51)
 T07 t mrg l 8d9b344 sim AwpDesk, planner; 2s subject only (D51)
 T04e t mrg f dbf684c rollup + worker; mounted r10 (glue dc72b6a)
 T11 p mrg f 46c6892 tests; full gate in report; orch regenerated module-roles snapshots; `T11:` subjects kept
-T08 t blk f 3b77ae7 demo; S7, T14 merged; re-run on p2/i1-t08-demo
-T09 t disp l - docs lite; README/AGENTS tl-mod-awp, runbook awp
+T08 t mrg f 724f0f2 demo 10/10 sqlite+pg; orch run
+T09 t mrg l - docs esc resolved by orch; README line rewritten
 S7 p mrg f 624dd86 WBS reinstate; gate 634 P; APPROVALS 2026-11-05
 T14 t mrg l c8cbd9e sim assert excuses awp setup; orch sorted imports; 52/52
 T12 t mrg l 5f2e4c3 awp nav tests 12/12; commit body reworded by orch
@@ -97,6 +97,7 @@ D59 2026-11-05 r13 T14 (tl-sim assertions excuse CWA.Defined, PathOfConstruction
 D60 2026-11-05 r13 ids: orch asked T13 = awp reload fix; it is piece S7 (file S7-awp-wbs-reload.md)
 D61 2026-11-05 r14 S7 2s accepted by orch: legacy test_load_targets pins fixed, script cap waived, awp event count 19; T14 blk fixed by orch
 D62 2026-11-05 r14 follow-ups: F6 rename on reload not handled; F7 CWA target same reload shape (D58); both stated as known limits in T09 runbook
+D63 2026-11-05 r15 DONE: report docs/reports/P2-I1.md, learnings L-P2-I1-1..3; no wave security review per owner
 ## SEC
 F1 LO fixed@- S2 report 65>60 lines; waived
 F2 LO fixed@adfbd1d S3 dropped redundant scope indexes
@@ -111,12 +112,10 @@ T10F3 LO open hidden-CWP check impossible (no class on awp records): T11 fixture
 ## OPEN
 (none)
 ## NEXT
-1. T09 disp alone (disjoint from T08 dev/demos). After review: orch merges.
-2. T08 re-runs `just demo P2-I1` on p2/i1-t08-demo (p2/i1 merged in), SQLite then Postgres once.
-3. Then `just tour` once, increment report <= 80 lines from STATE.
-4. Known from T11 (D55): api 1 flaky failure (stream sign-out); T10F2 tl_mod_schedule leak stays the orchestrator's call.
-5. Screens for the owner: CWP register, WBS tree, CWA register, External packages, Path, CWP detail. Entry: palette ids cwps wbs cwas path packages.
-6. Capacity: owner slice runs to 49%; keep rounds short.
+1. Wave close: orchestrator runs whole-suite gate and gate-pg on the integrated branch, merges p2/i1, pushes.
+2. Tour once at close; screens for the owner: CWP register, WBS tree, CWA register, External packages, Path, CWP detail (palette ids cwps wbs cwas path packages).
+3. Follow-ups in docs/reports/P2-I1.md: F6, F7, tl awp worker access word, spec section 3 role wording, stream test flake, T10F2.
+
 ## REFS
 Spec docs/build-spec/specs/m3-wbs-cwp.md; tickets in docs/tickets/P2-I1/: S7-awp-wbs-reload, T14-sim-assert-awp-setup (+ provided/test_assertions_awp.py); T08-demo on branch p2/i1-t08-demo (report there); reports docs/reports/P2-I1/*.md; tickets docs/tickets/P2-I1/ (T03b T06 T10c done); acceptance scripts dev/accept/P2-I1/ (S5.py worker; T10b.py copy-the-seed; S4.py lines 404-490 packages, links, proposal); CLI pattern tl_cli/cost*.py, awp_read.py; routes tl_api/routes/awp.py; client pattern tl_api/client/schedule.py, tl_tui/embedded.py:1347; text pattern tl_tui/correspondence_text.py; walks test_confidentiality_walk.py (api :142, mcp :36).
 ## TRAPS
