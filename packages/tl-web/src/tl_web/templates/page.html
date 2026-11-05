@@ -1,0 +1,16 @@
+{% macro render_page(page) -%}
+{%- if page.identity %}<h2 class="tl-page-id">{{ page.identity }}</h2>{% endif -%}
+{%- if page.state %}<span class="tl-badge tl-{{ state_tone(page.state) }}">{{ page.state }}</span>{% endif -%}
+{%- if page.summary %}<p class="tl-summary">{{ page.summary }}</p>{% endif -%}
+{%- for sec in page.sections %}<section class="tl-sec"><h3>{{ sec.heading }}</h3>
+{%- if not sec.items and sec.note %}<p class="tl-note">{{ sec.note }}</p>{% endif -%}
+{%- for kind, group in page_blocks(sec.items) -%}
+{%- if kind == "props" %}<dl class="tl-props">{% for p in group %}<dt>{{ p.label }}</dt><dd>{{ p.value if p.value else "—" }}</dd>{% endfor %}</dl>
+{%- elif kind == "table" %}<div class="tl-mini-wrap"><table class="tl-mini"><thead><tr>{% for c in group[0].columns %}<th>{{ c }}</th>{% endfor %}</tr></thead><tbody>
+{%- for row in group %}<tr>{% for cell in row.cells %}<td>
+{%- if cell is string %}{{ cell }}{% elif cell.style %}<span class="tl-badge tl-{{ tone(cell.style) }}">{{ cell.text }}</span>{% else %}{{ cell.text }}{% endif -%}
+</td>{% endfor %}</tr>{% endfor %}</tbody></table></div>
+{%- else %}<p class="tl-line">{{ group }}</p>{% endif -%}
+{%- endfor -%}
+</section>{% endfor -%}
+{%- endmacro %}

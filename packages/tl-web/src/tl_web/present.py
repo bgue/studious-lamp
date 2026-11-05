@@ -9,7 +9,8 @@ reachable only through a Textual import, a page stops and asks; it does not move
 
 from __future__ import annotations
 
-from typing import cast
+from collections.abc import Sequence
+from typing import Any, cast
 
 from tl_tui import (
     action_ui,
@@ -55,6 +56,8 @@ __all__ = [
     "Page",
     "action_ui",
     "as_client",
+    "page_blocks",
+    "state_tone",
     "awp_text",
     "breadcrumb_text",
     "correspondence_text",
@@ -83,12 +86,48 @@ __all__ = [
     "rfi_text",
     "stamp",
     "text",
+    "tone",
     "thread_text",
     "trace_text",
     "visible_columns",
     "wbs_text",
     "without_keys",
 ]
+
+
+_TONES = {"green": "done", "yellow": "waiting", "red": "bad"}
+
+
+def tone(style: str) -> str:
+    """The badge tone of a ``layout`` style word: green done, yellow waiting, red bad, else
+    neutral."""
+    return _TONES.get(style, "neutral")
+
+
+def state_tone(text: str) -> str:
+    """The badge tone of a state's words (``layout.state_style``)."""
+    return tone(layout.state_style(text))
+
+
+def page_blocks(items: Sequence[object]) -> list[tuple[str, Any]]:
+    """The items of a ``Section`` grouped for HTML: consecutive ``Prop`` items are one
+    ``("props", [Prop, ...])``, consecutive ``TableRow`` items with the same columns one
+    ``("table", [TableRow, ...])``, and a ``str`` is a ``("line", str)``."""
+    blocks: list[tuple[str, Any]] = []
+    for item in items:
+        if isinstance(item, layout.Prop):
+            if blocks and blocks[-1][0] == "props":
+                blocks[-1][1].append(item)
+            else:
+                blocks.append(("props", [item]))
+        elif isinstance(item, layout.TableRow):
+            if blocks and blocks[-1][0] == "table" and blocks[-1][1][0].columns == item.columns:
+                blocks[-1][1].append(item)
+            else:
+                blocks.append(("table", [item]))
+        else:
+            blocks.append(("line", item))
+    return blocks
 
 
 def as_client(reads: object) -> ClientInterface:

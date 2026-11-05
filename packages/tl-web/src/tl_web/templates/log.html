@@ -12,7 +12,7 @@
 {% if rows %}<table>
 <thead><tr>{% for c in columns %}<th scope="col" class="{{ c.cls }}">{{ c.name }}</th>{% endfor %}</tr></thead>
 <tbody>
-{% for r in rows %}<tr data-number="{{ r.number }}" data-open="{{ r.open_url }}" aria-selected="{{ 'true' if r.selected else 'false' }}" tabindex="0" hx-get="{{ r.panel_url }}" hx-target="#log-panel" hx-swap="innerHTML" hx-trigger="click">{% for c in r.cells %}<td class="{{ c.cls }}">{{ c.text }}</td>{% endfor %}</tr>
+{% for r in rows %}<tr data-number="{{ r.number }}" data-open="{{ r.open_url }}" aria-selected="{{ 'true' if r.selected else 'false' }}" tabindex="0" hx-get="{{ r.panel_url }}" hx-target="#log-panel" hx-swap="innerHTML" hx-trigger="click">{% for c in r.cells %}<td class="{{ c.cls }}">{% if c.badge %}<span class="tl-badge tl-{{ c.badge }}">{{ c.text }}</span>{% else %}{{ c.text }}{% endif %}</td>{% endfor %}</tr>
 {% endfor %}</tbody>
 </table>
 {% else %}<p class="tl-muted">No items.</p>

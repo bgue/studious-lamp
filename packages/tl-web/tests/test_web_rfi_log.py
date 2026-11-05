@@ -88,23 +88,61 @@ def test_a_row_is_selected(world: Any, htmlkit: Any) -> None:
     assert [r.get("aria-selected") for r in doc.log_rows()].count("true") == 1
 
 
-def test_the_panel_is_the_terminals_plain_lines(world: Any, htmlkit: Any) -> None:
+def test_the_state_cell_holds_a_toned_badge_and_no_other_cell_does(
+    world: Any, htmlkit: Any
+) -> None:
+    doc = htmlkit.parse(world.web("bob").client.get(f"{P}/rfis").text)
+    headers = doc.headers("log-table")
+    state = headers.index("State")
+    assert len(doc.log_rows()) >= 4
+    for row in doc.log_rows():
+        tds = row.find_all("td")
+        text = tds[state].text()
+        badge = tds[state].find("span")
+        assert text.strip()
+        assert badge is not None and badge.get("class") == f"tl-badge tl-{present.state_tone(text)}"
+        assert badge.text() == text
+        for n, td in enumerate(tds):
+            if n != state:
+                assert td.find("span", class_="tl-badge") is None, headers[n]
+
+
+def test_badge_is_for_a_filled_state_cell_only() -> None:
+    from tl_web.log import _badge
+
+    assert _badge("State", "Open") == present.state_tone("Open")
+    assert _badge("State", "   ") == "" and _badge("State", "") == ""
+    assert _badge("Subject", "Open") == ""
+
+
+def test_the_panel_is_the_terminals_page_as_html(world: Any, htmlkit: Any) -> None:
     number = world.numbers["open_rfi"]
     reader = world.reads("bob")
     view = reader.get_rfi("P123", number)
-    lines = present.plain_lines(
-        present.rfi_text.rfi_page(
-            view,
-            labels_for(world, "bob"),
-            technical=False,
-            client=present.as_client(reader),
-            project="P123",
-        )
+    page = present.rfi_text.rfi_page(
+        view,
+        labels_for(world, "bob"),
+        technical=False,
+        client=present.as_client(reader),
+        project="P123",
     )
     panel = world.web("bob").client.get(f"{P}/rfis/panel/{number}")
     assert panel.status_code == 200
     got = htmlkit.parse(panel.text)
-    assert got.pre().split("\n") == lines
+    assert got.pre() == ""  # no terminal text: the page is HTML
+    root = got.by_id("log-panel") or got.root
+    assert root.find("h2", class_="tl-page-id").text() == page.identity
+    assert (
+        root.find("span", class_=f"tl-badge tl-{present.state_tone(page.state)}").text()
+        == page.state
+    )
+    assert [h.text() for h in root.find_all("h3")] == [sec.heading for sec in page.sections]
+    props = [p for sec in page.sections for p in sec.items if isinstance(p, present.layout.Prop)]
+    assert props
+    shown = [n.text() for n in root.find_all("dt")] + [n.text() for n in root.find_all("dd")]
+    for prop in props:
+        assert prop.label in shown
+        assert (prop.value or present.layout.EMPTY) in shown
     for region in ("log-crumb", "log-actions", "log-status"):
         node = got.by_id(region)
         assert node is not None and node.get("hx-swap-oob") == "true", region

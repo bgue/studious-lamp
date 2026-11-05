@@ -92,8 +92,11 @@ def test_clause_3_the_panel_offers_only_what_is_offered_and_an_action_needs_the_
     done = web.client.post(url, data=form, headers=web.headers())
     assert done.status_code == 200
     after = htmlkit.parse(web.client.get(f"{P}/rfis/panel/{number}").text)
-    assert after.pre() != panel.pre()  # the panel shows the new state
-    assert "Answered" in after.pre()
+    assert (
+        after.root.find("h2", class_="tl-page-id").parent.text()
+        != panel.root.find("h2", class_="tl-page-id").parent.text()
+    )  # the new state
+    assert "Answered" in after.root.text()
     assert "AnswerTechnical" not in after.commands()
 
 

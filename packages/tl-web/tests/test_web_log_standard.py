@@ -184,11 +184,19 @@ def test_the_actions_bar_lists_the_offers_of_the_selected_row(fake: Any, htmlkit
     assert asking.get("hx-get") == "/web/p/P123/records/id-1/do/AnswerTechnical/form"
     assert asking.get("hx-target") == "#log-panel"
     assert "hx-post" not in asking.attrs
-    assert plain.text().startswith("[a] Do it")
+    assert plain.text().split() == ["Do", "it", "a"]  # label, then the <kbd> key
+    for button in (plain, asking):
+        assert button.get("class") == "tl-btn"
+        key = button.find("kbd")
+        assert key is not None and key.text() == button.text().split()[-1]
     other = htmlkit.parse(fake.client("bob").get(PAGE, params={"sel": "WL-2"}).text)
     assert other.buttons() == []
     link = other.by_id("log-open")
     assert link is not None and link.get("href") == "/web/p/P123/records/id-2"
+    assert link.tag == "a" and link.get("class") == "tl-btn tl-primary"
+    assert link.text() == "Open Enter"
+    kbd = link.find("kbd")
+    assert kbd is not None and kbd.text() == "Enter"
 
 
 def test_the_partial_swaps_crumb_actions_and_status_out_of_band(fake: Any, htmlkit: Any) -> None:
