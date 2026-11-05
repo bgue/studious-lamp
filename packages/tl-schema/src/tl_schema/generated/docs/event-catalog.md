@@ -209,6 +209,7 @@ Every ledger event type that can reach a webhook subscriber, generated from the 
 | [`WBSNode.BudgetRolledUp`](#wbsnodebudgetrolledup) | `tl.core.WBSNode.BudgetRolledUp.v1` | The rollup job found a new budget figure for a node. |
 | [`WBSNode.CostCodesMapped`](#wbsnodecostcodesmapped) | `tl.core.WBSNode.CostCodesMapped.v1` | The cost code allocation of a leaf node was replaced. |
 | [`WBSNode.Defined`](#wbsnodedefined) | `tl.core.WBSNode.Defined.v1` | A WBS node was defined. |
+| [`WBSNode.Reinstated`](#wbsnodereinstated) | `tl.core.WBSNode.Reinstated.v1` | A retired WBS node was reinstated (a reload after a compensated load). |
 | [`WBSNode.Retired`](#wbsnoderetired) | `tl.core.WBSNode.Retired.v1` | A WBS node was retired. |
 | [`WBSNode.Revised`](#wbsnoderevised) | `tl.core.WBSNode.Revised.v1` | A WBS node was renamed, moved or re-ordered. |
 | [`Waiver.Approved`](#waiverapproved) | `tl.core.Waiver.Approved.v1` | An administrator approved the waiver; the effective schema of the project changes. |
@@ -11892,6 +11893,56 @@ A WBS node was defined.
   "tlseq": 48211933,
   "tlstreamversion": 7,
   "type": "tl.core.WBSNode.Defined.v1"
+}
+```
+
+## WBSNode.Reinstated
+
+A retired WBS node was reinstated (a reload after a compensated load).
+
+- CloudEvents type: `tl.core.WBSNode.Reinstated.v1`
+- Ledger payload class: `WBSNodeReinstatedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `feed_policy` | string | yes | The feed policy the handler fixed when it wrote the event; always "none" (no feed card). |
+| `reason` | string | yes | Why the node was reinstated. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "feed_policy": "none",
+      "reason": "Reloaded after compensation"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/WBSNode.Reinstated/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.WBSNode.Reinstated.v1"
 }
 ```
 

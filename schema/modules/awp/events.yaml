@@ -85,6 +85,23 @@ classes:
         required: true
     examples:
       - value: "{\"feed_policy\": \"none\", \"reason\": \"Merged into 1.2.4\"}"
+  WBSNodeReinstatedPayload:
+    is_a: EventPayload
+    description: >-
+      A retired WBS node was reinstated (a reload after a compensated load).
+    annotations:
+      tl:event_type: WBSNode.Reinstated
+      tl:event_version: "1"
+    attributes:
+      reason:
+        description: "Why the node was reinstated."
+        required: true
+      feed_policy:
+        description: "The feed policy the handler fixed when it wrote the event; always \"none\" (no feed card)."
+        equals_string: none
+        required: true
+    examples:
+      - value: "{\"feed_policy\": \"none\", \"reason\": \"Reloaded after compensation\"}"
   WBSNodeCostCodesMappedPayload:
     is_a: EventPayload
     description: >-

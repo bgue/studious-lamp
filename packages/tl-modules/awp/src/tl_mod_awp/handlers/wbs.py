@@ -55,6 +55,7 @@ from tl_mod_awp.names import (
     WBS_DEFINED,
     WBS_NODE,
     WBS_NODE_TABLE,
+    WBS_REINSTATED,
     WBS_RETIRED,
     WBS_REVISED,
 )
@@ -63,6 +64,7 @@ if TYPE_CHECKING:
     from tl_mod_awp.commands import (
         DefineWbsNode,
         MapWbsToCostCodes,
+        ReinstateWbsNode,
         RetireWbsNode,
         ReviseWbsNode,
     )
@@ -75,6 +77,8 @@ MSG_HAS_ALLOCATION = "a node with a cost code or package allocation cannot take 
 MSG_CYCLE = "a node cannot move under itself or one of its descendants"
 MSG_LEAF_ONLY = "only a leaf node takes a cost code allocation"
 MSG_RETIRED = "the node is retired"
+MSG_NOT_RETIRED = "the node is not retired"
+MSG_PARENT_RETIRED = "the parent of the node is retired"
 MSG_IN_USE = "a package that is not void allocates to the node"
 MSG_UNKNOWN_COST_CODE = "a cost code of the list does not exist in the project"
 RELINK_REASON = "the cost code allocation of the node changed"
@@ -342,6 +346,35 @@ def handle_retire_wbs_node(uow: UnitOfWork, cmd: RetireWbsNode) -> CommandResult
         node.id,
         WBS_NODE,
         [NewEvent(event_type=WBS_RETIRED, payload=silent({"reason": cmd.reason}))],
+    )
+    rollup.request(uow, cmd.scope)
+    return CommandResult(
+        stream_id=node.id, key=node.code, version=made.new_version, events=made.events
+    )
+
+
+def handle_reinstate_wbs_node(uow: UnitOfWork, cmd: ReinstateWbsNode) -> CommandResult:
+    """Bring a retired node back (``WBSNode.Reinstated``); a node that is not retired is refused,
+    and so is one whose parent is still retired (reinstate parents first).
+
+    Raises ``RecordNotFoundError``, ``WbsRuleError``.
+    """
+    require_project(cmd)
+    cmd = correlated(cmd)
+    conn = uow.conn()
+    ref = load_record(uow, cmd.scope, cmd.node, WBS_NODE)
+    tree = load_tree(conn, cmd.scope)
+    node = tree.by_id[ref.id]
+    if not node.retired:
+        raise WbsRuleError(MSG_NOT_RETIRED)
+    if node.parent_id is not None and tree.by_id[node.parent_id].retired:
+        raise WbsRuleError(MSG_PARENT_RETIRED)
+    made = append(
+        uow,
+        cmd,
+        node.id,
+        WBS_NODE,
+        [NewEvent(event_type=WBS_REINSTATED, payload=silent({"reason": cmd.reason}))],
     )
     rollup.request(uow, cmd.scope)
     return CommandResult(

@@ -87,6 +87,7 @@ NO_CARD = {
     "WBSNode.Defined",
     "WBSNode.Revised",
     "WBSNode.Retired",
+    "WBSNode.Reinstated",
     "WBSNode.CostCodesMapped",
     "WBSNode.BudgetRolledUp",
     "PathOfConstruction.Defined",
@@ -239,9 +240,9 @@ def _events() -> dict[str, dict[str, Any]]:
     return by_type
 
 
-def test_the_eighteen_events_are_the_spec_list() -> None:
+def test_the_nineteen_events_are_the_spec_list() -> None:
     assert set(_events()) == NO_CARD | CARD
-    assert len(NO_CARD | CARD) == 18
+    assert len(NO_CARD | CARD) == 19  # 18 of the spec + WBSNode.Reinstated (S7)
 
 
 @pytest.mark.parametrize("event_type", sorted(NO_CARD | CARD))
