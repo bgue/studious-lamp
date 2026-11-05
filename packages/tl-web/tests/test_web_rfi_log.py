@@ -88,6 +88,33 @@ def test_a_row_is_selected(world: Any, htmlkit: Any) -> None:
     assert [r.get("aria-selected") for r in doc.log_rows()].count("true") == 1
 
 
+def test_the_state_cell_holds_a_toned_badge_and_no_other_cell_does(
+    world: Any, htmlkit: Any
+) -> None:
+    doc = htmlkit.parse(world.web("bob").client.get(f"{P}/rfis").text)
+    headers = doc.headers("log-table")
+    state = headers.index("State")
+    assert len(doc.log_rows()) >= 4
+    for row in doc.log_rows():
+        tds = row.find_all("td")
+        text = tds[state].text()
+        badge = tds[state].find("span")
+        assert text.strip()
+        assert badge is not None and badge.get("class") == f"tl-badge tl-{present.state_tone(text)}"
+        assert badge.text() == text
+        for n, td in enumerate(tds):
+            if n != state:
+                assert td.find("span", class_="tl-badge") is None, headers[n]
+
+
+def test_badge_is_for_a_filled_state_cell_only() -> None:
+    from tl_web.log import _badge
+
+    assert _badge("State", "Open") == present.state_tone("Open")
+    assert _badge("State", "   ") == "" and _badge("State", "") == ""
+    assert _badge("Subject", "Open") == ""
+
+
 def test_the_panel_is_the_terminals_page_as_html(world: Any, htmlkit: Any) -> None:
     number = world.numbers["open_rfi"]
     reader = world.reads("bob")
