@@ -236,3 +236,15 @@ The impact report of a package is stored in an event the whole company can read,
 - **L-P1-UX2-3** · 2026-10-22 · tags: tui, standards
   The columns of a company standard hold codes (`STR`, `ISO`, `PIP`, `47`). A screen shows plain words only if the standard's code lists are read: `list_code_lists(scope)` gives `{list: {code: label}}` and `labels_load` keys each list by its column and by its list name. A new log that shows a standards column needs one test with a code in the cell (plain shows the label, technical keeps the code).
   Evidence: S3 report (D10), `labels_load.py`, `test_standard_code_labels.py`. Status: active
+
+- **L-P2-I1-1** · 2026-11-05 · tags: process, schema
+  Check whether a "target-level" fix is possible before writing a Haiku ticket: retire keeps the key taken and no event revives a node, so a loader reload could not be fixed in the loader. It needed a new event and command (S7), a piece with a human gate.
+  Evidence: D58, `docs/reports/P2-I1/S7.md`. Status: active
+
+- **L-P2-I1-2** · 2026-11-05 · tags: tooling, gate
+  A seven-package `just gate` in one pytest session is OOM-killed when other builders run pyright beside it. Gate per package with the same paths and keep one summary per package.
+  Evidence: `docs/reports/P2-I1/T11.md` deviation 2. Status: active
+
+- **L-P2-I1-3** · 2026-11-05 · tags: process, review
+  Review a demo or a report only against the final run: a reviewer read the stale report from the failed first run and returned changes requested. Refresh the report before review.
+  Evidence: T08 review, `docs/reports/P2-I1/T08.md`. Status: active
