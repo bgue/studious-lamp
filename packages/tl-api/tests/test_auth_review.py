@@ -476,6 +476,7 @@ AGENT_MAY_NOT = {
     "control.command.DefineWbsNode",
     "control.command.ReviseWbsNode",
     "control.command.RetireWbsNode",
+    "control.command.ReinstateWbsNode",
     "control.command.MapWbsToCostCodes",
     "control.command.DefinePathOfConstruction",
     "control.command.MoveCwaInPath",

@@ -87,6 +87,7 @@ NO_CARD = {
     "WBSNode.Defined",
     "WBSNode.Revised",
     "WBSNode.Retired",
+    "WBSNode.Reinstated",
     "WBSNode.CostCodesMapped",
     "WBSNode.BudgetRolledUp",
     "PathOfConstruction.Defined",

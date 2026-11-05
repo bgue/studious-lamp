@@ -41,6 +41,7 @@ PWP_VIEW: Final = "v_awp_pwpref"
 WBS_DEFINED: Final = "WBSNode.Defined"
 WBS_REVISED: Final = "WBSNode.Revised"
 WBS_RETIRED: Final = "WBSNode.Retired"
+WBS_REINSTATED: Final = "WBSNode.Reinstated"
 WBS_COST_CODES_MAPPED: Final = "WBSNode.CostCodesMapped"
 PATH_DEFINED: Final = "PathOfConstruction.Defined"
 PATH_RESEQUENCED: Final = "PathOfConstruction.Resequenced"
@@ -65,11 +66,12 @@ ST_VOID: Final = "Void"
 #: The states in which the fields of a package may change (frozen from Released).
 EDITABLE_STATES: Final = (ST_PLANNED, ST_DEVELOPMENT)
 
-#: The eight events with ``feed_policy: none`` (the schema); ``tl_core.feed.cards`` names the same.
+#: The nine events with ``feed_policy: none`` (the schema); ``tl_core.feed.cards`` names the same.
 NO_CARD_EVENTS: Final = (
     "WBSNode.Defined",
     "WBSNode.Revised",
     "WBSNode.Retired",
+    "WBSNode.Reinstated",
     "WBSNode.CostCodesMapped",
     "WBSNode.BudgetRolledUp",
     "PathOfConstruction.Defined",

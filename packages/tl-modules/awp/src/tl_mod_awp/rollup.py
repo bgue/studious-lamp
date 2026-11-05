@@ -45,6 +45,7 @@ CORRELATION_PREFIX: Final = "rollup:"
 _FIGURE_EVENTS: Final = (
     "WBSNode.Revised",
     "WBSNode.Retired",
+    "WBSNode.Reinstated",
     "WBSNode.CostCodesMapped",
     "CWP.Revised",
     "CWP.AllocatedToWbs",

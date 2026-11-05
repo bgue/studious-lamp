@@ -1828,6 +1828,15 @@
       "version": 1
     },
     {
+      "ce_type": "tl.core.WBSNode.Reinstated.v1",
+      "event_type": "WBSNode.Reinstated",
+      "payload_class": "WBSNodeReinstatedPayload",
+      "sample": "samples/WBSNode.Reinstated.v1.json",
+      "schema": "schemas/WBSNode.Reinstated.v1.json",
+      "title": "A retired WBS node was reinstated (a reload after a compensated load).",
+      "version": 1
+    },
+    {
       "ce_type": "tl.core.WBSNode.Retired.v1",
       "event_type": "WBSNode.Retired",
       "payload_class": "WBSNodeRetiredPayload",

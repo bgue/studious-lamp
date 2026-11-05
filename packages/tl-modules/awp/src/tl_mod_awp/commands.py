@@ -55,6 +55,7 @@ from tl_mod_awp.handlers.path import (
 from tl_mod_awp.handlers.wbs import (
     handle_define_wbs_node,
     handle_map_wbs_to_cost_codes,
+    handle_reinstate_wbs_node,
     handle_retire_wbs_node,
     handle_revise_wbs_node,
 )
@@ -146,6 +147,16 @@ class ReviseWbsNode(_Strict):
 
 
 class RetireWbsNode(_Strict):
+    node: str = Field(min_length=1, max_length=MAX_ID)
+    reason: str = Field(min_length=1, max_length=MAX_REASON)
+
+    @field_validator("reason")
+    @classmethod
+    def _reason(cls, value: str) -> str:
+        return _text(value)
+
+
+class ReinstateWbsNode(_Strict):
     node: str = Field(min_length=1, max_length=MAX_ID)
     reason: str = Field(min_length=1, max_length=MAX_REASON)
 
@@ -477,6 +488,7 @@ AWP_COMMANDS: tuple[AwpCommand, ...] = (
     AwpCommand(DefineWbsNode, handle_define_wbs_node, "awp.wbs.configure"),
     AwpCommand(ReviseWbsNode, handle_revise_wbs_node, "awp.wbs.configure"),
     AwpCommand(RetireWbsNode, handle_retire_wbs_node, "awp.wbs.configure"),
+    AwpCommand(ReinstateWbsNode, handle_reinstate_wbs_node, "awp.wbs.configure"),
     AwpCommand(MapWbsToCostCodes, handle_map_wbs_to_cost_codes, "awp.wbs.configure"),
     AwpCommand(DefinePathOfConstruction, handle_define_path_of_construction, "awp.path.configure"),
     AwpCommand(MoveCwaInPath, handle_move_cwa_in_path, "awp.path.configure"),
