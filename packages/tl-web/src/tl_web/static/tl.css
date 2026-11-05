@@ -138,10 +138,11 @@ form.tl-form input[type="text"], form.tl-form input[type="password"] { width: 10
 form.tl-form input:focus, form.tl-form select:focus, .tl-action-form input:focus, .tl-action-form select:focus, .tl-action-form textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-weak); outline: none; }
 .tl-error { color: var(--bad); font-weight: 500; }
 
-/* Sign-in: a 360px card 12vh from the top; the button is full width */
-main:has(form[action="/web/sign-in"]) { max-width: 360px; padding: 0; margin: 12vh auto 0; }
-main:has(form[action="/web/sign-in"]) form { padding: 28px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); }
-main:has(form[action="/web/sign-in"]) button[type="submit"] { width: 100%; justify-content: center; }
+/* Sign-in: a 360px card 12vh from the top, the heading inside it; the button is full width */
+main:has(.tl-sign-in) { padding: 0; }
+.tl-sign-in { box-sizing: border-box; max-width: 360px; margin: 12vh auto 0; padding: 28px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); }
+.tl-sign-in h1 { margin: 0 0 16px; font-size: 20px; font-weight: 600; }
+main:has(.tl-sign-in) button[type="submit"] { width: 100%; justify-content: center; }
 
 /* Record screen: the header, the tab bar (the current tab in the accent colour), the history table */
 .tl-rec-header h1 { margin: 0 0 4px; font-size: 20px; font-weight: 600; }
