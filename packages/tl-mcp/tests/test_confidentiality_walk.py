@@ -53,6 +53,7 @@ def values(hidden: Hidden) -> dict[str, list[Any]]:
         "schedule": ["MAIN", "x"],
         "activity_id": ["x"],
         "code": ["MER", "x", "1.1.1"],
+        "lot": ["P123-RCPT-0001@1", "x"],  # P2-I3-T11: get_material_lot (a lot key)
     }
 
 
@@ -97,6 +98,18 @@ def test_no_read_tool_shows_what_the_actor_may_not_read(
         reading
     )
     assert set(NOT_WALKED) <= set(reading)
+    # P2-I3-T11: the nine materials reads are walked below as this actor, none left out
+    assert {
+        "list_material_stock",
+        "get_material_lot",
+        "list_material_movements",
+        "list_material_receipts",
+        "get_material_receipt",
+        "list_material_locations",
+        "list_po_lines",
+        "list_mto_lines",
+        "list_material_items",
+    } <= set(reading)
     cands = values(hidden)
     bad_tokens = [t for k, t in TOKENS.items() if k != "open"]
     bad_ids = [

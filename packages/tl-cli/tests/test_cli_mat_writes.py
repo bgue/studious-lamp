@@ -1,4 +1,4 @@
-"""The tl mat write verbs: refusals, adjust --direction, a bad line exits 1 (T05c)."""
+"""Write verbs of `tl mat`: receive, move (adjust --direction), reserve, mto assign (T05c)."""
 
 from __future__ import annotations
 
@@ -10,10 +10,16 @@ import pytest
 sys.path.insert(0, str(Path(__file__).parents[2] / "tl-modules" / "materials" / "tests"))
 
 import acc_t05c  # noqa: E402
-from acc_runner import run_main  # noqa: E402
+from acc_runner import check_ids, run_check  # noqa: E402
 
 
-def test_write_verbs(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+@pytest.mark.parametrize("label", check_ids(acc_t05c))
+def test_write_verb(
+    label: str,
+    tmp_path_factory: pytest.TempPathFactory,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
 ) -> None:
-    run_main(acc_t05c, tmp_path, monkeypatch, capsys)
+    """One named check per test (the id is the check function); checks that build on the
+    earlier ones of the script run after them, in order."""
+    run_check(acc_t05c, label, tmp_path_factory, monkeypatch, capsys, cumulative=True)

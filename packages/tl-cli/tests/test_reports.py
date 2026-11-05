@@ -1,4 +1,4 @@
-"""The six materials reports, CSV and the heat_trace MTR (T05a)."""
+"""The six materials reports, CSV and the report routes; heat_trace MTR (T05a)."""
 
 from __future__ import annotations
 
@@ -10,10 +10,15 @@ import pytest
 sys.path.insert(0, str(Path(__file__).parents[2] / "tl-modules" / "materials" / "tests"))
 
 import acc_t05a  # noqa: E402
-from acc_runner import run_main  # noqa: E402
+from acc_runner import check_ids, run_check  # noqa: E402
 
 
-def test_six_reports(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+@pytest.mark.parametrize("label", check_ids(acc_t05a))
+def test_report(
+    label: str,
+    tmp_path_factory: pytest.TempPathFactory,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
 ) -> None:
-    run_main(acc_t05a, tmp_path, monkeypatch, capsys)
+    """One named check of the ported script per test; the id is the check function's name."""
+    run_check(acc_t05a, label, tmp_path_factory, monkeypatch, capsys)
