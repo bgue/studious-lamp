@@ -1,9 +1,9 @@
 """WbsProjector: the ``WBSNode.*`` events into ``cur_awp_wbs_node`` and ``cur_awp_wbs_allocation``.
 
 ``Defined`` inserts the node; ``Revised`` changes its parent, depth and position (the title is the
-envelope's, moved by ``Record.Updated``, and is ignored here); ``Retired`` sets the flag;
-``CostCodesMapped`` replaces the node's allocation lines. Deterministic: the rows depend only on
-the events. Register it after ``RecordProjector``.
+envelope's, moved by ``Record.Updated``, and is ignored here); ``Retired`` sets the flag and
+``Reinstated`` clears it; ``CostCodesMapped`` replaces the node's allocation lines.
+Deterministic: the rows depend only on the events. Register it after ``RecordProjector``.
 """
 
 from __future__ import annotations
@@ -19,6 +19,7 @@ from tl_mod_awp.names import (
     WBS_DEFINED,
     WBS_NODE_TABLE,
     WBS_NODE_VIEW,
+    WBS_REINSTATED,
     WBS_RETIRED,
     WBS_REVISED,
 )
@@ -50,7 +51,9 @@ def allocation_row_id(node_id: str, cost_code_id: str) -> str:
 
 class WbsProjector:
     name = "awp_wbs"
-    handles = frozenset({WBS_DEFINED, WBS_REVISED, WBS_RETIRED, WBS_COST_CODES_MAPPED})
+    handles = frozenset(
+        {WBS_DEFINED, WBS_REVISED, WBS_RETIRED, WBS_REINSTATED, WBS_COST_CODES_MAPPED}
+    )
 
     def ddl(self, dialect: str) -> list[str]:
         return (
@@ -98,6 +101,10 @@ class WbsProjector:
         elif kind == WBS_RETIRED:
             conn.execute(
                 _RETIRE_SQL, {"id": event.stream_id, "retired": True, "last_seq": event.seq}
+            )
+        elif kind == WBS_REINSTATED:
+            conn.execute(
+                _RETIRE_SQL, {"id": event.stream_id, "retired": False, "last_seq": event.seq}
             )
         elif kind == WBS_COST_CODES_MAPPED:
             conn.execute(_CLEAR_SQL, {"node_id": event.stream_id})

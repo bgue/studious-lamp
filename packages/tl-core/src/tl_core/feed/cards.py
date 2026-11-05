@@ -63,6 +63,7 @@ POLICY_EVENT_TYPES: frozenset[str] = frozenset(
         "WBSNode.Defined",
         "WBSNode.Revised",
         "WBSNode.Retired",
+        "WBSNode.Reinstated",
         "WBSNode.CostCodesMapped",
         "WBSNode.BudgetRolledUp",
         "PathOfConstruction.Defined",

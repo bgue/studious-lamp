@@ -46,6 +46,7 @@ from tl_mod_awp.commands import (
     DefineWbsNode,
     MapWbsToCostCodes,
     PathStepIn,
+    ReinstateWbsNode,
     RetireCwa,
     RetireWbsNode,
 )
@@ -64,6 +65,7 @@ from tl_mod_awp.handlers.path import handle_define_path_of_construction, path_ke
 from tl_mod_awp.handlers.wbs import (
     handle_define_wbs_node,
     handle_map_wbs_to_cost_codes,
+    handle_reinstate_wbs_node,
     handle_retire_wbs_node,
     load_tree,
 )
@@ -137,6 +139,7 @@ class _Node:
     parent: str | None
     depth: int
     lines: tuple[tuple[str, str], ...]
+    reinstate: str | None = None  # the id of the retired node this row brings back
 
 
 @dataclass(frozen=True)
@@ -229,6 +232,7 @@ class WbsTarget:
         existing: list[str] = []
         invalid: list[tuple[int, str]] = []
         pending: dict[str, tuple[int, dict[str, str], list[tuple[str, Decimal]]]] = {}
+        revived: dict[str, str] = {}
         bad: set[str] = set()
         seen: set[str] = set()
         for line, raw in _cells(grid, ("code", "title")):
@@ -238,9 +242,16 @@ class WbsTarget:
                 invalid.append((line, reason))
                 continue
             seen.add(code)
-            if resolve_code(conn, scope, WBS_NODE, code) is not None:
-                existing.append(code)
-                continue
+            held = resolve_code(conn, scope, WBS_NODE, code)
+            revive: str | None = None
+            if held is not None:
+                old = tree.by_id[held]
+                held_parent = None if old.parent_id is None else tree.by_id[old.parent_id].code
+                if old.retired and held_parent == (raw.get("parent") or None):
+                    revive = held  # a retired node of the same parent: the reload brings it back
+                else:
+                    existing.append(code)
+                    continue
             lines: list[tuple[str, Decimal]] = []
             reason = _title_problem(raw["title"])
             parent = raw.get("parent", "")
@@ -258,6 +269,8 @@ class WbsTarget:
                 bad.add(code)
             else:
                 pending[code] = (line, raw, lines)
+                if revive is not None:
+                    revived[code] = revive
         parents = {raw.get("parent") for _, raw, _ in pending.values()}
         for code in [c for c, (_, _, lines) in pending.items() if lines and c in parents]:
             invalid.append((pending.pop(code)[0], R_LEAF))
@@ -322,6 +335,7 @@ class WbsTarget:
                 raw.get("parent") or None,
                 depth,
                 tuple((c, percent_text(p)) for c, p in lines),
+                revived.get(code),
             )
             rows.append(PlannedRow(line, code, dict(raw), node))
         return Plan(rows=rows, existing=existing, invalid=sorted(invalid))
@@ -344,6 +358,28 @@ class WbsTarget:
         made: list[Created] = []
         for planned in sorted(plan.rows, key=lambda r: (r.native.depth, r.line)):  # parents first
             node: _Node = planned.native
+            if node.reinstate is not None:
+                result = handle_reinstate_wbs_node(
+                    uow,
+                    ReinstateWbsNode(
+                        **base, node=node.reinstate, reason="Reloaded after a compensated load"
+                    ),
+                )
+                if self._lines_differ(
+                    uow.conn(), scope, node.reinstate, planned.raw.get("cost_codes", "")
+                ):
+                    handle_map_wbs_to_cost_codes(
+                        uow,
+                        MapWbsToCostCodes(
+                            **base,
+                            node=result.stream_id,
+                            allocations=[
+                                CostCodeLine(cost_code=c, percent=p) for c, p in node.lines
+                            ],
+                        ),
+                    )
+                made.append(Created(result.stream_id, node.code, planned.line, planned.raw))
+                continue
             try:
                 result = handle_define_wbs_node(
                     uow,
