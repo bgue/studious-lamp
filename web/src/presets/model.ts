@@ -26,6 +26,11 @@ export interface Preset {
   params: Record<string, unknown>;
   /** Action ids run (runAction) after the params are applied, for example `section.fitSelection`. */
   actions?: string[];
+  /**
+   * `selection`: after the params and actions, move the camera so the selection fills the view (nothing happens without
+   * a selection). Without it a preset never moves the camera (unless `params.camera` is set).
+   */
+  frame?: 'selection';
   builtIn: boolean;
 }
 
@@ -97,6 +102,7 @@ export function normalizePreset(raw: unknown, builtIn: boolean, why: string[] = 
     builtIn,
   };
   if (actions.length > 0) p.actions = actions;
+  if (raw['frame'] === 'selection') p.frame = 'selection';
   return p;
 }
 
@@ -136,6 +142,7 @@ export function serializePresets(presets: readonly Preset[], now: Date = new Dat
     presets: presets.map((p) => {
       const o: PresetsDocument['presets'][number] = { id: p.id, name: p.name, description: p.description, group: p.group, base: p.base, params: clone(p.params) };
       if (p.actions && p.actions.length > 0) o.actions = [...p.actions];
+      if (p.frame) o.frame = p.frame;
       return o;
     }),
   };
@@ -189,6 +196,7 @@ function fromBase64Url(s: string): Uint8Array {
 export function encodePresetShare(p: Preset): string {
   const preset: Record<string, unknown> = { name: p.name, description: p.description, group: p.group, base: p.base, params: p.params };
   if (p.actions && p.actions.length > 0) preset['actions'] = p.actions;
+  if (p.frame) preset['frame'] = p.frame;
   return toBase64Url(new TextEncoder().encode(JSON.stringify({ schema: PRESETS_SCHEMA, preset })));
 }
 

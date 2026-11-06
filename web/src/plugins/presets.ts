@@ -20,6 +20,8 @@ import { registerTool } from '../tools/registry';
 import { copyText } from '../ui/dom';
 import { collectParams, paramSectionNames } from '../ui/params';
 import type { ParamsApp } from '../ui/params';
+import { boxFromTuple, requestFrame } from '../ui/fit';
+import { Box3 } from 'three';
 
 export interface PresetSummary {
   id: string;
@@ -97,7 +99,22 @@ function notify(app: ViewerApp, text: string, ms = 5000): void {
 }
 
 function env(): EngineEnv {
-  return { factory: (s) => factory?.get(s) };
+  return { factory: (s) => factory?.get(s), frameSelection: () => (appRef ? frameSelection(appRef) : false) };
+}
+
+/** Preset `frame: 'selection'`: fit the camera to the bounds of the selection (the cinematic fly-to animates it). */
+function frameSelection(app: ViewerApp): boolean {
+  const els = app.loaded?.model.elements;
+  if (!els) return false;
+  const box = new Box3();
+  for (const id of app.selection) {
+    const b = els[id]?.bounds;
+    if (b) box.union(boxFromTuple(b));
+  }
+  if (box.isEmpty()) return false;
+  requestFrame(app.renderer.camera, app.renderer.controls, box);
+  app.renderer.markDirty();
+  return true;
 }
 
 const paramsApp = (app: ViewerApp): ParamsApp => app as unknown as ParamsApp;

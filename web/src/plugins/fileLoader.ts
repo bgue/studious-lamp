@@ -9,6 +9,7 @@ import {
   AUTO_EDGES_MAX_ELEMENTS, IFC_READER_AVAILABLE, IfcReaderUnavailable, ImportCancelled, importIfc, isZip, prewarmIfcReader, unzipIfc,
 } from '../model/ifcImport';
 import type { EdgesOption, IfcInput, IfcProgress, StageTimings } from '../model/ifcImport';
+import { IfcUnreadable, friendlyIfcError } from '../model/ifcErrors';
 import { registerTool } from '../tools/registry';
 import { note, section } from '../tools/ui';
 import { el } from '../ui/dom';
@@ -339,10 +340,19 @@ export const fileLoaderPlugin: AppPlugin = (() => {
           inputs.push({ name, data: bytes.byteOffset === 0 && bytes.byteLength === bytes.buffer.byteLength ? (bytes.buffer as ArrayBuffer) : (bytes.slice().buffer as ArrayBuffer) });
         }
         readMs = performance.now() - t0;
-        const res = await importIfc(inputs, {
-          signal, onProgress: (p) => setStatus(progressText(p, inputs.length)),
-          edges: large.edges, props: large.properties,
-        });
+        let res: Awaited<ReturnType<typeof importIfc>>;
+        try {
+          res = await importIfc(inputs, {
+            signal, onProgress: (p) => setStatus(progressText(p, inputs.length)),
+            edges: large.edges, props: large.properties,
+          });
+        } catch (e) {
+          if (e instanceof ImportCancelled || e instanceof IfcReaderUnavailable || signal.aborted) throw e;
+          // web-ifc's internal message means nothing to a user: one friendly line, the raw text in the console.
+          const f = friendlyIfcError(e, inputs.length === 1 ? inputs[0]!.name : undefined);
+          if (f instanceof IfcUnreadable) console.info('[open-file] IFC reader detail:', f.detail);
+          throw f;
+        }
         loaded = res.loaded;
         importTimings = res.timings;
         importInfo = { edgesSkipped: res.stats.edgesSkipped, bvh: res.stats.bvh, edgeSegments: res.stats.edgeSegments };

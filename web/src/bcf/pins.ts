@@ -11,7 +11,8 @@ import type { Measurement } from '../measure/maths';
 import { MARKUP_FONT, layoutAnnotation, layoutPin, projectPoint } from './annotate';
 import type { DrawOp, LayoutContext } from './annotate';
 import type { BcfController } from './controller';
-import type { BcfAnnotationType } from './model';
+import { isShapeType } from './model';
+import type { BcfAnnotationType, BcfShapeType } from './model';
 
 export type PlaceKind = 'pin' | BcfAnnotationType;
 const CLICK_SLOP = 5;
@@ -29,6 +30,8 @@ export class BcfMarkupView {
   private down: { x: number; y: number } | null = null;
   private drag: { guid: string; startX: number; startY: number; off: [number, number]; moved: boolean } | null = null;
   private escHandler: ((e: KeyboardEvent) => void) | null = null;
+  /** A rectangle or freehand line being drawn (canvas CSS pixels). */
+  private stroke: { kind: BcfShapeType; topic: string; text: string; points: Array<[number, number]>; id: number } | null = null;
   get dragging(): boolean {
     return this.drag !== null;
   }
@@ -39,6 +42,7 @@ export class BcfMarkupView {
     // Capture phase on the canvas: runs before the viewer's click-to-select (same pattern as the measure tool).
     canvas.addEventListener('pointerdown', (e) => {
       this.down = this.placing && e.button === 0 ? { x: e.clientX, y: e.clientY } : null;
+      if (this.placing && isShapeType(this.placing.kind) && e.button === 0) this.startStroke(e);
     }, true);
     canvas.addEventListener('pointerup', (e) => this.onPointerUp(e), true);
     c.onChange(() => this.overlay?.invalidate());
@@ -74,8 +78,12 @@ export class BcfMarkupView {
     this.placing = { kind, topic, text };
     this.c.app.canvas.style.cursor = 'crosshair';
     this.addEsc();
-    const what = kind === 'pin' ? 'the pin' : kind === 'note' ? 'the note' : `the ${kind} target element`;
-    this.c.setStatus(`Click the model to place ${what} (Esc cancels)`);
+    if (kind === 'rect' || kind === 'freehand') {
+      this.c.setStatus(`Drag on the view to draw the ${kind === 'rect' ? 'rectangle' : 'freehand line'} (Esc cancels)`);
+    } else {
+      const what = kind === 'pin' ? 'the pin' : kind === 'note' ? 'the note' : `the ${kind} target element`;
+      this.c.setStatus(`Click the model to place ${what} (Esc cancels)`);
+    }
     this.emit();
     return true;
   }
@@ -83,6 +91,7 @@ export class BcfMarkupView {
   cancel(quiet = false): void {
     if (!this.placing) return;
     this.placing = null;
+    this.stroke = null;
     this.c.app.canvas.style.cursor = '';
     this.removeEsc();
     if (!quiet) this.c.setStatus('Placement cancelled');
@@ -107,6 +116,7 @@ export class BcfMarkupView {
   }
 
   private onPointerUp(e: PointerEvent): void {
+    if (this.stroke) return; // the stroke ends on its own window listener
     if (!this.placing || e.button !== 0 || !this.down) return;
     const moved = Math.hypot(e.clientX - this.down.x, e.clientY - this.down.y);
     this.down = null;
@@ -131,6 +141,7 @@ export class BcfMarkupView {
       return false;
     }
     const gid = this.c.app.controller.model.elements[hit.element]?.globalId;
+    if (isShapeType(p.kind)) return false; // shapes are dragged, not clicked
     this.cancel(true);
     try {
       if (p.kind === 'pin') this.c.setPin(p.topic, hit.point, gid);
@@ -148,6 +159,73 @@ export class BcfMarkupView {
     }
     this.emit();
     return true;
+  }
+
+  // ---------------------------------------------------------------- shapes: rectangle and freehand
+
+  /** Pointer down on the canvas while a shape placement is on: the drag draws it (the orbit controls get no event). */
+  private startStroke(e: PointerEvent): void {
+    const p = this.placing;
+    if (!p || !isShapeType(p.kind)) return;
+    e.stopImmediatePropagation();
+    e.preventDefault();
+    const r = this.c.app.canvas.getBoundingClientRect();
+    const at = (ev: PointerEvent): [number, number] => [ev.clientX - r.left, ev.clientY - r.top];
+    this.stroke = { kind: p.kind, topic: p.topic, text: p.text, points: [at(e)], id: e.pointerId };
+    const move = (ev: PointerEvent): void => {
+      const st = this.stroke;
+      if (!st || ev.pointerId !== st.id) return;
+      const q = at(ev);
+      if (st.kind === 'rect') st.points[1] = q;
+      else {
+        const l = st.points[st.points.length - 1]!;
+        if (Math.hypot(q[0] - l[0], q[1] - l[1]) >= 2) st.points.push(q);
+      }
+      this.overlay?.invalidate();
+    };
+    const up = (ev: PointerEvent): void => {
+      if (this.stroke && ev.pointerId !== this.stroke.id) return;
+      window.removeEventListener('pointermove', move, true);
+      window.removeEventListener('pointerup', up, true);
+      window.removeEventListener('pointercancel', up, true);
+      // Hide the release from the viewer's click-to-select, as for placing clicks.
+      try {
+        Object.defineProperty(ev, 'button', { value: 2 });
+      } catch {
+        /* the event stays as is */
+      }
+      this.finishStroke();
+    };
+    window.addEventListener('pointermove', move, true);
+    window.addEventListener('pointerup', up, true);
+    window.addEventListener('pointercancel', up, true);
+  }
+
+  private finishStroke(): void {
+    const st = this.stroke;
+    this.stroke = null;
+    this.down = null;
+    if (!st) return;
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for (const [x, y] of st.points) { x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); }
+    if (st.points.length < 2 || Math.max(x1 - x0, y1 - y0) < 6) {
+      this.c.setStatus(`Drag further to draw the ${st.kind === 'rect' ? 'rectangle' : 'freehand line'} (Esc cancels)`);
+      this.emit();
+      return;
+    }
+    this.cancel(true);
+    try {
+      const a = this.c.addShape(st.topic, st.kind, st.points, st.text);
+      this.selected = a.guid;
+    } catch (err) {
+      this.c.setStatus(err instanceof Error ? err.message : String(err));
+    }
+    this.emit();
+  }
+
+  /** Draw a shape from script (canvas CSS pixels), as a drag would. */
+  drawShape(topic: string, kind: BcfShapeType, points: ReadonlyArray<readonly [number, number]>, text = ''): string {
+    return this.c.addShape(topic, kind, points, text).guid;
   }
 
   /** Link a measurement of the measure tool to the active viewpoint of a topic as a callout. */
@@ -170,7 +248,12 @@ export class BcfMarkupView {
     const m = this.vp.elements;
     const w = ov.width;
     const h = ov.height;
-    return { width: w, height: h, shift: this.c.shift, scale: 1, insets: ov.insets, project: (p) => projectPoint(m, w, h, p), occluded: (p) => this.c.occluded(p) };
+    const vis = this.c.visibleAnnotations();
+    return {
+      width: w, height: h, shift: this.c.shift, scale: 1, insets: ov.insets, reserved: ov.reserved,
+      project: (p) => projectPoint(m, w, h, p), occluded: (p) => this.c.occluded(p),
+      units: this.c.units, element: (g) => this.c.elementFrame(g), shapeView: vis ? this.c.shapeView(vis.ref) : null,
+    };
   }
 
   private draw(ov: Overlay): void {
@@ -186,6 +269,19 @@ export class BcfMarkupView {
         renderOps(g, layoutAnnotation(a, ctx, { selected: a.guid === this.selected }));
         layer.appendChild(g);
       }
+    }
+    const st = this.stroke;
+    if (st && st.points.length > 1) {
+      // Preview of the shape being drawn.
+      const pts = st.kind === 'rect'
+        ? (() => { const [[a, b], [c2, d]] = st.points as [[number, number], [number, number]]; return [a, b, c2, b, c2, d, a, d]; })()
+        : st.points.flat();
+      const g = svgEl('g', { 'data-bcf-stroke': st.kind });
+      renderOps(g, [
+        { op: 'path', points: pts, stroke: 'rgba(10,14,20,0.8)', width: 4.5, closed: st.kind === 'rect' },
+        { op: 'path', points: pts, stroke: st.kind === 'rect' ? '#ff3d6e' : '#ffb000', width: 2.5, closed: st.kind === 'rect' },
+      ]);
+      layer.appendChild(g);
     }
     for (const t of this.c.pinnedTopics()) {
       const g = svgEl('g', { 'data-bcf-pin': t.guid });
@@ -291,6 +387,9 @@ export function renderOps(g: SVGGElement, ops: readonly DrawOp[]): void {
       case 'line':
         e = svgEl('line', { x1: o.x1, y1: o.y1, x2: o.x2, y2: o.y2, stroke: o.stroke, 'stroke-width': o.width, 'stroke-linecap': 'round' });
         if (o.dash) e.setAttribute('stroke-dasharray', o.dash.join(' '));
+        break;
+      case 'path':
+        e = svgEl(o.closed ? 'polygon' : 'polyline', { points: o.points.map((v) => v.toFixed(1)).join(' '), fill: o.fill ?? 'none', stroke: o.stroke, 'stroke-width': o.width, 'stroke-linejoin': 'round', 'stroke-linecap': 'round' });
         break;
       case 'poly':
         e = svgEl('polygon', { points: o.points.join(' '), fill: o.fill, 'stroke-linejoin': 'round' });

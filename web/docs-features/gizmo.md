@@ -7,7 +7,11 @@ screen 700 px wide or less it starts collapsed and sits 36 px from the right edg
 tool drawer leaves too little room beside it, the gizmo drops the section strip, then shows only the cube button, then
 hides (without changing the saved state); the cube button then opens it over the drawer until `-` or the drawer closes.
 Legends (clearance, point cloud deviation) sit left of the gizmo, or above it when there is no room. The state is
-kept in `localStorage` `xray.gizmo` and in the params section `gizmo` (`{ visible, collapsed }`, not in the share URL).
+kept in `localStorage` `xray.gizmo` and in the params section `gizmo` (`{ visible, collapsed }`, not in the share URL). "Reset
+to defaults" restores the factory state, not the stored one: shown, expanded on a desktop and collapsed on a phone (the
+section's `factory()` value, `src/ui/params.ts`), also when the gizmo was hidden in an earlier visit. The gizmo box is a
+reserved rect of the shared overlay: BCF pins, callouts, measure labels and penetration markers that would fall under it
+move beside it with a leader line (see toolbar.md, "Shared overlay").
 
 ## Navigation cube
 

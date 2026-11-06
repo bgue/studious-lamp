@@ -8,7 +8,11 @@
 //   - Refine (ICP) from the drawer button, then Compute deviation
 //   - prints the recovered vs true transform error after each step and the median deviation; writes
 //     bench/pointcloud-align-pairs.png (markers) and bench/pointcloud-align-icp.png (deviation colours)
-//   - Undo alignment restores the previous transform; zero console errors
+//   - Undo alignment restores the previous transform
+//   - picking ignores cloud points behind an opaque wall (alpha 1), and picks them through the same wall ghosted (0.15)
+//   - Stop ICP by a real click while a run is in progress (the button does not move, the alignment stays)
+//   - align within = section box: ICP fits only the points in the box; the drift grid (3 x 3 plan regions) shows
+//   - zero console errors
 // Usage: SMOKE_PORT=5641 node bench/smoke-pointcloud-align.mjs
 import { spawn } from 'node:child_process';
 import { createRequire } from 'node:module';
@@ -231,6 +235,9 @@ try {
   console.log(`  status: ${icp.status}`);
   console.log(`  error vector (mm, viewer x y z): 3-point ${JSON.stringify(e3.vector)}, ICP ${JSON.stringify(ei.vector)}`);
   check('ICP improves on the 3-point result and lands within 5 mm / 0.1 deg', !icp.icp.reverted && ei.translation < 0.005 && ei.rotationDeg < 0.1 && ei.translation <= e3.translation);
+  check('ICP used oriented normals', icp.icp.normalMode === 'oriented', `${icp.icp.withNormal} of ${icp.icp.samples} sample points with a normal, ${icp.icp.oriented} oriented`);
+  const grid = await page.evaluate(() => ({ cells: [...document.querySelectorAll('[data-pc-regions] [data-region]')].map((e) => e.textContent), text: document.querySelector('[data-pc-regions]')?.textContent ?? '' }));
+  check('drift grid: 9 plan regions under the ICP button', grid.cells.length === 9, grid.cells.join(' | '));
 
   // ---------------------------------------------------------------- deviation
   await page.evaluate(() => window.__t.view([5.5, 7.5, 6.5], [0, -2, -1])); // the roof stays hidden: look into the room
@@ -249,6 +256,80 @@ try {
   const mu = await page.evaluate(() => ({ m: window.__xrayPointCloud.matrix, dev: window.__xrayPointCloud.stats.deviation }));
   const du = Math.max(...mu.m.map((v, i) => Math.abs(v - m3.m[i])));
   check('Undo alignment restores the 3-point transform and clears the deviation', du < 1e-9 && mu.dev === null, `max element change ${du.toExponential(1)}`);
+
+  // ---------------------------------------------------------------- picking behind an opaque wall
+  // look at the room from the west, through the left outer wall; a floor spot of the room lies behind that wall
+  await page.evaluate(() => window.__t.view([-7.5, -1.6, -1.0], [0, -2.3, -1.0]));
+  await page.waitForTimeout(500);
+  const occ = await page.evaluate(() => {
+    const pc = window.__xrayPointCloud, c = window.__xray.app.controller;
+    const wall = c.model.elements.find((e) => /outer wall - house left/.test(e.name ?? ''));
+    const floor = [-1.2, -2.55, -1.0];
+    const sp = window.__t.screen(floor);
+    const depthOf = (v) => { const cam = window.__xray.renderer.camera; cam.updateMatrixWorld(); const e = cam.matrixWorldInverse.elements; return -(e[2] * v[0] + e[6] * v[1] + e[10] * v[2] + e[14]); };
+    const run = () => { const p = pc.pickCloudAt(sp.x, sp.y); return p ? { d: depthOf(p.world), x: p.world[0] } : null; };
+    // the pick reads the alpha the X-ray classification gives each element: opaque (focus, 1) or a ghost (below 0.5);
+    // set it directly for the wall (no frame runs inside this call, so nothing smooths it back)
+    const alpha = window.__xray.app.renderer.state.alpha;
+    const keep = alpha[wall.id];
+    alpha[wall.id] = 1;
+    const alphaSel = alpha[wall.id];
+    const hidden = run(), wallDepth = pc.controller.occluderDepth(sp.x, sp.y);
+    alpha[wall.id] = 0.15;
+    const alphaGhost = alpha[wall.id];
+    const through = run();
+    alpha[wall.id] = keep;
+    return { alphaSel, alphaGhost, hidden, through, wallDepth, floorDepth: depthOf(floor) };
+  });
+  check('pick skips cloud points behind an opaque wall', occ.alphaSel >= 0.5 && Number.isFinite(occ.wallDepth) && (occ.hidden === null || occ.hidden.d <= occ.wallDepth + 0.1), JSON.stringify(occ));
+  check('pick finds them through the same wall ghosted', occ.alphaGhost < 0.5 && occ.through !== null && occ.through.d > occ.wallDepth + 0.1, `alpha ${occ.alphaGhost}, picked at depth ${occ.through?.d?.toFixed(2)} m, wall at ${occ.wallDepth.toFixed(2)} m`);
+
+  // ---------------------------------------------------------------- Stop ICP by a real click
+  await page.evaluate(() => window.__t.view([5.5, 7.5, 6.5], [0, -2, -1]));
+  await page.mouse.move(1250, 260);
+  const rough = await page.evaluate((TRUE) => {
+    const pc = window.__xrayPointCloud;
+    const c = Math.cos(0.2), s = Math.sin(0.2);
+    const R = [c, 0, -s, 0, 0, 1, 0, 0, s, 0, c, 0, 0.3, 0, -0.3, 1];
+    const mul = (A, B) => { const o = new Array(16).fill(0); for (let cc = 0; cc < 4; cc++) for (let rr = 0; rr < 4; rr++) for (let q = 0; q < 4; q++) o[cc * 4 + rr] += A[q * 4 + rr] * B[cc * 4 + q]; return o; };
+    pc.setMatrix(mul(R, TRUE), 'rough start for Stop ICP');
+    const m0 = pc.matrix;
+    window.__stopRun = pc.refine({ samples: 60000, maxIterations: 60 }).then((r) => (r === null ? 'cancelled' : 'finished'));
+    return m0;
+  }, TRUE);
+  const stopBtn = page.locator('#pointcloud-drawer .xt-btn[data-mode="stop"]');
+  await stopBtn.waitFor({ state: 'visible', timeout: 60000 });
+  const box0 = await stopBtn.boundingBox();
+  const tClick = Date.now();
+  await stopBtn.click({ timeout: 120000 });
+  const clickMs = Date.now() - tClick;
+  const stopped = await page.evaluate(async () => ({ how: await window.__stopRun, status: window.__xrayPointCloud.status, m: window.__xrayPointCloud.matrix, label: document.querySelector('#pointcloud-drawer .xt-btn[data-mode]')?.textContent }));
+  const box1 = await page.locator('#pointcloud-drawer .xt-btn[data-mode]').boundingBox();
+  const same = Math.max(...stopped.m.map((v, i) => Math.abs(v - rough[i])));
+  check('Stop ICP stops the run by a real click and keeps the alignment', stopped.how === 'cancelled' && /stopped/.test(stopped.status) && same < 1e-12 && stopped.label === 'Refine (ICP)', `${stopped.how}, click took ${clickMs} ms, "${stopped.status}"`);
+  check('the ICP button does not move while the status changes', Math.abs(box0.y - box1.y) < 0.5, `y ${box0.y.toFixed(1)} -> ${box1.y.toFixed(1)}`);
+
+  // ---------------------------------------------------------------- align within the section box
+  await page.evaluate((TRUE) => window.__xrayPointCloud.setMatrix(TRUE.map((v, i) => (i === 12 ? v + 0.02 : v)), 'truth + 2 cm'), TRUE);
+  const sec = await page.evaluate(() => {
+    const api = window.__xraySection;
+    if (!api) return null;
+    api.set({ box: { enabled: true, min: [-2.7, -2.7, -2.9], max: [0, 0.7, 1.1] } });
+    return api.config.box.enabled;
+  });
+  if (sec) {
+    await page.locator('#pointcloud-drawer .xt-select', { hasText: 'align within' }).locator('select').selectOption('section box');
+    await page.locator('#pointcloud-drawer .xt-btn[data-mode="refine"]').click();
+    await page.waitForFunction(() => /in the section box/.test(window.__xrayPointCloud.status) && !window.__xrayPointCloud.controller.busy, null, { timeout: 300000 });
+    const reg = await page.evaluate(() => ({ icp: window.__xrayPointCloud.stats.icp, m: window.__xrayPointCloud.matrix, grid: document.querySelector('[data-pc-regions]')?.textContent ?? '' }));
+    const er = await page.evaluate((m) => window.__t.err(m, [-1.3, -2, -1]), reg.m);
+    console.log(`ICP within the section box: ${(er.translation * 1000).toFixed(2)} mm / ${er.rotationDeg.toFixed(4)} deg at the west half; ${reg.icp.samples} sample points; ${reg.grid.slice(0, 160)}`);
+    check('align within section box: ICP fits the points in the box', reg.icp.region?.label === 'section box' && !reg.icp.reverted && er.translation < 0.006, `${(er.translation * 1000).toFixed(2)} mm`);
+    await page.locator('#pointcloud-drawer .xt-select', { hasText: 'align within' }).locator('select').selectOption('whole cloud');
+    await page.evaluate(() => window.__xraySection.clear());
+  } else {
+    check('section plugin present for align within', false);
+  }
 
   // ---------------------------------------------------------------- ICP basin: rough starts on the real model
   for (const [label, yaw, move, keepVertical] of [['10 deg / 0.3 m, keep vertical', 10, [0.21, 0.05, -0.2], true], ['10 deg / 0.3 m + 1 deg tilt, full 3D', 10, [0.2, 0.1, 0.2], false], ['-15 deg / 0.5 m, keep vertical', -15, [-0.35, 0, 0.35], true]]) {

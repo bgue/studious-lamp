@@ -56,6 +56,7 @@ try {
   await waitForServer();
   browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
   const page = await browser.newPage({ viewport: VIEW });
+  page.setDefaultTimeout(180000); // swiftshader on a shared machine
   page.on('console', (m) => {
     if (m.type() === 'error') errors.push(`[error] ${m.text()}`);
     if (m.type() === 'warning' && m.text().startsWith('[help]')) helpWarnings.push(m.text());
@@ -116,7 +117,7 @@ try {
     return [...f.querySelectorAll('.lil-name')].map((n) => n.textContent.trim());
   });
   console.log('WebXR folder controls', JSON.stringify(folder));
-  check('WebXR folder has exactly Enter VR, Enter AR, AR scale, XR status, pointer rays', JSON.stringify(folder) === JSON.stringify(['Enter VR', 'Enter AR', 'AR scale', 'XR status', 'pointer rays']));
+  check('WebXR folder has exactly Enter VR, Enter AR, Enter field AR, AR scale, field look, XR status, pointer rays', JSON.stringify(folder) === JSON.stringify(['Enter VR', 'Enter AR', 'Enter field AR', 'AR scale', 'field look', 'XR status', 'pointer rays']));
 
   // the drawer of the tool: every widget must have a help text (the help layer warns "[help] no help text" otherwise)
   const drawer = await page.evaluate(async () => {

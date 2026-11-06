@@ -2,16 +2,18 @@
 // and the deviation check. UI (drawer, lil-gui) and the window API only talk to this class.
 
 import { BufferAttribute, BufferGeometry, Matrix4, Plane, Points, PointsMaterial, Vector3 } from 'three';
-import type { BufferGeometry as Geom } from 'three';
 import { CLEARANCE_LEGEND_H, CLEARANCE_LEGEND_W } from '../measure/clearanceTool';
 import { cameraRay, firstSurfaceHit } from '../measure/geometry';
 import { snapToVertex } from '../measure/maths';
 import type { MeshBVH } from 'three-mesh-bvh';
 import type { ViewerApp } from '../app';
-import { applyFrame, autoAlign, cloudFrame, decomposeTotal, mapPositions } from './align';
+import { applyFrame, autoAlign, cloudFrame, decomposeTotal, mapPositions, projectToViewer } from './align';
 import type { AutoAlignResult, CloudFrame, CoordMode } from './align';
 import { icp, voxelSample } from './icp';
-import type { ClosestFn, IcpResult } from './icp';
+import type { ClosestFn, IcpResult, RegionResidual } from './icp';
+import { estimateNormalsAsync } from './normals';
+import type { CloudNormals } from './normals';
+import { bvhClosestFn } from './surface';
 import { buildScreenIndex, pickNearest } from './pick';
 import type { ScreenIndex } from './pick';
 import { apply as applyMat, formatDistance, identity, scaleOf, solvePairs, transformError, yawDeg } from './register';
@@ -27,6 +29,24 @@ import { getOverlay, svgEl } from '../ui/overlay';
 
 export type DeviationScope = 'all elements' | 'focus only';
 export const DEFAULT_BUDGET = 3_000_000;
+/**
+ * Where 3-point alignment and ICP look: the whole cloud, the active section box, or the bounds of the selected
+ * elements plus REGION_MARGIN. A part of a long scan aligned on its own (room by room) does not suffer from the drift
+ * of the rest.
+ */
+export type AlignRegion = 'whole cloud' | 'section box' | 'selection';
+export const ALIGN_REGIONS: AlignRegion[] = ['whole cloud', 'section box', 'selection'];
+export const REGION_MARGIN = 0.5;
+/** Ghosted elements below this alpha do not hide cloud points from picking (the measure tool's rule for ghosts). */
+export const OCCLUDE_ALPHA = 0.5;
+
+/** An axis aligned box in the viewer frame. */
+export interface RegionBox {
+  min: Vec3;
+  max: Vec3;
+  /** What it is, for the status line: 'section box' or 'selection (+0.5 m)'. */
+  label: string;
+}
 
 export interface PointCloudSettings {
   visible: boolean;
@@ -49,6 +69,8 @@ export interface PointCloudSettings {
   allowScale: boolean;
   tolerance: number;
   scope: DeviationScope;
+  /** Where 3-point alignment and ICP look (not part of the params document: a step of the workflow). */
+  alignRegion: AlignRegion;
 }
 
 /** Default number of cloud points that ICP matches against the model. */
@@ -72,6 +94,7 @@ export function defaultPointCloudSettings(): PointCloudSettings {
   return {
     visible: true, pointSize: 2, sizeAttenuation: false, colourBy: 'rgb', budget: DEFAULT_BUDGET, coordinates: 'project',
     offsetX: 0, offsetY: 0, offsetZ: 0, rotationDeg: 0, matrix: identity(), keepVertical: true, allowScale: false, tolerance: 0.02, scope: 'all elements',
+    alignRegion: 'whole cloud',
   };
 }
 
@@ -91,7 +114,17 @@ export interface PointCloudStats {
   deviationScope: DeviationScope | null;
   alignment: string;
   /** Last ICP run (null until one ran on this cloud). */
-  icp: { iterations: number; converged: boolean; reverted: boolean; rmsBefore: number; rmsAfter: number; inlierFraction: number; samples: number; ms: number; reason: string } | null;
+  icp: {
+    iterations: number; converged: boolean; reverted: boolean; rmsBefore: number; rmsAfter: number; inlierFraction: number; samples: number; ms: number; reason: string;
+    /** How normals took part ('none', 'axis', 'oriented'; see icp.ts) and how many sample points had one / an orientation. */
+    normalMode: string; withNormal: number; oriented: number;
+    /** The region the run was limited to (null: the whole cloud). */
+    region: RegionBox | null;
+    /** Residual per cell of a 3 x 3 plan grid at the end (drift diagnostic). */
+    regions: RegionResidual[];
+    /** One line on where the fit degrades, or '' when it is even. */
+    drift: string;
+  } | null;
 }
 
 interface DeviationState {
@@ -791,6 +824,47 @@ export class PointCloudController {
     return `heading ${yawDeg(m).toFixed(2)} deg${tilt > 0.005 ? `, tilt ${tilt.toFixed(2)} deg` : ''}${Math.abs(s - 1) > 1e-6 ? `, scale ${s.toFixed(4)}` : ''}`;
   }
 
+  // ---------------------------------------------------------------- region
+
+  /**
+   * The box that `align within` names, in the viewer frame; null for the whole cloud; a string when the region is not
+   * available (no active section box, nothing selected).
+   */
+  regionBox(region: AlignRegion = this.settings.alignRegion): RegionBox | null | string {
+    if (region === 'whole cloud') return null;
+    if (region === 'section box') {
+      const sec = (window as unknown as { __xraySection?: { config?: { box?: { enabled?: boolean; min?: number[] | null; max?: number[] | null } } } }).__xraySection;
+      const b = sec?.config?.box;
+      if (!b?.enabled || !b.min || !b.max) return 'Align within section box needs an active section box (Section tool, box on).';
+      return { min: [b.min[0]!, b.min[1]!, b.min[2]!], max: [b.max[0]!, b.max[1]!, b.max[2]!], label: 'section box' };
+    }
+    const els = this.app.loaded?.model.elements as Array<{ bounds?: number[] } | undefined> | undefined;
+    const ids = this.app.controller?.selection ?? new Set<number>();
+    const min: Vec3 = [Infinity, Infinity, Infinity], max: Vec3 = [-Infinity, -Infinity, -Infinity];
+    for (const id of ids) {
+      const b = els?.[id]?.bounds;
+      if (!b || b.length < 6) continue;
+      for (let k = 0; k < 3; k++) {
+        min[k] = Math.min(min[k]!, b[k]!);
+        max[k] = Math.max(max[k]!, b[k + 3]!);
+      }
+    }
+    if (!Number.isFinite(min[0])) return 'Align within selection needs selected elements: select the room\'s walls and slab first.';
+    const m = REGION_MARGIN;
+    return { min: [min[0] - m, min[1] - m, min[2] - m], max: [max[0] + m, max[1] + m, max[2] + m], label: `selection (+${m} m)` };
+  }
+
+  /** Say in the status line what `align within` now covers. */
+  noteRegion(): void {
+    const b = this.regionBox();
+    if (b === null) this.setStatus('Align within the whole cloud: 3-point alignment and ICP use every point.');
+    else if (typeof b === 'string') this.setStatus(b);
+    else {
+      const f = (v: Vec3): string => v.map((x) => x.toFixed(2)).join(', ');
+      this.setStatus(`Align within the ${b.label}: 3-point alignment uses the pairs whose model point lies in the box (${f(b.min)}) to (${f(b.max)}); ICP fits the cloud points inside it.`);
+    }
+  }
+
   // ---------------------------------------------------------------- picking
 
   /** Shown cloud point under a client position (nearest on screen within `radiusPx`, frontmost surface first). */
@@ -798,9 +872,32 @@ export class PointCloudController {
     if (!this.points || !this.mapped || !this.frame || !this.settings.visible) return null;
     const r = this.app.canvas.getBoundingClientRect();
     const idx = this.screenIndex(r.width, r.height);
-    const i = pickNearest(idx, clientX - r.left, clientY - r.top, { radiusPx, innerPx: this.settings.pointSize / 2 + 1 });
+    const maxDepth = this.occluderDepth(clientX, clientY);
+    const i = pickNearest(idx, clientX - r.left, clientY - r.top, { radiusPx, innerPx: this.settings.pointSize / 2 + 1, maxDepth });
     if (i < 0) return null;
     return { index: i, cloud: this.cloudPoint(i)!, world: this.pointPosition(i)! };
+  }
+
+  /**
+   * View depth of the first model surface under a client position that hides cloud points: not hidden, not ghosted
+   * below OCCLUDE_ALPHA (a ghost is drawn see-through, so the points behind it are visible and pickable). Infinity
+   * when there is none.
+   */
+  occluderDepth(clientX: number, clientY: number): number {
+    const app = this.app;
+    const loaded = app.loaded;
+    if (!loaded) return Infinity;
+    const r = app.canvas.getBoundingClientRect();
+    const cam = app.renderer.camera;
+    cam.updateMatrixWorld();
+    const ray = cameraRay(cam, ((clientX - r.left) / r.width) * 2 - 1, -(((clientY - r.top) / r.height) * 2 - 1));
+    const hides = app.controller.settings.overrides.userHides;
+    const alpha = app.renderer.state.alpha;
+    const hit = firstSurfaceHit(loaded.geometry, ray, (id) => hides.has(id) || (alpha[id] ?? 1) < OCCLUDE_ALPHA);
+    if (!hit) return Infinity;
+    // section planes cut the surface away too: a hit on the removed side does not hide anything
+    for (const p of this.material.clippingPlanes ?? []) if (p.distanceToPoint(hit.point) < 0) return Infinity;
+    return -hit.point.clone().applyMatrix4(cam.matrixWorldInverse).z;
   }
 
   private screenIndex(width: number, height: number): ScreenIndex {
@@ -868,6 +965,14 @@ export class PointCloudController {
     return (this.pairs ?? []).filter((p): p is { cloud: Vec3; model: Vec3 } => !!p.cloud && !!p.model);
   }
 
+  /** The complete pairs the solve uses: those whose model point lies in the `align within` region (all without one). */
+  get solvedPairs(): Array<{ cloud: Vec3; model: Vec3 }> {
+    const box = this.regionBox();
+    const all = this.completePairs;
+    if (!box || typeof box === 'string') return all;
+    return all.filter((p) => p.model.every((v, k) => v >= box.min[k]! && v <= box.max[k]!));
+  }
+
   startPairs(): boolean {
     if (!this.loaded) {
       this.setStatus('Align by 3 points needs a point cloud. Open one first.');
@@ -916,16 +1021,22 @@ export class PointCloudController {
   /** Solve again with the complete pairs and the current keep vertical / allow scale. */
   resolvePairs(): void {
     if (!this.pairs) return;
-    const done = this.completePairs;
+    const done = this.solvedPairs;
     const s = this.settings;
     this.pairSolution = done.length ? solvePairs(done.map((p) => p.cloud), done.map((p) => p.model), { keepVertical: s.keepVertical, allowScale: s.allowScale }) : null;
+    const left = this.completePairs.length - done.length;
+    if (left > 0) {
+      const box = this.regionBox() as RegionBox;
+      const w = `${left} pair${left > 1 ? 's' : ''} outside the ${box.label} ${left > 1 ? 'are' : 'is'} not used.`;
+      if (this.pairSolution) this.pairSolution.warnings.push(w);
+    }
     this.setStatus(this.pairPrompt());
   }
 
   pairPrompt(): string {
     const ps = this.pairs;
     if (!ps) return this.status;
-    const n = this.completePairs.length;
+    const n = this.solvedPairs.length;
     const k = ps.length + (this.pairStep === 'cloud' ? 1 : 0);
     const next = this.pairStep === 'cloud' ? `Click point ${k} on the cloud` : `Click the matching point ${k} on the model`;
     const sol = this.pairSolution;
@@ -936,13 +1047,15 @@ export class PointCloudController {
   /** Apply the pair solution as the new alignment. Returns false when there is none. */
   applyPairs(): boolean {
     const sol = this.pairSolution;
-    const n = this.completePairs.length;
+    const n = this.solvedPairs.length;
     if (!this.pairs || !sol || !sol.ok || n < 3) {
       this.setStatus(sol && !sol.ok ? sol.warnings.join(' ') : 'Pick 3 pairs first.');
       return false;
     }
     const before = this.totalMatrix;
-    const desc = `3-point alignment from ${n} pairs (${this.settings.keepVertical ? 'keep vertical' : 'full 3D'}${this.settings.allowScale ? `, scale ${sol.scale.toFixed(4)}` : ''}): RMS ${formatDistance(sol.rms)}.`;
+    const reg = this.regionBox();
+    const within = reg && typeof reg !== 'string' ? `, within the ${reg.label}` : '';
+    const desc = `3-point alignment from ${n} pairs (${this.settings.keepVertical ? 'keep vertical' : 'full 3D'}${this.settings.allowScale ? `, scale ${sol.scale.toFixed(4)}` : ''}${within}): RMS ${formatDistance(sol.rms)}.`;
     this.pairs = null;
     this.pairSolution = null;
     this.applyTotal(sol.matrix, desc);
@@ -964,33 +1077,7 @@ export class PointCloudController {
       trees = [...focus].map((id) => geo.subGeometry(id)?.boundsTree as MeshBVH | undefined).filter((t): t is MeshBVH => !!t);
     }
     if (!trees.length) return null;
-    const p = new Vector3();
-    const tgt = { point: new Vector3(), distance: 0, faceIndex: 0 };
-    const normalOf = (g: Geom, f: number, out: number[]): void => {
-      const pos = g.getAttribute('position');
-      const idx = g.getIndex();
-      const i0 = idx ? idx.getX(f * 3) : f * 3, i1 = idx ? idx.getX(f * 3 + 1) : f * 3 + 1, i2 = idx ? idx.getX(f * 3 + 2) : f * 3 + 2;
-      const ax = pos.getX(i1) - pos.getX(i0), ay = pos.getY(i1) - pos.getY(i0), az = pos.getZ(i1) - pos.getZ(i0);
-      const bx = pos.getX(i2) - pos.getX(i0), by = pos.getY(i2) - pos.getY(i0), bz = pos.getZ(i2) - pos.getZ(i0);
-      const nx = ay * bz - az * by, ny = az * bx - ax * bz, nz = ax * by - ay * bx;
-      const l = Math.hypot(nx, ny, nz) || 1;
-      out[0] = nx / l; out[1] = ny / l; out[2] = nz / l;
-    };
-    return (x, y, z, max, out) => {
-      p.set(x, y, z);
-      let best = Infinity;
-      let lim = max;
-      for (const t of trees) {
-        const r = t.closestPointToPoint(p, tgt, 0, lim);
-        if (r && r.distance < best) {
-          best = r.distance;
-          lim = Math.min(lim, best);
-          out.p[0] = r.point.x; out.p[1] = r.point.y; out.p[2] = r.point.z;
-          normalOf(t.geometry, r.faceIndex, out.n);
-        }
-      }
-      return best;
-    };
+    return bvhClosestFn(trees);
   }
 
   /**
@@ -998,7 +1085,7 @@ export class PointCloudController {
    * surface (the deviation scope decides which surfaces). Applies the result when it improved the fit; reverts and
    * says so otherwise. Resolves with the result, or null when cancelled or not possible.
    */
-  async refine(opts: { samples?: number; maxIterations?: number; startDistance?: number; trim?: number; minDistance?: number } = {}): Promise<IcpResult | null> {
+  async refine(opts: { samples?: number; maxIterations?: number; startDistance?: number; trim?: number; minDistance?: number; normals?: boolean } = {}): Promise<IcpResult | null> {
     if (!this.shown || !this.mapped || !this.frame) {
       this.setStatus('Refine (ICP) needs a point cloud. Open one first.');
       return null;
@@ -1009,6 +1096,11 @@ export class PointCloudController {
       this.setStatus(scope === 'focus only' ? 'Refine (ICP) with scope "focus only" needs a selection.' : 'Refine (ICP) needs a model with geometry.');
       return null;
     }
+    const region = this.regionBox();
+    if (typeof region === 'string') {
+      this.setStatus(region);
+      return null;
+    }
     this.cancel = false;
     const token = ++this.token;
     this.busy = true;
@@ -1016,18 +1108,51 @@ export class PointCloudController {
     const t0 = performance.now();
     this.setStatus('Refine (ICP): choosing sample points...');
     try {
-      const pick = voxelSample(this.mapped, opts.samples ?? ICP_SAMPLES);
+      // the shown points in the region (all of them without one): their mapped positions, for the sample and normals
       const b = this.frame.base;
+      const total = this.totalMatrix;
+      let pool = this.mapped;
+      if (region) {
+        const keep: number[] = [];
+        const n = this.mapped.length / 3;
+        const g: Vec3 = [0, 0, 0];
+        for (let i = 0; i < n; i++) {
+          g[0] = this.mapped[i * 3]! + b[0]; g[1] = this.mapped[i * 3 + 1]! + b[1]; g[2] = this.mapped[i * 3 + 2]! + b[2];
+          const v = applyMat(total, g);
+          if (v[0] >= region.min[0] && v[0] <= region.max[0] && v[1] >= region.min[1] && v[1] <= region.max[1] && v[2] >= region.min[2] && v[2] <= region.max[2]) keep.push(i);
+        }
+        pool = new Float32Array(keep.length * 3);
+        keep.forEach((i, k) => pool.set(this.mapped!.subarray(i * 3, i * 3 + 3), k * 3));
+        if (keep.length < 200) {
+          this.setStatus(`Refine (ICP): only ${keep.length} cloud points lie in the ${region.label}: align roughly first, or choose a larger region.`);
+          return null;
+        }
+      }
+      const pick = voxelSample(pool, opts.samples ?? ICP_SAMPLES);
       const pts = new Float64Array(pick.length * 3);
       for (let k = 0; k < pick.length; k++) {
         const j = pick[k]! * 3;
-        pts[k * 3] = this.mapped[j]! + b[0];
-        pts[k * 3 + 1] = this.mapped[j + 1]! + b[1];
-        pts[k * 3 + 2] = this.mapped[j + 2]! + b[2];
+        pts[k * 3] = pool[j]! + b[0];
+        pts[k * 3 + 1] = pool[j + 1]! + b[1];
+        pts[k * 3 + 2] = pool[j + 2]! + b[2];
+      }
+      // normals: PCA on the sample, oriented by occlusion in a denser copy and towards the scanner when the file's own
+      // origin lies inside the cloud (a scanner frame: a phone scan starts there)
+      let nrm: CloudNormals | null = null;
+      if (opts.normals !== false) {
+        this.setStatus('Refine (ICP): estimating point normals...');
+        // the dense copy: every shown point in the pool, thinned by a stride to at most 100 000
+        const step = Math.max(1, Math.ceil(pool.length / 3 / 100_000));
+        const dense = step === 1 ? pool : Float32Array.from({ length: Math.floor(pool.length / 3 / step) * 3 }, (_, k) => pool[(Math.floor(k / 3) * step) * 3 + (k % 3)]!);
+        nrm = await estimateNormalsAsync(pts, { dense: { positions: dense, base: b }, viewpoint: this.scannerOrigin(), isCancelled: () => this.cancel || token !== this.token });
+        if (!nrm) {
+          if (token === this.token) this.setStatus('Refine (ICP) stopped: the alignment did not change.');
+          return null;
+        }
       }
       const keepVertical = this.settings.keepVertical;
       const r = await icp({
-        points: pts, initial: this.totalMatrix, closest, keepVertical, maxIterations: opts.maxIterations, startDistance: opts.startDistance, trim: opts.trim, minDistance: opts.minDistance,
+        points: pts, normals: nrm?.normals, oriented: nrm?.oriented, initial: total, closest, keepVertical, maxIterations: opts.maxIterations, startDistance: opts.startDistance, trim: opts.trim, minDistance: opts.minDistance,
         onProgress: (it, rms) => { if (token === this.token) this.setStatus(`Refine (ICP): iteration ${it}, RMS ${formatDistance(rms)}`); },
         onSearch: (k, n) => { if (token === this.token) this.setStatus(`Refine (ICP): trying start heading ${k} of ${n}`); },
         isCancelled: () => this.cancel || token !== this.token,
@@ -1037,17 +1162,19 @@ export class PointCloudController {
         return null;
       }
       const ms = performance.now() - t0;
+      const drift = driftNote(r.regions);
       this.stats.icp = {
         iterations: r.iterations, converged: r.converged, reverted: r.reverted, rmsBefore: r.before.rms, rmsAfter: r.after.rms,
         inlierFraction: r.after.inlierFraction, samples: pick.length, ms, reason: r.reason,
+        normalMode: r.normalMode, withNormal: nrm?.valid ?? 0, oriented: nrm?.orientedCount ?? 0, region, regions: r.regions, drift,
       };
-      const head = `ICP (${keepVertical ? 'keep vertical' : 'full 3D'}, ${pick.length.toLocaleString('en-US')} points, ${scope})`;
+      const head = `ICP (${keepVertical ? 'keep vertical' : 'full 3D'}, ${pick.length.toLocaleString('en-US')} points${region ? ` in the ${region.label}` : ''}, ${scope}${r.normalMode === 'oriented' ? ', oriented normals' : r.normalMode === 'axis' ? ', normals' : ''})`;
       const nums = `RMS ${formatDistance(r.before.rms)} -> ${formatDistance(r.after.rms)} within ${formatDistance(r.scoreDistance)}, inliers ${(r.before.inlierFraction * 100).toFixed(0)}% -> ${(r.after.inlierFraction * 100).toFixed(0)}%`;
       if (r.ok) {
         const ch = transformError(this.totalMatrix, r.matrix, this.frame.pivot);
         const desc = `${head}: ${r.iterations} iterations${r.searchYawDeg ? ` from a start turned ${r.searchYawDeg} deg` : ''}, ${r.converged ? 'converged' : r.reason}; ${nums}.`;
         this.applyTotal(r.matrix, desc);
-        this.setStatus(`${desc} Moved ${formatDistance(ch.translation)}, turned ${ch.rotationDeg.toFixed(3)} deg in ${(ms / 1000).toFixed(1)} s.`);
+        this.setStatus(`${desc} Moved ${formatDistance(ch.translation)}, turned ${ch.rotationDeg.toFixed(3)} deg in ${(ms / 1000).toFixed(1)} s.${drift ? ` ${drift}` : ''}`);
       } else {
         this.setStatus(`${head}: ${r.reason}. ${nums}.`);
       }
@@ -1056,6 +1183,20 @@ export class PointCloudController {
       if (token === this.token) this.busy = false;
       this.emit();
     }
+  }
+
+  /**
+   * The source file's origin in the cloud frame when it lies inside the cloud's bounds (plus 1 m): then the file is in
+   * a scanner's own frame (a phone scan starts at its origin, a single terrestrial scan sits at it), and normals can
+   * turn towards it. Null for survey coordinates (the origin is far away) and when nothing is loaded.
+   */
+  scannerOrigin(): Vec3 | null {
+    const i = this.info;
+    if (!i) return null;
+    const pad = 1;
+    for (let k = 0; k < 3; k++) if (!(0 >= i.boundsMin[k]! - pad && 0 <= i.boundsMax[k]! + pad)) return null;
+    // the cloud frame is the axis mapped source frame, shifted like the model in project coordinates
+    return this.settings.coordinates === 'project' ? projectToViewer([0, 0, 0], this.shift()) : [0, 0, 0];
   }
 
   /** An ICP run is in progress. */
@@ -1075,6 +1216,29 @@ export class PointCloudController {
     if (!this.mapped || !this.frame) return null;
     return applyFrame(this.frame, [this.mapped[i * 3]!, this.mapped[i * 3 + 1]!, this.mapped[i * 3 + 2]!]);
   }
+}
+
+const PLAN = [['north-west', 'north', 'north-east'], ['west', 'middle', 'east'], ['south-west', 'south', 'south-east']];
+
+/** Name of a plan grid cell (viewer x east, z south). */
+export function regionName(r: { ix: number; iz: number }): string {
+  return PLAN[r.iz]![r.ix]!;
+}
+
+/**
+ * One line on where the fit degrades, from the local misfit of the 3 x 3 plan grid (the translation that would fit
+ * each cell alone; noise averages out of it): the worst cell with enough points against the typical one. '' when
+ * the fit is even (worst under 4 mm, or under 2.5 x the median cell). A rigid fit of a scan that bends (the heading
+ * drift of a long phone walk) is good in the middle and pulls the ends the opposite ways.
+ */
+export function driftNote(regions: readonly RegionResidual[], minCount = 40): string {
+  const ok = regions.filter((r) => r.count >= minCount && Number.isFinite(r.misfit));
+  if (ok.length < 3) return '';
+  const sorted = ok.map((r) => r.misfit).sort((a, b) => a - b);
+  const typical = sorted[sorted.length >> 1]!;
+  const worst = ok.reduce((a, b) => (b.misfit > a.misfit ? b : a));
+  if (worst.misfit < 0.004 || worst.misfit < 2.5 * typical) return '';
+  return `The fit degrades towards the ${regionName(worst)}: that part sits ${formatDistance(worst.misfit)} off (typical ${formatDistance(typical)}), so the scan may bend (drift). Align that part on its own with align within.`;
 }
 
 function emptyStats(): PointCloudStats {

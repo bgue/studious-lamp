@@ -155,6 +155,32 @@ describe('applyPreset: actions and clearance', () => {
   });
 });
 
+describe('applyPreset: frame selection (fix w7-10)', () => {
+  it('frames the selection after the actions only when the preset asks for it', () => {
+    const f = fakeApp();
+    const order: string[] = [];
+    offs.push(registerAction({ id: 'test.fit', label: 'x', group: 'Test', keys: [], run: () => void order.push('fit') }));
+    const env: EngineEnv = { paramsEnv: f.env, frameSelection: () => (order.push('frame'), true) };
+    const r = applyPreset(f.app, mk({ actions: ['test.fit'], frame: 'selection' }), env);
+    expect(order).toEqual(['fit', 'frame']);
+    expect(r.framed).toBe(true);
+    expect(r.partial).toBe(false);
+    order.length = 0;
+    const r2 = applyPreset(f.app, mk({ actions: ['test.fit'] }), env);
+    expect(order).toEqual(['fit']); // no flag: the camera is never moved
+    expect(r2.framed).toBeUndefined();
+    // nothing selected: not framed, and not reported as skipped
+    const r3 = applyPreset(f.app, mk({ frame: 'selection' }), { paramsEnv: f.env, frameSelection: () => false });
+    expect(r3.framed).toBe(false);
+    expect(r3.skipped).toEqual([]);
+  });
+
+  it('section-focus, behind-only, peelback and peel-only frame the selection; the others do not', () => {
+    const framed = BUILTIN_PRESETS.filter((p) => p.frame === 'selection').map((p) => p.id).sort();
+    expect(framed).toEqual(['behind-only', 'peel-only', 'peelback', 'section-focus']);
+  });
+});
+
 describe('capture', () => {
   it('stores the ticked sections as a partial params document and reports missing ones', () => {
     const f = fakeApp();

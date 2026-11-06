@@ -1837,21 +1837,34 @@ export class XrayRenderer {
     this.shared.gradeStrength!.value = center ? strength : 0;
   }
 
+  /** Bumped by every element offset change (setElementOffset, clearElementOffsets): overlays redraw anchors on it. */
+  offsetsVersion = 0;
+
   /** World-space displacement of one element in every pass (exploded context). Picking and the BVH use the undisplaced geometry. */
   setElementOffset(id: number, x: number, y: number, z: number): void {
     if (id < 0 || id >= this.n) return;
     const o = id * 4;
     const C = this.dataC;
+    if (C[o] === x && C[o + 1] === y && C[o + 2] === z) return;
     C[o] = x;
     C[o + 1] = y;
     C[o + 2] = z;
     this.offsetsDirty = true;
+    this.offsetsVersion++;
+  }
+
+  /** The displacement set by setElementOffset (zeros when none). Overlays use it to follow exploded elements. */
+  elementOffset(id: number): [number, number, number] {
+    if (id < 0 || id >= this.n) return [0, 0, 0];
+    const C = this.dataC;
+    return [C[id * 4]!, C[id * 4 + 1]!, C[id * 4 + 2]!];
   }
 
   clearElementOffsets(): void {
     const C = this.dataC;
     for (let i = 0; i < C.length; i += 4) C[i] = C[i + 1] = C[i + 2] = 0; // keep the density in the alpha channel
     this.offsetsDirty = true;
+    this.offsetsVersion++;
   }
 
   resize(): void {

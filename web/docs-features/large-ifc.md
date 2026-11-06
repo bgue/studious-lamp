@@ -30,6 +30,8 @@ The options apply to the next IFC file you open. They are not stored.
 
 `Load status` walks through the stages with counts: `Reading X, 89.6 MB`, `Opening X`, `Meshing 4800 of 100000`, `Reading relations`, `Merging 52000 of 100000 elements`, `Edges 31000 of 100000 elements` (or `Edges skipped (auto: over 50,000 elements)`), `BVH 45% (1.76 M triangles)`, `Transferring geometry`, `Uploading 100000 elements`, then `Loaded 100000 elements in 23.4 s`.
 
+A file that web-ifc cannot read (damaged, truncated, or not IFC behind a valid header) gives one line: `This IFC file could not be read: it may be damaged or not an IFC file (<name>)`. web-ifc's own text (for example `Cannot read properties of undefined (reading 'arguments')`) goes to the console only, as `[open-file] IFC reader detail: ...` (`src/model/ifcErrors.ts`). The reader's own messages (empty file, no ISO-10303-21 header, no geometry, out of memory) are shown as they are.
+
 ## Tool `largeModel` (action panel)
 
 A drawer with the same stats (elements, triangles, vertices, edge segments, buffers, where the BVH came from, load time, the option values used) and the timings of the last file load: reading, opening, meshing, relations and properties, releasing web-ifc, preparing, merging, edges, BVH, transfer and wrap, GPU upload to the first frames, total. The same numbers are logged once per load as `[ifc-import] {... "stages": {...}}`.

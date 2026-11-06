@@ -43,6 +43,8 @@ Options:
   --open-tool <id>        tool drawer to open at start
   --kiosk                 start with both side panels collapsed
   --camera px,py,pz:tx,ty,tz   camera position and target in the viewer frame (Y up, origin-shifted)
+  --views <file.json>     saved views (xray-views/1, from the viewer's Views tab > Export) shown in the Views tab
+  --open-view <name>      saved view (name, id or 1-based number) opened at start; needs --views
   --ifc-reader            also embed the in-browser IFC reader (adds about 1.2 MB)
   --samples               also embed the sample models (building, fzk-haus, plumbing)
   --force                 overwrite an existing output file
@@ -54,7 +56,8 @@ Exit codes: 0 ok, 1 usage error, 2 input error.
 
 const VALUE_OPTIONS = {
   '-o': 'out', '--out': 'out', '--params': 'params', '--preset': 'preset', '--select': 'select', '--title': 'title',
-  '--name': 'name', '--tools': 'tools', '--open-tool': 'openTool', '--camera': 'camera',
+  '--name': 'name', '--tools': 'tools', '--open-tool': 'openTool', '--camera': 'camera', '--views': 'views',
+  '--open-view': 'openView',
 };
 const FLAG_OPTIONS = {
   '--kiosk': 'kiosk', '--ifc-reader': 'ifcReader', '--samples': 'samples', '--force': 'force', '--quiet': 'quiet',
@@ -108,13 +111,13 @@ export function parseCamera(text) {
 
 /**
  * Parse the command line (without node and script). Returns { help, inputs, options } where options has:
- * out, params, preset, select(string[]), title, name, tools(string[]), openTool, camera, kiosk, ifcReader, samples,
- * force, quiet. Throws PackError (exit code 1) on any problem.
+ * out, params, preset, select(string[]), title, name, tools(string[]), openTool, camera, views (file), openView, kiosk,
+ * ifcReader, samples, force, quiet. Throws PackError (exit code 1) on any problem.
  */
 export function parseArgs(argv) {
   const options = {
     out: undefined, params: undefined, preset: undefined, select: undefined, title: undefined, name: undefined,
-    tools: undefined, openTool: undefined, camera: undefined,
+    tools: undefined, openTool: undefined, camera: undefined, views: undefined, openView: undefined,
     kiosk: false, ifcReader: false, samples: false, force: false, quiet: false,
   };
   const inputs = [];
@@ -172,6 +175,10 @@ export function parseArgs(argv) {
   if (options.camera !== undefined) options.camera = parseCamera(options.camera);
   if (options.name !== undefined && options.name.trim() === '') throw new PackError('--name must not be empty');
   if (options.preset !== undefined && options.preset.trim() === '') throw new PackError('--preset must not be empty');
+  if (options.openView !== undefined) {
+    if (options.openView.trim() === '') throw new PackError('--open-view must not be empty');
+    if (options.views === undefined) throw new PackError('--open-view needs --views <file.json>');
+  }
   return { help: false, inputs, options };
 }
 
@@ -187,10 +194,53 @@ export function defaultModelName(inputPath) {
 }
 
 /**
- * The window.__xrayBoot object. `params` is the parsed --params document (or undefined). Keys that were not requested
- * are left out, so a plain pack gives { model } only.
+ * Check a --views document (parsed JSON): an `xray-views/1` document, a bare list of views, or one shared view
+ * (`xray-view/1`). Returns { views, warnings } with the usable views (each needs a name and a camera with position and
+ * target; the viewer sanitises the rest); throws PackError(2) for a document that is not a views document, has no
+ * usable view, or lacks the --open-view entry (matched like the viewer: id, name, name ignoring case, 1-based number).
  */
-export function buildBoot(model, options = {}, params) {
+export function checkViews(doc, openView, modelName) {
+  const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
+  let list;
+  let docModel;
+  if (Array.isArray(doc)) list = doc;
+  else if (isObj(doc) && doc.schema === 'xray-view/1') {
+    list = [doc.view];
+    docModel = doc.model;
+  } else if (isObj(doc) && (doc.schema === 'xray-views/1' || (doc.schema === undefined && Array.isArray(doc.views)))) {
+    if (!Array.isArray(doc.views)) throw new PackError('--views: the document has no "views" list', EXIT_INPUT);
+    list = doc.views;
+    docModel = doc.model;
+  } else {
+    const schema = isObj(doc) ? doc.schema : undefined;
+    throw new PackError(`--views: not a saved views document (schema ${schema ?? 'missing'}; expected xray-views/1)`, EXIT_INPUT);
+  }
+  const warnings = [];
+  const vec = (v) => Array.isArray(v) && v.length === 3 && v.every((x) => typeof x === 'number' && Number.isFinite(x));
+  const views = [];
+  list.forEach((v, i) => {
+    if (!isObj(v) || typeof v.name !== 'string' || !v.name.trim()) warnings.push(`view #${i + 1} has no name (skipped)`);
+    else if (!isObj(v.camera) || !vec(v.camera.position) || !vec(v.camera.target)) warnings.push(`view "${v.name}" has no camera position and target (skipped)`);
+    else views.push(v);
+  });
+  if (views.length === 0) throw new PackError('--views: the document has no usable view', EXIT_INPUT);
+  if (typeof docModel === 'string' && modelName && docModel !== modelName) {
+    warnings.push(`the views were saved on model "${docModel}", the page shows "${modelName}" (GlobalIds and cameras may not match)`);
+  }
+  if (openView !== undefined) {
+    const key = openView.trim();
+    const n = /^\d+$/.test(key) ? Number(key) - 1 : -1;
+    const found = views.some((v) => v.id === openView || v.name === openView || v.name.toLowerCase() === key.toLowerCase()) || (n >= 0 && n < views.length);
+    if (!found) throw new PackError(`--open-view "${openView}" is not in the views file (${views.map((v) => v.name).slice(0, 8).join(', ')})`, EXIT_INPUT);
+  }
+  return { views, warnings };
+}
+
+/**
+ * The window.__xrayBoot object. `params` is the parsed --params document (or undefined), `views` the checked views
+ * list (or undefined). Keys that were not requested are left out, so a plain pack gives { model } only.
+ */
+export function buildBoot(model, options = {}, params, views) {
   const boot = { model };
   if (options.title) boot.title = options.title;
   if (params !== undefined) boot.params = params;
@@ -200,6 +250,8 @@ export function buildBoot(model, options = {}, params) {
   if (options.tools) boot.tools = options.tools;
   if (options.openTool) boot.openTool = options.openTool;
   if (options.kiosk) boot.kiosk = true;
+  if (views !== undefined) boot.views = { schema: 'xray-views/1', model, views };
+  if (options.openView && views !== undefined) boot.openView = options.openView;
   return boot;
 }
 

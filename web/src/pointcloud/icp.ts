@@ -20,12 +20,60 @@
 import { apply, identity, mul, rotationY, translation } from './register';
 import type { Mat4 } from './register';
 
-/** Closest surface point within maxDist: writes point and unit normal into `out`, returns the distance or Infinity. */
-export type ClosestFn = (x: number, y: number, z: number, maxDist: number, out: { p: number[]; n: number[] }) => number;
+/**
+ * Normal compatibility for a closest point query: only surfaces whose unit normal m satisfies dot(m, n) >= cos
+ * (`oriented`) or |dot(m, n)| >= cos (an axis only) count. `n` is the cloud point's normal in the viewer frame.
+ */
+export interface NormalFilter {
+  n: number[];
+  cos: number;
+  oriented: boolean;
+}
+
+/**
+ * Closest surface point within maxDist: writes point and unit normal into `out`, returns the distance or Infinity.
+ * With `filter`, the closest compatible surface (a query that ignores the filter still works: ICP then drops the
+ * incompatible pairs, which keeps the bias the filter is there to remove, but nothing breaks).
+ */
+export type ClosestFn = (x: number, y: number, z: number, maxDist: number, out: { p: number[]; n: number[] }, filter?: NormalFilter) => number;
+
+/** Default largest angle between a cloud normal and the matched surface normal, degrees. */
+export const NORMAL_MAX_ANGLE_DEG = 40;
+
+/** Residual of the fitted points in one cell of a 3 x 3 plan grid (viewer x, z) over the matched points. */
+export interface RegionResidual {
+  /** Column (x) and row (z), 0..2. */
+  ix: number;
+  iz: number;
+  /** Plan extent of the cell, viewer frame: [x, z]. */
+  min: [number, number];
+  max: [number, number];
+  /** Matched points in the cell (after the distance cut and the trim). */
+  count: number;
+  rms: number;
+  median: number;
+  /** Mean signed point-to-plane residual along the surface normal, metres. */
+  bias: number;
+  /**
+   * The translation that would fit this cell's pairs on their own (point-to-plane least squares, viewer frame,
+   * metres; 0 along directions the cell's surfaces do not fix). Noise averages out of it, so a systematic local
+   * misfit (a scan that bends) shows even when the residuals are dominated by noise.
+   */
+  shift: [number, number, number];
+  /** |shift|, metres. */
+  misfit: number;
+}
 
 export interface IcpRun {
   /** Sample in the cloud's own frame (what `initial` maps to the viewer frame), 3 doubles per point. */
   points: Float64Array;
+  /**
+   * Unit normals of the points in the cloud frame (3 per point, (0, 0, 0) for none) and their orientation flags, as
+   * normals.ts estimates them. With them, a pair needs a surface normal within `normalMaxAngleDeg` of the cloud normal.
+   */
+  normals?: Float32Array;
+  oriented?: Uint8Array;
+  normalMaxAngleDeg?: number;
   initial: Mat4;
   closest: ClosestFn;
   keepVertical: boolean;
@@ -55,7 +103,7 @@ export interface IcpRun {
 
 export interface IcpScore {
   rms: number;
-  /** Inliers (after the distance cut and the trim) / sample size. */
+  /** Inliers (after the distance cut and the trim) / sample size (the points with a normal, when normals are used). */
   inlierFraction: number;
   /** Within the maximum distance, before the trim / sample size. */
   withinFraction: number;
@@ -78,6 +126,17 @@ export interface IcpResult {
   history: number[];
   /** Heading offset of the start that the search kept, degrees (0: the given start). */
   searchYawDeg: number;
+  /**
+   * How normals were used: 'none' (not given), 'axis' (|dot| only: the orientation of the cloud normals did not agree
+   * well enough with the model's), 'oriented' (the facing direction too). `agreement` is the share of the oriented
+   * cloud normals that face the same way as their surface at the start.
+   */
+  normalMode: 'none' | 'axis' | 'oriented';
+  agreement: number;
+  /** Pairs dropped as normal incompatible in the last scoring (share of the pairs within the distance). */
+  rejectedShare: number;
+  /** Residual per cell of a 3 x 3 plan grid at the end (empty when nothing matched): shows where the fit degrades. */
+  regions: RegionResidual[];
 }
 
 const defaultYield = (): Promise<void> => new Promise((r) => setTimeout(r, 0));
@@ -89,6 +148,8 @@ interface Pairs {
   d: Float64Array;
   count: number;
   within: number;
+  /** Pairs dropped as normal incompatible in the last gather. */
+  rejected: number;
 }
 
 /** Solve A x = b (n x n, row-major) by Gaussian elimination with partial pivoting. null when singular. */
@@ -157,20 +218,68 @@ export async function icp(run: IcpRun): Promise<IcpResult | null> {
   const sliceMs = run.sliceMs ?? 8;
   const yieldFn = run.yieldFn ?? defaultYield;
   const dof = run.keepVertical ? 4 : 6;
-  const buf: Pairs = { p: new Float64Array(N * 3), q: new Float64Array(N * 3), n: new Float64Array(N * 3), d: new Float64Array(N), count: 0, within: 0 };
+  const buf: Pairs = { p: new Float64Array(N * 3), q: new Float64Array(N * 3), n: new Float64Array(N * 3), d: new Float64Array(N), count: 0, within: 0, rejected: 0 };
   const out = { p: [0, 0, 0], n: [0, 1, 0] };
+  // normals are used when at least a quarter of the points has one (else a sample of edges and clutter: ignore them)
+  let withNormal = 0;
+  if (run.normals && run.normals.length >= N * 3) for (let i = 0; i < N; i++) if (run.normals[i * 3] || run.normals[i * 3 + 1] || run.normals[i * 3 + 2]) withNormal++;
+  const NRM = run.normals && withNormal >= Math.max(30, 0.25 * N) ? run.normals : null;
+  const ORI = NRM && run.oriented && run.oriented.length >= N ? run.oriented : null;
+  const cosMax = Math.cos(((run.normalMaxAngleDeg ?? NORMAL_MAX_ANGLE_DEG) * Math.PI) / 180);
+  // orientation agreement between the cloud and the model normals: +1 the same convention (the model's faces point
+  // out of the solids, towards where the scanner stood), -1 the opposite (a model whose faces point inwards), 0 not
+  // reliable (|dot| only). Decided once at the start.
+  let orientSign = 0;
+  let agreeN = 0, agreeYes = 0;
+  const filter: NormalFilter = { n: [0, 0, 0], cos: cosMax, oriented: false };
   let sliceStart = performance.now();
   let slice = sliceMs;
   let cancelled = false;
 
-  /** Correspondences of the points P under matrix m within maxDist (time sliced). */
-  const gather = async (P: Float64Array, m: Mat4, maxDist: number): Promise<boolean> => {
+  /**
+   * Correspondences of the points P (normals PN, orientation PO, parallel to P) under matrix m within maxDist (time
+   * sliced). With normals: the closest compatible surface; `countAgree` tallies how often oriented cloud normals face
+   * the same way as their (axis compatible) surface.
+   */
+  const gather = async (P: Float64Array, m: Mat4, maxDist: number, PN: Float32Array | null = NRM, PO: Uint8Array | null = ORI, countAgree = false): Promise<boolean> => {
     const n = Math.floor(P.length / 3);
     let k = 0;
+    let rejected = 0;
+    // rotation part of m (scale removed) for the normals
+    const sc = Math.hypot(m[0]!, m[1]!, m[2]!) || 1;
+    const r0 = m[0]! / sc, r1 = m[1]! / sc, r2 = m[2]! / sc, r4 = m[4]! / sc, r5 = m[5]! / sc, r6 = m[6]! / sc, r8 = m[8]! / sc, r9 = m[9]! / sc, r10 = m[10]! / sc;
     for (let i = 0; i < n; i++) {
       const p = apply(m, [P[i * 3]!, P[i * 3 + 1]!, P[i * 3 + 2]!]);
-      const d = run.closest(p[0], p[1], p[2], maxDist, out);
-      if (d <= maxDist && Number.isFinite(d)) {
+      let f: NormalFilter | undefined;
+      let ori = false;
+      let skip = false;
+      if (PN) {
+        const ax = PN[i * 3]!, ay = PN[i * 3 + 1]!, az = PN[i * 3 + 2]!;
+        // no plane around the point (an edge, a corner, clutter): its closest surface is a guess, leave it out
+        if (!(ax || ay || az)) skip = true;
+        if (ax || ay || az) {
+          ori = !!PO && PO[i] === 1;
+          const s = ori && orientSign && !countAgree ? orientSign : 1;
+          filter.n[0] = s * (r0 * ax + r4 * ay + r8 * az);
+          filter.n[1] = s * (r1 * ax + r5 * ay + r9 * az);
+          filter.n[2] = s * (r2 * ax + r6 * ay + r10 * az);
+          filter.oriented = ori && orientSign !== 0 && !countAgree;
+          f = filter;
+        }
+      }
+      const d = skip ? Infinity : run.closest(p[0], p[1], p[2], maxDist, out, f);
+      let use = d <= maxDist && Number.isFinite(d);
+      if (f && use) {
+        const dot = out.n[0]! * f.n[0]! + out.n[1]! * f.n[1]! + out.n[2]! * f.n[2]!;
+        if (f.oriented ? dot < f.cos : Math.abs(dot) < f.cos) {
+          rejected++;
+          use = false;
+        } else if (countAgree && ori) {
+          agreeN++;
+          if (dot > 0) agreeYes++;
+        }
+      }
+      if (use) {
         buf.p[k * 3] = p[0]; buf.p[k * 3 + 1] = p[1]; buf.p[k * 3 + 2] = p[2];
         buf.q[k * 3] = out.p[0]!; buf.q[k * 3 + 1] = out.p[1]!; buf.q[k * 3 + 2] = out.p[2]!;
         buf.n[k * 3] = out.n[0]!; buf.n[k * 3 + 1] = out.n[1]!; buf.n[k * 3 + 2] = out.n[2]!;
@@ -192,13 +301,21 @@ export async function icp(run: IcpRun): Promise<IcpResult | null> {
     }
     buf.count = k;
     buf.within = k;
+    buf.rejected = rejected;
     return true;
   };
 
+  /** Score of m: before and after are compared, so always with the same rule (normal axis only). */
   const score = async (m: Mat4, maxDist: number): Promise<IcpScore | null> => {
-    if (!(await gather(pts, m, maxDist))) return null;
+    const keep = orientSign;
+    orientSign = 0;
+    const ok = await gather(pts, m, maxDist);
+    orientSign = keep;
+    if (!ok) return null;
     const t = trimmed(buf.d, buf.count, trim);
-    return { rms: t.rms, inlierFraction: N ? t.keep / N : 0, withinFraction: N ? buf.count / N : 0, count: t.keep };
+    // shares of the points that take part (those with a normal when normals are used)
+    const n = NRM ? withNormal : N;
+    return { rms: t.rms, inlierFraction: n ? t.keep / n : 0, withinFraction: n ? buf.count / n : 0, count: t.keep };
   };
 
   /** One linearised point-to-plane step on the pairs in `buf`. */
@@ -251,7 +368,7 @@ export async function icp(run: IcpRun): Promise<IcpResult | null> {
    * inlier RMS, but by at most 15 percent per iteration (a quick shrink locks in a local minimum when large flat
    * areas, such as a floor, fit at once and pull the RMS down while the walls still disagree).
    */
-  const loop = async (P: Float64Array, m0: Mat4, d0: number, iterations: number, report: boolean) => {
+  const loop = async (P: Float64Array, PN: Float32Array | null, PO: Uint8Array | null, m0: Mat4, d0: number, iterations: number, report: boolean) => {
     let m = m0;
     let dist = d0;
     const history: number[] = [];
@@ -259,7 +376,7 @@ export async function icp(run: IcpRun): Promise<IcpResult | null> {
     let converged = false;
     let fail = '';
     for (; it < iterations; it++) {
-      if (!(await gather(P, m, dist))) break;
+      if (!(await gather(P, m, dist, PN, PO))) break;
       if (buf.count < dof * 3) {
         fail = `too few pairs within ${(dist * 100).toFixed(1)} cm`;
         break;
@@ -282,6 +399,8 @@ export async function icp(run: IcpRun): Promise<IcpResult | null> {
     return { m, it, converged, fail, history, dist };
   };
 
+  let agreement = NaN;
+  let normalMode: IcpResult['normalMode'] = NRM ? 'axis' : 'none';
   // start distance: given, or from the RMS of the start within 2 m
   let dist = run.startDistance ?? 0;
   if (!dist) {
@@ -296,6 +415,7 @@ export async function icp(run: IcpRun): Promise<IcpResult | null> {
   if (before.count < dof * 3) {
     return {
       matrix: run.initial.slice(), ok: false, reverted: false, iterations: 0, converged: false, before, after: before, scoreDistance, history: [], searchYawDeg: 0,
+      normalMode, agreement, rejectedShare: 0, regions: [],
       reason: `Only ${before.count} sample points lie within ${(scoreDistance * 100).toFixed(0)} cm of the model: align roughly first (Auto-align or Align by 3 points).`,
     };
   }
@@ -311,7 +431,13 @@ export async function icp(run: IcpRun): Promise<IcpResult | null> {
   if (offsets.length > 1 && N >= 200) {
     const every = Math.max(1, Math.floor(N / 2500));
     const sub = new Float64Array(Math.floor(N / every) * 3);
-    for (let k = 0; k < sub.length / 3; k++) sub.set(pts.subarray(k * every * 3, k * every * 3 + 3), k * 3);
+    const subN = NRM ? new Float32Array(sub.length) : null;
+    const subO = ORI ? new Uint8Array(sub.length / 3) : null;
+    for (let k = 0; k < sub.length / 3; k++) {
+      sub.set(pts.subarray(k * every * 3, k * every * 3 + 3), k * 3);
+      if (subN) subN.set(NRM!.subarray(k * every * 3, k * every * 3 + 3), k * 3);
+      if (subO) subO[k] = ORI![k * every]!;
+    }
     let cx = 0, cy = 0, cz = 0;
     const ns = sub.length / 3;
     for (let k = 0; k < ns; k++) {
@@ -323,10 +449,14 @@ export async function icp(run: IcpRun): Promise<IcpResult | null> {
       run.onSearch?.(k + 1, offsets.length);
       const off = offsets[k]!;
       const m0 = mul(translation(cx, cy, cz), mul(rotationY((off * Math.PI) / 180), mul(translation(-cx, -cy, -cz), run.initial)));
-      const r = await loop(sub, m0, dist, 10, false);
+      const r = await loop(sub, subN, subO, m0, dist, 10, false);
       if (cancelled) return null;
-      if (!(await gather(sub, r.m, 0.04))) return null;
-      const sc = buf.count / ns;
+      agreeN = agreeYes = 0;
+      if (!(await gather(sub, r.m, 0.04, subN, subO, !!subO))) return null;
+      // share within 4 cm; with oriented normals weighted by how well they agree with their surfaces (either
+      // convention): a wrong fit puts points on faces that look the other way (0.79 against 0.96 on the phone scan)
+      const agree = agreeN >= 30 ? Math.max(agreeYes, agreeN - agreeYes) / agreeN : 1;
+      const sc = (buf.count / ns) * agree * agree;
       // a turned start must win clearly: on a tie the smaller turn stays
       if (sc > bestScore + 0.02) {
         bestScore = sc;
@@ -337,14 +467,44 @@ export async function icp(run: IcpRun): Promise<IcpResult | null> {
     }
   }
 
-  const main = await loop(pts, start, startDist, maxIt, true);
+  // orientation convention, from the oriented cloud normals and their axis compatible surfaces at the start of the
+  // full run (after the heading search, so close to the fit): the heading search and the scores use the axis only
+  if (ORI) {
+    if (!(await gather(pts, start, startDist, NRM, ORI, true))) return null;
+    if (agreeN >= 30) {
+      agreement = agreeYes / agreeN;
+      orientSign = agreement >= 0.8 ? 1 : agreement <= 0.2 ? -1 : 0;
+      if (orientSign) normalMode = 'oriented';
+    }
+  }
+  let main = await loop(pts, NRM, ORI, start, startDist, maxIt, true);
   if (cancelled) return null;
+  if (ORI && !orientSign && !main.fail) {
+    // a rough start can hide the agreement (pairs on the wrong faces): ask again at the fit, and polish with the
+    // orientation when it now agrees
+    agreeN = agreeYes = 0;
+    if (!(await gather(pts, main.m, main.dist, NRM, ORI, true))) return null;
+    if (agreeN >= 30) {
+      const a = agreeYes / agreeN;
+      const sign = a >= 0.8 ? 1 : a <= 0.2 ? -1 : 0;
+      if (sign) {
+        agreement = a;
+        orientSign = sign;
+        normalMode = 'oriented';
+        const more = await loop(pts, NRM, ORI, main.m, main.dist, Math.max(10, maxIt - main.it), true);
+        if (cancelled) return null;
+        main = { ...more, it: main.it + more.it, history: [...main.history, ...more.history] };
+      }
+    }
+  }
   const { m, it, converged, history } = main;
   const failReason = main.fail;
   const after = (await score(m, scoreDistance)) ?? empty;
   if (cancelled) return null;
+  const rejectedShare = buf.count + buf.rejected ? buf.rejected / (buf.count + buf.rejected) : 0;
+  const regions = regionResiduals(buf, trim);
   const worse = !(after.rms <= before.rms * 1.02 + 1e-5) || after.inlierFraction < 0.5 * before.inlierFraction || m.some((v) => !Number.isFinite(v));
-  const base = { before, after, scoreDistance, history, searchYawDeg, iterations: it };
+  const base = { before, after, scoreDistance, history, searchYawDeg, iterations: it, normalMode, agreement, rejectedShare, regions };
   if (worse || failReason) {
     const why = failReason
       ? `stopped: ${failReason}`
@@ -356,6 +516,50 @@ export async function icp(run: IcpRun): Promise<IcpResult | null> {
     return { ...base, matrix: run.initial.slice(), ok: false, reverted: true, converged, reason: `${why}; kept the previous alignment` };
   }
   return { ...base, matrix: m, ok: true, reverted: false, converged, reason: converged ? 'converged' : `stopped after ${it} iterations` };
+}
+
+/** Residuals of the trimmed pairs in `b` on a 3 x 3 plan grid over their extent (viewer x and z). */
+function regionResiduals(b: Pairs, trim: number): RegionResidual[] {
+  if (b.count < 9) return [];
+  const t = trimmed(b.d, b.count, trim);
+  let x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity;
+  for (let i = 0; i < b.count; i++) {
+    if (b.d[i]! > t.cut) continue;
+    const x = b.p[i * 3]!, z = b.p[i * 3 + 2]!;
+    if (x < x0) x0 = x; if (x > x1) x1 = x;
+    if (z < z0) z0 = z; if (z > z1) z1 = z;
+  }
+  const dx = Math.max((x1 - x0) / 3, 1e-6), dz = Math.max((z1 - z0) / 3, 1e-6);
+  const cells: number[][] = Array.from({ length: 9 }, () => []);
+  const bias = new Float64Array(9);
+  // per cell: normal equations of a translation, A = sum n n^T (6 numbers), r = sum n e
+  const A = new Float64Array(9 * 6), r = new Float64Array(9 * 3);
+  for (let i = 0; i < b.count; i++) {
+    if (b.d[i]! > t.cut) continue;
+    const ix = Math.min(2, Math.floor((b.p[i * 3]! - x0) / dx)), iz = Math.min(2, Math.floor((b.p[i * 3 + 2]! - z0) / dz));
+    const k = iz * 3 + ix;
+    cells[k]!.push(b.d[i]!);
+    const nx = b.n[i * 3]!, ny = b.n[i * 3 + 1]!, nz = b.n[i * 3 + 2]!;
+    const e = nx * (b.p[i * 3]! - b.q[i * 3]!) + ny * (b.p[i * 3 + 1]! - b.q[i * 3 + 1]!) + nz * (b.p[i * 3 + 2]! - b.q[i * 3 + 2]!);
+    bias[k]! += e;
+    A[k * 6]! += nx * nx; A[k * 6 + 1]! += nx * ny; A[k * 6 + 2]! += nx * nz; A[k * 6 + 3]! += ny * ny; A[k * 6 + 4]! += ny * nz; A[k * 6 + 5]! += nz * nz;
+    r[k * 3]! += nx * e; r[k * 3 + 1]! += ny * e; r[k * 3 + 2]! += nz * e;
+  }
+  return cells.map((c, k) => {
+    const ix = k % 3, iz = Math.floor(k / 3);
+    const s = c.slice().sort((a, b2) => a - b2);
+    const rms = s.length ? Math.sqrt(s.reduce((a, v) => a + v * v, 0) / s.length) : NaN;
+    // damped solve: a direction no surface of the cell constrains (along a lone floor) stays at 0
+    const a = A.subarray(k * 6, k * 6 + 6);
+    const damp = 0.05 * Math.max(1e-9, (a[0]! + a[3]! + a[5]!) / 3);
+    const x = s.length ? solveLinear([a[0]! + damp, a[1]!, a[2]!, a[1]!, a[3]! + damp, a[4]!, a[2]!, a[4]!, a[5]! + damp], [-r[k * 3]!, -r[k * 3 + 1]!, -r[k * 3 + 2]!], 3) : null;
+    const shift: [number, number, number] = x ? [x[0]!, x[1]!, x[2]!] : [0, 0, 0];
+    return {
+      ix, iz, min: [x0 + ix * dx, z0 + iz * dz] as [number, number], max: [x0 + (ix + 1) * dx, z0 + (iz + 1) * dz] as [number, number],
+      count: s.length, rms, median: s.length ? s[s.length >> 1]! : NaN, bias: s.length ? bias[k]! / s.length : NaN,
+      shift, misfit: Math.hypot(shift[0], shift[1], shift[2]),
+    };
+  });
 }
 
 // ---------------------------------------------------------------- spatially uniform sample

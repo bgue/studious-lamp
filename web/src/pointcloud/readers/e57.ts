@@ -374,7 +374,10 @@ function readScan(node: XNode, idx: number): Scan | string {
     const kids = c.attrs.type === 'Structure' ? c.children : [c];
     for (const k of kids) {
       if (k.name !== 'bitPackCodec' && k.name !== 'inputs')
-        throw new PointCloudError(`E57: ${name} uses the codec "${k.name}"; only the standard bitPackCodec is supported`);
+        throw new PointCloudError(
+          `E57: ${name} is compressed with the codec "${k.name}", which this viewer cannot read (it reads bitPackCodec, the one the E57 standard defines). ` +
+            'Export the scan again without extra compression, or convert it: CloudCompare (save as E57 or LAS), or pdal translate in.e57 out.las.',
+        );
     }
   }
   const ls: XNode[] = [];
@@ -483,7 +486,14 @@ export function readE57(bytes: Uint8Array, name: string, onProgress?: ProgressFn
   }
   const data3D = child(root, 'data3D');
   const scanNodes = data3D ? data3D.children : [];
-  if (!scanNodes.length) throw new PointCloudError(`E57: ${name} has no 3D scans (data3D is empty)${child(root, 'images2D')?.children.length ? '; it holds images only' : ''}`);
+  const images = child(root, 'images2D')?.children.length ?? 0;
+  if (!scanNodes.length) {
+    throw new PointCloudError(images
+      ? `E57: ${name} holds ${images} photo${images > 1 ? 's' : ''} (images2D) and no 3D points, so there is nothing to draw. Export the scan with its point cloud.`
+      : `E57: ${name} has no 3D scans (data3D is empty).`);
+  }
+  // photos next to the points: say they are left out, so nobody looks for them
+  if (images) warnings.push(`the ${images} photo${images > 1 ? 's' : ''} in the file (images2D) ${images > 1 ? 'are' : 'is'} not shown, only the points`);
   const scans: Scan[] = [];
   scanNodes.forEach((n, i) => {
     const s = readScan(n, i);

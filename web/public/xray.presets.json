@@ -69,7 +69,8 @@
         "imaging": {},
         "section": {},
         "clearance": {}
-      }
+      },
+      "frame": "selection"
     },
     {
       "id": "peelback",
@@ -91,7 +92,8 @@
         "imaging": {},
         "section": {},
         "clearance": {}
-      }
+      },
+      "frame": "selection"
     },
     {
       "id": "peel-only",
@@ -115,7 +117,8 @@
         "imaging": {},
         "section": {},
         "clearance": {}
-      }
+      },
+      "frame": "selection"
     },
     {
       "id": "stacked-floors",
@@ -209,7 +212,8 @@
       },
       "actions": [
         "section.fitSelection"
-      ]
+      ],
+      "frame": "selection"
     },
     {
       "id": "presentation",

@@ -159,7 +159,8 @@ ctx.onmessage = async (ev) => {
       const text = e instanceof Error ? e.message : String(e);
       const oom = /memory|alloc|abort/i.test(text);
       post({
-        type: 'error', id, code: oom ? 'memory' : 'invalid',
+        // 'reader': web-ifc's own error text; the loader shows a friendly line and logs this (ifcErrors.ts).
+        type: 'error', id, code: oom ? 'memory' : 'reader',
         message: oom ? 'The IFC file is too large for the browser to read (out of memory)' : `IFC reader failed: ${text}`,
       });
     }

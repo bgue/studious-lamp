@@ -31,6 +31,11 @@ export interface ParamSection {
   apply(value: unknown, bad: string[], path: string): void;
   /** Include in the share URL (keep it small). Default false. */
   share?: boolean;
+  /**
+   * The factory value for "Reset to defaults", when the value after the first model is not it (a section restored from
+   * localStorage at install, such as the gizmo). Without it, reset uses the value collected after the first model.
+   */
+  factory?(): unknown;
 }
 
 const SECTIONS = new Map<string, ParamSection>();
@@ -661,9 +666,11 @@ export function defaultParams(app: ParamsApp, config?: unknown): Partial<XrayPar
 export function snapshotSections(p: Partial<XrayParams>, except: readonly string[] = ['keymap']): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   const doc = p as Record<string, unknown>;
-  for (const name of SECTIONS.keys()) {
-    if (except.includes(name) || doc[name] === undefined) continue;
-    out[name] = clone(doc[name]);
+  for (const [name, sec] of SECTIONS) {
+    if (except.includes(name)) continue;
+    const f = sec.factory?.();
+    if (f !== undefined) out[name] = clone(f);
+    else if (doc[name] !== undefined) out[name] = clone(doc[name]);
   }
   return out;
 }

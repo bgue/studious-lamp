@@ -8,8 +8,8 @@ import { el } from '../ui/dom';
 import { COLOUR_MODES } from './colour';
 import type { ColourMode } from './colour';
 import type { CoordMode } from './align';
-import type { DeviationScope, PointCloudController } from './controller';
-import { DEFAULT_BUDGET } from './controller';
+import type { AlignRegion, DeviationScope, PointCloudController } from './controller';
+import { ALIGN_REGIONS, DEFAULT_BUDGET, regionName } from './controller';
 import { formatDistance } from './register';
 import { DROP_EXTENSIONS, extensionOf, isPointCloudName } from './readers';
 
@@ -88,6 +88,11 @@ export function buildDrawer(container: HTMLElement, c: PointCloudController, _ap
   put(row(open, remove));
   const status = statusLine(c.status);
   status.setAttribute('data-pc-status', '');
+  // The status line never shrinks while the drawer is open (and scrolls beyond 7 lines): a progress line shorter than
+  // the previous result would otherwise pull every control below it up, and Stop ICP would move under the pointer.
+  status.style.maxHeight = '8.4em';
+  status.style.overflowY = 'auto';
+  let statusMin = 0;
   put(status);
 
   put(section('Display'));
@@ -104,6 +109,7 @@ export function buildDrawer(container: HTMLElement, c: PointCloudController, _ap
   put(button('Auto-align to model', () => void c.autoAlign(true), { title: 'Match bounds centres, then try 0/90/180/270 degrees about the vertical axis' }));
   addW(check('keep vertical', () => c.settings.keepVertical, (v) => { c.settings.keepVertical = v; c.resolvePairs(); }));
   addW(check('allow scale', () => c.settings.allowScale, (v) => { c.settings.allowScale = v; c.resolvePairs(); }));
+  addW(select<AlignRegion>('align within', ALIGN_REGIONS, () => c.settings.alignRegion, (v) => { c.settings.alignRegion = v; c.resolvePairs(); c.noteRegion(); }));
   const pairBtn = button('Align by 3 points', () => void c.startPairs(), { title: 'Click a point on the cloud, then the same point on the model; 3 times or more' });
   put(pairBtn);
   // the guided 3-point mode: pairs, residuals, warnings and its own buttons
@@ -115,8 +121,20 @@ export function buildDrawer(container: HTMLElement, c: PointCloudController, _ap
   const applyPick = button('Apply alignment', () => void c.applyPairs(), { primary: true, title: 'Move the cloud with the solved transform' });
   pairBox.append(pairList, row(undoPick, cancelPick, applyPick));
   put(pairBox);
-  const icpBtn = button('Refine (ICP)', () => (c.icpRunning ? c.cancelWork() : void c.refine()), { title: 'Fit the cloud to the model surfaces (point-to-plane ICP)' });
+  // One button, two meanings: the label the user saw decides (data-mode), not the state at the time of the click; a
+  // click that arrives just after the run ended (aimed at Stop ICP) does not start a new run.
+  let flipAt = 0;
+  const icpBtn = button('Refine (ICP)', () => {
+    if (icpBtn.dataset.mode === 'stop') c.cancelWork();
+    else if (performance.now() - flipAt < 600) c.noteExtra('(ICP had already finished.)');
+    else void c.refine();
+  }, { title: 'Fit the cloud to the model surfaces (point-to-plane ICP)' });
+  icpBtn.dataset.mode = 'refine';
   put(icpBtn);
+  // drift diagnostic: residual per region of a 3 x 3 plan grid after ICP
+  const regionBox = el('div', 'xt-note pc-regions');
+  regionBox.setAttribute('data-pc-regions', '');
+  put(regionBox);
   const undoAl = button('Undo alignment', () => void c.undoAlignment(), { title: 'Back to the transform before the last alignment step' });
   const resetAl = button('Reset alignment', () => c.resetAlignment(), { title: 'No offset, no rotation, no registration' });
   put(row(undoAl, resetAl));
@@ -125,18 +143,24 @@ export function buildDrawer(container: HTMLElement, c: PointCloudController, _ap
     pairBtn.setDisabled(!c.loaded ? 'Open a point cloud first' : c.pairMode ? 'Picking: use Cancel or Esc to stop' : false);
     pairBox.style.display = c.pairMode ? '' : 'none';
     const running = busy && c.icpRunning;
-    icpBtn.textContent = running ? 'Stop ICP' : 'Refine (ICP)';
+    const mode = running ? 'stop' : 'refine';
+    if (icpBtn.dataset.mode !== mode) {
+      if (mode === 'refine') flipAt = performance.now();
+      icpBtn.dataset.mode = mode;
+      icpBtn.textContent = running ? 'Stop ICP' : 'Refine (ICP)';
+    }
+    renderRegions(regionBox, c);
     icpBtn.setDisabled(!c.loaded ? 'Open a point cloud first' : c.pairMode ? 'Finish the 3-point alignment first' : busy && !running ? 'Wait for the current step' : false);
     undoAl.setDisabled(c.canUndoAlignment ? false : 'Nothing to undo');
     resetAl.setDisabled(!c.loaded ? 'Open a point cloud first' : false);
     if (c.pairMode) {
       const ps = c.pairs!;
       const sol = c.pairSolution;
-      const done = c.completePairs;
+      const done = c.solvedPairs;
       const lines: string[] = [];
       ps.forEach((p, i) => {
         const k = done.findIndex((q) => q.cloud === p.cloud);
-        const r = sol?.ok && k >= 0 ? `residual ${formatDistance(sol.residuals[k]!)}` : p.model ? 'picked' : p.cloud ? 'cloud picked, now the model' : '';
+        const r = sol?.ok && k >= 0 ? `residual ${formatDistance(sol.residuals[k]!)}` : p.model && k < 0 && c.settings.alignRegion !== 'whole cloud' ? 'outside the region, not used' : p.model ? 'picked' : p.cloud ? 'cloud picked, now the model' : '';
         lines.push(`Pair ${i + 1}: ${r}`);
       });
       if (!ps.length) lines.push('Click point 1 on the cloud (cyan), then the same point on the model (orange).');
@@ -168,6 +192,13 @@ export function buildDrawer(container: HTMLElement, c: PointCloudController, _ap
 
   const refresh = (): void => {
     status.set(c.status);
+    if (root.isConnected) {
+      const h = status.offsetHeight;
+      if (h > statusMin) {
+        statusMin = h;
+        status.style.minHeight = `${h}px`;
+      }
+    }
     for (const w of ws) w.update();
     const d = c.stats.deviation;
     result.textContent = d
@@ -182,6 +213,41 @@ export function buildDrawer(container: HTMLElement, c: PointCloudController, _ap
     off();
     c.cancelPairs(); // the pair list lives in this drawer
   };
+}
+
+/**
+ * The 3 x 3 plan grid of the last ICP (north up): per cell the local misfit (how far that part sits off when fitted on
+ * its own; noise averages out of it), coloured against the typical cell. Nothing before a run.
+ */
+function renderRegions(box: HTMLElement, c: PointCloudController): void {
+  const icp = c.stats.icp;
+  const regs = icp?.regions ?? [];
+  const sig = icp ? `${icp.ms}|${regs.length}` : '';
+  if (box.dataset.sig === sig) return;
+  box.dataset.sig = sig;
+  if (!icp || regs.length !== 9) {
+    box.replaceChildren();
+    box.style.display = 'none';
+    return;
+  }
+  box.style.display = '';
+  const used = regs.filter((r) => r.count >= 40).map((r) => r.misfit).sort((a, b) => a - b);
+  const typical = used.length ? used[used.length >> 1]! : 0;
+  const grid = el('div');
+  grid.style.cssText = 'display:grid;grid-template-columns:repeat(3,1fr);gap:2px;margin:4px 0;font-variant-numeric:tabular-nums';
+  for (const r of regs) {
+    const ok = r.count >= 40;
+    const bad = ok && r.misfit >= 0.004 && r.misfit >= 2.5 * typical;
+    const warn = ok && !bad && r.misfit >= 0.003 && r.misfit >= 1.6 * typical;
+    const cell = el('div', undefined, { 'data-region': regionName(r) }, ok ? `${(r.misfit * 1000).toFixed(1)} mm` : '-');
+    cell.title = `${regionName(r)}: ${r.count} points; off by ${(r.misfit * 1000).toFixed(1)} mm when fitted alone; residual median ${(r.median * 1000).toFixed(1)} mm, RMS ${(r.rms * 1000).toFixed(1)} mm`;
+    cell.style.cssText = `text-align:center;padding:2px 0;border-radius:3px;background:${!ok ? 'rgba(127,127,127,0.12)' : bad ? 'rgba(255,90,70,0.35)' : warn ? 'rgba(255,180,70,0.3)' : 'rgba(80,200,120,0.25)'}`;
+    grid.appendChild(cell);
+  }
+  const head = el('div', undefined, undefined, `Local misfit by plan region after ICP (north up${icp.region ? `, ${icp.region.label}` : ''}):`);
+  const tail = el('div', undefined, undefined, icp.drift || 'Even fit: no region stands out.');
+  if (icp.drift) tail.style.color = '#ffb347';
+  box.replaceChildren(head, grid, tail);
 }
 
 export function buildGui(gui: GUI, c: PointCloudController): void {
@@ -211,6 +277,7 @@ export function buildGui(gui: GUI, c: PointCloudController): void {
   folder.add(acts, 'align').name('Auto-align to model');
   folder.add(s, 'keepVertical').name('keep vertical').onChange(() => c.resolvePairs());
   folder.add(s, 'allowScale').name('allow scale').onChange(() => c.resolvePairs());
+  folder.add(s, 'alignRegion', ALIGN_REGIONS).name('align within').onChange(() => { c.resolvePairs(); c.noteRegion(); });
   folder.add(acts, 'pairs').name('Align by 3 points');
   folder.add(acts, 'refine').name('Refine (ICP)');
   folder.add(acts, 'undo').name('Undo alignment');

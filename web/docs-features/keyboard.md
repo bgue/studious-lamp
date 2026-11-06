@@ -82,6 +82,7 @@ same registry, so a plugin that registers an action gets a key, a cheat sheet ro
 | Cheat sheet | `?`, `F1` |
 | Command palette | `Ctrl+k`, `Meta+k` |
 | Presets 1 to 9 (placeholders until the presets plugin replaces them) | `code:Digit1` to `code:Digit9` |
+| Save view; previous / next saved view ([saved-views.md](saved-views.md)) | `Ctrl+Shift+s`; `Shift+PageUp` / `Shift+PageDown` |
 
 Other plugins register their own actions with their own keys (for example `b`, `Shift+b`, `p`, `Alt+=`, `Alt+-`, `i`);
 they show up in the cheat sheet under their group.

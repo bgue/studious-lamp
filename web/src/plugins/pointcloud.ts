@@ -46,7 +46,8 @@ declare global {
         readonly active: boolean;
       };
       /** Point-to-plane ICP against the model; applies the result when it improved the fit. */
-      refine(opts?: { samples?: number; maxIterations?: number; startDistance?: number; trim?: number; minDistance?: number }): Promise<IcpResult | null>;
+      /** `normals: false` matches without normal compatibility (as before the oriented normals). */
+      refine(opts?: { samples?: number; maxIterations?: number; startDistance?: number; trim?: number; minDistance?: number; normals?: boolean }): Promise<IcpResult | null>;
       /** Shown cloud point under a client position. */
       pickCloudAt(clientX: number, clientY: number): { index: number; cloud: [number, number, number]; world: [number, number, number] } | null;
       readonly stats: PointCloudStats;

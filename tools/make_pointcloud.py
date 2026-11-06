@@ -24,7 +24,8 @@ Usage (from the repository root):
 
 --phone writes what an iPhone / iPad LiDAR app (Polycam, Scaniverse, 3d Scanner App, SiteScape) exports for one room:
 only the surfaces a walk through the back room of the house sees (a box crop of the room, faces turned towards the
-walk path, no ceiling above --phone-top), Y up in the scan's own frame, the origin where the scan started and a
+walk path, no ceiling above --phone-top), Y up in the scan's own frame, the origin where the scan started (as ARKit
+apps write it; the viewer's ICP turns point normals towards that origin) and a
 heading of --heading degrees, 1.5 cm noise (the default --sigma in this mode), optionally a slow heading drift
 (--drift degrees per metre away from the start). Binary little endian PLY, float x y z and uchar rgb, no intensity or
 classes. The true transform is in a header comment, so tests can score a registration:

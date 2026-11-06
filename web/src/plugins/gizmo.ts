@@ -55,13 +55,21 @@ let lastFit = 0;
 let refreshButtons: (() => void) | null = null;
 let guiShow: { updateDisplay(): unknown } | null = null;
 
-function load(): void {
-  let phone = false;
+function isPhone(): boolean {
   try {
-    phone = window.matchMedia('(max-width: 700px)').matches;
+    return window.matchMedia('(max-width: 700px)').matches;
   } catch {
-    /* no matchMedia */
+    return false; // no matchMedia
   }
+}
+
+/** Factory state, also what "Reset to defaults" restores: shown, expanded on a desktop, collapsed on a phone. */
+export function gizmoFactoryState(phone: boolean): GizmoState {
+  return { visible: true, collapsed: phone };
+}
+
+function load(): void {
+  const phone = isPhone();
   state.collapsed = phone;
   try {
     const v = JSON.parse(window.localStorage.getItem(STORAGE_KEY) ?? 'null') as Partial<GizmoState> | null;
@@ -614,6 +622,8 @@ export const gizmoPlugin: AppPlugin = {
     registerParamSection('gizmo', {
       share: false,
       collect: () => ({ visible: state.visible, collapsed: state.collapsed }),
+      // Not the state after the first model: that comes from localStorage (a gizmo hidden in an earlier visit).
+      factory: () => gizmoFactoryState(isPhone()),
       apply(value, bad, path) {
         if (value === null || typeof value !== 'object') {
           bad.push(path);

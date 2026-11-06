@@ -65,6 +65,7 @@ export const BUILTIN_PRESETS: Preset[] = [
       section: {},
       clearance: {},
     },
+    frame: 'selection',
     builtIn: true,
   },
   {
@@ -83,6 +84,7 @@ export const BUILTIN_PRESETS: Preset[] = [
       section: {},
       clearance: {},
     },
+    frame: 'selection',
     builtIn: true,
   },
   {
@@ -101,6 +103,7 @@ export const BUILTIN_PRESETS: Preset[] = [
       section: {},
       clearance: {},
     },
+    frame: 'selection',
     builtIn: true,
   },
   {
@@ -175,6 +178,7 @@ export const BUILTIN_PRESETS: Preset[] = [
       clearance: {},
     },
     actions: ['section.fitSelection'],
+    frame: 'selection',
     builtIn: true,
   },
   {

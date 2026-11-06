@@ -29,6 +29,8 @@ IFC files are converted in node by the **same TypeScript reader the browser uses
 | `--open-tool <id>` | Open this tool's drawer at start (must be in `--tools` when that is given). |
 | `--kiosk` | Start with the model tree and the parameter dock collapsed. |
 | `--camera px,py,pz:tx,ty,tz` | Camera position and target in the viewer frame: metres, Y up, shifted by the sidecar's `originShift`. Easiest to copy from an exported params file (`camera.position`, `camera.target`). |
+| `--views <file.json>` | Saved views (`xray-views/1`, from the Views tab > Export) added to the Views tab of the page. Views without a name or camera are skipped with a warning; GlobalIds missing from the model are warned about. See [saved-views.md](saved-views.md). |
+| `--open-view <name>` | A saved view of `--views` (name, id or 1-based number) opened at start, after everything else. Needs `--views`. |
 | `--ifc-reader` | Also embed the in-browser IFC reader (worker + wasm, gzip + base64) so the recipient can open more IFC files. Adds about 1.2 MB. Default: left out. |
 | `--samples` | Also embed the sample models (building, fzk-haus, plumbing). Adds about 1.8 MB. |
 | `--force` | Overwrite the output. |
@@ -39,7 +41,7 @@ Exit codes: `0` ok, `1` usage error (bad option, missing `-o`, output exists), `
 
 ## What the page does at start
 
-`window.__xrayBoot` (see `XrayBoot` in `src/tools/registry.ts`) is read once, after the first model installs (`src/plugins/boot.ts`), in this order: page title, preset, params, camera, selection, open tool, kiosk. The toolbar plugin reads `__xrayBoot.tools` itself. The initial model is `__xrayBoot.model`, else `?model=`, else the first embedded model, else `building`.
+`window.__xrayBoot` (see `XrayBoot` in `src/tools/registry.ts`) is read once, after the first model installs (`src/plugins/boot.ts`), in this order: page title, preset, params, camera, selection, open tool, kiosk, saved view (`openView`). The views plugin adds `__xrayBoot.views` to the Views tab on the first model. The toolbar plugin reads `__xrayBoot.tools` itself. The initial model is `__xrayBoot.model`, else `?model=`, else the first embedded model, else `building`.
 
 ## Templates
 

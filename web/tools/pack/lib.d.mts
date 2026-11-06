@@ -20,6 +20,8 @@ export interface PackOptions {
   tools: string[] | undefined;
   openTool: string | undefined;
   camera: PackCamera | undefined;
+  views: string | undefined;
+  openView: string | undefined;
   kiosk: boolean;
   ifcReader: boolean;
   samples: boolean;
@@ -32,7 +34,8 @@ export function parseCamera(text: string): PackCamera;
 export function parseArgs(argv: string[]): { help: boolean; inputs: string[]; options: PackOptions };
 export function unknownTools(tools: string[] | undefined): string[];
 export function defaultModelName(inputPath: string): string;
-export function buildBoot(model: string, options?: Partial<PackOptions>, params?: unknown): Record<string, unknown>;
+export function checkViews(doc: unknown, openView?: string, modelName?: string): { views: Array<Record<string, unknown>>; warnings: string[] };
+export function buildBoot(model: string, options?: Partial<PackOptions>, params?: unknown, views?: unknown[]): Record<string, unknown>;
 export function toBase64(bytes: Uint8Array | ArrayBuffer): string;
 export function fromBase64(text: string): Uint8Array;
 export function scriptSafe(s: string): string;

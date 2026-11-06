@@ -8,9 +8,19 @@
 //
 // The svg fills #stage, ignores pointer events, and uses CSS pixels as user units. `project` is valid inside onUpdate
 // callbacks and between frames: it uses the camera matrices of the last frame.
+//
+// Reserved rects: `ov.reserved` lists the parts of the view that chrome covers (status bar and drawer strips, the gizmo,
+// legends, and anything registered with `ov.reserve(key, rect)`), refreshed every frame. `ov.place(x, y, w, h)` gives
+// the nearest spot for a label box that is clear of them (see reserved.ts); labels that move draw a leader line back
+// to their anchor. Measure labels, penetration markers, BCF pins and callouts all use it.
 
 import { Matrix4 } from 'three';
 import type { AppPlugin, ViewerApp } from '../app';
+import { freeSpot, insetRects } from './reserved';
+import type { Insets, Rect, Spot, SpotOptions } from './reserved';
+
+export type { Insets, Rect, Spot, SpotOptions } from './reserved';
+export { freeSpot, insetRects, underReserved } from './reserved';
 
 export type Point3 = readonly [number, number, number] | { x: number; y: number; z: number };
 
@@ -51,22 +61,11 @@ export function projectToScreen(m: ArrayLike<number>, width: number, height: num
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
-/** CSS pixels of the canvas covered by viewer chrome along each edge (status bar, tool strip and drawer, phone rails). */
-export interface Insets {
-  top: number;
-  right: number;
-  bottom: number;
-  left: number;
-}
-export interface Rect {
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-}
-
 /** Chrome that can lie over the canvas edges: the tool strip and drawer, the tree and dock (rails on phones), the status bar. */
 const EDGE_CHROME = ['#xray-toolbar', '#xray-toolbar-drawer', '#sidebar', '#dock', '#xray-overlay'];
+
+/** Legends drawn on the overlay itself: reserved by their drawn box (a legend may also register with ov.reserve). */
+const LEGENDS = '.xray-svg-overlay [data-legend], .xray-svg-overlay g[data-layer$="legend"]';
 
 function shown(e: Element | null): e is HTMLElement {
   if (!(e instanceof HTMLElement) || e.hidden || e.getClientRects().length === 0) return false;
@@ -100,6 +99,9 @@ export class Overlay {
   /** Chrome over the canvas edges and the gizmo box (canvas pixels), refreshed every frame. */
   insets: Insets = { top: 0, right: 0, bottom: 0, left: 0 };
   gizmo: Rect | null = null;
+  /** Every reserved rect (canvas pixels): the edge chrome strips, the gizmo, the legends and the registered rects. */
+  reserved: Rect[] = [];
+  private readonly registry = new Map<string, Rect | (() => Rect | null)>();
   private signature = '';
   private dirty = true;
 
@@ -168,6 +170,32 @@ export class Overlay {
     const g = document.getElementById('xray-gizmo');
     const gr = shown(g) ? g.getBoundingClientRect() : null;
     this.gizmo = gr && gr.width ? { x: gr.left - c.left, y: gr.top - c.top, w: gr.width, h: gr.height } : null;
+    const res = insetRects(this.width, this.height, ins);
+    if (this.gizmo) res.push(this.gizmo);
+    for (const e of Array.from(document.querySelectorAll(LEGENDS))) {
+      const r = e.getBoundingClientRect();
+      if (r.width > 0 && r.height > 0) res.push({ x: r.left - c.left, y: r.top - c.top, w: r.width, h: r.height });
+    }
+    for (const v of this.registry.values()) {
+      const r = typeof v === 'function' ? v() : v;
+      if (r && r.w > 0 && r.h > 0) res.push(r);
+    }
+    this.reserved = res;
+  }
+
+  /**
+   * Reserve a rect of the view (canvas pixels) under `key`, or a function that returns it each frame; null removes it.
+   * Labels and markers on the overlay keep out of it.
+   */
+  reserve(key: string, rect: Rect | (() => Rect | null) | null): void {
+    if (rect) this.registry.set(key, rect);
+    else this.registry.delete(key);
+    this.dirty = true;
+  }
+
+  /** A spot for a label box of `w` x `h` centred on (x, y) that is clear of the reserved rects (see freeSpot). */
+  place(x: number, y: number, w: number, h: number, opts?: SpotOptions): Spot | null {
+    return freeSpot(x, y, w, h, this.reserved, { x: 0, y: 0, w: this.width, h: this.height }, opts);
   }
 
   /** Legend position (see legendSpot) for this overlay's size, chrome and gizmo. */
@@ -182,6 +210,9 @@ export class Overlay {
     const ins = this.insets;
     const gz = this.gizmo;
     let sig = `${this.width}x${this.height}|${ins.top},${ins.right},${ins.bottom},${ins.left}|${gz ? `${gz.x},${gz.y},${gz.w},${gz.h}` : '-'}`;
+    for (const r of this.reserved) sig += `|${Math.round(r.x)},${Math.round(r.y)},${Math.round(r.w)},${Math.round(r.h)}`;
+    // Element offsets (the exploded view) move anchored markup without a camera change.
+    sig += `|o${(this.app.renderer as unknown as { offsetsVersion?: number }).offsetsVersion ?? 0}`;
     for (let i = 0; i < 16; i++) sig += `,${e[i]!.toFixed(6)}`;
     if (!this.dirty && sig === this.signature) return;
     this.signature = sig;

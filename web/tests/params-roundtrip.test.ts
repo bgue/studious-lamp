@@ -379,6 +379,29 @@ describe('defaults of plugin sections', () => {
   });
 });
 
+describe('factory value of a plugin section (fix w7-1)', () => {
+  it('a section with factory() resets to that value, not to the state restored from localStorage at load', async () => {
+    const { registerParamSection } = await import('../src/ui/params');
+    const { gizmoFactoryState } = await import('../src/plugins/gizmo');
+    const state = { visible: false, collapsed: true }; // hidden in an earlier visit (localStorage)
+    const off = registerParamSection('gizmoTest', {
+      collect: () => ({ ...state }),
+      apply: (v) => Object.assign(state, v as object),
+      factory: () => gizmoFactoryState(false),
+    });
+    try {
+      const f = fresh();
+      const factory = snapshotSections(collectParams(f.app, f.env));
+      expect(factory['gizmoTest']).toEqual({ visible: true, collapsed: false });
+      expect(applyParams(f.app, { ...defaultParams(f.app), ...factory }, { env: f.env })).toEqual([]);
+      expect(state).toEqual({ visible: true, collapsed: false });
+      expect(gizmoFactoryState(true)).toEqual({ visible: true, collapsed: true }); // phones start collapsed
+    } finally {
+      off();
+    }
+  });
+});
+
 describe('share URL', () => {
   it('round-trips the compact subset through base64url', () => {
     const f = fresh();

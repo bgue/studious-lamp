@@ -159,6 +159,8 @@ describe('share link', () => {
     const back = decodePresetShare(enc)!;
     expect(back).toMatchObject({ name: 'Shared look', description: p.description, base: 'defaults', actions: ['section.fitSelection'], builtIn: false });
     expect(back.params).toEqual(p.params);
+    expect(decodePresetShare(encodePresetShare({ ...p, frame: 'selection' }))!.frame).toBe('selection');
+    expect(back.frame).toBeUndefined();
   });
 
   it('reads #preset= from a hash, alone or next to p=, and removes it', () => {

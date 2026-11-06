@@ -6,9 +6,9 @@ Open the `Measure` tool (ruler icon). Clicks on the canvas measure while the dra
 
 - `point to point`: click two points on surfaces. The point is the first visible surface under the cursor (a ray against the merged-geometry BVH; hidden elements are skipped). With `snap to vertices` the point jumps to the nearest vertex of the hit triangle when it is within 12 px; a yellow ring shows the snap. A dashed rubber band with a live length follows the cursor after the first click.
 - `element to element`: click two elements. Shows the minimum surface distance and its two closest points (per-element BVH `closestPointToGeometry`). Elements whose meshes cross or touch show 0.
-- Each measurement is a dimension line with a label (`units` m with 3 decimals, or whole mm), listed in the drawer with a delete button, plus `Clear` and `Export CSV` (id, kind, distance in m and mm, dx, dy, dz, both end points in IFC world coordinates, element GlobalIds).
+- Each measurement is a dimension line with a label (`units` m with 3 decimals, or whole mm; a label that would fall under the gizmo, the status bar, an open drawer or a legend moves to the nearest free spot with a dashed leader line to the middle of the dimension), listed in the drawer with a delete button, plus `Clear` and `Export CSV` (id, kind, distance in m and mm, dx, dy, dz, both end points in IFC world coordinates, element GlobalIds).
 - Escape cancels the pending first point (drawer stays open); a second Escape closes the drawer. Dragging to orbit never creates a point, and measuring clicks do not change the selection.
-- Folder `Measure`: `mode`, `units`, `snap to vertices`, `Clear measurements`. Params section `measure` (units, snap, mode). `window.__xrayMeasure = { list, pending, click(point, element), pickAt(x, y), clear() }`.
+- Folder `Measure`: `mode`, `units`, `snap to vertices`, `Clear measurements`. Params section `measure` (units, snap, mode). `window.__xrayMeasure = { list, pending, units, click(point, element), pickAt(x, y), clear() }`; BCF linked measurements read `units` (`src/measure/current.ts`), so their callouts and burned snapshots use the same unit.
 
 ## Clearance
 

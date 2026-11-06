@@ -46,7 +46,7 @@ function watch(page) {
   page.on('pageerror', (e) => errors.push(`[pageerror] ${e.message}`));
 }
 async function open(page, model) {
-  await page.goto(`http://127.0.0.1:${port}/?model=${model}&cinematic=off`);
+  await page.goto(`http://127.0.0.1:${port}/?model=${model}&cinematic=off`, { timeout: 240000 }); // a loaded box is slow to serve
   await page.waitForFunction('window.__xrayReady === true || window.__xrayError', null, { timeout: 240000 });
   const err = await page.evaluate('window.__xrayError');
   if (err) throw new Error(err);

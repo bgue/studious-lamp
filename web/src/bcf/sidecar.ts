@@ -11,21 +11,24 @@
 //
 //   {
 //     "format": "xray-bcf-markup", "version": 1, "frame": "ifc", "units": "m",
-//     "topic": "<topic guid>",
-//     "pin": { "position": [x, y, z], "elementGuid": "<IfcGuid>" },
+//     "topic": "<topic guid>", "pinNumber": 3,
+//     "pin": { "position": [x, y, z], "elementGuid": "<IfcGuid>", "local": [dx, dy, dz] },
 //     "viewpoints": {
 //       "<viewpoint guid>": {
-//         "annotations": [ { "guid", "type": "callout" | "note" | "arrow", "text", "offset": [dx, dy],
+//         "annotations": [ { "guid", "type": "callout" | "note" | "arrow" | "rect" | "freehand", "text", "offset": [dx, dy],
 //                            "anchor": { "kind": "element" | "measurement" | "point", "point": [x, y, z], "elementGuid"?,
-//                                        "measurement"?: { "kind", "a", "b", "distance", "label", "elementGuids"? } } } ],
+//                                        "local"?: [dx, dy, dz],
+//                                        "measurement"?: { "kind", "a", "b", "distance", "label", "elementGuids"? } },
+//                            "shape"?: { "points": [[u, v], ...], "depth": d } } ],
+//         "markupSelection": ["<IfcGuid>", ...],
 //         "snapshotView": { "position", "direction", "up", "fov", "aspect" },
 //         "baseSnapshot": "xray-<viewpoint guid>-base.png"
 //       }
 //     }
 //   }
 
-import { ANNOTATION_TYPES, IFC_GUID_RE, newGuid } from './model';
-import type { BcfAnchor, BcfAnnotation, BcfMeasureLink, BcfPin, BcfSnapshotView, BcfTopic, BcfVersion, BcfViewpointRef, Vec3 } from './model';
+import { ANNOTATION_TYPES, IFC_GUID_RE, isShapeType, newGuid } from './model';
+import type { BcfAnchor, BcfAnnotation, BcfMeasureLink, BcfPin, BcfShape, BcfSnapshotView, BcfTopic, BcfVersion, BcfViewpointRef, Vec3 } from './model';
 
 export const SIDECAR_NAME = 'xray-markup.json';
 export const SIDECAR_FORMAT = 'xray-bcf-markup';
@@ -36,6 +39,8 @@ export interface SidecarViewpoint {
   snapshotView?: BcfSnapshotView;
   /** File name (in the topic folder) of the snapshot without the burned-in markup. */
   baseSnapshot?: string;
+  /** IfcGuids in the viewpoint Selection only because annotations point at them (not selected on apply here). */
+  markupSelection?: string[];
 }
 
 export interface Sidecar {
@@ -44,6 +49,7 @@ export interface Sidecar {
   frame: 'ifc';
   units: 'm';
   topic: string;
+  pinNumber?: number;
   pin?: BcfPin;
   viewpoints: Record<string, SidecarViewpoint>;
 }
@@ -74,6 +80,25 @@ export function annotationGuids(list: readonly BcfAnnotation[] | undefined): str
   return [...out];
 }
 
+/**
+ * The IfcGuids of a viewpoint that are selected only for the annotations: the annotated elements that the author did not
+ * select. `markupSelection` records which selection entries addAnnotation added; without it (a viewpoint from an older
+ * side file) every annotated element counts, unless that would leave nothing of a non-empty selection.
+ */
+export function markupSelectionOf(r: BcfViewpointRef): string[] {
+  const ann = annotationGuids(r.annotations);
+  if (!ann.length) return [];
+  const sel = (r.data?.selection ?? []).map((c) => c.ifcGuid).filter((g): g is string => !!g);
+  if (r.markupSelection) {
+    const added = new Set(r.markupSelection);
+    const author = new Set(sel.filter((g) => !added.has(g)));
+    return ann.filter((g) => !author.has(g));
+  }
+  const annSet = new Set(ann);
+  const rest = sel.filter((g) => !annSet.has(g));
+  return sel.length && !rest.length ? [] : ann;
+}
+
 export function baseSnapshotName(viewpointGuid: string, version: BcfVersion): string {
   return `xray-${version === '3.0' ? viewpointGuid.toLowerCase() : viewpointGuid}-base.png`;
 }
@@ -86,10 +111,13 @@ export function sidecarJson(t: BcfTopic, version: BcfVersion, baseSnapshots: Rea
   if (!hasMarkup(t)) return null;
   const g = (s: string): string => (version === '3.0' ? s.toLowerCase() : s);
   const out: Sidecar = { format: SIDECAR_FORMAT, version: SIDECAR_VERSION, frame: 'ifc', units: 'm', topic: g(t.guid), viewpoints: {} };
-  if (t.pin) out.pin = { position: [...t.pin.position], ...(t.pin.elementGuid ? { elementGuid: t.pin.elementGuid } : {}) };
+  if (t.pinNumber !== undefined) out.pinNumber = t.pinNumber;
+  if (t.pin) out.pin = clonePin(t.pin);
   for (const r of t.viewpoints) {
     const v: SidecarViewpoint = {};
     if (r.annotations?.length) v.annotations = r.annotations.map(cloneAnnotation);
+    // Written whenever there are annotations (an empty list too): its absence marks an older side file.
+    if (r.annotations?.length) v.markupSelection = markupSelectionOf(r);
     if (r.snapshotView) v.snapshotView = { ...r.snapshotView, position: [...r.snapshotView.position], direction: [...r.snapshotView.direction], up: [...r.snapshotView.up] };
     const base = baseSnapshots.get(r.guid);
     if (base) v.baseSnapshot = base;
@@ -98,9 +126,17 @@ export function sidecarJson(t: BcfTopic, version: BcfVersion, baseSnapshots: Rea
   return `${JSON.stringify(out, null, 1)}\n`;
 }
 
+export function clonePin(p: BcfPin): BcfPin {
+  const out: BcfPin = { position: [...p.position] };
+  if (p.elementGuid) out.elementGuid = p.elementGuid;
+  if (p.local) out.local = [...p.local];
+  return out;
+}
+
 export function cloneAnnotation(a: BcfAnnotation): BcfAnnotation {
   const anchor: BcfAnchor = { kind: a.anchor.kind, point: [...a.anchor.point] };
   if (a.anchor.elementGuid) anchor.elementGuid = a.anchor.elementGuid;
+  if (a.anchor.local) anchor.local = [...a.anchor.local];
   const m = a.anchor.measurement;
   if (m) {
     anchor.measurement = { kind: m.kind, a: [...m.a], b: [...m.b], distance: m.distance, label: m.label };
@@ -108,6 +144,7 @@ export function cloneAnnotation(a: BcfAnnotation): BcfAnnotation {
     if (m.sourceId !== undefined) anchor.measurement.sourceId = m.sourceId;
   }
   const out: BcfAnnotation = { guid: a.guid, type: a.type, text: a.text, anchor, offset: [a.offset[0], a.offset[1]] };
+  if (a.shape) out.shape = { points: a.shape.points.map((p) => [p[0], p[1]] as [number, number]), depth: a.shape.depth };
   if (a.author) out.author = a.author;
   if (a.date) out.date = a.date;
   return out;
@@ -150,6 +187,23 @@ function readMeasure(v: unknown): BcfMeasureLink | null {
   return m;
 }
 
+function readShape(v: unknown, type: string): BcfShape | null {
+  if (!isObj(v) || !Array.isArray(v['points']) || !fin(v['depth']) || v['depth'] <= 0) return null;
+  const points: Array<[number, number]> = [];
+  for (const p of v['points']) {
+    if (!Array.isArray(p) || p.length !== 2 || !p.every(fin)) return null;
+    points.push([p[0] as number, p[1] as number]);
+  }
+  if (type === 'rect' ? points.length !== 2 : points.length < 2 || points.length > 4096) return null;
+  return { points, depth: v['depth'] };
+}
+
+const guidList = (v: unknown): string[] | undefined => {
+  if (!Array.isArray(v)) return undefined;
+  const list = v.filter((x): x is string => typeof x === 'string' && x !== '');
+  return list.length ? list : undefined;
+};
+
 export function readAnnotation(v: unknown): BcfAnnotation | null {
   if (!isObj(v)) return null;
   const type = ANNOTATION_TYPES.find((t) => t === v['type']);
@@ -161,6 +215,8 @@ export function readAnnotation(v: unknown): BcfAnnotation | null {
   const anchor: BcfAnchor = { kind, point };
   const eg = str(an['elementGuid']);
   if (eg) anchor.elementGuid = eg;
+  const local = vec3(an['local']);
+  if (local && eg) anchor.local = local;
   if (an['measurement'] !== undefined) {
     const m = readMeasure(an['measurement']);
     if (m) anchor.measurement = m;
@@ -169,6 +225,11 @@ export function readAnnotation(v: unknown): BcfAnnotation | null {
   const off = v['offset'];
   const offset: [number, number] = Array.isArray(off) && off.length === 2 && off.every(fin) ? [off[0] as number, off[1] as number] : [0, 0];
   const out: BcfAnnotation = { guid: str(v['guid']) ?? newGuid(), type, text: typeof v['text'] === 'string' ? v['text'] : '', anchor, offset };
+  if (isShapeType(type)) {
+    const shape = readShape(v['shape'], type);
+    if (!shape) return null;
+    out.shape = shape;
+  }
   const au = str(v['author']);
   if (au) out.author = au;
   const d = str(v['date']);
@@ -177,6 +238,7 @@ export function readAnnotation(v: unknown): BcfAnnotation | null {
 }
 
 export interface SidecarRead {
+  pinNumber?: number;
   pin?: BcfPin;
   viewpoints: Map<string, SidecarViewpoint>;
   problems: string[];
@@ -196,7 +258,14 @@ export function parseSidecar(text: string): SidecarRead {
       out.pin = { position: p };
       const eg = isObj(pin) ? str(pin['elementGuid']) : undefined;
       if (eg) out.pin.elementGuid = eg;
+      const local = isObj(pin) ? vec3(pin['local']) : null;
+      if (local && eg) out.pin.local = local;
     } else problems.push('pin has no valid position');
+  }
+  const pn = raw['pinNumber'];
+  if (pn !== undefined) {
+    if (fin(pn) && Number.isInteger(pn) && pn >= 1 && pn < 1e6) out.pinNumber = pn;
+    else problems.push('pinNumber is not a positive whole number');
   }
   const vps = raw['viewpoints'];
   if (isObj(vps)) {
@@ -216,6 +285,7 @@ export function parseSidecar(text: string): SidecarRead {
       if (view) sv.snapshotView = view;
       const base = str(v['baseSnapshot']);
       if (base && !/[\\/]/.test(base)) sv.baseSnapshot = base;
+      if (Array.isArray(v['markupSelection'])) sv.markupSelection = guidList(v['markupSelection']) ?? [];
       out.viewpoints.set(guid.toLowerCase(), sv);
     }
   }
@@ -228,6 +298,7 @@ export function parseSidecar(text: string): SidecarRead {
  */
 export function applySidecar(t: BcfTopic, s: SidecarRead): { baseSnapshots: Map<string, string>; missing: string[] } {
   if (s.pin) t.pin = s.pin;
+  if (s.pinNumber !== undefined) t.pinNumber = s.pinNumber;
   const baseSnapshots = new Map<string, string>();
   const seen = new Set<string>();
   for (const r of t.viewpoints) {
@@ -236,6 +307,8 @@ export function applySidecar(t: BcfTopic, s: SidecarRead): { baseSnapshots: Map<
     seen.add(r.guid.toLowerCase());
     if (v.annotations) r.annotations = v.annotations;
     if (v.snapshotView) r.snapshotView = v.snapshotView;
+    // Absent (an older side file): derived from the annotations by markupSelectionOf.
+    if (v.markupSelection) r.markupSelection = v.markupSelection;
     if (v.baseSnapshot) baseSnapshots.set(r.guid, v.baseSnapshot);
   }
   const missing = [...s.viewpoints.keys()].filter((g) => !seen.has(g));

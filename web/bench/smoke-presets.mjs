@@ -84,7 +84,7 @@ try {
     const page = await context.newPage();
     watch(page, sc.key);
     console.log(`\n== ${sc.model}`);
-    await page.goto(`http://127.0.0.1:${port}/?model=${sc.model}`);
+    await page.goto(`http://127.0.0.1:${port}/?model=${sc.model}`, { timeout: 240000 });
     await page.waitForFunction('window.__xrayReady === true || window.__xrayError', null, { timeout: 180000 });
     const startErr = await page.evaluate('window.__xrayError');
     if (startErr) throw new Error(startErr);
@@ -216,7 +216,7 @@ try {
       const saved = await page.evaluate(() => window.__xrayPresets.save('Smoke look', ['sightlines', 'display', 'farMode', 'viewModes', 'imaging', 'section', 'cinematic'], 'Saved by the smoke test.'));
       check('user preset saved with the sections of this build', saved.preset.id === 'smoke-look' && saved.preset.params.sightlines.alphaMin === 0.05 && 'imaging' in saved.preset.params && saved.missing.length === 0, `missing: ${JSON.stringify(saved.missing)}`);
       const share = await page.evaluate(() => window.__xrayPresets.shareUrl('smoke-look'));
-      await page.reload();
+      await page.reload({ timeout: 240000 });
       await page.waitForFunction('window.__xrayReady === true || window.__xrayError', null, { timeout: 180000 });
       await page.waitForFunction('!!window.__xrayPresets', null, { timeout: 10000 });
       const after = await page.evaluate(() => window.__xrayPresets.list().find((p) => p.id === 'smoke-look') ?? null);
@@ -231,8 +231,8 @@ try {
       check('import restores it', imp.added.length === 1 && imp.errors.length === 0, JSON.stringify(imp));
       // Share link applied on load, after the model.
       await page.evaluate(() => { window.__xray.app.settings.sightlines.alphaMin = 0.15; });
-      await page.goto(share);
-      await page.reload();
+      await page.goto(share, { timeout: 240000 });
+      await page.reload({ timeout: 240000 });
       await page.waitForFunction('window.__xrayReady === true || window.__xrayError', null, { timeout: 180000 });
       await page.waitForTimeout(800);
       const sh = await page.evaluate(() => ({ active: window.__xrayPresets.active(), alphaMin: window.__xray.app.settings.sightlines.alphaMin, hash: location.hash }));

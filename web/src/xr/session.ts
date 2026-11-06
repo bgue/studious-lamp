@@ -15,8 +15,11 @@ import {
   quatRotate, snapTurn, snapTurnStep, yawOfDirection,
 } from './maths';
 import type { ArScale, Q4, Rig, SnapState, V3 } from './maths';
+import { FieldController, defaultFieldConfig } from './fieldSession';
+import type { FieldConfig, FieldHost, FieldNote, FieldStateView } from './fieldSession';
 
-export type XrMode = 'vr' | 'ar';
+/** 'field': augmented reality at real scale, registered on the real building by point pairs (xr/fieldSession.ts). */
+export type XrMode = 'vr' | 'ar' | 'field';
 
 export interface XrSupport {
   vr: boolean;
@@ -42,6 +45,8 @@ export interface XrState {
   turns: number;
   inputSources: number;
   hitTest: boolean;
+  /** Field AR state (null outside a field session). */
+  field: FieldStateView | null;
 }
 
 interface NavigatorXr {
@@ -82,6 +87,16 @@ interface RayVisual {
 
 export class XrManager {
   readonly config: XrConfig = { arScale: '1:1', pointerRays: true };
+  /** Settings of the field AR mode (look, cut, snapping, restore, BCF notes). */
+  readonly fieldConfig: FieldConfig = defaultFieldConfig();
+  /** Model points picked in the normal view before a field session (world coordinates). */
+  fieldDraft: V3[] = [];
+  /** The field controller while a field session runs. */
+  field: FieldController | null = null;
+  /** Snapshots of the last field session. */
+  lastNotes: FieldNote[] = [];
+  /** Called after a field session ended and the normal view is back, with its snapshots. */
+  onFieldEnd: ((notes: FieldNote[]) => void) | null = null;
   support: XrSupport = { vr: false, ar: false };
   mode: XrMode | null = null;
   status = 'WebXR: checking the device';
@@ -163,7 +178,7 @@ export class XrManager {
   /** Start a session. Call it from a click or a key press (a browser rule for XR sessions). */
   async enter(mode: XrMode): Promise<void> {
     if (this.session || this.entering) return;
-    if (!this.support[mode]) {
+    if (!(mode === 'field' ? this.support.ar : this.support[mode])) {
       this.status = `${mode.toUpperCase()} is not supported on this device`;
       this.notify();
       return;
@@ -174,10 +189,18 @@ export class XrManager {
     const r = this.app.renderer;
     const three = r.renderer;
     let session: XRSession;
+    const field = mode === 'field' ? new FieldController(this.fieldHost, this.fieldConfig, this.fieldDraft) : null;
     try {
-      const init = mode === 'vr' ? { optionalFeatures: ['local-floor', 'hand-tracking'] } : { optionalFeatures: ['hit-test', 'local-floor', 'hand-tracking'] };
+      const init: Record<string, unknown> =
+        mode === 'vr'
+          ? { optionalFeatures: ['local-floor', 'hand-tracking'] }
+          : mode === 'ar'
+            ? { optionalFeatures: ['hit-test', 'local-floor', 'hand-tracking'] }
+            : // Field AR: anchors hold the registration while walking; the DOM overlay is the phone panel.
+              { optionalFeatures: ['hit-test', 'anchors', 'dom-overlay', 'local-floor', 'hand-tracking'], domOverlay: { root: field!.overlayRoot() } };
       session = await xrNav.requestSession(mode === 'vr' ? 'immersive-vr' : 'immersive-ar', init);
     } catch (e) {
+      field?.end();
       this.entering = false;
       this.status = `could not start ${mode.toUpperCase()}: ${e instanceof Error ? e.message : String(e)}`;
       this.notify();
@@ -206,6 +229,7 @@ export class XrManager {
       await three.xr.setSession(session);
     } catch (e) {
       three.xr.enabled = false;
+      field?.end();
       this.entering = false;
       this.saved = null;
       this.status = `could not start ${mode.toUpperCase()}: ${e instanceof Error ? e.message : String(e)}`;
@@ -217,6 +241,7 @@ export class XrManager {
     this.mode = mode;
     this.selects = this.squeezes = this.turns = 0;
     this.placed = mode === 'vr';
+    this.field = field;
     this.entering = false;
 
     const box = this.app.loaded?.geometry.totalBounds();
@@ -233,20 +258,23 @@ export class XrManager {
       this.rig = rigFromOrbitCamera([orbitPos.x, orbitPos.y, orbitPos.z], [orbitDir.x, orbitDir.y, orbitDir.z]);
     } else {
       // Until the first tap the model stands 1.2 m ahead on the floor, turned as in the orbit view.
-      const surf = defaultArSurface(arScaleFactor(this.config.arScale));
+      const surf = defaultArSurface(this.arScale());
       this.lastHit = defaultArHit([0, 0, 0], [0, 0, -1], surf.distance, surf.eyeHeight);
-      this.rig = arPlacement(this.lastHit, this.anchor, arScaleFactor(this.config.arScale), this.orbitYaw);
+      this.rig = arPlacement(this.lastHit, this.anchor, this.arScale(), this.orbitYaw);
     }
     r.scene.add(this.rigObj);
     this.rigObj.add(cam);
     r.controls.enabled = false;
-    if (mode === 'ar') {
+    if (mode !== 'vr') {
       r.scene.background = null;
       three.setClearAlpha(0);
+    }
+    if (mode === 'ar') {
       this.buildReticle();
       void this.startHitTest(session);
     }
     this.applyRig();
+    field?.start(session, three.xr.getReferenceSpace());
     session.addEventListener('select', this.onSelect);
     session.addEventListener('squeeze', this.onSqueeze);
     this.lastSlPos = null;
@@ -286,6 +314,9 @@ export class XrManager {
       (this.reticle.material as MeshBasicMaterial).dispose();
       this.reticle = null;
     }
+    const field = this.field;
+    this.field = null;
+    const notes = field ? field.end() : null;
     const cam = r.camera;
     cam.removeFromParent();
     this.rigObj.removeFromParent();
@@ -319,8 +350,33 @@ export class XrManager {
     r.markDirty();
     this.app.runSightlinesNow();
     this.setIdleStatus();
+    if (notes) {
+      this.lastNotes = notes;
+      this.onFieldEnd?.(notes);
+    }
     this.notify();
   };
+
+  /** World metres per physical metre of the AR modes: field AR is always real scale. */
+  private arScale(): number {
+    return this.mode === 'field' || (this.entering && this.field) ? 1 : arScaleFactor(this.config.arScale);
+  }
+
+  /** What the field controller may use of this manager. */
+  private readonly fieldHost: FieldHost = ((m: XrManager) => ({
+    get app(): ViewerApp {
+      return m.app;
+    },
+    getRig: (): Rig => m.getRig(),
+    setRig: (r: Rig): void => {
+      m.rig = { position: [...r.position], yaw: r.yaw, scale: r.scale };
+      m.applyRig();
+    },
+    head: (): { position: V3; quaternion: Q4 } => ({ position: [...m.head], quaternion: [...m.headQ] }),
+    rigObject: (): Object3D => m.rigObj,
+    changed: (): void => m.refreshStatus(true),
+    exit: (): void => m.exit(),
+  }))(this);
 
   // ------------------------------------------------------------------ rig
 
@@ -378,10 +434,10 @@ export class XrManager {
       // First frame: put the real head exactly on the orbit camera (VR), or the default model spot ahead of the head (AR).
       this.rigPending = false;
       if (this.mode === 'vr') this.rig = rigFromOrbitCamera(this.orbitPos, this.orbitDirV, this.head);
-      else {
-        const surf = defaultArSurface(arScaleFactor(this.config.arScale));
+      else if (!this.field?.registered) {
+        const surf = defaultArSurface(this.arScale());
         this.lastHit = defaultArHit(this.head, quatForward(this.headQ), surf.distance, surf.eyeHeight);
-        this.rig = arPlacement(this.lastHit, this.anchor, arScaleFactor(this.config.arScale), this.orbitYaw);
+        this.rig = arPlacement(this.lastHit, this.anchor, this.arScale(), this.orbitYaw);
       }
       this.applyRig();
       this.app.runSightlinesNow();
@@ -422,6 +478,10 @@ export class XrManager {
       }
     }
     if (this.mode === 'ar' && this.hitSource && !this.placed) this.updateReticle(frame, ref);
+    if (this.field) {
+      this.field.frame(frame, ref, now);
+      this.placed = this.field.registered && this.field.step === 'done';
+    }
     this.applyRig();
 
     // Algorithm 2 runs from the head position, throttled by the app (SIGHTLINE_INTERVAL_MS) and by this distance test.
@@ -444,6 +504,10 @@ export class XrManager {
     const x = this.app.renderer.renderer.xr;
     const ref = x.getReferenceSpace();
     if (!ref) return;
+    if (this.field) {
+      this.field.onSelect(e, ref);
+      return;
+    }
     if (this.mode === 'ar' && !this.placed) {
       this.placeModel();
       return;
@@ -460,6 +524,10 @@ export class XrManager {
 
   private readonly onSqueeze = (): void => {
     this.squeezes++;
+    if (this.field) {
+      this.field.onSqueeze();
+      return;
+    }
     if (this.mode === 'ar') {
       // AR: a squeeze picks the model up again (the next select places it).
       this.placed = false;
@@ -576,6 +644,8 @@ export class XrManager {
     const parts: string[] = [];
     if (this.mode === 'vr') {
       parts.push(`VR on, ${inputs} input source${inputs === 1 ? '' : 's'}`);
+    } else if (this.field) {
+      parts.push(this.field.statusText());
     } else {
       parts.push(
         this.placed
@@ -604,8 +674,14 @@ export class XrManager {
       squeezes: this.squeezes,
       turns: this.turns,
       inputSources: this.session ? this.session.inputSources.length : 0,
-      hitTest: this.hitTestActive,
+      hitTest: this.mode === 'field' ? !!this.field?.state().hitTest.centre : this.hitTestActive,
+      field: this.field ? this.field.state() : null,
     };
+  }
+
+  /** After the frame rendered (field snapshots render here, between two XR frames). */
+  afterFrame(): void {
+    this.field?.afterFrame();
   }
 
   /** The Object3D that holds the camera while a session runs (tests). */

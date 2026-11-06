@@ -53,3 +53,14 @@ bundled test models: every element counts as closed (the 8 elements of `building
 On the 22 m tall stack the picture without it sits in a band of 23 levels (10th to 90th percentile); with it the band is 67 levels wide and the floors, walls and columns are
 distinguishable (`bench/imaging-synth-radiograph.png`, `bench/imaging-radiograph-classic.png`, `-negative.png`, `-fluoro.png`). The measurement reads a 64 x 64 grid back
 asynchronously: no GPU stall warning, no console warning (`smoke-imaging` prints "no console errors or warnings").
+
+## Field AR (bench/smoke-xr-field.mjs, iwer Meta Quest 3 with a stub hit-test environment, fzk-haus)
+
+True site transform: yaw 0.6 rad and a shift from iwer's global frame onto the model. 3 pairs (2 on the ground floor, 1 on the upper floor), 2 check points not used in the solve (2 m and 9 m from the taps).
+
+| taps | residuals | RMS | check-point error |
+| --- | --- | --- | --- |
+| exact (ray meets the plane at the true point) | < 0.001 mm each | < 0.001 mm | < 0.001 mm, < 0.001 mm |
+| off by up to 1 cm on plan (fixed pattern: (0.8, -0.6), (-0.5, 0.9), (0.7, 0.4) cm) | 0.61, 0.78, 0.80 cm | 0.73 cm | 0.45 cm, 0.81 cm |
+
+A second session restores the saved site from iwer's persistent anchor with no tap; a third session without the `anchors` feature asks for the 3 points again. Exit after a field session: 0 differing channel values against the picture before entering. These numbers say the solve and the plumbing are right; on a real phone the hit test itself is off by centimetres and tracking drifts, which the emulator does not model.

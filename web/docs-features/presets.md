@@ -1,6 +1,6 @@
 # Presets
 
-A preset is a named look of the viewer: a partial parameter document (`xray-params/1`, the same keys as the JSON export) plus an optional list of actions. Applying one never changes the model, the selection or the camera (unless the preset itself carries a `camera`). Keys `1` to `9` apply the first nine presets; the action panel has a `Presets` tool (order 5) and the parameter panel has a `Presets` folder.
+A preset is a named look of the viewer: a partial parameter document (`xray-params/1`, the same keys as the JSON export) plus an optional list of actions. Applying one never changes the model or the selection, and it moves the camera only when the preset carries a `camera` or the flag `frame: "selection"` (see below). Keys `1` to `9` apply the first nine presets; the action panel has a `Presets` tool (order 5) and the parameter panel has a `Presets` folder.
 
 ## The built-in presets
 
@@ -8,13 +8,13 @@ A preset is a named look of the viewer: a partial parameter document (`xray-para
 | --- | --- | --- | --- |
 | 1 | `coordination` | Review | The factory x-ray view: x-ray on, sightlines, far mode `opaque` back to their defaults, view modes, imaging, section and clearance off, cinematic bloom, edge glow and auto orbit off. |
 | 2 | `hide-blockers` | Review | `sightlines`: `alphaMin 0`, `alphaMax 1`, `gamma 0.3`, `occluderScope all`, `farWeight 1`, `layerWeighting budget`, `layerBudget 6`. What blocks the focus disappears, everything else stays solid. |
-| 3 | `behind-only` | Cutaway | `viewModes.behind`: enabled, `frontTreatment 'cut + cap'`. |
-| 4 | `peelback` | Cutaway | `viewModes.peel`: enabled, `outside 'x-ray'`. |
-| 5 | `peel-only` | Cutaway | `viewModes.peel`: enabled, `outside 'solid'`; `sightlines.alphaMax 1`. |
+| 3 | `behind-only` | Cutaway | `viewModes.behind`: enabled, `frontTreatment 'cut + cap'`; frames the selection. |
+| 4 | `peelback` | Cutaway | `viewModes.peel`: enabled, `outside 'x-ray'`; frames the selection. |
+| 5 | `peel-only` | Cutaway | `viewModes.peel`: enabled, `outside 'solid'`; `sightlines.alphaMax 1`; frames the selection. |
 | 6 | `stacked-floors` | Review | `sightlines`: `layerWeighting front`, `layerFalloff 0.3`; `cinematic.grade`: enabled, `strength 0.85`. |
 | 7 | `radiograph` | Imaging | `imaging`: `style radiograph`, `palette classic`. |
 | 8 | `mri-scan` | Imaging | `imaging`: `style mri`, `mri.scan true`. |
-| 9 | `section-focus` | Cutaway | `section`: `box.enabled`, `box.fit selection`, `caps true`; action `section.fitSelection`. |
+| 9 | `section-focus` | Cutaway | `section`: `box.enabled`, `box.fit selection`, `caps true`; action `section.fitSelection`; frames the selection. |
 | - | `presentation` | Presentation | `cinematic`: `dressing`, `bloom`, `flyTo`, `reveal` on, `sweep` enabled (`mode both`). |
 | - | `clearance-review` | Review | `clearance`: enabled with the default bands (`tight 0.05`, `max 0.5`). |
 | - | `plain` | Basic | `xray false`. |
@@ -26,12 +26,13 @@ All built-ins have `base: "defaults"`, and each names the same set of mode secti
 ```json
 { "id": "peelback", "name": "Peelback", "description": "One plain sentence.", "group": "Cutaway",
   "base": "defaults", "params": { "schema": "xray-params/1", "viewModes": { "peel": { "enabled": true } } },
-  "actions": ["section.fitSelection"] }
+  "actions": ["section.fitSelection"], "frame": "selection" }
 ```
 
 - `group`: `Review`, `Cutaway`, `Imaging`, `Presentation` or `Basic` for built-ins; user presets are in `My presets`.
 - `base: "defaults"`: the sections the preset touches are first reset to the factory values, then the preset is applied. The touched sections are the top-level keys of `params`. An empty object (`"imaging": {}`) is a marker: the section is reset but nothing is set. `base: "current"` applies over the present state. Core sections (`xray`, `sightlines`, `farMode`, `tiersMode`, `tiers`, `display`) reset to `defaultParams`; plugin sections (`viewModes`, `imaging`, `section`, `clearance`, ...) reset to the value they had after the first model loaded; `cinematic` resets only the first-level keys the preset names (a preset that sets `grade` does not turn off your bloom). `camera`, `overrides`, `selectionSets`, `classStyles`, `materialAliases`, `classification` and `rendering` are never reset.
 - `actions`: action ids run with `runAction` after the params are applied. An unknown or disabled action is listed as skipped (`action:<id>`).
+- `frame` (optional, only value `"selection"`): after the params and the actions, the camera moves so the selection fills the view (along the current view direction, the same fit as a fly-to; the cinematic plugin animates it when fly-to is on). Without a selection nothing moves and nothing is reported as skipped; `lastResult().framed` says whether the camera moved. Without the flag a preset never moves the camera. Why: the selection-dependent presets cut or peel around the selection, and on a big model a small selection (a 0.6 m duct on synth5k) seen from the whole-model view gives a picture that looks empty. `section-focus`, `behind-only`, `peelback` and `peel-only` set it. Exports, imports, user presets and share links keep the flag.
 - Unknown sections or keys (the plugin is not in this build, a key was renamed) are skipped and listed; the rest still applies. The drawer then shows "Partly applied. Skipped: ..." on the card, the parameter panel shows it in `Preset status`, and `window.__xrayPresets.lastResult().skipped` has the list. Empty markers of absent sections are not reported.
 - `clearance.enabled` is not a params field (the clearance section carries the thresholds only), so presets use it as a key and the presets plugin switches the tool through `window.__xrayClearance.setEnabled`. Saving a preset with the `clearance` section stores the switch too.
 
@@ -76,4 +77,4 @@ The last applied preset is marked `active` on its card and named in `Preset stat
 - Presets reset and apply settings; they cannot change the selection or load a model.
 - A plugin section that exists in the build is reset to the value it had after the first model loaded, which is the factory value unless a URL parameter or the boot document changed it earlier.
 - The active mark is a settings comparison, not a flag: an unrelated plugin whose collected section changes by itself (a running animation that writes into a section) clears it.
-- `selection`-dependent presets (`section-focus`, `behind-only`, `peelback`) show nothing useful without a selection.
+- `selection`-dependent presets (`section-focus`, `behind-only`, `peelback`, `peel-only`) show nothing useful without a selection; with one they frame it (`frame: "selection"`). The save form does not offer the flag: add it to an exported file by hand.

@@ -6,7 +6,7 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSy
 import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
-  EXIT_INPUT, EXIT_USAGE, HELP, PackError, buildBoot, defaultModelName, injectTemplate, parseSelect, toBase64, unknownTools,
+  EXIT_INPUT, EXIT_USAGE, HELP, PackError, buildBoot, checkViews, defaultModelName, injectTemplate, parseSelect, toBase64, unknownTools,
 } from './pack/lib.mjs';
 import { convertIfcFiles, newestMtime } from './pack/convert.mjs';
 
@@ -57,6 +57,15 @@ function loadParams(path) {
   return doc;
 }
 
+function loadJson(path, flag) {
+  const text = readInput(path).toString('utf8');
+  try {
+    return JSON.parse(text);
+  } catch (e) {
+    throw new PackError(`${flag} ${path} is not valid JSON (${e.message})`, EXIT_INPUT);
+  }
+}
+
 export async function run(argv, io = { out: (s) => process.stdout.write(s + '\n'), err: (s) => process.stderr.write(s + '\n') }) {
   const { help, inputs, options } = (await import('./pack/lib.mjs')).parseArgs(argv);
   if (help) {
@@ -70,6 +79,7 @@ export async function run(argv, io = { out: (s) => process.stdout.write(s + '\n'
   const out = resolve(options.out);
   if (existsSync(out) && !options.force) throw new PackError(`${options.out} exists (use --force to overwrite)`, EXIT_USAGE);
   const params = options.params ? loadParams(options.params) : undefined;
+  const viewsDoc = options.views ? loadJson(options.views, '--views') : undefined;
 
   // ---- model
   const name = options.name ?? defaultModelName(inputs[0]);
@@ -112,6 +122,19 @@ export async function run(argv, io = { out: (s) => process.stdout.write(s + '\n'
     const missing = [...sel.gids.filter((g) => !gids.has(g)), ...sel.classes.filter((c) => !classes.has(c.toLowerCase())).map((c) => `class:${c}`)];
     if (missing.length) warn(`--select entries not found in the model: ${missing.slice(0, 8).join(', ')}${missing.length > 8 ? ', ...' : ''}`);
   }
+  let views;
+  if (viewsDoc !== undefined) {
+    const checked = checkViews(viewsDoc, options.openView, name);
+    views = checked.views;
+    for (const m of checked.warnings) warn(`--views: ${m}`);
+    if (elements) {
+      const gids = new Set(elements.map((e) => e.globalId));
+      const refs = new Set();
+      for (const v of views) for (const g of [...(v.selection ?? []), ...(v.pins ?? []), ...(v.hides?.ids ?? [])]) refs.add(g);
+      const missing = [...refs].filter((g) => !gids.has(g));
+      if (missing.length) warn(`--views: ${missing.length} GlobalId${missing.length > 1 ? 's' : ''} of the views not in the model (${missing.slice(0, 4).join(', ')}${missing.length > 4 ? ', ...' : ''})`);
+    }
+  }
   const odd = unknownTools(options.tools);
   if (odd.length) warn(`--tools: unknown tool id${odd.length > 1 ? 's' : ''} ${odd.join(', ')} (known: see src/tools/registry.ts)`);
 
@@ -127,13 +150,13 @@ export async function run(argv, io = { out: (s) => process.stdout.write(s + '\n'
   const template = ensureTemplate(options.ifcReader, log);
   const html = injectTemplate(readFileSync(template, 'utf8'), {
     models,
-    boot: buildBoot(name, options, params),
+    boot: buildBoot(name, options, params, views),
     title: options.title ?? name,
   });
   mkdirSync(dirname(out), { recursive: true });
   writeFileSync(out, html);
   const dt = performance.now() - t0;
-  log(`wrote ${options.out}: ${fmtMB(Buffer.byteLength(html))}, model "${name}"${elements ? `, ${elements.length} elements` : ''}${options.ifcReader ? ', with IFC reader' : ''}, ${fmtMs(dt)}`);
+  log(`wrote ${options.out}: ${fmtMB(Buffer.byteLength(html))}, model "${name}"${elements ? `, ${elements.length} elements` : ''}${views ? `, ${views.length} saved view${views.length > 1 ? 's' : ''}` : ''}${options.ifcReader ? ', with IFC reader' : ''}, ${fmtMs(dt)}`);
   return 0;
 }
 

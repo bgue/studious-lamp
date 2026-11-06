@@ -290,8 +290,17 @@ class MeasureTool {
         const mx = (sa.x + sb.x) / 2;
         const my = (sa.y + sb.y) / 2;
         const w = text.length * 6.6 + 12;
-        g.appendChild(svgEl('rect', { x: mx - w / 2, y: my - 20, width: w, height: 18, rx: 4, fill: 'rgba(14,18,24,0.88)', stroke: colour, 'stroke-width': 1 }));
-        const t = svgEl('text', { x: mx, y: my - 7, 'text-anchor': 'middle', fill: '#f2f6fb', 'font-size': 12, 'font-family': 'ui-monospace,Menlo,Consolas,monospace' });
+        // The label keeps out of the reserved rects (gizmo, status bar, drawer, legends); a moved label gets a leader line.
+        const spot = ov.place(mx, my - 11, w, 18) ?? { x: mx, y: my - 11, moved: false };
+        const lx = spot.x;
+        const ly = spot.y + 11;
+        if (spot.moved) {
+          const ex = Math.min(lx + w / 2, Math.max(lx - w / 2, mx));
+          const ey = Math.min(ly - 2, Math.max(ly - 20, my));
+          g.appendChild(svgEl('line', { x1: mx, y1: my, x2: ex, y2: ey, stroke: colour, 'stroke-width': 1, 'stroke-dasharray': '3 2', 'data-leader': '1' }));
+        }
+        g.appendChild(svgEl('rect', { x: lx - w / 2, y: ly - 20, width: w, height: 18, rx: 4, fill: 'rgba(14,18,24,0.88)', stroke: colour, 'stroke-width': 1 }));
+        const t = svgEl('text', { x: lx, y: ly - 7, 'text-anchor': 'middle', fill: '#f2f6fb', 'font-size': 12, 'font-family': 'ui-monospace,Menlo,Consolas,monospace' });
         t.setAttribute('data-measure-label', '1');
         t.textContent = text;
         g.appendChild(t);
@@ -442,6 +451,8 @@ export const measurePlugin: AppPlugin = {
     (window as unknown as { __xrayMeasure?: unknown }).__xrayMeasure = {
       get list() { return t.list; },
       get pending() { return t.pending; },
+      /** The length unit of the labels ('m' or 'mm'); BCF linked measurements follow it. */
+      get units() { return t.opts.units; },
       click: (point: V3, element: number) => t.click(point, element),
       pickAt: (x: number, y: number) => t.pickAt(x, y),
       clear: () => t.clear(),

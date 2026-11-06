@@ -370,6 +370,22 @@ describe('E57 checksums and damage', () => {
     const codec = xml.replace(/<codecs type="Vector" allowHeterogeneousChildren="1">\s*<\/codecs>/, '<codecs type="Vector" allowHeterogeneousChildren="1"><vectorChild type="Structure"><zipCodec type="Structure"/></vectorChild></codecs>');
     expect(codec).not.toBe(xml);
     expect(() => parsePointCloud(writeE57(codec, streams, { chunk: () => 1000 }), 'z.e57')).toThrow(/codec "zipCodec"/);
+    // the codec message says what to do about it
+    expect(() => parsePointCloud(writeE57(codec, streams, { chunk: () => 1000 }), 'z.e57')).toThrow(/cannot read.*bitPackCodec.*convert it/);
+  });
+
+  it('friendly notes for photos (images2D)', () => {
+    const file = load('e57-cart-float.e57');
+    const xml = readE57Xml(file);
+    const { streams } = streamsOf(file);
+    const photo = '<images2D type="Vector" allowHeterogeneousChildren="0"><vectorChild type="Structure"><name type="String"><![CDATA[photo]]></name></vectorChild><vectorChild type="Structure"/></images2D>';
+    const withImages = /<images2D[^>]*\/>/.test(xml) ? xml.replace(/<images2D[^>]*\/>/, photo) : xml.replace(/<images2D[^>]*>[\s\S]*?<\/images2D>/, photo);
+    expect(withImages).not.toBe(xml);
+    const d = parsePointCloud(writeE57(withImages, streams, { chunk: () => 1000 }), 'p.e57');
+    expect(d.count).toBeGreaterThan(0);
+    expect(d.warnings.join('; ')).toMatch(/the 2 photos in the file \(images2D\) are not shown, only the points/);
+    const only = withImages.replace(/<data3D type="Vector" allowHeterogeneousChildren="1">[\s\S]*<\/data3D>/, '<data3D type="Vector" allowHeterogeneousChildren="1"/>');
+    expect(() => parsePointCloud(writeE57(only, streams, { chunk: () => 1000 }), 'p.e57')).toThrow(/holds 2 photos \(images2D\) and no 3D points, so there is nothing to draw/);
   });
 });
 

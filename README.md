@@ -25,7 +25,8 @@ plugins (see "Development"), so every feature below is a separate module with it
   - BCF 2.0, 2.1 and 3.0 issues with viewpoints ([bcf.md](web/docs-features/bcf.md)).
   - Point clouds and as-built deviation ([pointcloud.md](web/docs-features/pointcloud.md)).
   - Model cleanup: find and hide floating, tiny, duplicate or distant debris ([cleanup.md](web/docs-features/cleanup.md)).
-  - WebXR, experimental: walk through the model in VR or place it on a table in AR ([webxr.md](web/docs-features/webxr.md)).
+  - WebXR, experimental: walk through the model in VR, place it on a table in AR, or lay it at real size over the real building on
+    site (field AR) to see the services behind walls ([webxr.md](web/docs-features/webxr.md)).
 - **Input and output**
   - Open `.ifc`, `.ifczip` and `.glb` in the browser; large files are handled in a worker ([large-ifc.md](web/docs-features/large-ifc.md)).
   - Selection sets, static or by criteria query ([sets-query.md](web/docs-features/sets-query.md)), class styles, parameter
@@ -116,7 +117,7 @@ npm run pack -- Building-Structural.ifc Building-Architecture.ifc Building-Hvac.
 
 Inputs are `.ifc` / `.ifczip` (federated) or one `.glb`. IFC files are converted in node by the same TypeScript reader the
 browser uses. Options (`--params`, `--preset`, `--select`, `--tools`, `--open-tool`, `--kiosk`, `--camera`, `--ifc-reader`,
-`--samples`, `--force`, ...), the boot sequence, templates, CI use and limits are in
+`--samples`, `--views`, `--open-view`, `--force`, ...), the boot sequence, templates, CI use and limits are in
 [web/docs-features/xray-pack.md](web/docs-features/xray-pack.md).
 
 ## The action panel and its tools
@@ -164,15 +165,21 @@ parameter documents with `glowNear: true` load as `near`.
   colours, clip planes), create topics with snapshots, comment, export BCF 2.1 or 3.0. Topics are pinned to a 3D point (numbered
   markers on the model) and viewpoints carry callouts, notes, arrows and linked measurements; they live in a side file
   `xray-markup.json` per topic folder (the BCF XML still validates) and are burned into the exported snapshot.
-- **Point cloud** ([pointcloud.md](web/docs-features/pointcloud.md)). Open LAS, E57, PLY, PCD, XYZ or PTS scans, align them (Align by 3 points and Refine (ICP), also for phone LiDAR scans), and colour
+- **Point cloud** ([pointcloud.md](web/docs-features/pointcloud.md)). Open LAS, E57, PLY, PCD, XYZ or PTS scans, align them (Align by 3 points and Refine (ICP) with oriented point normals, room by room with `align within`, also for phone LiDAR scans), and colour
   the points by deviation from the model (tolerance 2 cm by default). `tools/make_pointcloud.py` makes a sample scan.
 - **Cleanup** ([cleanup.md](web/docs-features/cleanup.md)). Rules for floating, tiny, distant, duplicate and degenerate elements
   and class groups; preview, hide and restore without changing the model. Every threshold names its unit; lengths show in mm, cm
   or m (`length unit`) and are stored in metres. The `debris-demo` model has examples of each (below).
 - **WebXR** ([webxr.md](web/docs-features/webxr.md)), experimental. Feature detected; the `WebXR` folder and tool appear only on a
-  device that supports VR or AR. VR at real scale from the orbit camera with controller rays, trigger to select, squeeze for
-  X-ray, snap turn and walking; AR with a hit-test ring, placement, and the scales `1:1` and `tabletop 1:50`. Developed and
-  tested against the iwer emulator, not on a headset.
+  device that supports VR or AR (or AR Quick Look). VR at real scale from the orbit camera with controller rays, trigger to select,
+  squeeze for X-ray, snap turn and walking; AR with a hit-test ring, placement, and the scales `1:1` and `tabletop 1:50`.
+  **Field AR** for the building site (Android Chrome with ARCore, Quest 3 / 3S): register the model on the real building by 2 or
+  more point pairs (model points picked before or in the session, room points by hit test; yaw and shift solved with gravity
+  kept, residuals shown), a WebXR anchor that holds it while you walk, saved sites (persistent anchors on Quest, re-tap 2 points
+  elsewhere), cm and degree nudges, the looks `x-ray` / `ghosted` / `full`, a cut around you and at the storey ceiling, tap for
+  the element card and its clearance, overlay snapshots that become BCF topics, a phone panel. iPhone and iPad have no WebXR in
+  any browser: they get a USDZ export for AR Quick Look (placed on a surface, no registration) and a QR link. Developed and tested
+  against the iwer emulator, not on a device.
 - **Presets** ([presets.md](web/docs-features/presets.md)). Named looks, user presets, share links.
 - **Large model** ([large-ifc.md](web/docs-features/large-ifc.md)). Size, buffers and per-stage timings of the model opened from a file.
 
@@ -209,6 +216,18 @@ value or the same property, copy the value, or save the equivalent query as a cr
 in `localStorage` (`xray.sets.<model>`) and exported as `xray-sets/1` JSON; criteria sets add `kind` and `query` and stay
 readable by older versions as static sets.
 
+## Saved views
+
+The **Views** tab of the sidebar keeps named viewpoints per model ([saved-views.md](web/docs-features/saved-views.md)).
+**Save view** (`Ctrl+Shift+S`) stores the camera (with roll, field of view and the orthographic flag), the section box and
+plane, the selection, hides, pins and isolate, the exploded state, x-ray, view modes, imaging and the other look settings,
+plus a small thumbnail. Click a row to restore it (the camera turns there; elements are matched by GlobalId, and missing ones
+are reported in the status bar); `Shift+PageUp` / `Shift+PageDown` step through the views and **Play** shows them as a
+slideshow with a dwell time. Each row has **⋯** for Update, Rename, Duplicate, Copy link (`#view=`, one view), Save as BCF
+topic and Delete; rows reorder by dragging and a grid toggle shows the thumbnails. Views are stored in `localStorage`
+(`xray.views.<model>`), exported and imported as `xray-views/1` JSON, and packed with
+`xray-pack ... --views views.json --open-view "Name"`.
+
 ## Keyboard
 
 The common bindings (all rebindable; full list in [keyboard.md](web/docs-features/keyboard.md)). Keys are ignored while a text
@@ -233,6 +252,7 @@ every button of the parameter panel.
 | `B`, `P`, `M`, `C` | Behind-only, peelback, imaging cycle, section box |
 | `I`, `T`, `V` | Hover info, action panel, view cube and section strip |
 | `1` to `9` | Presets |
+| `Ctrl+Shift+S`, `Shift+PageUp` / `Shift+PageDown` | Save view; previous and next saved view |
 
 ## Presets
 
@@ -460,7 +480,7 @@ Coordination tools
 - Clearance colours whole elements, not regions; the host of the focus always shows as clash. It shares `renderer.state.color` with the cleanup preview and debug colours: switch one off before the other.
 - Penetrations: every overlapping MEP and host pair counts, including an element ending inside the host; the schedule is a candidate list. A sidecar without opening bounds reports `unknown` (reconvert, or open the IFC in the browser). At most 500 rows are listed.
 - BCF: orthographic cameras are approximated; viewpoint roll, lines, bitmaps and colour alpha are ignored; elements match by GlobalId only; existing topics can change status and gain comments but not other fields; no zip64; pins and annotations reach other tools only as the burned snapshot and the viewpoint selection.
-- Point clouds: one cloud at a time; no LAZ (convert with PDAL or LAStools); E57 only with the standard bitPackCodec, without images; auto-align is a coarse bounds-centre match; 3-point alignment and point-to-plane ICP are rigid (uniform scale only for 3 points, on request), so scan drift is not corrected; deviation is distance to the nearest surface, measured up to 5 times the tolerance.
+- Point clouds: one cloud at a time; no LAZ (convert with PDAL or LAStools); E57 only with the standard bitPackCodec, without images; auto-align is a coarse bounds-centre match; 3-point alignment and point-to-plane ICP are rigid (uniform scale only for 3 points, on request), so scan drift is not corrected: ICP reports where the fit degrades (3 x 3 plan grid) and `align within` aligns one room at a time; deviation is distance to the nearest surface, measured up to 5 times the tolerance.
 - Presets reset and apply settings only; the active mark is a settings comparison and can be cleared by an unrelated animation.
 
 Packaging

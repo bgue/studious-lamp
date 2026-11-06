@@ -11,6 +11,10 @@
 // then take the one closest to the cursor. A plain "nearest on screen" would pick points of the far wall through
 // gaps; a plain "frontmost" over the whole radius would jump to the top edge of a wall a few pixels away (in
 // perspective, a wall top projects over the floor beside it) or to a stray noise point at the edge of the radius.
+// Occlusion: the cloud is depth tested against opaque model surfaces when drawn, so a point hidden behind a wall is
+// not what the user sees under the cursor. The caller passes the view depth of the first opaque model surface under
+// the cursor (`maxDepth`, see PointCloudController.pickCloudAt); points behind it, by more than the depth band, are
+// left out.
 // Pure: no DOM, no three.js.
 
 export interface ScreenIndex {
@@ -97,6 +101,11 @@ export interface PickOptions {
   /** Depth band, metres: candidates within max(bandMin, bandRel * d0) of the frontmost depth d0 compete on screen distance. */
   bandMin?: number;
   bandRel?: number;
+  /**
+   * View depth of the first opaque model surface under the cursor, metres (Infinity or absent: none). Points deeper
+   * than maxDepth + max(bandMin, bandRel * maxDepth) are hidden by it and cannot be picked.
+   */
+  maxDepth?: number;
 }
 
 /** Index of the picked point, or -1 when no point projects within the radius. */
@@ -111,6 +120,8 @@ export function pickNearest(idx: ScreenIndex, px: number, py: number, opt: PickO
 
 function pickWithin(idx: ScreenIndex, px: number, py: number, r: number, opt: PickOptions): number {
   const r2 = r * r;
+  const md = opt.maxDepth ?? Infinity;
+  const limit = Number.isFinite(md) ? md + Math.max(opt.bandMin ?? 0.05, (opt.bandRel ?? 0.01) * Math.abs(md)) : Infinity;
   const c0 = Math.max(0, Math.floor((px - r) / idx.cell)), c1 = Math.min(idx.cols - 1, Math.floor((px + r) / idx.cell));
   const r0 = Math.max(0, Math.floor((py - r) / idx.cell)), r1 = Math.min(idx.rows - 1, Math.floor((py + r) / idx.cell));
   let d0 = Infinity;
@@ -119,7 +130,7 @@ function pickWithin(idx: ScreenIndex, px: number, py: number, r: number, opt: Pi
       const c = row * idx.cols + col;
       for (let k = idx.cellStart[c]!; k < idx.cellStart[c + 1]!; k++) {
         const dx = idx.sx[k]! - px, dy = idx.sy[k]! - py;
-        if (dx * dx + dy * dy <= r2 && idx.depth[k]! < d0) d0 = idx.depth[k]!;
+        if (dx * dx + dy * dy <= r2 && idx.depth[k]! < d0 && idx.depth[k]! <= limit) d0 = idx.depth[k]!;
       }
     }
   }
@@ -132,7 +143,7 @@ function pickWithin(idx: ScreenIndex, px: number, py: number, r: number, opt: Pi
       for (let k = idx.cellStart[c]!; k < idx.cellStart[c + 1]!; k++) {
         const dx = idx.sx[k]! - px, dy = idx.sy[k]! - py;
         const s = dx * dx + dy * dy;
-        if (s <= r2 && idx.depth[k]! <= d0 + band && s < bestD) {
+        if (s <= r2 && idx.depth[k]! <= d0 + band && idx.depth[k]! <= limit && s < bestD) {
           bestD = s;
           best = idx.items[k]!;
         }

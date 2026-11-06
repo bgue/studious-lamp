@@ -58,7 +58,7 @@ const CSS = `
 .bcf-ann.sel { border-color: var(--bcf-accent); }
 .bcf-ann .bcf-row { flex-wrap: nowrap; }
 .bcf-ann-t { font-size: 10.5px; padding: 0 6px; border-radius: 9px; line-height: 16px; white-space: nowrap; }
-.bcf-ann-t.callout { background: #4a2a12; color: #ffb27a; } .bcf-ann-t.note { background: #4a4212; color: #ffe97a; } .bcf-ann-t.arrow { background: #4a1426; color: #ff8fab; }
+.bcf-ann-t.callout { background: #4a2a12; color: #ffb27a; } .bcf-ann-t.note { background: #4a4212; color: #ffe97a; } .bcf-ann-t.arrow { background: #4a1426; color: #ff8fab; } .bcf-ann-t.rect { background: #4a1426; color: #ff8fab; } .bcf-ann-t.freehand { background: #4a3a0a; color: #ffc94d; }
 .bcf-mlist { display: flex; flex-direction: column; border: 1px solid var(--bcf-line); border-radius: 4px; max-height: 140px; overflow: auto; }
 .bcf-mrow { padding: 4px 8px; border-bottom: 1px solid var(--bcf-line); cursor: pointer; display: flex; gap: 8px; }
 .bcf-mrow:last-child { border-bottom: 0; }
@@ -479,7 +479,7 @@ export function buildDrawer(container: HTMLElement, c: BcfController, view: BcfM
   const marked = new Map<string, { sig: string; url: string }>();
   /** Show the snapshot with the markup burned in, as the export writes it (cached per markup state). */
   async function markedSnapshot(t: BcfTopic, ref: BcfViewpointRef, img: HTMLImageElement): Promise<void> {
-    const sig = JSON.stringify([t.pin, ref.annotations, c.pinNumber(t)]);
+    const sig = JSON.stringify([t.pin, ref.annotations, c.pinNumber(t), c.units]);
     const have = marked.get(ref.guid);
     if (have?.sig === sig) {
       img.src = have.url;
@@ -493,7 +493,7 @@ export function buildDrawer(container: HTMLElement, c: BcfController, view: BcfM
     img.src = url;
   }
 
-  const kindLabel: Record<string, string> = { callout: 'Add callout', note: 'Add note', arrow: 'Add arrow' };
+  const kindLabel: Record<string, string> = { callout: 'Add callout', note: 'Add note', arrow: 'Add arrow', rect: 'Add rectangle', freehand: 'Draw freehand' };
 
   /** Apply the viewpoint that annotations go to, so new annotations show at once. */
   function ensureApplied(t: BcfTopic): BcfViewpointRef | null {
@@ -511,8 +511,10 @@ export function buildDrawer(container: HTMLElement, c: BcfController, view: BcfM
     if (an.kind === 'measurement' && an.measurement) {
       const m = an.measurement;
       const names = (m.elementGuids ?? []).map(elementName);
-      return `measurement ${m.label || formatLength(m.distance, 'm')}${names.length ? `: ${names.join(' to ')}` : ''}`;
+      return `measurement ${formatLength(m.distance, c.units)}${names.length ? `: ${names.join(' to ')}` : ''}`;
     }
+    if (a.type === 'rect') return 'rectangle on the view';
+    if (a.type === 'freehand') return `freehand line on the view, ${a.shape?.points.length ?? 0} points`;
     if (an.kind === 'element' && an.elementGuid) return `element ${elementName(an.elementGuid)}`;
     return 'free point';
   }
@@ -558,7 +560,7 @@ export function buildDrawer(container: HTMLElement, c: BcfController, view: BcfM
     const can = !!view && !!ref && !!c.app.loaded;
     const txtRow = el('div', 'bcf-row');
     const txt = el('input', 'bcf-ann-in');
-    txt.placeholder = 'Text for the next callout, note or arrow';
+    txt.placeholder = 'Text for the next callout, note, arrow or shape';
     txt.value = annText;
     txt.setAttribute('data-bcf-anntext', '');
     txt.oninput = () => { annText = txt.value; };
@@ -566,7 +568,7 @@ export function buildDrawer(container: HTMLElement, c: BcfController, view: BcfM
     txtRow.appendChild(txt);
     detail.appendChild(txtRow);
     const addRow = el('div', 'bcf-row');
-    for (const kind of ['callout', 'note', 'arrow'] as const) {
+    for (const kind of ['callout', 'note', 'arrow', 'rect', 'freehand'] as const) {
       const b = el('button', `bcf-btn${placing === kind ? ' placing' : ''}`, undefined, kindLabel[kind]);
       b.setAttribute('data-act', `add-${kind}`);
       b.disabled = !can;
@@ -596,7 +598,7 @@ export function buildDrawer(container: HTMLElement, c: BcfController, view: BcfM
         const r = el('div', 'bcf-mrow');
         r.setAttribute('data-measure-id', String(m.id));
         const names = [m.elementA, m.elementB].filter((x): x is number => x !== undefined).map((id) => c.app.controller.model.elements[id]?.name || `#${id}`);
-        r.append(el('span', undefined, undefined, `#${m.id}`), el('strong', undefined, undefined, formatLength(m.distance, 'm')),
+        r.append(el('span', undefined, undefined, `#${m.id}`), el('strong', undefined, undefined, formatLength(m.distance, c.units)),
           el('span', 'bcf-meta', undefined, `${m.kind === 'point' ? 'point to point' : names.join(' to ')}${linked.has(m.id) ? ' (linked)' : ''}`));
         r.onclick = () => {
           if (!ensureApplied(t)) return;
@@ -627,7 +629,7 @@ export function buildDrawer(container: HTMLElement, c: BcfController, view: BcfM
         top.appendChild(el('span', `bcf-ann-t ${a.type}`, undefined, a.type));
         const inp = el('input', 'bcf-ann-in');
         inp.value = a.text;
-        inp.placeholder = a.type === 'arrow' ? '(no text)' : 'Text';
+        inp.placeholder = a.type === 'arrow' || a.type === 'rect' || a.type === 'freehand' ? '(no text)' : a.anchor.measurement ? '(the length)' : 'Text';
         inp.setAttribute('data-ann', a.guid);
         inp.addEventListener('keydown', (e) => e.stopPropagation());
         inp.addEventListener('click', (e) => e.stopPropagation());

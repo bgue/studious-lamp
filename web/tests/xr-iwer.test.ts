@@ -45,3 +45,11 @@ describe.skipIf(!process.env.XRAY_XR)('headless WebXR session against the emulat
     expect(r.status).toBe(0);
   }, 16 * 60 * 1000);
 });
+
+describe.skipIf(!process.env.XRAY_XR)('headless field AR session against the emulated device', () => {
+  it('passes bench/smoke-xr-field.mjs (registration, anchors, looks, cut, restore, snapshot, USDZ)', () => {
+    const r = spawnSync('node', ['bench/smoke-xr-field.mjs'], { cwd: web, env: { ...process.env, SMOKE_PORT: process.env.SMOKE_PORT ?? '5652' }, encoding: 'utf8', timeout: 45 * 60 * 1000 });
+    if (r.status !== 0) console.log(r.stdout, r.stderr);
+    expect(r.status).toBe(0);
+  }, 46 * 60 * 1000);
+});

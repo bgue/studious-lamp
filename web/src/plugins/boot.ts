@@ -1,5 +1,6 @@
 // Boot plugin: applies window.__xrayBoot (written into the page by tools/xray-pack.mjs) once, after the FIRST model
-// install. Order: page title, preset, params, camera, selection, tool, kiosk. The toolbar plugin reads
+// install. Order: page title, preset, params, camera, selection, tool, kiosk, saved view (openView; the views plugin
+// adds boot.views to its list itself). The toolbar plugin reads
 // window.__xrayBoot.tools itself. A page without __xrayBoot is untouched. See docs-features/xray-pack.md.
 import type { AppPlugin, ViewerApp } from '../app';
 import { runAction } from '../input/actions';
@@ -8,6 +9,7 @@ import type { XrayBoot } from '../tools/registry';
 import { PARAMS_SCHEMA, applyParams } from '../ui/params';
 import type { ParamsApp } from '../ui/params';
 import type { ElementId } from '../types';
+import { openBootView } from './views';
 
 /** XrayBoot plus the camera that xray-pack's --camera writes (viewer frame, Y up, origin-shifted). */
 type BootWithCamera = XrayBoot & { camera?: { position: [number, number, number]; target: [number, number, number] } };
@@ -107,6 +109,10 @@ function applyBoot(app: ViewerApp, boot: BootWithCamera): void {
   if (boot.kiosk) {
     if (!document.body.classList.contains('sb-collapsed')) runAction(app, 'panel.left');
     if (!document.body.classList.contains('dk-collapsed')) runAction(app, 'panel.right');
+  }
+
+  if (boot.openView) {
+    if (!openBootView(boot.openView)) warn(`saved view "${boot.openView}" not found`);
   }
 }
 

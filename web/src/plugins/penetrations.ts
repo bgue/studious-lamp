@@ -19,7 +19,7 @@ import { registerTool } from '../tools/registry';
 import { button, check, chips, note, row, section, select, statusLine } from '../tools/ui';
 import { el } from '../ui/dom';
 import { requestFrame } from '../ui/fit';
-import { getOverlay, svgEl } from '../ui/overlay';
+import { getOverlay, svgEl, underReserved } from '../ui/overlay';
 import type { Overlay } from '../ui/overlay';
 import { registerParamSection } from '../ui/params';
 
@@ -54,6 +54,8 @@ class PenetrationsTool {
   private overlay: Overlay | null = null;
   private layer: SVGGElement | null = null;
   private pool: SVGCircleElement[] = [];
+  /** Leader lines of markers moved out of a reserved rect (same index as pool). */
+  private leaders: Array<SVGLineElement | undefined> = [];
   private pulse: { loc: [number, number, number]; until: number } | null = null;
   private pulseEl: SVGGElement | null = null;
   private listeners = new Set<() => void>();
@@ -258,8 +260,25 @@ class PenetrationsTool {
         this.pool[used] = c;
       }
       used++;
-      c.setAttribute('cx', sp.x.toFixed(1));
-      c.setAttribute('cy', sp.y.toFixed(1));
+      // A marker under the gizmo, the status bar, a drawer or a legend moves to the nearest free spot, with a leader line.
+      const spot = underReserved(sp.x, sp.y, ov.reserved) ? ov.place(sp.x, sp.y, 16, 16, { gap: 2 }) : null;
+      const mx = spot ? spot.x : sp.x;
+      const my = spot ? spot.y : sp.y;
+      c.setAttribute('cx', mx.toFixed(1));
+      c.setAttribute('cy', my.toFixed(1));
+      let leader = this.leaders[used - 1];
+      if (spot) {
+        if (!leader) {
+          leader = svgEl('line', { stroke: '#dfe6ee', 'stroke-width': 1, 'stroke-dasharray': '3 2', 'data-leader': '1' });
+          layer.insertBefore(leader, layer.firstChild);
+          this.leaders[used - 1] = leader;
+        }
+        leader.setAttribute('x1', sp.x.toFixed(1));
+        leader.setAttribute('y1', sp.y.toFixed(1));
+        leader.setAttribute('x2', mx.toFixed(1));
+        leader.setAttribute('y2', my.toFixed(1));
+        leader.style.display = '';
+      } else if (leader) leader.style.display = 'none';
       const col = STATUS_COLOUR[r.status];
       if (c.getAttribute('fill') !== col) {
         c.setAttribute('fill', col);
@@ -272,6 +291,7 @@ class PenetrationsTool {
       c.setAttribute('data-pen', String(r.id));
     }
     for (let i = used; i < this.pool.length; i++) this.pool[i]!.style.display = 'none';
+    for (let i = used; i < this.leaders.length; i++) if (this.leaders[i]) this.leaders[i]!.style.display = 'none';
 
     // pulse ring
     const now = performance.now();

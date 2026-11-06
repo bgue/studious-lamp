@@ -1,4 +1,5 @@
 // Sidebar plugin: collapsible left panel with a model tree ("Model"), selection sets ("Sets") and a properties footer.
+// Other plugins add tabs with addSidebarTab (the saved views of src/plugins/views.ts add "Views").
 // Sets can be static (explicit members) or criteria sets (a query, src/query); the properties footer has a context
 // menu that selects by value through the same query engine.
 //
@@ -28,7 +29,8 @@ import { showToast } from '../ui/keymapView';
 const STATE_KEY = 'xray.sidebar';
 const REFRESH_MS = 250;
 
-type Tab = 'model' | 'sets';
+type Tab = string;
+const BASE_TABS = ['model', 'sets'];
 interface SidebarState {
   collapsed: boolean;
   tab: Tab;
@@ -54,6 +56,8 @@ interface Ui {
   app: ViewerApp;
   sidebar: HTMLElement;
   toggle: HTMLButtonElement;
+  tabsEl: HTMLElement;
+  body: HTMLElement;
   tabs: Record<Tab, HTMLButtonElement>;
   panes: Record<Tab, HTMLElement>;
   filter: HTMLInputElement;
@@ -75,7 +79,8 @@ function readState(store: StorageLike): SidebarState {
   const def: SidebarState = { collapsed: narrow, tab: 'model' };
   try {
     const v = JSON.parse(store.getItem(STATE_KEY) ?? 'null') as Partial<SidebarState> | null;
-    if (v) return { collapsed: typeof v.collapsed === 'boolean' ? v.collapsed : def.collapsed, tab: v.tab === 'sets' ? 'sets' : 'model' };
+    // Any tab id is kept: a plugin tab (views) registers after the state is read.
+    if (v) return { collapsed: typeof v.collapsed === 'boolean' ? v.collapsed : def.collapsed, tab: typeof v.tab === 'string' && v.tab ? v.tab : 'model' };
   } catch {
     /* ignore */
   }
@@ -95,10 +100,12 @@ function applyState(u: Ui): void {
   u.toggle.setAttribute('aria-expanded', String(!u.state.collapsed));
   u.toggle.title = u.state.collapsed ? 'Expand sidebar ([)' : 'Collapse sidebar ([)';
   u.toggle.textContent = u.state.collapsed ? '›' : '‹';
-  for (const t of ['model', 'sets'] as Tab[]) {
-    u.tabs[t].classList.toggle('active', u.state.tab === t);
-    u.tabs[t].setAttribute('aria-selected', String(u.state.tab === t));
-    u.panes[t].style.display = u.state.tab === t ? '' : 'none';
+  // A stored tab that no plugin registered (yet) shows the model tree.
+  const shown = u.tabs[u.state.tab] ? u.state.tab : 'model';
+  for (const t of Object.keys(u.tabs)) {
+    u.tabs[t]!.classList.toggle('active', shown === t);
+    u.tabs[t]!.setAttribute('aria-selected', String(shown === t));
+    u.panes[t]!.style.display = shown === t ? '' : 'none';
   }
 }
 
@@ -122,6 +129,53 @@ function setTab(u: Ui, tab: Tab): void {
   applyState(u);
   saveState(u);
   refreshAll(u);
+  if (!BASE_TABS.includes(tab)) extraTabs.get(tab)?.onShow?.();
+}
+
+export interface SidebarTabSpec {
+  id: string;
+  label: string;
+  pane: HTMLElement;
+  /** Help popover key of the tab button (data-help-key). */
+  helpKey?: string;
+  /** Runs when the tab becomes visible. */
+  onShow?(): void;
+}
+
+export interface SidebarTabHandle {
+  /** Open the sidebar (when collapsed) and switch to this tab. */
+  show(): void;
+  /** The sidebar is open on this tab. */
+  visible(): boolean;
+}
+
+const extraTabs = new Map<string, SidebarTabSpec>();
+
+/** Add a tab after Model and Sets. Null when the page has no sidebar. Call from a plugin's install(). */
+export function addSidebarTab(spec: SidebarTabSpec): SidebarTabHandle | null {
+  const u = ui;
+  if (!u || u.tabs[spec.id]) return null;
+  extraTabs.set(spec.id, spec);
+  const attrs: Record<string, string> = { type: 'button', role: 'tab' };
+  if (spec.helpKey) {
+    attrs['data-help-key'] = spec.helpKey;
+    attrs['data-help-title'] = `${spec.label} tab`;
+  }
+  const tab = el('button', 'sb-tab', attrs, spec.label);
+  u.tabs[spec.id] = tab;
+  u.tabsEl.append(tab);
+  spec.pane.classList.add('sb-pane');
+  u.panes[spec.id] = spec.pane;
+  u.body.append(spec.pane);
+  tab.addEventListener('click', () => setTab(u, spec.id));
+  applyState(u);
+  return {
+    show: () => {
+      if (u.state.collapsed) setCollapsed(u, false);
+      if (u.state.tab !== spec.id) setTab(u, spec.id);
+    },
+    visible: () => !u.state.collapsed && u.state.tab === spec.id,
+  };
 }
 
 /** Run a selection change that originates in the sidebar (the tree must not re-expand or scroll for it). */
@@ -195,11 +249,11 @@ function buildDom(app: ViewerApp, sidebar: HTMLElement): Ui {
   const top = el('div', 'sb-top');
   const toggle = el('button', 'sb-toggle', { type: 'button', 'aria-controls': 'sb-body' });
   const tabsEl = el('div', 'sb-tabs', { role: 'tablist' });
-  const tabs = {
+  const tabs: Record<Tab, HTMLButtonElement> = {
     model: el('button', 'sb-tab', { type: 'button', role: 'tab' }, 'Model'),
     sets: el('button', 'sb-tab', { type: 'button', role: 'tab' }, 'Sets'),
   };
-  tabsEl.append(tabs.model, tabs.sets);
+  tabsEl.append(tabs['model']!, tabs['sets']!);
   const railLabel = el('div', 'sb-rail-label', {}, 'Model tree');
   top.append(toggle, tabsEl);
 
@@ -262,6 +316,8 @@ function buildDom(app: ViewerApp, sidebar: HTMLElement): Ui {
     app,
     sidebar,
     toggle,
+    tabsEl,
+    body,
     tabs,
     panes: { model: modelPane, sets: setsPane },
     filter,
@@ -278,8 +334,8 @@ function buildDom(app: ViewerApp, sidebar: HTMLElement): Ui {
 
   toggle.addEventListener('click', () => setCollapsed(u, !u.state.collapsed));
   railLabel.addEventListener('click', () => setCollapsed(u, false));
-  tabs.model.addEventListener('click', () => setTab(u, 'model'));
-  tabs.sets.addEventListener('click', () => setTab(u, 'sets'));
+  tabs['model']!.addEventListener('click', () => setTab(u, 'model'));
+  tabs['sets']!.addEventListener('click', () => setTab(u, 'sets'));
   const applyFilter = debounce(() => {
     tree.setFilter(filter.value);
     updateFilterInfo(u);

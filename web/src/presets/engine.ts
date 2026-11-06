@@ -26,6 +26,8 @@ export interface EngineEnv {
   clearance?: ClearanceSwitch | null;
   /** Default: runAction from input/actions. */
   runAction?(app: ViewerApp, id: string): boolean;
+  /** Frame the selection (preset `frame: 'selection'`); returns false when there is nothing to frame. Default: none. */
+  frameSelection?(app: ParamsApp): boolean;
 }
 
 export interface ApplyResult {
@@ -38,6 +40,8 @@ export interface ApplyResult {
   actions: Array<{ id: string; ran: boolean }>;
   /** True when something was skipped. */
   partial: boolean;
+  /** Preset `frame: 'selection'`: true when the camera was moved to the selection (false: no selection). */
+  framed?: boolean;
 }
 
 /** Top-level params keys that a preset never resets (they are not "settings of a look"). */
@@ -141,7 +145,18 @@ export function applyPreset(app: ParamsApp, preset: Preset, env: EngineEnv = {})
 
   const applied = Object.keys(doc).filter((k) => k !== 'schema' && !skipped.includes(k));
   if (clearanceEnabled !== undefined && !applied.includes('clearance') && sw) applied.push('clearance');
-  return { id: preset.id, name: preset.name, applied, skipped, actions, partial: skipped.length > 0 };
+  const out: ApplyResult = { id: preset.id, name: preset.name, applied, skipped, actions, partial: skipped.length > 0 };
+  // Last, after the actions (section.fitSelection): the only camera move a preset makes without a `camera` key.
+  if (preset.frame === 'selection') {
+    let framed = false;
+    try {
+      framed = env.frameSelection?.(app) ?? false;
+    } catch {
+      framed = false;
+    }
+    out.framed = framed;
+  }
+  return out;
 }
 
 // ---------------------------------------------------------------- capture
@@ -149,7 +164,7 @@ export function applyPreset(app: ParamsApp, preset: Preset, env: EngineEnv = {})
 /** Sections offered in the save form by default. */
 export const DEFAULT_CAPTURE = ['sightlines', 'display', 'farMode', 'viewModes', 'imaging', 'section', 'cinematic'];
 
-const NOT_CAPTURABLE = new Set(['schema', 'exportedAt', 'model', 'viewer', 'selectionSets', 'overrides']);
+const NOT_CAPTURABLE = new Set(['schema', 'exportedAt', 'model', 'viewer', 'selectionSets', 'overrides', 'views']);
 
 /** Section names that can be captured now: the keys of a collected params document (so only plugins that are present). */
 export function captureSections(app: ParamsApp, env: EngineEnv = {}): string[] {
@@ -165,6 +180,7 @@ export interface CaptureOptions {
   actions?: string[];
   /** Ids already in use (the new id is made unique against them). */
   takenIds?: ReadonlySet<string>;
+  frame?: Preset['frame'];
 }
 
 /** Capture the ticked sections of the current state as a user preset. `missing` lists ticked sections this build does not have. */
@@ -193,13 +209,14 @@ export function capturePreset(app: ParamsApp, sections: readonly string[], opts:
     builtIn: false,
   };
   if (opts.actions && opts.actions.length > 0) preset.actions = [...opts.actions];
+  if (opts.frame) preset.frame = opts.frame;
   return { preset, missing };
 }
 
 // ---------------------------------------------------------------- "is the preset still what is set?"
 
 /** Paths left out of the settings hash: they change without the user changing a setting. */
-const HASH_IGNORE = ['exportedAt', 'model', 'viewer', 'camera', 'selectionSets', 'cinematic.dollyProgress', 'cinematic.dollyPlaying', 'imaging.mri.position'];
+const HASH_IGNORE = ['exportedAt', 'model', 'viewer', 'camera', 'selectionSets', 'views', 'cinematic.dollyProgress', 'cinematic.dollyPlaying', 'imaging.mri.position'];
 
 function strip(obj: unknown, path: string): void {
   const parts = path.split('.');

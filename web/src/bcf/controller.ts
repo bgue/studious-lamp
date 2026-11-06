@@ -8,15 +8,16 @@ import type { ViewerApp } from '../app';
 import { CleanupHides } from '../cleanup/hides';
 import { parseBcf } from './parse';
 import { writeBcf } from './write';
-import { boxAround, captureViewpoint, frameCamera, planViewpoint, topicGlobalIds, unionBox } from './plan';
+import { boxAround, captureViewpoint, frameCamera, planViewpoint, topicGlobalIds, unionBox, visibilityHides } from './plan';
 import type { Box6, PlanCamera, ViewpointPlan } from './plan';
-import { emptyProject, ifcToViewer, newGuid, nowIso, toIfcGuid, viewerToIfc } from './model';
-import type { BcfAnnotation, BcfAnnotationType, BcfComment, BcfMeasureLink, BcfProject, BcfTopic, BcfVersion, BcfViewpointRef, Vec3 } from './model';
-import { defaultOffset, drawOps, layoutSnapshot, snapshotCamera, snapshotProjector, snapshotScale } from './annotate';
-import type { Ctx2D } from './annotate';
+import { dirViewerToIfc, emptyProject, ifcToViewer, newGuid, nowIso, toIfcGuid, viewerToIfc } from './model';
+import type { BcfAnnotation, BcfAnnotationType, BcfComment, BcfMeasureLink, BcfProject, BcfShapeType, BcfSnapshotView, BcfTopic, BcfVersion, BcfViewpointRef, Vec3 } from './model';
+import { defaultOffset, drawOps, layoutSnapshot, shapeFraction, shapePointWorld, snapshotCamera, snapshotProjector, snapshotScale } from './annotate';
+import type { Ctx2D, LayoutContext } from './annotate';
 import type { BcfMarkupView } from './pins';
-import { annotationGuids, cloneAnnotation, needsBurn } from './sidecar';
+import { annotationGuids, cloneAnnotation, markupSelectionOf, needsBurn } from './sidecar';
 import { cameraRay, firstSurfaceHit } from '../measure/geometry';
+import { currentMeasureUnits } from '../measure/current';
 import { formatLength } from '../measure/maths';
 import type { Measurement } from '../measure/maths';
 import { Ray, Vector3 } from 'three';
@@ -69,7 +70,7 @@ export interface CreateTopicOptions {
 
 /** An annotation to add; points in viewer coordinates. */
 export interface AnnotationSpec {
-  type: BcfAnnotationType;
+  type: Exclude<BcfAnnotationType, BcfShapeType>;
   text?: string;
   anchor: { kind: 'element' | 'point'; point: Vec3; elementGuid?: string } | { kind: 'measurement'; measurement: Measurement };
   /** Text box offset, fractions of the view height (default per type). */
@@ -97,6 +98,9 @@ export interface TopicSpec {
 
 /** Elements drawn below this alpha are see-through: picking passes them first and they hide no pin. */
 const GHOST_ALPHA = 0.5;
+/** The selection tint of the shaders (shaders.ts surfaceColour): annotated elements that are not selected get it as a colour. */
+const SELECT_TINT: [number, number, number] = [1, 0.85, 0.2];
+const SELECT_MIX = 0.35;
 
 export const DEFAULT_TYPES = ['Issue', 'Clash', 'Request', 'Remark', 'Fault', 'Inquiry'];
 export const DEFAULT_STATUSES = ['Open', 'In Progress', 'Resolved', 'Closed'];
@@ -277,6 +281,7 @@ export class BcfController {
       this.dirty = false;
       this.selectedTopic = null;
     }
+    this.assignPinNumbers();
     const n = p.topics.length;
     const vps = p.topics.reduce((s, t) => s + t.viewpoints.length, 0);
     this.setStatus(`BCF ${p.versionId}: ${n} topic${n === 1 ? '' : 's'}, ${vps} viewpoint${vps === 1 ? '' : 's'}${p.warnings.length ? `, ${p.warnings.length} warning${p.warnings.length === 1 ? '' : 's'}` : ''}`);
@@ -332,7 +337,18 @@ export class BcfController {
       aspect: cam.aspect,
       canClip: this.canClip,
     });
-    this.execute(plan, vp.selection.length > 0, vp.coloring.length > 0);
+    // Elements in the selection only because annotations point at them keep the x-ray look: not selected (they would
+    // become focus and draw solid over what the viewpoint is about), but tinted like a selection until Clear viewpoint.
+    const markup = new Set(markupSelectionOf(ref).map((g) => this.model.byGlobalId.get(g)).filter((x): x is number => x !== undefined));
+    let tint: number[] = [];
+    if (markup.size) {
+      tint = plan.selection.filter((id) => markup.has(id));
+      plan.selection = plan.selection.filter((id) => !markup.has(id));
+      const i = plan.applied.findIndex((a) => a.startsWith('selection '));
+      if (i >= 0) plan.applied[i] = `selection ${plan.selection.length}`;
+      if (tint.length) plan.applied.push(`${tint.length} annotated highlighted`);
+    }
+    this.execute(plan, vp.selection.length > 0, vp.coloring.length > 0, tint);
     this.applied = { topic: topic.guid, viewpoint: ref.guid };
     const unknown = plan.selectionUnknown + plan.visibilityUnknown + plan.colorUnknown;
     const status = `Viewpoint applied: ${plan.applied.join(', ') || 'nothing'}${plan.skipped.length ? `; skipped: ${plan.skipped.join(', ')}` : ''}`;
@@ -345,7 +361,7 @@ export class BcfController {
     return { ok: false, applied: [], skipped: [msg], unknownGuids: 0, status: msg };
   }
 
-  private execute(plan: ViewpointPlan, hasSelection: boolean, hasColoring: boolean): void {
+  private execute(plan: ViewpointPlan, hasSelection: boolean, hasColoring: boolean, tint: number[] = []): void {
     const app = this.app;
     const ov = app.controller.settings.overrides;
     if (plan.hide) {
@@ -358,9 +374,16 @@ export class BcfController {
     else app.clearSelection();
     cancelFly();
     if (plan.camera) this.setCamera(plan.camera);
+    const color = app.renderer.state.color;
+    const saved = new Map<number, [number, number, number]>();
+    for (const id of tint) {
+      const o = id * 3;
+      if (o + 2 >= color.length) continue;
+      saved.set(id, [color[o]!, color[o + 1]!, color[o + 2]!]);
+      for (let k = 0; k < 3; k++) color[o + k] = color[o + k]! + (SELECT_TINT[k]! - color[o + k]!) * SELECT_MIX;
+    }
+    if (tint.length) this.savedColors = saved;
     if (hasColoring && plan.colors.length) {
-      const color = app.renderer.state.color;
-      const saved = new Map<number, [number, number, number]>();
       for (const c of plan.colors) {
         for (const id of c.ids) {
           const o = id * 3;
@@ -463,6 +486,12 @@ export class BcfController {
       clip,
     });
     const ref: BcfViewpointRef = { guid: res.viewpoint.guid, data: res.viewpoint };
+    // What is hidden or see-through now, for the occlusion fade when the markup is burned into this snapshot later.
+    const hides = app.controller.settings.overrides.userHides;
+    const alpha = app.renderer.state.alpha;
+    const see = new Set<number>(hides);
+    for (let i = 0; i < alpha.length; i++) if (alpha[i]! < GHOST_ALPHA) see.add(i);
+    ref.captureSeeThrough = see;
     const c = res.viewpoint.camera;
     // The camera that takes the snapshot, unclamped (the 2.1 writer clamps the field of view), for the markup burn-in.
     if (c) ref.snapshotView = { position: [...c.position], direction: [...c.direction], up: [...c.up], fov: cam.fov, aspect: cam.aspect };
@@ -526,11 +555,11 @@ export class BcfController {
     }
     const pin = o.pin === undefined ? this.defaultPin(o.globalIds) : o.pin;
     if (pin) {
-      topic.pin = { position: viewerToIfc(pin, this.shift) };
       const pe = o.pin !== undefined ? o.pinElement : this.lastDefaultPinElement;
-      if (pe) topic.pin.elementGuid = pe;
+      topic.pin = this.makePin(pin, pe);
       this.markupRev++;
     }
+    topic.pinNumber = this.nextPinNumber();
     this.project.topics.push(topic);
     this.dirty = true;
     this.selectedTopic = topic.guid;
@@ -686,9 +715,32 @@ export class BcfController {
     this.emit();
   }
 
-  /** Pin number shown on the marker: the position of the topic in the list, from 1. */
+  /** Pin number shown on the marker: stable per topic (side file `pinNumber`), the next free number when it was made. */
   pinNumber(t: BcfTopic): number {
-    return this.project.topics.indexOf(t) + 1;
+    if (t.pinNumber === undefined) this.assignPinNumbers();
+    return t.pinNumber ?? this.project.topics.indexOf(t) + 1;
+  }
+
+  /** One more than the highest pin number in use. */
+  nextPinNumber(): number {
+    let max = 0;
+    for (const t of this.project.topics) if (t.pinNumber !== undefined && t.pinNumber > max) max = t.pinNumber;
+    return max + 1;
+  }
+
+  /**
+   * Give every topic without a pin number (topics from other tools, older files), or with one that an earlier topic in the
+   * list already uses (a merged file), the next free number, in list order. Topics that have their own keep it.
+   */
+  assignPinNumbers(): void {
+    const used = new Set<number>();
+    const todo: BcfTopic[] = [];
+    for (const t of this.project.topics) {
+      if (t.pinNumber !== undefined && Number.isInteger(t.pinNumber) && t.pinNumber >= 1 && !used.has(t.pinNumber)) used.add(t.pinNumber);
+      else todo.push(t);
+    }
+    let next = used.size ? Math.max(...used) + 1 : 1;
+    for (const t of todo) t.pinNumber = next++;
   }
 
   /** The BCF drawer mounts (true) or unmounts (false); pins follow it. */
@@ -753,7 +805,7 @@ export class BcfController {
 
   private readonly ray = new Ray();
   /** True when geometry hides the viewer-frame point `p` from `eye` (default: the camera). Hidden and ghosted elements do not count. */
-  occluded(p: Vec3, eye?: Vec3): boolean {
+  occluded(p: Vec3, eye?: Vec3, seeThrough?: (id: number) => boolean): boolean {
     const loaded = this.app.loaded;
     if (!loaded) return false;
     const e = eye ?? (() => { const c = this.app.renderer.camera.position; return [c.x, c.y, c.z] as Vec3; })();
@@ -763,7 +815,8 @@ export class BcfController {
     this.ray.direction.copy(new Vector3(p[0] - e[0], p[1] - e[1], p[2] - e[2]).multiplyScalar(1 / d));
     const hides = this.app.controller.settings.overrides.userHides;
     const alpha = this.app.renderer.state.alpha;
-    const hit = firstSurfaceHit(loaded.geometry, this.ray, (id) => hides.has(id) || (alpha[id] ?? 1) < GHOST_ALPHA, 64);
+    const skip = seeThrough ?? ((id: number) => hides.has(id) || (alpha[id] ?? 1) < GHOST_ALPHA);
+    const hit = firstSurfaceHit(loaded.geometry, this.ray, skip, 64);
     return !!hit && hit.distance < d - Math.max(0.03, d * 0.003);
   }
 
@@ -771,12 +824,61 @@ export class BcfController {
   setPin(topicGuid: string, point: Vec3 | null, elementGuid?: string): void {
     const t = this.topic(topicGuid);
     if (!t) throw new Error(`No topic ${topicGuid}`);
-    if (point) {
-      t.pin = { position: viewerToIfc(point, this.shift) };
-      if (elementGuid) t.pin.elementGuid = elementGuid;
-    } else delete t.pin;
+    if (point) t.pin = this.makePin(point, elementGuid);
+    else delete t.pin;
     this.status = point ? `Pin placed for ${t.title}` : `Pin removed from ${t.title}`;
     this.markupChanged(t);
+  }
+
+  /** A pin at a viewer-frame point; on an element it also stores the offset from the element's bounds centre. */
+  private makePin(point: Vec3, elementGuid?: string): { position: Vec3; elementGuid?: string; local?: Vec3 } {
+    const pin: { position: Vec3; elementGuid?: string; local?: Vec3 } = { position: viewerToIfc(point, this.shift) };
+    if (elementGuid) {
+      pin.elementGuid = elementGuid;
+      const local = this.localOffset(point, elementGuid);
+      if (local) pin.local = local;
+    }
+    return pin;
+  }
+
+  /** `point` (viewer frame) minus the bounds centre of the element, as an IFC-frame offset; null for an unknown element. */
+  private localOffset(point: Vec3, elementGuid: string): Vec3 | null {
+    const id = this.model?.byGlobalId.get(elementGuid);
+    const b = id !== undefined ? this.model.elements[id]?.bounds : undefined;
+    if (!b) return null;
+    const r = (x: number): number => Math.round(x * 1e6) / 1e6;
+    const d = dirViewerToIfc([point[0] - (b[0] + b[3]) / 2, point[1] - (b[1] + b[4]) / 2, point[2] - (b[2] + b[5]) / 2]);
+    return [r(d[0]), r(d[1]), r(d[2])];
+  }
+
+  /**
+   * The current frame of an element (viewer frame): its bounds centre and its displacement (the exploded view sets one
+   * per element through renderer.setElementOffset). Markup anchored to the element follows it.
+   */
+  elementFrame(guid: string, withOffset = true): { centre: Vec3; offset: Vec3 } | null {
+    if (!this.app.loaded) return null;
+    const id = this.model.byGlobalId.get(guid);
+    const b = id !== undefined ? this.model.elements[id]?.bounds : undefined;
+    if (id === undefined || !b) return null;
+    const r = this.app.renderer as unknown as { elementOffset?: (id: number) => [number, number, number] };
+    const offset: Vec3 = withOffset && typeof r.elementOffset === 'function' ? r.elementOffset(id) : [0, 0, 0];
+    return { centre: [(b[0] + b[3]) / 2, (b[1] + b[4]) / 2, (b[2] + b[5]) / 2], offset };
+  }
+
+  /** The length unit of linked measurements: the measure tool's setting. */
+  get units(): 'm' | 'mm' {
+    return currentMeasureUnits();
+  }
+
+  /**
+   * The camera that rectangle and freehand shapes of a viewpoint are drawn in: the snapshot camera, else the viewpoint's
+   * perspective camera with the aspect of the viewer. Null for an orthogonal camera without a snapshot camera.
+   */
+  shapeView(ref: BcfViewpointRef): BcfSnapshotView | null {
+    if (ref.snapshotView) return ref.snapshotView;
+    const cam = ref.data?.camera;
+    if (!cam || cam.kind !== 'perspective') return null;
+    return snapshotCamera(undefined, { ...cam, aspect: cam.aspect ?? this.app.renderer.camera.aspect });
   }
 
   /** Viewer-frame position of a topic pin. */
@@ -814,7 +916,7 @@ export class BcfController {
   /** Capture a measurement of the measure tool (viewer frame) as a link in IFC coordinates. */
   measureLink(m: Measurement): BcfMeasureLink {
     const sh = this.shift;
-    const link: BcfMeasureLink = { kind: m.kind, a: viewerToIfc([...m.a], sh), b: viewerToIfc([...m.b], sh), distance: m.distance, label: formatLength(m.distance, 'm'), sourceId: m.id };
+    const link: BcfMeasureLink = { kind: m.kind, a: viewerToIfc([...m.a], sh), b: viewerToIfc([...m.b], sh), distance: m.distance, label: formatLength(m.distance, this.units), sourceId: m.id };
     const els = this.model?.elements ?? [];
     const gids = [m.elementA, m.elementB].filter((x): x is number => x !== undefined).map((id) => els[id]?.globalId).filter((g): g is string => !!g);
     if (gids.length) link.elementGuids = gids;
@@ -833,16 +935,102 @@ export class BcfController {
     if (spec.anchor.kind === 'measurement') {
       const m = this.measureLink(spec.anchor.measurement);
       const mid: Vec3 = [(m.a[0] + m.b[0]) / 2, (m.a[1] + m.b[1]) / 2, (m.a[2] + m.b[2]) / 2];
-      a = { ...base, text: spec.text ?? m.label, anchor: { kind: 'measurement', point: mid, measurement: m } };
+      // No text by default: the box shows the length in the measure tool's current unit (annotationLines).
+      a = { ...base, text: spec.text ?? '', anchor: { kind: 'measurement', point: mid, measurement: m } };
     } else {
       a = { ...base, text: spec.text ?? '', anchor: { kind: spec.anchor.kind, point: viewerToIfc(spec.anchor.point, sh) } };
-      if (spec.anchor.elementGuid) a.anchor.elementGuid = spec.anchor.elementGuid;
+      if (spec.anchor.elementGuid) {
+        a.anchor.elementGuid = spec.anchor.elementGuid;
+        const local = this.localOffset(spec.anchor.point, spec.anchor.elementGuid);
+        if (local) a.anchor.local = local;
+      }
     }
-    (ref.annotations ??= []).push(a);
-    // Other BCF tools highlight the annotated elements through the viewpoint selection.
-    const have = new Set(ref.data.selection.map((c) => c.ifcGuid));
-    for (const g of annotationGuids([a])) if (!have.has(g)) ref.data.selection.push({ ifcGuid: g });
+    this.pushAnnotation(ref, a);
     this.status = `${spec.type[0]!.toUpperCase()}${spec.type.slice(1)} added to ${t.title}`;
+    this.markupChanged(t);
+    return a;
+  }
+
+  /** Add the annotation; the elements it points at join the viewpoint selection (other BCF tools highlight them). */
+  private pushAnnotation(ref: BcfViewpointRef, a: BcfAnnotation): void {
+    (ref.annotations ??= []).push(a);
+    if (!ref.data) return;
+    const markup = new Set(markupSelectionOf(ref));
+    const have = new Set(ref.data.selection.map((c) => c.ifcGuid));
+    for (const g of annotationGuids([a])) {
+      if (have.has(g)) continue;
+      ref.data.selection.push({ ifcGuid: g });
+      markup.add(g);
+    }
+    ref.markupSelection = [...markup];
+  }
+
+  /**
+   * Add a rectangle (2 corners) or a freehand line drawn on the screen, in canvas CSS pixels, to the viewpoint of a topic.
+   * The points are stored in the view of the viewpoint camera, on a plane through the surface under the middle of the shape.
+   */
+  addShape(topicGuid: string, type: BcfShapeType, screen: ReadonlyArray<readonly [number, number]>, text = '', viewpointGuid?: string): BcfAnnotation {
+    const t = this.topic(topicGuid);
+    if (!t) throw new Error(`No topic ${topicGuid}`);
+    const ref = viewpointGuid ? t.viewpoints.find((v) => v.guid === viewpointGuid) : this.annotationViewpoint(topicGuid);
+    if (!ref?.data) throw new Error('The topic has no viewpoint to annotate');
+    const view = this.shapeView(ref);
+    if (!view) throw new Error('Shapes need a perspective viewpoint camera');
+    if (screen.length < 2) throw new Error('A shape needs at least 2 points');
+    const sh = this.shift;
+    const cv = this.app.canvas;
+    const W = Math.max(1, cv.clientWidth);
+    const H = Math.max(1, cv.clientHeight);
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for (const [x, y] of screen) { x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); }
+    const ndc = (x: number, y: number): [number, number] => [(x / W) * 2 - 1, -((y / H) * 2 - 1)];
+    // The plane of the shape: through the surface under its middle (else the orbit target), facing the viewpoint camera.
+    const [cx, cy] = ndc((x0 + x1) / 2, (y0 + y1) / 2);
+    const hit = this.pick(cx, cy);
+    const tg = this.app.renderer.controls.target;
+    let depth = shapeFraction(view, sh, hit ? hit.point : [tg.x, tg.y, tg.z]).depth;
+    if (!(depth > 0.05)) depth = Math.max(1, shapeFraction(view, sh, [tg.x, tg.y, tg.z]).depth);
+    const eye = ifcToViewer(view.position, sh);
+    const centre = shapePointWorld(view, sh, 0.5, 0.5, depth);
+    const nrm: Vec3 = [centre[0] - eye[0], centre[1] - eye[1], centre[2] - eye[2]];
+    const cam = this.app.renderer.camera;
+    cam.updateMatrixWorld();
+    const toFrac = (x: number, y: number): [number, number] | null => {
+      const [nx, ny] = ndc(x, y);
+      const ray = cameraRay(cam, nx, ny);
+      const o: Vec3 = [ray.origin.x, ray.origin.y, ray.origin.z];
+      const d: Vec3 = [ray.direction.x, ray.direction.y, ray.direction.z];
+      const den = d[0] * nrm[0] + d[1] * nrm[1] + d[2] * nrm[2];
+      if (Math.abs(den) < 1e-9) return null;
+      const k = ((centre[0] - o[0]) * nrm[0] + (centre[1] - o[1]) * nrm[1] + (centre[2] - o[2]) * nrm[2]) / den;
+      if (k <= 0) return null;
+      const f = shapeFraction(view, sh, [o[0] + d[0] * k, o[1] + d[1] * k, o[2] + d[2] * k]);
+      const r = (v: number): number => Math.round(v * 1e5) / 1e5;
+      return [r(f.u), r(f.v)];
+    };
+    let src: Array<readonly [number, number]>;
+    if (type === 'rect') src = [[x0, y0], [x1, y1]];
+    else {
+      // Thin the line: points closer than 2 px to the last kept one go, and at most 512 points stay.
+      const kept: Array<readonly [number, number]> = [];
+      for (const p of screen) {
+        const l = kept[kept.length - 1];
+        if (!l || Math.hypot(p[0] - l[0], p[1] - l[1]) >= 2) kept.push(p);
+      }
+      const step = Math.max(1, Math.ceil(kept.length / 512));
+      src = kept.filter((_, i) => i % step === 0 || i === kept.length - 1);
+    }
+    const points = src.map(([x, y]) => toFrac(x, y)).filter((p): p is [number, number] => p !== null);
+    if (points.length < 2) throw new Error('The shape is not in front of the viewpoint camera');
+    const mu = points.reduce((s2, p) => s2 + p[0], 0) / points.length;
+    const mv = points.reduce((s2, p) => s2 + p[1], 0) / points.length;
+    const a: BcfAnnotation = {
+      guid: newGuid(), type, text, offset: defaultOffset(type, 0), author: this.authorOf(), date: nowIso(),
+      anchor: { kind: 'point', point: viewerToIfc(shapePointWorld(view, sh, mu, mv, depth), sh) },
+      shape: { points, depth: Math.round(depth * 1e4) / 1e4 },
+    };
+    this.pushAnnotation(ref, a);
+    this.status = `${type === 'rect' ? 'Rectangle' : 'Freehand line'} added to ${t.title}`;
     this.markupChanged(t);
     return a;
   }
@@ -864,8 +1052,14 @@ export class BcfController {
   removeAnnotation(guid: string): boolean {
     const f = this.findAnnotation(guid);
     if (!f) return false;
+    const before = markupSelectionOf(f.ref);
     f.ref.annotations = f.ref.annotations!.filter((a) => a.guid !== guid);
     if (!f.ref.annotations.length) delete f.ref.annotations;
+    // Elements that were selected only for annotations leave the selection with their last annotation.
+    const still = new Set(annotationGuids(f.ref.annotations));
+    const gone = new Set(before.filter((g) => !still.has(g)));
+    if (gone.size && f.ref.data) f.ref.data.selection = f.ref.data.selection.filter((c) => !c.ifcGuid || !gone.has(c.ifcGuid));
+    f.ref.markupSelection = before.filter((g) => still.has(g));
     this.status = 'Annotation deleted';
     this.markupChanged(f.topic);
     return true;
@@ -905,15 +1099,37 @@ export class BcfController {
     bmp.close?.();
     const sh = this.shift;
     const eye = ifcToViewer(view.position, sh);
-    const ops = layoutSnapshot(t.pin ? { pin: t.pin, label: String(this.pinNumber(t)) } : null, ref.annotations ?? [], {
+    // The occlusion fade uses what was hidden or see-through when the snapshot was taken, not the hides of now.
+    const see = this.app.loaded ? this.seeThroughAtCapture(ref) : null;
+    const ctx: LayoutContext = {
       width: w, height: h, shift: sh, scale: snapshotScale(h),
       project: snapshotProjector(view, sh, w, h),
-      occluded: this.app.loaded ? (p) => this.occluded(p, eye) : undefined,
-    });
+      occluded: see ? (p) => this.occluded(p, eye, (id) => see.has(id)) : undefined,
+      units: this.units,
+      // Anchors follow their element's bounds centre (a revised model), not the explode offsets of the live view.
+      element: (g) => this.elementFrame(g, false),
+      ...(ref.snapshotView ? { shapeDirect: true } : { shapeView: this.shapeView(ref) }),
+    };
+    const ops = layoutSnapshot(t.pin ? { pin: t.pin, label: String(this.pinNumber(t)) } : null, ref.annotations ?? [], ctx);
     if (!ops.length) return null;
     drawOps(g as unknown as Ctx2D, ops);
     const blob = await new Promise<Blob | null>((res) => cv.toBlob(res, mime, 0.92));
     return blob ? new Uint8Array(await blob.arrayBuffer()) : null;
+  }
+
+  /**
+   * Elements hidden or see-through when the viewpoint was captured: kept in memory for viewpoints made in this session,
+   * else the hidden elements of its Visibility (what the snapshot shows).
+   */
+  seeThroughAtCapture(ref: BcfViewpointRef): ReadonlySet<number> {
+    if (ref.captureSeeThrough) return ref.captureSeeThrough;
+    const vis = ref.data?.visibility;
+    if (!vis || !this.app.loaded) return new Set();
+    const els = this.model.elements;
+    const v = visibilityHides(vis, { resolve: (g) => this.model.byGlobalId.get(g), count: els.length, classOf: (i) => els[i]!.ifcClass });
+    // Same guard as applying: a DefaultVisibility false whose visible components are all unknown would hide everything.
+    if (!vis.defaultVisibility && v.exceptionsResolved === 0) return new Set();
+    return new Set(v.hide);
   }
 
   // ---------------------------------------------------------------- export

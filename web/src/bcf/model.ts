@@ -97,6 +97,14 @@ export interface BcfViewpointRef {
   annotations?: BcfAnnotation[];
   /** The camera that took the snapshot (IFC coordinates). Used to burn the markup into the snapshot. */
   snapshotView?: BcfSnapshotView;
+  /**
+   * IfcGuids that are in `data.selection` only because annotations point at them (other BCF tools highlight them that
+   * way). Applying the viewpoint in this viewer does not select them: they get the selection tint and keep the x-ray look.
+   * Side file `markupSelection`; derived from the annotations when absent.
+   */
+  markupSelection?: string[];
+  /** Session only: element ids hidden at capture (hidden or ghosted), for the occlusion fade of the burned snapshot. */
+  captureSeeThrough?: ReadonlySet<number>;
 }
 
 // ---------------------------------------------------------------- viewer markup (pins and annotations)
@@ -108,6 +116,8 @@ export interface BcfPin {
   position: Vec3;
   /** IfcGuid of the element under the pin, when it was picked on one. */
   elementGuid?: string;
+  /** Offset of `position` from the bounds centre of that element (IFC frame), so the pin follows the element when it moves. */
+  local?: Vec3;
 }
 
 /** A measurement captured into an annotation, so it survives without the measure tool. IFC coordinates. */
@@ -129,11 +139,32 @@ export interface BcfAnchor {
   /** IFC coordinates. Element: the picked point on it. Measurement: the middle of the dimension line. */
   point: Vec3;
   elementGuid?: string;
+  /**
+   * Element anchors: `point` minus the bounds centre of the element (IFC frame). The anchor follows the element when it
+   * moves (exploded view, a revised model where the element moved).
+   */
+  local?: Vec3;
   measurement?: BcfMeasureLink;
 }
 
-export const ANNOTATION_TYPES = ['callout', 'note', 'arrow'] as const;
+export const ANNOTATION_TYPES = ['callout', 'note', 'arrow', 'rect', 'freehand'] as const;
 export type BcfAnnotationType = (typeof ANNOTATION_TYPES)[number];
+/** Annotation types drawn as a 2D shape in the view of the viewpoint camera (not anchored by a click). */
+export const SHAPE_TYPES = ['rect', 'freehand'] as const;
+export type BcfShapeType = (typeof SHAPE_TYPES)[number];
+export function isShapeType(t: string): t is BcfShapeType {
+  return t === 'rect' || t === 'freehand';
+}
+
+/**
+ * A highlight drawn on the screen: points in the view of the viewpoint camera (the snapshot camera), as fractions of the
+ * view width and height (x right, y down, 0..1). `depth`: distance along the view direction (m) of the plane the shape
+ * lies on, so it can be drawn from another camera too. A rectangle has 2 points (opposite corners).
+ */
+export interface BcfShape {
+  points: Array<[number, number]>;
+  depth: number;
+}
 
 export interface BcfAnnotation {
   guid: string;
@@ -142,6 +173,8 @@ export interface BcfAnnotation {
   anchor: BcfAnchor;
   /** Text box position relative to the anchor, as fractions of the view height (x right, y down). */
   offset: [number, number];
+  /** Rectangle and freehand annotations: the shape. */
+  shape?: BcfShape;
   author?: string;
   date?: string;
 }
@@ -215,6 +248,8 @@ export interface BcfTopic {
   viewpoints: BcfViewpointRef[];
   /** Viewer markup: the 3D point of the topic (side file, see sidecar.ts). */
   pin?: BcfPin;
+  /** Stable number on the pin marker: the next free number when the topic was made (side file `pinNumber`). */
+  pinNumber?: number;
 }
 
 export interface BcfExtensions {

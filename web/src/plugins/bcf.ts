@@ -43,6 +43,10 @@ declare global {
       linkMeasurement(topicGuid: string, measurementId: number, text?: string): BcfAnnotation | null;
       /** Start click-to-place (Escape cancels); placeAt clicks at a client position. */
       startPlacement(kind: PlaceKind, topicGuid: string, text?: string): boolean;
+      /** Add a rectangle (2 corners) or a freehand line, in canvas CSS pixels, to the active viewpoint of a topic. */
+      addShape(topicGuid: string, kind: 'rect' | 'freehand', points: Array<[number, number]>, text?: string): BcfAnnotation;
+      /** The stable pin number of a topic. */
+      pinNumber(topicGuid: string): number | null;
       placeAt(clientX: number, clientY: number): boolean;
       cancelPlacement(): void;
       pinsVisible: boolean;
@@ -134,6 +138,11 @@ export const bcfPlugin: AppPlugin = {
         return c.addAnnotation(t, { type: 'callout', text, anchor: { kind: 'measurement', measurement: m } });
       },
       startPlacement: (k, t, text) => view.start(k, t, text),
+      addShape: (t, k, pts, text) => c.addShape(t, k, pts, text),
+      pinNumber: (t) => {
+        const topic = c.topic(t);
+        return topic ? c.pinNumber(topic) : null;
+      },
       placeAt: (x, y) => view.placeAtClient(x, y),
       cancelPlacement: () => view.cancel(),
       get pinsVisible() {

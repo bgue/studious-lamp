@@ -78,6 +78,10 @@ export interface XrayBoot {
   openTool?: string;
   /** Hide the right parameter dock and the left tree on start (a clean presentation page). */
   kiosk?: boolean;
+  /** Saved views (an `xray-views/1` document or a list of views) added to the Views tab (src/plugins/views.ts). */
+  views?: unknown;
+  /** A saved view (name, id or 1-based position) opened at start, after everything else. */
+  openView?: string;
 }
 
 declare global {

@@ -143,7 +143,7 @@ export class PairTool {
       t.textContent = text;
       g.appendChild(t);
     };
-    const complete = this.c.completePairs;
+    const complete = this.c.solvedPairs;
     ps.forEach((pr, i) => {
       const n = String(i + 1);
       const cw = pr.cloud ? apply(M, pr.cloud) : null;

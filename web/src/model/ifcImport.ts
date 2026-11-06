@@ -377,7 +377,8 @@ class IfcReader {
       } else if (m.type === 'error') {
         const p = this.pending;
         this.pending = null;
-        const err = new Error(m.message);
+        // Keep the code: the loader passes user-facing codes through and rewrites the others (ifcErrors.ts).
+        const err = Object.assign(new Error(m.message), { code: m.code });
         if (p) p.reject(err);
         else this.fail(err);
       }

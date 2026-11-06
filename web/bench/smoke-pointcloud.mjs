@@ -79,7 +79,7 @@ try {
 
   // ---------------------------------------------------------------- registration
   const guiNames = await page.evaluate(() => [...document.querySelectorAll('.lil-gui .lil-name, .lil-gui .name, .lil-gui .lil-title, .lil-gui .title')].map((e) => e.textContent.trim()));
-  for (const n of ['Point cloud', 'Open point cloud', 'visible', 'point size', 'colour by', 'point budget', 'coordinates', 'Auto-align to model', 'offset x', 'offset y', 'offset z', 'rotation (deg)', 'Compute deviation', 'tolerance (m)', 'deviation scope', 'Remove point cloud', 'Point cloud status']) {
+  for (const n of ['Point cloud', 'Open point cloud', 'visible', 'point size', 'colour by', 'point budget', 'coordinates', 'Auto-align to model', 'align within', 'Align by 3 points', 'Refine (ICP)', 'offset x', 'offset y', 'offset z', 'rotation (deg)', 'Compute deviation', 'tolerance (m)', 'deviation scope', 'Remove point cloud', 'Point cloud status']) {
     check(`lil-gui entry "${n}"`, guiNames.includes(n));
   }
   check('tool "pointcloud", palette actions without keys, params section, window API', await page.evaluate(async () => {
