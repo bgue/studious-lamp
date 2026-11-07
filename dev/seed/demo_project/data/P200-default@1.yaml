@@ -1,0 +1,19 @@
+# Working calendar of the demo project P200, version 1. Copied next to the schema fixtures when the
+# generator runs (see overlay.py): the response clocks of the correspondence module count on it.
+id: P200-default
+version: 1
+scope: "project:P200"
+name: Project P200 working calendar
+rest_days: [sat, sun]
+covers_from: "2026-09-01"
+covers_to: "2028-12-31"
+holidays:
+  - { date: "2026-12-25", name: "Christmas Day" }
+  - { date: "2026-12-28", name: "Boxing Day (observed)" }
+  - { date: "2027-01-01", name: "New Year's Day" }
+  - { date: "2027-03-26", name: "Good Friday" }
+  - { date: "2027-03-29", name: "Easter Monday" }
+  - { date: "2027-05-03", name: "Labour Day (observed)" }
+  - { date: "2027-12-27", name: "Christmas Day (observed)" }
+  - { date: "2027-12-28", name: "Boxing Day (observed)" }
+  - { date: "2028-01-03", name: "New Year's Day (observed)" }
