@@ -31,6 +31,7 @@ One line each: what, why it waits, and the phase it belongs to. Newest at the bo
 ## Nice-to-haves and small follow-ups
 | Item | Why deferred | Phase |
 |---|---|---|
+| WBS node workflow and constraint opt-in on WBS nodes (ADR-0024 plan check F10) | No wave 2 demo clause needs it; overlaps I5 progress | wave 3 |
 | Six materials terminal screens have no technical-mode rows (D, E, I, M, S, W) | Missing feature, not a break | wave 3 |
 | `tl mat move reserve --for-line` should take the take-off line key, not its record id | Usability; the runbook points at the API for the id | wave 3 |
 | Locations web page: tree indent and lot counts (WEB1 D46) | Cosmetic | Web increment after wave 4 |
