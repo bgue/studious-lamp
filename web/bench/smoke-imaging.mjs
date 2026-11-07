@@ -14,7 +14,7 @@ const root = resolve(here, '..');
 const port = Number(process.env.SMOKE_PORT ?? 5361);
 const which = process.argv[2] ?? 'all';
 const VIEW = { width: 1400, height: 760 };
-const CLIP = { x: 300, y: 0, width: 800, height: 760 };
+const CLIP = { x: 300, y: 40, width: 800, height: 720 }; // below the top bar, whose mode highlight changes with the style
 
 function loadPlaywright() {
   const candidates = [process.env.PLAYWRIGHT_MODULE, resolve(root, 'node_modules/playwright'), '/opt/node-tools/node_modules/playwright', '/opt/node22/lib/node_modules/playwright'].filter(Boolean);

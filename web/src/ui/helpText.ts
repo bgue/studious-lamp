@@ -323,6 +323,12 @@ export const FOLDER_HELP: Record<string, HelpEntry> = {
     'Choose a name. Click Apply preset. Press a key from 1 to 9 for the same action.',
     'Report: Appendix I, Presets and keyboard',
   ),
+  'Top bar': h(
+    'The folder holds the setting of the thin strip at the top of the view. The strip holds 4 mode buttons and the search box.',
+    'This setting shows or hides the thin strip above the picture. The picture itself does not change.',
+    'Open the folder. Use the switch to show or hide the strip.',
+    'Report: Appendix I, Presets and keyboard',
+  ),
   Penetrations: h(
     'The folder controls the penetration schedule. A penetration is a place where an MEP element passes through a structural host.',
     'These controls list where pipes and ducts go through slabs and walls, and tell you if a cut-out is ready.',
@@ -408,7 +414,7 @@ export const FOLDER_HELP: Record<string, HelpEntry> = {
     'Report: Appendix J, Coordination tools',
   ),
   'Command palette': h(
-    'The palette is a search list of every action and setting. Press Ctrl+K to open it.',
+    'The palette is a search list of every action and setting. Press Ctrl+Shift+K to open it.',
     'This search box finds any action or setting by name, so you do not need to remember keys.',
     'Type a few letters. Press Enter to run the chosen row. Press Escape to close the list.',
     'Report: Appendix I, Presets and keyboard',
@@ -2188,10 +2194,10 @@ export const CONTROL_HELP: Record<string, HelpEntry> = {
     'Click the button. Click a key cell. Press the new keys.',
     'Report: Appendix I, Presets and keyboard',
   ),
-  'Keyboard/Command palette (Ctrl+K)': h(
+  'Keyboard/Command palette (Ctrl+Shift+K)': h(
     'The button opens the command palette. The palette searches actions and settings by name.',
     'Click and a search box lets you find any action or setting by typing a few letters.',
-    'Click the button or press Ctrl+K. Type a name. Press Enter.',
+    'Click the button or press Ctrl+Shift+K. Type a name. Press Enter.',
     'Report: Appendix I, Presets and keyboard',
   ),
   'Keyboard/Reset shortcuts': h(
@@ -2640,6 +2646,24 @@ export const CONTROL_HELP: Record<string, HelpEntry> = {
     'The row names an action or setting with its path and keys. A click runs the action.',
     'Click an item and the viewer does the job at once, with no hunt through panels.',
     'Click the row or press Enter on it.',
+    'Report: Appendix I, Presets and keyboard',
+  ),
+  'Search bar/Search box': h(
+    'The text box finds objects, commands, presets, saved views, sets and settings. It also runs a WHERE query.',
+    'Type a few letters and a ranked list opens below. A query shows how many objects match.',
+    'Press the slash key or Ctrl+K. Type a name, a class or a setting. Start with where to run a query. Press Enter to act.',
+    'Report: Appendix I, Presets and keyboard',
+  ),
+  'Search bar/Search button': h(
+    'The button opens the text box on a small screen. The box then fills the width.',
+    'Tap it and a field for typing opens across the full top edge.',
+    'Tap the magnifier icon. Type a word.',
+    'Report: Appendix I, Presets and keyboard',
+  ),
+  'Search bar/Result row': h(
+    'The row names a match. A click acts on it, and Shift adds an object to the selection.',
+    'Click an item and the viewer does the job at once. An object under the pointer lights up in the picture.',
+    'Click the row or press Enter on it. Hold Shift to add an object to the selection.',
     'Report: Appendix I, Presets and keyboard',
   ),
   'Shortcut sheet/Search box': h(
@@ -3481,6 +3505,44 @@ export const CONTROL_HELP: Record<string, HelpEntry> = {
     'A short text tells you if the headset works and what is missing from the picture there.',
     'Read the line if the picture in the headset looks plainer than on the screen.',
     'Report: Appendix M, WebXR',
+  ),
+
+  // ------------------------------------------------------------------ Top bar and render style
+  'X-ray/Render style': h(
+    'The list sets the look of the X-ray view. The value standard uses ghosts. The values radiograph and mri use the imaging frame.',
+    'The first choice shows the building with see-through walls. One choice shows a medical picture of dense parts. The last shows a thin grey slice.',
+    'Select radiograph to see the model like a medical image. The imaging controls open below the list. Dimmed settings do not apply.',
+    'Report: Appendix G, Imaging and sectioning',
+  ),
+  'Top bar/Show top bar': h(
+    'The switch shows or hides the top bar. The setting is topBar.visible in the parameter document.',
+    'On: a thin strip with the mode buttons and the search box sits above the picture. Off: the picture uses the full height.',
+    'Turn the switch off for a clean picture. Press Shift+T for the same action.',
+    'Report: Appendix I, Presets and keyboard',
+  ),
+  'Top bar/Ghost': h(
+    'The button applies the Coordination preset. This is the classic X-ray view. The objects that block the selection fade.',
+    'The walls and slabs in front of the selected item turn see-through. The selected item stays solid and clear.',
+    'Select an object. Click the button. Click it again to return to the normal view. Press Shift+1 for the same action.',
+    'Report: Purpose',
+  ),
+  'Top bar/Radiograph': h(
+    'The button applies the Radiograph preset. The picture looks like a medical X-ray image of the model.',
+    'The picture turns dark with blue and white tones. Dense parts glow and thin parts fade. The selected item shines like a bone.',
+    'Select an object. Click the button. Click it again to return to the normal view. Press Shift+2 for the same action.',
+    'Report: Appendix G, Imaging and sectioning',
+  ),
+  'Top bar/Glow': h(
+    'The button applies the Focus glow preset. It turns on the bloom and the edge glow for the focus.',
+    'The selected item gets a soft halo and a bright outline. You find it fast, even in a large model.',
+    'Select an object. Click the button. Click it again to return to the normal view. Press Shift+3 for the same action.',
+    'Report: Terminology, focus',
+  ),
+  'Top bar/Cutaway': h(
+    'The button applies the Peel only preset. It cuts a window through the objects that block the view of the selection.',
+    'A round hole opens in the walls and the roof in front of the selected item. The rest of the building stays solid.',
+    'Select an object. Click the button. Click it again to return to the normal view. Press Shift+4 for the same action.',
+    'Report: Appendix F, View modes',
   ),
 };
 

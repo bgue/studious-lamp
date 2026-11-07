@@ -41,7 +41,8 @@ Options:
   --name <name>           model name (default: basename of the first input)
   --tools <ids>           comma-separated action-panel tool ids to show (default: all)
   --open-tool <id>        tool drawer to open at start
-  --kiosk                 start with both side panels collapsed
+  --kiosk                 start with both side panels collapsed and the top bar hidden
+  --no-topbar             hide the top bar (visualisation modes and search) without a kiosk page
   --camera px,py,pz:tx,ty,tz   camera position and target in the viewer frame (Y up, origin-shifted)
   --views <file.json>     saved views (xray-views/1, from the viewer's Views tab > Export) shown in the Views tab
   --open-view <name>      saved view (name, id or 1-based number) opened at start; needs --views
@@ -60,7 +61,7 @@ const VALUE_OPTIONS = {
   '--open-view': 'openView',
 };
 const FLAG_OPTIONS = {
-  '--kiosk': 'kiosk', '--ifc-reader': 'ifcReader', '--samples': 'samples', '--force': 'force', '--quiet': 'quiet',
+  '--kiosk': 'kiosk', '--no-topbar': 'noTopBar', '--ifc-reader': 'ifcReader', '--samples': 'samples', '--force': 'force', '--quiet': 'quiet',
   '-h': 'help', '--help': 'help',
 };
 
@@ -112,13 +113,13 @@ export function parseCamera(text) {
 /**
  * Parse the command line (without node and script). Returns { help, inputs, options } where options has:
  * out, params, preset, select(string[]), title, name, tools(string[]), openTool, camera, views (file), openView, kiosk,
- * ifcReader, samples, force, quiet. Throws PackError (exit code 1) on any problem.
+ * noTopBar, ifcReader, samples, force, quiet. Throws PackError (exit code 1) on any problem.
  */
 export function parseArgs(argv) {
   const options = {
     out: undefined, params: undefined, preset: undefined, select: undefined, title: undefined, name: undefined,
     tools: undefined, openTool: undefined, camera: undefined, views: undefined, openView: undefined,
-    kiosk: false, ifcReader: false, samples: false, force: false, quiet: false,
+    kiosk: false, noTopBar: false, ifcReader: false, samples: false, force: false, quiet: false,
   };
   const inputs = [];
   let help = false;
@@ -250,6 +251,7 @@ export function buildBoot(model, options = {}, params, views) {
   if (options.tools) boot.tools = options.tools;
   if (options.openTool) boot.openTool = options.openTool;
   if (options.kiosk) boot.kiosk = true;
+  if (options.noTopBar) boot.topBar = false;
   if (views !== undefined) boot.views = { schema: 'xray-views/1', model, views };
   if (options.openView && views !== undefined) boot.openView = options.openView;
   return boot;

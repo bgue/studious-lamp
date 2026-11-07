@@ -324,9 +324,9 @@ try {
       await pg.waitForTimeout(200);
       seen.push(`${id}${info.open ? `(${info.title})` : '(no drawer)'}`);
     }
-    // keyboard dialogs: palette (Ctrl+K), shortcut sheet (?), shortcut editor (button of the sheet)
+    // keyboard dialogs: palette (Ctrl+Shift+K), shortcut sheet (?), shortcut editor (button of the sheet)
     await pg.evaluate(() => document.activeElement && document.activeElement.blur());
-    await pg.keyboard.press('Control+k');
+    await pg.keyboard.press('Control+Shift+k');
     await pg.waitForTimeout(400);
     await pg.keyboard.press('Escape');
     await pg.keyboard.press('Shift+?');

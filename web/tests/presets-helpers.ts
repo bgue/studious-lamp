@@ -32,6 +32,7 @@ export function fakeApp(): Fake {
     flyTo: true,
     bloom: false,
     edgeGlow: false,
+    glowScope: 'focus',
     autoOrbit: false,
     dressing: true,
     reveal: true,

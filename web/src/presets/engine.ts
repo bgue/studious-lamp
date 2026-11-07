@@ -216,7 +216,7 @@ export function capturePreset(app: ParamsApp, sections: readonly string[], opts:
 // ---------------------------------------------------------------- "is the preset still what is set?"
 
 /** Paths left out of the settings hash: they change without the user changing a setting. */
-const HASH_IGNORE = ['exportedAt', 'model', 'viewer', 'camera', 'selectionSets', 'views', 'cinematic.dollyProgress', 'cinematic.dollyPlaying', 'imaging.mri.position'];
+const HASH_IGNORE = ['exportedAt', 'model', 'viewer', 'camera', 'selectionSets', 'views', 'cinematic.dollyProgress', 'cinematic.dollyPlaying', 'imaging.mri.position', 'topBar'];
 
 function strip(obj: unknown, path: string): void {
   const parts = path.split('.');
@@ -228,10 +228,11 @@ function strip(obj: unknown, path: string): void {
   if (isObj(cur)) delete cur[parts[parts.length - 1]!];
 }
 
-/** A short string that changes when any setting changes (camera, selection sets and playback progress excluded). */
-export function settingsHash(app: ParamsApp, env: EngineEnv = {}): string {
+/** A short string that changes when any setting changes (camera, selection sets and playback progress excluded; `extraIgnore` adds paths). */
+export function settingsHash(app: ParamsApp, env: EngineEnv = {}, extraIgnore: readonly string[] = []): string {
   const doc = collectParams(app, env.paramsEnv);
   for (const p of HASH_IGNORE) strip(doc, p);
+  for (const p of extraIgnore) strip(doc, p);
   const sw = clearanceOf(env);
   const text = JSON.stringify(doc) + (sw ? `|c${sw.enabled ? 1 : 0}` : '');
   let h = 5381;

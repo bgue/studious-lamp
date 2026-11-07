@@ -72,7 +72,7 @@ export interface ViewsDocument {
  */
 export const VIEW_EXCLUDED_SECTIONS: readonly string[] = [
   'schema', 'exportedAt', 'model', 'viewer', 'camera', 'overrides', 'selectionSets', 'classStyles', 'materialAliases',
-  'keymap', 'views', 'bcf', 'xr', 'pointcloud', 'measure', 'hoverInfo', 'gizmo', 'penetrations', 'cleanup',
+  'keymap', 'views', 'bcf', 'xr', 'pointcloud', 'measure', 'hoverInfo', 'gizmo', 'penetrations', 'cleanup', 'topBar',
 ];
 
 // ---------------------------------------------------------------- small helpers

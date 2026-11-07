@@ -34,6 +34,15 @@ describe('xray-pack arguments', () => {
     expect(options).toMatchObject({ kiosk: false, ifcReader: false, samples: false, force: false, quiet: false });
   });
 
+  it('--no-topbar is a flag that writes topBar false into the boot document', async () => {
+    const { options } = parseArgs(['m.glb', '-o', 'o.html', '--no-topbar']);
+    expect(options.noTopBar).toBe(true);
+    expect(parseArgs(['m.glb', '-o', 'o.html']).options.noTopBar).toBe(false);
+    const { buildBoot } = await import('../tools/pack/lib.mjs');
+    expect(buildBoot('m', options)).toEqual({ model: 'm', topBar: false });
+    expect(buildBoot('m', parseArgs(['m.glb', '-o', 'o.html']).options)).toEqual({ model: 'm' });
+  });
+
   it('--help needs nothing else', () => {
     expect(parseArgs(['--help']).help).toBe(true);
     expect(parseArgs(['-h']).help).toBe(true);

@@ -62,7 +62,7 @@ export function projectToScreen(m: ArrayLike<number>, width: number, height: num
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
 /** Chrome that can lie over the canvas edges: the tool strip and drawer, the tree and dock (rails on phones), the status bar. */
-const EDGE_CHROME = ['#xray-toolbar', '#xray-toolbar-drawer', '#sidebar', '#dock', '#xray-overlay'];
+const EDGE_CHROME = ['#xray-toolbar', '#xray-toolbar-drawer', '#sidebar', '#dock', '#xray-overlay', '#xray-topbar'];
 
 /** Legends drawn on the overlay itself: reserved by their drawn box (a legend may also register with ov.reserve). */
 const LEGENDS = '.xray-svg-overlay [data-legend], .xray-svg-overlay g[data-layer$="legend"]';
@@ -165,6 +165,7 @@ export class Overlay {
         if (r.left - c.left < c.right - r.right) ins.left = Math.max(ins.left, r.right - c.left);
         else ins.right = Math.max(ins.right, c.right - r.left);
       } else if (r.bottom >= c.bottom - 1) ins.bottom = Math.max(ins.bottom, c.bottom - r.top);
+      else if (r.top <= c.top + 1) ins.top = Math.max(ins.top, r.bottom - c.top);
     }
     this.insets = ins;
     const g = document.getElementById('xray-gizmo');

@@ -25,7 +25,11 @@ import { helpPlugin } from './help';
 import { panelDockPlugin } from './panelDock';
 import { exportParamsPlugin } from './exportParams';
 import { viewsPlugin } from './views';
+import { topBarPlugin } from './topBar';
+import { awesomeBarPlugin } from './awesomeBar';
 
 // views after exportParams (its factory snapshot is the state after the first model and any #p= link) and before boot.
 // help runs after every panel-building plugin so it can see all controls; panelDock last so it wraps the finished panel.
-export const PLUGINS: AppPlugin[] = [fileLoaderPlugin, classStylesPlugin, sidebarPlugin, cinematicPlugin, oitPlugin, viewModesPlugin, imagingPlugin, sectionPlugin, gizmoPlugin, cleanupPlugin, hoverInfoPlugin, presetsPlugin, penetrationsPlugin, measurePlugin, bcfPlugin, pointcloudPlugin, xrPlugin, toolbarPlugin, keymapPlugin, exportParamsPlugin, viewsPlugin, helpPlugin, panelDockPlugin, bootPlugin];
+// topBar first: it creates the bar and the #xray-topbar-search host that the awesomeBar plugin mounts into, and its onModel
+// takes the factory settings hash before any other plugin changes the state.
+export const PLUGINS: AppPlugin[] = [topBarPlugin, fileLoaderPlugin, classStylesPlugin, sidebarPlugin, cinematicPlugin, oitPlugin, viewModesPlugin, imagingPlugin, sectionPlugin, gizmoPlugin, cleanupPlugin, hoverInfoPlugin, presetsPlugin, penetrationsPlugin, measurePlugin, bcfPlugin, pointcloudPlugin, xrPlugin, toolbarPlugin, keymapPlugin, exportParamsPlugin, viewsPlugin, helpPlugin, panelDockPlugin, awesomeBarPlugin, bootPlugin];

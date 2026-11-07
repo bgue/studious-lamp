@@ -1,5 +1,5 @@
 // Keyboard plugin: owns the window key listeners, the keymap (rebinding, conflicts, persistence), the navigation and
-// selection actions, the cheat sheet (?), the command palette (Ctrl+K), the shortcut editor and the `Keyboard` folder.
+// selection actions, the cheat sheet (?), the command palette (Ctrl+Shift+K), the shortcut editor and the `Keyboard` folder.
 // Docs: docs-features/keyboard.md.
 
 import type { AppPlugin, ViewerApp } from '../app';
@@ -135,7 +135,7 @@ function buildGui(app: ViewerApp, km: Keymap, store: StorageLike, cheat: CheatSh
   };
   f.add(buttons, 'sheet').name('Shortcuts (?)');
   f.add(buttons, 'edit').name('Edit shortcuts');
-  f.add(buttons, 'palette').name('Command palette (Ctrl+K)');
+  f.add(buttons, 'palette').name('Command palette (Ctrl+Shift+K)');
   f.add(buttons, 'reset').name('Reset shortcuts');
   f.close();
 }

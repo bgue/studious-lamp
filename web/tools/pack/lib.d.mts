@@ -23,6 +23,7 @@ export interface PackOptions {
   views: string | undefined;
   openView: string | undefined;
   kiosk: boolean;
+  noTopBar: boolean;
   ifcReader: boolean;
   samples: boolean;
   force: boolean;

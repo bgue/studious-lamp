@@ -1,6 +1,6 @@
 # Action panel (toolbar)
 
-A vertical icon strip at the left edge of the canvas (44 px, inside the stage, so it moves with the left sidebar) with one button per tool, and a drawer beside it for tools that have a panel. Key `t` shows or hides the strip (remembered in localStorage `xray.toolbar`).
+A vertical icon strip at the left edge of the canvas (44 px, inside the stage, so it moves with the left sidebar; it starts below the 32 px top bar, see [topbar.md](topbar.md), and from the top when the bar is hidden) with one button per tool, and a drawer beside it for tools that have a panel. Key `t` shows or hides the strip (remembered in localStorage `xray.toolbar`).
 
 ## Buttons and drawers
 
@@ -23,7 +23,7 @@ The Cleanup drawer reads and writes the live rules (`window.__xrayCleanup.rules`
 
 ## Commands and scripting
 
-- `toolbar.toggle` (key `t`): show or hide the strip. `tool.<id>` (no default key): open that tool; they appear in the command palette (Ctrl+K) for the visible tools.
+- `toolbar.toggle` (key `t`): show or hide the strip. `tool.<id>` (no default key): open that tool; they appear in the command palette (Ctrl+Shift+K) and the search bar for the visible tools.
 - `window.__xrayToolbar = { open(id), close(), toggle(), tools() }`. `open` returns false for an unknown or hidden id; `tools()` lists the visible ids in order.
 - Packaged viewers (`tools/xray-pack`): `window.__xrayBoot.tools` is an ordered list of tool ids to show (anything else is hidden and gets no `tool.<id>` action); `openTool` opens one at start.
 - Plugins add tools with `registerTool` (src/tools/registry.ts). `drawerWidth` is an optional field.
@@ -32,4 +32,4 @@ The Cleanup drawer reads and writes the live rules (`window.__xrayCleanup.rules`
 
 `src/ui/overlay.ts` provides `getOverlay(app)`: an SVG layer above the canvas inside the stage (pointer events off). `layer(name)` returns a `<g>`; `onUpdate(cb)` runs when the camera, canvas size or data (`invalidate()`) changed; `project(point)` gives CSS pixel coordinates with `visible` (inside the frustum) and `front` (in front of the camera). Penetration markers, measurements and the clearance legend use it.
 
-Reserved rects: `ov.reserved` lists, in canvas pixels, the parts of the view that chrome covers: the edge strips (status bar, tool strip and open drawer, phone rails), the gizmo box, the legends drawn on the overlay (`[data-legend]` groups and layers named `*legend`) and anything registered with `ov.reserve(key, rect | () => rect)` (null removes it). It is refreshed every frame, and a change re-runs the `onUpdate` callbacks. `ov.place(x, y, w, h, { gap, maxShift })` returns the nearest centre for a `w` x `h` label box that is clear of every reserved rect and inside the view (`moved` tells whether it moved; `null` when no spot is within `maxShift`). Every label on the overlay goes through it the same way: a measure label, a BCF callout or note box moves out with a dashed leader line back to its anchor; a penetration marker under the gizmo or a legend moves beside it with a leader line; a BCF pin whose point is covered is drawn beside the rect with a leader line, or as an edge marker when no spot is near. The pure maths is in `src/ui/reserved.ts` (`freeSpot`, `insetRects`, `underReserved`), tested in `tests/bcf-markup-fixes.test.ts`.
+Reserved rects: `ov.reserved` lists, in canvas pixels, the parts of the view that chrome covers: the edge strips (status bar, top bar, tool strip and open drawer, phone rails), the gizmo box, the legends drawn on the overlay (`[data-legend]` groups and layers named `*legend`) and anything registered with `ov.reserve(key, rect | () => rect)` (null removes it). It is refreshed every frame, and a change re-runs the `onUpdate` callbacks. `ov.place(x, y, w, h, { gap, maxShift })` returns the nearest centre for a `w` x `h` label box that is clear of every reserved rect and inside the view (`moved` tells whether it moved; `null` when no spot is within `maxShift`). Every label on the overlay goes through it the same way: a measure label, a BCF callout or note box moves out with a dashed leader line back to its anchor; a penetration marker under the gizmo or a legend moves beside it with a leader line; a BCF pin whose point is covered is drawn beside the rect with a leader line, or as an edge marker when no spot is near. The pure maths is in `src/ui/reserved.ts` (`freeSpot`, `insetRects`, `underReserved`), tested in `tests/bcf-markup-fixes.test.ts`.

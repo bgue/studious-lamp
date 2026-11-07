@@ -49,6 +49,7 @@ Switch the tooltips off with `window.__xrayHelp.disable()` or `localStorage["xra
 - [Model cleanup/Classes](#model-cleanupclasses)
 - [Hover info](#hover-info)
 - [Presets](#presets)
+- [Top bar](#top-bar)
 - [Penetrations](#penetrations)
 - [Measure](#measure)
 - [Clearance](#clearance)
@@ -78,6 +79,7 @@ Switch the tooltips off with `window.__xrayHelp.disable()` or `localStorage["xra
 - [Section drawer](#section-drawer)
 - [Scan drawer](#scan-drawer)
 - [WebXR drawer](#webxr-drawer)
+- [Search bar](#search-bar)
 - [Status ba](#status-ba)
 - [Status bar](#status-bar)
 
@@ -162,6 +164,7 @@ Impact follows the same sentence rules and adds these:
 | Hide selected | The button hides the selected objects. A hidden object is not drawn and does not block any sightline. | The items you picked vanish from the picture, and they no longer block the view of what lies behind. | Select the objects that are in the way. Click the button to remove them from the view. | Report: Appendix C, Algorithm 7 |
 | Clear pins/hides | The button removes all user pins and all user hides. The class styles stay in force. | Parts you protected or removed come back to normal. The picture returns to the automatic look. | Click the button to return to the automatic result. | Report: Appendix C, pin sources |
 | Frame all (F) | The button moves the camera so that the whole model is in view. | The picture zooms and turns until the whole building fits on screen. | Click the button when you lose the model. Press the F key for the same action. | Report: Onboarding checklist |
+| Render style | The list sets the look of the X-ray view. The value standard uses ghosts. The values radiograph and mri use the imaging frame. | The first choice shows the building with see-through walls. One choice shows a medical picture of dense parts. The last shows a thin grey slice. | Select radiograph to see the model like a medical image. The imaging controls open below the list. Dimmed settings do not apply. | Report: Appendix G, Imaging and sectioning |
 
 ## Classification (Alg 1)
 
@@ -610,6 +613,17 @@ Impact follows the same sentence rules and adds these:
 | Import presets | The button adds presets from a JSON file. Imported presets always become your own presets. | Click and pick a file of looks. They join your list. | Click the button. Choose a file from a colleague. Read the status line for problems. | Report: Appendix I, Presets and keyboard |
 | Preset status | The read-only field names the active preset, or the settings that a preset skipped. | A short text tells you which look is on now. It also lists parts that did not apply. | Read the line after you apply a preset. | Report: Appendix I, Presets and keyboard |
 
+## Top bar
+
+| Setting | Intent | Impact | Use | Ref |
+| --- | --- | --- | --- | --- |
+| *Folder: Top bar* | The folder holds the setting of the thin strip at the top of the view. The strip holds 4 mode buttons and the search box. | This setting shows or hides the thin strip above the picture. The picture itself does not change. | Open the folder. Use the switch to show or hide the strip. | Report: Appendix I, Presets and keyboard |
+| Show top bar | The switch shows or hides the top bar. The setting is topBar.visible in the parameter document. | On: a thin strip with the mode buttons and the search box sits above the picture. Off: the picture uses the full height. | Turn the switch off for a clean picture. Press Shift+T for the same action. | Report: Appendix I, Presets and keyboard |
+| Ghost | The button applies the Coordination preset. This is the classic X-ray view. The objects that block the selection fade. | The walls and slabs in front of the selected item turn see-through. The selected item stays solid and clear. | Select an object. Click the button. Click it again to return to the normal view. Press Shift+1 for the same action. | Report: Purpose |
+| Radiograph | The button applies the Radiograph preset. The picture looks like a medical X-ray image of the model. | The picture turns dark with blue and white tones. Dense parts glow and thin parts fade. The selected item shines like a bone. | Select an object. Click the button. Click it again to return to the normal view. Press Shift+2 for the same action. | Report: Appendix G, Imaging and sectioning |
+| Glow | The button applies the Focus glow preset. It turns on the bloom and the edge glow for the focus. | The selected item gets a soft halo and a bright outline. You find it fast, even in a large model. | Select an object. Click the button. Click it again to return to the normal view. Press Shift+3 for the same action. | Report: Terminology, focus |
+| Cutaway | The button applies the Peel only preset. It cuts a window through the objects that block the view of the selection. | A round hole opens in the walls and the roof in front of the selected item. The rest of the building stays solid. | Select an object. Click the button. Click it again to return to the normal view. Press Shift+4 for the same action. | Report: Appendix F, View modes |
+
 ## Penetrations
 
 | Setting | Intent | Impact | Use | Ref |
@@ -666,7 +680,7 @@ Impact follows the same sentence rules and adds these:
 | smooth moves | The switch eases jumps to a stored view, such as front or top. When it is off, the camera jumps at once. | On: the picture glides when you jump to a new angle. Off: it jumps at once. | Turn the switch off for instant views. | Report: Appendix I, Presets and keyboard |
 | Shortcuts (?) | The button opens the list of all shortcuts. Press the ? key for the same action. | Click and a list of every key and its job appears. | Click the button. Type in the search box to find a key. | Report: Appendix I, Presets and keyboard |
 | Edit shortcuts | The button opens the editor for shortcuts. The editor sets, adds and removes keys for each action. | Click and you can give any action a new key. Red cells warn you of a clash. | Click the button. Click a key cell. Press the new keys. | Report: Appendix I, Presets and keyboard |
-| Command palette (Ctrl+K) | The button opens the command palette. The palette searches actions and settings by name. | Click and a search box lets you find any action or setting by typing a few letters. | Click the button or press Ctrl+K. Type a name. Press Enter. | Report: Appendix I, Presets and keyboard |
+| Command palette (Ctrl+Shift+K) | The button opens the command palette. The palette searches actions and settings by name. | Click and a search box lets you find any action or setting by typing a few letters. | Click the button or press Ctrl+Shift+K. Type a name. Press Enter. | Report: Appendix I, Presets and keyboard |
 | Reset shortcuts | The button restores the default shortcuts. | Click and all your own key changes go away. The standard keys return. | Click the button if a changed key causes trouble. | Report: Appendix I, Presets and keyboard |
 
 ## Imaging
@@ -829,7 +843,7 @@ Impact follows the same sentence rules and adds these:
 
 | Setting | Intent | Impact | Use | Ref |
 | --- | --- | --- | --- | --- |
-| *Folder: Command palette* | The palette is a search list of every action and setting. Press Ctrl+K to open it. | This search box finds any action or setting by name, so you do not need to remember keys. | Type a few letters. Press Enter to run the chosen row. Press Escape to close the list. | Report: Appendix I, Presets and keyboard |
+| *Folder: Command palette* | The palette is a search list of every action and setting. Press Ctrl+Shift+K to open it. | This search box finds any action or setting by name, so you do not need to remember keys. | Type a few letters. Press Enter to run the chosen row. Press Escape to close the list. | Report: Appendix I, Presets and keyboard |
 | Search box | The text box filters the list of actions and settings while you type. | Type a few letters and the list shrinks to the actions that match. | Type a word. Press the Down key to choose a row. Press Enter to run it. | Report: Appendix I, Presets and keyboard |
 | Result row | The row names an action or setting with its path and keys. A click runs the action. | Click an item and the viewer does the job at once, with no hunt through panels. | Click the row or press Enter on it. | Report: Appendix I, Presets and keyboard |
 
@@ -1064,6 +1078,14 @@ Impact follows the same sentence rules and adds these:
 | Field AR on site (heading) | The heading names the field section. The section lines up the model with the real building on site. | This part puts the plan over the real rooms, so you see what lies behind walls and ceilings. | Pick model points. Click Enter field AR on site. Follow the steps on the screen. | Report: Appendix M, WebXR |
 | iPhone and iPad (heading) | The heading names the section for devices without WebXR augmented reality. | Apple handsets and tablets cannot run the live overlay, so this part gives them a model to place instead. | Click Open in AR Quick Look on the device. Click Share link as QR to open this view elsewhere. | Report: Appendix M, WebXR |
 | Status line | The text line shows the state of the session and the looks that the session leaves out. | A short text tells you if the headset works and what is missing from the picture there. | Read the line if the picture in the headset looks plainer than on the screen. | Report: Appendix M, WebXR |
+
+## Search bar
+
+| Setting | Intent | Impact | Use | Ref |
+| --- | --- | --- | --- | --- |
+| Search box | The text box finds objects, commands, presets, saved views, sets and settings. It also runs a WHERE query. | Type a few letters and a ranked list opens below. A query shows how many objects match. | Press the slash key or Ctrl+K. Type a name, a class or a setting. Start with where to run a query. Press Enter to act. | Report: Appendix I, Presets and keyboard |
+| Search button | The button opens the text box on a small screen. The box then fills the width. | Tap it and a field for typing opens across the full top edge. | Tap the magnifier icon. Type a word. | Report: Appendix I, Presets and keyboard |
+| Result row | The row names a match. A click acts on it, and Shift adds an object to the selection. | Click an item and the viewer does the job at once. An object under the pointer lights up in the picture. | Click the row or press Enter on it. Hold Shift to add an object to the selection. | Report: Appendix I, Presets and keyboard |
 
 ## Status ba
 

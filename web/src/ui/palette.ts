@@ -1,4 +1,4 @@
-// Command palette (Ctrl+K): fuzzy search over every registered action plus every button and checkbox of the lil-gui
+// Command palette (Ctrl+Shift+K): fuzzy search over every registered action plus every button and checkbox of the lil-gui
 // panel. The ranking (fuzzyScore, rankItems) is pure and tested; PaletteView is the DOM.
 
 import type { ViewerApp } from '../app';
@@ -7,76 +7,11 @@ import { ensureKeyStyles, renderChords } from './keymapView';
 import type { Keymap, Overlay } from '../input/keymap';
 import { getActions, runAction } from '../input/actions';
 
-export interface FuzzyMatch {
-  score: number;
-  /** Indices of the matched characters in the text. */
-  positions: number[];
-}
+import { fuzzyScore } from '../search/fuzzy';
 
-const isWordStart = (t: string, i: number): boolean => {
-  if (i === 0) return true;
-  const p = t[i - 1]!;
-  const c = t[i]!;
-  return !/[a-z0-9]/i.test(p) || (p === p.toLowerCase() && c !== c.toLowerCase());
-};
-
-/** Subsequence match of `query` in `text` (case-insensitive). Higher is better; null when it does not match. */
-export function fuzzyScore(query: string, text: string): FuzzyMatch | null {
-  const q = query.toLowerCase().replace(/\s+/g, '');
-  const t = text.toLowerCase();
-  if (q.length === 0) return { score: 0, positions: [] };
-  if (q.length > t.length) return null;
-  const n = q.length;
-  const m = t.length;
-  const NEG = -1e9;
-  // best[i][j]: best score matching q[0..i] with q[i] placed at text index j.
-  const best: number[][] = Array.from({ length: n }, () => new Array<number>(m).fill(NEG));
-  const from: number[][] = Array.from({ length: n }, () => new Array<number>(m).fill(-1));
-  for (let i = 0; i < n; i++) {
-    for (let j = i; j < m; j++) {
-      if (t[j] !== q[i]) continue;
-      const here = 1 + (isWordStart(text, j) ? 10 : 0) + (j === 0 ? 6 : 0);
-      if (i === 0) {
-        best[i]![j] = here - Math.min(j, 6) * 0.5;
-        continue;
-      }
-      let bs = NEG;
-      let bk = -1;
-      for (let k = i - 1; k < j; k++) {
-        const prev = best[i - 1]![k]!;
-        if (prev <= NEG / 2) continue;
-        const s = prev + (k === j - 1 ? 8 : -Math.min((j - k - 1) * 3, 15));
-        if (s > bs) {
-          bs = s;
-          bk = k;
-        }
-      }
-      if (bk >= 0) {
-        best[i]![j] = bs + here;
-        from[i]![j] = bk;
-      }
-    }
-  }
-  let bj = -1;
-  let bs = NEG;
-  for (let j = 0; j < m; j++) {
-    if (best[n - 1]![j]! > bs) {
-      bs = best[n - 1]![j]!;
-      bj = j;
-    }
-  }
-  if (bj < 0) return null;
-  const positions: number[] = [];
-  for (let i = n - 1, j = bj; i >= 0; i--) {
-    positions.unshift(j);
-    j = from[i]![j]!;
-  }
-  let score = bs - m * 0.1;
-  if (t === q) score += 60;
-  else if (t.startsWith(q)) score += 30;
-  else if (t.includes(q)) score += 15;
-  return { score, positions };
-}
+// fuzzyScore lives in src/search/fuzzy.ts so the search bar shares it; re-exported for the callers and the tests.
+export { fuzzyScore };
+export type { FuzzyMatch } from '../search/fuzzy';
 
 export interface PaletteItem {
   /** Stable key for the recent list: 'a:<action id>' or 'g:<folder path>/<name>'. */

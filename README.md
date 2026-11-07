@@ -15,10 +15,11 @@ plugins (see "Development"), so every feature below is a separate module with it
   - X-ray ghosting with edges, per-camera-move sightlines, category tiers, pins and class styles; weighted blended
     order-independent transparency for the ghost pass.
   - View modes: behind-only cut and partial peelback ([view-modes.md](web/docs-features/view-modes.md)).
-  - Imaging looks: radiograph and MRI slice ([imaging.md](web/docs-features/imaging.md)).
+  - Imaging looks: radiograph and MRI slice, chosen with `Render style` at the top of the X-ray panel ([imaging.md](web/docs-features/imaging.md)).
   - Section box and section plane with caps ([section.md](web/docs-features/section.md)).
   - Cinematic effects: fly-to, flythrough, tour, sweep and reveal, exploded storeys, bloom, edge glow, depth grading.
-  - Presets: twelve named looks on keys `1` to `9` ([presets.md](web/docs-features/presets.md)).
+  - Presets: thirteen named looks on keys `1` to `9` ([presets.md](web/docs-features/presets.md)).
+  - Top bar: four visualisation modes (Ghost, Radiograph, Glow, Cutaway, keys `Shift+1` to `Shift+4`) that apply built-in presets, and a host for the search bar ([topbar.md](web/docs-features/topbar.md)).
 - **Coordination**
   - Measure (point to point, element to element) and clearance colouring ([measure.md](web/docs-features/measure.md)).
   - Penetration schedule: where MEP passes through hosts and whether there is an opening ([penetrations.md](web/docs-features/penetrations.md)).
@@ -36,6 +37,7 @@ plugins (see "Development"), so every feature below is a separate module with it
 - **Navigation**
   - Model tree, hover cards with properties ([hover-info.md](web/docs-features/hover-info.md)).
   - Keyboard navigation, cheat sheet, command palette, rebindable keys ([keyboard.md](web/docs-features/keyboard.md)).
+  - Search bar in the top bar: elements, commands, presets, views, sets, settings and WHERE queries ([search.md](web/docs-features/search.md)).
   - Action panel (toolbar) with a drawer per tool ([toolbar.md](web/docs-features/toolbar.md)), tooltips on every setting
     ([docs/SETTINGS.md](docs/SETTINGS.md)).
 
@@ -123,7 +125,7 @@ browser uses. Options (`--params`, `--preset`, `--select`, `--tools`, `--open-to
 ## The action panel and its tools
 
 A vertical icon strip at the left edge of the canvas (key `t` shows or hides it) with a drawer per tool. Only one drawer is open
-at a time; Escape closes it. Every tool also has a folder in the parameter panel (top right), palette commands (Ctrl+K) and a
+at a time; Escape closes it. Every tool also has a folder in the parameter panel (top right), palette commands (Ctrl+Shift+K), search bar entries (`/`) and a
 `window.__xray*` scripting object. [toolbar.md](web/docs-features/toolbar.md) describes the strip and the shared overlay.
 
 **Status bar.** A one-line, 22 px bar along the bottom of the canvas, between the strip and the parameter dock (it follows both
@@ -231,7 +233,7 @@ topic and Delete; rows reorder by dragging and a grid toggle shows the thumbnail
 ## Keyboard
 
 The common bindings (all rebindable; full list in [keyboard.md](web/docs-features/keyboard.md)). Keys are ignored while a text
-field has focus. **`?` (or `F1`) opens the full cheat sheet; `Ctrl+K` opens the command palette**, which lists every action and
+field has focus. **`?` (or `F1`) opens the full cheat sheet; `Ctrl+Shift+K` opens the command palette and `/` or `Ctrl+K` focuses the search bar** ([search.md](web/docs-features/search.md)). The palette lists every action and
 every button of the parameter panel.
 
 | Input | Action |

@@ -116,7 +116,11 @@
         },
         "imaging": {},
         "section": {},
-        "clearance": {}
+        "clearance": {},
+        "cinematic": {
+          "bloom": false,
+          "edgeGlow": false
+        }
       },
       "frame": "selection"
     },
@@ -163,7 +167,11 @@
           "palette": "classic"
         },
         "section": {},
-        "clearance": {}
+        "clearance": {},
+        "cinematic": {
+          "bloom": false,
+          "edgeGlow": false
+        }
       }
     },
     {
@@ -275,7 +283,33 @@
         "viewModes": {},
         "imaging": {},
         "section": {},
-        "clearance": {}
+        "clearance": {},
+        "cinematic": {
+          "bloom": false,
+          "edgeGlow": false
+        }
+      }
+    },
+    {
+      "id": "focus-glow",
+      "name": "Focus glow",
+      "description": "Makes the selection glow with a soft halo and a bright outline, while the structure around it stays ghosted.",
+      "group": "Presentation",
+      "base": "defaults",
+      "params": {
+        "schema": "xray-params/1",
+        "xray": true,
+        "sightlines": {},
+        "farMode": "opaque",
+        "viewModes": {},
+        "imaging": {},
+        "section": {},
+        "clearance": {},
+        "cinematic": {
+          "bloom": true,
+          "edgeGlow": true,
+          "glowScope": "focus"
+        }
       }
     }
   ]

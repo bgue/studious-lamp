@@ -180,9 +180,9 @@ try {
   check('a click outside closes the cheat sheet', (await page.locator('.kx-sheet').count()) === 0);
 
   // Command palette.
-  await page.keyboard.press('Control+k');
+  await page.keyboard.press('Control+Shift+k');
   await page.waitForTimeout(300);
-  check('Ctrl+K opens the palette', (await page.locator('.kx-palette').count()) === 1);
+  check('Ctrl+Shift+K opens the palette', (await page.locator('.kx-palette').count()) === 1);
   await page.keyboard.type('explode');
   await page.waitForTimeout(300);
   const first = await page.locator('.kx-palette .kx-item').first().innerText();
@@ -211,15 +211,15 @@ try {
   const c2 = await cls();
   check('[ and ] toggle back', c2.sb === c0.sb && c2.dk === c0.dk);
 
-  // Typing in the sidebar filter: '/' focuses it, "beam" triggers nothing.
+  // Typing in the sidebar filter: Alt+F focuses it ('/' now belongs to the search bar), "beam" triggers nothing.
   await page.keyboard.press('Escape'); // clears the selection
   await page.evaluate(() => { window.__xray.app.selectIds([0]); });
   await settle();
   const before = await page.evaluate(() => ({ xray: window.__xray.app.settings.xray, sel: window.__xray.app.selection.length, hides: window.__xray.app.settings.overrides.userHides.size }));
   const poseBefore = await pose();
-  await page.keyboard.press('/');
+  await page.keyboard.press('Alt+f');
   const focused = await page.evaluate(() => document.activeElement && document.activeElement.closest('.sb-filter') !== null);
-  check('/ focuses the sidebar filter', focused === true);
+  check('Alt+F focuses the sidebar filter', focused === true);
   await page.keyboard.type('beam wasd h x f [ ]', { delay: 30 });
   await page.waitForTimeout(500);
   const val = await page.evaluate(() => document.querySelector('.sb-filter input').value);
@@ -233,7 +233,7 @@ try {
   check('Escape clears then blurs the filter', blurred);
 
   // lil-gui number fields still take typing.
-  const numInput = page.locator('.lil-controller.lil-number input').first();
+  const numInput = page.locator('.lil-controller.lil-number input:visible').first();
   await numInput.click();
   const xr = await page.evaluate('window.__xray.app.settings.xray');
   await page.keyboard.type('x');
@@ -254,7 +254,7 @@ try {
 
   // Keyboard folder in the panel.
   const names = await page.evaluate(() => [...document.querySelectorAll('.lil-controller .lil-name')].map((n) => n.textContent.trim()));
-  const want = ['keyboard navigation', 'orbit speed (deg/s)', 'pan speed', 'move speed', 'invert vertical', 'smooth moves', 'Shortcuts (?)', 'Edit shortcuts', 'Command palette (Ctrl+K)', 'Reset shortcuts'];
+  const want = ['keyboard navigation', 'orbit speed (deg/s)', 'pan speed', 'move speed', 'invert vertical', 'smooth moves', 'Shortcuts (?)', 'Edit shortcuts', 'Command palette (Ctrl+Shift+K)', 'Reset shortcuts'];
   check('Keyboard folder has the specified controls', want.every((w) => names.includes(w)), want.filter((w) => !names.includes(w)).join(', '));
   const conflicts = await page.evaluate(() => window.__keymap.conflicts());
   console.log('conflicts:', JSON.stringify(conflicts));

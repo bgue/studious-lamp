@@ -1,23 +1,26 @@
 # Presets
 
-A preset is a named look of the viewer: a partial parameter document (`xray-params/1`, the same keys as the JSON export) plus an optional list of actions. Applying one never changes the model or the selection, and it moves the camera only when the preset carries a `camera` or the flag `frame: "selection"` (see below). Keys `1` to `9` apply the first nine presets; the action panel has a `Presets` tool (order 5) and the parameter panel has a `Presets` folder.
+A preset is a named look of the viewer: a partial parameter document (`xray-params/1`, the same keys as the JSON export) plus an optional list of actions. Applying one never changes the model or the selection, and it moves the camera only when the preset carries a `camera` or the flag `frame: "selection"` (see below). Keys `1` to `9` apply the first nine presets, and the four modes of the top bar ([topbar.md](topbar.md)) apply `coordination`, `radiograph`, `focus-glow` and `peel-only`; the action panel has a `Presets` tool (order 5) and the parameter panel has a `Presets` folder.
 
 ## The built-in presets
 
 | Key | id | Group | What it sets |
 | --- | --- | --- | --- |
-| 1 | `coordination` | Review | The factory x-ray view: x-ray on, sightlines, far mode `opaque` back to their defaults, view modes, imaging, section and clearance off, cinematic bloom, edge glow and auto orbit off. |
+| 1 | `coordination` | Review | The Ghost mode of the top bar. The factory x-ray view: x-ray on, sightlines, far mode `opaque` back to their defaults, view modes, imaging, section and clearance off, cinematic bloom, edge glow and auto orbit off. |
 | 2 | `hide-blockers` | Review | `sightlines`: `alphaMin 0`, `alphaMax 1`, `gamma 0.3`, `occluderScope all`, `farWeight 1`, `layerWeighting budget`, `layerBudget 6`. What blocks the focus disappears, everything else stays solid. |
 | 3 | `behind-only` | Cutaway | `viewModes.behind`: enabled, `frontTreatment 'cut + cap'`; frames the selection. |
 | 4 | `peelback` | Cutaway | `viewModes.peel`: enabled, `outside 'x-ray'`; frames the selection. |
-| 5 | `peel-only` | Cutaway | `viewModes.peel`: enabled, `outside 'solid'`; `sightlines.alphaMax 1`; frames the selection. |
+| 5 | `peel-only` | Cutaway | `viewModes.peel`: enabled, `outside 'solid'`; `sightlines.alphaMax 1`; `cinematic` `bloom` and `edgeGlow` off; frames the selection. The Cutaway mode of the top bar. |
 | 6 | `stacked-floors` | Review | `sightlines`: `layerWeighting front`, `layerFalloff 0.3`; `cinematic.grade`: enabled, `strength 0.85`. |
-| 7 | `radiograph` | Imaging | `imaging`: `style radiograph`, `palette classic`. |
+| 7 | `radiograph` | Imaging | `imaging`: `style radiograph`, `palette classic`; `cinematic` `bloom` and `edgeGlow` off. The Radiograph mode of the top bar. |
 | 8 | `mri-scan` | Imaging | `imaging`: `style mri`, `mri.scan true`. |
 | 9 | `section-focus` | Cutaway | `section`: `box.enabled`, `box.fit selection`, `caps true`; action `section.fitSelection`; frames the selection. |
 | - | `presentation` | Presentation | `cinematic`: `dressing`, `bloom`, `flyTo`, `reveal` on, `sweep` enabled (`mode both`). |
 | - | `clearance-review` | Review | `clearance`: enabled with the default bands (`tight 0.05`, `max 0.5`). |
-| - | `plain` | Basic | `xray false`. |
+| - | `plain` | Basic | `xray false`; `cinematic` `bloom` and `edgeGlow` off (so leaving the Glow mode gives a plain view). Clicking the active mode of the top bar applies it. |
+| - | `focus-glow` | Presentation | `cinematic`: `bloom` on, `edgeGlow` on, `glowScope focus`. The selection gets a soft halo and a bright outline; the structure around it stays ghosted. The Glow mode of the top bar. |
+
+`focus-glow` was added for the top bar (nothing else in the set glowed the selection); it has no key, so keys `1` to `9` did not move. The other three modes reuse `coordination`, `radiograph` and `peel-only`. Because Glow adds bloom and edge glow as a look of its own, `radiograph` and `peel-only` now also switch `cinematic.bloom` and `cinematic.edgeGlow` off (as `coordination` did already), so changing from Glow to another mode does not leave the glow on.
 
 All built-ins have `base: "defaults"`, and each names the same set of mode sections (`viewModes`, `imaging`, `section`, `clearance`, empty when unused), so applying one switches the previous one's mode off instead of stacking on it.
 
@@ -58,13 +61,13 @@ The file ships the built-ins as data (it must equal `src/presets/builtin.ts`; `t
 
 ## The active mark
 
-The last applied preset is marked `active` on its card and named in `Preset status`. A hash of the collected parameters (without camera, selection sets and playback progress; `imaging.mri.position` is ignored so a running MRI scan does not clear it) is compared once a second; when any setting differs, the mark is cleared. Changes in the first second after applying (settling animations, `section.fitSelection`) are taken into the baseline.
+The last applied preset is marked `active` on its card and named in `Preset status`. A hash of the collected parameters (without camera, selection sets, playback progress and the `topBar` section, so showing or hiding the top bar keeps the mark; `imaging.mri.position` is ignored so a running MRI scan does not clear it) is compared once a second; when any setting differs, the mark is cleared. Changes in the first second after applying (settling animations, `section.fitSelection`) are taken into the baseline.
 
 ## Parameter panel, keys, scripting
 
 - Folder `Presets`: `preset` (dropdown), `Apply preset`, `Save current as preset`, `Export presets`, `Import presets`, `Preset status` (read-only).
 - Actions `preset.1` to `preset.9` (label `Preset: <name>`, group `Presets`, keys `1` to `9`; they replace the placeholders of the keymap) and `presets.open` (no key; opens the drawer).
-- `window.__xrayPresets`: `list()` (id, name, description, group, key, builtIn, base, active), `apply(idOrName)` (id, name, or key number; throws for an unknown preset; returns `{ id, name, applied, skipped, actions, partial }`), `save(name, sections?, description?)`, `remove(id)`, `active()`, plus `lastResult()`, `get(id)`, `exportJson(all?)`, `importJson(text)` and `shareUrl(id)`.
+- `window.__xrayPresets`: `list()` (id, name, description, group, key, builtIn, base, active), `markActive(id, note?)` (marks a preset active without applying it; used by saved views and by the top bar for the factory look), `apply(idOrName)` (id, name, or key number; throws for an unknown preset; returns `{ id, name, applied, skipped, actions, partial }`), `save(name, sections?, description?)`, `remove(id)`, `active()`, plus `lastResult()`, `get(id)`, `exportJson(all?)`, `importJson(text)` and `shareUrl(id)`.
 - The packager: `xray-pack --preset <name>` sets `window.__xrayBoot.preset`, which the boot plugin applies through `__xrayPresets.apply` before the params document.
 
 ## Developer notes

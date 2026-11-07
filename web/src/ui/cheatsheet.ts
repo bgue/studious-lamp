@@ -42,7 +42,7 @@ export class CheatSheet implements Overlay {
     const close = el('button', 'kx-btn', { type: 'button', 'aria-label': 'Close' }, 'Close');
     head.append(el('span', 'kx-title', {}, 'Keyboard shortcuts'), this.search, edit, close);
     this.body = el('div', 'kx-body');
-    panel.append(head, this.body, el('div', 'kx-foot', {}, 'Esc or a click outside closes this list. Ctrl+K opens the command palette. Hold Ctrl for slow camera moves.'));
+    panel.append(head, this.body, el('div', 'kx-foot', {}, 'Esc or a click outside closes this list. Ctrl+K opens the search bar. Ctrl+Shift+K opens the command palette. Hold Ctrl for slow camera moves.'));
     back.append(panel);
     document.body.appendChild(back);
     this.root = back;

@@ -48,7 +48,7 @@ export interface PresetsApi {
    * Mark a preset as the active one without applying it: a saved view that was taken with that preset active has
    * just put its settings back (src/plugins/views.ts). False for an unknown id. A later setting change clears the mark.
    */
-  markActive(id: string): boolean;
+  markActive(id: string, note?: string): boolean;
   lastResult(): ApplyResult | null;
   get(id: string): Preset | undefined;
   exportJson(all?: boolean): string;
@@ -240,14 +240,14 @@ export const presetsPlugin: AppPlugin = {
       },
       remove: (id) => st.remove(id),
       active: () => activeId,
-      markActive(id) {
+      markActive(id, note) {
         const p = st.get(id);
         if (!p) return false;
         snapshotFactory(app);
         activeId = p.id;
         baselinePending = true;
         guiState.preset = p.name;
-        guiState.status = `${p.name}: restored with a saved view`;
+        guiState.status = `${p.name}: ${note ?? 'restored with a saved view'}`;
         notifyAll();
         return true;
       },

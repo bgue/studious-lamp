@@ -46,11 +46,24 @@ A slab through the focus bounds at `position`, `thickness` wide.
 - Outside the slab: faint tissue, the radiograph accumulation at 30 % (the focus at 45 %), so the context stays readable.
 - `scan`: the slab edges are lit with a thin bright band (on the faces and caps near the slab boundary).
 
+## In the X-ray panel (render style)
+
+The X-ray panel (the parameter dock) has a `Render style` list (`Standard`, `Radiograph`, `MRI`) right under `X-ray (X)` and `Tiers mode`, and the `Imaging` folder directly below it. The list, the `style` control of the folder, the drawer, key `m`, presets, saved views and the share link all write the same `imaging.style`, and every one of them refreshes the others.
+
+What the user reported ("the radiographic preset does not seem integrated into our X-ray configurator") came to four findings:
+
+1. **The controls were out of sight.** Applying the `radiograph` preset (or a saved view, or `m`) set the imaging values correctly, but the `Imaging` folder was closed and sat below the other folders. The X-ray panel itself showed nothing that said a radiograph was on. Now `Render style` shows the style at the top, and the `Imaging` folder opens when a style other than `standard` is chosen and closes when it is `standard` again (a manual open or close in between is respected until the next change of style).
+2. **Most X-ray controls do nothing in an imaging frame.** The imaging pass draws every visible element by material density and rejects only hidden elements (see "Radiograph", step 1). So `Tiers mode`, the whole `Sightlines (Alg 2)` folder (alpha range, gamma, weighting, budget), `Overrides (Alg 7)` (the pin floor), the ghost settings of `Display` (edge alpha, ghost desaturate, focus in front, debug colours) and the alpha, floor and colour of the per-class styles have no effect, and moving them looked like a broken slider. They are now marked while a style other than standard is on: `Tiers mode`, `Sightlines` and `Overrides` are dimmed with an amber label `not used in radiograph` (or `mri`); in `Display` the four ghost controls are dimmed and the title says `only far mode is used`; `Class styles` says `only hidden is used`. A note under `Render style` says: "Radiograph draws every visible element by material density, the focus as bright bone, and no ghosts. Dimmed settings do not change it. Hide, section and view modes still apply." What does apply: hide and isolate, class `hidden`, far mode `hidden` (far elements get the hidden flag), the section box and plane, behind-only and peelback, the focus set (selection and connected run) with `Classification (Alg 1)` as far as it decides the focus, and the cinematic post effects.
+3. **X-ray off did not switch the radiograph off.** The imaging frame did not look at the `X-ray (X)` switch, so with a radiograph on the key `x` and the checkbox did nothing. Now an imaging style is drawn only while X-ray is on: with X-ray off the normal view shows, the style is kept, the note says "X-ray is off, so the normal view shows", the status line of the drawer says `paused: X-ray is off (press X)`, and switching X-ray on brings the radiograph back. In the other direction, choosing a style by hand (key `m`, the `Render style` list, the `style` lists, the tool button) switches X-ray on, so the choice always shows something. Presets, params and `__xrayImaging.set` do not do that: they set what they say (`radiograph` sets `xray: true` itself).
+4. **Switching away.** Checked, no change needed: `style: standard` calls `setImaging(null)`, which frees the imaging targets and returns to the normal renderer pixel for pixel (`bench/smoke-imaging.mjs`). The panel now follows it: folder closed, dimming and note removed. The top bar returns to the normal view with `plain` (X-ray off, imaging reset).
+
+The top bar's Radiograph mode ([topbar.md](topbar.md)) is the `radiograph` preset; clicking it again applies `plain`.
+
 ## Scripting and params
 
 - `window.__xrayImaging = { config, set(partial), status() }`. `set` takes any subset of the settings and returns the names it could not use.
 - Params section `imaging` (`{ style, palette, exposure, autoExposure, contrast, boneGlow, tissueEdges, mri: { axis, thickness, position, scan, scanSpeed } }`, shared in the URL).
-- Action: `imaging.cycle` (`m`).
+- Action: `imaging.cycle` (`m`). With X-ray off it switches X-ray on with the next style.
 
 ## Cost (when on)
 

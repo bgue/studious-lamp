@@ -14,7 +14,7 @@ const ALLOWED_ABSENT = new Set(['viewModes', 'imaging', 'section', 'clearance', 
 const IMAGING_KEYS = ['style', 'palette', 'exposure', 'contrast', 'boneGlow', 'tissueEdges', 'mri'];
 const MRI_KEYS = ['axis', 'thickness', 'position', 'scan', 'scanSpeed'];
 const SECTION_KEYS = ['box', 'plane', 'caps', 'capColor'];
-const CINEMATIC_KEYS = ['flyTo', 'reveal', 'dressing', 'bloom', 'edgeGlow', 'autoOrbit', 'sweep', 'grade'];
+const CINEMATIC_KEYS = ['flyTo', 'reveal', 'dressing', 'bloom', 'edgeGlow', 'autoOrbit', 'sweep', 'grade', 'glowScope'];
 
 const isObj = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v);
 
@@ -36,7 +36,7 @@ describe('built-in presets', () => {
 
   it('map the first nine to the keys 1 to 9 in the documented order', () => {
     expect(KEYED_IDS).toEqual(['coordination', 'hide-blockers', 'behind-only', 'peelback', 'peel-only', 'stacked-floors', 'radiograph', 'mri-scan', 'section-focus']);
-    expect(BUILTIN_PRESETS.map((p) => p.id).slice(9)).toEqual(['presentation', 'clearance-review', 'plain']);
+    expect(BUILTIN_PRESETS.map((p) => p.id).slice(9)).toEqual(['presentation', 'clearance-review', 'plain', 'focus-glow']);
   });
 
   it('only use keys that exist in a collected params document, except the allow-listed plugin sections', () => {
@@ -106,6 +106,7 @@ describe('built-in presets', () => {
     expect(by('section-focus').actions).toEqual(['section.fitSelection']);
     expect(by('presentation').params['cinematic']).toMatchObject({ dressing: true, bloom: true, flyTo: true });
     expect(by('clearance-review').params['clearance']).toMatchObject({ enabled: true });
+    expect(by('focus-glow').params['cinematic']).toEqual({ bloom: true, edgeGlow: true, glowScope: 'focus' });
     expect(by('plain').params['xray']).toBe(false);
     expect(by('coordination').base).toBe('defaults');
   });

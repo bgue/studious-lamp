@@ -11,7 +11,7 @@ same registry, so a plugin that registers an action gets a key, a cheat sheet ro
 | `src/input/actions.ts` | Registry: `registerAction` (replaces by id), `getActions`, `runAction`, `onActionsChanged`. Optional fields added for the keymap: `repeat`, `modifiers`, `description`; `hold(app, dt, mods)`. |
 | `src/input/keymap.ts` | Engine: chord parsing, matching, dispatch, hold actions, conflicts, overrides, export and import. No DOM at import. |
 | `src/input/navigation.ts` | Camera maths and the navigation and view actions, view history, storeys, Tab cycling. |
-| `src/input/commands.ts` | Selection and visibility actions, `/` filter focus, `preset.1` to `preset.9` placeholders. |
+| `src/input/commands.ts` | Selection and visibility actions, tree filter focus (`Alt+f`), `preset.1` to `preset.9` placeholders. |
 | `src/plugins/keymap.ts` | Wires listeners, the `Keyboard` panel folder, the params section `keymap`. |
 | `src/ui/cheatsheet.ts`, `palette.ts`, `keymapView.ts` | Cheat sheet, command palette, shortcut editor, toast and stylesheet. |
 
@@ -78,11 +78,16 @@ same registry, so a plugin that registers an action gets a key, a cheat sheet ro
 | Unhide all (your hides only; pins stay) | `Alt+h` |
 | Hide everything not selected | `Shift+h` |
 | Toggle model tree / parameter panel | `[` / `]` |
-| Focus the tree filter | `/` |
+| Focus the tree filter | `Alt+f` (was `/`, now the search bar) |
+| Search bar: elements, commands, presets, views, sets, settings, WHERE queries ([search.md](search.md)) | `/`, `Ctrl+k`, `Meta+k` |
 | Cheat sheet | `?`, `F1` |
-| Command palette | `Ctrl+k`, `Meta+k` |
+| Command palette | `Ctrl+Shift+k`, `Meta+Shift+k` (was `Ctrl+k`, now the search bar) |
 | Presets 1 to 9 (placeholders until the presets plugin replaces them) | `code:Digit1` to `code:Digit9` |
+| Top bar modes: Ghost, Radiograph, Glow, Cutaway ([topbar.md](topbar.md)); pressing the active mode again returns to the normal view | `Shift+code:Digit1` to `Shift+code:Digit4` (`Shift+1` to `Shift+4`) |
+| Show or hide the top bar | `Shift+t` |
 | Save view; previous / next saved view ([saved-views.md](saved-views.md)) | `Ctrl+Shift+s`; `Shift+PageUp` / `Shift+PageDown` |
+
+The top bar keys avoid the digits (presets), `Alt+<digit>` (views) and the numpad: `Shift+1` to `Shift+4` match by physical key, so they work on layouts where Shift+digit types another symbol. They are actions `topbar.mode.ghost`, `topbar.mode.radiograph`, `topbar.mode.glow`, `topbar.mode.cutaway` and `topbar.toggle`, rebindable like any other.
 
 Other plugins register their own actions with their own keys (for example `b`, `Shift+b`, `p`, `Alt+=`, `Alt+-`, `i`);
 they show up in the cheat sheet under their group.
@@ -98,7 +103,7 @@ There is no renderer change, so depth precision and the far plane are adjusted b
 
 `keyboard navigation` (master switch for the Navigation and Views keys), `orbit speed (deg/s)`, `pan speed`,
 `move speed`, `invert vertical`, `smooth moves`, and the buttons `Shortcuts (?)`, `Edit shortcuts`,
-`Command palette (Ctrl+K)`, `Reset shortcuts`. Speeds scale with the model size (fly rate is 0.2 model diagonals per
+`Command palette (Ctrl+Shift+K)`, `Reset shortcuts`. Speeds scale with the model size (fly rate is 0.2 model diagonals per
 second times `move speed`; pan is 0.5 screen heights per second times `pan speed`). Settings persist per browser in
 `localStorage` `xray.keynav`.
 
@@ -112,7 +117,7 @@ the `keymap` section of the exported viewer parameters. When two actions share a
 
 ## Command palette
 
-`Ctrl+k` lists every action plus every button and checkbox of the parameter panel (folder path shown, key binding shown
+`Ctrl+Shift+k` lists every action plus every button and checkbox of the parameter panel (folder path shown, key binding shown
 for actions). Fuzzy ranking favours prefixes, word starts and consecutive letters; recently used entries come first
 (`localStorage` `xray.palette.recent`). Arrow keys choose, Enter runs, Escape closes.
 

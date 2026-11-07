@@ -61,7 +61,7 @@ const SCENES = [
 ];
 
 const KEYED = ['coordination', 'hide-blockers', 'behind-only', 'peelback', 'peel-only', 'stacked-floors', 'radiograph', 'mri-scan', 'section-focus'];
-const REST = ['presentation', 'clearance-review', 'plain'];
+const REST = ['presentation', 'clearance-review', 'plain', 'focus-glow'];
 
 let browser;
 let exitCode = 0;
@@ -137,7 +137,7 @@ try {
     check(`${sc.key}: Preset status is read-only`, !!gui?.statusDisabled);
 
     const list = await page.evaluate(() => window.__xrayPresets.list());
-    check(`${sc.key}: 12 built-in presets, keys 1-9 on the first nine`, list.filter((p) => p.builtIn).length === 12 && list.slice(0, 9).every((p, i) => p.key === String(i + 1)), list.map((p) => `${p.key ?? '-'}:${p.id}`).join(' '));
+    check(`${sc.key}: 13 built-in presets, keys 1-9 on the first nine`, list.filter((p) => p.builtIn).length === 13 && list.slice(0, 9).every((p, i) => p.key === String(i + 1)), list.map((p) => `${p.key ?? '-'}:${p.id}`).join(' '));
 
     const apply = async (id, byKey) => {
       if (byKey !== undefined) {
@@ -200,7 +200,7 @@ try {
       applyButtons: [...document.querySelectorAll('.xp-card .xt-btn')].filter((b) => b.textContent === 'Apply').length,
       keys: [...document.querySelectorAll('.xp-key')].map((e) => e.textContent).sort().join(''),
     }));
-    check(`${sc.key}: drawer shows 12 cards with keys 1-9 and Apply buttons`, drawer.cards === 12 && drawer.applyButtons === 12 && drawer.keys === '123456789', JSON.stringify(drawer));
+    check(`${sc.key}: drawer shows 13 cards with keys 1-9 and Apply buttons`, drawer.cards === 13 && drawer.applyButtons === 13 && drawer.keys === '123456789', JSON.stringify(drawer));
     await page.evaluate(() => window.__xrayPresets.apply('peelback'));
     await page.waitForTimeout(300);
     check(`${sc.key}: the applied card is marked active`, (await page.evaluate(() => document.querySelector('.xp-card.on')?.getAttribute('data-preset'))) === 'peelback');
