@@ -712,8 +712,11 @@ class TlApp(App[None]):
             return
         from tl_core.settings.layers import project_of_scope
 
+        from tl_tui.widgets.backlog_screen import BacklogScreen
+        from tl_tui.widgets.constraint_screen import ConstraintScreen
         from tl_tui.widgets.cwa_register import CwaRegisterScreen
         from tl_tui.widgets.cwp_register import CwpRegisterScreen
+        from tl_tui.widgets.iwp_register import IwpRegisterScreen
         from tl_tui.widgets.package_log import PackageLogScreen
         from tl_tui.widgets.path_screen import PathScreen
         from tl_tui.widgets.wbs_screen import WbsScreen
@@ -728,6 +731,9 @@ class TlApp(App[None]):
             "cwas": CwaRegisterScreen,
             "path": PathScreen,
             "packages": PackageLogScreen,
+            "iwps": IwpRegisterScreen,
+            "constraints": ConstraintScreen,
+            "backlog": BacklogScreen,
         }
         self.push_screen(screens[which](self.client, project))
 
@@ -742,6 +748,18 @@ class TlApp(App[None]):
     def action_cwas(self) -> None:
         """Work areas: the CWA register of this project, in path order (palette only)."""
         self._push_awp("cwas")
+
+    def action_iwps(self) -> None:
+        """The IWP log of this project (palette only)."""
+        self._push_awp("iwps")
+
+    def action_constraints(self) -> None:
+        """The constraint log of this project (palette only)."""
+        self._push_awp("constraints")
+
+    def action_backlog(self) -> None:
+        """The backlog of this project, with its sizing view (palette only)."""
+        self._push_awp("backlog")
 
     def action_path(self) -> None:
         """The path of construction of this project, by version (palette only)."""
