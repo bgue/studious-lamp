@@ -15,7 +15,7 @@ from tl_mod_awp.commands import AWP_COMMANDS
 from tl_mod_awp.facts import iwp_facts
 
 MINE = {c.model.__name__: c for c in AWP_COMMANDS if "iwp" in c.access}
-ISO = "a" * 64, "b" * 64, ("ISO-1", "ISO-2")
+ISO = ("ISO-1", "ISO-2")
 EST = ("cur_awp_iwp", "estimated_hours")
 
 
