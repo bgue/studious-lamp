@@ -1,0 +1,51 @@
+# Advanced work packaging lists of the demo project P200 (North Refinery). The awp section loads them
+# before the path of construction: ``PathReason`` names why an area was moved in the path, ``Commodity``
+# is an editable starter list, ``ConstraintType`` is read by the constraints of the next increment.
+# ``Discipline`` comes from the company standards (data/standards.yaml), not from this file.
+standards: co.northrefinery.awp
+version: "1.0.0"
+title: North Refinery advanced work packaging standards
+description: "Commodity, path re-sequencing reason and constraint type code lists of the demo project P200."
+owner: "role:standards-steward"
+effective_from: "2026-01-01"
+
+code_lists:
+  Commodity:
+    label: Commodity
+    definition: "The kind of installed material a quantity of a construction work package counts."
+    value_list_policy: extensible
+    values:
+      - {code: piping, label: Piping}
+      - {code: structural-steel, label: Structural steel}
+      - {code: concrete, label: Concrete}
+      - {code: civil-earthworks, label: Civil and earthworks}
+      - {code: electrical, label: Electrical}
+      - {code: instrumentation, label: Instrumentation}
+      - {code: mechanical-equipment, label: Mechanical equipment}
+      - {code: insulation, label: Insulation}
+      - {code: painting, label: Painting}
+  PathReason:
+    label: Path re-sequencing reason
+    definition: "Why a construction work area was moved in the path of construction."
+    value_list_policy: extensible
+    values:
+      - {code: Access, label: Access}
+      - {code: Procurement, label: Procurement}
+      - {code: Engineering, label: Engineering}
+      - {code: Weather, label: Weather}
+      - {code: Crew, label: Crew}
+      - {code: Owner-request, label: Owner request}
+      - {code: Other, label: Other}
+  ConstraintType:
+    label: Constraint type
+    definition: "What holds back field work on a construction work package."
+    value_list_policy: extensible
+    values:
+      - {code: Engineering, label: Engineering}
+      - {code: Procurement, label: Procurement}
+      - {code: Materials, label: Materials}
+      - {code: Equipment, label: Equipment}
+      - {code: Permit, label: Permit}
+      - {code: Predecessor, label: Predecessor}
+      - {code: Access, label: Access}
+      - {code: Other, label: Other}
