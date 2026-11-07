@@ -3,9 +3,12 @@
     "data": {
       "changes": {},
       "detail": {
-        "by": "user:01J9Z6Q4W3X2Y1V0T9S8R7Q6P1",
+        "cleared_at": "2026-11-04T09:30:00Z",
+        "cleared_by": "user:ana",
+        "constraint_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P2",
         "reason": "Spools delivered",
-        "resolved_by": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P2"
+        "resolved_by": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P3",
+        "suppress": false
       },
       "links": [],
       "origin": {
@@ -31,8 +34,11 @@
     "type": "tl.core.Constraint.Cleared.v1"
   },
   "payload": {
-    "by": "user:01J9Z6Q4W3X2Y1V0T9S8R7Q6P1",
+    "cleared_at": "2026-11-04T09:30:00Z",
+    "cleared_by": "user:ana",
+    "constraint_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P2",
     "reason": "Spools delivered",
-    "resolved_by": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P2"
+    "resolved_by": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P3",
+    "suppress": false
   }
 }

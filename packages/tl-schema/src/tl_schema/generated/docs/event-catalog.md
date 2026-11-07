@@ -40,7 +40,8 @@ Every ledger event type that can reach a webhook subscriber, generated from the 
 | [`Commercial.Updated`](#commercialupdated) | `tl.core.Commercial.Updated.v1` | The domain fields of a Commercial item that is not yet issued changed. |
 | [`Constraint.Assigned`](#constraintassigned) | `tl.core.Constraint.Assigned.v1` | A constraint was assigned to an owner. |
 | [`Constraint.Cleared`](#constraintcleared) | `tl.core.Constraint.Cleared.v1` | A constraint was cleared. |
-| [`Constraint.Raised`](#constraintraised) | `tl.core.Constraint.Raised.v1` | A constraint was raised on an interim work package. |
+| [`Constraint.Raised`](#constraintraised) | `tl.core.Constraint.Raised.v1` | A constraint was raised on a record. |
+| [`Constraint.Withdrawn`](#constraintwithdrawn) | `tl.core.Constraint.Withdrawn.v1` | A constraint was withdrawn (raised in error or no longer applies). |
 | [`ContractClause.Defined`](#contractclausedefined) | `tl.core.ContractClause.Defined.v1` | A contract clause was entered. |
 | [`ContractClause.Retired`](#contractclauseretired) | `tl.core.ContractClause.Retired.v1` | A clause was retired; clocks that cited it keep their reference. |
 | [`Correspondence.ClearanceGranted`](#correspondenceclearancegranted) | `tl.core.Correspondence.ClearanceGranted.v1` | An account was named as able to read a privileged item (ADR-0016). |
@@ -2117,7 +2118,7 @@ A constraint was assigned to an owner.
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `need_by` | string or null | no | YYYY-MM-DD, or null. |
+| `constraint_id` | string | yes | The constraint record. |
 | `owner` | string | yes | Actor text `user:<name>`. |
 
 ### Sample delivered event
@@ -2127,7 +2128,7 @@ A constraint was assigned to an owner.
   "data": {
     "changes": {},
     "detail": {
-      "need_by": "2026-11-06",
+      "constraint_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P2",
       "owner": "user:ben"
     },
     "links": [],
@@ -2157,7 +2158,7 @@ A constraint was assigned to an owner.
 
 ## Constraint.Cleared
 
-A constraint was cleared.
+A constraint was cleared. `suppress` is true when a person cleared a check-raised constraint (R-P2-11).
 
 - CloudEvents type: `tl.core.Constraint.Cleared.v1`
 - Ledger payload class: `ConstraintClearedPayload`
@@ -2167,9 +2168,12 @@ A constraint was cleared.
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `by` | string | yes | The actor that cleared it. |
+| `cleared_at` | string | yes | World time it stopped holding things back (date or UTC timestamp text). |
+| `cleared_by` | string | yes | The actor that cleared it. |
+| `constraint_id` | string | yes | The constraint record. |
 | `reason` | string | yes | Why it was cleared. |
 | `resolved_by` | string or null | no | The record that resolved it, or null. |
+| `suppress` | boolean | yes | True when the check result is suppressed. |
 
 ### Sample delivered event
 
@@ -2178,9 +2182,12 @@ A constraint was cleared.
   "data": {
     "changes": {},
     "detail": {
-      "by": "user:01J9Z6Q4W3X2Y1V0T9S8R7Q6P1",
+      "cleared_at": "2026-11-04T09:30:00Z",
+      "cleared_by": "user:ana",
+      "constraint_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P2",
       "reason": "Spools delivered",
-      "resolved_by": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P2"
+      "resolved_by": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P3",
+      "suppress": false
     },
     "links": [],
     "origin": {
@@ -2209,7 +2216,7 @@ A constraint was cleared.
 
 ## Constraint.Raised
 
-A constraint was raised on an interim work package.
+A constraint was raised on a record. Carries the facts hash of a check raise (no column holds it).
 
 - CloudEvents type: `tl.core.Constraint.Raised.v1`
 - Ledger payload class: `ConstraintRaisedPayload`
@@ -2219,15 +2226,22 @@ A constraint was raised on an interim work package.
 
 | Field | Type | Required | Description |
 |---|---|---|---|
+| `category` | string | yes | Code of the code list `ConstraintCategory`. |
 | `check_name` | string or null | no | The check that raised it, or null. |
-| `constraint_type` | string | yes | Code of the code list `ConstraintType`. |
-| `description` | string or null | no | What holds the package back, or null. |
-| `iwp_id` | string | yes | The IWP held back. |
-| `need_by` | string or null | no | YYYY-MM-DD, or null. |
-| `owner` | string | yes | Actor text `user:<name>`. |
-| `raised_at` | string | yes | UTC timestamp text. |
+| `constraint_id` | string | yes | The constraint record. |
+| `description` | string or null | no | What holds the subject back, or null. |
+| `due_at` | string or null | no | World time it must be cleared by (date or UTC timestamp text), or null. |
+| `effective_at` | string or null | no | World time it began to hold things back (date or UTC timestamp text), or null. |
+| `facts_hash` | string or null | no | SHA-256 hex of the check facts, or null. |
+| `owner` | string or null | no | Actor text `user:<name>`, or null. |
+| `phase` | string | yes | The gated move, a lowercase code. |
+| `severity` | string | yes | blocking or advisory. |
 | `source` | string | yes | manual, check, rule, feed_hold or thread_hold. |
-| `suppress_hash` | string or null | no | SHA-256 hex of the suppressed check result, or null. |
+| `subject_id` | string | yes | The record held back. |
+| `target_id` | string or null | no | The target record when target_kind is record, or null. |
+| `target_kind` | string or null | no | record or reference, or null. |
+| `target_ref_text` | string or null | no | Text of a plain reference, or null. |
+| `target_ref_type` | string or null | no | Type of a plain reference, or null. |
 
 ### Sample delivered event
 
@@ -2236,13 +2250,18 @@ A constraint was raised on an interim work package.
   "data": {
     "changes": {},
     "detail": {
-      "constraint_type": "material",
+      "category": "materials",
+      "constraint_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P2",
       "description": "Spools not delivered",
-      "iwp_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P1",
-      "need_by": "2026-11-05",
+      "due_at": "2026-11-05",
       "owner": "user:ana",
-      "raised_at": "2026-11-02T08:00:00Z",
-      "source": "manual"
+      "phase": "ready",
+      "severity": "blocking",
+      "source": "manual",
+      "subject_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P1",
+      "target_kind": "reference",
+      "target_ref_text": "PO-1042",
+      "target_ref_type": "purchase_order"
     },
     "links": [],
     "origin": {
@@ -2266,6 +2285,56 @@ A constraint was raised on an interim work package.
   "tlseq": 48211933,
   "tlstreamversion": 7,
   "type": "tl.core.Constraint.Raised.v1"
+}
+```
+
+## Constraint.Withdrawn
+
+A constraint was withdrawn (raised in error or no longer applies).
+
+- CloudEvents type: `tl.core.Constraint.Withdrawn.v1`
+- Ledger payload class: `ConstraintWithdrawnPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `constraint_id` | string | yes | The constraint record. |
+| `reason` | string | yes | Why it was withdrawn. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "constraint_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P2",
+      "reason": "Raised on the wrong package"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Constraint.Withdrawn/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Constraint.Withdrawn.v1"
 }
 ```
 

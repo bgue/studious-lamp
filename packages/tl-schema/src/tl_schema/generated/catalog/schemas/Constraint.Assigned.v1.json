@@ -15,12 +15,9 @@
           "additionalProperties": true,
           "description": "Delta and full modes. The ledger event payload, described per event type in the catalog.",
           "properties": {
-            "need_by": {
-              "description": "YYYY-MM-DD, or null.",
-              "type": [
-                "string",
-                "null"
-              ]
+            "constraint_id": {
+              "description": "The constraint record.",
+              "type": "string"
             },
             "owner": {
               "description": "Actor text `user:<name>`.",
@@ -28,6 +25,7 @@
             }
           },
           "required": [
+            "constraint_id",
             "owner"
           ],
           "title": "ConstraintAssignedPayload",

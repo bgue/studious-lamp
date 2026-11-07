@@ -15,6 +15,22 @@
           "additionalProperties": true,
           "description": "Delta and full modes. The ledger event payload, described per event type in the catalog.",
           "properties": {
+            "category": {
+              "description": "Code of the code list `ConstraintCategory`.",
+              "enum": [
+                "materials",
+                "labour",
+                "scaffold",
+                "equipment",
+                "permit",
+                "engineering",
+                "rfi",
+                "predecessor",
+                "other"
+              ],
+              "title": "ConstraintCategory",
+              "type": "string"
+            },
             "check_name": {
               "description": "The check that raised it, or null.",
               "type": [
@@ -22,42 +38,84 @@
                 "null"
               ]
             },
-            "constraint_type": {
-              "description": "Code of the code list `ConstraintType`.",
+            "constraint_id": {
+              "description": "The constraint record.",
               "type": "string"
             },
             "description": {
-              "description": "What holds the package back, or null.",
+              "description": "What holds the subject back, or null.",
               "type": [
                 "string",
                 "null"
               ]
             },
-            "iwp_id": {
-              "description": "The IWP held back.",
-              "type": "string"
+            "due_at": {
+              "description": "World time it must be cleared by (date or UTC timestamp text), or null.",
+              "type": [
+                "string",
+                "null"
+              ]
             },
-            "need_by": {
-              "description": "YYYY-MM-DD, or null.",
+            "effective_at": {
+              "description": "World time it began to hold things back (date or UTC timestamp text), or null.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "facts_hash": {
+              "description": "SHA-256 hex of the check facts, or null.",
               "type": [
                 "string",
                 "null"
               ]
             },
             "owner": {
-              "description": "Actor text `user:<name>`.",
+              "description": "Actor text `user:<name>`, or null.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "phase": {
+              "description": "The gated move, a lowercase code.",
               "type": "string"
             },
-            "raised_at": {
-              "description": "UTC timestamp text.",
+            "severity": {
+              "description": "blocking or advisory.",
               "type": "string"
             },
             "source": {
               "description": "manual, check, rule, feed_hold or thread_hold.",
               "type": "string"
             },
-            "suppress_hash": {
-              "description": "SHA-256 hex of the suppressed check result, or null.",
+            "subject_id": {
+              "description": "The record held back.",
+              "type": "string"
+            },
+            "target_id": {
+              "description": "The target record when target_kind is record, or null.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "target_kind": {
+              "description": "record or reference, or null.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "target_ref_text": {
+              "description": "Text of a plain reference, or null.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "target_ref_type": {
+              "description": "Type of a plain reference, or null.",
               "type": [
                 "string",
                 "null"
@@ -65,11 +123,12 @@
             }
           },
           "required": [
-            "iwp_id",
-            "constraint_type",
-            "source",
-            "owner",
-            "raised_at"
+            "constraint_id",
+            "subject_id",
+            "phase",
+            "severity",
+            "category",
+            "source"
           ],
           "title": "ConstraintRaisedPayload",
           "type": "object"

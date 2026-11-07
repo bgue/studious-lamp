@@ -3,13 +3,18 @@
     "data": {
       "changes": {},
       "detail": {
-        "constraint_type": "material",
+        "category": "materials",
+        "constraint_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P2",
         "description": "Spools not delivered",
-        "iwp_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P1",
-        "need_by": "2026-11-05",
+        "due_at": "2026-11-05",
         "owner": "user:ana",
-        "raised_at": "2026-11-02T08:00:00Z",
-        "source": "manual"
+        "phase": "ready",
+        "severity": "blocking",
+        "source": "manual",
+        "subject_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P1",
+        "target_kind": "reference",
+        "target_ref_text": "PO-1042",
+        "target_ref_type": "purchase_order"
       },
       "links": [],
       "origin": {
@@ -35,12 +40,17 @@
     "type": "tl.core.Constraint.Raised.v1"
   },
   "payload": {
-    "constraint_type": "material",
+    "category": "materials",
+    "constraint_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P2",
     "description": "Spools not delivered",
-    "iwp_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P1",
-    "need_by": "2026-11-05",
+    "due_at": "2026-11-05",
     "owner": "user:ana",
-    "raised_at": "2026-11-02T08:00:00Z",
-    "source": "manual"
+    "phase": "ready",
+    "severity": "blocking",
+    "source": "manual",
+    "subject_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P1",
+    "target_kind": "reference",
+    "target_ref_text": "PO-1042",
+    "target_ref_type": "purchase_order"
   }
 }
