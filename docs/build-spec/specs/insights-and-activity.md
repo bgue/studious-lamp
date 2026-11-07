@@ -150,3 +150,10 @@ Activity follows), or waves 3 and 4. If the slice is at baseline + 9 points, Par
 | Q4 | Agent activity view (agent-first 3.6) and this tab: one read or two | Two; they share `cur_proposals` only |
 | Q5 | Readiness detail for a viewer who cannot read some blockers | Keep state and counts, drop hidden records, fixed text |
 The four policy questions (spend, restricted data, Ask transcripts, learning) are in the roadmap entry.
+
+## Plan check (2026-11-07)
+All twelve findings are accepted; the answers in ADR-0028 win over this spec. Part C is now the two tabs plus the
+telemetry stub: 2 S (A1 Activity read with its walking test; B1 Checks read with the telemetry table, `note_need` and its
+walking test) + 4 H (A2 lite; A3, B2 and the twin tests full). The log marker, `!` filter, panel line and
+`attention_counts` move to roadmap item 1. There is no `cur_proposal_subjects`. Screen-opened telemetry holds
+`record_type` only. Activity pages over `outbox_events`. Keys: `9` for Insights, `!` for the log filter, never `n` or `I`.

@@ -125,6 +125,18 @@ Not now: provider code, `cur_insights`, an index, the router (each is cheap late
 
 ## Stubs for the knowledge graph
 `source_ids` are record and event ids, so a graph can join an insight to its facts without parsing text.
-## Plan check
-To be run by the orchestrator. Test: a class lowered while an insight exists (hide at read); the carried viewer in jobs;
-whether `insight_dismissal` leaks a dismissal; telemetry `record_id` of a hidden record at read time.
+## Plan check (2026-11-07) and answers
+`4 PLANCHK docs/adr/0028 + specs/insights-and-activity.md`, planner tier, one pass. All twelve findings are accepted.
+Where an answer differs from the text above, the answer wins.
+- F1 HI: `IWP.ReadinessEvaluated` carries `detail` and `resolve_via`, and `awp.IWP` is not a scanned stream, so once the wave 2 readiness engine merges, hidden constraint and RFI keys would show in history, feed, webhooks and MCP. **Accepted and moved into wave 2:** the S4 piece adds `awp.IWP` to `SCANNED_STREAM_TYPES`, writes ids only in `resolve_via` and no record text in `detail`, with a twin test; the T04c1 read drops hidden ids (addendum on `p2/i2` @6392bac). Part C reuses that read.
+- F2 HI: an `event:` trigger has no requesting viewer, and a provider may read more than it cites. **Accepted:** `source_ids` is the full set of records the provider was given; background runs use the lowest viewer or one run per class; a test in roadmap item 3.
+- F3 HI: `n` and `I` are global app keys. **Accepted:** the log filter uses `!`; Insights opens from the panel line, the palette and record key `9`; both go in the keymap test. The module is `record_activity_text.py` (schedule already has an activity screen).
+- F4 MD: **Accepted:** part C is the two tabs and the telemetry stub. The log marker, the filter, the panel line and `attention_counts` move to roadmap item 1.
+- F5 MD: **Accepted:** no `cur_proposal_subjects`. Accepted proposals come from `cur_proposals.result_stream_id`; pending and rejected ones from a scope-bounded id match on the stored command, then `filter_events`. No new projection, no rebuild of existing databases.
+- F6 MD: **Accepted:** Activity pages by key over `outbox_events` (indexed `subject_id`) plus `cur_links` for the far end, filters before the limit and refills, caps link and related rows per page; the statement count is in A1's acceptance.
+- F7 MD: a subtab-opened `unmet` row with `record_id`, role and time is a read log, which the owner ruled out. **Accepted:** screen-opened rows hold `record_type` only, one per session, type and subtab; `record_id` only for an explicit request; asked as owner question I-Q5. The `note_need` route is refused to agents and rate-limited; the write uses a nested transaction so it never raises on Postgres; `recorded_at` is indexed for the prune.
+- F8 MD: **Accepted:** the telemetry table and `note_need` fold into the B1 piece under one APPROVALS line; the walking tests go inside A1 and B1. Part C is 2 S + 4 H.
+- F9 MD: **Accepted:** A1 and B1 run in parallel with one workflow, before or after the ADR-0025 slice, not beside it; A3 owns `record_view.py`; part C yields its slots once wave 3 answers land; A3 and B2 merge outside the release freeze.
+- F10 MD: a plug-in declares its own cost and class. **Accepted:** a settings allow-list per provider name and version, default deny; owner approval for `paid` or a raised class; the harness proves no network for `free` and `local`. The carried viewer stores the actor and resolves it at run time with `viewer_for_actor`, which also catches a clearance lowered after queueing.
+- F11 MD: **Accepted:** owner 9 S + 20 H covered items 2 to 11; compared like for like the writer had 12 S + 27 H. Revised: item 11 is 2 S + 3 H (inbox as a feed and review-queue filter), item 7 is 1 S + 3 H (duplicates and missing links first), item 6 is 1 S + 2 H (vectors in a generated text table, ranked after the viewer filter, no adapter vector store). Deferred total about 21 points.
+- F12 MD: **Accepted:** Sec rows for part C: the Activity related-hop filter, the Checks `resolve_via` and detail filter, the `note_need` route; range `<trunk at wave 2 close>..<part C head>`. The owner approves spend and the carried viewer (§25.5).
