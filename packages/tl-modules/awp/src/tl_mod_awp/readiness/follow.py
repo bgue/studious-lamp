@@ -84,7 +84,7 @@ class Follower:
         return None if row is None else int(row.last_seq)
 
     def _write(self, conn: Connection, seq: int) -> None:
-        self._seq = seq
+        """Store the cursor row; the in-memory position moves after the unit of work commits."""
         if not has_table(conn, CURSOR_TABLE):
             return
         if conn.execute(_GET, {"n": CURSOR_NAME}).first() is None:
@@ -93,6 +93,7 @@ class Follower:
             conn.execute(_PUT, {"n": CURSOR_NAME, "seq": seq})
 
     def _start(self) -> None:
+        position: int | None = None
         with self._open() as uow:
             conn = uow.conn()
             if self._read(conn) is None:
@@ -101,8 +102,10 @@ class Follower:
                 for scope in [str(r.scope) for r in conn.execute(_SCOPES, params)]:
                     request(uow, hooks.fallback_ids(conn, scope), reason="follower start")
                 self._write(conn, head)
+                position = head
             else:
-                self._seq = self._read(conn)
+                position = self._read(conn)
+        self._seq = position
 
     def poll(self) -> int:
         """Handle one batch of new events; the number of evaluations queued."""
@@ -121,6 +124,7 @@ class Follower:
                 with self._open() as uow:
                     queued += hooks.on_event(uow, event_of(row), self._checks)
                     self._write(uow.conn(), row.seq)
+                self._seq = row.seq  # the unit of work committed
             except Exception:
                 seq, n = self._failed
                 n = n + 1 if seq == row.seq else 1
@@ -132,6 +136,7 @@ class Follower:
                     try:
                         with self._open() as uow:
                             self._write(uow.conn(), row.seq)
+                        self._seq = row.seq
                         self._failed = (0, 0)
                     except Exception:
                         log.exception("readiness follower could not skip seq %s", row.seq)
