@@ -70,3 +70,32 @@ class ReleaseRefusedError(AwpError):
 
 class PackageRuleError(AwpError):
     """A rule of an owner package record: type, number, dates."""
+
+
+class IwpRuleError(AwpError):
+    """A rule of an IWP's fields: dates, hours, crew text, foreman, a group of a split."""
+
+
+class IwpStateError(AwpError):
+    """The IWP is in a state that does not take the command (frozen from Ready, terminal)."""
+
+
+class ScopeRuleError(AwpError):
+    """A rule of an IWP's scope: a repeat, a missing member, an unusable record, a size bound."""
+
+
+class ScopeTakenError(AwpError):
+    """A scope item already belongs to another IWP that is not finished."""
+
+
+class ConstraintRuleError(AwpError):
+    """A rule of a constraint's fields: owner, type, need-by date, check name and hash."""
+
+
+class ConstraintSourceError(AwpError):
+    """The caller may not raise or clear a constraint of that source (a person raises ``manual``;
+    a check clears only what a check raised)."""
+
+
+class ConstraintStateError(AwpError):
+    """The constraint is in a state that does not take the command."""

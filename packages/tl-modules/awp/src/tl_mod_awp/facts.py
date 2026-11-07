@@ -12,7 +12,7 @@ from typing import Final
 from sqlalchemy import Connection, text
 from tl_core.readiness.types import IwpFacts
 
-from tl_mod_awp.names import CONTAINS_RELATION
+from tl_mod_awp.names import CONTAINS_RELATION, SCOPE_ITEM, SCOPE_RELATION, TAG_TYPE
 
 #: The most scope ids one IWP may hold in all (a bigger package must be split).
 MAX_SCOPE_IDS: Final = 5000
@@ -27,9 +27,13 @@ _IWP_SQL = text(
     "LEFT JOIN cur_workflow_state s ON s.record_id = r.id WHERE r.id = :id"
 )
 _SCOPE_SQL = text(
-    "SELECT t.type, l.to_id FROM cur_links l JOIN cur_core_record t ON t.id = l.to_id "
-    "WHERE l.from_id = :id AND l.relation = :rel AND l.status = 'active' "
-    "ORDER BY t.type, l.to_id LIMIT :limit"
+    "SELECT t.type AS type, t.id AS member FROM cur_links l JOIN cur_core_record t "
+    "ON t.id = l.to_id WHERE l.from_id = :id AND l.relation = :rel AND l.status = 'active' "
+    "UNION ALL "
+    "SELECT t.type AS type, t.id AS member FROM cur_links l JOIN cur_core_record t "
+    "ON t.id = l.from_id WHERE l.to_id = :id AND l.relation = :scope_rel AND l.source = 'rule' "
+    "AND l.status = 'active' AND t.type IN (:item_type, :tag_type) "
+    "ORDER BY 1, 2 LIMIT :limit"
 )
 _PINNED_SQL = text(
     "SELECT link_id FROM cur_links WHERE from_id = :id AND status = 'active' "
@@ -52,7 +56,15 @@ def iwp_facts(conn: Connection, iwp_id: str) -> IwpFacts:
         raise LookupError(NOT_FOUND)
     scope_ids: dict[str, list[str]] = {}
     scope_rows = conn.execute(
-        _SCOPE_SQL, {"id": iwp_id, "rel": CONTAINS_RELATION, "limit": MAX_SCOPE_IDS + 1}
+        _SCOPE_SQL,
+        {
+            "id": iwp_id,
+            "rel": CONTAINS_RELATION,
+            "scope_rel": SCOPE_RELATION,
+            "item_type": SCOPE_ITEM,
+            "tag_type": TAG_TYPE,
+            "limit": MAX_SCOPE_IDS + 1,
+        },
     ).all()
     if len(scope_rows) > MAX_SCOPE_IDS:
         raise ValueError(SCOPE_TOO_LARGE)

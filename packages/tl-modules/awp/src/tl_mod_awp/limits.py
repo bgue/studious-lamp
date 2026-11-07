@@ -34,3 +34,15 @@ MAX_QUANTITY_TEXT: Final = 20  # a quantity as text
 MAX_BUDGET_TEXT: Final = 16  # "10000000.0"
 
 DATE_PATTERN: Final = r"^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+
+MAX_SCOPE_PER_COMMAND: Final = 200  # ids of one AddIwpScope / RemoveIwpScope
+MAX_SPLIT_GROUPS: Final = 50  # new IWPs of one split
+MAX_CREW: Final = 120
+MAX_FOREMAN: Final = 64
+MAX_DESCRIPTION: Final = 200  # a scope item
+MAX_CONSTRAINT_TEXT: Final = 500
+MAX_CLEAR_REASON: Final = 300
+MAX_CHECK_NAME: Final = 64
+MAX_PIN_CODE: Final = 64
+HASH_PATTERN: Final = r"^[0-9a-f]{64}$"
+ACTOR_PATTERN: Final = r"^user:.{1,59}$"
