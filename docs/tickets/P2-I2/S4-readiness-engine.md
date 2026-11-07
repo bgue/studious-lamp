@@ -1,6 +1,6 @@
 # P2-I2-S4 — Readiness engine: job, evaluation, projector, `request`, `evaluate_now`, `constraints_cleared`
 
-Status: staged (dispatch after C1 merged; its tests that call the constraint functions run after C2 merged)
+Status: dispatched r4 (C1 merged @945d126)
 Tier: builder
 Kind: piece
 Review: full

@@ -1,17 +1,18 @@
-# P2-I2 STATE  r=3 base=6946236 C=1 ck=0 gate=n/a wt=/home/user/wt/p2-i2
+# P2-I2 STATE  r=4 base=6946236 C=1 ck=0 gate=n/a wt=/home/user/wt/p2-i2
 ## BOARD   (ws A=IWP/constraints/sign-off, B=readiness+screens+web twins; col 6 starts with ws)
 S1 p mrg f - A schema part 2 (APPROVALS done)
 S2 p mrg f - A IWP+scope cmds; constraint half replaced by C1/C2
 T06b t mrg l - B five n_a checks
-C1 p disp f - A core constraint schema (ADR-0024); gate orch+APPROVALS; spec r3
-C2 p stg f - A core constraint cmds, guard eval, class join; spec r3 (dep C1)
-S3 p disp f - A sign-off, issue, hold; spec r3; signer-role gate orch
-S4 p stg f - B readiness engine; spec r3 (dep C1; tests needing C2 after)
-T06a1 t disp f - B documents_current in documents (dep S1 S2 met)
-T06a2 t disp f - B rfis_answered in correspondence (dep S1 S2 met)
-S5 p todo f - A tests piece at C3; beside T10b
+T06a3 t disp f - B pin resolver by link ids; documents_current uses it (spec r4)
+C1 p mrg f 945d126 A core constraint schema; APPROVALS @237149e
+C2 p disp f - A core constraint cmds, guard, class join; D19 in spec
+S3 p mrg f aff0765 A sign-off, issue, hold; APPROVALS @9b3e672
+S4 p disp f - B readiness engine + ADR-0028 addendum @6392bac; SKIPs till C2
+T06a1 t mrg f f607aec B documents_current (waived: cb619ea subject)
+T06a2 t mrg f 9098b51 B rfis_answered
+S5 p todo f - A tests at C3; adds CheckResult twin hidden vs missing pin
 T04a t todo f - A read views over core constraint (dep S2 C2)
-T04c1 t todo f - A API read routes (dep T04a S4)
+T04c1 t todo f - A API routes (dep T04a S4); read drops hidden ids from resolve_via, counts visible, twin test
 T04c2 t todo f - A client methods + fakes (dep T04c1)
 T04d t todo f - A CLI reads + core tl constraint ls/show (dep T04a S4)
 T04e t todo f - A CLI writes incl tl constraint writes (dep S3 C2)
@@ -47,20 +48,24 @@ D16 2026-11-07 frozen functions raise_constraint, clear_constraint, open_blockin
 D17 2026-11-07 C1 deletes awp constraint code (tree stays green); C2 moves it from d2409f5 with iwp_id->subject_id; owner optional for non-manual sources (ADR v2)
 D18 2026-11-07 IWP opt-in on transition `ready`, phase `ready`; WBS opt-in deferred (docs/build-spec/DEFERRED.md); ADR-0025 intent slot lands after the wave 2 close, not in P2-I2
 D19 2026-11-07 orch (ADR-0026 F1): envelope effective_at is capture time only; ADR-0024 s4 and C2 spec drop 'cleared_at also event effective_at'; fields live in payload+row
+D20 2026-11-07 orch 9 F1 HI (ADR-0028 PLANCHK): S4 addendum @6392bac (awp.IWP into SCANNED_STREAM_TYPES; ids only in resolve_via; no record text in detail; twin line); T04c1 read drops hidden ids
+D21 2026-11-07 orch: new ticket T06a3 (resolver filtered by link ids): documents_current resolved the whole scope (~4 stmts per link, pins past 1000 dropped = false blocked); fixes it in resolver.py + readiness.py
+D22 2026-11-07 orch: S5 adds whole-CheckResult twin test, hidden vs missing pinned document (T06a1 F5)
+D23 2026-11-07 waived LO: C1 core workflow ~47 lines vs 30 cap; T06a1 cb619ea subject, report 61 lines (orch)
 ## SEC   (none yet; rows in README "Security rows"; SR2 mandatory at C4, range 34696bc..p2/i2 head, <=450k)
 ## OPEN
 Q1 hold-on-new-constraint rule (brief: a new constraint on an Issued IWP puts it On hold) has no owner; in DEFERRED; needs orch raised r3.
 ## NEXT
-1. Orch: dispatch C1 (schema, own gate + APPROVALS), S3 (signer-role gate orch), T06a1/T06a2 (workflow). C1 and S3 touch commands.py/module.py/names.py: trivial merge, C1 first.
-2. After C1 merges: dispatch S4 and C2 (disjoint: readiness/ vs tl_core/constraints). After C2: rerun dev/accept/P2-I2/S4.py (SKIPs need C2). ADR-0024 -> accepted at C2 merge.
-3. Then T04a (needs C2), T04c1 -> T04c2, T04d, T04e, screens, twins, reports, T09b, T10a; write specs as dependencies merge (r4).
-4. C2 glue (<=50 lines): AWP_COMMANDS splat for S3, core command registration check, MCP_ACTIONS, add_typer (`tl constraint`), palette, readiness hook line from the S4 report.
-5. P2-SEED follow-up (branch p2/seed, docs/tickets/P2-SEED/T01-awp-section.md running; do not edit that branch): after C2 the generator awp section seeds core constraints (materials, scaffold, predecessor, RFI target, advisory, plain-reference permit, one cleared with cleared_at). Orch adds a ticket line there.
-6. C3: S5 tests piece (five-reader walk, guard and class-join mutants), beside T10b. C4: gate per package, demo both adapters, tour once, SR2 (mandatory), report.
+1. Orch: dispatch C2 (wt i2-c2), S4 (wt i2-s4), T06a3 (workflow, wt t06a3): 3 heavy slots. Disjoint paths (constraints/ ; readiness/ + confidentiality.py one line ; documents/).
+2. After C2 merges: rerun dev/accept/P2-I2/S4.py (SKIPs need C2); ADR-0024 -> accepted at C2 merge; APPROVALS line for the S4 confidentiality.py change at S4 merge.
+3. r5: write T04a (needs C2), T04c1 (needs T04a, S4; add the F1 line from D20), then T04c2, T04d, T04e; S3 is merged, so T04e needs only C2.
+4. C2 glue (<=50 lines, after C2 and S4 merge): AWP_COMMANDS splat for S3 (check if S3 did it), core command registration, MCP_ACTIONS, add_typer (`tl constraint`), palette, readiness hook line from the S4 report.
+5. P2-SEED follow-up (branch p2/seed, do not edit it): after C2 the awp generator section seeds core constraints. Orch adds a ticket line there.
+6. C3: S5 tests piece (five-reader walk, guard and class-join mutants, D22 twin), beside T10b. C4: gate per package, demo both adapters, tour once, SR2 (mandatory), report.
 ## REFS
 Contract: packages/tl-core/src/tl_core/readiness/types.py (frozen), harness.py. ADR docs/adr/0024-constraints-on-any-record.md (v2), 0025 (later). Specs: C1, C2, S3, S4 in this folder; S2 constraint code reference: git show d2409f5:packages/tl-modules/awp/src/tl_mod_awp/constraints.py.
 Template check: packages/tl-modules/materials/src/tl_mod_materials/readiness.py. Owner answers: docs/build-spec/module-designs/OWNER-DECISIONS-2026-10-30.md. README is the spec of record.
-Staged tickets: T06a1, T06a2 (dispatch now). Seed ledger .accept/p2-i2.db is regenerated by C2's script.
+T06a3 spec: docs/tickets/P2-I2/T06a3-pin-resolver.md. Seed ledger .accept/p2-i2.db is regenerated by C2's script.
 ## TRAPS
 Whole 4-part gate OOMs on 16 GB (L-P2-I1-2, L-P2-I3-2): gate names files or one package. Tests dialect-neutral, no group_concat;
 provided tests pass ruff; stand-in module never reuses a real module name; pinned lists as union (removals in C1: exact numbers). A check name used twice is an error.

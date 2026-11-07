@@ -65,6 +65,7 @@ Owner policy kept from wave 1: tests deferred to S5; each piece leaves `dev/acce
 | T08 | B | Sizing warning surface; backlog-weeks-per-foreman tile (`awp.backlog.target_weeks`) | full | T04c2, S4 |
 | T06a1 | B | Check `documents_current` in `tl_mod_documents` (F7: awp may not import it) | full | S1, S2 |
 | T06a2 | B | Check `rfis_answered` in `tl_mod_correspondence` (F7) | full | S1, S2 |
+| T06a3 | B | Pin resolver filtered by link ids; `documents_current` uses it (bounded statements, no 1000 cap; D21) | full | T06a1 |
 | T06b | B | Five `n_a` checks in `tl_mod_awp` with fixed notes (contract only, F9) | lite | S1 |
 | T09a | A | Reports and `tl awp report` (status, readiness, constraint log, by type, owner, age) | lite | T04a, S4 |
 | T09b | A | MCP reads and proposable `propose_constraint`, `propose_iwp_scope` (access `user`, pinned) | full | T04c2, C2 |

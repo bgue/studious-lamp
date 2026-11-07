@@ -1,6 +1,6 @@
 # P2-I2-C2 — Core constraint commands, guard evaluation, confidentiality join
 
-Status: staged (dispatch after C1 merged)
+Status: dispatched r4 (C1 merged @945d126)
 Tier: builder
 Kind: piece
 Review: full
