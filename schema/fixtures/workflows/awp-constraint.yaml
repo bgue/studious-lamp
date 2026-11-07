@@ -1,0 +1,25 @@
+# Workflow of a constraint (brief 9, M3): Open, Assigned, Cleared. A constraint can be cleared from Open or Assigned
+# and voided unless it is Cleared. Cleared and Void are final. Moves are commands of the awp module.
+id: awp.constraint
+version: 1
+record_type: awp.Constraint
+scope: company
+initial_state: Open
+states:
+  - name: Open
+  - name: Assigned
+  - name: Cleared
+  - name: Void
+transitions:
+  - name: assign
+    label: Assign the constraint to an owner
+    from: [Open]
+    to: Assigned
+  - name: clear
+    label: Clear the constraint
+    from: [Open, Assigned]
+    to: Cleared
+  - name: void
+    label: Void the constraint
+    from: [Open, Assigned]
+    to: Void

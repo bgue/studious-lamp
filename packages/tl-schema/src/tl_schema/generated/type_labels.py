@@ -7,9 +7,13 @@ from typing import Final
 TYPE_LABELS: Final[dict[str, str]] = {
     "awp.CWA": "Construction work area",
     "awp.CWP": "Construction work package",
+    "awp.Constraint": "Constraint",
     "awp.EWPRef": "Engineering work package reference",
+    "awp.IWP": "Interim work package",
+    "awp.IWPCloseout": "IWP closeout",
     "awp.PWPRef": "Procurement work package reference",
     "awp.PathOfConstruction": "Path of construction",
+    "awp.ScopeItem": "Scope item",
     "awp.WBSNode": "WBS node",
     "core.Record": "Record",
     "correspondence.CommercialItem": "Commercial item",

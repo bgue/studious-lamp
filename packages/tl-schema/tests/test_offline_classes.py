@@ -17,6 +17,10 @@ SCHEMA = REPO / "schema"
 # Written from offline-classes.md section 4 (build-spec/specs), not read from the generated file.
 SPEC_RECORDS: dict[str, str] = {
     "awp.CWA": "none",
+    "awp.Constraint": "draft_only",
+    "awp.IWP": "draft_only",
+    "awp.IWPCloseout": "none",
+    "awp.ScopeItem": "draft_only",
     "awp.CWP": "draft_only",
     "awp.EWPRef": "none",
     "awp.PWPRef": "none",
@@ -83,7 +87,7 @@ SPEC_STREAMS: dict[str, str] = {
 
 def test_every_labelled_record_type_has_a_class_and_nothing_else() -> None:
     assert set(OFFLINE_CLASSES) == set(TYPE_LABELS)
-    assert len(OFFLINE_CLASSES) == 45
+    assert len(OFFLINE_CLASSES) == 49
 
 
 def test_the_record_table_is_the_spec_table_cell_for_cell() -> None:

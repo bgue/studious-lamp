@@ -13,8 +13,14 @@ CWA: Final = "awp.CWA"
 CWP: Final = "awp.CWP"
 EWP: Final = "awp.EWPRef"
 PWP: Final = "awp.PWPRef"
+IWP: Final = "awp.IWP"
+SCOPE_ITEM: Final = "awp.ScopeItem"
+CONSTRAINT: Final = "awp.Constraint"
+IWP_CLOSEOUT: Final = "awp.IWPCloseout"
 COST_CODE: Final = "cost.CostCode"
-RECORD_TYPES: Final = frozenset({WBS_NODE, PATH, CWA, CWP, EWP, PWP})
+RECORD_TYPES: Final = frozenset(
+    {WBS_NODE, PATH, CWA, CWP, EWP, PWP, IWP, SCOPE_ITEM, CONSTRAINT, IWP_CLOSEOUT}
+)
 PACKAGE_TYPES: Final = (EWP, PWP)
 
 #: The namespace of a record key. A typed key cannot hold ``@``, so no typed record of another
@@ -30,6 +36,12 @@ CWP_TABLE: Final = "cur_awp_cwp"
 CWP_ALLOCATION_TABLE: Final = "cur_awp_cwp_allocation"
 EWP_TABLE: Final = "cur_awp_ewp_ref"
 PWP_TABLE: Final = "cur_awp_pwp_ref"
+IWP_TABLE: Final = "cur_awp_iwp"
+SCOPE_ITEM_TABLE: Final = "cur_awp_scope_item"
+CONSTRAINT_TABLE: Final = "cur_awp_constraint"
+IWP_CLOSEOUT_TABLE: Final = "cur_awp_iwp_closeout"
+READINESS_TABLE: Final = "cur_awp_readiness"
+READINESS_CHECK_TABLE: Final = "cur_awp_readiness_check"
 PACKAGE_TABLE: Final = {EWP: EWP_TABLE, PWP: PWP_TABLE}
 WBS_NODE_VIEW: Final = "v_awp_wbsnode"
 PATH_VIEW: Final = "v_awp_path_of_construction"
@@ -88,3 +100,6 @@ RULE_LINK_SOURCE: Final = "rule"
 
 JOB_KIND_ROLLUP: Final = "awp.rollup"
 ROLLUP_JOB_PREFIX: Final = "rollup:"
+
+#: Relation words of the links the IWP commands write (the links carry no schema class).
+CONTAINS_RELATION: Final = "contains"

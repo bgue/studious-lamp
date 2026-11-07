@@ -61,3 +61,24 @@ patterns:
     template: "{project}-{type}-{discipline}-{seq:4}"
     type_code: CWP
     gap_free: true
+  # Interim work packages (brief 9 M3): counted per discipline, gap-free: P123-IWP-PIP-0001, P123-IWP-CIV-0001.
+  - id: awp.IWP
+    record_type: awp.IWP
+    scope: "project:*"
+    template: "{project}-{type}-{discipline}-{seq:4}"
+    type_code: IWP
+    gap_free: true
+  # Scope items: one count per project, gaps allowed: P123-SCI-000001.
+  - id: awp.ScopeItem
+    record_type: awp.ScopeItem
+    scope: "project:*"
+    template: "{project}-{type}-{seq:6}"
+    type_code: SCI
+    gap_free: false
+  # Constraints: P123-CON-0001, gap-free.
+  - id: awp.Constraint
+    record_type: awp.Constraint
+    scope: "project:*"
+    template: "{project}-{type}-{seq:4}"
+    type_code: CON
+    gap_free: true
