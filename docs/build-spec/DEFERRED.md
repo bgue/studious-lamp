@@ -40,3 +40,11 @@ One line each: what, why it waits, and the phase it belongs to. Newest at the bo
 | Web pages for the wave 3 and 4 logs; create forms (old P2-WEB2) | Owner: CLI and TUI first | Web increment after wave 4 |
 | TUI inside the web page as a second mode | Recommendation no (remote-shell-shaped surface, second UI); see the panel spec §7 | not planned |
 | Drawings and model panel extras: preview pictures, `tl-tui[images]`, a following 200-column TUI pane, an external model viewer link, three web layouts | The plan check (F8, F11) keeps v1 small: TUI modal and tab, web drawer | after the web increment |
+
+## Platform features (owner, 2026-11-07, parts B to E)
+| Item | Why deferred | Phase |
+|---|---|---|
+| Native automation rules: an IFTTT- or n8n-style rule builder inside Throughline. Hard parts: authority (a scoped service account, or rules that only file proposals for a person to approve); confidentiality (a rule's effects must not reveal hidden records); rule management (loops, rate limits, rules versioned like schema packages). Until then external tools use the outbound webhooks and inbound mappings | Large; external tools cover it today | Phase 4 or 5 |
+| Goal records; a read-only goal view walking from an end state through its open constraints to each target's allowed next actions and who may take them; agents that plan toward an end state and file proposals at each step; automatic intents from readiness and constraint clearing | Intent slot first (ADR-0025); the rest builds on it | Phase 3 |
+| Knowledge graph build: the creator tool, the ledger hash chain, the record graph tab and the project graph view (ADR-0026, `specs/graph-views.md`) | Design only now; stubs go in with constraints and intents | Phase 3 (chain with replicas) to Phase 4 |
+| Agent-first layer: agent accounts with module roles per project and module, proposal rationale and evidence, a batch review queue, delegation and escalation policies, an agent activity and acceptance view (design note) | Design only now; each new module from wave 3 gets a proposable path | Phase 3 to 4 |
