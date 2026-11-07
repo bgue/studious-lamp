@@ -14,10 +14,10 @@ Make the new verbs reachable and subscribe the readiness engine. Three wiring ed
 
 ## Brief references (pasted)
 > 1. `packages/tl-cli/src/tl_cli/awp.py`: add `iwp_app = typer.Typer(help="Interim work packages (IWPs).", no_args_is_help=True)`, `app.add_typer(iwp_app, name="iwp")`, then `awp_iwp_read.register(iwp_app)` and `awp_iwp_write.register(iwp_app)`
->    (reads first, as the file's comment says for the other groups); import both modules in the existing import line. If T04d2 (readiness CLI) is merged, its `register` joins the same way; if not, leave it out.
+>    (reads first, as the file's comment says for the other groups); import both modules in the existing import line. T04d2 (readiness CLI): `awp_readiness_read.register(app)` is called on the `awp` app itself (it adds the `readiness` group); include it if merged, else leave it out.
 > 2. New `packages/tl-cli/src/tl_cli/constraint.py`: `app = typer.Typer(help="Constraints on records (core).", no_args_is_help=True)`, `constraint_read.register(app)` then `constraint_write.register(app)`; one line in
 >    `packages/tl-cli/src/tl_cli/main.py` next to `app.add_typer(awp.app, name="awp")`: `app.add_typer(constraint.app, name="constraint")` and its import.
-> 3. `packages/tl-modules/awp/src/tl_mod_awp/module.py`: the one hook line the S4 report (`docs/reports/P2-I2/S4.md`, "hook" section) gives for `readiness.hooks.on_event`, at the place the module registers its projectors. Copy the line from the report; do not design it.
+> 3. `packages/tl-modules/awp/src/tl_mod_awp/module.py`: the one hook line the S4 report (`docs/reports/P2-I2/S4.md`, "Facts for the glue", `module.py` lines) gives for `readiness.hooks.on_event`, at the place the module registers its projectors. Copy the line from the report; do not design it.
 > Also: `AWP_COMMANDS` already carries the four S3 commands (checked r6); `MCP_ACTIONS` belongs to T09b (tools do not exist yet) and the TUI palette to the screen tickets: neither is here.
 > Consequential pins (rule 12, union form, listed in the report): the CLI help or command-tree snapshots under `packages/tl-cli/tests/expected/` or a command-count pin that breaks only because the two groups now exist; module pins
 > (`tests/services/test_modules.py` and similar) that break only because the hook is registered.
