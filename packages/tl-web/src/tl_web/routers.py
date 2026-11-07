@@ -33,6 +33,7 @@ PAGE_MODULES: tuple[str, ...] = (
     "tl_web.pages.record",
     "tl_web.pages.viewer",
     "tl_web.pages.iwps",
+    "tl_web.pages.constraints",
 )
 
 

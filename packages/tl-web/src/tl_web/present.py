@@ -15,6 +15,7 @@ from typing import Any, cast
 from tl_tui import (
     action_ui,
     awp_text,
+    constraint_text,
     correspondence_text,
     cwa_text,
     details,
@@ -62,6 +63,7 @@ __all__ = [
     "web_summary",
     "awp_text",
     "breadcrumb_text",
+    "constraint_text",
     "correspondence_text",
     "cwa_text",
     "details",
