@@ -138,11 +138,26 @@ def _only(only: str | None) -> str:
     return f" AND {only}" if only else ""
 
 
+# A part also answers for the constraints raised on its records (ADR-0024: a constraint is hidden
+# when its subject is; class by join, no copy). ``k`` is the constraint row (NULL for any other
+# record), ``sr`` its subject's record row, ``subj`` the id the confidential table is asked about.
+_CONSTRAINT_JOIN = (
+    " LEFT JOIN cur_core_constraint k ON k.id = hr.id AND hr.type = 'core.Constraint'"
+    " LEFT JOIN cur_core_record sr ON sr.id = k.subject_id"
+)
+_SUBJ = "COALESCE(k.subject_id, hr.id)"
+
+
+def _of_types(types: frozenset[str]) -> str:
+    return f"(hr.type IN ({_types(types)}) OR (k.id IS NOT NULL AND sr.type IN ({_types(types)})))"
+
+
 def _source_hidden(source: ConfidentialSource, viewer: Viewer, only: str | None = None) -> str:
     return (
-        f"SELECT hr.id FROM cur_core_record hr WHERE hr.type IN ({_types(source.record_types)})"
+        f"SELECT hr.id FROM cur_core_record hr{_CONSTRAINT_JOIN} "
+        f"WHERE {_of_types(source.record_types)}"
         f"{_only(only)} "
-        f"AND NOT EXISTS (SELECT 1 FROM {source.table} s WHERE s.{source.id_column} = hr.id "
+        f"AND NOT EXISTS (SELECT 1 FROM {source.table} s WHERE s.{source.id_column} = {_SUBJ} "
         f"AND ({_allowed(source, viewer)}))"
     )
 
@@ -159,11 +174,12 @@ def _child_hidden(
         via = f" JOIN {table} hop ON hop.{key} = ch.{child.root_column}"
         root_key = f"hop.{root}"
     return (
-        f"SELECT hr.id FROM cur_core_record hr WHERE hr.type IN ({_types(child.record_types)})"
+        f"SELECT hr.id FROM cur_core_record hr{_CONSTRAINT_JOIN} "
+        f"WHERE {_of_types(child.record_types)}"
         f"{_only(only)} "
         f"AND NOT EXISTS (SELECT 1 FROM {child.table} ch{via} "
         f"JOIN {source.table} s ON s.{source.id_column} = {root_key} "
-        f"WHERE ch.{child.id_column} = hr.id AND ({_allowed(source, viewer)}))"
+        f"WHERE ch.{child.id_column} = {_SUBJ} AND ({_allowed(source, viewer)}))"
     )
 
 
@@ -191,16 +207,6 @@ def hidden_sql(viewer: Viewer | None = None, *, only: str | None = None) -> str 
     parts: list[str] = []
     for source in confidential_sources():
         parts.extend(_source_parts(source, who, only))
-    if parts:  # ADR-0024: a constraint is hidden when its subject is (class by join, no copy)
-        subject = " UNION ALL ".join(
-            p
-            for source in confidential_sources()
-            for p in _source_parts(source, who, "hr.id = k.subject_id")
-        )
-        parts.append(
-            f"SELECT hr.id FROM cur_core_record hr JOIN cur_core_constraint k ON k.id = hr.id "
-            f"WHERE hr.type = 'core.Constraint'{_only(only)} AND k.subject_id IN ({subject})"
-        )
     return " UNION ALL ".join(parts) if parts else None
 
 

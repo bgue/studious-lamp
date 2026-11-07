@@ -237,7 +237,11 @@ MODULE_STREAMS = (
         ),
     ),
     ("awp.ScopeItem", "ScopeItem.Created", ("ScopeItem.Revised",)),
-    ("awp.Constraint", "Constraint.Raised", ("Constraint.Assigned", "Constraint.Cleared")),
+    (
+        "core.Constraint",
+        "Constraint.Raised",
+        ("Constraint.Assigned", "Constraint.Cleared", "Constraint.Withdrawn"),
+    ),
     # materials (P2-I3): library, location tree, PO line mirror, receipts, lots and take-offs
     (
         "materials.ItemMaster",
