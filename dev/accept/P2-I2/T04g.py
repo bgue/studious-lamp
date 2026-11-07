@@ -98,6 +98,36 @@ def main() -> None:
     ok("constraint clear", code == 0 and out.startswith("clear "))
     ok("follower: clear requests an evaluation", follower.poll() == 1)
     ok("the readiness job ran after the clear", len(jobs.run_until_idle()) == 1)
+    # an injected failure leaves the cursor unchanged; the next poll processes the event
+    from tl_mod_awp.readiness import hooks
+
+    code, out = tl(
+        "constraint",
+        "raise",
+        *PROJECT,
+        "--subject",
+        key,
+        "--phase",
+        "ready",
+        "--severity",
+        "blocking",
+        "--category",
+        "materials",
+        "--owner",
+        "user:uma",
+    )
+    before, real = follower._seq, hooks.on_event
+
+    def boom(*a: object, **k: object) -> int:
+        raise RuntimeError("injected")
+
+    hooks.on_event = boom  # type: ignore[assignment]
+    try:
+        follower.poll()
+    finally:
+        hooks.on_event = real
+    ok("failure leaves the cursor unchanged", follower._seq == before)
+    ok("the next poll processes it", follower.poll() == 1 and follower._seq > before)
     print("T04g ok")
 
 

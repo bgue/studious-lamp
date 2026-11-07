@@ -29,10 +29,11 @@ log = logging.getLogger(__name__)
 CURSOR_NAME: Final = "awp.readiness"
 CURSOR_TABLE: Final = "rule_cursor"
 BATCH: Final = 100
+POISON_AFTER: Final = 3
 _HEAD = text("SELECT COALESCE(MAX(seq), 0) FROM outbox_events")
 _READ = text(f"SELECT {OUTBOX_COLUMNS} FROM outbox_events WHERE seq > :after ORDER BY seq LIMIT :n")
 _GET = text(f"SELECT last_seq FROM {CURSOR_TABLE} WHERE name = :n")
-_PUT = text(f"UPDATE {CURSOR_TABLE} SET last_seq = :seq WHERE name = :n")
+_PUT = text(f"UPDATE {CURSOR_TABLE} SET last_seq = :seq WHERE name = :n AND last_seq < :seq")
 _NEW = text(f"INSERT INTO {CURSOR_TABLE} (name, last_seq) VALUES (:n, :seq)")
 _SCOPES = text(
     "SELECT DISTINCT scope FROM cur_core_record WHERE type = :type AND voided = :no "
@@ -74,6 +75,7 @@ class Follower:
         self._checks = checks
         self._batch = batch
         self._seq: int | None = None
+        self._failed: tuple[int, int] = (0, 0)  # (seq, consecutive failures)
 
     def _read(self, conn: Connection) -> int | None:
         if not has_table(conn, CURSOR_TABLE):
@@ -120,9 +122,20 @@ class Follower:
                     queued += hooks.on_event(uow, event_of(row), self._checks)
                     self._write(uow.conn(), row.seq)
             except Exception:
-                log.exception("readiness follower skipped seq %s", row.seq)
-                with self._open() as uow:
-                    self._write(uow.conn(), row.seq)
+                seq, n = self._failed
+                n = n + 1 if seq == row.seq else 1
+                self._failed = (row.seq, n)
+                log.exception(
+                    "readiness follower failed on seq %s (%s of %s)", row.seq, n, POISON_AFTER
+                )
+                if n >= POISON_AFTER:
+                    try:
+                        with self._open() as uow:
+                            self._write(uow.conn(), row.seq)
+                        self._failed = (0, 0)
+                    except Exception:
+                        log.exception("readiness follower could not skip seq %s", row.seq)
+                break  # the cursor stays; the next poll retries (request is idempotent)
         return queued
 
 
