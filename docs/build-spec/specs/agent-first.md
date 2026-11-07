@@ -138,3 +138,8 @@ argument on `accept_proposal`); one MCP tool `propose_command`. Not touched: `Co
 1. May ADR-0025 gain `evidence` before its validation piece (recommended yes)? Generic `propose_command` in wave 3?
 2. Refuse an ungranted agent at filing, or only warn until Phase 3? (Recommended refuse, Phase 3.)
 3. Who may see another agent's activity: any reader of the records, or controllers only?
+
+## Plan check (2026-11-07)
+All twelve findings accepted. The answers are in ADR-0027 and win over this note: at filing the agent needs the
+`user` word; per-type authorizer entries; viewer-filtered id resolution; an `editable` allowlist; two evidence kinds;
+and evidence, edits, the generic tool and the filing check move to Phase 3. Wave 3 gets one baseline-and-new-names test.

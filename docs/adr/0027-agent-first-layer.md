@@ -85,3 +85,23 @@ queue, or at the start of wave 3 if the orchestrator approves d.4 (it saves abou
 | A batch record or batch id on every decision | A new event or payload key for something a filter already reproduces; decisions must stand alone |
 | One MCP tool per command forever | About 20 wrappers in wave 3 and more later; each is a place to forget the closed-list entry or the access word |
 | Let policy auto-apply now | ADR-0005: deciding who may write without a person is a human gate; no owner answers yet |
+
+## Plan check (2026-11-07) and answers
+`4 PLANCHK docs/adr/0027 + specs/agent-first.md`, planner tier, one pass. All twelve findings are accepted. Where an
+answer differs from the text above, the answer wins. Net effect: wave 3 gets only the row-or-exclusion rule and one
+test. Evidence, edits, the generic tool and the filing check move to Phase 3 with the review queue.
+- F1 HI: three agent rows need `controller` or `admin` (PublishScheduleSnapshot, PublishDerivedDocuments, PublishDerivedTags), so a command-word check at filing would always fail for them. **Accepted:** at filing the agent needs the module's `user` word on that scope ("may propose"); the command's own word is checked only at accept. The three rows stay; the exclusion rule names publishing a derived or snapshot record as proposable when the accept is by a controller.
+- F2 HI: one `mcp.propose_command` entry would open every future row to every agent. **Accepted:** authorize `mcp.propose_command:<CommandType>` against an explicit closed list, tested both ways.
+- F3 HI: the named wrappers resolve keys and read the target under the lowest viewer; a raw id would leak restricted versus missing. **Accepted:** every id field is resolved through a viewer-filtered lookup that answers unknown; walking test with a restricted id; scope comes from the target record or the argument, as the wrappers do.
+- F4 HI: validating the full model would accept envelope fields. **Accepted:** the agent-facing model is the row's fields minus the envelope, `extra="forbid"`; intent is validated in `submit` with the ADR-0025 validator and refused before ADR-0025 piece 2.
+- F5 HI: `_readable` scans only the Created command, so an edit naming a restricted record would leak. **Accepted:** the projection keeps the edited command's ids and `_readable` scans them; walking test with five readers.
+- F6 MD: access words are per command, not per field. **Accepted:** a per-row `editable` allowlist, empty by default; `expected_version`, stream ids and `accept_risk` are never editable; no edits on DispatchFromThread, InvokeAction, ChangeSetting or rule proposals; `path` is a top-level field or one property-set key.
+- F7 MD: **Accepted:** `from` must equal the stored value or the edit is refused; Accepted carries `command_sha256` of the command that ran; payload models are `extra="forbid"`, so no downgrade across the change.
+- F8 MD: **Accepted:** evidence has two kinds only, `{record}` and `{event}` (events filtered like events).
+- F9 MD: an optional key hashed with `exclude_none` costs the same later. **Accepted:** `evidence` is deferred to Phase 3, not folded into ADR-0025 piece 2. Also accepted: a proposal's intent must not ride inside the Created payload (it would reach feed, webhooks and lake, which ADR-0025 d.3 avoided). ADR-0025 piece 2 stores it in the Created event's `intent` column and carries it to the accepted command's events. An unreadable evidence id hides the whole proposal.
+- F10 MD: **Accepted:** wave 3 command tickets each add a row or an exclusion entry; `propose_command`, `edits` and the filing check go to Phase 3 with the queue; "start of wave 3 if approved" is dropped.
+- F11 MD: 157 module commands have no row today. **Accepted:** a generated baseline file (reason "pre-wave-3, unreviewed") and the test enforces new names only; a rule-only row counts as not agent-proposable.
+- F12 LO: **Accepted:** approver per piece (orchestrator with an APPROVALS line; owner for Phase 4 delegation), Sec rows (filing check, per-type authorizer, edits filter, propose_command walk) with commit ranges; cite `04-gates.md` §2 and ADR-0009; `accept_many` never passes `accept_risk`, a runner or edits wholesale, so those items stay pending.
+
+Revised effort: wave 3 is 0 S and 1 H (baseline file and test), plus one row line inside each command ticket. Phase 3
+is 5.7 S and 16 H (evidence, edits, generic tool, filing check, queue, activity view, caps). Phase 4 is 2 S and 4 H.
