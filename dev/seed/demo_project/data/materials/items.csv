@@ -1,0 +1,153 @@
+code,title,category,base_uom,size_text,rating_text,material_code,consumable
+PIPE-CS-1IN-SCH40,"Pipe, carbon steel seamless, 1"" Sch 40, A106 Gr B",pipe,m,"1""",Sch 40,A106B,false
+PIPE-CS-1IN-SCH80,"Pipe, carbon steel seamless, 1"" Sch 80, A106 Gr B",pipe,m,"1""",Sch 80,A106B,false
+PIPE-CS-2IN-SCH40,"Pipe, carbon steel seamless, 2"" Sch 40, A106 Gr B",pipe,m,"2""",Sch 40,A106B,false
+PIPE-CS-2IN-SCH80,"Pipe, carbon steel seamless, 2"" Sch 80, A106 Gr B",pipe,m,"2""",Sch 80,A106B,false
+PIPE-CS-3IN-SCH40,"Pipe, carbon steel seamless, 3"" Sch 40, A106 Gr B",pipe,m,"3""",Sch 40,A106B,false
+PIPE-CS-3IN-SCH80,"Pipe, carbon steel seamless, 3"" Sch 80, A106 Gr B",pipe,m,"3""",Sch 80,A106B,false
+PIPE-CS-4IN-SCH40,"Pipe, carbon steel seamless, 4"" Sch 40, A106 Gr B",pipe,m,"4""",Sch 40,A106B,false
+PIPE-CS-4IN-SCH80,"Pipe, carbon steel seamless, 4"" Sch 80, A106 Gr B",pipe,m,"4""",Sch 80,A106B,false
+PIPE-CS-6IN-SCH40,"Pipe, carbon steel seamless, 6"" Sch 40, A106 Gr B",pipe,m,"6""",Sch 40,A106B,false
+PIPE-CS-6IN-SCH80,"Pipe, carbon steel seamless, 6"" Sch 80, A106 Gr B",pipe,m,"6""",Sch 80,A106B,false
+PIPE-CS-8IN-SCH40,"Pipe, carbon steel seamless, 8"" Sch 40, A106 Gr B",pipe,m,"8""",Sch 40,A106B,false
+PIPE-CS-8IN-SCH80,"Pipe, carbon steel seamless, 8"" Sch 80, A106 Gr B",pipe,m,"8""",Sch 80,A106B,false
+PIPE-CS-10IN-SCH40,"Pipe, carbon steel seamless, 10"" Sch 40, A106 Gr B",pipe,m,"10""",Sch 40,A106B,false
+PIPE-CS-10IN-SCH80,"Pipe, carbon steel seamless, 10"" Sch 80, A106 Gr B",pipe,m,"10""",Sch 80,A106B,false
+PIPE-CS-12IN-SCH40,"Pipe, carbon steel seamless, 12"" Sch 40, A106 Gr B",pipe,m,"12""",Sch 40,A106B,false
+PIPE-CS-12IN-SCH80,"Pipe, carbon steel seamless, 12"" Sch 80, A106 Gr B",pipe,m,"12""",Sch 80,A106B,false
+PIPE-CS-16IN-SCH40,"Pipe, carbon steel seamless, 16"" Sch 40, A106 Gr B",pipe,m,"16""",Sch 40,A106B,false
+PIPE-CS-16IN-SCH80,"Pipe, carbon steel seamless, 16"" Sch 80, A106 Gr B",pipe,m,"16""",Sch 80,A106B,false
+PIPE-SS316L-1IN-10S,"Pipe, stainless 316L seamless, 1"" Sch 10S, A312",pipe,m,"1""",Sch 10S,A312-316L,false
+PIPE-SS316L-1IN-40S,"Pipe, stainless 316L seamless, 1"" Sch 40S, A312",pipe,m,"1""",Sch 40S,A312-316L,false
+PIPE-SS316L-2IN-10S,"Pipe, stainless 316L seamless, 2"" Sch 10S, A312",pipe,m,"2""",Sch 10S,A312-316L,false
+PIPE-SS316L-2IN-40S,"Pipe, stainless 316L seamless, 2"" Sch 40S, A312",pipe,m,"2""",Sch 40S,A312-316L,false
+PIPE-SS316L-4IN-10S,"Pipe, stainless 316L seamless, 4"" Sch 10S, A312",pipe,m,"4""",Sch 10S,A312-316L,false
+PIPE-SS316L-4IN-40S,"Pipe, stainless 316L seamless, 4"" Sch 40S, A312",pipe,m,"4""",Sch 40S,A312-316L,false
+PIPE-SS316L-6IN-10S,"Pipe, stainless 316L seamless, 6"" Sch 10S, A312",pipe,m,"6""",Sch 10S,A312-316L,false
+PIPE-SS316L-6IN-40S,"Pipe, stainless 316L seamless, 6"" Sch 40S, A312",pipe,m,"6""",Sch 40S,A312-316L,false
+PIPE-SS316L-8IN-10S,"Pipe, stainless 316L seamless, 8"" Sch 10S, A312",pipe,m,"8""",Sch 10S,A312-316L,false
+PIPE-SS316L-8IN-40S,"Pipe, stainless 316L seamless, 8"" Sch 40S, A312",pipe,m,"8""",Sch 40S,A312-316L,false
+FIT-ELL90-2IN,"Elbow 90 deg LR butt weld, 2"" Sch 40, A234 WPB",fitting,EA,"2""",Sch 40,A234WPB,false
+FIT-ELL90-3IN,"Elbow 90 deg LR butt weld, 3"" Sch 40, A234 WPB",fitting,EA,"3""",Sch 40,A234WPB,false
+FIT-ELL90-4IN,"Elbow 90 deg LR butt weld, 4"" Sch 40, A234 WPB",fitting,EA,"4""",Sch 40,A234WPB,false
+FIT-ELL90-6IN,"Elbow 90 deg LR butt weld, 6"" Sch 40, A234 WPB",fitting,EA,"6""",Sch 40,A234WPB,false
+FIT-ELL90-8IN,"Elbow 90 deg LR butt weld, 8"" Sch 40, A234 WPB",fitting,EA,"8""",Sch 40,A234WPB,false
+FIT-ELL90-10IN,"Elbow 90 deg LR butt weld, 10"" Sch 40, A234 WPB",fitting,EA,"10""",Sch 40,A234WPB,false
+FIT-ELL90-12IN,"Elbow 90 deg LR butt weld, 12"" Sch 40, A234 WPB",fitting,EA,"12""",Sch 40,A234WPB,false
+FIT-TEE-2IN,"Tee equal butt weld, 2"" Sch 40, A234 WPB",fitting,EA,"2""",Sch 40,A234WPB,false
+FIT-TEE-4IN,"Tee equal butt weld, 4"" Sch 40, A234 WPB",fitting,EA,"4""",Sch 40,A234WPB,false
+FIT-TEE-6IN,"Tee equal butt weld, 6"" Sch 40, A234 WPB",fitting,EA,"6""",Sch 40,A234WPB,false
+FIT-TEE-8IN,"Tee equal butt weld, 8"" Sch 40, A234 WPB",fitting,EA,"8""",Sch 40,A234WPB,false
+FIT-TEE-12IN,"Tee equal butt weld, 12"" Sch 40, A234 WPB",fitting,EA,"12""",Sch 40,A234WPB,false
+FIT-RED-4IN,"Reducer concentric butt weld, 4"" Sch 40, A234 WPB",fitting,EA,"4""",Sch 40,A234WPB,false
+FIT-RED-6IN,"Reducer concentric butt weld, 6"" Sch 40, A234 WPB",fitting,EA,"6""",Sch 40,A234WPB,false
+FIT-RED-8IN,"Reducer concentric butt weld, 8"" Sch 40, A234 WPB",fitting,EA,"8""",Sch 40,A234WPB,false
+FIT-RED-12IN,"Reducer concentric butt weld, 12"" Sch 40, A234 WPB",fitting,EA,"12""",Sch 40,A234WPB,false
+FLG-WN150-2IN,"Flange weld neck class 150 RF, 2"", A105",flange,EA,"2""",Class 150,A105,false
+FLG-WN150-3IN,"Flange weld neck class 150 RF, 3"", A105",flange,EA,"3""",Class 150,A105,false
+FLG-WN150-4IN,"Flange weld neck class 150 RF, 4"", A105",flange,EA,"4""",Class 150,A105,false
+FLG-WN150-6IN,"Flange weld neck class 150 RF, 6"", A105",flange,EA,"6""",Class 150,A105,false
+FLG-WN150-8IN,"Flange weld neck class 150 RF, 8"", A105",flange,EA,"8""",Class 150,A105,false
+FLG-WN150-10IN,"Flange weld neck class 150 RF, 10"", A105",flange,EA,"10""",Class 150,A105,false
+FLG-WN150-12IN,"Flange weld neck class 150 RF, 12"", A105",flange,EA,"12""",Class 150,A105,false
+FLG-WN600-2IN,"Flange weld neck class 600 RF, 2"", A105",flange,EA,"2""",Class 600,A105,false
+FLG-WN600-3IN,"Flange weld neck class 600 RF, 3"", A105",flange,EA,"3""",Class 600,A105,false
+FLG-WN600-4IN,"Flange weld neck class 600 RF, 4"", A105",flange,EA,"4""",Class 600,A105,false
+FLG-WN600-6IN,"Flange weld neck class 600 RF, 6"", A105",flange,EA,"6""",Class 600,A105,false
+FLG-WN600-8IN,"Flange weld neck class 600 RF, 8"", A105",flange,EA,"8""",Class 600,A105,false
+FLG-BL300-2IN,"Flange blind class 300 RF, 2"", A105",flange,EA,"2""",Class 300,A105,false
+FLG-BL300-4IN,"Flange blind class 300 RF, 4"", A105",flange,EA,"4""",Class 300,A105,false
+FLG-BL300-6IN,"Flange blind class 300 RF, 6"", A105",flange,EA,"6""",Class 300,A105,false
+FLG-BL300-8IN,"Flange blind class 300 RF, 8"", A105",flange,EA,"8""",Class 300,A105,false
+BLT-STUD-5P8X65,"Stud bolt 5/8"" x 65 mm, A193 B7 with 2 A194 2H nuts",bolt,SET,"5/8"" x 65 mm",,A193B7,false
+BLT-STUD-3P4X75,"Stud bolt 3/4"" x 75 mm, A193 B7 with 2 A194 2H nuts",bolt,SET,"3/4"" x 75 mm",,A193B7,false
+BLT-STUD-7P8X85,"Stud bolt 7/8"" x 85 mm, A193 B7 with 2 A194 2H nuts",bolt,SET,"7/8"" x 85 mm",,A193B7,false
+BLT-STUD-1X95,"Stud bolt 1"" x 95 mm, A193 B7 with 2 A194 2H nuts",bolt,SET,"1"" x 95 mm",,A193B7,false
+BLT-STUD-1M1P8X105,"Stud bolt 1-1/8"" x 105 mm, A193 B7 with 2 A194 2H nuts",bolt,SET,"1-1/8"" x 105 mm",,A193B7,false
+BLT-HEX-1P2X2IN,"Hex bolt 1/2"" x 2"", A307 B, box of 50",bolt,BOX,"1/2"" x 2""",,A307B,false
+BLT-HEX-5P8X2P5IN,"Hex bolt 5/8"" x 2.5"", A307 B, box of 50",bolt,BOX,"5/8"" x 2.5""",,A307B,false
+BLT-HEX-3P4X3IN,"Hex bolt 3/4"" x 3"", A307 B, box of 50",bolt,BOX,"3/4"" x 3""",,A307B,false
+BLT-HEX-1X3P5IN,"Hex bolt 1"" x 3.5"", A307 B, box of 50",bolt,BOX,"1"" x 3.5""",,A307B,false
+GSK-SW-2IN-CL150,"Gasket spiral wound SS316/graphite, 2"" class 150",gasket,EA,"2""",Class 150,SS316-GR,false
+GSK-SW-3IN-CL150,"Gasket spiral wound SS316/graphite, 3"" class 150",gasket,EA,"3""",Class 150,SS316-GR,false
+GSK-SW-4IN-CL150,"Gasket spiral wound SS316/graphite, 4"" class 150",gasket,EA,"4""",Class 150,SS316-GR,false
+GSK-SW-6IN-CL150,"Gasket spiral wound SS316/graphite, 6"" class 150",gasket,EA,"6""",Class 150,SS316-GR,false
+GSK-SW-8IN-CL150,"Gasket spiral wound SS316/graphite, 8"" class 150",gasket,EA,"8""",Class 150,SS316-GR,false
+GSK-SW-10IN-CL150,"Gasket spiral wound SS316/graphite, 10"" class 150",gasket,EA,"10""",Class 150,SS316-GR,false
+GSK-SW-2IN-CL300,"Gasket spiral wound SS316/graphite, 2"" class 300",gasket,EA,"2""",Class 300,SS316-GR,false
+GSK-SW-3IN-CL300,"Gasket spiral wound SS316/graphite, 3"" class 300",gasket,EA,"3""",Class 300,SS316-GR,false
+GSK-SW-4IN-CL300,"Gasket spiral wound SS316/graphite, 4"" class 300",gasket,EA,"4""",Class 300,SS316-GR,false
+GSK-SW-6IN-CL300,"Gasket spiral wound SS316/graphite, 6"" class 300",gasket,EA,"6""",Class 300,SS316-GR,false
+GSK-SW-8IN-CL300,"Gasket spiral wound SS316/graphite, 8"" class 300",gasket,EA,"8""",Class 300,SS316-GR,false
+GSK-SW-10IN-CL300,"Gasket spiral wound SS316/graphite, 10"" class 300",gasket,EA,"10""",Class 300,SS316-GR,false
+GSK-RTJ-2IN,"Gasket ring joint R-type, 2"" class 300, soft iron",gasket,EA,"2""",Class 300,SOFTIRON,false
+GSK-RTJ-4IN,"Gasket ring joint R-type, 4"" class 300, soft iron",gasket,EA,"4""",Class 300,SOFTIRON,false
+GSK-RTJ-6IN,"Gasket ring joint R-type, 6"" class 300, soft iron",gasket,EA,"6""",Class 300,SOFTIRON,false
+VLV-GT150-2IN,"Gate valve flanged class 150 full bore, 2"", A216 WCB",valve,EA,"2""",Class 150,A216WCB,false
+VLV-GT150-3IN,"Gate valve flanged class 150 full bore, 3"", A216 WCB",valve,EA,"3""",Class 150,A216WCB,false
+VLV-GT150-4IN,"Gate valve flanged class 150 full bore, 4"", A216 WCB",valve,EA,"4""",Class 150,A216WCB,false
+VLV-GT150-6IN,"Gate valve flanged class 150 full bore, 6"", A216 WCB",valve,EA,"6""",Class 150,A216WCB,false
+VLV-GT150-8IN,"Gate valve flanged class 150 full bore, 8"", A216 WCB",valve,EA,"8""",Class 150,A216WCB,false
+VLV-BL150-1IN,"Ball valve two piece class 150, 1"", A216 WCB",valve,EA,"1""",Class 150,A216WCB,false
+VLV-BL150-2IN,"Ball valve two piece class 150, 2"", A216 WCB",valve,EA,"2""",Class 150,A216WCB,false
+VLV-BL150-3IN,"Ball valve two piece class 150, 3"", A216 WCB",valve,EA,"3""",Class 150,A216WCB,false
+VLV-BL150-4IN,"Ball valve two piece class 150, 4"", A216 WCB",valve,EA,"4""",Class 150,A216WCB,false
+VLV-BL150-6IN,"Ball valve two piece class 150, 6"", A216 WCB",valve,EA,"6""",Class 150,A216WCB,false
+VLV-CK150-2IN,"Check valve swing class 150, 2"", A216 WCB",valve,EA,"2""",Class 150,A216WCB,false
+VLV-CK150-3IN,"Check valve swing class 150, 3"", A216 WCB",valve,EA,"3""",Class 150,A216WCB,false
+VLV-CK150-4IN,"Check valve swing class 150, 4"", A216 WCB",valve,EA,"4""",Class 150,A216WCB,false
+VLV-CK150-6IN,"Check valve swing class 150, 6"", A216 WCB",valve,EA,"6""",Class 150,A216WCB,false
+VLV-CK150-8IN,"Check valve swing class 150, 8"", A216 WCB",valve,EA,"8""",Class 150,A216WCB,false
+VLV-GL600-1IN,"Globe valve class 600, 1"", A105",valve,EA,"1""",Class 600,A105,false
+VLV-GL600-2IN,"Globe valve class 600, 2"", A105",valve,EA,"2""",Class 600,A105,false
+VLV-GL600-3IN,"Globe valve class 600, 3"", A105",valve,EA,"3""",Class 600,A105,false
+VLV-GL600-4IN,"Globe valve class 600, 4"", A105",valve,EA,"4""",Class 600,A105,false
+VLV-CV150-2IN,"Control valve globe class 150, 2"", A216 WCB",valve,EA,"2""",Class 150,A216WCB,false
+VLV-CV150-3IN,"Control valve globe class 150, 3"", A216 WCB",valve,EA,"3""",Class 150,A216WCB,false
+VLV-CV150-4IN,"Control valve globe class 150, 4"", A216 WCB",valve,EA,"4""",Class 150,A216WCB,false
+VLV-CV150-6IN,"Control valve globe class 150, 6"", A216 WCB",valve,EA,"6""",Class 150,A216WCB,false
+CBL-PWR-3C-10AWG,"Power cable 600 V, 3 conductor, 10 AWG copper",cable,m,10 AWG,600 V,CU,false
+CBL-PWR-3C-6AWG,"Power cable 600 V, 3 conductor, 6 AWG copper",cable,m,6 AWG,600 V,CU,false
+CBL-PWR-3C-2AWG,"Power cable 600 V, 3 conductor, 2 AWG copper",cable,m,2 AWG,600 V,CU,false
+CBL-PWR-3C-4P0AWG,"Power cable 600 V, 3 conductor, 4/0 AWG copper",cable,m,4/0 AWG,600 V,CU,false
+CBL-PWR-3C-500KCMIL,"Power cable 600 V, 3 conductor, 500 kcmil copper",cable,m,500 kcmil,600 V,CU,false
+CBL-CTRL-12P,"Control cable 12 pair 18 AWG, shielded, PVC jacket",cable,m,12 pair,300 V,CU,false
+CBL-CTRL-24P,"Control cable 24 pair 18 AWG, shielded, PVC jacket",cable,m,24 pair,300 V,CU,false
+CBL-INST-1P,"Instrument cable 1 twisted pair, shielded, 16 AWG",cable,m,1 pair,300 V,CU,false
+CBL-INST-3P,"Instrument cable 3 twisted pair, shielded, 16 AWG",cable,m,3 pair,300 V,CU,false
+TRY-LAD-150MM,"Cable tray ladder 150 mm, galvanized, 3 m section",tray,EA,150 mm,,HDG,false
+TRY-LAD-300MM,"Cable tray ladder 300 mm, galvanized, 3 m section",tray,EA,300 mm,,HDG,false
+TRY-LAD-450MM,"Cable tray ladder 450 mm, galvanized, 3 m section",tray,EA,450 mm,,HDG,false
+TRY-LAD-600MM,"Cable tray ladder 600 mm, galvanized, 3 m section",tray,EA,600 mm,,HDG,false
+TRY-PERF-150MM,"Cable tray perforated 150 mm, galvanized, 3 m",tray,m,150 mm,,HDG,false
+TRY-PERF-300MM,"Cable tray perforated 300 mm, galvanized, 3 m",tray,m,300 mm,,HDG,false
+TRY-PERF-450MM,"Cable tray perforated 450 mm, galvanized, 3 m",tray,m,450 mm,,HDG,false
+STL-W8X31,"Structural steel beam W8X31, A992",steel,kg,W8X31,,A992,false
+STL-W10X49,"Structural steel beam W10X49, A992",steel,kg,W10X49,,A992,false
+STL-W12X65,"Structural steel beam W12X65, A992",steel,kg,W12X65,,A992,false
+STL-W14X90,"Structural steel beam W14X90, A992",steel,kg,W14X90,,A992,false
+STL-W16X67,"Structural steel beam W16X67, A992",steel,kg,W16X67,,A992,false
+STL-W18X50,"Structural steel beam W18X50, A992",steel,kg,W18X50,,A992,false
+STL-PL-A36-6MM,"Plate A36 6 mm, cut to size",steel,kg,6 mm,,A36,false
+STL-PL-A36-10MM,"Plate A36 10 mm, cut to size",steel,kg,10 mm,,A36,false
+STL-PL-A36-12MM,"Plate A36 12 mm, cut to size",steel,kg,12 mm,,A36,false
+STL-PL-A36-16MM,"Plate A36 16 mm, cut to size",steel,kg,16 mm,,A36,false
+STL-PL-A36-20MM,"Plate A36 20 mm, cut to size",steel,kg,20 mm,,A36,false
+STL-PL-A36-25MM,"Plate A36 25 mm, cut to size",steel,kg,25 mm,,A36,false
+STL-L-50X50X5,"Angle L 50X50X5 mm, A36",steel,kg,50X50X5,,A36,false
+STL-L-75X75X6,"Angle L 75X75X6 mm, A36",steel,kg,75X75X6,,A36,false
+STL-L-100X100X8,"Angle L 100X100X8 mm, A36",steel,kg,100X100X8,,A36,false
+STL-C100X50,"Channel C100X50 mm, A36",steel,kg,C100X50,,A36,false
+STL-C150X50,"Channel C150X50 mm, A36",steel,kg,C150X50,,A36,false
+CONS-WELD-E7018-25,Covered electrode E7018 2.5 mm,consumable,kg,,,E7018,true
+CONS-WELD-ER70S6-09,Mig wire ER70S-6 0.9 mm,consumable,kg,,,ER70S6,true
+CONS-PAINT-EPOXY-GRY,"Epoxy primer, grey, two pack",consumable,L,,,,true
+CONS-PAINT-TOPCOAT,"Polyurethane topcoat, RAL 7035",consumable,L,,,,true
+CONS-GRIND-DISC-115,Grinding disc 115 mm,consumable,EA,,,,true
+CONS-CUT-DISC-115,Cut-off disc 115 mm,consumable,EA,,,,true
+CONS-GLOVES-NIT,"Gloves nitrile, box of 100",consumable,BOX,,,,true
+CONS-RAG-CLEAN,"Cleaning rags, cotton",consumable,kg,,,,true
+CONS-PTFE-TAPE,PTFE thread seal tape 12 mm,consumable,EA,,,,true
+CONS-ANTISEIZE,Anti-seize compound 454 g,consumable,EA,,,,true
+CONS-ARGON-MIX,Shielding gas argon mix,consumable,m3,,,,true
+CONS-DIESEL-RED,"Diesel, red dye, site plant",consumable,L,,,,true

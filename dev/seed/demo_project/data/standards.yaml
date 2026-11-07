@@ -1,0 +1,144 @@
+# Company standards of the demo project's owner (North Refinery). Data only: read by
+# tl_mod_engineering.document. The areas are the six areas of P200; the tag number is
+# area-mnemonic-sequence (200-P-1023); the document number is P200-area-type-sequence.
+standards: co.northrefinery.standards
+version: "1.0.0"
+title: North Refinery company standards
+description: "Code lists, mnemonics, number patterns and tag classes of the demo project P200."
+owner: "role:standards-steward"
+effective_from: "2026-01-01"
+
+code_lists:
+  Discipline:
+    label: Discipline
+    definition: "The engineering discipline that owns a document, a tag or a work item."
+    value_list_policy: closed
+    values:
+      - {code: PIP, label: Piping}
+      - {code: STR, label: Structural}
+      - {code: CIV, label: Civil}
+      - {code: ELE, label: Electrical}
+      - {code: INS, label: Instrumentation}
+      - {code: MEC, label: Mechanical}
+      - {code: ISL, label: Insulation}
+      - {code: PNT, label: Painting}
+  Area:
+    label: Area
+    definition: "The area of the Hydrotreater Unit 2 expansion that a tag or a document belongs to."
+    value_list_policy: closed
+    values:
+      - {code: "100", label: "Pipe rack"}
+      - {code: "200", label: "Process unit (reactor and fractionation)"}
+      - {code: "300", label: "Tank farm"}
+      - {code: "400", label: "Utilities (cooling water, steam, nitrogen)"}
+      - {code: "500", label: "Substation and control room"}
+      - {code: "600", label: "Tie-ins to the live plant"}
+  DocumentType:
+    label: Document type
+    definition: "The kind of engineering document, as its number and register show."
+    value_list_policy: extensible
+    values:
+      - {code: PID, label: Piping and instrument diagram}
+      - {code: ISO, label: Isometric drawing}
+      - {code: GA, label: General arrangement}
+      - {code: DS, label: Datasheet}
+      - {code: SPC, label: Specification}
+      - {code: LD, label: Loop diagram}
+
+mnemonics:
+  - {code: P, label: Pump, class_hint: Pump}
+  - {code: E, label: Heat exchanger, class_hint: HeatExchanger}
+  - {code: V, label: Vessel, class_hint: Vessel}
+  - {code: K, label: Compressor, class_hint: Compressor}
+  - {code: M, label: Motor, class_hint: Motor}
+  - {code: HV, label: Hand valve, class_hint: ManualValve}
+  - {code: XV, label: On-off valve, class_hint: ControlValve}
+  - {code: FV, label: Flow control valve, class_hint: ControlValve}
+  - {code: PV, label: Pressure control valve, class_hint: ControlValve}
+  - {code: PSV, label: Pressure safety valve, class_hint: SafetyValve}
+  - {code: FT, label: Flow transmitter, class_hint: Transmitter}
+  - {code: PT, label: Pressure transmitter, class_hint: Transmitter}
+  - {code: LT, label: Level transmitter, class_hint: Transmitter}
+  - {code: TT, label: Temperature transmitter, class_hint: Transmitter}
+
+numbering_patterns:
+  - code: tag
+    label: Tag number
+    definition: "Area, mnemonic and a four-digit sequence, for example 200-P-1023."
+    record_type: engineering.Tag
+    template: "{area}-{mnemonic}-{seq:4}"
+    segments:
+      area: {role: area, list: Area}
+      mnemonic: {role: mnemonic, registry: mnemonic}
+      seq: {role: sequence}
+  - code: document
+    label: Document number
+    definition: "Project, area, document type and a four-digit sequence, for example P200-200-PID-0012."
+    record_type: documents.Document
+    template: "P200-{area}-{doctype}-{seq:4}"
+    segments:
+      area: {role: area, list: Area}
+      doctype: {role: other, list: DocumentType}
+      seq: {role: sequence}
+
+tag_classes:
+  - code: Pump
+    label: Pump
+    definition: "A rotating machine that moves a liquid through the process."
+    family: pump
+    required_psets: []
+    mnemonics: [P]
+  - code: HeatExchanger
+    label: Heat exchanger
+    definition: "An equipment item that transfers heat between two fluids."
+    family: equipment
+    required_psets: []
+    mnemonics: [E]
+  - code: Vessel
+    label: Vessel
+    definition: "A pressure or storage vessel that holds a fluid or a process step."
+    family: equipment
+    required_psets: []
+    mnemonics: [V]
+  - code: Compressor
+    label: Compressor
+    definition: "A machine that raises the pressure of a gas."
+    family: equipment
+    required_psets: []
+    mnemonics: [K]
+  - code: Motor
+    label: Motor
+    definition: "An electric motor that drives a rotating machine."
+    family: equipment
+    required_psets: []
+    mnemonics: [M]
+  - code: ManualValve
+    label: Manual valve
+    definition: "A valve that is operated by hand, with no actuator and no controller."
+    family: valve
+    required_psets: []
+    mnemonics: [HV]
+  - code: ControlValve
+    label: Control or on-off valve
+    definition: "A valve that an actuator moves, on a signal."
+    family: valve
+    required_psets: []
+    mnemonics: [XV, FV, PV]
+  - code: SafetyValve
+    label: Pressure safety valve
+    definition: "A spring-loaded valve that opens to relieve pressure above its set point."
+    family: valve
+    required_psets: []
+    mnemonics: [PSV]
+  - code: Transmitter
+    label: Transmitter
+    definition: "A field device that measures a process variable and sends it on as a signal."
+    family: instrument
+    required_psets: []
+    mnemonics: [FT, PT, LT, TT]
+  - code: Line
+    label: Process or utility line
+    definition: "A piping line, by its line number (size, service, area, sequence and spec)."
+    family: line
+    required_psets: []
+    mnemonics: []
