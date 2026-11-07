@@ -21,11 +21,12 @@ from tl_mod_legacy.model import Grid, LoaderDef
 LD = LoaderDef("l", "acc", "t", "x", "d", "")
 WHO: dict[str, Any] = {"actor": "user:sue", "source": "legacy:acc"}
 SAMPLE = Path(tl_mod_awp.__file__).parent / "samples" / "wbs-sample.csv"
+# Dialect-neutral: the allocation lines are read separately and joined here, not with group_concat.
 TREE_SQL = (
-    "SELECT n.code, n.parent_id, n.position, n.depth, n.retired, "
-    "(SELECT group_concat(a.cost_code_id || '=' || a.percent) FROM cur_awp_wbs_allocation a "
-    "WHERE a.node_id = n.id) AS lines FROM cur_awp_wbs_node n ORDER BY n.code"
+    "SELECT n.id, n.code, n.parent_id, n.position, n.depth, n.retired "
+    "FROM cur_awp_wbs_node n ORDER BY n.code"
 )
+LINES_SQL = "SELECT node_id, cost_code_id, percent FROM cur_awp_wbs_allocation"
 
 
 @pytest.fixture
@@ -64,7 +65,16 @@ def _compensate(w: World, ids: list[str], cid: str) -> int:
 
 
 def _tree(w: World) -> list[dict[str, Any]]:
-    return w.rows(TREE_SQL)
+    lines: dict[str, list[str]] = {}
+    for a in w.rows(LINES_SQL):
+        lines.setdefault(str(a["node_id"]), []).append(f"{a['cost_code_id']}={a['percent']}")
+    tree = []
+    for n in w.rows(TREE_SQL):
+        node = dict(n)
+        node_id = str(node.pop("id"))
+        node["lines"] = ",".join(sorted(lines.get(node_id, []))) or None
+        tree.append(node)
+    return tree
 
 
 def test_reload_after_compensation_recreates_the_same_tree(loaded: World) -> None:
