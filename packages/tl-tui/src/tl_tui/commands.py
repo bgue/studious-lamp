@@ -39,6 +39,12 @@ APP_COMMANDS: tuple[AppCommand, ...] = (
     AppCommand("cwps", "Work packages: CWPs, state, budget, allocation", "", "cwps"),
     AppCommand("wbs", "WBS: the work breakdown tree and its cost codes", "", "wbs"),
     AppCommand("cwas", "Work areas: CWAs and their order on the path", "", "cwas"),
+    # P2-I2 IWP screens (T07c; the IWP screen keys are in `tl_tui/widgets/iwp_register.py`).
+    AppCommand("iwps", "IWP log: installation work packages, state and foremen", "", "iwps"),
+    AppCommand(
+        "constraints", "Constraint log: open constraints and their owners", "", "constraints"
+    ),
+    AppCommand("backlog", "Backlog: IWPs by view, with the sizing view", "", "backlog"),
     AppCommand("path", "Path of construction: the order of the areas, by version", "", "path"),
     AppCommand("packages", "External packages: EWP and PWP, forecast and actual", "", "packages"),
     AppCommand("settings", "about:config: settings and their history", "F9", "settings"),

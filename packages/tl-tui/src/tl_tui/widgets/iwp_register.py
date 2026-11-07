@@ -208,11 +208,13 @@ class IwpScreen(ModalScreen[None]):
     """One IWP in full: identity, state, summary, Scope, Sign-offs, Drawings, Constraints. Text
     only; Esc closes it, F5 reads it again."""
 
-    KEY_HINTS: ClassVar[str] = "Esc back  F5 reload"
+    KEY_HINTS: ClassVar[str] = "r Readiness  c Constraints  Esc back  F5 reload"
 
     BINDINGS: ClassVar[list[BindingType]] = [
         Binding("escape", "close", "Close", show=False),
         Binding("f5", "reload", "Reload", show=False),
+        Binding("r", "readiness", "Readiness", show=False),
+        Binding("c", "constraints", "Constraints", show=False),
     ]
 
     DEFAULT_CSS = """
@@ -281,6 +283,18 @@ class IwpScreen(ModalScreen[None]):
 
     def action_reload(self) -> None:
         self.reload()
+
+    def action_readiness(self) -> None:
+        """The readiness checks of this IWP."""
+        from tl_tui.widgets.readiness_screen import ReadinessScreen  # noqa: PLC0415
+
+        self.app.push_screen(ReadinessScreen(self.client, self.project, self.number))
+
+    def action_constraints(self) -> None:
+        """The constraint log, filtered to this IWP."""
+        from tl_tui.widgets.constraint_screen import ConstraintScreen  # noqa: PLC0415
+
+        self.app.push_screen(ConstraintScreen(self.client, self.project, subject_key=self.number))
 
     def action_close(self) -> None:
         self.dismiss(None)
