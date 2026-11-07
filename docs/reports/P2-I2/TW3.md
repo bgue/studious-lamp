@@ -1,13 +1,14 @@
 # Report — P2-I2-TW3
 
-Branch: `p2/i2-tw3-web`   Commit(s): `TW3: add the readiness page on the web` (report commit follows; final sha in the return value)
+Branch: `p2/i2-tw3-web`   Commit(s): `TW3: add the readiness page on the web` (b52d023, code) and a follow-up report commit `P2-I2-TW3: ...` (final sha in the return value)
 
 ## Deviations
+- Commit subject: b52d023 carries the subject `TW3: add the readiness page on the web`, but the ticket requires `P2-I2-TW3: ...`. The reviewer asked for a reword. A reword rewrites history, which this run forbids, so b52d023 is unchanged and this follow-up commit uses the required prefix. Changing the old subject needs a supervisor-approved rewrite. See Open questions.
 - Not-evaluated answer: the ticket asks for `not_evaluated_text` and for a missing number to answer the 404 page (140). The route answers 404 for both. The page reads `get_iwp` (already mirrored) after a `record_not_found` from the readiness read: a visible, never-evaluated IWP shows the text (200); a missing or hidden one raises from `get_iwp` and is the 404 page. See Open questions.
 - Panel route: `tl_web/log.py`'s panel route has no query, so the readiness log takes the IWP number from its path (`row_for` sets it). No edit to `log.py`.
 - The page does not load labels (the terminal's `ReadinessScreen` passes none to `readiness_rows`).
 - No Enter-to-open: `row_open_key` is `None`, so no Open link. A reference is text.
-- Trailer names the implementer's own model, not the one the dispatch text named (the dispatch and the harness disagreed; the harness attribution was used). Commit subject uses the dispatch's `TW3:` prefix, as TW2 did.
+- Trailer names the implementer's own model, not the one the dispatch text named (the dispatch and the harness disagreed; the harness attribution was used). The code commit subject uses `TW3:` (not the ticket's `P2-I2-TW3:`); the report commit uses `P2-I2-TW3:`. TW2's commits use `TW2:`, so the earlier claim that TW2 used the same prefix was wrong.
 
 ## Changed files
 - `packages/tl-web/src/tl_web/pages/readiness.py` (new) — `ReadinessWebLog` (a `WebLog`), `register("readiness")`, `GET /web/p/{project}/readiness?number=`.
@@ -50,4 +51,5 @@ gate: PASS
 
 ## Open questions / Blocked
 - Please confirm the not-evaluated behaviour: (a) visible but never evaluated shows the `not_evaluated_text` line with 200 (as built), and missing or hidden shows the 404 page; or (b) every case answers the 404 page, in which case `not_evaluated_text` is unused on the web. Option (a) needs the extra `get_iwp` read.
+- Subject prefix on b52d023: may the supervisor approve a history rewrite to `P2-I2-TW3: add the readiness page on the web`, or accept the existing subject as-is?
 - Backlog tile: not in this ticket (per brief). Follow-up line in STATE for T08's `backlog_text`.
