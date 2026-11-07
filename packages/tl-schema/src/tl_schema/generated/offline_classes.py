@@ -7,6 +7,12 @@ from typing import Final, Literal
 OfflineClass = Literal["full", "draft_only", "none"]
 
 OFFLINE_CLASSES: Final[dict[str, OfflineClass]] = {
+    "awp.CWA": "none",
+    "awp.CWP": "draft_only",
+    "awp.EWPRef": "none",
+    "awp.PWPRef": "none",
+    "awp.PathOfConstruction": "none",
+    "awp.WBSNode": "none",
     "core.Record": "full",
     "correspondence.CommercialItem": "none",
     "correspondence.ContractClause": "none",
@@ -32,6 +38,14 @@ OFFLINE_CLASSES: Final[dict[str, OfflineClass]] = {
     "engineering.Tag": "full",
     "engineering.TagClass": "none",
     "legacy.LoadRun": "none",
+    "materials.InventoryLocation": "none",
+    "materials.ItemMaster": "none",
+    "materials.MTO": "none",
+    "materials.MTOLine": "none",
+    "materials.POLineRef": "none",
+    "materials.ProjectItem": "none",
+    "materials.Receipt": "draft_only",
+    "materials.StockLot": "draft_only",
     "schedule.ActivityRef": "none",
     "schedule.Schedule": "none",
     "schedule.ScheduleSnapshot": "none",

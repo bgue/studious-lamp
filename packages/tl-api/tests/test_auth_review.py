@@ -472,6 +472,34 @@ AGENT_MAY_NOT = {
     "control.command.AssessCommercial",
     "control.command.CloseCommercial",
     "control.command.ReferCommercialToLegal",
+    # the materials controlling acts (P2-I3-S3, P2-Q10): agents never do controller or superuser
+    # acts; the GET routes are open to agents, these writes are not
+    "control.command.DefineItem",
+    "control.command.ReviseItem",
+    "control.command.RetireItem",
+    "control.command.DefineLocation",
+    "control.command.ReviseLocation",
+    "control.command.RetireLocation",
+    "control.command.AdjustStock",
+    "control.command.ScrapStock",
+    "control.command.VoidReceipt",
+    # the MTO publish (P2-I3-S4): a controlling act, access word controller (superuser holds it)
+    "control.command.PublishDerivedMto",
+    # the awp module (P2-I1): the superuser's acts; an agent proposes
+    "control.command.DefineWbsNode",
+    "control.command.ReviseWbsNode",
+    "control.command.RetireWbsNode",
+    "control.command.ReinstateWbsNode",
+    "control.command.MapWbsToCostCodes",
+    "control.command.DefinePathOfConstruction",
+    "control.command.MoveCwaInPath",
+    "control.command.RetireCwa",
+    "control.command.ReleaseCwp",
+    "control.command.ReturnCwp",
+    "control.command.CloseCwp",
+    "control.command.ReopenCwp",
+    "control.command.VoidCwp",
+    "control.command.VoidExternalPackage",
 }
 FEED_COMMANDS = {
     "PostToFeed",

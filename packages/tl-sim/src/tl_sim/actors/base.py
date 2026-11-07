@@ -448,7 +448,28 @@ class Recorder:
         if decided.get("status") != "accepted":
             return None
         self._note(gt.PROPOSAL_ACCEPTED, ref, expect)
+        self._note_accept_made(decided)
         return ref
+
+    def _note_accept_made(self, decided: dict[str, Any]) -> None:
+        """The record an accepted command made is an intended record, so the log names it.
+
+        The accept's answer names it by stream id (``result_stream_id``, a record's id); it is read
+        back by id, as ``key_of`` reads keys. An accept that made no record (a link) names none, or
+        names a stream that is no record, and nothing is noted.
+        """
+        made = decided.get("result_stream_id")
+        if not made:
+            return
+        found = self.ctx.client.query(f"id:{made}", limit=1)
+        if not found:
+            return
+        record = found[0]
+        self._note(
+            gt.RECORD_CREATED,
+            str(record["key"]),
+            {"title": str(record["title"]), "record_type": str(record["type"]), "voided": False},
+        )
 
 
 class BaseActor:

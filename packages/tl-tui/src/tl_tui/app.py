@@ -103,6 +103,12 @@ class TlApp(App[None]):
         Binding("ctrl+o", "schema", "Schema workbench", show=False),
         Binding("f12", "schedules", "Schedules", show=False),
         Binding("ctrl+g", "domains", "RFIs and notices", show=False),
+        Binding("S", "stock", "Stock", show=False),
+        Binding("M", "movements", "Movements", show=False),
+        Binding("E", "receipts", "Receipts", show=False),
+        Binding("D", "mto_lines", "MTO lines", show=False),
+        Binding("I", "items", "Items", show=False),
+        Binding("W", "locations", "Locations", show=False),
         # priority: reaches the app under a modal. The key has its own action so that check_action
         # can step aside in text fields without silencing the palette entry (D18).
         Binding("ctrl+d", "toggle_technical_key", "Technical details", show=False, priority=True),
@@ -645,6 +651,105 @@ class TlApp(App[None]):
             self.notify("The tag register needs a project.", severity="warning")
             return
         self.push_screen(TagRegisterScreen(self.client, project))
+
+    def _push_materials(self, which: str) -> None:
+        """Open a materials log of this project (P2-I3; palette entries, no key yet)."""
+        if self._modal_open():
+            return
+        from tl_core.settings.layers import project_of_scope
+
+        project = project_of_scope(self.scope)
+        if which == "items":
+            from tl_tui.widgets.item_library import ItemLibraryScreen
+
+            self.push_screen(ItemLibraryScreen(self.client, project))
+            return
+        if project is None:
+            self.notify("The materials logs need a project.", severity="warning")
+            return
+        if which == "receipts":
+            from tl_tui.widgets.receipt_log import ReceiptLogScreen
+
+            self.push_screen(ReceiptLogScreen(self.client, project))
+        elif which == "locations":
+            from tl_tui.widgets.location_screen import LocationScreen
+
+            self.push_screen(LocationScreen(self.client, project))
+        elif which == "stock":
+            from tl_tui.widgets.stock_screen import StockScreen
+
+            self.push_screen(StockScreen(self.client, project))
+        elif which == "movements":
+            from tl_tui.widgets.movement_screen import MovementLogScreen
+
+            self.push_screen(MovementLogScreen(self.client, project))
+        else:
+            from tl_tui.widgets.mto_screen import MtoLinesScreen
+
+            self.push_screen(MtoLinesScreen(self.client, project))
+
+    def action_stock(self) -> None:
+        self._push_materials("stock")
+
+    def action_movements(self) -> None:
+        self._push_materials("movements")
+
+    def action_mto_lines(self) -> None:
+        self._push_materials("mto")
+
+    def action_receipts(self) -> None:
+        self._push_materials("receipts")
+
+    def action_items(self) -> None:
+        self._push_materials("items")
+
+    def action_locations(self) -> None:
+        self._push_materials("locations")
+
+    def _push_awp(self, which: str) -> None:
+        """Open an awp screen of this project (P2-I1; palette entries, no key)."""
+        if self._modal_open():
+            return
+        from tl_core.settings.layers import project_of_scope
+
+        from tl_tui.widgets.cwa_register import CwaRegisterScreen
+        from tl_tui.widgets.cwp_register import CwpRegisterScreen
+        from tl_tui.widgets.package_log import PackageLogScreen
+        from tl_tui.widgets.path_screen import PathScreen
+        from tl_tui.widgets.wbs_screen import WbsScreen
+
+        project = project_of_scope(self.scope)
+        if project is None:
+            self.notify("The work packaging screens need a project.", severity="warning")
+            return
+        screens = {
+            "cwps": CwpRegisterScreen,
+            "wbs": WbsScreen,
+            "cwas": CwaRegisterScreen,
+            "path": PathScreen,
+            "packages": PackageLogScreen,
+        }
+        self.push_screen(screens[which](self.client, project))
+
+    def action_cwps(self) -> None:
+        """Work packages: the CWP register of this project (palette only)."""
+        self._push_awp("cwps")
+
+    def action_wbs(self) -> None:
+        """The WBS tree of this project and its cost codes (palette only)."""
+        self._push_awp("wbs")
+
+    def action_cwas(self) -> None:
+        """Work areas: the CWA register of this project, in path order (palette only)."""
+        self._push_awp("cwas")
+
+    def action_path(self) -> None:
+        """The path of construction of this project, by version (palette only)."""
+        self._push_awp("path")
+
+    def action_packages(self) -> None:
+        """External packages: the EWP and PWP log of this project (palette only)."""
+        self._push_awp("packages")
 
     def action_settings(self) -> None:
         """about:config: the settings of this project, with their origin and history."""

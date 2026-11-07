@@ -8,7 +8,7 @@ theirs, down to a depth the user can change (`+` and `-`). `o` cycles the direct
 
 from __future__ import annotations
 
-from typing import Any, ClassVar, Literal
+from typing import Any, ClassVar
 
 from rich.text import Text
 from textual.app import ComposeResult
@@ -21,45 +21,28 @@ from tl_core.services.link_trace import TraceNode
 from tl_tui.client import ClientInterface
 from tl_tui.errors import CLIENT_ERRORS, describe_error
 from tl_tui.messages import OpenRecord, StatusMessage
-from tl_tui.text import EMPTY
+from tl_tui.trace_text import (  # noqa: F401 - the moved names stay importable from here
+    DIRECTION_WORDS,
+    DIRECTIONS,
+    MAX_DEPTH,
+    MIN_DEPTH,
+    Direction,
+    head_text,
+    node_text,
+    tree_lines,
+)
 
-Direction = Literal["both", "out", "in"]
-DIRECTIONS: tuple[Direction, ...] = ("both", "out", "in")
-DIRECTION_WORDS: dict[str, str] = {"both": "both directions", "out": "outbound", "in": "inbound"}
-MIN_DEPTH = 1
-MAX_DEPTH = 6
-
-
-def node_text(node: TraceNode) -> str:
-    """One tree label: ``<key>  <title>`` for the root; ``<label>: <key>  <title>`` below it
-    (for example ``raised against: NCR-1  Bevel damage``). Then, when they apply, ``  ! stale`` or
-    ``  ✗ broken`` for a link in that state, ``  (voided)`` for a voided record, and
-    ``  +N more`` when ``node.more`` records are linked but not shown."""
-    base = f"{node.key or EMPTY}  {node.title}"
-    text = f"{node.label}: {base}" if node.label else base
-    if node.link_status == "stale":
-        text += "  ! stale"
-    elif node.link_status == "broken":
-        text += "  ✗ broken"
-    if node.voided:
-        text += "  (voided)"
-    if node.more:
-        text += f"  +{node.more} more"
-    return text
-
-
-def tree_lines(root: TraceNode) -> list[str]:
-    """The tree as plain lines, depth first, children in their given order, two spaces of indent
-    per level: ``"  " * node.depth + node_text(node)``."""
-    lines = ["  " * root.depth + node_text(root)]
-    for child in root.children:
-        lines.extend(tree_lines(child))
-    return lines
-
-
-def head_text(depth: int, direction: str) -> str:
-    """``Depth 2 · both directions`` (words: both directions, outbound, inbound)."""
-    return f"Depth {depth} · {DIRECTION_WORDS[direction]}"
+__all__ = [
+    "DIRECTIONS",
+    "DIRECTION_WORDS",
+    "Direction",
+    "MAX_DEPTH",
+    "MIN_DEPTH",
+    "TraceTab",
+    "head_text",
+    "node_text",
+    "tree_lines",
+]
 
 
 class TraceTab(Vertical, can_focus=True):

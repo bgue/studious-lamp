@@ -47,6 +47,8 @@ WRAP_MIN = 10  # the last column of a table wraps no narrower than this
 # table that uses a name follows the rule. ``DROP_FIRST`` is least needed first; ``SHORTENABLE``
 # columns end in ``…`` when the table is still too wide; the last column wraps as a last resort.
 DROP_FIRST: tuple[str, ...] = (
+    "Planned start",
+    "Discipline",
     "Files",
     "Pages",
     "Pin",
@@ -72,6 +74,7 @@ SHORTENABLE: frozenset[str] = frozenset(
         "Path",
         "Message",
         "Note",
+        "Subject",
     }
 )
 
@@ -122,7 +125,17 @@ class TableRow:
     cells: tuple[Cell | str, ...]
 
 
-Item = Prop | str | TableRow  # a str is a line of prose or a list entry, printed as it is
+@dataclass(frozen=True)
+class Note:
+    """One line of prose with a style (an amber ``MTR required to accept``).
+
+    A plain ``str`` item has no style."""
+
+    text: str
+    style: str = WAITING_STYLE
+
+
+Item = Prop | str | TableRow | Note  # a str is a line of prose or a list entry, printed as it is
 
 
 @dataclass(frozen=True)
@@ -426,8 +439,10 @@ def _section_lines(section: Section, width: int | None = None) -> list[Line]:
             table.append(item)
         else:
             flush()
-            for text in item.split("\n"):
-                lines.extend([(part, "")] for part in wrap_words(text, width))
+            style = item.style if isinstance(item, Note) else ""
+            text_of = item.text if isinstance(item, Note) else item
+            for text in text_of.split("\n"):
+                lines.extend([(part, style)] for part in wrap_words(text, width))
     flush()
     return lines
 

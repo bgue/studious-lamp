@@ -11,6 +11,7 @@ Operational procedures, one file per alert or recovery path (§24.6). Template: 
 - `rebuild-projections.md` — rebuild the `cur_*` tables from the ledger.
 - `schema-package-change.md` — change a company or project pset package.
 - `tui-dev.md` — run the TUI on the dev ledger.
+- `web-client.md` — run the web client (`/web`) on the dev ledger: sign-in, cookie, CSRF, the demo, troubleshooting (P2-WEB1).
 - `workflow-link-numbering-config.md` — change a workflow, an expected link or a numbering pattern.
 - `webhook-operations.md` — dead-letter queue, replay, secret rotation, disabled subscriptions (P0-I5).
 - `ledger-archive-and-verify.md` — seal the ledger into signed segments, verify the archive and the database, read the first divergence (P0-I7).
@@ -28,3 +29,5 @@ Operational procedures, one file per alert or recovery path (§24.6). Template: 
 - `derivation-pipeline.md` — register a document schema, run the worker, read a failed job, preview and approve a publication, take it back, requeue after a restore (P1-I3).
 - `correspondence.md` — receive, triage, reply, response clocks, email in, restricting an item and the register export (P1-I5).
 - `schedule-snapshots.md` — upload, build, publish and compare P6 schedule snapshots, the worker, reconcile after a restore, the orphan-flagging job, and the cost snapshot import (P1-I4).
+- `awp.md` — load a WBS, CWAs and a path, compensate and reload, the rollup worker, the five screens (P2-I1).
+- `materials.md` — daily materials work: load the item library, receive and accept deliveries with their MTR, move, reserve and adjust stock, read shortages and the movement log (M4).

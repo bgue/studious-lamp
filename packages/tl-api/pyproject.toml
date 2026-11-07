@@ -14,9 +14,13 @@ dependencies = [
   "tl-mod-documents",
   "tl-mod-correspondence",
   "tl-mod-cost",
+  "tl-mod-materials",
+  "tl-mod-awp",
   "tl-mod-schedule",
   "tl-mod-schemareg",
   "tl-mod-legacy",
+  "pypdfium2",
+  "pillow",
 ]
 
 [project.scripts]

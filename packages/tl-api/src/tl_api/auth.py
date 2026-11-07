@@ -18,7 +18,7 @@ from fastapi import Depends, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from starlette.concurrency import run_in_threadpool
 from starlette.exceptions import HTTPException
-from starlette.responses import JSONResponse
+from starlette.responses import JSONResponse, Response
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 from tl_core.auth.errors import InvalidCredentialsError
 from tl_core.auth.types import IdentityProvider, Principal
@@ -169,6 +169,27 @@ PRINCIPAL_KEY = "tl_api.principal"
 OPEN_PATHS = frozenset({"/health", "/auth/sign-in"})
 
 
+#: The web client's session cookie: read only by the middleware, and only under ``/web/``.
+SESSION_COOKIE = "tl_session"
+#: Where the middleware keeps the token it authenticated, whichever way it arrived (private key).
+TOKEN_KEY = "tl_api.token"
+WEB_PREFIX = "/web/"
+WEB_SIGN_IN = "/web/sign-in"
+WEB_STATIC = "/web/static/"
+
+
+def cookie_value(headers: list[tuple[bytes, bytes]], name: str) -> str | None:
+    """The first value of cookie ``name`` in the ``Cookie`` header lines, else ``None``."""
+    for header, value in headers:
+        if header.lower() != b"cookie":
+            continue
+        for pair in value.decode("latin-1").split(";"):
+            key, _, text = pair.strip().partition("=")
+            if key == name and text:
+                return text
+    return None
+
+
 def bearer_token(headers: list[tuple[bytes, bytes]]) -> str | None:
     """The token of an ``Authorization: Bearer <token>`` header, else ``None``."""
     for name, value in headers:
@@ -188,28 +209,50 @@ class AuthenticationMiddleware:
     still runs per route to call the ``Authorizer`` with the route's action.
     """
 
-    def __init__(self, app: ASGIApp, resolver: Resolver) -> None:
+    def __init__(self, app: ASGIApp, resolver: Resolver, *, web_paths: bool = True) -> None:
         self.app = app
         self._resolver = resolver
+        self._web_paths = web_paths
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
-        if scope["type"] != "http" or scope["path"] in OPEN_PATHS:
+        path = scope["path"] if scope["type"] == "http" else ""
+        if scope["type"] != "http" or path in OPEN_PATHS:
             await self.app(scope, receive, send)
             return
-        token = bearer_token(scope["headers"])
+        web = self._web_paths and path.startswith(WEB_PREFIX)
+        if web and (path == WEB_SIGN_IN or path.startswith(WEB_STATIC)):
+            await self.app(scope, receive, send)  # the web's open paths: the form and its files
+            return
+        headers = scope["headers"]
+        token = bearer_token(headers)
+        if token is None and web and not any(n.lower() == b"authorization" for n, _ in headers):
+            # the one place the session cookie is read: under /web/ and nowhere else
+            token = cookie_value(headers, SESSION_COOKIE)
         principal = (
             None if token is None else await run_in_threadpool(self._resolver.resolve, token)
         )
         if principal is None:
-            message = "a bearer token is required" if token is None else "unknown token"
+            if web and scope["method"] == "GET":
+                response: Response = Response(status_code=303, headers={"Location": WEB_SIGN_IN})
+            else:
+                message = "a bearer token is required" if token is None else "unknown token"
+                response = JSONResponse(
+                    {"error": "unauthorized", "message": message},
+                    status_code=401,
+                    headers={"WWW-Authenticate": "Bearer"},
+                )
+            await response(scope, receive, send)
+            return
+        if web and principal.kind == "agent":  # agents have no web session (ADR-0009)
             response = JSONResponse(
-                {"error": "unauthorized", "message": message},
+                {"error": "unauthorized", "message": "agents have no web session"},
                 status_code=401,
-                headers={"WWW-Authenticate": "Bearer"},
             )
             await response(scope, receive, send)
             return
         scope[PRINCIPAL_KEY] = principal
+        if web:
+            scope[TOKEN_KEY] = token  # the web's CSRF token is derived from it
         # Every read below this point sees only what this principal may read (ADR-0016): the
         # context variable is copied into the worker threads that run the route functions.
         with use_viewer(viewer_for(principal)):
@@ -217,7 +260,12 @@ class AuthenticationMiddleware:
 
 
 #: Largest request body by path prefix; credentials and account forms are tiny.
-BODY_LIMITS: tuple[tuple[str, int], ...] = (("/auth/", 16 * 1024), ("/admin/", 64 * 1024))
+BODY_LIMITS: tuple[tuple[str, int], ...] = (
+    ("/auth/", 16 * 1024),
+    ("/admin/", 64 * 1024),
+    ("/web/sign-in", 16 * 1024),
+    ("/web/", 64 * 1024),
+)
 
 
 class BodyLimitMiddleware:

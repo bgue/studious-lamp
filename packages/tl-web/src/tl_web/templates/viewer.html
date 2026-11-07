@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}{{ filename }} - Throughline{% endblock %}
+{% block content %}
+<link rel="stylesheet" href="/web/static/viewer.css">
+<h1>{{ filename }}</h1>
+{% if viewable %}
+<div id="pdf-toolbar" class="pdf-toolbar">
+<span id="pdf-page">Loading</span>
+<button type="button" id="pdf-zoom-out">Zoom out</button>
+<button type="button" id="pdf-zoom-in">Zoom in</button>
+<a id="pdf-download" href="{{ download_url }}" download>Download</a>
+</div>
+<div id="pdf-view" data-src="{{ download_url }}" data-worker="{{ worker_url }}" data-name="{{ filename }}">
+<div id="pdf-pages"></div>
+</div>
+<script type="module" src="/web/static/pdfview.js"></script>
+{% else %}
+<p>This file cannot be shown here. <a href="{{ download_url }}" download>Download {{ filename }}</a></p>
+{% endif %}
+{% endblock %}

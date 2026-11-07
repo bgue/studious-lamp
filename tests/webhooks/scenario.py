@@ -193,6 +193,52 @@ MODULE_STREAMS = (
         ),
     ),
     ("schemareg.Waiver", "Waiver.Requested", ("Waiver.Approved", "Waiver.Revoked")),
+    # awp (P2-I1): WBS, path of construction, CWAs, CWPs, external and package refs
+    (
+        "awp.WBSNode",
+        "WBSNode.Defined",
+        (
+            "WBSNode.Revised",
+            "WBSNode.Retired",
+            "WBSNode.Reinstated",
+            "WBSNode.CostCodesMapped",
+            "WBSNode.BudgetRolledUp",
+        ),
+    ),
+    (
+        "awp.PathOfConstruction",
+        "PathOfConstruction.Defined",
+        ("PathOfConstruction.Resequenced",),
+    ),
+    ("awp.CWA", "CWA.Defined", ("CWA.Revised", "CWA.Retired")),
+    (
+        "awp.CWP",
+        "CWP.Defined",
+        ("CWP.Revised", "CWP.AllocatedToWbs", "CWP.Released"),
+    ),
+    ("awp.EWPRef", "EWPRef.Defined", ("EWPRef.Updated",)),
+    ("awp.PWPRef", "PWPRef.Defined", ("PWPRef.Updated",)),
+    # materials (P2-I3): library, location tree, PO line mirror, receipts, lots and take-offs
+    (
+        "materials.ItemMaster",
+        "ItemMaster.Defined",
+        ("ItemMaster.Revised", "ItemMaster.Retired"),
+    ),
+    ("materials.ProjectItem", "ProjectItem.Defined", ()),
+    (
+        "materials.InventoryLocation",
+        "InventoryLocation.Defined",
+        ("InventoryLocation.Revised", "InventoryLocation.Retired"),
+    ),
+    ("materials.POLineRef", "POLineRef.Defined", ("POLineRef.Updated",)),
+    (
+        "materials.Receipt",
+        "Receipt.Defined",
+        ("Receipt.Revised", "Receipt.Inspected", "Receipt.Accepted", "Receipt.Rejected"),
+    ),
+    ("materials.StockLot", "StockLot.Defined", ("StockLot.Moved",)),
+    ("materials.MTO", "MTO.Defined", ()),
+    ("materials.MTOLine", "MTOLine.Defined", ("MTOLine.Assigned",)),
 )
 
 
@@ -215,12 +261,29 @@ KEEP_INTERNAL = {
 }
 
 
+#: The sample of these events names records that do not exist in the scenario, and the module's
+#: projector keeps balances, so the scenario sends a receive into a location and a receipt with no
+#: PO line (the event is the same one, the catalog's, with the references it needs).
+PROJECTABLE = {
+    "Receipt.Defined": {"po_line_id": None},
+    "StockLot.Moved": {
+        "kind": "receive",
+        "from_location_id": None,
+        "to_location_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P2",
+        "cost_code_id": None,
+    },
+    # the catalog's samples of these two name an id of 27 characters (not a ULID)
+    "MTOLine.Defined": {"mto_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PA"},
+    "MTOLine.Assigned": {"work_package_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PB"},
+}
+
+
 def stream_of(index: int) -> str:
-    return (
-        f"01J9Z6Q4W3X2Y1V0T9S8R7Q6M{index}"
-        if index < 10
-        else f"01J9Z6Q4W3X2Y1V0T9S8R7Q6N{index - 10}"
-    )
+    if index < 10:
+        return f"01J9Z6Q4W3X2Y1V0T9S8R7Q6M{index}"
+    if index < 20:
+        return f"01J9Z6Q4W3X2Y1V0T9S8R7Q6N{index - 10}"
+    return f"01J9Z6Q4W3X2Y1V0T9S8R7Q7{index:02d}"
 
 
 def append_module_events(world: World) -> None:
@@ -240,7 +303,10 @@ def append_module_events(world: World) -> None:
         }
         world.append("Record.Created", created, stream_id=stream, stream_type=record_type)
         for kind in (defined, *followers):
-            override: dict[str, Any] = dict(KEEP_INTERNAL.get(kind, {}))
+            override: dict[str, Any] = {
+                **KEEP_INTERNAL.get(kind, {}),
+                **PROJECTABLE.get(kind, {}),
+            }
             if kind == defined and record_type in PARENTS:
                 field, parent = PARENTS[record_type]
                 override[field] = streams[parent]

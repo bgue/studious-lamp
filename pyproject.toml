@@ -33,6 +33,7 @@ tl-adapters = { workspace = true }
 tl-api = { workspace = true }
 tl-mcp = { workspace = true }
 tl-tui = { workspace = true }
+tl-web = { workspace = true }
 tl-cli = { workspace = true }
 tl-sim = { workspace = true }
 tl-lake = { workspace = true }
@@ -45,6 +46,8 @@ tl-mod-cost = { workspace = true }
 tl-mod-schedule = { workspace = true }
 tl-mod-schemareg = { workspace = true }
 tl-mod-legacy = { workspace = true }
+tl-mod-materials = { workspace = true }
+tl-mod-awp = { workspace = true }
 
 [tool.ruff]
 line-length = 100
@@ -56,7 +59,7 @@ extend-exclude = ["packages/tl-schema/src/tl_schema/generated"]
 select = ["E", "F", "I", "UP", "B"]
 
 [tool.pytest.ini_options]
-testpaths = ["packages", "tests"]
+testpaths = ["packages", "packages/tl-web/tests", "tests"]
 addopts = "--import-mode=importlib"
 markers = [
   "parity: runs once per adapter named by --adapters (see conftest.py)",
@@ -83,6 +86,7 @@ extraPaths = [
   "packages/tl-modules/documents/tests",
   "packages/tl-modules/correspondence/tests",
   "packages/tl-modules/cost/tests",
+  "packages/tl-modules/materials/tests",
   "packages/tl-modules/schedule/tests",
   "packages/tl-modules/schemareg/tests",
   "packages/tl-modules/legacy/tests",

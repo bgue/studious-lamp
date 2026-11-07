@@ -16,16 +16,19 @@ members = [
     "tl-extract",
     "tl-lake",
     "tl-mcp",
+    "tl-mod-awp",
     "tl-mod-correspondence",
     "tl-mod-cost",
     "tl-mod-documents",
     "tl-mod-engineering",
     "tl-mod-legacy",
+    "tl-mod-materials",
     "tl-mod-schedule",
     "tl-mod-schemareg",
     "tl-schema",
     "tl-sim",
     "tl-tui",
+    "tl-web",
     "tl-xer",
 ]
 overrides = [{ name = "jsonschema", extras = ["format-nongpl"], specifier = ">=4.26" }]
@@ -2708,14 +2711,18 @@ source = { editable = "packages/tl-api" }
 dependencies = [
     { name = "fastapi" },
     { name = "httpx2" },
+    { name = "pillow" },
     { name = "pydantic" },
+    { name = "pypdfium2" },
     { name = "tl-adapters" },
     { name = "tl-core" },
+    { name = "tl-mod-awp" },
     { name = "tl-mod-correspondence" },
     { name = "tl-mod-cost" },
     { name = "tl-mod-documents" },
     { name = "tl-mod-engineering" },
     { name = "tl-mod-legacy" },
+    { name = "tl-mod-materials" },
     { name = "tl-mod-schedule" },
     { name = "tl-mod-schemareg" },
     { name = "tl-schema" },
@@ -2726,14 +2733,18 @@ dependencies = [
 requires-dist = [
     { name = "fastapi" },
     { name = "httpx2" },
+    { name = "pillow" },
     { name = "pydantic", specifier = ">=2" },
+    { name = "pypdfium2" },
     { name = "tl-adapters", editable = "packages/tl-adapters" },
     { name = "tl-core", editable = "packages/tl-core" },
+    { name = "tl-mod-awp", editable = "packages/tl-modules/awp" },
     { name = "tl-mod-correspondence", editable = "packages/tl-modules/correspondence" },
     { name = "tl-mod-cost", editable = "packages/tl-modules/cost" },
     { name = "tl-mod-documents", editable = "packages/tl-modules/documents" },
     { name = "tl-mod-engineering", editable = "packages/tl-modules/engineering" },
     { name = "tl-mod-legacy", editable = "packages/tl-modules/legacy" },
+    { name = "tl-mod-materials", editable = "packages/tl-modules/materials" },
     { name = "tl-mod-schedule", editable = "packages/tl-modules/schedule" },
     { name = "tl-mod-schemareg", editable = "packages/tl-modules/schemareg" },
     { name = "tl-schema", editable = "packages/tl-schema" },
@@ -2751,11 +2762,13 @@ dependencies = [
     { name = "tl-api" },
     { name = "tl-core" },
     { name = "tl-lake" },
+    { name = "tl-mod-awp" },
     { name = "tl-mod-correspondence" },
     { name = "tl-mod-cost" },
     { name = "tl-mod-documents" },
     { name = "tl-mod-engineering" },
     { name = "tl-mod-legacy" },
+    { name = "tl-mod-materials" },
     { name = "tl-mod-schedule" },
     { name = "tl-mod-schemareg" },
     { name = "tl-schema" },
@@ -2773,11 +2786,13 @@ requires-dist = [
     { name = "tl-api", editable = "packages/tl-api" },
     { name = "tl-core", editable = "packages/tl-core" },
     { name = "tl-lake", editable = "packages/tl-lake" },
+    { name = "tl-mod-awp", editable = "packages/tl-modules/awp" },
     { name = "tl-mod-correspondence", editable = "packages/tl-modules/correspondence" },
     { name = "tl-mod-cost", editable = "packages/tl-modules/cost" },
     { name = "tl-mod-documents", editable = "packages/tl-modules/documents" },
     { name = "tl-mod-engineering", editable = "packages/tl-modules/engineering" },
     { name = "tl-mod-legacy", editable = "packages/tl-modules/legacy" },
+    { name = "tl-mod-materials", editable = "packages/tl-modules/materials" },
     { name = "tl-mod-schedule", editable = "packages/tl-modules/schedule" },
     { name = "tl-mod-schemareg", editable = "packages/tl-modules/schemareg" },
     { name = "tl-schema", editable = "packages/tl-schema" },
@@ -2886,6 +2901,7 @@ dependencies = [
     { name = "tl-core" },
     { name = "tl-lake" },
     { name = "tl-mod-legacy" },
+    { name = "tl-mod-materials" },
     { name = "tl-mod-schedule" },
     { name = "tl-mod-schemareg" },
     { name = "tl-schema" },
@@ -2901,10 +2917,38 @@ requires-dist = [
     { name = "tl-core", editable = "packages/tl-core" },
     { name = "tl-lake", editable = "packages/tl-lake" },
     { name = "tl-mod-legacy", editable = "packages/tl-modules/legacy" },
+    { name = "tl-mod-materials", editable = "packages/tl-modules/materials" },
     { name = "tl-mod-schedule", editable = "packages/tl-modules/schedule" },
     { name = "tl-mod-schemareg", editable = "packages/tl-modules/schemareg" },
     { name = "tl-schema", editable = "packages/tl-schema" },
     { name = "tl-tui", editable = "packages/tl-tui" },
+]
+
+[[package]]
+name = "tl-mod-awp"
+version = "0.0.1"
+source = { editable = "packages/tl-modules/awp" }
+dependencies = [
+    { name = "pydantic" },
+    { name = "sqlalchemy" },
+    { name = "tl-adapters" },
+    { name = "tl-core" },
+    { name = "tl-mod-engineering" },
+    { name = "tl-mod-legacy" },
+    { name = "tl-mod-schedule" },
+    { name = "tl-schema" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "pydantic", specifier = ">=2" },
+    { name = "sqlalchemy", specifier = ">=2" },
+    { name = "tl-adapters", editable = "packages/tl-adapters" },
+    { name = "tl-core", editable = "packages/tl-core" },
+    { name = "tl-mod-engineering", editable = "packages/tl-modules/engineering" },
+    { name = "tl-mod-legacy", editable = "packages/tl-modules/legacy" },
+    { name = "tl-mod-schedule", editable = "packages/tl-modules/schedule" },
+    { name = "tl-schema", editable = "packages/tl-schema" },
 ]
 
 [[package]]
@@ -3031,6 +3075,31 @@ requires-dist = [
 ]
 
 [[package]]
+name = "tl-mod-materials"
+version = "0.0.1"
+source = { editable = "packages/tl-modules/materials" }
+dependencies = [
+    { name = "pydantic" },
+    { name = "sqlalchemy" },
+    { name = "tl-adapters" },
+    { name = "tl-core" },
+    { name = "tl-mod-documents" },
+    { name = "tl-mod-legacy" },
+    { name = "tl-schema" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "pydantic", specifier = ">=2" },
+    { name = "sqlalchemy", specifier = ">=2" },
+    { name = "tl-adapters", editable = "packages/tl-adapters" },
+    { name = "tl-core", editable = "packages/tl-core" },
+    { name = "tl-mod-documents", editable = "packages/tl-modules/documents" },
+    { name = "tl-mod-legacy", editable = "packages/tl-modules/legacy" },
+    { name = "tl-schema", editable = "packages/tl-schema" },
+]
+
+[[package]]
 name = "tl-mod-schedule"
 version = "0.0.1"
 source = { editable = "packages/tl-modules/schedule" }
@@ -3147,6 +3216,7 @@ dependencies = [
     { name = "tl-mod-documents" },
     { name = "tl-mod-engineering" },
     { name = "tl-mod-legacy" },
+    { name = "tl-mod-materials" },
     { name = "tl-mod-schedule" },
     { name = "tl-mod-schemareg" },
     { name = "tl-schema" },
@@ -3168,9 +3238,29 @@ requires-dist = [
     { name = "tl-mod-documents", editable = "packages/tl-modules/documents" },
     { name = "tl-mod-engineering", editable = "packages/tl-modules/engineering" },
     { name = "tl-mod-legacy", editable = "packages/tl-modules/legacy" },
+    { name = "tl-mod-materials", editable = "packages/tl-modules/materials" },
     { name = "tl-mod-schedule", editable = "packages/tl-modules/schedule" },
     { name = "tl-mod-schemareg", editable = "packages/tl-modules/schemareg" },
     { name = "tl-schema", editable = "packages/tl-schema" },
+]
+
+[[package]]
+name = "tl-web"
+version = "0.0.1"
+source = { editable = "packages/tl-web" }
+dependencies = [
+    { name = "jinja2" },
+    { name = "python-multipart" },
+    { name = "tl-api" },
+    { name = "tl-tui" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "jinja2" },
+    { name = "python-multipart" },
+    { name = "tl-api", editable = "packages/tl-api" },
+    { name = "tl-tui", editable = "packages/tl-tui" },
 ]
 
 [[package]]

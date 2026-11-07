@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}{{ log_name }} - {{ project }} - Throughline{% endblock %}
+{% block content %}
+<div class="tl-log" data-project="{{ project }}">
+{% include "crumb.html" %}
+<form id="log-filter" class="tl-filter" method="get" action="{{ page_url }}" role="search">
+<input type="search" name="q" value="{{ q }}" placeholder="Filter" aria-label="Filter">
+{% if mode %}<input type="hidden" name="mode" value="{{ mode }}">
+{% endif %}</form>
+<div id="log-body" class="tl-body">
+<div id="log-table" class="tl-table">
+{% if rows %}<table>
+<thead><tr>{% for c in columns %}<th scope="col" class="{{ c.cls }}">{{ c.name }}</th>{% endfor %}</tr></thead>
+<tbody>
+{% for r in rows %}<tr data-number="{{ r.number }}" data-open="{{ r.open_url }}" aria-selected="{{ 'true' if r.selected else 'false' }}" tabindex="0" hx-get="{{ r.panel_url }}" hx-target="#log-panel" hx-swap="innerHTML" hx-trigger="click">{% for c in r.cells %}<td class="{{ c.cls }}">{% if c.badge %}<span class="tl-badge tl-{{ c.badge }}">{{ c.text }}</span>{% else %}{{ c.text }}{% endif %}</td>{% endfor %}</tr>
+{% endfor %}</tbody>
+</table>
+{% else %}<p class="tl-muted">No items.</p>
+{% endif %}</div>
+<div id="log-panel" class="tl-panel">
+{% include "panel_body.html" %}
+</div>
+</div>
+{% include "actions.html" %}
+<div id="log-keys" class="tl-keys">{{ key_hints }}</div>
+{% include "status.html" %}
+</div>
+{% endblock %}

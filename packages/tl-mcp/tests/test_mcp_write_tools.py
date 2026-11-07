@@ -28,6 +28,8 @@ PROPOSING = (
     "link_records",
     "transition_workflow",
     "propose_setting_change",
+    "propose_cwp",  # T06
+    "propose_reservation",  # P2-I3
 )
 
 

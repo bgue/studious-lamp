@@ -116,6 +116,12 @@ def test_every_record_class_of_the_committed_modules_has_a_view() -> None:
     files = ddl.generate(REPO / "schema" / "core")
     views = sorted(name.split("/")[-1][:-4] for name in files if "/sqlite/v_" in name)
     assert views == [
+        "v_awp_cwa",
+        "v_awp_cwp",
+        "v_awp_ewpref",
+        "v_awp_path_of_construction",
+        "v_awp_pwpref",
+        "v_awp_wbsnode",
         "v_correspondence_commercial_item",
         "v_correspondence_contract_clause",
         "v_correspondence_correspondence",
@@ -138,6 +144,14 @@ def test_every_record_class_of_the_committed_modules_has_a_view() -> None:
         "v_engineering_tag",
         "v_engineering_tag_class",
         "v_legacy_load_run",
+        "v_materials_inventory_location",
+        "v_materials_item_master",
+        "v_materials_mto",
+        "v_materials_mtoline",
+        "v_materials_poline_ref",
+        "v_materials_project_item",
+        "v_materials_receipt",
+        "v_materials_stock_lot",
         "v_schedule_activity_ref",
         "v_schedule_schedule",
         "v_schedule_schedule_snapshot",

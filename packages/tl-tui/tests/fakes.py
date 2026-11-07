@@ -17,12 +17,14 @@ from typing import Any, Literal
 
 from fakes_actions import FakeActionsSupport
 from fakes_admin import FakeAdminSupport
+from fakes_awp import FakeAwpSupport
 from fakes_correspondence import FakeCorrespondenceSupport
 from fakes_derivation import FakeDerivationSupport
 from fakes_documents import FakeDocumentSupport
 from fakes_feed import FakeFeedSupport
 from fakes_integration import FakeIntegrationSupport
 from fakes_links import FakeLinkSupport
+from fakes_materials import FakeMaterialsSupport
 from fakes_query import FakeQuerySupport
 from fakes_schedule import FakeScheduleSupport
 from fakes_schemareg import FakeSchemaRegistrySupport
@@ -229,7 +231,9 @@ class FakeClient(
     FakeIntegrationSupport,
     FakeCorrespondenceSupport,
     FakeScheduleSupport,
+    FakeAwpSupport,
     FakeSchemaRegistrySupport,
+    FakeMaterialsSupport,
 ):
     """Implements `tl_tui.client.ClientInterface` in memory."""
 
@@ -260,7 +264,9 @@ class FakeClient(
         self._init_integration()
         self._init_correspondence()
         self._init_schedule()
+        self._init_awp()
         self._init_schemareg()
+        self._init_materials()
 
     # --- seeding -----------------------------------------------------------------------------
 

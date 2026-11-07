@@ -12,6 +12,12 @@ Classes:
 
 | Record type | Label | Class | Meaning |
 |---|---|---|---|
+| `awp.CWA` | Construction work area | `none` | Online only. |
+| `awp.CWP` | Construction work package | `draft_only` | Drafts offline; issue, number and sign happen on the authority. |
+| `awp.EWPRef` | Engineering work package reference | `none` | Online only. |
+| `awp.PWPRef` | Procurement work package reference | `none` | Online only. |
+| `awp.PathOfConstruction` | Path of construction | `none` | Online only. |
+| `awp.WBSNode` | WBS node | `none` | Online only. |
 | `core.Record` | Record | `full` | Created and edited offline, merged on sync. |
 | `correspondence.CommercialItem` | Commercial item | `none` | Online only. |
 | `correspondence.ContractClause` | Contract clause | `none` | Online only. |
@@ -37,6 +43,14 @@ Classes:
 | `engineering.Tag` | Tag | `full` | Created and edited offline, merged on sync. |
 | `engineering.TagClass` | Tag class | `none` | Online only. |
 | `legacy.LoadRun` | Load run | `none` | Online only. |
+| `materials.InventoryLocation` | Inventory location | `none` | Online only. |
+| `materials.ItemMaster` | Item master | `none` | Online only. |
+| `materials.MTO` | Material take-off | `none` | Online only. |
+| `materials.MTOLine` | Material take-off line | `none` | Online only. |
+| `materials.POLineRef` | PO line | `none` | Online only. |
+| `materials.ProjectItem` | Project item | `none` | Online only. |
+| `materials.Receipt` | Receipt | `draft_only` | Drafts offline; issue, number and sign happen on the authority. |
+| `materials.StockLot` | Stock lot | `draft_only` | Drafts offline; issue, number and sign happen on the authority. |
 | `schedule.ActivityRef` | Activity reference | `none` | Online only. |
 | `schedule.Schedule` | Schedule | `none` | Online only. |
 | `schedule.ScheduleSnapshot` | Schedule snapshot | `none` | Online only. |

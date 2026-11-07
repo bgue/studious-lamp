@@ -14,7 +14,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
-from typing import Any, Literal
+from typing import Any
 
 from jsonschema import Draft202012Validator
 from jsonschema.exceptions import SchemaError
@@ -25,7 +25,12 @@ from tl_core.services.records import create_module_record
 from tl_core.uow import UnitOfWork
 
 from tl_mod_documents.derivation import rows
-from tl_mod_documents.derivation.mapping import MappingInvalidError, check_mapping
+from tl_mod_documents.derivation.mapping import (
+    MappingInvalidError,
+    check_mapping,
+    known_target,
+    known_targets,
+)
 from tl_mod_documents.derivation.validation_isolated import validate_isolated
 from tl_mod_documents.errors import (
     InvalidDocumentSchemaError,
@@ -74,7 +79,7 @@ class RegisterDocumentSchema(Command):
     sample: list[dict[str, str | None]] = Field(default_factory=list[dict[str, str | None]])
     mapping: dict[str, Any] | None = None
     mapping_notes: str | None = Field(default=None, max_length=MAX_DESCRIPTION)
-    target_kind: Literal["tags", "documents"] | None = None
+    target_kind: str | None = Field(default=None, max_length=63)
     key_column: str | None = Field(default=None, max_length=MAX_TEXT)
     doc_types: list[str] = Field(default_factory=list[str], max_length=MAX_DOC_TYPES)
 
@@ -201,6 +206,11 @@ def schema_problems(cmd: RegisterDocumentSchema) -> list[str]:
         problems.append(f"more than {MAX_PROPERTIES} properties")
     if any(not n.strip() or n != n.strip() for n in names):
         problems.append("a property name is blank or has spaces at its ends")
+    if cmd.target_kind is not None and not known_target(cmd.target_kind):
+        problems.append(
+            f"target_kind {cmd.target_kind!r} is not a publish target "
+            f"({', '.join(known_targets())})"
+        )
     if (cmd.mapping is None) != (cmd.target_kind is None):
         problems.append("mapping and target_kind go together: give both or neither")
     if cmd.target_kind is not None and cmd.key_column is None:

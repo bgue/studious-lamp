@@ -236,3 +236,37 @@ The impact report of a package is stored in an event the whole company can read,
 - **L-P1-UX2-3** · 2026-10-22 · tags: tui, standards
   The columns of a company standard hold codes (`STR`, `ISO`, `PIP`, `47`). A screen shows plain words only if the standard's code lists are read: `list_code_lists(scope)` gives `{list: {code: label}}` and `labels_load` keys each list by its column and by its list name. A new log that shows a standards column needs one test with a code in the cell (plain shows the label, technical keeps the code).
   Evidence: S3 report (D10), `labels_load.py`, `test_standard_code_labels.py`. Status: active
+
+- **L-P2-I1-1** · 2026-11-05 · tags: process, schema
+  Check whether a "target-level" fix is possible before writing a Haiku ticket: retire keeps the key taken and no event revives a node, so a loader reload could not be fixed in the loader. It needed a new event and command (S7), a piece with a human gate.
+  Evidence: D58, `docs/reports/P2-I1/S7.md`. Status: active
+
+- **L-P2-I1-2** · 2026-11-05 · tags: tooling, gate
+  A seven-package `just gate` in one pytest session is OOM-killed when other builders run pyright beside it. Gate per package with the same paths and keep one summary per package.
+  Evidence: `docs/reports/P2-I1/T11.md` deviation 2. Status: active
+
+- **L-P2-I1-3** · 2026-11-05 · tags: process, review
+  Review a demo or a report only against the final run: a reviewer read the stale report from the failed first run and returned changes requested. Refresh the report before review.
+  Evidence: T08 review, `docs/reports/P2-I1/T08.md`. Status: active
+- **L-P2-WEB1-1** · 2026-11-04 · tags: process, tests
+  A page that is a twin of a terminal screen is only a Haiku ticket when the terminal logic is already a Textual-free module (01-tiers 6 item 2). S4's first checklist run failed for the record screen and the awp and M4 screens; one builder piece that moves the logic (S6) made the tabs and twins cheap. Run the checklist after the interface is in the tree, and split twins one page each.
+  Evidence: D16, D19, D25, D34, D39. Status: active
+
+- **L-P2-WEB1-2** · 2026-11-04 · tags: web, security
+  A server-rendered POST needs the origin check even when it carries no token: sign-in had none, which made login CSRF possible (F1). Fail closed for the guard (`run_command(guard=True)` default; the JSON endpoint opts out), and count a refused origin as no failure in the rate limiter.
+  Evidence: SECFIX report, F1 to F3, `b817341`. Status: active
+
+- **L-P2-WEB1-3** · 2026-11-04 · tags: web, tests
+  Test seeds that attach files or hold hidden records may only work on SQLite: `seed_hidden_world` fails on Postgres, so `gate-pg` on a new package errors at baseline. Check the seed on both adapters when the first page test is written, and name the unknown-project answer (empty 200 versus 404) in the spec.
+  Evidence: Q4, T20 orchestrator decision. Status: active
+- **L-P2-I3-1** · 2026-11-07 · tags: tests, process
+  Ported acceptance scripts live as `acc_*.py` helpers inside the module's own tests dir and are imported by test files of other packages (tl-api, tl-mcp, tl-tui, tl-cli). That cross-package import is accepted: the Worlds and check functions stay in one place. The seed ledger takes about 1 s to build in a test; the 2 m 15 s of `S3.py --keep` was the checks.
+  Evidence: T11 report Deviations, review F4. Status: active
+
+- **L-P2-I3-2** · 2026-11-07 · tags: tests, env
+  The 4-part whole-suite gate OOMs on 16 GB once a module has this many tests. Run `just gate` per folder (one part per package directory) on the integrated branch, and name the touched test files for a ticket gate.
+  Evidence: orchestrator r13 note; T11 gate ran touched files, not whole directories. Status: active
+
+- **L-P2-I3-3** · 2026-11-07 · tags: cli, process
+  A CLI option that takes a record id is unusable when no read command prints ids: `tl mat move --for-line` needs an id but `mto show` and `mto list` print keys. Make write options take the key a read prints, and check every id-taking option against the read output in the ticket.
+  Evidence: T10 report Learnings; follow-up 1 of `docs/reports/P2-I3.md`. Status: active

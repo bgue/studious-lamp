@@ -1,0 +1,110 @@
+id: https://example.org/throughline/modules/awp/cwp
+name: tl_mod_awp_cwp
+title: Construction work packages (brief 9, M3)
+description: >-
+  A `CWP` is a construction work package: numbered from the pattern `{project}-{type}-{discipline}-{seq:4}`, in one CWA, budgeted in hours and allocated to WBS nodes in percent. Its life is the workflow `awp-cwp`. Spec: docs/build-spec/specs/m3-wbs-cwp.md section 2.
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+  - ../../core/annotations
+  - ../../core/record
+default_range: string
+annotations:
+  tl:module: awp
+
+classes:
+  CWP:
+    title: Construction work package
+    description: >-
+      One construction work package. Record type `awp.CWP`; its key is the number the allocator gives it
+      (`P123-CWP-PIP-0001`, gap-free, counted per discipline) and its title the subject. Decimals are text with
+      ASCII digits and dates are `YYYY-MM-DD`. The fields are frozen from the state Released for IWP
+      development; only a return reopens them.
+    annotations:
+      tl:current_state: true
+      tl:record_types: "awp.CWP"
+      tl:offline: draft_only
+      tl:table: cur_awp_cwp
+      tl:ix_scope_discipline: "scope, discipline"
+      tl:ix_scope_cwa: "scope, cwa_id"
+      tl:expects_link:
+        - relation: requires
+          direction: out
+          target_type: awp.EWPRef
+          by_state: Released for IWP development
+          label: engineering work package
+    attributes:
+      id:
+        identifier: true
+        range: Ulid
+        required: true
+        description: Record id; equals the ledger stream id and the `cur_core_record` id.
+      scope:
+        range: ScopeId
+        required: true
+        description: The project scope, `project:<id>`.
+      discipline:
+        required: true
+        description: Code of the code list `Discipline` (`PIP`); part of the number.
+      cwa_id:
+        range: Ulid
+        description: The `awp.CWA` the package belongs to; null until set (release needs it).
+      planned_start:
+        pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+        description: "Planned start, `YYYY-MM-DD`."
+      planned_finish:
+        pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+        description: "Planned finish, `YYYY-MM-DD`; not before the start."
+      budget_hours:
+        pattern: "^((0|[1-9][0-9]{0,6})\\.[0-9]|10000000\\.0)$"
+        description: 'Budget in hours, text with one decimal from "0.0" to "10000000.0"; null until set.'
+      quantities:
+        range: Any
+        annotations:
+          tl:json: true
+        description: 'JSON list of at most 50 rows `{commodity, qty, uom}`; `commodity` is a code of `Commodity`, `uom` of `UnitOfMeasure`, `qty` a decimal text. Column `quantities_json`.'
+      contractor_text:
+        pattern: "^.{0,120}$"
+        description: The contractor named in words (at most 120 characters).
+      last_seq:
+        range: integer
+        required: true
+        description: Ledger `seq` of the last event applied to this row.
+
+  CwpAllocation:
+    description: >-
+      One line of the allocation of a CWP to WBS nodes. Not a record: written by the projector of
+      `CWP.AllocatedToWbs`, which replaces the package's list. The lines sum to exactly 100.00 before release.
+    annotations:
+      tl:current_state: true
+      tl:table: cur_awp_cwp_allocation
+      tl:ix_cwp: "cwp_id"
+      tl:ix_wbs_node: "wbs_node_id"
+    attributes:
+      row_id:
+        identifier: true
+        required: true
+        description: "`<cwp id>:<wbs node id>`."
+      scope:
+        range: ScopeId
+        required: true
+        description: The project scope, `project:<id>`.
+      cwp_id:
+        range: Ulid
+        required: true
+        description: The `awp.CWP`.
+      wbs_node_id:
+        range: Ulid
+        required: true
+        description: The `awp.WBSNode`.
+      percent:
+        required: true
+        pattern: "^(100\\.00|[1-9][0-9]?\\.[0-9]{2}|0\\.(0[1-9]|[1-9][0-9]))$"
+        description: 'Share of the package, text with two decimals from "0.01" to "100.00".'
+      last_seq:
+        range: integer
+        required: true
+        description: Ledger `seq` of the event that wrote the row.

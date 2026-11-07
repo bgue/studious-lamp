@@ -1,0 +1,170 @@
+/* Throughline web client, web look v2 (spec docs/build-spec/specs/web-look-v2.md): tokens, base, components.
+   No inline style anywhere (the CSP forbids it), no import rules, no external resources, no web fonts. */
+
+/* Tokens: light values on :root; the dark block below overrides the colours */
+:root {
+  color-scheme: light dark;
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --surface-2: #f0f2f5;
+  --border: #e2e5ea;
+  --text: #1a1f29;
+  --muted: #5f6878;
+  --accent: #2563eb;
+  --accent-weak: #2563eb14;
+  --done: #15803d;
+  --done-weak: #15803d1a;
+  --waiting: #b45309;
+  --waiting-weak: #b453091a;
+  --bad: #b91c1c;
+  --bad-weak: #b91c1c1a;
+  --radius: 10px;
+  --radius-sm: 6px;
+  --shadow: 0 1px 2px #1018280f, 0 1px 3px #1018281a;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f1115;
+    --surface: #171a21;
+    --surface-2: #1f232c;
+    --border: #2b303b;
+    --text: #e7e9ee;
+    --muted: #9aa3b3;
+    --accent: #6b9dff;
+    --accent-weak: #6b9dff1f;
+    --done: #4ade80;
+    --done-weak: #4ade801f;
+    --waiting: #fbbf24;
+    --waiting-weak: #fbbf241f;
+    --bad: #f87171;
+    --bad-weak: #f871711f;
+    --shadow: none;
+  }
+}
+
+/* Base: the page background and text colour; one sans-serif stack, no monospace */
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+/* Top bar: 56px, surface, bottom border; the brand has an accent square before it */
+header.tl-bar { display: flex; justify-content: space-between; align-items: center; height: 56px; box-sizing: border-box; padding: 0 24px; background: var(--surface); border-bottom: 1px solid var(--border); }
+.tl-brand { display: inline-flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 600; }
+.tl-brand::before { content: ""; width: 10px; height: 10px; border-radius: 3px; background: var(--accent); }
+
+/* Page: 24px padding on --bg; logs use the full width */
+main { max-width: 60rem; padding: 24px; }
+main:has(.tl-log) { max-width: none; }
+
+/* Crumb: 13px muted, one line, 4px below */
+.tl-crumb { margin: 0 0 4px; font-size: 13px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* Filter: 36px, surface, border, radius-sm; the focus ring is the accent colour */
+.tl-filter input[type="search"] { box-sizing: border-box; width: 100%; max-width: 320px; height: 36px; padding: 0 12px; font: inherit; color: var(--text); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); outline: none; }
+.tl-filter input[type="search"]:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-weak); }
+
+/* The log standard: crumb, filter, list, panel, actions, keys, status. The panel sits right of the list from 1280px. */
+.tl-log { display: flex; flex-direction: column; gap: 12px; }
+.tl-body { display: flex; flex-direction: column; gap: 12px; }
+
+/* List: a card with a surface-2 header row; no zebra; hover and selection; tabular numbers */
+.tl-table { overflow: hidden; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); }
+.tl-table table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.tl-table th { position: sticky; top: 0; padding: 10px 12px; font-size: 12px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.04em; text-align: left; white-space: nowrap; color: var(--muted); background: var(--surface-2); border-bottom: 1px solid var(--border); }
+.tl-table td { padding: 10px 12px; text-align: left; white-space: nowrap; border-bottom: 1px solid var(--border); }
+.tl-table tbody tr:last-child td { border-bottom: 0; }
+.tl-table .tl-flex { width: 100%; max-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.tl-table tbody tr { cursor: pointer; }
+.tl-table tbody tr:hover { background: var(--surface-2); }
+.tl-table tbody tr[aria-selected="true"] { background: var(--accent-weak); box-shadow: inset 3px 0 0 var(--accent); color: var(--text); }
+.tl-table tbody tr:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+/* Badge: a state pill; the tone class sets the text colour, a badge also gets the weak background */
+.tl-badge { display: inline-block; padding: 2px 8px; font-size: 12px; font-weight: 500; line-height: 1.5; white-space: nowrap; border-radius: 999px; color: var(--muted); background: var(--surface-2); }
+.tl-done { color: var(--done); }
+.tl-waiting { color: var(--waiting); }
+.tl-bad { color: var(--bad); }
+.tl-neutral { color: var(--muted); }
+.tl-badge.tl-done { background: var(--done-weak); }
+.tl-badge.tl-waiting { background: var(--waiting-weak); }
+.tl-badge.tl-bad { background: var(--bad-weak); }
+.tl-badge.tl-neutral { background: var(--surface-2); }
+
+/* Panel: a card like the list, no coloured side border, the same max-heights as before */
+.tl-panel { min-height: 8rem; max-height: 50vh; overflow-y: auto; box-sizing: border-box; padding: 16px 20px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); }
+.tl-panel-img { display: block; max-width: 100%; max-height: 24rem; margin: 0 0 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); }
+.tl-panel-text { margin: 0; font-family: ui-monospace, monospace; font-size: 13px; white-space: pre; overflow-x: auto; }
+.tl-page-id { margin: 0; font-size: 16px; font-weight: 600; }
+.tl-panel .tl-badge { margin-top: 6px; }
+.tl-summary { margin: 6px 0 0; font-size: 13px; color: var(--muted); }
+.tl-sec { margin-top: 20px; }
+.tl-sec h3 { margin: 0 0 8px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+dl.tl-props { display: grid; grid-template-columns: minmax(120px, 34%) 1fr; gap: 6px 16px; margin: 0; }
+dl.tl-props dt { color: var(--muted); }
+dl.tl-props dd { margin: 0; overflow-wrap: anywhere; }
+table.tl-mini { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+table.tl-mini th { padding: 6px 8px 6px 0; font-size: 12px; font-weight: 500; text-align: left; color: var(--muted); border-bottom: 1px solid var(--border); }
+table.tl-mini td { padding: 6px 8px 6px 0; text-align: left; border-bottom: 1px solid var(--border); }
+.tl-mini-wrap { overflow-x: auto; }
+.tl-note { margin: 4px 0; color: var(--muted); font-style: italic; }
+.tl-line { margin: 4px 0; }
+
+/* Buttons: ghost by default (the header's sign-out too); primary for the submit buttons in the page and .tl-btn.tl-primary */
+.tl-btn, .tl-action, header.tl-bar button { display: inline-flex; align-items: center; gap: 8px; box-sizing: border-box; height: 32px; padding: 0 12px; font: inherit; font-weight: 500; color: var(--text); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); text-decoration: none; cursor: pointer; }
+.tl-btn:hover, .tl-action:hover, header.tl-bar button:hover { background: var(--surface-2); }
+.tl-btn.tl-primary, main button[type="submit"] { color: #fff; background: var(--accent); border-color: transparent; }
+.tl-btn.tl-primary:hover, main button[type="submit"]:hover { background: var(--accent); filter: brightness(1.08); }
+main button[type="submit"] { display: inline-flex; align-items: center; height: 32px; padding: 0 12px; font: inherit; font-weight: 500; border-radius: var(--radius-sm); cursor: pointer; }
+kbd { font-family: ui-monospace, monospace; font-size: 11px; color: var(--muted); background: var(--surface-2); border: 1px solid var(--border); border-radius: 4px; padding: 0 5px; }
+.tl-primary kbd, main button[type="submit"] kbd { color: #fff; background: rgb(255 255 255 / 0.18); border-color: rgb(255 255 255 / 0.4); }
+
+/* Actions row, key hints (hidden below 900px), muted text, status line */
+.tl-actions { min-height: 1.5rem; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.tl-keys { font-size: 12px; color: var(--muted); }
+.tl-muted { color: var(--muted); }
+.tl-status { min-height: 1.4rem; font-size: 13px; overflow-wrap: anywhere; }
+.tl-status:not(:empty) { padding: 6px 10px; background: var(--surface-2); border-radius: var(--radius-sm); }
+
+/* Forms: 13px labels; fields 36px high with the same focus ring as the filter */
+form.tl-form label, .tl-action-form label { display: block; margin: 12px 0 4px; font-size: 13px; font-weight: 500; }
+form.tl-form input:not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="hidden"]), .tl-action-form input:not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="hidden"]), form.tl-form select, .tl-action-form select, .tl-action-form textarea { box-sizing: border-box; min-height: 36px; padding: 6px 12px; font: inherit; color: var(--text); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); }
+form.tl-form input[type="text"], form.tl-form input[type="password"] { width: 100%; max-width: 20rem; }
+.tl-action-form textarea, .tl-action-form input[type="text"], .tl-action-form select { width: 100%; max-width: 40rem; }
+form.tl-form input:focus, form.tl-form select:focus, .tl-action-form input:focus, .tl-action-form select:focus, .tl-action-form textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-weak); outline: none; }
+.tl-error { color: var(--bad); font-weight: 500; }
+
+/* Sign-in: a 360px card 12vh from the top, the heading inside it; the button is full width */
+main:has(.tl-sign-in) { padding: 0; }
+.tl-sign-in { box-sizing: border-box; max-width: 360px; margin: 12vh auto 0; padding: 28px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); }
+.tl-sign-in h1 { margin: 0 0 16px; font-size: 20px; font-weight: 600; }
+main:has(.tl-sign-in) button[type="submit"] { width: 100%; justify-content: center; }
+
+/* Record screen: the header, the tab bar (the current tab in the accent colour), the history table */
+.tl-rec-header h1 { margin: 0 0 4px; font-size: 20px; font-weight: 600; }
+.tl-rec-header p { margin: 0.2rem 0 0.5rem; }
+#rec-tabs { display: flex; flex-wrap: wrap; gap: 4px; border-bottom: 1px solid var(--border); }
+#rec-tabs a { padding: 8px 12px; color: var(--muted); text-decoration: none; }
+#rec-tabs a:hover { color: var(--text); }
+#rec-tabs a[aria-current="page"] { color: var(--accent); font-weight: 600; box-shadow: inset 0 -2px 0 var(--accent); }
+.tl-history { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.tl-history th { padding: 6px 8px 6px 0; font-size: 12px; font-weight: 500; text-align: left; color: var(--muted); border-bottom: 1px solid var(--border); }
+.tl-history td { padding: 6px 8px 6px 0; text-align: left; vertical-align: top; border-bottom: 1px solid var(--border); }
+
+/* Layout: the panel beside the list from 1280px (about 160 columns), below it otherwise */
+@media (min-width: 1280px) {
+  .tl-body { display: grid; grid-template-columns: 3fr 2fr; align-items: start; }
+  .tl-panel { max-height: 70vh; }
+}
+/* narrow screens give the subject room: the least needed columns go (no sideways scroll) */
+@media (max-width: 899px) { .tl-table .tl-drop { display: none; } }
+@media (min-width: 1280px) and (max-width: 1599px) { .tl-table .tl-drop { display: none; } }
+/* phone: the page padding is 12px and the key hints are hidden */
+@media (max-width: 899px) {
+  main { padding: 12px; }
+  .tl-keys { display: none; }
+}

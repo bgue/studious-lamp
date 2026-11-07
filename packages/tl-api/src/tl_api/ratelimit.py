@@ -30,6 +30,9 @@ DEFAULT_WINDOW_S = 600.0
 MAX_SOURCES = 10_000
 #: Responses that count as a failed attempt: bad credentials, a disabled account, a locked name.
 FAILURE_STATUSES = frozenset({401, 403, 423})
+#: A scope key a handler sets to say "this refusal checked no password, do not count it" (the web
+#: sign-in's origin check: a hostile page must not be able to spend the victim's budget).
+NOT_A_FAILURE_KEY = "tl_api.ratelimit.not_a_failure"
 
 
 class SourceLimiter:
@@ -166,7 +169,11 @@ class RateLimitMiddleware:
             return
 
         async def counting_send(message: Message) -> None:
-            if message["type"] == "http.response.start" and message["status"] in FAILURE_STATUSES:
+            if (
+                message["type"] == "http.response.start"
+                and message["status"] in FAILURE_STATUSES
+                and not scope.get(NOT_A_FAILURE_KEY)
+            ):
                 self._limiter.record_failure(key)
             await send(message)
 

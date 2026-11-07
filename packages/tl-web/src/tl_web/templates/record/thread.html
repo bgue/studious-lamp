@@ -1,0 +1,3 @@
+<p>{{ head }}</p>
+{% if empty %}<p>{{ empty }}</p>{% else %}<pre class="tl-panel-text">{{ lines }}</pre>{% endif %}
+{% if older %}<p><a href="{{ older }}">Older messages</a></p>{% endif %}

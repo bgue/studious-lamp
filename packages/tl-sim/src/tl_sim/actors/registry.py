@@ -11,10 +11,12 @@ from tl_sim.actors.client_rep import ClientRep
 from tl_sim.actors.crew import Crew
 from tl_sim.actors.document_controller import DocumentController
 from tl_sim.actors.document_registrar import DocumentRegistrar
+from tl_sim.actors.materials_coordinator import MaterialsCoordinator
 from tl_sim.actors.planner import Planner
 from tl_sim.actors.rfi_author import RfiAuthor
 from tl_sim.actors.schedule_updater import ScheduleUpdater
 from tl_sim.actors.tag_clerk import TagClerk
+from tl_sim.actors.workface_planner import WorkfacePlanner
 from tl_sim.scenario import Scenario
 
 ACTOR_CLASSES: dict[str, type[BaseActor]] = {
@@ -27,6 +29,8 @@ ACTOR_CLASSES: dict[str, type[BaseActor]] = {
     "rfi_author": RfiAuthor,
     "client_rep": ClientRep,
     "assistant": Assistant,
+    "workface_planner": WorkfacePlanner,
+    "materials_coordinator": MaterialsCoordinator,
     "approver": Approver,
 }
 

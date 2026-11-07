@@ -42,6 +42,7 @@ from tl_cli import (
     admin_token,
     admin_user,
     archive,
+    awp,
     backup,
     comm,
     config,
@@ -74,6 +75,7 @@ from tl_cli import (
     link,
     load,
     login,
+    mat,
     new,
     proposal,
     pset,
@@ -148,11 +150,13 @@ app.add_typer(derive.app, name="derive")
 app.add_typer(xer.app, name="xer")
 app.add_typer(load.app, name="load")
 app.add_typer(cost.app, name="cost")
+app.add_typer(awp.app, name="awp")
 app.add_typer(transmittal.app, name="transmittal")
 app.add_typer(review.app, name="review")
 app.add_typer(corr.app, name="corr")
 app.add_typer(rfi.app, name="rfi")
 app.add_typer(comm.app, name="comm")
+app.add_typer(mat.app, name="mat")  # P2-I3
 app.command("evidence")(evidence.evidence_cmd)
 corr.app.add_typer(corr_clock.app, name="clock")
 corr.app.add_typer(corr_registry.thread_app, name="thread")

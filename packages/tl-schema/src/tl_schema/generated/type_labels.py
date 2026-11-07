@@ -5,6 +5,12 @@ from __future__ import annotations
 from typing import Final
 
 TYPE_LABELS: Final[dict[str, str]] = {
+    "awp.CWA": "Construction work area",
+    "awp.CWP": "Construction work package",
+    "awp.EWPRef": "Engineering work package reference",
+    "awp.PWPRef": "Procurement work package reference",
+    "awp.PathOfConstruction": "Path of construction",
+    "awp.WBSNode": "WBS node",
     "core.Record": "Record",
     "correspondence.CommercialItem": "Commercial item",
     "correspondence.ContractClause": "Contract clause",
@@ -30,6 +36,14 @@ TYPE_LABELS: Final[dict[str, str]] = {
     "engineering.Tag": "Tag",
     "engineering.TagClass": "Tag class",
     "legacy.LoadRun": "Load run",
+    "materials.InventoryLocation": "Inventory location",
+    "materials.ItemMaster": "Item master",
+    "materials.MTO": "Material take-off",
+    "materials.MTOLine": "Material take-off line",
+    "materials.POLineRef": "PO line",
+    "materials.ProjectItem": "Project item",
+    "materials.Receipt": "Receipt",
+    "materials.StockLot": "Stock lot",
     "schedule.ActivityRef": "Activity reference",
     "schedule.Schedule": "Schedule",
     "schedule.ScheduleSnapshot": "Schedule snapshot",

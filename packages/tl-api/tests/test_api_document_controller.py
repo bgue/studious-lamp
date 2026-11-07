@@ -22,7 +22,9 @@ from tl_api.commands import COMMANDS, controller_actions
 from tl_api.tokens import add_token
 from tl_core.auth import accounts, sessions
 from tl_core.auth.module_grants import GrantModuleRole, grant_module_role
+from tl_core.auth.module_roles import normalise_word
 from tl_core.auth.password import prepare_password
+from tl_mod_awp.commands import AWP_COMMANDS
 from tl_mod_correspondence.commands import API_COMMANDS as CORRESPONDENCE_COMMANDS
 from tl_mod_documents.commands import API_COMMANDS
 from tl_mod_schedule.commands import API_COMMANDS as SCHEDULE_COMMANDS
@@ -103,8 +105,17 @@ def test_the_controlling_set_is_the_twelve_and_the_actions_follow() -> None:
     assert len(correspondence) == 24  # P1-I5: 13; P1-I6: issue + escalate an RFI, 9 Commercial
     registry = {c.model.__name__ for c in SCHEMAREG_COMMANDS if c.access == "controller"}
     assert registry == {"AdoptSchemaSet"}
+    # the awp words are fine words (awp.cwp.release ...); the controlling ones normalise to it
+    awp = {c.model.__name__ for c in AWP_COMMANDS if normalise_word(c.access) == "controller"}
+    assert len(awp) == 14  # P2-I1: release, return, close, reopen, void, the configuring acts
+    # the materials module (P2-I3): the library, the location tree, void, write-offs, MTO publish
+    materials = {
+        "DefineItem", "ReviseItem", "RetireItem", "DefineLocation", "ReviseLocation",
+        "RetireLocation", "VoidReceipt", "AdjustStock", "ScrapStock", "PublishDerivedMto",
+    }  # fmt: skip
     assert controller_actions() == {
-        f"control.command.{n}" for n in CONTROLLING | scheduling | correspondence | registry
+        f"control.command.{n}"
+        for n in CONTROLLING | scheduling | correspondence | registry | awp | materials
     }
 
 

@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any, Literal, Protocol
 
 from pydantic import BaseModel
+from tl_api.routes.awp import CwpDetailView
 from tl_core.actions import RecordActions
 from tl_core.addable import AddableProperties
 from tl_core.auth.module_grants import ModuleRoleResult
@@ -20,6 +21,7 @@ from tl_core.auth.types import AccountKind, AccountView, AgentTokenView
 from tl_core.extypes.service import BodyStoredOut, BodyView, TypeDetail, TypeSummary
 from tl_core.extypes.types import TypeStatus
 from tl_core.files.queries import FileInfo
+from tl_core.files.service import FileResult
 from tl_core.ledger import Event
 from tl_core.links.expected import MissingLink
 from tl_core.numbering.detect import KeyChip
@@ -49,6 +51,7 @@ from tl_core.threads.dispatch import DispatchFromThread
 from tl_core.threads.messages import EditThreadMessage, PostThreadMessage, RetractThreadMessage
 from tl_core.threads.planner import PreviewResult
 from tl_core.threads.queries import ThreadPage
+from tl_mod_awp import views as awp_views
 from tl_mod_correspondence import evidence as correspondence_evidence
 from tl_mod_correspondence import reports_commercial, reports_technical
 from tl_mod_correspondence import views as correspondence_views
@@ -76,6 +79,8 @@ from tl_mod_documents.derivation.validation import ValidationReport
 from tl_mod_documents.handlers.transmittals import CreateTransmittal, IssueTransmittal
 from tl_mod_documents.resolver import RepinDocumentLink
 from tl_mod_engineering.views import TagView
+from tl_mod_materials import views as materials_views
+from tl_mod_materials import views_detail as materials_detail
 from tl_mod_schedule import views as schedule_views
 from tl_mod_schedule.compare import Comparison
 from tl_mod_schedule.handlers.activity import LinkActivity
@@ -180,6 +185,24 @@ class ClientInterface(Protocol):
         path: the name is made safe, the mode is 0600, nothing is overwritten (a numeric suffix is
         added), and the size and SHA-256 are verified before the call returns (a mismatch deletes
         the file and raises). A hidden file and a missing one raise the same ``UnknownFileError``.
+        """
+        ...
+
+    def attach_record_file(
+        self,
+        record_id: str,
+        path: Path,
+        *,
+        slot: str | None = None,
+        content_type: str | None = None,
+    ) -> FileResult:
+        """Hash and register the file at ``path``, send the bytes unless the store already has
+        them, complete the upload and return the ``FileResult`` (T06j attaches the MTR with it).
+
+        A hidden or missing record raises ``RecordNotFoundError`` (the same text for both); a person
+        without the access word raises ``ForbiddenError``; an unreadable ``path`` raises
+        ``FileNotFoundError`` before anything is written; a ``rejected`` result is returned, not
+        raised. The same bytes attached twice answer ``already_attached`` with no second event.
         """
         ...
 
@@ -862,6 +885,149 @@ class ClientInterface(Protocol):
 
     def get_cost_code(self, project: str, code: str) -> cost_views.CostCodeDetailView:
         """One cost code with its children and the figures of every snapshot."""
+        ...
+
+    # --- materials (P2-I3) ---------------------------------------------------------------------
+    #
+    # The same names and signatures as ``tl_api.client.ApiClient`` (the remote client passes them
+    # through). The reads answer the module's views, filtered by the signed-in person's clearance
+    # (ADR-0016); a hidden lot or receipt raises ``LotNotFoundError`` or ``ReceiptNotFoundError``
+    # as a missing one does. The one write door is ``materials_command(name, cmd)``: a name of
+    # ``tl_mod_materials.commands.MATERIALS_COMMANDS`` with its model, else ``ForbiddenError``.
+
+    def list_materials_stock(
+        self,
+        project: str,
+        *,
+        lot: str | None = None,
+        location: str | None = None,
+        item: str | None = None,
+        heat: str | None = None,
+        subtree: bool = False,
+        limit: int = 1000,
+    ) -> list[materials_views.StockRowView]:
+        """The balances by lot and location; rows at zero are not listed."""
+        ...
+
+    def get_materials_lot(self, project: str, key: str) -> materials_views.LotDetailView:
+        """One lot with its balances, reservations and last ten movements."""
+        ...
+
+    def list_materials_movements(
+        self,
+        project: str,
+        *,
+        lot: str | None = None,
+        since: str | None = None,
+        until: str | None = None,
+        kind: str | None = None,
+        limit: int = 1000,
+    ) -> list[materials_views.MovementView]:
+        """The movement log of a project in ledger order."""
+        ...
+
+    def list_materials_receipts(
+        self,
+        project: str,
+        *,
+        open_only: bool = False,
+        missing_mtr: bool = False,
+        limit: int = 1000,
+    ) -> list[materials_views.ReceiptView]:
+        """A project's goods receipts, newest first."""
+        ...
+
+    def get_materials_receipt(self, project: str, number: str) -> materials_views.ReceiptDetailView:
+        """One goods receipt with its lines and files."""
+        ...
+
+    def list_materials_locations(
+        self, project: str, *, limit: int = 1000
+    ) -> list[materials_views.LocationView]:
+        """A project's storage locations in tree order."""
+        ...
+
+    def list_materials_po_lines(
+        self, project: str, *, q: str | None = None, limit: int = 1000
+    ) -> list[materials_views.PoLineView]:
+        """A project's purchase-order lines by key."""
+        ...
+
+    def list_materials_mto_lines(
+        self,
+        project: str,
+        *,
+        work_package: str | None = None,
+        short_only: bool = False,
+        limit: int = 1000,
+    ) -> list[materials_views.MtoLineView]:
+        """A project's take-off lines, by work package when one is named."""
+        ...
+
+    def list_materials_items(
+        self, *, project: str | None = None, limit: int = 1000
+    ) -> list[materials_views.MaterialItemView]:
+        """The company library of items by code; with ``project``, the items it adopted."""
+        ...
+
+    def get_materials_mto_line(self, project: str, key: str) -> materials_detail.MtoLineDetailView:
+        """One take-off line with its lot reservations and the open receipts for its item."""
+        ...
+
+    def list_materials_item_projects(self, code: str) -> list[materials_detail.ItemProjectView]:
+        """The quantities of one company item in each project that adopted it."""
+        ...
+
+    def materials_command(self, name: str, cmd: Command) -> CommandResult:
+        """Run a materials command by name (a model of ``MATERIALS_COMMANDS``, as the person)."""
+        ...
+
+    # --- the awp module: CWPs, CWAs, the WBS, the path, packages (P2-I1 T03b) ------------------
+    #
+    # The same names and signatures as ``tl_api.client.ApiClient``. A missing or hidden CWP, WBS
+    # node or path raises the service's ``RecordNotFoundError`` (``get_path``: also when there is
+    # no path at that version). ``get_cwp`` returns the route model: the detail with its link
+    # count, file count and timeline.
+
+    def list_cwps(
+        self,
+        project: str,
+        *,
+        state: str | None = None,
+        discipline: str | None = None,
+        cwa: str | None = None,
+    ) -> list[awp_views.CwpRow]:
+        """A project's CWPs by number, filtered by state, discipline and CWA code."""
+        ...
+
+    def get_cwp(self, project: str, number: str) -> CwpDetailView:
+        """One CWP with its fields, allocation, packages, activities, links, files and timeline."""
+        ...
+
+    def list_cwas(self, project: str) -> list[awp_views.CwaRow]:
+        """A project's construction work areas by code, retired ones flagged."""
+        ...
+
+    def wbs_tree(self, project: str, *, depth: int | None = None) -> list[awp_views.WbsRow]:
+        """The WBS nodes depth-first, each with its rollup; ``depth`` keeps the nodes above it."""
+        ...
+
+    def get_wbs_node(self, project: str, code: str) -> awp_views.WbsRow:
+        """One WBS node by its code, with its rollup."""
+        ...
+
+    def get_path(self, project: str, version: int | None = None) -> awp_views.PathView:
+        """The path of construction at a version (the current one by default)."""
+        ...
+
+    def list_path_versions(self, project: str) -> list[awp_views.PathVersion]:
+        """The versions of the path, newest first."""
+        ...
+
+    def list_packages(
+        self, project: str, *, kind: Literal["EWP", "PWP"] | None = None
+    ) -> list[awp_views.PackageRow]:
+        """The EWP and PWP references by package number; ``kind`` keeps one of them."""
         ...
 
     # --- the schema workbench (P1-I8; brief 27.8) ----------------------------------------------

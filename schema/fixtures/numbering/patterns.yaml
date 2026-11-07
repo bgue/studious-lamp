@@ -16,6 +16,14 @@ patterns:
     template: "{project}-{type}-{seq:4}"
     type_code: TRN
     gap_free: true
+  # Receipts (brief 9 M4) are numbered by the allocator: P123-RCPT-0001. A stock lot's key is built from it
+  # (P123-RCPT-0001@1) and needs no pattern of its own.
+  - id: materials.Receipt
+    record_type: materials.Receipt
+    scope: "project:*"
+    template: "{project}-{type}-{seq:4}"
+    type_code: RCPT
+    gap_free: true
   # Correspondence (brief 9 M10): items P123-COR-0001 and threads P123-THR-0001, allocated by the
   # numbering allocator in the transaction that creates the record.
   - id: correspondence.Correspondence
@@ -44,4 +52,12 @@ patterns:
     scope: "project:*"
     template: "{project}-{kind}-{seq:4}"
     type_code: COM
+    gap_free: true
+  # Construction work packages (brief 9 M3): the discipline code is a segment of the number, so each discipline
+  # counts on its own: P123-CWP-PIP-0001, P123-CWP-CIV-0001.
+  - id: awp.CWP
+    record_type: awp.CWP
+    scope: "project:*"
+    template: "{project}-{type}-{discipline}-{seq:4}"
+    type_code: CWP
     gap_free: true

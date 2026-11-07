@@ -143,11 +143,13 @@ def test_the_installed_modules_are_found_through_their_entry_points() -> None:
 
     found = modules._discover()  # pyright: ignore[reportPrivateUsage]
     assert [m.name for m in found] == [
+        "awp",
         "correspondence",
         "cost",
         "documents",
         "engineering",
         "legacy",
+        "materials",
         "schedule",
         "schemareg",
     ]

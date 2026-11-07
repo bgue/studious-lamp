@@ -22,6 +22,12 @@ SCHEMA = ROOT / "schema"
 
 # Written from offline-classes.md section 4, not read from the generated module.
 EXPECTED_RECORDS: dict[str, str] = {
+    "awp.CWA": "none",
+    "awp.CWP": "draft_only",
+    "awp.EWPRef": "none",
+    "awp.PWPRef": "none",
+    "awp.PathOfConstruction": "none",
+    "awp.WBSNode": "none",
     "core.Record": "full",
     "correspondence.CommercialItem": "none",
     "correspondence.ContractClause": "none",
@@ -47,6 +53,14 @@ EXPECTED_RECORDS: dict[str, str] = {
     "engineering.Tag": "full",
     "engineering.TagClass": "none",
     "legacy.LoadRun": "none",
+    "materials.InventoryLocation": "none",
+    "materials.ItemMaster": "none",
+    "materials.MTO": "none",
+    "materials.MTOLine": "none",
+    "materials.POLineRef": "none",
+    "materials.ProjectItem": "none",
+    "materials.Receipt": "draft_only",
+    "materials.StockLot": "draft_only",
     "schedule.ActivityRef": "none",
     "schedule.Schedule": "none",
     "schedule.ScheduleSnapshot": "none",

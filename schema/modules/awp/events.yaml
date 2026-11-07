@@ -1,0 +1,413 @@
+id: https://example.org/throughline/modules/awp/events
+name: tl_mod_awp_events
+title: Awp module events
+description: >-
+  The ledger events of the awp module (brief 18.3), one class per event type, in the same form as
+  `schema/core/events.yaml`. A record is created by `Record.Created` followed in the same append by its
+  `*.Defined` event. `Record.*`, `Link.*`, `Numbering.Allocated` and `Workflow.Transitioned` are core events
+  and are not redefined here. The events of a WBS node, of the path of construction, of the WBS allocation of a
+  package and of the budget rollup carry `feed_policy: none` in the payload (no feed card).
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+  - ../../core/annotations
+  - ../../core/record
+  - ../../core/events
+default_range: string
+annotations:
+  tl:module: awp
+
+classes:
+  WBSNodeDefinedPayload:
+    is_a: EventPayload
+    description: >-
+      A WBS node was defined.
+    annotations:
+      tl:event_type: WBSNode.Defined
+      tl:event_version: "1"
+    attributes:
+      code:
+        description: "The node code."
+        required: true
+      parent_id:
+        description: "The parent node, or null at the root."
+      depth:
+        description: "Levels below the root, 0 to 7."
+        range: integer
+        required: true
+      position:
+        description: "Place among the siblings, from 1."
+        range: integer
+        required: true
+      feed_policy:
+        description: "The feed policy the handler fixed when it wrote the event; always \"none\" (no feed card)."
+        equals_string: none
+        required: true
+    examples:
+      - value: "{\"code\": \"1.2.3\", \"depth\": 2, \"feed_policy\": \"none\", \"parent_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P6\", \"position\": 1}"
+  WBSNodeRevisedPayload:
+    is_a: EventPayload
+    description: >-
+      A WBS node was renamed, moved or re-ordered.
+    annotations:
+      tl:event_type: WBSNode.Revised
+      tl:event_version: "1"
+    attributes:
+      changes:
+        description: "Object of field -> [old, new] for title, parent_id, depth and position."
+        range: Any
+        annotations:
+          tl:json: true
+        required: true
+      feed_policy:
+        description: "The feed policy the handler fixed when it wrote the event; always \"none\" (no feed card)."
+        equals_string: none
+        required: true
+    examples:
+      - value: "{\"changes\": {\"position\": [1, 2]}, \"feed_policy\": \"none\"}"
+  WBSNodeRetiredPayload:
+    is_a: EventPayload
+    description: >-
+      A WBS node was retired.
+    annotations:
+      tl:event_type: WBSNode.Retired
+      tl:event_version: "1"
+    attributes:
+      reason:
+        description: "Why the node was retired."
+        required: true
+      feed_policy:
+        description: "The feed policy the handler fixed when it wrote the event; always \"none\" (no feed card)."
+        equals_string: none
+        required: true
+    examples:
+      - value: "{\"feed_policy\": \"none\", \"reason\": \"Merged into 1.2.4\"}"
+  WBSNodeReinstatedPayload:
+    is_a: EventPayload
+    description: >-
+      A retired WBS node was reinstated (a reload after a compensated load).
+    annotations:
+      tl:event_type: WBSNode.Reinstated
+      tl:event_version: "1"
+    attributes:
+      reason:
+        description: "Why the node was reinstated."
+        required: true
+      feed_policy:
+        description: "The feed policy the handler fixed when it wrote the event; always \"none\" (no feed card)."
+        equals_string: none
+        required: true
+    examples:
+      - value: "{\"feed_policy\": \"none\", \"reason\": \"Reloaded after compensation\"}"
+  WBSNodeCostCodesMappedPayload:
+    is_a: EventPayload
+    description: >-
+      The cost code allocation of a leaf node was replaced.
+    annotations:
+      tl:event_type: WBSNode.CostCodesMapped
+      tl:event_version: "1"
+    attributes:
+      allocations:
+        description: "List of the node's cost code lines, each `{cost_code_id, code, percent}`; the list replaces the node's earlier one."
+        range: Any
+        annotations:
+          tl:json: true
+        required: true
+      feed_policy:
+        description: "The feed policy the handler fixed when it wrote the event; always \"none\" (no feed card)."
+        equals_string: none
+        required: true
+    examples:
+      - value: "{\"allocations\": [{\"code\": \"4210-PIP-WLD\", \"cost_code_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P7\", \"percent\": \"60.00\"}, {\"code\": \"4210-PIP-ERC\", \"cost_code_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P8\", \"percent\": \"40.00\"}], \"feed_policy\": \"none\"}"
+  WBSNodeBudgetRolledUpPayload:
+    is_a: EventPayload
+    description: >-
+      The rollup job found a new budget figure for a node.
+    annotations:
+      tl:event_type: WBSNode.BudgetRolledUp
+      tl:event_version: "1"
+    attributes:
+      run_id:
+        description: "The id of the run."
+        required: true
+      as_of_seq:
+        description: "The ledger `seq` the run read."
+        range: integer
+        required: true
+      total:
+        description: "Budget hours of the node, decimal text with one decimal (`\"1250.0\"`)."
+        required: true
+      by_cost_code:
+        description: "List of `{cost_code_id, value}` lines, decimal text; a line whose `cost_code_id` is null is the unallocated hours. The parts sum to `total`."
+        range: Any
+        annotations:
+          tl:json: true
+        required: true
+      feed_policy:
+        description: "The feed policy the handler fixed when it wrote the event; always \"none\" (no feed card)."
+        equals_string: none
+        required: true
+    examples:
+      - value: "{\"as_of_seq\": 1204, \"by_cost_code\": [{\"cost_code_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P7\", \"value\": \"750.0\"}, {\"cost_code_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P8\", \"value\": \"500.0\"}], \"feed_policy\": \"none\", \"run_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P9\", \"total\": \"1250.0\"}"
+  PathOfConstructionDefinedPayload:
+    is_a: EventPayload
+    description: >-
+      The path of construction was defined (version 1).
+    annotations:
+      tl:event_type: PathOfConstruction.Defined
+      tl:event_version: "1"
+    attributes:
+      version:
+        description: "1."
+        range: integer
+        required: true
+      steps:
+        description: "The full list in order, each `{cwa_id, cwa_code, reason_code}`."
+        range: Any
+        annotations:
+          tl:json: true
+        required: true
+      feed_policy:
+        description: "The feed policy the handler fixed when it wrote the event; always \"none\" (no feed card)."
+        equals_string: none
+        required: true
+    examples:
+      - value: "{\"feed_policy\": \"none\", \"steps\": [{\"cwa_code\": \"A1\", \"cwa_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P7\", \"reason_code\": null}], \"version\": 1}"
+  PathOfConstructionResequencedPayload:
+    is_a: EventPayload
+    description: >-
+      A CWA was moved in the path; the event holds the full new list.
+    annotations:
+      tl:event_type: PathOfConstruction.Resequenced
+      tl:event_version: "1"
+    attributes:
+      version:
+        description: "The new version, the earlier one plus 1."
+        range: integer
+        required: true
+      steps:
+        description: "The full list in order, each `{cwa_id, cwa_code, reason_code}`."
+        range: Any
+        annotations:
+          tl:json: true
+        required: true
+      reason_code:
+        description: "Code of the code list `PathReason`."
+        required: true
+      note:
+        description: "Free text, or null."
+      feed_policy:
+        description: "The feed policy the handler fixed when it wrote the event; always \"none\" (no feed card)."
+        equals_string: none
+        required: true
+    examples:
+      - value: "{\"feed_policy\": \"none\", \"note\": null, \"reason_code\": \"Access\", \"steps\": [{\"cwa_code\": \"A2\", \"cwa_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P8\", \"reason_code\": \"Access\"}, {\"cwa_code\": \"A1\", \"cwa_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P7\", \"reason_code\": null}], \"version\": 2}"
+  CWADefinedPayload:
+    is_a: EventPayload
+    description: >-
+      A construction work area was defined.
+    annotations:
+      tl:event_type: CWA.Defined
+      tl:event_version: "1"
+    attributes:
+      code:
+        description: "The area code."
+        required: true
+      location_text:
+        description: "Where the area is, in words."
+    examples:
+      - value: "{\"code\": \"A1\", \"location_text\": \"North of the main rack\"}"
+  CWARevisedPayload:
+    is_a: EventPayload
+    description: >-
+      The name or location of an area changed.
+    annotations:
+      tl:event_type: CWA.Revised
+      tl:event_version: "1"
+    attributes:
+      changes:
+        description: "Object of field -> [old, new] for title and location_text."
+        range: Any
+        annotations:
+          tl:json: true
+        required: true
+    examples:
+      - value: "{\"changes\": {\"location_text\": [null, \"North of the main rack\"]}}"
+  CWARetiredPayload:
+    is_a: EventPayload
+    description: >-
+      An area was retired.
+    annotations:
+      tl:event_type: CWA.Retired
+      tl:event_version: "1"
+    attributes:
+      reason:
+        description: "Why the area was retired."
+        required: true
+    examples:
+      - value: "{\"reason\": \"Scope removed\"}"
+  CWPDefinedPayload:
+    is_a: EventPayload
+    description: >-
+      A construction work package was created.
+    annotations:
+      tl:event_type: CWP.Defined
+      tl:event_version: "1"
+    attributes:
+      discipline:
+        description: "Code of the code list `Discipline`."
+        required: true
+      cwa_id:
+        description: "The area, or null."
+      planned_start:
+        description: "YYYY-MM-DD, or null."
+      planned_finish:
+        description: "YYYY-MM-DD, or null."
+      budget_hours:
+        description: "Decimal text with one decimal, or null."
+      quantities:
+        description: "List of at most 50 `{commodity, qty, uom}` rows, or null."
+        range: Any
+        annotations:
+          tl:json: true
+      contractor_text:
+        description: "The contractor in words, or null."
+    examples:
+      - value: "{\"budget_hours\": \"1250.0\", \"contractor_text\": \"Acme Mechanical\", \"cwa_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P7\", \"discipline\": \"PIP\", \"planned_finish\": \"2026-12-18\", \"planned_start\": \"2026-11-02\", \"quantities\": [{\"commodity\": \"piping\", \"qty\": \"480.0\", \"uom\": \"m\"}]}"
+  CWPRevisedPayload:
+    is_a: EventPayload
+    description: >-
+      Fields of a construction work package changed.
+    annotations:
+      tl:event_type: CWP.Revised
+      tl:event_version: "1"
+    attributes:
+      changes:
+        description: "Object of field -> [old, new] for title, cwa_id, planned_start, planned_finish, budget_hours, quantities and contractor_text."
+        range: Any
+        annotations:
+          tl:json: true
+        required: true
+    examples:
+      - value: "{\"changes\": {\"budget_hours\": [\"1250.0\", \"1300.0\"]}}"
+  CWPAllocatedToWbsPayload:
+    is_a: EventPayload
+    description: >-
+      The WBS allocation of a package was replaced.
+    annotations:
+      tl:event_type: CWP.AllocatedToWbs
+      tl:event_version: "1"
+    attributes:
+      allocations:
+        description: "List of `{wbs_node_id, wbs_code, percent}`; the list replaces the earlier one."
+        range: Any
+        annotations:
+          tl:json: true
+        required: true
+      feed_policy:
+        description: "The feed policy the handler fixed when it wrote the event; always \"none\" (no feed card)."
+        equals_string: none
+        required: true
+    examples:
+      - value: "{\"allocations\": [{\"percent\": \"100.00\", \"wbs_code\": \"1.2.3\", \"wbs_node_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P7\"}], \"feed_policy\": \"none\"}"
+  CWPReleasedPayload:
+    is_a: EventPayload
+    description: >-
+      A package was released for IWP development.
+    annotations:
+      tl:event_type: CWP.Released
+      tl:event_version: "1"
+    attributes:
+      by:
+        description: "The actor that released it (`user:<id>`)."
+        required: true
+      record_hash:
+        description: "SHA-256 of the package as released, hex."
+        required: true
+    examples:
+      - value: "{\"by\": \"user:01J9Z6Q4W3X2Y1V0T9S8R7Q6P1\", \"record_hash\": \"0000000000000000000000000000000000000000000000000000000000000000\"}"
+  EWPRefDefinedPayload:
+    is_a: EventPayload
+    description: >-
+      An engineering work package of the owner was recorded.
+    annotations:
+      tl:event_type: EWPRef.Defined
+      tl:event_version: "1"
+    attributes:
+      package_no:
+        description: "The package number as the owner writes it."
+        required: true
+      status_text:
+        description: "The status in the owner's words, or null."
+      forecast_date:
+        description: "YYYY-MM-DD, or null."
+      actual_date:
+        description: "YYYY-MM-DD, or null."
+      constraint_source:
+        description: "True when the package can hold back field work."
+        range: boolean
+        required: true
+      source_system:
+        description: "The owner's system, or null."
+    examples:
+      - value: "{\"actual_date\": null, \"constraint_source\": true, \"forecast_date\": \"2026-11-20\", \"package_no\": \"EWP-0042\", \"source_system\": \"Owner portal\", \"status_text\": \"In review\"}"
+  EWPRefUpdatedPayload:
+    is_a: EventPayload
+    description: >-
+      The status, dates or constraint flag of an engineering package changed.
+    annotations:
+      tl:event_type: EWPRef.Updated
+      tl:event_version: "1"
+    attributes:
+      changes:
+        description: "Object of field -> [old, new] for status_text, forecast_date, actual_date and constraint_source."
+        range: Any
+        annotations:
+          tl:json: true
+        required: true
+    examples:
+      - value: "{\"changes\": {\"status_text\": [\"In review\", \"Approved\"]}}"
+  PWPRefDefinedPayload:
+    is_a: EventPayload
+    description: >-
+      A procurement work package of the owner was recorded.
+    annotations:
+      tl:event_type: PWPRef.Defined
+      tl:event_version: "1"
+    attributes:
+      package_no:
+        description: "The package number as the owner writes it."
+        required: true
+      status_text:
+        description: "The status in the owner's words, or null."
+      forecast_date:
+        description: "YYYY-MM-DD, or null."
+      actual_date:
+        description: "YYYY-MM-DD, or null."
+      constraint_source:
+        description: "True when the package can hold back field work."
+        range: boolean
+        required: true
+      source_system:
+        description: "The owner's system, or null."
+    examples:
+      - value: "{\"actual_date\": null, \"constraint_source\": true, \"forecast_date\": \"2026-11-20\", \"package_no\": \"PWP-0042\", \"source_system\": \"Owner portal\", \"status_text\": \"In review\"}"
+  PWPRefUpdatedPayload:
+    is_a: EventPayload
+    description: >-
+      The status, dates or constraint flag of a procurement package changed.
+    annotations:
+      tl:event_type: PWPRef.Updated
+      tl:event_version: "1"
+    attributes:
+      changes:
+        description: "Object of field -> [old, new] for status_text, forecast_date, actual_date and constraint_source."
+        range: Any
+        annotations:
+          tl:json: true
+        required: true
+    examples:
+      - value: "{\"changes\": {\"status_text\": [\"In review\", \"Approved\"]}}"

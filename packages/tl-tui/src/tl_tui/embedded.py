@@ -10,6 +10,8 @@ over HTTP. `for_target` opens the ledger as a `tl_adapters.backend` backend (a S
 from __future__ import annotations
 
 import dataclasses
+import hashlib
+import mimetypes
 from collections.abc import Callable, Generator, Iterator, Sequence
 from contextlib import AbstractContextManager, contextmanager
 from datetime import date, datetime, timedelta
@@ -18,6 +20,7 @@ from typing import Any, BinaryIO, Literal
 
 from tl_api.auth import AGENT_MUST_PROPOSE
 from tl_api.client.files import save_download
+from tl_api.routes.awp import CwpDetailView, TimelineRow, _note
 from tl_api.thread_runner import thread_runner
 from tl_core import confidentiality
 from tl_core.actions import Holds, Level, RecordActions, allowed_actions
@@ -57,7 +60,7 @@ from tl_core.extypes.service import (
 )
 from tl_core.extypes.types import TypeStatus
 from tl_core.files.queries import FileInfo, list_files
-from tl_core.files.service import FileService
+from tl_core.files.service import CompleteUpload, FileResult, FileService, RegisterUpload
 from tl_core.files.types import ObjectStore
 from tl_core.integration import registry as integration_registry
 from tl_core.integration.actor_access import held_access
@@ -80,7 +83,7 @@ from tl_core.services import (
 )
 from tl_core.services.commands import Command, CommandResult, CreateRecord, UpdateRecord
 from tl_core.services.edit import EditRecord, handle_edit_record
-from tl_core.services.errors import ReservedIdentifierError, UnknownFileError
+from tl_core.services.errors import RecordNotFoundError, ReservedIdentifierError, UnknownFileError
 from tl_core.services.feed import EditPost, PostToFeed, handle_edit_post, handle_post
 from tl_core.services.feed_actions import (
     ReactToPost,
@@ -133,6 +136,7 @@ from tl_core.threads.visibility import readable_record
 from tl_core.uow import UnitOfWork
 from tl_core.util import utcnow
 from tl_core.workflow.roles import workflow_roles
+from tl_mod_awp import views as awp_views
 from tl_mod_correspondence import evidence as correspondence_evidence
 from tl_mod_correspondence import reports_commercial, reports_technical
 from tl_mod_correspondence import views as correspondence_views
@@ -179,6 +183,9 @@ from tl_mod_engineering import registry as engineering_registry
 from tl_mod_engineering.commands import API_COMMANDS as ENGINEERING_COMMANDS
 from tl_mod_engineering.names import COMPANY as ENGINEERING_COMPANY
 from tl_mod_engineering.views import TagView, tag_view, tag_views
+from tl_mod_materials import views as materials_views
+from tl_mod_materials import views_detail as materials_detail
+from tl_mod_materials.commands import MATERIALS_COMMANDS
 from tl_mod_schedule import views as schedule_views
 from tl_mod_schedule.compare import Comparison
 from tl_mod_schedule.handlers.activity import LinkActivity, handle_link_activity
@@ -284,6 +291,17 @@ class EmbeddedAuthenticator:
         with self._uow(True) as uow:
             usable = account_queries.demo_account_enabled(uow.conn())
         return f"dev setup: sign in as {DEMO_USERNAME} / {DEMO_USERNAME}" if usable else None
+
+
+def _hash_file(path: Path) -> tuple[str, int]:
+    """SHA-256 hex digest and byte count of the file at ``path``, read in blocks."""
+    digest = hashlib.sha256()
+    size = 0
+    with path.open("rb") as handle:
+        while block := handle.read(1024 * 1024):
+            digest.update(block)
+            size += len(block)
+    return digest.hexdigest(), size
 
 
 def _copy(source: BinaryIO, out: BinaryIO) -> None:
@@ -548,6 +566,53 @@ class EmbeddedClient:
             return save_download(dest_dir, opened.info, lambda out: _copy(opened.data, out))
         finally:
             opened.data.close()
+
+    def attach_record_file(
+        self,
+        record_id: str,
+        path: Path,
+        *,
+        slot: str | None = None,
+        content_type: str | None = None,
+    ) -> FileResult:
+        """The upload flow of ``/uploads`` run in process: register, then complete with the bytes
+        unless the store already holds them. The access words are the service's own checks."""
+        service = self._file_service()
+        digest, size = _hash_file(path)  # an unreadable path raises before any write
+        media = content_type or mimetypes.guess_type(path.name)[0] or "application/octet-stream"
+        with self._uow(True) as uow:
+            record = queries.get_record_by_id(uow, record_id)  # a hidden record reads as missing
+        if record is None:
+            raise RecordNotFoundError(f"no record {record_id!r}")
+        scope = str(record["scope"])  # from the record, never from the caller
+        with self._uow(False) as uow:
+            ticket = service.register_upload(
+                uow,
+                RegisterUpload(
+                    actor=self.actor,
+                    source="tui",
+                    scope=scope,
+                    record_id=record_id,
+                    slot=slot,
+                    filename=path.name,
+                    content_type=media,
+                    size=size,
+                    sha256=digest,
+                ),
+            )
+        done = CompleteUpload(
+            actor=self.actor, source="tui", scope=scope, upload_id=ticket.upload_id
+        )
+        with self._uow(False) as uow:
+            if ticket.exists:
+                result = service.complete_upload(uow, done)
+            else:
+                with path.open("rb") as handle:
+                    result = service.complete_upload(uow, done, handle)
+        self.own_writes.note(
+            CommandResult(stream_id=result.file_id, key=None, version=1, events=result.events)
+        )
+        return result
 
     # --- extension record types ---------------------------------------------------------------
 
@@ -1480,6 +1545,202 @@ class EmbeddedClient:
     def get_cost_code(self, project: str, code: str) -> cost_views.CostCodeDetailView:
         with self._uow(True) as uow:
             return cost_views.cost_code_detail(uow.conn(), f"project:{project}", code)
+
+    # --- materials (P2-I3) ---------------------------------------------------------------------
+
+    def list_materials_stock(
+        self,
+        project: str,
+        *,
+        lot: str | None = None,
+        location: str | None = None,
+        item: str | None = None,
+        heat: str | None = None,
+        subtree: bool = False,
+        limit: int = 1000,
+    ) -> list[materials_views.StockRowView]:
+        with self._uow(True) as uow:
+            return materials_views.stock(
+                uow.conn(),
+                f"project:{project}",
+                lot=lot,
+                location=location,
+                item=item,
+                heat=heat,
+                subtree=subtree,
+                limit=limit,
+            )
+
+    def get_materials_lot(self, project: str, key: str) -> materials_views.LotDetailView:
+        with self._uow(True) as uow:
+            return materials_views.lot_detail(uow.conn(), f"project:{project}", key)
+
+    def list_materials_movements(
+        self,
+        project: str,
+        *,
+        lot: str | None = None,
+        since: str | None = None,
+        until: str | None = None,
+        kind: str | None = None,
+        limit: int = 1000,
+    ) -> list[materials_views.MovementView]:
+        with self._uow(True) as uow:
+            return materials_views.movements(
+                uow.conn(),
+                f"project:{project}",
+                lot=lot,
+                since=since,
+                until=until,
+                kind=kind,
+                limit=limit,
+            )
+
+    def list_materials_receipts(
+        self,
+        project: str,
+        *,
+        open_only: bool = False,
+        missing_mtr: bool = False,
+        limit: int = 1000,
+    ) -> list[materials_views.ReceiptView]:
+        with self._uow(True) as uow:
+            return materials_views.receipts(
+                uow.conn(),
+                f"project:{project}",
+                open_only=open_only,
+                missing_mtr=missing_mtr,
+                limit=limit,
+            )
+
+    def get_materials_receipt(self, project: str, number: str) -> materials_views.ReceiptDetailView:
+        with self._uow(True) as uow:
+            return materials_views.receipt_detail(uow.conn(), f"project:{project}", number)
+
+    def list_materials_locations(
+        self, project: str, *, limit: int = 1000
+    ) -> list[materials_views.LocationView]:
+        with self._uow(True) as uow:
+            return materials_views.locations_tree(uow.conn(), f"project:{project}", limit=limit)
+
+    def list_materials_po_lines(
+        self, project: str, *, q: str | None = None, limit: int = 1000
+    ) -> list[materials_views.PoLineView]:
+        with self._uow(True) as uow:
+            return materials_views.po_lines(uow.conn(), f"project:{project}", q, limit=limit)
+
+    def list_materials_mto_lines(
+        self,
+        project: str,
+        *,
+        work_package: str | None = None,
+        short_only: bool = False,
+        limit: int = 1000,
+    ) -> list[materials_views.MtoLineView]:
+        with self._uow(True) as uow:
+            return materials_views.mto_lines(
+                uow.conn(),
+                f"project:{project}",
+                work_package=work_package,
+                short_only=short_only,
+                limit=limit,
+            )
+
+    def list_materials_items(
+        self, *, project: str | None = None, limit: int = 1000
+    ) -> list[materials_views.MaterialItemView]:
+        with self._uow(True) as uow:
+            return materials_views.items(
+                uow.conn(), project=f"project:{project}" if project else None, limit=limit
+            )
+
+    def get_materials_mto_line(self, project: str, key: str) -> materials_detail.MtoLineDetailView:
+        with self._uow(True) as uow:
+            return materials_detail.mto_line_detail(uow.conn(), f"project:{project}", key)
+
+    def list_materials_item_projects(self, code: str) -> list[materials_detail.ItemProjectView]:
+        with self._uow(True) as uow:
+            return materials_detail.item_projects(uow.conn(), code)
+
+    def materials_command(self, name: str, cmd: Command) -> CommandResult:
+        spec = next((c for c in MATERIALS_COMMANDS if c.model.__name__ == name), None)
+        if spec is None or type(cmd) is not spec.model:
+            raise ForbiddenError(f"{name} is not a materials command")
+        with self._uow(False) as uow:
+            self._own_command(cmd.actor)
+            self._command_gate(uow, cmd)
+            return self.own_writes.note(spec.handler(uow, cmd))
+
+    # --- the awp module (P2-I1 T03b): the reads the API routes serve, under the viewer's filter --
+
+    def list_cwps(
+        self,
+        project: str,
+        *,
+        state: str | None = None,
+        discipline: str | None = None,
+        cwa: str | None = None,
+    ) -> list[awp_views.CwpRow]:
+        with self._uow(True) as uow:
+            return awp_views.cwp_list(
+                uow.conn(), f"project:{project}", state=state, discipline=discipline, cwa=cwa
+            )
+
+    def get_cwp(self, project: str, number: str) -> CwpDetailView:
+        scope = f"project:{project}"
+        with self._uow(True) as uow:
+            detail = awp_views.cwp_detail(uow.conn(), scope, number)
+            if detail is None:
+                raise RecordNotFoundError(f"no CWP {number!r}")
+            links = len(link_queries.links_of(uow, detail.id))
+            files = len(list_files(uow, scope, detail.id))
+            timeline = [
+                TimelineRow(
+                    date=event.recorded_at.date().isoformat(),
+                    who=event.actor,
+                    event=event.event_type,
+                    note=_note(event.payload),
+                )
+                for event in queries.record_history(uow, detail.id)
+            ]
+            return CwpDetailView(
+                **detail.model_dump(),
+                link_count=links,
+                file_count=files,
+                timeline=timeline,
+            )
+
+    def list_cwas(self, project: str) -> list[awp_views.CwaRow]:
+        with self._uow(True) as uow:
+            return awp_views.cwa_list(uow.conn(), f"project:{project}")
+
+    def wbs_tree(self, project: str, *, depth: int | None = None) -> list[awp_views.WbsRow]:
+        with self._uow(True) as uow:
+            return awp_views.wbs_tree(uow.conn(), f"project:{project}", depth=depth)
+
+    def get_wbs_node(self, project: str, code: str) -> awp_views.WbsRow:
+        with self._uow(True) as uow:
+            node = awp_views.wbs_detail(uow.conn(), f"project:{project}", code)
+            if node is None:
+                raise RecordNotFoundError(f"no WBS node {code!r}")
+            return node
+
+    def get_path(self, project: str, version: int | None = None) -> awp_views.PathView:
+        with self._uow(True) as uow:
+            found = awp_views.path(uow.conn(), f"project:{project}", version=version)
+            if found is None:
+                raise RecordNotFoundError(f"no path {project!r} at version {version!r}")
+            return found
+
+    def list_path_versions(self, project: str) -> list[awp_views.PathVersion]:
+        with self._uow(True) as uow:
+            return awp_views.path_versions(uow.conn(), f"project:{project}")
+
+    def list_packages(
+        self, project: str, *, kind: Literal["EWP", "PWP"] | None = None
+    ) -> list[awp_views.PackageRow]:
+        with self._uow(True) as uow:
+            return awp_views.package_list(uow.conn(), f"project:{project}", kind=kind)
 
     # --- the schema workbench (P1-I8) ---------------------------------------------------------
 

@@ -1,0 +1,53 @@
+# Workflow of a construction work package (brief 9, M3): Planned, In development, Released for IWP
+# development, Executing, Complete, Closed. A released package returns to In development (ReturnCwp), a
+# complete one reopens to Executing (ReopenCwp), and any package that is not Closed can be voided. Closed and
+# Void are final. Every move is made by a command of the awp module (people cannot run a transition
+# directly), so the file states the moves and names no role. At Released the package is expected to link to an
+# engineering work package (`awp.EWPRef`, relation `requires`); that expectation is declared on the CWP class
+# (`tl:expects_link`), so a missing link is reported and no guard blocks the move.
+id: awp.cwp
+version: 1
+record_type: awp.CWP
+scope: company
+initial_state: Planned
+states:
+  - name: Planned
+  - name: In development
+  - name: Released for IWP development
+  - name: Executing
+  - name: Complete
+  - name: Closed
+  - name: Void
+transitions:
+  - name: start_development
+    label: Start developing the package
+    from: [Planned]
+    to: In development
+  - name: release
+    label: Release the package for IWP development
+    from: [In development]
+    to: Released for IWP development
+  - name: return
+    label: Return the package to development
+    from: [Released for IWP development]
+    to: In development
+  - name: start_execution
+    label: Start executing the package
+    from: [Released for IWP development]
+    to: Executing
+  - name: complete
+    label: Mark the package complete
+    from: [Executing]
+    to: Complete
+  - name: reopen
+    label: Reopen a complete package
+    from: [Complete]
+    to: Executing
+  - name: close
+    label: Close the package
+    from: [Complete]
+    to: Closed
+  - name: void
+    label: Void the package
+    from: [Planned, In development, Released for IWP development, Executing, Complete]
+    to: Void
