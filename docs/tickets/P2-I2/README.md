@@ -99,3 +99,28 @@ pattern, else escalates). Escalate: a frozen contract change; an access word the
 
 ## Plan check
 (orchestrator's `plan-check` writes here)
+
+## Plan check
+Planner-tier check, 2026-11-07 (pasted by the orchestrator; the checker does not edit files). Every finding is to be
+answered below it in round 2 (accepted with the change made, or waived with a reason).
+
+```
+4 PLANCHK docs/tickets/P2-I2/README.md
+F1 HI S1 IWP workflow: an expected_links entry is a guard (definition.py L13), so it would block Issue against P2-Q8 A -> put tl:expects_link (by_state Issued) on the IWP class in iwp.yaml, add no guard
+F2 HI S1/STATE Q2: expected.py has no check on target_type, so the permit STOP never fires -> close Q2 and record the reserved name permit.PermitToWork as a DEC for Phase 3
+F3 HI seam materials_reserved: reservations are StockLot events and MTO lines point to the IWP by a work_package_id column, not a link. Materials never calls request -> S5 maps watched events to IWPs by work_package_id, else evaluate_now. T10b assigns lines to an awp.IWP key, then reserves
+F4 HI scope demo 4: clearing constraints moves 5/7 to 7/7, but no constraints check exists. Checks are 3 real + 5 n_a = 8 -> S5 adds constraints_cleared and says how n_a counts. Fix the demo numbers
+F5 MD seams: S2, S3 and S5 run in parallel and all edit tl_mod_awp module.py, names.py and AWP_COMMANDS with no owner -> merge S2+S3 into one piece. S5 stays in readiness/ and its hook line is C2 glue
+F6 MD seams: nobody owns the Constraint check<->Ready moves or the check-source constraints in demo 3 -> S5 job does both through by_module and calls S3's raise
+F7 MD tiers S6: a check plugin on the frozen contract (precedent P2-I3-T03) -> two t full tickets, depending on S1+S2 not S5. Ship them from documents and correspondence: the contract bars awp importing tl_mod_documents
+F8 MD tiers T04c: routes for 3 resources + ApiClient + client.py, embedded, remote, fake + tests is over 5 files, failing 01-tiers §6 item 4 -> split into T04c1 routes and T04c2 client methods with fakes
+F9 MD deps: T04a needs S2 (IWP projector), not S5. T04c and T09a need S5 views. T09b needs S3, not S4. T06b needs only the contract -> fix the table. Dispatch T06b in r2
+F10 MD gates: S4 signer-role check is permission code (AGENTS never-list) and has no human gate. S1 approver says "owner, or" -> both gates go to the orchestrator under P2-Q10, with an APPROVALS line
+F11 MD gates: SR2 is "owner optional" with no commit range, against skill rule 4 -> make it mandatory at C4, scoped to the Sec rows and 34696bc..p2/i2 head, at most 450k tokens
+F12 MD S1 gate: one run covers two packages (OOM trap). Pinned lists such as tests/services/test_modules.py, tests/webhooks/scenario.py, test_ddl.py and test_generate.py are not run -> run one package per gate and name those files
+F13 LO scope S2: the I2 demo never uses scope-item state moves; RevaiseIwp is a typo and is not in the plan -> leave the moves to I5. Write ReviseIwp only if the demo needs it
+F14 LO waves: T11 runs before T10b although their paths do not overlap. Stream C is a third stream (0.2 allows two) -> run T11 beside T10b and fold the twins into WS-B. Demo 0042 needs a gap-free seed or start, named in S1
+F15 LO cost: about 10 rounds, 7p/17t, roughly 0.28-0.35 B, at the top of the band. Cost drivers are T11 (split it per stream), S2/S3 (merge them as in F5) and S6 (make it tickets as in F7). Result is 5p/19t
+73 Contract use is sound: the registry, harness and settings keys are on trunk; TW twins over text modules; Q2/Q6/Q7 applied correctly; readiness schema folded into one S1 gate (D6)
+30
+```
