@@ -1,29 +1,31 @@
-# P2-I2 STATE  r=2 base=34696bc C=0 ck=0 gate=n/a wt=/home/user/wt/p2-i2
+# P2-I2 STATE  r=3 base=6946236 C=1 ck=0 gate=n/a wt=/home/user/wt/p2-i2
 ## BOARD   (ws A=IWP/constraints/sign-off, B=readiness+screens+web twins; col 6 starts with ws)
-S1 p disp f - A schema part 2; human gate orch P2-Q10
-S2 p stg f - A IWP+scope+constraint cmds; spec r2 (dep S1)
-S4 p todo f - B readiness engine; spec r3 (dep S1 S2)
-S3 p todo f - A sign-off, issue, hold; spec r3 (dep S2 S4)
+S1 p mrg f - A schema part 2 (APPROVALS done)
+S2 p mrg f - A IWP+scope cmds; constraint half replaced by C1/C2
+T06b t mrg l - B five n_a checks
+C1 p disp f - A core constraint schema (ADR-0024); gate orch+APPROVALS; spec r3
+C2 p stg f - A core constraint cmds, guard eval, class join; spec r3 (dep C1)
+S3 p disp f - A sign-off, issue, hold; spec r3; signer-role gate orch
+S4 p stg f - B readiness engine; spec r3 (dep C1; tests needing C2 after)
+T06a1 t disp f - B documents_current in documents (dep S1 S2 met)
+T06a2 t disp f - B rfis_answered in correspondence (dep S1 S2 met)
 S5 p todo f - A tests piece at C3; beside T10b
-T06b t stg l - B five n_a checks (dep S1)
-T06a1 t stg f - B documents_current in documents (dep S1 S2)
-T06a2 t stg f - B rfis_answered in correspondence (dep S1 S2)
-T04a t todo f - A read views (dep S2)
+T04a t todo f - A read views over core constraint (dep S2 C2)
 T04c1 t todo f - A API read routes (dep T04a S4)
 T04c2 t todo f - A client methods + fakes (dep T04c1)
-T04d t todo f - A CLI reads (dep T04a S4)
-T04e t todo f - A CLI writes (dep S3)
-T04b t todo f - A constraint_text + screen (dep T04c2)
+T04d t todo f - A CLI reads + core tl constraint ls/show (dep T04a S4)
+T04e t todo f - A CLI writes incl tl constraint writes (dep S3 C2)
+T04b t todo f - A constraint_text + screen + per-record log (dep T04c2)
 T07a t todo f - B readiness_text + screen (dep T04c2)
 T07b t todo f - B iwp_text + log + tabs (dep T04c2)
 T08 t todo f - B sizing surface + backlog tile (dep T04c2 S4)
 T09a t todo l - A reports (dep T04a S4)
-T09b t todo f - A MCP reads + proposals (dep T04c2 S2)
+T09b t todo f - A MCP reads + proposals (dep T04c2 C2)
 TW1 t todo f - B web IWP log+record (dep T07b)
 TW2 t todo f - B web constraint review (dep T04b)
 TW3 t todo f - B web readiness+tile (dep T07a T08)
 T10a t todo l - A sim desk + actor (dep T09a)
-T10b t todo f - A demo P2-I2 (dep T10a TW1-3 S3)
+T10b t todo f - A demo P2-I2 (dep T10a TW1-3 S3; clause 3 seeds constraints)
 T12 t todo l - A docs (dep T10b)
 ## DEC
 D1 2026-11-07 owner defaults applied: Q6 A operators, Q7 A awp.ScopeItem, Q8 A expected link missing not blocking, signoff_roles [superuser]; README
@@ -40,22 +42,25 @@ D11 2026-11-07 access words added by S2: awp.iwp.edit user, awp.constraint.edit 
 D12 2026-11-07 S1 schema gate and S3 signer-role gate are the orchestrator's (P2-Q10), APPROVALS line at merge (F10); README
 D13 2026-11-07 materials seam: MTO lines point to IWP by work_package_id (types accepted); S4 maps watched events by it, else evaluate_now; T10b assigns lines to an IWP key first (F3)
 D14 2026-11-07 F15 partly waived: tests piece stays one piece (two phases), not split per stream; README
+D15 2026-11-07 owner parts A/B: constraints are core records (ADR-0024 v2, plan-checked, all accepted); pieces C1 schema, C2 commands; awp keeps none; effort 5p+2 core pieces
+D16 2026-11-07 frozen functions raise_constraint, clear_constraint, open_blocking in ADR-0024 decision 6 and stub tl_core/constraints/__init__.py (NotImplementedError until C2); S4 codes against them
+D17 2026-11-07 C1 deletes awp constraint code (tree stays green); C2 moves it from d2409f5 with iwp_id->subject_id; owner optional for non-manual sources (ADR v2)
+D18 2026-11-07 IWP opt-in on transition `ready`, phase `ready`; WBS opt-in deferred (docs/build-spec/DEFERRED.md); ADR-0025 intent slot lands after the wave 2 close, not in P2-I2
 ## SEC   (none yet; rows in README "Security rows"; SR2 mandatory at C4, range 34696bc..p2/i2 head, <=450k)
 ## OPEN
-Q2 closed r2 (D8). Q1 closed r2 (plan check done).
+Q1 hold-on-new-constraint rule (brief: a new constraint on an Issued IWP puts it On hold) has no owner; in DEFERRED; needs orch raised r3.
 ## NEXT
-1. Orch: merge S1 (gates: schema + signer-role are orch under P2-Q10, APPROVALS line); then spawn r3.
-2. r3: verify S1 on log; write S4 spec (needs S2 merged first) and S3 spec later; dispatch S2 + T06b (disjoint paths).
-3. r3: after S2 merges write T04a ticket; dispatch T06a1, T06a2 beside S4 (check qualifies on S1 + S2).
-4. Later: S3 (after S2 + S4), T04c1 -> T04c2, then screens, twins, reports (D13 seam in S4 spec).
-5. C2 glue (<=50 lines): AWP_COMMANDS splat, MCP_ACTIONS, add_typer, palette, readiness hook line; pinned-list tests.
-6. C3: S5 tests piece (five-reader walk on every new route and tool), beside T10b.
-7. C4: gate per package, demo both adapters, tour once, SR2 (mandatory), report from this file.
+1. Orch: dispatch C1 (schema, own gate + APPROVALS), S3 (signer-role gate orch), T06a1/T06a2 (workflow). C1 and S3 touch commands.py/module.py/names.py: trivial merge, C1 first.
+2. After C1 merges: dispatch S4 and C2 (disjoint: readiness/ vs tl_core/constraints). After C2: rerun dev/accept/P2-I2/S4.py (SKIPs need C2). ADR-0024 -> accepted at C2 merge.
+3. Then T04a (needs C2), T04c1 -> T04c2, T04d, T04e, screens, twins, reports, T09b, T10a; write specs as dependencies merge (r4).
+4. C2 glue (<=50 lines): AWP_COMMANDS splat for S3, core command registration check, MCP_ACTIONS, add_typer (`tl constraint`), palette, readiness hook line from the S4 report.
+5. P2-SEED follow-up (branch p2/seed, docs/tickets/P2-SEED/T01-awp-section.md running; do not edit that branch): after C2 the generator awp section seeds core constraints (materials, scaffold, predecessor, RFI target, advisory, plain-reference permit, one cleared with cleared_at). Orch adds a ticket line there.
+6. C3: S5 tests piece (five-reader walk, guard and class-join mutants), beside T10b. C4: gate per package, demo both adapters, tour once, SR2 (mandatory), report.
 ## REFS
-Contract: packages/tl-core/src/tl_core/readiness/types.py (frozen), harness.py. Template check: packages/tl-modules/materials/src/tl_mod_materials/readiness.py.
-Piece spec template: docs/tickets/P2-I1/S4-awp-cwp-packages-actions.md. Specs written: S1, S2 (staged); tickets staged: T06b, T06a1, T06a2.
-Settings awp.* on trunk. Owner answers: docs/build-spec/module-designs/OWNER-DECISIONS-2026-10-30.md. README is the spec of record (no m3-iwp spec).
+Contract: packages/tl-core/src/tl_core/readiness/types.py (frozen), harness.py. ADR docs/adr/0024-constraints-on-any-record.md (v2), 0025 (later). Specs: C1, C2, S3, S4 in this folder; S2 constraint code reference: git show d2409f5:packages/tl-modules/awp/src/tl_mod_awp/constraints.py.
+Template check: packages/tl-modules/materials/src/tl_mod_materials/readiness.py. Owner answers: docs/build-spec/module-designs/OWNER-DECISIONS-2026-10-30.md. README is the spec of record.
+Staged tickets: T06a1, T06a2 (dispatch now). Seed ledger .accept/p2-i2.db is regenerated by C2's script.
 ## TRAPS
 Whole 4-part gate OOMs on 16 GB (L-P2-I1-2, L-P2-I3-2): gate names files or one package. Tests dialect-neutral, no group_concat;
-provided tests pass ruff; stand-in module never reuses a real module name; pinned lists as union. A check name used twice is an error.
-documents/correspondence/awp pyproject entry-point tables are new: tickets may touch only that table.
+provided tests pass ruff; stand-in module never reuses a real module name; pinned lists as union (removals in C1: exact numbers). A check name used twice is an error.
+documents/correspondence/awp pyproject entry-point tables are new: tickets may touch only that table. C1 and S3 both edit awp commands.py/module.py/names.py: append at list ends.
