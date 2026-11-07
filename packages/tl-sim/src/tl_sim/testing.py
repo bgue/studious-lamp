@@ -68,6 +68,8 @@ class FakeWorld:
         self.event_rows: list[dict[str, Any]] = []
         self.proposal_rows: list[dict[str, Any]] = []
         self.schedule_rows: list[dict[str, Any]] = []
+        self.area_codes: list[str] = []  # the CWA codes of the path of construction
+        self.cwp_rows: list[dict[str, Any]] = []  # the CWPs accepted proposals created
         self._seq = 0
 
     # --- the store -------------------------------------------------------------------------
@@ -647,6 +649,10 @@ class FakeClient:
                     f"a {relation} link already exists between these records"
                 )
             command = {"from_id": source["id"], "to_id": target["id"], "relation": relation}
+        elif tool == "propose_cwp":
+            if arguments["cwa_code"] not in self.world.area_codes:
+                raise ProposalRefusedError(f"no construction work area {arguments['cwa_code']!r}")
+            command = dict(arguments)
         proposal_id = f"proposal-{len(self.world.proposal_rows) + 1}"
         self.world.proposal_rows.append(
             {
@@ -679,6 +685,11 @@ class FakeClient:
     def pending_proposals(self) -> list[dict[str, Any]]:
         return [dict(p) for p in self.world.proposal_rows if p["status"] == "pending"]
 
+    # --- the path of construction, for the workface planner (the AwpDesk of tl_sim.client) ---
+
+    def areas(self) -> list[str]:
+        return list(self.world.area_codes)
+
     def _decide(self, proposal_id: str, status: str, reason: str | None) -> dict[str, Any]:
         for proposal in self.world.proposal_rows:
             if proposal["proposal_id"] == proposal_id and proposal["status"] == "pending":
@@ -709,6 +720,18 @@ class FakeClient:
                 }
             )
             self._write("Link.Added", link_id, source=agent_source)
+        elif proposal["tool"] == "propose_cwp":
+            command = proposal["command"]
+            n = len(self.world.cwp_rows) + 1
+            number = f"{command['project']}-CWP-{command['discipline']}-{n:04d}"
+            self.world.cwp_rows.append(
+                {
+                    "number": number,
+                    "title": command["title"],
+                    "cwa": command["cwa_code"],
+                    "state": "Draft",
+                }
+            )
         self._write("Proposal.Accepted", proposal_id, source="api")
         return dict(proposal)
 

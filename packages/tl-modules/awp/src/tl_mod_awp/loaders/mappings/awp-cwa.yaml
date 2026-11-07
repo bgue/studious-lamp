@@ -1,0 +1,5 @@
+# Mapping template of the loader `awp-cwa` (P2-I1-T01): the control work areas of a legacy export,
+# one row per area. The awp_cwa target reads the grid by column name, lower-cased and trimmed: code,
+# title and an optional sequence (a whole number; the path follows it). No import mapping is read
+# from this file; the loader only hashes its text.
+name: awp-cwa

@@ -6,7 +6,7 @@ from typing import Any
 
 import pytest
 from harness import ALICE, SCOPE, Harness
-from tl_api.commands import COMMANDS
+from tl_api.commands import COMMANDS, effective_access
 from tl_core.services.queries import get_record_by_id
 
 
@@ -31,8 +31,8 @@ def test_every_command_in_the_table_has_a_route(harness: Harness) -> None:
     # + the derivation pipeline (P1-I3), the cost (1) and schedule (6) modules (P1-I4), the
     # correspondence module's 28 (P1-I5), rules and actions (P1-I7 WS-A: 4 + 3 + 5 + 6 + 1) and
     # the thread messages (WS-B: 3), the 19 for RFIs and Commercial items (P1-I6) and the schema
-    # registry (P1-I8: 13; AdoptSchemaSet: 14)
-    assert len(COMMANDS) == 20 + 14 + 24 + 10 + 1 + 6 + 28 + 4 + 3 + 5 + 6 + 1 + 3 + 19 + 14
+    # registry (P1-I8: 13; AdoptSchemaSet: 14) and the awp module (P2-I1: 25)
+    assert len(COMMANDS) == 20 + 14 + 24 + 10 + 1 + 6 + 28 + 4 + 3 + 5 + 6 + 1 + 3 + 19 + 14 + 25
 
 
 def test_create_record_returns_the_command_result(harness: Harness) -> None:
@@ -214,7 +214,7 @@ def test_links_and_the_workflow_through_commands(harness: Harness) -> None:
 @pytest.mark.parametrize("spec", COMMANDS, ids=lambda s: s.name)
 def test_a_command_with_no_body_is_a_422_not_a_500(harness: Harness, spec) -> None:  # type: ignore[no-untyped-def]
     response = harness.client.post(f"/commands/{spec.name}", json={})
-    if spec.access in ("admin", "controller"):  # a dev-token person holds neither: refused first
+    if effective_access(spec) in ("admin", "controller"):  # a dev-token person holds neither
         assert response.status_code == 403 and response.json()["error"] == "forbidden"
         return
     assert response.status_code == 422 and response.json()["error"] == "validation_error"
@@ -270,9 +270,24 @@ def test_the_controller_actions_are_exactly_the_commands_marked_controller() -> 
             "ReferCommercialToLegal",
             # the schema registry: a project's superuser adopts an optional set
             "AdoptSchemaSet",
+            # the awp module (P2-I1): fine words that read as the table word controller
+            "DefineWbsNode",
+            "ReviseWbsNode",
+            "RetireWbsNode",
+            "ReinstateWbsNode",
+            "MapWbsToCostCodes",
+            "DefinePathOfConstruction",
+            "MoveCwaInPath",
+            "RetireCwa",
+            "ReleaseCwp",
+            "ReturnCwp",
+            "CloseCwp",
+            "ReopenCwp",
+            "VoidCwp",
+            "VoidExternalPackage",
         )
     }
-    assert {s.name for s in COMMANDS if s.access == "controller"} == {
+    assert {s.name for s in COMMANDS if effective_access(s) == "controller"} == {
         a.removeprefix("control.command.") for a in controller_actions()
     }
 

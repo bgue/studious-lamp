@@ -1,0 +1,90 @@
+"""Names the awp module shares: record types, event types, tables, relations, the job kind.
+
+Plain constants, so a projector, a handler, a CLI command and a test all spell them the same way.
+"""
+
+from __future__ import annotations
+
+from typing import Final
+
+WBS_NODE: Final = "awp.WBSNode"
+PATH: Final = "awp.PathOfConstruction"
+CWA: Final = "awp.CWA"
+CWP: Final = "awp.CWP"
+EWP: Final = "awp.EWPRef"
+PWP: Final = "awp.PWPRef"
+COST_CODE: Final = "cost.CostCode"
+RECORD_TYPES: Final = frozenset({WBS_NODE, PATH, CWA, CWP, EWP, PWP})
+PACKAGE_TYPES: Final = (EWP, PWP)
+
+#: The namespace of a record key. A typed key cannot hold ``@``, so no typed record of another
+#: module can equal one (``tl_core.services.records.create_module_record`` ``composed_key``).
+KEY_PREFIX: Final = {WBS_NODE: "awp.wbs@", CWA: "awp.cwa@", EWP: "awp.ewp@", PWP: "awp.pwp@"}
+
+WBS_NODE_TABLE: Final = "cur_awp_wbs_node"
+WBS_ALLOCATION_TABLE: Final = "cur_awp_wbs_allocation"
+PATH_TABLE: Final = "cur_awp_path"
+PATH_STEP_TABLE: Final = "cur_awp_path_step"
+CWA_TABLE: Final = "cur_awp_cwa"
+CWP_TABLE: Final = "cur_awp_cwp"
+CWP_ALLOCATION_TABLE: Final = "cur_awp_cwp_allocation"
+EWP_TABLE: Final = "cur_awp_ewp_ref"
+PWP_TABLE: Final = "cur_awp_pwp_ref"
+PACKAGE_TABLE: Final = {EWP: EWP_TABLE, PWP: PWP_TABLE}
+WBS_NODE_VIEW: Final = "v_awp_wbsnode"
+PATH_VIEW: Final = "v_awp_path_of_construction"
+CWA_VIEW: Final = "v_awp_cwa"
+CWP_VIEW: Final = "v_awp_cwp"
+EWP_VIEW: Final = "v_awp_ewpref"
+PWP_VIEW: Final = "v_awp_pwpref"
+
+WBS_DEFINED: Final = "WBSNode.Defined"
+WBS_REVISED: Final = "WBSNode.Revised"
+WBS_RETIRED: Final = "WBSNode.Retired"
+WBS_REINSTATED: Final = "WBSNode.Reinstated"
+WBS_COST_CODES_MAPPED: Final = "WBSNode.CostCodesMapped"
+PATH_DEFINED: Final = "PathOfConstruction.Defined"
+PATH_RESEQUENCED: Final = "PathOfConstruction.Resequenced"
+CWA_DEFINED: Final = "CWA.Defined"
+CWA_REVISED: Final = "CWA.Revised"
+CWA_RETIRED: Final = "CWA.Retired"
+CWP_DEFINED: Final = "CWP.Defined"
+CWP_REVISED: Final = "CWP.Revised"
+CWP_ALLOCATED: Final = "CWP.AllocatedToWbs"
+CWP_RELEASED: Final = "CWP.Released"
+PACKAGE_DEFINED: Final = {EWP: "EWPRef.Defined", PWP: "PWPRef.Defined"}
+PACKAGE_UPDATED: Final = {EWP: "EWPRef.Updated", PWP: "PWPRef.Updated"}
+
+#: The states of the CWP workflow (``schema/fixtures/workflows/awp-cwp.yaml``).
+ST_PLANNED: Final = "Planned"
+ST_DEVELOPMENT: Final = "In development"
+ST_RELEASED: Final = "Released for IWP development"
+ST_EXECUTING: Final = "Executing"
+ST_COMPLETE: Final = "Complete"
+ST_CLOSED: Final = "Closed"
+ST_VOID: Final = "Void"
+#: The states in which the fields of a package may change (frozen from Released).
+EDITABLE_STATES: Final = (ST_PLANNED, ST_DEVELOPMENT)
+
+#: The nine events with ``feed_policy: none`` (the schema); ``tl_core.feed.cards`` names the same.
+NO_CARD_EVENTS: Final = (
+    "WBSNode.Defined",
+    "WBSNode.Revised",
+    "WBSNode.Retired",
+    "WBSNode.Reinstated",
+    "WBSNode.CostCodesMapped",
+    "WBSNode.BudgetRolledUp",
+    "PathOfConstruction.Defined",
+    "PathOfConstruction.Resequenced",
+    "CWP.AllocatedToWbs",
+)
+FEED_NONE: Final = "none"
+
+#: Relation of the link from a WBS node to each cost code it is allocated to (the module writes it).
+COST_RELATION: Final = "references"
+#: Relation of the link from a CWP to its area and to each WBS node it is allocated to.
+BELONGS_RELATION: Final = "belongs_to"
+RULE_LINK_SOURCE: Final = "rule"
+
+JOB_KIND_ROLLUP: Final = "awp.rollup"
+ROLLUP_JOB_PREFIX: Final = "rollup:"

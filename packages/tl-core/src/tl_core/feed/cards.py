@@ -52,10 +52,24 @@ POLICY_KEY = "feed_policy"
 TEXT_KEY = "feed_text"
 MAX_POLICY_TEXT = 300
 #: The only events that may carry a feed policy: the three that make a domain's card (ADR-0019
-#: section 7). The same keys on any other event are ignored, so a payload that happens to have
-#: them cannot silence or replace a card.
+#: section 7) and the eight awp events that make none (P2-I1: the WBS, the path of construction,
+#: the package allocation and the budget rollup carry ``feed_policy: none``). The same keys on any
+#: other event are ignored, so a payload that happens to have them cannot silence or replace a card.
 POLICY_EVENT_TYPES: frozenset[str] = frozenset(
-    {"Correspondence.Issued", "Technical.Answered", "Commercial.Assessed"}
+    {
+        "Correspondence.Issued",
+        "Technical.Answered",
+        "Commercial.Assessed",
+        "WBSNode.Defined",
+        "WBSNode.Revised",
+        "WBSNode.Retired",
+        "WBSNode.Reinstated",
+        "WBSNode.CostCodesMapped",
+        "WBSNode.BudgetRolledUp",
+        "PathOfConstruction.Defined",
+        "PathOfConstruction.Resequenced",
+        "CWP.AllocatedToWbs",
+    }
 )
 
 TRANSPARENT_EVENT_TYPES: frozenset[str] = frozenset({"Numbering.Allocated", "Link.Suggested"})

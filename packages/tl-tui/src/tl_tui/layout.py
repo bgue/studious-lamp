@@ -47,6 +47,8 @@ WRAP_MIN = 10  # the last column of a table wraps no narrower than this
 # table that uses a name follows the rule. ``DROP_FIRST`` is least needed first; ``SHORTENABLE``
 # columns end in ``…`` when the table is still too wide; the last column wraps as a last resort.
 DROP_FIRST: tuple[str, ...] = (
+    "Planned start",
+    "Discipline",
     "Files",
     "Pages",
     "Pin",
@@ -72,6 +74,7 @@ SHORTENABLE: frozenset[str] = frozenset(
         "Path",
         "Message",
         "Note",
+        "Subject",
     }
 )
 
