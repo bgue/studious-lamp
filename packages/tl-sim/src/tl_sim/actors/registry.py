@@ -11,6 +11,7 @@ from tl_sim.actors.client_rep import ClientRep
 from tl_sim.actors.crew import Crew
 from tl_sim.actors.document_controller import DocumentController
 from tl_sim.actors.document_registrar import DocumentRegistrar
+from tl_sim.actors.iwp_planner import IwpPlanner
 from tl_sim.actors.materials_coordinator import MaterialsCoordinator
 from tl_sim.actors.planner import Planner
 from tl_sim.actors.rfi_author import RfiAuthor
@@ -30,6 +31,7 @@ ACTOR_CLASSES: dict[str, type[BaseActor]] = {
     "client_rep": ClientRep,
     "assistant": Assistant,
     "workface_planner": WorkfacePlanner,
+    "iwp_planner": IwpPlanner,
     "materials_coordinator": MaterialsCoordinator,
     "approver": Approver,
 }

@@ -26,6 +26,7 @@ from tl_mod_correspondence.errors import ItemStateError
 from tl_sim import groundtruth as gt
 from tl_sim.client import (
     DocumentDesk,
+    IwpDesk,
     ProposalDesk,
     ProposeUnavailableError,
     ScheduleDesk,
@@ -48,6 +49,9 @@ ACTIVITY_RELATION = "references"  # what links a record to an activity (ADR-0015
 MAX_REF_TITLE = 200  # the module cuts the title of an activity's reference here
 SUPERSEDED = "Superseded"  # the state of a tag that a rename replaced
 MAX_RECORDS = 5000  # the API's page limit; a Phase 0 simulation stays far below it
+IWP_TYPE = "awp.IWP"
+SCOPE_ITEM_TYPE = "awp.ScopeItem"
+CONSTRAINT_TYPE = "core.Constraint"
 
 
 def plural(count: int, one: str, many: str | None = None) -> str:
@@ -354,6 +358,67 @@ class Recorder:
             {"from": record.key, "to": ref, "relation": ACTIVITY_RELATION},
         )
         return True
+
+    # --- IWPs and constraints, for the person who builds the packages (``IwpDesk``) ------------
+
+    def _iwp_desk(self) -> IwpDesk:
+        client = self.ctx.client
+        if not isinstance(client, IwpDesk):
+            raise ProposeUnavailableError("this client cannot build IWPs")
+        return client
+
+    def iwps(self) -> list[dict[str, Any]]:
+        """The project's IWPs by number (a read, not recorded)."""
+        return self._iwp_desk().iwps()
+
+    def open_constraints(self) -> list[dict[str, Any]]:
+        """The project's open or assigned constraints by key (a read, not recorded)."""
+        return self._iwp_desk().open_constraints()
+
+    def create_iwp(self, discipline: str, title: str) -> Rec:
+        made = self._iwp_desk().create_iwp(discipline, title)
+        rec = Rec(id=str(made["id"]), key=str(made["key"]), title=str(made["title"]))
+        self._note(
+            gt.RECORD_CREATED,
+            rec.key,
+            {"title": rec.title, "record_type": IWP_TYPE, "voided": False},
+        )
+        return rec
+
+    def create_scope_item(
+        self, commodity: str, description: str, qty: str, uom: str, est_hours: str
+    ) -> Rec:
+        made = self._iwp_desk().create_scope_item(commodity, description, qty, uom, est_hours)
+        rec = Rec(id=str(made["id"]), key=str(made["key"]), title=str(made["title"]))
+        self._note(
+            gt.RECORD_CREATED,
+            rec.key,
+            {"title": rec.title, "record_type": SCOPE_ITEM_TYPE, "voided": False},
+        )
+        return rec
+
+    def add_scope(self, iwp: Rec, items: list[Rec]) -> None:
+        """Add ``items`` to ``iwp``. Not noted: no ground-truth intent names a scope add (I6)."""
+        self._iwp_desk().add_scope(iwp.id, [item.id for item in items])
+
+    def start_development(self, iwp: Rec) -> None:
+        """Start the development of ``iwp``. Not noted: no intent names it yet (I6)."""
+        self._iwp_desk().start_development(iwp.id)
+
+    def raise_constraint(self, subject_id: str, category: str, description: str) -> Rec:
+        """Raise a manual constraint on the record ``subject_id``: the log names the constraint."""
+        made = self._iwp_desk().raise_constraint(subject_id, category, description)
+        rec = Rec(id=str(made["id"]), key=str(made["key"]), title=str(made["title"]))
+        self._note(
+            gt.RECORD_CREATED,
+            rec.key,
+            {"title": rec.title, "record_type": CONSTRAINT_TYPE, "voided": False},
+        )
+        return rec
+
+    def clear_constraint(self, constraint_id: str, reason: str) -> None:
+        """Clear a constraint. Not noted: no intent names a clear yet (I6)."""
+        self._iwp_desk().clear_constraint(constraint_id, reason)
 
     def set_psets(self, rec: Rec, values: dict[str, dict[str, Any]]) -> None:
         """``values`` is ``{pset: {property: value}}``, e.g. ``{"valve_data": {"size_in": 6}}``."""
