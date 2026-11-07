@@ -24,12 +24,30 @@ from tl_mod_engineering.handlers.tags import (
 )
 from tl_mod_engineering.loader import load_standards
 
+from dev.seed.demo_project.anchors import ANCHOR_TAGS
 from dev.seed.demo_project.core import ADMIN, AREAS
 from dev.seed.demo_project.registry import register
 from dev.seed.demo_project.world import START, World
 
 STANDARDS = Path(__file__).resolve().parent / "data" / "standards.yaml"
 ENGINEER = "lhartmann"
+
+# The anchor tags (anchors.py). 300-T-101 has no registered mnemonic T and a three-digit
+# sequence, so it breaks the pattern and is kept as a recorded violation (RecordTag).
+ANCHOR_TAG_SPECS: tuple[tuple[str, str, str, str], ...] = (
+    (
+        "200-V-1027",
+        "ManualValve",
+        "Reactor feed valve",
+        "Reactor feed valve on the HT-2 reactor feed line, process unit.",
+    ),
+    (
+        "300-T-101",
+        "Vessel",
+        "Crude tank",
+        "Crude oil storage tank in the HT-2 tank farm.",
+    ),
+)
 
 
 @dataclass(frozen=True)
@@ -177,6 +195,8 @@ def tag_numbers(rng: random.Random) -> list[tuple[str, Kind, str]]:
             sequence = 1000
             for _ in range(kind.per_area[code]):
                 sequence += rng.randint(1, 4)
+                while f"{code}-{kind.mnemonic}-{sequence:04d}" in ANCHOR_TAGS:
+                    sequence += 1  # the anchor numbers are never drawn; no extra random draw
                 found.append(
                     (f"{code}-{kind.mnemonic}-{sequence:04d}", kind, rng.choice(kind.services))
                 )
@@ -237,6 +257,25 @@ def build(world: World, rng: random.Random) -> None:
                 class_code="Pump",
                 service="Installed spare",
             )
+        reactor_valve, crude_tank = ANCHOR_TAG_SPECS
+        world.run(
+            handle_create_tag,
+            CreateTag,
+            by=ENGINEER,
+            number=reactor_valve[0],
+            class_code=reactor_valve[1],
+            service=reactor_valve[2],
+            description=reactor_valve[3],
+        )
+        world.run(
+            handle_record_tag,
+            RecordTag,
+            by=ADMIN,
+            number=crude_tank[0],
+            class_code=crude_tank[1],
+            service=crude_tank[2],
+            description=crude_tank[3],
+        )
 
 
 register("engineering", build)
