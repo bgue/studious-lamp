@@ -104,6 +104,7 @@ READING = (
     | SCHEDULE_READ_TOOLS
     | AWP_READ_TOOLS
     | MATERIALS_READ_TOOLS
+    | {"list_iwps", "get_iwp", "list_iwp_scope", "get_iwp_readiness"}  # T09b
 )
 TOOLS = (
     READING
