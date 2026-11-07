@@ -22,7 +22,7 @@ ROOT = Path(__file__).resolve().parents[3]
 SCHEMA = ROOT / "schema"
 FIXTURES = SCHEMA / "fixtures"
 #: Added by P2-I2-S1 (the IWP part); the list above stays the part 1 record types.
-PART2_RECORD_TYPES = {"awp.IWP", "awp.ScopeItem", "awp.Constraint", "awp.IWPCloseout"}
+PART2_RECORD_TYPES = {"awp.IWP", "awp.ScopeItem", "awp.IWPCloseout"}
 AWP = SCHEMA / "modules" / "awp"
 GENERATED = ROOT / "packages" / "tl-schema" / "src" / "tl_schema" / "generated"
 
@@ -215,9 +215,12 @@ def test_the_cwp_workflow_has_seven_states_closed_and_void_are_final() -> None:
     assert ("Released for IWP development", "In development") in moves  # ReturnCwp
     assert ("Complete", "Executing") in moves  # ReopenCwp
     assert ("Complete", "Closed") in moves
-    assert all(
-        "guards" not in t for t in wf["transitions"]
-    )  # the expected link is a report, no guard
+    # the expected link is a report, no guard; the only guard is the opt-in constraint guard (ADR-0024)
+    guarded = {t["name"] for t in wf["transitions"] if "guards" in t}
+    assert guarded == {"start_execution", "complete"}
+    for t in wf["transitions"]:
+        if "guards" in t:
+            assert t["guards"] == [{"kind": "no_open_blocking_constraints"}]
 
 
 def test_the_cwp_number_pattern_counts_each_discipline_gap_free() -> None:
