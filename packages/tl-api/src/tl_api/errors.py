@@ -18,6 +18,7 @@ from typing import Any, cast
 from pydantic import BaseModel, ValidationError
 from tl_core import offline
 from tl_core.auth import errors as auth
+from tl_core.constraints import errors as con
 from tl_core.derivation.registry import ExtractorLoadError
 from tl_core.extypes import errors as ext
 from tl_core.integration import errors as integ
@@ -293,6 +294,12 @@ def _rows() -> tuple[ErrorSpec, ...]:
         s(awp.CwpStateError, "cwp_state", 409),
         s(awp.ReleaseRefusedError, "release_refused", 422),
         s(awp.PackageRuleError, "package_rule", 422),
+        # --- core constraints (ADR-0024) ---------------------------------------------------------
+        s(con.ConstraintError, "constraint_error", 422),
+        s(con.ConstraintRuleError, "constraint_rule", 422),
+        s(con.ConstraintSourceError, "constraint_source", 422),
+        s(con.ConstraintStateError, "constraint_state", 409),
+        s(con.PhaseNotGatedError, "phase_not_gated", 422),
         # --- awp module (P2-I2): IWP, scope items and constraints ------------------------------
         s(awp.IwpRuleError, "iwp_rule", 422),
         s(awp.IwpStateError, "iwp_state", 409),
