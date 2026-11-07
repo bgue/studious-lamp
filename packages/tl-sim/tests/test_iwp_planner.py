@@ -3,10 +3,14 @@
 
 from __future__ import annotations
 
+import re
 from datetime import UTC, date, datetime
+from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
 
+from suite import Suite, build_suite, close_suite
+from test_end_to_end import RUN_ID, SuiteConnector
 from tl_core.services.commands import CommandResult
 from tl_mod_awp.iwp_views import IwpRow
 from tl_sim import groundtruth as gt
@@ -14,7 +18,7 @@ from tl_sim.actors.iwp_planner import CATEGORIES, IwpPlanner
 from tl_sim.actors.registry import ACTOR_CLASSES, build_actor
 from tl_sim.client import HttpSimClient, IwpDesk, Keys
 from tl_sim.clock import SimClock
-from tl_sim.orchestrator import all_identities
+from tl_sim.orchestrator import ORCHESTRATOR, all_identities
 from tl_sim.scenario import (
     ACTOR_NAMES,
     ROLE_NAMES,
@@ -244,3 +248,20 @@ def test_the_http_client_reads_iwps_by_number_and_open_constraints_by_key() -> N
         {"id": "c1", "key": "C-0001", "subject_id": "id-a"},
         {"id": "c2", "key": "C-0002", "subject_id": "id-a"},
     ]
+
+
+def test_the_real_suite_numbers_an_iwp_in_the_sim_scope(tmp_path: Path, monkeypatch: Any) -> None:
+    """The numbering allocator keys an IWP in ``project:sim-<run>`` (the hyphen is dropped from the
+    project segment), so the desk's key is the pattern's key, not a client counter."""
+    monkeypatch.delenv("TL_SCHEMA_DIR", raising=False)
+    built: Suite = build_suite(tmp_path / "s", standards=True)
+    try:
+        clock = SimClock(datetime(2026, 11, 2, 8, tzinfo=UTC))
+        desk = SuiteConnector(built).client(IDENTITY, clock, Keys(RUN_ID, {}), {})
+        assert isinstance(desk, HttpSimClient)
+        made = desk.create_iwp("PIP", "Numbered spool set 1")
+        assert re.fullmatch(r"sim[a-z0-9]+-IWP-PIP-0001", made["key"]), made
+        rows = built.api(ORCHESTRATOR).list_iwps(f"sim-{RUN_ID}", limit=200)
+        assert [(r.id, r.number) for r in rows] == [(made["id"], made["key"])]
+    finally:
+        close_suite(built)
