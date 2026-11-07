@@ -10,6 +10,7 @@ One line each: what, why it waits, and the phase it belongs to. Newest at the bo
 | Web security re-check of everything added since SEC-C4 (web look v2, wave 2 web twins) | The web stays off in production until its next review; it runs with the web increment | Web increment after wave 4 |
 | Project membership on reads: unknown or not-a-member project answers the one 404 page (web and API); `item_projects` filtered by membership | Projects are not a read boundary in the MVP (roles-mvp §7) | Phase 3 I8 |
 | Wave security reviews for P2-I2 to I5 beyond the per-increment Sec rows | Owner: security reviews are owner-optional; keep to what release needs | Phase 2 exit |
+| An agent's own module role is not checked when it files a proposal (`submit` skips `require_command_access`), and agents read internal records of any project (agent-first spec 3.1) | People still decide every proposal with their own access; fix with read scoping | Phase 3 |
 
 ## Test runs
 | Item | Why deferred | Phase |
