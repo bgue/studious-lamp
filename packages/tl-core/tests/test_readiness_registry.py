@@ -59,6 +59,7 @@ def test_only_the_materials_check_is_installed_by_default() -> None:
         "permits_planned",
         "predecessors_handed_over",
         "rfis_answered",
+        "documents_current",
     }
     assert load_checks([]) == {}
 
