@@ -1,6 +1,6 @@
 # ADR-0024 — Constraints are a core record type that can sit on any record
 
-Status: proposed (v2, plan-check findings folded in; the orchestrator accepts it at the core piece merge)
+Status: accepted (2026-11-07, at the P2-I2-C2 merge) (v2, plan-check findings folded in; the orchestrator accepts it at the core piece merge)
 Date: 2026-11-07
 Deciders: repository owner (decision, paraphrased below); P2-I2 orchestrator (drafting)
 Brief sections: §7.1 (links), §8 (guards), §9 M3 (constraints), §22 (offline). Related: ADR-0010, ADR-0016, P2-Q8
