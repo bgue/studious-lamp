@@ -38,6 +38,7 @@ ACTOR_NAMES = (
     *ROLE_NAMES,
     "assistant",
     "workface_planner",
+    "iwp_planner",
     "materials_coordinator",
     "approver",
 )  # the order each day
@@ -186,6 +187,18 @@ class WorkfacePlannerParams(Strict):
     cwps_per_day: Count = 1
 
 
+class IwpPlannerParams(Strict):
+    """The IWP planner: a person who builds interim work packages from scope items, starts their
+    development, raises a manual constraint on the newest one now and then and clears the ones
+    raised earlier. Needs an awp project (its CWPs are not used).
+    """
+
+    iwps_per_day: Count = 1
+    scope_items: int = Field(default=6, ge=1, le=40)  # scope items created for each new IWP
+    constraint_rate: float = Field(default=0.5, ge=0, le=1)  # chance per day of a new constraint
+    clears_per_day: int = Field(default=1, ge=0, le=5)  # open constraints cleared a day
+
+
 class MaterialsCoordinatorParams(Strict):
     """The materials coordinator, an agent: proposes reservations over MCP, reserves nothing."""
 
@@ -205,6 +218,7 @@ class ActorsConfig(Strict):
     client_rep: ClientRepParams | None = None  # off unless named: answers what is issued
     assistant: AssistantParams | None = None  # off unless the scenario names it: needs MCP
     workface_planner: WorkfacePlannerParams | None = None  # off unless named: needs CWAs and a path
+    iwp_planner: IwpPlannerParams | None = None  # off unless named: needs an awp project
     materials_coordinator: MaterialsCoordinatorParams | None = None  # off unless named: needs stock
     approver: ApproverParams | None = None
 

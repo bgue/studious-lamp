@@ -21,12 +21,16 @@ from typing import Any, Protocol, runtime_checkable
 
 import httpx2
 from tl_api.client import ApiClient
+from tl_api.routes.constraints import ConstraintList
+from tl_core.constraints.commands import ClearConstraint, RaiseConstraint
 from tl_core.proposals.types import ProposalStatus, ProposalView
 from tl_core.services.commands import Command, CommandResult, CreateRecord
 from tl_core.services.feed import PostToFeed
 from tl_core.services.links import AddLink
 from tl_core.services.psets import SetPsetValues
 from tl_core.services.workflow import TransitionWorkflow
+from tl_mod_awp.commands import AddIwpScope, CreateIwp, CreateScopeItem, StartIwpDevelopment
+from tl_mod_awp.iwp_views import IwpRow
 from tl_mod_correspondence.handlers.models import Recipient
 from tl_mod_correspondence.handlers.technical import RaiseTechnical, SubmitTechnical
 from tl_mod_correspondence.handlers.technical_flow import (
@@ -88,6 +92,17 @@ class ApiLike(Protocol):
     ) -> Any: ...
     def correspondence_command(self, name: str, cmd: Command) -> CommandResult: ...
     def list_rfis(self, project: str, *, limit: int = 500) -> RfiLog: ...
+    def list_iwps(
+        self, project: str, *, state: str | None = None, limit: int = 200
+    ) -> list[IwpRow]: ...
+    def list_constraints(
+        self,
+        project: str,
+        *,
+        subject: str | None = None,
+        state: str | None = None,
+        limit: int = 200,
+    ) -> ConstraintList: ...
     def list_schedules(self, project: str) -> list[ScheduleView]: ...
     def get_schedule(self, project: str, code: str) -> ScheduleDetailView: ...
     def list_activities(
@@ -194,6 +209,32 @@ class TechnicalDesk(Protocol):
         self, rfi_id: str, answer: str, cost_impact: str, schedule_impact: str
     ) -> dict[str, Any]: ...
     def accept_answer(self, rfi_id: str) -> dict[str, Any]: ...
+
+
+OPEN_CONSTRAINT_STATES = ("Open", "Assigned")  # what a person may still clear (tl_core guard)
+
+
+@runtime_checkable
+class IwpDesk(Protocol):
+    """What a person who builds IWPs and works their constraints needs besides ``SimClient``.
+
+    Creating a package or a scope item, adding scope, starting development and raising or clearing
+    a manual constraint are any signed-in person's acts; a simulated person does no sign-off or
+    issue (those are the operators').
+    """
+
+    def iwps(self) -> list[dict[str, Any]]: ...
+    def create_iwp(self, discipline: str, title: str) -> dict[str, Any]: ...
+    def create_scope_item(
+        self, commodity: str, description: str, qty: str, uom: str, est_hours: str
+    ) -> dict[str, Any]: ...
+    def add_scope(self, iwp_id: str, item_ids: list[str]) -> dict[str, Any]: ...
+    def start_development(self, iwp_id: str) -> dict[str, Any]: ...
+    def raise_constraint(
+        self, subject_id: str, category: str, description: str
+    ) -> dict[str, Any]: ...
+    def open_constraints(self) -> list[dict[str, Any]]: ...
+    def clear_constraint(self, constraint_id: str, reason: str) -> dict[str, Any]: ...
 
 
 class Keys:
@@ -478,6 +519,105 @@ class HttpSimClient:
             ReviewTechnicalAnswer(**self._common(), stream_id=rfi_id, decision="accepted"),
         )
         return {"id": rfi_id, "version": result.version}
+
+    # --- IWPs and constraints, for the person who builds the packages (``IwpDesk``) -------------
+
+    def _title_of(self, record_id: str) -> str:
+        envelope = self._api.get_record_by_id(record_id)
+        if envelope is None:
+            raise LookupError(f"no record {record_id!r}")
+        return str(envelope["title"])
+
+    def iwps(self) -> list[dict[str, Any]]:
+        """The project's IWPs by number: ``id, number, state`` (the list's rows)."""
+        rows = self._api.list_iwps(self._project)
+        found = [{"id": row.id, "number": row.number, "state": row.state} for row in rows]
+        return sorted(found, key=lambda row: row["number"])
+
+    def create_iwp(self, discipline: str, title: str) -> dict[str, Any]:
+        """Create an IWP (the generic ``POST /commands/CreateIwp``); its number is the key."""
+        self._clock.tick()
+        cmd = CreateIwp(**self._common(), discipline=discipline, title=title)
+        result = self._api.correspondence_command("CreateIwp", cmd)
+        return {
+            "id": result.stream_id,
+            "key": result.key,
+            "title": self._title_of(result.stream_id),
+        }
+
+    def create_scope_item(
+        self, commodity: str, description: str, qty: str, uom: str, est_hours: str
+    ) -> dict[str, Any]:
+        """Create a scope item (``POST /commands/CreateScopeItem``); title = description."""
+        self._clock.tick()
+        cmd = CreateScopeItem(
+            **self._common(),
+            commodity=commodity,
+            description=description,
+            qty=qty,
+            uom=uom,
+            est_hours=est_hours,
+        )
+        result = self._api.correspondence_command("CreateScopeItem", cmd)
+        return {
+            "id": result.stream_id,
+            "key": result.key,
+            "title": self._title_of(result.stream_id),
+        }
+
+    def add_scope(self, iwp_id: str, item_ids: list[str]) -> dict[str, Any]:
+        """Add scope items to an IWP (``POST /commands/AddIwpScope``), in one command."""
+        self._clock.tick()
+        cmd = AddIwpScope(**self._common(), iwp=iwp_id, items=list(item_ids))
+        result = self._api.correspondence_command("AddIwpScope", cmd)
+        return {"id": iwp_id, "version": result.version}
+
+    def start_development(self, iwp_id: str) -> dict[str, Any]:
+        """Draft to In development (``POST /commands/StartIwpDevelopment``)."""
+        self._clock.tick()
+        cmd = StartIwpDevelopment(**self._common(), iwp=iwp_id)
+        result = self._api.correspondence_command("StartIwpDevelopment", cmd)
+        return {"id": iwp_id, "version": result.version}
+
+    def raise_constraint(self, subject_id: str, category: str, description: str) -> dict[str, Any]:
+        """Raise a manual blocking constraint on a ready-phase record (``RaiseConstraint``).
+
+        The command is validated from a dict: ``category`` is a literal in the model, and the
+        model's validator (not the type checker) is what refuses a bad one."""
+        self._clock.tick()
+        cmd = RaiseConstraint.model_validate(
+            {
+                **self._common(),
+                "subject": subject_id,
+                "phase": "ready",
+                "severity": "blocking",
+                "category": category,
+                "description": description,
+            }
+        )
+        result = self._api.correspondence_command("RaiseConstraint", cmd)
+        return {
+            "id": result.stream_id,
+            "key": result.key,
+            "title": self._title_of(result.stream_id),
+        }
+
+    def open_constraints(self) -> list[dict[str, Any]]:
+        """The project's constraints in state Open or Assigned, by key: ``id, key, subject_id``."""
+        rows = self._api.list_constraints(self._project).rows
+        found = [
+            {"id": row.id, "key": row.key, "subject_id": row.subject_id}
+            for row in rows
+            if row.state in OPEN_CONSTRAINT_STATES
+        ]
+        return sorted(found, key=lambda row: row["key"])
+
+    def clear_constraint(self, constraint_id: str, reason: str) -> dict[str, Any]:
+        """Clear an open or assigned constraint (``POST /commands/ClearConstraint``)."""
+        self._clock.tick()
+        cmd = ClearConstraint(**self._common(), constraint=constraint_id, reason=reason)
+        result = self._api.correspondence_command("ClearConstraint", cmd)
+        return {"id": constraint_id, "version": result.version}
 
     # --- the schedule, for the person who sends the weekly update (``ScheduleDesk``) -------------
 
