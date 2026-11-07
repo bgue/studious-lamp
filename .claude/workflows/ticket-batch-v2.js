@@ -80,7 +80,7 @@ Read ${wt}/AGENTS.md, then the ${what} at ${wt}/${t.path}, then only the files i
 Your branch is ${t.branch}; if the ${what}'s Branch field says something else, ${t.branch} supersedes it and that is not a deviation.
 Do exactly what the ${what} says inside its Allowed paths. Run every Acceptance command once and keep at most 5 decisive output lines per command. Do not poll logs and do not run the whole suite.
 
-Commit on ${t.branch} with message "${t.id}: <imperative summary>" and a body, ending with the attribution trailer your
+Commit on ${t.branch} with message "${A.inc}-${t.id}: <imperative summary>" and a body, ending with the attribution trailer your
 harness requires (a Co-Authored-By line naming your own model, then this session line):
 ${A.trailer}
 Write your report (template docs/templates/haiku-report.md, at most 60 lines) to ${wt}/docs/reports/${A.inc}/${t.id}.md and include it in a commit.

@@ -15,6 +15,8 @@ keep that table with the changes below. Inputs: `specs/wave0.md`, `m3-wbs-cwp.md
 | 4 | **P2-I4-B** ∥ **P2-I6 prep** (marts, report audit); C: **P2-SCHED** schedule display and commenting (owner 2026-11-01), terminal and web together | as 08; SCHED about 3 pieces, 8 tickets (`module-designs/schedule-display.md` "First increment") | I4-A on the trunk; SCHED: I2 readiness and the I5 look-ahead on the trunk | all three C4 |
 | 5 | **P2-I6** alone; full parity suite and the phase mutation sweep on dedicated time; phase exit | as 08 | I4-B and I5 on the trunk | phase-exit demo: an IWP issued with documents, materials and scaffold checks, both adapters |
 
+**Reordered 2026-11-07:** from wave 2 on, the order and the web rule are in `../roadmap-2026-11-07.md`; side quests in `../DEFERRED.md`.
+
 Rules carried into every wave: tests deferred to one tests ticket per increment at C3 (Sonnet), pieces leave reference,
 stub and acceptance script; `just tour` once per increment at C4; Haiku for isolated tickets, Sonnet builders for
 pieces, fewer and larger pieces (rule 12); security reviews are owner-optional (Sec rows recorded per increment),

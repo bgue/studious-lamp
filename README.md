@@ -25,6 +25,7 @@ Start here:
 5. `.claude/skills/throughline-docs/` — how docs, reports, and learnings are written.
 6. `docs/templates/` — ticket, report, fanout, ADR, package README, and runbook templates.
 7. `docs/tickets/P0-I1/` — worked example tickets for the first increment.
+8. `docs/runbooks/demo-project.md` — build the demo project P200 (a filled brownfield refinery ledger) and read it with the clients.
 
 Cloud sessions bootstrap themselves through `.claude/hooks/session-start.sh` (just, native Postgres, `uv sync`).
 
