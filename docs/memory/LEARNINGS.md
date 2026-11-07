@@ -259,3 +259,14 @@ The impact report of a package is stored in an event the whole company can read,
 - **L-P2-WEB1-3** · 2026-11-04 · tags: web, tests
   Test seeds that attach files or hold hidden records may only work on SQLite: `seed_hidden_world` fails on Postgres, so `gate-pg` on a new package errors at baseline. Check the seed on both adapters when the first page test is written, and name the unknown-project answer (empty 200 versus 404) in the spec.
   Evidence: Q4, T20 orchestrator decision. Status: active
+- **L-P2-I3-1** · 2026-11-07 · tags: tests, process
+  Ported acceptance scripts live as `acc_*.py` helpers inside the module's own tests dir and are imported by test files of other packages (tl-api, tl-mcp, tl-tui, tl-cli). That cross-package import is accepted: the Worlds and check functions stay in one place. The seed ledger takes about 1 s to build in a test; the 2 m 15 s of `S3.py --keep` was the checks.
+  Evidence: T11 report Deviations, review F4. Status: active
+
+- **L-P2-I3-2** · 2026-11-07 · tags: tests, env
+  The 4-part whole-suite gate OOMs on 16 GB once a module has this many tests. Run `just gate` per folder (one part per package directory) on the integrated branch, and name the touched test files for a ticket gate.
+  Evidence: orchestrator r13 note; T11 gate ran touched files, not whole directories. Status: active
+
+- **L-P2-I3-3** · 2026-11-07 · tags: cli, process
+  A CLI option that takes a record id is unusable when no read command prints ids: `tl mat move --for-line` needs an id but `mto show` and `mto list` print keys. Make write options take the key a read prints, and check every id-taking option against the read output in the ticket.
+  Evidence: T10 report Learnings; follow-up 1 of `docs/reports/P2-I3.md`. Status: active

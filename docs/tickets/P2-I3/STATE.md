@@ -1,4 +1,4 @@
-# P2-I3 STATE  r=12 base=e381b39 C=2 ck=0 gate=n/a wt=/home/user/wt/p2-i3
+# P2-I3 STATE  r=13 base=3b8c4f7 C=4 ck=0 gate=n/a wt=/home/user/wt/p2-i3
 ## BOARD
 S1 p mrg f 485f3b4 schema merged; APPROVALS logged
 S2 p mrg f af76b84 package + pins; e543b97 adds tl-mod-legacy dep + uv.lock; C1 done
@@ -27,10 +27,10 @@ T12 t mrg f e381b39 sim MaterialsDesk + coordinator; merge e381b39; D51
 S6 p mrg f 05b1f13 client attach_record_file; merge a2a6502; embedded.py import conflict resolved by orch
 T06i t mrg f 63eb4ef cursor, KEYS style, amber Note; merge addf25a
 T08 t mrg f 36e4e28 demo 11/11 sqlite+pg; r3 P; T08a mrg 79f87ec
-T11 p disp f - tests + 6 mutants; running now; T11-tests.md; gate RUNS tests
+T11 p mrg f 3b8c4f7 tests + T11b pins; 281 P, pg 103 P; 5/5 mutants killed
 T06j t mrg f 2d89f4d MTR upload on receipt entry; subject T06j: kept
 T13 t mrg f 29a8f6b MCP tools + keys + palette; nav panel dropped (D52); full review P
-T10 t stg l - docs lite; T10-docs.md; dispatch after T11 merges
+T10 t mrg l - docs lite; early dispatch accepted; reserve step points at API
 ## DEC
 D1 2026-11-01 owner policy: tests at T11 (C3), pieces leave dev/accept/P2-I3/<id>.py + smoke, no pytest, no security review, tour at C4
 D2 2026-11-01 UOM: S1 adds code list StockUom (EA SET BOX ROLL L m kg lb m3) to co.acme.materials@1.0.0; UnitOfMeasure has no EA (Q1 answered by orch)
@@ -78,17 +78,16 @@ D51 2026-11-05 r12 T12 esc decided (orch b): one row drawn from all positive row
 D52 2026-11-05 r12 T13 blk -> orch: nav panel dropped (no module has entries); T07.py reads build_server tools 13/13
 ## SEC
 (none; Sec rows S1-S4, T03, T04a, T07 recorded in spec §9, review only if the owner asks)
+D53 2026-11-07 r13 T11 review CR -> T11b pins (D29 -2, Q5, seeded rebuild; six-seed test dropped); F4 acc_* cross-package imports accepted; gate is per folder on p2/wave1-close; no wave security review (owner)
 ## OPEN
 Q3 RejectReceipt user vs superuser: spec default user (owner decisions 15); no action needed owner raised spec §11
 Q5 S3 report asks: reserve check is literal `reserved + qty <= line qty` (issued not added) while coverage counts both; `by_module` loosens nothing; Adopt on an ItemMaster is a project word at company scope, so a plain user is never offered it (row may belong on ProjectItem). Defaults kept; T11 pins them; veto needs orch raised S3
 Q7 T03 defaults kept: no planned_start means blocked; a fully received PO line still promises its item; T11 pins both; veto needs orch raised T03
 Q10 closed r11: p2/i1 merged, T12 scheduled (D49)
 ## NEXT
-1. Orch: T11 (running) merge -> then dispatch T10 (docs lite) -> C3.
-2. C4: `just demo P2-I3` on head sqlite+pg (orch), tour once. Increment report, README/AGENTS.md updates in the DONE round.
-3. T07 may swap its mto_lines scan for mto_line_detail via a small ticket (D33).
-4. Seed ledger .accept/p2-i3.db is built by dev/accept/P2-I3/S3.py --keep (untracked, ~2m15s).
-5. DONE report round: increment report docs/reports/P2-I3.md from STATE.md.
+1. Wave close: orchestrator runs the per-folder gate and `just demo P2-I3` on p2/wave1-close, merges, pushes.
+2. Report docs/reports/P2-I3.md written r13; learnings L-P2-I3-1..3 appended.
+3. Follow-ups in the report: `--for-line` by key, locations web flat look (WEB1 D46), stock CLI, T07 mto_line_detail swap (D33).
 ## REFS
 Spec docs/build-spec/specs/m4-materials.md §9 (table), §10 (demo). Reports: docs/reports/P2-I3/{S1,S2,S3,S4,S5,T01a,T01b,T03,T04a,T04b,T05a,T05b,T06a,T07}.md.
 S5 guards for T11: views.py:756 (received_by filter, equivalent to the t.id check: test the hidden receipt raises), views_detail.py:177 (hidden-project filter), :42 (open-receipt states, used at :130). Screens: widgets/tag_register.py is the precedent; LogTable has no right-align hook.
