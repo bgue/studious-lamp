@@ -122,3 +122,16 @@ per dependency; a plain reference is a node waiting for a type. P2 builds no gra
 | Constraint as a pset or plain link | No numbering, owner, history, dates or log screen; the guard has nothing to count |
 | Guard on every transition by default | Breaks transitions nobody asked to gate; owner wants opt-in |
 | Phase as a closed list in code | Workflows differ; the guard keeps the phase in the workflow YAML |
+
+## Plan check (2026-11-07) and answers
+Findings that concern this ADR (F1, F2, F7–F13 of `4 PLANCHK docs/adr/0024+0025`); all accepted by the orchestrator.
+v2 of this ADR folds them in before the first core piece.
+- F1 HI: the IWP opt-in goes on the `ready` move, not `start`; S4 raises with phase `ready`; `constraints_cleared` counts open blocking constraints of phase `ready`. **Accepted.**
+- F2 HI: freeze `raise_constraint(uow, *, subject_id, phase, severity, category, source, check_name, facts_hash, by_module)` and `clear_constraint(...)` in this ADR now, so S4 codes against them from dispatch; no S4 rework ticket, no hook pause. **Accepted** (net about +1 round).
+- F7 MD: records are never deleted, so a hidden target is shown as no target (not "not available"); the walking test compares against a no-target twin. **Accepted.**
+- F8 MD: take the confidentiality class by a join to the subject at read time, never copy it at raise; no system viewer; the guard message names constraint keys and phase only. **Accepted.**
+- F9 MD: `phase_not_gated` checks the subject's effective (project-override, versioned) workflow at raise; the log flags rows whose phase is no longer gated. **Accepted.**
+- F10 MD: the WBS node workflow is deferred to wave 3 (no wave 2 demo clause needs it; it overlaps I5 progress); opt-in on CWP and IWP only now. **Accepted**, logged in DEFERRED.
+- F11 MD: no separate log screen ticket: the core `tl constraint` CLI and the per-record log fold into T04b and T04d; generator seeds go in the generator's awp ticket and T10b clause 3; the pause list adds T04e, T09a, TW2, T10a. **Accepted.**
+- F12 MD: the opt-in workflow lines go in the core schema piece under its gate; piece 2 moves S2's constraint code (iwp_id -> subject_id), S2 is merged whole first (done). **Accepted.**
+- F13 MD: approver "orchestrator, with an APPROVALS line"; Sec rows: the guard and the constraint class join, each with its commit range. **Accepted.**

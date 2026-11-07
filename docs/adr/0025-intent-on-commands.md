@@ -107,3 +107,13 @@ They are stored as ids, not text, so they join to records without parsing. P2 bu
 | Put intent in a new event after the action | Two events per action; the hash does not tie them; races between them |
 | Free-form text only | The chain by end state needs references that are checked like links |
 | A goal record now | A planning engine in disguise; the owner deferred it |
+
+## Plan check (2026-11-07) and answers
+Findings that concern this ADR (F3–F6, F13, F14 of `4 PLANCHK docs/adr/0024+0025`); all accepted by the orchestrator.
+- F3 HI: handlers pass append arguments explicitly in about 87 files, so "modules add no code" needs a carrier: the one command dispatcher sets the intent in a ContextVar (like the effective-time one) and `append_in` reads it. **Accepted.**
+- F4 HI: `Event.intent=None` would change the archive line bytes of every event; dump intent only when set, read the Parquet column only when present, and test that a pre-change segment re-seals byte-identical. **Accepted.**
+- F5 MD: no migration runner exists: piece 1 adds an idempotent ALTER ADD COLUMN per adapter, in restore and in lake bronze; TEXT, not JSONB. Adding a null column rewrites no row, so it is within "don't migrate existing data". **Accepted.**
+- F6 MD: the field lands in piece 1 but validation in piece 2: piece 1 refuses any non-null intent (`intent_invalid`) until piece 2 merges. **Accepted.**
+- F13 MD: landing slot: the thin slice lands after the wave 2 close and before wave 3 (wave 3 is where new commands arrive), as two pieces in one batch; approver "orchestrator, with an APPROVALS line"; Sec rows: intent references and the hash extension. **Accepted.**
+- F14 LO: normalise `{}` and all-null intents to None; hash the canonical JSON of the validated model with `exclude_none`; a downgrade shows as a plain hash mismatch. **Accepted.**
+- From the knowledge-graph study: it suggested a reserved payload key instead of a column, because "an envelope field changes the hash". The optional last hash part already keeps every existing hash unchanged (plan check, 73), so the column stays.
