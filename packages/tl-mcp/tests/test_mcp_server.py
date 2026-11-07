@@ -65,6 +65,18 @@ CORRESPONDENCE_PROPOSE_TOOLS = {"propose_triage"}
 SCHEDULE_PROPOSE_TOOLS = {"propose_publish_schedule_snapshot"}
 AWP_READ_TOOLS = {"list_cwps", "get_cwp", "wbs_tree", "path_of_construction"}  # T06
 AWP_PROPOSE_TOOLS = {"propose_cwp"}  # T06
+MATERIALS_READ_TOOLS = {  # P2-I3: nine reads
+    "list_material_stock",
+    "get_material_lot",
+    "list_material_movements",
+    "list_material_receipts",
+    "get_material_receipt",
+    "list_material_locations",
+    "list_po_lines",
+    "list_mto_lines",
+    "list_material_items",
+}
+MATERIALS_PROPOSE_TOOLS = {"propose_reservation"}  # P2-I3: one proposal
 SCHEDULE_READ_TOOLS = {
     "list_schedules",
     "get_schedule",
@@ -91,6 +103,7 @@ READING = (
     | CORRESPONDENCE_TOOLS
     | SCHEDULE_READ_TOOLS
     | AWP_READ_TOOLS
+    | MATERIALS_READ_TOOLS
 )
 TOOLS = (
     READING
@@ -99,6 +112,7 @@ TOOLS = (
     | CORRESPONDENCE_PROPOSE_TOOLS
     | SCHEDULE_PROPOSE_TOOLS
     | AWP_PROPOSE_TOOLS
+    | MATERIALS_PROPOSE_TOOLS
     | {"post_feed", "post_thread_message", "propose_dispatch"}
 )
 

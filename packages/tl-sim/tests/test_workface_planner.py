@@ -90,13 +90,18 @@ def test_an_area_outside_the_path_is_refused() -> None:
 
 
 def test_the_actor_order_is_assistant_planner_approver_and_off_by_default() -> None:
-    assert ACTOR_NAMES[-3:] == ("assistant", "workface_planner", "approver")
-    assert ACTOR_NAMES[:-3] == ROLE_NAMES
+    assert ACTOR_NAMES[-4:] == (
+        "assistant",
+        "workface_planner",
+        "materials_coordinator",
+        "approver",
+    )
+    assert ACTOR_NAMES[:-4] == ROLE_NAMES
     assert "workface_planner" not in Scenario.model_validate(BASE).actors.enabled()
     on = Scenario.model_validate(
         {**BASE, "actors": {"workface_planner": {}, "assistant": {}, "approver": {}}}
     ).actors.enabled()
-    assert [n for n in on if n in ("assistant", "workface_planner", "approver")] == [
+    assert [n for n in on if n in ACTOR_NAMES[-4:]] == [
         "assistant",
         "workface_planner",
         "approver",

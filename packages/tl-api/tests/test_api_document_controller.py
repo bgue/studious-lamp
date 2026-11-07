@@ -107,9 +107,15 @@ def test_the_controlling_set_is_the_twelve_and_the_actions_follow() -> None:
     assert registry == {"AdoptSchemaSet"}
     # the awp words are fine words (awp.cwp.release ...); the controlling ones normalise to it
     awp = {c.model.__name__ for c in AWP_COMMANDS if normalise_word(c.access) == "controller"}
-    assert len(awp) == 13  # P2-I1: release, return, close, reopen, void and the configuring acts
+    assert len(awp) == 14  # P2-I1: release, return, close, reopen, void, the configuring acts
+    # the materials module (P2-I3): the library, the location tree, void, write-offs, MTO publish
+    materials = {
+        "DefineItem", "ReviseItem", "RetireItem", "DefineLocation", "ReviseLocation",
+        "RetireLocation", "VoidReceipt", "AdjustStock", "ScrapStock", "PublishDerivedMto",
+    }  # fmt: skip
     assert controller_actions() == {
-        f"control.command.{n}" for n in CONTROLLING | scheduling | correspondence | registry | awp
+        f"control.command.{n}"
+        for n in CONTROLLING | scheduling | correspondence | registry | awp | materials
     }
 
 

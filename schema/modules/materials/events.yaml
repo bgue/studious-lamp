@@ -484,4 +484,4 @@ classes:
         description: "Record id of the work package."
         required: true
     examples:
-      - value: "{\"work_package_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P11\"}"
+      - value: "{\"work_package_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P1\"}"
