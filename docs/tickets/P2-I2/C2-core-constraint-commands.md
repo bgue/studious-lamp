@@ -21,7 +21,7 @@ ADR-0024 decisions 4 to 8 (read them; they are the spec). Moved rules (from S2, 
 only `manual`; other sources need `by_module`; `check` needs `check_name` and `facts_hash`; owner required for `manual`; a module clears only non-`manual`; a person's clear of a
 check-raised one needs a reason and stores `suppress_hash` (`Constraint.Cleared.suppress: true`; the projector drops the hash on false); same subject, phase and `check_name` open -> `exists`;
 equal hash to a suppressed one -> `suppressed`; `resolves` link on clear when `resolved_by` is given; `blocks` link Constraint -> subject, `targets` Constraint -> target (record kind);
-`cleared_at` before `effective_at` refused; a supplied `cleared_at` is also the event's `effective_at`; aging (`constraint_age_days(row, today)`, flag `aging` past a setting; reuse
+`cleared_at` before `effective_at` refused; `cleared_at`, `effective_at` and `due_at` live in the payload and the row only; `append_in` gets no `effective_at` from them (envelope = capture time, ADR-0026); aging (`constraint_age_days(row, today)`, flag `aging` past a setting; reuse
 `awp.constraint.aging_days` via its key if it is still the only one, else say so in the report). Command word `core.constraint.edit`; the subject must be visible to the actor
 (a hidden subject answers as an unknown id). Ownership: `owner` `user:<name>` of an existing account.
 Phase rule (decision 5): a blocking raise with a phase no guard of the subject's effective workflow names is refused `phase_not_gated`; advisory anywhere. The effective
@@ -59,7 +59,7 @@ just gate packages/tl-modules/awp/tests tests/services/test_modules.py
 ```
 `C2.py` (SQLite tmp db, accounts `viewer`, `user`, `controller`; one `PASS <check>` per check; final `C2 ok`; helper code in a sibling module, script <= 70 lines): the S2 constraint checks
 rewritten on a CWP and an IWP subject (manual raise, five sources, refusals from `user` for the module sources, need-by arithmetic gone: `due_at` as given), `phase_not_gated`, suppress and
-`suppressed`, `exists`, `resolves` and `targets` links, cleared_at before effective_at refused, `viewer` refused; the guard blocks `ready` on an IWP with an open blocking `ready` constraint and
+`suppressed`, `exists`, `resolves` and `targets` links, cleared_at before effective_at refused, envelope effective_at unaffected by the three fields, `viewer` refused; the guard blocks `ready` on an IWP with an open blocking `ready` constraint and
 passes with an advisory one or after clear or withdraw, a CWP `start_execution` likewise, message has keys only; the five-reader walk on a constraint of a restricted correspondence item
 (absent from every read and count for readers below the class), the no-target twin comparison; the three frozen functions from a module call; rebuild equals incremental.
 Seed for later tickets: `--keep .accept/p2-i2.db` rebuilds the S2 seed (3 IWPs, 40 scope items, 2 pinned documents) plus 3 constraints (open manual, Assigned, Cleared) using core commands.

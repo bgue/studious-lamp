@@ -20,7 +20,7 @@ What the code gives us today:
   guards on a transition; a transition with none is untouched.
 - The link vocabulary already has `blocks` / `blocked_by` and `resolves` / `resolved_by`. Expected links can name
   a target type with no class yet; P2-Q8 option A reports that as missing, not blocking.
-- Every event already carries `effective_at` beside `recorded_at` (`ledger/types.py`): a valid-time slot.
+- Every event carries `effective_at` beside `recorded_at` (`ledger/types.py`); it is capture time, not world time (ADR-0026).
 
 ## Decision
 1. **One core record type.** `core.Constraint`, a record of its own (a `cur_core_record` row plus the typed table
@@ -41,8 +41,8 @@ What the code gives us today:
 4. **Valid time, kept apart from ledger time.** The constraint carries `effective_at` (when it began to hold
    things back), `due_at` (when it must be cleared; replaces awp `need_by`) and `cleared_at` (when it truly stopped
    holding things back). All three are world time, supplied by the person or module and editable only by a new
-   event. Ledger recorded time is the event's own `recorded_at` and is never a field. A supplied `cleared_at` is
-   also passed as the event's `effective_at`, so the two copies agree. `cleared_at` before `effective_at` is refused.
+   event. Ledger recorded time is the event's own `recorded_at` and is never a field. They live in the event payload and the `cur_core_constraint` row only; the event envelope's `effective_at` is
+   capture time (ADR-0026) and is never set from them. `cleared_at` before `effective_at` is refused.
 5. **Opt-in is a guard kind, as guards work today.** A new guard `no_open_blocking_constraints` with an optional
    `phase` (default: the transition's own name) joins the `Guard` union, e.g. `{kind: no_open_blocking_constraints,
    phase: start}` on `start_execution`. It fails, with a fixed message and the keys, when the record has an open
