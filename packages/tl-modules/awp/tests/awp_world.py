@@ -128,7 +128,7 @@ class World:
     def version(self, record: str) -> int:
         return int(self.scalar("SELECT version FROM cur_core_record WHERE id = :i", i=record))
 
-    # --- IWP, scope and constraint pieces (P2-I2 S2) ---------------------------------------------
+    # --- IWP and scope pieces (P2-I2 S2) ---------------------------------------------
 
     def iwp(self, title: str = "Rack", discipline: str = "PIP", **more: Any) -> str:
         """A new IWP made by the user ``uma`` (the id)."""
@@ -166,7 +166,7 @@ class World:
             )
 
     def module_call(self, function: Callable[..., Any], **fields: Any) -> Any:
-        """Run a plain function of the module (``raise_constraint``) as the module would."""
+        """Run a plain function of the module as the module would."""
         cmd = Command(actor="user:uma", source="test", scope=SCOPE)
         with open_uow(self.db) as uow:
             return function(uow, cmd, **fields)

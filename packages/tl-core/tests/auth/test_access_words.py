@@ -26,8 +26,10 @@ AWP = {
     "awp.void": "controller",
     "awp.package.edit": "user",
 }
-#: The two words of the IWP and constraint commands (P2-I2 S2).
-AWP_IWP = {"awp.iwp.edit": "user", "awp.constraint.edit": "user"}
+#: The word of the IWP commands (P2-I2 S2).
+AWP_IWP = {"awp.iwp.edit": "user"}
+#: The two words of the core constraint (ADR-0024); `awp.constraint.edit` is gone.
+CORE_CONSTRAINT = {"core.constraint.edit": "user", "core.constraint.view": "read"}
 #: Every word of specs/m4-materials.md section 3.
 MATERIALS = {
     "materials.view": "read",
@@ -47,14 +49,15 @@ MATERIALS = {
 GOOD = "version: 1\nwords:\n  awp.view: read\n  awp.cwp.edit: user\n"
 
 
-def test_the_shipped_table_loads_24_words() -> None:
+def test_the_shipped_table_loads_25_words() -> None:
     words = load_access_words()
-    assert len(words) == 24 == len(AWP) + len(AWP_IWP) + len(MATERIALS)
+    assert len(words) == 25 == len(AWP) + len(AWP_IWP) + len(CORE_CONSTRAINT) + len(MATERIALS)
+    assert "awp.constraint.edit" not in words
 
 
 def test_every_word_of_the_two_module_specs_is_present_with_its_table_word() -> None:
     words = load_access_words()
-    for word, table in {**AWP, **AWP_IWP, **MATERIALS}.items():
+    for word, table in {**AWP, **AWP_IWP, **CORE_CONSTRAINT, **MATERIALS}.items():
         assert words.get(word) == table, word
 
 

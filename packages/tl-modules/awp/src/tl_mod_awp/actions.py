@@ -27,9 +27,6 @@ from tl_core.auth.module_roles import normalise_word
 
 from tl_mod_awp.common import package_state, record_state
 from tl_mod_awp.names import (
-    CON_ASSIGNED,
-    CON_OPEN,
-    CONSTRAINT,
     CWA,
     CWA_TABLE,
     CWP,
@@ -65,7 +62,7 @@ _VOIDED_SQL = text("SELECT voided FROM cur_core_record WHERE id = :id")
 
 #: Every state a package can be voided from: all but Closed (Void is final).
 LIVE_STATES = (ST_PLANNED, ST_DEVELOPMENT, ST_RELEASED, ST_EXECUTING, ST_COMPLETE)
-#: The states an IWP can be cancelled or raised a constraint in: every one but the final ones.
+#: The states an IWP can be cancelled in: every one but the final ones.
 IWP_LIVE_STATES = (
     *IWP_EDITABLE,
     IWP_READY,
@@ -74,7 +71,6 @@ IWP_LIVE_STATES = (
     IWP_FIELD_COMPLETE,
     IWP_ON_HOLD,
 )
-CONSTRAINT_OPEN_STATES = (CON_OPEN, CON_ASSIGNED)
 
 
 def _always(conn: Connection, record_id: str) -> bool:
@@ -166,29 +162,6 @@ RULES: tuple[Rule, ...] = (
         (IWP,),
         states=(IWP_CHECK,),
     ),
-    Rule(
-        "RaiseConstraint",
-        "Raise a constraint",
-        "awp.constraint.edit",
-        (IWP,),
-        states=IWP_LIVE_STATES,
-    ),
-    # a constraint: open and assigned are the states that take a move
-    Rule("AssignConstraint", "Assign", "awp.constraint.edit", (CONSTRAINT,), states=(CON_OPEN,)),
-    Rule(
-        "ClearConstraint",
-        "Clear",
-        "awp.constraint.edit",
-        (CONSTRAINT,),
-        states=CONSTRAINT_OPEN_STATES,
-    ),
-    Rule(
-        "VoidConstraint",
-        "Void",
-        "awp.constraint.edit",
-        (CONSTRAINT,),
-        states=CONSTRAINT_OPEN_STATES,
-    ),
     # last: a retirement or a void ends the use of the node, the area or the package
     Rule("RetireWbsNode", "Retire", "awp.wbs.configure", (WBS_NODE,), _active_node),
     Rule("RetireCwa", "Retire", "awp.wbs.configure", (CWA,), _active_cwa),
@@ -225,8 +198,6 @@ def _state_of(conn: Connection, record_id: str, record_type: str) -> str | None:
         return package_state(conn, record_id)
     if record_type == IWP:
         return record_state(conn, record_id, IWP_DRAFT)
-    if record_type == CONSTRAINT:
-        return record_state(conn, record_id, CON_OPEN)
     return None
 
 

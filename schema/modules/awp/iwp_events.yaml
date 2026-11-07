@@ -1,8 +1,8 @@
 id: https://example.org/throughline/modules/awp/iwp_events
 name: tl_mod_awp_iwp_events
-title: Awp IWP, scope item and constraint events
+title: Awp IWP, scope item and readiness events
 description: >-
-  The ledger events of interim work packages, scope items, constraints and readiness (brief 18.3), in the same form as
+  The ledger events of interim work packages, scope items and readiness (brief 18.3), in the same form as
   `events.yaml`. `Record.*`, `Link.*`, `Numbering.Allocated` and `Workflow.Transitioned` are core events. Events with
   `feed_policy: none` in the payload make no feed card; `IWP.Ready`, `IWP.Issued` and `IWP.ReadinessEvaluated` are
   visible to webhooks through `tl:event_type`.
@@ -241,72 +241,6 @@ classes:
         required: true
     examples:
       - value: "{\"changes\": {\"qty\": [\"12.0\", \"14.0\"]}, \"feed_policy\": \"none\"}"
-  ConstraintRaisedPayload:
-    is_a: EventPayload
-    description: >-
-      A constraint was raised on an interim work package.
-    annotations:
-      tl:event_type: Constraint.Raised
-      tl:event_version: "1"
-    attributes:
-      iwp_id:
-        description: "The IWP held back."
-        required: true
-      constraint_type:
-        description: "Code of the code list `ConstraintType`."
-        required: true
-      source:
-        description: "manual, check, rule, feed_hold or thread_hold."
-        required: true
-      owner:
-        description: "Actor text `user:<name>`."
-        required: true
-      need_by:
-        description: "YYYY-MM-DD, or null."
-      description:
-        description: "What holds the package back, or null."
-      check_name:
-        description: "The check that raised it, or null."
-      raised_at:
-        description: "UTC timestamp text."
-        required: true
-      suppress_hash:
-        description: "SHA-256 hex of the suppressed check result, or null."
-    examples:
-      - value: "{\"constraint_type\": \"material\", \"description\": \"Spools not delivered\", \"iwp_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P1\", \"need_by\": \"2026-11-05\", \"owner\": \"user:ana\", \"raised_at\": \"2026-11-02T08:00:00Z\", \"source\": \"manual\"}"
-  ConstraintAssignedPayload:
-    is_a: EventPayload
-    description: >-
-      A constraint was assigned to an owner.
-    annotations:
-      tl:event_type: Constraint.Assigned
-      tl:event_version: "1"
-    attributes:
-      owner:
-        description: "Actor text `user:<name>`."
-        required: true
-      need_by:
-        description: "YYYY-MM-DD, or null."
-    examples:
-      - value: "{\"need_by\": \"2026-11-06\", \"owner\": \"user:ben\"}"
-  ConstraintClearedPayload:
-    is_a: EventPayload
-    description: >-
-      A constraint was cleared.
-    annotations:
-      tl:event_type: Constraint.Cleared
-      tl:event_version: "1"
-    attributes:
-      by:
-        description: "The actor that cleared it."
-        required: true
-      reason:
-        description: "Why it was cleared."
-        required: true
-      resolved_by:
-        description: "The record that resolved it, or null."
-    examples:
-      - value: "{\"by\": \"user:01J9Z6Q4W3X2Y1V0T9S8R7Q6P1\", \"reason\": \"Spools delivered\", \"resolved_by\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P2\"}"
   IWPReadinessEvaluatedPayload:
     is_a: EventPayload
     description: >-

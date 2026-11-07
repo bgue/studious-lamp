@@ -298,9 +298,6 @@ def _rows() -> tuple[ErrorSpec, ...]:
         s(awp.IwpStateError, "iwp_state", 409),
         s(awp.ScopeRuleError, "scope_rule", 422),
         s(awp.ScopeTakenError, "scope_taken", 409),
-        s(awp.ConstraintRuleError, "constraint_rule", 422),
-        s(awp.ConstraintSourceError, "constraint_source", 422),
-        s(awp.ConstraintStateError, "constraint_state", 409),
         # --- cost module (P1-I4): cost codes and period snapshots -------------------------------
         s(cost.CostError, "cost_error", 422),
         s(cost.CostScopeError, "cost_scope", 422),

@@ -33,6 +33,7 @@ from tl_core.workflow.definition import (
     ConformanceGuard,
     ExpectedLinksGuard,
     Guard,
+    NoOpenBlockingConstraintsGuard,
     RequiredLinksGuard,
     RequiredPsetsGuard,
     RolesGuard,
@@ -105,6 +106,13 @@ def _evaluate(
             e for e in get_expected_links().for_type(record.type) if e.by_state == transition.to
         ]
         return _links(uow, record, "expected_links", wanted)
+    if isinstance(guard, NoOpenBlockingConstraintsGuard):
+        # C2 replaces this with the open_blocking count (ADR-0024).
+        return GuardResult(
+            kind="no_open_blocking_constraints",
+            passed=True,
+            message="constraint guard not evaluated",
+        )
     return _roles(guard, roles)
 
 

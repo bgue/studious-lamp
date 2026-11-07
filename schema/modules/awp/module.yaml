@@ -30,7 +30,6 @@ imports:
   - events
   - iwp
   - scope_item
-  - constraint
   - closeout
   - readiness
   - iwp_events

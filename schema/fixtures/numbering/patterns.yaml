@@ -76,8 +76,8 @@ patterns:
     type_code: SCI
     gap_free: false
   # Constraints: P123-CON-0001, gap-free.
-  - id: awp.Constraint
-    record_type: awp.Constraint
+  - id: core.Constraint
+    record_type: core.Constraint
     scope: "project:*"
     template: "{project}-{type}-{seq:4}"
     type_code: CON

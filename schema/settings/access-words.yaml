@@ -7,6 +7,10 @@
 # superuser -> controller; "company superuser, else admin" -> controller).
 version: 1
 words:
+  # core: constraints on any record (ADR-0024)
+  core.constraint.edit: user
+  core.constraint.view: read
+
   # awp: work breakdown, packages and release (specs/m3-wbs-cwp.md section 3)
   awp.view: read
   awp.wbs.configure: controller
@@ -18,7 +22,6 @@ words:
   awp.void: controller
   awp.package.edit: user
   awp.iwp.edit: user
-  awp.constraint.edit: user
 
   # materials: library, receipts, stock and take-offs (specs/m4-materials.md section 3)
   materials.view: read

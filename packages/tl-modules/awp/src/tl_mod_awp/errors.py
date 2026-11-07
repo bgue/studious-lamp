@@ -86,16 +86,3 @@ class ScopeRuleError(AwpError):
 
 class ScopeTakenError(AwpError):
     """A scope item already belongs to another IWP that is not finished."""
-
-
-class ConstraintRuleError(AwpError):
-    """A rule of a constraint's fields: owner, type, need-by date, check name and hash."""
-
-
-class ConstraintSourceError(AwpError):
-    """The caller may not raise or clear a constraint of that source (a person raises ``manual``;
-    a check clears only what a check raised)."""
-
-
-class ConstraintStateError(AwpError):
-    """The constraint is in a state that does not take the command."""

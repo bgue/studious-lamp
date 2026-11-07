@@ -122,6 +122,7 @@ DEFAULT_RELATIONS: tuple[Relation, ...] = (
     Relation("belongs_to", "belongs to", "contains", "contains"),
     Relation("requires", "requires", "required_by", "required by"),
     Relation("blocks", "blocks", "blocked_by", "blocked by"),
+    Relation("targets", "targets", "targeted_by", "targeted by"),
     Relation("verifies", "verifies", "verified_by", "verified by"),
     Relation("dispatched_from", "dispatched from", "dispatched", "dispatched"),
     Relation("attached_to", "attached to", "has_attachment", "has attachment"),
