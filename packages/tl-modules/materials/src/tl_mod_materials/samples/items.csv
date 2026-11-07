@@ -1,0 +1,51 @@
+code,description,category,uom,size,rating,material,consumable
+PIPE-CS-8-SCH40-A106,"Pipe CS 8"" SCH40 A106 seamless",pipe,m,"8""",SCH40,CS,false
+PIPE-CS-6-SCH40-A106,"Pipe CS 6"" SCH40 A106 seamless",pipe,m,"6""",SCH40,CS,false
+PIPE-CS-4-SCH40-A106,"Pipe CS 4"" SCH40 A106 seamless",pipe,m,"4""",SCH40,CS,false
+PIPE-CS-2-SCH80-A106,"Pipe CS 2"" SCH80 A106 seamless",pipe,m,"2""",SCH80,CS,false
+PIPE-SS316L-2-SCH10S,"Pipe SS316L 2"" SCH10S",pipe,m,"2""",SCH10S,SS316L,false
+PIPE-DUP-4-SCH10S,"Pipe duplex 4"" SCH10S",pipe,m,"4""",SCH10S,DUPLEX,false
+ELB-LR-90-6-SCH40,"Elbow LR 90 deg 6"" SCH40",fitting,EA,"6""",SCH40,CS,false
+ELB-LR-90-4-SCH40,"Elbow LR 90 deg 4"" SCH40",fitting,EA,"4""",SCH40,CS,false
+TEE-EQ-4-SCH40,"Tee equal 4"" SCH40",fitting,EA,"4""",SCH40,CS,false
+RED-CON-6X4-SCH40,"Reducer concentric 6"" x 4"" SCH40",fitting,EA,"6"" x 4""",SCH40,CS,false
+CAP-BW-4-SCH40,"Cap BW 4"" SCH40",fitting,EA,"4""",SCH40,CS,false
+FLG-WN-6-150-A105,"Flange WN 6"" 150# A105",flange,EA,"6""",150#,CS,false
+FLG-BL-6-150-A105,"Flange blind 6"" 150# A105",flange,EA,"6""",150#,CS,false
+FLG-WN-4-300-A105,"Flange WN 4"" 300# A105",flange,EA,"4""",300#,CS,false
+VLV-GT-6-150-A216,"Gate valve 6"" 150# A216 WCB",valve,EA,"6""",150#,CS,false
+VLV-BV-2-800-SS316,"Ball valve 2"" 800# SS316L",valve,EA,"2""",800#,SS316L,false
+VLV-CK-4-150-A216,"Check valve swing 4"" 150# A216",valve,EA,"4""",150#,CS,false
+VLV-BF-6-150-A216,"Butterfly valve 6"" 150# lug",valve,EA,"6""",150#,CS,false
+BOLT-STUD-5-8-B7,"Stud bolt 5/8"" x 110 B7 with 2H nuts",bolting,SET,"5/8""",,CS,false
+BOLT-STUD-3-4-B7,"Stud bolt 3/4"" x 120 B7 with 2H nuts",bolting,SET,"3/4""",,CS,false
+NUT-HEX-5-8-2H,"Hex nut 5/8"" 2H",bolting,BOX,"5/8""",,CS,false
+STR-W8X31-A992,Beam W8x31 A992,structural,m,W8x31,,CS,false
+STR-L75-6-A36,Angle L75x75x6 A36,structural,m,75x75x6,,CS,false
+STR-HSS-100-6,HSS 100x100x6 A500 Gr C,structural,m,100x100x6,,CS,false
+STR-CH-200,Channel C200x17 A36,structural,m,C200x17,,CS,false
+SUP-SHOE-4-CS,Pipe support shoe 4 in CS,structural,EA,"4""",,CS,false
+PLT-6MM-CS-1200X2400,Plate 6 mm CS 1200 x 2400,plate,EA,1200x2400,,CS,false
+PLT-10MM-SS316L,Plate 10 mm SS316L,plate,EA,1500x3000,,SS316L,false
+PLT-12MM-DUP,Plate 12 mm duplex 2205,plate,EA,1500x6000,,DUPLEX,false
+CBL-CU-4C-2.5,Cable Cu 4C 2.5 mm2 armoured,cable,m,4C x 2.5 mm2,600V,,false
+CBL-CU-3C-6,Cable Cu 3C 6 mm2 power,cable,m,3C x 6 mm2,600V,,false
+CBL-FO-12,Fibre optic cable 12 fibre,cable,m,12F,,,false
+INS-PT-0-10BAR,Pressure transmitter 0-10 bar,instrument,EA,,0-10 bar,,false
+INS-TT-PT100,Temperature transmitter PT100,instrument,EA,,,,false
+INS-FT-MAG-4,Magnetic flowmeter DN100,instrument,EA,DN100,,,false
+ELE-BKR-100A-3P,Breaker 100 A 3 pole,electrical,EA,,100A,,false
+ELE-JB-IP66-300,Junction box IP66 300x300,electrical,EA,300x300,IP66,,false
+INS-MW-50-6,Mineral wool pipe insulation 50 mm,insulation,m3,50 mm,,,false
+INS-AL-CLAD-0.6,Aluminium cladding 0.6 mm,insulation,ROLL,0.6 mm,,,false
+PNT-EPOXY-PRIM-L,Epoxy primer part A,paint,L,,,,false
+PNT-TOPCOAT-RAL7035,Epoxy topcoat RAL 7035,paint,L,,,,false
+CON-GRADE-40,Ready mix concrete 40 MPa,concrete,m3,,40 MPa,,false
+GRT-NONSHRINK-25,Non-shrink grout 25 kg bag,concrete,kg,25 kg,,,false
+CON-WELD-E7018-3.2,Welding rod E7018 3.2 mm,consumable,kg,3.2 mm,,,true
+CON-WIRE-MIG-ER70S6-0.9,MIG wire ER70S-6 0.9 mm,consumable,ROLL,0.9 mm,,,true
+CON-GLOVE-NIT-L,Gloves nitrile size L,consumable,BOX,L,,,true
+CON-DISC-CUT-115,Cutting disc 115 mm,consumable,BOX,115 mm,,,true
+GSK-SW-6-150-316,"Gasket spiral wound 6"" 150#",other,EA,"6""",150#,SS316L,false
+OTH-TAG-SS-50,Stainless tag plate 50x25,other,EA,50x25,,SS316L,false
+OTH-SIGN-SAFETY,Safety sign set,other,SET,,,,false

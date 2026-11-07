@@ -98,6 +98,12 @@ Every ledger event type that can reach a webhook subscriber, generated from the 
 | [`IntegrationApp.Enabled`](#integrationappenabled) | `tl.core.IntegrationApp.Enabled.v1` | An app was switched on: its endpoints, rules, actions and enrichers run again. |
 | [`IntegrationApp.Registered`](#integrationappregistered) | `tl.core.IntegrationApp.Registered.v1` | An integration app was registered. |
 | [`IntegrationApp.Revised`](#integrationapprevised) | `tl.core.IntegrationApp.Revised.v1` | An app's label, description or owner changed. |
+| [`InventoryLocation.Defined`](#inventorylocationdefined) | `tl.core.InventoryLocation.Defined.v1` | A stock location was defined in the project's location tree. |
+| [`InventoryLocation.Retired`](#inventorylocationretired) | `tl.core.InventoryLocation.Retired.v1` | A location was retired; the command is refused while stock is held there. |
+| [`InventoryLocation.Revised`](#inventorylocationrevised) | `tl.core.InventoryLocation.Revised.v1` | A location was renamed or its kind changed; only the fields that changed are present. |
+| [`ItemMaster.Defined`](#itemmasterdefined) | `tl.core.ItemMaster.Defined.v1` | An item was defined in the company item library. |
+| [`ItemMaster.Retired`](#itemmasterretired) | `tl.core.ItemMaster.Retired.v1` | An item was retired from the library; projects keep their copies. |
+| [`ItemMaster.Revised`](#itemmasterrevised) | `tl.core.ItemMaster.Revised.v1` | An item of the library was revised; only the fields that changed are present. |
 | [`Link.Accepted`](#linkaccepted) | `tl.core.Link.Accepted.v1` | A suggested link was accepted and is now active. |
 | [`Link.Added`](#linkadded) | `tl.core.Link.Added.v1` | A link between two records became active. |
 | [`Link.Declined`](#linkdeclined) | `tl.core.Link.Declined.v1` | A suggested link was declined; it will not be suggested again. |
@@ -116,7 +122,12 @@ Every ledger event type that can reach a webhook subscriber, generated from the 
 | [`LoadRun.Profiled`](#loadrunprofiled) | `tl.core.LoadRun.Profiled.v1` | The rows were profiled: columns, value shapes, keys and repeats. |
 | [`LoadRun.Reconciled`](#loadrunreconciled) | `tl.core.LoadRun.Reconciled.v1` | The load was compared with the file; the report is stored and registered as a document. |
 | [`LoadRun.Voided`](#loadrunvoided) | `tl.core.LoadRun.Voided.v1` | The run was abandoned before it loaded anything. |
+| [`MTO.Defined`](#mtodefined) | `tl.core.MTO.Defined.v1` | A material take-off was published from a derived document. |
+| [`MTOLine.Assigned`](#mtolineassigned) | `tl.core.MTOLine.Assigned.v1` | A take-off line was assigned to a work package. |
+| [`MTOLine.Defined`](#mtolinedefined) | `tl.core.MTOLine.Defined.v1` | One line of a take-off was published. |
 | [`Numbering.Allocated`](#numberingallocated) | `tl.core.Numbering.Allocated.v1` | A number was allocated from a counter. |
+| [`POLineRef.Defined`](#polinerefdefined) | `tl.core.POLineRef.Defined.v1` | A purchase order line was mirrored into the project. |
+| [`POLineRef.Updated`](#polinerefupdated) | `tl.core.POLineRef.Updated.v1` | The mirror of a purchase order line changed; only the fields that changed are present. |
 | [`PWPRef.Defined`](#pwprefdefined) | `tl.core.PWPRef.Defined.v1` | A procurement work package of the owner was recorded. |
 | [`PWPRef.Updated`](#pwprefupdated) | `tl.core.PWPRef.Updated.v1` | The status, dates or constraint flag of a procurement package changed. |
 | [`Party.ContactAdded`](#partycontactadded) | `tl.core.Party.ContactAdded.v1` | A contact was added to a party. |
@@ -130,11 +141,17 @@ Every ledger event type that can reach a webhook subscriber, generated from the 
 | [`ProcessingJob.Failed`](#processingjobfailed) | `tl.core.ProcessingJob.Failed.v1` | The claimed attempt failed. |
 | [`ProcessingJob.Started`](#processingjobstarted) | `tl.core.ProcessingJob.Started.v1` | A worker claimed a job (attempt n). |
 | [`ProcessingJob.Succeeded`](#processingjobsucceeded) | `tl.core.ProcessingJob.Succeeded.v1` | The claimed attempt finished and its results were recorded. |
+| [`ProjectItem.Defined`](#projectitemdefined) | `tl.core.ProjectItem.Defined.v1` | A library item was adopted into a project. |
 | [`Proposal.Accepted`](#proposalaccepted) | `tl.core.Proposal.Accepted.v1` | A person accepted a proposal and its command ran in the same transaction. |
 | [`Proposal.Created`](#proposalcreated) | `tl.core.Proposal.Created.v1` | An agent proposed a change. |
 | [`Proposal.Failed`](#proposalfailed) | `tl.core.Proposal.Failed.v1` | A person accepted a proposal, but the command was refused (the record changed since, a guard failed). |
 | [`Proposal.Rejected`](#proposalrejected) | `tl.core.Proposal.Rejected.v1` | A person rejected a proposal. |
 | [`Pset.ValuesSet`](#psetvaluesset) | `tl.core.Pset.ValuesSet.v1` | Values of a property set were written on a record. |
+| [`Receipt.Accepted`](#receiptaccepted) | `tl.core.Receipt.Accepted.v1` | The receipt was accepted; one stock lot exists per line. |
+| [`Receipt.Defined`](#receiptdefined) | `tl.core.Receipt.Defined.v1` | A delivery was received (state Received). |
+| [`Receipt.Inspected`](#receiptinspected) | `tl.core.Receipt.Inspected.v1` | The delivery was inspected (Received to Inspected). |
+| [`Receipt.Rejected`](#receiptrejected) | `tl.core.Receipt.Rejected.v1` | The receipt was rejected; no stock was made. |
+| [`Receipt.Revised`](#receiptrevised) | `tl.core.Receipt.Revised.v1` | A receipt was corrected while it was still Received; only the fields that changed are present. |
 | [`Record.BodyStored`](#recordbodystored) | `tl.core.Record.BodyStored.v1` | The body of an object-backed record was stored as a content-addressed object. |
 | [`Record.Corrected`](#recordcorrected) | `tl.core.Record.Corrected.v1` | A recorded value was corrected after the fact; history keeps the original. |
 | [`Record.Created`](#recordcreated) | `tl.core.Record.Created.v1` | A record was created. |
@@ -185,6 +202,8 @@ Every ledger event type that can reach a webhook subscriber, generated from the 
 | [`Setting.Locked`](#settinglocked) | `tl.core.Setting.Locked.v1` | The company locked a key for its projects, unlocked it, or changed the bounds projects must keep to. |
 | [`Standard.Closed`](#standardclosed) | `tl.core.Standard.Closed.v1` | A registry entry was superseded by another or retired; it stays resolvable for history. |
 | [`Standard.Defined`](#standarddefined) | `tl.core.Standard.Defined.v1` | A registry entry (a code list, a mnemonic or a numbering pattern) was defined. |
+| [`StockLot.Defined`](#stocklotdefined) | `tl.core.StockLot.Defined.v1` | A stock lot was made for one line of an accepted receipt. |
+| [`StockLot.Moved`](#stocklotmoved) | `tl.core.StockLot.Moved.v1` | Stock moved: one movement of a lot. |
 | [`Tag.Defined`](#tagdefined) | `tl.core.Tag.Defined.v1` | A tag was created, with its number parsed into segments and its class. |
 | [`Tag.Reclassified`](#tagreclassified) | `tl.core.Tag.Reclassified.v1` | A tag moved to another class; the new class may bind other property sets. |
 | [`Tag.Superseded`](#tagsuperseded) | `tl.core.Tag.Superseded.v1` | A tag was replaced by one or more others (a rename, a split or a merge); it stays in the ledger as history. |
@@ -5572,6 +5591,319 @@ An app's label, description or owner changed.
 }
 ```
 
+## InventoryLocation.Defined
+
+A stock location was defined in the project's location tree. Stream type `materials.InventoryLocation`.
+
+- CloudEvents type: `tl.core.InventoryLocation.Defined.v1`
+- Ledger payload class: `InventoryLocationDefinedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `code` | string | yes | Location code, the record key. |
+| `depth` | integer | yes | Depth in the tree, 0 for the root, at most 5. |
+| `kind` | string | yes | project, warehouse, laydown, toolcrib or gang_box (`LocationKind`). |
+| `parent_id` | string or null | no | Record id of the parent location; null for the root. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "code": "LAYDOWN-N",
+      "depth": 2,
+      "kind": "laydown",
+      "parent_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P2"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/InventoryLocation.Defined/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.InventoryLocation.Defined.v1"
+}
+```
+
+## InventoryLocation.Retired
+
+A location was retired; the command is refused while stock is held there. Stream type `materials.InventoryLocation`.
+
+- CloudEvents type: `tl.core.InventoryLocation.Retired.v1`
+- Ledger payload class: `InventoryLocationRetiredPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `reason` | string | yes | Why the location was retired. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "reason": "Area demobilised"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/InventoryLocation.Retired/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.InventoryLocation.Retired.v1"
+}
+```
+
+## InventoryLocation.Revised
+
+A location was renamed or its kind changed; only the fields that changed are present. Stream type `materials.InventoryLocation`.
+
+- CloudEvents type: `tl.core.InventoryLocation.Revised.v1`
+- Ledger payload class: `InventoryLocationRevisedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `kind` | string or null | no | New kind (`LocationKind`). |
+| `title` | string or null | no | New title. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "title": "North laydown"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/InventoryLocation.Revised/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.InventoryLocation.Revised.v1"
+}
+```
+
+## ItemMaster.Defined
+
+An item was defined in the company item library. Stream type `materials.ItemMaster`.
+
+- CloudEvents type: `tl.core.ItemMaster.Defined.v1`
+- Ledger payload class: `ItemMasterDefinedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `base_uom` | string | yes | Base unit of measure (`StockUom` of the materials edition). |
+| `category` | string | yes | Item category (`ItemCategory` of the materials edition). |
+| `code` | string | yes | Item code, the record key. |
+| `consumable` | boolean | yes | True for an item issued against a cost code and never returned to stock. |
+| `material_code` | string or null | no | Material code (`MaterialCode`); null when none. |
+| `rating_text` | string or null | no | Rating or class as the catalogue words it (`150#`); null when none. |
+| `size_text` | string or null | no | Size as the catalogue words it (`6 in`); null when none. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "base_uom": "EA",
+      "category": "valve",
+      "code": "VLV-GATE-6-150",
+      "consumable": false,
+      "material_code": "A105",
+      "rating_text": "150#",
+      "size_text": "6 in"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/ItemMaster.Defined/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.ItemMaster.Defined.v1"
+}
+```
+
+## ItemMaster.Retired
+
+An item was retired from the library; projects keep their copies. Stream type `materials.ItemMaster`.
+
+- CloudEvents type: `tl.core.ItemMaster.Retired.v1`
+- Ledger payload class: `ItemMasterRetiredPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `reason` | string | yes | Why the item was retired. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "reason": "Superseded by VLV-GATE-6-300"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/ItemMaster.Retired/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.ItemMaster.Retired.v1"
+}
+```
+
+## ItemMaster.Revised
+
+An item of the library was revised; only the fields that changed are present. Stream type `materials.ItemMaster`.
+
+- CloudEvents type: `tl.core.ItemMaster.Revised.v1`
+- Ledger payload class: `ItemMasterRevisedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `base_uom` | string or null | no | Base unit of measure (`StockUom` of the materials edition). |
+| `category` | string or null | no | Item category (`ItemCategory` of the materials edition). |
+| `code` | string or null | no | Item code, the record key. |
+| `consumable` | boolean or null | no | True for an item issued against a cost code and never returned to stock. |
+| `material_code` | string or null | no | Material code (`MaterialCode`); null when none. |
+| `rating_text` | string or null | no | Rating or class as the catalogue words it (`150#`); null when none. |
+| `size_text` | string or null | no | Size as the catalogue words it (`6 in`); null when none. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "rating_text": "300#"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/ItemMaster.Revised/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.ItemMaster.Revised.v1"
+}
+```
+
 ## Link.Accepted
 
 A suggested link was accepted and is now active.
@@ -6524,6 +6856,166 @@ The run was abandoned before it loaded anything.
 }
 ```
 
+## MTO.Defined
+
+A material take-off was published from a derived document. Stream type `materials.MTO`.
+
+- CloudEvents type: `tl.core.MTO.Defined.v1`
+- Ledger payload class: `MTODefinedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `derived_document_id` | string | yes | Record id of the derived document the take-off came from. |
+| `line_count` | integer | yes | Number of lines published. |
+| `revision_id` | string | yes | Record id of the document revision. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "derived_document_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P8",
+      "line_count": 14,
+      "revision_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/MTO.Defined/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.MTO.Defined.v1"
+}
+```
+
+## MTOLine.Assigned
+
+A take-off line was assigned to a work package. Stream type `materials.MTOLine`.
+
+- CloudEvents type: `tl.core.MTOLine.Assigned.v1`
+- Ledger payload class: `MTOLineAssignedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `work_package_id` | string | yes | Record id of the work package. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "work_package_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P11"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/MTOLine.Assigned/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.MTOLine.Assigned.v1"
+}
+```
+
+## MTOLine.Defined
+
+One line of a take-off was published. Stream type `materials.MTOLine`.
+
+- CloudEvents type: `tl.core.MTOLine.Defined.v1`
+- Ledger payload class: `MTOLineDefinedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `line_no` | integer | yes | Line number within the take-off. |
+| `mto_id` | string | yes | Record id of the take-off. |
+| `project_item_id` | string | yes | Record id of the project item. |
+| `qty` | string | yes | Quantity required, decimal text. |
+| `tag_id` | string or null | no | Record id of the tag the line is for; null when none. |
+| `uom` | string | yes | Unit of measure (`StockUom`). |
+| `work_package_id` | string or null | no | Record id of the construction or installation work package; null when none. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "line_no": 1,
+      "mto_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P10",
+      "project_item_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P3",
+      "qty": "6.000",
+      "tag_id": null,
+      "uom": "EA",
+      "work_package_id": null
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/MTOLine.Defined/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.MTOLine.Defined.v1"
+}
+```
+
 ## Numbering.Allocated
 
 A number was allocated from a counter.
@@ -6579,6 +7071,115 @@ A number was allocated from a counter.
   "tlseq": 48211933,
   "tlstreamversion": 7,
   "type": "tl.core.Numbering.Allocated.v1"
+}
+```
+
+## POLineRef.Defined
+
+A purchase order line was mirrored into the project. Stream type `materials.POLineRef`.
+
+- CloudEvents type: `tl.core.POLineRef.Defined.v1`
+- Ledger payload class: `POLineRefDefinedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `line_no` | integer | yes | Line number on the purchase order. |
+| `po_number` | string | yes | Purchase order number, at most 30 characters. |
+| `project_item_id` | string | yes | Record id of the project item ordered. |
+| `promised_date` | string or null | no | ISO date the supplier promised; null when none. |
+| `qty_ordered` | string | yes | Quantity ordered, decimal text. |
+| `supplier_text` | string | yes | Supplier name as the order words it, at most 120 characters. |
+| `uom` | string | yes | Unit of measure (`StockUom`). |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "line_no": 10,
+      "po_number": "PO-4500",
+      "project_item_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P3",
+      "promised_date": "2026-12-01",
+      "qty_ordered": "40.000",
+      "supplier_text": "Acme Valves",
+      "uom": "EA"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/POLineRef.Defined/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.POLineRef.Defined.v1"
+}
+```
+
+## POLineRef.Updated
+
+The mirror of a purchase order line changed; only the fields that changed are present. Stream type `materials.POLineRef`.
+
+- CloudEvents type: `tl.core.POLineRef.Updated.v1`
+- Ledger payload class: `POLineRefUpdatedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `promised_date` | string or null | no | New promised date (ISO). |
+| `qty_ordered` | string or null | no | New quantity ordered, decimal text. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "promised_date": "2026-12-15"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/POLineRef.Updated/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.POLineRef.Updated.v1"
 }
 ```
 
@@ -7315,6 +7916,62 @@ The claimed attempt finished and its results were recorded.
 }
 ```
 
+## ProjectItem.Defined
+
+A library item was adopted into a project. Stream type `materials.ProjectItem`.
+
+- CloudEvents type: `tl.core.ProjectItem.Defined.v1`
+- Ledger payload class: `ProjectItemDefinedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `category` | string | yes | Item category, copied. |
+| `code` | string | yes | Item code, copied from the library item. |
+| `consumable` | boolean | yes | Consumable flag, copied. |
+| `item_master_id` | string | yes | Record id of the library item. |
+| `uom` | string | yes | Unit of measure, copied (`StockUom`). |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "category": "valve",
+      "code": "VLV-GATE-6-150",
+      "consumable": false,
+      "item_master_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P1",
+      "uom": "EA"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/ProjectItem.Defined/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.ProjectItem.Defined.v1"
+}
+```
+
 ## Proposal.Accepted
 
 A person accepted a proposal and its command ran in the same transaction.
@@ -7603,6 +8260,288 @@ Values of a property set were written on a record.
   "tlseq": 48211933,
   "tlstreamversion": 7,
   "type": "tl.core.Pset.ValuesSet.v1"
+}
+```
+
+## Receipt.Accepted
+
+The receipt was accepted; one stock lot exists per line. Delivered to webhook subscribers. Stream type `materials.Receipt`.
+
+- CloudEvents type: `tl.core.Receipt.Accepted.v1`
+- Ledger payload class: `ReceiptAcceptedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `decided_by` | string | yes | Actor who accepted the receipt. |
+| `decided_on` | string | yes | ISO date of the decision. |
+| `lots` | any | yes |  |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "decided_by": "user:jsmith",
+      "decided_on": "2026-11-02",
+      "lots": [
+        {
+          "line": 1,
+          "lot_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P5"
+        }
+      ]
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Receipt.Accepted/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Receipt.Accepted.v1"
+}
+```
+
+## Receipt.Defined
+
+A delivery was received (state Received). Stream type `materials.Receipt`.
+
+- CloudEvents type: `tl.core.Receipt.Defined.v1`
+- Ledger payload class: `ReceiptDefinedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `delivery_ref` | string or null | no | Delivery note reference, at most 60 characters; null when none. |
+| `lines` | any | yes |  |
+| `location_id` | string | yes | Record id of the location the delivery is received into. |
+| `po_line_id` | string or null | no | Record id of the PO line received against; null when none. |
+| `received_on` | string | yes | ISO date the delivery arrived. |
+| `supplier_text` | string | yes | Supplier name as the delivery note words it, at most 120 characters. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "delivery_ref": "DN-8841",
+      "lines": [
+        {
+          "condition": "good",
+          "heat_no": "H12345",
+          "line_no": 1,
+          "project_item_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P3",
+          "qty": "12.000",
+          "serials_text": null,
+          "uom": "EA"
+        }
+      ],
+      "location_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P2",
+      "po_line_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P4",
+      "received_on": "2026-11-02",
+      "supplier_text": "Acme Valves"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Receipt.Defined/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Receipt.Defined.v1"
+}
+```
+
+## Receipt.Inspected
+
+The delivery was inspected (Received to Inspected). Stream type `materials.Receipt`.
+
+- CloudEvents type: `tl.core.Receipt.Inspected.v1`
+- Ledger payload class: `ReceiptInspectedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `inspected_by` | string | yes | Actor who inspected the delivery. |
+| `inspected_on` | string | yes | ISO date of the inspection. |
+| `notes` | string or null | no | Inspector's notes; null when none. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "inspected_by": "user:jsmith",
+      "inspected_on": "2026-11-02",
+      "notes": null
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Receipt.Inspected/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Receipt.Inspected.v1"
+}
+```
+
+## Receipt.Rejected
+
+The receipt was rejected; no stock was made. Delivered to webhook subscribers. Stream type `materials.Receipt`.
+
+- CloudEvents type: `tl.core.Receipt.Rejected.v1`
+- Ledger payload class: `ReceiptRejectedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `decided_by` | string | yes | Actor who rejected the receipt. |
+| `decided_on` | string | yes | ISO date of the decision. |
+| `reason` | string | yes | Why the delivery was rejected. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "decided_by": "user:jsmith",
+      "decided_on": "2026-11-02",
+      "reason": "Wrong heat on the MTR"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Receipt.Rejected/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Receipt.Rejected.v1"
+}
+```
+
+## Receipt.Revised
+
+A receipt was corrected while it was still Received; only the fields that changed are present. Stream type `materials.Receipt`.
+
+- CloudEvents type: `tl.core.Receipt.Revised.v1`
+- Ledger payload class: `ReceiptRevisedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `delivery_ref` | string or null | no | Delivery note reference, at most 60 characters; null when none. |
+| `lines` | any | no | List of lines, at most 50: {line_no, project_item_id, qty (decimal text), uom, heat_no, condition, serials_text}. |
+| `location_id` | string or null | no | Record id of the location the delivery is received into. |
+| `po_line_id` | string or null | no | Record id of the PO line received against; null when none. |
+| `received_on` | string or null | no | ISO date the delivery arrived. |
+| `supplier_text` | string or null | no | Supplier name as the delivery note words it, at most 120 characters. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "delivery_ref": "DN-8842"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Receipt.Revised/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Receipt.Revised.v1"
 }
 ```
 
@@ -10443,6 +11382,133 @@ A registry entry (a code list, a mnemonic or a numbering pattern) was defined.
   "tlseq": 48211933,
   "tlstreamversion": 7,
   "type": "tl.core.Standard.Defined.v1"
+}
+```
+
+## StockLot.Defined
+
+A stock lot was made for one line of an accepted receipt. Stream type `materials.StockLot`.
+
+- CloudEvents type: `tl.core.StockLot.Defined.v1`
+- Ledger payload class: `StockLotDefinedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `heat_no` | string or null | no | Heat number; null when the item has none. |
+| `project_item_id` | string | yes | Record id of the project item. |
+| `receipt_id` | string | yes | Record id of the receipt. |
+| `receipt_line` | integer | yes | Line number on the receipt. |
+| `uom` | string | yes | Unit of measure of the lot (`StockUom`). |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "heat_no": "H12345",
+      "project_item_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P3",
+      "receipt_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P6",
+      "receipt_line": 1,
+      "uom": "EA"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/StockLot.Defined/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.StockLot.Defined.v1"
+}
+```
+
+## StockLot.Moved
+
+Stock moved: one movement of a lot. The single movement event (ADR-0022); `kind` says what happened. Never shown in the feed. Delivered to webhook subscribers, which filter on `kind`. Stream type `materials.StockLot`.
+
+- CloudEvents type: `tl.core.StockLot.Moved.v1`
+- Ledger payload class: `StockLotMovedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `cost_code_id` | string or null | no | Record id of the cost code an issue is charged to; null when none. |
+| `direction` | string or null | no | in or out; adjust only. |
+| `feed_policy` | string | yes | Always `none`: a movement does not appear in the feed. |
+| `from_location_id` | string or null | no | Record id of the location stock leaves; null when none. |
+| `iwp_id` | string or null | no | Record id of the work package, copied from the MTO line; null when none. |
+| `kind` | string | yes | receive, issue, transfer, return, adjust, scrap, reserve or unreserve. |
+| `mto_line_id` | string or null | no | Record id of the MTO line a reserve, unreserve or issue refers to; null when none. |
+| `person` | string or null | no | Who took the stock (name or account); null when none. |
+| `qty` | string | yes | Quantity moved, decimal text, greater than zero, at most 3 decimals. |
+| `reason` | string or null | no | Reason code for adjust and scrap (`MovementReason`), or free text; null when none. |
+| `requisition_id` | string or null | no | Record id of the requisition that asked for the issue; null when none. |
+| `to_location_id` | string or null | no | Record id of the location stock enters; null when none. |
+| `uom` | string | yes | Unit of measure; equals the lot's (`StockUom`). |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "cost_code_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P7",
+      "feed_policy": "none",
+      "from_location_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P2",
+      "iwp_id": null,
+      "kind": "issue",
+      "mto_line_id": null,
+      "person": "R. Singh",
+      "qty": "4.000",
+      "reason": null,
+      "requisition_id": null,
+      "to_location_id": null,
+      "uom": "EA"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/StockLot.Moved/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.StockLot.Moved.v1"
 }
 ```
 

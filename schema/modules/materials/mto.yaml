@@ -1,0 +1,125 @@
+id: https://example.org/throughline/modules/materials/mto
+name: tl_mod_materials_mto
+title: Material take-offs (brief 9, M4)
+description: >-
+  A take-off is published from a derived document (a bill of materials read from an isometric or a
+  line list); each line asks for a quantity of a project item and may be assigned to a work package.
+  Spec: docs/build-spec/specs/m4-materials.md section 2.
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+  - ../../core/annotations
+  - ../../core/record
+default_range: string
+annotations:
+  tl:module: materials
+
+classes:
+  MTO:
+    title: Material take-off
+    description: >-
+      One published take-off. Record type `materials.MTO`; its key is `<document>@<revision>/MTO`
+      (`ISO-1234@A/MTO`). Offline class `none`: published on the server.
+    annotations:
+      tl:current_state: true
+      tl:record_types: "materials.MTO"
+      tl:offline: none
+      tl:ix_document: "derived_document_id"
+      tl:ix_revision: "revision_id"
+    attributes:
+      id:
+        identifier: true
+        range: Ulid
+        required: true
+        description: "Record id; equals the ledger stream id and the `cur_core_record` id."
+      scope:
+        range: ScopeId
+        required: true
+        description: "The project scope, `project:<id>`."
+      derived_document_id:
+        range: Ulid
+        required: true
+        description: "The derived document the take-off was published from."
+      revision_id:
+        range: Ulid
+        required: true
+        description: "The document revision."
+      line_count:
+        range: integer
+        required: true
+        description: "Number of lines published."
+      last_seq:
+        range: integer
+        required: true
+        description: "Ledger `seq` of the last event applied to this row."
+  MTOLine:
+    title: Material take-off line
+    description: >-
+      One line of a take-off. Record type `materials.MTOLine`; its key is `<mto key>/<line>`
+      (`ISO-1234@A/MTO/001`). Offline class `none`: published on the server.
+    annotations:
+      tl:current_state: true
+      tl:record_types: "materials.MTOLine"
+      tl:offline: none
+      tl:table: cur_materials_mto_line
+      tl:ix_mto: "mto_id, line_no"
+      tl:ix_item: "project_item_id"
+      tl:ix_work_package: "work_package_id"
+    unique_keys:
+      mto_line:
+        description: "A line number is used once per take-off."
+        unique_key_slots:
+          - mto_id
+          - line_no
+    attributes:
+      id:
+        identifier: true
+        range: Ulid
+        required: true
+        description: "Record id; equals the ledger stream id and the `cur_core_record` id."
+      scope:
+        range: ScopeId
+        required: true
+        description: "The project scope, `project:<id>`."
+      mto_id:
+        range: Ulid
+        required: true
+        description: "The take-off."
+      line_no:
+        range: integer
+        required: true
+        description: "Line number within the take-off."
+      project_item_id:
+        range: Ulid
+        required: true
+        description: "The project item required."
+      qty:
+        range: decimal
+        required: true
+        description: "Quantity required; greater than zero, at most 3 decimals."
+      uom:
+        required: true
+        description: "Unit of measure (`StockUom`)."
+      tag_id:
+        range: Ulid
+        description: "The tag the line is for; null when none."
+      work_package_id:
+        range: Ulid
+        description: "The work package (an `awp.CWP` or `awp.IWP` record, checked by type string); null until assigned."
+      reserved_qty:
+        range: decimal
+        required: true
+        ifabsent: "int(0)"
+        description: "Projected: the quantity reserved against the line."
+      issued_qty:
+        range: decimal
+        required: true
+        ifabsent: "int(0)"
+        description: "Projected: the quantity issued against the line."
+      last_seq:
+        range: integer
+        required: true
+        description: "Ledger `seq` of the last event applied to this row."

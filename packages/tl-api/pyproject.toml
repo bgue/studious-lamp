@@ -14,6 +14,7 @@ dependencies = [
   "tl-mod-documents",
   "tl-mod-correspondence",
   "tl-mod-cost",
+  "tl-mod-materials",
   "tl-mod-awp",
   "tl-mod-schedule",
   "tl-mod-schemareg",

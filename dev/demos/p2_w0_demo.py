@@ -315,14 +315,14 @@ class SampleCheck:
 
 
 def clause9() -> None:
-    check(load_checks() == {}, f"load_checks() is {load_checks()}")
+    check(set(load_checks()) == {"materials_reserved"}, f"load_checks() is {load_checks()}")
     engine = create_engine("sqlite://", poolclass=StaticPool)
     with engine.begin() as conn:
         conn.execute(text("CREATE TABLE thing (id INTEGER PRIMARY KEY)"))
     iwp = IwpFacts(record_id="r1", scope="P123", key="P123-IWP-PIP-0001", status="Draft")
     world_check = ContractWorld(engine.connect, iwp, TODAY, RECORD_TYPES, True)
     check_readiness_contract(SampleCheck("sample_check"), world_check)  # type: ignore[arg-type]
-    passed(9, "load_checks() is empty and the contract passes on the sample check")
+    passed(9, "load_checks() holds materials_reserved and the contract passes on the sample check")
     world = World()
     try:
         alice = world.client("alice")

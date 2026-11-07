@@ -43,6 +43,14 @@ Classes:
 | `engineering.Tag` | Tag | `full` | Created and edited offline, merged on sync. |
 | `engineering.TagClass` | Tag class | `none` | Online only. |
 | `legacy.LoadRun` | Load run | `none` | Online only. |
+| `materials.InventoryLocation` | Inventory location | `none` | Online only. |
+| `materials.ItemMaster` | Item master | `none` | Online only. |
+| `materials.MTO` | Material take-off | `none` | Online only. |
+| `materials.MTOLine` | Material take-off line | `none` | Online only. |
+| `materials.POLineRef` | PO line | `none` | Online only. |
+| `materials.ProjectItem` | Project item | `none` | Online only. |
+| `materials.Receipt` | Receipt | `draft_only` | Drafts offline; issue, number and sign happen on the authority. |
+| `materials.StockLot` | Stock lot | `draft_only` | Drafts offline; issue, number and sign happen on the authority. |
 | `schedule.ActivityRef` | Activity reference | `none` | Online only. |
 | `schedule.Schedule` | Schedule | `none` | Online only. |
 | `schedule.ScheduleSnapshot` | Schedule snapshot | `none` | Online only. |

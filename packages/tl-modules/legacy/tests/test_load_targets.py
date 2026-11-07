@@ -58,6 +58,20 @@ def entry(name: str, **extra: Any) -> Entry:
     return Entry(name, lambda: mapping(name, **extra))
 
 
+#: The built-ins of the legacy package, the two awp targets (P2-I1) and the three targets of the
+#: materials package (P2-I3 S2).
+INSTALLED_BY = {
+    "awp_cwa": ("awp", "project"),
+    "awp_wbs": ("awp", "project"),
+    "documents": ("legacy", "project"),
+    "materials_item_master": ("materials", "company"),
+    "materials_location": ("materials", "project"),
+    "materials_po_line": ("materials", "project"),
+    "tags": ("legacy", "project"),
+}
+INSTALLED = list(INSTALLED_BY)
+
+
 def load(*entries: Entry) -> dict[str, Target]:
     return load_targets(entries)  # type: ignore[arg-type]
 
@@ -69,12 +83,11 @@ def test_the_group_name_is_the_documented_one() -> None:
     assert LOAD_TARGET_ENTRY_POINT == "throughline.load_targets"
 
 
-def test_the_installed_targets_are_documents_and_tags_both_legacy_and_project() -> None:
+def test_the_installed_targets_are_the_built_ins_and_the_materials_targets() -> None:
     found = installed_targets()
-    assert list(found) == ["awp_cwa", "awp_wbs", "documents", "tags"]
+    assert list(found) == INSTALLED
     for kind, target in found.items():
-        module = "awp" if kind.startswith("awp_") else "legacy"
-        assert (target.kind, target.module, target.scope) == (kind, module, "project")
+        assert (target.kind, target.module, target.scope) == (kind, *INSTALLED_BY[kind])
         assert isinstance(target, Target)
     assert list(load_targets()) == list(found)
 
@@ -137,9 +150,7 @@ def test_a_bad_entry_point_name_is_refused_before_it_is_loaded(bad: str) -> None
 def test_an_unknown_target_is_refused_and_the_known_ones_are_listed() -> None:
     with pytest.raises(LoadRefusedError) as caught:
         target_for("nope")
-    assert "'nope'" in str(caught.value) and "known: awp_cwa, awp_wbs, documents, tags" in str(
-        caught.value
-    )
+    assert "'nope'" in str(caught.value) and f"known: {', '.join(INSTALLED)}" in str(caught.value)
 
 
 def test_with_none_installed_the_refusal_says_so() -> None:
@@ -154,7 +165,7 @@ def test_use_targets_replaces_the_registry_for_the_block_only() -> None:
         assert list(installed_targets()) == ["mine"]
         with pytest.raises(LoadRefusedError):
             target_for("tags")
-    assert list(installed_targets()) == ["awp_cwa", "awp_wbs", "documents", "tags"]
+    assert list(installed_targets()) == INSTALLED
 
 
 # --- scope --------------------------------------------------------------------------------------

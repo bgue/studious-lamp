@@ -187,6 +187,20 @@ class FilesApi(ApiClientBase):
         except ValueError as exc:  # the server's own digest header disagreed with the bytes
             raise UploadVerificationError(str(exc)) from exc
 
+    def attach_record_file(
+        self,
+        record_id: str,
+        path: Path,
+        *,
+        slot: str | None = None,
+        content_type: str | None = None,
+    ) -> FileResult:
+        """Attach a local file to a record: the record's scope comes from the record read (a hidden
+        record and a missing one raise the same ``RecordNotFoundError``), then ``upload_file`` runs
+        the whole flow. An unreadable ``path`` raises ``FileNotFoundError`` before any write."""
+        scope = str(self._get_json(f"/records/{quote(record_id)}")["scope"])
+        return self.upload_file(scope, record_id, path, slot=slot, content_type=content_type)
+
     def get_file_info(self, scope: str, file_id: str) -> FileInfo:
         data = self._get_json(f"/files/{quote(file_id)}", {"scope": scope})
         return self._model(FileInfo, data)

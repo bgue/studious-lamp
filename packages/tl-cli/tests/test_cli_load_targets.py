@@ -12,6 +12,8 @@ from tl_adapters.db import DbTarget, as_target
 from tl_mod_legacy.model import LoaderDef, use_loaders
 from tl_mod_legacy.targets import documents_target, mapping_target, tags_target, use_targets
 from tl_mod_legacy.testing import LegacyWorld, document_loader, tag_csv, tag_loader
+from tl_mod_materials import __file__ as materials_file
+from tl_mod_materials.loaders.materials import items_loader
 from typer.testing import Result as RunResult
 
 
@@ -49,6 +51,9 @@ def test_targets_lists_the_built_ins_with_module_and_scope(env: dict[str, str]) 
         "awp_cwa  awp  project",
         "awp_wbs  awp  project",
         "documents  legacy  project",
+        "materials_item_master  materials  company",
+        "materials_location  materials  project",
+        "materials_po_line  materials  project",
         "tags  legacy  project",
     ]
 
@@ -142,3 +147,45 @@ def test_open_for_a_company_target_with_a_project_is_refused(
         refused = load(env, "open", str(path), "--project", "P123", "--loader", "test-cc", ok=False)
     assert "error:" in refused.output and "--company" in refused.output
     assert "loads into the company" in refused.output
+
+
+def test_a_company_run_goes_from_open_to_show_with_the_company_option(
+    env: dict[str, str], tmp_path: Path
+) -> None:
+    as_admin(env)
+    items = tmp_path / "items.csv"
+    items.write_bytes((Path(materials_file).parent / "samples" / "items.csv").read_bytes())
+    with use_loaders({"mat-items": items_loader()}):
+        opened = load(env, "open", str(items), "--company", "--loader", "mat-items")
+        assert opened.stdout.startswith("opened mat/items#1 ")
+        run = "mat/items#1"
+        assert load(env, "extract", run, "--company").stdout.strip() == (
+            "extracted mat/items#1 rows 50 columns 8"
+        )
+        assert load(env, "profile", run, "--company").stdout.strip() == "profiled mat/items#1"
+        assert "new 50 existing 0 invalid 0" in load(env, "plan", run, "--company").stdout
+        loaded = load(env, "load", run, "--company", "--expect-new", "50").stdout
+        assert loaded.startswith("loaded mat/items#1 created 50 existing 0 invalid 0 ")
+        reconciled = load(env, "reconcile", run, "--company").stdout.strip()
+        assert reconciled == (
+            "reconciled mat/items#1 matched 50 mismatches 0 left-alone-that-differ 0"
+        )
+        assert "state Reconciled" in load(env, "show", run, "--company").stdout
+
+
+def test_extract_needs_exactly_one_of_project_and_company(env: dict[str, str]) -> None:
+    as_admin(env)
+    message = "give --project ID or --company, and not both"
+    neither = load(env, "extract", "plantx/tags#1", ok=False)
+    assert message in neither.output
+    both = load(env, "extract", "plantx/tags#1", "--project", "P123", "--company", ok=False)
+    assert message in both.output
+
+
+def test_ls_with_a_project_still_lists_the_project_runs(
+    env: dict[str, str], tmp_path: Path
+) -> None:
+    as_admin(env)
+    load(env, "open", str(csv_file(tmp_path)), "--project", "P123", "--loader", "test-tags")
+    listed = load(env, "ls", "--project", "P123").stdout.splitlines()
+    assert listed == ["plantx/tags#1  Opened  test-tags  index.csv"]

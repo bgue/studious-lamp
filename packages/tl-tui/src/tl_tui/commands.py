@@ -29,6 +29,13 @@ APP_COMMANDS: tuple[AppCommand, ...] = (
     AppCommand("feed", "Activity feed of the open record, or of the project", "F", "feed"),
     AppCommand("post", "Post to the feed", "p", "post"),
     AppCommand("tags", "Tag register: the project's tags and what they lack", "F8", "tags"),
+    # P2-I3 materials logs (keys in the key map, `tl_tui/keymap.py`).
+    AppCommand("stock", "Stock: lots on hand by location", "S", "stock"),
+    AppCommand("movements", "Movements: receipts, issues, transfers, holds", "M", "movements"),
+    AppCommand("mto-lines", "Take-off lines: required, reserved, issued, short", "D", "mto_lines"),
+    AppCommand("receipts", "Receipts: deliveries, inspection, MTR", "E", "receipts"),
+    AppCommand("items", "Items: the company item library", "I", "items"),
+    AppCommand("locations", "Locations: storage places and what they hold", "W", "locations"),
     AppCommand("cwps", "Work packages: CWPs, state, budget, allocation", "", "cwps"),
     AppCommand("wbs", "WBS: the work breakdown tree and its cost codes", "", "wbs"),
     AppCommand("cwas", "Work areas: CWAs and their order on the path", "", "cwas"),

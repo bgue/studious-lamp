@@ -52,7 +52,11 @@ from tl_mod_documents import registry
 from tl_mod_documents.derivation import rows
 from tl_mod_documents.derivation.derived import load_derived
 from tl_mod_documents.derivation.mapping import MappingInvalidError, PublishMapping, check_mapping
-from tl_mod_documents.derivation.publish_targets import PublishTarget, publish_target_for
+from tl_mod_documents.derivation.publish_targets import (
+    PublishTarget,
+    publish_target_for,
+    reversible_target_for,
+)
 from tl_mod_documents.derivation.store import result_files
 from tl_mod_documents.derivation.validation import typed_row
 from tl_mod_documents.errors import CompensationRefusedError, PublishRefusedError
@@ -122,6 +126,11 @@ class _PublishBase(Command):
     expected_content_rev: int = Field(ge=1)
     #: Leave rows whose key already exists alone instead of stopping.
     skip_existing: bool = False
+
+
+#: The base of the publish commands, for a module that registers a target and brings its own
+#: command (``PublishDerivedMto``); it adds fields, never changes these.
+PublishBase = _PublishBase
 
 
 class PublishDerivedTags(_PublishBase):
@@ -256,11 +265,15 @@ def _build(
     counts = {"create": 0, "exists": 0, "differs": 0, "invalid": 0}
     if result is not None and schema is not None and mapping is not None:
         target_object = publish_target_for(mapping.target)
-        found = _provenance_problem(scope, target_object.record_type)
+        found = (
+            _provenance_problem(scope, target_object.record_type)
+            if getattr(target_object, "takes_provenance", True)
+            else None
+        )
         if found:
             problems.append(found)
         plan_rows, creatable, counts = _plan_rows(
-            conn, scope, schema, mapping, result, target_object
+            conn, scope, schema, mapping, result, target_object, derived
         )
     can = not problems and counts["invalid"] == 0 and counts["create"] > 0
     needs_skip = can and (counts["exists"] + counts["differs"]) > 0
@@ -296,10 +309,15 @@ def _plan_rows(
     mapping: PublishMapping,
     result: ExtractionResult,
     target: PublishTarget,
+    derived: rows.DerivedRow,
 ) -> tuple[list[PlanRow], list[_Creatable], dict[str, int]]:
     mapped: list[tuple[dict[str, str], dict[str, dict[str, Any]], list[str]]] = [
         map_row(mapping, schema.json_schema, row) for row in result.rows
     ]
+    # a target whose keys depend on the derived document plans with it (optional part)
+    planner = getattr(target, "plan_rows_for", None)
+    if callable(planner):
+        return planner(conn, scope, derived, mapped)  # type: ignore[no-any-return]
     return target.plan_rows(conn, scope, mapped)  # type: ignore[no-any-return]
 
 
@@ -339,6 +357,12 @@ def _check_recorded_bounds(record_ids: list[str], link_ids: list[str]) -> None:
             f"at most {MAX_ROWS} rows can be published",
             [],
         )
+
+
+def publish_derived(uow: UnitOfWork, cmd: _PublishBase, target: str) -> CommandResult:
+    """Publish the derived document through the registered ``target`` (the module's own command
+    calls this after its own checks). Raises ``PublishRefusedError`` listing every reason."""
+    return _publish(uow, cmd, target)
 
 
 def _publish(uow: UnitOfWork, cmd: _PublishBase, target: str) -> CommandResult:
@@ -655,7 +679,7 @@ class CompensationItem(BaseModel):
     key: str | None
     record_type: str
     state: str | None
-    action: Literal["delete_tag", "void_document", "retract_link"]
+    action: Literal["delete_tag", "void_document", "retract_link", "reverse_record"]
     reversible: bool
     problem: str | None = None
 
@@ -784,6 +808,18 @@ def _record_item(conn: Connection, record_id: str, scope: str) -> CompensationIt
             reversible=ok,
             problem=problem,
         )
+    hooked = reversible_target_for(record_type)
+    if hooked is not None:
+        ok, problem = hooked.compensation_item(conn, record_id, scope)
+        return CompensationItem(
+            record_id=record_id,
+            key=key,
+            record_type=record_type,
+            state="Void" if bool(row.voided) else (row.status or "Published"),
+            action="reverse_record",
+            reversible=ok,
+            problem=None if ok else problem,
+        )
     return CompensationItem(
         record_id=record_id,
         key=key,
@@ -845,6 +881,10 @@ def handle_compensate_publication(uow: UnitOfWork, cmd: CompensatePublication) -
                 ),
                 by_module=True,
             )
+        elif item.action == "reverse_record":
+            hooked = reversible_target_for(item.record_type)
+            assert hooked is not None  # the preview found it a moment ago
+            hooked.reverse(uow, base, item.record_id, why[:MAX_REASON])
         else:
             handle_void_document(
                 uow,

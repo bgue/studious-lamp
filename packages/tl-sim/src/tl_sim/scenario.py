@@ -34,7 +34,13 @@ ROLE_NAMES = (
     "rfi_author",
     "client_rep",
 )  # the project team, people (user:sim-*)
-ACTOR_NAMES = (*ROLE_NAMES, "assistant", "workface_planner", "approver")  # the order each day
+ACTOR_NAMES = (
+    *ROLE_NAMES,
+    "assistant",
+    "workface_planner",
+    "materials_coordinator",
+    "approver",
+)  # the order each day
 
 
 class Strict(BaseModel):
@@ -180,6 +186,12 @@ class WorkfacePlannerParams(Strict):
     cwps_per_day: Count = 1
 
 
+class MaterialsCoordinatorParams(Strict):
+    """The materials coordinator, an agent: proposes reservations over MCP, reserves nothing."""
+
+    reservations_per_day: Count = 1
+
+
 class ActorsConfig(Strict):
     """Per-actor parameters. ``null`` in the YAML switches an actor off."""
 
@@ -193,6 +205,7 @@ class ActorsConfig(Strict):
     client_rep: ClientRepParams | None = None  # off unless named: answers what is issued
     assistant: AssistantParams | None = None  # off unless the scenario names it: needs MCP
     workface_planner: WorkfacePlannerParams | None = None  # off unless named: needs CWAs and a path
+    materials_coordinator: MaterialsCoordinatorParams | None = None  # off unless named: needs stock
     approver: ApproverParams | None = None
 
     def enabled(self) -> list[str]:

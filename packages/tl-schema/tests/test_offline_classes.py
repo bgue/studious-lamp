@@ -47,6 +47,14 @@ SPEC_RECORDS: dict[str, str] = {
     "engineering.Tag": "full",
     "engineering.TagClass": "none",
     "legacy.LoadRun": "none",
+    "materials.InventoryLocation": "none",
+    "materials.ItemMaster": "none",
+    "materials.MTO": "none",
+    "materials.MTOLine": "none",
+    "materials.POLineRef": "none",
+    "materials.ProjectItem": "none",
+    "materials.Receipt": "draft_only",
+    "materials.StockLot": "draft_only",
     "schedule.ActivityRef": "none",
     "schedule.Schedule": "none",
     "schedule.ScheduleSnapshot": "none",
@@ -75,7 +83,7 @@ SPEC_STREAMS: dict[str, str] = {
 
 def test_every_labelled_record_type_has_a_class_and_nothing_else() -> None:
     assert set(OFFLINE_CLASSES) == set(TYPE_LABELS)
-    assert len(OFFLINE_CLASSES) == 37
+    assert len(OFFLINE_CLASSES) == 45
 
 
 def test_the_record_table_is_the_spec_table_cell_for_cell() -> None:

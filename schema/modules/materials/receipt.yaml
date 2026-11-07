@@ -1,0 +1,133 @@
+id: https://example.org/throughline/modules/materials/receipt
+name: tl_mod_materials_receipt
+title: Receipts (brief 9, M4)
+description: >-
+  A receipt is one delivery booked against a PO line (or none): lines with a heat number, a condition and
+  a quantity each, an MTR in a file slot, and a workflow Received, Inspected, Accepted or Rejected, or
+  Void. Accepting a receipt makes one stock lot per line. The lines are rows of `cur_materials_receipt_line`,
+  not records. Spec: docs/build-spec/specs/m4-materials.md section 2.
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+  - ../../core/annotations
+  - ../../core/record
+default_range: string
+annotations:
+  tl:module: materials
+
+classes:
+  Receipt:
+    title: Receipt
+    description: >-
+      One delivery. Record type `materials.Receipt`; its key is allocated (`P123-RCPT-0031`, gap-free). The
+      workflow state is the envelope `status`. Offline class `draft_only`: a remote laydown captures a draft
+      receipt with photos; numbering and Accept, which creates stock, are central until reserved ranges exist (Phase 3).
+    annotations:
+      tl:current_state: true
+      tl:record_types: "materials.Receipt"
+      tl:offline: draft_only
+      tl:ix_po_line: "po_line_id"
+      tl:ix_location: "location_id"
+    attributes:
+      id:
+        identifier: true
+        range: Ulid
+        required: true
+        description: "Record id; equals the ledger stream id and the `cur_core_record` id."
+      scope:
+        range: ScopeId
+        required: true
+        description: "The project scope, `project:<id>`."
+      po_line_id:
+        range: Ulid
+        description: "The PO line received against; null when none."
+      supplier_text:
+        pattern: "^.{1,120}$"
+        required: true
+        description: "Supplier name as the delivery note words it, at most 120 characters."
+      delivery_ref:
+        pattern: "^.{1,60}$"
+        description: "Delivery note reference, at most 60 characters; null when none."
+      received_on:
+        required: true
+        description: "ISO date (YYYY-MM-DD) the delivery arrived."
+      location_id:
+        range: Ulid
+        required: true
+        description: "The location the delivery is received into."
+      inspected_by:
+        description: "Actor who inspected the delivery; null until inspected."
+      inspected_on:
+        description: "ISO date of the inspection; null until inspected."
+      decided_by:
+        description: "Actor who accepted or rejected; null until decided."
+      decided_on:
+        description: "ISO date of the decision; null until decided."
+      rejection_reason:
+        description: "Why the receipt was rejected; null unless rejected."
+      last_seq:
+        range: integer
+        required: true
+        description: "Ledger `seq` of the last event applied to this row."
+  ReceiptLine:
+    description: >-
+      One line of a receipt. Not a record: a row of the receipt's lines, written by the projector of
+      `Receipt.Defined` and `Receipt.Revised`; `lot_id` is set when the receipt is accepted.
+    annotations:
+      tl:current_state: true
+      tl:table: cur_materials_receipt_line
+      tl:ix_item: "project_item_id"
+      tl:ix_lot: "lot_id"
+    unique_keys:
+      receipt_line:
+        description: "A line number is used once per receipt."
+        unique_key_slots:
+          - receipt_id
+          - line_no
+    attributes:
+      row_id:
+        identifier: true
+        required: true
+        description: "`<receipt id>:<line_no>`."
+      scope:
+        range: ScopeId
+        required: true
+        description: "The project scope, `project:<id>`."
+      receipt_id:
+        range: Ulid
+        required: true
+        description: "The receipt."
+      line_no:
+        range: integer
+        required: true
+        description: "Line number on the receipt, 1 to 50."
+      project_item_id:
+        range: Ulid
+        required: true
+        description: "The project item received."
+      qty:
+        range: decimal
+        required: true
+        description: "Quantity received; greater than zero, at most 3 decimals."
+      uom:
+        required: true
+        description: "Unit of measure (`StockUom`)."
+      heat_no:
+        pattern: "^[A-Za-z0-9][A-Za-z0-9./\\-]{0,39}$"
+        description: "Heat number; null when the item has none."
+      condition:
+        required: true
+        description: "good, damaged, wrong_item or nonconforming (`ConditionCode`)."
+      serials_text:
+        pattern: "^[\\s\\S]{1,2000}$"
+        description: "Serial numbers as typed, at most 2 000 characters; null when none."
+      lot_id:
+        range: Ulid
+        description: "The stock lot made at Accept; null before that."
+      last_seq:
+        range: integer
+        required: true
+        description: "Ledger `seq` of the last event applied to this row."
