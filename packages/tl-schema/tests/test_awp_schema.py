@@ -21,6 +21,8 @@ from tl_schema.generated.type_labels import TYPE_LABELS
 ROOT = Path(__file__).resolve().parents[3]
 SCHEMA = ROOT / "schema"
 FIXTURES = SCHEMA / "fixtures"
+#: Added by P2-I2-S1 (the IWP part); the list above stays the part 1 record types.
+PART2_RECORD_TYPES = {"awp.IWP", "awp.ScopeItem", "awp.Constraint", "awp.IWPCloseout"}
 AWP = SCHEMA / "modules" / "awp"
 GENERATED = ROOT / "packages" / "tl-schema" / "src" / "tl_schema" / "generated"
 
@@ -125,7 +127,7 @@ def test_the_module_annotation_names_the_six_record_types() -> None:
     found: set[str] = set()
     for path in AWP.glob("*.yaml"):
         found |= set(re.findall(r'tl:record_types: "([^"]+)"', path.read_text(encoding="utf-8")))
-    assert found == set(RECORD_CLASSES)
+    assert found == set(RECORD_CLASSES) | PART2_RECORD_TYPES
 
 
 # --- tables ----------------------------------------------------------------------------------

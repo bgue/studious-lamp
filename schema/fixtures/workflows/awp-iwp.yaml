@@ -1,0 +1,77 @@
+# Workflow of an interim work package (brief 9, M3): Draft, In development, Constraint check, Ready, Issued, In
+# progress, Field complete, Closed. A package in Constraint check returns to development; a Ready one goes back to
+# Constraint check when readiness turns red. On hold is entered from Ready, Issued or In progress and always leaves
+# into Constraint check (D5: the hold is lifted into a re-check, no prior-state memory). Closed, Split and Cancelled
+# are final. Every move is a command of the awp module (by_module), so the file states the moves and names no role.
+# The permit to work is an expected link declared on the IWP class (`tl:expects_link`, by Issued); it is reported
+# and no guard blocks the move (P2-Q8 A).
+id: awp.iwp
+version: 1
+record_type: awp.IWP
+scope: company
+initial_state: Draft
+states:
+  - name: Draft
+  - name: In development
+  - name: Constraint check
+  - name: Ready
+  - name: Issued
+  - name: In progress
+  - name: Field complete
+  - name: Closed
+  - name: On hold
+  - name: Split
+  - name: Cancelled
+transitions:
+  - name: develop
+    label: Start developing the package
+    from: [Draft]
+    to: In development
+  - name: check_constraints
+    label: Send the package to the constraint check
+    from: [In development]
+    to: Constraint check
+  - name: return
+    label: Return the package to development
+    from: [Constraint check]
+    to: In development
+  - name: ready
+    label: Mark the package ready
+    from: [Constraint check]
+    to: Ready
+  - name: unready
+    label: Readiness turned red; check again
+    from: [Ready]
+    to: Constraint check
+  - name: issue
+    label: Issue the package to the foreman
+    from: [Ready]
+    to: Issued
+  - name: start
+    label: Start the work
+    from: [Issued]
+    to: In progress
+  - name: complete
+    label: Mark the field work complete
+    from: [In progress]
+    to: Field complete
+  - name: close
+    label: Close the package
+    from: [Field complete]
+    to: Closed
+  - name: hold
+    label: Put the package on hold
+    from: [Ready, Issued, In progress]
+    to: On hold
+  - name: release_hold
+    label: Lift the hold into a re-check
+    from: [On hold]
+    to: Constraint check
+  - name: split
+    label: Split the package
+    from: [Draft, In development, Constraint check]
+    to: Split
+  - name: cancel
+    label: Cancel the package
+    from: [Draft, In development, Constraint check, Ready, Issued, In progress, Field complete, On hold]
+    to: Cancelled

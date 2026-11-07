@@ -14,9 +14,13 @@ Classes:
 |---|---|---|---|
 | `awp.CWA` | Construction work area | `none` | Online only. |
 | `awp.CWP` | Construction work package | `draft_only` | Drafts offline; issue, number and sign happen on the authority. |
+| `awp.Constraint` | Constraint | `draft_only` | Drafts offline; issue, number and sign happen on the authority. |
 | `awp.EWPRef` | Engineering work package reference | `none` | Online only. |
+| `awp.IWP` | Interim work package | `draft_only` | Drafts offline; issue, number and sign happen on the authority. |
+| `awp.IWPCloseout` | IWP closeout | `none` | Online only. |
 | `awp.PWPRef` | Procurement work package reference | `none` | Online only. |
 | `awp.PathOfConstruction` | Path of construction | `none` | Online only. |
+| `awp.ScopeItem` | Scope item | `draft_only` | Drafts offline; issue, number and sign happen on the authority. |
 | `awp.WBSNode` | WBS node | `none` | Online only. |
 | `core.Record` | Record | `full` | Created and edited offline, merged on sync. |
 | `correspondence.CommercialItem` | Commercial item | `none` | Online only. |
