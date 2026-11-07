@@ -12,6 +12,7 @@ import hashlib
 import os
 import subprocess
 import sys
+from decimal import Decimal
 from pathlib import Path
 
 import pytest
@@ -47,9 +48,9 @@ def generate(db: Path, objects: Path) -> subprocess.CompletedProcess[str]:
     )
 
 
-def rows(db: Path, sql: str) -> list[dict[str, object]]:
+def rows(db: Path, sql: str, **params: object) -> list[dict[str, object]]:
     with open_uow(db, readonly=True) as uow:
-        return [dict(r) for r in uow.conn().execute(text(sql)).mappings()]
+        return [dict(r) for r in uow.conn().execute(text(sql), params).mappings()]
 
 
 def count(db: Path, sql: str) -> int:
@@ -159,8 +160,30 @@ def test_the_take_off_has_real_shortages(
     a, _, _ = runs
     lines = count(a, "SELECT COUNT(*) FROM cur_materials_mto_line")
     assert lines == 150
-    short = count(a, "SELECT COUNT(*) FROM cur_materials_mto_line WHERE qty > reserved_qty")
-    assert short >= 20
+    # On the final state: a line is covered when its quantity fits in what the stock of its item
+    # holds (on hand less reserved, every lot and location); otherwise it is short.
+    found = rows(
+        a,
+        "SELECT l.qty AS qty, COALESCE(st.on_hand, 0) AS on_hand, COALESCE(st.reserved, 0) AS held "
+        "FROM cur_materials_mto_line l "
+        "JOIN cur_core_record r ON r.id = l.id "
+        "LEFT JOIN (SELECT c.project_item_id AS item_id, SUM(s.on_hand) AS on_hand, "
+        "SUM(s.reserved) AS reserved FROM cur_materials_stock s "
+        "JOIN cur_materials_lot c ON c.id = s.lot_id GROUP BY c.project_item_id) st "
+        "ON st.item_id = l.project_item_id WHERE r.voided = :no",
+        no=False,
+    )
+    assert len(found) == 150
+    short = [
+        r
+        for r in found
+        if Decimal(str(r["qty"])) > Decimal(str(r["on_hand"])) - Decimal(str(r["held"]))
+    ]
+    covered = len(found) - len(short)
+    assert covered >= 20
+    assert len(short) >= 40
+    assert any(Decimal(str(r["on_hand"])) > 0 for r in short)  # partly short: some stock is there
+    assert any(Decimal(str(r["on_hand"])) == 0 for r in short)  # no stock at all
     reserved = count(a, "SELECT COUNT(*) FROM cur_materials_mto_line WHERE reserved_qty > 0")
     assert reserved >= 1
     assigned = count(

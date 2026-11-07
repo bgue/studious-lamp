@@ -144,6 +144,9 @@ TAKEOFF_RANGE = {  # one take-off line, by unit: most lines outrun the stock on 
 PO_LINES = 55  # one receipt against each
 PO_COUNT = 11
 TAKEOFF_LINES = 150
+COVERED_LINES = 52  # about 35%: the quantity is within half of the item's stock on hand
+PARTIAL_LINES = 48  # more than the stock on hand of an item that has some
+NO_STOCK_LINES = 50  # an item the receipts never stocked
 NO_MTR_RECEIPTS = 10  # receipts of an MTR category that Accept refuses
 LEFT_RECEIVED = 4  # of those, the last four are left Received, not Inspected
 RESERVATIONS = 70
@@ -434,6 +437,46 @@ def stock_rows(world: World) -> list[Stock]:
     ]
 
 
+def takeoff_plan(world: World, rng: random.Random, adopted: list[Item]) -> list[tuple[Item, int]]:
+    """The take-off lines, planned against the stock on hand as the receipts left it, before the
+    moves and reservations that follow. A covered line takes at most half of its item's stock, so
+    the moves that follow rarely take it below its quantity; the test measures the final state."""
+    by_code = {item.code: item for item in adopted}
+    on_hand = {
+        str(r["item"]): int(Decimal(str(r["on_hand"])))
+        for r in world.rows(
+            "SELECT p.key AS item, SUM(s.on_hand) AS on_hand FROM cur_materials_stock s "
+            "JOIN cur_materials_lot c ON c.id = s.lot_id "
+            "JOIN cur_core_record p ON p.id = c.project_item_id "
+            "WHERE s.scope = :s GROUP BY p.key ORDER BY p.key",
+            s=PROJECT,
+        )
+    }
+    stocked = [code for code in sorted(on_hand) if code in by_code]
+    unstocked = [item for item in adopted if item.code not in on_hand]
+    assert stocked and unstocked, "the take-off needs items with stock and items without"
+    budget = {code: on_hand[code] // 2 for code in stocked}
+    kinds = ["covered"] * COVERED_LINES + ["partial"] * PARTIAL_LINES + ["none"] * NO_STOCK_LINES
+    rng.shuffle(kinds)
+    plan: list[tuple[Item, int]] = []
+    for kind in kinds:
+        if kind == "covered":
+            roomy = [code for code in stocked if budget[code] >= 1]
+            assert roomy, "the stock runs out before the covered lines are planned"
+            code = rng.choice(roomy)
+            qty = rng.randint(1, max(1, budget[code] // 2))
+            budget[code] -= qty
+            plan.append((by_code[code], qty))
+        elif kind == "partial":
+            code = rng.choice(stocked)
+            plan.append((by_code[code], on_hand[code] + rng.randint(1, max(1, on_hand[code] // 2))))
+        else:
+            item = rng.choice(unstocked)
+            plan.append((item, rng.randint(*TAKEOFF_RANGE[item.uom])))
+    assert len(plan) == TAKEOFF_LINES
+    return plan
+
+
 def publish_takeoff(world: World, rng: random.Random, adopted: list[Item], day: date) -> list[str]:
     """The take-off: a source document and its revision, the schema, the CSV that the extraction
     job reads, the derived document published as the MTO. Returns the take-off line keys."""
@@ -474,11 +517,9 @@ def publish_takeoff(world: World, rng: random.Random, adopted: list[Item], day: 
         buffer = io.StringIO()
         writer = csv.writer(buffer, lineterminator="\n")
         writer.writerow(["line", "item", "qty", "uom"])
-        for number in range(1, TAKEOFF_LINES + 1):
-            item = rng.choice(adopted)
-            writer.writerow(
-                [f"{number:03d}", item.code, str(rng.randint(*TAKEOFF_RANGE[item.uom])), item.uom]
-            )
+        plan = takeoff_plan(world, rng, adopted)
+        for number, (item, qty) in enumerate(plan, start=1):
+            writer.writerow([f"{number:03d}", item.code, str(qty), item.uom])
         world.upload(
             opened.stream_id,
             slot="content",
