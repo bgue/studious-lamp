@@ -265,6 +265,13 @@ WALK: dict[tuple[str, str], Row] = {
         _page("iwps"),
     ),
 
+    # --- TW2 rows (constraint log): add them under this line
+    ("GET", "/web/p/{project}/constraints"): Row(
+        "constraint keys, subject keys, owners, descriptions, and the constraint panel with its "
+        "facts and description",
+        _page("constraints"),
+    ),
+
     ("GET", "/web/p/{project}/{log}/panel/{number:path}"): Row(
         "the panel of one row of a log: details, files, clocks, links", _panels
     ),
