@@ -1,11 +1,11 @@
 # P2-I2-T04g — Glue: CLI groups `awp iwp` and `constraint`, readiness hook line (STAGED)
 
-Status: staged (dispatch after S4 is merged and T04d, T04e1, T04e2 are merged)
+Status: ready (S4, T04d, T04e1, T04e2, T04d2 merged; r9)
 Tier: haiku
 Kind: ticket
 Review: full
 Labels: cli, wiring, registry
-Depends on: T04d, T04e1, T04e2, S4
+Depends on: T04d, T04e1, T04e2, T04d2, S4
 Branch: `p2/i2-t04g-cli-glue`
 Worktree: harness-created under `/home/user/wt/i2/t04g` (from `p2/i2` head)
 
@@ -14,7 +14,7 @@ Make the new verbs reachable and subscribe the readiness engine. Three wiring ed
 
 ## Brief references (pasted)
 > 1. `packages/tl-cli/src/tl_cli/awp.py`: add `iwp_app = typer.Typer(help="Interim work packages (IWPs).", no_args_is_help=True)`, `app.add_typer(iwp_app, name="iwp")`, then `awp_iwp_read.register(iwp_app)` and `awp_iwp_write.register(iwp_app)`
->    (reads first, as the file's comment says for the other groups); import both modules in the existing import line. T04d2 (readiness CLI): `awp_readiness_read.register(app)` is called on the `awp` app itself (it adds the `readiness` group); include it if merged, else leave it out.
+>    (reads first, as the file's comment says for the other groups); import both modules in the existing import line. T04d2 (readiness CLI): `awp_readiness_read.register(app)` is called on the `awp` app itself (it adds the `readiness` group); T04d2 is merged: include it (`from tl_cli import awp_readiness_read`; module `packages/tl-cli/src/tl_cli/awp_readiness_read.py`, report `docs/reports/P2-I2/T04d2.md`). Acceptance also checks `tl awp readiness --help` lists ls show.
 > 2. New `packages/tl-cli/src/tl_cli/constraint.py`: `app = typer.Typer(help="Constraints on records (core).", no_args_is_help=True)`, `constraint_read.register(app)` then `constraint_write.register(app)`; one line in
 >    `packages/tl-cli/src/tl_cli/main.py` next to `app.add_typer(awp.app, name="awp")`: `app.add_typer(constraint.app, name="constraint")` and its import.
 > 3. `packages/tl-modules/awp/src/tl_mod_awp/module.py`: the one hook line the S4 report (`docs/reports/P2-I2/S4.md`, "Facts for the glue", `module.py` lines) gives for `readiness.hooks.on_event`, at the place the module registers its projectors. Copy the line from the report; do not design it.
