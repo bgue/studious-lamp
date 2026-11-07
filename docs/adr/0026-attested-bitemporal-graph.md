@@ -135,10 +135,26 @@ genesis checkpoint. Do not add a global chain. Optional per-event signatures use
 5. **Make graph reads functions of the viewer from the first query.** Later: a retrofit across routes and a second security gate.
 6. **Rename nothing yet but note the clash:** link payload `source` (manual, rule, ai, import) shares a name with envelope `source`.
 
-## Phasing (all build deferred; `DEFERRED.md:49`)
+## Phasing (all build deferred; `DEFERRED.md:50`)
 Phase 2 (now, tiny): items 1, 2, 4 above and the open questions. Phase 3 with replicas: hash v2 decision and build,
 `cur_facts` projector, party and clearance walking tests (seven readers). Phase 4: graph views (`graph-views.md`).
 
 ## Open questions for the owner
 1. Is a signed genesis over history acceptable, with hash v2 trusted only from that point? 2. Show or drop a derived
 fact whose input is hidden? 3. Should back-dating a real project (envelope `effective_at`) ever be allowed? Proposed: no.
+
+## Plan check (2026-11-07) and answers
+`4 PLANCHK docs/adr/0026 + specs/graph-views.md`, planner tier, one pass. All twelve findings accepted by the
+orchestrator; where an answer differs from the text above, the answer wins.
+- F1 HI: ADR-0024 copied `cleared_at` into the envelope `effective_at`, and deployment-and-merge.md:58 sets it to device time. **Accepted:** the envelope `effective_at` is capture time only (`recorded_at` online, device time offline), never world time. The ADR-0024 copy is dropped before its commands piece is built (decision sent to P2-I2 round 3); world dates stay in payload fields and projection rows.
+- F2 HI: sealed events are already covered whole: the signed manifest holds `ndjson_sha256` over complete event lines (`archive/segments.py:210`), actor, source and `effective_at` included. **Accepted:** Finding b is corrected to "the open gap is unsealed events and database rows edited after sealing"; verification (section 2) compares the full database row with the sealed line; hash v2 only closes the unsealed window.
+- F3 HI: 64 of 69 core classes, all links and `Workflow.Transitioned` carry no world date, so "unknown, never guessed" would leave the as-stood view nearly empty. **Accepted:** fallback `valid_from = recorded_at`, labelled `as recorded`; `date not recorded` only when a tagged field is null.
+- F4 MD: deadlines and plans (`due_date`, `promised_date`, `forecast_date`, `expires_at`, `data_date`) are values, not valid time. **Accepted:** `tl:valid_time` takes `at`, `from` or `to` and marks only when-it-happened fields; about 47 classes have one, not 218.
+- F5 MD: an annotation applies to old events without upcasting, and tagging touches `schema/**`. **Accepted:** the stub now is the annotation declared in `annotations.yaml`, one rule in the module standard and 1 Haiku lint ticket so wave 3 events carry the tag (lands with the ADR-0025 slice, before wave 3; orchestrator approval with an APPROVALS line). Back-tagging the ~47 classes moves to the Phase 3 projector (1 H more).
+- F6 MD: the manifest already has `format: "tl-archive/1"`, and no sync handshake exists. **Accepted:** the `hash_version` stub is dropped; v2 ships as `tl-archive/2`; the handshake version belongs in the Phase 3 sync ADR.
+- F7 MD: **Accepted:** hash v2 is per scope. A signed genesis row commits to each scope's v1 head, v2 covers new events only, mirrors carry each event's v2 hash, and the side table gets append-only triggers.
+- F8 HI: "Cannot be checked from here" would reveal a hidden event in the scope chain. **Accepted:** the server verifies under the system view and returns only the verdict word; "cannot check" is for replicas only.
+- F9 MD: **Accepted:** the open-constraints column counts visible rows only and is in the twin test; subtree questions filter at every hop; shared saved views are deferred.
+- F10 MD: **Accepted:** views effort is 2 S (reader with provenance; routes with walking and twin tests) plus about 10 H (screens over a merged `ClientInterface.graph`).
+- F11 MD: **Accepted:** v1 is the record tab, `GraphLog`, the modal and the web drawer; the slider, node-link picture and following pane come after the web increment; project start gets a key other than `Home`.
+- F12 MD: **Accepted:** approvers are the owner for hash v2 and the orchestrator for scoping (ADR-0008 d6), each with an APPROVALS line. Sec rows: graph filter, verdict, party scope, v2 append, each with its commit range. Route walks use the six real readers, not "system".

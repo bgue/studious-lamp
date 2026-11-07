@@ -1,6 +1,6 @@
 # Graph views: how facts, links and provenance are shown
 
-Status: design v0.1 (proposed). Design only; all build deferred (`DEFERRED.md:49`).
+Status: design v0.1 (proposed). Design only; all build deferred (`DEFERRED.md:50`).
 Data model, verification and scoping: `docs/adr/0026-attested-bitemporal-graph.md` (proposed). This spec only says how
 the facts are surfaced. Builds on: the log standard (`packages/tl-tui/README.md` "Log screens"), skill `tui-layout`,
 web look v2 (`web-look-v2.md`), the record-panel pattern of `drawings-model-panel.md`, ADR-0016.
@@ -72,7 +72,7 @@ and runs the seven readers (user, controller, agent, admin, system, external, gu
 a record with no facts and one whose every fact is hidden. Known limit, as in the locator spec: response time grows with hidden rows.
 
 ## 6. Effort (S = Sonnet builder piece, H = Haiku ticket of one file area, one gate)
-Prerequisite (not here): ADR-0026 accepted; `cur_facts` projector and `tl:valid_time` tags (1 S + about 8 H, ADR-0026).
+Prerequisite (not here): ADR-0026 accepted; `cur_facts` projector and `tl:valid_time` tags on about 47 classes (1 S + 2 H, ADR-0026 plan check F4, F5).
 | Piece | Size |
 |---|---|
 | `GraphReader` core service: as-known and as-stood folds, two-date filter, viewer batch filter | 1 S |
@@ -88,3 +88,8 @@ Total: 7 S and 6 H, after the Phase 3 chain and projection work, in Phase 4. The
 ## Open questions for the owner
 1. Are saved questions per project, per user or both? 2. Is the node-link picture wanted in v1 or is the table enough?
 3. May an external party see the provenance list of its own facts (who recorded them, by name) or only the party name?
+## Plan check (2026-11-07)
+Findings F8–F11 of the ADR-0026 plan check apply here and are accepted (answers in the ADR). In short: verdict words come
+from a server-side check, and "Cannot be checked from here" is for replicas only. Counts are of visible rows. Every hop
+filters. Sharing a saved view is deferred. Effort is 2 S + about 10 H. v1 is the tab, `GraphLog`, the modal and the web
+drawer. The slider, picture and following pane come after the web increment. Project start does not use `Home`.
