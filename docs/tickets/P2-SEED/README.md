@@ -42,4 +42,5 @@ two foremen, a quality inspector, an RFI author, read-only client rep; passwords
 | T02 | materials section (items, locations, receipts with and without MTR, lots, movements, MTO lines with shortages, reservations) | Haiku (full) | S1 |
 | T03 | the tour and demos use the project: `dev/tour/wave1.py` seeds from it (the M4 terminal screens join the tour) | Haiku (lite) | T01, T02 |
 | T04 | runbook `docs/runbooks/demo-project.md` and README line | Haiku (lite) | T03 |
+| T05 | fixed anchors for other features (viewer plan check F4): pin tags `200-V-1027`, `300-T-101`, documents `P200-200-PID-4701` (restricted) and `P200-200-PID-4702` (with a superseded revision), so fixtures can key on them | Haiku (lite) | S1 |
 | (later) | quality section, on when `quality.PunchItem` exists (roadmap 4a) | Haiku | punch slice |
