@@ -501,6 +501,12 @@ AGENT_MAY_NOT = {
     "control.command.ReopenCwp",
     "control.command.VoidCwp",
     "control.command.VoidExternalPackage",
+    # P2-I2-T09b (ADR-0027): agents never sign off, issue, hold, cancel or release an IWP
+    "control.command.CancelIwp",
+    "control.command.HoldIwp",
+    "control.command.IssueIwp",
+    "control.command.ReleaseHold",
+    "control.command.SignOffIwp",
 }
 FEED_COMMANDS = {
     "PostToFeed",

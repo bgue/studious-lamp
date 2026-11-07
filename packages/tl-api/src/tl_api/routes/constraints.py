@@ -15,7 +15,9 @@ from typing import Annotated, Literal
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
 from sqlalchemy import Connection, bindparam, text
-from tl_core.constraints.commands import RECORD_TYPE, VIEW_WORD
+from tl_core.auth.module_roles import holder_for_principal, normalise_word, require_word
+from tl_core.auth.types import Principal
+from tl_core.constraints.commands import ACCESS_MODULE, RECORD_TYPE, VIEW_WORD
 from tl_core.constraints.queries import (
     MAX_LIMIT,
     ConstraintView,
@@ -26,18 +28,42 @@ from tl_core.constraints.queries import (
 from tl_core.constraints.review import review_groups
 from tl_core.services.errors import RecordNotFoundError
 
-from tl_api.auth import guard
+from tl_api.auth import current_principal, guard
 from tl_api.context import ApiContext, get_ctx
 
 router = APIRouter(tags=["constraints"])
 
 Ctx = Annotated[ApiContext, Depends(get_ctx)]
-Reader = Annotated[str, Depends(guard(VIEW_WORD))]
+
+
+def _view_reader(
+    project: str,
+    ctx: Ctx,
+    actor: Annotated[str, Depends(guard(VIEW_WORD))],
+    principal: Annotated[Principal, Depends(current_principal)],
+) -> str:
+    """Authentication and the agent rules (``guard``), then the access word the CLI and the
+    embedded client check, before any read. A refusal is the API's 403 ``forbidden``."""
+    with ctx.backend(False) as uow:
+        require_word(
+            uow.conn(),
+            holder_for_principal(principal),
+            scope=f"project:{project}",
+            module=ACCESS_MODULE,
+            word=normalise_word(VIEW_WORD),
+            what=VIEW_WORD,
+        )
+    return actor
+
+
+Reader = Annotated[str, Depends(_view_reader)]
 
 _KEY_SQL = text(
     "SELECT id FROM cur_core_record WHERE scope = :scope AND type = :type AND key = :key"
 )
-_ANY_KEY_SQL = text("SELECT id FROM cur_core_record WHERE scope = :scope AND key = :key")
+_ANY_KEY_SQL = text(
+    "SELECT id FROM cur_core_record WHERE scope = :scope AND key = :key LIMIT 1"
+)  # a key is unique per type, not per scope: one row is enough (F3)
 
 
 @dataclass(frozen=True)
