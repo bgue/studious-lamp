@@ -20,7 +20,6 @@ network, no Postgres. It writes seven SVGs:
 from __future__ import annotations
 
 import argparse
-import os
 import sys
 from collections.abc import Callable
 from datetime import UTC, datetime
@@ -38,7 +37,6 @@ from textual.pilot import Pilot  # noqa: E402
 from tl_adapters.db import as_target  # noqa: E402
 from tourkit import Workspace  # noqa: E402
 
-from dev.seed.demo_project import overlay  # noqa: E402
 from dev.seed.demo_project.__main__ import run  # noqa: E402
 from dev.seed.demo_project.world import PROJECT_ID as PROJECT  # noqa: E402
 
@@ -51,7 +49,6 @@ AWP = "lhartmann"  # awp (work packages, WBS, path)
 def seed_demo_project(ws: Workspace) -> None:
     """The one place a tour or demo gets the project: build P200 in the workspace's ledger."""
     run(as_target(str(ws.db)), objects=ws.root / "objects")
-    os.environ["TL_SCHEMA_DIR"] = str(overlay.OVERLAY)  # the clients read the project's types
 
 
 async def _open(pilot: Pilot[Any], app: Any, make: Callable[[Any], Any], what: str) -> None:
@@ -70,6 +67,7 @@ def scenario(
     make: Callable[[Any], Any],
     what: str,
     *needles: str,
+    technical: bool = False,
 ) -> None:
     """One screen of the tour: open it as ``actor`` and save the shot once ``needles`` show."""
     from tl_tui.main import build_app
@@ -78,7 +76,7 @@ def scenario(
 
     async def run_it(pilot: Pilot[Any]) -> None:
         await _open(pilot, app, make, what)
-        tk.shot_tui(ws, app, name, title, *needles)
+        tk.shot_tui(ws, app, name, title, *needles, technical=technical)
 
     tk.run_tui(ws, app, run_it)
 
@@ -138,6 +136,8 @@ def shots(ws: Workspace) -> None:
         lambda c: StockScreen(c, PROJECT),
         "the stock",
         "HT5744-1",
+        # @N suffixes in materials keys are shown by design; plain wording is deferred (wave 3)
+        technical=True,
     )
     scenario(
         ws,
@@ -147,6 +147,8 @@ def shots(ws: Workspace) -> None:
         lambda c: MtoLinesScreen(c, PROJECT),
         "the take-off lines",
         "P200-CWP-",
+        # @N suffixes in materials keys are shown by design; plain wording is deferred (wave 3)
+        technical=True,
     )
     scenario(
         ws,
