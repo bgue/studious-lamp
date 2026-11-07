@@ -1,6 +1,6 @@
 # P2-I2-S1 — awp schema part 2: IWP, scope items, constraints, readiness tables and events, `iwp_facts`
 
-Status: ready (dispatch after the plan check)
+Status: ready (plan check answered r2; dispatch r2)
 Tier: builder
 Kind: piece
 Review: full
@@ -8,7 +8,7 @@ Labels: schema, core
 Depends on: — (M3 part 1 is on the trunk)
 Branch: `p2/i2-s1-schema-part2`
 Worktree: `/home/user/wt/i2-s1`
-Approver (schema): owner, or the orchestrator where P2-Q10 delegates (line in `docs/reports/APPROVALS.md` at merge)
+Approver (schema): orchestrator (P2-Q10; line in `docs/reports/APPROVALS.md` at merge)
 
 ## Goal
 After this piece the awp LinkML holds `IWP`, `ScopeItem`, `Constraint`, `IWPCloseout` (schema only), the readiness
@@ -22,7 +22,7 @@ All records project scope, confidentiality `internal`, no `ConfidentialSource`. 
 
 | Type | Key | Typed fields (table) | Workflow | `tl:offline` |
 |---|---|---|---|---|
-| `awp.IWP` | allocator `P123-IWP-PIP-0042`: `{project}-{type}-{discipline}-{seq:4}`, `type_code: IWP`, `gap_free: true`, counts per discipline | `cur_awp_iwp`: `discipline` (list `Discipline`), `cwp_id` (awp.CWP, null until set), `planned_start`, `planned_finish`, `foreman` (actor text `user:<name>`, <= 64), `estimated_hours` (text, 1 dp, 0.0..10 000 000.0), `crew_text` (<= 120), `signoffs_json` (list of `{by, role, at, record_hash}`, <= 4) | `awp-iwp.yaml` | `draft_only` |
+| `awp.IWP` | allocator `P123-IWP-PIP-0042` (the 0042 is an example; no allocator start exists and `reserved` is per pattern, so the first is `-0001`): `{project}-{type}-{discipline}-{seq:4}`, `type_code: IWP`, `gap_free: true`, counts per discipline | `cur_awp_iwp`: `discipline` (list `Discipline`), `cwp_id` (awp.CWP, null until set), `planned_start`, `planned_finish`, `foreman` (actor text `user:<name>`, <= 64), `estimated_hours` (text, 1 dp, 0.0..10 000 000.0), `crew_text` (<= 120), `signoffs_json` (list of `{by, role, at, record_hash}`, <= 4) | `awp-iwp.yaml` | `draft_only` |
 | `awp.ScopeItem` (P2-Q7 A) | allocator `{project}-SCI-{seq:6}`, `gap_free: false` | `cur_awp_scope_item`: `commodity` (list `Commodity`), `description` (<= 200), `qty` (text), `uom` (list `UnitOfMeasure`), `est_hours` (text, 1 dp), `cwp_id` (null ok) | `awp-scope-item.yaml`: Planned -> Installed -> Verified; Installed -> Planned (return); any but Verified -> Void | `draft_only` |
 | `awp.Constraint` | allocator `{project}-CON-{seq:4}`, gap-free | `cur_awp_constraint`: `iwp_id`, `constraint_type` (list `ConstraintType`), `source` (`manual`, `check`, `rule`, `feed_hold`, `thread_hold`), `owner` (actor text, required), `need_by`, `description` (<= 500), `check_name` (<= 64, only for `check`), `raised_at`, `cleared_at`, `cleared_by`, `clear_reason` (<= 300), `suppress_hash` (sha256 text, R-P2-11) | `awp-constraint.yaml`: Open -> Assigned -> Cleared; Open -> Cleared; any but Cleared -> Void | `draft_only` |
 | `awp.IWPCloseout` | none (one per IWP, composed key `<iwp key>-CLOSE`, `composed_key=True`) | `cur_awp_iwp_closeout`: `iwp_id`, `actual_hours` (text), `remaining_punch` (int >= 0), `feedback` (<= 1000), `actuals_file_id` | none (I5 adds commands) | `none` |
@@ -38,9 +38,12 @@ In progress -> Field complete -> Closed; Constraint check -> In development (ret
 into a re-check, no prior-state memory); Split from Draft, In development, Constraint check (terminal); Cancelled from
 every non-terminal state. Terminal: Closed, Split, Cancelled. `generic_guards`: scope links (`contains`) refused from
 Issued onward (find how `generic_guards` is declared in `tl_core/workflow/definition.py`; same rule P2-I1 used for CWP).
-`expected_links` at Issued: `relation: requires`, `direction: out`, label `permit to work`, target type reserved name
-`permit.PermitToWork` (no class exists; P2-Q8 A: reported missing, never blocking). If the validator refuses a target
-type with no class, STOP and write it under Blocked (do not invent a class).
+**No `expected_links` guard in the workflow** (an `expected_links` guard blocks the move; P2-Q8 A says never block, plan
+check F1). The permit expectation is declared on the class instead, as `cwp.yaml` does: `iwp.yaml` `awp.IWP` annotation
+`tl:expects_link` with `relation: requires`, `direction: out`, `by_state: Issued`, label `permit to work`, `target_type:
+permit.PermitToWork` (reserved name; no class exists until Phase 3; the missing-link report only counts records of that type,
+so it stays "missing" until then, F2). The reserved name is DEC D8 in `STATE.md`; the validator is not expected to refuse it.
+If it does, STOP and write it under Blocked (do not invent a class).
 
 **Events** (`schema/modules/awp/iwp_events.yaml`, each with `tl:event_type`): `IWP.Created`, `.Revised`, `.ScopeAdded`,
 `.ScopeRemoved`, `.DocumentPinned`, `.Split` {new_ids}, `.SignedOff` {by, role, record_hash}, `.Issued` {by, foreman},
@@ -89,18 +92,25 @@ Not allowed: other modules, `tl_core/**`, `pyproject.toml`, `uv.lock`, commands 
 2. Write `facts.py` and the name constants; register the record types in the module spec (names only).
 3. Fix pinned lists that fail only because these types exist (union form). Then the acceptance script.
 
-## Acceptance (run once each; no pytest except the pinned-list files named in the report, one package per gate)
+## Acceptance (run once each; one package per gate, the pinned-list files named, never the whole suite: it OOMs, F12)
 ```
 just gen
 just check
 uv run python dev/accept/P2-I2/S1.py
-just gate packages/tl-schema/tests packages/tl-modules/awp/tests
+just gate packages/tl-schema/tests
+just gate packages/tl-modules/awp/tests tests/services/test_modules.py tests/webhooks
+just gate tests/schema
 ```
+Also run, by name, every pinned-list test that enumerates events, record types, tables, workflows or numbering (find them
+with `grep -rln "awp.CWP" tests packages/*/tests packages/tl-modules/*/tests`), at least `tests/services/test_modules.py`,
+`tests/webhooks/scenario.py`'s tests, the DDL test (`test_ddl.py`) and the generator test (`test_generate.py`) of
+`packages/tl-schema/tests`. A pinned list that fails only because these types exist is fixed as a union (rule 12).
 `S1.py` (SQLite, dialect-neutral, one `PASS <check>` line per check, final `S1 ok`): the four record types are in
 `TYPE_LABELS` and `OFFLINE_CLASSES` with the table's classes; every table above exists in the generated DDL; the three
 workflows load, `Closed`, `Split`, `Cancelled` and `Verified`/`Cleared` terminal as stated, and `On hold -> Ready` is
 refused; the IWP pattern allocates `P123-IWP-PIP-0001`, `-0002`, `P123-IWP-CIV-0001`; the scope-item pattern allocates
-`P123-SCI-000001` and `-000002`; every event has `tl:event_type` and the stated feed policy; `iwp_facts` on a hand-written
+`P123-SCI-000001` and `-000002`; every event has `tl:event_type` and the stated feed policy; the IWP class carries `tl:expects_link` (requires, out, Issued, `permit.PermitToWork`) and the workflow has no
+`expected_links` guard; `iwp_facts` on a hand-written
 IWP row with 3 `contains` links returns them by type, and with 5 001 returns the fixed `ValueError`.
 
 ## Tests for the end run (T11 writes them; none here)

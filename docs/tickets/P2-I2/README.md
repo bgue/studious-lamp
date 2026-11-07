@@ -1,6 +1,6 @@
 # P2-I2 — IWP, constraints, readiness, release sign-off (module M3, part 2)
 
-Status: planning (round 1; plan check requested, nothing dispatched). Plan source: `docs/build-spec/08-phase2-plan.md`
+Status: plan re-cut r2 after the plan check (5 pieces, 20 tickets); S1 dispatched alone. Plan source: `docs/build-spec/08-phase2-plan.md`
 "Increment 2" (re-cut here). Wave order and registries: `docs/build-spec/specs/phase2-wave-plan.md` (wave 2) and
 `08-phase2-plan.md` §0.3. Contract: `packages/tl-core/src/tl_core/readiness/types.py` (frozen). Board: `STATE.md`.
 Branch `p2/i2`, trunk `claude/wizardly-allen-m2v96s` @34696bc (M3 part 1, M4 and web client wave 1 merged).
@@ -20,66 +20,68 @@ P2-Q6 A: simulated people do `user` acts; the scenario names operators for sign-
 (Planned, Installed, Verified). P2-Q8 A: `permit-to-work` expected link at Issued, reported missing, never blocking.
 
 ## Demo clauses (`just demo P2-I2`, SQLite then Postgres; spec of record is `08-phase2-plan.md` I2)
-1. IWP from 24 scope items, 8 more and 3 tags, all `contains` links, numbered `P123-IWP-PIP-0042`.
+1. IWP from 24 scope items, 8 more and 3 tags, all `contains` links, numbered `P123-IWP-PIP-<seq:4>` (first is 0001; no allocator start exists, D8).
 2. Two drawings pinned; a new IFC revision of one makes `documents_current` blocked, stale pin as `resolve_via`.
 3. Constraints raised by hand and by the materials check; need-by = planned start - `awp.iwp.ready_lead_weeks`; review
    screen groups by owner and type.
-4. Readiness screen shows 5/7 with blocked checks named; re-pin and clear turns 7/7; `IWP.Ready` reaches a loopback receiver.
+4. Readiness screen shows 7/9 with blocked checks named (`documents_current`, `constraints_cleared`; `n_a` counts as passing, D9); re-pin and clear turns 9/9; `IWP.Ready` reaches a loopback receiver.
 5. Sign-off: two distinct signers with the P2-Q2 access; a plain user refused; second signer not the first; wrong record
    hash refused.
-6. Issue to a foreman: Issued; `permit-to-work` reported missing, not blocking.
+6. Issue to a foreman: Issued; `permit to work` reported missing (class-level `tl:expects_link`, no workflow guard), not blocking.
 7. Oversize IWP (hours over `awp.iwp.size_hours`) warns; the split tool makes two.
 8. An agent proposes a constraint; a person accepts it.
 9. Same state over API, TUI, web and MCP; readiness history in the ledger; dashboard tile shows backlog weeks per foreman.
-Added by wave plan: `materials_reserved` is `ok` on the demo IWP (MTO lines reserved), not only in the M4 demo.
+Added by wave plan: `materials_reserved` is `ok` on the demo IWP: T10b assigns MTO lines to the `awp.IWP` key (`work_package_id`, types already accepted), then reserves.
 
 ## Workstreams
 WS-A (owner of the merge): IWP, scope, constraints, sign-off, issue, hold, CLI, reports, MCP, simulator, demo.
-WS-B: readiness engine, checks, readiness and IWP screens, tile. They share this branch and one `STATE.md` (board column
-`ws`); the orchestrator alternates rounds. WS-B codes against the frozen contract and `tl_mod_awp.facts.iwp_facts` from S1.
+WS-B (now also the web twins, F14): readiness engine, checks, readiness and IWP screens, tile, TW1-3. Two streams only. They
+share this branch and one `STATE.md` (board column `ws`); the orchestrator alternates rounds. WS-B codes against the frozen
+contract and `tl_mod_awp.facts.iwp_facts` from S1.
 
 ## Pieces (builder, `kind: piece`, review full; spec files `S<n>-<slug>.md`)
 | Id | ws | Piece | Spec | Depends | Sec |
 |---|---|---|---|---|---|
-| S1 | A | Schema part 2: IWP, ScopeItem, Constraint, IWPCloseout (schema only), readiness tables and events (`IWP.ReadinessEvaluated`, `IWP.Ready`), three workflows, numbering, `iwp_facts` reader (plan B1/T01). Human gate | written r1 | wave 1 | schema |
-| S2 | A | IWP and scope commands: `CreateIwp`, `RevaiseIwp` fields, scope item create/state, `AddIwpScope`/`RemoveIwpScope`, `PinIwpDocument`, `SplitIwp`, state guards, sizing warning (T02) | r2 | S1 | guards |
-| S3 | A | Constraint commands: raise (five sources), assign, clear with `resolves` link, aging, `blocks` link, R-P2-11 suppress (T03) | r2 | S1 | by_module sources |
-| S4 | A | `SignOffIwp`, `IssueIwp`, `HoldIwp`, `ReleaseHold` (P2-Q2 access, distinct signers, record hash) (B4); leaves references for T04e, T09a, T09b | r3 | S2, S3, S5 | access words |
-| S5 | B | Readiness engine: registry use, job `awp.readiness`, `IWP.ReadinessEvaluated`, `IWP.Ready` on first all-green, projector `cur_awp_readiness`, `request` and `evaluate_now`, re-evaluation requests (T05) | r2 | S1 | job, event |
-| S6 | B | Checks `documents_current` and `rfis_answered` through `tl_mod_documents.resolver` and the P1-I6 type (T06a); leaves the reference for T06b | r3 | S5 | - |
-| T11 | A | Tests piece at C3: schema, guards, sign-off, engine, five-reader walk of every new route and tool, mutants (sentinel + <=5 per piece) | at C3 | all | - |
-Owner policy kept from wave 1: tests deferred to T11; each piece leaves `dev/accept/P2-I2/<id>.py`; tour once at C4.
+| S1 | A | Schema part 2: IWP, ScopeItem, Constraint, IWPCloseout (schema only), readiness tables and events, three workflows, numbering, class-level permit `tl:expects_link`, `iwp_facts`. Human gate: orchestrator (P2-Q10) | written, r2 fixed | wave 1 | schema |
+| S2 | A | IWP, scope and constraint commands (old S2+S3, F5): `CreateIwp`, scope item create, `AddIwpScope`/`RemoveIwpScope`, `PinIwpDocument`, `SplitIwp`, state guards, sizing warning, constraint raise (five sources), assign, clear with `resolves` link, aging, `blocks` link, R-P2-11 suppress. Owns `module.py`, `names.py`, `AWP_COMMANDS` edits | r2 | S1 | guards, by_module sources |
+| S3 | A | `SignOffIwp`, `IssueIwp`, `HoldIwp`, `ReleaseHold` (P2-Q2 access, distinct signers, record hash). Signer-role check is permission code: orchestrator gate (P2-Q10) | r3 | S2, S4 | access words |
+| S4 | B | Readiness engine in `tl_mod_awp/readiness/` only: registry use, job `awp.readiness`, `IWP.ReadinessEvaluated`, `IWP.Ready`, projector `cur_awp_readiness`, `request`, `evaluate_now`; Constraint check <-> Ready moves; check-source constraints through S2's raise (F6); check `constraints_cleared` (F4); event-to-IWP mapping by `work_package_id` for watched types, else `evaluate_now` (F3). Hook line in `module.py` is C2 glue (F5) | r3 | S1, S2 | job, event |
+| S5 | A | Tests piece (old T11, F14, F15): schema, guards, sign-off, engine, five-reader walk of every new route and tool, mutants (sentinel + <=5 per piece). Runs beside T10b | at C3 | all pieces, T04c2 | - |
+Owner policy kept from wave 1: tests deferred to S5; each piece leaves `dev/accept/P2-I2/<id>.py`; tour once at C4.
 
-## Tickets (ticket tier; `review` lite or full; spec files written after the plan check)
+## Tickets (ticket tier; `review` lite or full; spec files written when their dependencies are in the tree)
 | Id | ws | Title | Rev | Depends |
 |---|---|---|---|---|
-| T04a | A | Read views: IWP, scope, constraint by owner, type, age (provided test) | full | S3, S5 |
-| T04c | A | API read routes (IWP, constraints, readiness), `ApiClient` and TUI client methods with fakes | full | T04a |
-| T04d | A | CLI reads: `tl awp iwp\|constraint\|readiness ls\|show` (print keys, L-P2-I3-3) | full | T04a |
-| T04e | A | CLI writes: iwp, scope, pin, split, constraint, sign-off, issue, hold | full | S4 |
-| T04b | A | `constraint_text.py` (Textual-free) + TUI constraint review screen | full | T04c |
-| T07a | B | `readiness_text.py` + TUI readiness screen, `resolve_via` jump | full | T04c |
-| T07b | B | `iwp_text.py` + IWP log and record tabs (scope, documents, constraints, readiness, history) | full | T04c |
-| T08 | B | Sizing warning surface; backlog-weeks-per-foreman tile (`awp.backlog.target_weeks`) | full | T04c, S5 |
-| T06b | B | Five `n_a` checks with fixed notes, each with its provided test | lite | S5 |
-| T09a | A | Reports and `tl awp report` (status, readiness, constraint log, by type, owner, age) | lite | T04a |
-| T09b | A | MCP reads and proposable `propose_constraint`, `propose_iwp_scope` (access `user`, pinned) | full | T04c, S4 |
-| TW1 | C | Web twin: IWP log and record page (over T07b text module) | full | T07b |
-| TW2 | C | Web twin: constraint review page (over T04b) | full | T04b |
-| TW3 | C | Web twin: readiness page and tile (over T07a, T08) | full | T07a, T08 |
+| T04a | A | Read views: IWP, scope, constraint by owner, type, age (provided test) | full | S2 |
+| T04c1 | A | API read routes (IWP, constraints, readiness), embedded and remote | full | T04a, S4 |
+| T04c2 | A | `ApiClient` and TUI client methods with fakes | full | T04c1 |
+| T04d | A | CLI reads: `tl awp iwp\|constraint\|readiness ls\|show` (print keys, L-P2-I3-3) | full | T04a, S4 |
+| T04e | A | CLI writes: iwp, scope, pin, split, constraint, sign-off, issue, hold | full | S3 |
+| T04b | A | `constraint_text.py` (Textual-free) + TUI constraint review screen | full | T04c2 |
+| T07a | B | `readiness_text.py` + TUI readiness screen, `resolve_via` jump | full | T04c2 |
+| T07b | B | `iwp_text.py` + IWP log and record tabs (scope, documents, constraints, readiness, history) | full | T04c2 |
+| T08 | B | Sizing warning surface; backlog-weeks-per-foreman tile (`awp.backlog.target_weeks`) | full | T04c2, S4 |
+| T06a1 | B | Check `documents_current` in `tl_mod_documents` (F7: awp may not import it) | full | S1, S2 |
+| T06a2 | B | Check `rfis_answered` in `tl_mod_correspondence` (F7) | full | S1, S2 |
+| T06b | B | Five `n_a` checks in `tl_mod_awp` with fixed notes (contract only, F9) | lite | S1 |
+| T09a | A | Reports and `tl awp report` (status, readiness, constraint log, by type, owner, age) | lite | T04a, S4 |
+| T09b | A | MCP reads and proposable `propose_constraint`, `propose_iwp_scope` (access `user`, pinned) | full | T04c2, S2 |
+| TW1 | B | Web twin: IWP log and record page (over T07b text module) | full | T07b |
+| TW2 | B | Web twin: constraint review page (over T04b) | full | T04b |
+| TW3 | B | Web twin: readiness page and tile (over T07a, T08) | full | T07a, T08 |
 | T10a | A | Simulator desk and `workface_planner` actor; operators for sign-off, issue | lite | T09a |
-| T10b | A | `dev/demos/P2-I2.sh`, nine clauses plus materials, both adapters | full | T10a, TW1-3 |
+| T10b | A | `dev/demos/P2-I2.sh`, nine clauses plus materials, both adapters | full | T10a, TW1-3, S3 |
 | T12 | A | Docs: awp README and AGENTS rows, runbook `iwp-readiness`, reference page | lite | T10b |
-Registrations (`AWP_COMMANDS` splat, `MCP_ACTIONS`, `add_typer`, palette) are supervisor glue at C2, <=50 lines; over
-that they become one ticket. 7 pieces, 17 tickets: over the ~10-ticket line, so round 2 waits for the plan check.
-Every screen ticket needs its text module in the tree first (L-P2-WEB1-1); one web page per twin ticket.
+Registrations (`AWP_COMMANDS` splat, `MCP_ACTIONS`, `add_typer`, palette, readiness hook line) are supervisor glue at C2,
+<=50 lines; over that they become one ticket. 5 pieces, 20 tickets (the checker's ~19 plus the T06a split). Every screen
+ticket needs its text module in the tree first (L-P2-WEB1-1); one web page per twin ticket.
 
 ## Order of work and checkpoints
-S1 -> (S5 beside S2, S3) -> S4, S6 -> T04a -> T04c -> read, screen and twin tickets -> T06b, T09, T10 -> T11 -> T10b -> T12.
-- C1: S1 and S5 merged (WS-B starts after S1). C2: S2, S3, S4, S6, T04a, T04c merged and registrations done.
-- C3: every ticket merged or abandoned, T11 merged. C4: full gate per package, demo green on both adapters, tour once,
-  SR2 closed or waived by the owner, report.
-Merge order: S1, S5, then S2-S4 and S6, then T04c; A owns conflicts; pinned lists are written as the union of both sides.
+S1 -> S2 (T06b beside S1) -> S4 (T06a1, T06a2, T04a beside) -> S3 -> T04c1 -> T04c2 -> read, screen and twin tickets -> T09, T10a -> T10b beside S5 -> T12.
+- C1: S1 merged (WS-B starts after S1). C2: S2, S3, S4, T06a1, T06a2, T04a, T04c1 merged and registrations done.
+- C3: every ticket merged or abandoned, S5 merged. C4: full gate per package, demo green on both adapters, tour once,
+  SR2 closed (mandatory, F11), report.
+Merge order: S1, S2, S4, S3, then T04c1; A owns conflicts; pinned lists are written as the union of both sides.
 
 ## Process lessons applied
 Gates name test files or one package (the 4-part whole gate OOMs on 16 GB, L-P2-I1-2, L-P2-I3-2); tests are
@@ -87,18 +89,17 @@ dialect-neutral (no `group_concat`); provided tests must pass ruff; a test stand
 name; pinned module and command lists are written as the union; review demos and reports only against the final run
 (L-P2-I1-3); write options take the key a read prints (L-P2-I3-3); check target-level fixes before a ticket (L-P2-I1-1).
 
-## Security rows (SR2, owner optional)
-S3 raise sources and agent-proposed constraints; S4 access words, signer distinctness, record-hash check; S5 job claim and
-settle, bounded `resolve_via`; T04c routes (read) and the five-reader confidentiality walk (hidden looks like missing);
-T09b agent tools; TW1-3 any web act through `run_command` with the origin check.
+## Security rows (SR2, mandatory at C4)
+SR2 scope: the rows below only, commit range `34696bc..p2/i2` head, <= 450k tokens, findings `F<n> <HI|MD|LO> file:line`.
+S2 raise sources and agent-proposed constraints; S3 access words, signer distinctness, record-hash check; S4 job claim and
+settle, bounded `resolve_via`; T04c1 routes (read) and the five-reader confidentiality walk (hidden looks like missing);
+T09b agent tools; TW1-3 any web act through `run_command` with the origin check. Gates: S1 schema and S3 signer-role
+checks are the orchestrator's under P2-Q10 (APPROVALS line at merge).
 
 ## Risks and escalation
-Permit target type has no class (S1 escalates if the annotation validator refuses it). On hold returns to Constraint
+The permit target type has no class: reserved name `permit.PermitToWork`, D8 (S1 escalates if the validator refuses it). On hold returns to Constraint
 check, not the prior state (D5). Gap-free numbering for scope items would serialise adds (S1 uses a non-gap-free
 pattern, else escalates). Escalate: a frozen contract change; an access word the roles table lacks; a piece failing twice.
-
-## Plan check
-(orchestrator's `plan-check` writes here)
 
 ## Plan check
 Planner-tier check, 2026-11-07 (pasted by the orchestrator; the checker does not edit files). Every finding is to be
@@ -124,3 +125,20 @@ F15 LO cost: about 10 rounds, 7p/17t, roughly 0.28-0.35 B, at the top of the ban
 73 Contract use is sound: the registry, harness and settings keys are on trunk; TW twins over text modules; Q2/Q6/Q7 applied correctly; readiness schema folded into one S1 gate (D6)
 30
 ```
+
+### Answers (round 2)
+F1 accepted: permit expectation is `tl:expects_link` on `awp.IWP` (by_state Issued); the workflow carries no `expected_links` guard; S1 text fixed.
+F2 accepted: Q2 closed; reserved name `permit.PermitToWork` recorded as D8 for Phase 3; S1 acceptance checks the annotation.
+F3 accepted: S4 maps watched types to IWPs by `work_package_id` (materials already accepts IWP keys), else `evaluate_now`; T10b assigns MTO lines to an IWP key before reserving.
+F4 accepted: S4 adds `constraints_cleared` (9 checks: 4 real, 5 `n_a`); `n_a` counts as passing; demo is 7/9 then 9/9 (D9).
+F5 accepted: S2 and S3 merged into one piece (new S2); S4 stays in `readiness/`, its hook line is C2 glue.
+F6 accepted: S4's job makes the Constraint check <-> Ready moves and the check-source constraints through S2's raise; S4 depends on S2.
+F7 accepted: S6 becomes T06a1 (documents) and T06a2 (correspondence), both `t full`, depending on S1 and S2, staged.
+F8 accepted: T04c split into T04c1 (routes) and T04c2 (client methods with fakes).
+F9 accepted: T04a needs S2; T04c1, T04d, T09a need S4; T09b needs S2 (not sign-off); T06b needs S1 only (contract); T06b dispatched r2.
+F10 accepted: S1 approver and S3 signer-role gate are "orchestrator (P2-Q10)", APPROVALS line at merge.
+F11 accepted: SR2 mandatory at C4, Sec rows only, `34696bc..p2/i2` head, <= 450k.
+F12 accepted: S1 gates one package per run and names the pinned-list files.
+F13 accepted: scope-item state moves left to I5; no `ReviseIwp` or `RevaiseIwp` command in S2 unless the demo needs a field change (it does not).
+F14 accepted: S5 (tests) runs beside T10b; twins folded into WS-B (two streams); 0042 cannot be seeded (no allocator start; `reserved` is per pattern), clause 1 says first is 0001 (D8).
+F15 partly waived: S2+S3 merged, S6 made tickets, T11 renamed S5; the per-stream split of the tests piece is waived (one cold start reads both streams once; S5 stays one piece, two ordered phases), giving 5p/20t.
