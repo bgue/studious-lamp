@@ -6,7 +6,7 @@ import json
 from typing import Any
 
 from pydantic import BaseModel, Field
-from sqlalchemy import Connection, text
+from sqlalchemy import Connection, bindparam, text
 from tl_core import confidentiality
 from tl_core.readiness.types import MAX_CHECKS, CheckResult, RecordRef
 
@@ -82,3 +82,34 @@ def readiness(conn: Connection, scope: str, iwp_key: str) -> ReadinessView | Non
     if found is None or confidentiality.is_hidden(conn, str(found)):
         return None
     return readiness_of(conn, str(found))
+
+
+def visible_readiness(
+    conn: Connection, scope: str, key: str, viewer: confidentiality.Viewer | None = None
+) -> ReadinessView | None:
+    """``readiness`` for a reader: each ``resolve_via`` drops the records the viewer cannot read
+    and shows each kept record by its display key (never the id or key of a hidden one).
+
+    State, ``count_ok`` and ``count_total`` stay as the engine evaluated them (counts, no
+    identities). ``None`` as for ``readiness``."""
+    view = readiness(conn, scope, key)
+    if view is None:
+        return None
+    ids = sorted({r.record_id for c in view.checks for r in c.resolve_via})
+    if not ids:
+        return view
+    hidden = confidentiality.hidden_among(conn, ids, viewer)
+    keys: dict[str, str] = {}
+    statement = text("SELECT id, key FROM cur_core_record WHERE id IN :ids").bindparams(
+        bindparam("ids", expanding=True)
+    )
+    for start in range(0, len(ids), 500):
+        for row in conn.execute(statement, {"ids": ids[start : start + 500]}):
+            keys[str(row.id)] = str(row.key)
+    for check in view.checks:
+        check.resolve_via = [
+            RecordRef(record_id=r.record_id, record_type=r.record_type, key=keys[r.record_id])
+            for r in check.resolve_via
+            if r.record_id not in hidden and r.record_id in keys
+        ]
+    return view
