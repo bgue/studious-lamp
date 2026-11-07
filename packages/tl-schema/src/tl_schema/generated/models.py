@@ -172,6 +172,7 @@ class LinkRelation(str, Enum):
     belongs_to = "belongs_to"
     requires = "requires"
     blocks = "blocks"
+    targets = "targets"
     verifies = "verifies"
     dispatched_from = "dispatched_from"
     attached_to = "attached_to"

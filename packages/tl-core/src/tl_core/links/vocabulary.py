@@ -136,7 +136,7 @@ DEFAULT_PAIR_RELATIONS: Mapping[tuple[str, str], str] = {
 
 
 def default_vocabulary() -> RelationVocabulary:
-    """A new vocabulary holding the thirteen relations of brief 7.1."""
+    """A new vocabulary holding the fourteen relations (brief 7.1 and ADR-0024)."""
     return RelationVocabulary(DEFAULT_RELATIONS)
 
 
