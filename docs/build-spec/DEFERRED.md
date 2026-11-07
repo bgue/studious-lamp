@@ -35,6 +35,7 @@ One line each: what, why it waits, and the phase it belongs to. Newest at the bo
 | WBS node workflow and constraint opt-in on WBS nodes (ADR-0024 plan check F10) | No wave 2 demo clause needs it; overlaps I5 progress | wave 3 |
 | Six materials terminal screens have no technical-mode rows (D, E, I, M, S, W) | Missing feature, not a break | wave 3 |
 | `tl mat move reserve --for-line` should take the take-off line key, not its record id | Usability; the runbook points at the API for the id | wave 3 |
+| Plain mode shows `@N` in take-off line keys (`P200-200-ISO-0901@0/MTO/001`) and lot references (`P200-RCPT-0001@1`); show them in words (rev 0, line 001) so the plain-text leak check passes. The demo tour marks those two shots technical until then (P2-SEED-T03) | Display change in the materials screens; not a leak of hidden data | wave 3 |
 | Locations web page: tree indent and lot counts (WEB1 D46) | Cosmetic | Web increment after wave 4 |
 | WBS reload keeps a reinstated node's old title (S7 F6); the CWA target has the same reload shape | The demo needs the same tree only | wave 3 |
 | `tl awp worker` has no access word; spec §3 role wording | Docs and a small gate | wave 3 |
