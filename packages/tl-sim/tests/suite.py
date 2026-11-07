@@ -45,6 +45,7 @@ IDENTITIES = [
     "user:sim-rfi_author",
     "user:sim-client_rep",
     "user:sim-approver",
+    "user:sim-iwp_planner",
     "agent:sim-assistant",
     "user:alice",
 ]
