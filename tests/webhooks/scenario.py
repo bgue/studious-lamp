@@ -238,7 +238,7 @@ MODULE_STREAMS = (
     ),
     ("awp.ScopeItem", "ScopeItem.Created", ("ScopeItem.Revised",)),
     (
-        "awp.Constraint",
+        "core.Constraint",
         "Constraint.Raised",
         ("Constraint.Assigned", "Constraint.Cleared", "Constraint.Withdrawn"),
     ),
