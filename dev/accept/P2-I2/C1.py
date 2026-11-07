@@ -1,6 +1,7 @@
 """Acceptance for P2-I2-C1: core constraint schema (ADR-0024). SQLite only; no network.
 
-Exit 0, one ``PASS <check>`` line per check, then ``C1 ok``. Run: ``uv run python dev/accept/P2-I2/C1.py``.
+Exit 0, one ``PASS <check>`` line per check, then ``C1 ok``.
+Run: ``uv run python dev/accept/P2-I2/C1.py``.
 """
 
 from __future__ import annotations
@@ -26,7 +27,7 @@ SCHEMA = ROOT / "schema"
 FIXTURES = SCHEMA / "fixtures"
 GENERATED = ROOT / "packages" / "tl-schema" / "src" / "tl_schema" / "generated"
 
-# Written from the spec (docs/tickets/P2-I2/C1-core-constraint-schema.md), not read from the generated files.
+# Written from the spec (docs/tickets/P2-I2/C1-core-constraint-schema.md), not from generated files.
 COLUMNS = {
     "subject_id", "phase", "severity", "category", "owner", "description_text", "source",
     "check_name", "suppress_hash", "clear_reason", "target_kind", "target_id", "target_ref_type",

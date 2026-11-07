@@ -215,7 +215,7 @@ def test_the_cwp_workflow_has_seven_states_closed_and_void_are_final() -> None:
     assert ("Released for IWP development", "In development") in moves  # ReturnCwp
     assert ("Complete", "Executing") in moves  # ReopenCwp
     assert ("Complete", "Closed") in moves
-    # the expected link is a report, no guard; the only guard is the opt-in constraint guard (ADR-0024)
+    # the expected link is a report, no guard; the only guard is the opt-in constraint guard
     guarded = {t["name"] for t in wf["transitions"] if "guards" in t}
     assert guarded == {"start_execution", "complete"}
     for t in wf["transitions"]:
