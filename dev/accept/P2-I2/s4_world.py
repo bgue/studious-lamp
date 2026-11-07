@@ -84,7 +84,8 @@ def build(db: Path) -> World:
 def registry() -> Any:
     reg = default_registry()
     for projector in readiness_projectors():
-        reg.register(projector)
+        if projector.name not in {p.name for p in reg.all()}:  # the module registers it since T04g
+            reg.register(projector)
     return reg
 
 
