@@ -2,9 +2,9 @@
 
 Each takes a connection and a project scope and reads through ``iwp_views.iwp_list``,
 ``readiness.views.readiness`` and ``tl_core.constraints.list_constraints``, so the viewer's class
-filter (ADR-0016) applies to every figure. ``to_csv`` and ``format_value`` are the CWP reports'
-(``reports.py``). A readiness row names checks and their states only: never ``resolve_via``,
-counts or ids (D32).
+filter (ADR-0016) applies to every figure. The row formatting (``to_csv``, ``format_value``) is
+done by the ``tl awp report`` command, not here. A readiness row names checks and their states
+only: never ``resolve_via``, counts or ids (D32).
 """
 
 from __future__ import annotations
@@ -65,7 +65,6 @@ NOT_EVALUATED: Final = "not evaluated"
 TOTAL_STATE: Final = "total"
 READY_YES: Final = "yes"
 READY_NO: Final = "no"
-_NO_CHECKS: Final = NONE_TEXT
 
 
 class IwpStatusRow(BaseModel):
