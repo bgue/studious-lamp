@@ -83,3 +83,16 @@ watched event maps by `work_package_id`, else falls back to `evaluate_now`; a jo
 
 ## Decision
 (supervisor or orchestrator writes here)
+
+## Orchestrator addendum (2026-11-07, 9: ADR-0028 plan check F1 HI)
+`IWP.ReadinessEvaluated.checks[]` carries `detail` and `resolve_via`, is written by a system job, and `awp.IWP` is not
+in `SCANNED_STREAM_TYPES` (`tl_core/confidentiality.py:399`), so history, feed, webhook and MCP reads would show what a
+hidden constraint or RFI is. Added to this piece (approved by the orchestrator under P2-Q10; APPROVALS line at merge):
+- Allowed path added: `packages/tl-core/src/tl_core/confidentiality.py`, one change only: add `"awp.IWP"` to
+  `SCANNED_STREAM_TYPES`. A readiness event that names a hidden record is then hidden whole, like any scanned stream.
+- The engine writes record **ids only** in `resolve_via`, and `detail` never holds a key, title or other record text
+  (fixed words and counts only). The acceptance script asserts both on every check result it writes.
+- `S4.py` adds a twin line: a low-clearance viewer reading the IWP history sees the same shape whether the blocking
+  RFI is restricted or missing (no event that names it, no key in any detail). S5 turns it into a pytest.
+- The T04c1 read (readiness view and route) drops hidden ids from `resolve_via` and counts only visible ones; the next
+  supervisor round adds that line to T04c1.
