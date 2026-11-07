@@ -6,14 +6,17 @@ The entry point ``throughline.modules`` / ``awp`` in this package's ``pyproject.
 
 from __future__ import annotations
 
+from tl_core.constraints.commands import RaiseConstraint
+from tl_core.constraints.handlers import handle_raise_constraint
 from tl_core.modules import ModuleSpec, ProposableCommand
 from tl_core.projection.types import Projector
 
 from tl_mod_awp import MODULE
 from tl_mod_awp.actions import awp_actions
-from tl_mod_awp.commands import AWP_COMMANDS, CreateCwp
+from tl_mod_awp.commands import AWP_COMMANDS, AddIwpScope, CreateCwp
 from tl_mod_awp.guards import iwp_not_closed, not_closed
 from tl_mod_awp.handlers.cwp import handle_create_cwp
+from tl_mod_awp.handlers.scope import handle_add_iwp_scope
 from tl_mod_awp.names import (
     CWA,
     CWP,
@@ -59,7 +62,11 @@ PACKAGE_GENERIC_COMMANDS = frozenset({"AddLink", "SuggestLink"}) | LINK_LIFE
 
 #: What an agent may propose (ADR-0014 section 8): a new package. Accepting runs ``CreateCwp`` as
 #: the accepting person, who needs ``awp.cwp.edit`` (a ``user`` word).
-PROPOSABLE = (ProposableCommand("propose_cwp", CreateCwp, handle_create_cwp, "user"),)
+PROPOSABLE = (
+    ProposableCommand("propose_cwp", CreateCwp, handle_create_cwp, "user"),
+    ProposableCommand("propose_constraint", RaiseConstraint, handle_raise_constraint, "user"),
+    ProposableCommand("propose_iwp_scope", AddIwpScope, handle_add_iwp_scope, "user"),
+)
 
 
 def projectors() -> list[Projector]:
