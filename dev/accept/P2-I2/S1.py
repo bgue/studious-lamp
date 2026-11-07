@@ -1,4 +1,4 @@
-"""Acceptance for P2-I2-S1: awp schema part 2 (IWP, scope item, constraint, closeout, readiness, events).
+"""Acceptance for P2-I2-S1: awp schema part 2 (IWP, scope item, constraint, closeout, readiness).
 Exit 0, one ``PASS <check>`` line per check, then ``S1 ok``. SQLite only; no network.
 
 Run: ``uv run python dev/accept/P2-I2/S1.py``.
