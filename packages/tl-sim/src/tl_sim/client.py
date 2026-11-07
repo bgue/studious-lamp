@@ -583,12 +583,14 @@ class HttpSimClient:
     def raise_constraint(self, subject_id: str, category: str, description: str) -> dict[str, Any]:
         """Raise a manual blocking constraint on a ready-phase record (``RaiseConstraint``).
 
-        The command is validated from a dict: ``category`` is a literal in the model, and the
-        model's validator (not the type checker) is what refuses a bad one."""
+        The raising person is the owner (a manual constraint needs one). The command is validated
+        from a dict: ``category`` is a literal in the model, and the model's validator (not the
+        type checker) is what refuses a bad one."""
         self._clock.tick()
         cmd = RaiseConstraint.model_validate(
             {
                 **self._common(),
+                "owner": self._identity,
                 "subject": subject_id,
                 "phase": "ready",
                 "severity": "blocking",

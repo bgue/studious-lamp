@@ -11,6 +11,7 @@ from typing import Any
 
 from suite import ACME, Suite, build_suite, close_suite
 from test_end_to_end import RUN_ID, SuiteConnector
+from tl_core.auth import accounts
 from tl_core.services.commands import CommandResult
 from tl_mod_awp.iwp_views import IwpRow
 from tl_mod_engineering.document import load_standards_file
@@ -237,6 +238,7 @@ def test_the_http_client_is_an_iwp_desk_and_pins_the_command_names_and_bodies() 
         "manual",
     )
     assert (raised["subject"], raised["category"]) == (iwp["id"], "materials")
+    assert raised["owner"] == IDENTITY
     assert (bodies["ClearConstraint"]["constraint"], bodies["ClearConstraint"]["reason"]) == (
         "c1",
         "cleared by planner",
@@ -267,6 +269,16 @@ def real_suite(tmp_path: Path, monkeypatch: Any) -> Suite:
             actor="user:seed",
             source="test",
         )
+    with built.backend(False) as uow:  # a manual constraint's owner must be an account
+        accounts.create_account(
+            uow,
+            username="sim-iwp_planner",
+            display_name="Sim planner",
+            kind="sim",
+            roles=["user"],
+            password=None,
+            by="svc:test",
+        )
     return built
 
 
@@ -293,9 +305,8 @@ def test_real_suite_run_creates_iwps_and_scope_items_with_no_error(
     tmp_path: Path, monkeypatch: Any
 ) -> None:
     """Acceptance line (P2-I2-T10a): three ticks of the real planner on the real suite, no error,
-    at least one numbered IWP and one scope item. Constraints are off here: the real suite
-    refuses a manual constraint without an owner (ConstraintRuleError), and the ticket's
-    ``raise_constraint`` names no owner (open question in the report)."""
+    at least one numbered IWP and one scope item; the planner raises a manual constraint owned by
+    its own identity each day it draws one, and clears one earlier constraint a day."""
     built = real_suite(tmp_path, monkeypatch)
     try:
         scenario = Scenario.model_validate(
@@ -305,7 +316,7 @@ def test_real_suite_run_creates_iwps_and_scope_items_with_no_error(
                     "iwp_planner": {
                         "iwps_per_day": 1,
                         "scope_items": 2,
-                        "constraint_rate": 0.0,
+                        "constraint_rate": 1.0,
                         "clears_per_day": 1,
                     }
                 },
@@ -325,5 +336,8 @@ def test_real_suite_run_creates_iwps_and_scope_items_with_no_error(
         )
         items = [t for t in sim.truth() if t.expect.get("record_type") == "awp.ScopeItem"]
         assert len(items) >= 1
+        cons = built.api(ORCHESTRATOR).list_constraints(f"sim-{RUN_ID}", limit=200).rows
+        states = sorted(c.state for c in cons)
+        assert len(cons) == 3 and states == ["Cleared", "Cleared", "Open"], states
     finally:
         close_suite(built)
