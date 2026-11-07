@@ -23,7 +23,7 @@ from tl_api.commands import (
     TableCommandRunner,
     effective_access,
 )
-from tl_core.auth import accounts
+from tl_core.auth import access_words, accounts
 from tl_core.auth.access_words import AccessWordError
 from tl_core.auth.errors import ForbiddenError
 from tl_core.auth.module_grants import GrantModuleRole, grant_module_role
@@ -88,39 +88,51 @@ def test_legacy_has_no_api_commands_and_no_words() -> None:
 def test_every_module_row_of_the_api_table_is_in_the_index_and_nothing_else_is() -> None:
     index = command_index()
     assert {s.name for s in COMMANDS if s.module is not None} == set(index)
-    assert {m for m, _ in index.values()} == set(API_COMMANDS_OF)
+    assert {m for m, _ in index.values()} == {"awp", *API_COMMANDS_OF}
     assert {w for _, w in index.values()} <= {"admin", "company", "read", "user", "controller"}
 
 
-def test_command_index_reads_a_fine_word_as_its_table_word() -> None:
-    class ReleaseCwp(Command): ...
+# The stand-in's fine words are not in schema/settings/access-words.yaml (that table is data, not
+# edited here); the tests that need them put them in the table's loaded copy for their own run.
+EXAMPLE_WORDS = {"example.thing.release": "controller", "example.view": "read"}
 
-    class ViewCwp(Command): ...
+
+def table_with_example_words() -> dict[str, str]:
+    return {**access_words.load_access_words(), **EXAMPLE_WORDS}
+
+
+def test_command_index_reads_a_fine_word_as_its_table_word() -> None:
+    class ReleaseThing(Command): ...
+
+    class ViewThing(Command): ...
 
     stand_in = ModuleSpec(
-        name="awp",
-        record_types=frozenset({"awp.Cwp"}),
+        name="example",
+        record_types=frozenset({"example.Thing"}),
         projectors=list,
-        command_words={"ReleaseCwp": "awp.cwp.release", "ViewCwp": "awp.view"},
+        command_words={"ReleaseThing": "example.thing.release", "ViewThing": "example.view"},
     )
-    with use_modules([*load_modules(), stand_in]):
+    with (
+        mock.patch.object(access_words, "_default", table_with_example_words()),
+        use_modules([*load_modules(), stand_in]),
+    ):
         found = command_index()
-    assert found["ReleaseCwp"] == ("awp", "controller")
-    assert found["ViewCwp"] == ("awp", "read")
+    assert found["ReleaseThing"] == ("example", "controller")
+    assert found["ViewThing"] == ("example", "read")
 
 
 def test_command_index_refuses_an_unknown_fine_word_and_a_name_in_two_modules() -> None:
     typo = ModuleSpec(
-        name="awp",
-        record_types=frozenset({"awp.Cwp"}),
+        name="example",
+        record_types=frozenset({"example.Thing"}),
         projectors=list,
-        command_words={"ReleaseCwp": "awp.cwp.relase"},
+        command_words={"ReleaseThing": "example.thing.relase"},
     )
     with use_modules([*load_modules(), typo]), pytest.raises(AccessWordError):
         command_index()
     twin = ModuleSpec(
-        name="awp",
-        record_types=frozenset({"awp.Cwp"}),
+        name="example",
+        record_types=frozenset({"example.Thing"}),
         projectors=list,
         command_words={"RegisterDocument": "user"},
     )
@@ -133,37 +145,40 @@ def test_command_index_refuses_an_unknown_fine_word_and_a_name_in_two_modules() 
 def test_a_fine_word_decides_a_command_through_its_table_word(db: DbTarget) -> None:
     create_schema(db)
 
-    class ReleaseCwp(Command): ...
+    class ReleaseThing(Command): ...
 
-    class ViewCwp(Command): ...
+    class ViewThing(Command): ...
 
     stand_in = ModuleSpec(
-        name="awp",
-        record_types=frozenset({"awp.Cwp"}),
+        name="example",
+        record_types=frozenset({"example.Thing"}),
         projectors=list,
-        command_words={"ReleaseCwp": "awp.cwp.release", "ViewCwp": "awp.view"},
+        command_words={"ReleaseThing": "example.thing.release", "ViewThing": "example.view"},
     )
     world = Seams(db)
     world.person("viv")
     world.person("uma")
     world.person("sue")
-    with use_modules([*load_modules(), stand_in]):
-        world.grant("viv", P1, "awp", "viewer")
-        world.grant("uma", P1, "awp", "user")
-        world.grant("sue", P1, "awp", "superuser")
-        check_fine_word(db, ReleaseCwp, ViewCwp)
+    with (
+        mock.patch.object(access_words, "_default", table_with_example_words()),
+        use_modules([*load_modules(), stand_in]),
+    ):
+        world.grant("viv", P1, "example", "viewer")
+        world.grant("uma", P1, "example", "user")
+        world.grant("sue", P1, "example", "superuser")
+        check_fine_word(db, ReleaseThing, ViewThing)
 
 
-def check_fine_word(db: DbTarget, ReleaseCwp: type[Command], ViewCwp: type[Command]) -> None:
+def check_fine_word(db: DbTarget, ReleaseThing: type[Command], ViewThing: type[Command]) -> None:
     with open_uow(db, readonly=True) as uow:
         conn = uow.conn()
         for who, release, view in (("viv", False, True), ("uma", False, True), ("sue", True, True)):
-            for cls, allowed in ((ReleaseCwp, release), (ViewCwp, view)):
+            for cls, allowed in ((ReleaseThing, release), (ViewThing, view)):
                 command = cls(actor=f"user:{who}", source="t", scope=P1)
                 if allowed:
                     require_command_access(conn, command)
                 else:
-                    with pytest.raises(ForbiddenError, match="controller access word for awp"):
+                    with pytest.raises(ForbiddenError, match="controller access word for example"):
                         require_command_access(conn, command)
 
 
@@ -421,7 +436,9 @@ def generic_picks() -> list[tuple[str, str, str]]:
 
 
 def test_every_module_with_a_record_type_is_walked_by_the_require_generic_test() -> None:
+    # legacy has no record type with a generic command, so it is not walked (awp is installed now)
     assert [m for m, _, _ in generic_picks()] == [
+        "awp",
         "correspondence",
         "cost",
         "documents",

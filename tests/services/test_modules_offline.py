@@ -108,7 +108,7 @@ def test_a_consistent_spec_passes() -> None:
 
 def test_the_real_modules_load_and_declare_only_draft_only_types() -> None:
     specs = load_modules()
-    assert len(specs) == 8
+    assert len(specs) == 9
     from tl_schema.generated.offline_classes import OFFLINE_CLASSES
 
     for spec in specs:
@@ -129,8 +129,9 @@ def test_discovery_runs_the_check_on_every_module(monkeypatch: pytest.MonkeyPatc
     monkeypatch.setattr(modules, "check_offline", spy)
     monkeypatch.setattr(modules, "_loaded", None)
     monkeypatch.setattr(modules, "_override", None)
-    assert len(modules.load_modules()) == 8
+    assert len(modules.load_modules()) == 9
     assert sorted(seen) == [
+        "awp",
         "correspondence",
         "cost",
         "documents",
