@@ -42,4 +42,5 @@ GET routes (embedded and remote, as the existing awp reads) for IWP list/detail/
 (implementer writes here)
 
 ## Decision
-(supervisor or orchestrator writes here)
+r8 (orch dec, D32): add `visible_readiness(conn, scope, key, viewer)` to `tl_mod_awp/readiness/views.py` and have the route call it. References are filtered by the viewer in one batch; a visible ref carries its display key (`record_type`, `key`); check `state` and counts stay as evaluated. This REVISES the "counts of the visible set" line above (D20-22): counts are the evaluated ones, the refs are the visible ones. Constraint groups carry `truncated: true` past `MAX_LIMIT`.
+r8 (sup): constraint route rows and the detail also carry `subject_key` and `subject_type` (one batch lookup on `cur_core_record` for the page's subject ids, after the viewer filter); the screens (T04b) print the subject key and the view has only `subject_id`. Hidden subject: the row is already absent.

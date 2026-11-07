@@ -1,4 +1,4 @@
-# P2-I2 STATE  r=7 base=65b803d C=1 ck=0 gate=n/a wt=/home/user/wt/p2-i2
+# P2-I2 STATE  r=8 base=c8c0e20 C=1 ck=0 gate=n/a wt=/home/user/wt/p2-i2
 ## BOARD   (ws A=IWP/constraints/sign-off, B=readiness+screens+web twins; col 6 starts with ws)
 S1 p mrg f - A schema part 2 (APPROVALS done)
 S2 p mrg f - A IWP+scope cmds; constraint half replaced by C1/C2
@@ -13,19 +13,20 @@ T06a2 t mrg f 9098b51 B rfis_answered
 S5 p stg f - A tests piece spec r6; twin D26, F3 note, 5 mutants
 T04a t mrg f a486da0 A IWP + scope views (subject fix not applied; accepted)
 T04a2 t mrg f 9bb01f6 A core owner filter + review_groups; merged @4b5805b
-T04c1 t stg f - A API read routes; spec refined r7, ready to dispatch
-T04c2 t todo f - A client methods + fakes (dep T04c1)
-T04d t disp f - A iwp+constraint CLI reads; in wf with T04e1 T04e2
-T04e1 t disp f - A awp iwp writes CLI; in wf
-T04e2 t disp f - A tl constraint writes CLI; in wf
-T04d2 t stg f - A tl awp readiness ls|show; spec r7, ready to dispatch
+T04c1 t disp f - A API read routes; builder retry running (D32, subject_key)
+T04c2 t stg f - A client methods + fakes; spec r8, after T04c1
+T04d t mrg f 02f8d50 A iwp+constraint CLI reads; merged @d4cbb23
+T04e1 t mrg f 2bbcba4 A awp iwp writes CLI; merged @b2054c3 (LO _cwp_id copy accepted)
+T04e2 t mrg f 70c0b00 A tl constraint writes CLI; merged @c8c0e20
+T04d2 t stg f - A readiness CLI; blk on gap, respec r8 on visible_readiness, after T04c1
 T04g t stg f - A glue: groups, T04d2 register, hook line (dep T04d T04e1 T04e2; T04d2 optional)
-T04b t todo f - A constraint_text + screen + per-record log (dep T04c2)
-T07a t todo f - B readiness_text + screen (dep T04c2)
-T07b t todo f - B iwp_text + log + tabs (dep T04c2)
-T08 t todo f - B sizing surface + backlog tile (dep T04c2 S4)
-T09a t todo l - A reports (dep T04a S4)
-T09b t todo f - A MCP reads + proposals (dep T04c2 C2)
+T04b t stg f - A constraint_text + screen + per-record log; spec r8, after T04c2
+T07a t stg f - B readiness_text + screen; spec r8, after T04c2
+T07b t stg f - B iwp_text + log + IWP screen (no tabs, D33); spec r8, after T04c2
+T08 t stg f - B backlog weeks + sizing screen (D34); spec r8, after T04c2
+T09a t disp l - A six IWP/constraint reports in awp_report; spec r8, dispatched
+T09b t stg f - A 7 read tools + 2 proposals; spec r8, after T04c1 (not T04c2)
+T07c t todo f - B glue: IWP screen keys to readiness and constraint log, nav, palette (dep T04b T07a T07b)
 TW1 t todo f - B web IWP log+record (dep T07b)
 TW2 t todo f - B web constraint review (dep T04b)
 TW3 t todo f - B web readiness+tile (dep T07a T08)
@@ -64,18 +65,24 @@ D28 2026-11-07 r6: AWP_COMMANDS already carries S3 (api registry splats it); MCP
 D29 2026-11-07 r7: T04c1 names fixed from S4 report: `readiness.views.readiness(conn,scope,key)` (None = missing/hidden/never evaluated, one 404); route drops facts_hash; no project-wide readiness route; constraint word check is a guard dependency
 D30 2026-11-07 r7: T04d2 module `awp_readiness_read.register(awp_app)` adds the `readiness` group itself (not under iwp); readiness hook lines for glue: S4 report "Facts for the glue"
 D31 2026-11-07 r7: S4 report open items kept for S5/later: F3 raw requeue UPDATE (a tl_core.jobs requeue API), change during a running job not requeued, per-viewer redaction of a hidden-blocker ReadinessEvaluated event deferred (orch logs)
+D32 2026-11-07 orch r8: `visible_readiness(conn, scope, key, viewer)` in awp readiness/views.py: refs filtered by viewer in one batch, visible refs carry display keys; check state and counts as evaluated (REVISES D20-22 "counts visible only"); constraint groups `truncated: true` past MAX_LIMIT; T04c1 retry, T04d2 and T09b use it
+D33 2026-11-07 r8: T07b has no Ready/Constraints columns and no tabs (IwpRow lacks the counts, no read per row); T07c wires IWP screen keys to the readiness screen and constraint log after T04b, T07a, T07b; list-level counts are a follow-up read
+D34 2026-11-07 r8: backlog weeks = sum of ceil(days inclusive/7) over a foreman's Ready and Issued IWPs vs awp.backlog.target_weeks; undated adds 0; sizing = hours outside awp.iwp.size_hours; T08
+D35 2026-11-07 r8: T09a extends `tl awp report` (awp_report.py) with six names, no new registration; iwp_readiness prints check names and states only (no refs, no counts)
+D36 2026-11-07 r8: T04c1 rows and detail owe `subject_key`, `subject_type` (ConstraintView has only subject_id); noted in its Decision; T04c2 stops if absent
 ## SEC   (none yet; rows in README "Security rows"; SR2 mandatory at C4, range 34696bc..p2/i2 head, <=450k)
 ## OPEN
 Q1 hold-on-new-constraint rule (brief: a new constraint on an Issued IWP puts it On hold) has no owner; in DEFERRED; needs orch raised r3.
 ## NEXT
-1. Orch, when a slot frees: dispatch T04c1 and T04d2 (disjoint paths; one workflow, wts i2/t04c1, i2/t04d2). Then T04g after T04d/e1/e2 merge (T04d2 if merged).
-2. r8 on those merges: T04c2 (client methods + fakes, dep T04c1), T04g if not yet sent, S5 phase 1 spec check.
-3. After T04c2: T04b, T07a, T07b, T08 (screens, parallel by path); then TW1-3 (each after its text module); T09a any time (dep merged); T09b after T04c2.
-4. P2-SEED follow-up (branch p2/seed, do not edit): awp generator section seeds core constraints; orch adds a ticket line.
-5. C3: S5 beside T10b. C4: gate per package, demo both adapters, tour once, SR2 mandatory, report.
-6. Capacity: weekly 80%, slice to 90%; new dispatch stops at 89%.
+1. Orch: dispatch T09a now (alone; wt i2/t09a). T04c1 builder retry runs (heavy slot 1).
+2. On T04c1 merge: T04c2, T04d2 (respec'd), T09b (disjoint paths; one workflow of up to 3, or T04c2 + T04d2 first).
+3. After T04c2: T04b, T07a, T07b, T08 in parallel by path (screens; each a full review). Then T07c glue, TW1-3.
+4. r9: T04g after T04d2 merges (needs register of awp_readiness_read); T10a after T09a; S5 phase 1 spec check; write T07c, TW1-3 specs once text modules merge.
+5. P2-SEED follow-up (branch p2/seed, do not edit): awp generator seeds core constraints; orch adds a ticket line.
+6. C3: S5 beside T10b. C4: gate per package, demo both adapters, tour once, SR2 mandatory, report.
+7. Capacity: weekly 80%, slice to 90%; new dispatch stops at 89%.
 ## WAVE2 REMAINS FOR DONE  (H=Haiku ticket, B=builder piece; deps in brackets)
-H T04c1 API routes [ready] | H T04d2 readiness CLI [ready] | H T04g glue [T04d T04e1 T04e2 in flight] | H T04c2 client+fakes [T04c1]
+H T04c1 API routes [builder retry] | H T04d2 readiness CLI [T04c1] | H T04g glue [T04d T04e1 T04e2 merged; waits T04d2] | H T04c2 client+fakes [T04c1]
 H T04b constraint_text+screen+log [T04c2] | H T07a readiness_text+screen [T04c2] | H T07b iwp_text+log+tabs [T04c2] | H T08 sizing+backlog tile [T04c2]
 H TW1 web IWP [T07b] | H TW2 web constraints [T04b] | H TW3 web readiness+tile [T07a T08] (web twins are in plan, D7; each: one page over the text module)
 H T09a reports lite [ready now: T04a, S4 merged] | H T09b MCP reads+proposals [T04c2, C2; Haiku only with tool names and access words given in the ticket, else B]
@@ -83,7 +90,7 @@ H T10a sim desk+actor lite [T09a] | H T10b demo script P2-I2.sh [T10a TW1-3 S3; 
 B S5 tests piece [all of T04d/e1/e2/g, T04c1 merged; runs beside T10b] | per-folder run = C4 gate per package + demo + tour (orch)
 Critical chain: T04c1 -> T04c2 -> T07b -> TW1 -> T10b -> T12. Parallel now: T04c1, T04d2, T09a (3 slots, one workflow each at most 3 items).
 ## REFS
-Staged: T04c1 (refined r7), T04d2 (r7), T04d, T04e1, T04e2, T04g, S5-tests.md (r6). Contract: packages/tl-core/src/tl_core/readiness/types.py (frozen), harness.py. ADR docs/adr/0024-constraints-on-any-record.md (v2), 0025 (later). Specs: C1, C2, S3, S4 in this folder; S2 constraint code reference: git show d2409f5:packages/tl-modules/awp/src/tl_mod_awp/constraints.py.
+Staged r8: T04c2, T04b, T07a, T07b, T08, T09b (specs in this folder), T09a (dispatched), T04d2 respec'd, T04g, S5-tests.md (r6). Contract: packages/tl-core/src/tl_core/readiness/types.py (frozen), harness.py. ADR docs/adr/0024-constraints-on-any-record.md (v2), 0025 (later). Specs: C1, C2, S3, S4 in this folder; S2 constraint code reference: git show d2409f5:packages/tl-modules/awp/src/tl_mod_awp/constraints.py.
 Template check: packages/tl-modules/materials/src/tl_mod_materials/readiness.py. Owner answers: docs/build-spec/module-designs/OWNER-DECISIONS-2026-10-30.md. README is the spec of record.
 T06a3 spec: docs/tickets/P2-I2/T06a3-pin-resolver.md. Seed ledger .accept/p2-i2.db is regenerated by C2's script.
 ## TRAPS

@@ -1,11 +1,11 @@
 # P2-I2-T04d2 — CLI readiness reads: `tl awp readiness ls|show`
 
-Status: ready (S4 merged; runs beside or after T04d, no shared file)
+Status: staged r8: dispatch after T04c1 merges (needs `visible_readiness`, D32)
 Tier: haiku
 Kind: ticket
 Review: full
 Labels: cli, read, confidentiality
-Depends on: T04a, S4 (merged). Glue T04g adds the `register` call
+Depends on: T04a, S4 (merged), T04c1 (`visible_readiness`). Glue T04g adds the `register` call
 Branch: `p2/i2-t04d2-cli-readiness`
 Worktree: harness-created under `/home/user/wt/i2/t04d2` (from `p2/i2` head)
 
@@ -15,7 +15,7 @@ Same style as `awp_read.py`: one fact per line, two spaces between fields, `-` f
 
 ## Brief references (pasted)
 > Reads (all from the merged tree, no check runs here, no new query):
-> - `tl_mod_awp.readiness.views.readiness(conn, scope, iwp_key) -> ReadinessView | None`. `None` is no IWP, a hidden IWP, or one never evaluated; all three answer alike.
+> - `tl_mod_awp.readiness.views.visible_readiness(conn, scope, iwp_key, viewer) -> ReadinessView | None` (D32, added by T04c1; refs already filtered by the viewer and carrying display keys; check states and counts as evaluated). Use it, never `readiness()` (it does not filter refs). `None` is no IWP, a hidden IWP, or one never evaluated; all three answer alike.
 >   `ReadinessView`: `iwp_id evaluated_at today ready facts_hash checks`. `CheckResult`: `name version state detail resolve_via count_ok count_total`; `resolve_via` is a list of `RecordRef(record_id, record_type, key)`.
 > - `tl_mod_awp.iwp_views.iwp_list(conn, scope, *, state, discipline, foreman, limit)` gives the IWP rows (`number`, `state`, `title`...) the `ls` verb walks.
 > - Passing states are `ok` and `n_a` (`readiness.engine.PASSING`); `n_a` counts as passing (D9). Import the frozenset, do not copy it.
@@ -55,6 +55,9 @@ Standard report (`docs/templates/haiku-report.md`), <= 60 lines, deviations firs
 
 ## Blocked
 (implementer writes here)
+
+## Retry note (r8)
+First attempt blocked: `readiness()` returned hidden refs. Use `visible_readiness` (D32); print `record_type` and `key` of the refs it returns, never an id. Counts print as evaluated.
 
 ## Decision
 (supervisor or orchestrator writes here)
