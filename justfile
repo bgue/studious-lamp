@@ -52,6 +52,11 @@ gate-pg *args:
 seed scale="xs" *args:
     bash dev/seed/seed.sh {{scale}} {{args}}
 
+# The demo project P200 (industrial, deterministic), built in a new ledger: a SQLite path or a postgresql:// URL.
+# The recipe line is not echoed (a URL holds the password). Clients read it with TL_SCHEMA_DIR=dev/data/demo-project-schema (the generator prints this); docs/tickets/P2-SEED
+demo-project db="dev/data/demo-project.db" *args:
+    @uv run python -m dev.seed.demo_project --db {{db}} {{args}}
+
 # REST API and SSE stream on the dev ledger (TL_DB, TL_TOKENS; loopback only unless --insecure-dev)
 serve *args:
     uv run python -m tl_api {{args}}
