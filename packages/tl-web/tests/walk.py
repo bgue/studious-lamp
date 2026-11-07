@@ -258,6 +258,13 @@ WALK: dict[tuple[str, str], Row] = {
         _page("locations"),
     ),
 
+    # --- TW1 rows (IWP log): add them under this line
+    ("GET", "/web/p/{project}/iwps"): Row(
+        "IWP numbers, subjects, foremen, planned starts, scope counts, hours and the IWP panel "
+        "with its scope rows and sign-offs",
+        _page("iwps"),
+    ),
+
     ("GET", "/web/p/{project}/{log}/panel/{number:path}"): Row(
         "the panel of one row of a log: details, files, clocks, links", _panels
     ),

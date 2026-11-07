@@ -42,6 +42,7 @@ PAGE_MODULES = (
     "tl_web.pages.locations",
     "tl_web.pages.record",
     "tl_web.pages.viewer",
+    "tl_web.pages.iwps",
 )
 
 

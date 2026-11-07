@@ -27,6 +27,8 @@ NOT_READS: frozenset[str] = frozenset()
 ABSENT = frozenset(
     {
         "get_cwp",
+        "get_iwp",
+        "list_iwp_scope",
         "get_wbs_node",
         "get_path",
         "get_materials_lot",
@@ -61,7 +63,7 @@ def as_json(value: Any) -> Any:
 
 
 def test_the_mirror_count_is_pinned(k: Any) -> None:
-    assert len(MIRRORS) == 42, (
+    assert len(MIRRORS) == 45, (
         "MIRRORS in tl_web/reads.py changed size: twin tickets raise this number in their own "
         "ticket (and add the read to this test's CASES)"
     )
@@ -161,6 +163,13 @@ def cases(w: Any) -> dict[str, tuple[tuple[Any, ...], dict[str, Any], dict[str, 
         "get_materials_mto_line": ((P, "MTO-1"), {}, {"project": P, "key": "MTO-1"}),
         "list_materials_items": ((), {"project": P}, {"project": P}),
         "list_materials_item_projects": (("ITEM-1",), {}, {"code": "ITEM-1"}),
+        "list_iwps": ((P,), {}, {"project": P}),
+        "get_iwp": ((P, "P123-IWP-PIP-0001"), {}, {"project": P, "number": "P123-IWP-PIP-0001"}),
+        "list_iwp_scope": (
+            (P, "P123-IWP-PIP-0001"),
+            {},
+            {"project": P, "number": "P123-IWP-PIP-0001"},
+        ),
     }
 
 

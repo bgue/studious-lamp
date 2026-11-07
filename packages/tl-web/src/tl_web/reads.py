@@ -102,6 +102,9 @@ MIRRORS: dict[str, str] = {
     "get_materials_mto_line": "get_materials_mto_line",
     "list_materials_items": "list_materials_items",
     "list_materials_item_projects": "list_materials_item_projects",
+    "list_iwps": "list_iwps",
+    "get_iwp": "get_iwp",
+    "list_iwp_scope": "list_iwp_scope",
 }
 
 
@@ -469,3 +472,14 @@ class WebReadClient:
 
     def list_materials_item_projects(self, code: str) -> Any:
         return self._call(materials_routes.list_materials_item_projects, code=code)
+
+    # --- iwp (P2-I2): the IWP log and an IWP's page -------------------------------------------
+
+    def list_iwps(self, project: str, **filters: Any) -> Any:
+        return self._call(awp_routes.list_iwps, project=project, **filters)
+
+    def get_iwp(self, project: str, number: str) -> Any:
+        return self._call(awp_routes.get_iwp, project=project, number=number)
+
+    def list_iwp_scope(self, project: str, number: str, **filters: Any) -> Any:
+        return self._call(awp_routes.list_iwp_scope, project=project, number=number, **filters)
