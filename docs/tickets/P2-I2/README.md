@@ -1,13 +1,13 @@
 # P2-I2 — IWP, constraints, readiness, release sign-off (module M3, part 2)
 
-Status: plan re-cut r2 after the plan check (5 pieces, 20 tickets); S1 dispatched alone. Plan source: `docs/build-spec/08-phase2-plan.md`
+Status: r3 re-cut for ADR-0024 (constraints are core): 5 pieces + 2 core pieces (C1, C2), 20 tickets. S1, S2 merged. Plan source: `docs/build-spec/08-phase2-plan.md`
 "Increment 2" (re-cut here). Wave order and registries: `docs/build-spec/specs/phase2-wave-plan.md` (wave 2) and
 `08-phase2-plan.md` §0.3. Contract: `packages/tl-core/src/tl_core/readiness/types.py` (frozen). Board: `STATE.md`.
 Branch `p2/i2`, trunk `claude/wizardly-allen-m2v96s` @34696bc (M3 part 1, M4 and web client wave 1 merged).
 
 ## Objective
 After this increment the `awp` module holds installation work packages (IWPs): scope items (`awp.ScopeItem`, P2-Q7 A),
-pinned documents, constraints with need-by dates and owners, a readiness engine of plug-in checks, release by two-person
+pinned documents, constraints (core records, ADR-0024) with due dates and owners, a readiness engine of plug-in checks, release by two-person
 sign-off, issue to a foreman, and the `IWP.Ready` webhook. The same state reads over terminal, web twin, API and MCP;
 readiness history is in the ledger. `materials_reserved` (shipped by M4) turns `ok` on a real IWP. Out of scope: weekly
 cycle, rules of credit, progress, IWP pack, closeout commands (I5); scaffold check (I4-B); permit, ITP and model records
@@ -43,21 +43,23 @@ contract and `tl_mod_awp.facts.iwp_facts` from S1.
 | Id | ws | Piece | Spec | Depends | Sec |
 |---|---|---|---|---|---|
 | S1 | A | Schema part 2: IWP, ScopeItem, Constraint, IWPCloseout (schema only), readiness tables and events, three workflows, numbering, class-level permit `tl:expects_link`, `iwp_facts`. Human gate: orchestrator (P2-Q10) | written, r2 fixed | wave 1 | schema |
-| S2 | A | IWP, scope and constraint commands (old S2+S3, F5): `CreateIwp`, scope item create, `AddIwpScope`/`RemoveIwpScope`, `PinIwpDocument`, `SplitIwp`, state guards, sizing warning, constraint raise (five sources), assign, clear with `resolves` link, aging, `blocks` link, R-P2-11 suppress. Owns `module.py`, `names.py`, `AWP_COMMANDS` edits | r2 | S1 | guards, by_module sources |
-| S3 | A | `SignOffIwp`, `IssueIwp`, `HoldIwp`, `ReleaseHold` (P2-Q2 access, distinct signers, record hash). Signer-role check is permission code: orchestrator gate (P2-Q10) | r3 | S2, S4 | access words |
-| S4 | B | Readiness engine in `tl_mod_awp/readiness/` only: registry use, job `awp.readiness`, `IWP.ReadinessEvaluated`, `IWP.Ready`, projector `cur_awp_readiness`, `request`, `evaluate_now`; Constraint check <-> Ready moves; check-source constraints through S2's raise (F6); check `constraints_cleared` (F4); event-to-IWP mapping by `work_package_id` for watched types, else `evaluate_now` (F3). Hook line in `module.py` is C2 glue (F5) | r3 | S1, S2 | job, event |
+| S2 | A | merged r3 (constraint half replaced by C1/C2). IWP, scope and constraint commands (old S2+S3, F5): `CreateIwp`, scope item create, `AddIwpScope`/`RemoveIwpScope`, `PinIwpDocument`, `SplitIwp`, state guards, sizing warning, constraint raise (five sources), assign, clear with `resolves` link, aging, `blocks` link, R-P2-11 suppress. Owns `module.py`, `names.py`, `AWP_COMMANDS` edits | r2 | S1 | guards, by_module sources |
+| C1 | A | Core constraint schema (ADR-0024): `core.Constraint`, events, workflow, `targets`, words, guard kind in the model, opt-in lines on CWP and IWP (`ready`), awp class and code removed. Gate: orchestrator + APPROVALS | written | S2 | schema |
+| C2 | A | Core constraint commands: four commands, frozen `raise_constraint`/`clear_constraint`/`open_blocking`, guard evaluation, confidentiality join to the subject, S2 constraint code moved (`iwp_id` -> `subject_id`) | written | C1 | guard, class join |
+| S3 | A | `SignOffIwp`, `IssueIwp`, `HoldIwp`, `ReleaseHold` (P2-Q2 access, distinct signers, record hash). Signer-role check is permission code: orchestrator gate (P2-Q10) | r3 | S2 (no constraints, not S4) | access words |
+| S4 | B | Readiness engine in `tl_mod_awp/readiness/` only: registry use, job `awp.readiness`, `IWP.ReadinessEvaluated`, `IWP.Ready`, projector `cur_awp_readiness`, `request`, `evaluate_now`; Constraint check <-> Ready moves; check-source constraints through the frozen core raise (ADR-0024, F6); check `constraints_cleared` (F4); event-to-IWP mapping by `work_package_id` for watched types, else `evaluate_now` (F3). Hook line in `module.py` is C2 glue (F5) | r3 | S1, S2, C1 (tests that call the constraint functions run after C2) | job, event |
 | S5 | A | Tests piece (old T11, F14, F15): schema, guards, sign-off, engine, five-reader walk of every new route and tool, mutants (sentinel + <=5 per piece). Runs beside T10b | at C3 | all pieces, T04c2 | - |
 Owner policy kept from wave 1: tests deferred to S5; each piece leaves `dev/accept/P2-I2/<id>.py`; tour once at C4.
 
 ## Tickets (ticket tier; `review` lite or full; spec files written when their dependencies are in the tree)
 | Id | ws | Title | Rev | Depends |
 |---|---|---|---|---|
-| T04a | A | Read views: IWP, scope, constraint by owner, type, age (provided test) | full | S2 |
+| T04a | A | Read views: IWP, scope, constraint (core) by owner, category, age (provided test) | full | S2, C2 |
 | T04c1 | A | API read routes (IWP, constraints, readiness), embedded and remote | full | T04a, S4 |
 | T04c2 | A | `ApiClient` and TUI client methods with fakes | full | T04c1 |
-| T04d | A | CLI reads: `tl awp iwp\|constraint\|readiness ls\|show` (print keys, L-P2-I3-3) | full | T04a, S4 |
-| T04e | A | CLI writes: iwp, scope, pin, split, constraint, sign-off, issue, hold | full | S3 |
-| T04b | A | `constraint_text.py` (Textual-free) + TUI constraint review screen | full | T04c2 |
+| T04d | A | CLI reads: `tl awp iwp\|readiness ls\|show` and core `tl constraint ls\|show` (filters state, category, phase, blocking) (print keys, L-P2-I3-3) | full | T04a, S4 |
+| T04e | A | CLI writes: iwp, scope, pin, split, `tl constraint raise\|assign\|clear\|withdraw`, sign-off, issue, hold | full | S3, C2 |
+| T04b | A | `constraint_text.py` (Textual-free) + TUI constraint review screen and per-record constraint log | full | T04c2 |
 | T07a | B | `readiness_text.py` + TUI readiness screen, `resolve_via` jump | full | T04c2 |
 | T07b | B | `iwp_text.py` + IWP log and record tabs (scope, documents, constraints, readiness, history) | full | T04c2 |
 | T08 | B | Sizing warning surface; backlog-weeks-per-foreman tile (`awp.backlog.target_weeks`) | full | T04c2, S4 |
@@ -65,7 +67,7 @@ Owner policy kept from wave 1: tests deferred to S5; each piece leaves `dev/acce
 | T06a2 | B | Check `rfis_answered` in `tl_mod_correspondence` (F7) | full | S1, S2 |
 | T06b | B | Five `n_a` checks in `tl_mod_awp` with fixed notes (contract only, F9) | lite | S1 |
 | T09a | A | Reports and `tl awp report` (status, readiness, constraint log, by type, owner, age) | lite | T04a, S4 |
-| T09b | A | MCP reads and proposable `propose_constraint`, `propose_iwp_scope` (access `user`, pinned) | full | T04c2, S2 |
+| T09b | A | MCP reads and proposable `propose_constraint`, `propose_iwp_scope` (access `user`, pinned) | full | T04c2, C2 |
 | TW1 | B | Web twin: IWP log and record page (over T07b text module) | full | T07b |
 | TW2 | B | Web twin: constraint review page (over T04b) | full | T04b |
 | TW3 | B | Web twin: readiness page and tile (over T07a, T08) | full | T07a, T08 |
@@ -77,11 +79,11 @@ Registrations (`AWP_COMMANDS` splat, `MCP_ACTIONS`, `add_typer`, palette, readin
 ticket needs its text module in the tree first (L-P2-WEB1-1); one web page per twin ticket.
 
 ## Order of work and checkpoints
-S1 -> S2 (T06b beside S1) -> S4 (T06a1, T06a2, T04a beside) -> S3 -> T04c1 -> T04c2 -> read, screen and twin tickets -> T09, T10a -> T10b beside S5 -> T12.
-- C1: S1 merged (WS-B starts after S1). C2: S2, S3, S4, T06a1, T06a2, T04a, T04c1 merged and registrations done.
+S1 -> S2 (T06b beside S1) [merged] -> C1 beside S3 (T06a1, T06a2 beside) -> C2 beside S4 -> T04a, T04c1 -> T04c2 -> read, screen and twin tickets -> T09, T10a -> T10b
+- C1: S1 merged (WS-B starts after S1). C2: S2, C1, C2, S3, S4, T06a1, T06a2, T04a, T04c1 merged and registrations done (checkpoint names unchanged; pieces C1, C2 are not checkpoints).
 - C3: every ticket merged or abandoned, S5 merged. C4: full gate per package, demo green on both adapters, tour once,
   SR2 closed (mandatory, F11), report.
-Merge order: S1, S2, S4, S3, then T04c1; A owns conflicts; pinned lists are written as the union of both sides.
+Merge order: S1, S2, C1, S3, S4, C2, then T04c1; A owns conflicts; pinned lists are written as the union of both sides.
 
 ## Process lessons applied
 Gates name test files or one package (the 4-part whole gate OOMs on 16 GB, L-P2-I1-2, L-P2-I3-2); tests are
@@ -91,7 +93,7 @@ name; pinned module and command lists are written as the union; review demos and
 
 ## Security rows (SR2, mandatory at C4)
 SR2 scope: the rows below only, commit range `34696bc..p2/i2` head, <= 450k tokens, findings `F<n> <HI|MD|LO> file:line`.
-S2 raise sources and agent-proposed constraints; S3 access words, signer distinctness, record-hash check; S4 job claim and
+C1/C2 guard evaluation and constraint class join (hidden subject hides constraint, no-target twin), raise sources and agent-proposed constraints; S3 access words, signer distinctness, record-hash check; S4 job claim and
 settle, bounded `resolve_via`; T04c1 routes (read) and the five-reader confidentiality walk (hidden looks like missing);
 T09b agent tools; TW1-3 any web act through `run_command` with the origin check. Gates: S1 schema and S3 signer-role
 checks are the orchestrator's under P2-Q10 (APPROVALS line at merge).
@@ -142,3 +144,8 @@ F12 accepted: S1 gates one package per run and names the pinned-list files.
 F13 accepted: scope-item state moves left to I5; no `ReviseIwp` or `RevaiseIwp` command in S2 unless the demo needs a field change (it does not).
 F14 accepted: S5 (tests) runs beside T10b; twins folded into WS-B (two streams); 0042 cannot be seeded (no allocator start; `reserved` is per pattern), clause 1 says first is 0001 (D8).
 F15 partly waived: S2+S3 merged, S6 made tickets, T11 renamed S5; the per-stream split of the tests piece is waived (one cold start reads both streams once; S5 stays one piece, two ordered phases), giving 5p/20t.
+
+## Re-cut r3 (2026-11-07, owner parts A and B)
+ADR-0024 v2: constraints are core records on any record. Effort: 5 pieces + 2 core pieces (C1, C2), 20 tickets; WBS opt-in deferred (`docs/build-spec/DEFERRED.md`).
+The intent slot (ADR-0025) lands after the wave 2 close, before wave 3, not here. Per-record log and `tl constraint` CLI sit in T04b and T04d. Generator seeds: P2-SEED awp
+ticket follow-up (STATE NEXT). Cheapest tier per piece; testing is the ticket gates (S5 stays at C3).
