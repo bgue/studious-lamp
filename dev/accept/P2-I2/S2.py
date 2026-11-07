@@ -1,4 +1,4 @@
-"""Acceptance for P2-I2-S2: IWP, scope item, constraint commands. ``--keep PATH`` seeds PATH."""
+"""Acceptance for P2-I2-S2: IWP and scope item commands. ``--keep PATH`` seeds PATH."""
 
 from __future__ import annotations
 

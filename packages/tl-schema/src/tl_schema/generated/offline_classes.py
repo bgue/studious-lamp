@@ -9,7 +9,6 @@ OfflineClass = Literal["full", "draft_only", "none"]
 OFFLINE_CLASSES: Final[dict[str, OfflineClass]] = {
     "awp.CWA": "none",
     "awp.CWP": "draft_only",
-    "awp.Constraint": "draft_only",
     "awp.EWPRef": "none",
     "awp.IWP": "draft_only",
     "awp.IWPCloseout": "none",
@@ -17,6 +16,7 @@ OFFLINE_CLASSES: Final[dict[str, OfflineClass]] = {
     "awp.PathOfConstruction": "none",
     "awp.ScopeItem": "draft_only",
     "awp.WBSNode": "none",
+    "core.Constraint": "draft_only",
     "core.Record": "full",
     "correspondence.CommercialItem": "none",
     "correspondence.ContractClause": "none",

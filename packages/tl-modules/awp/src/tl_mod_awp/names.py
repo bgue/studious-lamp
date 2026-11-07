@@ -15,12 +15,9 @@ EWP: Final = "awp.EWPRef"
 PWP: Final = "awp.PWPRef"
 IWP: Final = "awp.IWP"
 SCOPE_ITEM: Final = "awp.ScopeItem"
-CONSTRAINT: Final = "awp.Constraint"
 IWP_CLOSEOUT: Final = "awp.IWPCloseout"
 COST_CODE: Final = "cost.CostCode"
-RECORD_TYPES: Final = frozenset(
-    {WBS_NODE, PATH, CWA, CWP, EWP, PWP, IWP, SCOPE_ITEM, CONSTRAINT, IWP_CLOSEOUT}
-)
+RECORD_TYPES: Final = frozenset({WBS_NODE, PATH, CWA, CWP, EWP, PWP, IWP, SCOPE_ITEM, IWP_CLOSEOUT})
 PACKAGE_TYPES: Final = (EWP, PWP)
 
 #: The namespace of a record key. A typed key cannot hold ``@``, so no typed record of another
@@ -38,7 +35,6 @@ EWP_TABLE: Final = "cur_awp_ewp_ref"
 PWP_TABLE: Final = "cur_awp_pwp_ref"
 IWP_TABLE: Final = "cur_awp_iwp"
 SCOPE_ITEM_TABLE: Final = "cur_awp_scope_item"
-CONSTRAINT_TABLE: Final = "cur_awp_constraint"
 IWP_CLOSEOUT_TABLE: Final = "cur_awp_iwp_closeout"
 READINESS_TABLE: Final = "cur_awp_readiness"
 READINESS_CHECK_TABLE: Final = "cur_awp_readiness_check"
@@ -107,15 +103,12 @@ ROLLUP_JOB_PREFIX: Final = "rollup:"
 #: scope record to the IWP (``SCOPE_RELATION``) and ``contains`` is its inverse reading.
 CONTAINS_RELATION: Final = "contains"
 SCOPE_RELATION: Final = "belongs_to"
-BLOCKS_RELATION: Final = "blocks"
-RESOLVES_RELATION: Final = "resolves"
 PIN_RELATION: Final = "references"
 DOCUMENT_TYPE: Final = "documents.Document"
 TAG_TYPE: Final = "engineering.Tag"
 
 IWP_VIEW: Final = "v_awp_iwp"
 SCOPE_ITEM_VIEW: Final = "v_awp_scope_item"
-CONSTRAINT_VIEW: Final = "v_awp_constraint"
 
 IWP_CREATED: Final = "IWP.Created"
 IWP_REVISED: Final = "IWP.Revised"
@@ -128,9 +121,6 @@ IWP_ISSUED_EVENT: Final = "IWP.Issued"
 IWP_HELD: Final = "IWP.Held"
 IWP_HOLD_RELEASED: Final = "IWP.HoldReleased"
 SCOPE_ITEM_CREATED: Final = "ScopeItem.Created"
-CONSTRAINT_RAISED: Final = "Constraint.Raised"
-CONSTRAINT_ASSIGNED: Final = "Constraint.Assigned"
-CONSTRAINT_CLEARED: Final = "Constraint.Cleared"
 
 #: The states of the IWP workflow (``schema/fixtures/workflows/awp-iwp.yaml``).
 IWP_DRAFT: Final = "Draft"
@@ -146,26 +136,16 @@ IWP_SPLIT_STATE: Final = "Split"
 IWP_CANCELLED: Final = "Cancelled"
 #: States in which the fields and the scope of an IWP may change (frozen from Ready).
 IWP_EDITABLE: Final = (IWP_DRAFT, IWP_DEVELOPMENT, IWP_CHECK)
-#: Terminal states: the generic commands (``guards.not_closed``) and a new constraint refuse them.
+#: Terminal states: the generic commands (``guards.not_closed``) refuse them.
 IWP_TERMINAL: Final = (IWP_CLOSED, IWP_SPLIT_STATE, IWP_CANCELLED)
-#: The states of the constraint workflow and of a scope item.
-CON_OPEN: Final = "Open"
-CON_ASSIGNED: Final = "Assigned"
-CON_CLEARED: Final = "Cleared"
-CON_VOID: Final = "Void"
+#: The states of a scope item.
 SCI_PLANNED: Final = "Planned"
 SCI_VERIFIED: Final = "Verified"
 SCI_VOID: Final = "Void"
 
-#: Constraint sources: a person raises ``manual``; a module raises the other four.
-SOURCE_MANUAL: Final = "manual"
-MODULE_SOURCES: Final = ("check", "rule", "feed_hold", "thread_hold")
-ALL_SOURCES: Final = (SOURCE_MANUAL, *MODULE_SOURCES)
-
 #: Fixed sizing warning codes (the ``message`` of a ``guards_evaluated`` entry of the event).
 WARN_OVERSIZE: Final = "iwp_oversize"
 WARN_UNDERSIZE: Final = "iwp_undersize"
-CODE_SUPPRESSED: Final = "suppressed"
 
 #: Sign-off, issue and hold (P2-I2 S3): settings, tables and the limits of the sign-off list.
 SIGNOFF_ROLES_SETTING: Final = "awp.release.signoff_roles"

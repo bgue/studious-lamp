@@ -31,12 +31,6 @@ from tl_mod_awp.fields import (
     parse_hours,
     parse_quantity,
 )
-from tl_mod_awp.handlers.constraint import (
-    handle_assign_constraint,
-    handle_clear_constraint,
-    handle_raise_constraint,
-    handle_void_constraint,
-)
 from tl_mod_awp.handlers.cwa import (
     handle_define_cwa,
     handle_retire_cwa,
@@ -99,9 +93,7 @@ from tl_mod_awp.limits import (
     HASH_PATTERN,
     MAX_ALLOCATIONS,
     MAX_BUDGET_TEXT,
-    MAX_CHECK_NAME,
     MAX_CLEAR_REASON,
-    MAX_CONSTRAINT_TEXT,
     MAX_CONTRACTOR,
     MAX_COST_CODE,
     MAX_CREW,
@@ -681,67 +673,6 @@ class CancelIwp(_Strict):
         return _text(value)
 
 
-class RaiseConstraint(_Strict):
-    """Raise a constraint on an IWP. A person raises ``manual`` only (``source_kind``: the field
-    ``source`` of a command is the caller's); the other four sources are the modules'."""
-
-    iwp: str = Field(min_length=1, max_length=MAX_ID)
-    constraint_type: str = Field(min_length=1, max_length=MAX_LIST_CODE)
-    source_kind: Literal["manual", "check", "rule", "feed_hold", "thread_hold"]
-    owner: str = Field(pattern=ACTOR_PATTERN, max_length=MAX_FOREMAN)
-    description: str = Field(min_length=1, max_length=MAX_CONSTRAINT_TEXT)
-    need_by: str | None = Field(default=None, pattern=DATE_PATTERN)
-    check_name: str | None = Field(default=None, min_length=1, max_length=MAX_CHECK_NAME)
-    facts_hash: str | None = Field(default=None, pattern=HASH_PATTERN)
-
-    @field_validator("constraint_type")
-    @classmethod
-    def _type(cls, value: str) -> str:
-        return clean_text(value)
-
-    @field_validator("description")
-    @classmethod
-    def _description(cls, value: str) -> str:
-        return _text(value)
-
-    @field_validator("need_by")
-    @classmethod
-    def _need_by(cls, value: str | None) -> str | None:
-        return _date(value)
-
-
-class AssignConstraint(_Strict):
-    """Give an open constraint to an owner."""
-
-    constraint: str = Field(min_length=1, max_length=MAX_ID)
-    owner: str = Field(pattern=ACTOR_PATTERN, max_length=MAX_FOREMAN)
-
-
-class ClearConstraint(_Strict):
-    """Clear an open or assigned constraint; ``resolved_by`` names the record that resolved it."""
-
-    constraint: str = Field(min_length=1, max_length=MAX_ID)
-    reason: str = Field(min_length=1, max_length=MAX_CLEAR_REASON)
-    resolved_by: str | None = Field(default=None, min_length=1, max_length=MAX_ID)
-
-    @field_validator("reason")
-    @classmethod
-    def _reason(cls, value: str) -> str:
-        return _text(value)
-
-
-class VoidConstraint(_Strict):
-    """Void an open or assigned constraint."""
-
-    constraint: str = Field(min_length=1, max_length=MAX_ID)
-    reason: str = Field(min_length=1, max_length=MAX_CLEAR_REASON)
-
-    @field_validator("reason")
-    @classmethod
-    def _reason(cls, value: str) -> str:
-        return _text(value)
-
-
 class RequestRollup(_Strict):
     """Queue the budget rollup of the project (idempotent: one queued run at a time)."""
 
@@ -828,10 +759,6 @@ AWP_COMMANDS: tuple[AwpCommand, ...] = (
     AwpCommand(ReturnIwpToDevelopment, handle_return_iwp_to_development, "awp.iwp.edit"),
     AwpCommand(SplitIwp, handle_split_iwp, "awp.iwp.edit"),
     AwpCommand(CancelIwp, handle_cancel_iwp, "awp.void"),
-    AwpCommand(RaiseConstraint, handle_raise_constraint, "awp.constraint.edit"),
-    AwpCommand(AssignConstraint, handle_assign_constraint, "awp.constraint.edit"),
-    AwpCommand(ClearConstraint, handle_clear_constraint, "awp.constraint.edit"),
-    AwpCommand(VoidConstraint, handle_void_constraint, "awp.constraint.edit"),
     AwpCommand(SignOffIwp, handle_sign_off_iwp, "awp.iwp.signoff"),
     AwpCommand(IssueIwp, handle_issue_iwp, "awp.iwp.issue"),
     AwpCommand(HoldIwp, handle_hold_iwp, "awp.iwp.hold"),

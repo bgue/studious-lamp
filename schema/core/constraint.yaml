@@ -1,0 +1,229 @@
+id: https://example.org/throughline/core/constraint
+name: tl_core_constraint
+title: Constraints on any record (ADR-0024)
+description: >-
+  A `Constraint` holds back a move of any record (its subject) until it is cleared. Record type `core.Constraint`, numbered
+  `{project}-CON-{seq:4}`, gap-free, workflow `core.constraint` (Open, Assigned, Cleared, Withdrawn). Its confidentiality is
+  never copied: a reader joins `subject_id` to the subject record at read time (ADR-0016, ADR-0024 decision 8), so the table
+  carries no class column. Valid-time fields (`effective_at`, `due_at`, `cleared_at`) are world time, apart from the ledger
+  `recorded_at` and from the event envelope `effective_at` (capture time, ADR-0026).
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+  - annotations
+  - record
+  - events
+default_range: string
+annotations:
+  tl:module: core
+
+enums:
+  ConstraintCategory:
+    description: What kind of thing holds the subject back (the code list that replaces the awp `ConstraintType`).
+    permissible_values:
+      materials:
+      labour:
+      scaffold:
+      equipment:
+      permit:
+      engineering:
+      rfi:
+      predecessor:
+      other:
+
+classes:
+  Constraint:
+    title: Constraint
+    description: >-
+      One constraint on one record. Record type `core.Constraint`; key `P123-CON-0001` (gap-free). `suppress_hash` is the sha256
+      hex of the check result a person chose to suppress (R-P2-11). The facts hash of a raise lives in the raise event only.
+    annotations:
+      tl:current_state: true
+      tl:record_types: "core.Constraint"
+      tl:offline: draft_only
+      tl:table: cur_core_constraint
+      tl:ix_scope_subject: "scope, subject_id"
+    attributes:
+      id:
+        identifier: true
+        range: Ulid
+        required: true
+        description: Record id; equals the ledger stream id and the `cur_core_record` id.
+      scope:
+        range: ScopeId
+        required: true
+        description: The project scope, `project:<id>`.
+      subject_id:
+        range: Ulid
+        required: true
+        description: The record held back (any record type). Its confidentiality class governs this row, by join at read time.
+      phase:
+        required: true
+        pattern: "^[a-z][a-z0-9_]{0,31}$"
+        description: The gated move, a lowercase code a guard of the subject's workflow names.
+      severity:
+        required: true
+        pattern: "^(blocking|advisory)$"
+        description: "`blocking` stops a move, `advisory` is only shown."
+      category:
+        range: ConstraintCategory
+        required: true
+        description: Code of the code list `ConstraintCategory`.
+      source:
+        required: true
+        pattern: "^(manual|check|rule|feed_hold|thread_hold)$"
+        description: "How the constraint arose: manual, check, rule, feed_hold or thread_hold."
+      owner:
+        pattern: "^user:.{1,59}$"
+        description: "Who must clear it, an actor text `user:<name>`; null until assigned."
+      description:
+        annotations:
+          tl:column: description_text
+        pattern: "^.{0,500}$"
+        description: What holds the subject back (at most 500 characters).
+      check_name:
+        pattern: "^.{0,64}$"
+        description: The readiness check that raised it (at most 64 characters; only for source `check`).
+      suppress_hash:
+        pattern: "^[0-9a-f]{64}$"
+        description: "SHA-256 hex of the check result suppressed (R-P2-11)."
+      clear_reason:
+        pattern: "^.{0,300}$"
+        description: Why it was cleared (at most 300 characters).
+      target_kind:
+        pattern: "^(record|reference)$"
+        description: "What must happen to clear it: a `record` (joined by a `targets` link) or a plain `reference`."
+      target_id:
+        range: Ulid
+        description: The record named when `target_kind` is `record`.
+      target_ref_type:
+        pattern: "^(purchase_order|labour_requisition|scaffold_requisition|equipment|permit|other)$"
+        description: Type of a plain reference, for things that have no record type yet.
+      target_ref_text:
+        pattern: "^.{0,60}$"
+        description: Text of a plain reference (at most 60 characters).
+      effective_at:
+        description: "World time it began to hold things back: a date `YYYY-MM-DD` or a UTC timestamp text."
+      due_at:
+        description: "World time it must be cleared by: a date `YYYY-MM-DD` or a UTC timestamp text."
+      cleared_at:
+        description: "World time it stopped holding things back: a date or UTC timestamp text; null while open."
+      cleared_by:
+        description: "Who cleared it, an actor text."
+      last_seq:
+        range: integer
+        required: true
+        description: Ledger `seq` of the last event applied to this row.
+
+  ConstraintRaisedPayload:
+    is_a: EventPayload
+    description: >-
+      A constraint was raised on a record. Carries the facts hash of a check raise (no column holds it).
+    annotations:
+      tl:event_type: Constraint.Raised
+      tl:event_version: "1"
+    attributes:
+      constraint_id:
+        description: "The constraint record."
+        required: true
+      subject_id:
+        description: "The record held back."
+        required: true
+      phase:
+        description: "The gated move, a lowercase code."
+        required: true
+      severity:
+        description: "blocking or advisory."
+        required: true
+      category:
+        description: "Code of the code list `ConstraintCategory`."
+        range: ConstraintCategory
+        required: true
+      source:
+        description: "manual, check, rule, feed_hold or thread_hold."
+        required: true
+      owner:
+        description: "Actor text `user:<name>`, or null."
+      description:
+        description: "What holds the subject back, or null."
+      check_name:
+        description: "The check that raised it, or null."
+      facts_hash:
+        description: "SHA-256 hex of the check facts, or null."
+      effective_at:
+        description: "World time it began to hold things back (date or UTC timestamp text), or null."
+      due_at:
+        description: "World time it must be cleared by (date or UTC timestamp text), or null."
+      target_kind:
+        description: "record or reference, or null."
+      target_id:
+        description: "The target record when target_kind is record, or null."
+      target_ref_type:
+        description: "Type of a plain reference, or null."
+      target_ref_text:
+        description: "Text of a plain reference, or null."
+    examples:
+      - value: "{\"category\": \"materials\", \"constraint_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P2\", \"description\": \"Spools not delivered\", \"due_at\": \"2026-11-05\", \"owner\": \"user:ana\", \"phase\": \"ready\", \"severity\": \"blocking\", \"source\": \"manual\", \"subject_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P1\", \"target_kind\": \"reference\", \"target_ref_text\": \"PO-1042\", \"target_ref_type\": \"purchase_order\"}"
+  ConstraintAssignedPayload:
+    is_a: EventPayload
+    description: >-
+      A constraint was assigned to an owner.
+    annotations:
+      tl:event_type: Constraint.Assigned
+      tl:event_version: "1"
+    attributes:
+      constraint_id:
+        description: "The constraint record."
+        required: true
+      owner:
+        description: "Actor text `user:<name>`."
+        required: true
+    examples:
+      - value: "{\"constraint_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P2\", \"owner\": \"user:ben\"}"
+  ConstraintClearedPayload:
+    is_a: EventPayload
+    description: >-
+      A constraint was cleared. `suppress` is true when a person cleared a check-raised constraint (R-P2-11).
+    annotations:
+      tl:event_type: Constraint.Cleared
+      tl:event_version: "1"
+    attributes:
+      constraint_id:
+        description: "The constraint record."
+        required: true
+      cleared_at:
+        description: "World time it stopped holding things back (date or UTC timestamp text)."
+        required: true
+      cleared_by:
+        description: "The actor that cleared it."
+        required: true
+      reason:
+        description: "Why it was cleared."
+        required: true
+      resolved_by:
+        description: "The record that resolved it, or null."
+      suppress:
+        description: "True when the check result is suppressed."
+        range: boolean
+        required: true
+    examples:
+      - value: "{\"cleared_at\": \"2026-11-04T09:30:00Z\", \"cleared_by\": \"user:ana\", \"constraint_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P2\", \"reason\": \"Spools delivered\", \"resolved_by\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P3\", \"suppress\": false}"
+  ConstraintWithdrawnPayload:
+    is_a: EventPayload
+    description: >-
+      A constraint was withdrawn (raised in error or no longer applies).
+    annotations:
+      tl:event_type: Constraint.Withdrawn
+      tl:event_version: "1"
+    attributes:
+      constraint_id:
+        description: "The constraint record."
+        required: true
+      reason:
+        description: "Why it was withdrawn."
+        required: true
+    examples:
+      - value: "{\"constraint_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P2\", \"reason\": \"Raised on the wrong package\"}"

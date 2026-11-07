@@ -33,7 +33,6 @@ from tl_mod_awp.common import (
     require_project,
     silent,
 )
-from tl_mod_awp.constraints import void_open_constraints
 from tl_mod_awp.errors import IwpRuleError, ScopeRuleError, ScopeTakenError
 from tl_mod_awp.facts import MAX_SCOPE_IDS
 from tl_mod_awp.handlers.iwp import (
@@ -438,7 +437,6 @@ def handle_split_iwp(uow: UnitOfWork, cmd: SplitIwp) -> CommandResult:
         for document_id, pin in pins:
             if not confidentiality.is_hidden(conn, document_id):
                 events.extend(pin_document(uow, cmd, made.stream_id, document_id, pin))
-    events.extend(void_open_constraints(uow, cmd, iwp.id, "split"))
     split = append(
         uow, cmd, iwp.id, IWP, [NewEvent(event_type=IWP_SPLIT, payload={"new_ids": new_ids})]
     )

@@ -116,7 +116,6 @@ def test_every_record_class_of_the_committed_modules_has_a_view() -> None:
     files = ddl.generate(REPO / "schema" / "core")
     views = sorted(name.split("/")[-1][:-4] for name in files if "/sqlite/v_" in name)
     assert views == [
-        "v_awp_constraint",
         "v_awp_cwa",
         "v_awp_cwp",
         "v_awp_ewpref",

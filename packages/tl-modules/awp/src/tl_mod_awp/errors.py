@@ -88,19 +88,6 @@ class ScopeTakenError(AwpError):
     """A scope item already belongs to another IWP that is not finished."""
 
 
-class ConstraintRuleError(AwpError):
-    """A rule of a constraint's fields: owner, type, need-by date, check name and hash."""
-
-
-class ConstraintSourceError(AwpError):
-    """The caller may not raise or clear a constraint of that source (a person raises ``manual``;
-    a check clears only what a check raised)."""
-
-
-class ConstraintStateError(AwpError):
-    """The constraint is in a state that does not take the command."""
-
-
 class IwpSignoffError(AwpError):
     """A rule of sign-off and issue: the signer's role, a repeat signer, a stale hash, too few
     signers."""

@@ -3,7 +3,7 @@
     "data": {
       "changes": {},
       "detail": {
-        "need_by": "2026-11-06",
+        "constraint_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P2",
         "owner": "user:ben"
       },
       "links": [],
@@ -30,7 +30,7 @@
     "type": "tl.core.Constraint.Assigned.v1"
   },
   "payload": {
-    "need_by": "2026-11-06",
+    "constraint_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P2",
     "owner": "user:ben"
   }
 }

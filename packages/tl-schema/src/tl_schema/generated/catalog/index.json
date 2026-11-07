@@ -312,7 +312,16 @@
       "payload_class": "ConstraintRaisedPayload",
       "sample": "samples/Constraint.Raised.v1.json",
       "schema": "schemas/Constraint.Raised.v1.json",
-      "title": "A constraint was raised on an interim work package.",
+      "title": "A constraint was raised on a record.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Constraint.Withdrawn.v1",
+      "event_type": "Constraint.Withdrawn",
+      "payload_class": "ConstraintWithdrawnPayload",
+      "sample": "samples/Constraint.Withdrawn.v1.json",
+      "schema": "schemas/Constraint.Withdrawn.v1.json",
+      "title": "A constraint was withdrawn (raised in error or no longer applies).",
       "version": 1
     },
     {

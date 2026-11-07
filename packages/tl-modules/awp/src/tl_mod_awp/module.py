@@ -15,7 +15,6 @@ from tl_mod_awp.commands import AWP_COMMANDS, CreateCwp
 from tl_mod_awp.guards import iwp_not_closed, not_closed
 from tl_mod_awp.handlers.cwp import handle_create_cwp
 from tl_mod_awp.names import (
-    CONSTRAINT,
     CWA,
     CWP,
     EWP,
@@ -27,7 +26,6 @@ from tl_mod_awp.names import (
     WBS_NODE,
 )
 from tl_mod_awp.projectors import CwaProjector, PathProjector, WbsProjector
-from tl_mod_awp.projectors.constraint import constraint_projectors
 from tl_mod_awp.projectors.cwp import cwp_projectors
 from tl_mod_awp.projectors.iwp import iwp_projectors
 from tl_mod_awp.projectors.rollup import rollup_projectors
@@ -49,8 +47,8 @@ CWP_GENERIC_COMMANDS = (
 )
 #: An IWP takes property values, links, files and the life of its links until it is Closed, Split or
 #: Cancelled (``guards.iwp_not_closed``). Its fields, scope, pins and state change only through the
-#: module's commands. A scope item and a constraint take links and the life of their links; the
-#: links the module wrote (``belongs_to`` scope, ``blocks``, ``resolves``; source ``rule``) are not
+#: module's commands. A scope item takes links and the life of their links; the
+#: links the module wrote (``belongs_to`` scope; source ``rule``) are not
 #: retractable by a person (``tl_core.services.links``).
 IWP_GENERIC_COMMANDS = (
     frozenset({"SetPsetValues", "AddLink", "SuggestLink", "AttachFile"}) | LINK_LIFE
@@ -75,7 +73,6 @@ def projectors() -> list[Projector]:
         *rollup_projectors(),
         *iwp_projectors(),
         *scope_item_projectors(),
-        *constraint_projectors(),
     ]
 
 
@@ -93,7 +90,6 @@ def spec() -> ModuleSpec:
             PWP: PACKAGE_GENERIC_COMMANDS,
             IWP: IWP_GENERIC_COMMANDS,
             SCOPE_ITEM: LINKED_GENERIC_COMMANDS,
-            CONSTRAINT: LINKED_GENERIC_COMMANDS,
         },
         generic_guards={
             **{(CWP, command): not_closed for command in CWP_GENERIC_COMMANDS},

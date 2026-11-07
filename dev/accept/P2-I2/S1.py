@@ -1,4 +1,4 @@
-"""Acceptance for P2-I2-S1: awp schema part 2 (IWP, scope item, constraint, closeout, readiness).
+"""Acceptance for P2-I2-S1: awp schema part 2 (IWP, scope item, closeout, readiness).
 Exit 0, one ``PASS <check>`` line per check, then ``S1 ok``. SQLite only; no network.
 
 Run: ``uv run python dev/accept/P2-I2/S1.py``.
@@ -30,13 +30,11 @@ GENERATED = ROOT / "packages" / "tl-schema" / "src" / "tl_schema" / "generated"
 RECORD_CLASSES = {
     "awp.IWP": "draft_only",
     "awp.ScopeItem": "draft_only",
-    "awp.Constraint": "draft_only",
     "awp.IWPCloseout": "none",
 }
 TABLES = {
     "cur_awp_iwp",
     "cur_awp_scope_item",
-    "cur_awp_constraint",
     "cur_awp_iwp_closeout",
     "cur_awp_readiness",
     "cur_awp_readiness_check",
@@ -57,9 +55,6 @@ CARD = {
     "IWP.Issued",
     "IWP.Held",
     "IWP.HoldReleased",
-    "Constraint.Raised",
-    "Constraint.Assigned",
-    "Constraint.Cleared",
     "IWP.Ready",
 }
 
@@ -78,7 +73,7 @@ def record_types() -> None:
     for record_type, offline in RECORD_CLASSES.items():
         need(record_type in TYPE_LABELS, f"{record_type} is in TYPE_LABELS")
         need(OFFLINE_CLASSES.get(record_type) == offline, f"{record_type} offline class {offline}")
-    passed("four record types in TYPE_LABELS and OFFLINE_CLASSES with the table's classes")
+    passed("three record types in TYPE_LABELS and OFFLINE_CLASSES with the table's classes")
 
 
 def ddl_tables() -> None:
@@ -91,7 +86,7 @@ def ddl_tables() -> None:
     need(TABLES <= found, f"tables created: missing {sorted(TABLES - found)}")
     cols = {r[1] for r in conn.execute("PRAGMA table_info(cur_awp_readiness_check)")}
     need({"iwp_id", "name", "state", "count_ok", "resolve_via_json"} <= cols, "check columns")
-    passed("the six tables exist in the generated SQLite DDL")
+    passed("the five tables exist in the generated SQLite DDL")
 
 
 def workflows() -> None:
@@ -102,16 +97,15 @@ def workflows() -> None:
     need(("On hold", "Ready") not in moves, "On hold -> Ready is refused")
     need(("On hold", "Constraint check") in moves, "On hold -> Constraint check")
     need(("Ready", "Constraint check") in moves, "Ready -> Constraint check")
-    need(all(not t.guards for t in iwp.transitions), "the IWP workflow has no guard")
+    need(
+        all(g.kind == "no_open_blocking_constraints" for t in iwp.transitions for g in t.guards),
+        "the only IWP guard is the constraint guard (ADR-0024)",
+    )
     item = load_workflow(FIXTURES / "workflows" / "awp-scope-item.yaml")
     moves = {(f, t.to) for t in item.transitions for f in t.from_states}
     need(not any(f in ("Verified", "Void") for f, _ in moves), "Verified and Void are final")
     need(("Installed", "Planned") in moves and ("Verified", "Void") not in moves, "scope moves")
-    con = load_workflow(FIXTURES / "workflows" / "awp-constraint.yaml")
-    moves = {(f, t.to) for t in con.transitions for f in t.from_states}
-    need(not any(f in ("Cleared", "Void") for f, _ in moves), "Cleared and Void are final")
-    need(("Open", "Cleared") in moves and ("Cleared", "Void") not in moves, "constraint moves")
-    passed("the three workflows load; terminal states as stated; On hold -> Ready is refused")
+    passed("the two workflows load; terminal states as stated; On hold -> Ready is refused")
 
 
 def allocate(work: Path, pattern_id: str, record_type: str, supplied: list[dict[str, str]]) -> Any:

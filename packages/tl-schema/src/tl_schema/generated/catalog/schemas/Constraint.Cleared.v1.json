@@ -15,8 +15,16 @@
           "additionalProperties": true,
           "description": "Delta and full modes. The ledger event payload, described per event type in the catalog.",
           "properties": {
-            "by": {
+            "cleared_at": {
+              "description": "World time it stopped holding things back (date or UTC timestamp text).",
+              "type": "string"
+            },
+            "cleared_by": {
               "description": "The actor that cleared it.",
+              "type": "string"
+            },
+            "constraint_id": {
+              "description": "The constraint record.",
               "type": "string"
             },
             "reason": {
@@ -29,11 +37,18 @@
                 "string",
                 "null"
               ]
+            },
+            "suppress": {
+              "description": "True when the check result is suppressed.",
+              "type": "boolean"
             }
           },
           "required": [
-            "by",
-            "reason"
+            "constraint_id",
+            "cleared_at",
+            "cleared_by",
+            "reason",
+            "suppress"
           ],
           "title": "ConstraintClearedPayload",
           "type": "object"

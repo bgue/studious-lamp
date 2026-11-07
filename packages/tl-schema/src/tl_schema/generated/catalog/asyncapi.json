@@ -314,7 +314,16 @@
           "$ref": "#/components/messages/Constraint.Raised"
         }
       },
-      "title": "A constraint was raised on an interim work package."
+      "title": "A constraint was raised on a record."
+    },
+    "Constraint.Withdrawn": {
+      "address": "Constraint.Withdrawn",
+      "messages": {
+        "Constraint.Withdrawn": {
+          "$ref": "#/components/messages/Constraint.Withdrawn"
+        }
+      },
+      "title": "A constraint was withdrawn (raised in error or no longer applies)."
     },
     "ContractClause.Defined": {
       "address": "ContractClause.Defined",
@@ -10995,7 +11004,7 @@
               "data": {
                 "changes": {},
                 "detail": {
-                  "need_by": "2026-11-06",
+                  "constraint_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P2",
                   "owner": "user:ben"
                 },
                 "links": [],
@@ -11042,12 +11051,9 @@
                   "additionalProperties": true,
                   "description": "Delta and full modes. The ledger event payload, described per event type in the catalog.",
                   "properties": {
-                    "need_by": {
-                      "description": "YYYY-MM-DD, or null.",
-                      "type": [
-                        "string",
-                        "null"
-                      ]
+                    "constraint_id": {
+                      "description": "The constraint record.",
+                      "type": "string"
                     },
                     "owner": {
                       "description": "Actor text `user:<name>`.",
@@ -11055,6 +11061,7 @@
                     }
                   },
                   "required": [
+                    "constraint_id",
                     "owner"
                   ],
                   "title": "ConstraintAssignedPayload",
@@ -11237,7 +11244,7 @@
       },
       "Constraint.Cleared": {
         "contentType": "application/json",
-        "description": "A constraint was cleared.",
+        "description": "A constraint was cleared. `suppress` is true when a person cleared a check-raised constraint (R-P2-11).",
         "examples": [
           {
             "headers": {
@@ -11250,9 +11257,12 @@
               "data": {
                 "changes": {},
                 "detail": {
-                  "by": "user:01J9Z6Q4W3X2Y1V0T9S8R7Q6P1",
+                  "cleared_at": "2026-11-04T09:30:00Z",
+                  "cleared_by": "user:ana",
+                  "constraint_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P2",
                   "reason": "Spools delivered",
-                  "resolved_by": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P2"
+                  "resolved_by": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P3",
+                  "suppress": false
                 },
                 "links": [],
                 "origin": {
@@ -11298,8 +11308,16 @@
                   "additionalProperties": true,
                   "description": "Delta and full modes. The ledger event payload, described per event type in the catalog.",
                   "properties": {
-                    "by": {
+                    "cleared_at": {
+                      "description": "World time it stopped holding things back (date or UTC timestamp text).",
+                      "type": "string"
+                    },
+                    "cleared_by": {
                       "description": "The actor that cleared it.",
+                      "type": "string"
+                    },
+                    "constraint_id": {
+                      "description": "The constraint record.",
                       "type": "string"
                     },
                     "reason": {
@@ -11312,11 +11330,18 @@
                         "string",
                         "null"
                       ]
+                    },
+                    "suppress": {
+                      "description": "True when the check result is suppressed.",
+                      "type": "boolean"
                     }
                   },
                   "required": [
-                    "by",
-                    "reason"
+                    "constraint_id",
+                    "cleared_at",
+                    "cleared_by",
+                    "reason",
+                    "suppress"
                   ],
                   "title": "ConstraintClearedPayload",
                   "type": "object"
@@ -11498,7 +11523,7 @@
       },
       "Constraint.Raised": {
         "contentType": "application/json",
-        "description": "A constraint was raised on an interim work package.",
+        "description": "A constraint was raised on a record. Carries the facts hash of a check raise (no column holds it).",
         "examples": [
           {
             "headers": {
@@ -11511,13 +11536,18 @@
               "data": {
                 "changes": {},
                 "detail": {
-                  "constraint_type": "material",
+                  "category": "materials",
+                  "constraint_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P2",
                   "description": "Spools not delivered",
-                  "iwp_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P1",
-                  "need_by": "2026-11-05",
+                  "due_at": "2026-11-05",
                   "owner": "user:ana",
-                  "raised_at": "2026-11-02T08:00:00Z",
-                  "source": "manual"
+                  "phase": "ready",
+                  "severity": "blocking",
+                  "source": "manual",
+                  "subject_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P1",
+                  "target_kind": "reference",
+                  "target_ref_text": "PO-1042",
+                  "target_ref_type": "purchase_order"
                 },
                 "links": [],
                 "origin": {
@@ -11563,6 +11593,22 @@
                   "additionalProperties": true,
                   "description": "Delta and full modes. The ledger event payload, described per event type in the catalog.",
                   "properties": {
+                    "category": {
+                      "description": "Code of the code list `ConstraintCategory`.",
+                      "enum": [
+                        "materials",
+                        "labour",
+                        "scaffold",
+                        "equipment",
+                        "permit",
+                        "engineering",
+                        "rfi",
+                        "predecessor",
+                        "other"
+                      ],
+                      "title": "ConstraintCategory",
+                      "type": "string"
+                    },
                     "check_name": {
                       "description": "The check that raised it, or null.",
                       "type": [
@@ -11570,42 +11616,84 @@
                         "null"
                       ]
                     },
-                    "constraint_type": {
-                      "description": "Code of the code list `ConstraintType`.",
+                    "constraint_id": {
+                      "description": "The constraint record.",
                       "type": "string"
                     },
                     "description": {
-                      "description": "What holds the package back, or null.",
+                      "description": "What holds the subject back, or null.",
                       "type": [
                         "string",
                         "null"
                       ]
                     },
-                    "iwp_id": {
-                      "description": "The IWP held back.",
-                      "type": "string"
+                    "due_at": {
+                      "description": "World time it must be cleared by (date or UTC timestamp text), or null.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
                     },
-                    "need_by": {
-                      "description": "YYYY-MM-DD, or null.",
+                    "effective_at": {
+                      "description": "World time it began to hold things back (date or UTC timestamp text), or null.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "facts_hash": {
+                      "description": "SHA-256 hex of the check facts, or null.",
                       "type": [
                         "string",
                         "null"
                       ]
                     },
                     "owner": {
-                      "description": "Actor text `user:<name>`.",
+                      "description": "Actor text `user:<name>`, or null.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "phase": {
+                      "description": "The gated move, a lowercase code.",
                       "type": "string"
                     },
-                    "raised_at": {
-                      "description": "UTC timestamp text.",
+                    "severity": {
+                      "description": "blocking or advisory.",
                       "type": "string"
                     },
                     "source": {
                       "description": "manual, check, rule, feed_hold or thread_hold.",
                       "type": "string"
                     },
-                    "suppress_hash": {
-                      "description": "SHA-256 hex of the suppressed check result, or null.",
+                    "subject_id": {
+                      "description": "The record held back.",
+                      "type": "string"
+                    },
+                    "target_id": {
+                      "description": "The target record when target_kind is record, or null.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "target_kind": {
+                      "description": "record or reference, or null.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "target_ref_text": {
+                      "description": "Text of a plain reference, or null.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "target_ref_type": {
+                      "description": "Type of a plain reference, or null.",
                       "type": [
                         "string",
                         "null"
@@ -11613,11 +11701,12 @@
                     }
                   },
                   "required": [
-                    "iwp_id",
-                    "constraint_type",
-                    "source",
-                    "owner",
-                    "raised_at"
+                    "constraint_id",
+                    "subject_id",
+                    "phase",
+                    "severity",
+                    "category",
+                    "source"
                   ],
                   "title": "ConstraintRaisedPayload",
                   "type": "object"
@@ -11794,8 +11883,261 @@
           "title": "CloudEvent",
           "type": "object"
         },
-        "summary": "A constraint was raised on an interim work package.",
-        "title": "A constraint was raised on an interim work package."
+        "summary": "A constraint was raised on a record.",
+        "title": "A constraint was raised on a record."
+      },
+      "Constraint.Withdrawn": {
+        "contentType": "application/json",
+        "description": "A constraint was withdrawn (raised in error or no longer applies).",
+        "examples": [
+          {
+            "headers": {
+              "webhook-id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+              "webhook-signature": "v1,ZXhhbXBsZS1zaWduYXR1cmU=",
+              "webhook-timestamp": "1760000047"
+            },
+            "name": "sample",
+            "payload": {
+              "data": {
+                "changes": {},
+                "detail": {
+                  "constraint_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P2",
+                  "reason": "Raised on the wrong package"
+                },
+                "links": [],
+                "origin": {
+                  "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+                  "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+                  "key": "47-1234-W012",
+                  "type": "core.Record",
+                  "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+                  "version": 7
+                }
+              },
+              "datacontenttype": "application/json",
+              "dataschema": "https://tl.example.com/schema/events/Constraint.Withdrawn/1",
+              "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+              "source": "https://tl.example.com/c/acme/p/P123",
+              "specversion": "1.0",
+              "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+              "time": "2026-10-09T03:14:07.000000Z",
+              "tlactor": "user:jsmith",
+              "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+              "tlseq": 48211933,
+              "tlstreamversion": 7,
+              "type": "tl.core.Constraint.Withdrawn.v1"
+            }
+          }
+        ],
+        "headers": {
+          "$ref": "#/components/schemas/WebhookHeaders"
+        },
+        "name": "tl.core.Constraint.Withdrawn.v1",
+        "payload": {
+          "additionalProperties": false,
+          "description": "The CloudEvents 1.0 envelope (brief 18.3) used for webhooks, streams, the events API and exports. Extension attributes are lower-case as CloudEvents requires: `tlseq`, `tlstreamversion`, `tlcorrelationid`, `tlactor`.",
+          "properties": {
+            "data": {
+              "additionalProperties": true,
+              "description": "The `data` member of a webhook CloudEvent.",
+              "properties": {
+                "changes": {
+                  "description": "Delta and full modes. Object of field path to `[old, new]`; `old` is null when the event does not carry it."
+                },
+                "detail": {
+                  "additionalProperties": true,
+                  "description": "Delta and full modes. The ledger event payload, described per event type in the catalog.",
+                  "properties": {
+                    "constraint_id": {
+                      "description": "The constraint record.",
+                      "type": "string"
+                    },
+                    "reason": {
+                      "description": "Why it was withdrawn.",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "constraint_id",
+                    "reason"
+                  ],
+                  "title": "ConstraintWithdrawnPayload",
+                  "type": "object"
+                },
+                "links": {
+                  "description": "Delta and full modes. Immediate links.",
+                  "items": {
+                    "additionalProperties": false,
+                    "description": "One immediate link of the origin record (delta mode).",
+                    "properties": {
+                      "id": {
+                        "description": "`urn:tl:<ulid>` of the record at the other end.",
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "key": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "rel": {
+                        "type": "string"
+                      },
+                      "type": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "uri": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "rel"
+                    ],
+                    "title": "EventLinkRef",
+                    "type": "object"
+                  },
+                  "type": [
+                    "array",
+                    "null"
+                  ]
+                },
+                "origin": {
+                  "additionalProperties": false,
+                  "description": "Pointer to the originating record at the version of the event (brief 18.3, `RecordRef`).",
+                  "properties": {
+                    "api": {
+                      "description": "API URL of the record.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "id": {
+                      "description": "`urn:tl:<ulid>` of the record.",
+                      "type": "string"
+                    },
+                    "key": {
+                      "description": "Human-readable key.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "type": {
+                      "description": "Record type.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "uri": {
+                      "description": "Resolvable URI of the record at this version (`...@v7`).",
+                      "type": "string"
+                    },
+                    "version": {
+                      "description": "Version of the record after the event.",
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "uri",
+                    "version"
+                  ],
+                  "title": "EventOrigin",
+                  "type": "object"
+                },
+                "record": {
+                  "description": "Full mode only. The record projection as of delivery preparation, with its `version`."
+                }
+              },
+              "required": [
+                "origin"
+              ],
+              "title": "CloudEventData",
+              "type": "object"
+            },
+            "datacontenttype": {
+              "const": "application/json",
+              "type": "string"
+            },
+            "dataschema": {
+              "const": "https://tl.example.com/schema/events/Constraint.Withdrawn/1",
+              "description": "URI of the catalog schema of this event type.",
+              "type": "string"
+            },
+            "id": {
+              "description": "The ledger event id. Receivers dedupe on it.",
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "type": "string"
+            },
+            "source": {
+              "description": "URI of the company and project the event came from.",
+              "type": "string"
+            },
+            "specversion": {
+              "const": "1.0",
+              "type": "string"
+            },
+            "subject": {
+              "description": "`urn:tl:<ulid>` of the subject record, the ordering key.",
+              "type": "string"
+            },
+            "time": {
+              "description": "When the ledger committed the event (UTC).",
+              "format": "date-time",
+              "type": "string"
+            },
+            "tlactor": {
+              "type": "string"
+            },
+            "tlcorrelationid": {
+              "type": "string"
+            },
+            "tlseq": {
+              "description": "Ledger `seq`.",
+              "type": "integer"
+            },
+            "tlstreamversion": {
+              "description": "Version within the event's stream.",
+              "type": "integer"
+            },
+            "type": {
+              "const": "tl.core.Constraint.Withdrawn.v1",
+              "description": "`tl.<module>.<Class>.<Verb>.v<schema version>`, for example `tl.core.Record.Created.v1`.",
+              "pattern": "^tl\\.[A-Za-z0-9_]+\\.[A-Za-z0-9_]+\\.[A-Za-z0-9_]+\\.v[0-9]+$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "specversion",
+            "id",
+            "source",
+            "type",
+            "time",
+            "subject",
+            "dataschema",
+            "datacontenttype",
+            "tlseq",
+            "tlstreamversion",
+            "tlcorrelationid",
+            "tlactor",
+            "data"
+          ],
+          "title": "CloudEvent",
+          "type": "object"
+        },
+        "summary": "A constraint was withdrawn (raised in error or no longer applies).",
+        "title": "A constraint was withdrawn (raised in error or no longer applies)."
       },
       "ContractClause.Defined": {
         "contentType": "application/json",
@@ -71066,7 +71408,19 @@
           "$ref": "#/channels/Constraint.Raised/messages/Constraint.Raised"
         }
       ],
-      "summary": "A constraint was raised on an interim work package."
+      "summary": "A constraint was raised on a record."
+    },
+    "receiveConstraintWithdrawn": {
+      "action": "receive",
+      "channel": {
+        "$ref": "#/channels/Constraint.Withdrawn"
+      },
+      "messages": [
+        {
+          "$ref": "#/channels/Constraint.Withdrawn/messages/Constraint.Withdrawn"
+        }
+      ],
+      "summary": "A constraint was withdrawn (raised in error or no longer applies)."
     },
     "receiveContractClauseDefined": {
       "action": "receive",

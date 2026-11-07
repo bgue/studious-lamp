@@ -39,6 +39,8 @@ transitions:
     label: Mark the package ready
     from: [Constraint check]
     to: Ready
+    guards:
+      - {kind: no_open_blocking_constraints, phase: ready}
   - name: unready
     label: Readiness turned red; check again
     from: [Ready]
@@ -51,10 +53,14 @@ transitions:
     label: Start the work
     from: [Issued]
     to: In progress
+    guards:
+      - {kind: no_open_blocking_constraints}
   - name: complete
     label: Mark the field work complete
     from: [In progress]
     to: Field complete
+    guards:
+      - {kind: no_open_blocking_constraints}
   - name: close
     label: Close the package
     from: [Field complete]
