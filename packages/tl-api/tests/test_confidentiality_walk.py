@@ -209,6 +209,20 @@ def test_the_walk_finds_the_routes_and_the_seed_is_what_the_walk_assumes(
     paths = {p for p, _, _ in routes}
     assert {"/records/{record_id}", "/feed", "/events", "/files/{file_id}/content"} <= paths
     assert "/projects/{project}/correspondence/{number}" in paths and set(NOT_WALKED) <= paths
+    # P2-I3-T11: the materials GET routes are walked below as five readers, none left out
+    assert {
+        "/projects/{project}/materials/stock",
+        "/projects/{project}/materials/movements",
+        "/projects/{project}/materials/receipts",
+        "/projects/{project}/materials/receipts/{number}",
+        "/projects/{project}/materials/lots/{key}",
+        "/projects/{project}/materials/locations",
+        "/projects/{project}/materials/po-lines",
+        "/projects/{project}/materials/mto-lines",
+        "/projects/{project}/materials/mto-line",
+        "/companies/materials/items",
+        "/companies/materials/item-projects",
+    } <= paths
     assert "/records/{record_id}/actions" in paths  # P1-UX2-S1: walked below as five readers
     assert "/records/{record_id}/addable-properties" in paths  # P1-UX3 r4: walked below too
     forms_query = next(q for p, _, q in routes if p == "/schema/forms")
