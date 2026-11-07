@@ -28,6 +28,7 @@ from tl_core.constraints.errors import (
     ConstraintStateError,
     PhaseNotGatedError,
 )
+from tl_core.constraints.review import AGE_BANDS, ConstraintGroup, review_groups
 
 ConstraintAction = Literal["raised", "exists", "suppressed", "cleared"]
 
@@ -115,10 +116,12 @@ def open_blocking(conn: Connection, subject_id: str, phase: str) -> list[str]:
 
 
 __all__ = [
+    "AGE_BANDS",
     "AssignConstraint",
     "ClearConstraint",
     "ConstraintAction",
     "ConstraintError",
+    "ConstraintGroup",
     "ConstraintOutcome",
     "ConstraintRuleError",
     "ConstraintSourceError",
@@ -130,4 +133,5 @@ __all__ = [
     "command_table",
     "open_blocking",
     "raise_constraint",
+    "review_groups",
 ]

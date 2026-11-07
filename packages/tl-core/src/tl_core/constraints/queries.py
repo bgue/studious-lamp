@@ -178,6 +178,7 @@ def _where(
     category: str | None,
     phase: str | None,
     blocking: bool | None,
+    owner: str | None = None,
     viewer: confidentiality.Viewer | None,
 ) -> tuple[str, dict[str, Any]]:
     """The conditions, and the join to the subject's class: never a column of the constraint."""
@@ -196,6 +197,11 @@ def _where(
     if blocking is not None:
         parts.append("c.severity = :severity")
         params["severity"] = "blocking" if blocking else "advisory"
+    if owner is not None:
+        if owner == "":
+            raise ValueError("owner must not be empty")
+        parts.append("c.owner = :owner")
+        params["owner"] = owner
     return " AND ".join(parts), params
 
 
@@ -208,6 +214,7 @@ def list_constraints(
     category: str | None = None,
     phase: str | None = None,
     blocking: bool | None = None,
+    owner: str | None = None,
     limit: int = 200,
     today: date | None = None,
     viewer: confidentiality.Viewer | None = None,
@@ -220,6 +227,7 @@ def list_constraints(
         category=category,
         phase=phase,
         blocking=blocking,
+        owner=owner,
         viewer=viewer,
     )
     statement = text(f"SELECT {_COLUMNS} {_FROM} WHERE {where} ORDER BY r.key, r.id LIMIT :limit")
@@ -236,6 +244,7 @@ def count_constraints(
     category: str | None = None,
     phase: str | None = None,
     blocking: bool | None = None,
+    owner: str | None = None,
     viewer: confidentiality.Viewer | None = None,
 ) -> int:
     """How many ``list_constraints`` would find (no limit); the target never changes it."""
@@ -246,6 +255,7 @@ def count_constraints(
         category=category,
         phase=phase,
         blocking=blocking,
+        owner=owner,
         viewer=viewer,
     )
     statement = text(f"SELECT COUNT(*) {_FROM} WHERE {where}")
