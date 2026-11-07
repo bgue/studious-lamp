@@ -25,6 +25,7 @@ awp-wbs = "tl_mod_awp.loaders.awp:wbs_loader"
 awp-cwa = "tl_mod_awp.loaders.awp:cwa_loader"
 
 [project.entry-points."throughline.readiness_checks"]
+constraints_cleared = "tl_mod_awp.readiness.checks:constraints_cleared"
 permits_planned = "tl_mod_awp.checks_na:permits_planned"
 inspections_planned = "tl_mod_awp.checks_na:inspections_planned"
 labour_requested = "tl_mod_awp.checks_na:labour_requested"

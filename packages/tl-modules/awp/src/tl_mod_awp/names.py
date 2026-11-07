@@ -152,3 +152,15 @@ SIGNOFF_ROLES_SETTING: Final = "awp.release.signoff_roles"
 UNKNOWN_CHECKS_SETTING: Final = "awp.release.allow_unknown_checks"
 MAX_SIGNOFFS: Final = 4
 SIGNERS_NEEDED: Final = 2
+
+#: Readiness (P2-I2 S4): the job kind, its job id prefix, the events and the actor of the job.
+JOB_KIND_READINESS: Final = "awp.readiness"
+READINESS_JOB_PREFIX: Final = "ready:"
+READINESS_SOURCE: Final = f"job:{JOB_KIND_READINESS}"
+READINESS_ACTOR: Final = "svc:awp.readiness"
+IWP_READINESS_EVALUATED: Final = "IWP.ReadinessEvaluated"
+IWP_READY_EVENT: Final = "IWP.Ready"
+TRANSITION_READY: Final = "ready"
+TRANSITION_UNREADY: Final = "unready"
+CONSTRAINT_TYPE: Final = "core.Constraint"
+CONSTRAINT_TABLE: Final = "cur_core_constraint"

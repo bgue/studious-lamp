@@ -60,7 +60,7 @@ def test_only_the_materials_check_is_installed_by_default() -> None:
         "predecessors_handed_over",
         "rfis_answered",
         "documents_current",
-    }
+    } | {"constraints_cleared"}  # P2-I2 S4
     assert load_checks([]) == {}
 
 
