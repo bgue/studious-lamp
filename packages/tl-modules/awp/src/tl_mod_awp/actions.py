@@ -25,12 +25,25 @@ from sqlalchemy import Connection, text
 from tl_core.actions import ActionOffer, Holds, Level
 from tl_core.auth.module_roles import normalise_word
 
-from tl_mod_awp.common import package_state
+from tl_mod_awp.common import package_state, record_state
 from tl_mod_awp.names import (
+    CON_ASSIGNED,
+    CON_OPEN,
+    CONSTRAINT,
     CWA,
     CWA_TABLE,
     CWP,
     EWP,
+    IWP,
+    IWP_CHECK,
+    IWP_DEVELOPMENT,
+    IWP_DRAFT,
+    IWP_EDITABLE,
+    IWP_FIELD_COMPLETE,
+    IWP_IN_PROGRESS,
+    IWP_ISSUED,
+    IWP_ON_HOLD,
+    IWP_READY,
     PATH,
     PWP,
     ST_COMPLETE,
@@ -52,6 +65,16 @@ _VOIDED_SQL = text("SELECT voided FROM cur_core_record WHERE id = :id")
 
 #: Every state a package can be voided from: all but Closed (Void is final).
 LIVE_STATES = (ST_PLANNED, ST_DEVELOPMENT, ST_RELEASED, ST_EXECUTING, ST_COMPLETE)
+#: The states an IWP can be cancelled or raised a constraint in: every one but the final ones.
+IWP_LIVE_STATES = (
+    *IWP_EDITABLE,
+    IWP_READY,
+    IWP_ISSUED,
+    IWP_IN_PROGRESS,
+    IWP_FIELD_COMPLETE,
+    IWP_ON_HOLD,
+)
+CONSTRAINT_OPEN_STATES = (CON_OPEN, CON_ASSIGNED)
 
 
 def _always(conn: Connection, record_id: str) -> bool:
@@ -123,11 +146,55 @@ RULES: tuple[Rule, ...] = (
     Rule("ReopenCwp", "Reopen", "awp.cwp.close", (CWP,), states=(ST_COMPLETE,)),
     # the owner's package references have no workflow: not void is the state
     Rule("UpdateExternalPackage", "Update", "awp.package.edit", (EWP, PWP), _not_void),
+    # an IWP: one row per state and command (field-work-packaging, "Records and states")
+    Rule("AddIwpScope", "Add scope", "awp.iwp.edit", (IWP,), states=IWP_EDITABLE),
+    Rule("RemoveIwpScope", "Remove scope", "awp.iwp.edit", (IWP,), states=IWP_EDITABLE),
+    Rule("PinIwpDocument", "Pin a document", "awp.iwp.edit", (IWP,), states=IWP_EDITABLE),
+    Rule("SplitIwp", "Split", "awp.iwp.edit", (IWP,), states=IWP_EDITABLE),
+    Rule("StartIwpDevelopment", "Start development", "awp.iwp.edit", (IWP,), states=(IWP_DRAFT,)),
+    Rule(
+        "SendIwpToConstraintCheck",
+        "Send to constraint check",
+        "awp.iwp.edit",
+        (IWP,),
+        states=(IWP_DEVELOPMENT,),
+    ),
+    Rule(
+        "ReturnIwpToDevelopment",
+        "Return to development",
+        "awp.iwp.edit",
+        (IWP,),
+        states=(IWP_CHECK,),
+    ),
+    Rule(
+        "RaiseConstraint",
+        "Raise a constraint",
+        "awp.constraint.edit",
+        (IWP,),
+        states=IWP_LIVE_STATES,
+    ),
+    # a constraint: open and assigned are the states that take a move
+    Rule("AssignConstraint", "Assign", "awp.constraint.edit", (CONSTRAINT,), states=(CON_OPEN,)),
+    Rule(
+        "ClearConstraint",
+        "Clear",
+        "awp.constraint.edit",
+        (CONSTRAINT,),
+        states=CONSTRAINT_OPEN_STATES,
+    ),
+    Rule(
+        "VoidConstraint",
+        "Void",
+        "awp.constraint.edit",
+        (CONSTRAINT,),
+        states=CONSTRAINT_OPEN_STATES,
+    ),
     # last: a retirement or a void ends the use of the node, the area or the package
     Rule("RetireWbsNode", "Retire", "awp.wbs.configure", (WBS_NODE,), _active_node),
     Rule("RetireCwa", "Retire", "awp.wbs.configure", (CWA,), _active_cwa),
     Rule("VoidCwp", "Void", "awp.void", (CWP,), states=LIVE_STATES),
     Rule("VoidExternalPackage", "Void", "awp.void", (EWP, PWP), _not_void),
+    Rule("CancelIwp", "Cancel", "awp.void", (IWP,), states=IWP_LIVE_STATES),
 )
 
 _STATES: Mapping[tuple[str, str], tuple[str, ...]] = {
@@ -152,12 +219,23 @@ def level_of(rule: Rule) -> Level:
     return "user"
 
 
+def _state_of(conn: Connection, record_id: str, record_type: str) -> str | None:
+    """The workflow state of a record whose type has one (``None`` for the others)."""
+    if record_type == CWP:
+        return package_state(conn, record_id)
+    if record_type == IWP:
+        return record_state(conn, record_id, IWP_DRAFT)
+    if record_type == CONSTRAINT:
+        return record_state(conn, record_id, CON_OPEN)
+    return None
+
+
 def awp_actions(conn: Connection, record_id: str, holds: Holds) -> list[ActionOffer]:
     """The commands the viewer may run on this record now, in the order of ``RULES``."""
     record_type = conn.execute(_TYPE_SQL, {"id": record_id}).scalar_one_or_none()
     if record_type is None:
         return []
-    state = package_state(conn, record_id) if record_type == CWP else None
+    state = _state_of(conn, record_id, record_type)
     return [
         ActionOffer(command=rule.command, label=rule.label)
         for rule in RULES

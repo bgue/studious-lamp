@@ -102,4 +102,63 @@ JOB_KIND_ROLLUP: Final = "awp.rollup"
 ROLLUP_JOB_PREFIX: Final = "rollup:"
 
 #: Relation words of the links the IWP commands write (the links carry no schema class).
+#: ``contains`` is how a scope reads from the IWP; the vocabulary holds it as the inverse of
+#: ``belongs_to`` (``tl_core.links.vocabulary``), so the stored link is ``belongs_to`` from the
+#: scope record to the IWP (``SCOPE_RELATION``) and ``contains`` is its inverse reading.
 CONTAINS_RELATION: Final = "contains"
+SCOPE_RELATION: Final = "belongs_to"
+BLOCKS_RELATION: Final = "blocks"
+RESOLVES_RELATION: Final = "resolves"
+PIN_RELATION: Final = "references"
+DOCUMENT_TYPE: Final = "documents.Document"
+TAG_TYPE: Final = "engineering.Tag"
+
+IWP_VIEW: Final = "v_awp_iwp"
+SCOPE_ITEM_VIEW: Final = "v_awp_scope_item"
+CONSTRAINT_VIEW: Final = "v_awp_constraint"
+
+IWP_CREATED: Final = "IWP.Created"
+IWP_REVISED: Final = "IWP.Revised"
+IWP_SCOPE_ADDED: Final = "IWP.ScopeAdded"
+IWP_SCOPE_REMOVED: Final = "IWP.ScopeRemoved"
+IWP_DOCUMENT_PINNED: Final = "IWP.DocumentPinned"
+IWP_SPLIT: Final = "IWP.Split"
+SCOPE_ITEM_CREATED: Final = "ScopeItem.Created"
+CONSTRAINT_RAISED: Final = "Constraint.Raised"
+CONSTRAINT_ASSIGNED: Final = "Constraint.Assigned"
+CONSTRAINT_CLEARED: Final = "Constraint.Cleared"
+
+#: The states of the IWP workflow (``schema/fixtures/workflows/awp-iwp.yaml``).
+IWP_DRAFT: Final = "Draft"
+IWP_DEVELOPMENT: Final = "In development"
+IWP_CHECK: Final = "Constraint check"
+IWP_READY: Final = "Ready"
+IWP_ISSUED: Final = "Issued"
+IWP_IN_PROGRESS: Final = "In progress"
+IWP_FIELD_COMPLETE: Final = "Field complete"
+IWP_CLOSED: Final = "Closed"
+IWP_ON_HOLD: Final = "On hold"
+IWP_SPLIT_STATE: Final = "Split"
+IWP_CANCELLED: Final = "Cancelled"
+#: States in which the fields and the scope of an IWP may change (frozen from Ready).
+IWP_EDITABLE: Final = (IWP_DRAFT, IWP_DEVELOPMENT, IWP_CHECK)
+#: Terminal states: the generic commands (``guards.not_closed``) and a new constraint refuse them.
+IWP_TERMINAL: Final = (IWP_CLOSED, IWP_SPLIT_STATE, IWP_CANCELLED)
+#: The states of the constraint workflow and of a scope item.
+CON_OPEN: Final = "Open"
+CON_ASSIGNED: Final = "Assigned"
+CON_CLEARED: Final = "Cleared"
+CON_VOID: Final = "Void"
+SCI_PLANNED: Final = "Planned"
+SCI_VERIFIED: Final = "Verified"
+SCI_VOID: Final = "Void"
+
+#: Constraint sources: a person raises ``manual``; a module raises the other four.
+SOURCE_MANUAL: Final = "manual"
+MODULE_SOURCES: Final = ("check", "rule", "feed_hold", "thread_hold")
+ALL_SOURCES: Final = (SOURCE_MANUAL, *MODULE_SOURCES)
+
+#: Fixed warning codes of the IWP sizing check (carried in the ``warnings`` list of the event).
+WARN_OVERSIZE: Final = "iwp_oversize"
+WARN_UNDERSIZE: Final = "iwp_undersize"
+CODE_SUPPRESSED: Final = "suppressed"

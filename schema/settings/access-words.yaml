@@ -17,6 +17,8 @@ words:
   awp.cwp.close: controller
   awp.void: controller
   awp.package.edit: user
+  awp.iwp.edit: user
+  awp.constraint.edit: user
 
   # materials: library, receipts, stock and take-offs (specs/m4-materials.md section 3)
   materials.view: read

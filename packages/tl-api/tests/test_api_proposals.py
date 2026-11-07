@@ -232,9 +232,9 @@ def test_an_agent_token_cannot_run_any_record_changing_command(harness: Harness)
         assert response.json()["message"] == MESSAGE
         seen.add(spec.name)
     assert (
-        len(seen) == len(COMMANDS) - len(FEED_COMMANDS) == 118 + 19 + 14 + 25 + 24
+        len(seen) == len(COMMANDS) - len(FEED_COMMANDS) == 118 + 19 + 14 + 25 + 14 + 24
     )  # incl. P1-I5, P1-I7 WS-A, RFIs, Commercial (P1-I6: 19), the registry (P1-I8: 14), awp (25),
-    # materials (P2-I3: 24)
+    # awp IWP, scope and constraint commands (P2-I2: 14), materials (P2-I3: 24)
 
 
 def test_an_agent_token_can_still_post_and_read_and_a_person_can_still_change_records(
