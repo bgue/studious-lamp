@@ -363,6 +363,7 @@ AGENT_MAY_NOT = {
     "file.upload",
     "record.write",
     "setting.write",
+    "core.constraint.view",  # P2-I2-T04c1: constraint reads are closed to agents until allowed
     "admin.integration.action.define",
     "admin.integration.action.rotate",
     "admin.integration.endpoint.create",
