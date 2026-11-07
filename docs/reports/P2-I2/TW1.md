@@ -5,9 +5,8 @@ Branch: `p2/i2-tw1-web`   Commit(s): one commit `P2-I2-TW1: ...` (code and repor
 ## Deviations
 - Commit subject uses the ticket ID form `P2-I2-TW1: ...` (AGENTS.md rule 9 and the ticket's Report requirements). The harness text said `TW1: ...`; the ticket form contains it. Same choice as T07b.
 - Trailer names Claude Haiku 5.5 (my own model, per the session). The harness text said Opus 5.5, which does not match this session.
-- Read beyond the Context list to write against real code: `tl_web/log.py` (WebLog base), `tests/walk.py`, `tests/test_web_reads_mirror.py`, `tests/test_web_imports.py`, `tests/conftest.py`, `tests/htmlkit.py`, `tl_api/routes/awp.py` 238-290, `tl_tui/client.py` (IWP methods). No file outside Allowed paths changed.
+- Read beyond the Context list: `tl_web/log.py`, `tests/{walk,conftest,htmlkit}.py`, the two pinned tests, `tl_api/routes/awp.py` 238-290, `tl_tui/client.py`. No file outside Allowed paths changed.
 - The ticket's Brief writes the summary as `iwp_summary(rows)`. The real signature is `iwp_summary(total, shown, *, state, foreman)`; the page calls `iwp_summary(n, n)`.
-- Text module `tl_tui.iwp_text` is not changed (no escalation trigger hit).
 
 ## Changed files
 - `packages/tl-web/src/tl_web/pages/iwps.py` (new): `IwpWebLog` (WebLog subclass), `register("iwps", ...)`, `GET /p/{project}/iwps`. Module docstring says the s/d/m/r filters are not on this page.
@@ -27,7 +26,7 @@ Branch: `p2/i2-tw1-web`   Commit(s): one commit `P2-I2-TW1: ...` (code and repor
 ## Commands and output
 ```
 $ NODE_OPTIONS=--max-old-space-size=6144 just check
-All checks passed!          (ruff check, after the last edit)
+All checks passed!          (ruff check last)
 0 errors, 0 warnings, 0 informations
 generated files are up to date (843 files)
 licences ok
@@ -35,8 +34,6 @@ exit 0
 $ just gate packages/tl-web/tests/test_web_TW1.py packages/tl-web/tests/test_web_imports.py packages/tl-web/tests/test_web_confidentiality_walk.py packages/tl-web/tests/test_web_reads_mirror.py
 part 1: exit 0, 80 passed in 104.15s (0:01:44)
 gate: PASS
-$ uv run pytest packages/tl-web/tests/test_web_TW1.py -q   (before the gate)
-14 passed in 3.19s
 ```
 
 ## Tests added
