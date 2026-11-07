@@ -236,3 +236,15 @@ The impact report of a package is stored in an event the whole company can read,
 - **L-P1-UX2-3** · 2026-10-22 · tags: tui, standards
   The columns of a company standard hold codes (`STR`, `ISO`, `PIP`, `47`). A screen shows plain words only if the standard's code lists are read: `list_code_lists(scope)` gives `{list: {code: label}}` and `labels_load` keys each list by its column and by its list name. A new log that shows a standards column needs one test with a code in the cell (plain shows the label, technical keeps the code).
   Evidence: S3 report (D10), `labels_load.py`, `test_standard_code_labels.py`. Status: active
+
+- **L-P2-I3-1** · 2026-11-07 · tags: tests, process
+  Ported acceptance scripts live as `acc_*.py` helpers inside the module's own tests dir and are imported by test files of other packages (tl-api, tl-mcp, tl-tui, tl-cli). That cross-package import is accepted: the Worlds and check functions stay in one place. The seed ledger takes about 1 s to build in a test; the 2 m 15 s of `S3.py --keep` was the checks.
+  Evidence: T11 report Deviations, review F4. Status: active
+
+- **L-P2-I3-2** · 2026-11-07 · tags: tests, env
+  The 4-part whole-suite gate OOMs on 16 GB once a module has this many tests. Run `just gate` per folder (one part per package directory) on the integrated branch, and name the touched test files for a ticket gate.
+  Evidence: orchestrator r13 note; T11 gate ran touched files, not whole directories. Status: active
+
+- **L-P2-I3-3** · 2026-11-07 · tags: cli, process
+  A CLI option that takes a record id is unusable when no read command prints ids: `tl mat move --for-line` needs an id but `mto show` and `mto list` print keys. Make write options take the key a read prints, and check every id-taking option against the read output in the ticket.
+  Evidence: T10 report Learnings; follow-up 1 of `docs/reports/P2-I3.md`. Status: active
