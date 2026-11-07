@@ -64,6 +64,12 @@ MUST_CHANGE: dict[str, str] = {
 # Ctrl+D leaves unchanged fails the admin walk, so a new unchanged screen gets a decision.
 UNCHANGED_OK: dict[str, str] = {
     "f1": "help is the static key map text (help_text); nothing technical is on it",
+    "D": "the take-off lines screen (M4): no technical rows yet (follow-up)",
+    "E": "the receipt entry screen (M4): no technical rows yet (follow-up)",
+    "I": "the item library (M4): no technical rows yet (follow-up)",
+    "M": "the movement log (M4): no technical rows yet (follow-up)",
+    "S": "the stock log (M4): no technical rows yet (follow-up)",
+    "W": "the locations screen (M4): no technical rows yet (follow-up)",
 }
 
 # The view-only keys a walk presses: digits, t, m, h. Any other key a screen lists is not pressed.

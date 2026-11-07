@@ -193,6 +193,31 @@ MODULE_STREAMS = (
         ),
     ),
     ("schemareg.Waiver", "Waiver.Requested", ("Waiver.Approved", "Waiver.Revoked")),
+    # awp (P2-I1): WBS, path of construction, CWAs, CWPs, external and package refs
+    (
+        "awp.WBSNode",
+        "WBSNode.Defined",
+        (
+            "WBSNode.Revised",
+            "WBSNode.Retired",
+            "WBSNode.Reinstated",
+            "WBSNode.CostCodesMapped",
+            "WBSNode.BudgetRolledUp",
+        ),
+    ),
+    (
+        "awp.PathOfConstruction",
+        "PathOfConstruction.Defined",
+        ("PathOfConstruction.Resequenced",),
+    ),
+    ("awp.CWA", "CWA.Defined", ("CWA.Revised", "CWA.Retired")),
+    (
+        "awp.CWP",
+        "CWP.Defined",
+        ("CWP.Revised", "CWP.AllocatedToWbs", "CWP.Released"),
+    ),
+    ("awp.EWPRef", "EWPRef.Defined", ("EWPRef.Updated",)),
+    ("awp.PWPRef", "PWPRef.Defined", ("PWPRef.Updated",)),
     # materials (P2-I3): library, location tree, PO line mirror, receipts, lots and take-offs
     (
         "materials.ItemMaster",

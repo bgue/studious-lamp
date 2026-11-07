@@ -31,8 +31,11 @@ def test_every_command_in_the_table_has_a_route(harness: Harness) -> None:
     # + the derivation pipeline (P1-I3), the cost (1) and schedule (6) modules (P1-I4), the
     # correspondence module's 28 (P1-I5), rules and actions (P1-I7 WS-A: 4 + 3 + 5 + 6 + 1) and
     # the thread messages (WS-B: 3), the 19 for RFIs and Commercial items (P1-I6) and the schema
-    # registry (P1-I8: 13; AdoptSchemaSet: 14) and the awp module (P2-I1: 25)
-    assert len(COMMANDS) == 20 + 14 + 24 + 10 + 1 + 6 + 28 + 4 + 3 + 5 + 6 + 1 + 3 + 19 + 14 + 25
+    # registry (P1-I8: 13; AdoptSchemaSet: 14), the awp module (P2-I1: 25) and the materials
+    # module (P2-I3: 22 + the 2 take-off commands)
+    assert len(COMMANDS) == (
+        20 + 14 + 24 + 10 + 1 + 6 + 28 + 4 + 3 + 5 + 6 + 1 + 3 + 19 + 14 + 25 + 24
+    )
 
 
 def test_create_record_returns_the_command_result(harness: Harness) -> None:
@@ -285,6 +288,18 @@ def test_the_controller_actions_are_exactly_the_commands_marked_controller() -> 
             "ReopenCwp",
             "VoidCwp",
             "VoidExternalPackage",
+            # the materials module (P2-I3): the library, the location tree, the stock write-offs,
+            # the voiding of a receipt and the take-off publish
+            "DefineItem",
+            "ReviseItem",
+            "RetireItem",
+            "DefineLocation",
+            "ReviseLocation",
+            "RetireLocation",
+            "VoidReceipt",
+            "AdjustStock",
+            "ScrapStock",
+            "PublishDerivedMto",
         )
     }
     assert {s.name for s in COMMANDS if effective_access(s) == "controller"} == {

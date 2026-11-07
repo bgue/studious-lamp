@@ -59,7 +59,9 @@ def test_labels_are_plain_words() -> None:
     for record_type, label in TYPE_LABELS.items():
         assert "." not in label, record_type
         assert not re.search(r"[a-z][A-Z]", label), f"{record_type}: {label!r} looks like CamelCase"
-        assert re.fullmatch(r"[A-Z][A-Za-z]*( [A-Za-z]+)*", label), f"{record_type}: {label!r}"
+        assert re.fullmatch(r"[A-Z][A-Za-z]*(?:-[A-Za-z]+)*( [A-Za-z]+(?:-[A-Za-z]+)*)*", label), (
+            f"{record_type}: {label!r}"
+        )
 
 
 def test_the_committed_labels_are_what_the_generator_writes() -> None:
