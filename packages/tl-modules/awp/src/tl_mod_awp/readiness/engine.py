@@ -92,6 +92,7 @@ _REQUEUE_SQL = text(
     "lease_until = NULL, started_at = NULL, finished_at = NULL, last_error = NULL, "
     "enqueued_at = :now WHERE job_id = :job_id AND state IN (:done, :failed, :cancelled)"
 )
+_EXISTS_SQL = text("SELECT 1 FROM cur_core_record WHERE id = :id")
 _PREVIOUS_SQL = text(f"SELECT ready FROM {READINESS_TABLE} WHERE iwp_id = :id")
 
 
@@ -150,7 +151,24 @@ def run_check(
     if clock() - started > CHECK_MAX_SECONDS:
         return _unknown(check, DETAIL_BOUND)
     kept = _within_contract(check, answer)
-    return kept if kept is not None else _unknown(check, DETAIL_SHAPE)
+    return _unknown(check, DETAIL_SHAPE) if kept is None else _drop_missing(conn, kept)
+
+
+def _drop_missing(conn: Connection, result: CheckResult) -> CheckResult:
+    """Fail closed: a ``resolve_via`` id that is no record is dropped and counted in the detail."""
+    found = [
+        r
+        for r in result.resolve_via
+        if conn.execute(_EXISTS_SQL, {"id": r.record_id}).first() is not None
+    ]
+    gone = len(result.resolve_via) - len(found)
+    if not gone:
+        return result
+    note = f"{gone} reference{'s' if gone > 1 else ''} not found"
+    detail = f"{result.detail}; {note}" if result.detail else note
+    if len(detail) > MAX_DETAIL_CHARS:
+        detail = note
+    return result.model_copy(update={"resolve_via": found, "detail": detail})
 
 
 def evaluate(
@@ -273,6 +291,8 @@ def record(
             ready = False
     elif not ready and state == IWP_READY:
         move(uow, cmd, iwp, TRANSITION_UNREADY, UNREADY_REASON)
+    # IWP.Ready only for an IWP that is Ready after this run (not Draft, Issued, ...)
+    now_ready = ready and record_state(conn, iwp, INITIAL_STATUS) == IWP_READY
     before = conn.execute(_PREVIOUS_SQL, {"id": iwp}).scalar_one_or_none()
     view = ReadinessView(
         iwp_id=iwp,
@@ -297,7 +317,7 @@ def record(
             ),
         )
     ]
-    if ready and not before:
+    if now_ready and not before:
         events.append(
             NewEvent(
                 event_type=IWP_READY_EVENT,

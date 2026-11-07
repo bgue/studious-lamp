@@ -12,7 +12,9 @@ from tl_adapters.db import make_uow_factory, open_uow, rebuild_projections
 from tl_adapters.queue import job_queue_for
 from tl_core.jobs import JobRunner
 from tl_core.readiness.types import RecordRef
-from tl_core.services.queries import record_history
+from tl_core.services.feed_queries import list_feed
+from tl_core.services.link_queries import links_of
+from tl_core.services.queries import get_record_by_id, record_history
 from tl_core.util import new_ulid
 from tl_mod_awp import readiness as rd
 from tl_mod_awp.readiness import hooks, views
@@ -39,6 +41,7 @@ def evaluation(w: Any, c2: bool, seen: list[Any]) -> str:
     a, b = sw.Stand("zz_doc"), sw.Stand("zz_odd", "n_a")
     cs = sw.checks(a, b)
     one = w.iwp(title="Rack secret")
+    w.set_status(one, "Constraint check")
     key, first = w.column("cur_core_record", "key", one), ev(w, one, cs)
     with open_uow(w.db, readonly=True) as u:
         same = views.readiness(u.conn(), sw.SCOPE, key) == first
@@ -55,7 +58,9 @@ def evaluation(w: Any, c2: bool, seen: list[Any]) -> str:
     ok("Ready -> Constraint check", not ev(w, one, cs).ready and w.state(one) == "Constraint check")
     w.set_status(one, "Issued")
     ok("other state: no move", not ev(w, one, cs).ready and w.state(one) == "Issued")
-    print("SKIP needs C2 (guard refusal)" if not c2 else "guard refusal: see rerun after C2")
+    a.state = "ok"
+    only = ev(w, w.iwp(), cs)  # a Draft IWP that evaluates ready gets no IWP.Ready
+    ok("other state: no IWP.Ready", only.ready and sw.count(w, only.iwp_id, "IWP.Ready") == 0)
     return one
 
 
@@ -115,17 +120,32 @@ def no_text(w: Any, one: str, hidden: str) -> None:
         )
         and all("Rack secret" not in r["payload"] for r in rows),
     )
-    twin = []
-    for ref in (hidden, new_ulid()):  # a restricted blocker, a missing one
-        stand = sw.Stand("zz_rfi", "blocked")
-        stand.refs = [RecordRef(record_id=ref, record_type="x.Rfi", key="RFI-0001")]
-        iwp = w.iwp()
-        ev(w, iwp, sw.checks(stand))
-        with open_uow(w.db, readonly=True) as u:
-            twin.append(" ".join(str(e.payload) for e in record_history(u, iwp)))
+    hidden_key = w.column("cur_core_record", "key", hidden)
+    stand = sw.Stand("zz_rfi", "blocked")
+    stand.refs = [
+        RecordRef(record_id=hidden, record_type="x.Rfi", key=hidden_key or "RFI-0001"),
+        RecordRef(record_id=new_ulid(), record_type="x.Rfi", key="RFI-9999"),  # not a record
+    ]
+    iwp = w.iwp()
+    shown = {c.name: c for c in ev(w, iwp, sw.checks(stand)).checks}["zz_rfi"]
     ok(
-        "low-clearance history names no hidden record, no key",
-        all(hidden not in t and "RFI-0001" not in t for t in twin) and "zz_rfi" not in twin[0],
+        "unresolvable ref dropped, counted in a fixed detail",
+        shown.detail.endswith("1 reference not found") and len(shown.resolve_via) == 1,
+    )
+    with open_uow(w.db, readonly=True) as u:  # the lowest-clearance viewer
+        reads = [
+            str([e.payload for e in record_history(u, iwp)]),
+            str(list_feed(u, sw.SCOPE, record_id=iwp, include_linked=True)),
+            str(get_record_by_id(u, iwp)),
+            str(get_record_by_id(u, hidden)),
+            str(links_of(u, iwp)),
+            str(list_feed(u, sw.SCOPE, limit=200)),
+        ]
+        visible = [str(e.payload) for e in record_history(u, iwp)]
+    leaks = [t for t in reads if hidden in t or (hidden_key and hidden_key in t) or "RFI-9999" in t]
+    ok(
+        "low clearance: no hidden id or key in history, feed, record, links",
+        not leaks and reads[3] == "None" and all(hidden not in t for t in visible),
     )
 
 
