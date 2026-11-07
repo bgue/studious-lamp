@@ -4,7 +4,8 @@ SQLite temp ledger; exit 0, one ``PASS <check>`` line per check, then ``T06a3 ok
 A scope with 1100 document links of other records (all to ``ISO-0``, which sorts before the pinned
 drawings, so a LIMIT of 1000 over the scope would drop the pins) plus one IWP with 3 pins (one
 stale): the check must answer ``blocked``, ``2/3``, with ``resolve_via`` the stale drawing, and its
-statements must be at most 12, the same with 100 or 1100 other links. The 60-pin IWP counts all 60.
+statements must be within the pin-based bound (2 + 6 per pinned document + 2 per floating pin, so
+16 for this IWP), the same with 100 or 1100 other links. The 60-pin IWP counts all 60.
 
 Run: ``uv run python dev/accept/P2-I2/T06a3.py``.
 """
@@ -32,7 +33,12 @@ from tl_mod_documents.resolver import links_to_documents
 from tl_mod_documents.testing import DocumentsWorld
 
 TODAY = date(2026, 11, 7)
-MAX_STATEMENTS = 12
+#: The statement bound is pin-based (orchestrator decision Q1, option a): 2 fixed statements, 6 per
+#: pinned document (get_document, find_revision, revisions_of, each with a hidden-record check), and
+#: 2 per floating pin. It does not depend on the scope's link count.
+FIXED_STATEMENTS = 2
+PER_PINNED_DOCUMENT = 6
+PER_FLOATING_PIN = 2
 OTHER_LINKS = 1100
 failures: list[str] = []
 
@@ -139,10 +145,15 @@ def main() -> int:
         statements_1100, _ = count_statements(
             conn, lambda: check.evaluate(conn, facts(three), TODAY)
         )
+    bound = (
+        FIXED_STATEMENTS
+        + PER_PINNED_DOCUMENT * 2  # ISO-1 and ISO-2 are pinned to a revision
+        + PER_FLOATING_PIN * 1  # ISO-3 floats
+    )
     expect(
-        statements_1100 <= MAX_STATEMENTS and statements_100 <= MAX_STATEMENTS,
-        f"statements <= {MAX_STATEMENTS} ({statements_100} with 100 links, "
-        f"{statements_1100} with 1100)",
+        statements_1100 <= bound and statements_100 <= bound,
+        f"statements <= {bound} (2 + 6 per pinned document + 2 per floating pin; "
+        f"{statements_100} with 100 links, {statements_1100} with 1100)",
     )
     expect(
         statements_100 == statements_1100,
