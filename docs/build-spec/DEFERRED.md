@@ -12,6 +12,7 @@ One line each: what, why it waits, and the phase it belongs to. Newest at the bo
 | Wave security reviews for P2-I2 to I5 beyond the per-increment Sec rows | Owner: security reviews are owner-optional; keep to what release needs | Phase 2 exit |
 | Per-viewer redaction of scanned-stream events: an IWP readiness event (like a proposal or thread event) that names a hidden record is hidden whole, so a viewer may notice a missing evaluation; redact the hidden ids instead of hiding the event | ADR-0016 accepts whole-event hiding; no hidden id or key is shown | Phase 3 I8 |
 | An agent's own module role is not checked when it files a proposal (`submit` skips `require_command_access`), and agents read internal records of any project (agent-first spec 3.1) | People still decide every proposal with their own access; fix with read scoping | Phase 3 |
+| Agents and core access words: agents hold no `core.constraint.view`/`.edit`, so the MCP constraint read and propose tools were left out of P2-I2-T09b; define agent grants for core words with the ADR-0027 filing rule | Access change for agents; IWP tools cover wave 2 | Phase 3 |
 
 ## Test runs
 | Item | Why deferred | Phase |
