@@ -79,6 +79,12 @@ from tl_mod_awp.handlers.scope import (
     handle_remove_iwp_scope,
     handle_split_iwp,
 )
+from tl_mod_awp.handlers.signoff import (
+    handle_hold_iwp,
+    handle_issue_iwp,
+    handle_release_hold,
+    handle_sign_off_iwp,
+)
 from tl_mod_awp.handlers.wbs import (
     handle_define_wbs_node,
     handle_map_wbs_to_cost_codes,
@@ -740,6 +746,45 @@ class RequestRollup(_Strict):
     """Queue the budget rollup of the project (idempotent: one queued run at a time)."""
 
 
+class SignOffIwp(_Strict):
+    """Sign off an IWP that is Ready, for the record hash read from ``iwp_record_hash``."""
+
+    iwp: str = Field(min_length=1, max_length=MAX_ID)
+    record_hash: str = Field(pattern=HASH_PATTERN)
+
+
+class IssueIwp(_Strict):
+    """Issue a Ready IWP, signed off by two distinct signers, to its foreman."""
+
+    iwp: str = Field(min_length=1, max_length=MAX_ID)
+    foreman: str | None = Field(default=None, pattern=ACTOR_PATTERN, max_length=MAX_FOREMAN)
+    record_hash: str = Field(pattern=HASH_PATTERN)
+
+
+class HoldIwp(_Strict):
+    """Put an IWP that is Ready, Issued or In progress on hold."""
+
+    iwp: str = Field(min_length=1, max_length=MAX_ID)
+    reason: str = Field(min_length=1, max_length=MAX_CLEAR_REASON)
+
+    @field_validator("reason")
+    @classmethod
+    def _reason(cls, value: str) -> str:
+        return _text(value)
+
+
+class ReleaseHold(_Strict):
+    """Lift the hold of an IWP into a constraint check."""
+
+    iwp: str = Field(min_length=1, max_length=MAX_ID)
+    reason: str | None = Field(default=None, max_length=MAX_CLEAR_REASON)
+
+    @field_validator("reason")
+    @classmethod
+    def _reason(cls, value: str | None) -> str | None:
+        return clean_optional_text(value)
+
+
 @dataclass(frozen=True)
 class AwpCommand:
     model: type[Command]
@@ -787,4 +832,8 @@ AWP_COMMANDS: tuple[AwpCommand, ...] = (
     AwpCommand(AssignConstraint, handle_assign_constraint, "awp.constraint.edit"),
     AwpCommand(ClearConstraint, handle_clear_constraint, "awp.constraint.edit"),
     AwpCommand(VoidConstraint, handle_void_constraint, "awp.constraint.edit"),
+    AwpCommand(SignOffIwp, handle_sign_off_iwp, "awp.iwp.signoff"),
+    AwpCommand(IssueIwp, handle_issue_iwp, "awp.iwp.issue"),
+    AwpCommand(HoldIwp, handle_hold_iwp, "awp.iwp.hold"),
+    AwpCommand(ReleaseHold, handle_release_hold, "awp.iwp.hold"),
 )

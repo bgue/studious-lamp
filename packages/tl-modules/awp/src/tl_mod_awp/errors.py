@@ -99,3 +99,13 @@ class ConstraintSourceError(AwpError):
 
 class ConstraintStateError(AwpError):
     """The constraint is in a state that does not take the command."""
+
+
+class IwpSignoffError(AwpError):
+    """A rule of sign-off and issue: the signer's role, a repeat signer, a stale hash, too few
+    signers."""
+
+
+class IwpNotReadyError(AwpError):
+    """The last readiness result does not allow a sign-off or an issue (absent, not ready, or an
+    unknown check)."""
