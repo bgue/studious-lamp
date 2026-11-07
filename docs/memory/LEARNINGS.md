@@ -248,3 +248,14 @@ The impact report of a package is stored in an event the whole company can read,
 - **L-P2-I1-3** · 2026-11-05 · tags: process, review
   Review a demo or a report only against the final run: a reviewer read the stale report from the failed first run and returned changes requested. Refresh the report before review.
   Evidence: T08 review, `docs/reports/P2-I1/T08.md`. Status: active
+- **L-P2-WEB1-1** · 2026-11-04 · tags: process, tests
+  A page that is a twin of a terminal screen is only a Haiku ticket when the terminal logic is already a Textual-free module (01-tiers 6 item 2). S4's first checklist run failed for the record screen and the awp and M4 screens; one builder piece that moves the logic (S6) made the tabs and twins cheap. Run the checklist after the interface is in the tree, and split twins one page each.
+  Evidence: D16, D19, D25, D34, D39. Status: active
+
+- **L-P2-WEB1-2** · 2026-11-04 · tags: web, security
+  A server-rendered POST needs the origin check even when it carries no token: sign-in had none, which made login CSRF possible (F1). Fail closed for the guard (`run_command(guard=True)` default; the JSON endpoint opts out), and count a refused origin as no failure in the rate limiter.
+  Evidence: SECFIX report, F1 to F3, `b817341`. Status: active
+
+- **L-P2-WEB1-3** · 2026-11-04 · tags: web, tests
+  Test seeds that attach files or hold hidden records may only work on SQLite: `seed_hidden_world` fails on Postgres, so `gate-pg` on a new package errors at baseline. Check the seed on both adapters when the first page test is written, and name the unknown-project answer (empty 200 versus 404) in the spec.
+  Evidence: Q4, T20 orchestrator decision. Status: active

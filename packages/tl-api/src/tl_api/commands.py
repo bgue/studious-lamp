@@ -105,7 +105,7 @@ from tl_mod_schedule.commands import API_COMMANDS as SCHEDULE_COMMANDS
 from tl_mod_schemareg.commands import API_COMMANDS as SCHEMAREG_COMMANDS
 
 from tl_api.auth import AGENT_DIRECT_COMMANDS, current_principal, guard
-from tl_api.context import get_ctx
+from tl_api.context import ApiContext, get_ctx
 from tl_api.effective import EFFECTIVE_AT_HEADER, resolve_effective_at
 
 Handler = Callable[[UnitOfWork, Any], CommandResult]
@@ -301,6 +301,57 @@ def controller_actions() -> frozenset[str]:
     )
 
 
+def command_spec(name: str) -> CommandSpec | None:
+    """The ``COMMANDS`` row named ``name``, or ``None`` for a name the table does not carry."""
+    return next((spec for spec in COMMANDS if spec.name == name), None)
+
+
+def run_command(
+    ctx: ApiContext,
+    spec: CommandSpec,
+    command: Command,
+    *,
+    principal: Principal,
+    effective_at: str | None = None,
+    path: str = "",
+    guard: bool = True,
+) -> CommandResult:
+    """Everything a command endpoint does once the model is built, once, for every caller.
+
+    The JSON endpoints and the web action route both call this, so the reserved-field refusal, the
+    company-admin check, the effective time and the module-role access check (ADR-0021) have no
+    second copy. ``path`` is the resource named in an admin refusal (the request path). A refusal is
+    raised (``ForbiddenError``, ``CommandAccessError``, ...) before the handler runs.
+
+    ``guard`` (the default, fail closed) runs the endpoint guard's two calls first (the role
+    authorizer, then the legacy ``ctx.authorize`` hook, for ``action_for(spec)`` on ``path``), so a
+    caller with no ``guard`` dependency (the web action route) is held to the same check as the JSON
+    endpoint. The JSON endpoints pass ``guard=False``: their ``guard`` dependency already ran both,
+    before the body was read.
+    """
+    actor = command.actor
+    if guard:
+        action = action_for(spec)
+        ctx.authorizer.authorize(principal, action, path)
+        ctx.authorize(principal.actor, action, path)
+    refuse_reserved(command)  # a client cannot pose as a publication (ADR-0014)
+    if effective_access(spec) == "company" and command.scope == "company":
+        ctx.authorizer.authorize(principal, f"admin.command.{spec.name}", path)
+    when = resolve_effective_at(effective_at, command.scope)
+    with effective_time(when), ctx.backend(False) as uow:
+        # the one access function (ADR-0021): the module role table decides, for this project
+        require_command_access(uow.conn(), command, holder=holder_for_principal(principal))
+        if spec.needs_holds:
+            from tl_api.routes.proposals import holds_access
+
+            return cast(Any, spec.handler)(
+                uow, command, holds=lambda level: holds_access(principal, actor, level)
+            )
+        if spec.takes_roles:
+            return cast(Any, spec.handler)(uow, command, roles=workflow_roles(principal))
+        return spec.handler(uow, command)
+
+
 def _make_endpoint(spec: CommandSpec, body_model: type[BaseModel]) -> Callable[..., CommandResult]:
     action = action_for(spec)
     changes_records = spec.name not in AGENT_DIRECT_COMMANDS
@@ -325,22 +376,10 @@ def _make_endpoint(spec: CommandSpec, body_model: type[BaseModel]) -> Callable[.
         if actor.startswith("agent:"):  # an agent cannot claim another source (brief 18.12)
             fields["source"] = source_for(actor)
         command = spec.model(**fields, actor=actor)
-        refuse_reserved(command)  # a client cannot pose as a publication (ADR-0014)
-        if effective_access(spec) == "company" and command.scope == "company":
-            ctx.authorizer.authorize(principal, f"admin.command.{spec.name}", request.url.path)
-        when = resolve_effective_at(effective_at, command.scope)
-        with effective_time(when), ctx.backend(False) as uow:
-            # the one access function (ADR-0021): the module role table decides, for this project
-            require_command_access(uow.conn(), command, holder=holder_for_principal(principal))
-            if spec.needs_holds:
-                from tl_api.routes.proposals import holds_access
-
-                return cast(Any, spec.handler)(
-                    uow, command, holds=lambda level: holds_access(principal, actor, level)
-                )
-            if spec.takes_roles:
-                return cast(Any, spec.handler)(uow, command, roles=workflow_roles(principal))
-            return spec.handler(uow, command)
+        return run_command(
+            ctx, spec, command, principal=principal, effective_at=effective_at,
+            path=request.url.path, guard=False,  # the guard dependency already ran both calls
+        )  # fmt: skip
 
     endpoint.__name__ = f"command_{spec.name}"
     endpoint.__doc__ = (spec.model.__doc__ or "").strip() or f"Run the {spec.name} command."

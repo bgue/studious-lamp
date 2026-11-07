@@ -1,0 +1,6 @@
+<table class="tl-history">
+<thead><tr>{% for h in headers %}<th scope="col">{{ h }}</th>{% endfor %}</tr></thead>
+<tbody>
+{% for row in rows %}<tr>{% for cell in row %}<td>{{ cell }}</td>{% endfor %}</tr>
+{% endfor %}</tbody>
+</table>

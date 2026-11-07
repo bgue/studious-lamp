@@ -1,0 +1,8 @@
+<table class="tl-files">
+<thead><tr>{% for h in headers %}<th scope="col">{{ h }}</th>{% endfor %}</tr></thead>
+<tbody>
+{% for row in rows %}<tr><td>{{ row.cells[0] }} <a href="{{ row.view }}">View</a> <a href="{{ row.download }}">Download</a></td><td>{{ row.cells[1] }}</td><td>{{ row.cells[2] }}</td></tr>
+{% endfor %}</tbody>
+</table>
+{% if empty %}<p>{{ empty }}</p>{% endif %}
+{% if picture %}<img class="tl-page1" src="{{ picture }}" alt="Page 1">{% endif %}

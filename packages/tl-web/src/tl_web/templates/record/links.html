@@ -1,0 +1,6 @@
+{% if empty %}<p>{{ empty }}</p>{% else %}<table class="tl-history">
+<thead><tr>{% for h in headers %}<th scope="col">{{ h }}</th>{% endfor %}</tr></thead>
+<tbody>
+{% for row in rows %}<tr{% if row.group %} class="tl-group"{% endif %}>{% for cell in row.cells %}<td>{{ cell }}</td>{% endfor %}</tr>
+{% endfor %}</tbody>
+</table>{% endif %}
