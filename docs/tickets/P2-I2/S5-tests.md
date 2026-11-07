@@ -46,3 +46,8 @@ Builder return <= 15 lines; report <= 60 lines: tests per area, the mutant table
 
 ## Escalation
 - Stop with `4` if a test needs a production change; report the file and line.
+
+## Orchestrator addendum (2026-11-07)
+- T04g review F4 LO: in `tl_mod_awp/readiness/follow.py` `_write`, set the in-memory position only after the unit of
+  work commits; add one pytest that a failing commit leaves both the stored cursor and the in-memory position unchanged.
+- Allowed paths include that one change in `follow.py`.

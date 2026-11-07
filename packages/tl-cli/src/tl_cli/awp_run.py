@@ -67,6 +67,7 @@ def worker(
         with build_worker(db) as made:
             try:
                 while True:
+                    made.follower.poll()  # events -> readiness requests (D13)
                     result = made.runner.run_once()
                     if result is None:
                         if once:
