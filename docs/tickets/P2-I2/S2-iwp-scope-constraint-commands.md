@@ -121,3 +121,10 @@ Subject `P2-I2-S2: <imperative summary>`; body says what and why; end with the h
 
 ## Decision
 (supervisor or orchestrator writes here)
+
+Builder-recorded deviations awaiting a Decision (second attempt, review F3/F4):
+- F3 (open, blocks merge): scope is stored as `belongs_to` item -> IWP (source `rule`), not forward `contains`
+  (core vocabulary holds `contains` only as the inverse; `handle_add_link` refuses it); `facts.py` reads both
+  directions. Decide: keep `belongs_to` (S3/S4/T04a read it) or a core change to allow `contains`.
+- F4: `RaiseConstraint` field is `source_kind` (not `source`: `Command.source` is the caller); `owner` accepts
+  `user:<name>` only (the column pattern fits no module-role actor text). Decide: accept, or schema/pattern change.

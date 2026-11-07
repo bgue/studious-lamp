@@ -7,9 +7,10 @@ takes are the rows of ``actions.RULES`` (``states_for``). The scope is in ``hand
 
 The sizing warning: when the estimated hours of a package are outside ``awp.iwp.size_hours``
 [low, high] the command still succeeds and the last IWP event it writes carries
-``warnings: ["iwp_oversize"]`` or ``["iwp_undersize"]`` in its payload (``with_warnings``). The
-events are the channel a ``CommandResult`` has, as ``Workflow.Transitioned`` carries the expected
-links a release misses. Fixed messages, never a cell of the input.
+``guards_evaluated: [{"kind": "iwp_size", "passed": false, "message": "iwp_oversize"}]`` (or
+``iwp_undersize``) in its payload (``with_warnings``): the key and entry shape
+``Workflow.Transitioned`` uses to carry the expected links a release misses. Fixed messages, never
+a cell of the input.
 """
 
 from __future__ import annotations
@@ -151,12 +152,18 @@ def require_state(iwp: Iwp, command: str) -> None:
 _EDIT_COMMANDS = frozenset({"AddIwpScope", "RemoveIwpScope", "PinIwpDocument", "SplitIwp"})
 
 
+def warning_entries(codes: list[str]) -> list[dict[str, object]]:
+    """The codes as ``guards_evaluated`` entries (``kind``, ``passed``, ``message``)."""
+    return [{"kind": "iwp_size", "passed": False, "message": code} for code in codes]
+
+
 def with_warnings(events: list[NewEvent], codes: list[str]) -> None:
     """Put the warning codes into the payload of the last event (a no-op without codes)."""
     if codes and events:
         last = events[-1]
         events[-1] = NewEvent(
-            event_type=last.event_type, payload={**last.payload, "warnings": codes}
+            event_type=last.event_type,
+            payload={**last.payload, "guards_evaluated": warning_entries(codes)},
         )
 
 
@@ -229,7 +236,7 @@ def create_iwp(uow: UnitOfWork, cmd: Command, fields: IwpFields) -> CommandResul
     }
     warnings = size_warnings(conn, cmd.scope, fields.estimated_hours)
     if warnings:
-        payload["warnings"] = warnings
+        payload["guards_evaluated"] = warning_entries(warnings)
     made = create_module_record(
         uow,
         cmd,

@@ -158,7 +158,7 @@ SOURCE_MANUAL: Final = "manual"
 MODULE_SOURCES: Final = ("check", "rule", "feed_hold", "thread_hold")
 ALL_SOURCES: Final = (SOURCE_MANUAL, *MODULE_SOURCES)
 
-#: Fixed warning codes of the IWP sizing check (carried in the ``warnings`` list of the event).
+#: Fixed sizing warning codes (the ``message`` of a ``guards_evaluated`` entry of the event).
 WARN_OVERSIZE: Final = "iwp_oversize"
 WARN_UNDERSIZE: Final = "iwp_undersize"
 CODE_SUPPRESSED: Final = "suppressed"
