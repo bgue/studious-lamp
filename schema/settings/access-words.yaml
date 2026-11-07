@@ -22,6 +22,9 @@ words:
   awp.void: controller
   awp.package.edit: user
   awp.iwp.edit: user
+  awp.iwp.signoff: controller
+  awp.iwp.issue: controller
+  awp.iwp.hold: controller
 
   # materials: library, receipts, stock and take-offs (specs/m4-materials.md section 3)
   materials.view: read

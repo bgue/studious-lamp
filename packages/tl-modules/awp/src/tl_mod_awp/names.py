@@ -116,6 +116,10 @@ IWP_SCOPE_ADDED: Final = "IWP.ScopeAdded"
 IWP_SCOPE_REMOVED: Final = "IWP.ScopeRemoved"
 IWP_DOCUMENT_PINNED: Final = "IWP.DocumentPinned"
 IWP_SPLIT: Final = "IWP.Split"
+IWP_SIGNED_OFF: Final = "IWP.SignedOff"
+IWP_ISSUED_EVENT: Final = "IWP.Issued"
+IWP_HELD: Final = "IWP.Held"
+IWP_HOLD_RELEASED: Final = "IWP.HoldReleased"
 SCOPE_ITEM_CREATED: Final = "ScopeItem.Created"
 
 #: The states of the IWP workflow (``schema/fixtures/workflows/awp-iwp.yaml``).
@@ -142,3 +146,9 @@ SCI_VOID: Final = "Void"
 #: Fixed sizing warning codes (the ``message`` of a ``guards_evaluated`` entry of the event).
 WARN_OVERSIZE: Final = "iwp_oversize"
 WARN_UNDERSIZE: Final = "iwp_undersize"
+
+#: Sign-off, issue and hold (P2-I2 S3): settings, tables and the limits of the sign-off list.
+SIGNOFF_ROLES_SETTING: Final = "awp.release.signoff_roles"
+UNKNOWN_CHECKS_SETTING: Final = "awp.release.allow_unknown_checks"
+MAX_SIGNOFFS: Final = 4
+SIGNERS_NEEDED: Final = 2

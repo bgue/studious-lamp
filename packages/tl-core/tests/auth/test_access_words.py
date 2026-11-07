@@ -26,8 +26,14 @@ AWP = {
     "awp.void": "controller",
     "awp.package.edit": "user",
 }
-#: The word of the IWP commands (P2-I2 S2).
-AWP_IWP = {"awp.iwp.edit": "user"}
+#: The words of the IWP commands (P2-I2 S2, S3).
+AWP_IWP = {
+    "awp.iwp.edit": "user",
+    # P2-I2 S3: sign-off, issue and hold
+    "awp.iwp.signoff": "controller",
+    "awp.iwp.issue": "controller",
+    "awp.iwp.hold": "controller",
+}
 #: The two words of the core constraint (ADR-0024); `awp.constraint.edit` is gone.
 CORE_CONSTRAINT = {"core.constraint.edit": "user", "core.constraint.view": "read"}
 #: Every word of specs/m4-materials.md section 3.
@@ -49,9 +55,9 @@ MATERIALS = {
 GOOD = "version: 1\nwords:\n  awp.view: read\n  awp.cwp.edit: user\n"
 
 
-def test_the_shipped_table_loads_25_words() -> None:
+def test_the_shipped_table_loads_28_words() -> None:
     words = load_access_words()
-    assert len(words) == 25 == len(AWP) + len(AWP_IWP) + len(CORE_CONSTRAINT) + len(MATERIALS)
+    assert len(words) == 28 == len(AWP) + len(AWP_IWP) + len(CORE_CONSTRAINT) + len(MATERIALS)
     assert "awp.constraint.edit" not in words
 
 

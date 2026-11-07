@@ -7,20 +7,26 @@ version. Deterministic: the rows depend only on the events. Register after ``Rec
 
 from __future__ import annotations
 
+import json
 from typing import Any
 
 from sqlalchemy import Connection, text
-from tl_core.ledger import Event
+from tl_core.ledger import Event, iso_utc
 
 from tl_mod_awp.names import (
     IWP_CREATED,
     IWP_DOCUMENT_PINNED,
+    IWP_HELD,
+    IWP_HOLD_RELEASED,
+    IWP_ISSUED_EVENT,
     IWP_REVISED,
     IWP_SCOPE_ADDED,
     IWP_SCOPE_REMOVED,
+    IWP_SIGNED_OFF,
     IWP_SPLIT,
     IWP_TABLE,
     IWP_VIEW,
+    MAX_SIGNOFFS,
 )
 from tl_mod_awp.projectors._common import ddl_for, touch_record
 
@@ -47,12 +53,36 @@ _REVISABLE = (
     "estimated_hours",
     "crew_text",
 )
-_BUMPS = frozenset({IWP_SCOPE_ADDED, IWP_SCOPE_REMOVED, IWP_DOCUMENT_PINNED, IWP_SPLIT})
+_SIGNOFFS_SQL = text(f"SELECT signoffs_json FROM {IWP_TABLE} WHERE id = :id")
+_SIGNOFF_SQL = text(
+    f"UPDATE {IWP_TABLE} SET signoffs_json = :rows, last_seq = :last_seq WHERE id = :id"
+)
+_FOREMAN_SQL = text(
+    f"UPDATE {IWP_TABLE} SET foreman = :foreman, last_seq = :last_seq WHERE id = :id"
+)
+_BUMPS = frozenset(
+    {
+        IWP_SCOPE_ADDED,
+        IWP_SCOPE_REMOVED,
+        IWP_DOCUMENT_PINNED,
+        IWP_SPLIT,
+        IWP_HELD,
+        IWP_HOLD_RELEASED,
+    }
+)
+
+
+def signoff_rows(value: Any) -> list[dict[str, Any]]:
+    """The sign-off rows of a ``signoffs_json`` cell (text on SQLite, a list on Postgres)."""
+    if value is None:
+        return []
+    found = json.loads(value) if isinstance(value, str | bytes) else value
+    return [dict(r) for r in found]
 
 
 class IwpProjector:
     name = "awp_iwp"
-    handles = frozenset({IWP_CREATED, IWP_REVISED, *_BUMPS})
+    handles = frozenset({IWP_CREATED, IWP_REVISED, IWP_SIGNED_OFF, IWP_ISSUED_EVENT, *_BUMPS})
 
     def ddl(self, dialect: str) -> list[str]:
         return ddl_for(IWP_TABLE, dialect) + ddl_for(IWP_VIEW, dialect)
@@ -86,6 +116,28 @@ class IwpProjector:
                 if name in changes:
                     values[name] = changes[name][1]
             conn.execute(_REVISE_SQL, {"id": event.stream_id, **values, "last_seq": event.seq})
+        elif kind == IWP_SIGNED_OFF:
+            held = conn.execute(_SIGNOFFS_SQL, {"id": event.stream_id}).scalar_one_or_none()
+            rows = signoff_rows(held)
+            rows.append(
+                {
+                    "by": payload["by"],
+                    "role": payload["role"],
+                    "at": iso_utc(event.effective_at),
+                    "record_hash": payload["record_hash"],
+                }
+            )
+            text_rows = json.dumps(
+                rows[-MAX_SIGNOFFS:], sort_keys=True, separators=(",", ":"), ensure_ascii=False
+            )
+            conn.execute(
+                _SIGNOFF_SQL, {"id": event.stream_id, "rows": text_rows, "last_seq": event.seq}
+            )
+        elif kind == IWP_ISSUED_EVENT:
+            conn.execute(
+                _FOREMAN_SQL,
+                {"id": event.stream_id, "foreman": payload["foreman"], "last_seq": event.seq},
+            )
         elif kind in _BUMPS:
             conn.execute(_BUMP_SQL, {"id": event.stream_id, "last_seq": event.seq})
         else:
