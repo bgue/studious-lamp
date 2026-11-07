@@ -32,8 +32,8 @@ def test_every_command_in_the_table_has_a_route(harness: Harness) -> None:
     # correspondence module's 28 (P1-I5), rules and actions (P1-I7 WS-A: 4 + 3 + 5 + 6 + 1) and
     # the thread messages (WS-B: 3), the 19 for RFIs and Commercial items (P1-I6) and the schema
     # registry (P1-I8: 13; AdoptSchemaSet: 14), the awp module (P2-I1: 25; P2-I2 IWP, scope
-    # item and constraint commands: 14; S3 sign-off, issue and hold: 4) and the materials module (P2-I3: 22 + the 2 take-off
-    # commands)
+    # item and constraint commands: 14; S3 sign-off, issue and hold: 4) and the materials
+    # module (P2-I3: 22 + the 2 take-off commands)
     assert len(COMMANDS) == (
         20 + 14 + 24 + 10 + 1 + 6 + 28 + 4 + 3 + 5 + 6 + 1 + 3 + 19 + 14 + 25 + 14 + 4 + 24
     )
