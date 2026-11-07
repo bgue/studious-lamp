@@ -18,6 +18,9 @@ correspondence = "tl_mod_correspondence.module:spec"
 [project.entry-points."throughline.dispatch_targets"]
 correspondence = "tl_mod_correspondence.dispatch:targets"
 
+[project.entry-points."throughline.readiness_checks"]
+rfis_answered = "tl_mod_correspondence.readiness:rfis_answered"
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
