@@ -67,3 +67,12 @@ One line each: what, why it waits, and the phase it belongs to. Newest at the bo
 | Insights: Ask, a record-scoped conversation with cited answers (item 12) | Needs retrieval, analysis jobs, a streaming route and a spend decision unless local | Phase 3 to 4 |
 | Insights: web versions of the Insights tab, inbox and Ask (item 13) | Owner: CLI and TUI first | Web increment after wave 4 |
 | Activity and Insights extras: "show in graph" from an Activity row, related activity beyond one hop, subtab hot keys, an Activity web page | Part C keeps one hop and the TUI only | Phase 4 and the web increment |
+
+## Terminal release follow-ups (P2-REL, 2026-11-07)
+| Item | Why deferred | Phase |
+|---|---|---|
+| Remote CLI: `tl login --remote` and a client under every `tl` command group | Release treats `tl` as an operator tool; the TUI is the user client | Phase 3 |
+| Native Windows support; Python 3.13 and later; Postgres other than 16 | Not tested; WSL2 and 3.12 only in the release | Phase 2 exit review |
+| PyPI upload, signed wheels, a package index | Release is a wheel directory with `SHA256SUMS` used through `--find-links` | after first user release |
+| TLS inside the server; a built-in reverse-proxy example per vendor | Deployer runs a TLS proxy (ADR-0009 deployment duty) | Phase 3 |
+| In-app update check and upgrade prompt | Version warning at sign-in only | Phase 3 |
