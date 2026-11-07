@@ -193,12 +193,19 @@ def tag_numbers(rng: random.Random) -> list[tuple[str, Kind, str]]:
     for code, _ in AREAS:
         for kind in KINDS:
             sequence = 1000
+            taken: set[int] = set()
             for _ in range(kind.per_area[code]):
                 sequence += rng.randint(1, 4)
-                while f"{code}-{kind.mnemonic}-{sequence:04d}" in ANCHOR_TAGS:
-                    sequence += 1  # the anchor numbers are never drawn; no extra random draw
+                # A drawn number that is an anchor moves to the next free number for this record
+                # only. The running sequence is not changed, so the later draws keep their numbers.
+                candidate = sequence
+                while (
+                    f"{code}-{kind.mnemonic}-{candidate:04d}" in ANCHOR_TAGS or candidate in taken
+                ):
+                    candidate += 1
+                taken.add(candidate)
                 found.append(
-                    (f"{code}-{kind.mnemonic}-{sequence:04d}", kind, rng.choice(kind.services))
+                    (f"{code}-{kind.mnemonic}-{candidate:04d}", kind, rng.choice(kind.services))
                 )
     return found
 
