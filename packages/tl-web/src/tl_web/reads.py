@@ -108,6 +108,7 @@ MIRRORS: dict[str, str] = {
     "list_iwp_scope": "list_iwp_scope",
     "list_constraints": "list_constraints_api",
     "get_constraint": "get_constraint_api",
+    "get_iwp_readiness": "get_iwp_readiness",
 }
 
 
@@ -511,3 +512,8 @@ class WebReadClient:
 
     def get_constraint(self, project: str, key: str) -> Any:
         return self._call_viewed(constraint_routes.get_constraint_api, project=project, key=key)
+
+    # --- readiness (P2-I2 TW3): one IWP's last readiness evaluation -------------------------------
+
+    def get_iwp_readiness(self, project: str, number: str) -> Any:
+        return self._call(awp_routes.get_iwp_readiness, project=project, number=number)
