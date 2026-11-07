@@ -28,6 +28,9 @@ from tl_core.constraints import (  # noqa: E402
     queries,
     raise_constraint,
 )
+from tl_core.constraints.commands import RECORD_TYPE  # noqa: E402
+from tl_core.services import link_queries as link_q  # noqa: E402
+from tl_core.services import queries as sq  # noqa: E402
 from tl_core.services.errors import GuardFailedError, RecordNotFoundError  # noqa: E402
 from tl_core.services.workflow import TransitionWorkflow, handle_transition_workflow  # noqa: E402
 
@@ -315,6 +318,7 @@ def walk(w: C2, i: str, docs: dict[str, str]) -> None:
             "admin": (1, 1, True),
         },
     )
+    generic_walk(w, made.stream_id, secret)
     refuses(RecordNotFoundError, lambda: w.raise_(secret, severity="advisory", owner="user:user"))
     refuses(
         RecordNotFoundError,
@@ -362,3 +366,34 @@ def seed(w: C2, docs: dict[str, str]) -> None:
         cleared_at="2026-10-20",
     )
     print("PASS seed: 3 constraints (open, Assigned, Cleared)")
+
+
+def generic_walk(w: C2, cid: str, secret: str) -> None:
+    """Generic reads (records, by id, history, links): hidden looks like missing (ADR-0024 d8)."""
+
+    def seen(who: str, record_id: str) -> tuple[Any, ...]:
+        with open_uow(w.db, readonly=True) as uow, cf.use_viewer(VIEWERS[who]):
+            listed = {r["id"] for r in sq.list_records(uow, SCOPE, record_type=RECORD_TYPE)}
+            try:
+                links = len(link_q.links_of(uow, record_id))
+            except RecordNotFoundError:
+                links = -1  # answers as a missing record
+            return (
+                record_id in listed,
+                sq.get_record_by_id(uow, record_id) is not None,
+                len(sq.record_history(uow, record_id)),
+                links,
+            )
+
+    ok(
+        "generic reads: hidden constraint absent below the class, present above",
+        all(seen(v, cid) == (False, False, 0, -1) for v in ("default", "user", "agent"))
+        and all(
+            seen(v, cid)[:2] == (True, True) and seen(v, cid)[3] > 0
+            for v in ("controller", "admin")
+        ),
+    )
+    ok(
+        "twin: restricted subject answers as a missing one",
+        seen("user", cid) == seen("user", "01ARZ3NDEKTSV4RRFFQ69G5FAV"),
+    )
