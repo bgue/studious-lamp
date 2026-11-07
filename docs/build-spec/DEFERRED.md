@@ -50,3 +50,17 @@ One line each: what, why it waits, and the phase it belongs to. Newest at the bo
 | Goal records; a read-only goal view walking from an end state through its open constraints to each target's allowed next actions and who may take them; agents that plan toward an end state and file proposals at each step; automatic intents from readiness and constraint clearing | Intent slot first (ADR-0025); the rest builds on it | Phase 3 |
 | Knowledge graph build: the creator tool, the ledger hash chain, the record graph tab and the project graph view (ADR-0026, `specs/graph-views.md`) | Design only now; stubs go in with constraints and intents | Phase 3 (chain with replicas) to Phase 4 |
 | Agent-first layer: agent accounts with module roles per project and module, proposal rationale and evidence, a batch review queue, delegation and escalation policies, an agent activity and acceptance view (design note) | Design only now; each new module from wave 3 gets a proposable path | Phase 3 to 4 |
+| Insights: data-health checks (missing owner, stale draft, orphan link) on the Checks tab (roadmap insights item 1) | Part C builds the tab on existing checks first | Phase 2 exit |
+| Insights: provider registry and router, existing checks wrapped as providers (item 2, ADR-0028) | Needs the contract accepted; Part C needs no registry | Phase 3 early |
+| Insights: `cur_insights` projection with recompute, expiry and the dismissal table (item 3) | Needs the registry; no provider yet makes insights | Phase 3 early |
+| Insights: telemetry reader (CLI, TUI log, retention, privacy review of free text) (item 4) | Part C writes the table only; a reader needs the viewer filter and a review | Phase 3 early |
+| Insights: best-practice library of versioned rule packages (item 5) | Needs a rule format design and the rules-of-credit governance from wave 3 | Phase 3 early |
+| Insights: retrieval index on a local similarity model, per clearance or query-filtered (item 6) | Needs a model and licence choice and a vector store in both adapters | Phase 3 mid |
+| Insights: suggestions on local models, five kinds (item 7) | Needs items 2, 3 and 6 and real accept and dismiss data | Phase 3 mid |
+| Insights: evaluation set from the demo project generator (item 8) | Needs the generator and the first providers | Phase 3 mid |
+| Insights: offline behaviour, analysis and ask queued until reconnect (item 9) | Needs Phase 3 sync | Phase 3 mid |
+| Insights: security review before any suggestion or analysis provider goes live (item 10) | Owner-optional reviews are kept to what ships; this one gates the first provider | Phase 3 mid |
+| Insights: analysis jobs and the per-person inbox (item 11) | Needs a carried viewer in jobs, the queue and a spend decision for non-local models | Phase 3 late |
+| Insights: Ask, a record-scoped conversation with cited answers (item 12) | Needs retrieval, analysis jobs, a streaming route and a spend decision unless local | Phase 3 to 4 |
+| Insights: web versions of the Insights tab, inbox and Ask (item 13) | Owner: CLI and TUI first | Web increment after wave 4 |
+| Activity and Insights extras: "show in graph" from an Activity row, related activity beyond one hop, subtab hot keys, an Activity web page | Part C keeps one hop and the TUI only | Phase 4 and the web increment |
