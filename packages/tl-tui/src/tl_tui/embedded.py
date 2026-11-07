@@ -20,7 +20,14 @@ from typing import Any, BinaryIO, Literal
 
 from tl_api.auth import AGENT_MUST_PROPOSE
 from tl_api.client.files import save_download
-from tl_api.routes.awp import CwpDetailView, TimelineRow, _note
+from tl_api.routes import constraints as constraint_routes
+from tl_api.routes.awp import CheckBody, CwpDetailView, ReadinessBody, TimelineRow, _note
+from tl_api.routes.constraints import (
+    ConstraintGroupRow,
+    ConstraintGroups,
+    ConstraintList,
+    ConstraintRow,
+)
 from tl_api.thread_runner import thread_runner
 from tl_core import confidentiality
 from tl_core.actions import Holds, Level, RecordActions, allowed_actions
@@ -42,10 +49,18 @@ from tl_core.auth.module_role_views import (
     effective_role_views,
     list_module_roles,
 )
-from tl_core.auth.module_roles import holder_for_actor, require_command_access
+from tl_core.auth.module_roles import (
+    holder_for_actor,
+    normalise_word,
+    require_command_access,
+    require_word,
+)
 from tl_core.auth.password import prepare_password
 from tl_core.auth.provider import PasswordIdentityProvider
 from tl_core.auth.types import DEMO_USERNAME, AccountKind, AccountView, AgentTokenView
+from tl_core.constraints import commands as constraint_commands
+from tl_core.constraints import queries as constraint_queries
+from tl_core.constraints import review as constraint_review
 from tl_core.extypes import body as extype_bodies
 from tl_core.extypes import registry as extype_registry
 from tl_core.extypes.errors import BodyNotFoundError, BodyStoreUnavailableError
@@ -136,7 +151,9 @@ from tl_core.threads.visibility import readable_record
 from tl_core.uow import UnitOfWork
 from tl_core.util import utcnow
 from tl_core.workflow.roles import workflow_roles
+from tl_mod_awp import iwp_views
 from tl_mod_awp import views as awp_views
+from tl_mod_awp.readiness.views import visible_readiness
 from tl_mod_correspondence import evidence as correspondence_evidence
 from tl_mod_correspondence import reports_commercial, reports_technical
 from tl_mod_correspondence import views as correspondence_views
@@ -1741,6 +1758,149 @@ class EmbeddedClient:
     ) -> list[awp_views.PackageRow]:
         with self._uow(True) as uow:
             return awp_views.package_list(uow.conn(), f"project:{project}", kind=kind)
+
+    # --- the IWP, constraint and readiness reads (P2-I2 T04c2): the reads the API routes serve ---
+
+    def list_iwps(
+        self,
+        project: str,
+        *,
+        state: str | None = None,
+        discipline: str | None = None,
+        foreman: str | None = None,
+        limit: int = 200,
+    ) -> list[iwp_views.IwpRow]:
+        with self._uow(True) as uow:
+            return iwp_views.iwp_list(
+                uow.conn(),
+                f"project:{project}",
+                state=state,
+                discipline=discipline,
+                foreman=foreman,
+                limit=limit,
+            )
+
+    def get_iwp(self, project: str, number: str) -> iwp_views.IwpDetail:
+        with self._uow(True) as uow:
+            detail = iwp_views.iwp_detail(uow.conn(), f"project:{project}", number)
+            if detail is None:
+                raise RecordNotFoundError(f"no IWP {number!r}")
+            return detail
+
+    def list_iwp_scope(
+        self, project: str, number: str, *, limit: int = 200
+    ) -> list[iwp_views.ScopeRow]:
+        with self._uow(True) as uow:
+            found = iwp_views.iwp_scope(uow.conn(), f"project:{project}", number, limit=limit)
+            if found is None:
+                raise RecordNotFoundError(f"no IWP {number!r}")
+            return found
+
+    def get_iwp_readiness(self, project: str, number: str) -> ReadinessBody:
+        with self._uow(True) as uow:
+            view = visible_readiness(uow.conn(), f"project:{project}", number)
+            if view is None:
+                raise RecordNotFoundError(f"no IWP {number!r}")
+            return ReadinessBody(
+                iwp_id=view.iwp_id,
+                evaluated_at=view.evaluated_at,
+                today=view.today,
+                ready=view.ready,
+                checks=[CheckBody(**c.model_dump()) for c in view.checks],
+            )
+
+    def _require_constraint_view(self, uow: UnitOfWork, scope: str) -> None:
+        """The access word of every constraint read, as the routes and the CLI check it: the
+        signed-in person holds ``core.constraint.view`` on the project (else ``ForbiddenError``)."""
+        require_word(
+            uow.conn(),
+            holder_for_actor(uow.conn(), self.actor),
+            scope=scope,
+            module=constraint_commands.ACCESS_MODULE,
+            word=normalise_word(constraint_commands.VIEW_WORD),
+            what=constraint_commands.VIEW_WORD,
+        )
+
+    def list_constraints(
+        self,
+        project: str,
+        *,
+        subject: str | None = None,
+        state: str | None = None,
+        category: str | None = None,
+        phase: str | None = None,
+        blocking: bool | None = None,
+        owner: str | None = None,
+        limit: int = 200,
+    ) -> ConstraintList:
+        scope = f"project:{project}"
+        with self._uow(True) as uow:
+            conn = uow.conn()
+            self._require_constraint_view(uow, scope)
+            subject_id: str | None = None
+            if subject is not None:
+                found = conn.execute(
+                    constraint_routes._ANY_KEY_SQL, {"scope": scope, "key": subject}
+                ).scalar_one_or_none()
+                if found is None:
+                    return ConstraintList(rows=[], total=0)
+                subject_id = str(found)
+            filters = {
+                "subject_id": subject_id,
+                "state": state,
+                "category": category,
+                "phase": phase,
+                "blocking": blocking,
+                "owner": owner,
+            }
+            rows = constraint_queries.list_constraints(conn, scope, limit=limit, **filters)
+            return ConstraintList(
+                rows=constraint_routes._rows(conn, rows),
+                total=constraint_queries.count_constraints(conn, scope, **filters),
+            )
+
+    def constraint_groups(self, project: str, by: str) -> ConstraintGroups:
+        if by not in constraint_review.BY_WORDS:
+            raise ValueError(f"by must be one of {', '.join(constraint_review.BY_WORDS)}")
+        scope = f"project:{project}"
+        with self._uow(True) as uow:
+            conn = uow.conn()
+            self._require_constraint_view(uow, scope)
+            views = constraint_queries.list_constraints(
+                conn, scope, limit=constraint_queries.MAX_LIMIT
+            )
+            by_key = {r.key: r for r in constraint_routes._rows(conn, views)}
+            total = constraint_queries.count_constraints(conn, scope)
+        groups = [
+            ConstraintGroupRow(
+                label=group.label,
+                count=group.count,
+                blocking=group.blocking,
+                aging=group.aging,
+                keys=list(group.keys),
+                members=[by_key[k] for k in group.keys if k in by_key],
+            )
+            for group in constraint_review.review_groups(views, by)
+        ]
+        return ConstraintGroups(groups=groups, truncated=total > constraint_queries.MAX_LIMIT)
+
+    def get_constraint(self, project: str, key: str) -> ConstraintRow:
+        scope = f"project:{project}"
+        with self._uow(True) as uow:
+            conn = uow.conn()
+            self._require_constraint_view(uow, scope)
+            record_id = conn.execute(
+                constraint_routes._KEY_SQL,
+                {"scope": scope, "type": constraint_commands.RECORD_TYPE, "key": key},
+            ).scalar_one_or_none()
+            found = (
+                None
+                if record_id is None
+                else constraint_queries.get_constraint(conn, str(record_id))
+            )
+            if found is None:
+                raise RecordNotFoundError(f"no constraint {key!r}")
+            return constraint_routes._rows(conn, [found])[0]
 
     # --- the schema workbench (P1-I8) ---------------------------------------------------------
 
