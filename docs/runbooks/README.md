@@ -31,3 +31,4 @@ Operational procedures, one file per alert or recovery path (§24.6). Template: 
 - `schedule-snapshots.md` — upload, build, publish and compare P6 schedule snapshots, the worker, reconcile after a restore, the orphan-flagging job, and the cost snapshot import (P1-I4).
 - `awp.md` — load a WBS, CWAs and a path, compensate and reload, the rollup worker, the five screens (P2-I1).
 - `materials.md` — daily materials work: load the item library, receive and accept deliveries with their MTR, move, reserve and adjust stock, read shortages and the movement log (M4).
+- `demo-project.md` — build the demo project P200 (North Refinery, HT-2) in a new ledger and read it with the API and the TUI (P2-SEED).
