@@ -2,8 +2,8 @@
 two runs with one seed give one project.
 
 The generator runs in a child process on fresh SQLite ledgers with ``--sections
-core,engineering,awp,materials`` (the awp section is still a stub, so the take-off lines have no
-work package here). The counts are the minimums of the P2-SEED README and the ticket.
+core,engineering,awp,materials`` (the take-off lines go to the awp section's CWPs and IWPs).
+The counts are the minimums of the P2-SEED README and the ticket.
 """
 
 from __future__ import annotations
@@ -20,6 +20,9 @@ from tl_adapters.db import open_uow
 
 ROOT = Path(__file__).resolve().parents[2]
 SECTIONS = "core,engineering,awp,materials"
+# documents.ProcessingJob keys are machine ids (``JOB-<ulid>``, new per extraction job), so they
+# differ between two runs by design; every other record type must match.
+RANDOM_KEY_TYPES = ("documents.ProcessingJob",)
 
 
 def generate(db: Path, objects: Path) -> subprocess.CompletedProcess[str]:
@@ -54,9 +57,11 @@ def count(db: Path, sql: str) -> int:
 
 
 def key_hashes(db: Path) -> dict[str, str]:
-    """A hash of the sorted record keys, per record type."""
+    """A hash of the sorted record keys, per record type (not the machine-id types)."""
     keys: dict[str, list[str]] = {}
     for row in rows(db, "SELECT type, key FROM cur_core_record"):
+        if row["type"] in RANDOM_KEY_TYPES:
+            continue
         keys.setdefault(str(row["type"]), []).append(str(row["key"]))
     return {
         kind: hashlib.sha256("\n".join(sorted(found)).encode()).hexdigest()
@@ -158,6 +163,10 @@ def test_the_take_off_has_real_shortages(
     assert short >= 20
     reserved = count(a, "SELECT COUNT(*) FROM cur_materials_mto_line WHERE reserved_qty > 0")
     assert reserved >= 1
+    assigned = count(
+        a, "SELECT COUNT(*) FROM cur_materials_mto_line WHERE work_package_id IS NOT NULL"
+    )
+    assert assigned >= 100  # most lines go to a CWP or IWP the awp section made
 
 
 def test_same_seed_gives_the_same_project(

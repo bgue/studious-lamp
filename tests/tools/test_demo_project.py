@@ -3,7 +3,8 @@
 Each run builds a fresh SQLite ledger in a child process (``python -m dev.seed.demo_project``; the
 generator sets ``TL_SCHEMA_DIR`` for its own process, so it must not run inside the test session).
 The runs must agree on the keys of every record type, and the counts must reach the minimums the
-P2-SEED README sets for the sections built so far.
+P2-SEED README sets for the sections built so far. The keys of ``documents.ProcessingJob`` are
+machine ids (``JOB-<ulid>``), so they are left out of the key comparison, not the count.
 """
 
 from __future__ import annotations
@@ -20,6 +21,7 @@ from tl_adapters.db import open_uow
 
 ROOT = Path(__file__).resolve().parents[2]
 TODAY = "2026-11-06"
+RANDOM_KEY_TYPES = ("documents.ProcessingJob",)  # JOB-<ulid> keys: random per extraction job
 
 
 def generate(db: Path, objects: Path, *extra: str) -> subprocess.CompletedProcess[str]:
@@ -49,9 +51,11 @@ def rows(db: Path, sql: str) -> list[dict[str, object]]:
 
 
 def key_hashes(db: Path) -> dict[str, str]:
-    """A hash of the sorted record keys, per record type."""
+    """A hash of the sorted record keys, per record type (not the machine-id types)."""
     keys: dict[str, list[str]] = {}
     for row in rows(db, "SELECT type, key FROM cur_core_record"):
+        if row["type"] in RANDOM_KEY_TYPES:
+            continue
         keys.setdefault(str(row["type"]), []).append(str(row["key"]))
     return {
         kind: hashlib.sha256("\n".join(sorted(found)).encode()).hexdigest()
