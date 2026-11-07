@@ -31,6 +31,7 @@ from tl_mod_awp.projectors.cwp import cwp_projectors
 from tl_mod_awp.projectors.iwp import iwp_projectors
 from tl_mod_awp.projectors.rollup import rollup_projectors
 from tl_mod_awp.projectors.scope import scope_item_projectors
+from tl_mod_awp.readiness.projector import readiness_projectors
 
 #: The life of a link that starts at the record (accept, decline, re-pin, verify, flag, retract).
 LINK_LIFE = frozenset(
@@ -77,6 +78,7 @@ def projectors() -> list[Projector]:
         *rollup_projectors(),
         *iwp_projectors(),
         *scope_item_projectors(),
+        *readiness_projectors(),
     ]
 
 
