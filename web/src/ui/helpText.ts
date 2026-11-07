@@ -2649,9 +2649,15 @@ export const CONTROL_HELP: Record<string, HelpEntry> = {
     'Report: Appendix I, Presets and keyboard',
   ),
   'Search bar/Search box': h(
-    'The text box finds objects, commands, presets, saved views, sets and settings. It also runs a WHERE query.',
-    'Type a few letters and a ranked list opens below. A query shows how many objects match.',
-    'Press the slash key or Ctrl+K. Type a name, a class or a setting. Start with where to run a query. Press Enter to act.',
+    'The text box finds objects, commands, presets, saved views, sets and settings. It also runs a WHERE query and quantity sums.',
+    'Type a few letters and a ranked list opens below. A query shows how many objects match. A sum shows a total.',
+    'Press the slash key or Ctrl+K. Type a name, a class or a setting. Start with where to run a query. Start with count or sum for a total. Press Enter to act.',
+    'Report: Appendix I, Presets and keyboard',
+  ),
+  'Search bar/Quantity card': h(
+    'The card shows the short answer of a count or sum from the search box. The console holds the details.',
+    'A small see-through note appears under the top box with the total. It fades by itself after a few seconds.',
+    'Read the total. Keep the pointer on the card to keep it. Click the card to copy the text. Press Escape to close it.',
     'Report: Appendix I, Presets and keyboard',
   ),
   'Search bar/Search button': h(

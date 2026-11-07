@@ -9,6 +9,9 @@ import type { ViewerApp } from '../app';
 import { SearchSources, selectAndFrame } from '../search/sources';
 import type { Row } from '../search/sources';
 import { detectQuery, runLive } from '../search/queryMode';
+import { QuantitySearch, detectSummary, reportToConsole } from '../search/quantityMode';
+import type { QuantitySummary } from '../query';
+import { summaryLines } from '../query';
 import { EXPANDED_CAP, SECTION_CAP, SECTION_TITLES, orderGroups } from '../search/rank';
 import type { SectionId } from '../search/rank';
 import { el } from './dom';
@@ -156,12 +159,17 @@ export class AwesomeBar {
   /** Wall time of the last search (ms), for the benchmark and the footer. */
   lastSearchMs = 0;
   private hiddenByHost = false;
+  /** Summaries (`sum length where ...`): the engine, and the hook that shows the answer (the HUD, set by the plugin). */
+  readonly quantity: QuantitySearch;
+  onSummary: ((s: QuantitySummary) => void) | null = null;
+  private summaryMode = false;
 
   constructor(
     private readonly app: ViewerApp,
     sources: SearchSources,
   ) {
     this.sources = sources;
+    this.quantity = new QuantitySearch(app);
     ensureStyles();
     ensureKeyStyles();
     const listId = `ab-list-${this.uid}`;
@@ -377,6 +385,37 @@ export class AwesomeBar {
       return items;
     }
 
+    this.summaryMode = false;
+    if (detectSummary(raw, this.app.controller.model)) {
+      const o = this.quantity.run(raw);
+      this.lastCount = o.summary ? o.summary.matched : -1;
+      if (!o.summary) {
+        items.push({ type: 'note', text: o.error ?? 'The summary failed.', err: true });
+        return items;
+      }
+      const s = o.summary;
+      const lines = summaryLines(s);
+      this.summaryMode = true;
+      const row: Row = {
+        key: 'q:',
+        section: 'query',
+        label: lines[0]!,
+        positions: [],
+        sub: s.matched > 0 ? 'Enter selects them and shows the details. Shift+Enter only summarises.' : 'Nothing to select.',
+        via: lines[1],
+        score: 100,
+        run: (shift) => {
+          reportToConsole(s);
+          this.onSummary?.(s);
+          if (!shift && s.ids.length > 0) selectAndFrame(this.app, s.ids, false);
+        },
+      };
+      items.push({ type: 'head', title: 'Summary' });
+      items.push({ type: 'row', row, recent: false });
+      if (s.unknown.length > 0) items.push({ type: 'note', text: `No element has a property named ${s.unknown.map((u) => `"${u}"`).join(', ')}. It reads as empty.` });
+      return items;
+    }
+
     const det = detectQuery(raw);
     if (det.mode === 'query') {
       const live = runLive(this.app.controller.model, det.expr);
@@ -519,8 +558,8 @@ export class AwesomeBar {
   private footerText(): string {
     const parts: string[] = [];
     if (this.footNote) parts.push(this.footNote);
-    if (this.lastCount >= 0) parts.push(`${this.lastCount} ${this.lastCount === 1 ? 'element' : 'elements'} match the query`);
-    if (this.options.length > 0) parts.push('Up and Down choose, Enter acts, Shift+Enter adds, Esc closes');
+    if (this.lastCount >= 0) parts.push(`${this.lastCount} ${this.lastCount === 1 ? 'element' : 'elements'} ${this.summaryMode ? 'summarised' : 'match the query'}`);
+    if (this.options.length > 0) parts.push(this.summaryMode ? 'Enter selects and summarises, Shift+Enter summarises only, Esc closes' : 'Up and Down choose, Enter acts, Shift+Enter adds, Esc closes');
     return parts.join(' · ');
   }
 

@@ -50,6 +50,84 @@ The list shows one row, `N elements match`, with the top classes, and the footer
 as empty and is named in a note. With `where` or `?` only the query is shown; a bare expression that fails to parse also
 searches as text below the note, so a name with an `=` in it still works.
 
+## Quantity summaries
+
+A text that starts with `count`, `sum`, `avg`, `min` or `max` gives a quantity summary instead of a list of elements. The
+condition is the criteria language above, so `where` works the same way; the code is `src/query/aggregate.ts` (parsing and
+arithmetic), `src/search/quantityMode.ts` (console report, script API), `src/ui/quantityHud.ts` (the card).
+
+```
+count where class like 'IfcWall%'
+sum netsidearea where class like 'IfcWall%'
+sum length, count where class = 'IfcPipeSegment' by storey
+avg length, max length where class = 'IfcBeam'
+sum volume by class
+```
+
+| Part | Meaning |
+| --- | --- |
+| `count` | The number of elements. |
+| `sum`, `avg`, `min`, `max` + quantity | The total, mean, smallest or largest value of a quantity. `of` and brackets are allowed: `sum of length`, `sum(length)`. |
+| `a, b` or `a and b` | Several aggregates at once: `sum length, count`. |
+| `where <condition>` | Optional. Without it the summary covers every visible element (not hidden). With it, every matching element, hidden or not, as a plain query selects. |
+| `by <column>` | Optional. Subtotals per storey, class, material or any column or property: `by storey`, `by class`, `by Pset_WallCommon.FireRating`. `level` means `storey`. |
+
+A `?` in front is ignored. `sum banana` (a word that names nothing in the model) stays a plain text search; with `where`,
+`by` or a comma it is a summary and an unknown quantity is an error.
+
+**Quantity names.** The quantity is a column or property key, ignoring case and punctuation, and it is looked up per element,
+so `length` reads `Qto_BeamBaseQuantities.Length` on a beam and `BaseQuantities.Length` on a wall. Aliases (first match wins
+per element): `length` Length; `width`; `height`; `depth`; `thickness` Width or Depth; `perimeter`; `area` NetArea, GrossArea,
+NetSideArea, GrossSideArea, NetFootprintArea ...; `volume` NetVolume, then GrossVolume; `weight` NetWeight, GrossWeight.
+The last part of a key (`netsidearea`), a part of it (`sidearea`) and the whole key
+(`Qto_WallBaseQuantities.NetVolume`) work too, and words join: `net side area`. Core numeric columns work (`sizeY`).
+Keys on the samples:
+
+| Sample | Quantity keys |
+| --- | --- |
+| fzk-haus (82) | `BaseQuantities.` Length (14), Width (34), Height (29), Perimeter (20), GrossArea (15), NetArea (4), GrossSideArea (13), NetSideArea (13), GrossVolume (18), NetVolume (18), CrossSectionArea, OuterSurfaceArea |
+| synth5k (5000) | `Qto_BeamBaseQuantities.` and `Qto_ColumnBaseQuantities.` Length, NetVolume, CrossSectionArea; `Qto_DuctSegmentBaseQuantities.` Length, CrossSectionArea; `Qto_PipeSegmentBaseQuantities.Length`; `Qto_SlabBaseQuantities.` Length, Width, Depth, NetArea, NetVolume; `Qto_WallBaseQuantities.` Length, Height, Width, NetVolume |
+| building (26) | `Qto_BeamBaseQuantities.` Length, NetVolume, CrossSectionArea; `Qto_SlabBaseQuantities.` Depth, NetArea, NetVolume; `Qto_WallBaseQuantities.` Length, Width, NetSideArea, NetVolume |
+
+**Values.** A value must parse as a number (a number, or text that is only a number). Others are skipped, counted, and listed
+with the reason on the console (`not a number ("tall")`, `yes/no value`, `not finite`).
+
+**Estimates.** An element with no property for the quantity gets a geometric estimate when one exists, and the total says how
+many (`(6 est.)`):
+
+| Quantity | Estimate | None when |
+| --- | --- | --- |
+| `volume` | the mesh volume (signed tetrahedron sum) | the mesh is not a closed solid (the flags of `closedMesh.ts`) |
+| `length` | the longest axis of the axis-aligned bounds | the element has no geometry |
+| `height` | the vertical size of the bounds | the element has no geometry |
+| `area` | the mesh surface divided by 2 | the element is not a closed thin plate (thinnest bounds side at most 0.3 of the middle one and 0.6 m) |
+
+The plate estimate includes the narrow edge faces, so it reads a few percent high on a thick plate; the box estimate for a
+slanted pipe reads low. Other quantities have no estimate. A present but non-numeric value is never estimated.
+
+**Units.** Values are in the unit of the model (`SceneModel.units`, metres for every loader today) and shown as `m`, `m²`,
+`m³` and `kg`. Rounding: 3 decimals below 1, 2 below 10, 1 below 1000, none from 1000, trailing zeros dropped
+(`318.4 m`, `2 310 m`, `0.125 m³`).
+
+**While typing** the query row shows the answer line, for example `13 wall standard cases` and, under it, the top groups.
+**Enter** selects the elements (as a plain query does), frames them, writes the details to the console and shows the card.
+**Shift+Enter** does the last two without changing the selection.
+
+**Console.** One collapsed `console.groupCollapsed` per run, headed `[X-ray] <text> → <answer> (<ms>)`, holding a line per
+aggregate, `console.table` of the elements (GlobalId, Name, Class, Storey, the `by` group, then the value and its source
+property or `estimated` per quantity; the first 500), a subtotal table per group when `by` is used, and a table of the skipped
+elements with the reason for each (the first 200).
+
+**Quantity card.** A small translucent card (`backdrop-filter: blur`, light and dark) just under the top-bar search, for
+example `42 pipe segments · Σ length 318.4 m (6 est.)`; with `by`, a second line with the top 3 groups and `+N more (console)`.
+It stays while the pointer is on it, fades about 6 s after the last result, and goes on Escape or a click (a click also copies
+the text). It is a reserved rect of the overlay while shown, so labels keep out of it. On a phone (700 px or less) it spans
+the width under the bar. It is hidden in kiosk mode and during XR, like the bar.
+
+Measured: `sum` over 100,000 rows (all numeric) 7 to 9 ms best of 5, 39 ms with a `where` and a `by` over the same rows
+(`tests/quantity-summary.test.ts`); 5000-element sample, `sum volume, sum area, sum length` 4 ms.
+Smoke test: `node bench/smoke-quantity.mjs` (port 5681).
+
 ## Keys and the palette
 
 | Chord | Action | Notes |
@@ -90,5 +168,9 @@ polite live region.
 
 ## Scripting
 
-`window.__xraySearch` has `bar` (the `AwesomeBar`), `sources`, `state()` (open, query, active row, rows, notes, footer) and
-`indexReady()`. `bar.setQuery(text)` runs a search. Smoke test: `node bench/smoke-search.mjs` (port 5662).
+`window.__xraySearch` has `bar` (the `AwesomeBar`), `sources`, `state()` (open, query, active row, rows, notes, footer),
+`indexReady()`, `hud` (the quantity card: `state()`, `showLines()`, `hide()`, `holdMs`) and `summarize(text)`. `bar.setQuery(text)` runs a search.
+`summarize("sum length, count where class = 'IfcPipeSegment' by storey")` returns `{ rows, total, aggs, groups, skipped,
+skippedCount, estimated, unit, matched, lines, ms }`: one row per element (`id`, `globalId`, `name`, `class`, `storey`, `group`,
+`values` and `sources` by quantity), `total` the value of the first aggregate, `groups` with `key`, `count`, `total` and
+`aggs`. It throws on a syntax error or an unknown quantity, and does not touch the selection, the console or the card. Smoke tests: `node bench/smoke-search.mjs` (port 5662), `node bench/smoke-quantity.mjs` (port 5681).

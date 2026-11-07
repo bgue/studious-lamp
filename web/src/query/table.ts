@@ -108,6 +108,21 @@ export class ModelTable implements QueryTable {
     return this.els[row]!.id;
   }
 
+  /** The element record behind a row. */
+  elementAt(row: number): ElementRecord {
+    return this.els[row]!;
+  }
+
+  /** Storey name of a row, or null. */
+  storeyOf(row: number): string | null {
+    return this.storeyName[row]!;
+  }
+
+  /** Every property key of the model (insertion order). */
+  propKeys(): string[] {
+    return [...this.propCount.keys()];
+  }
+
   /** Canonical column name (core or property key), or null when the model has no such column. */
   resolve(name: string): string | null {
     const core = coreColumn(name);

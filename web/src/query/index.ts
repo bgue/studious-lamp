@@ -183,3 +183,7 @@ export function toConditions(text: string): ConditionList | null {
 export function freshTable(model: SceneModel): ModelTable {
   return new ModelTable(model);
 }
+
+export { parseAggregate, looksLikeAggregate, isExplicitAggregate, resolveQuantity, aggregate, runAggregate, summaryLines, formatNumber, formatValue, classNoun, toNumber, unitFor } from './aggregate';
+export type { AggQuery, AggSpec, AggFn, AggResult, GroupResult, QuantitySummary, QtyPlan, GeoEstimator, AggOptions, SkippedRow } from './aggregate';
+export { makeGeoEstimator, meshMeasure } from './geoEstimate';

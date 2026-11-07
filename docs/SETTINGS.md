@@ -1083,7 +1083,8 @@ Impact follows the same sentence rules and adds these:
 
 | Setting | Intent | Impact | Use | Ref |
 | --- | --- | --- | --- | --- |
-| Search box | The text box finds objects, commands, presets, saved views, sets and settings. It also runs a WHERE query. | Type a few letters and a ranked list opens below. A query shows how many objects match. | Press the slash key or Ctrl+K. Type a name, a class or a setting. Start with where to run a query. Press Enter to act. | Report: Appendix I, Presets and keyboard |
+| Search box | The text box finds objects, commands, presets, saved views, sets and settings. It also runs a WHERE query and quantity sums. | Type a few letters and a ranked list opens below. A query shows how many objects match. A sum shows a total. | Press the slash key or Ctrl+K. Type a name, a class or a setting. Start with where to run a query. Start with count or sum for a total. Press Enter to act. | Report: Appendix I, Presets and keyboard |
+| Quantity card | The card shows the short answer of a count or sum from the search box. The console holds the details. | A small see-through note appears under the top box with the total. It fades by itself after a few seconds. | Read the total. Keep the pointer on the card to keep it. Click the card to copy the text. Press Escape to close it. | Report: Appendix I, Presets and keyboard |
 | Search button | The button opens the text box on a small screen. The box then fills the width. | Tap it and a field for typing opens across the full top edge. | Tap the magnifier icon. Type a word. | Report: Appendix I, Presets and keyboard |
 | Result row | The row names a match. A click acts on it, and Shift adds an object to the selection. | Click an item and the viewer does the job at once. An object under the pointer lights up in the picture. | Click the row or press Enter on it. Hold Shift to add an object to the selection. | Report: Appendix I, Presets and keyboard |
 

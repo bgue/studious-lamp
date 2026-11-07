@@ -16,6 +16,8 @@ import { ElementIndex } from '../search/elementIndex';
 import { SearchSources } from '../search/sources';
 import { bootConfig } from '../tools/registry';
 import { AwesomeBar } from '../ui/awesomeBar';
+import { QuantityHud } from '../ui/quantityHud';
+import type { SummaryApi } from '../search/quantityMode';
 import { showToast } from '../ui/keymapView';
 
 export const SEARCH_HOST_ID = 'xray-topbar-search';
@@ -30,11 +32,16 @@ declare global {
       sources: SearchSources;
       state: AwesomeBar['state'];
       indexReady(): boolean;
+      /** Run a summary (`sum length where class = 'IfcWall' by storey`): rows, total, groups, skipped, estimated, unit. Throws on an error. */
+      summarize(text: string): SummaryApi;
+      /** The quantity card under the search box. */
+      hud: QuantityHud;
     };
   }
 }
 
 let bar: AwesomeBar | null = null;
+let hud: QuantityHud | null = null;
 let sources: SearchSources | null = null;
 let observer: MutationObserver | null = null;
 let oldPalette: XrayAction | undefined;
@@ -84,7 +91,9 @@ export const awesomeBarPlugin: AppPlugin = {
   install(app) {
     sources = new SearchSources(app, showToast);
     bar = new AwesomeBar(app, sources);
-    window.__xraySearch = { bar, sources, state: () => bar!.state(), indexReady: () => !!sources?.index?.ready };
+    hud = new QuantityHud(app, () => document.getElementById(SEARCH_HOST_ID) ?? bar?.root ?? null);
+    bar.onSummary = (s) => hud!.show(s);
+    window.__xraySearch = { bar, sources, state: () => bar!.state(), indexReady: () => !!sources?.index?.ready, summarize: (text) => bar!.quantity.summarize(text), hud };
 
     // The chords: take `/` and Ctrl+K, give the old owners other keys.
     oldPalette = getAction('palette.open');
@@ -112,15 +121,20 @@ export const awesomeBarPlugin: AppPlugin = {
     observer = new MutationObserver(() => place());
     observer.observe(document.body, { childList: true, subtree: true });
 
-    if (bootConfig().kiosk) bar.setHidden(true);
+    if (bootConfig().kiosk) {
+      bar.setHidden(true);
+      hud.setHidden(true);
+    }
   },
 
   onModel(app) {
+    hud?.hide(true);
     indexModel(app);
   },
 
   afterFrame(app) {
     if (!bar || bootConfig().kiosk) return;
     bar.setHidden(app.renderer.xrPresenting);
+    hud?.setHidden(app.renderer.xrPresenting);
   },
 };
