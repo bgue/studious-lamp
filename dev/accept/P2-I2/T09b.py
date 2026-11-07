@@ -1,10 +1,11 @@
-"""Acceptance for P2-I2-T09b: the IWP, readiness and constraint MCP tools (seven reads, two
-proposals), as ``dev/accept/P2-I1/T06.py`` does for the awp tools.
+"""Acceptance for P2-I2-T09b: the IWP and readiness MCP tools (four reads, one proposal), as
+``dev/accept/P2-I1/T06.py`` does for the awp tools. The constraint tools are not in this ticket
+(an agent holds no ``core.constraint.*`` word; ADR-0027).
 
 The world is the T04a seed (``t04a_checks``): IWPs i1 and i2 visible, i3 and its CWP restricted
-(hidden from the lowest clearance an MCP agent reads as); constraints on i1 (open), i2 (assigned)
-and i3 (cleared); readiness rows for i1 and i3 written as T04c1 writes them. The servers run on a
-copy of the seed in a temporary directory. Nothing is sent over a network.
+(hidden from the lowest clearance an MCP agent reads as); readiness rows for i1 and i3 written as
+T04c1 writes them. The servers run on a copy of the seed in a temporary directory. Nothing is sent
+over a network.
 
 Prints one ``PASS <check>`` line per check, then ``T09b ok``. Exits 1 on the first failure.
 Run: ``uv run python dev/accept/P2-I2/T09b.py``.
@@ -32,7 +33,6 @@ from tl_adapters.db import as_target, make_uow_factory, open_uow  # noqa: E402
 from tl_core.auth.errors import ForbiddenError  # noqa: E402
 from tl_core.auth.module_roles import holder_for_actor  # noqa: E402
 from tl_core.services import proposals  # noqa: E402
-from tl_mcp import iwp_tools  # noqa: E402
 from tl_mcp.identity import MCP_ACTIONS  # noqa: E402
 from tl_mcp.iwp_tools import IWP_MCP_ACTIONS  # noqa: E402
 from tl_mcp.server import build_server  # noqa: E402
@@ -42,11 +42,10 @@ from tl_mod_awp.projectors._common import ddl_for  # noqa: E402
 
 PROJECT = "P123"
 SCOPE = f"project:{PROJECT}"
-LOW_AGENT = "agent:triage"  # the actor the agent server runs as: no constraint view word
-READER = "user:uma"  # holds the constraint view word (the reads run as this server actor)
+LOW_AGENT = "agent:triage"  # the actor the agent server runs as
+READER = "user:uma"  # a person's server, for the reads a low clearance cannot make
 HEX32 = re.compile(r"\b[0-9a-f]{32}\b")
 MADE_UP_IWP = "P123-IWP-CIV-9999"
-MADE_UP_KEY = "P123-CON-9999"
 HIDDEN_TOKEN = "FACTSHASH"
 
 
@@ -74,20 +73,6 @@ def refuses(call: Callable[[], Any]) -> str:
     except ToolError as exc:
         return str(exc)
     raise Failed("expected the tool to refuse")
-
-
-def keys_of(db: Path, sql: str, **params: Any) -> list[str]:
-    with open_uow(as_target(str(db)), readonly=True) as uow:
-        return [str(r[0]) for r in uow.conn().execute(text(sql), params).all()]
-
-
-def count_constraints(db: Path) -> int:
-    with open_uow(as_target(str(db)), readonly=True) as uow:
-        return int(
-            uow.conn()
-            .execute(text("SELECT COUNT(*) FROM cur_core_record WHERE type = 'core.Constraint'"))
-            .scalar_one()
-        )
 
 
 def scope_count(db: Path, iwp_key: str) -> int:
@@ -150,19 +135,6 @@ def main() -> None:
     i1_key = w.column("cur_core_record", "key", ids["i1"])
     i2_key = w.column("cur_core_record", "key", ids["i2"])
     i3_key = w.column("cur_core_record", "key", ids["i3"])
-    con_of_i1 = keys_of(
-        seed_db,
-        "SELECT r.key FROM cur_core_constraint c JOIN cur_core_record r ON r.id = c.id "
-        "WHERE c.subject_id = :s",
-        s=ids["i1"],
-    )
-    con_of_i3 = keys_of(
-        seed_db,
-        "SELECT r.key FROM cur_core_constraint c JOIN cur_core_record r ON r.id = c.id "
-        "WHERE c.subject_id = :s",
-        s=ids["i3"],
-    )
-    need(len(con_of_i1) == 1 and len(con_of_i3) == 1, "seed constraints")
 
     db = work / "mcp.db"
     shutil.copy(seed_db, db)
@@ -180,7 +152,7 @@ def main() -> None:
 
     seen: list[str] = []  # every read result body, for the no-ids check
 
-    # --- the seven reads -------------------------------------------------------------------
+    # --- the four reads --------------------------------------------------------------------
     iwps = call(reader, "list_iwps", project=PROJECT)
     numbers = [row["number"] for row in rows(iwps)]
     seen.append(json.dumps(iwps))
@@ -202,22 +174,6 @@ def main() -> None:
     need(readiness["ready"] is False and len(readiness["checks"]) == 1, "readiness shape")
     seen.append(json.dumps(readiness))
     passed(f"get_iwp_readiness checks {len(readiness['checks'])}")
-
-    listed = call(reader, "list_constraints", project=PROJECT)
-    visible_keys = {row["key"] for row in listed["rows"]} if listed["rows"] else set()
-    need(listed["total"] == len(listed["rows"]) and len(listed["rows"]) >= 2, "constraints")
-    seen.append(json.dumps(listed))
-    passed(f"list_constraints {listed['total']}")
-
-    constraint = call(reader, "get_constraint", project=PROJECT, key=con_of_i1[0])
-    need(constraint["key"] == con_of_i1[0], "get_constraint shape")
-    seen.append(json.dumps(constraint))
-    passed(f"get_constraint {con_of_i1[0]}")
-
-    groups = call(reader, "constraint_groups", project=PROJECT, by="owner")
-    need(groups["truncated"] is False and len(groups["groups"]) >= 1, "constraint groups")
-    seen.append(json.dumps(groups))
-    passed(f"constraint_groups {len(groups['groups'])}")
 
     # --- hidden looks like missing -----------------------------------------------------------
     hidden_iwp = refuses(lambda: call(reader, "get_iwp", project=PROJECT, number=i3_key))
@@ -242,86 +198,16 @@ def main() -> None:
         == tail(missing_ready).replace(MADE_UP_IWP, "KEY"),
         "ready",
     )
-    con_of_i3_key = con_of_i3[0]
-    hidden_con = refuses(lambda: call(reader, "get_constraint", project=PROJECT, key=con_of_i3_key))
-    missing_con = refuses(lambda: call(reader, "get_constraint", project=PROJECT, key=MADE_UP_KEY))
-    need(
-        tail(hidden_con).replace(con_of_i3_key, "KEY")
-        == tail(missing_con).replace(MADE_UP_KEY, "KEY"),
-        f"constraint: {hidden_con!r} vs {missing_con!r}",
-    )
-    by_subject = call(reader, "list_constraints", project=PROJECT, subject=i3_key)
-    need(by_subject == {"rows": [], "total": 0}, f"hidden subject filter: {by_subject}")
-    need(i3_key not in visible_keys and con_of_i3_key not in visible_keys, "hidden in list")
-    passed("hidden (IWP, scope, readiness, constraint) answers the same error as missing")
+    passed("hidden (IWP, scope, readiness) answers the same error as missing")
 
     # --- no ids, no facts hash -----------------------------------------------------------------
     body = "\n".join(seen)
     need(HIDDEN_TOKEN not in body and "facts_hash" not in body, "facts hash in a read")
     need(HEX32.search(body) is None, f"a 32-hex id: {HEX32.search(body)}")
     need(i3_key not in json.dumps(readiness) and ids["i3"] not in body, "hidden ref in readiness")
-    need(ids["i3"] not in body and con_of_i3_key not in body, "hidden id in a read")
     passed("no-ids (no facts_hash, no 32-hex id, hidden refs absent from readiness)")
 
-    # --- the word check ----------------------------------------------------------------------
-    reads_seen: list[str] = []
-    real_list, real_get, real_record = (
-        iwp_tools.list_constraints,
-        iwp_tools.get_constraint,
-        iwp_tools.get_record,
-    )
-
-    def counted(name: str, fn: Any) -> Any:
-        def wrapper(*args: Any, **kwargs: Any) -> Any:
-            reads_seen.append(name)
-            return fn(*args, **kwargs)
-
-        return wrapper
-
-    iwp_tools.list_constraints = counted("list", real_list)  # type: ignore[assignment]
-    iwp_tools.get_constraint = counted("get", real_get)  # type: ignore[assignment]
-    iwp_tools.get_record = counted("record", real_record)  # type: ignore[assignment]
-    try:
-        refusals = [
-            refuses(lambda: call(agent, "list_constraints", project=PROJECT)),
-            refuses(lambda: call(agent, "get_constraint", project=PROJECT, key=con_of_i1[0])),
-            refuses(lambda: call(agent, "constraint_groups", project=PROJECT, by="owner")),
-        ]
-    finally:
-        iwp_tools.list_constraints = real_list  # type: ignore[assignment]
-        iwp_tools.get_constraint = real_get  # type: ignore[assignment]
-        iwp_tools.get_record = real_record  # type: ignore[assignment]
-    need(all("core.constraint.view" in r or "forbidden" in r.lower() for r in refusals), refusals)
-    need(reads_seen == [], f"a lookup ran before the refusal: {reads_seen}")
-    passed("word (the three constraint reads refused for an actor without the view word)")
-
     # --- propose: pending, nothing written, accepted by a person ---------------------------
-    before = count_constraints(db)
-    made = call(
-        agent,
-        "propose_constraint",
-        project=PROJECT,
-        subject=i1_key,
-        phase="ready",
-        severity="advisory",
-        category="other",
-        description="Check the spool count",
-    )
-    proposal = made["proposal"]
-    need(proposal["status"] == "pending", f"status {proposal['status']}")
-    need(count_constraints(db) == before, "a proposal created a constraint")
-    accepted = accept(db, proposal["proposal_id"])
-    need(accepted.status == "accepted", f"accepted status {accepted.status}")
-    need(count_constraints(db) == before + 1, "accepting did not raise the constraint")
-    source = keys_of(
-        db,
-        "SELECT c.source FROM cur_core_constraint c JOIN cur_core_record r ON r.id = c.id "
-        "WHERE c.subject_id = :s AND c.category = 'other'",
-        s=ids["i1"],
-    )
-    need(source == ["manual"], f"constraint source {source}")
-    passed("propose_constraint (pending, nothing until accepted; source manual)")
-
     scope_before = scope_count(db, i2_key)
     made_scope = call(
         agent,
@@ -341,9 +227,9 @@ def main() -> None:
     )
     passed("propose_iwp_scope (pending, nothing until accepted, then the items are scoped)")
 
-    # --- closed: the nine words, and an action not listed is refused --------------------------
-    need(len(IWP_MCP_ACTIONS) == 9 and IWP_MCP_ACTIONS <= MCP_ACTIONS, "action words")
-    passed("closed (the nine words are in MCP_ACTIONS)")
+    # --- closed: the five words, and an action not listed is refused ---------------------------
+    need(len(IWP_MCP_ACTIONS) == 5 and IWP_MCP_ACTIONS <= MCP_ACTIONS, "action words")
+    passed("closed (the five words are in MCP_ACTIONS)")
 
     allowed_but_iwp = frozenset(MCP_ACTIONS - IWP_MCP_ACTIONS)
 

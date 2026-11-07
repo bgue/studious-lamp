@@ -113,6 +113,7 @@ TOOLS = (
     | SCHEDULE_PROPOSE_TOOLS
     | AWP_PROPOSE_TOOLS
     | MATERIALS_PROPOSE_TOOLS
+    | {"list_iwps", "get_iwp", "list_iwp_scope", "get_iwp_readiness", "propose_iwp_scope"}  # T09b
     | {"post_feed", "post_thread_message", "propose_dispatch"}
 )
 

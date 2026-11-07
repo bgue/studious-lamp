@@ -6,8 +6,6 @@ The entry point ``throughline.modules`` / ``awp`` in this package's ``pyproject.
 
 from __future__ import annotations
 
-from tl_core.constraints.commands import RaiseConstraint
-from tl_core.constraints.handlers import handle_raise_constraint
 from tl_core.modules import ModuleSpec, ProposableCommand
 from tl_core.projection.types import Projector
 
@@ -64,7 +62,6 @@ PACKAGE_GENERIC_COMMANDS = frozenset({"AddLink", "SuggestLink"}) | LINK_LIFE
 #: the accepting person, who needs ``awp.cwp.edit`` (a ``user`` word).
 PROPOSABLE = (
     ProposableCommand("propose_cwp", CreateCwp, handle_create_cwp, "user"),
-    ProposableCommand("propose_constraint", RaiseConstraint, handle_raise_constraint, "user"),
     ProposableCommand("propose_iwp_scope", AddIwpScope, handle_add_iwp_scope, "user"),
 )
 

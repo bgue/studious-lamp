@@ -54,10 +54,7 @@ def values(hidden: Hidden) -> dict[str, list[Any]]:
         "activity_id": ["x"],
         "code": ["MER", "x", "1.1.1"],
         "lot": ["P123-RCPT-0001@1", "x"],  # P2-I3-T11: get_material_lot (a lot key)
-        "key": ["P123-THR-0001", "x", *hidden.numbers.values()],  # P2-I2-T09b: get_constraint
-        "subject": [*hidden.numbers.values(), "P123-THR-0001", "x"],  # T09b: list_constraints
         "iwp": [*hidden.numbers.values(), "P123-IWP-0001", "x"],  # T09b: propose_iwp_scope
-        "by": ["owner", "category", "age"],  # T09b: constraint_groups (a required argument)
     }
 
 

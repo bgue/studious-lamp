@@ -1,35 +1,25 @@
-"""IWP and constraint tools (P2-I2-T09b): seven reads and two proposals.
+"""IWP tools (P2-I2-T09b): four reads and one proposal.
 
-The IWP reads answer from ``tl_mod_awp.iwp_views`` and the readiness from
-``tl_mod_awp.readiness.views.visible_readiness``; the constraint reads answer from
-``tl_core.constraints``. Every read names its resource for the authorizer (``guarded``) and reads
-as the lowest clearance, so a hidden record answers as a missing one. The three constraint reads
-first check the access word ``core.constraint.view`` for the agent's actor before any lookup.
+The reads answer from ``tl_mod_awp.iwp_views`` and the readiness from
+``tl_mod_awp.readiness.views.visible_readiness``. Every read names its resource for the authorizer
+(``guarded``) and reads as the lowest clearance, so a hidden record answers as a missing one.
 
-``propose_constraint`` and ``propose_iwp_scope`` file a pending proposal (``proposals.submit``);
-nothing changes until a person with the ``user`` word accepts it (ADR-0014 section 8). The
-subject, the IWP and the scope items are named by key and resolved under the agent's viewer; an
-unknown or hidden key answers one text.
+``propose_iwp_scope`` files a pending proposal (``proposals.submit``); nothing changes until a
+person with the ``user`` word accepts it (ADR-0014 section 8). The IWP and the scope items are
+named by key and resolved under the agent's viewer; an unknown or hidden key answers one text.
+
+The constraint tools (reads and ``propose_constraint``) are not here: an agent holds no
+``core.constraint.*`` word, and agent use of core words is deferred to the Phase 3 agent layer
+(ADR-0027).
 """
 
 from __future__ import annotations
 
-from typing import Annotated, Literal
+from typing import Annotated
 
 from mcp.server.mcpserver import MCPServer
 from pydantic import BaseModel, Field
-from sqlalchemy import Connection
 from tl_core import confidentiality
-from tl_core.auth.module_roles import holder_for_actor, normalise_word, require_word
-from tl_core.constraints.commands import ACCESS_MODULE, RECORD_TYPE, VIEW_WORD, RaiseConstraint
-from tl_core.constraints.queries import (
-    MAX_LIMIT,
-    ConstraintView,
-    count_constraints,
-    get_constraint,
-    list_constraints,
-)
-from tl_core.constraints.review import ConstraintGroup, review_groups
 from tl_core.readiness.types import RecordRef
 from tl_core.services import proposals
 from tl_core.services.errors import RecordNotFoundError
@@ -49,7 +39,7 @@ from tl_mcp.write_tools import (  # pyright: ignore[reportPrivateUsage]
     _result,
 )
 
-#: The nine ``mcp.<tool>`` actions this module's tools ask the authorizer about. ``identity.py``
+#: The five ``mcp.<tool>`` actions this module's tools ask the authorizer about. ``identity.py``
 #: ORs them into ``MCP_ACTIONS``; a tool not listed there is refused.
 IWP_MCP_ACTIONS: frozenset[str] = frozenset(
     {
@@ -57,10 +47,6 @@ IWP_MCP_ACTIONS: frozenset[str] = frozenset(
         "mcp.get_iwp",
         "mcp.list_iwp_scope",
         "mcp.get_iwp_readiness",
-        "mcp.list_constraints",
-        "mcp.get_constraint",
-        "mcp.constraint_groups",
-        "mcp.propose_constraint",
         "mcp.propose_iwp_scope",
     }
 )
@@ -88,20 +74,6 @@ Key = Annotated[
         description="A record's key, for example `P123-THR-0001`.",
     ),
 ]
-Word = Annotated[str, Field(min_length=1, max_length=MAX_PART)]
-Severity = Literal["blocking", "advisory"]
-Category = Literal[
-    "materials",
-    "labour",
-    "scaffold",
-    "equipment",
-    "permit",
-    "engineering",
-    "rfi",
-    "predecessor",
-    "other",
-]
-GroupBy = Literal["owner", "category", "age"]
 
 
 class CheckBody(BaseModel):
@@ -127,38 +99,8 @@ class ReadinessBody(BaseModel):
     checks: list[CheckBody]
 
 
-class ConstraintList(BaseModel):
-    """The constraints a viewer may read, and how many the same filters find in all."""
-
-    rows: list[ConstraintView]
-    total: int
-
-
-class ConstraintGroups(BaseModel):
-    """The review groups, and whether more visible constraints exist than the groups cover."""
-
-    groups: list[ConstraintGroup]
-    truncated: bool
-
-
 def _scope(project: str) -> str:
     return f"project:{project}"
-
-
-def require_view(conn: Connection, scope: str, actor: str) -> None:
-    """The entry check of every constraint read: ``actor`` holds ``core.constraint.view``.
-
-    Copied from ``tl_cli.constraint_read.require_view`` (tl-mcp does not import tl-cli). A refusal
-    is a ``ForbiddenError``, which ``guarded`` turns into the tool's normal access error.
-    """
-    require_word(
-        conn,
-        holder_for_actor(conn, actor),
-        scope=scope,
-        module=ACCESS_MODULE,
-        word=normalise_word(VIEW_WORD),
-        what=VIEW_WORD,
-    )
 
 
 def _resolve(uow: UnitOfWork, scope: str, key: str) -> str:
@@ -225,107 +167,6 @@ def get_iwp_readiness_impl(ctx: McpContext, *, project: str, number: str) -> Rea
     )
 
 
-def list_constraints_impl(
-    ctx: McpContext,
-    *,
-    project: str,
-    subject: str | None,
-    state: str | None,
-    category: str | None,
-    phase: str | None,
-    blocking: bool | None,
-    owner: str | None,
-) -> ConstraintList:
-    """The project's constraints by key, with the total the same filters find. A subject key the
-    viewer cannot see, or that does not exist, finds nothing (rows [], total 0)."""
-    scope = _scope(project)
-    with ctx.factory(True) as uow:
-        conn = uow.conn()
-        require_view(conn, scope, ctx.actor)
-        subject_id: str | None = None
-        if subject is not None:
-            found = get_record(uow, scope, subject)
-            if found is None:
-                return ConstraintList(rows=[], total=0)
-            subject_id = str(found["id"])
-        filters = {
-            "subject_id": subject_id,
-            "state": state,
-            "category": category,
-            "phase": phase,
-            "blocking": blocking,
-            "owner": owner,
-        }
-        return ConstraintList(
-            rows=list_constraints(conn, scope, **filters),
-            total=count_constraints(conn, scope, **filters),
-        )
-
-
-def get_constraint_impl(ctx: McpContext, *, project: str, key: str) -> ConstraintView:
-    """One constraint by key. A missing key and a hidden subject answer the same error."""
-    scope = _scope(project)
-    with ctx.factory(True) as uow:
-        conn = uow.conn()
-        require_view(conn, scope, ctx.actor)
-        record = get_record(uow, scope, key)
-        found = None
-        if record is not None and record["type"] == RECORD_TYPE:
-            found = get_constraint(conn, str(record["id"]))
-    if found is None:
-        raise RecordNotFoundError(f"no constraint {key!r} in project {project!r}")
-    return found
-
-
-def constraint_groups_impl(ctx: McpContext, *, project: str, by: GroupBy) -> ConstraintGroups:
-    """The visible constraints of a project grouped by owner, category or age."""
-    scope = _scope(project)
-    with ctx.factory(True) as uow:
-        conn = uow.conn()
-        require_view(conn, scope, ctx.actor)
-        views = list_constraints(conn, scope, limit=MAX_LIMIT)
-        total = count_constraints(conn, scope)
-    return ConstraintGroups(groups=review_groups(views, by), truncated=total > MAX_LIMIT)
-
-
-def propose_constraint_impl(
-    ctx: McpContext,
-    *,
-    project: str,
-    subject: str,
-    phase: str,
-    severity: Severity,
-    category: Category,
-    owner: str | None,
-    description: str | None,
-    due_at: str | None,
-    summary: str | None,
-) -> ProposalResult:
-    scope = _scope(project)
-    with ctx.factory(True) as uow:
-        subject_id = _resolve(uow, scope, subject)
-    command = RaiseConstraint(
-        actor=ctx.actor,
-        source=proposals.source_for(ctx.actor),
-        scope=scope,
-        subject=subject_id,
-        phase=phase,
-        severity=severity,
-        category=category,
-        owner=owner,
-        description=description,
-        due_at=due_at,
-    )
-    view = proposals.submit(
-        ctx.factory,
-        tool="propose_constraint",
-        agent=ctx.actor,
-        command=command,
-        summary=summary or f"Raise a {severity} {category} constraint on {subject}",
-    )
-    return _result(view)
-
-
 def propose_iwp_scope_impl(
     ctx: McpContext,
     *,
@@ -356,7 +197,7 @@ def propose_iwp_scope_impl(
 
 
 def register_iwp_tools(server: MCPServer, ctx: McpContext) -> None:
-    """Add the seven read tools and the two proposing tools to ``server``."""
+    """Add the four IWP read tools and the proposing tool to ``server``."""
 
     @server.tool(annotations=READ_ONLY)
     def list_iwps(
@@ -408,103 +249,6 @@ def register_iwp_tools(server: MCPServer, ctx: McpContext) -> None:
         """
         with guarded(ctx, "get_iwp_readiness", resource_name("iwp", project, number)):
             return get_iwp_readiness_impl(ctx, project=project, number=number)
-
-    @server.tool(annotations=READ_ONLY)
-    def list_constraints(
-        project: Project,
-        subject: Annotated[
-            str | None, Field(min_length=1, max_length=MAX_PART, description="The subject's key.")
-        ] = None,
-        state: Annotated[
-            str | None, Field(min_length=1, max_length=MAX_PART, description="The state.")
-        ] = None,
-        category: Annotated[
-            str | None, Field(min_length=1, max_length=MAX_PART, description="The category.")
-        ] = None,
-        phase: Annotated[
-            str | None, Field(min_length=1, max_length=MAX_PART, description="The phase.")
-        ] = None,
-        blocking: Annotated[bool | None, Field(description="Blocking or advisory.")] = None,
-        owner: Annotated[
-            str | None, Field(min_length=1, max_length=MAX_PART, description="The owner.")
-        ] = None,
-    ) -> ConstraintList:
-        """List a project's constraints by key, with the total the same filters find.
-
-        A subject you may not see, or that does not exist, finds nothing.
-        """
-        with guarded(ctx, "list_constraints", resource_name("constraints", project)):
-            return list_constraints_impl(
-                ctx,
-                project=project,
-                subject=subject,
-                state=state,
-                category=category,
-                phase=phase,
-                blocking=blocking,
-                owner=owner,
-            )
-
-    @server.tool(annotations=READ_ONLY)
-    def get_constraint(project: Project, key: Key) -> ConstraintView:
-        """Get one constraint by its key, with its state, subject and target.
-
-        A constraint that does not exist, or whose subject you may not read, gives the same error.
-        """
-        with guarded(ctx, "get_constraint", resource_name("constraint", project, key)):
-            return get_constraint_impl(ctx, project=project, key=key)
-
-    @server.tool(annotations=READ_ONLY)
-    def constraint_groups(
-        project: Project,
-        by: Annotated[GroupBy, Field(description="Group by `owner`, `category` or `age`.")],
-    ) -> ConstraintGroups:
-        """Group a project's visible constraints by owner, category or age (the review queue).
-
-        Groups cover at most the first 500 visible constraints by key; `truncated` is true when
-        more are visible.
-        """
-        with guarded(ctx, "constraint_groups", resource_name("constraints", project)):
-            return constraint_groups_impl(ctx, project=project, by=by)
-
-    @server.tool(annotations=PROPOSES)
-    def propose_constraint(
-        project: Project,
-        subject: Annotated[Key, Field(description="The key of the record the constraint is on.")],
-        phase: Annotated[
-            Word, Field(description="The phase the constraint gates, for example `ready`.")
-        ],
-        severity: Annotated[Severity, Field(description="Blocking or advisory.")],
-        category: Annotated[Category, Field(description="The constraint's category.")],
-        owner: Annotated[
-            str | None, Field(max_length=MAX_PART, description="The actor who owns it.")
-        ] = None,
-        description: Annotated[
-            str | None, Field(max_length=MAX_PART, description="What the constraint is.")
-        ] = None,
-        due_at: Annotated[
-            str | None, Field(max_length=MAX_PART, description="When it is due.")
-        ] = None,
-        summary: Summary = None,
-    ) -> ProposalResult:
-        """Propose a manual constraint on a record.
-
-        Nothing is raised now. The proposal is checked now, so an error means it could not be
-        applied. A person who may act on constraints accepts it in the review queue.
-        """
-        with guarded(ctx, "propose_constraint", resource_name("constraints", project)):
-            return propose_constraint_impl(
-                ctx,
-                project=project,
-                subject=subject,
-                phase=phase,
-                severity=severity,
-                category=category,
-                owner=owner,
-                description=description,
-                due_at=due_at,
-                summary=summary,
-            )
 
     @server.tool(annotations=PROPOSES)
     def propose_iwp_scope(
