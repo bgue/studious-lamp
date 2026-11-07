@@ -6,8 +6,9 @@ token, stamped with the simulated time (``X-TL-Effective-At``, FANOUT D5) and ta
 opens the ledger, a unit of work or a handler: the simulator dogfoods the open interfaces
 (brief 29.1), which ``tests/test_contract_and_boundary.py`` enforces by reading the imports.
 
-Keys. A simulation scope is ``project:sim-<run>``, and the numbering pattern's ``{project}`` takes
-letters and digits only, so the suite cannot number records there. The client assigns the keys:
+Keys. A simulation scope is ``project:sim-<run>``. The numbering pattern's ``{project}`` takes
+letters and digits only, and the allocator drops the scope's hyphen, so IWP numbers come from the
+allocator in this scope (``simrt1-IWP-PIP-0001``). Records keep the keys the client assigns:
 ``SIM<RUN>-REC-0001``, ``-0002``, ... from counters the run keeps on disk. They fit the registered
 pattern, so a ``#SIMR3FA91C-REC-0007`` in a post resolves to its record.
 """

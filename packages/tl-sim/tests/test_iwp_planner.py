@@ -9,23 +9,28 @@ from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
 
-from suite import Suite, build_suite, close_suite
+from suite import ACME, Suite, build_suite, close_suite
 from test_end_to_end import RUN_ID, SuiteConnector
 from tl_core.services.commands import CommandResult
 from tl_mod_awp.iwp_views import IwpRow
+from tl_mod_engineering.document import load_standards_file
+from tl_mod_engineering.loader import load_standards
 from tl_sim import groundtruth as gt
 from tl_sim.actors.iwp_planner import CATEGORIES, IwpPlanner
 from tl_sim.actors.registry import ACTOR_CLASSES, build_actor
 from tl_sim.client import HttpSimClient, IwpDesk, Keys
 from tl_sim.clock import SimClock
-from tl_sim.orchestrator import ORCHESTRATOR, all_identities
+from tl_sim.orchestrator import ORCHESTRATOR, Simulation, all_identities
 from tl_sim.scenario import (
     ACTOR_NAMES,
     ROLE_NAMES,
     ActorsConfig,
+    AreaSpec,
     IwpPlannerParams,
     Scenario,
+    Template,
 )
+from tl_sim.state import RunStore
 from tl_sim.testing import FakeWorld, make_context
 from tl_sim.types import GroundTruth
 
@@ -205,7 +210,7 @@ def test_the_http_client_is_an_iwp_desk_and_pins_the_command_names_and_bodies() 
     client = http_client(api)
     assert isinstance(client, IwpDesk)
     iwp = client.create_iwp("PIP", "Spool set 1")
-    item = client.create_scope_item("PIPE-SPOOL", "Pipe spool", "1", "EA", "12")
+    item = client.create_scope_item("piping", "Pipe spool", "1", "m", "12")
     client.add_scope(iwp["id"], [item["id"]])
     client.start_development(iwp["id"])
     client.raise_constraint(iwp["id"], "materials", "materials needed for PIP-IWP-0001")
@@ -250,11 +255,28 @@ def test_the_http_client_reads_iwps_by_number_and_open_constraints_by_key() -> N
     ]
 
 
+def real_suite(tmp_path: Path, monkeypatch: Any) -> Suite:
+    """The suite with the standards (``standards=True``) and the awp Commodity list, which the
+    suite does not load by itself; the lists are the fixtures' own, nothing is added."""
+    monkeypatch.delenv("TL_SCHEMA_DIR", raising=False)
+    built = build_suite(tmp_path / "s", standards=True)
+    with built.backend(False) as uow:
+        load_standards(
+            uow,
+            load_standards_file(ACME.with_name("co.acme.awp@1.0.0.yaml")),
+            actor="user:seed",
+            source="test",
+        )
+    return built
+
+
+TEMPLATE = Template(template="t", areas=[AreaSpec(name="North", lines=["6-CS-1001"])])
+
+
 def test_the_real_suite_numbers_an_iwp_in_the_sim_scope(tmp_path: Path, monkeypatch: Any) -> None:
     """The numbering allocator keys an IWP in ``project:sim-<run>`` (the hyphen is dropped from the
     project segment), so the desk's key is the pattern's key, not a client counter."""
-    monkeypatch.delenv("TL_SCHEMA_DIR", raising=False)
-    built: Suite = build_suite(tmp_path / "s", standards=True)
+    built = real_suite(tmp_path, monkeypatch)
     try:
         clock = SimClock(datetime(2026, 11, 2, 8, tzinfo=UTC))
         desk = SuiteConnector(built).client(IDENTITY, clock, Keys(RUN_ID, {}), {})
@@ -263,5 +285,45 @@ def test_the_real_suite_numbers_an_iwp_in_the_sim_scope(tmp_path: Path, monkeypa
         assert re.fullmatch(r"sim[a-z0-9]+-IWP-PIP-0001", made["key"]), made
         rows = built.api(ORCHESTRATOR).list_iwps(f"sim-{RUN_ID}", limit=200)
         assert [(r.id, r.number) for r in rows] == [(made["id"], made["key"])]
+    finally:
+        close_suite(built)
+
+
+def test_real_suite_run_creates_iwps_and_scope_items_with_no_error(
+    tmp_path: Path, monkeypatch: Any
+) -> None:
+    """Acceptance line (P2-I2-T10a): three ticks of the real planner on the real suite, no error,
+    at least one numbered IWP and one scope item. Constraints are off here: the real suite
+    refuses a manual constraint without an owner (ConstraintRuleError), and the ticket's
+    ``raise_constraint`` names no owner (open question in the report)."""
+    built = real_suite(tmp_path, monkeypatch)
+    try:
+        scenario = Scenario.model_validate(
+            {
+                **BASE,
+                "actors": {
+                    "iwp_planner": {
+                        "iwps_per_day": 1,
+                        "scope_items": 2,
+                        "constraint_rate": 0.0,
+                        "clears_per_day": 1,
+                    }
+                },
+            }
+        )
+        sim = Simulation.create(
+            scenario,
+            TEMPLATE,
+            store=RunStore(tmp_path / "runs"),
+            connector=SuiteConnector(built),
+            run_id=RUN_ID,
+        )
+        sim.advance(3)  # any error raises here
+        rows = built.api(ORCHESTRATOR).list_iwps(f"sim-{RUN_ID}", limit=200)
+        assert len(rows) >= 3 and all(
+            re.fullmatch(r"sim[a-z0-9]+-IWP-[A-Z]+-\d{4}", r.number) for r in rows
+        )
+        items = [t for t in sim.truth() if t.expect.get("record_type") == "awp.ScopeItem"]
+        assert len(items) >= 1
     finally:
         close_suite(built)

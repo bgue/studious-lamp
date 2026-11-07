@@ -34,9 +34,9 @@ TEMPLATES = (
 )
 #: (commodity, description, quantity, unit of measure, estimated hours)
 ITEMS = (
-    ("PIPE-SPOOL", "Pipe spool", "1", "EA", "12"),
-    ("VALVE", "Valve", "1", "EA", "6"),
-    ("SUPPORT", "Pipe support", "4", "EA", "3"),
+    ("piping", "Pipe spool", "1", "m", "12"),
+    ("mechanical-equipment", "Valve", "1", "kg", "6"),
+    ("structural-steel", "Pipe support", "4", "kg", "3"),
 )
 CATEGORIES = ("materials", "engineering", "permit", "labour")
 CLEARED_BY = "cleared by planner"
