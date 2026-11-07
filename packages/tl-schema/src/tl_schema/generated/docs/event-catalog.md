@@ -6984,7 +6984,7 @@ One line of a take-off was published. Stream type `materials.MTOLine`.
     "changes": {},
     "detail": {
       "line_no": 1,
-      "mto_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P10",
+      "mto_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P1",
       "project_item_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P3",
       "qty": "6.000",
       "tag_id": null,
