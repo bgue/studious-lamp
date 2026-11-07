@@ -73,19 +73,22 @@ def main() -> None:
        and not ULID.search(out + show_a + show_b))  # fmt: skip
     ok("hidden pinned document: no id or key in show",
        hidden not in show_b and hidden_key not in show_b)  # fmt: skip
-    errors = [run("show", "P123-IWP-PIP-9999"), run("show", key[c])]
+    unknown = "P123-IWP-PIP-9999"
+    errors = [run("show", unknown), run("show", key[c])]
     real_hidden = cf.is_hidden
     cf.is_hidden = lambda conn, rid, viewer=None: rid == h or real_hidden(conn, rid, viewer)
     try:
         errors.append(run("show", key[h]))
     finally:
         cf.is_hidden = real_hidden
-    same = len({o for _, o in errors}) == 1
+    # The text names the IWP asked for, so compare the three with that number put in place.
+    asked = (unknown, key[c], key[h])
+    texts = [o.replace(n, "<n>") for n, (_, o) in zip(asked, errors, strict=True)]
     ok(
         "unknown, hidden and never-evaluated answer alike (exit 1)",
-        same
+        len(set(texts)) == 1
         and all(code == 1 for code, _ in errors)
-        and errors[0][1].startswith("error: no readiness"),
+        and texts[0] == "error: no readiness for <n>\n",
     )
     ok("no Traceback", "Traceback" not in out + show_a + show_b)
     print("T04d2 ok")

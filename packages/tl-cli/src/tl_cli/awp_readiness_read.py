@@ -1,9 +1,11 @@
 """`tl awp readiness ls|show`: the last readiness evaluation of each IWP (P2-I2-T04d2).
 
-Read only. Nothing here runs a check or writes a row: the evaluation is read from the projected
-rows (`tl_mod_awp.views.readiness`), and `ls` walks the IWP list (`tl_mod_awp.iwp_views`). The CLI
-prints what the view returns and looks nothing up itself. It reads as the default (lowest) viewer
-and does not widen it. A missing, hidden, void or never-evaluated IWP answers alike.
+Read only. Nothing here runs a check or writes a row. The evaluation is read from the projected
+rows by `tl_mod_awp.readiness.views.visible_readiness`, which drops each `resolve_via` ref the
+viewer cannot read and gives the kept ones their display keys; `ls` walks the IWP list
+(`tl_mod_awp.iwp_views`). The CLI prints what the view returns and looks nothing up itself. It
+reads as the default (lowest) viewer and does not widen it. A missing, hidden, void or
+never-evaluated IWP answers alike.
 """
 
 from __future__ import annotations
@@ -65,7 +67,7 @@ def readiness_ls(
     with service_errors(), open_uow(db, readonly=True) as uow:
         conn = uow.conn()
         rows = iwp_views.iwp_list(conn, scope, state=state, foreman=foreman, limit=limit)
-        found = [(r.number, views.readiness(conn, scope, r.number)) for r in rows]
+        found = [(r.number, views.visible_readiness(conn, scope, r.number)) for r in rows]
     typer.echo(f"readiness: {len(found)}")
     for number, view in found:
         typer.echo(_ls_line(number, view))
@@ -86,7 +88,7 @@ def readiness_show(
     """
     db: DbTarget = ctx.obj
     with service_errors(), open_uow(db, readonly=True) as uow:
-        view = views.readiness(uow.conn(), scope_of(project), number)
+        view = views.visible_readiness(uow.conn(), scope_of(project), number)
     if view is None:
         fail(f"no readiness for {number}")
     lines = [
