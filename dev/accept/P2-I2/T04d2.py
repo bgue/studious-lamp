@@ -63,7 +63,7 @@ def main() -> None:
     ok("ls: not evaluated form", rows[2] == f"{key[c]}  not evaluated  -/-  -  -")
     ok(
         "ls: blocked check names listed",
-        rows[1].endswith("  constraints_cleared, zz_pin") and "  not ready  " in rows[1],
+        rows[1].endswith("  constraints_cleared,zz_pin") and "  not ready  " in rows[1],
     )
     _, show_a = run("show", key[a])
     _, show_b = run("show", key[b])

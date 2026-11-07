@@ -34,7 +34,7 @@ def _ls_line(number: str, view: ReadinessView | None) -> str:
     """One IWP of `readiness ls`; an IWP never evaluated has `-` for every figure."""
     if view is None:
         return f"{number}  not evaluated  -/-  -  -"
-    blocked = ", ".join(c.name for c in view.checks if c.state == "blocked") or "-"
+    blocked = ",".join(c.name for c in view.checks if c.state == "blocked") or "-"
     ready = "ready" if view.ready else "not ready"
     return (
         f"{number}  {ready}  {_passing(view)}/{len(view.checks)}  "
