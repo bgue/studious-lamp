@@ -33,6 +33,7 @@ from tl_mod_awp.names import (
     WBS_NODE,
     WBS_NODE_TABLE,
 )
+from tl_mod_awp.readiness.job import ReadinessKind
 
 _HEAD_SQL = text("SELECT COALESCE(MAX(seq), 0) FROM events")
 _NODES_SQL = text(f"SELECT id, parent_id FROM {WBS_NODE_TABLE} WHERE scope = :scope")
@@ -212,7 +213,7 @@ def build_worker(
     lease_s: float = DEFAULT_LEASE_S,
     clock: Clock = utcnow,
 ) -> Worker:
-    """A worker that serves the ``awp.rollup`` jobs of the ledger at ``target``.
+    """A worker that serves the ``awp.rollup`` and ``awp.readiness`` jobs at ``target``.
 
     ``worker.runner`` has ``run_once``, ``run_until_idle`` and ``serve``.
     """
@@ -220,7 +221,12 @@ def build_worker(
     with open_uow() as uow:
         queue = job_queue_for(uow.conn())
     runner = JobRunner(
-        open_uow, queue, [RollupKind()], worker_id=worker_id, lease_s=lease_s, clock=clock
+        open_uow,
+        queue,
+        [RollupKind(), ReadinessKind()],
+        worker_id=worker_id,
+        lease_s=lease_s,
+        clock=clock,
     )
     return Worker(runner, open_uow)
 
