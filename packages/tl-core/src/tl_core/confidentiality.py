@@ -191,6 +191,16 @@ def hidden_sql(viewer: Viewer | None = None, *, only: str | None = None) -> str 
     parts: list[str] = []
     for source in confidential_sources():
         parts.extend(_source_parts(source, who, only))
+    if parts:  # ADR-0024: a constraint is hidden when its subject is (class by join, no copy)
+        subject = " UNION ALL ".join(
+            p
+            for source in confidential_sources()
+            for p in _source_parts(source, who, "hr.id = k.subject_id")
+        )
+        parts.append(
+            f"SELECT hr.id FROM cur_core_record hr JOIN cur_core_constraint k ON k.id = hr.id "
+            f"WHERE hr.type = 'core.Constraint'{_only(only)} AND k.subject_id IN ({subject})"
+        )
     return " UNION ALL ".join(parts) if parts else None
 
 
