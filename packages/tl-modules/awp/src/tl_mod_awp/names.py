@@ -123,6 +123,10 @@ IWP_SCOPE_ADDED: Final = "IWP.ScopeAdded"
 IWP_SCOPE_REMOVED: Final = "IWP.ScopeRemoved"
 IWP_DOCUMENT_PINNED: Final = "IWP.DocumentPinned"
 IWP_SPLIT: Final = "IWP.Split"
+IWP_SIGNED_OFF: Final = "IWP.SignedOff"
+IWP_ISSUED_EVENT: Final = "IWP.Issued"
+IWP_HELD: Final = "IWP.Held"
+IWP_HOLD_RELEASED: Final = "IWP.HoldReleased"
 SCOPE_ITEM_CREATED: Final = "ScopeItem.Created"
 CONSTRAINT_RAISED: Final = "Constraint.Raised"
 CONSTRAINT_ASSIGNED: Final = "Constraint.Assigned"
@@ -162,3 +166,9 @@ ALL_SOURCES: Final = (SOURCE_MANUAL, *MODULE_SOURCES)
 WARN_OVERSIZE: Final = "iwp_oversize"
 WARN_UNDERSIZE: Final = "iwp_undersize"
 CODE_SUPPRESSED: Final = "suppressed"
+
+#: Sign-off, issue and hold (P2-I2 S3): settings, tables and the limits of the sign-off list.
+SIGNOFF_ROLES_SETTING: Final = "awp.release.signoff_roles"
+UNKNOWN_CHECKS_SETTING: Final = "awp.release.allow_unknown_checks"
+MAX_SIGNOFFS: Final = 4
+SIGNERS_NEEDED: Final = 2

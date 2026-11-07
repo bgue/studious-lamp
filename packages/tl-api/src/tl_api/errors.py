@@ -296,6 +296,8 @@ def _rows() -> tuple[ErrorSpec, ...]:
         # --- awp module (P2-I2): IWP, scope items and constraints ------------------------------
         s(awp.IwpRuleError, "iwp_rule", 422),
         s(awp.IwpStateError, "iwp_state", 409),
+        s(awp.IwpSignoffError, "iwp_signoff", 422),
+        s(awp.IwpNotReadyError, "not_ready", 422),
         s(awp.ScopeRuleError, "scope_rule", 422),
         s(awp.ScopeTakenError, "scope_taken", 409),
         s(awp.ConstraintRuleError, "constraint_rule", 422),
