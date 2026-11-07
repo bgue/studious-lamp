@@ -38,4 +38,5 @@ One line each: what, why it waits, and the phase it belongs to. Newest at the bo
 | `tl awp worker` has no access word; spec §3 role wording | Docs and a small gate | wave 3 |
 | P2-W0 follow-ups: Add property shown to readers who would be refused; technical-mode label gaps; RFI panel overdue uses the wall clock | Small UX items | Phase 2 exit |
 | Web pages for the wave 3 and 4 logs; create forms (old P2-WEB2) | Owner: CLI and TUI first | Web increment after wave 4 |
-| TUI inside the web page as a second mode | See the drawings and model panel spec for the recommendation | not planned |
+| TUI inside the web page as a second mode | Recommendation no (remote-shell-shaped surface, second UI); see the panel spec §7 | not planned |
+| Drawings and model panel extras: preview pictures, `tl-tui[images]`, a following 200-column TUI pane, an external model viewer link, three web layouts | The plan check (F8, F11) keeps v1 small: TUI modal and tab, web drawer | after the web increment |

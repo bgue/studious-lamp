@@ -172,3 +172,26 @@ flag behind an admin setting, never in the default build.
 2. `TL_WEB_URL` for the TUI: is one web address per site acceptable, or should the server hand it out?
 3. Where does the real drawing index land (Phase 3 beside I6, or Phase 4)?
 4. Confidence words (High, Medium, Low): are 0.8 and 0.5 the right cut points once a real index exists?
+
+## Plan check (2026-11-07, planner tier; to be folded into v0.2 before any code)
+```
+4 PLANCHK docs/build-spec/specs/drawings-model-panel.md
+F1 HI rank is the position in the whole ranked list: a gap shows a hidden hit, a cursor carrying the count leaks it -> drop rank, or number visible hits only
+F2 HI the preview looks up hit_id but the frozen Protocol has only locate() -> preview takes doc/rev/page/box and re-checks the doc (drop hit_id), or add hit() before the freeze
+F3 MD a short first page with a cursor at the 10-raw-page bound contradicts "no page size depends on hidden hits" -> list it as a known limit next to timing; the route mints the cursor (raw cursor + peek offset, MAC'd)
+F4 MD the fake's tags (V-1027, T-101, PID-470x) come from legacy fixtures, not P200 -> the demo project generator pins fixed anchor tags, one restricted P&ID and one superseded revision; demo.yaml keys on those
+F5 MD walking and twin tests need hits on their own fixture documents -> FakeLocator takes its hit table as an argument (demo.yaml default); the registry takes injected entry points (readiness/registry.py pattern)
+F6 MD caller-passed tag/ident/bounds/crs make the route a free index search; geolocation is index work -> v1 reads only the record's own tag and identifiers; keep kind/limit/cursor; drop the 422 codes
+F7 MD with TL_LOCATOR=none no call tells a client the panel is off -> add ClientInterface.locator_enabled() (or a capability field on an existing info route) in the route piece
+F8 HI the effort rows add up to 5 S + 8 H, not 4 S + 7 H -> TUI-first = S1 contract + registry + fake, S2 route + filter + cursor + both clients + walking/twin tests, 2 H screen and tests; preview route, picture and tl-tui[images] go to the web increment or DEFERRED.md
+F9 MD TUI browser open goes to a route only the web increment builds, and the browser has no web session -> TUI-first opens the rendition through PrivateTemp + viewer_argv only; browser open with the web route
+F10 MD TUI pane/screen/tab and the web panel template are screens over a merged client method -> Haiku; only the contract, the route and the worker crop stay S
+F11 LO over-built: three web layouts, a following 200-column TUI pane, TL_MODEL_VIEWER_URL with no viewer, a new revision viewer route, the `o` key already taken -> v1: web drawer only; TUI `L` modal + tab 7, Enter opens; reuse /files/{file_id}/view?page&box; the rest to DEFERRED.md
+F12 MD the ADR names no approver and no Sec rows -> approver: orchestrator (ADR-0008 decision 6, as for ADR-0016); Sec rows: filter, cursor, preview; covered by the wave-close review, no extra review
+73 sound: route owns the filter and passes the viewer; require_visible first; hidden_among exists for the batch filter; no counts; server-built hrefs; CSSOM overlay fits the CSP; entry-point group matches enrichers and readiness; the _finish_row hook is real; the no to TUI-in-web is right
+30
+```
+**Orchestrator, 2026-11-07:** all twelve accepted. The TUI-first sequence is F8 (2 S + 2 H, about 2 weekly points);
+the web part (drawer, drawing box, about 1 S + 3 H) goes with the web increment; preview pictures, `tl-tui[images]`,
+the following 200-column pane and the external model viewer link go to `DEFERRED.md`. v0.2 of this spec and the ADR
+are written before the first piece.
