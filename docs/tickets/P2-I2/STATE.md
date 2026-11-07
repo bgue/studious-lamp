@@ -1,4 +1,4 @@
-# P2-I2 STATE  r=10 base=d85acd1 C=1 ck=0 gate=n/a wt=/home/user/wt/p2-i2
+# P2-I2 STATE  r=11 base=f138629 C=1 ck=0 gate=n/a wt=/home/user/wt/p2-i2
 ## BOARD   (ws A=IWP/constraints/sign-off, B=readiness+screens+web twins; col 6 starts with ws)
 S1 p mrg f - A schema part 2 (APPROVALS done)
 S2 p mrg f - A IWP+scope cmds; constraint half replaced by C1/C2
@@ -10,7 +10,7 @@ S3 p mrg f aff0765 A sign-off, issue, hold; APPROVALS @9b3e672
 S4 p mrg f 5f6dc29 B readiness engine; fix round merged, APPROVALS @65b803d; S4.py ok
 T06a1 t mrg f f607aec B documents_current (waived: cb619ea subject)
 T06a2 t mrg f 9098b51 B rfis_answered
-S5 p stg f - A tests piece spec r9; after T04g merges
+S5 p disp f - A tests piece; wf in flight (orch)
 T04a t mrg f a486da0 A IWP + scope views (subject fix not applied; accepted)
 T04a2 t mrg f 9bb01f6 A core owner filter + review_groups; merged @4b5805b
 T04c1 t mrg f 35282e0 A API read routes; sec review mrg, APPROVALS @164e720
@@ -20,18 +20,18 @@ T04d t mrg f 02f8d50 A iwp+constraint CLI reads; merged @d4cbb23
 T04e1 t mrg f 2bbcba4 A awp iwp writes CLI; merged @b2054c3 (LO _cwp_id copy accepted)
 T04e2 t mrg f 70c0b00 A tl constraint writes CLI; merged @c8c0e20
 T04d2 t mrg f d85acd1 A readiness CLI (LO ', ' join accepted)
-T04g p disp f - A glue; builder; worker follows outbox_events (D39)
-T04b t disp f - A constraint_text + screen + log; screens wf (orch)
-T07a t disp f - B readiness_text + screen; screens wf
-T07b t disp f - B iwp_text + log + IWP screen (no tabs, D33); screens wf
+T04g p mrg f 04eb253 A glue; follower worker (D39); S5 addendum 6d8d8fe
+T04b t mrg f 5d1f540 A constraint_text + screen + log; merged @4243089
+T07a t mrg f b32474e B readiness_text + screen; merged @5e07f9d
+T07b t mrg f 7da4cbc B iwp_text + log + IWP screen (D33); merged @f138629
 T08 t mrg f b29142f B backlog weeks + sizing screen (D34)
 T09a t mrg l - A six IWP/constraint reports (orch reran 222 PASS)
 T09b t mrg f 3a71664 A IWP tools only (D37); sec review mrg
-T07c t stg f - B glue: IWP screen keys, nav, palette; spec r9, after T04b T07a T07b
-TW1 t stg f - B web IWP log+record; spec r9, after T07b
-TW2 t stg f - B web constraint review; spec r9, after T04b
-TW3 t stg f - B web readiness+tile; spec r9, after T07a T08
-T10a t disp l - A IwpDesk + person actor iwp_planner (D40); wf r10
+T07c t disp f - B glue: IwpScreen r/c keys, 3 palette rows; refined r11; wf r11
+TW1 t disp f - B web /iwps log+panel; refined r11; wf r11 with T07c
+TW2 t stg f - B web /constraints; refined r11; after TW1 (shared web files)
+TW3 t stg f - B web /readiness?number=; refined r11; after TW2; tile dropped
+T10a t disp l - A IwpDesk + actor iwp_planner (D40); retry in flight (sim pins, numbering)
 T10b t stg f - A demo; spec r10; after T10a TW1-3 T07c; split at dispatch if >450 lines
 T12 t stg l - A docs + runbook iwp-readiness; spec r10; after T10b
 ## DEC
@@ -75,6 +75,9 @@ D37 2026-11-07 orch r9: T09b = IWP tools only; constraint read and propose tools
 D38 2026-11-07 r9: T04c3 (security) added for the T04c1 route word gap: routes use require_word like the embedded client and CLI; S5 walks it
 D39 2026-11-07 orch r10: T04g option A: `tl awp worker` follows outbox_events with its own cursor, calls readiness on_event per event; no core slot; the wave 2 readiness trigger
 D40 2026-11-07 r10: T10a actor is a person `iwp_planner` (user:sim-iwp_planner, user acts only, Q6 A), not the agent workface_planner (CWP proposals); all_identities gains it; ROLE_NAMES unchanged (I6)
+D41 2026-11-07 r11: T07c: `r` and `c` go on IwpScreen (modal), not on the register, whose `r` is the Ready filter; palette rows iwps, constraints, backlog via commands.py + app._push_awp; T07c/TW1 Allowed widened to those files
+D42 2026-11-07 r11: web twins edit shared files (present, reads, routers, walk, mirror and imports tests) additively: one twin per workflow, TW1 then TW2 then TW3; no nav template or dashboard exists, so no nav line and the TW3 backlog tile is dropped (no get_setting web read); TW3 route /readiness?number=
+D43 2026-11-07 r11: web routes are WebLog pages under /web/p/{project}/<slug>: iwps, constraints (?subject=), readiness (?number=)
 ## SEC   (SR2 mandatory at C4, range 34696bc..p2/i2 head, <=450k)
 F1 HI fixed@8a306f1 T04c1 routes skipped the word table; T04c3 require_word, sec review ok
 F2 LO open T04c1 F1 seeded five-reader walk of new routes: S5 item 8
@@ -83,17 +86,18 @@ F4 LO fixed@8a306f1 _ANY_KEY_SQL LIMIT 1 (T04c3)
 ## OPEN
 Q1 hold-on-new-constraint rule (brief: a new constraint on an Issued IWP puts it On hold) has no owner; in DEFERRED; needs orch raised r3.
 ## NEXT
-1. Orch: dispatch T10a (workflow, Haiku lite). Slots: T04g builder, screens wf (T04b T07a T07b), this wf.
-2. Screens merge -> TW1 (after T07b), TW2 (after T04b), TW3 (after T07a; T08 merged): refine names from the text-module reports; then T07c (after T04b T07a T07b).
-3. S5 dispatch after T04g merges (notes in spec). T10b after T10a TW1-3 T07c S3; T12 after T10b.
-4. P2-SEED follow-up (branch p2/seed, do not edit): awp generator seeds core constraints.
-5. C3: S5 beside T10b. C4: gate per package, demo both adapters, tour once, SR2 mandatory (F2 F3 open for S5 item 8), report.
-6. Capacity: weekly ~82%, slice to 90%; new dispatch stops at 89%.
+1. Orch: dispatch ONE workflow T07c + TW1 (disjoint: tui vs web). Heavy slots: S5 wf, T10a, this wf = 3.
+2. After TW1 merges: TW2 workflow; after TW2: TW3. T10b after T10a TW1-3 T07c S5; T12 after T10b.
+3. P2-SEED follow-up (branch p2/seed, do not edit): awp generator seeds core constraints.
+4. C3: S5 beside T10b. Capacity: weekly 82%, slice to 90%; new dispatch stops at 89%.
+5. C4 checklist (orch): per-folder gate run (never whole 4 parts, OOM); demo on sq and pg; tour once; SR2 (F2 F3 open for S5 item 8); union of p2/i2 and trunk docs/build-spec/DEFERRED.md at the merge; trunk merge; report docs/reports/P2-I2.md.
+## FOLLOW-UPS (orch logs; none edits DEFERRED here)
+LO T07b: iwp_summary ignores discipline/text filters. LO T07b: no state-since field on IwpRow. LO T08: backlog reads list_iwps at default limit 200. LO T04b/T07a: empty mark `-` (tickets) vs `—` (tui-layout); `pending` in readiness summary; humanize gives `Rfi`/`Rfis closed`. Web backlog tile and project dashboard: no get_setting web read, no dashboard page (D42).
 ## WAVE2 REMAINS FOR DONE
-Dispatched: T04g (builder); T04b, T07a, T07b (orch screens wf); T10a (r10). Staged: T07c, TW1-3, S5, T10b, T12.
-Critical chain: T07b -> TW1 -> T10b -> T12.
+Dispatched: T07c + TW1 (r11 wf); S5 (wf); T10a. Staged: TW2, TW3, T10b, T12.
+Critical chain: TW1 -> TW2 -> TW3 -> T10b -> T12.
 ## REFS
-Staged (this folder): T07c, TW1-3 (names refined at dispatch from text-module reports), S5-tests.md (r9), T10b-demo.md, T12-docs.md (r10). T10a-sim-iwp-planner.md dispatched. Contract: packages/tl-core/src/tl_core/readiness/types.py (frozen), harness.py. ADR docs/adr/0024-constraints-on-any-record.md (v2), 0025 (later). Specs: C1, C2, S3, S4 in this folder; S2 constraint code reference: git show d2409f5:packages/tl-modules/awp/src/tl_mod_awp/constraints.py.
+This folder: T07c, TW1 (dispatched), TW2, TW3 (refined r11), S5-tests.md, T10b-demo.md, T12-docs.md. T10b spec still names TW pages: check against D42/D43 routes when dispatching. Contract: packages/tl-core/src/tl_core/readiness/types.py (frozen), harness.py. ADR docs/adr/0024-constraints-on-any-record.md (v2), 0025 (later). Specs: C1, C2, S3, S4 in this folder; S2 constraint code reference: git show d2409f5:packages/tl-modules/awp/src/tl_mod_awp/constraints.py.
 Template check: packages/tl-modules/materials/src/tl_mod_materials/readiness.py. Owner answers: docs/build-spec/module-designs/OWNER-DECISIONS-2026-10-30.md. README is the spec of record.
 T06a3 spec: docs/tickets/P2-I2/T06a3-pin-resolver.md. Seed ledger .accept/p2-i2.db is regenerated by C2's script.
 ## TRAPS
