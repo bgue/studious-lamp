@@ -29,3 +29,4 @@ Start here:
 Cloud sessions bootstrap themselves through `.claude/hooks/session-start.sh` (just, native Postgres, `uv sync`).
 
 Code lives under `packages/`: `tl-core`, `tl-schema`, `tl-adapters`, `tl-cli`, `tl-tui`, `tl-api`, and `tl-mcp`. Each package has its own README. Progress by increment is in `docs/reports/STATUS.md`.
+8. `docs/runbooks/demo-project.md` — build the demo project P200 (a filled brownfield refinery ledger) and read it with the clients.
