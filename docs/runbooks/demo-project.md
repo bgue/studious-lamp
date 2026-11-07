@@ -56,11 +56,13 @@ curl -s localhost:8765/health
 
 Expected: `{"status":"ok"}`. Use `just serve --port 9000` for another port. Creating a token for the API is in `docs/runbooks/api-and-mcp-dev.md`.
 
-TUI on the demo ledger:
+TUI on the demo ledger. The command is the one the `just tui` recipe runs (`uv run python -m tl_tui`, `justfile` lines 66–68), with the demo ledger's variables set. The TUI reads them as `TL_DB` and `TL_PROJECT` (`packages/tl-tui/src/tl_tui/main.py`). `TL_ENV=dev` is the default `justfile` line 6 exports.
 
 ```
 TL_ENV=dev TL_DB=dev/data/demo-project.db TL_SCHEMA_DIR=dev/data/demo-project-schema TL_PROJECT=P200 uv run python -m tl_tui
 ```
+
+Not run as a launch: the TUI is interactive. Its flags were checked with `uv run python -m tl_tui --help`, which exits 0. Do not use `just tui` on this ledger: that recipe first runs `tl init --dev` on the ledger it is given.
 
 The sign-in screen asks for a username and password from the table in section 3. Keys and screens are in `docs/runbooks/tui-dev.md`.
 
