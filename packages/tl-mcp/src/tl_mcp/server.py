@@ -42,6 +42,7 @@ from tl_mcp.derivation_tools import register_derivation_tools
 from tl_mcp.document_tools import register_document_tools
 from tl_mcp.engineering_tools import register_engineering_tools
 from tl_mcp.errors import MAX_PART, guarded, resource_name
+from tl_mcp.iwp_tools import register_iwp_tools
 from tl_mcp.materials_tools import register_materials_tools
 from tl_mcp.models import LakeQueryOutput, SearchResult
 from tl_mcp.modes import resolve_tool_modes
@@ -147,6 +148,7 @@ def build_server(
     register_schedule_read_tools(server, ctx)
     register_awp_tools(server, ctx)
     register_materials_tools(server, ctx)
+    register_iwp_tools(server, ctx)
 
     @server.tool(annotations=READ_ONLY)
     def search_records(
