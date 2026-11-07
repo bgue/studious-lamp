@@ -6,13 +6,14 @@ test-only class source; constraints on i1 (Open), i2 (Assigned), i3 (Cleared)). 
 ``uma`` (plain user), the high reader is ``ada`` (admin, reads restricted).
 
 Prints one ``PASS <check>`` line per check, then ``T04c1 ok``. Exits 1 on the first failure.
-The readiness route is NOT covered here: it is blocked (see the report).
+The readiness twin seeds readiness rows directly (the engine is S4's).
 
 Run: ``uv run python dev/accept/P2-I2/T04c1.py``.
 """
 
 from __future__ import annotations
 
+import json
 import sys
 import tempfile
 from pathlib import Path
@@ -34,6 +35,8 @@ from tl_api.settings import ApiSettings  # noqa: E402
 from tl_api.tokens import TokenStore  # noqa: E402
 from tl_core.auth import sessions  # noqa: E402
 from tl_core.constraints.commands import VIEW_WORD  # noqa: E402
+from tl_mod_awp.names import READINESS_CHECK_TABLE, READINESS_TABLE  # noqa: E402
+from tl_mod_awp.projectors._common import ddl_for  # noqa: E402
 
 PROJECT = "P123"
 BASE = f"/projects/{PROJECT}/awp"
@@ -84,6 +87,40 @@ def main() -> None:
         "seed: one constraint on the visible IWP and one on the hidden IWP",
         len(con_of_i1) == 1 and len(con_of_i3) == 1,
     )
+
+    with open_uow(w.db) as uow:
+        conn = uow.conn()
+        for table in (READINESS_TABLE, READINESS_CHECK_TABLE):
+            for statement in ddl_for(table, "sqlite"):
+                conn.execute(text(statement))
+        for n, (iwp, refs) in enumerate(
+            [
+                (ids["i1"], [ids["i2"], ids["i3"]]),
+                (ids["i3"], [ids["i1"]]),
+            ]
+        ):
+            conn.execute(
+                text(
+                    f"INSERT INTO {READINESS_TABLE} (iwp_id, scope, evaluated_at, today, ready, "
+                    "facts_hash, as_of_seq) VALUES (:i, :s, 't', 'd', 0, 'FACTSHASH', 1)"
+                ),
+                {"i": iwp, "s": f"project:{PROJECT}"},
+            )
+            conn.execute(
+                text(
+                    f"INSERT INTO {READINESS_CHECK_TABLE} (row_id, scope, iwp_id, name, version, "
+                    "state, detail, count_ok, count_total, resolve_via_json, as_of_seq) VALUES "
+                    "(:r, :s, :i, 'constraints_cleared', '1', 'blocked', 'x', 1, 3, :v, 1)"
+                ),
+                {
+                    "r": f"row{n}",
+                    "s": f"project:{PROJECT}",
+                    "i": iwp,
+                    "v": json.dumps(
+                        [{"record_id": r, "record_type": "awp.IWP", "key": r} for r in refs]
+                    ),
+                },
+            )
 
     tokens = work / "tokens.json"
     backend = open_backend(db)
@@ -196,14 +233,79 @@ def main() -> None:
         shown.status_code == 200,
     )
 
+    sub = shown.json()
+    ok(
+        "constraint rows carry subject_key and subject_type (show, list, group members)",
+        sub["subject_key"] == i1_key
+        and sub["subject_type"] == "awp.IWP"
+        and all(r["subject_key"] and r["subject_type"] for r in low_list["rows"])
+        and ids["i3"] not in low.get(CBASE).text
+        and i3_key not in low.get(CBASE).text
+        and all(
+            m["subject_key"] != i3_key
+            for g in low.get(f"{CBASE}/groups", params={"by": "owner"}).json()["groups"]
+            for m in g["members"]
+        ),
+    )
+
     # --- groups: the grouping word is validated, groups count visible rows ------------------
     groups = low.get(f"{CBASE}/groups", params={"by": "owner"})
     ok(
         "constraint groups by owner: 200 and the visible count",
-        groups.status_code == 200 and sum(g["count"] for g in groups.json()) == 2,
+        groups.status_code == 200
+        and sum(g["count"] for g in groups.json()["groups"]) == 2
+        and groups.json()["truncated"] is False,
+    )
+    real_max = api_routes.constraints.MAX_LIMIT
+    api_routes.constraints.MAX_LIMIT = 1  # type: ignore[attr-defined]
+    try:
+        cut = low.get(f"{CBASE}/groups", params={"by": "owner"}).json()
+    finally:
+        api_routes.constraints.MAX_LIMIT = real_max  # type: ignore[attr-defined]
+    ok(
+        "constraint groups: past the limit the response says truncated",
+        cut["truncated"] is True and sum(g["count"] for g in cut["groups"]) == 1,
     )
     bad = low.get(f"{CBASE}/groups", params={"by": "colour"})
     ok("constraint groups: a word outside BY_WORDS is 422", bad.status_code == 422)
+
+    # --- readiness: filtered resolve_via, no facts hash, hidden looks like missing -------------
+    ready_low = low.get(f"{BASE}/iwps/{PIP1}/readiness")
+    body = ready_low.json() if ready_low.status_code == 200 else {}
+    refs = [r for c in body.get("checks", []) for r in c["resolve_via"]]
+    ok(
+        "readiness, low reader: only the visible ref, shown by key, counts as evaluated",
+        ready_low.status_code == 200
+        and [r["key"] for r in refs] == [PIP2]
+        and [r["record_id"] for r in refs] == [ids["i2"]]
+        and body["checks"][0]["count_ok"] == 1
+        and body["checks"][0]["count_total"] == 3,
+    )
+    ok(
+        "readiness, low reader: no hidden id or key and no facts_hash in the body",
+        ids["i3"] not in ready_low.text
+        and CIV1 not in ready_low.text
+        and "facts_hash" not in ready_low.text
+        and "FACTSHASH" not in ready_low.text,
+    )
+    ready_high = high.get(f"{BASE}/iwps/{PIP1}/readiness").json()
+    ok(
+        "readiness, high reader: both refs",
+        len([r for c in ready_high["checks"] for r in c["resolve_via"]]) == 2,
+    )
+    hidden_r = low.get(f"{BASE}/iwps/{CIV1}/readiness")
+    missing_r = low.get(f"{BASE}/iwps/{MADE_UP_IWP}/readiness")
+    never_r = low.get(f"{BASE}/iwps/{PIP2}/readiness")
+    ok(
+        "readiness, low reader: hidden, missing and never evaluated give the same 404",
+        hidden_r.status_code == missing_r.status_code == never_r.status_code == 404
+        and hidden_r.text.replace(CIV1, "KEY") == missing_r.text.replace(MADE_UP_IWP, "KEY")
+        and never_r.text.replace(PIP2, "KEY") == missing_r.text.replace(MADE_UP_IWP, "KEY"),
+    )
+    ok(
+        "readiness, high reader: the restricted IWP answers 200",
+        high.get(f"{BASE}/iwps/{CIV1}/readiness").status_code == 200,
+    )
 
     # --- anonymous and refusal before any read ----------------------------------------------
     ok("constraint list without a token is 401", anonymous.get(CBASE).status_code == 401)

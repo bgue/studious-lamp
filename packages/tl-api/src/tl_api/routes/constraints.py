@@ -9,11 +9,12 @@ constraint that does not exist; no list total counts it.
 
 from __future__ import annotations
 
+from dataclasses import asdict, dataclass
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
-from sqlalchemy import text
+from sqlalchemy import Connection, bindparam, text
 from tl_core.constraints.commands import RECORD_TYPE, VIEW_WORD
 from tl_core.constraints.queries import (
     MAX_LIMIT,
@@ -39,10 +40,41 @@ _KEY_SQL = text(
 _ANY_KEY_SQL = text("SELECT id FROM cur_core_record WHERE scope = :scope AND key = :key")
 
 
+@dataclass(frozen=True)
+class ConstraintRow(ConstraintView):
+    """A constraint with the key and type of its subject (a visible record: a constraint of a
+    hidden subject is hidden whole)."""
+
+    subject_key: str
+    subject_type: str
+
+
+_SUBJECTS_SQL = text("SELECT id, key, type FROM cur_core_record WHERE id IN :ids").bindparams(
+    bindparam("ids", expanding=True)
+)
+
+
+def _rows(conn: Connection, views: list[ConstraintView]) -> list[ConstraintRow]:
+    """The views with their subjects' key and type, resolved in one batch for the page."""
+    ids = sorted({v.subject_id for v in views})
+    found = (
+        {str(r.id): (str(r.key), str(r.type)) for r in conn.execute(_SUBJECTS_SQL, {"ids": ids})}
+        if ids
+        else {}
+    )
+    return [
+        ConstraintRow(
+            **asdict(v), subject_key=found[v.subject_id][0], subject_type=found[v.subject_id][1]
+        )
+        for v in views
+        if v.subject_id in found
+    ]
+
+
 class ConstraintList(BaseModel):
     """The constraints a viewer may read, and how many the same filters find in all."""
 
-    rows: list[ConstraintView]
+    rows: list[ConstraintRow]
     total: int
 
 
@@ -54,6 +86,14 @@ class ConstraintGroupRow(BaseModel):
     blocking: int
     aging: int
     keys: list[str]
+    members: list[ConstraintRow]
+
+
+class ConstraintGroups(BaseModel):
+    """The review groups, and whether more visible constraints exist than the groups cover."""
+
+    groups: list[ConstraintGroupRow]
+    truncated: bool
 
 
 @router.get("/projects/{project}/constraints", operation_id="list_constraints_api")
@@ -95,7 +135,9 @@ def list_constraints_api(
             "owner": owner,
         }
         rows = list_constraints(conn, scope, limit=limit, **filters)
-        return ConstraintList(rows=rows, total=count_constraints(conn, scope, **filters))
+        return ConstraintList(
+            rows=_rows(conn, rows), total=count_constraints(conn, scope, **filters)
+        )
 
 
 @router.get("/projects/{project}/constraints/groups", operation_id="constraint_groups")
@@ -111,9 +153,9 @@ def constraint_groups(
     owner: Annotated[
         str | None, Query(min_length=1, max_length=200, description="The owner.")
     ] = None,
-) -> list[ConstraintGroupRow]:
+) -> ConstraintGroups:
     """The visible constraints of a project grouped by `owner`, `category` or `age`. Groups cover
-    at most the first 500 visible constraints by key (the list limit of the view)."""
+    at most the first 500 visible constraints by key; `truncated` is true when more are visible."""
     scope = f"project:{project}"
     with ctx.backend(True) as uow:
         views = list_constraints(
@@ -126,20 +168,32 @@ def constraint_groups(
             owner=owner,
             limit=MAX_LIMIT,
         )
-    return [
+        by_key = {r.key: r for r in _rows(uow.conn(), views)}
+        total = count_constraints(
+            uow.conn(),
+            scope,
+            state=state,
+            category=category,
+            phase=phase,
+            blocking=blocking,
+            owner=owner,
+        )
+    rows = [
         ConstraintGroupRow(
             label=group.label,
             count=group.count,
             blocking=group.blocking,
             aging=group.aging,
             keys=list(group.keys),
+            members=[by_key[k] for k in group.keys if k in by_key],
         )
         for group in review_groups(views, by)
     ]
+    return ConstraintGroups(groups=rows, truncated=total > MAX_LIMIT)
 
 
 @router.get("/projects/{project}/constraints/{key}", operation_id="get_constraint_api")
-def get_constraint_api(ctx: Ctx, actor: Reader, project: str, key: str) -> ConstraintView:
+def get_constraint_api(ctx: Ctx, actor: Reader, project: str, key: str) -> ConstraintRow:
     """One constraint by key. 404 `record_not_found` when it is missing or hidden (the same
     answer for both)."""
     scope = f"project:{project}"
@@ -151,4 +205,4 @@ def get_constraint_api(ctx: Ctx, actor: Reader, project: str, key: str) -> Const
         found = None if record_id is None else get_constraint(conn, str(record_id))
         if found is None:
             raise RecordNotFoundError(f"no constraint {key!r}")
-        return found
+        return _rows(conn, [found])[0]

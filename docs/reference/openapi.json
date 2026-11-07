@@ -3421,6 +3421,67 @@
         "title": "ChangeSettingBody",
         "type": "object"
       },
+      "CheckBody": {
+        "description": "One readiness check as a reader sees it: only records the reader may open in `resolve_via`\n(id, type, display key); the counts are as evaluated and name no record.",
+        "properties": {
+          "count_ok": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Count Ok"
+          },
+          "count_total": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Count Total"
+          },
+          "detail": {
+            "title": "Detail",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "resolve_via": {
+            "items": {
+              "$ref": "#/components/schemas/tl_core__readiness__types__RecordRef"
+            },
+            "title": "Resolve Via",
+            "type": "array"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "version",
+          "state",
+          "detail",
+          "resolve_via",
+          "count_ok",
+          "count_total"
+        ],
+        "title": "CheckBody",
+        "type": "object"
+      },
       "ClassificationReport": {
         "description": "What changed between ``base`` and ``target`` and what the change means.",
         "properties": {
@@ -6215,6 +6276,13 @@
           "label": {
             "title": "Label",
             "type": "string"
+          },
+          "members": {
+            "items": {
+              "$ref": "#/components/schemas/ConstraintRow"
+            },
+            "title": "Members",
+            "type": "array"
           }
         },
         "required": [
@@ -6222,9 +6290,32 @@
           "count",
           "blocking",
           "aging",
-          "keys"
+          "keys",
+          "members"
         ],
         "title": "ConstraintGroupRow",
+        "type": "object"
+      },
+      "ConstraintGroups": {
+        "description": "The review groups, and whether more visible constraints exist than the groups cover.",
+        "properties": {
+          "groups": {
+            "items": {
+              "$ref": "#/components/schemas/ConstraintGroupRow"
+            },
+            "title": "Groups",
+            "type": "array"
+          },
+          "truncated": {
+            "title": "Truncated",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "groups",
+          "truncated"
+        ],
+        "title": "ConstraintGroups",
         "type": "object"
       },
       "ConstraintList": {
@@ -6232,7 +6323,7 @@
         "properties": {
           "rows": {
             "items": {
-              "$ref": "#/components/schemas/ConstraintView"
+              "$ref": "#/components/schemas/ConstraintRow"
             },
             "title": "Rows",
             "type": "array"
@@ -6249,8 +6340,8 @@
         "title": "ConstraintList",
         "type": "object"
       },
-      "ConstraintView": {
-        "description": "A constraint as a reader sees it (the target fields are ``None`` when it is hidden).",
+      "ConstraintRow": {
+        "description": "A constraint with the key and type of its subject (a visible record: a constraint of a\nhidden subject is hidden whole).",
         "properties": {
           "age_days": {
             "title": "Age Days",
@@ -6392,6 +6483,14 @@
             "title": "Subject Id",
             "type": "string"
           },
+          "subject_key": {
+            "title": "Subject Key",
+            "type": "string"
+          },
+          "subject_type": {
+            "title": "Subject Type",
+            "type": "string"
+          },
           "target_id": {
             "anyOf": [
               {
@@ -6462,9 +6561,11 @@
           "raised_on",
           "age_days",
           "aging",
-          "phase_ungated"
+          "phase_ungated",
+          "subject_key",
+          "subject_type"
         ],
-        "title": "ConstraintView",
+        "title": "ConstraintRow",
         "type": "object"
       },
       "ContactIn": {
@@ -10950,7 +11051,7 @@
             "type": "array"
           },
           "record": {
-            "$ref": "#/components/schemas/RecordRef"
+            "$ref": "#/components/schemas/tl_core__integration__contract__RecordRef"
           },
           "side_effecting": {
             "title": "Side Effecting",
@@ -21588,6 +21689,43 @@
         "title": "ReactToPostBody",
         "type": "object"
       },
+      "ReadinessBody": {
+        "description": "The last readiness evaluation of an IWP (no facts hash).",
+        "properties": {
+          "checks": {
+            "items": {
+              "$ref": "#/components/schemas/CheckBody"
+            },
+            "title": "Checks",
+            "type": "array"
+          },
+          "evaluated_at": {
+            "title": "Evaluated At",
+            "type": "string"
+          },
+          "iwp_id": {
+            "title": "Iwp Id",
+            "type": "string"
+          },
+          "ready": {
+            "title": "Ready",
+            "type": "boolean"
+          },
+          "today": {
+            "title": "Today",
+            "type": "string"
+          }
+        },
+        "required": [
+          "iwp_id",
+          "evaluated_at",
+          "today",
+          "ready",
+          "checks"
+        ],
+        "title": "ReadinessBody",
+        "type": "object"
+      },
       "ReasonBody": {
         "additionalProperties": false,
         "description": "Body of the disable, enable and token revoke calls.",
@@ -22861,58 +22999,6 @@
           "uom"
         ],
         "title": "RecordPoLineBody",
-        "type": "object"
-      },
-      "RecordRef": {
-        "description": "A pointer to a record at a version (§19.2 ``RecordRef``; §19.3: every object carries one).",
-        "properties": {
-          "id": {
-            "title": "Id",
-            "type": "string"
-          },
-          "key": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Key"
-          },
-          "record_type": {
-            "title": "Record Type",
-            "type": "string"
-          },
-          "seq": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Seq"
-          },
-          "version": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Version"
-          }
-        },
-        "required": [
-          "id",
-          "record_type"
-        ],
-        "title": "RecordRef",
         "type": "object"
       },
       "RecordResponseBody": {
@@ -35325,7 +35411,7 @@
             "type": "array"
           },
           "record": {
-            "$ref": "#/components/schemas/RecordRef"
+            "$ref": "#/components/schemas/tl_core__integration__contract__RecordRef"
           },
           "seqs": {
             "items": {
@@ -39018,6 +39104,82 @@
           "options"
         ],
         "title": "WorkflowStatus",
+        "type": "object"
+      },
+      "tl_core__integration__contract__RecordRef": {
+        "description": "A pointer to a record at a version (§19.2 ``RecordRef``; §19.3: every object carries one).",
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Key"
+          },
+          "record_type": {
+            "title": "Record Type",
+            "type": "string"
+          },
+          "seq": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Seq"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
+          }
+        },
+        "required": [
+          "id",
+          "record_type"
+        ],
+        "title": "RecordRef",
+        "type": "object"
+      },
+      "tl_core__readiness__types__RecordRef": {
+        "description": "A record a person can open to resolve a blocked check.",
+        "properties": {
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "record_id": {
+            "title": "Record Id",
+            "type": "string"
+          },
+          "record_type": {
+            "title": "Record Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "record_id",
+          "record_type",
+          "key"
+        ],
+        "title": "RecordRef",
         "type": "object"
       },
       "tl_mod_correspondence__handlers__models__Recipient": {
@@ -68087,6 +68249,103 @@
         ]
       }
     },
+    "/projects/{project}/awp/iwps/{number}/readiness": {
+      "get": {
+        "description": "The last readiness evaluation of one IWP. 404 `record_not_found` when the IWP is missing,\nhidden or never evaluated (one answer for all three).",
+        "operationId": "get_iwp_readiness",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project",
+            "required": true,
+            "schema": {
+              "title": "Project",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "number",
+            "required": true,
+            "schema": {
+              "title": "Number",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadinessBody"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Iwp Readiness",
+        "tags": [
+          "awp"
+        ]
+      }
+    },
     "/projects/{project}/awp/iwps/{number}/scope": {
       "get": {
         "description": "The scope items of one IWP, by item number. 404 `record_not_found` when the IWP is\nmissing, hidden or voided.",
@@ -69642,7 +69901,7 @@
     },
     "/projects/{project}/constraints/groups": {
       "get": {
-        "description": "The visible constraints of a project grouped by `owner`, `category` or `age`. Groups cover\nat most the first 500 visible constraints by key (the list limit of the view).",
+        "description": "The visible constraints of a project grouped by `owner`, `category` or `age`. Groups cover\nat most the first 500 visible constraints by key; `truncated` is true when more are visible.",
         "operationId": "constraint_groups",
         "parameters": [
           {
@@ -69771,11 +70030,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/ConstraintGroupRow"
-                  },
-                  "title": "Response Constraint Groups",
-                  "type": "array"
+                  "$ref": "#/components/schemas/ConstraintGroups"
                 }
               }
             },
@@ -69872,7 +70127,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ConstraintView"
+                  "$ref": "#/components/schemas/ConstraintRow"
                 }
               }
             },
