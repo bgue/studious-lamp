@@ -23,7 +23,10 @@ declare global {
       readonly topics: BcfTopic[];
       readonly status: string;
       applyViewpoint(topicGuid: string, viewpointGuid?: string): ApplyReport;
-      clearViewpoint(): number;
+      /** Undo the applied viewpoint (hides, colours, clip planes); `quiet` leaves the status line alone. */
+      clearViewpoint(quiet?: boolean): number;
+      /** The viewpoint applied now, or null. */
+      readonly applied: { topic: string; viewpoint: string } | null;
       createTopic(opts: CreateTopicOptions): BcfTopic;
       /** One topic per item, each selecting and framing its GlobalIds. Camera positions are viewer coordinates. */
       createTopics(list: TopicSpec[], opts?: { snapshot?: boolean }): BcfTopic[];
@@ -121,7 +124,10 @@ export const bcfPlugin: AppPlugin = {
         return c.status;
       },
       applyViewpoint: (t, v) => c.applyViewpoint(t, v),
-      clearViewpoint: () => c.clearViewpoint(),
+      clearViewpoint: (quiet) => c.clearViewpoint(quiet === true),
+      get applied() {
+        return c.applied ? { ...c.applied } : null;
+      },
       createTopic: (o) => c.createTopic(o),
       createTopics: (l, o) => c.createTopics(l, o),
       addComment: (t, x, o) => c.addComment(t, x, o),

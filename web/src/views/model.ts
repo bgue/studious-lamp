@@ -547,3 +547,65 @@ export function saveViews(storage: StorageLike | null, model: string, views: rea
     return false;
   }
 }
+
+// ---------------------------------------------------------------- packed views seen
+
+// A packed page (xray-pack --views) carries views in its boot document. They join the stored list once; the ids and
+// `updated` stamps offered so far are kept under `xray.viewsPacked.<model>` (another prefix than the views, so a model
+// called "x.y" cannot collide). A packed view the user deleted or edited does not come back on the next open; a
+// packed view with a newer `updated` (the page was packed again with a changed view) is offered again.
+
+export const PACKED_SEEN_PREFIX = 'xray.viewsPacked.';
+
+export function packedSeenKey(model: string): string {
+  return `${PACKED_SEEN_PREFIX}${model}`;
+}
+
+/** Packed view id -> the `updated` stamp offered last. Empty when nothing is stored or the text cannot be read. */
+export function loadPackedSeen(storage: StorageLike | null, model: string): Record<string, string> {
+  if (!storage) return {};
+  try {
+    const v = JSON.parse(storage.getItem(packedSeenKey(model)) ?? 'null') as unknown;
+    if (!isObj(v)) return {};
+    const out: Record<string, string> = {};
+    for (const [k, s] of Object.entries(v)) if (typeof s === 'string') out[k] = s;
+    return out;
+  } catch {
+    return {};
+  }
+}
+
+export function savePackedSeen(storage: StorageLike | null, model: string, seen: Readonly<Record<string, string>>): boolean {
+  if (!storage) return false;
+  try {
+    storage.setItem(packedSeenKey(model), JSON.stringify(seen));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Merge the views of a packed page into the stored list, skipping those already offered with the same or a newer
+ * `updated` stamp (`seen`): a deleted packed view stays deleted. Returns the new list and the new `seen` record.
+ */
+export function mergePackedViews(
+  views: readonly SavedView[],
+  packed: readonly SavedView[],
+  seen: Readonly<Record<string, string>>,
+): { views: SavedView[]; seen: Record<string, string>; added: number; replaced: number; skipped: number } {
+  const next: Record<string, string> = { ...seen };
+  const fresh: SavedView[] = [];
+  let skipped = 0;
+  for (const v of packed) {
+    const last = seen[v.id];
+    if (last !== undefined && last >= v.updated) {
+      skipped++;
+      continue;
+    }
+    fresh.push(v);
+    next[v.id] = v.updated;
+  }
+  const r = mergeViews(views, fresh);
+  return { views: r.views, seen: next, added: r.added, replaced: r.replaced, skipped };
+}

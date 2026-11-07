@@ -17,16 +17,20 @@ import {
   findView,
   fromBase64Url,
   hashWithoutView,
+  loadPackedSeen,
   loadViews,
+  mergePackedViews,
   mergeParams,
   mergeViews,
   moveView,
   parseViewsDocument,
   resolveGlobalIds,
   sanitizeView,
+  savePackedSeen,
   saveViews,
   shareView,
   stepIndex,
+  packedSeenKey,
   storageKey,
   toBase64Url,
   uniqueName,
@@ -249,5 +253,58 @@ describe('share link', () => {
 
   it('sanitizeView rejects a view without a camera', () => {
     expect(typeof sanitizeView({ name: 'x' })).toBe('string');
+  });
+});
+
+describe('packed views (xray-pack --views)', () => {
+  it('a deleted packed view stays deleted when the packed page is opened again', () => {
+    const st = new MemoryStorage();
+    const packed = [view('Roof'), view('Entrance')];
+    // first open: both join the stored list, the marker records them
+    let r = mergePackedViews(loadViews(st, 'fzk').views, packed, loadPackedSeen(st, 'fzk'));
+    expect(r.added).toBe(2);
+    saveViews(st, 'fzk', r.views);
+    savePackedSeen(st, 'fzk', r.seen);
+    expect(JSON.parse(st.getItem(packedSeenKey('fzk'))!)).toEqual({ 'id-Roof': packed[0]!.updated, 'id-Entrance': packed[1]!.updated });
+    // the user deletes "Roof"
+    saveViews(st, 'fzk', loadViews(st, 'fzk').views.filter((v) => v.name !== 'Roof'));
+    // second open of the same page: "Roof" does not come back
+    r = mergePackedViews(loadViews(st, 'fzk').views, packed, loadPackedSeen(st, 'fzk'));
+    expect(r.views.map((v) => v.name)).toEqual(['Entrance']);
+    expect(r.skipped).toBe(2);
+    expect(r.added + r.replaced).toBe(0);
+    // deleting all views (the key is removed) does not bring them back either
+    saveViews(st, 'fzk', []);
+    r = mergePackedViews(loadViews(st, 'fzk').views, packed, loadPackedSeen(st, 'fzk'));
+    expect(r.views).toEqual([]);
+    // another model is independent
+    expect(mergePackedViews([], packed, loadPackedSeen(st, 'other')).added).toBe(2);
+  });
+
+  it('a packed view changed after the first open (newer updated) is offered again; a user edit is kept', () => {
+    const st = new MemoryStorage();
+    const packed = [view('Roof')];
+    let r = mergePackedViews([], packed, {});
+    savePackedSeen(st, 'm', r.seen);
+    // the user edits the view: newer than the packed one, so a reopen keeps the edit
+    const edited = { ...r.views[0]!, name: 'Roof (mine)', updated: '2026-02-01T00:00:00.000Z' };
+    r = mergePackedViews([edited], packed, loadPackedSeen(st, 'm'));
+    expect(r.views.map((v) => v.name)).toEqual(['Roof (mine)']);
+    // the page is packed again with a newer version of the view after the user deleted it: it comes back
+    const repacked = [{ ...packed[0]!, updated: '2026-03-01T00:00:00.000Z' }];
+    r = mergePackedViews([], repacked, loadPackedSeen(st, 'm'));
+    expect(r.added).toBe(1);
+    expect(r.seen['id-Roof']).toBe('2026-03-01T00:00:00.000Z');
+  });
+
+  it('tolerates a missing, broken or throwing storage', () => {
+    const st = new MemoryStorage();
+    st.setItem(packedSeenKey('m'), '{oops');
+    expect(loadPackedSeen(st, 'm')).toEqual({});
+    expect(loadPackedSeen(null, 'm')).toEqual({});
+    const bad = { getItem: () => { throw new Error('denied'); }, setItem: () => { throw new Error('quota'); } };
+    expect(loadPackedSeen(bad, 'm')).toEqual({});
+    expect(savePackedSeen(bad, 'm', { a: 'b' })).toBe(false);
+    expect(packedSeenKey('m')).not.toBe(storageKey('m'));
   });
 });

@@ -293,7 +293,16 @@ try {
         writeFileSync(big, Buffer.alloc(101 * 1024 * 1024));
         const keepBig = await state();
         await resetStatus();
-        const warned = page.waitForFunction(() => /Large input/.test(document.getElementById('xray-message')?.textContent ?? '') || /Large input/.test(window.__xray.app.panel.controllersRecursive().find((c) => c.property === 'status').getValue()), null, { timeout: 60000 });
+        // The banner can be replaced by the load error within a few ms on a fast machine (the read of a non-glb fails at once),
+        // before a polling wait sees it: record every banner text as it is written.
+        await page.evaluate(() => {
+          window.__sawLarge = false;
+          const seen = () => { if (/Large input/.test(document.getElementById('xray-message')?.textContent ?? '')) window.__sawLarge = true; };
+          window.__largeObs?.disconnect();
+          window.__largeObs = new MutationObserver(seen);
+          window.__largeObs.observe(document.body, { subtree: true, childList: true, characterData: true });
+        });
+        const warned = page.waitForFunction(() => window.__sawLarge || /Large input/.test(document.getElementById('xray-message')?.textContent ?? '') || /Large input/.test(window.__xray.app.panel.controllersRecursive().find((c) => c.property === 'status').getValue()), null, { timeout: 60000 });
         await page.setInputFiles('#xray-open-file-input', [big]);
         await warned.then(() => console.log('  large input warning shown'), () => check(false, 'the 100 MB warning was not shown'));
         const s = await waitDone();

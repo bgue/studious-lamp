@@ -13,7 +13,7 @@ A saved view is a named viewpoint you come back to: the camera plus the look of 
 | Hides, pins, isolate | GlobalIds; when more than half of the model is hidden (an isolate, `Shift+H`) the view stores the visible elements instead (`hides.mode: "show"`) | the override sets, then Algorithm 7 |
 | Exploded context | `exploded: true` | `window.__cinematic.explode()` after the selection (a selection change collapses it) |
 | X-ray, view modes, imaging, sightlines, display, cinematic, rendering, clearance, tiers | the params snapshot (`xray-params/1` keys) | only the sections that differ from the current state are applied |
-| Active preset | its id, for the summary and the filter | not re-applied (the params already hold its effect) |
+| Active preset | its id, for the summary and the filter | not re-applied (the params already hold its effect); marked active again in the presets panel (`window.__xrayPresets.markActive(id)`), until a setting changes |
 | Thumbnail | 160 x 100 JPEG data URL, cropped to cover | shown on hover and in the grid |
 
 The params snapshot is `collectParams()` minus the sections a view never stores: document metadata, `camera` and `overrides` (stored by the view itself), `selectionSets`, `classStyles`, `materialAliases`, `keymap`, `views`, and tools with their own documents (`bcf`, `xr`, `pointcloud`, `measure`, `hoverInfo`, `gizmo`, `penetrations`, `cleanup`). Restoring merges the view's params over the **factory state** (the params right after the first model loaded) and applies only the top-level sections whose value differs from the current one, in one `applyParams` call without reclassification; the selection then reclassifies once. A partial view (a share link, a hand-written views file) therefore resets what it does not name.
@@ -49,6 +49,8 @@ Keys (rebindable, group `Views` of the cheat sheet): `views.save` `Ctrl+Shift+S`
 
 - Versioning: readers accept `xray-views/1`, a bare list of views (taken as version 1) and a single shared view (`xray-view/1`). A newer major version (`xray-views/2`) is refused with a message instead of being misread. Unknown fields are dropped, a missing id, time, up vector or field of view is filled in, entries without a name or a camera are skipped and listed.
 - Params section `views`: the list without thumbnails, so `Export JSON` of the parameters carries the views; it is **not** in the share URL (`#p=`), and presets neither capture it nor count it in their "still active" hash. Applying it merges like Import; views deleted in this session are not brought back (so "Reset to defaults" does not resurrect them).
+- Restoring a view ends an applied BCF viewpoint first (`clearViewpoint`): its hides, colours, clip planes, pin and callouts go. A view saved while a viewpoint was applied holds its hides, selection and planes itself.
+- During an AR or VR session (field AR sets its own look, cut box and camera, and puts them back on exit) views are not saved, updated or restored: the status bar says to leave the session first, and Play stops.
 - Share link for one view: `?model=<model>#view=<base64url of { schema: "xray-view/1", model, view }>`. The thumbnail is left out, the camera is rounded to 0.1 mm and the params are reduced to the leaves that differ from the factory state (typically 300 to 900 characters). On load it is applied once after the first model (jump, no animation), not saved, and removed from the address; "Press Save view to keep it". A link for another model says so in the status bar.
 
 ## Packed pages
@@ -57,7 +59,7 @@ Keys (rebindable, group `Views` of the cheat sheet): `views.save` `Ctrl+Shift+S`
 node tools/xray-pack.mjs model.ifc -o review.html --views views.json --open-view "Roof cut"
 ```
 
-`--views` takes an exported views file (or a bare list, or a shared single view); views without a name or a camera are skipped with a warning, GlobalIds missing from the packed model are warned about, and a file saved on another model gets a warning. `--open-view` (name, id, name ignoring case, or 1-based number) must be in the file and needs `--views`. The boot document gets `views` (an `xray-views/1` document) and `openView`. On the first model the views plugin merges `__xrayBoot.views` into the views stored for that model (by id, newer wins); `plugins/boot.ts` opens `openView` last, after preset, params, camera, selection, tool and kiosk.
+`--views` takes an exported views file (or a bare list, or a shared single view); views without a name or a camera are skipped with a warning, GlobalIds missing from the packed model are warned about, and a file saved on another model gets a warning. `--open-view` (name, id, name ignoring case, or 1-based number) must be in the file and needs `--views`. The boot document gets `views` (an `xray-views/1` document) and `openView`. On the first model the views plugin merges `__xrayBoot.views` into the views stored for that model (by id, newer wins), once: the ids and `updated` stamps it offered are kept in `localStorage` `xray.viewsPacked.<model>`, so a packed view the user deleted (or edited) does not come back when the page is opened again; a page packed again with a newer version of that view offers it again; `plugins/boot.ts` opens `openView` last, after preset, params, camera, selection, tool and kiosk.
 
 ## Scripting
 

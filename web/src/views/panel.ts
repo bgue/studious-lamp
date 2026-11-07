@@ -142,6 +142,9 @@ export class ViewsPanel {
   private filter = '';
   private editing = -1;
   private drag: { from: number; to: number; pointer: number; el: HTMLElement } | null = null;
+  /** Where the hover thumbnail wants to be (next to the row); the help popover may push it aside. */
+  private peekAt: { left: number; top: number } | null = null;
+  private helpObserver: MutationObserver | null = null;
 
   constructor(private readonly host: ViewsHost) {
     ensureStyle();
@@ -532,11 +535,47 @@ export class ViewsPanel {
     const sb = this.root.closest('#sidebar')?.getBoundingClientRect();
     const left = Math.min((sb ? sb.right : r.right) + 6, window.innerWidth - 176);
     const top = Math.max(4, Math.min(r.top - 20, window.innerHeight - this.peek.offsetHeight - 4));
-    this.peek.style.left = `${Math.max(4, left)}px`;
-    this.peek.style.top = `${top}px`;
+    this.peekAt = { left: Math.max(4, left), top };
+    this.watchHelp();
+    this.placePeek();
+  }
+
+  /**
+   * Put the thumbnail at `peekAt`, or beside the help popover when that is open over the same spot (the popover of
+   * the row's name button opens right of the sidebar too, above every other layer): right of it, else below, else
+   * above, else left. The popover shows after a delay, so a class change on it places the thumbnail again.
+   */
+  private placePeek(): void {
+    const at = this.peekAt;
+    if (!at || this.peek.style.display === 'none') return;
+    let { left, top } = at;
+    const help = document.getElementById('xray-help');
+    if (help && help.classList.contains('show')) {
+      const h = help.getBoundingClientRect();
+      const w = this.peek.offsetWidth, ht = this.peek.offsetHeight;
+      const vw = window.innerWidth, vh = window.innerHeight, gap = 6;
+      const overlaps = left < h.right && left + w > h.left && top < h.bottom && top + ht > h.top;
+      if (overlaps) {
+        if (h.right + gap + w <= vw - 4) left = h.right + gap;
+        else if (h.bottom + gap + ht <= vh - 4) top = h.bottom + gap;
+        else if (h.top - gap - ht >= 4) top = h.top - gap - ht;
+        else if (h.left - gap - w >= 4) left = h.left - gap - w;
+      }
+    }
+    this.peek.style.left = `${Math.round(left)}px`;
+    this.peek.style.top = `${Math.round(top)}px`;
+  }
+
+  private watchHelp(): void {
+    if (this.helpObserver || typeof MutationObserver === 'undefined') return;
+    const help = document.getElementById('xray-help');
+    if (!help) return;
+    this.helpObserver = new MutationObserver(() => this.placePeek());
+    this.helpObserver.observe(help, { attributes: true, attributeFilter: ['class', 'style'] });
   }
 
   hidePeek(): void {
     this.peek.style.display = 'none';
+    this.peekAt = null;
   }
 }

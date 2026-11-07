@@ -6,7 +6,8 @@
 //   - plays the views (dwell 1.5 s) and stops with Escape;
 //   - opens the share link of one view in a fresh browser context (empty storage) and compares again;
 //   - fzk-haus only: the phone layout (390x844, list and grid) and a packed page (xray-pack --views --open-view) from
-//     file://.
+//     file://; a packed view deleted there stays deleted after a reload (QA wave 7);
+//   - the hover thumbnail of a row sits clear of the help popover (QA wave 7).
 // Screenshots: bench/views-<model>-<n>.png, views-phone.png, views-phone-grid.png, views-pack.png. No console errors.
 // Usage: SMOKE_PORT=5651 node bench/smoke-views.mjs        (SMOKE_REUSE=1 uses a server already on that port)
 import { spawn, spawnSync } from 'node:child_process';
@@ -285,6 +286,23 @@ async function runScene(browser, model) {
   }
   const rows = await page.evaluate(() => [...document.querySelectorAll('.vw-row .vw-name')].map((e) => e.textContent));
   check(`${model}: 3 rows in the Views tab`, rows.length === 3, rows.join(' | '));
+  // QA wave 7: the hover thumbnail moves out from under the help popover of the row's name button.
+  {
+    const nameBtn = page.locator('.vw-row .vw-name').nth(1);
+    const nb = await nameBtn.boundingBox();
+    await page.mouse.move(nb.x + 10, nb.y + nb.height / 2);
+    await page.mouse.move(nb.x + 20, nb.y + nb.height / 2);
+    await page.waitForFunction(() => document.getElementById('xray-help')?.classList.contains('show'), null, { timeout: 10000 }).catch(() => {});
+    await page.waitForTimeout(200);
+    const pk = await page.evaluate(() => {
+      const box = (el) => (el && getComputedStyle(el).display !== 'none' ? el.getBoundingClientRect().toJSON() : null);
+      const help = document.getElementById('xray-help');
+      return { peek: box(document.querySelector('.vw-peek')), help: help?.classList.contains('show') ? box(help) : null };
+    });
+    const ov = pk.peek && pk.help && pk.peek.left < pk.help.right && pk.peek.right > pk.help.left && pk.peek.top < pk.help.bottom && pk.peek.bottom > pk.help.top;
+    check(`${model}: hover thumbnail clear of the help popover`, !!pk.peek && !!pk.help && !ov, pk.peek && pk.help ? `peek x ${pk.peek.left.toFixed(0)}..${pk.peek.right.toFixed(0)}, help x ${pk.help.left.toFixed(0)}..${pk.help.right.toFixed(0)}` : JSON.stringify(pk));
+    await page.mouse.move(800, 450);
+  }
 
   await page.reload();
   await ready(page);
@@ -402,6 +420,13 @@ async function runScene(browser, model) {
       compare(`pack: open view "${expected[1].name}"`, await snapshot(p3), expected[1].want);
       await shot(p3, 'views-pack.png');
       packInfo = info;
+      // QA wave 7: a packed view the user deleted stays deleted when the packed page is opened again.
+      await p3.evaluate((id) => window.__xrayViews.remove(id), expected[0].id);
+      await p3.reload();
+      await ready(p3);
+      await p3.waitForTimeout(500);
+      const again = await p3.evaluate(() => window.__xrayViews.list().map((v) => v.id));
+      check('pack: a deleted packed view does not come back when the page is opened again', again.length === 2 && !again.includes(expected[0].id), `${again.length} views`);
       await ctx3.close();
     }
   }

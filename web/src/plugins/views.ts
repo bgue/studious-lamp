@@ -30,10 +30,13 @@ import {
   encodeViewShare,
   findView,
   hashWithoutView,
+  loadPackedSeen,
   loadViews,
+  mergePackedViews,
   mergeViews,
   moveView,
   parseViewsDocument,
+  savePackedSeen,
   saveViews,
   stepIndex,
   stripView,
@@ -102,9 +105,12 @@ interface SectionLike {
 }
 interface BcfLike {
   createTopic(o: { title: string; description?: string }): { guid?: string; title?: string };
+  readonly applied?: { topic: string; viewpoint: string } | null;
+  clearViewpoint?(quiet?: boolean): number;
 }
 interface PresetsLike {
   active(): string | null;
+  markActive?(id: string): boolean;
 }
 
 const w = (): {
@@ -171,6 +177,14 @@ class ViewsController {
 
   get playing(): boolean {
     return this.playTimer !== null;
+  }
+
+  /**
+   * An AR or VR session runs: it sets its own look, cut box and camera (field AR), and puts them back on exit. A view
+   * saved now would store the session's look; a view restored now would replace the session's cut and look.
+   */
+  get inXr(): boolean {
+    return (this.app.renderer as unknown as { xrPresenting?: boolean }).xrPresenting === true;
   }
 
   // ---------------------------------------------------------------- messages
@@ -240,6 +254,7 @@ class ViewsController {
 
   save(name?: string): SavedView {
     if (!this.app.loaded) throw new Error('No model loaded');
+    if (this.inXr) throw new Error('Leave the AR or VR session to save a view: the session changes the look and the cuts.');
     const n = name?.trim() ? uniqueName(name, this.views) : defaultName(this.views);
     const v = this.capture(n);
     this.activeId = v.id;
@@ -250,6 +265,7 @@ class ViewsController {
   }
 
   update(i: number): SavedView {
+    if (this.inXr) throw new Error('Leave the AR or VR session to update a view: the session changes the look and the cuts.');
     const old = this.views[i]!;
     const v = this.capture(old.name, old);
     this.activeId = v.id;
@@ -263,9 +279,25 @@ class ViewsController {
   restoreView(view: SavedView, animate: boolean): RestoreResult {
     const app = this.app;
     if (!app.loaded) throw new Error('No model loaded');
+    if (this.inXr) {
+      this.note(`Saved view "${view.name}" not restored: leave the AR or VR session first.`, true, 4000);
+      return { name: view.name, missing: [], skipped: ['xr session'], applied: [] };
+    }
     const model = app.controller.model;
+    // A saved view replaces the whole state: an applied BCF viewpoint ends first (its hides, colours and clip planes
+    // go, and its pin and callouts stop drawing). Its hides and planes are in the view when it was saved under it.
+    const bcf = w().__xrayBcf;
+    if (bcf?.applied) bcf.clearViewpoint?.();
     const plan = planRestore(view, model, currentViewParams(app as unknown as ParamsApp), this.factory);
     const skipped = applyPlan(this.vapp, plan);
+    // The preset the view was taken with is the active one again (its settings are back); a later change clears it.
+    if (view.preset) {
+      try {
+        w().__xrayPresets?.markActive?.(view.preset);
+      } catch {
+        /* a presets plugin without the mark */
+      }
+    }
 
     // Clip planes: the section tool owns them when the view has a box or a plane; else the view's own planes (a BCF
     // viewpoint that was active when it was saved), else none.
@@ -302,6 +334,10 @@ class ViewsController {
   restore(i: number, animate = true): RestoreResult {
     const v = this.views[i]!;
     const r = this.restoreView(v, animate);
+    if (r.skipped.includes('xr session')) {
+      this.stop(false);
+      return r;
+    }
     this.activeId = v.id;
     this.render();
     return r;
@@ -361,7 +397,7 @@ class ViewsController {
     const cur = this.views.findIndex((v) => v.id === this.activeId);
     const i = stepIndex(cur, this.views.length, dir);
     const r = this.restore(i);
-    this.note(`View ${i + 1} of ${this.views.length}: ${this.views[i]!.name}`, true, 2500);
+    if (!r.skipped.includes('xr session')) this.note(`View ${i + 1} of ${this.views.length}: ${this.views[i]!.name}`, true, 2500);
     return r;
   }
 
@@ -380,7 +416,7 @@ class ViewsController {
       if (this.views.length === 0) return this.stop();
       this.playIndex = stepIndex(this.playIndex, this.views.length, 1);
       const i = this.playIndex;
-      this.restore(i, true);
+      if (this.restore(i, true).skipped.includes('xr session')) return; // restore stopped the play
       this.app.showMessage(`Playing views: ${i + 1} of ${this.views.length}, ${this.views[i]!.name}. Press Escape to stop.`);
       this.playTimer = setTimeout(tick, (reducedMotion() ? 0 : VIEW_MOVE_MS) + this.dwell);
     };
@@ -501,7 +537,13 @@ function buildPanel(c: ViewsController, api: ViewsApi): void {
       c.stop(false);
       c.restore(i);
     },
-    update: (i) => void c.update(i),
+    update: (i) => {
+      try {
+        c.update(i);
+      } catch (e) {
+        c.note(e instanceof Error ? e.message : String(e), false);
+      }
+    },
     rename: (i, name) => api.rename(c.views[i]!.id, name),
     duplicate: (i) => {
       api.duplicate(c.views[i]!.id);
@@ -576,8 +618,12 @@ export const viewsPlugin: AppPlugin = {
       keys: ['Ctrl+Shift+s'],
       description: 'Save the camera, cuts, modes, selection and hides as a named view (sidebar tab Views).',
       run: () => {
-        const v = api.save();
-        c.note(`Saved view "${v.name}". Shift+PageUp and Shift+PageDown step through the views.`, true, 3000);
+        try {
+          const v = api.save();
+          c.note(`Saved view "${v.name}". Shift+PageUp and Shift+PageDown step through the views.`, true, 3000);
+        } catch (e) {
+          c.note(e instanceof Error ? e.message : String(e), true, 4000);
+        }
       },
     });
     registerAction({ id: 'views.next', label: 'Next saved view', group: 'Views', keys: ['Shift+PageDown'], run: () => void c.step(1) });
@@ -634,15 +680,17 @@ export const viewsPlugin: AppPlugin = {
     c.deleted.clear();
     if (firstModel) {
       firstModel = false;
-      // A packed page: the views of the boot document join the stored ones (by id, newer wins).
+      // A packed page: the views of the boot document join the stored ones (by id, newer wins), once: the ids
+      // offered before are remembered per model, so a packed view the user deleted does not come back.
       const boot = bootConfig() as { views?: unknown };
       if (boot.views !== undefined) {
         const p = parseViewsDocument(boot.views);
         if (p.error) console.warn(`[xray-boot] views ignored: ${p.error}`);
         else {
-          const r = mergeViews(c.views, p.views);
+          const r = mergePackedViews(c.views, p.views, loadPackedSeen(c.store, app.modelName));
           c.views = r.views;
           if (r.added || r.replaced) c.persist();
+          savePackedSeen(c.store, app.modelName, r.seen);
           if (p.bad.length) console.warn(`[xray-boot] views skipped: ${p.bad.join('; ')}`);
         }
       }

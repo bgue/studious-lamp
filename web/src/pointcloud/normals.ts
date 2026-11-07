@@ -247,13 +247,19 @@ export async function estimateNormalsAsync(
   const sliceMs = opt.sliceMs ?? 12;
   const yieldFn = opt.yieldFn ?? ((): Promise<void> => new Promise((r) => setTimeout(r, 0)));
   let t0 = performance.now();
+  let slice = sliceMs;
   for (;;) {
     const r = job.next();
     if (r.done) return r.value;
-    if (performance.now() - t0 > sliceMs) {
+    if (performance.now() - t0 > slice) {
+      const end = performance.now();
       await yieldFn();
       if (opt.isCancelled?.()) return null;
       t0 = performance.now();
+      // adaptive slice, as in icp.ts: when a heavy frame was drawn in the gap (a software renderer: 150 to 300 ms per
+      // frame), take a longer slice so the work still makes progress. A fixed 12 ms slice spent about 95 percent of
+      // the time in frames (11.5 s for 0.7 s of work); on a fast machine the gap is ~0 and slices stay short.
+      slice = Math.min(250, Math.max(sliceMs, (t0 - end) * 0.5));
     }
   }
 }
