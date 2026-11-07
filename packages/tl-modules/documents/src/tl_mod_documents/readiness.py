@@ -8,8 +8,9 @@ and ``unknown`` or ``no_current`` pins (and a pin the resolver does not return) 
 The pins are read here, not from ``IwpFacts.pinned_document_links`` (that list drops stale and
 floating links): every ``references`` link of the IWP with status ``active`` or ``stale`` that
 points at a document or at a missing record. One SQL statement reads them; the links are then
-resolved by ``links_to_documents`` (scope-wide, the default viewer). A pin the viewer may not read
-is not in the resolver's result, so it answers like a missing document: counted, not current.
+resolved by ``links_to_documents`` for exactly those link ids (the default viewer). A pin the
+viewer may not read is not in the resolver's result, so it answers like a missing document:
+counted, not current.
 
 It is read-only and reads without a viewer on purpose (a job runs it): its detail and its
 ``resolve_via`` carry keys and counts only, never titles. A failed read is ``unknown`` with a fixed
@@ -32,7 +33,6 @@ VERSION = "1"
 REVISION = "documents.Revision"
 NO_PINS = "no documents pinned to this work package"
 UNKNOWN = "the pinned documents of this work package could not be read"
-SCOPE_LIMIT = 1000
 CURRENT_STATES = frozenset({"current", "floating"})
 #: The IWP's pins: every reference link of the IWP that is active or stale. The target is a document
 #: or a missing record (the LEFT JOIN keeps a missing one; the resolver then answers it as unknown).
@@ -88,12 +88,7 @@ def _answer(conn: Connection, iwp: IwpFacts) -> CheckResult:
     pinned = _pin_ids(conn, iwp)
     if not pinned:
         return _result("n_a", NO_PINS)
-    wanted = set(pinned)
-    found = [
-        link
-        for link in links_to_documents(conn, iwp.scope, limit=SCOPE_LIMIT)
-        if link.link_id in wanted
-    ]
+    found = links_to_documents(conn, iwp.scope, link_ids=pinned, limit=len(pinned))
     total = len(pinned)
     current = sum(1 for link in found if link.resolution.state in CURRENT_STATES)
     if current == total:

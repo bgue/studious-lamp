@@ -234,7 +234,7 @@ def main() -> int:
     own = statements(lambda conn: check.evaluate(conn, bulk_facts, TODAY))
     resolver_only = statements(lambda conn: links_to_documents(conn, SCOPE, limit=1000))
     expect(
-        0 <= own - resolver_only <= MAX_STATEMENTS_OVER_RESOLVER,
+        own - resolver_only <= MAX_STATEMENTS_OVER_RESOLVER,
         f"statement count within the limit ({own} with the resolver's {resolver_only})",
     )
 
