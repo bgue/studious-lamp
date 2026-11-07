@@ -15,8 +15,10 @@ from datetime import date, timedelta
 
 from tl_mod_documents.handlers.documents import (
     RegisterDocument,
+    SetDocumentConfidentiality,
     SupersedeDocument,
     handle_register_document,
+    handle_set_document_confidentiality,
     handle_supersede_document,
 )
 from tl_mod_documents.handlers.renditions import AttachRendition, handle_attach_rendition
@@ -37,6 +39,7 @@ from tl_mod_documents.handlers.transmittals import (
     handle_record_transmittal_response,
 )
 
+from dev.seed.demo_project.anchors import ANCHOR_DOCUMENTS
 from dev.seed.demo_project.pdf import make_pdf
 from dev.seed.demo_project.registry import register
 from dev.seed.demo_project.world import START, TODAY, World
@@ -250,8 +253,122 @@ def build(world: World, rng: random.Random) -> None:
                     issue_status=status,
                 )
             doc.issued.append(rev.stream_id)
+    anchor_documents(world)
     supersede(world, rng, docs)
     transmit(world, rng, docs)
+
+
+def anchor_revision(
+    world: World,
+    day: date,
+    doc_id: str,
+    number: str,
+    title: str,
+    code: str,
+    sheets: int,
+    note: str | None,
+) -> str:
+    """One issued (IFC) revision of an anchor P&ID, with its PDF rendition; returns its id."""
+    with world.on(day):
+        rev = world.run(
+            handle_create_revision,
+            CreateRevision,
+            by=ENGINEER,
+            document_id=doc_id,
+            purpose="for construction",
+            change_note=note,
+        )
+        pdf = make_pdf(
+            f"{number} rev {code}",
+            [
+                title,
+                "Project P200, North Refinery HT-2",
+                f"Sheets {sheets}",
+                f"Date {day.isoformat()}",
+            ],
+        )
+        uploaded = world.upload(
+            rev.stream_id, slot="pdf", filename=f"{number}-{code}.pdf", data=pdf, by=ENGINEER
+        )
+        world.run(
+            handle_attach_rendition,
+            AttachRendition,
+            by=ENGINEER,
+            revision_id=rev.stream_id,
+            file_id=uploaded.file_id,
+            page_count=sheets,
+        )
+        world.run(
+            handle_issue_revision,
+            IssueRevision,
+            by=CONTROLLER,
+            stream_id=rev.stream_id,
+            issue_status="IFC",
+        )
+    return rev.stream_id
+
+
+def anchor_documents(world: World) -> None:
+    """The two fixed P&IDs (anchors.py).
+
+    ``P200-200-PID-4701``: 3 sheets, restricted, one issued revision A. ``P200-200-PID-4702``:
+    revisions A and B; issuing B supersedes A. Draws no random numbers, so the generated ones
+    do not move.
+    """
+    restricted, revised = ANCHOR_DOCUMENTS
+    title_4701 = "P&ID, reactor feed and effluent, process unit"
+    title_4702 = "P&ID, fractionator overhead, process unit"
+    day = START + timedelta(days=8)
+    with world.on(day):
+        made = world.run(
+            handle_register_document,
+            RegisterDocument,
+            by=ENGINEER,
+            number=restricted,
+            title=title_4701,
+            doc_type="PID",
+            discipline="PIP",
+            originator=DESIGNER,
+            revision_scheme="alpha",  # revised A, B; the project default for P&IDs is numeric
+        )
+    anchor_revision(
+        world, day + timedelta(days=1), made.stream_id, restricted, title_4701, "A", 3, None
+    )
+    # restricted last: a restricted record is hidden from the writer, so it is set after its work
+    with world.on(day + timedelta(days=2)):
+        world.run(
+            handle_set_document_confidentiality,
+            SetDocumentConfidentiality,
+            by=CONTROLLER,
+            stream_id=made.stream_id,
+            confidentiality="restricted",
+            reason="Reactor feed P&ID of the anchor set: restricted to the project team",
+        )
+    with world.on(day):
+        made = world.run(
+            handle_register_document,
+            RegisterDocument,
+            by=ENGINEER,
+            number=revised,
+            title=title_4702,
+            doc_type="PID",
+            discipline="PIP",
+            originator=DESIGNER,
+            revision_scheme="alpha",  # revised A, B; the project default for P&IDs is numeric
+        )
+    anchor_revision(
+        world, day + timedelta(days=2), made.stream_id, revised, title_4702, "A", 1, None
+    )
+    anchor_revision(
+        world,
+        day + timedelta(days=9),
+        made.stream_id,
+        revised,
+        title_4702,
+        "B",
+        1,
+        f"Revision B: comments of {DESIGNER} incorporated",
+    )
 
 
 def supersede(world: World, rng: random.Random, docs: list[Doc]) -> None:
