@@ -155,6 +155,10 @@ release-build:
 release-starter *args:
     bash dev/release/starter.sh {{args}}
 
+# Clean-install smoke test of a release directory: install, try-it, real-server, session-file (dev/release/smoke.sh, P2-REL-T05)
+release-smoke *args:
+    bash dev/release/smoke.sh {{args}}
+
 # Known-vulnerability audit of the locked dependencies (needs network; pip-audit runs through uvx
 # and is not a dependency of the project)
 audit-deps:
