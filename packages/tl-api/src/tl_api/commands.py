@@ -24,6 +24,7 @@ from tl_core.auth.module_roles import (
     require_command_access,
 )
 from tl_core.auth.types import Principal
+from tl_core.confidentiality import viewer_for
 from tl_core.constraints.commands import command_table as constraint_commands
 from tl_core.integration.actions.service import (
     RetireAction,
@@ -77,6 +78,7 @@ from tl_core.integration.rules.service import (
     handle_enable_rule,
     handle_revise_rule,
 )
+from tl_core.intent import check_intent, intent_scope, register_command_names
 from tl_core.services import links, psets
 from tl_core.services.commands import Command, CommandResult, CreateRecord, UpdateRecord
 from tl_core.services.edit import EditRecord, handle_edit_record
@@ -309,6 +311,9 @@ def command_spec(name: str) -> CommandSpec | None:
     return next((spec for spec in COMMANDS if spec.name == name), None)
 
 
+register_command_names(spec.name for spec in COMMANDS)
+
+
 def run_command(
     ctx: ApiContext,
     spec: CommandSpec,
@@ -344,15 +349,19 @@ def run_command(
     with effective_time(when), ctx.backend(False) as uow:
         # the one access function (ADR-0021): the module role table decides, for this project
         require_command_access(uow.conn(), command, holder=holder_for_principal(principal))
-        if spec.needs_holds:
-            from tl_api.routes.proposals import holds_access
+        # after the access decision, so an intent never changes it; a bad intent refuses the whole
+        # command before the handler runs (ADR-0025 d4)
+        command = check_intent(command, uow.conn(), viewer_for(principal))
+        with intent_scope(command.intent):
+            if spec.needs_holds:
+                from tl_api.routes.proposals import holds_access
 
-            return cast(Any, spec.handler)(
-                uow, command, holds=lambda level: holds_access(principal, actor, level)
-            )
-        if spec.takes_roles:
-            return cast(Any, spec.handler)(uow, command, roles=workflow_roles(principal))
-        return spec.handler(uow, command)
+                return cast(Any, spec.handler)(
+                    uow, command, holds=lambda level: holds_access(principal, actor, level)
+                )
+            if spec.takes_roles:
+                return cast(Any, spec.handler)(uow, command, roles=workflow_roles(principal))
+            return spec.handler(uow, command)
 
 
 def _make_endpoint(spec: CommandSpec, body_model: type[BaseModel]) -> Callable[..., CommandResult]:

@@ -51,6 +51,7 @@ from tl_api.inbound import InboundMiddleware
 from tl_api.ratelimit import RateLimitMiddleware, SourceLimiter
 from tl_api.routes import (
     actions,
+    activity,
     admin,
     auth,
     awp,
@@ -64,6 +65,7 @@ from tl_api.routes import (
     extypes,
     files,
     health,
+    insights,
     integration,
     links,
     materials,
@@ -320,6 +322,7 @@ def create_app(
         auth,
         admin,
         records,
+        activity,  # P2-INS-S1: the activity read of a record
         actions,  # P1-UX2: what the caller may do on a record
         links,
         reference,
@@ -341,6 +344,7 @@ def create_app(
         schemareg,  # P1-I8
         awp,  # P2-I1 T03a: the awp read routes
         constraints,  # P2-I2 T04c1: the constraint read routes
+        insights,  # P2-INS S2: the Checks read and the one telemetry write
     ):
         app.include_router(module.router)
     app.include_router(commands.router)

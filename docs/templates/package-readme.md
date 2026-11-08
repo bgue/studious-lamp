@@ -22,5 +22,8 @@ just test -- packages/<pkg>
 ## Rules specific to this package
 See `AGENTS.md` in this directory.
 
+## Module standard
+- Every event payload class names its world-date field with `tl:valid_time` (`at` for a moment, `from`/`to` for a span), or the class is listed with a reason in `tests/tools/valid_time_baseline.toml`; deadlines, forecasts and expiry dates are never tagged.
+
 ## Status
 Introduced in <increment>. Last interface change: <increment> (<ADR if any>).

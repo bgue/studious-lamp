@@ -9,11 +9,13 @@ from __future__ import annotations
 
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
-from typing import Annotated, Literal, NoReturn, cast
+from typing import Annotated, Any, Literal, NoReturn, cast
 
+import click
 import typer
 from pydantic import ValidationError
 from tl_adapters.db import DbTarget, open_uow
+from tl_core.intent import IntentInvalid, IntentReferenceUnknown
 from tl_core.ledger import ConcurrencyError
 from tl_core.links.expected import ExpectedLinkError, missing_expected_links
 from tl_core.services.commands import CommandResult
@@ -43,6 +45,15 @@ from tl_core.uow import UnitOfWork
 from tl_schema.compile import SchemaCompileError
 from tl_schema.registry import PackageError
 
+from tl_cli.intent_flags import (
+    GoalRefOpt,
+    NextOpt,
+    TowardOpt,
+    WhyOpt,
+    parse_intent_flags,
+    run_with_intent,
+)
+
 app = typer.Typer(help="Create, maintain and show links.", no_args_is_help=True)
 
 _DEFAULT_ACTOR = "user:dev"
@@ -66,6 +77,9 @@ def _service_errors() -> Iterator[None]:
         PackageError,
         SchemaCompileError,
         ExpectedLinkError,
+        IntentInvalid,
+        IntentReferenceUnknown,
+        click.UsageError,
     ) as exc:
         _fail(str(exc))
     except ValidationError as exc:
@@ -89,6 +103,7 @@ def _create(
     note: str | None,
     actor: str,
     confidence: float | None,
+    intent: dict[str, Any] | None = None,
 ) -> None:
     db: DbTarget = ctx.obj
     scope = f"project:{project}"
@@ -106,7 +121,7 @@ def _create(
             "note": note,
         }
         if confidence is None:
-            result = handle_add_link(uow, AddLink(**fields))
+            result = run_with_intent(uow, AddLink(**fields), handle_add_link, intent)
         else:
             result = handle_suggest_link(uow, SuggestLink(**fields, confidence=confidence))
     event = result.events[0]
@@ -134,9 +149,15 @@ def add(
     ] = None,
     note: Annotated[str | None, typer.Option("--note", help="Optional note.")] = None,
     actor: _Actor = _DEFAULT_ACTOR,
+    why: WhyOpt = None,
+    next_items: NextOpt = None,
+    toward: TowardOpt = None,
+    goal_ref: GoalRefOpt = None,
 ) -> None:
     """Link FROM_KEY to TO_KEY (an active link)."""
-    _create(ctx, project, from_key, to_key, relation, pin, note, actor, None)
+    with _service_errors():
+        intent = parse_intent_flags(why, next_items or [], toward, goal_ref)
+    _create(ctx, project, from_key, to_key, relation, pin, note, actor, None, intent)
 
 
 @app.command("suggest")
@@ -307,16 +328,24 @@ def retract(
     link_id: Annotated[str, typer.Argument(help="Link id from `tl link list`.")],
     reason: Annotated[str, typer.Option("--reason", help="Why the link is retracted.")],
     actor: _Actor = _DEFAULT_ACTOR,
+    why: WhyOpt = None,
+    next_items: NextOpt = None,
+    toward: TowardOpt = None,
+    goal_ref: GoalRefOpt = None,
 ) -> None:
     """Retract a link. Its history stays; links are never deleted."""
+    with _service_errors():
+        intent = parse_intent_flags(why, next_items or [], toward, goal_ref)
     _act(
         ctx,
         project,
         "retracted",
         link_id,
-        lambda uow, scope: handle_retract_link(
+        lambda uow, scope: run_with_intent(
             uow,
             RetractLink(actor=actor, source="cli", scope=scope, link_id=link_id, reason=reason),
+            handle_retract_link,
+            intent,
         ),
     )
 

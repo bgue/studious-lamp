@@ -6,14 +6,25 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from typing import Annotated, NoReturn
 
+import click
 import typer
 from pydantic import ValidationError
 from tl_adapters.db import DbTarget, open_uow
+from tl_core.intent import IntentInvalid, IntentReferenceUnknown
 from tl_core.ledger import ConcurrencyError, canonical_json
 from tl_core.services.commands import CreateRecord, VoidRecord
 from tl_core.services.errors import ServiceError
 from tl_core.services.queries import get_record
 from tl_core.services.records import handle_create_record, handle_void_record
+
+from tl_cli.intent_flags import (
+    GoalRefOpt,
+    NextOpt,
+    TowardOpt,
+    WhyOpt,
+    parse_intent_flags,
+    run_with_intent,
+)
 
 app = typer.Typer(help="Create, show, and void records.", no_args_is_help=True)
 
@@ -44,7 +55,13 @@ def _service_errors() -> Iterator[None]:
     """Turn a service, concurrency, or input-validation failure into `error:` on stderr, exit 1."""
     try:
         yield
-    except (ServiceError, ConcurrencyError) as exc:
+    except (
+        ServiceError,
+        ConcurrencyError,
+        IntentInvalid,
+        IntentReferenceUnknown,
+        click.UsageError,
+    ) as exc:
         _fail(str(exc))
     except ValidationError as exc:
         _fail("; ".join(f"{'.'.join(str(p) for p in e['loc'])}: {e['msg']}" for e in exc.errors()))
@@ -101,11 +118,17 @@ def create(
     actor: Annotated[str, typer.Option("--actor", help="Actor recorded on events.")] = (
         _DEFAULT_ACTOR
     ),
+    why: WhyOpt = None,
+    next_items: NextOpt = None,
+    toward: TowardOpt = None,
+    goal_ref: GoalRefOpt = None,
 ) -> None:
     """Create a record. Without --key the numbering service allocates one."""
     db: DbTarget = ctx.obj
+    with _service_errors():
+        intent = parse_intent_flags(why, next_items or [], toward, goal_ref)
     with _service_errors(), open_uow(db) as uow:
-        result = handle_create_record(
+        result = run_with_intent(
             uow,
             CreateRecord(
                 actor=actor,
@@ -117,6 +140,8 @@ def create(
                 key=key,
                 numbering=_segments(segment),
             ),
+            handle_create_record,
+            intent,
         )
     typer.echo(f"created {result.stream_id}")
     typer.echo(f"key {result.key}")
@@ -155,15 +180,21 @@ def void(
     actor: Annotated[str, typer.Option("--actor", help="Actor recorded on events.")] = (
         _DEFAULT_ACTOR
     ),
+    why: WhyOpt = None,
+    next_items: NextOpt = None,
+    toward: TowardOpt = None,
+    goal_ref: GoalRefOpt = None,
 ) -> None:
     """Void a record. Its history stays in the ledger."""
     db: DbTarget = ctx.obj
     scope = f"project:{project}"
+    with _service_errors():
+        intent = parse_intent_flags(why, next_items or [], toward, goal_ref)
     with _service_errors(), open_uow(db) as uow:
         current = get_record(uow, scope, key)
         if current is None:
             _fail(f"no record with key {key!r} in project {project!r}")
-        result = handle_void_record(
+        result = run_with_intent(
             uow,
             VoidRecord(
                 actor=actor,
@@ -173,6 +204,8 @@ def void(
                 expected_version=current["version"],
                 reason=reason,
             ),
+            handle_void_record,
+            intent,
         )
     typer.echo(f"voided {result.stream_id}")
     typer.echo(f"version {result.version}")

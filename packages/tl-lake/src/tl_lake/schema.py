@@ -60,6 +60,7 @@ EVENTS_COLUMNS: tuple[Column, ...] = (
     Column("source", "VARCHAR", True),
     Column("prev_hash", "VARCHAR"),
     Column("hash", "VARCHAR", True),
+    Column("intent", "VARCHAR"),
 )
 """Bronze ``events``: the columns of the ledger ``events`` table, in table order. An archive
 segment's ``events.parquet`` carries the same names, with the same text for timestamps and

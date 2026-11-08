@@ -31,6 +31,7 @@ def event_hash(
     event_type: str,
     payload_canonical_json: str,
     recorded_at_iso: str,
+    intent_canonical_json: str | None = None,
 ) -> str:
     """SHA-256 hex over the concatenation with '\\n' separators; prev_hash '' when None.
     Chain is per scope: prev_hash is the hash of the previous event in the same scope."""
@@ -43,4 +44,6 @@ def event_hash(
         payload_canonical_json,
         recorded_at_iso,
     ]
+    if intent_canonical_json is not None:  # a last part only when an intent exists (ADR-0025)
+        parts.append(intent_canonical_json)
     return hashlib.sha256("\n".join(parts).encode("utf-8")).hexdigest()

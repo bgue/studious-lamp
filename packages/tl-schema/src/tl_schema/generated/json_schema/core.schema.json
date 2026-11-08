@@ -7342,6 +7342,94 @@
             "title": "TagKind",
             "type": "string"
         },
+        "TelemetryNeed": {
+            "additionalProperties": false,
+            "description": "One state of one need: a request was shown, accepted, dismissed, expired or went unmet. Operational, append-only, not a projection. `need_id` ties a request to its later outcomes. Never holds content.",
+            "properties": {
+                "duration_ms": {
+                    "description": "How long the answer took.",
+                    "type": [
+                        "integer",
+                        "null"
+                    ]
+                },
+                "need_id": {
+                    "description": "Ties a request to its later outcomes.",
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                    "type": "string"
+                },
+                "outcome": {
+                    "description": "`shown`, `accepted`, `dismissed`, `expired` or `unmet`.",
+                    "type": "string"
+                },
+                "provider_kind": {
+                    "description": "Which kind of provider answered, when one did.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "record_id": {
+                    "description": "Set only for an explicit request, never by a screen opening.",
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "record_type": {
+                    "description": "The record type the need was about.",
+                    "type": "string"
+                },
+                "recorded_at": {
+                    "description": "ISO-8601 UTC with a `Z` suffix; the prune key.",
+                    "type": "string"
+                },
+                "request_kind": {
+                    "description": "`check`, `suggestion`, `analysis` or `ask`.",
+                    "type": "string"
+                },
+                "row_id": {
+                    "description": "One row; a need has one `row_id` per outcome and one `need_id` for all of them.",
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                    "type": "string"
+                },
+                "scope": {
+                    "description": "`company` or `project:<id>`, when known.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "trigger": {
+                    "description": "`screen:insights.<subtab>`, `request` or `event:<type>`.",
+                    "type": "string"
+                },
+                "viewer_role": {
+                    "description": "`admin`, `document_controller`, `user` or `unknown` when there is none.",
+                    "type": "string"
+                },
+                "why": {
+                    "description": "Always written null; no reader and no privacy review yet.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                }
+            },
+            "required": [
+                "row_id",
+                "need_id",
+                "recorded_at",
+                "request_kind",
+                "trigger",
+                "record_type",
+                "viewer_role",
+                "outcome"
+            ],
+            "title": "TelemetryNeed",
+            "type": "object"
+        },
         "ThreadDispatchResult": {
             "additionalProperties": false,
             "description": "One command a confirmed dispatch ran, as carried in `Thread.Dispatched`.",

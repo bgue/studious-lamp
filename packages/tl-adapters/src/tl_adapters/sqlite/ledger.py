@@ -11,6 +11,7 @@ from typing import cast
 
 from sqlalchemy import Connection, Engine, text
 from sqlalchemy.engine import RowMapping
+from tl_core.intent import Intent, current_intent, intent_json
 from tl_core.ledger import (
     AppendResult,
     ConcurrencyError,
@@ -29,14 +30,18 @@ _INSERT_EVENT = text(
     INSERT INTO events (
       event_id, stream_id, stream_type, stream_version, event_type, schema_version, scope,
       payload, actor, recorded_at, effective_at, correlation_id, causation_id, source,
-      prev_hash, hash
+      prev_hash, hash, intent
     ) VALUES (
       :event_id, :stream_id, :stream_type, :stream_version, :event_type, :schema_version, :scope,
       :payload, :actor, :recorded_at, :effective_at, :correlation_id, :causation_id, :source,
-      :prev_hash, :hash
+      :prev_hash, :hash, :intent
     )
     """
 )
+
+
+def _intent(value: str | None) -> Intent | None:
+    return None if value is None else Intent.model_validate_json(value)
 
 
 def _row_to_event(row: RowMapping) -> Event:
@@ -58,6 +63,7 @@ def _row_to_event(row: RowMapping) -> Event:
         source=row["source"],
         prev_hash=row["prev_hash"],
         hash=row["hash"],
+        intent=_intent(row.get("intent")),
     )
 
 
@@ -74,6 +80,7 @@ class SqliteLedger:
         self._engine = engine
         self._clock = clock
         self._id_gen = id_gen
+        self._intent_ready = False
 
     def create_schema(self) -> None:
         """Create the events table, index, and append-only triggers. Idempotent."""
@@ -83,6 +90,18 @@ class SqliteLedger:
             cast(sqlite3.Connection, raw.driver_connection).executescript(script)
         finally:
             raw.close()
+        self.ensure_intent_column()
+
+    def ensure_intent_column(self) -> None:
+        """Add ``events.intent`` to a database made before ADR-0025. Idempotent; no row changes."""
+        with read_tx(self._engine) as conn:
+            have = {row[1] for row in conn.exec_driver_sql("PRAGMA table_info(events)")}
+        if not have or "intent" in have:
+            return
+        with write_tx(self._engine) as conn:
+            have = {row[1] for row in conn.exec_driver_sql("PRAGMA table_info(events)")}
+            if "intent" not in have:
+                conn.exec_driver_sql("ALTER TABLE events ADD COLUMN intent TEXT")
 
     def append(
         self,
@@ -130,6 +149,11 @@ class SqliteLedger:
             raise RuntimeError("append_in needs a connection from write_tx")
         if not events:
             raise ValueError("append_in needs at least one event")
+        if not self._intent_ready:  # a database made before ADR-0025: add the column once
+            have = {row[1] for row in conn.exec_driver_sql("PRAGMA table_info(events)")}
+            if "intent" not in have:
+                conn.exec_driver_sql("ALTER TABLE events ADD COLUMN intent TEXT")
+            self._intent_ready = True
 
         found: int = conn.execute(
             text("SELECT COALESCE(MAX(stream_version), 0) FROM events WHERE stream_id = :s"),
@@ -157,6 +181,7 @@ class SqliteLedger:
                 effective_at = current_effective_time() or recorded_at
             payload_json = canonical_json(new.payload)
             recorded_iso = iso_utc(recorded_at)
+            intent_text = intent_json(new.intent if new.intent is not None else current_intent())
             current_hash = event_hash(
                 prev_hash,
                 event_id,
@@ -165,6 +190,7 @@ class SqliteLedger:
                 new.event_type,
                 payload_json,
                 recorded_iso,
+                intent_text,
             )
             result = conn.execute(
                 _INSERT_EVENT,
@@ -185,6 +211,7 @@ class SqliteLedger:
                     "source": source,
                     "prev_hash": prev_hash,
                     "hash": current_hash,
+                    "intent": intent_text,
                 },
             )
             last_seq = result.lastrowid
@@ -207,6 +234,7 @@ class SqliteLedger:
                     source=source,
                     prev_hash=prev_hash,
                     hash=current_hash,
+                    intent=_intent(intent_text),
                 )
             )
             prev_hash = current_hash

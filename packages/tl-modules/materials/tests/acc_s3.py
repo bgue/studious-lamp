@@ -343,7 +343,7 @@ class World:
     # --- a delivery, from booking to stock -------------------------------------------------
 
     def attach_mtr(self, receipt_id: str, data: bytes = b"%PDF-1.4 mill test report") -> None:
-        base = {"actor": ACTOR, "source": SOURCE, "scope": self.project}
+        base: dict[str, Any] = {"actor": ACTOR, "source": SOURCE, "scope": self.project}
         declared = RegisterUpload(
             **base,
             record_id=receipt_id,

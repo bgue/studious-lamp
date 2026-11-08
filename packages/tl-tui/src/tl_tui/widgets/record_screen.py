@@ -2,7 +2,7 @@
 
 ``open_record`` is the one call a register makes on Enter. The screen finds the record by its id
 through the viewer-filtered read, so a hidden record and a missing one read the same: "No record",
-never an id. It hosts a ``RecordView`` (tabs Details, Properties, Links, History, Trace, Thread,
+never an id. It hosts a ``RecordView`` (tabs Details, Properties, Links, Activity, Trace, Thread,
 and Files when the record has files) and closes with ``dismiss(None)`` so the register's callback
 runs and the register keeps its row (``pop_screen`` would not run it).
 """

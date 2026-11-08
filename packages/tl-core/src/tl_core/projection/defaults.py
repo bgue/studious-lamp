@@ -22,6 +22,7 @@ from tl_core.projection.record import RecordProjector
 from tl_core.projection.registry import InMemoryRegistry
 from tl_core.projection.settings import SettingProjector
 from tl_core.projection.workflow import WorkflowProjector
+from tl_core.telemetry import TelemetryStateTables
 from tl_core.threads.projector import ThreadProjector
 from tl_core.webhooks.outbox import OutboxProjector
 from tl_core.webhooks.state import WebhookStateTables
@@ -43,6 +44,7 @@ def default_registry() -> InMemoryRegistry:
     registry.register(WebhookStateTables())  # operational tables; never reset by a rebuild
     registry.register(AccountProjector())  # independent: accounts are their own streams
     registry.register(AuthStateTables())  # operational tables; never reset by a rebuild
+    registry.register(TelemetryStateTables())  # telemetry_need; never reset by a rebuild
     registry.register(ProposalProjector())  # independent: proposals are their own streams
     registry.register(
         TypeRegistrationProjector()

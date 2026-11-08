@@ -47,9 +47,13 @@ def test_the_lake_events_table_equals_the_sealed_parquet(
     probe = duckdb.connect(":memory:")
     archived_types = probe.execute(f"DESCRIBE SELECT * FROM read_parquet('{parquet}')").fetchall()
     archived = probe.execute(f"SELECT * FROM read_parquet('{parquet}') ORDER BY seq").fetchall()
+    names = ", ".join(r[0] for r in archived_types)
     with open_lake(lake, write=False) as con:
         bronze_types = con.execute("DESCRIBE SELECT * FROM events").fetchall()
-        bronze = con.execute("SELECT * FROM events ORDER BY seq").fetchall()
-    assert [(r[0], r[1]) for r in bronze_types] == [(r[0], r[1]) for r in archived_types]
+        bronze = con.execute(f"SELECT {names} FROM events ORDER BY seq").fetchall()
+    # a segment with no intent has no `intent` column (ADR-0025); bronze always has it, last
+    bronze_pairs = [(r[0], r[1]) for r in bronze_types]
+    assert bronze_pairs[-1] == ("intent", "VARCHAR")
+    assert bronze_pairs[:-1] == [(r[0], r[1]) for r in archived_types]
     assert bronze == archived
     assert len(bronze) == ledger.head()

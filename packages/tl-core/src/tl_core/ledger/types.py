@@ -8,6 +8,8 @@ from typing import Any, Protocol
 
 from pydantic import BaseModel
 
+from tl_core.intent import Intent
+
 
 class NewEvent(BaseModel):
     """What a command handler emits. The ledger fills seq, stream_version, hashes, recorded_at."""
@@ -16,6 +18,7 @@ class NewEvent(BaseModel):
     schema_version: int = 1
     payload: dict[str, Any]
     effective_at: datetime | None = None  # defaults to recorded_at
+    intent: Intent | None = None
 
 
 class Event(BaseModel):
@@ -39,6 +42,7 @@ class Event(BaseModel):
     source: str
     prev_hash: str | None
     hash: str
+    intent: Intent | None = None
 
 
 class AppendResult(BaseModel):

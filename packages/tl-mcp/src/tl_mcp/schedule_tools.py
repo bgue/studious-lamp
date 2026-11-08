@@ -14,12 +14,14 @@ from typing import Annotated
 
 from mcp.server.mcpserver import MCPServer
 from pydantic import Field
+from tl_core.intent import Intent
 from tl_core.services import proposals
 from tl_mod_schedule import views
 from tl_mod_schedule.handlers.publish import PublishScheduleSnapshot
 
 from tl_mcp.context import McpContext
 from tl_mcp.errors import MAX_PART, guarded, resource_name
+from tl_mcp.intent_param import IntentParam
 from tl_mcp.write_tools import (  # pyright: ignore[reportPrivateUsage]
     PROPOSES,
     ProposalResult,
@@ -37,7 +39,13 @@ Code = Annotated[
 
 
 def propose_publish_impl(
-    ctx: McpContext, *, project: str, code: str, number: int, summary: str | None
+    ctx: McpContext,
+    *,
+    project: str,
+    code: str,
+    number: int,
+    summary: str | None,
+    intent: Intent | None = None,
 ) -> ProposalResult:
     scope = f"project:{project}"
     with ctx.factory(True) as uow:
@@ -48,6 +56,7 @@ def propose_publish_impl(
         source=proposals.source_for(ctx.actor),
         scope=scope,
         snapshot_id=snapshot.id,
+        intent=intent,
     )
     view = proposals.submit(
         ctx.factory,
@@ -70,6 +79,7 @@ def register_schedule_tools(server: MCPServer, ctx: McpContext) -> None:
         number: Annotated[
             int, Field(ge=1, le=10**9, description="The snapshot's number within the schedule.")
         ],
+        intent: IntentParam = None,
         summary: Summary = None,
     ) -> ProposalResult:
         """Propose making a valid schedule snapshot the current schedule.
@@ -84,5 +94,10 @@ def register_schedule_tools(server: MCPServer, ctx: McpContext) -> None:
             ctx, "propose_publish_schedule_snapshot", resource_name("schedule", project, schedule)
         ):
             return propose_publish_impl(
-                ctx, project=project, code=schedule, number=number, summary=summary
+                ctx,
+                project=project,
+                code=schedule,
+                number=number,
+                summary=summary,
+                intent=intent,
             )
