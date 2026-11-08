@@ -1,5 +1,7 @@
 # tl-tui (`tl_tui`)
 
+Install and version: installed with `tl-cli` (see its README); `tl-tui --version` prints the release version. Runbook: `docs/runbooks/terminal-release.md`.
+
 The Textual application shell, grid, record view, and forms; every screen reads and writes through `ClientInterface`, so the same screens run embedded (a SQLite file or a Postgres database opened in this process) or remote (a running API server), and in both modes they show other writers' changes live (§4, §5.3, §10.1–§10.4, §10.6 sketches 1, 2, 11).
 
 ## Public interface

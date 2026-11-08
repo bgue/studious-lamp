@@ -1,5 +1,7 @@
 # tl-cli (`tl_cli`)
 
+Install and version: `uv tool install "tl-cli==<version>" --find-links <release dir>`; `tl --version` prints the release version. Runbook: `docs/runbooks/terminal-release.md`.
+
 The `tl` command: a thin typer front end over the `tl_core` command and query services and the SQLite and Postgres adapters (§25.2, §29.4). The database is the root `--db` / `TL_DB`: a SQLite file or a `postgresql://` URL, read through `tl_adapters.db.as_target` into `ctx.obj`.
 
 ## Public interface
