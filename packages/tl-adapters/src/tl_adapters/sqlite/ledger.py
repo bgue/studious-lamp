@@ -11,7 +11,7 @@ from typing import cast
 
 from sqlalchemy import Connection, Engine, text
 from sqlalchemy.engine import RowMapping
-from tl_core.intent import Intent, intent_json
+from tl_core.intent import Intent, current_intent, intent_json
 from tl_core.ledger import (
     AppendResult,
     ConcurrencyError,
@@ -181,7 +181,7 @@ class SqliteLedger:
                 effective_at = current_effective_time() or recorded_at
             payload_json = canonical_json(new.payload)
             recorded_iso = iso_utc(recorded_at)
-            intent_text = intent_json(new.intent)
+            intent_text = intent_json(new.intent if new.intent is not None else current_intent())
             current_hash = event_hash(
                 prev_hash,
                 event_id,

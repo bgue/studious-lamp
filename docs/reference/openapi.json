@@ -21376,6 +21376,16 @@
             ],
             "title": "Decided By"
           },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "proposal_id": {
             "title": "Proposal Id",
             "type": "string"
