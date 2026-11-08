@@ -277,7 +277,7 @@ def record_activity(
         scanned += len(batch)
         cursor = batch[-1]
         events = _load(conn, batch)
-        # An intent may name a record the viewer cannot read: it reads "not available" (ADR-0025 d5).
+        # An intent may name a record the viewer cannot read: "not available" (ADR-0025 d5).
         kept = {
             e.event_id: e
             for e in redact_events(conn, _visible(conn, [events[s] for s in batch if s in events]))

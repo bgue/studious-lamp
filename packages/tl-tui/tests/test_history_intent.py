@@ -11,14 +11,19 @@ from typing import Any
 from fakes import FakeClient
 from helpers import run_pilot, static_of
 from test_activity_tab import Host, cells_of, setup, table_of
+from test_embedded_actions import (
+    SCOPE as REAL_SCOPE,  # noqa: F401  # pyright: ignore[reportMissingImports]
+)
+from test_embedded_actions import (  # noqa: F401  # pyright: ignore[reportMissingImports]
+    Ledger,
+    ledger,
+)
 from textual.pilot import Pilot
-from tl_core.intent import NOT_AVAILABLE, Intent, IntentRef, IntentToward
-from test_embedded_actions import SCOPE as REAL_SCOPE  # noqa: F401  # pyright: ignore[reportMissingImports]
-from test_embedded_actions import Ledger, ledger  # noqa: F401  # pyright: ignore[reportMissingImports]
-from tl_core import confidentiality
-from tl_core.intent import intent_scope
-from tl_core.services.records import CreateRecord, handle_create_record
 from tl_adapters.db import open_uow
+from tl_core import confidentiality
+from tl_core.intent import NOT_AVAILABLE, Intent, IntentRef, IntentToward, intent_scope
+from tl_core.services.commands import CreateRecord
+from tl_core.services.records import handle_create_record
 from tl_tui.display import DisplayMode
 from tl_tui.intent_text import intent_lines
 from tl_tui.record_activity_text import activity_cells
@@ -136,9 +141,15 @@ def test_revisions_only_mode_shows_it_too() -> None:
 
 
 def make_record(ledger: Ledger, key: str, intent: Intent) -> str:  # noqa: F811
-    """A record the open reader may read, created with ``intent`` (the creator may read it all)."""
+    """A record the open reader may read, created with ``intent``."""
     cmd = ledger.command(
-        CreateRecord, "ctl", scope=REAL_SCOPE, record_type="core.Record", title="t", key=key, psets={}
+        CreateRecord,
+        "ctl",
+        scope=REAL_SCOPE,
+        record_type="core.Record",
+        title="t",
+        key=key,
+        psets={},
     )
     with confidentiality.system_view(), intent_scope(intent), open_uow(ledger.harness.db) as uow:
         return handle_create_record(uow, cmd).stream_id
@@ -149,9 +160,7 @@ def test_the_embedded_history_shows_a_hidden_reference_as_not_available(
 ) -> None:
     hidden = ledger.hidden.ids["restricted"]
     named = make_record(ledger, "P123-INT-T04-A", Intent(toward=IntentToward(target=hidden)))
-    flat = make_record(
-        ledger, "P123-INT-T04-B", Intent(toward=IntentToward(target=NOT_AVAILABLE))
-    )
+    flat = make_record(ledger, "P123-INT-T04-B", Intent(toward=IntentToward(target=NOT_AVAILABLE)))
     bob = ledger.client("bob")
     a = [e.intent for e in bob.history(named)]
     b = [e.intent for e in bob.history(flat)]

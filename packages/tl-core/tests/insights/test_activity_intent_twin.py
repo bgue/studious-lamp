@@ -1,8 +1,8 @@
 """An intent that names a hidden record reads as "not available" (P2-INT-T04).
 
 ``record_activity`` hands the event to every reader, so its intent passes ``redact_events``: a
-reference the viewer cannot read is "not available", byte for byte as an intent that was stored as "not available".
-Runs on every adapter the root conftest offers (SQLite; Postgres under ``--adapters sqlite,postgres``).
+reference the viewer cannot read is "not available", byte for byte as an intent stored as such.
+Runs on every adapter the root conftest offers (Postgres under `--adapters sqlite,postgres`).
 """
 
 from __future__ import annotations
@@ -17,7 +17,13 @@ import s1_world as sw  # noqa: E402  # pyright: ignore[reportMissingImports]
 from tl_adapters.db import open_uow  # noqa: E402
 from tl_core import confidentiality as cf  # noqa: E402
 from tl_core.insights.activity import record_activity  # noqa: E402
-from tl_core.intent import NOT_AVAILABLE, Intent, IntentRef, IntentToward, intent_scope  # noqa: E402
+from tl_core.intent import (  # noqa: E402
+    NOT_AVAILABLE,
+    Intent,
+    IntentRef,
+    IntentToward,
+    intent_scope,
+)
 
 CONTROLLER = cf.Viewer("user:controller", 1, "user:controller")
 
@@ -50,9 +56,7 @@ def read_intent(built: sw.World, record: str, viewer: cf.Viewer) -> str:
 
 
 @pytest.mark.parametrize("where", ["toward", "next"])
-def test_a_hidden_target_reads_as_not_available(
-    db: str | Path, tmp_path: Path, where: str
-) -> None:
+def test_a_hidden_target_reads_as_not_available(db: str | Path, tmp_path: Path, where: str) -> None:
     built = sw.build(tmp_path, db)
     hidden = sw.add_hidden(built)
     rec_a = made(built, f"P123-INT-{where}-A", intent_of(hidden, where))

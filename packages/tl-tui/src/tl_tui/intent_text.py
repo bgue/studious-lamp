@@ -35,7 +35,10 @@ def intent_lines(
     mode shows the lower-case field names and raw ids, and ``~`` for a condition."""
     if intent is None or intent_json(intent) is None:
         return []
-    label = (lambda plain, raw: raw if technical else plain)
+
+    def label(plain: str, raw: str) -> str:
+        return raw if technical else plain
+
     lines: list[str] = []
     if intent.why:
         lines.append(f"{label('Why', 'why')}: {intent.why}")

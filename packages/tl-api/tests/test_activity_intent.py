@@ -1,4 +1,4 @@
-"""``GET /records/{id}/activity``: an intent naming a hidden record reads "not available" (P2-INT-T04).
+"""``GET /records/{id}/activity`` redacts an intent that names a hidden record (P2-INT-T04).
 
 The controller makes a record whose intent points at the restricted item; readers who may not read
 it get the text "not available" in the activity rows, never the id. The controller sees the id.
@@ -12,7 +12,11 @@ from typing import Any
 import pytest
 from harness import Harness
 from test_confidentiality_walk import Seed, seed  # pyright: ignore[reportMissingImports]
-from test_intent_walk import CANNOT_READ_RESTRICTED, call, make  # pyright: ignore[reportMissingImports]
+from test_intent_walk import (  # pyright: ignore[reportMissingImports]
+    CANNOT_READ_RESTRICTED,
+    call,
+    make,
+)
 from tl_core.intent import NOT_AVAILABLE
 
 

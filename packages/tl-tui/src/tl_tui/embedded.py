@@ -85,6 +85,7 @@ from tl_core.insights.types import ActivityPage, CheckFinding
 from tl_core.integration import registry as integration_registry
 from tl_core.integration.actor_access import held_access
 from tl_core.integration.contract import SERVER_SET_FIELDS, Access
+from tl_core.intent import redact_events
 from tl_core.ledger import Event
 from tl_core.links.expected import MissingLink, missing_expected_links
 from tl_core.links.provider import get_vocabulary
@@ -132,7 +133,6 @@ from tl_core.services.workflow import (
     handle_transition_workflow,
     workflow_status,
 )
-from tl_core.intent import redact_events
 from tl_core.settings import history as settings_history
 from tl_core.settings import lock_setting as lock_in_force
 from tl_core.settings import reset_setting as reset_in_force
