@@ -20,7 +20,7 @@ from tl_core.services.errors import UnknownRelationError
 LINKS_YAML = Path(__file__).resolve().parents[3] / "schema" / "core" / "links.yaml"
 
 
-def test_the_default_vocabulary_has_the_thirteen_relations_of_the_brief() -> None:
+def test_the_default_vocabulary_has_the_fourteen_relations() -> None:
     vocabulary = default_vocabulary()
     assert vocabulary.codes() == [
         "references",
@@ -32,6 +32,7 @@ def test_the_default_vocabulary_has_the_thirteen_relations_of_the_brief() -> Non
         "belongs_to",
         "requires",
         "blocks",
+        "targets",
         "verifies",
         "dispatched_from",
         "attached_to",

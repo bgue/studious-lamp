@@ -23,3 +23,11 @@ classes:
           target_type: awp.EWPRef
           by_state: Released for IWP development
           label: engineering work package
+  IWP:
+    annotations:
+      tl:expects_link:
+        - relation: requires
+          direction: out
+          target_type: permit.PermitToWork
+          by_state: Issued
+          label: permit to work

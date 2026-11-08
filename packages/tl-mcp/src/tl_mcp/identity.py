@@ -21,6 +21,7 @@ from tl_core.auth.tokens import token_kind
 from tl_core.auth.types import Authorizer, Principal
 
 from tl_mcp.context import Authorizer as McpAuthorizer
+from tl_mcp.iwp_tools import IWP_MCP_ACTIONS
 from tl_mcp.materials_tools import MATERIALS_MCP_ACTIONS
 
 #: Every action an MCP tool or resource asks the authorizer about (``mcp.<tool>`` and
@@ -103,6 +104,7 @@ MCP_ACTIONS = (
         }
     )
     | MATERIALS_MCP_ACTIONS
+    | IWP_MCP_ACTIONS
 )
 
 TOKEN_ENV = "TL_AGENT_TOKEN"  # noqa: S105 - the name of the variable, not a secret

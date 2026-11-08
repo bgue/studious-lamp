@@ -24,6 +24,14 @@ awp_cwa = "tl_mod_awp.targets:cwa_target"
 awp-wbs = "tl_mod_awp.loaders.awp:wbs_loader"
 awp-cwa = "tl_mod_awp.loaders.awp:cwa_loader"
 
+[project.entry-points."throughline.readiness_checks"]
+constraints_cleared = "tl_mod_awp.readiness.checks:constraints_cleared"
+permits_planned = "tl_mod_awp.checks_na:permits_planned"
+inspections_planned = "tl_mod_awp.checks_na:inspections_planned"
+labour_requested = "tl_mod_awp.checks_na:labour_requested"
+predecessors_handed_over = "tl_mod_awp.checks_na:predecessors_handed_over"
+model_slice_available = "tl_mod_awp.checks_na:model_slice_available"
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"

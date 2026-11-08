@@ -24,6 +24,7 @@ from tl_core.auth.module_roles import (
     require_command_access,
 )
 from tl_core.auth.types import Principal
+from tl_core.constraints.commands import command_table as constraint_commands
 from tl_core.integration.actions.service import (
     RetireAction,
     ReviseAction,
@@ -218,6 +219,8 @@ COMMANDS: tuple[CommandSpec, ...] = (
     CommandSpec(AcceptEnrichment, handle_accept_enrichment),
     CommandSpec(RejectEnrichment, handle_reject_enrichment),
     *_module_specs("correspondence", CORRESPONDENCE_COMMANDS),
+    # ADR-0024: core constraints; the word core.constraint.edit is also checked by the handler
+    *(CommandSpec(c.model, c.handler, c.access) for c in constraint_commands()),
     *_module_specs("awp", AWP_COMMANDS),
     *_module_specs("cost", COST_COMMANDS),
     *_module_specs("materials", MATERIALS_COMMANDS),

@@ -16,10 +16,12 @@ from fastapi import APIRouter, Depends, Query, Response
 from pydantic import BaseModel
 from sqlalchemy import Connection
 from tl_core.files.queries import list_files
+from tl_core.readiness.types import RecordRef
 from tl_core.services.errors import RecordNotFoundError
 from tl_core.services.link_queries import links_of
 from tl_core.services.queries import record_history
-from tl_mod_awp import reports, views
+from tl_mod_awp import iwp_views, reports, views
+from tl_mod_awp.readiness.views import visible_readiness
 from tl_mod_awp.reports import CostFigure
 from tl_mod_cost.views import cost_codes
 
@@ -227,3 +229,100 @@ def awp_report(
     columns = list(REPORT_MODELS[name].model_fields)
     cells = [[reports.format_value(getattr(row, column)) for column in columns] for row in rows]
     return ReportView(name=name, columns=columns, rows=cells)
+
+
+#: The IWP list is at most this many rows (the view clamps to 1..500 as well).
+IWP_LIMIT = 500
+
+
+@router.get("/projects/{project}/awp/iwps", operation_id="list_iwps")
+def list_iwps(
+    ctx: Ctx,
+    actor: Reader,
+    project: str,
+    state: Annotated[str | None, Query(max_length=64, description="The IWP state.")] = None,
+    discipline: Annotated[
+        str | None, Query(max_length=64, description="The discipline code.")
+    ] = None,
+    foreman: Annotated[str | None, Query(max_length=200, description="The foreman.")] = None,
+    limit: Annotated[int, Query(ge=1, le=IWP_LIMIT, description="At most this many rows.")] = 200,
+) -> list[iwp_views.IwpRow]:
+    """A project's IWPs by number, filtered by state, discipline and foreman. Hidden and voided
+    IWPs are left out; the totals count visible rows only."""
+    with ctx.backend(True) as uow:
+        return iwp_views.iwp_list(
+            uow.conn(),
+            f"project:{project}",
+            state=state,
+            discipline=discipline,
+            foreman=foreman,
+            limit=limit,
+        )
+
+
+@router.get("/projects/{project}/awp/iwps/{number}", operation_id="get_iwp")
+def get_iwp(ctx: Ctx, actor: Reader, project: str, number: str) -> iwp_views.IwpDetail:
+    """One IWP with its fields, pins, open constraints and scope count by type. 404
+    `record_not_found` when it is missing, hidden or voided."""
+    with ctx.backend(True) as uow:
+        detail = iwp_views.iwp_detail(uow.conn(), f"project:{project}", number)
+        if detail is None:
+            raise RecordNotFoundError(f"no IWP {number!r}")
+        return detail
+
+
+@router.get("/projects/{project}/awp/iwps/{number}/scope", operation_id="list_iwp_scope")
+def list_iwp_scope(
+    ctx: Ctx,
+    actor: Reader,
+    project: str,
+    number: str,
+    limit: Annotated[int, Query(ge=1, le=IWP_LIMIT, description="At most this many rows.")] = 500,
+) -> list[iwp_views.ScopeRow]:
+    """The scope items of one IWP, by item number. 404 `record_not_found` when the IWP is
+    missing, hidden or voided."""
+    with ctx.backend(True) as uow:
+        found = iwp_views.iwp_scope(uow.conn(), f"project:{project}", number, limit=limit)
+        if found is None:
+            raise RecordNotFoundError(f"no IWP {number!r}")
+        return found
+
+
+class CheckBody(BaseModel):
+    """One readiness check as a reader sees it: only records the reader may open in `resolve_via`
+    (id, type, display key); the counts are as evaluated and name no record."""
+
+    name: str
+    version: str
+    state: str
+    detail: str
+    resolve_via: list[RecordRef]
+    count_ok: int | None
+    count_total: int | None
+
+
+class ReadinessBody(BaseModel):
+    """The last readiness evaluation of an IWP (no facts hash)."""
+
+    iwp_id: str
+    evaluated_at: str
+    today: str
+    ready: bool
+    checks: list[CheckBody]
+
+
+@router.get("/projects/{project}/awp/iwps/{number}/readiness", operation_id="get_iwp_readiness")
+def get_iwp_readiness(ctx: Ctx, actor: Reader, project: str, number: str) -> ReadinessBody:
+    """The last readiness evaluation of one IWP. 404 `record_not_found` when the IWP is missing,
+    hidden or never evaluated (one answer for all three)."""
+    with ctx.backend(True) as uow:
+        view = visible_readiness(uow.conn(), f"project:{project}", number)
+        if view is None:
+            raise RecordNotFoundError(f"no IWP {number!r}")
+        return ReadinessBody(
+            iwp_id=view.iwp_id,
+            evaluated_at=view.evaluated_at,
+            today=view.today,
+            ready=view.ready,
+            checks=[CheckBody(**c.model_dump()) for c in view.checks],
+        )

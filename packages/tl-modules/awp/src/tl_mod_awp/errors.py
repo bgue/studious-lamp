@@ -70,3 +70,29 @@ class ReleaseRefusedError(AwpError):
 
 class PackageRuleError(AwpError):
     """A rule of an owner package record: type, number, dates."""
+
+
+class IwpRuleError(AwpError):
+    """A rule of an IWP's fields: dates, hours, crew text, foreman, a group of a split."""
+
+
+class IwpStateError(AwpError):
+    """The IWP is in a state that does not take the command (frozen from Ready, terminal)."""
+
+
+class ScopeRuleError(AwpError):
+    """A rule of an IWP's scope: a repeat, a missing member, an unusable record, a size bound."""
+
+
+class ScopeTakenError(AwpError):
+    """A scope item already belongs to another IWP that is not finished."""
+
+
+class IwpSignoffError(AwpError):
+    """A rule of sign-off and issue: the signer's role, a repeat signer, a stale hash, too few
+    signers."""
+
+
+class IwpNotReadyError(AwpError):
+    """The last readiness result does not allow a sign-off or an issue (absent, not ready, or an
+    unknown check)."""

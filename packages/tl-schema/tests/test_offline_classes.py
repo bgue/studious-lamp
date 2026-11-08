@@ -17,11 +17,15 @@ SCHEMA = REPO / "schema"
 # Written from offline-classes.md section 4 (build-spec/specs), not read from the generated file.
 SPEC_RECORDS: dict[str, str] = {
     "awp.CWA": "none",
+    "awp.IWP": "draft_only",
+    "awp.IWPCloseout": "none",
+    "awp.ScopeItem": "draft_only",
     "awp.CWP": "draft_only",
     "awp.EWPRef": "none",
     "awp.PWPRef": "none",
     "awp.PathOfConstruction": "none",
     "awp.WBSNode": "none",
+    "core.Constraint": "draft_only",
     "core.Record": "full",
     "correspondence.CommercialItem": "none",
     "correspondence.ContractClause": "none",
@@ -83,7 +87,7 @@ SPEC_STREAMS: dict[str, str] = {
 
 def test_every_labelled_record_type_has_a_class_and_nothing_else() -> None:
     assert set(OFFLINE_CLASSES) == set(TYPE_LABELS)
-    assert len(OFFLINE_CLASSES) == 45
+    assert len(OFFLINE_CLASSES) == 49
 
 
 def test_the_record_table_is_the_spec_table_cell_for_cell() -> None:
@@ -195,3 +199,10 @@ def test_the_delivery_stream_without_a_class_is_refused(tmp_path: Path) -> None:
         "      tl:stream_type: core.InboundDelivery\n",
         "core.InboundDelivery",
     )
+
+
+def test_a_core_class_with_record_types_gets_its_offline_class_and_label() -> None:
+    assert OFFLINE_CLASSES["core.Constraint"] == "draft_only"
+    assert "core.Constraint" in TYPE_LABELS
+    assert "awp.Constraint" not in OFFLINE_CLASSES
+    assert "awp.Constraint" not in TYPE_LABELS

@@ -26,6 +26,7 @@ from typing import Any, cast
 from pydantic import BaseModel
 from tl_schema.conformance import evaluate
 
+from tl_core.constraints.guard import GUARD_KIND, open_blocking, refusal_message
 from tl_core.links.expected import ExpectedLink, MissingLink, unmet_expectations
 from tl_core.schema_provider import get_provider
 from tl_core.uow import UnitOfWork
@@ -33,6 +34,7 @@ from tl_core.workflow.definition import (
     ConformanceGuard,
     ExpectedLinksGuard,
     Guard,
+    NoOpenBlockingConstraintsGuard,
     RequiredLinksGuard,
     RequiredPsetsGuard,
     RolesGuard,
@@ -105,6 +107,19 @@ def _evaluate(
             e for e in get_expected_links().for_type(record.type) if e.by_state == transition.to
         ]
         return _links(uow, record, "expected_links", wanted)
+    if isinstance(guard, NoOpenBlockingConstraintsGuard):
+        phase = guard.phase or transition.name
+        keys = open_blocking(uow.conn(), record.id, phase)
+        if keys:
+            return GuardResult(
+                kind=GUARD_KIND,
+                passed=False,
+                message=refusal_message(phase, keys),
+                details={"phase": phase, "constraints": keys},
+            )
+        return GuardResult(
+            kind=GUARD_KIND, passed=True, message=f"no open blocking constraints for {phase}"
+        )
     return _roles(guard, roles)
 
 

@@ -289,6 +289,42 @@
       "version": 1
     },
     {
+      "ce_type": "tl.core.Constraint.Assigned.v1",
+      "event_type": "Constraint.Assigned",
+      "payload_class": "ConstraintAssignedPayload",
+      "sample": "samples/Constraint.Assigned.v1.json",
+      "schema": "schemas/Constraint.Assigned.v1.json",
+      "title": "A constraint was assigned to an owner.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Constraint.Cleared.v1",
+      "event_type": "Constraint.Cleared",
+      "payload_class": "ConstraintClearedPayload",
+      "sample": "samples/Constraint.Cleared.v1.json",
+      "schema": "schemas/Constraint.Cleared.v1.json",
+      "title": "A constraint was cleared.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Constraint.Raised.v1",
+      "event_type": "Constraint.Raised",
+      "payload_class": "ConstraintRaisedPayload",
+      "sample": "samples/Constraint.Raised.v1.json",
+      "schema": "schemas/Constraint.Raised.v1.json",
+      "title": "A constraint was raised on a record.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Constraint.Withdrawn.v1",
+      "event_type": "Constraint.Withdrawn",
+      "payload_class": "ConstraintWithdrawnPayload",
+      "sample": "samples/Constraint.Withdrawn.v1.json",
+      "schema": "schemas/Constraint.Withdrawn.v1.json",
+      "title": "A constraint was withdrawn (raised in error or no longer applies).",
+      "version": 1
+    },
+    {
       "ce_type": "tl.core.ContractClause.Defined.v1",
       "event_type": "ContractClause.Defined",
       "payload_class": "ContractClauseDefinedPayload",
@@ -709,6 +745,114 @@
       "sample": "samples/File.Uploaded.v1.json",
       "schema": "schemas/File.Uploaded.v1.json",
       "title": "A file was uploaded and attached to a record; it is quarantined until its scan finishes.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.IWP.Created.v1",
+      "event_type": "IWP.Created",
+      "payload_class": "IWPCreatedPayload",
+      "sample": "samples/IWP.Created.v1.json",
+      "schema": "schemas/IWP.Created.v1.json",
+      "title": "An interim work package was created.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.IWP.DocumentPinned.v1",
+      "event_type": "IWP.DocumentPinned",
+      "payload_class": "IWPDocumentPinnedPayload",
+      "sample": "samples/IWP.DocumentPinned.v1.json",
+      "schema": "schemas/IWP.DocumentPinned.v1.json",
+      "title": "A document revision was pinned to an interim work package.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.IWP.Held.v1",
+      "event_type": "IWP.Held",
+      "payload_class": "IWPHeldPayload",
+      "sample": "samples/IWP.Held.v1.json",
+      "schema": "schemas/IWP.Held.v1.json",
+      "title": "An interim work package was put on hold.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.IWP.HoldReleased.v1",
+      "event_type": "IWP.HoldReleased",
+      "payload_class": "IWPHoldReleasedPayload",
+      "sample": "samples/IWP.HoldReleased.v1.json",
+      "schema": "schemas/IWP.HoldReleased.v1.json",
+      "title": "The hold on an interim work package was lifted into a re-check.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.IWP.Issued.v1",
+      "event_type": "IWP.Issued",
+      "payload_class": "IWPIssuedPayload",
+      "sample": "samples/IWP.Issued.v1.json",
+      "schema": "schemas/IWP.Issued.v1.json",
+      "title": "An interim work package was issued to its foreman.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.IWP.ReadinessEvaluated.v1",
+      "event_type": "IWP.ReadinessEvaluated",
+      "payload_class": "IWPReadinessEvaluatedPayload",
+      "sample": "samples/IWP.ReadinessEvaluated.v1.json",
+      "schema": "schemas/IWP.ReadinessEvaluated.v1.json",
+      "title": "The readiness of an interim work package was evaluated (low importance).",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.IWP.Ready.v1",
+      "event_type": "IWP.Ready",
+      "payload_class": "IWPReadyPayload",
+      "sample": "samples/IWP.Ready.v1.json",
+      "schema": "schemas/IWP.Ready.v1.json",
+      "title": "An interim work package turned ready.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.IWP.Revised.v1",
+      "event_type": "IWP.Revised",
+      "payload_class": "IWPRevisedPayload",
+      "sample": "samples/IWP.Revised.v1.json",
+      "schema": "schemas/IWP.Revised.v1.json",
+      "title": "Fields of an interim work package changed.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.IWP.ScopeAdded.v1",
+      "event_type": "IWP.ScopeAdded",
+      "payload_class": "IWPScopeAddedPayload",
+      "sample": "samples/IWP.ScopeAdded.v1.json",
+      "schema": "schemas/IWP.ScopeAdded.v1.json",
+      "title": "A record was added to the scope of an interim work package.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.IWP.ScopeRemoved.v1",
+      "event_type": "IWP.ScopeRemoved",
+      "payload_class": "IWPScopeRemovedPayload",
+      "sample": "samples/IWP.ScopeRemoved.v1.json",
+      "schema": "schemas/IWP.ScopeRemoved.v1.json",
+      "title": "A record was removed from the scope of an interim work package.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.IWP.SignedOff.v1",
+      "event_type": "IWP.SignedOff",
+      "payload_class": "IWPSignedOffPayload",
+      "sample": "samples/IWP.SignedOff.v1.json",
+      "schema": "schemas/IWP.SignedOff.v1.json",
+      "title": "A role signed off an interim work package.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.IWP.Split.v1",
+      "event_type": "IWP.Split",
+      "payload_class": "IWPSplitPayload",
+      "sample": "samples/IWP.Split.v1.json",
+      "schema": "schemas/IWP.Split.v1.json",
+      "title": "An interim work package was split into new ones.",
       "version": 1
     },
     {
@@ -1726,6 +1870,24 @@
       "sample": "samples/SchemaPackage.Submitted.v1.json",
       "schema": "schemas/SchemaPackage.Submitted.v1.json",
       "title": "The author sent the package to review.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.ScopeItem.Created.v1",
+      "event_type": "ScopeItem.Created",
+      "payload_class": "ScopeItemCreatedPayload",
+      "sample": "samples/ScopeItem.Created.v1.json",
+      "schema": "schemas/ScopeItem.Created.v1.json",
+      "title": "A scope item was created.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.ScopeItem.Revised.v1",
+      "event_type": "ScopeItem.Revised",
+      "payload_class": "ScopeItemRevisedPayload",
+      "sample": "samples/ScopeItem.Revised.v1.json",
+      "schema": "schemas/ScopeItem.Revised.v1.json",
+      "title": "Fields of a scope item changed.",
       "version": 1
     },
     {

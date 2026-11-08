@@ -18,9 +18,14 @@ from pydantic import ValidationError
 from tl_schema.registry import default_schema_dir
 
 from tl_core.filesig import Signature, signature
-from tl_core.workflow.definition import RequiredPsetsGuard, WorkflowDefinition
+from tl_core.workflow.definition import (
+    NoOpenBlockingConstraintsGuard,
+    RequiredPsetsGuard,
+    WorkflowDefinition,
+)
 
 _SCOPE_PATTERN = re.compile(r"company|project:[A-Za-z0-9_.-]+")
+_PHASE_PATTERN = re.compile(r"[a-z][a-z0-9_]{0,31}")
 
 
 class WorkflowError(ValueError):
@@ -108,6 +113,12 @@ def semantic_problems(definition: WorkflowDefinition) -> list[str]:
                 problems.append(
                     f"transition '{name}': a required_psets guard needs psets or values"
                 )
+            if (
+                isinstance(guard, NoOpenBlockingConstraintsGuard)
+                and guard.phase is not None
+                and not _PHASE_PATTERN.fullmatch(guard.phase)
+            ):
+                problems.append(f"transition '{name}': invalid constraint phase {guard.phase!r}")
 
     if definition.initial_state in state_set:
         reached = {definition.initial_state}

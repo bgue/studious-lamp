@@ -56,6 +56,7 @@ enums:
       belongs_to:
       requires:
       blocks:
+      targets:
       verifies:
       dispatched_from:
       attached_to:

@@ -158,6 +158,11 @@ def classes(schema_dir: Path) -> tuple[dict[str, str], dict[str, str]]:
         records[f"core.{CORE_TYPE}"] = _record_value(
             core, "core", CORE_TYPE, f"core.{CORE_TYPE}", used
         )
+        for cn, cd in core.all_classes().items():
+            raw = _annotation(cd, "tl:record_types")
+            if _module_of(core, cn) == "core" and raw and cn != CORE_TYPE:
+                for rt in (x.strip() for x in raw.split(",")):
+                    records[rt] = _record_value(core, "core", cn, rt, used)
         streams = _core_streams(core, used)
         _check_unused(core, "core", used)
     for root in module_roots(schema_dir):

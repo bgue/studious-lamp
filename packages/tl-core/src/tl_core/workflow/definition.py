@@ -6,13 +6,13 @@ checks meaning (every transition names real states, and so on).
 
 Guards, evaluated by ``tl_core.workflow.engine`` before a transition is allowed:
 
-=================  ==============================================================================
-``required_psets``  named psets hold values, and listed property paths have a value
-``conformance``     the record conforms to the effective schema *in the target state*
-``required_links``  explicit link requirements (same shape as an expected link)
-``expected_links``  the record type's declared expected links with ``by_state`` = target state
-``roles``           the actor holds one of the roles (a stub list on the command until auth exists)
-=================  ==============================================================================
+- ``required_psets``: named psets hold values, and listed property paths have a value
+- ``conformance``: the record conforms to the effective schema *in the target state*
+- ``required_links``: explicit link requirements (same shape as an expected link)
+- ``expected_links``: the record type's declared expected links with ``by_state`` = target state
+- ``roles``: the actor holds one of the roles (a stub list on the command until auth exists)
+- ``no_open_blocking_constraints``: no open blocking constraint of the phase on the record
+  (``phase`` defaults to the transition's own name; ADR-0024)
 """
 
 from __future__ import annotations
@@ -54,8 +54,18 @@ class RolesGuard(_Model):
     any_of: list[str] = Field(min_length=1)
 
 
+class NoOpenBlockingConstraintsGuard(_Model):
+    kind: Literal["no_open_blocking_constraints"]
+    phase: str | None = None  # a constraint phase code; None means the transition's own name
+
+
 Guard = Annotated[
-    RequiredPsetsGuard | ConformanceGuard | RequiredLinksGuard | ExpectedLinksGuard | RolesGuard,
+    RequiredPsetsGuard
+    | ConformanceGuard
+    | RequiredLinksGuard
+    | ExpectedLinksGuard
+    | RolesGuard
+    | NoOpenBlockingConstraintsGuard,
     Field(discriminator="kind"),
 ]
 

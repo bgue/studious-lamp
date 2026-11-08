@@ -1,0 +1,307 @@
+{
+  "$id": "https://tl.example.com/schema/events/Constraint.Raised/1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "The CloudEvents 1.0 envelope (brief 18.3) used for webhooks, streams, the events API and exports. Extension attributes are lower-case as CloudEvents requires: `tlseq`, `tlstreamversion`, `tlcorrelationid`, `tlactor`.",
+  "properties": {
+    "data": {
+      "additionalProperties": true,
+      "description": "The `data` member of a webhook CloudEvent.",
+      "properties": {
+        "changes": {
+          "description": "Delta and full modes. Object of field path to `[old, new]`; `old` is null when the event does not carry it."
+        },
+        "detail": {
+          "additionalProperties": true,
+          "description": "Delta and full modes. The ledger event payload, described per event type in the catalog.",
+          "properties": {
+            "category": {
+              "description": "Code of the code list `ConstraintCategory`.",
+              "enum": [
+                "materials",
+                "labour",
+                "scaffold",
+                "equipment",
+                "permit",
+                "engineering",
+                "rfi",
+                "predecessor",
+                "other"
+              ],
+              "title": "ConstraintCategory",
+              "type": "string"
+            },
+            "check_name": {
+              "description": "The check that raised it, or null.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "constraint_id": {
+              "description": "The constraint record.",
+              "type": "string"
+            },
+            "description": {
+              "description": "What holds the subject back, or null.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "due_at": {
+              "description": "World time it must be cleared by (date or UTC timestamp text), or null.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "effective_at": {
+              "description": "World time it began to hold things back (date or UTC timestamp text), or null.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "facts_hash": {
+              "description": "SHA-256 hex of the check facts, or null.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "owner": {
+              "description": "Actor text `user:<name>`, or null.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "phase": {
+              "description": "The gated move, a lowercase code.",
+              "type": "string"
+            },
+            "severity": {
+              "description": "blocking or advisory.",
+              "type": "string"
+            },
+            "source": {
+              "description": "manual, check, rule, feed_hold or thread_hold.",
+              "type": "string"
+            },
+            "subject_id": {
+              "description": "The record held back.",
+              "type": "string"
+            },
+            "target_id": {
+              "description": "The target record when target_kind is record, or null.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "target_kind": {
+              "description": "record or reference, or null.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "target_ref_text": {
+              "description": "Text of a plain reference, or null.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "target_ref_type": {
+              "description": "Type of a plain reference, or null.",
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "constraint_id",
+            "subject_id",
+            "phase",
+            "severity",
+            "category",
+            "source"
+          ],
+          "title": "ConstraintRaisedPayload",
+          "type": "object"
+        },
+        "links": {
+          "description": "Delta and full modes. Immediate links.",
+          "items": {
+            "additionalProperties": false,
+            "description": "One immediate link of the origin record (delta mode).",
+            "properties": {
+              "id": {
+                "description": "`urn:tl:<ulid>` of the record at the other end.",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "key": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "rel": {
+                "type": "string"
+              },
+              "type": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "uri": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "rel"
+            ],
+            "title": "EventLinkRef",
+            "type": "object"
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "origin": {
+          "additionalProperties": false,
+          "description": "Pointer to the originating record at the version of the event (brief 18.3, `RecordRef`).",
+          "properties": {
+            "api": {
+              "description": "API URL of the record.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "id": {
+              "description": "`urn:tl:<ulid>` of the record.",
+              "type": "string"
+            },
+            "key": {
+              "description": "Human-readable key.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "type": {
+              "description": "Record type.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "uri": {
+              "description": "Resolvable URI of the record at this version (`...@v7`).",
+              "type": "string"
+            },
+            "version": {
+              "description": "Version of the record after the event.",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "id",
+            "uri",
+            "version"
+          ],
+          "title": "EventOrigin",
+          "type": "object"
+        },
+        "record": {
+          "description": "Full mode only. The record projection as of delivery preparation, with its `version`."
+        }
+      },
+      "required": [
+        "origin"
+      ],
+      "title": "CloudEventData",
+      "type": "object"
+    },
+    "datacontenttype": {
+      "const": "application/json",
+      "type": "string"
+    },
+    "dataschema": {
+      "const": "https://tl.example.com/schema/events/Constraint.Raised/1",
+      "description": "URI of the catalog schema of this event type.",
+      "type": "string"
+    },
+    "id": {
+      "description": "The ledger event id. Receivers dedupe on it.",
+      "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+      "type": "string"
+    },
+    "source": {
+      "description": "URI of the company and project the event came from.",
+      "type": "string"
+    },
+    "specversion": {
+      "const": "1.0",
+      "type": "string"
+    },
+    "subject": {
+      "description": "`urn:tl:<ulid>` of the subject record, the ordering key.",
+      "type": "string"
+    },
+    "time": {
+      "description": "When the ledger committed the event (UTC).",
+      "format": "date-time",
+      "type": "string"
+    },
+    "tlactor": {
+      "type": "string"
+    },
+    "tlcorrelationid": {
+      "type": "string"
+    },
+    "tlseq": {
+      "description": "Ledger `seq`.",
+      "type": "integer"
+    },
+    "tlstreamversion": {
+      "description": "Version within the event's stream.",
+      "type": "integer"
+    },
+    "type": {
+      "const": "tl.core.Constraint.Raised.v1",
+      "description": "`tl.<module>.<Class>.<Verb>.v<schema version>`, for example `tl.core.Record.Created.v1`.",
+      "pattern": "^tl\\.[A-Za-z0-9_]+\\.[A-Za-z0-9_]+\\.[A-Za-z0-9_]+\\.v[0-9]+$",
+      "type": "string"
+    }
+  },
+  "required": [
+    "specversion",
+    "id",
+    "source",
+    "type",
+    "time",
+    "subject",
+    "dataschema",
+    "datacontenttype",
+    "tlseq",
+    "tlstreamversion",
+    "tlcorrelationid",
+    "tlactor",
+    "data"
+  ],
+  "title": "CloudEvent",
+  "type": "object"
+}

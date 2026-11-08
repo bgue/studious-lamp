@@ -363,6 +363,7 @@ AGENT_MAY_NOT = {
     "file.upload",
     "record.write",
     "setting.write",
+    "core.constraint.view",  # P2-I2-T04c1: constraint reads are closed to agents until allowed
     "admin.integration.action.define",
     "admin.integration.action.rotate",
     "admin.integration.endpoint.create",
@@ -500,6 +501,12 @@ AGENT_MAY_NOT = {
     "control.command.ReopenCwp",
     "control.command.VoidCwp",
     "control.command.VoidExternalPackage",
+    # P2-I2-T09b (ADR-0027): agents never sign off, issue, hold, cancel or release an IWP
+    "control.command.CancelIwp",
+    "control.command.HoldIwp",
+    "control.command.IssueIwp",
+    "control.command.ReleaseHold",
+    "control.command.SignOffIwp",
 }
 FEED_COMMANDS = {
     "PostToFeed",

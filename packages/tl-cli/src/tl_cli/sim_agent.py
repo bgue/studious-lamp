@@ -29,6 +29,7 @@ from tl_core.auth.env import current_env, demo_allowed
 from tl_core.auth.errors import ForbiddenError, InvalidAccountError
 from tl_core.uow import UnitOfWork
 from tl_core.util import utcnow
+from tl_sim.orchestrator import all_identities
 
 from tl_cli.session import current_principal, open_backend, require_admin
 
@@ -93,17 +94,49 @@ def _revoke(uow: UnitOfWork, token_id: str, reason: str, by: str) -> None:
     accounts.revoke_agent_token(uow, token_id=token_id, by=by, reason=reason)
 
 
+PEOPLE_PREFIX = "user:"
+PEOPLE_KIND = "sim"  # the simulator's people: person-shaped accounts, role `user`, no password
+
+
+def ensure_people(db: DbTarget, by: str) -> None:
+    """Make an account for each simulated person the run names (``user:sim-<role>``), once each.
+
+    The simulator stays outside the ledger, so the people it acts as need an account here, as the
+    agent does (the sim's owner of a manual constraint must be an account). Idempotent.
+    """
+    backend = open_backend(db)
+    with backend() as uow:
+        for identity in all_identities():
+            if not identity.startswith(PEOPLE_PREFIX + "sim-"):
+                continue
+            name = identity.removeprefix(PEOPLE_PREFIX)
+            if queries.find_account(uow.conn(), username=name) is None:
+                accounts.create_account(
+                    uow,
+                    username=name,
+                    display_name=f"Simulated {name.removeprefix('sim-')}",
+                    kind=PEOPLE_KIND,
+                    roles=["user"],
+                    password=None,
+                    by=by,
+                )
+
+
 def provider(db: DbTarget) -> Callable[[], str] | None:
     """A function that makes the token on first use, or ``None`` outside a dev setup.
 
-    On a Postgres ledger it is also ``None`` unless an admin is signed in to that ledger.
+    On a Postgres ledger it is also ``None`` unless an admin is signed in to that ledger. When it
+    answers a function, the simulated people's accounts are made first (``ensure_people``).
     """
     if not demo_allowed(current_env()) or not ledger_exists(db):
         return None
+    by = SIM_ACTOR
     if is_postgres(db):
         who = current_principal(db)
         if who is None or not who.is_admin:
             return None
+        by = who.actor
+    ensure_people(db, by)
     made: list[str] = []
 
     def token() -> str:

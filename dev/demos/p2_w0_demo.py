@@ -315,7 +315,19 @@ class SampleCheck:
 
 
 def clause9() -> None:
-    check(set(load_checks()) == {"materials_reserved"}, f"load_checks() is {load_checks()}")
+    check(
+        set(load_checks())
+        == {
+            "inspections_planned",
+            "labour_requested",
+            "materials_reserved",
+            "model_slice_available",
+            "permits_planned",
+            "predecessors_handed_over",
+            "rfis_answered",
+        },
+        f"load_checks() is {load_checks()}",
+    )
     engine = create_engine("sqlite://", poolclass=StaticPool)
     with engine.begin() as conn:
         conn.execute(text("CREATE TABLE thing (id INTEGER PRIMARY KEY)"))

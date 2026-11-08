@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from tl_core.auth.projector import AccountProjector, AuthStateTables
+from tl_core.constraints.projector import ConstraintProjector
 from tl_core.integration.projectors import IntegrationStateTables, integration_projectors
 from tl_core.jobs.state import JobQueueTables
 from tl_core.modules import module_projectors
@@ -56,6 +57,7 @@ def default_registry() -> InMemoryRegistry:
     for projector in integration_projectors():
         registry.register(projector)
     registry.register(IntegrationStateTables())  # operational tables; never reset by a rebuild
+    registry.register(ConstraintProjector())  # ADR-0024: core constraints, after RecordProjector
     # Module projectors (ADR-0010) read and update the rows of the projectors above, so they come
     # after them; the outbox stays last.
     for projector in module_projectors():
