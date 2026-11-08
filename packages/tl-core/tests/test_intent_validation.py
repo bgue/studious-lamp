@@ -123,6 +123,22 @@ def test_control_characters_are_refused_everywhere(uow: UnitOfWork, char: str) -
     bad(uow, {"toward": {"target": rid, "condition": f"a{char}b"}})
 
 
+@pytest.mark.parametrize("char", ["\u202e", "\u200b"])  # RIGHT-TO-LEFT OVERRIDE, ZERO WIDTH SPACE
+def test_format_characters_are_refused_like_control_characters(uow: UnitOfWork, char: str) -> None:
+    rid = make(uow, "R-1")
+    assert "control character" in bad(uow, {"why": f"a{char}b"})
+    assert "control character" in bad(uow, {"next": [{"text": f"a{char}b"}]})
+    assert "control character" in bad(uow, {"toward": {"target": rid, "condition": f"a{char}b"}})
+
+
+def test_a_key_in_scope_and_company_resolves_to_the_scope_row(uow: UnitOfWork) -> None:
+    company = make(uow, "K-1", scope="company")  # inserted first: an unordered read may return it
+    scoped = make(uow, "K-1", scope=SCOPE)
+    assert company != scoped
+    got = check(uow, {"toward": {"target": "K-1", "condition": "x"}})
+    assert got is not None and got.toward is not None and got.toward.target == scoped
+
+
 def test_newline_and_tab_are_allowed_in_why(uow: UnitOfWork) -> None:
     assert check(uow, {"why": "line one\n\tline two"}) is not None
 

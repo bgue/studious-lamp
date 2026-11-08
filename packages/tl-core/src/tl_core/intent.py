@@ -103,7 +103,8 @@ IntentView = Intent
 
 _RECORD_SQL = text(
     "SELECT id, type, scope, voided FROM cur_core_record "
-    "WHERE id = :v OR (key = :v AND scope IN (:scope, 'company'))"
+    "WHERE id = :v OR (key = :v AND scope IN (:scope, 'company')) "
+    "ORDER BY (scope = 'company')"  # a key in both the command scope and company: the scope row
 )
 
 _REGISTERED: set[str] = set()
@@ -127,7 +128,8 @@ def _clean(value: str | None, limit: int, what: str) -> None:
     if len(value) > limit:
         raise IntentInvalid(f"intent {what} is longer than {limit} characters")
     for ch in value:
-        if unicodedata.category(ch) == "Cc" and ch not in "\n\t":
+        category = unicodedata.category(ch)  # Cf: bidi controls, zero-width characters
+        if (category == "Cc" and ch not in "\n\t") or category == "Cf":
             raise IntentInvalid(f"intent {what} holds a control character")
 
 
