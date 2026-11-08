@@ -1,6 +1,6 @@
 # P2-INT STATE  r=1 base=2f1d886 C=0 ck=0 gate=n/a wt=/home/user/wt/p2-int
 ## BOARD
-S1 p stg f - event intent: model, column, hash ext, archive, restore, bronze
+S1 p mrg f 9c60a80 event intent: model, column, hash ext, archive
 S2 p stg f - boundary: validation, carrier, API reads, proposals, walk (after S1)
 T01 t mrg f c55317a tl:valid_time tag + frozen baseline
 T02 t stg f - CLI --why/--next/--toward (after S2)
