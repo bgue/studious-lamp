@@ -412,6 +412,8 @@ YAML
   out="$(as demo tl sim advance --run iwp1 --days 2)"; echo "$out"
   out="$(as dora tl awp iwp ls --project sim-iwp1)"; echo "$out"
   [ "$(grep -c -- '-IWP-' <<<"$out" || true)" -ge 1 ] || fail "the planner made no IWP in sim-iwp1"
+  out="$(as dora tl constraint ls --project sim-iwp1)"; echo "$out"
+  [ "$(grep -c -- '-CON-' <<<"$out" || true)" -ge 1 ] || fail "the planner raised no constraint in sim-iwp1"
   if ! out="$(as demo tl sim assert --run iwp1 2>&1)"; then echo "$out"; fail "tl sim assert found a difference"; fi
   echo "$out"
   clause 10 "iwp_planner built IWPs in sim-iwp1 and raised constraints; tl sim assert holds"
