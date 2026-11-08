@@ -1,7 +1,9 @@
-"""Record view: header and the Details, Properties, Links, History, Trace, Thread and Files tabs.
+"""Record view: header and the Details, Properties, Links, Activity, Trace, Thread, Files and
+Insights tabs.
 
-Esc posts `CloseRecord`, [ and ] post `StepRecord`, h opens the History tab. The view reads only
-through `ClientInterface`; it never touches the ledger or services directly.
+Esc posts `CloseRecord`, [ and ] post `StepRecord`, h opens the Activity tab, 9 the Insights
+tab. The view reads only through `ClientInterface`; it never touches the ledger or services
+directly.
 """
 
 from __future__ import annotations
@@ -13,8 +15,7 @@ from rich.text import Text
 from textual.app import ComposeResult
 from textual.binding import Binding, BindingType
 from textual.containers import Vertical, VerticalScroll
-from textual.widgets import DataTable, Static, TabbedContent, TabPane
-from tl_core.ledger import Event
+from textual.widgets import Static, TabbedContent, TabPane
 from tl_core.services.psets import SetPsetValues
 from tl_core.settings.layers import project_of_scope
 from tl_mod_schemareg.handlers.adoption import AdoptSchemaSet
@@ -40,7 +41,9 @@ from tl_tui.record_text import (  # noqa: F401 - the moved names stay importable
     history_cells,
     history_columns,
 )
+from tl_tui.widgets.activity_tab import ActivityTab
 from tl_tui.widgets.file_panel import FilePanel
+from tl_tui.widgets.insights_tab import InsightsTab
 from tl_tui.widgets.links_tab import LinksTab
 from tl_tui.widgets.psets_tab import PsetsTab
 from tl_tui.widgets.thread_tab import ThreadTab
@@ -62,10 +65,11 @@ TABS: dict[str, str] = {
     "details": "tab-details",
     "psets": "tab-psets",
     "links": "tab-links",
-    "history": "tab-history",
+    "activity": "tab-activity",  # P2-INS INS-A3: where History was (h, 4)
     "trace": "tab-trace",
     "thread": "tab-thread",  # P1-I7 WS-B
     "files": "tab-files",  # P1-UX2-S4: only while the record has files
+    "insights": "tab-insights",  # P2-INS: the Insights pane (9)
 }
 
 
@@ -77,8 +81,8 @@ class RecordView(Vertical, can_focus=True):
     """
 
     KEY_HINTS: ClassVar[str] = (
-        "Esc back  [ ] prev/next  1-6 tabs  T thread  e edit  + add property (Properties tab)  "
-        "l link  w workflow  t trace  R tray"
+        "Esc back  [ ] prev/next  1-6 tabs  T thread  9 insights  e edit  "
+        "+ add property (Properties tab)  l link  w workflow  t trace  R tray"
     )
 
     BINDINGS: ClassVar[list[BindingType]] = [
@@ -91,10 +95,11 @@ class RecordView(Vertical, can_focus=True):
         Binding("1", "tab('details')", show=False),
         Binding("2", "tab('psets')", show=False),
         Binding("3", "tab('links')", show=False),
-        Binding("4", "tab('history')", show=False),
+        Binding("4", "tab('activity')", show=False),
         Binding("5", "tab('trace')", show=False),
         Binding("T", "tab('thread')", show=False),
         Binding("6", "tab('files')", show=False),
+        Binding("9", "tab('insights')", show=False),
     ]
 
     def __init__(
@@ -111,7 +116,6 @@ class RecordView(Vertical, can_focus=True):
         self.key = key
         self.record: dict[str, Any] | None = None
         self._labels: Labels | None = None
-        self._events: list[Event] = []  # the last read history, redrawn on a mode switch
         self._badges_text: str = ""  # the last header badges, redrawn on a mode switch
         self.details: str = ""  # the Details tab as text (for tests and the screen tickets)
         self.has_files = False  # the Files tab is shown only then
@@ -127,14 +131,16 @@ class RecordView(Vertical, can_focus=True):
                 yield PsetsTab(self.client, self.scope, id="psets-tab")
             with TabPane("Links", id="tab-links"):
                 yield LinksTab(self.client, self.scope, actor=self._actor(), id="links-tab")
-            with TabPane("History", id="tab-history"):
-                yield DataTable(id="rv-history", cursor_type="row")
+            with TabPane("Activity", id="tab-activity"):
+                yield ActivityTab(self.client, self.scope, actor=self._actor(), id="activity-tab")
             with TabPane("Trace", id="tab-trace"):
                 yield TraceTab(self.client, self.scope, id="trace-tab")
             with TabPane("Thread", id="tab-thread"):
                 yield ThreadTab(self.client, self.scope, actor=self._actor(), id="thread-tab")
             with TabPane("Files", id="tab-files"):  # hidden until the record has files
                 yield FilePanel(self.client, id="files-tab")
+            with TabPane("Insights", id="tab-insights"):
+                yield InsightsTab(id="insights-tab")
 
     def _actor(self) -> str:
         return str(getattr(self.app, "actor", "user:dev"))
@@ -144,24 +150,22 @@ class RecordView(Vertical, can_focus=True):
         self.reload()
 
     def reload(self) -> None:
-        """Re-read the record and its history, then redraw. On a client error, keep the display.
+        """Re-read the record, then redraw. On a client error, keep the display.
 
-        Details, header and History are drawn at once. A tab that needs reads of its own
-        (Properties, Links, Trace, Thread) reads them when it is first shown, and again after
-        the next ``reload`` if it is the tab on show; the Files list is read in the background."""
+        Details and header are drawn at once. A tab that needs reads of its own (Properties,
+        Links, Activity, Trace, Thread, Insights) reads them when it is first shown, and again
+        after the next ``reload`` if it is the tab on show; the Files list is read in the
+        background."""
         reads = Reads(self.client)
         try:
             record = reads.get_record(self.scope, self.key)
-            events = [] if record is None else reads.history(record["id"])
         except CLIENT_ERRORS as exc:
             self.post_message(StatusMessage(describe_error(exc), "error"))
             return
         self.record = record
-        self._events = events
         self._badges_text = self._badges(record, reads)
         self._draw_header(record, self._badges_text)
         self._draw_details(record, reads)
-        self._draw_history(events)
         self._tabs_read = set()
         if record is None:
             self.post_message(StatusMessage(f"No record {self.key}", "error"))
@@ -179,6 +183,8 @@ class RecordView(Vertical, can_focus=True):
             TABS["links"]: "#links-tab",
             TABS["trace"]: "#trace-tab",
             TABS["thread"]: "#thread-tab",
+            TABS["activity"]: "#activity-tab",
+            TABS["insights"]: "#insights-tab",
         }.get(pane)
         if tab is None:
             return
@@ -220,12 +226,12 @@ class RecordView(Vertical, can_focus=True):
         return Labels() if self.record is None else self._labels_for(self.record)
 
     def refresh_for_display_mode(self) -> None:
-        """Draw the header, Details, History and Properties again; the tab stays."""
+        """Draw the header, Details, Activity and Properties again; the tab stays."""
         if self.record is None:
             return
         self._draw_header(self.record, self._badges_text)
         self._draw_details(self.record)
-        self._draw_history(self._events)
+        self.query_one("#activity-tab", ActivityTab).refresh_for_display_mode()
         self.query_one("#psets-tab", PsetsTab).refresh_for_display_mode()
 
     def _badges(self, record: dict[str, Any] | None, client: Any = None) -> str:
@@ -262,17 +268,6 @@ class RecordView(Vertical, can_focus=True):
         text.append(parts.rest)
         header.update(text)
 
-    def _draw_history(self, events: list[Event]) -> None:
-        """The History table: technical columns in technical mode, plain words otherwise."""
-        table = self.query_one("#rv-history", DataTable)
-        technical = mode_of(self.app).technical
-        labels = self._current_labels()
-        table.clear(columns=True)
-        table.add_columns(*history_columns(technical))
-        for event in reversed(events):
-            cells = history_cells(event, labels, technical=technical)
-            table.add_row(*(Text(cell) for cell in cells), key=event.event_id)
-
     def note_remote_update(self, actor: str, version: int, when: datetime | None = None) -> None:
         """Show "! Updated by <actor> (now v<n>)" under the header (someone else changed it).
 
@@ -304,7 +299,7 @@ class RecordView(Vertical, can_focus=True):
         self.post_message(StepRecord(delta))
 
     def action_history(self) -> None:
-        self.show_tab("history")
+        self.show_tab("activity")
 
     def action_tab(self, name: str) -> None:
         if name == "files" and not self.has_files:

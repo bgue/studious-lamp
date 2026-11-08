@@ -22,7 +22,7 @@ The Textual application shell, grid, record view, and forms; every screen reads 
 | `tl_tui.widgets.grid.RecordGrid` | widget | Virtualised grid: server-side sort, paging, End loads up to 5,000 rows in a worker, multi-select, column chooser, TSV; `apply_filter(text)` (query language, `FilterResult` with the error position), `refresh_live(ids)` (worker thread; rows changed by others get a `•` for 4 s) |
 | `tl_tui.widgets.filter_bar.FilterBar` | widget | Filter bar (`/`): Enter applies, shows `N matches` or the parser's message with a caret under the bad character, blank clears, Esc leaves |
 | `tl_tui.widgets.connection_banner.ConnectionBanner` | widget | "Server unreachable" / "reconnecting" line under the header; hidden while live |
-| `tl_tui.widgets.record_view.RecordView` | widget | Header with badges (workflow state and time in state, link counts), Details, Psets, Links, History, Trace, Thread and Files tabs (`1` to `6`; Files only while the record has files); `e` edit, `[` `]` step, Esc back; "! Updated by X (now vN)" line when someone else changed the record |
+| `tl_tui.widgets.record_view.RecordView` | widget | Header with badges (workflow state and time in state, link counts), Details, Psets, Links, Activity (where History was: `4` or `h`; `v` revisions only, `r` related records, `/` filter, `o` older rows; `ActivityTab`), Trace, Thread, Files (`1` to `6`; Files only while the record has files) and Insights (`9`, `InsightsTab`); `e` edit, `[` `]` step, Esc back; "! Updated by X (now vN)" line when someone else changed the record |
 | `tl_tui.widgets.psets_tab.PsetsTab` | widget | Layer-grouped pset values with enforcement and conformance marks |
 | `tl_tui.widgets.form_fields.FieldEditor` | widget | One editor per `FieldMeta` kind with inline validation |
 | `tl_tui.widgets.edit_form.EditForm`, `new_record_form.NewRecordForm` | modals | Edit (Ctrl+S saves changed fields; a conflict banner and a blocked save when the record moved under the form) and create (explicit key until numbering) |
@@ -131,8 +131,8 @@ log never lays out its own screen and never adds a second standard.
   once per read of the rows (and per display mode), the filter reads no more than the rows already held, and the
   panel and the actions bar follow the list after its first draw (a run of filter keys reads one panel). Hooks for a
   log that holds only the first page of a longer list: `filter_changed(text)` and `rows_exhausted()` (the document
-  register opens on its first 500 rows and reads the rest, up to 5,000, on either). `RecordView` reads the record, its
-  history and Details at once and the Properties, Links, Trace and Thread tabs when each is first shown;
+  register opens on its first 500 rows and reads the rest, up to 5,000, on either). `RecordView` reads the record and its
+  Details at once and the Properties, Links, Activity, Trace, Thread and Insights tabs when each is first shown;
   `tl_tui.reads.Reads` answers repeated reads of one refresh once; `labels_load.load_labels` keeps the labels of a
   client for 20 s (`forget_labels` drops them: creating or enabling an account, a module command run from a log and an adopted package call it). `dev/perf/ux_bench.py` (`just perf-ux`) measures all of it.
 - **Add property (P1-UX3 rounds 3 and 4)**: `[+] Add property` on the record screen's Properties tab (key `+`) and in the

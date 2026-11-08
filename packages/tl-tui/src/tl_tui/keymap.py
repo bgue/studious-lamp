@@ -175,7 +175,7 @@ KEYMAP: tuple[KeyEntry, ...] = (
         "RecordView",
         "left_square_bracket",
     ),
-    KeyEntry("Record view", "h", "Show the History tab", "RecordView", "h"),
+    KeyEntry("Record view", "h", "Show the Activity tab", "RecordView", "h"),
     KeyEntry("Record view", "e", "Edit the record", "RecordView", "e"),
     KeyEntry(
         "Record view",
@@ -187,10 +187,33 @@ KEYMAP: tuple[KeyEntry, ...] = (
     KeyEntry(
         "Record view",
         "1  2  3  4  5",
-        "Details, Psets, Links, History, Trace tab",
+        "Details, Psets, Links, Activity, Trace tab",
         "RecordView",
         "1",
     ),
+    KeyEntry("Record view", "9", "Insights tab", "RecordView", "9"),
+    KeyEntry(
+        "Record view",
+        "v",
+        "Activity tab: revisions only on or off",
+        "ActivityTab",
+        "v",
+    ),
+    KeyEntry(
+        "Record view",
+        "r",
+        "Activity tab: related records on or off",
+        "ActivityTab",
+        "r",
+    ),
+    KeyEntry(
+        "Record view",
+        "/",
+        "Activity tab: filter the rows",
+        "ActivityTab",
+        "slash",
+    ),
+    KeyEntry("Record view", "o", "Activity tab: show older rows", "ActivityTab", "o"),
     KeyEntry(
         "Record view",
         "6",
