@@ -13,10 +13,13 @@
 #      with intent and NULL for one without (driver: `tl lake sync`, `tl lake query`);
 #   4  a bad intent refuses the whole command with intent_invalid; an unknown reference gives
 #      intent_reference_unknown with fixed text; nothing is appended (scripted: S2.py, checks `4`);
+#      a hidden id answers like an unknown one (pytest: packages/tl-api/tests/test_intent_walk.py);
 #   5  {} and all-null intents store NULL (scripted: S2.py, checks `5`);
 #   6  an agent's proposal carries an intent in its Created column, not in the payload; accepting
 #      appends events with the same intent, actor the accepting person (scripted: S2.py, checks `6`);
-#   7  the API reads return intent (scripted: S2.py, checks `7`);
+#   7  the API reads return intent (scripted: S2.py, checks `7`); a viewer without access sees
+#      "not available" (pytest: packages/tl-api/tests/test_activity_intent.py and
+#      packages/tl-core/tests/insights/test_activity_intent_twin.py);
 #   8  the CLI flags --why/--next/--toward, the MCP intent parameter and the TUI History text each
 #      show it, once (driver: dev/accept/P2-INT/demo_cli_mcp.py).
 #
@@ -72,6 +75,21 @@ quiet uv run python dev/accept/P2-INT/S2.py >"$workdir/s2.out" 2>"$workdir/s2.er
 quiet uv run python dev/accept/P2-INT/S1.py >"$workdir/s1.out" 2>"$workdir/s1.err" \
   || { cat "$workdir/s1.out"; grep -v 'UV_NATIVE_TLS' "$workdir/s1.err" >&2; fail "S1"; }
 cat "$workdir/s2.out" "$workdir/s1.out"
+
+run_tests() { # run_tests CLAUSE BACKEND FILE...: the committed tests of one adapter; PASS on exit 0
+  local clause_no="$1" backend="$2" collected n out="$workdir/tests-$1-$2.out"
+  shift 2
+  collected="$(uv run pytest --collect-only --adapters "$backend" -k "$backend" "$@" 2>/dev/null \
+    | sed -n 's/.* \([0-9][0-9]*\) tests* collected.*/\1/p' | tail -n 1)"
+  n="${collected:-0}"
+  [ "$n" -ge 1 ] || fail "clause $clause_no: no $backend test collected from: $*"
+  echo "clause $clause_no: $n $backend tests collected from: $*"
+  if ! uv run pytest -q --adapters "$backend" -k "$backend" "$@" >"$out" 2>&1; then
+    grep -v 'UV_NATIVE_TLS' "$out" >&2 || true
+    fail "clause $clause_no: the $backend tests failed"
+  fi
+  grep -v 'UV_NATIVE_TLS' "$out" | tail -n 1
+}
 
 run_backend() {
   local backend="$1"
@@ -138,9 +156,14 @@ run_backend() {
   expect "pour on Monday" "$text_out"
   clause 3
 
+  step "[$backend] clause 4: a hidden id answers like an unknown one (committed walking tests)"
+  run_tests 4 "$backend" packages/tl-api/tests/test_intent_walk.py
   clause 4
   clause 5
   clause 6
+  step "[$backend] clause 7: a viewer without access sees not available (committed tests)"
+  run_tests 7 "$backend" packages/tl-api/tests/test_activity_intent.py \
+    packages/tl-core/tests/insights/test_activity_intent_twin.py
   clause 7
 
   step "[$backend] clause 8: CLI --why/--next/--toward, the MCP intent parameter, the TUI History text"
