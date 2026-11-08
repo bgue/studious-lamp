@@ -9,7 +9,6 @@ from pydantic import BaseModel, Field
 from tl_core.ledger import Event
 from tl_core.readiness.types import RecordRef
 
-
 ActivityKind = Literal["change", "move", "link", "file", "post", "proposal", "constraint", "check"]
 
 
