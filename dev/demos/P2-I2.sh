@@ -408,11 +408,11 @@ operators: [user:dora]
 actors:
   iwp_planner: {iwps_per_day: 1, scope_items: 3, constraint_rate: 1.0, clears_per_day: 1}
 YAML
-  out="$(as demo tl sim create "$workdir/iwp-planner.yaml" --run-id iw1)"; echo "$out"
-  out="$(as demo tl sim advance --run iw1 --days 2)"; echo "$out"
+  out="$(as demo tl sim create "$workdir/iwp-planner.yaml" --run-id iwp1)"; echo "$out"
+  out="$(as demo tl sim advance --run iwp1 --days 2)"; echo "$out"
   out="$(as dora tl awp iwp ls --project sim-iwp1)"; echo "$out"
   [ "$(grep -c -- '-IWP-' <<<"$out" || true)" -ge 1 ] || fail "the planner made no IWP in sim-iwp1"
-  if ! out="$(as demo tl sim assert --run iw1 2>&1)"; then echo "$out"; fail "tl sim assert found a difference"; fi
+  if ! out="$(as demo tl sim assert --run iwp1 2>&1)"; then echo "$out"; fail "tl sim assert found a difference"; fi
   echo "$out"
   clause 10 "iwp_planner built IWPs in sim-iwp1 and raised constraints; tl sim assert holds"
 
