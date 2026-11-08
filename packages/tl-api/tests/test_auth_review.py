@@ -364,6 +364,7 @@ AGENT_MAY_NOT = {
     "record.write",
     "setting.write",
     "core.constraint.view",  # P2-I2-T04c1: constraint reads are closed to agents until allowed
+    "activity.read",  # P2-INS-S1: the activity read is closed to agents until allowed
     "admin.integration.action.define",
     "admin.integration.action.rotate",
     "admin.integration.endpoint.create",

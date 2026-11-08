@@ -7,6 +7,7 @@ and the admin module).
 See ``tl_api.client.base`` for how errors map back to exceptions.
 """
 
+from tl_api.client.activity import ActivityApi
 from tl_api.client.admin import AdminApi
 from tl_api.client.auth import AuthApi
 from tl_api.client.awp import AwpApi
@@ -34,6 +35,7 @@ from tl_api.client.types_api import TypesApi
 
 class ApiClient(
     RecordsApi,
+    ActivityApi,
     LinksApi,
     FilesApi,
     EventsApi,

@@ -33,6 +33,8 @@ from fakes_settings import FakeSettingsSupport
 from fakes_tags import FakeTagSupport
 from fakes_threads import FakeThreadSupport
 from fakes_types import FakeTypeSupport
+from tl_core.insights.activity import kind_of
+from tl_core.insights.types import ActivityPage, ActivityRow
 from tl_core.ledger import ConcurrencyError, Event
 from tl_core.services.commands import CommandResult, CreateRecord, UpdateRecord
 from tl_core.services.edit import EditRecord
@@ -454,6 +456,26 @@ class FakeClient(
     def history(self, record_id: str) -> list[Event]:
         self.calls.append("history")
         return list(self._events.get(record_id, []))
+
+    def activity(
+        self,
+        record_id: str,
+        *,
+        revisions_only: bool = False,
+        related: bool = True,
+        before_seq: int | None = None,
+        limit: int = 120,
+    ) -> ActivityPage:
+        """Rows built from ``history``, newest first; the fake has no linked records."""
+        self.calls.append("activity")
+        events = [
+            e
+            for e in reversed(self._events.get(record_id, []))
+            if before_seq is None or e.seq < before_seq
+        ]
+        rows = [ActivityRow(event=e, kind=kind_of(e.event_type)) for e in events[:limit]]
+        more = len(events) > limit and bool(rows)
+        return ActivityPage(rows=rows, next_before_seq=rows[-1].event.seq if more else None)
 
     def create_record(self, cmd: CreateRecord) -> CommandResult:
         self.calls.append("create_record")
