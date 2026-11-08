@@ -147,6 +147,10 @@ drill *args:
 scan-secrets:
     uv run python dev/tools/scan_secrets.py
 
+# Release wheels: one per workspace package into dist/release-<version>/, with SHA256SUMS (dev/release/build.sh)
+release-build:
+    bash dev/release/build.sh
+
 # Known-vulnerability audit of the locked dependencies (needs network; pip-audit runs through uvx
 # and is not a dependency of the project)
 audit-deps:
