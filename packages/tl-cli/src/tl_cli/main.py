@@ -6,6 +6,7 @@ live here.
 
 from __future__ import annotations
 
+from importlib.metadata import version as package_version
 from pathlib import Path
 from typing import Annotated, Any
 
@@ -212,9 +213,25 @@ projections = typer.Typer(help="Maintain projections from the ledger.", no_args_
 app.add_typer(projections, name="projections")
 
 
+def _version_callback(value: bool) -> None:
+    """``tl --version``: print ``throughline <version>`` from the installed tl-cli metadata."""
+    if value:
+        typer.echo(f"throughline {package_version('tl-cli')}")
+        raise typer.Exit()
+
+
 @app.callback()
 def root(
     ctx: typer.Context,
+    version_flag: Annotated[
+        bool,
+        typer.Option(
+            "--version",
+            callback=_version_callback,
+            is_eager=True,
+            help="Print the release version and exit.",
+        ),
+    ] = False,
     db: Annotated[
         str,
         typer.Option(
