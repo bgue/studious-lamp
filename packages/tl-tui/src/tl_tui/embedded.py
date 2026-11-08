@@ -21,7 +21,7 @@ from typing import Any, BinaryIO, Literal
 from sqlalchemy import text
 from tl_api.auth import AGENT_MUST_PROPOSE
 from tl_api.client.files import save_download
-from tl_api.insights_sources import SOURCES
+from tl_api.insights_sources import sources_for
 from tl_api.routes import constraints as constraint_routes
 from tl_api.routes.awp import CheckBody, CwpDetailView, ReadinessBody, TimelineRow, _note
 from tl_api.routes.constraints import (
@@ -771,7 +771,8 @@ class EmbeddedClient:
             facts = record_facts(uow.conn(), record_id)
             if facts is None:  # unknown and hidden answer alike
                 return []
-            return record_checks(uow.conn(), facts, SOURCES)
+            holder = holder_for_actor(uow.conn(), self.actor)
+            return record_checks(uow.conn(), facts, sources_for(uow.conn(), holder, facts.scope))
 
     def note_need(
         self, *, request_kind: str, trigger: str, record_type: str, record_id: str | None = None

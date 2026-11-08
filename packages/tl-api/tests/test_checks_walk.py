@@ -20,7 +20,7 @@ import pytest
 from harness import Harness
 from sqlalchemy import Connection, Engine, event, text
 from test_confidentiality_walk import PASSWORD, _person  # pyright: ignore[reportMissingImports]
-from tl_core.auth import accounts, sessions
+from tl_core.auth import accounts, module_roles, sessions
 from tl_core.util import new_ulid
 
 _SEED = Path(__file__).resolve().parents[2] / "tl-core/tests/insights/test_checks.py"
@@ -187,3 +187,58 @@ def test_the_iwp_answers_every_reader_with_findings_and_no_hidden_key(
         .json()
     )
     assert clock["source"] == "clocks" and clock["severity"] == "blocking"
+
+
+# --- P2-INS-T05: the constraint source needs core.constraint.view on the scope -----------------
+
+
+def _role_table_without_read_for_user(tmp_path: Path) -> Any:
+    """The shipped table, except that the account role ``user`` implies a module role with no
+    ``read`` word (the one way to be a person with a role and without the view word)."""
+    shipped = module_roles.DEFAULT_ROLE_TABLE_FILE.read_text()
+    assert "  user: [read, user]" in shipped
+    file = tmp_path / "roles.yaml"
+    file.write_text(shipped.replace("  user: [read, user]", "  user: [user]"))
+    return module_roles.load_role_table(file)
+
+
+def _checks(harness: Harness, token: str, record_id: str) -> Any:
+    return harness.client_for(None).get(
+        f"/records/{record_id}/checks", headers={"Authorization": f"Bearer {token}"}
+    )
+
+
+def test_a_reader_without_the_view_word_sees_no_constraint_findings_and_the_rest(
+    harness: Harness, seeded: Seed, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    iwp = seeded.ids["iwp"]
+    with_word = _checks(harness, seeded.tokens["bob"], iwp).json()
+    assert "constraints" in {f["source"] for f in with_word}  # the person with the word sees them
+    monkeypatch.setattr(module_roles, "_default_table", _role_table_without_read_for_user(tmp_path))
+    answer = _checks(harness, seeded.tokens["bob"], iwp)
+    assert answer.status_code == 200
+    without = answer.json()
+    assert "constraints" not in {f["source"] for f in without}
+    assert {f["source"] for f in without} == {f["source"] for f in with_word} - {"constraints"}
+    assert [f for f in with_word if f["source"] != "constraints"] == without  # others unchanged
+
+
+def test_hidden_constraints_look_exactly_like_no_constraints(
+    harness: Harness, seeded: Seed, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(module_roles, "_default_table", _role_table_without_read_for_user(tmp_path))
+    iwp = seeded.ids["iwp"]
+    hidden = _checks(harness, seeded.tokens["bob"], iwp)
+    with harness.backend(False) as uow:
+        uow.conn().execute(text("DELETE FROM cur_core_constraint"))
+    none = _checks(harness, seeded.tokens["bob"], iwp)
+    assert hidden.status_code == none.status_code == 200
+    assert hidden.content == none.content
+    assert sorted(hidden.headers) == sorted(none.headers)
+
+
+def test_an_agent_still_gets_403_on_the_constraint_route(harness: Harness, seeded: Seed) -> None:
+    answer = harness.client_for(None).get(
+        "/projects/P123/constraints", headers={"Authorization": f"Bearer {seeded.tokens['bot']}"}
+    )
+    assert answer.status_code == 403
