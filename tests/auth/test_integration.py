@@ -116,7 +116,12 @@ def test_real_account_payloads_match_the_catalog_schemas(world: World) -> None:
         )
         accounts.disable(uow, account_id=bob.account_id, by="user:root", reason="x")
         accounts.enable(uow, account_id=bob.account_id, by="user:root", reason="y")
-        grant = {"actor": "user:root", "source": "test", "scope": "company", "reason": "g"}
+        grant: dict[str, Any] = {
+            "actor": "user:root",
+            "source": "test",
+            "scope": "company",
+            "reason": "g",
+        }
         grant |= {"account_id": bob.account_id, "project": "project:P1"}
         grant |= {"module": "documents", "role": "user"}
         grant_module_role(uow, GrantModuleRole(**grant))  # RM-S1: module roles are account events

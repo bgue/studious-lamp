@@ -14,11 +14,15 @@ from __future__ import annotations
 
 import hashlib
 import io
+import secrets
 from dataclasses import dataclass
 from pathlib import Path
 
 from tl_adapters.db import DbTarget, open_uow
 from tl_core import confidentiality as cf
+from tl_core.auth import accounts
+from tl_core.auth.password import prepare_password
+from tl_core.auth.queries import find_account
 from tl_core.files.service import CompleteUpload, FileService, RegisterUpload
 from tl_core.services import proposals
 from tl_core.services.commands import Command
@@ -128,6 +132,27 @@ def _seed_domain_items(
             by_module=True,
         )
     extra["commercial_link"] = link.stream_id
+
+
+def _ensure_documents_actor(db: DbTarget) -> None:
+    """Give ``user:u``, the actor of ``DocumentsWorld``, an account where the ledger needs one.
+
+    On a SQLite dev/test ledger an account-less ``user:`` actor holds the ``user`` role in every
+    module (``holder_for_actor``, the dev-ledger rule); on Postgres it holds nothing, so the seed's
+    ``AttachFile`` is refused. The seed makes the account itself there (idempotent).
+    """
+    with open_uow(db) as uow:
+        if uow.conn().dialect.name == "sqlite" or find_account(uow.conn(), username="u"):
+            return
+        accounts.create_account(
+            uow,
+            username="u",
+            display_name="Seed documents actor",
+            kind="person",
+            roles=["user"],
+            password=prepare_password(secrets.token_urlsafe(24)),
+            by="svc:test",
+        )
 
 
 def seed_hidden_world(
@@ -248,6 +273,7 @@ def seed_hidden_world(
                     summary=f"{TOKENS[kind]} triage",
                 )
             extra[f"{kind}_proposal"] = proposal.proposal_id
+    _ensure_documents_actor(db)
     docs = DocumentsWorld(db, objects / "docs")
     with cf.system_view():
         for kind, klass in (("document", "restricted"), ("open_document", None)):

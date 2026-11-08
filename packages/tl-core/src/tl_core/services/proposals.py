@@ -48,6 +48,7 @@ from tl_core import confidentiality
 from tl_core.auth.errors import ForbiddenError
 from tl_core.auth.module_roles import Holder, require_command_access
 from tl_core.integration.contract import CommandRunner, InvokeAction
+from tl_core.intent import Intent, check_intent, intent_scope, redact_intent
 from tl_core.ledger import ConcurrencyError, NewEvent
 from tl_core.modules import module_proposables
 from tl_core.projection.proposals import PROPOSAL_STREAM_TYPE
@@ -306,6 +307,23 @@ def _setting_info(conn: Connection, command: dict[str, Any]) -> SettingProposalI
     )
 
 
+_CREATED_INTENT_SQL = text("SELECT intent FROM events WHERE event_id = :id")
+
+
+def _stored_intent(conn: Connection, created_event_id: str) -> Intent | None:
+    """The intent in the ``Proposal.Created`` event's column, as stored (ids, no redaction)."""
+    stored = conn.execute(_CREATED_INTENT_SQL, {"id": created_event_id}).scalar_one_or_none()
+    return Intent.model_validate_json(stored) if stored else None
+
+
+def _created_intent(conn: Connection, created_event_id: str) -> Intent | None:
+    """The stored intent as the current viewer may read it ("not available" for an unreadable
+    reference)."""
+    return redact_intent(
+        conn, _stored_intent(conn, created_event_id), confidentiality.current_viewer()
+    )
+
+
 def _view(row: Any, conn: Connection | None = None) -> ProposalView:
     command = _as_object(row.command_json)
     setting = (
@@ -314,6 +332,7 @@ def _view(row: Any, conn: Connection | None = None) -> ProposalView:
         else None
     )
     return ProposalView(
+        intent=_created_intent(conn, row.created_event_id) if conn is not None else None,
         setting=setting,
         proposal_id=row.proposal_id,
         scope=row.scope,
@@ -467,7 +486,11 @@ def propose(
             f"{agent} has used its {limit} proposals for today (UTC); try again tomorrow"
         )
     proposal_id = new_ulid()
-    stored = command.model_copy(
+    from tl_core.integration.actor_access import viewer_of
+
+    # the agent's own reading of its references (ADR-0025 d4); ids are stored, in the event column
+    checked = check_intent(command, uow.conn(), viewer_of(uow.conn(), agent))
+    stored = checked.model_copy(
         update={
             "actor": agent,
             "source": source,
@@ -485,12 +508,13 @@ def propose(
             NewEvent(
                 event_type=PROPOSAL_CREATED,
                 effective_at=now,
+                intent=stored.intent,
                 payload={
                     "proposal_id": proposal_id,
                     "tool": tool,
                     "agent": agent,
                     "command_type": type(command).__name__,
-                    "command": stored.model_dump(mode="json"),
+                    "command": stored.model_dump(mode="json", exclude={"intent"}),
                     "summary": clean,
                 },
             )
@@ -843,46 +867,51 @@ def accept_proposal(
     command = model.model_validate(data)
     if holder is not None:
         _require_module_access(uow, command, holder)
-    if isinstance(command, TransitionWorkflow):
-        result = handle_transition_workflow(uow, command, roles=roles)
-    elif isinstance(command, DispatchFromThread):
-        if runner is None or holds is None:
-            raise ProposalAccessError(
-                "a dispatch proposal is accepted where commands can run, with the accepting "
-                "person's access"
-            )
-        from tl_core.integration.errors import ActionAccessError, CommandAccessError
+    stored_intent = _stored_intent(uow.conn(), row.created_event_id)  # the Created event's column
+    with intent_scope(stored_intent):  # only the command's events; the decision carries none
+        if isinstance(command, TransitionWorkflow):
+            result = handle_transition_workflow(uow, command, roles=roles)
+        elif isinstance(command, DispatchFromThread):
+            if runner is None or holds is None:
+                raise ProposalAccessError(
+                    "a dispatch proposal is accepted where commands can run, with the accepting "
+                    "person's access"
+                )
+            from tl_core.integration.errors import ActionAccessError, CommandAccessError
 
-        if not holds("user"):  # a person with no account decides nothing; the proposal waits
-            raise ProposalAccessError("accepting a dispatch needs an active account")
+            if not holds("user"):  # a person with no account decides nothing; the proposal waits
+                raise ProposalAccessError("accepting a dispatch needs an active account")
 
-        try:
-            result = handle_dispatch_from_thread(uow, command, holds=holds, runner=runner)
-        except (CommandAccessError, ActionAccessError, DispatchForbiddenError) as exc:
-            # the accepting person lacks the access or the role: the proposal stays pending for
-            # someone who has it, and a person who may not decide cannot fail it (N1)
-            raise ProposalAccessError(str(exc)) from exc
-        except DispatchRefusedError as exc:
-            if exc.problems and all(p.get("code") == "not_permitted" for p in exc.problems):
+            try:
+                result = handle_dispatch_from_thread(uow, command, holds=holds, runner=runner)
+            except (CommandAccessError, ActionAccessError, DispatchForbiddenError) as exc:
+                # the accepting person lacks the access or the role: the proposal stays pending for
+                # someone who has it, and a person who may not decide cannot fail it (N1)
                 raise ProposalAccessError(str(exc)) from exc
-            raise
-    elif isinstance(command, InvokeAction):
-        from tl_core.integration.actions.service import handle_invoke_action
-        from tl_core.integration.errors import ActionAccessError
+            except DispatchRefusedError as exc:
+                if exc.problems and all(p.get("code") == "not_permitted" for p in exc.problems):
+                    raise ProposalAccessError(str(exc)) from exc
+                raise
+        elif isinstance(command, InvokeAction):
+            from tl_core.integration.actions.service import handle_invoke_action
+            from tl_core.integration.errors import ActionAccessError
 
-        try:
-            result = handle_invoke_action(
-                uow, command, holds=holds, proposal_id=proposal_id, invoked_by=row.agent
-            )
-        except ActionAccessError as exc:  # the proposal stays pending; it is not a failure of it
-            raise ProposalAccessError(str(exc)) from exc
-    elif row.tool == RULE_PROPOSAL_TOOL and isinstance(command, AddLink):
-        # A rule's link has the link source ``rule``, which a person cannot claim. The server
-        # applies it here, and only for a proposal a rule made (``propose_for_rule`` checked it).
-        link_handler = cast(Any, handler)
-        result = link_handler(uow, command, system_source="rule")
-    else:
-        result = handler(uow, command)
+            try:
+                result = handle_invoke_action(
+                    uow, command, holds=holds, proposal_id=proposal_id, invoked_by=row.agent
+                )
+            except (
+                ActionAccessError
+            ) as exc:  # the proposal stays pending; it is not a failure of it
+                raise ProposalAccessError(str(exc)) from exc
+        elif row.tool == RULE_PROPOSAL_TOOL and isinstance(command, AddLink):
+            # A rule's link has the link source ``rule``, which a person cannot claim. The server
+            # applies it here, and only for a proposal a rule made (``propose_for_rule`` checked
+            # it).
+            link_handler = cast(Any, handler)
+            result = link_handler(uow, command, system_source="rule")
+        else:
+            result = handler(uow, command)
     _decide(
         uow,
         row,

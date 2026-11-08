@@ -125,7 +125,7 @@ def proposal(stream_id: str) -> SetPsetValues:
     return SetPsetValues(
         actor="agent:triage",
         source="mcp:triage",
-        **{"scope": "company"},
+        scope="company",
         stream_id=stream_id,
         expected_version=2,
         pset="valve_data",

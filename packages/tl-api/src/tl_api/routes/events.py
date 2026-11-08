@@ -12,6 +12,7 @@ from starlette.types import Scope as AsgiScope
 from tl_core import confidentiality
 from tl_core.auth.types import Principal
 from tl_core.changefeed import SubscriptionFilter, fetch_changes
+from tl_core.intent import redact_events
 from tl_core.ledger import Event
 from tl_core.threads.contract import THREAD_STREAM_TYPE
 from tl_core.threads.visibility import can_read_record
@@ -112,7 +113,7 @@ def list_events(
         limit=limit,
     )
     with ctx.backend(True) as uow:  # events of records the viewer may not read are left out
-        shown = confidentiality.filter_events(uow.conn(), page.events)
+        shown = redact_events(uow.conn(), confidentiality.filter_events(uow.conn(), page.events))
     return EventPage(events=shown, next_seq=page.next_seq, has_more=page.has_more)
 
 
