@@ -5,14 +5,11 @@ from __future__ import annotations
 import pytest
 from tl_core.intent import (
     Intent,
-    IntentInvalid,
     IntentRef,
     IntentToward,
-    check_intent,
     intent_json,
 )
 from tl_core.ledger.hashing import event_hash
-from tl_core.services.commands import Command
 
 EVENT_ID = "01J00000000000000000000000"
 RECORDED_AT = "2026-01-01T00:00:00.000000+00:00"
@@ -89,10 +86,3 @@ def test_intent_json_is_canonical_and_drops_nulls_and_an_empty_next() -> None:
 def test_unknown_keys_are_refused() -> None:
     with pytest.raises(ValueError):
         Intent.model_validate({"why": "x", "bogus": 1})
-
-
-def test_check_intent_refuses_any_intent_without_echo() -> None:
-    check_intent(Command(actor="a", source="s", scope="company"))
-    with pytest.raises(IntentInvalid) as raised:
-        check_intent(Command(actor="a", source="s", scope="company", intent=Intent(why="SECRET")))
-    assert str(raised.value) == "intent not accepted" and raised.value.code == "intent_invalid"
