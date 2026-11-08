@@ -5,7 +5,7 @@ S2 p mrg f 0fc06f1 boundary: validation, carrier, API reads, proposals, walk (af
 T01 t mrg f c55317a tl:valid_time tag + frozen baseline
 T02 t todo f - CLI --why/--next/--toward on record+link (D6)
 T03 t todo f - MCP intent param on 12 propose submits
-T04 t todo f - TUI History panel + embedded redact
+T04 t blk f - HELD: needs P2-INS on trunk (History tab becomes Activity); TUI History panel + embedded redact
 T05 t stg l - demo driver (after T02-T04)
 ## DEC
 D1 2026-11-07 plan from ADR-0025 answers F3-F6,F13,F14 + ADR-0026 F5 + ADR-0027 F9; no PLANCHK (7 items, ADRs already checked)
