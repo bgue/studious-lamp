@@ -5,8 +5,9 @@
 # Usage: dev/release/starter.sh [--sections LIST] [--out DIR]
 #   --sections LIST  passed to `just demo-project` (default: every section, the full P200 build)
 #   --out DIR        output directory (default: dist/release-<version>); it is kept, not emptied
-# Output: DIR/starter-p200-<version>.tar.gz with the members ledger/p200.db, schema/ and START.txt (nothing
-#   else), and a line for that archive in DIR/SHA256SUMS (other lines are kept; an old line for this archive
+# Output: DIR/starter-p200-<version>.tar.gz with the members ledger/p200.db, ledger/files/ (the object store
+#   that holds the documents' bytes), schema/ and START.txt (nothing else), and a line for that archive in
+#   DIR/SHA256SUMS (other lines are kept; an old line for this archive
 #   is replaced). Run dev/release/build.sh first if you want the wheels too: it empties its output directory.
 # Determinism: with GNU tar the archive uses --sort=name, owner 0, group 0 and --mtime=@$SOURCE_DATE_EPOCH
 #   (default 0), and gzip -n drops the gzip timestamp. macOS ships bsdtar, which has no --sort=name: there the
@@ -83,6 +84,10 @@ if find "$work/schema" -type l | grep -q .; then
   echo "starter: the copied schema directory still holds symlinks" >&2
   exit 1
 fi
+if [ ! -d "$work/ledger/files" ]; then
+  echo "starter: no object store written to $work/ledger/files" >&2
+  exit 1
+fi
 
 # 3. START.txt: plain English, 25 lines at most.
 cat > "$work/START.txt" <<EOF
@@ -103,23 +108,25 @@ Warnings:
 - The server listens on 127.0.0.1 only. Keep it that way.
 - Never run this on a shared host, or on any host other people can reach.
 - Never import this ledger into a real ledger. The password is demo data.
+- The punch list (quality section) arrives in a later release; this bundle does not have it.
 EOF
 if [ "$(wc -l < "$work/START.txt")" -gt 25 ]; then
   echo "starter: START.txt is longer than 25 lines" >&2
   exit 1
 fi
 
-# 4. The archive: exactly ledger/p200.db, schema/ and START.txt. ledger/files and any -wal or -shm
-#    sidecar of the ledger stay out.
+# 4. The archive: ledger/p200.db, ledger/files/ (the object store), schema/ and START.txt. Any -wal or
+#    -shm sidecar of the ledger and any temporary upload directory of the store stay out.
 name="starter-p200-$version.tar.gz"
 tarball="$out/$name"
-members=(ledger/p200.db schema START.txt)
+members=(ledger/p200.db ledger/files schema START.txt)
+excludes=(--exclude='ledger/p200.db-wal' --exclude='ledger/p200.db-shm' --exclude='ledger/files/.tmp')
 if tar --version 2>/dev/null | grep -q GNU; then
-  tar -C "$work" --sort=name --owner=0 --group=0 --numeric-owner --mtime="@${SOURCE_DATE_EPOCH:-0}" \
+  tar -C "$work" "${excludes[@]}" --sort=name --owner=0 --group=0 --numeric-owner --mtime="@${SOURCE_DATE_EPOCH:-0}" \
     -cf - "${members[@]}" | gzip -n > "$tarball"
 else
   echo "starter: this tar has no --sort=name (not GNU tar); the archive is not byte-identical across runs" >&2
-  tar -C "$work" -cf - "${members[@]}" | gzip -n > "$tarball"
+  tar -C "$work" "${excludes[@]}" -cf - "${members[@]}" | gzip -n > "$tarball"
 fi
 
 # 5. SHA256SUMS: replace any old line for this archive, keep the other lines (the wheels from build.sh).
