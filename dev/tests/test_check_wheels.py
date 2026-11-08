@@ -178,3 +178,78 @@ def test_cli_prints_problems_and_exits_one(
     wheels.joinpath("tl_core-0.1.0-py3-none-any.whl").unlink()
     assert check_wheels.main([str(wheels), "--repo", str(repo)]) == 1
     assert capsys.readouterr().out == "wheel count: 2 wheels, workspace has 3 members\n"
+
+
+def test_allowlist_is_exactly_the_documented_dev_seed() -> None:
+    # Growing the allowlist fails this test on purpose: a new entry needs a reviewer.
+    reason = (
+        "dev seed; created only by `tl init --dev`; "
+        "the prod server refuses an enabled demo account (P2-REL-S2)"
+    )
+    expected = {
+        (
+            "tl_core",
+            "tl_core/auth/password.py",
+            "Only the documented demo seed passes ``enforce_policy=False``; "
+            "the password must still be",
+        ): reason,
+        (
+            "tl_core",
+            "tl_core/auth/seed.py",
+            "from tl_core.auth.types import DEMO_PASSWORD, DEMO_USERNAME, AccountView",
+        ): reason,
+        (
+            "tl_core",
+            "tl_core/auth/seed.py",
+            "Idempotent: an existing ``demo`` account is returned untouched "
+            "(its password and status stay).",
+        ): reason,
+        (
+            "tl_core",
+            "tl_core/auth/seed.py",
+            "prepared = pw.prepare_password(DEMO_PASSWORD, enforce_policy=False)",
+        ): reason,
+        (
+            "tl_core",
+            "tl_core/auth/types.py",
+            'DEMO_PASSWORD = "demo"  # noqa: S105 - documented dev seed, '
+            "refused outside dev (see above)",
+        ): reason,
+    }
+    assert check_wheels.DEV_SEED_ALLOWLIST == expected
+    assert len(expected) == 5
+
+
+def test_allowed_dev_seed_line_passes(wheels: Path, repo: Path) -> None:
+    wheels.joinpath("tl_core-0.1.0-py3-none-any.whl").unlink()
+    text = (
+        b'DEMO_PASSWORD = "demo"  # noqa: S105 - documented dev seed, '
+        b"refused outside dev (see above)\n"
+    )
+    _wheel(wheels, "tl_core", "0.1.0", extra={"tl_core/auth/types.py": text})
+    _, problems = check_wheels.check(wheels, repo)
+    assert problems == []
+
+
+def test_dev_seed_line_outside_tl_core_is_reported(wheels: Path, repo: Path) -> None:
+    text = b"prepared = pw.prepare_password(DEMO_PASSWORD, enforce_policy=False)\n"
+    _wheel(wheels, "tl_cli", "0.1.0", extra={"tl_cli/auth/types.py": text})
+    _, problems = check_wheels.check(wheels, repo)
+    assert problems == [
+        "tl_cli-0.1.0-py3-none-any.whl: tl_cli/auth/types.py: line mentions demo and password"
+    ]
+
+
+def test_new_demo_password_line_in_tl_core_is_reported(wheels: Path, repo: Path) -> None:
+    wheels.joinpath("tl_core-0.1.0-py3-none-any.whl").unlink()
+    text = b'DEMO_PASSWORD = "demo"  # a second seed line\n'
+    _wheel(wheels, "tl_core", "0.1.0", extra={"tl_core/auth/types.py": text})
+    _, problems = check_wheels.check(wheels, repo)
+    assert problems == [
+        "tl_core-0.1.0-py3-none-any.whl: tl_core/auth/types.py: line mentions demo and password"
+    ]
+
+
+def test_real_workspace_has_21_members() -> None:
+    # The count check derives its expectation from [tool.uv.workspace]; this pins the real repo.
+    assert len(check_wheels.workspace_members(REPO)) == 21

@@ -13,7 +13,8 @@ Rules (each problem line names the wheel and, where there is one, the member):
   - tl-schema without tl_schema/_data/schema/core/core.yaml, or tl-cli without tl_cli/main.py
   - two wheels that disagree on the METADATA version
   - a wheel count that is not the workspace member count
-  - a text member under 200 kB with a line that has `demo` followed later by `password` (any case)
+  - a text member under 200 kB with a line that has `demo` followed later by `password` (any case),
+    except the exact lines in DEV_SEED_ALLOWLIST
 """
 
 from __future__ import annotations
@@ -35,6 +36,43 @@ REQUIRED: dict[str, tuple[str, ...]] = {
 TEXT_LIMIT = 200_000  # bytes; text members at or above this size are not scanned
 DEMO_PASSWORD = re.compile(r"demo.*password", re.IGNORECASE)
 VERSION_LINE = re.compile(r"^Version: *(\S+)\s*$", re.MULTILINE)
+DEV_SEED_REASON = (
+    "dev seed; created only by `tl init --dev`; "
+    "the prod server refuses an enabled demo account (P2-REL-S2)"
+)
+
+
+def _seed(member: str, line: str) -> tuple[str, str, str]:
+    return ("tl_core", member, line)
+
+
+# (dist, member, stripped line) -> reason. The exact lines of the documented demo seed in tl_core,
+# the only allowed `demo ... password` text in a release wheel. Pinned by
+# dev/tests/test_check_wheels.py; growing this table needs a test change and a reviewer.
+DEV_SEED_ALLOWLIST: dict[tuple[str, str, str], str] = {
+    _seed(
+        "tl_core/auth/password.py",
+        "Only the documented demo seed passes ``enforce_policy=False``; the password must still be",
+    ): DEV_SEED_REASON,
+    _seed(
+        "tl_core/auth/seed.py",
+        "from tl_core.auth.types import DEMO_PASSWORD, DEMO_USERNAME, AccountView",
+    ): DEV_SEED_REASON,
+    _seed(
+        "tl_core/auth/seed.py",
+        "Idempotent: an existing ``demo`` account is returned untouched "
+        "(its password and status stay).",
+    ): DEV_SEED_REASON,
+    _seed(
+        "tl_core/auth/seed.py",
+        "prepared = pw.prepare_password(DEMO_PASSWORD, enforce_policy=False)",
+    ): DEV_SEED_REASON,
+    _seed(
+        "tl_core/auth/types.py",
+        'DEMO_PASSWORD = "demo"  # noqa: S105 - documented dev seed, '
+        "refused outside dev (see above)",
+    ): DEV_SEED_REASON,
+}
 
 
 def workspace_members(repo: Path) -> list[Path]:
@@ -57,6 +95,7 @@ def workspace_members(repo: Path) -> list[Path]:
 
 def _member_problems(wheel: str, zf: zipfile.ZipFile, names: list[str]) -> list[str]:
     problems: list[str] = []
+    dist = wheel.split("-")[0]
     for info in zf.infolist():
         name = info.filename
         if name.endswith("/"):
@@ -70,7 +109,11 @@ def _member_problems(wheel: str, zf: zipfile.ZipFile, names: list[str]) -> list[
             data = zf.read(info)
             if b"\0" not in data:
                 text = data.decode("utf-8", errors="replace")
-                if any(DEMO_PASSWORD.search(line) for line in text.splitlines()):
+                if any(
+                    DEMO_PASSWORD.search(line)
+                    and (dist, name, line.strip()) not in DEV_SEED_ALLOWLIST
+                    for line in text.splitlines()
+                ):
                     problems.append(f"{wheel}: {name}: line mentions demo and password")
     for required in REQUIRED.get(wheel.split("-")[0], ()):
         if required not in names:
