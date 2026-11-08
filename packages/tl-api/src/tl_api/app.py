@@ -54,6 +54,7 @@ from tl_api.routes import (
     admin,
     auth,
     awp,
+    constraints,
     correspondence,
     cost,
     derivation,
@@ -339,6 +340,7 @@ def create_app(
         materials,  # P2-I3-T04a
         schemareg,  # P1-I8
         awp,  # P2-I1 T03a: the awp read routes
+        constraints,  # P2-I2 T04c1: the constraint read routes
     ):
         app.include_router(module.router)
     app.include_router(commands.router)

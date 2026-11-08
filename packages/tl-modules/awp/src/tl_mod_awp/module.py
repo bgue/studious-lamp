@@ -11,13 +11,27 @@ from tl_core.projection.types import Projector
 
 from tl_mod_awp import MODULE
 from tl_mod_awp.actions import awp_actions
-from tl_mod_awp.commands import AWP_COMMANDS, CreateCwp
-from tl_mod_awp.guards import not_closed
+from tl_mod_awp.commands import AWP_COMMANDS, AddIwpScope, CreateCwp
+from tl_mod_awp.guards import iwp_not_closed, not_closed
 from tl_mod_awp.handlers.cwp import handle_create_cwp
-from tl_mod_awp.names import CWA, CWP, EWP, PATH, PWP, RECORD_TYPES, WBS_NODE
+from tl_mod_awp.handlers.scope import handle_add_iwp_scope
+from tl_mod_awp.names import (
+    CWA,
+    CWP,
+    EWP,
+    IWP,
+    PATH,
+    PWP,
+    RECORD_TYPES,
+    SCOPE_ITEM,
+    WBS_NODE,
+)
 from tl_mod_awp.projectors import CwaProjector, PathProjector, WbsProjector
 from tl_mod_awp.projectors.cwp import cwp_projectors
+from tl_mod_awp.projectors.iwp import iwp_projectors
 from tl_mod_awp.projectors.rollup import rollup_projectors
+from tl_mod_awp.projectors.scope import scope_item_projectors
+from tl_mod_awp.readiness.projector import readiness_projectors
 
 #: The life of a link that starts at the record (accept, decline, re-pin, verify, flag, retract).
 LINK_LIFE = frozenset(
@@ -33,12 +47,24 @@ CWA_GENERIC_COMMANDS = frozenset({"AddLink", "SuggestLink", "AttachFile"}) | LIN
 CWP_GENERIC_COMMANDS = (
     frozenset({"SetPsetValues", "AddLink", "SuggestLink", "AttachFile"}) | LINK_LIFE
 )
+#: An IWP takes property values, links, files and the life of its links until it is Closed, Split or
+#: Cancelled (``guards.iwp_not_closed``). Its fields, scope, pins and state change only through the
+#: module's commands. A scope item takes links and the life of their links; the
+#: links the module wrote (``belongs_to`` scope; source ``rule``) are not
+#: retractable by a person (``tl_core.services.links``).
+IWP_GENERIC_COMMANDS = (
+    frozenset({"SetPsetValues", "AddLink", "SuggestLink", "AttachFile"}) | LINK_LIFE
+)
+LINKED_GENERIC_COMMANDS = frozenset({"AddLink", "SuggestLink"}) | LINK_LIFE
 #: An owner package reference takes links and the life of its links.
 PACKAGE_GENERIC_COMMANDS = frozenset({"AddLink", "SuggestLink"}) | LINK_LIFE
 
 #: What an agent may propose (ADR-0014 section 8): a new package. Accepting runs ``CreateCwp`` as
 #: the accepting person, who needs ``awp.cwp.edit`` (a ``user`` word).
-PROPOSABLE = (ProposableCommand("propose_cwp", CreateCwp, handle_create_cwp, "user"),)
+PROPOSABLE = (
+    ProposableCommand("propose_cwp", CreateCwp, handle_create_cwp, "user"),
+    ProposableCommand("propose_iwp_scope", AddIwpScope, handle_add_iwp_scope, "user"),
+)
 
 
 def projectors() -> list[Projector]:
@@ -50,6 +76,9 @@ def projectors() -> list[Projector]:
         CwaProjector(),
         *cwp_projectors(),
         *rollup_projectors(),
+        *iwp_projectors(),
+        *scope_item_projectors(),
+        *readiness_projectors(),
     ]
 
 
@@ -65,8 +94,13 @@ def spec() -> ModuleSpec:
             CWP: CWP_GENERIC_COMMANDS,
             EWP: PACKAGE_GENERIC_COMMANDS,
             PWP: PACKAGE_GENERIC_COMMANDS,
+            IWP: IWP_GENERIC_COMMANDS,
+            SCOPE_ITEM: LINKED_GENERIC_COMMANDS,
         },
-        generic_guards={(CWP, command): not_closed for command in CWP_GENERIC_COMMANDS},
+        generic_guards={
+            **{(CWP, command): not_closed for command in CWP_GENERIC_COMMANDS},
+            **{(IWP, command): iwp_not_closed for command in IWP_GENERIC_COMMANDS},
+        },
         proposable=PROPOSABLE,
         # which of the commands a viewer may run on a record now; one table, actions.py
         actions={record_type: awp_actions for record_type in RECORD_TYPES},

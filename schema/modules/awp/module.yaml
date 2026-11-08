@@ -28,6 +28,11 @@ imports:
   - external_package
   - rollup
   - events
+  - iwp
+  - scope_item
+  - closeout
+  - readiness
+  - iwp_events
 default_range: string
 annotations:
   tl:module: awp

@@ -13,8 +13,11 @@ CWA: Final = "awp.CWA"
 CWP: Final = "awp.CWP"
 EWP: Final = "awp.EWPRef"
 PWP: Final = "awp.PWPRef"
+IWP: Final = "awp.IWP"
+SCOPE_ITEM: Final = "awp.ScopeItem"
+IWP_CLOSEOUT: Final = "awp.IWPCloseout"
 COST_CODE: Final = "cost.CostCode"
-RECORD_TYPES: Final = frozenset({WBS_NODE, PATH, CWA, CWP, EWP, PWP})
+RECORD_TYPES: Final = frozenset({WBS_NODE, PATH, CWA, CWP, EWP, PWP, IWP, SCOPE_ITEM, IWP_CLOSEOUT})
 PACKAGE_TYPES: Final = (EWP, PWP)
 
 #: The namespace of a record key. A typed key cannot hold ``@``, so no typed record of another
@@ -30,6 +33,11 @@ CWP_TABLE: Final = "cur_awp_cwp"
 CWP_ALLOCATION_TABLE: Final = "cur_awp_cwp_allocation"
 EWP_TABLE: Final = "cur_awp_ewp_ref"
 PWP_TABLE: Final = "cur_awp_pwp_ref"
+IWP_TABLE: Final = "cur_awp_iwp"
+SCOPE_ITEM_TABLE: Final = "cur_awp_scope_item"
+IWP_CLOSEOUT_TABLE: Final = "cur_awp_iwp_closeout"
+READINESS_TABLE: Final = "cur_awp_readiness"
+READINESS_CHECK_TABLE: Final = "cur_awp_readiness_check"
 PACKAGE_TABLE: Final = {EWP: EWP_TABLE, PWP: PWP_TABLE}
 WBS_NODE_VIEW: Final = "v_awp_wbsnode"
 PATH_VIEW: Final = "v_awp_path_of_construction"
@@ -88,3 +96,71 @@ RULE_LINK_SOURCE: Final = "rule"
 
 JOB_KIND_ROLLUP: Final = "awp.rollup"
 ROLLUP_JOB_PREFIX: Final = "rollup:"
+
+#: Relation words of the links the IWP commands write (the links carry no schema class).
+#: ``contains`` is how a scope reads from the IWP; the vocabulary holds it as the inverse of
+#: ``belongs_to`` (``tl_core.links.vocabulary``), so the stored link is ``belongs_to`` from the
+#: scope record to the IWP (``SCOPE_RELATION``) and ``contains`` is its inverse reading.
+CONTAINS_RELATION: Final = "contains"
+SCOPE_RELATION: Final = "belongs_to"
+PIN_RELATION: Final = "references"
+DOCUMENT_TYPE: Final = "documents.Document"
+TAG_TYPE: Final = "engineering.Tag"
+
+IWP_VIEW: Final = "v_awp_iwp"
+SCOPE_ITEM_VIEW: Final = "v_awp_scope_item"
+
+IWP_CREATED: Final = "IWP.Created"
+IWP_REVISED: Final = "IWP.Revised"
+IWP_SCOPE_ADDED: Final = "IWP.ScopeAdded"
+IWP_SCOPE_REMOVED: Final = "IWP.ScopeRemoved"
+IWP_DOCUMENT_PINNED: Final = "IWP.DocumentPinned"
+IWP_SPLIT: Final = "IWP.Split"
+IWP_SIGNED_OFF: Final = "IWP.SignedOff"
+IWP_ISSUED_EVENT: Final = "IWP.Issued"
+IWP_HELD: Final = "IWP.Held"
+IWP_HOLD_RELEASED: Final = "IWP.HoldReleased"
+SCOPE_ITEM_CREATED: Final = "ScopeItem.Created"
+
+#: The states of the IWP workflow (``schema/fixtures/workflows/awp-iwp.yaml``).
+IWP_DRAFT: Final = "Draft"
+IWP_DEVELOPMENT: Final = "In development"
+IWP_CHECK: Final = "Constraint check"
+IWP_READY: Final = "Ready"
+IWP_ISSUED: Final = "Issued"
+IWP_IN_PROGRESS: Final = "In progress"
+IWP_FIELD_COMPLETE: Final = "Field complete"
+IWP_CLOSED: Final = "Closed"
+IWP_ON_HOLD: Final = "On hold"
+IWP_SPLIT_STATE: Final = "Split"
+IWP_CANCELLED: Final = "Cancelled"
+#: States in which the fields and the scope of an IWP may change (frozen from Ready).
+IWP_EDITABLE: Final = (IWP_DRAFT, IWP_DEVELOPMENT, IWP_CHECK)
+#: Terminal states: the generic commands (``guards.not_closed``) refuse them.
+IWP_TERMINAL: Final = (IWP_CLOSED, IWP_SPLIT_STATE, IWP_CANCELLED)
+#: The states of a scope item.
+SCI_PLANNED: Final = "Planned"
+SCI_VERIFIED: Final = "Verified"
+SCI_VOID: Final = "Void"
+
+#: Fixed sizing warning codes (the ``message`` of a ``guards_evaluated`` entry of the event).
+WARN_OVERSIZE: Final = "iwp_oversize"
+WARN_UNDERSIZE: Final = "iwp_undersize"
+
+#: Sign-off, issue and hold (P2-I2 S3): settings, tables and the limits of the sign-off list.
+SIGNOFF_ROLES_SETTING: Final = "awp.release.signoff_roles"
+UNKNOWN_CHECKS_SETTING: Final = "awp.release.allow_unknown_checks"
+MAX_SIGNOFFS: Final = 4
+SIGNERS_NEEDED: Final = 2
+
+#: Readiness (P2-I2 S4): the job kind, its job id prefix, the events and the actor of the job.
+JOB_KIND_READINESS: Final = "awp.readiness"
+READINESS_JOB_PREFIX: Final = "ready:"
+READINESS_SOURCE: Final = f"job:{JOB_KIND_READINESS}"
+READINESS_ACTOR: Final = "svc:awp.readiness"
+IWP_READINESS_EVALUATED: Final = "IWP.ReadinessEvaluated"
+IWP_READY_EVENT: Final = "IWP.Ready"
+TRANSITION_READY: Final = "ready"
+TRANSITION_UNREADY: Final = "unready"
+CONSTRAINT_TYPE: Final = "core.Constraint"
+CONSTRAINT_TABLE: Final = "cur_core_constraint"

@@ -35,6 +35,9 @@ One line each: what, why it waits, and the phase it belongs to. Newest at the bo
 | Item | Why deferred | Phase |
 |---|---|---|
 | WBS node workflow and constraint opt-in on WBS nodes (ADR-0024 plan check F10) | No wave 2 demo clause needs it; overlaps I5 progress | wave 3 |
+| Rule "a new blocking constraint on an Issued IWP puts it On hold" (`field-work-packaging.md` line 58); owner of the rule open (candidate: a readiness hook calling the hold logic) | Not built in P2-I2; P2-I2 STATE Q1 | wave 3 |
+| Automatic constraint population from requisitions, scaffold and purchase orders; clear-on-target-state rules; constraints on correspondence and schedule activities (ADR-0024) | Needs the wave 3 modules | wave 3 |
+| P2-I2 small follow-ups: IWP register counts ignore the discipline and text filters; IWP list has no Ready/Constraints counts or state-since field (D33); backlog read limit 200; empty mark `-` vs `—`; `Rfi` humanised label | Small UX items from reviews | wave 3 |
 | Six materials terminal screens have no technical-mode rows (D, E, I, M, S, W) | Missing feature, not a break | wave 3 |
 | `tl mat move reserve --for-line` should take the take-off line key, not its record id | Usability; the runbook points at the API for the id | wave 3 |
 | Plain mode shows `@N` in take-off line keys (`P200-200-ISO-0901@0/MTO/001`) and lot references (`P200-RCPT-0001@1`); show them in words (rev 0, line 001) so the plain-text leak check passes. The demo tour marks those two shots technical until then (P2-SEED-T03) | Display change in the materials screens; not a leak of hidden data | wave 3 |

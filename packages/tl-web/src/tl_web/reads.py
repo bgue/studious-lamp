@@ -36,6 +36,7 @@ from tl_api.errors import body_for
 from tl_api.routes import actions as actions_routes
 from tl_api.routes import admin as admin_routes
 from tl_api.routes import awp as awp_routes
+from tl_api.routes import constraints as constraint_routes
 from tl_api.routes import correspondence as correspondence_routes
 from tl_api.routes import documents as documents_routes
 from tl_api.routes import engineering as engineering_routes
@@ -102,6 +103,12 @@ MIRRORS: dict[str, str] = {
     "get_materials_mto_line": "get_materials_mto_line",
     "list_materials_items": "list_materials_items",
     "list_materials_item_projects": "list_materials_item_projects",
+    "list_iwps": "list_iwps",
+    "get_iwp": "get_iwp",
+    "list_iwp_scope": "list_iwp_scope",
+    "list_constraints": "list_constraints_api",
+    "get_constraint": "get_constraint_api",
+    "get_iwp_readiness": "get_iwp_readiness",
 }
 
 
@@ -469,3 +476,44 @@ class WebReadClient:
 
     def list_materials_item_projects(self, code: str) -> Any:
         return self._call(materials_routes.list_materials_item_projects, code=code)
+
+    # --- iwp (P2-I2): the IWP log and an IWP's page -------------------------------------------
+
+    def list_iwps(self, project: str, **filters: Any) -> Any:
+        return self._call(awp_routes.list_iwps, project=project, **filters)
+
+    def get_iwp(self, project: str, number: str) -> Any:
+        return self._call(awp_routes.get_iwp, project=project, number=number)
+
+    def list_iwp_scope(self, project: str, number: str, **filters: Any) -> Any:
+        return self._call(awp_routes.list_iwp_scope, project=project, number=number, **filters)
+
+    # --- constraints (P2-I2): the constraint log and one constraint's page --------------------
+
+    def _call_viewed(self, route: Callable[..., Any], **params: Any) -> Any:
+        """A constraint route: its ``guard(VIEW_WORD)`` runs first, in the request's context. The
+        route's ``Reader`` nests that guard, so ``guard_action`` cannot see it: this runs the same
+        authorizer checks and then the route's own access-word check (``_view_reader``)."""
+        word = "core.constraint.view"  # tl_core.constraints.commands.VIEW_WORD (pinned by a test)
+        principal = self._principal
+
+        def run() -> Any:
+            self._ctx.authorizer.authorize(principal, word, self._path)
+            self._ctx.authorize(principal.actor, word, self._path)
+            actor = constraint_routes._view_reader(
+                params["project"], self._ctx, principal.actor, principal
+            )
+            return route(ctx=self._ctx, actor=actor, **params)
+
+        return self._request_context.copy().run(run)
+
+    def list_constraints(self, project: str, **filters: Any) -> Any:
+        return self._call_viewed(constraint_routes.list_constraints_api, project=project, **filters)
+
+    def get_constraint(self, project: str, key: str) -> Any:
+        return self._call_viewed(constraint_routes.get_constraint_api, project=project, key=key)
+
+    # --- readiness (P2-I2 TW3): one IWP's last readiness evaluation -------------------------------
+
+    def get_iwp_readiness(self, project: str, number: str) -> Any:
+        return self._call(awp_routes.get_iwp_readiness, project=project, number=number)

@@ -129,6 +129,14 @@ def _page(slug: str) -> Callable[[Target], list[Probe]]:
     return build
 
 
+def _readiness(t: Target) -> list[Probe]:
+    """The readiness page asked for a record's number (no IWP has one in the walk's world): a 404,
+    the same bytes as for a number that never existed."""
+    url = f"{P}/readiness?number={quote(t.number)}"
+    never = f"{P}/readiness?number={quote(t.never_number)}"
+    return [Probe("GET", url, never, label="readiness")]
+
+
 def _panel(slug: str) -> Callable[[Target], list[Probe]]:
     def build(t: Target) -> list[Probe]:
         base = f"{P}/{slug}/panel"
@@ -256,6 +264,26 @@ WALK: dict[tuple[str, str], Row] = {
         "location codes and titles, kinds, parent paths, lot keys and heat numbers, item codes, "
         "on-hand quantities, child location codes and titles",
         _page("locations"),
+    ),
+
+    # --- TW1 rows (IWP log): add them under this line
+    ("GET", "/web/p/{project}/iwps"): Row(
+        "IWP numbers, subjects, foremen, planned starts, scope counts, hours and the IWP panel "
+        "with its scope rows and sign-offs",
+        _page("iwps"),
+    ),
+
+    # --- TW2 rows (constraint log): add them under this line
+    ("GET", "/web/p/{project}/constraints"): Row(
+        "constraint keys, subject keys, owners, descriptions, and the constraint panel with its "
+        "facts and description",
+        _page("constraints"),
+    ),
+
+    # --- TW3 rows (readiness): add them under this line
+    ("GET", "/web/p/{project}/readiness"): Row(
+        "the readiness page of one IWP: check names, detail, and the record keys of the references",
+        _readiness,
     ),
 
     ("GET", "/web/p/{project}/{log}/panel/{number:path}"): Row(

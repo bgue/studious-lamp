@@ -54,6 +54,7 @@ def values(hidden: Hidden) -> dict[str, list[Any]]:
         "activity_id": ["x"],
         "code": ["MER", "x", "1.1.1"],
         "lot": ["P123-RCPT-0001@1", "x"],  # P2-I3-T11: get_material_lot (a lot key)
+        "iwp": [*hidden.numbers.values(), "P123-IWP-0001", "x"],  # T09b: propose_iwp_scope
     }
 
 

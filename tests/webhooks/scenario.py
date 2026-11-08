@@ -218,6 +218,30 @@ MODULE_STREAMS = (
     ),
     ("awp.EWPRef", "EWPRef.Defined", ("EWPRef.Updated",)),
     ("awp.PWPRef", "PWPRef.Defined", ("PWPRef.Updated",)),
+    # awp part 2 (P2-I2): IWPs, scope items, constraints
+    (
+        "awp.IWP",
+        "IWP.Created",
+        (
+            "IWP.Revised",
+            "IWP.ScopeAdded",
+            "IWP.ScopeRemoved",
+            "IWP.DocumentPinned",
+            "IWP.ReadinessEvaluated",
+            "IWP.Ready",
+            "IWP.SignedOff",
+            "IWP.Issued",
+            "IWP.Held",
+            "IWP.HoldReleased",
+            "IWP.Split",
+        ),
+    ),
+    ("awp.ScopeItem", "ScopeItem.Created", ("ScopeItem.Revised",)),
+    (
+        "core.Constraint",
+        "Constraint.Raised",
+        ("Constraint.Assigned", "Constraint.Cleared", "Constraint.Withdrawn"),
+    ),
     # materials (P2-I3): library, location tree, PO line mirror, receipts, lots and take-offs
     (
         "materials.ItemMaster",

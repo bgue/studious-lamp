@@ -78,6 +78,7 @@ def test_create_makes_the_run_provisions_actors_and_seeds_the_template(tmp_path:
         "user:sim-rfi_author",
         "user:sim-client_rep",
         "user:sim-approver",
+        "user:sim-iwp_planner",
         "agent:sim-assistant",
     ]
     assert sim.state.seeded and sim.state.in_progress is None and sim.state.day == 0

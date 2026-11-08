@@ -76,6 +76,7 @@ def labels(schema_dir: Path) -> dict[str, str]:
     with chdir(schema_dir):
         core = SchemaView(ROOT_SCHEMA)
         found = {f"core.{CORE_TYPE}": _title(core, CORE_TYPE, f"core.{CORE_TYPE}")}
+        found.update({k: v for k, v in _module_labels(core, "core").items() if k != "core.Record"})
     for root in module_roots(schema_dir):
         with chdir(root.directory):
             found.update(_module_labels(SchemaView(root.file), root.name))

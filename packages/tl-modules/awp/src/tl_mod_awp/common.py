@@ -21,6 +21,9 @@ from tl_core.ledger import AppendResult, NewEvent
 from tl_core.services.commands import Command, CommandResult
 from tl_core.services.errors import DuplicateKeyError, RecordNotFoundError
 from tl_core.services.records import create_module_record
+from tl_core.services.workflow import TransitionWorkflow, handle_transition_workflow
+from tl_core.settings.layers import project_of_scope
+from tl_core.settings.resolver import value_of
 from tl_core.uow import UnitOfWork
 from tl_core.util import new_ulid
 from tl_mod_engineering import codelists
@@ -327,3 +330,47 @@ def require_list_code(conn: Connection, scope: str, list_name: str, code: str, w
         raise UnknownListCodeError(f"{what} is not a value of the code list {list_name}") from None
     if not found.usable:
         raise UnknownListCodeError(f"{what} is not in use in the code list {list_name}")
+
+
+_STATUS_SQL = text("SELECT status FROM cur_core_record WHERE id = :id")
+_ACCOUNT_SQL = text("SELECT 1 FROM cur_account WHERE username = :name AND status = 'active'")
+
+
+def record_state(conn: Connection, record_id: str, initial: str) -> str:
+    """The workflow state of a record (``initial`` before its first move)."""
+    found = conn.execute(_STATUS_SQL, {"id": record_id}).scalar_one_or_none()
+    return initial if found is None else str(found)
+
+
+def account_actor_exists(conn: Connection, actor: str) -> bool:
+    """``actor`` is ``user:<name>`` and an active account has that name."""
+    kind, _, name = actor.partition(":")
+    if kind != "user" or not name:
+        return False
+    return conn.execute(_ACCOUNT_SQL, {"name": name}).first() is not None
+
+
+def move(
+    uow: UnitOfWork, cmd: Command, record_id: str, transition: str, reason: str | None = None
+) -> CommandResult:
+    """Run workflow transition ``transition`` of a record as the module (no roles guard)."""
+    return handle_transition_workflow(
+        uow,
+        TransitionWorkflow(
+            actor=cmd.actor,
+            source=cmd.source,
+            scope=cmd.scope,
+            correlation_id=cmd.correlation_id,
+            causation_id=cmd.causation_id,
+            stream_id=record_id,
+            expected_version=version_of(uow, record_id),
+            transition=transition,
+            reason=reason,
+        ),
+        by_module=True,
+    )
+
+
+def setting_value(conn: Connection, scope: str, key: str) -> Any:
+    """The effective value of a setting for the project of ``scope`` (``tl_core.settings``)."""
+    return value_of(conn, key, project=project_of_scope(scope))

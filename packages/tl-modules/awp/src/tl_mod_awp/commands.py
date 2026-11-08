@@ -16,14 +16,21 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from tl_core.services.commands import Command, CommandResult
 from tl_core.text import clean_optional_text, clean_text
 from tl_core.uow import UnitOfWork
 
-from tl_mod_awp.fields import check_period, parse_date, parse_hours, parse_quantity
+from tl_mod_awp.facts import MAX_SCOPE_IDS
+from tl_mod_awp.fields import (
+    check_period,
+    parse_date,
+    parse_estimated_hours,
+    parse_hours,
+    parse_quantity,
+)
 from tl_mod_awp.handlers.cwa import (
     handle_define_cwa,
     handle_retire_cwa,
@@ -43,6 +50,14 @@ from tl_mod_awp.handlers.cwp import (
     handle_start_cwp_execution,
     handle_void_cwp,
 )
+from tl_mod_awp.handlers.iwp import (
+    handle_cancel_iwp,
+    handle_create_iwp,
+    handle_pin_iwp_document,
+    handle_return_iwp_to_development,
+    handle_send_iwp_to_constraint_check,
+    handle_start_iwp_development,
+)
 from tl_mod_awp.handlers.packages import (
     handle_record_external_package,
     handle_update_external_package,
@@ -52,6 +67,18 @@ from tl_mod_awp.handlers.path import (
     handle_define_path_of_construction,
     handle_move_cwa_in_path,
 )
+from tl_mod_awp.handlers.scope import (
+    handle_add_iwp_scope,
+    handle_create_scope_item,
+    handle_remove_iwp_scope,
+    handle_split_iwp,
+)
+from tl_mod_awp.handlers.signoff import (
+    handle_hold_iwp,
+    handle_issue_iwp,
+    handle_release_hold,
+    handle_sign_off_iwp,
+)
 from tl_mod_awp.handlers.wbs import (
     handle_define_wbs_node,
     handle_map_wbs_to_cost_codes,
@@ -60,23 +87,32 @@ from tl_mod_awp.handlers.wbs import (
     handle_revise_wbs_node,
 )
 from tl_mod_awp.limits import (
+    ACTOR_PATTERN,
     CODE_PATTERN,
     DATE_PATTERN,
+    HASH_PATTERN,
     MAX_ALLOCATIONS,
     MAX_BUDGET_TEXT,
+    MAX_CLEAR_REASON,
     MAX_CONTRACTOR,
     MAX_COST_CODE,
+    MAX_CREW,
+    MAX_DESCRIPTION,
+    MAX_FOREMAN,
     MAX_ID,
     MAX_LIST_CODE,
     MAX_LOCATION,
     MAX_NOTE,
     MAX_PACKAGE_NO,
     MAX_PATH_STEPS,
+    MAX_PIN_CODE,
     MAX_QUANTITIES,
     MAX_QUANTITY_TEXT,
     MAX_REASON,
     MAX_REASON_CODE,
+    MAX_SCOPE_PER_COMMAND,
     MAX_SOURCE_SYSTEM,
+    MAX_SPLIT_GROUPS,
     MAX_STATUS_TEXT,
     MAX_TITLE,
     REASON_CODE_PATTERN,
@@ -473,8 +509,211 @@ class UpdateExternalPackage(_Strict):
         return _date(value)
 
 
+def _iwp_hours(value: str | None) -> str | None:
+    return None if value is None else parse_estimated_hours(value)
+
+
+class CreateIwp(_Strict):
+    """Create an interim work package, numbered from the pattern per discipline."""
+
+    discipline: str = Field(pattern=r"^[A-Za-z0-9]{1,16}$")
+    title: str = Field(min_length=1, max_length=MAX_TITLE)
+    cwp_id: str | None = Field(default=None, min_length=1, max_length=MAX_ID)
+    planned_start: str | None = Field(default=None, pattern=DATE_PATTERN)
+    planned_finish: str | None = Field(default=None, pattern=DATE_PATTERN)
+    foreman: str | None = Field(default=None, pattern=ACTOR_PATTERN, max_length=MAX_FOREMAN)
+    estimated_hours: str | None = Field(default=None, min_length=1, max_length=MAX_BUDGET_TEXT)
+    crew_text: str | None = Field(default=None, max_length=MAX_CREW)
+
+    @field_validator("title")
+    @classmethod
+    def _title(cls, value: str) -> str:
+        return _text(value)
+
+    @field_validator("planned_start", "planned_finish")
+    @classmethod
+    def _dates(cls, value: str | None) -> str | None:
+        return _date(value)
+
+    @field_validator("estimated_hours")
+    @classmethod
+    def _hours(cls, value: str | None) -> str | None:
+        return _iwp_hours(value)
+
+    @field_validator("crew_text")
+    @classmethod
+    def _crew(cls, value: str | None) -> str | None:
+        return clean_optional_text(value)
+
+
+class CreateScopeItem(_Strict):
+    """Create a scope item: a commodity, a quantity and the hours estimated for it."""
+
+    commodity: str = Field(min_length=1, max_length=MAX_LIST_CODE)
+    description: str = Field(min_length=1, max_length=MAX_DESCRIPTION)
+    qty: str = Field(min_length=1, max_length=MAX_QUANTITY_TEXT)
+    uom: str = Field(min_length=1, max_length=MAX_LIST_CODE)
+    est_hours: str = Field(min_length=1, max_length=MAX_BUDGET_TEXT)
+    cwp_id: str | None = Field(default=None, min_length=1, max_length=MAX_ID)
+
+    @field_validator("commodity", "uom")
+    @classmethod
+    def _codes(cls, value: str) -> str:
+        return clean_text(value)
+
+    @field_validator("description")
+    @classmethod
+    def _description(cls, value: str) -> str:
+        return _text(value)
+
+    @field_validator("qty")
+    @classmethod
+    def _qty(cls, value: str) -> str:
+        return parse_quantity(value)
+
+    @field_validator("est_hours")
+    @classmethod
+    def _hours(cls, value: str) -> str:
+        return parse_estimated_hours(value)
+
+
+def _scope_ids(value: list[str]) -> list[str]:
+    if len(set(value)) != len(value):
+        raise ValueError("a record is listed twice")
+    return value
+
+
+class AddIwpScope(_Strict):
+    """Add scope items or tags to an IWP (at most 200 in one command)."""
+
+    iwp: str = Field(min_length=1, max_length=MAX_ID)
+    items: list[Annotated[str, Field(min_length=1, max_length=MAX_ID)]] = Field(
+        min_length=1, max_length=MAX_SCOPE_PER_COMMAND
+    )
+
+    @field_validator("items")
+    @classmethod
+    def _items(cls, value: list[str]) -> list[str]:
+        return _scope_ids(value)
+
+
+class RemoveIwpScope(AddIwpScope):
+    """Remove records from the scope of an IWP."""
+
+
+class PinIwpDocument(_Strict):
+    """Pin a document revision (a revision code), or the current revision (floating), to an IWP."""
+
+    iwp: str = Field(min_length=1, max_length=MAX_ID)
+    document: str = Field(min_length=1, max_length=MAX_ID)
+    pin: str | None = Field(default=None, min_length=1, max_length=MAX_PIN_CODE)
+
+    @field_validator("pin")
+    @classmethod
+    def _pin(cls, value: str | None) -> str | None:
+        return None if value is None else clean_text(value)
+
+
+class _OnIwp(_Strict):
+    iwp: str = Field(min_length=1, max_length=MAX_ID)
+    reason: str | None = Field(default=None, max_length=MAX_REASON)
+
+    @field_validator("reason")
+    @classmethod
+    def _reason(cls, value: str | None) -> str | None:
+        return clean_optional_text(value)
+
+
+class StartIwpDevelopment(_OnIwp):
+    """Draft to In development."""
+
+
+class SendIwpToConstraintCheck(_OnIwp):
+    """In development to Constraint check."""
+
+
+class ReturnIwpToDevelopment(_OnIwp):
+    """Constraint check back to In development."""
+
+
+class SplitIwp(_Strict):
+    """Split an IWP into two or more: ``by_hours`` cuts the scope in key order into the fewest
+    groups each within the upper size bound; ``by_scope`` takes the groups given."""
+
+    iwp: str = Field(min_length=1, max_length=MAX_ID)
+    mode: Literal["by_hours", "by_scope"]
+    groups: list[list[Annotated[str, Field(min_length=1, max_length=MAX_ID)]]] | None = Field(
+        default=None, max_length=MAX_SPLIT_GROUPS
+    )
+    reason: str = Field(min_length=1, max_length=MAX_REASON)
+
+    @field_validator("reason")
+    @classmethod
+    def _reason(cls, value: str) -> str:
+        return _text(value)
+
+    @model_validator(mode="after")
+    def _groups(self) -> SplitIwp:
+        if (self.mode == "by_scope") != (self.groups is not None):
+            raise ValueError("groups go with the mode by_scope and with no other")
+        if self.groups is not None and sum(len(g) for g in self.groups) > MAX_SCOPE_IDS:
+            raise ValueError("the groups hold more records than a package may")
+        return self
+
+
+class CancelIwp(_Strict):
+    """Cancel an IWP that is not Closed, Split or Cancelled."""
+
+    iwp: str = Field(min_length=1, max_length=MAX_ID)
+    reason: str = Field(min_length=1, max_length=MAX_REASON)
+
+    @field_validator("reason")
+    @classmethod
+    def _reason(cls, value: str) -> str:
+        return _text(value)
+
+
 class RequestRollup(_Strict):
     """Queue the budget rollup of the project (idempotent: one queued run at a time)."""
+
+
+class SignOffIwp(_Strict):
+    """Sign off an IWP that is Ready, for the record hash read from ``iwp_record_hash``."""
+
+    iwp: str = Field(min_length=1, max_length=MAX_ID)
+    record_hash: str = Field(pattern=HASH_PATTERN)
+
+
+class IssueIwp(_Strict):
+    """Issue a Ready IWP, signed off by two distinct signers, to its foreman."""
+
+    iwp: str = Field(min_length=1, max_length=MAX_ID)
+    foreman: str | None = Field(default=None, pattern=ACTOR_PATTERN, max_length=MAX_FOREMAN)
+    record_hash: str = Field(pattern=HASH_PATTERN)
+
+
+class HoldIwp(_Strict):
+    """Put an IWP that is Ready, Issued or In progress on hold."""
+
+    iwp: str = Field(min_length=1, max_length=MAX_ID)
+    reason: str = Field(min_length=1, max_length=MAX_CLEAR_REASON)
+
+    @field_validator("reason")
+    @classmethod
+    def _reason(cls, value: str) -> str:
+        return _text(value)
+
+
+class ReleaseHold(_Strict):
+    """Lift the hold of an IWP into a constraint check."""
+
+    iwp: str = Field(min_length=1, max_length=MAX_ID)
+    reason: str | None = Field(default=None, max_length=MAX_CLEAR_REASON)
+
+    @field_validator("reason")
+    @classmethod
+    def _reason(cls, value: str | None) -> str | None:
+        return clean_optional_text(value)
 
 
 @dataclass(frozen=True)
@@ -510,4 +749,18 @@ AWP_COMMANDS: tuple[AwpCommand, ...] = (
     AwpCommand(UpdateExternalPackage, handle_update_external_package, "awp.package.edit"),
     AwpCommand(VoidExternalPackage, handle_void_external_package, "awp.void"),
     AwpCommand(RequestRollup, handle_request_rollup, "awp.cwp.edit"),
+    AwpCommand(CreateIwp, handle_create_iwp, "awp.iwp.edit"),
+    AwpCommand(CreateScopeItem, handle_create_scope_item, "awp.iwp.edit"),
+    AwpCommand(AddIwpScope, handle_add_iwp_scope, "awp.iwp.edit"),
+    AwpCommand(RemoveIwpScope, handle_remove_iwp_scope, "awp.iwp.edit"),
+    AwpCommand(PinIwpDocument, handle_pin_iwp_document, "awp.iwp.edit"),
+    AwpCommand(StartIwpDevelopment, handle_start_iwp_development, "awp.iwp.edit"),
+    AwpCommand(SendIwpToConstraintCheck, handle_send_iwp_to_constraint_check, "awp.iwp.edit"),
+    AwpCommand(ReturnIwpToDevelopment, handle_return_iwp_to_development, "awp.iwp.edit"),
+    AwpCommand(SplitIwp, handle_split_iwp, "awp.iwp.edit"),
+    AwpCommand(CancelIwp, handle_cancel_iwp, "awp.void"),
+    AwpCommand(SignOffIwp, handle_sign_off_iwp, "awp.iwp.signoff"),
+    AwpCommand(IssueIwp, handle_issue_iwp, "awp.iwp.issue"),
+    AwpCommand(HoldIwp, handle_hold_iwp, "awp.iwp.hold"),
+    AwpCommand(ReleaseHold, handle_release_hold, "awp.iwp.hold"),
 )

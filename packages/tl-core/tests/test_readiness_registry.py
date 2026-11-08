@@ -51,7 +51,16 @@ def load(*entries: Entry) -> dict[str, ReadinessCheck]:
 
 
 def test_only_the_materials_check_is_installed_by_default() -> None:
-    assert set(load_checks()) == {"materials_reserved"}
+    assert set(load_checks()) == {
+        "inspections_planned",
+        "labour_requested",
+        "materials_reserved",
+        "model_slice_available",
+        "permits_planned",
+        "predecessors_handed_over",
+        "rfis_answered",
+        "documents_current",
+    } | {"constraints_cleared"}  # P2-I2 S4
     assert load_checks([]) == {}
 
 

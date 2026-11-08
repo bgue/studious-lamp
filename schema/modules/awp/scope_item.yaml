@@ -1,0 +1,61 @@
+id: https://example.org/throughline/modules/awp/scope_item
+name: tl_mod_awp_scope_item
+title: Scope items (brief 9, M3)
+description: >-
+  A `ScopeItem` is one line of work inside an IWP or CWP: a commodity, a quantity and the hours estimated for it. Numbered `{project}-SCI-{seq:6}`, not gap-free. Its life is the workflow `awp-scope-item`.
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+  - ../../core/annotations
+  - ../../core/record
+default_range: string
+annotations:
+  tl:module: awp
+
+classes:
+  ScopeItem:
+    title: Scope item
+    description: >-
+      One scope item. Record type `awp.ScopeItem`; key `P123-SCI-000001` (not gap-free). Decimals are text with ASCII digits.
+    annotations:
+      tl:current_state: true
+      tl:record_types: "awp.ScopeItem"
+      tl:offline: draft_only
+      tl:table: cur_awp_scope_item
+      tl:ix_scope_cwp: "scope, cwp_id"
+    attributes:
+      id:
+        identifier: true
+        range: Ulid
+        required: true
+        description: Record id; equals the ledger stream id and the `cur_core_record` id.
+      scope:
+        range: ScopeId
+        required: true
+        description: The project scope, `project:<id>`.
+      commodity:
+        required: true
+        description: Code of the code list `Commodity`.
+      description:
+        annotations:
+          tl:column: description_text
+        pattern: "^.{0,200}$"
+        description: What the item is (at most 200 characters).
+      qty:
+        pattern: "^[0-9]{1,12}(\\.[0-9]{1,3})?$"
+        description: 'Quantity, decimal text with up to three decimals.'
+      uom:
+        description: Code of the code list `UnitOfMeasure`.
+      est_hours:
+        pattern: "^(0|[1-9][0-9]{0,11})\\.[0-9]$"
+        description: 'Estimated hours, decimal text with one decimal.'
+      cwp_id:
+        range: Ulid
+        description: The `awp.CWP` the item belongs to; null allowed.
+      last_seq:
+        range: integer
+        required: true
+        description: Ledger `seq` of the last event applied to this row.

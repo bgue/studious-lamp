@@ -1,0 +1,77 @@
+id: https://example.org/throughline/modules/awp/iwp
+name: tl_mod_awp_iwp
+title: Interim work packages (brief 9, M3)
+description: >-
+  An `IWP` is an interim work package: the unit of work a foreman is issued. Numbered `{project}-{type}-{discipline}-{seq:4}`, counted per discipline; its life is the workflow `awp-iwp`. Spec: docs/build-spec/specs/field-work-packaging.md.
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+  - ../../core/annotations
+  - ../../core/record
+default_range: string
+annotations:
+  tl:module: awp
+
+classes:
+  IWP:
+    title: Interim work package
+    description: >-
+      One interim work package. Record type `awp.IWP`; its key is the number the allocator gives it
+      (`P123-IWP-PIP-0001`, gap-free, counted per discipline). Decimals are text with ASCII digits and dates are
+      `YYYY-MM-DD`. The permit to work is an expected link (`requires`, by Issued) that is reported, never blocks.
+    annotations:
+      tl:current_state: true
+      tl:record_types: "awp.IWP"
+      tl:offline: draft_only
+      tl:table: cur_awp_iwp
+      tl:ix_scope_discipline: "scope, discipline"
+      tl:ix_scope_cwp: "scope, cwp_id"
+      tl:expects_link:
+        - relation: requires
+          direction: out
+          target_type: permit.PermitToWork
+          by_state: Issued
+          label: permit to work
+    attributes:
+      id:
+        identifier: true
+        range: Ulid
+        required: true
+        description: Record id; equals the ledger stream id and the `cur_core_record` id.
+      scope:
+        range: ScopeId
+        required: true
+        description: The project scope, `project:<id>`.
+      discipline:
+        required: true
+        description: Code of the code list `Discipline` (`PIP`); part of the number.
+      cwp_id:
+        range: Ulid
+        description: The `awp.CWP` the package belongs to; null until set.
+      planned_start:
+        pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+        description: "Planned start, `YYYY-MM-DD`."
+      planned_finish:
+        pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+        description: "Planned finish, `YYYY-MM-DD`; not before the start."
+      foreman:
+        pattern: "^user:.{1,59}$"
+        description: "The foreman, an account actor text `user:<name>` (at most 64 characters)."
+      estimated_hours:
+        pattern: "^((0|[1-9][0-9]{0,6})\\.[0-9]|10000000\\.0)$"
+        description: 'Estimated hours, text with one decimal from "0.0" to "10000000.0"; null until set.'
+      crew_text:
+        pattern: "^.{0,120}$"
+        description: The crew in words (at most 120 characters).
+      signoffs:
+        range: Any
+        annotations:
+          tl:json: true
+        description: 'JSON list of at most 4 rows `{by, role, at, record_hash}`. Column `signoffs_json`.'
+      last_seq:
+        range: integer
+        required: true
+        description: Ledger `seq` of the last event applied to this row.

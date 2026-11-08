@@ -58,7 +58,9 @@ NOT_WALKED = {
     "/stream": "an open stream: tests/test_confidentiality_walk.py::test_the_stream",
 }
 # P2-I3-T04a: 70 + the nine materials GET routes; T05a: + the report; S5: + mto-line, item-projects
-MIN_ROUTES = 82
+# P2-I2-S5: + 7 (IWP list, detail, scope, readiness; constraint list, groups, detail); the seeded
+# walk is in tests/test_iwp_constraint_routes.py
+MIN_ROUTES = 89
 FAKE_ID = "01J000000000000000000000"
 
 
@@ -222,6 +224,15 @@ def test_the_walk_finds_the_routes_and_the_seed_is_what_the_walk_assumes(
         "/projects/{project}/materials/mto-line",
         "/companies/materials/items",
         "/companies/materials/item-projects",
+    } <= paths
+    assert {  # P2-I2-S5: walked as five readers on a seeded ledger in test_iwp_constraint_routes.py
+        "/projects/{project}/awp/iwps",
+        "/projects/{project}/awp/iwps/{number}",
+        "/projects/{project}/awp/iwps/{number}/scope",
+        "/projects/{project}/awp/iwps/{number}/readiness",
+        "/projects/{project}/constraints",
+        "/projects/{project}/constraints/groups",
+        "/projects/{project}/constraints/{key}",
     } <= paths
     assert "/records/{record_id}/actions" in paths  # P1-UX2-S1: walked below as five readers
     assert "/records/{record_id}/addable-properties" in paths  # P1-UX3 r4: walked below too

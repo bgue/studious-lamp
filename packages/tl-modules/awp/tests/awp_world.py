@@ -128,6 +128,62 @@ class World:
     def version(self, record: str) -> int:
         return int(self.scalar("SELECT version FROM cur_core_record WHERE id = :i", i=record))
 
+    # --- IWP and scope pieces (P2-I2 S2) ---------------------------------------------
+
+    def iwp(self, title: str = "Rack", discipline: str = "PIP", **more: Any) -> str:
+        """A new IWP made by the user ``uma`` (the id)."""
+        made = self.call("uma", "CreateIwp", discipline=discipline, title=title, **more)
+        return str(made.stream_id)
+
+    def items(self, hours: list[str], **more: Any) -> list[str]:
+        """One new scope item per entry of ``hours`` (the ids)."""
+        return [
+            str(
+                self.call(
+                    "uma",
+                    "CreateScopeItem",
+                    commodity="piping",
+                    description=f"Spool {n}",
+                    qty="1",
+                    uom="m",
+                    est_hours=h,
+                    **more,
+                ).stream_id
+            )
+            for n, h in enumerate(hours)
+        ]
+
+    def column(self, table: str, column: str, record: str) -> Any:
+        """One column of the typed or envelope row of ``record``."""
+        return self.scalar(f"SELECT {column} FROM {table} WHERE id = :i", i=record)
+
+    def set_status(self, record: str, status: str | None) -> None:
+        """Set the workflow state of a record by hand (a projection write, never an event)."""
+        with open_uow(self.db) as uow:
+            uow.conn().execute(
+                text("UPDATE cur_core_record SET status = :s WHERE id = :i"),
+                {"s": status, "i": record},
+            )
+
+    def module_call(self, function: Callable[..., Any], **fields: Any) -> Any:
+        """Run a plain function of the module as the module would."""
+        cmd = Command(actor="user:uma", source="test", scope=SCOPE)
+        with open_uow(self.db) as uow:
+            return function(uow, cmd, **fields)
+
+    def documents(self, objects: Path, *numbers: str) -> dict[str, str]:
+        """Documents with an issued revision ``A`` (the ids by number)."""
+        from tl_mod_documents.testing import DocumentsWorld
+
+        docs = DocumentsWorld(self.db, objects)
+        docs.people("u")
+        for number in numbers:
+            docs.register(number)
+            docs.create_revision(number)
+            docs.attach(number, "A")
+            docs.issue(number, "A")
+        return {n: str(docs.document(n).id) for n in numbers}
+
     # --- seed pieces -----------------------------------------------------------------------
 
     def wbs_tree(self) -> None:

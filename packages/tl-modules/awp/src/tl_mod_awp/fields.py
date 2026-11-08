@@ -77,3 +77,16 @@ def as_rows(value: Any) -> list[dict[str, str]] | None:
     if value is None:
         return None
     return [dict(r) for r in value]
+
+
+_IWP_HOURS = re.compile(r"[0-9]{1,8}(?:\.[0-9])?")
+
+
+def parse_estimated_hours(value: str) -> str:
+    """IWP hours from 0.0 to 10 000 000.0 with at most one decimal, as text with one decimal."""
+    if _IWP_HOURS.fullmatch(value) is None:
+        raise ValueError("estimated hours is a number with at most one decimal")
+    hours = Decimal(value)
+    if hours > MAX_HOURS:
+        raise ValueError("estimated hours is from 0.0 to 10000000.0")
+    return f"{hours:.1f}"
