@@ -1,9 +1,10 @@
 """Projector of IWP progress: ``cur_awp_iwp_progress``.
 
-``IWP.ProgressRecorded`` replaces the row of its IWP (the event holds the whole figure). ``IWP.Started`` and
-``IWP.FieldCompleted`` change no column: they move the envelope's version and the IWP row's ``last_seq``, as the
-scope and hold events do in ``iwp.py``. No handler yet: the commands come in P2-I5 S2. Deterministic: the rows
-depend only on the events, and a rebuild never calls the engine. ``as_of_seq`` is the ``seq`` of the event.
+``IWP.ProgressRecorded`` replaces the row of its IWP (the event holds the whole figure).
+``IWP.Started`` and ``IWP.FieldCompleted`` change no column: they move the envelope's version and
+the IWP row's ``last_seq``, as the scope and hold events do in ``iwp.py``. No handler yet: the
+commands come in P2-I5 S2. Deterministic: the rows depend only on the events, and a rebuild never
+calls the engine. ``as_of_seq`` is the ``seq`` of the event.
 """
 
 from __future__ import annotations

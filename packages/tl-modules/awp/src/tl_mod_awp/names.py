@@ -172,7 +172,7 @@ TRANSITION_UNREADY: Final = "unready"
 CONSTRAINT_TYPE: Final = "core.Constraint"
 CONSTRAINT_TABLE: Final = "cur_core_constraint"
 
-#: Weekly plan, progress, closeout and subcontract (P2-I5 S1): the events and the weekly plan workflow.
+#: Weekly plan, progress, closeout and subcontract (P2-I5 S1): the events and the plan workflow.
 WEEK_OPENED: Final = "WeeklyPlan.Opened"
 WEEK_IWP_COMMITTED: Final = "WeeklyPlan.IwpCommitted"
 WEEK_OUTCOME_RECORDED: Final = "WeeklyPlan.OutcomeRecorded"
@@ -190,8 +190,8 @@ WEEK_CLOSED_STATE: Final = "Closed"
 OUTCOME_DONE: Final = "done"
 OUTCOME_MISSED: Final = "missed"
 #: The events of this part whose payload carries ``feed_policy: none``. ``WeeklyPlan.Closed`` and
-#: ``IWPCloseout.Recorded`` make a feed card. (``tl_core.feed.cards`` honours the key only for the
-#: names in its ``POLICY_EVENT_TYPES``, as for the IWP events: the key is data, not yet read.)
+#: ``IWPCloseout.Recorded`` make a feed card. (``tl_core.feed.cards`` honours the key only for
+#: the names in its ``POLICY_EVENT_TYPES``, as for the IWP events: the key is data, not yet read.)
 PART3_NO_CARD_EVENTS: Final = (
     WEEK_OPENED,
     WEEK_IWP_COMMITTED,

@@ -27,8 +27,12 @@ def _doc(rules: list[dict[str, Any]]) -> str:
     )
 
 
-def _rule(weights: list[int], commodity: str = "piping", evidence: str = "manual") -> dict[str, Any]:
-    steps = [{"name": f"Step {i}", "weight": w, "evidence": evidence} for i, w in enumerate(weights)]
+def _rule(
+    weights: list[int], commodity: str = "piping", evidence: str = "manual"
+) -> dict[str, Any]:
+    steps = [
+        {"name": f"Step {i}", "weight": w, "evidence": evidence} for i, w in enumerate(weights)
+    ]
     return {"commodity": commodity, "kind": "scope_item", "steps": steps}
 
 
@@ -63,7 +67,11 @@ def test_weights_not_summing_to_100_are_refused_with_the_fixed_message() -> None
         _rule([100], evidence="scope_state:"),
         _rule([100], evidence="whatever"),
         _rule([100], commodity="Piping"),
-        {"commodity": "x", "kind": "pipe", "steps": [{"name": "a", "weight": 100, "evidence": "manual"}]},
+        {
+            "commodity": "x",
+            "kind": "pipe",
+            "steps": [{"name": "a", "weight": 100, "evidence": "manual"}],
+        },
         {"commodity": "x", "kind": "weld", "steps": []},
         {**_rule([100]), "extra": 1},
     ],

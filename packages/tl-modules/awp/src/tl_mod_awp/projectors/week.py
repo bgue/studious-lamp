@@ -1,9 +1,10 @@
 """Projector of the weekly plan: ``cur_awp_weekly_plan`` and ``cur_awp_week_commitment``.
 
-``WeeklyPlan.Opened`` inserts the plan row; ``WeeklyPlan.IwpCommitted`` inserts the commitment (one per plan
-and IWP; a second commit of the same IWP replaces it); ``WeeklyPlan.OutcomeRecorded`` sets the outcome and
-the miss reason; ``WeeklyPlan.Closed`` sets the PPC and the closing time. No handler yet: the commands come in
-P2-I5 S4. Deterministic: the rows depend only on the events. Register after ``RecordProjector``.
+``WeeklyPlan.Opened`` inserts the plan row; ``WeeklyPlan.IwpCommitted`` inserts the commitment
+(one per plan and IWP; a second commit of the same IWP replaces it);
+``WeeklyPlan.OutcomeRecorded`` sets the outcome and the miss reason; ``WeeklyPlan.Closed`` sets
+the PPC and the closing time. No handler yet: the commands come in P2-I5 S4. Deterministic: the
+rows depend only on the events. Register after ``RecordProjector``.
 """
 
 from __future__ import annotations
@@ -37,8 +38,9 @@ _DROP_SQL = text(
     f"DELETE FROM {WEEK_COMMITMENT_TABLE} WHERE plan_id = :plan_id AND iwp_id = :iwp_id"
 )
 _COMMIT_SQL = text(
-    f"INSERT INTO {WEEK_COMMITMENT_TABLE} (row_id, scope, plan_id, iwp_id, foreman, committed_hours, "
-    "last_seq) VALUES (:row_id, :scope, :plan_id, :iwp_id, :foreman, :committed_hours, :last_seq)"
+    f"INSERT INTO {WEEK_COMMITMENT_TABLE} (row_id, scope, plan_id, iwp_id, foreman, "
+    "committed_hours, last_seq) VALUES (:row_id, :scope, :plan_id, :iwp_id, :foreman, "
+    ":committed_hours, :last_seq)"
 )
 _OUTCOME_SQL = text(
     f"UPDATE {WEEK_COMMITMENT_TABLE} SET outcome = :outcome, miss_reason = :miss_reason, "

@@ -25,7 +25,6 @@ from tl_mod_awp.names import (
     RECORD_TYPES,
     SCOPE_ITEM,
     WBS_NODE,
-    WEEKLY_PLAN,
 )
 from tl_mod_awp.projectors import CwaProjector, PathProjector, WbsProjector
 from tl_mod_awp.projectors.cwp import cwp_projectors
