@@ -18,6 +18,8 @@ export const ICONS = {
   clearance: svg('<rect x="2.5" y="5" width="4.5" height="10" rx="1"/><rect x="13" y="5" width="4.5" height="10" rx="1"/><path d="M8.5 10h3M9.6 8.6 8.5 10l1.1 1.4M10.4 8.6 11.5 10l-1.1 1.4"/>'),
   /** wall with a round hole and a pipe through it */
   penetrations: svg('<rect x="6" y="2.5" width="6" height="15" rx="0.8"/><circle cx="9" cy="10" r="2.2"/><path d="M2.5 10h4.3M11.2 10h6.3"/>'),
+  /** tag with a dot: a label for each element */
+  classify: svg('<path d="M3 3.5h6.6l7 7-6.1 6.1-7-7z"/><circle cx="6.6" cy="7.1" r="1.1"/>'),
   /** fallback */
   tool: svg('<circle cx="10" cy="10" r="6"/><path d="M10 7v3.5l2 1.5"/>'),
 } as const;

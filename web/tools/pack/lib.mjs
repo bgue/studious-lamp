@@ -17,7 +17,7 @@ export class PackError extends Error {
 /** Tool ids reserved by src/tools/registry.ts. Other ids are accepted with a warning (a plugin may add its own). */
 export const KNOWN_TOOLS = [
   'open', 'presets', 'xray', 'viewModes', 'imaging', 'section', 'measure', 'clearance', 'penetrations', 'bcf',
-  'pointcloud', 'xr', 'cleanup', 'largeModel',
+  'pointcloud', 'xr', 'cleanup', 'largeModel', 'classify',
 ];
 
 export const INJECT_BEGIN = '/* XRAY-PACK:INJECT-BEGIN */';

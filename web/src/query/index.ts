@@ -15,7 +15,7 @@ export { parseQuery, columnsOf } from './parser';
 export type { Expr, Operand, Value, CmpOp } from './parser';
 export { compile, compareValues, likeToRegExp } from './compile';
 export type { Compiled, QueryTable, Accessor } from './compile';
-export { ModelTable, modelTable, CORE_COLUMNS, coreColumn } from './table';
+export { ModelTable, modelTable, resetModelTable, CORE_COLUMNS, coreColumn } from './table';
 export type { ColumnInfo, ColumnKind } from './table';
 
 /** Row indices of a table that match the query. Throws QueryError on a syntax error. */

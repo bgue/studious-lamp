@@ -1,0 +1,568 @@
+{
+  "schema": "xray-classification-schema/1",
+  "title": "X-ray default classification schema (DRAFT placeholder)",
+  "version": "0.1.0-draft",
+  "placeholder": true,
+  "notice": "PLACEHOLDER. This is a draft written by the viewer authors, not a specified standard. Replace it with the schema that your project specifies (load a file in the Classify drawer, or bundle one with the packager). Discipline codes follow the Throughline Discipline code list where it has an entry (origin \"throughline\"); the other codes are common AEC disciplines (origin \"added\").",
+  "psetName": "XR_Classification",
+  "minConfidence": 0.6,
+  "properties": {
+    "discipline": "Discipline",
+    "subDiscipline": "SubDiscipline",
+    "masterformatDivision": "MasterFormatDivision",
+    "masterformatTitle": "MasterFormatTitle",
+    "masterformatSection": "MasterFormatSection",
+    "confidence": "Confidence",
+    "source": "Source",
+    "needsReview": "NeedsReview"
+  },
+  "fallbackDiscipline": "GEN",
+  "fallbackSubDiscipline": "UNC",
+  "disciplines": [
+    {
+      "code": "ARC",
+      "label": "Architectural",
+      "description": "Building envelope and interior fit-out that is not primarily structural: walls, partitions, doors, windows, finishes, roofs, stairs, furniture.",
+      "origin": "added",
+      "subDisciplines": [
+        {
+          "code": "WAL",
+          "label": "Walls and partitions",
+          "description": "Non-structural walls, partitions and cladding walls."
+        },
+        {
+          "code": "DOR",
+          "label": "Doors and frames",
+          "description": "Doors, door frames and hardware."
+        },
+        {
+          "code": "WIN",
+          "label": "Windows and glazing",
+          "description": "Windows, curtain walls, glazing, mullions and shading."
+        },
+        {
+          "code": "FIN",
+          "label": "Floors, ceilings and finishes",
+          "description": "Floor, ceiling and wall finishes and coverings."
+        },
+        {
+          "code": "ROF",
+          "label": "Roofing and envelope",
+          "description": "Roofs, roof coverings, insulation and weather membranes."
+        },
+        {
+          "code": "STA",
+          "label": "Stairs and railings",
+          "description": "Stairs, ramps and railings."
+        },
+        {
+          "code": "FUR",
+          "label": "Furnishings and equipment",
+          "description": "Furniture, casework, fittings and conveying equipment."
+        }
+      ]
+    },
+    {
+      "code": "STR",
+      "label": "Structural",
+      "description": "Load-bearing frame and foundations: footings, piles, columns, beams, slabs, structural walls, bracing, reinforcement.",
+      "origin": "throughline",
+      "subDisciplines": [
+        {
+          "code": "FND",
+          "label": "Foundations and piles",
+          "description": "Footings, pile caps, piles and foundation walls."
+        },
+        {
+          "code": "COL",
+          "label": "Columns",
+          "description": "Columns and pillars."
+        },
+        {
+          "code": "BEM",
+          "label": "Beams and framing",
+          "description": "Beams, girders and framing members."
+        },
+        {
+          "code": "SLB",
+          "label": "Slabs and decks",
+          "description": "Floor and roof slabs and structural decks."
+        },
+        {
+          "code": "WLS",
+          "label": "Structural walls",
+          "description": "Load-bearing walls, shear walls and cores."
+        },
+        {
+          "code": "BRC",
+          "label": "Bracing and connections",
+          "description": "Bracing, plates, connections and other structural members."
+        },
+        {
+          "code": "REB",
+          "label": "Reinforcement",
+          "description": "Reinforcing bars, meshes and tendons."
+        }
+      ]
+    },
+    {
+      "code": "MEC",
+      "label": "Mechanical and HVAC",
+      "description": "Heating, ventilation and air conditioning: ducts, air terminals, fans, air handling, chillers, boilers, hydronic piping.",
+      "origin": "throughline",
+      "subDisciplines": [
+        {
+          "code": "DUC",
+          "label": "Ductwork",
+          "description": "Duct segments and duct fittings."
+        },
+        {
+          "code": "TRM",
+          "label": "Air terminals and diffusers",
+          "description": "Air terminals, diffusers, grilles and terminal boxes."
+        },
+        {
+          "code": "EQP",
+          "label": "HVAC equipment",
+          "description": "Fans, air handling units, chillers, boilers, coils, heat recovery."
+        },
+        {
+          "code": "HYD",
+          "label": "Hydronic piping",
+          "description": "Heating and cooling water piping and fittings."
+        },
+        {
+          "code": "ACC",
+          "label": "Dampers and duct accessories",
+          "description": "Dampers, silencers and other duct accessories."
+        }
+      ]
+    },
+    {
+      "code": "PLB",
+      "label": "Plumbing",
+      "description": "Building plumbing: domestic water supply, sanitary drainage and vent, storm drainage, fixtures and plumbing equipment.",
+      "origin": "added",
+      "subDisciplines": [
+        {
+          "code": "SUP",
+          "label": "Domestic water supply",
+          "description": "Cold and hot domestic water piping and fittings."
+        },
+        {
+          "code": "DRN",
+          "label": "Sanitary drainage and vent",
+          "description": "Waste, soil and vent piping, floor drains, interceptors."
+        },
+        {
+          "code": "FIX",
+          "label": "Plumbing fixtures",
+          "description": "Sinks, basins, toilets, urinals, showers and taps."
+        },
+        {
+          "code": "EQP",
+          "label": "Plumbing equipment",
+          "description": "Water heaters, booster pumps and plumbing tanks."
+        },
+        {
+          "code": "STM",
+          "label": "Storm drainage",
+          "description": "Roof drains and storm water piping inside the building."
+        }
+      ]
+    },
+    {
+      "code": "FPR",
+      "label": "Fire protection",
+      "description": "Fire suppression: sprinklers, standpipes, hose connections, fire pumps and tanks, extinguishers.",
+      "origin": "added",
+      "subDisciplines": [
+        {
+          "code": "SPR",
+          "label": "Sprinkler systems",
+          "description": "Sprinkler heads and sprinkler piping."
+        },
+        {
+          "code": "STP",
+          "label": "Standpipes and hose",
+          "description": "Standpipes, hose reels and fire department connections."
+        },
+        {
+          "code": "EQP",
+          "label": "Fire pumps and tanks",
+          "description": "Fire pumps, jockey pumps and fire water tanks."
+        },
+        {
+          "code": "EXT",
+          "label": "Extinguishers and special agents",
+          "description": "Extinguishers, cabinets and special suppression agents."
+        }
+      ]
+    },
+    {
+      "code": "ELE",
+      "label": "Electrical",
+      "description": "Electrical power and lighting: switchboards, transformers, cable trays, conduit, cables, luminaires, sockets, generators.",
+      "origin": "throughline",
+      "subDisciplines": [
+        {
+          "code": "PWR",
+          "label": "Power distribution",
+          "description": "Switchboards, panelboards, transformers, breakers and motor connections."
+        },
+        {
+          "code": "CND",
+          "label": "Conduit and cable trays",
+          "description": "Cable trays, ladders, conduit and their fittings."
+        },
+        {
+          "code": "WIR",
+          "label": "Cable and wiring",
+          "description": "Cables, wires and junction boxes."
+        },
+        {
+          "code": "LTG",
+          "label": "Lighting",
+          "description": "Luminaires and lamps."
+        },
+        {
+          "code": "DEV",
+          "label": "Wiring devices",
+          "description": "Switches, sockets, outlets and similar wiring devices."
+        },
+        {
+          "code": "GEN",
+          "label": "Generation and storage",
+          "description": "Generators, batteries, UPS and solar devices."
+        }
+      ]
+    },
+    {
+      "code": "TEL",
+      "label": "Telecom and low voltage",
+      "description": "Telecom and low voltage: data and voice networks, audio and video, security and access control, fire alarm and detection.",
+      "origin": "added",
+      "subDisciplines": [
+        {
+          "code": "DAT",
+          "label": "Data and communications",
+          "description": "Data, voice and network equipment, outlets and cabling."
+        },
+        {
+          "code": "AVS",
+          "label": "Audio and visual",
+          "description": "Audio and visual equipment."
+        },
+        {
+          "code": "SEC",
+          "label": "Security and access",
+          "description": "Security cameras, card readers and access control."
+        },
+        {
+          "code": "ALM",
+          "label": "Fire alarm and detection",
+          "description": "Fire alarm panels, detectors, sounders and call points."
+        }
+      ]
+    },
+    {
+      "code": "CIV",
+      "label": "Civil and site",
+      "description": "Civil and site works outside the building: earthwork, roads, paving, site drainage and utilities, landscaping.",
+      "origin": "throughline",
+      "subDisciplines": [
+        {
+          "code": "ERT",
+          "label": "Earthwork",
+          "description": "Excavation, fill, grading and geotechnical elements."
+        },
+        {
+          "code": "PAV",
+          "label": "Paving and roads",
+          "description": "Roads, pavements, kerbs and rail track."
+        },
+        {
+          "code": "DRN",
+          "label": "Site drainage",
+          "description": "Site storm and sewer drainage, culverts and chambers."
+        },
+        {
+          "code": "UTL",
+          "label": "Site utilities",
+          "description": "Site water, gas and utility mains."
+        },
+        {
+          "code": "LND",
+          "label": "Landscape and site improvements",
+          "description": "Planting, fences, site furniture and other site improvements."
+        }
+      ]
+    },
+    {
+      "code": "PIP",
+      "label": "Piping and process",
+      "description": "Piping and process: process and utility piping, valves, supports, vessels, process pumps and compressors, heat exchangers.",
+      "origin": "throughline",
+      "subDisciplines": [
+        {
+          "code": "PRC",
+          "label": "Process piping",
+          "description": "Process piping segments and fittings."
+        },
+        {
+          "code": "UTL",
+          "label": "Utility piping",
+          "description": "Utility piping such as air, steam, water and nitrogen."
+        },
+        {
+          "code": "VLV",
+          "label": "Valves and in-line items",
+          "description": "Valves and in-line items."
+        },
+        {
+          "code": "SUP",
+          "label": "Pipe supports",
+          "description": "Pipe supports, hangers and guides."
+        },
+        {
+          "code": "VES",
+          "label": "Vessels and tanks",
+          "description": "Vessels, drums and tanks."
+        },
+        {
+          "code": "EQP",
+          "label": "Process equipment",
+          "description": "Other process equipment."
+        },
+        {
+          "code": "PMP",
+          "label": "Pumps and compressors",
+          "description": "Process pumps and compressors."
+        },
+        {
+          "code": "HTX",
+          "label": "Heat exchangers",
+          "description": "Heat exchangers, coolers and heaters."
+        }
+      ]
+    },
+    {
+      "code": "INS",
+      "label": "Instrumentation",
+      "description": "Instrumentation and control: sensors, transmitters, controllers, actuators, control networks.",
+      "origin": "throughline",
+      "subDisciplines": [
+        {
+          "code": "SNS",
+          "label": "Sensors and transmitters",
+          "description": "Sensors, transmitters, meters and gauges."
+        },
+        {
+          "code": "CTL",
+          "label": "Controllers and actuators",
+          "description": "Controllers, actuators and control valves."
+        },
+        {
+          "code": "NET",
+          "label": "Control networks",
+          "description": "Control networks, fieldbus and junction boxes for instruments."
+        }
+      ]
+    },
+    {
+      "code": "GEN",
+      "label": "General and unclassified",
+      "description": "Fallback for an element that no other discipline fits. Always needs review.",
+      "origin": "added",
+      "subDisciplines": [
+        {
+          "code": "UNC",
+          "label": "Unclassified",
+          "description": "Unclassified."
+        }
+      ]
+    }
+  ],
+  "masterformat": {
+    "edition": "MasterFormat 2018",
+    "note": "Divisions 00 to 49 of the 2018 edition. Reserved divisions are not listed. A section number is optional and has the form \"23 31 13\".",
+    "appliesTo": "building",
+    "divisions": [
+      {
+        "division": "00",
+        "title": "Procurement and Contracting Requirements",
+        "description": "Bidding, contract forms and conditions. Not a physical element."
+      },
+      {
+        "division": "01",
+        "title": "General Requirements",
+        "description": "General requirements of the project. Not a physical element."
+      },
+      {
+        "division": "02",
+        "title": "Existing Conditions",
+        "description": "Demolition, site remediation and existing structures."
+      },
+      {
+        "division": "03",
+        "title": "Concrete",
+        "description": "Cast-in-place and precast concrete, reinforcing, formwork."
+      },
+      {
+        "division": "04",
+        "title": "Masonry",
+        "description": "Brick, block, stone and other masonry."
+      },
+      {
+        "division": "05",
+        "title": "Metals",
+        "description": "Structural steel, metal decking, stairs, railings, metal fabrications."
+      },
+      {
+        "division": "06",
+        "title": "Wood, Plastics, and Composites",
+        "description": "Wood framing, plastics and composites, millwork."
+      },
+      {
+        "division": "07",
+        "title": "Thermal and Moisture Protection",
+        "description": "Insulation, waterproofing, roofing, cladding, fire and smoke protection, joint sealants."
+      },
+      {
+        "division": "08",
+        "title": "Openings",
+        "description": "Doors, windows, curtain walls, glazing, louvers and hardware."
+      },
+      {
+        "division": "09",
+        "title": "Finishes",
+        "description": "Plaster, gypsum board, tile, ceilings, flooring, painting and wall coverings."
+      },
+      {
+        "division": "10",
+        "title": "Specialties",
+        "description": "Signage, partitions, lockers, toilet accessories, fire extinguishers."
+      },
+      {
+        "division": "11",
+        "title": "Equipment",
+        "description": "Equipment such as kitchen, laboratory, loading dock and medical equipment."
+      },
+      {
+        "division": "12",
+        "title": "Furnishings",
+        "description": "Furniture, casework, window treatments and fixed seating."
+      },
+      {
+        "division": "13",
+        "title": "Special Construction",
+        "description": "Special structures and rooms, such as clean rooms and pre-engineered buildings."
+      },
+      {
+        "division": "14",
+        "title": "Conveying Equipment",
+        "description": "Elevators, escalators, lifts and other conveying equipment."
+      },
+      {
+        "division": "21",
+        "title": "Fire Suppression",
+        "description": "Fire sprinklers, standpipes, fire pumps and extinguishing systems."
+      },
+      {
+        "division": "22",
+        "title": "Plumbing",
+        "description": "Plumbing piping, fixtures, pumps, water heaters and drainage."
+      },
+      {
+        "division": "23",
+        "title": "Heating, Ventilating, and Air Conditioning (HVAC)",
+        "description": "Ducts, air handling, fans, diffusers, chillers, boilers, hydronic piping, controls."
+      },
+      {
+        "division": "25",
+        "title": "Integrated Automation",
+        "description": "Building automation and integrated control systems."
+      },
+      {
+        "division": "26",
+        "title": "Electrical",
+        "description": "Power distribution, wiring, raceways, lighting, switchgear, generators."
+      },
+      {
+        "division": "27",
+        "title": "Communications",
+        "description": "Data, voice, audio and video communications cabling and equipment."
+      },
+      {
+        "division": "28",
+        "title": "Electronic Safety and Security",
+        "description": "Access control, intrusion detection, video surveillance, fire alarm."
+      },
+      {
+        "division": "31",
+        "title": "Earthwork",
+        "description": "Excavation, fill, grading, piles, shoring and soil stabilisation."
+      },
+      {
+        "division": "32",
+        "title": "Exterior Improvements",
+        "description": "Paving, curbs, fences, planting, irrigation and site improvements."
+      },
+      {
+        "division": "33",
+        "title": "Utilities",
+        "description": "Site water, sewer, storm drainage, gas, electrical and communications utilities."
+      },
+      {
+        "division": "34",
+        "title": "Transportation",
+        "description": "Roads, rail, aviation and bridge-related transportation systems."
+      },
+      {
+        "division": "35",
+        "title": "Waterway and Marine Construction",
+        "description": "Waterway, marine and dam construction."
+      },
+      {
+        "division": "40",
+        "title": "Process Interconnections",
+        "description": "Process piping, valves, instrumentation and control of process systems."
+      },
+      {
+        "division": "41",
+        "title": "Material Processing and Handling Equipment",
+        "description": "Conveyors, cranes, hoists, material handling and processing equipment."
+      },
+      {
+        "division": "42",
+        "title": "Process Heating, Cooling, and Drying Equipment",
+        "description": "Furnaces, ovens, boilers, dryers and process heat exchangers."
+      },
+      {
+        "division": "43",
+        "title": "Process Gas and Liquid Handling, Purification, and Storage Equipment",
+        "description": "Process pumps, compressors, tanks, filters and gas and liquid handling."
+      },
+      {
+        "division": "44",
+        "title": "Pollution and Waste Control Equipment",
+        "description": "Air, water and solid waste pollution control equipment."
+      },
+      {
+        "division": "45",
+        "title": "Industry-Specific Manufacturing Equipment",
+        "description": "Equipment for a specific manufacturing industry."
+      },
+      {
+        "division": "46",
+        "title": "Water and Wastewater Equipment",
+        "description": "Water and wastewater treatment equipment."
+      },
+      {
+        "division": "48",
+        "title": "Electrical Power Generation",
+        "description": "Power generation equipment such as solar, wind, hydroelectric and thermal."
+      }
+    ]
+  }
+}

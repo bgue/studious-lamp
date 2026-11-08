@@ -132,6 +132,16 @@ function setTab(u: Ui, tab: Tab): void {
   if (!BASE_TABS.includes(tab)) extraTabs.get(tab)?.onShow?.();
 }
 
+/** Open the criteria-set editor of the sidebar with a query and a name (used by the classifier for the needs-review set). */
+export function openCriteriaSetEditor(query: string, name: string): boolean {
+  const u = ui;
+  if (!u) return false;
+  if (u.state.collapsed) setCollapsed(u, false);
+  if (u.state.tab !== 'sets') setTab(u, 'sets');
+  u.sets.newCriteriaSet(query, name);
+  return true;
+}
+
 export interface SidebarTabSpec {
   id: string;
   label: string;

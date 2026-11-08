@@ -75,6 +75,8 @@ export class ModelTable implements QueryTable {
   private readonly propCount = new Map<string, number>();
   private readonly propKind = new Map<string, ColumnKind>();
   private readonly propLower = new Map<string, string>();
+  /** Lower-case property name after the set name -> its key, or null when two sets have it (ambiguous). */
+  private readonly propShort = new Map<string, string | null>();
   private readonly distinctCache = new Map<string, Array<{ value: Value; count: number }>>();
   private columnsCache: ColumnInfo[] | null = null;
 
@@ -100,6 +102,11 @@ export class ModelTable implements QueryTable {
     for (const k of this.propCount.keys()) {
       const l = k.toLowerCase();
       if (!this.propLower.has(l)) this.propLower.set(l, k);
+      const dot = k.indexOf('.');
+      if (dot > 0) {
+        const short = l.slice(dot + 1);
+        this.propShort.set(short, this.propShort.has(short) ? null : k);
+      }
     }
   }
 
@@ -128,7 +135,9 @@ export class ModelTable implements QueryTable {
     const core = coreColumn(name);
     if (core) return core;
     if (this.propCount.has(name)) return name;
-    return this.propLower.get(name.toLowerCase()) ?? null;
+    const l = name.toLowerCase();
+    // A bare property name finds the property when only one set has it: `discipline` for `XR_Classification.Discipline`.
+    return this.propLower.get(l) ?? this.propShort.get(l) ?? null;
   }
 
   accessor(name: string): Accessor | null {
@@ -249,6 +258,11 @@ export class ModelTable implements QueryTable {
 }
 
 const tables = new WeakMap<SceneModel, ModelTable>();
+
+/** Forget the cached table of a model. Call after properties were added or changed (the classifier writes some). */
+export function resetModelTable(model: SceneModel): void {
+  tables.delete(model);
+}
 
 /** The (cached) query table of a model. */
 export function modelTable(model: SceneModel): ModelTable {

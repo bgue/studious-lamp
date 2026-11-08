@@ -26,6 +26,7 @@ plugins (see "Development"), so every feature below is a separate module with it
   - BCF 2.0, 2.1 and 3.0 issues with viewpoints ([bcf.md](web/docs-features/bcf.md)).
   - Point clouds and as-built deviation ([pointcloud.md](web/docs-features/pointcloud.md)).
   - Model cleanup: find and hide floating, tiny, duplicate or distant debris ([cleanup.md](web/docs-features/cleanup.md)).
+  - Classify: label elements by discipline, sub-discipline and CSI MasterFormat division with rules, a signature cache and a decision model (Jev over HTTP, or a tiny WebLLM model in the browser), against a pluggable code-list schema ([classify.md](web/docs-features/classify.md)).
   - WebXR, experimental: walk through the model in VR, place it on a table in AR, or lay it at real size over the real building on
     site (field AR) to see the services behind walls ([webxr.md](web/docs-features/webxr.md)).
 - **Input and output**
@@ -172,6 +173,12 @@ parameter documents with `glowNear: true` load as `near`.
 - **Cleanup** ([cleanup.md](web/docs-features/cleanup.md)). Rules for floating, tiny, distant, duplicate and degenerate elements
   and class groups; preview, hide and restore without changing the model. Every threshold names its unit; lengths show in mm, cm
   or m (`length unit`) and are stored in metres. The `debris-demo` model has examples of each (below).
+- **Classify** ([classify.md](web/docs-features/classify.md)). Labels each element with a discipline, a sub-discipline and (for building
+  elements) a MasterFormat division from a schema file. Rules decide clear cases, a signature cache gives one decision to every
+  element with the same class, type and key properties, and a decision model answers the rest with typed questions and
+  probabilities: Jev (`POST` to a configurable endpoint, pinned model `jev-1.13.0`) or a tiny WebLLM model loaded from a CDN at run
+  time. The shipped schema is a placeholder. Results are written as `XR_Classification.*` properties, so `count where discipline =
+  'MEC'` works. The API key stays out of params, share links, views and packed pages.
 - **WebXR** ([webxr.md](web/docs-features/webxr.md)), experimental. Feature detected; the `WebXR` folder and tool appear only on a
   device that supports VR or AR (or AR Quick Look). VR at real scale from the orbit camera with controller rays, trigger to select,
   squeeze for X-ray, snap turn and walking; AR with a hit-test ring, placement, and the scales `1:1` and `tabletop 1:50`.

@@ -68,11 +68,12 @@ export interface ViewsDocument {
 /**
  * Params sections that a view never stores: document metadata, the camera and overrides (stored by the view itself),
  * per-model data (sets, class styles), user preferences that are not part of a look (keys, panels, cube), and tools with
- * their own documents (BCF topics, point clouds, measurements, XR). `views` itself is left out to avoid recursion.
+ * their own documents (BCF topics, point clouds, measurements, XR), and the classifier settings (an endpoint belongs to the
+ * person and the deployment, not to a look). `views` itself is left out to avoid recursion.
  */
 export const VIEW_EXCLUDED_SECTIONS: readonly string[] = [
   'schema', 'exportedAt', 'model', 'viewer', 'camera', 'overrides', 'selectionSets', 'classStyles', 'materialAliases',
-  'keymap', 'views', 'bcf', 'xr', 'pointcloud', 'measure', 'hoverInfo', 'gizmo', 'penetrations', 'cleanup', 'topBar',
+  'keymap', 'views', 'bcf', 'xr', 'pointcloud', 'measure', 'hoverInfo', 'gizmo', 'penetrations', 'cleanup', 'topBar', 'classify',
 ];
 
 // ---------------------------------------------------------------- small helpers

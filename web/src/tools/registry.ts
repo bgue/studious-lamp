@@ -8,7 +8,7 @@ import type { ViewerApp } from '../app';
 export interface XrayTool {
   /**
    * Stable id. Reserved ids: 'open', 'presets', 'xray', 'viewModes', 'imaging', 'section',
-   * 'measure', 'clearance', 'penetrations', 'bcf', 'pointcloud', 'xr', 'cleanup', 'largeModel'.
+   * 'measure', 'clearance', 'penetrations', 'bcf', 'pointcloud', 'xr', 'cleanup', 'largeModel', 'classify'.
    */
   id: string;
   /** Short label shown under or beside the icon. */
