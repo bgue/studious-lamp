@@ -1,0 +1,14 @@
+# command = reason; a module command that is not a ProposableCommand row must be listed here.
+# ADR-0027 decision 4: every command ticket adds a row or an entry. Acts that a person decides, and
+# the owner's own field edits, are never proposed by an agent.
+[commands]
+# P2-I4A S2 requisitions (the row is `propose_requisition`, RaiseRequisition)
+ApproveRequisition = "act: approving a request is the approver's decision"
+RejectRequisition = "act: rejecting a request is the approver's decision"
+ScheduleWorkOrder = "act: scheduling commits the crew and the dates"
+CloseWorkOrder = "act: closing is the controller's sign-off"
+EditRequisition = "person acts directly"
+AssignWorkOrder = "person acts directly"
+StartWorkOrder = "person acts directly"
+CompleteWorkOrder = "person acts directly"
+CancelRequisition = "person acts directly"

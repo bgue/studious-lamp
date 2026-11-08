@@ -29,13 +29,13 @@ from tl_mod_requisitions.names import (
     REJECT,
     REQUISITION_TYPES,
     SCHEDULE,
-    START,
     ST_APPROVED,
     ST_DONE,
     ST_IN_PROGRESS,
     ST_OPEN,
     ST_REQUESTED,
     ST_SCHEDULED,
+    START,
     WORK_ORDER,
 )
 

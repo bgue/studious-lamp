@@ -1,7 +1,8 @@
 """The commands the requisitions module offers (P2-I4A S2; design ``requisitions-and-scaffold.md``).
 
 The API builds one ``POST /commands/<Name>`` route per row of ``REQUISITIONS_COMMANDS`` (in
-``module.py``). ``access`` is the fine access word of ``schema/settings/access-words.yaml``; the role
+``module.py``). ``access`` is the fine access word of ``schema/settings/access-words.yaml``; the
+role
 table reads each as its table word. An agent never changes a record: its call is a proposal a person
 accepts (``module.PROPOSABLE``), and a command is closed to agents until ``tl_core.auth.provider``
 lists it.

@@ -143,7 +143,12 @@ def _run(
         cmd,
         work_order.id,
         WORK_ORDER,
-        [NewEvent(event_type=event_type, payload={"requisition_id": work_order.requisition_id, **payload})],
+        [
+            NewEvent(
+                event_type=event_type,
+                payload={"requisition_id": work_order.requisition_id, **payload},
+            )
+        ],
     )
     events = [*moved.events, *written.events]
     if with_requisition:
@@ -170,7 +175,13 @@ def handle_schedule_work_order(uow: UnitOfWork, cmd: ScheduleWorkOrder) -> Comma
     if cmd.hours_planned is not None:
         payload["hours_planned"] = cmd.hours_planned
     return _step(
-        uow, cmd, "ScheduleWorkOrder", "schedule", WORK_ORDER_SCHEDULED, payload, with_requisition=True
+        uow,
+        cmd,
+        "ScheduleWorkOrder",
+        "schedule",
+        WORK_ORDER_SCHEDULED,
+        payload,
+        with_requisition=True,
     )
 
 

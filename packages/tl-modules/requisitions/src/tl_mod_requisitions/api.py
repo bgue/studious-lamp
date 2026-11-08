@@ -148,7 +148,8 @@ def work_order_for(
     )
     row = conn.execute(
         text(
-            "SELECT w.id, r.key, w.requisition_id, w.work_kind, COALESCE(r.status, :open) AS state, "
+            "SELECT w.id, r.key, w.requisition_id, w.work_kind, "
+            "COALESCE(r.status, :open) AS state, "
             "w.assigned_to, w.planned_start, w.planned_finish, w.actual_start, w.actual_finish, "
             f"w.hours_planned, w.hours_actual, r.version FROM {WORK_ORDER_TABLE} w "
             "JOIN cur_core_record r ON r.id = w.id "

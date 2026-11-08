@@ -134,5 +134,3 @@ def spec() -> ModuleSpec:
         # a foreman raises a requisition offline; it is numbered when it syncs (offline classes)
         offline_drafts={t: frozenset({"RaiseRequisition"}) for t in REQUISITION_TYPES},
     )
-
-

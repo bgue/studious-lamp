@@ -1,4 +1,4 @@
-"""A ledger and the people who act on it, for the requisitions tests and ``dev/accept/P2-I4A/S2.py``.
+"""A ledger and the people who act on it, for the requisitions tests and the S2 acceptance script.
 
 ``ada`` (admin), ``uma`` (user: raises requests), ``rob`` (user: another requester, may not approve)
 and ``sue`` (the requisitions superuser: approves). Commands run as a person would run them: the
@@ -28,7 +28,7 @@ from tl_mod_correspondence.testing import frozen_today
 from tl_mod_engineering.document import load_standards_file
 from tl_mod_engineering.loader import load_standards
 from tl_mod_requisitions.module import REQUISITIONS_COMMANDS
-from tl_mod_requisitions.names import KINDS, TABLES
+from tl_mod_requisitions.names import KINDS, TABLES, WORK_ORDER
 
 SCOPE = "project:P123"
 PASSWORD = "correct horse battery"
@@ -102,7 +102,7 @@ class World:
             ).stream_id
 
     def hidden_record(self) -> str:
-        """The id of a restricted correspondence item (the lowest-clearance viewer cannot read it)."""
+        """The id of a restricted correspondence item (the lowest viewer cannot read it)."""
         cmd = Command(actor="user:sue", source="test", scope=SCOPE)
         with cf.system_view(), frozen_today("2026-10-19"), open_uow(self.db) as uow:
             made = create_item(
@@ -132,6 +132,35 @@ class World:
             with intent_scope(cmd.intent):
                 return spec.handler(uow, cmd)
 
+    def core_call(self, who: str, command: Any) -> Any:
+        """Run a core constraint command (``RaiseConstraint``, ``ClearConstraint``) as ``who``."""
+        from tl_core.constraints.commands import command_table
+
+        spec = next(c for c in command_table() if c.model is type(command))
+        with open_uow(self.db) as uow:
+            require_command_access(uow.conn(), command)
+            return spec.handler(uow, command)
+
+    def block(self, record: str, who: str = "sue") -> str:
+        """A blocking constraint of phase ``start`` on ``record`` (its id)."""
+        from tl_core.constraints.commands import RaiseConstraint
+
+        made = self.core_call(
+            who,
+            RaiseConstraint(
+                actor=f"user:{who}",
+                source="test",
+                scope=SCOPE,
+                subject=record,
+                phase="start",
+                severity="blocking",
+                category="materials",
+                description="No pipe",
+                owner=f"user:{who}",
+            ),
+        )
+        return str(made.stream_id)
+
     def raise_labor(self, who: str = "uma", **more: Any) -> str:
         body = {**LABOR, **more.pop("body", {})}
         return str(self.call(who, "RaiseRequisition", requisition=body, **more).stream_id)
@@ -145,7 +174,10 @@ class World:
             return [dict(r) for r in uow.conn().execute(text(sql), params).mappings()]
 
     def state(self, record: str) -> str:
-        return str(self.scalar("SELECT status FROM cur_core_record WHERE id = :i", i=record))
+        row = self.rows("SELECT type, status FROM cur_core_record WHERE id = :i", i=record)[0]
+        if row["status"] is not None:
+            return str(row["status"])
+        return "Open" if row["type"] == WORK_ORDER else "Requested"
 
     def version(self, record: str) -> int:
         return int(self.scalar("SELECT version FROM cur_core_record WHERE id = :i", i=record))
@@ -167,7 +199,9 @@ class World:
     def approved(self, who: str = "uma", approver: str = "sue") -> tuple[str, str]:
         """A labour requisition raised and approved: ``(requisition id, work order id)``."""
         rid = self.raise_labor(who)
-        self.call(approver, "ApproveRequisition", requisition=rid, expected_version=self.version(rid))
+        self.call(
+            approver, "ApproveRequisition", requisition=rid, expected_version=self.version(rid)
+        )
         return rid, self.work_order_of(rid)
 
     def scheduled(self) -> tuple[str, str]:

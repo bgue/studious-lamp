@@ -290,7 +290,9 @@ def handle_raise_requisition(uow: UnitOfWork, cmd: RaiseRequisition) -> CommandR
         check_location(uow, scope, body.from_location_id)
         payload["lines"] = lines
     payload.update(
-        body.model_dump(exclude={"kind", "subject", "priority", "need_by", "location_text", "lines"})
+        body.model_dump(
+            exclude={"kind", "subject", "priority", "need_by", "location_text", "lines"}
+        )
     )
     for_id = (
         None

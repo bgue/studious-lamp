@@ -144,13 +144,13 @@ def _only(only: str | None) -> str:
 
 
 # A part also answers for the records that name a subject (ADR-0024 constraints; requisitions and
-# their work orders, P2-I4A F1): such a record is hidden when its subject is, class by join, no copy.
-# ``k`` is the constraint row (NULL for any other record). Each ``SUBJECT_LINKS`` row is a table with
-# one row per record of a type and the column naming that record's subject; the subject is followed
-# ``_HOPS`` times (constraint -> work order -> requisition -> work package), each hop one flat LEFT
-# JOIN per table on its primary key (nesting subqueries overflows SQLite's parser stack). A record
-# with no subject, or whose subject is not a record, is its own subject (a null subject falls back
-# to the record's own class). ``rr`` is the record that governs, ``_SUBJ`` its id.
+# their work orders, P2-I4A F1): such a record is hidden when its subject is, class by join, no
+# copy. ``k`` is the constraint row (NULL for any other record). Each ``SUBJECT_LINKS`` row is a
+# table with one row per record of a type and the column naming that record's subject. The subject
+# is followed ``_HOPS`` times (constraint -> work order -> requisition -> work package), each hop
+# one flat LEFT JOIN per table on its primary key (nesting subqueries overflows SQLite's parser
+# stack). A record with no subject, or whose subject is not a record, is its own subject (a null
+# subject falls back to the record's own class). ``rr`` is the record that governs.
 SUBJECT_LINKS: Final = (
     ("requisitions.LaborRequisition", "cur_requisitions_labor_requisition", "id", "for_record_id"),
     (
@@ -176,10 +176,11 @@ def _subject_chain() -> tuple[str, str]:
     installed modules are named."""
     links = [link for link in SUBJECT_LINKS if is_module_record_type(link[0])]
     joins = " LEFT JOIN cur_core_constraint k ON k.id = hr.id AND hr.type = 'core.Constraint'"
-    found: list[str] = []  # the subject columns reached so far, the latest hop first (flat COALESCE)
+    # the subject columns reached so far, the latest hop first (a flat COALESCE)
+    found: list[str] = []
     for hop in range(_HOPS if links else 0):
         current = f"COALESCE({', '.join([*found, 'k.subject_id', 'hr.id'])})"
-        hopped = []
+        hopped: list[str] = []
         for number, (_, table, id_column, subject_column) in enumerate(links):
             alias = f"q{hop}{number}"
             joins += f" LEFT JOIN {table} {alias} ON {alias}.{id_column} = {current}"
