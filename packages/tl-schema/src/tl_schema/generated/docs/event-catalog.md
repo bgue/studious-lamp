@@ -15147,6 +15147,7 @@ A work order was scheduled. Stream type `requisitions.WorkOrder` (the work order
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `at` | string or null | no | UTC time the fact happened; null means the time it was recorded (valid time, ADR-0026). |
+| `hours_planned` | string or null | no | Planned hours, text with one decimal from "0.0" to "10000000.0"; absent when the command gives none. |
 | `planned_finish` | string or null | no | YYYY-MM-DD, not before the start. |
 | `planned_start` | string | yes | YYYY-MM-DD. |
 | `requisition_id` | string | yes | The requisition. |

@@ -65,7 +65,7 @@ class WorkOrderProjector:
                 {
                     "planned_start": payload["planned_start"],
                     "planned_finish": payload.get("planned_finish"),
-                    # the schedule command may set the planned hours (the event schema has no slot)
+                    # the schedule may set the planned hours (WorkOrder.Scheduled carries them)
                     **(
                         {"hours_planned": payload["hours_planned"]}
                         if "hours_planned" in payload
