@@ -33,11 +33,18 @@ set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/../.."
 workdir="$(mktemp -d)"
 pg_url=""
-drop_pg() {
-  [ -z "$pg_url" ] || quiet uv run python dev/demos/p1_i0_demo.py pg-drop "$pg_url" || true
+drop_failed=0
+drop_pg() { # drops the Postgres database of this run; a failed drop is reported and fails the demo
+  local url="$pg_url"
   pg_url=""
+  [ -z "$url" ] && return 0
+  if ! quiet uv run python dev/demos/p1_i0_demo.py pg-drop "$url" >/dev/null; then
+    echo "WARN: could not drop the Postgres database of this run (see the database list)" >&2
+    drop_failed=1
+    return 1
+  fi
 }
-trap 'drop_pg; rm -rf "$workdir"' EXIT
+trap 'drop_pg || true; rm -rf "$workdir"; [ "$drop_failed" -eq 0 ] || exit 1' EXIT
 
 export TL_ENV="${TL_ENV:-dev}"
 export TL_PG_URL="${TL_PG_URL:-postgresql://postgres:postgres@localhost:5432/tl_test}"
@@ -80,7 +87,7 @@ run_tests() { # run_tests CLAUSE BACKEND FILE...: the committed tests of one ada
   local clause_no="$1" backend="$2" collected n out="$workdir/tests-$1-$2.out"
   shift 2
   collected="$(uv run pytest --collect-only --adapters "$backend" -k "$backend" "$@" 2>/dev/null \
-    | sed -n 's/.* \([0-9][0-9]*\) tests* collected.*/\1/p' | tail -n 1)"
+    | sed -n 's/.* \([0-9][0-9]*\) tests* collected.*/\1/p' | tail -n 1 || true)"
   n="${collected:-0}"
   [ "$n" -ge 1 ] || fail "clause $clause_no: no $backend test collected from: $*"
   echo "clause $clause_no: $n $backend tests collected from: $*"
@@ -114,7 +121,7 @@ run_backend() {
   done
 
   step "[$backend] clause 2 (part 2): a chain without intents, then intents, seals and verifies"
-  drop_pg
+  drop_pg || fail "could not drop the previous Postgres database"
   rm -rf "$arch" "$lake" "$sess"
   case "$backend" in
     sqlite) export TL_DB="$workdir/$backend.db" ;;
@@ -143,6 +150,11 @@ run_backend() {
   [ -n "$last_seq" ] || fail "seal gave no last seq: $out"
   out="$(tl archive verify --db "$TL_DB" --expect-last-seq "$last_seq" 2>&1)" || { echo "$out"; fail "tl archive verify"; }
   echo "$out" | grep -E '^verified' || { echo "$out"; fail "tl archive verify did not verify"; }
+  if ! uv run python dev/accept/P2-INT/demo_archive_lake.py "$TL_DB" >"$workdir/hash.out" 2>&1; then
+    grep -v 'UV_NATIVE_TLS' "$workdir/hash.out" >&2 || true
+    fail "clause 2: the intent event's hash"
+  fi
+  grep -v 'UV_NATIVE_TLS' "$workdir/hash.out"
   clause 2
 
   step "[$backend] clause 3 (part 2): the lake sync lands the bronze intent column"
@@ -171,7 +183,7 @@ run_backend() {
     || fail "clause 8 (dev/accept/P2-INT/demo_cli_mcp.py)"
   clause 8
 
-  drop_pg
+  drop_pg || fail "could not drop the Postgres database of this run"
   echo "[$backend] clauses 1-8 passed"
 }
 
