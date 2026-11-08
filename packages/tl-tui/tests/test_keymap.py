@@ -12,6 +12,7 @@ from textual.pilot import Pilot
 from tl_tui.app import TlApp
 from tl_tui.keymap import CONTEXTS, KEYMAP, KeyEntry, help_text
 from tl_tui.widgets.account_forms import AccountForm
+from tl_tui.widgets.activity_tab import ActivityTab
 from tl_tui.widgets.admin_screen import AdminScreen
 from tl_tui.widgets.composer import ComposerScreen
 from tl_tui.widgets.edit_form import EditForm
@@ -50,6 +51,7 @@ OWNERS: dict[str, Any] = {
     "SettingForm": SettingForm,
     "AdminScreen": AdminScreen,
     "AccountForm": AccountForm,
+    "ActivityTab": ActivityTab,
 }
 
 

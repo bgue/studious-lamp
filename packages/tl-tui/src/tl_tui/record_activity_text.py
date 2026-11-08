@@ -11,7 +11,7 @@ import re
 from tl_core.insights.types import ActivityRow
 
 from tl_tui.display import Labels, actor_label
-from tl_tui.record_text import event_label, event_summary, history_cells
+from tl_tui.record_text import event_label, event_summary, history_cells, history_columns
 from tl_tui.text import EMPTY, timestamp
 
 KIND_WORDS: dict[str, str] = {
@@ -32,7 +32,7 @@ PROPOSAL_WORDS: dict[str, str] = {
 DECIDED_WORDS: dict[str, str] = {"Proposal.Accepted": "accepted", "Proposal.Rejected": "rejected"}
 READINESS_EVENT = "IWP.ReadinessEvaluated"
 ACTIVITY_DROP = ("Kind", "From", "What", "Why")  # the order the Activity table drops columns
-TECHNICAL_COLUMNS = ("#", "When", "Event", "Actor", "Summary", "From")
+TECHNICAL_COLUMNS = (*history_columns(True), "From")
 PLAIN_COLUMNS = ("When", "Who", "Kind", "What", "From")
 
 
@@ -82,6 +82,8 @@ def what_text(row: ActivityRow, labels: Labels, *, technical: bool) -> str:
     label = event.event_type if technical else event_label(event.event_type)
     if row.related:
         return label
+    if event.event_type == "Record.Updated" and not event.payload.get("changes"):
+        return label  # an update with no changes says its label alone, not "changed: "
     summary = event_summary(event, labels, technical=technical)
     if not summary:
         return label

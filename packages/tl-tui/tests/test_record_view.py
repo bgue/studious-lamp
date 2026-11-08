@@ -94,7 +94,7 @@ def test_event_summary_per_event_type() -> None:
     assert event_summary(update.events[0]) == "changed: description, title"
 
 
-def test_view_shows_header_tabs_details_and_history_newest_first() -> None:
+def test_view_shows_header_tabs_details_and_activity_newest_first() -> None:
     app = Host(FakeClient.with_valve_example())
 
     async def scenario(pilot: Pilot[Any]) -> None:
@@ -104,33 +104,37 @@ def test_view_shows_header_tabs_details_and_history_newest_first() -> None:
         text = screen_text(app)
         assert "FV-1001 · Control valve FCV on 6in discharge" in text
         assert "Design · ✓ ok" in text  # plain: no version (D20)
-        for title in ("Details", "Properties", "History"):
+        for title in ("Details", "Properties", "Activity"):
             assert title in text
         assert "Conformance  ✓ ok" in text
         tabs = app.query_one("#rv-tabs", TabbedContent)
         assert tabs.active == "tab-details"
         assert isinstance(app.query_one("#psets-tab"), PsetsTab)
-        table = app.query_one("#rv-history", DataTable)
+        app.query_one(RecordView).show_tab("activity")  # the tab reads when it is shown
+        await pilot.pause()
+        table = app.query_one("#activity-table", DataTable)
         assert table.row_count == 3
         assert [str(c) for c in table.get_row_at(0)] == [
-            "2026-10-09 09:03:00",
-            "Properties set",
+            "2026-10-09 09:03",
             "seed",
-            "Valve data: Fat witness by",
+            "Change",
+            "Properties set: Valve data: Fat witness by",
+            "—",
         ]
-        assert str(table.get_row_at(2)[1]) == "Created"
+        assert str(table.get_row_at(2)[2]) == "Change"
+        assert str(table.get_row_at(2)[3]).startswith("created: Control valve")
 
     run_pilot(app, scenario, size=(120, 40))
 
 
-def test_h_opens_the_history_tab() -> None:
+def test_h_opens_the_activity_tab() -> None:
     app = Host(FakeClient.with_valve_example())
 
     async def scenario(pilot: Pilot[Any]) -> None:
         await pilot.pause()
         await pilot.press("h")
         await pilot.pause()
-        assert app.query_one("#rv-tabs", TabbedContent).active == "tab-history"
+        assert app.query_one("#rv-tabs", TabbedContent).active == "tab-activity"
         assert "created: Control valve FCV on 6in discharge" in screen_text(app)
 
     run_pilot(app, scenario, size=(120, 40))
@@ -190,7 +194,9 @@ def test_record_changed_reloads_the_view_and_literal_brackets_survive() -> None:
         text = screen_text(app)
         assert "FV-1001 · [bold]Renamed[/bold]" in text
         assert "v4" not in text  # plain: the version is technical only
-        assert app.query_one("#rv-history", DataTable).row_count == 4
+        app.query_one(RecordView).show_tab("activity")
+        await pilot.pause()
+        assert app.query_one("#activity-table", DataTable).row_count == 4
         app.display_mode.technical = True
         app.query_one(RecordView).refresh_for_display_mode()
         await pilot.pause()

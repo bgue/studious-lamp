@@ -137,7 +137,7 @@ def test_the_other_tabs_keep_their_keys() -> None:
 
     async def go(pilot: Pilot[Any]) -> None:
         await settle(pilot)
-        for key, tab in (("2", "tab-psets"), ("3", "tab-links"), ("4", "tab-history"),
+        for key, tab in (("2", "tab-psets"), ("3", "tab-links"), ("4", "tab-activity"),
                          ("5", "tab-trace"), ("6", "tab-files"), ("1", "tab-details")):  # fmt: skip
             await pilot.press(key)
             await pilot.pause()

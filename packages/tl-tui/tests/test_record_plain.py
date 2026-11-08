@@ -1,7 +1,8 @@
 """Record view and context panel in plain words; technical mode shows what plain hides (P1-UX-T08).
 
 Pilot tests on ``FakeClient`` (as ``test_record_view.py``), plus pure checks of ``context_text``.
-The History tab is checked with the leak finder (``find_technical``) on the rendered screen.
+The Activity tab's revisions are checked with the leak finder (``find_technical``) on the
+rendered screen.
 """
 
 from __future__ import annotations
@@ -17,6 +18,7 @@ from tl_core.services.commands import UpdateRecord
 from tl_tui.app import TlApp
 from tl_tui.display import DisplayMode, Labels, find_technical
 from tl_tui.labels_load import load_labels
+from tl_tui.widgets.activity_tab import ActivityTab
 from tl_tui.widgets.context_panel import ContextPanel, context_text
 from tl_tui.widgets.record_view import RecordView
 
@@ -90,15 +92,18 @@ def test_plain_history_has_words_names_and_no_event_type_or_actor_id() -> None:
 
     async def scenario(pilot: Pilot[Any]) -> None:
         await pilot.pause()
-        app.query_one("#rv-tabs", TabbedContent).active = "tab-history"
+        app.query_one("#rv-tabs", TabbedContent).active = "tab-activity"
         await pilot.pause()
         await pilot.pause()
-        table = app.query_one("#rv-history", DataTable)
+        app.query_one(ActivityTab).action_revisions()  # v: the revisions, as the History tab was
+        await pilot.pause()
+        table = app.query_one("#activity-table", DataTable)
         assert [str(c.label) for c in table.columns.values()] == ["When", "What", "By", "Summary"]
-        first = [str(c) for c in table.get_row_at(0)]
-        assert first[1:] == ["Changed", "dev", "changed: Description, Title"]
+        # Revisions only shows the Activity order: oldest first (activity_tab.py, T02)
+        assert str(table.get_row_at(0)[1]) == "Created"
+        last = [str(c) for c in table.get_row_at(table.row_count - 1)]
+        assert last[1:] == ["Changed", "dev", "changed: Description, Title"]
         assert table.row_count == 4
-        assert str(table.get_row_at(table.row_count - 1)[1]) == "Created"
         text = screen_text(app)
         assert "Record." not in text and "user:" not in text and "svc:" not in text
         assert find_technical(text, load_labels(client, SCOPE, ("core.Record",))) == []
@@ -116,8 +121,11 @@ def test_technical_history_keeps_the_event_type_and_actor_and_toggles_back() -> 
         view = app.query_one(RecordView)
         app.display_mode.technical = True
         view.refresh_for_display_mode()
+        view.show_tab("activity")
         await pilot.pause()
-        table = app.query_one("#rv-history", DataTable)
+        app.query_one(ActivityTab).action_revisions()
+        await pilot.pause()
+        table = app.query_one("#activity-table", DataTable)
         assert [str(c.label) for c in table.columns.values()] == [
             "#",
             "When",
@@ -125,13 +133,14 @@ def test_technical_history_keeps_the_event_type_and_actor_and_toggles_back() -> 
             "Actor",
             "Summary",
         ]
-        assert [str(c) for c in table.get_row_at(0)][2:4] == ["Record.Updated", "user:dev"]
+        last = table.row_count - 1  # oldest first: the update is the last row
+        assert [str(c) for c in table.get_row_at(last)][2:4] == ["Record.Updated", "user:dev"]
         app.display_mode.technical = False
         view.refresh_for_display_mode()
         await pilot.pause()
-        table = app.query_one("#rv-history", DataTable)
+        table = app.query_one("#activity-table", DataTable)
         assert [str(c.label) for c in table.columns.values()] == ["When", "What", "By", "Summary"]
-        assert str(table.get_row_at(0)[1]) == "Changed"
+        assert str(table.get_row_at(table.row_count - 1)[1]) == "Changed"
 
     run_pilot(app, scenario, size=(120, 40))
 
