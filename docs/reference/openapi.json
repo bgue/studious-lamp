@@ -319,7 +319,7 @@
         "description": "One activity with the relationships that name it.",
         "properties": {
           "activity": {
-            "$ref": "#/components/schemas/ActivityRow"
+            "$ref": "#/components/schemas/tl_mod_schedule__registry__ActivityRow"
           },
           "predecessors": {
             "items": {
@@ -404,309 +404,6 @@
           "resolution"
         ],
         "title": "ActivityLink",
-        "type": "object"
-      },
-      "ActivityPage": {
-        "description": "A page of a snapshot's activities and how many matched in all.",
-        "properties": {
-          "data_date": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Data Date"
-          },
-          "offset": {
-            "title": "Offset",
-            "type": "integer"
-          },
-          "rows": {
-            "items": {
-              "$ref": "#/components/schemas/ActivityRow"
-            },
-            "title": "Rows",
-            "type": "array"
-          },
-          "snapshot_key": {
-            "title": "Snapshot Key",
-            "type": "string"
-          },
-          "snapshot_number": {
-            "title": "Snapshot Number",
-            "type": "integer"
-          },
-          "total": {
-            "title": "Total",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "snapshot_key",
-          "snapshot_number",
-          "data_date",
-          "total",
-          "offset",
-          "rows"
-        ],
-        "title": "ActivityPage",
-        "type": "object"
-      },
-      "ActivityRow": {
-        "description": "One activity of a snapshot (``sched_activity``). Durations and floats are hours.",
-        "properties": {
-          "activity_id": {
-            "title": "Activity Id",
-            "type": "string"
-          },
-          "actual_finish": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Actual Finish"
-          },
-          "actual_start": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Actual Start"
-          },
-          "calendar_id": {
-            "title": "Calendar Id",
-            "type": "string"
-          },
-          "constraint_date": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Constraint Date"
-          },
-          "constraint_type": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Constraint Type"
-          },
-          "critical": {
-            "title": "Critical",
-            "type": "boolean"
-          },
-          "early_finish": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Early Finish"
-          },
-          "early_start": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Early Start"
-          },
-          "free_float_hr": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Free Float Hr"
-          },
-          "late_finish": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Late Finish"
-          },
-          "late_start": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Late Start"
-          },
-          "longest_path": {
-            "title": "Longest Path",
-            "type": "boolean"
-          },
-          "name": {
-            "title": "Name",
-            "type": "string"
-          },
-          "original_duration_hr": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Original Duration Hr"
-          },
-          "percent_complete": {
-            "title": "Percent Complete",
-            "type": "number"
-          },
-          "percent_type": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Percent Type"
-          },
-          "remaining_duration_hr": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Remaining Duration Hr"
-          },
-          "seq": {
-            "title": "Seq",
-            "type": "integer"
-          },
-          "snapshot_id": {
-            "title": "Snapshot Id",
-            "type": "string"
-          },
-          "status": {
-            "title": "Status",
-            "type": "string"
-          },
-          "target_finish": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Target Finish"
-          },
-          "target_start": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Target Start"
-          },
-          "task_id": {
-            "title": "Task Id",
-            "type": "string"
-          },
-          "task_type": {
-            "title": "Task Type",
-            "type": "string"
-          },
-          "total_float_hr": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Total Float Hr"
-          },
-          "wbs_id": {
-            "title": "Wbs Id",
-            "type": "string"
-          },
-          "wbs_path": {
-            "title": "Wbs Path",
-            "type": "string"
-          }
-        },
-        "required": [
-          "snapshot_id",
-          "activity_id",
-          "task_id",
-          "name",
-          "wbs_id",
-          "wbs_path",
-          "task_type",
-          "status",
-          "calendar_id",
-          "original_duration_hr",
-          "remaining_duration_hr",
-          "early_start",
-          "early_finish",
-          "late_start",
-          "late_finish",
-          "actual_start",
-          "actual_finish",
-          "target_start",
-          "target_finish",
-          "total_float_hr",
-          "free_float_hr",
-          "percent_complete",
-          "percent_type",
-          "constraint_type",
-          "constraint_date",
-          "critical",
-          "longest_path",
-          "seq"
-        ],
-        "title": "ActivityRow",
         "type": "object"
       },
       "AddCodeValueBody": {
@@ -3480,6 +3177,62 @@
           "count_total"
         ],
         "title": "CheckBody",
+        "type": "object"
+      },
+      "CheckFinding": {
+        "description": "One thing that needs attention on a record, shaped like a readiness ``CheckResult``.\n\nA finding is a fact read from the record's own sources; it is never labelled a suggestion.",
+        "properties": {
+          "resolve_via": {
+            "items": {
+              "$ref": "#/components/schemas/tl_core__readiness__types__RecordRef"
+            },
+            "title": "Resolve Via",
+            "type": "array"
+          },
+          "severity": {
+            "enum": [
+              "blocking",
+              "warning"
+            ],
+            "title": "Severity",
+            "type": "string"
+          },
+          "since": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Since"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          },
+          "subject_id": {
+            "title": "Subject Id",
+            "type": "string"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source",
+          "subject_id",
+          "state",
+          "text",
+          "severity"
+        ],
+        "title": "CheckFinding",
         "type": "object"
       },
       "ClassificationReport": {
@@ -18230,6 +17983,42 @@
         "title": "MtoLineView",
         "type": "object"
       },
+      "NeedIn": {
+        "additionalProperties": false,
+        "description": "What a screen may say about a need: kind, trigger, type and, for a request, a record.",
+        "properties": {
+          "record_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Record Id"
+          },
+          "record_type": {
+            "title": "Record Type",
+            "type": "string"
+          },
+          "request_kind": {
+            "title": "Request Kind",
+            "type": "string"
+          },
+          "trigger": {
+            "title": "Trigger",
+            "type": "string"
+          }
+        },
+        "required": [
+          "request_kind",
+          "trigger",
+          "record_type"
+        ],
+        "title": "NeedIn",
+        "type": "object"
+      },
       "NotifyArgs": {
         "properties": {
           "note": {
@@ -26609,7 +26398,7 @@
           "activity": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/ActivityRow"
+                "$ref": "#/components/schemas/tl_mod_schedule__registry__ActivityRow"
               },
               {
                 "type": "null"
@@ -39106,6 +38895,121 @@
         "title": "WorkflowStatus",
         "type": "object"
       },
+      "tl_core__insights__types__ActivityPage": {
+        "properties": {
+          "next_before_seq": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Before Seq"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/tl_core__insights__types__ActivityRow"
+            },
+            "title": "Rows",
+            "type": "array"
+          }
+        },
+        "required": [
+          "rows",
+          "next_before_seq"
+        ],
+        "title": "ActivityPage",
+        "type": "object"
+      },
+      "tl_core__insights__types__ActivityRow": {
+        "properties": {
+          "decided_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decided By"
+          },
+          "event": {
+            "$ref": "#/components/schemas/Event"
+          },
+          "from_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "From Id"
+          },
+          "from_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "From Key"
+          },
+          "kind": {
+            "enum": [
+              "change",
+              "move",
+              "link",
+              "file",
+              "post",
+              "proposal",
+              "constraint",
+              "check"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "related": {
+            "default": false,
+            "title": "Related",
+            "type": "boolean"
+          },
+          "why": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Why"
+          }
+        },
+        "required": [
+          "event",
+          "kind"
+        ],
+        "title": "ActivityRow",
+        "type": "object"
+      },
       "tl_core__integration__contract__RecordRef": {
         "description": "A pointer to a record at a version (§19.2 ``RecordRef``; §19.3: every object carries one).",
         "properties": {
@@ -39265,6 +39169,309 @@
           "name"
         ],
         "title": "Recipient",
+        "type": "object"
+      },
+      "tl_mod_schedule__registry__ActivityRow": {
+        "description": "One activity of a snapshot (``sched_activity``). Durations and floats are hours.",
+        "properties": {
+          "activity_id": {
+            "title": "Activity Id",
+            "type": "string"
+          },
+          "actual_finish": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Actual Finish"
+          },
+          "actual_start": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Actual Start"
+          },
+          "calendar_id": {
+            "title": "Calendar Id",
+            "type": "string"
+          },
+          "constraint_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Constraint Date"
+          },
+          "constraint_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Constraint Type"
+          },
+          "critical": {
+            "title": "Critical",
+            "type": "boolean"
+          },
+          "early_finish": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Early Finish"
+          },
+          "early_start": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Early Start"
+          },
+          "free_float_hr": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Free Float Hr"
+          },
+          "late_finish": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Late Finish"
+          },
+          "late_start": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Late Start"
+          },
+          "longest_path": {
+            "title": "Longest Path",
+            "type": "boolean"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "original_duration_hr": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Original Duration Hr"
+          },
+          "percent_complete": {
+            "title": "Percent Complete",
+            "type": "number"
+          },
+          "percent_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Percent Type"
+          },
+          "remaining_duration_hr": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Remaining Duration Hr"
+          },
+          "seq": {
+            "title": "Seq",
+            "type": "integer"
+          },
+          "snapshot_id": {
+            "title": "Snapshot Id",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "target_finish": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Finish"
+          },
+          "target_start": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Start"
+          },
+          "task_id": {
+            "title": "Task Id",
+            "type": "string"
+          },
+          "task_type": {
+            "title": "Task Type",
+            "type": "string"
+          },
+          "total_float_hr": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Float Hr"
+          },
+          "wbs_id": {
+            "title": "Wbs Id",
+            "type": "string"
+          },
+          "wbs_path": {
+            "title": "Wbs Path",
+            "type": "string"
+          }
+        },
+        "required": [
+          "snapshot_id",
+          "activity_id",
+          "task_id",
+          "name",
+          "wbs_id",
+          "wbs_path",
+          "task_type",
+          "status",
+          "calendar_id",
+          "original_duration_hr",
+          "remaining_duration_hr",
+          "early_start",
+          "early_finish",
+          "late_start",
+          "late_finish",
+          "actual_start",
+          "actual_finish",
+          "target_start",
+          "target_finish",
+          "total_float_hr",
+          "free_float_hr",
+          "percent_complete",
+          "percent_type",
+          "constraint_type",
+          "constraint_date",
+          "critical",
+          "longest_path",
+          "seq"
+        ],
+        "title": "ActivityRow",
+        "type": "object"
+      },
+      "tl_mod_schedule__views__ActivityPage": {
+        "description": "A page of a snapshot's activities and how many matched in all.",
+        "properties": {
+          "data_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data Date"
+          },
+          "offset": {
+            "title": "Offset",
+            "type": "integer"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/tl_mod_schedule__registry__ActivityRow"
+            },
+            "title": "Rows",
+            "type": "array"
+          },
+          "snapshot_key": {
+            "title": "Snapshot Key",
+            "type": "string"
+          },
+          "snapshot_number": {
+            "title": "Snapshot Number",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "snapshot_key",
+          "snapshot_number",
+          "data_date",
+          "total",
+          "offset",
+          "rows"
+        ],
+        "title": "ActivityPage",
         "type": "object"
       }
     },
@@ -67181,6 +67388,86 @@
         ]
       }
     },
+    "/insights/needs": {
+      "post": {
+        "description": "Record that a need was shown. 403 for an agent token, 429 `rate_limited` past 30 in 10\nminutes per actor, 204 otherwise (also when the write itself failed: it is never the caller's\nproblem).",
+        "operationId": "note_need",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NeedIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Post Need",
+        "tags": [
+          "insights"
+        ]
+      }
+    },
     "/integration/{kind}": {
       "get": {
         "description": "One kind of integration record: ``apps``, ``actions``, ``rules``, ``endpoints``,\n``enrichers``, ``invocations`` or ``enrichments`` (``state`` filters the values waiting for\nreview). Never a secret, a payload or an executor's configuration.",
@@ -75581,7 +75868,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ActivityPage"
+                  "$ref": "#/components/schemas/tl_mod_schedule__views__ActivityPage"
                 }
               }
             },
@@ -78538,6 +78825,143 @@
         ]
       }
     },
+    "/records/{record_id}/activity": {
+      "get": {
+        "description": "The record's events, its thread, links, files, proposals, constraints and readiness checks,\nnewest first, with one hop of causal events of linked records. 404 when the record is unknown\nor the reader may not read it (the same answer as ``/history``).",
+        "operationId": "get_record_activity",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "record_id",
+            "required": true,
+            "schema": {
+              "title": "Record Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "revisions_only",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Revisions Only",
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "related",
+            "required": false,
+            "schema": {
+              "default": true,
+              "title": "Related",
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "before_seq",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Before Seq"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 120,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/tl_core__insights__types__ActivityPage"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Record Activity",
+        "tags": [
+          "records"
+        ]
+      }
+    },
     "/records/{record_id}/addable-properties": {
       "get": {
         "description": "What could be added to the record: the standard properties its type allows and it lacks, the\noptional sets the project has not adopted (and whether the caller may adopt them, with\n`POST /commands/AdoptSchemaSet` in the project's scope), and each set's custom-section rule.\n\n404 `record_not_found` when the record is missing or the caller may not read it. Writing the\nvalues is `POST /commands/SetPsetValues`, which checks everything again.",
@@ -78807,6 +79231,98 @@
         "summary": "Put Record Body",
         "tags": [
           "extension types"
+        ]
+      }
+    },
+    "/records/{record_id}/checks": {
+      "get": {
+        "description": "What needs attention on the record, from five sources. 404 `record_not_found` when the\nrecord is unknown or hidden from the caller (the same body).",
+        "operationId": "get_record_checks",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "record_id",
+            "required": true,
+            "schema": {
+              "title": "Record Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/CheckFinding"
+                  },
+                  "title": "Response Get Record Checks",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Record Checks",
+        "tags": [
+          "insights"
         ]
       }
     },

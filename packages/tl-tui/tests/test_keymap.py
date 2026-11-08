@@ -12,6 +12,7 @@ from textual.pilot import Pilot
 from tl_tui.app import TlApp
 from tl_tui.keymap import CONTEXTS, KEYMAP, KeyEntry, help_text
 from tl_tui.widgets.account_forms import AccountForm
+from tl_tui.widgets.activity_tab import ActivityTab
 from tl_tui.widgets.admin_screen import AdminScreen
 from tl_tui.widgets.composer import ComposerScreen
 from tl_tui.widgets.edit_form import EditForm
@@ -20,6 +21,7 @@ from tl_tui.widgets.file_panel import FilePanel
 from tl_tui.widgets.footer import DEFAULT_HINTS
 from tl_tui.widgets.grid import RecordGrid
 from tl_tui.widgets.help_screen import HelpScreen
+from tl_tui.widgets.insights_tab import InsightsTab
 from tl_tui.widgets.link_picker import LinkPicker
 from tl_tui.widgets.links_tab import LinksTab
 from tl_tui.widgets.new_record_form import NewRecordForm
@@ -50,6 +52,8 @@ OWNERS: dict[str, Any] = {
     "SettingForm": SettingForm,
     "AdminScreen": AdminScreen,
     "AccountForm": AccountForm,
+    "ActivityTab": ActivityTab,
+    "InsightsTab": InsightsTab,
 }
 
 

@@ -30,4 +30,5 @@ imports:
   - jobs
   - integration_ops
   - constraint
+  - telemetry
 default_range: string
