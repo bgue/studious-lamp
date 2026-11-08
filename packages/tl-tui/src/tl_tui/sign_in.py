@@ -67,17 +67,24 @@ class SignInScreen(Screen[SignedIn | None]):
     SignInScreen #sign-in-target { color: $text-muted; }
     SignInScreen .sign-in-label { margin-top: 1; }
     SignInScreen #sign-in-error { color: $error; height: auto; margin-top: 1; }
+    SignInScreen #sign-in-notice { height: auto; margin-top: 1; }
     SignInScreen #sign-in-hint { color: $text-muted; height: auto; margin-top: 1; }
     SignInScreen #sign-in-keys { color: $text-muted; margin-top: 1; }
     """
 
     def __init__(
-        self, authenticate: Authenticator, *, target: str, hint: str | None = None
+        self,
+        authenticate: Authenticator,
+        *,
+        target: str,
+        hint: str | None = None,
+        notice: str | None = None,
     ) -> None:
         super().__init__()
         self.authenticate = authenticate
         self.target = target
         self.hint = hint
+        self.notice = notice
 
     def compose(self) -> ComposeResult:
         with Vertical():
@@ -88,6 +95,8 @@ class SignInScreen(Screen[SignedIn | None]):
             yield Static("Password", classes="sign-in-label", markup=False)
             yield Input(password=True, id="sign-in-password")
             yield Static("", id="sign-in-error", markup=False)
+            if self.notice:
+                yield Static(self.notice, id="sign-in-notice", markup=False)
             if self.hint:
                 yield Static(self.hint, id="sign-in-hint", markup=False)
             yield Static(self.KEY_HINTS, id="sign-in-keys", markup=False)
@@ -138,10 +147,15 @@ class SignInApp(App[SignedIn | None]):
     ENABLE_COMMAND_PALETTE = False
 
     def __init__(
-        self, authenticate: Authenticator, *, target: str, hint: str | None = None
+        self,
+        authenticate: Authenticator,
+        *,
+        target: str,
+        hint: str | None = None,
+        notice: str | None = None,
     ) -> None:
         super().__init__()
-        self._screen = SignInScreen(authenticate, target=target, hint=hint)
+        self._screen = SignInScreen(authenticate, target=target, hint=hint, notice=notice)
 
     def on_mount(self) -> None:
         self.push_screen(self._screen, self.exit)
