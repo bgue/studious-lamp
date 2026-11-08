@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from dev.seed.demo_project import (  # noqa: F401  (each module registers its section)
     awp,
+    constraints,
     core,
     correspondence,
     documents,
