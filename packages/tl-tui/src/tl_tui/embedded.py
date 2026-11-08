@@ -132,6 +132,7 @@ from tl_core.services.workflow import (
     handle_transition_workflow,
     workflow_status,
 )
+from tl_core.intent import redact_events
 from tl_core.settings import history as settings_history
 from tl_core.settings import lock_setting as lock_in_force
 from tl_core.settings import reset_setting as reset_in_force
@@ -479,7 +480,7 @@ class EmbeddedClient:
 
     def history(self, record_id: str) -> list[Event]:
         with self._uow(True) as uow:
-            return queries.record_history(uow, record_id)
+            return redact_events(uow.conn(), queries.record_history(uow, record_id))
 
     def activity(
         self,

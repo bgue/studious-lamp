@@ -23,6 +23,7 @@ from sqlalchemy import Connection, bindparam, text
 from tl_core import confidentiality
 from tl_core.archive.sealer import _event_from_row  # pyright: ignore[reportPrivateUsage]
 from tl_core.insights.types import ActivityKind, ActivityPage, ActivityRow
+from tl_core.intent import redact_events
 from tl_core.ledger import Event
 from tl_core.uow import UnitOfWork
 
@@ -108,7 +109,7 @@ def _load(conn: Connection, seqs: Sequence[int]) -> dict[int, Event]:
     statement = _in(
         "SELECT seq, event_id, stream_id, stream_type, stream_version, event_type, "
         "schema_version, scope, payload, actor, recorded_at, effective_at, correlation_id, "
-        "causation_id, source, prev_hash, hash FROM events WHERE seq IN :seqs",
+        "causation_id, source, intent, prev_hash, hash FROM events WHERE seq IN :seqs",
         "seqs",
     )
     rows = conn.execute(statement, {"seqs": list(seqs)}).mappings().all()
@@ -276,11 +277,16 @@ def record_activity(
         scanned += len(batch)
         cursor = batch[-1]
         events = _load(conn, batch)
-        kept = {e.event_id for e in _visible(conn, [events[s] for s in batch if s in events])}
+        # An intent may name a record the viewer cannot read: it reads "not available" (ADR-0025 d5).
+        kept = {
+            e.event_id: e
+            for e in redact_events(conn, _visible(conn, [events[s] for s in batch if s in events]))
+        }
         for seq in batch:
             event = events.get(seq)
             if event is None or event.event_id not in kept:
                 continue
+            event = kept[event.event_id]
             far_id = merged[seq]
             if far_id is not None:
                 if related_rows >= MAX_RELATED_ROWS:
