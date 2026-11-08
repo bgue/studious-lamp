@@ -17,6 +17,7 @@ import ipaddress
 import os
 import sys
 from collections.abc import Sequence
+from importlib.metadata import version as package_version
 from pathlib import Path
 from urllib.parse import urlsplit
 
@@ -273,6 +274,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--actor", help="remote: the name the header shows")
     parser.add_argument(
         "--type", dest="record_type", help="record type of the grid (TL_TYPE, default core.Record)"
+    )
+    parser.add_argument(
+        "--version",
+        action="version",
+        version=f"throughline {package_version('tl-tui')}",
     )
     ns = parser.parse_args(argv)
     try:
