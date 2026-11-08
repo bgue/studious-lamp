@@ -1,0 +1,49 @@
+# Workflow of a general requisition (brief 9 M9): Requested, Approved, Scheduled, In progress, Done, Closed;
+# Requested goes to Rejected; Requested and Approved go to Cancelled. Closed, Rejected and Cancelled are final.
+# After Approved the moves follow the work order (D5): the engine moves the requisition when its work order moves.
+# One definition per concrete class (the loader finds a definition by exact record type); the four files differ
+# only in `id` and `record_type`. Every move is a command of the requisitions module (by_module), so the file
+# names no role and no constraint guard (F7): who may do what is the access word of each command (ADR-0013).
+id: requisitions.requisition-general
+version: 1
+record_type: requisitions.GeneralRequisition
+scope: company
+initial_state: Requested
+states:
+  - name: Requested
+  - name: Approved
+  - name: Scheduled
+  - name: In progress
+  - name: Done
+  - name: Closed
+  - name: Rejected
+  - name: Cancelled
+transitions:
+  - name: approve
+    label: Approve the requisition
+    from: [Requested]
+    to: Approved
+  - name: reject
+    label: Reject the requisition
+    from: [Requested]
+    to: Rejected
+  - name: schedule
+    label: Schedule the work order
+    from: [Approved]
+    to: Scheduled
+  - name: start
+    label: Start the work
+    from: [Scheduled]
+    to: In progress
+  - name: complete
+    label: Complete the work
+    from: [In progress]
+    to: Done
+  - name: close
+    label: Close the requisition
+    from: [Done]
+    to: Closed
+  - name: cancel
+    label: Cancel the requisition
+    from: [Requested, Approved]
+    to: Cancelled

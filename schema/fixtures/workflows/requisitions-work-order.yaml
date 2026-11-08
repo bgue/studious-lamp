@@ -1,0 +1,40 @@
+# Workflow of a work order (brief 9 M9): Open, Scheduled, In progress, Done, Closed; Open and Scheduled go to
+# Cancelled. Closed and Cancelled are final. `Open` is an addition to the plan's list (D4) so that scheduling is a
+# move. Every move is a command of the requisitions module (by_module), so the file names no role. The only gated
+# move is Scheduled -> In progress (phase `start`, ADR-0024 section 5): a blocking constraint of that phase on
+# the work order stops the start.
+id: requisitions.work-order
+version: 1
+record_type: requisitions.WorkOrder
+scope: company
+initial_state: Open
+states:
+  - name: Open
+  - name: Scheduled
+  - name: In progress
+  - name: Done
+  - name: Closed
+  - name: Cancelled
+transitions:
+  - name: schedule
+    label: Schedule the work order
+    from: [Open]
+    to: Scheduled
+  - name: start
+    label: Start the work
+    from: [Scheduled]
+    to: In progress
+    guards:
+      - {kind: no_open_blocking_constraints, phase: start}
+  - name: complete
+    label: Complete the work
+    from: [In progress]
+    to: Done
+  - name: close
+    label: Close the work order
+    from: [Done]
+    to: Closed
+  - name: cancel
+    label: Cancel the work order
+    from: [Open, Scheduled]
+    to: Cancelled

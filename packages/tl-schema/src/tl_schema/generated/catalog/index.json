@@ -1522,6 +1522,60 @@
       "version": 1
     },
     {
+      "ce_type": "tl.core.Requisition.Approved.v1",
+      "event_type": "Requisition.Approved",
+      "payload_class": "RequisitionApprovedPayload",
+      "sample": "samples/Requisition.Approved.v1.json",
+      "schema": "schemas/Requisition.Approved.v1.json",
+      "title": "A requisition was approved and its work order opened.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Requisition.Cancelled.v1",
+      "event_type": "Requisition.Cancelled",
+      "payload_class": "RequisitionCancelledPayload",
+      "sample": "samples/Requisition.Cancelled.v1.json",
+      "schema": "schemas/Requisition.Cancelled.v1.json",
+      "title": "A requisition was cancelled by its requester or an approver.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Requisition.Fulfilled.v1",
+      "event_type": "Requisition.Fulfilled",
+      "payload_class": "RequisitionFulfilledPayload",
+      "sample": "samples/Requisition.Fulfilled.v1.json",
+      "schema": "schemas/Requisition.Fulfilled.v1.json",
+      "title": "Stock was issued against a material requisition, in part or in full.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Requisition.Raised.v1",
+      "event_type": "Requisition.Raised",
+      "payload_class": "RequisitionRaisedPayload",
+      "sample": "samples/Requisition.Raised.v1.json",
+      "schema": "schemas/Requisition.Raised.v1.json",
+      "title": "A requisition was raised.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Requisition.Rejected.v1",
+      "event_type": "Requisition.Rejected",
+      "payload_class": "RequisitionRejectedPayload",
+      "sample": "samples/Requisition.Rejected.v1.json",
+      "schema": "schemas/Requisition.Rejected.v1.json",
+      "title": "A requisition was rejected with a reason.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Requisition.Revised.v1",
+      "event_type": "Requisition.Revised",
+      "payload_class": "RequisitionRevisedPayload",
+      "sample": "samples/Requisition.Revised.v1.json",
+      "schema": "schemas/Requisition.Revised.v1.json",
+      "title": "Fields of a requisition changed while it was Requested.",
+      "version": 1
+    },
+    {
       "ce_type": "tl.core.ResponseClock.Cancelled.v1",
       "event_type": "ResponseClock.Cancelled",
       "payload_class": "ResponseClockCancelledPayload",
@@ -2257,6 +2311,60 @@
       "sample": "samples/WebhookSubscription.Updated.v1.json",
       "schema": "schemas/WebhookSubscription.Updated.v1.json",
       "title": "A subscription's name, target, filter or payload mode changed.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.WorkOrder.Assigned.v1",
+      "event_type": "WorkOrder.Assigned",
+      "payload_class": "WorkOrderAssignedPayload",
+      "sample": "samples/WorkOrder.Assigned.v1.json",
+      "schema": "schemas/WorkOrder.Assigned.v1.json",
+      "title": "A work order was assigned.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.WorkOrder.Closed.v1",
+      "event_type": "WorkOrder.Closed",
+      "payload_class": "WorkOrderClosedPayload",
+      "sample": "samples/WorkOrder.Closed.v1.json",
+      "schema": "schemas/WorkOrder.Closed.v1.json",
+      "title": "A completed work order was closed.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.WorkOrder.Completed.v1",
+      "event_type": "WorkOrder.Completed",
+      "payload_class": "WorkOrderCompletedPayload",
+      "sample": "samples/WorkOrder.Completed.v1.json",
+      "schema": "schemas/WorkOrder.Completed.v1.json",
+      "title": "Work on a work order was completed.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.WorkOrder.Opened.v1",
+      "event_type": "WorkOrder.Opened",
+      "payload_class": "WorkOrderOpenedPayload",
+      "sample": "samples/WorkOrder.Opened.v1.json",
+      "schema": "schemas/WorkOrder.Opened.v1.json",
+      "title": "A work order was opened by an approval.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.WorkOrder.Scheduled.v1",
+      "event_type": "WorkOrder.Scheduled",
+      "payload_class": "WorkOrderScheduledPayload",
+      "sample": "samples/WorkOrder.Scheduled.v1.json",
+      "schema": "schemas/WorkOrder.Scheduled.v1.json",
+      "title": "A work order was scheduled.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.WorkOrder.Started.v1",
+      "event_type": "WorkOrder.Started",
+      "payload_class": "WorkOrderStartedPayload",
+      "sample": "samples/WorkOrder.Started.v1.json",
+      "schema": "schemas/WorkOrder.Started.v1.json",
+      "title": "Work on a work order started.",
       "version": 1
     },
     {
