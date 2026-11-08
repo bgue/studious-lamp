@@ -293,3 +293,144 @@ classes:
         required: true
     examples:
       - value: "{\"evaluated_at\": \"2026-11-02T08:00:00Z\", \"iwp_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P1\"}"
+  IWPStartedPayload:
+    is_a: EventPayload
+    description: >-
+      Field work on an interim work package started.
+    annotations:
+      tl:event_type: IWP.Started
+      tl:event_version: "1"
+    attributes:
+      at:
+        description: "UTC timestamp field work started."
+        range: datetime
+        required: true
+        annotations:
+          tl:valid_time: at
+      feed_policy:
+        description: "The feed policy the handler fixed when it wrote the event; always \"none\" (no feed card)."
+        equals_string: none
+        required: true
+    examples:
+      - value: "{\"at\": \"2026-11-03T07:00:00Z\", \"feed_policy\": \"none\"}"
+  IWPProgressRecordedPayload:
+    is_a: EventPayload
+    description: >-
+      The earned progress of an interim work package was recorded.
+    annotations:
+      tl:event_type: IWP.ProgressRecorded
+      tl:event_version: "1"
+    attributes:
+      iwp_id:
+        description: "The IWP."
+        required: true
+      earned_pct:
+        description: "Earned percent, decimal text with one decimal."
+        required: true
+      edition:
+        description: "The `package@version` of the rules of credit used."
+        required: true
+      at:
+        description: "UTC timestamp the progress was earned as of."
+        range: datetime
+        required: true
+        annotations:
+          tl:valid_time: at
+      feed_policy:
+        description: "The feed policy the handler fixed when it wrote the event; always \"none\" (no feed card)."
+        equals_string: none
+        required: true
+    examples:
+      - value: "{\"at\": \"2026-11-05T16:00:00Z\", \"earned_pct\": \"42.5\", \"edition\": \"co.acme.awp@1.1.0\", \"feed_policy\": \"none\", \"iwp_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P1\"}"
+  IWPFieldCompletedPayload:
+    is_a: EventPayload
+    description: >-
+      Field work on an interim work package was completed.
+    annotations:
+      tl:event_type: IWP.FieldCompleted
+      tl:event_version: "1"
+    attributes:
+      at:
+        description: "UTC timestamp field work was completed."
+        range: datetime
+        required: true
+        annotations:
+          tl:valid_time: at
+      feed_policy:
+        description: "The feed policy the handler fixed when it wrote the event; always \"none\" (no feed card)."
+        equals_string: none
+        required: true
+    examples:
+      - value: "{\"at\": \"2026-11-06T15:00:00Z\", \"feed_policy\": \"none\"}"
+  IWPCloseoutRecordedPayload:
+    is_a: EventPayload
+    description: >-
+      The closeout of an interim work package was recorded.
+    annotations:
+      tl:event_type: IWPCloseout.Recorded
+      tl:event_version: "1"
+    attributes:
+      actual_hours:
+        description: "Actual hours, decimal text with one decimal, or null."
+      remaining_punch:
+        description: "Punch items still open at closeout, or null."
+        range: integer
+      actuals_file_id:
+        description: "The file that holds the actuals, or null."
+      redlines_file_id:
+        description: "The file that holds the redlines, or null."
+      feedback:
+        description: "Lessons and feedback in words (at most 1000 characters), or null."
+      at:
+        description: "UTC timestamp the closeout was recorded."
+        range: datetime
+        annotations:
+          tl:valid_time: at
+    examples:
+      - value: "{\"actual_hours\": \"118.5\", \"actuals_file_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P2\", \"at\": \"2026-11-09T10:00:00Z\", \"redlines_file_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P3\", \"remaining_punch\": 2}"
+  CwpPartyAssignedPayload:
+    is_a: EventPayload
+    description: >-
+      A construction work package was assigned to a party.
+    annotations:
+      tl:event_type: Cwp.PartyAssigned
+      tl:event_version: "1"
+    attributes:
+      party:
+        description: "The party in words (at most 120 characters), or null to clear it."
+      at:
+        description: "UTC timestamp of the assignment."
+        range: datetime
+        annotations:
+          tl:valid_time: at
+      feed_policy:
+        description: "The feed policy the handler fixed when it wrote the event; always \"none\" (no feed card)."
+        equals_string: none
+        required: true
+    examples:
+      - value: "{\"at\": \"2026-11-02T09:00:00Z\", \"feed_policy\": \"none\", \"party\": \"North Piping Ltd\"}"
+  CwpSubcontractProgressRecordedPayload:
+    is_a: EventPayload
+    description: >-
+      Progress of a subcontracted construction work package was recorded from a file.
+    annotations:
+      tl:event_type: Cwp.SubcontractProgressRecorded
+      tl:event_version: "1"
+    attributes:
+      rows:
+        description: "List of the progress rows read from the file (at most 500)."
+        range: Any
+        annotations:
+          tl:json: true
+        required: true
+      at:
+        description: "UTC timestamp the progress was reported as of."
+        range: datetime
+        annotations:
+          tl:valid_time: at
+      feed_policy:
+        description: "The feed policy the handler fixed when it wrote the event; always \"none\" (no feed card)."
+        equals_string: none
+        required: true
+    examples:
+      - value: "{\"at\": \"2026-11-06T12:00:00Z\", \"feed_policy\": \"none\", \"rows\": [{\"commodity\": \"piping\", \"percent\": \"40.0\"}]}"

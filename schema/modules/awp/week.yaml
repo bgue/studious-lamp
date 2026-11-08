@@ -1,0 +1,109 @@
+id: https://example.org/throughline/modules/awp/week
+name: tl_mod_awp_week
+title: Weekly plan and commitments (brief 9, M3)
+description: >-
+  An `awp.WeeklyPlan` is the plan of one project week: the interim work packages the foremen committed to and, once the
+  week is closed, the percent plan complete (PPC). Its life is the workflow `awp-weekly-plan`. The commitment rows are
+  not records: they are written by the projector of the weekly plan events. Spec: module-designs/field-work-packaging.md.
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+  - ../../core/annotations
+  - ../../core/record
+default_range: string
+annotations:
+  tl:module: awp
+
+classes:
+  WeeklyPlan:
+    title: Weekly plan
+    description: >-
+      The plan of one project week. Record type `awp.WeeklyPlan`; no allocator: the key is composed from the ISO week,
+      `<project>-WK-<year>W<ww>` (one per project and week). Decimals are text with ASCII digits and dates are `YYYY-MM-DD`.
+    annotations:
+      tl:current_state: true
+      tl:record_types: "awp.WeeklyPlan"
+      tl:offline: none
+      tl:table: cur_awp_weekly_plan
+      tl:ix_scope_week: "scope, week"
+    attributes:
+      id:
+        identifier: true
+        range: Ulid
+        required: true
+        description: Record id; equals the ledger stream id and the `cur_core_record` id.
+      scope:
+        range: ScopeId
+        required: true
+        description: The project scope, `project:<id>`.
+      week:
+        required: true
+        pattern: "^[0-9]{4}-W(0[1-9]|[1-4][0-9]|5[0-3])$"
+        description: The ISO week, `YYYY-Www`.
+      week_start:
+        required: true
+        pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+        description: "The Monday of the week, `YYYY-MM-DD`."
+      ppc:
+        pattern: "^(100\\.0|[0-9]{1,2}\\.[0-9])$"
+        description: 'Percent plan complete, text with one decimal from "0.0" to "100.0"; null until the plan is closed.'
+      closed_at:
+        range: datetime
+        description: When the plan was closed; null until then.
+      last_seq:
+        range: integer
+        required: true
+        description: Ledger `seq` of the last event applied to this row.
+
+  WeekCommitment:
+    description: >-
+      One commitment of an interim work package to a week. Not a record: written by the projector of the weekly plan
+      events, one row per plan and IWP. `outcome` and `miss_reason` stay null until the week is judged.
+    annotations:
+      tl:current_state: true
+      tl:table: cur_awp_week_commitment
+      tl:ix_iwp: "iwp_id"
+    unique_keys:
+      plan_iwp:
+        description: "One commitment per plan and interim work package."
+        unique_key_slots:
+          - plan_id
+          - iwp_id
+    attributes:
+      row_id:
+        identifier: true
+        required: true
+        description: "`<plan id>:<iwp id>`."
+      scope:
+        range: ScopeId
+        required: true
+        description: The project scope, `project:<id>`.
+      plan_id:
+        range: Ulid
+        required: true
+        description: The `awp.WeeklyPlan`.
+      iwp_id:
+        range: Ulid
+        required: true
+        description: The `awp.IWP` committed.
+      foreman:
+        required: true
+        pattern: "^.{1,64}$"
+        description: The foreman, actor text (at most 64 characters).
+      committed_hours:
+        required: true
+        pattern: "^(0|[1-9][0-9]{0,11})\\.[0-9]$"
+        description: 'Hours committed, decimal text with one decimal.'
+      outcome:
+        pattern: "^(done|missed)$"
+        description: "`done` or `missed`; null until the week is judged."
+      miss_reason:
+        pattern: "^[A-Za-z][A-Za-z0-9_-]{0,39}$"
+        description: Code of the code list `MissReason`; set only when the outcome is `missed`.
+      last_seq:
+        range: integer
+        required: true
+        description: Ledger `seq` of the event that wrote the row.

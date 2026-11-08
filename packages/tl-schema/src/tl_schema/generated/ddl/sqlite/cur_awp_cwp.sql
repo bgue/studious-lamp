@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS cur_awp_cwp (
   budget_hours TEXT,
   quantities_json TEXT,
   contractor_text TEXT,
+  assigned_party TEXT,
   last_seq INTEGER NOT NULL
 );
 

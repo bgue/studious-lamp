@@ -134,6 +134,18 @@ settings:
       choices: [auto, kitty, iterm2, sixel, "off"]
     since: "0.1.0"
 
+  - key: tui.landing
+    type: enum
+    default: default
+    description: Which screen the terminal opens on after sign-in.
+    docs: >-
+      A personal preference. `default` opens the usual start screen (a person who is foreman on an IWP lands on
+      their packages); `iwp_mine` opens the IWP log filtered to the packages of the signed-in person.
+    scopes: [platform, user]
+    validation:
+      choices: [default, iwp_mine]
+    since: "0.1.0"
+
   # P1-I7 WS-B: record threads with dispatch (brief 21.5; ADR-0018).
   - key: threads.enabled
     type: bool
@@ -314,12 +326,25 @@ settings:
     default: ""
     description: The edition of the rules of credit in force. Empty means the company standard.
     docs: >-
-      Names a rules-of-credit edition loaded as a company registry record. Empty uses the company standard
-      edition. Earned progress already recorded keeps the edition it was computed with.
+      Names the schema package that holds the rules of credit, as `package@version` (for example
+      `co.acme.awp@1.1.0`). Empty means `co.acme.awp@1.1.0`. Earned progress already recorded keeps the edition
+      it was computed with.
     scopes: [platform, company, project]
     lockable: true
     validation:
-      pattern: "^[A-Za-z0-9][A-Za-z0-9 ._-]{0,63}$|^$"
+      pattern: "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}@[0-9]+\\.[0-9]+\\.[0-9]+$|^$"
+    since: "0.1.0"
+
+  - key: awp.pack.pdf
+    type: bool
+    default: false
+    description: Whether the IWP pack also writes PDF and QR codes when the optional libraries are installed.
+    docs: >-
+      Off: the pack is HTML only. On: write PDF and QR codes into the pack when the optional libraries
+      (`reportlab` and `segno`, the `pack` extra of the awp module) are installed; without them the pack is
+      HTML and says so.
+    scopes: [platform, company, project]
+    lockable: true
     since: "0.1.0"
 
   - key: awp.constraint.aging_days

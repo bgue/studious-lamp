@@ -54,6 +54,15 @@ classes:
       actuals_file_id:
         range: Ulid
         description: The file that holds the actuals, or null.
+      redlines_file_id:
+        range: Ulid
+        description: The file that holds the redlines, or null.
+      closed_by:
+        pattern: "^.{1,64}$"
+        description: The actor that closed the IWP out (at most 64 characters), or null.
+      closed_at:
+        range: datetime
+        description: When the closeout was closed; null until then.
       last_seq:
         range: integer
         required: true

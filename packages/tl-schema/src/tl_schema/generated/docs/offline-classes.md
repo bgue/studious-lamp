@@ -21,6 +21,7 @@ Classes:
 | `awp.PathOfConstruction` | Path of construction | `none` | Online only. |
 | `awp.ScopeItem` | Scope item | `draft_only` | Drafts offline; issue, number and sign happen on the authority. |
 | `awp.WBSNode` | WBS node | `none` | Online only. |
+| `awp.WeeklyPlan` | Weekly plan | `none` | Online only. |
 | `core.Constraint` | Constraint | `draft_only` | Drafts offline; issue, number and sign happen on the authority. |
 | `core.Record` | Record | `full` | Created and edited offline, merged on sync. |
 | `correspondence.CommercialItem` | Commercial item | `none` | Online only. |

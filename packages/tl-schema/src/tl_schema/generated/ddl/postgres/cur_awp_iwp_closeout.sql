@@ -6,6 +6,9 @@ CREATE TABLE IF NOT EXISTS cur_awp_iwp_closeout (
   remaining_punch BIGINT,
   feedback TEXT COLLATE "C",
   actuals_file_id TEXT COLLATE "C",
+  redlines_file_id TEXT COLLATE "C",
+  closed_by TEXT COLLATE "C",
+  closed_at TIMESTAMPTZ,
   last_seq BIGINT NOT NULL
 );
 
