@@ -12,6 +12,7 @@ from itertools import islice
 
 from sqlalchemy import Connection, text
 from tl_core.archive import RestoreError
+from tl_core.intent import intent_json
 from tl_core.ledger import Event, canonical_json, iso_utc
 
 BATCH = 1000
@@ -21,11 +22,11 @@ _INSERT = text(
     INSERT INTO events (
       seq, event_id, stream_id, stream_type, stream_version, event_type, schema_version, scope,
       payload, actor, recorded_at, effective_at, correlation_id, causation_id, source,
-      prev_hash, hash
+      prev_hash, hash, intent
     ) VALUES (
       :seq, :event_id, :stream_id, :stream_type, :stream_version, :event_type, :schema_version,
       :scope, :payload, :actor, :recorded_at, :effective_at, :correlation_id, :causation_id,
-      :source, :prev_hash, :hash
+      :source, :prev_hash, :hash, :intent
     )
     """
 )
@@ -50,6 +51,7 @@ def _params(event: Event) -> dict[str, object]:
         "source": event.source,
         "prev_hash": event.prev_hash,
         "hash": event.hash,
+        "intent": intent_json(event.intent),  # the text as sealed
     }
 
 

@@ -19,6 +19,7 @@ from typing import Any
 
 from tl_core.archive.errors import ArchiveError
 from tl_core.archive.types import ArchiveStore, SegmentManifest
+from tl_core.intent import intent_json
 from tl_core.ledger import Event, canonical_json, event_hash, iso_utc
 
 SEGMENTS_PREFIX = "segments/"
@@ -45,8 +46,19 @@ EVENT_COLUMNS: tuple[tuple[str, str], ...] = (
     ("source", "VARCHAR NOT NULL"),
     ("prev_hash", "VARCHAR"),
     ("hash", "VARCHAR NOT NULL"),
+    ("intent", "VARCHAR"),
 )
-"""The ledger ``events`` columns in table order, typed as the lake's bronze ``events`` table."""
+"""The ledger ``events`` columns in table order, typed as the lake's bronze ``events`` table.
+
+``intent`` is written to a segment's Parquet only when an event in it has one (a segment without
+one is byte-identical to a pre-ADR-0025 segment) and read only when the file has the column."""
+
+_BASE_COLUMNS = EVENT_COLUMNS[:-1]
+
+
+def _has_intent(events: Sequence[Event]) -> bool:
+    return any(intent_json(event.intent) is not None for event in events)
+
 
 _NAME = re.compile(r"^(\d{12})-(\d{12})$")
 
@@ -89,7 +101,11 @@ def canonical_bytes(value: Any) -> bytes:
 
 
 def event_line(event: Event) -> bytes:
-    return canonical_bytes(event.model_dump(mode="json")) + b"\n"
+    data = event.model_dump(mode="json", exclude={"intent"})
+    text = intent_json(event.intent)
+    if text is not None:  # the key exists only when an intent does: old lines stay identical
+        data["intent"] = json.loads(text)
+    return canonical_bytes(data) + b"\n"
 
 
 def encode_ndjson(events: Iterable[Event]) -> bytes:
@@ -121,6 +137,7 @@ def recomputed_hash(event: Event) -> str:
         event.event_type,
         canonical_json(event.payload),
         iso_utc(event.recorded_at),
+        intent_json(event.intent),
     )
 
 
@@ -144,6 +161,7 @@ def event_row(event: Event) -> tuple[Any, ...]:
         event.source,
         event.prev_hash,
         event.hash,
+        intent_json(event.intent),
     )
 
 
@@ -156,8 +174,10 @@ def encode_parquet(events: Sequence[Event]) -> bytes:
     are the same every time for the same events and DuckDB version)."""
     import duckdb  # imported here so that `import tl_core` stays light
 
-    columns = ", ".join(f"{name} {kind}" for name, kind in EVENT_COLUMNS)
-    marks = ", ".join("?" for _ in EVENT_COLUMNS)
+    layout = EVENT_COLUMNS if _has_intent(events) else _BASE_COLUMNS
+    width = len(layout)
+    columns = ", ".join(f"{name} {kind}" for name, kind in layout)
+    marks = ", ".join("?" for _ in layout)
     with tempfile.TemporaryDirectory() as tmp:
         target = Path(tmp) / PARQUET
         con = duckdb.connect(":memory:")
@@ -166,7 +186,7 @@ def encode_parquet(events: Sequence[Event]) -> bytes:
             con.execute(f"CREATE TABLE events ({columns})")
             if events:
                 con.executemany(
-                    f"INSERT INTO events VALUES ({marks})", [event_row(e) for e in events]
+                    f"INSERT INTO events VALUES ({marks})", [event_row(e)[:width] for e in events]
                 )
             con.execute(
                 f"COPY (SELECT * FROM events ORDER BY seq) TO {_quoted(target)} "
@@ -181,12 +201,21 @@ def parquet_rows(data: bytes) -> list[tuple[Any, ...]]:
     """The rows of an ``events.parquet`` in seq order, as tuples in column order."""
     import duckdb  # imported here so that `import tl_core` stays light
 
-    names = ", ".join(name for name, _ in EVENT_COLUMNS)
     with tempfile.TemporaryDirectory() as tmp:
         source = Path(tmp) / PARQUET
         source.write_bytes(data)
         con = duckdb.connect(":memory:")
         try:
+            present = {
+                row[0]
+                for row in con.execute(
+                    f"SELECT name FROM parquet_schema({_quoted(source)})"
+                ).fetchall()
+            }
+            # a segment sealed before ADR-0025 has no intent column: read it as None
+            names = ", ".join(
+                name if name in present else f"NULL AS {name}" for name, _ in EVENT_COLUMNS
+            )
             rows = con.execute(
                 f"SELECT {names} FROM read_parquet({_quoted(source)}) ORDER BY seq"
             ).fetchall()

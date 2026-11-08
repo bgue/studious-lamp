@@ -21,6 +21,7 @@ from collections import OrderedDict
 from collections.abc import Generator
 from contextlib import contextmanager
 from dataclasses import dataclass
+from typing import Any
 
 from pydantic import BaseModel
 from tl_core.derivation.types import ExtractionResult
@@ -185,7 +186,7 @@ class ResultFiles:
         if slot not in (SLOT_EXTRACTED, SLOT_REPORT):
             raise ValueError(f"the module writes only {SLOT_EXTRACTED} and {SLOT_REPORT}")
         digest = hashlib.sha256(data).hexdigest()
-        base = {
+        base: dict[str, Any] = {
             "actor": ACTOR,
             "source": SOURCE,
             "scope": scope,

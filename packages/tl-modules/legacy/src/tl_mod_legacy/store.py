@@ -53,7 +53,7 @@ class RunFiles:
         correlation_id: str,
     ) -> Stored:
         digest = hashlib.sha256(data).hexdigest()
-        base = {
+        base: dict[str, Any] = {
             "actor": actor,
             "source": source,
             "scope": scope,

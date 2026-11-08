@@ -77,6 +77,7 @@ from tl_core.integration.rules.service import (
     handle_enable_rule,
     handle_revise_rule,
 )
+from tl_core.intent import check_intent
 from tl_core.services import links, psets
 from tl_core.services.commands import Command, CommandResult, CreateRecord, UpdateRecord
 from tl_core.services.edit import EditRecord, handle_edit_record
@@ -338,6 +339,7 @@ def run_command(
         ctx.authorizer.authorize(principal, action, path)
         ctx.authorize(principal.actor, action, path)
     refuse_reserved(command)  # a client cannot pose as a publication (ADR-0014)
+    check_intent(command)  # S1: refuses any intent until S2 validates it
     if effective_access(spec) == "company" and command.scope == "company":
         ctx.authorizer.authorize(principal, f"admin.command.{spec.name}", path)
     when = resolve_effective_at(effective_at, command.scope)
