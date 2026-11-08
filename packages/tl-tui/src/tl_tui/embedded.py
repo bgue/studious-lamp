@@ -79,8 +79,9 @@ from tl_core.extypes.types import TypeStatus
 from tl_core.files.queries import FileInfo, list_files
 from tl_core.files.service import CompleteUpload, FileResult, FileService, RegisterUpload
 from tl_core.files.types import ObjectStore
+from tl_core.insights.activity import record_activity
 from tl_core.insights.checks import record_checks, record_facts
-from tl_core.insights.types import CheckFinding
+from tl_core.insights.types import ActivityPage, CheckFinding
 from tl_core.integration import registry as integration_registry
 from tl_core.integration.actor_access import held_access
 from tl_core.integration.contract import SERVER_SET_FIELDS, Access
@@ -479,6 +480,25 @@ class EmbeddedClient:
     def history(self, record_id: str) -> list[Event]:
         with self._uow(True) as uow:
             return queries.record_history(uow, record_id)
+
+    def activity(
+        self,
+        record_id: str,
+        *,
+        revisions_only: bool = False,
+        related: bool = True,
+        before_seq: int | None = None,
+        limit: int = 120,
+    ) -> ActivityPage:
+        with self._uow(True) as uow:
+            return record_activity(
+                uow,
+                record_id,
+                revisions_only=revisions_only,
+                related=related,
+                before_seq=before_seq,
+                limit=limit,
+            )
 
     def create_record(self, cmd: CreateRecord) -> CommandResult:
         with self._uow(False) as uow:

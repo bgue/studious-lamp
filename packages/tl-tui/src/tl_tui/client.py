@@ -23,7 +23,7 @@ from tl_core.extypes.service import BodyStoredOut, BodyView, TypeDetail, TypeSum
 from tl_core.extypes.types import TypeStatus
 from tl_core.files.queries import FileInfo
 from tl_core.files.service import FileResult
-from tl_core.insights.types import CheckFinding
+from tl_core.insights.types import ActivityPage, CheckFinding
 from tl_core.ledger import Event
 from tl_core.links.expected import MissingLink
 from tl_core.numbering.detect import KeyChip
@@ -143,6 +143,19 @@ class ClientInterface(Protocol):
     def get_record_by_id(self, record_id: str) -> dict[str, Any] | None: ...
 
     def history(self, record_id: str) -> list[Event]: ...
+
+    def activity(
+        self,
+        record_id: str,
+        *,
+        revisions_only: bool = False,
+        related: bool = True,
+        before_seq: int | None = None,
+        limit: int = 120,
+    ) -> ActivityPage:
+        """What happened around the record, newest first (an empty page for an unknown or hidden
+        record)."""
+        ...
 
     def record_types(self) -> list[RecordTypeRow]:
         """Every record type: label, module, offline class, drafting commands (no record data)."""

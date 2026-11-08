@@ -1,1 +1,1 @@
-"""Insights: what needs attention and what happened around a record (ADR-0028)."""
+"""Insights: reads that explain a record's history (P2-INS)."""
