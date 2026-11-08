@@ -244,6 +244,20 @@ settings:
       maximum: 52
     since: "0.1.0"
 
+  - key: telemetry.retention_days
+    type: int
+    default: 365
+    description: How many days a row of the telemetry of needs is kept before the writer prunes it.
+    docs: >-
+      Rows of `telemetry_need` older than this are deleted when the next row is written. Lowering it takes effect at
+      the next write. The table holds ids and words only.
+    scopes: [platform]
+    lockable: false
+    validation:
+      minimum: 30
+      maximum: 3650
+    since: "0.1.0"
+
   - key: awp.backlog.target_weeks
     type: int
     default: 4

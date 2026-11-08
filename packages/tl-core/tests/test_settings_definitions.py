@@ -87,6 +87,7 @@ def test_the_platform_file_defines_the_keys_of_decision_d2() -> None:
         "materials.receipt.mtr_required_categories",
         "scaffold.inspection.interval_days",
         "requisitions.forecast.weeks",  # P2-I4A S1
+        "telemetry.retention_days",  # P2-INS S2
     }
 
 

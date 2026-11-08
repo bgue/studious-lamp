@@ -180,7 +180,9 @@ REQUIRE_COMMAND = {
     "awp_write.py": 1,
     "comm.py": 5, "corr.py": 11, "corr_clock.py": 4, "corr_registry.py": 11, "cost.py": 1,
     "derive_publish.py": 3, "derive_read.py": 1, "derive_run.py": 3, "derive_schema.py": 2,
-    "doc.py": 6, "doc_link.py": 2, "doc_rendition.py": 3, "doc_rev.py": 4, "mat_write.py": 7,
+    "doc.py": 6, "doc_link.py": 2, "doc_rendition.py": 3, "doc_rev.py": 4,
+    "intent_flags.py": 1,  # P2-INT-T02 run_with_intent
+    "mat_write.py": 7,
     "review.py": 5,
     "rfi.py": 10, "schema_gov.py": 4, "schema_import.py": 1, "schema_pkg.py": 6,
     "schema_waiver.py": 3, "standards.py": 3, "standards_class.py": 3, "tag.py": 6,

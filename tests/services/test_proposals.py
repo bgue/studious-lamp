@@ -476,8 +476,8 @@ def test_proposal_events_do_not_split_or_make_feed_cards(world: World) -> None:
 def test_the_proposal_view_uses_the_frozen_contract_fields_and_the_setting_facts() -> None:
     assert list(ProposalView.model_fields) == [
         "proposal_id", "scope", "tool", "agent", "command_type", "command", "summary",
-        "status", "decided_by", "reason", "result_stream_id", "seq", "setting",
-    ]  # fmt: skip
+        "status", "decided_by", "reason", "result_stream_id", "seq", "setting", "intent",
+    ]  # fmt: skip  # intent: P2-INT-S2
 
 
 def test_propose_itself_enforces_the_budget_inside_its_unit_of_work(world: World) -> None:

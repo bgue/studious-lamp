@@ -71,13 +71,14 @@ def definitions() -> dict[str, SettingDefinition]:
     return {d.key: d for d in load_definitions(PLATFORM)}
 
 
-def test_the_platform_file_defines_29_keys_17_old_and_12_new(
+def test_the_platform_file_defines_30_keys_17_old_12_new_and_telemetry(
     definitions: dict[str, SettingDefinition],
 ) -> None:
     assert len(PHASE2) == 12
-    assert len(definitions) == 29 == OLD_KEYS + len(PHASE2)
+    # telemetry.retention_days is the P2-INS S2 key: neither old nor wave-0.
+    assert len(definitions) == 30 == OLD_KEYS + len(PHASE2) + 1
     assert set(PHASE2) <= set(definitions)
-    assert len(set(definitions) - set(PHASE2)) == OLD_KEYS
+    assert len(set(definitions) - set(PHASE2)) == OLD_KEYS + 1
 
 
 @pytest.mark.parametrize("key", sorted(PHASE2))
@@ -222,7 +223,7 @@ def test_list_items_follow_the_item_pattern(
             normalise(found, [good[0], item])
 
 
-def test_the_two_risky_keys_are_the_only_advanced_ones_among_the_new_eleven(
+def test_the_two_risky_keys_are_the_only_advanced_ones_among_the_new_twelve(
     definitions: dict[str, SettingDefinition],
 ) -> None:
     assert {k for k in PHASE2 if definitions[k].risk == "advanced"} == {

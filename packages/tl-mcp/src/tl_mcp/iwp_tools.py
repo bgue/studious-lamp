@@ -20,6 +20,7 @@ from typing import Annotated
 from mcp.server.mcpserver import MCPServer
 from pydantic import BaseModel, Field
 from tl_core import confidentiality
+from tl_core.intent import Intent
 from tl_core.readiness.types import RecordRef
 from tl_core.services import proposals
 from tl_core.services.errors import RecordNotFoundError
@@ -31,6 +32,7 @@ from tl_mod_awp.readiness.views import visible_readiness
 
 from tl_mcp.context import McpContext
 from tl_mcp.errors import MAX_PART, guarded, resource_name
+from tl_mcp.intent_param import IntentParam
 from tl_mcp.schedule_read_tools import READ_ONLY
 from tl_mcp.write_tools import (  # pyright: ignore[reportPrivateUsage]
     PROPOSES,
@@ -174,6 +176,7 @@ def propose_iwp_scope_impl(
     iwp: str,
     items: list[str],
     summary: str | None,
+    intent: Intent | None = None,
 ) -> ProposalResult:
     scope = _scope(project)
     with ctx.factory(True) as uow:
@@ -185,6 +188,7 @@ def propose_iwp_scope_impl(
         scope=scope,
         iwp=iwp_id,
         items=item_ids,
+        intent=intent,
     )
     view = proposals.submit(
         ctx.factory,
@@ -258,6 +262,7 @@ def register_iwp_tools(server: MCPServer, ctx: McpContext) -> None:
             list[Key],
             Field(min_length=1, max_length=MAX_PROPOSED_ITEMS, description="The record keys."),
         ],
+        intent: IntentParam = None,
         summary: Summary = None,
     ) -> ProposalResult:
         """Propose adding scope items to an installation work package (IWP).
@@ -266,5 +271,5 @@ def register_iwp_tools(server: MCPServer, ctx: McpContext) -> None:
         """
         with guarded(ctx, "propose_iwp_scope", resource_name("iwp", project, iwp)):
             return propose_iwp_scope_impl(
-                ctx, project=project, iwp=iwp, items=items, summary=summary
+                ctx, project=project, iwp=iwp, items=items, summary=summary, intent=intent
             )
