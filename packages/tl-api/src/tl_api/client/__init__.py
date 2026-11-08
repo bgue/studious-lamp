@@ -7,6 +7,7 @@ and the admin module).
 See ``tl_api.client.base`` for how errors map back to exceptions.
 """
 
+from tl_api.client.activity import ActivityApi
 from tl_api.client.admin import AdminApi
 from tl_api.client.auth import AuthApi
 from tl_api.client.awp import AwpApi
@@ -19,6 +20,7 @@ from tl_api.client.engineering import EngineeringApi
 from tl_api.client.events import EventsApi
 from tl_api.client.feed import FeedApi
 from tl_api.client.files import FilesApi
+from tl_api.client.insights import InsightsApi
 from tl_api.client.integration import IntegrationApi
 from tl_api.client.iwp import IwpApi
 from tl_api.client.links import LinksApi
@@ -34,6 +36,7 @@ from tl_api.client.types_api import TypesApi
 
 class ApiClient(
     RecordsApi,
+    ActivityApi,
     LinksApi,
     FilesApi,
     EventsApi,
@@ -55,6 +58,7 @@ class ApiClient(
     IntegrationApi,
     IwpApi,
     ThreadsApi,
+    InsightsApi,
 ):
     """One connection, every group of methods."""
 

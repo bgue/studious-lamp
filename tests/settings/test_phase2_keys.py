@@ -70,13 +70,14 @@ def definitions() -> dict[str, SettingDefinition]:
     return {d.key: d for d in load_definitions(PLATFORM)}
 
 
-def test_the_platform_file_defines_28_keys_17_old_and_11_new(
+def test_the_platform_file_defines_29_keys_17_old_11_new_and_telemetry(
     definitions: dict[str, SettingDefinition],
 ) -> None:
     assert len(PHASE2) == 11
-    assert len(definitions) == 28 == OLD_KEYS + len(PHASE2)
+    # telemetry.retention_days is the P2-INS S2 key: neither old nor wave-0.
+    assert len(definitions) == 29 == OLD_KEYS + len(PHASE2) + 1
     assert set(PHASE2) <= set(definitions)
-    assert len(set(definitions) - set(PHASE2)) == OLD_KEYS
+    assert len(set(definitions) - set(PHASE2)) == OLD_KEYS + 1
 
 
 @pytest.mark.parametrize("key", sorted(PHASE2))

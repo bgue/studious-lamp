@@ -1,0 +1,76 @@
+id: https://example.org/throughline/core/telemetry
+name: tl_core_telemetry
+title: Throughline telemetry of needs (ADR-0028 decision 7)
+description: >-
+  An operational record of what a person asked the insights tab for: which kind of request, from which screen or event,
+  for which record type, as which role and what came of it. Like `auth_audit` and the `wh_*` tables it uses
+  `tl:current_state` only to get one DDL for both dialects; no event produces `telemetry_need`, a rebuild never clears it,
+  and the archive, the lake, the outbox, webhooks and sync never read it. It holds ids and words only, never record text
+  or a prompt, and nothing reads it yet. Rows are only ever inserted (one row per state change, never an UPDATE) and
+  those older than the setting `telemetry.retention_days` are pruned by the writer. Timestamps are ISO-8601 UTC strings
+  with microseconds and a `Z` suffix, which sort correctly as text on both databases.
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+  - annotations
+  - record
+  - events
+default_range: string
+annotations:
+  tl:module: core
+
+classes:
+  TelemetryNeed:
+    description: >-
+      One state of one need: a request was shown, accepted, dismissed, expired or went unmet. Operational, append-only,
+      not a projection. `need_id` ties a request to its later outcomes. Never holds content.
+    annotations:
+      tl:current_state: true
+      tl:table: telemetry_need
+    attributes:
+      row_id:
+        identifier: true
+        range: Ulid
+        required: true
+        description: One row; a need has one `row_id` per outcome and one `need_id` for all of them.
+      need_id:
+        range: Ulid
+        required: true
+        description: Ties a request to its later outcomes.
+        annotations:
+          tl:indexed: true
+      scope:
+        description: "`company` or `project:<id>`, when known."
+      recorded_at:
+        required: true
+        description: ISO-8601 UTC with a `Z` suffix; the prune key.
+        annotations:
+          tl:indexed: true
+      request_kind:
+        required: true
+        description: "`check`, `suggestion`, `analysis` or `ask`."
+      trigger:
+        required: true
+        description: "`screen:insights.<subtab>`, `request` or `event:<type>`."
+      record_type:
+        required: true
+        description: The record type the need was about.
+      record_id:
+        range: Ulid
+        description: Set only for an explicit request, never by a screen opening.
+      viewer_role:
+        required: true
+        description: "`admin`, `document_controller`, `user` or `unknown` when there is none."
+      provider_kind:
+        description: Which kind of provider answered, when one did.
+      duration_ms:
+        range: integer
+        description: How long the answer took.
+      outcome:
+        required: true
+        description: "`shown`, `accepted`, `dismissed`, `expired` or `unmet`."
+      why:
+        description: Always written null; no reader and no privacy review yet.
