@@ -12,6 +12,9 @@ could no longer be re-hashed. Add a generated JSONB column when SQL-side payload
 
 from __future__ import annotations
 
+INTENT_DDL = "ALTER TABLE events ADD COLUMN IF NOT EXISTS intent TEXT"
+"""Adds ``events.intent`` to a database made before ADR-0025 (idempotent; touches no row)."""
+
 EVENTS_DDL: tuple[str, ...] = (
     """
     CREATE TABLE IF NOT EXISTS events (
@@ -32,6 +35,7 @@ EVENTS_DDL: tuple[str, ...] = (
       source         TEXT NOT NULL,
       prev_hash      TEXT,
       hash           TEXT NOT NULL,
+      intent         TEXT,
       UNIQUE (stream_id, stream_version)
     )
     """,

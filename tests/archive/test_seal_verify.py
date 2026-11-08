@@ -150,7 +150,8 @@ def test_parquet_has_the_ledger_columns_and_the_exact_hashed_text(
     target.write_bytes(store.get_bytes(f"{SEG1}/{PARQUET}"))
     con = duckdb.connect(":memory:")
     described = con.execute(f"DESCRIBE SELECT * FROM read_parquet('{target}')").fetchall()
-    assert [row[0] for row in described] == [name for name, _ in EVENT_COLUMNS]
+    # no event here has an intent, so the segment has no `intent` column (ADR-0025)
+    assert [row[0] for row in described] == [name for name, _ in EVENT_COLUMNS[:-1]]
     assert {row[0]: row[1] for row in described}["payload"] == "VARCHAR"
     assert {row[0]: row[1] for row in described}["recorded_at"] == "VARCHAR"
     rows = con.execute(f"SELECT * FROM read_parquet('{target}') ORDER BY seq").fetchall()

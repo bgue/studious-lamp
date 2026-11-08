@@ -22,6 +22,7 @@ from tl_core.constraints import errors as con
 from tl_core.derivation.registry import ExtractorLoadError
 from tl_core.extypes import errors as ext
 from tl_core.integration import errors as integ
+from tl_core.intent import IntentInvalid
 from tl_core.ledger import ConcurrencyError
 from tl_core.query import QuerySyntaxError
 from tl_core.services import errors as svc
@@ -56,6 +57,7 @@ def _rows() -> tuple[ErrorSpec, ...]:
     s = ErrorSpec
     return (
         s(ConcurrencyError, "concurrency_conflict", 409),
+        s(IntentInvalid, "intent_invalid", 422),
         s(QuerySyntaxError, "query_syntax", 400),
         # --- records and psets ---------------------------------------------------------------
         s(svc.KeyRequiredError, "key_required", 422),

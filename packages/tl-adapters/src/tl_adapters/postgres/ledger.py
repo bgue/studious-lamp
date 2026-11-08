@@ -17,6 +17,7 @@ from typing import Any
 
 from sqlalchemy import Connection, Engine, text
 from sqlalchemy.engine import RowMapping
+from tl_core.intent import Intent, intent_json
 from tl_core.ledger import (
     AppendResult,
     ConcurrencyError,
@@ -28,7 +29,7 @@ from tl_core.ledger import (
 )
 from tl_core.util import current_effective_time, new_ulid, utcnow
 
-from tl_adapters.postgres.ddl import EVENTS_DDL
+from tl_adapters.postgres.ddl import EVENTS_DDL, INTENT_DDL
 from tl_adapters.postgres.engine import (
     NOTIFY_CHANNEL,
     is_write_connection,
@@ -42,19 +43,29 @@ _INSERT_EVENT = text(
     INSERT INTO events (
       seq, event_id, stream_id, stream_type, stream_version, event_type, schema_version, scope,
       payload, actor, recorded_at, effective_at, correlation_id, causation_id, source,
-      prev_hash, hash
+      prev_hash, hash, intent
     ) VALUES (
       :seq, :event_id, :stream_id, :stream_type, :stream_version, :event_type, :schema_version,
       :scope,
       :payload, :actor, :recorded_at, :effective_at, :correlation_id, :causation_id, :source,
-      :prev_hash, :hash
+      :prev_hash, :hash, :intent
     )
     """
 )
 
 
+_HAS_INTENT = (
+    "SELECT 1 FROM information_schema.columns WHERE table_schema = current_schema() "
+    "AND table_name = 'events' AND column_name = 'intent'"
+)
+
+
 def _moment(value: str | datetime) -> datetime:
     return value if isinstance(value, datetime) else datetime.fromisoformat(value)
+
+
+def _intent(value: str | None) -> Intent | None:
+    return None if value is None else Intent.model_validate_json(value)
 
 
 def _row_to_event(row: RowMapping) -> Event:
@@ -76,6 +87,7 @@ def _row_to_event(row: RowMapping) -> Event:
         source=row["source"],
         prev_hash=row["prev_hash"],
         hash=row["hash"],
+        intent=_intent(row.get("intent")),
     )
 
 
@@ -92,12 +104,24 @@ class PostgresLedger:
         self._engine = engine
         self._clock = clock
         self._id_gen = id_gen
+        self._intent_ready = False
 
     def create_schema(self) -> None:
         """Create the events table, index, and append-only triggers. Idempotent."""
         with write_tx(self._engine) as conn:
             for statement in EVENTS_DDL:
                 conn.exec_driver_sql(statement)
+            conn.exec_driver_sql(INTENT_DDL)
+
+    def ensure_intent_column(self) -> None:
+        """Add ``events.intent`` to a database made before ADR-0025. Idempotent; no row changes."""
+        with read_tx(self._engine) as conn:
+            found = conn.execute(text(_HAS_INTENT)).first()
+            table = conn.execute(text("SELECT to_regclass('events')")).scalar_one()
+        if found is not None or table is None:
+            return
+        with write_tx(self._engine) as conn:
+            conn.exec_driver_sql(INTENT_DDL)
 
     def append(
         self,
@@ -146,6 +170,10 @@ class PostgresLedger:
         if not events:
             raise ValueError("append_in needs at least one event")
         take_ledger_lock(conn)  # already held by write_tx; taking it again is free and explicit
+        if not self._intent_ready:  # a database made before ADR-0025: add the column once
+            if conn.execute(text(_HAS_INTENT)).first() is None:
+                conn.exec_driver_sql(INTENT_DDL)
+            self._intent_ready = True
 
         found: int = conn.execute(
             text("SELECT COALESCE(MAX(stream_version), 0) FROM events WHERE stream_id = :s"),
@@ -173,6 +201,7 @@ class PostgresLedger:
                 effective_at = current_effective_time() or recorded_at
             payload_json = canonical_json(new.payload)
             recorded_iso = iso_utc(recorded_at)
+            intent_text = intent_json(new.intent)
             current_hash = event_hash(
                 prev_hash,
                 event_id,
@@ -181,6 +210,7 @@ class PostgresLedger:
                 new.event_type,
                 payload_json,
                 recorded_iso,
+                intent_text,
             )
             last_seq += 1
             params: dict[str, Any] = {
@@ -201,6 +231,7 @@ class PostgresLedger:
                 "source": source,
                 "prev_hash": prev_hash,
                 "hash": current_hash,
+                "intent": intent_text,
             }
             conn.execute(_INSERT_EVENT, params)
             stored.append(
@@ -222,6 +253,7 @@ class PostgresLedger:
                     source=source,
                     prev_hash=prev_hash,
                     hash=current_hash,
+                    intent=_intent(intent_text),
                 )
             )
             prev_hash = current_hash

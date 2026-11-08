@@ -16,6 +16,7 @@ CREATE TABLE IF NOT EXISTS events (
   source         TEXT NOT NULL,
   prev_hash      TEXT,
   hash           TEXT NOT NULL,
+  intent         TEXT,
   UNIQUE (stream_id, stream_version)
 );
 CREATE INDEX IF NOT EXISTS ix_events_scope_seq ON events(scope, seq);
