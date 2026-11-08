@@ -25,12 +25,15 @@ from tl_mod_awp.names import (
     RECORD_TYPES,
     SCOPE_ITEM,
     WBS_NODE,
+    WEEKLY_PLAN,
 )
 from tl_mod_awp.projectors import CwaProjector, PathProjector, WbsProjector
 from tl_mod_awp.projectors.cwp import cwp_projectors
 from tl_mod_awp.projectors.iwp import iwp_projectors
+from tl_mod_awp.projectors.progress import progress_projectors
 from tl_mod_awp.projectors.rollup import rollup_projectors
 from tl_mod_awp.projectors.scope import scope_item_projectors
+from tl_mod_awp.projectors.week import week_projectors
 from tl_mod_awp.readiness.projector import readiness_projectors
 
 #: The life of a link that starts at the record (accept, decline, re-pin, verify, flag, retract).
@@ -79,6 +82,8 @@ def projectors() -> list[Projector]:
         *iwp_projectors(),
         *scope_item_projectors(),
         *readiness_projectors(),
+        *week_projectors(),
+        *progress_projectors(),
     ]
 
 
