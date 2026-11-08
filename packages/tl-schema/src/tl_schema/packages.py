@@ -206,6 +206,72 @@ class ConformanceDef(StrictModel):
     waivers: list[WaiverDef] = []
 
 
+#: What a rules-of-credit step may name (the ``evidence`` of a step).
+RULE_KINDS = ("scope_item", "weld", "bolted_joint")
+RuleKind = Literal["scope_item", "weld", "bolted_joint"]
+#: Rules of credit: entries per package, steps per entry, the length of a step name.
+MAX_RULE_ENTRIES = 40
+MAX_RULE_STEPS = 20
+MAX_STEP_NAME = 40
+#: A commodity: lower case code of the code list ``Commodity`` (or ``weld`` / ``bolted_joint``).
+RULE_COMMODITY_PATTERN = re.compile(r"[a-z][a-z0-9_-]{0,39}")
+#: ``scope_state:<State>``, ``record_state:<module>.<Type>:<State>`` or ``manual``.
+RULE_EVIDENCE_PATTERN = re.compile(
+    r"manual"
+    r"|scope_state:[A-Za-z][A-Za-z0-9 _-]{0,39}"
+    r"|record_state:[a-z][a-z0-9_]*\.[A-Z][A-Za-z0-9]*:[A-Za-z][A-Za-z0-9 _-]{0,39}"
+)
+#: The same characters ``tl_core.text.FORBIDDEN_TEXT`` refuses (this package cannot import
+#: ``tl_core``; ``test_rules_of_credit`` keeps the two patterns equal): C0, DEL, C1 and the
+#: text-direction and line-break marks, NUL included.
+FORBIDDEN_TEXT = re.compile(
+    r"[\x00-\x1f\x7f-\x9f\u061c\u200e\u200f\u2028\u2029\u202a-\u202e\u2066-\u2069\ufeff]"
+)
+
+
+def _clean(value: str, where: str) -> str:
+    if FORBIDDEN_TEXT.search(value) is not None:
+        raise ValueError(f"{where} must not hold control, line-break or text-direction characters")
+    return value
+
+
+class CreditStep(StrictModel):
+    """One step of a rule of credit: a name, its weight in percent and what proves it."""
+
+    name: str = Field(min_length=1, max_length=MAX_STEP_NAME)
+    weight: int = Field(ge=1, le=100)
+    evidence: str
+
+    @field_validator("name")
+    @classmethod
+    def _name_is_clean(cls, value: str) -> str:
+        return _clean(value, "step name")
+
+    @field_validator("evidence")
+    @classmethod
+    def _evidence_shape(cls, value: str) -> str:
+        if RULE_EVIDENCE_PATTERN.fullmatch(value) is None or FORBIDDEN_TEXT.search(value):
+            raise ValueError(
+                "evidence must be 'manual', 'scope_state:<State>' or 'record_state:<type>:<State>'"
+            )
+        return value
+
+
+class CreditRule(StrictModel):
+    """The steps that earn credit for one commodity. The weights should sum to 100 (lint L008)."""
+
+    commodity: str
+    kind: RuleKind
+    steps: list[CreditStep] = Field(min_length=1, max_length=MAX_RULE_STEPS)
+
+    @field_validator("commodity")
+    @classmethod
+    def _commodity_shape(cls, value: str) -> str:
+        if RULE_COMMODITY_PATTERN.fullmatch(value) is None:
+            raise ValueError(f"commodity {value!r} must be a lower case code")
+        return value
+
+
 class PackageDoc(StrictModel):
     """One package version."""
 
@@ -220,6 +286,15 @@ class PackageDoc(StrictModel):
     psets: dict[str, PsetDef] = {}
     extends: list[ExtendsDef] = []
     conformance: ConformanceDef | None = None
+    rules_of_credit: list[CreditRule] = Field(default=[], max_length=MAX_RULE_ENTRIES)
+
+    @field_validator("rules_of_credit")
+    @classmethod
+    def _one_rule_per_commodity(cls, value: list[CreditRule]) -> list[CreditRule]:
+        names = [rule.commodity for rule in value]
+        if len(set(names)) != len(names):
+            raise ValueError("rules_of_credit names a commodity twice")
+        return value
 
     @field_validator("package")
     @classmethod
