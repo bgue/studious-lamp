@@ -340,7 +340,6 @@ def run_command(
         ctx.authorize(principal.actor, action, path)
     refuse_reserved(command)  # a client cannot pose as a publication (ADR-0014)
     check_intent(command)  # S1: refuses any intent until S2 validates it
-    check_intent(command)  # S1: refuses any intent until S2 validates it
     if effective_access(spec) == "company" and command.scope == "company":
         ctx.authorizer.authorize(principal, f"admin.command.{spec.name}", path)
     when = resolve_effective_at(effective_at, command.scope)
