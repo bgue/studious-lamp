@@ -56,3 +56,8 @@ Expected: `just check` clean; the tui suite passes with the keymap test tying ev
 
 ## Decision
 (supervisor or orchestrator writes here)
+
+## Orchestrator addendum (2026-11-08)
+Also fix two T01 review nits in `packages/tl-tui/src/tl_tui/record_activity_text.py` (allowed path for these lines only):
+- an own `Record.Updated` with no changes must not read `changed: ` — show the label alone; add a test;
+- `TECHNICAL_COLUMNS` reuses `record_text.history_columns(True)` plus `From` instead of a hand-typed copy.
