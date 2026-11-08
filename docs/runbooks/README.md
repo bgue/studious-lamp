@@ -30,4 +30,5 @@ Operational procedures, one file per alert or recovery path (§24.6). Template: 
 - `correspondence.md` — receive, triage, reply, response clocks, email in, restricting an item and the register export (P1-I5).
 - `schedule-snapshots.md` — upload, build, publish and compare P6 schedule snapshots, the worker, reconcile after a restore, the orphan-flagging job, and the cost snapshot import (P1-I4).
 - `awp.md` — load a WBS, CWAs and a path, compensate and reload, the rollup worker, the five screens (P2-I1).
+- `iwp-readiness.md` — build an IWP, read and clear its constraints, read readiness, sign off, issue and hold (P2-I2).
 - `materials.md` — daily materials work: load the item library, receive and accept deliveries with their MTR, move, reserve and adjust stock, read shortages and the movement log (M4).
