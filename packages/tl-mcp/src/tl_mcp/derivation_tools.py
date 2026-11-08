@@ -16,6 +16,7 @@ from typing import Annotated
 from mcp.server.mcpserver import MCPServer
 from mcp.types import ToolAnnotations
 from pydantic import Field
+from tl_core.intent import Intent
 from tl_core.services import proposals
 from tl_mod_documents.derivation import rows, views
 from tl_mod_documents.derivation.derived import StartExtraction
@@ -26,6 +27,7 @@ from tl_mod_documents.names import TARGET_DOCUMENTS, TARGET_TAGS
 
 from tl_mcp.context import McpContext
 from tl_mcp.errors import MAX_PART, guarded, resource_name
+from tl_mcp.intent_param import IntentParam
 from tl_mcp.write_tools import (  # pyright: ignore[reportPrivateUsage]
     PROPOSES,
     ProposalResult,
@@ -80,6 +82,7 @@ def start_extraction_impl(
     schema_code: str | None,
     extractor: str | None,
     summary: str | None,
+    intent: Intent | None = None,
 ) -> ProposalResult:
     scope = f"project:{project}"
     derived_id: str | None = None
@@ -94,6 +97,7 @@ def start_extraction_impl(
         revision_id=None if derived is not None else revision_id,
         schema_code=None if derived is not None else schema_code,
         extractor=extractor,
+        intent=intent,
     )
     target = derived or f"{revision_id} / {schema_code}"
     view = proposals.submit(
@@ -114,6 +118,7 @@ def propose_import_impl(
     expected_content_rev: int | None,
     skip_existing: bool,
     summary: str | None,
+    intent: Intent | None = None,
 ) -> ProposalResult:
     scope = f"project:{project}"
     with ctx.factory(True) as uow:
@@ -128,6 +133,7 @@ def propose_import_impl(
         "derived_id": found.id,
         "expected_content_rev": expected_content_rev or max(found.content_rev, 1),
         "skip_existing": skip_existing,
+        "intent": intent,
     }
     tags = schema.target_kind == TARGET_TAGS
     view = proposals.submit(
@@ -204,6 +210,7 @@ def register_derivation_tools(server: MCPServer, ctx: McpContext) -> None:
         extractor: Annotated[
             str | None, Field(max_length=MAX_PART, description="An extractor name; default: auto.")
         ] = None,
+        intent: IntentParam = None,
         summary: Summary = None,
     ) -> ProposalResult:
         """Propose reading a document's file and checking the rows against its schema.
@@ -224,6 +231,7 @@ def register_derivation_tools(server: MCPServer, ctx: McpContext) -> None:
                 schema_code=schema_code,
                 extractor=extractor,
                 summary=summary,
+                intent=intent,
             )
 
     @server.tool(annotations=PROPOSES)
@@ -240,6 +248,7 @@ def register_derivation_tools(server: MCPServer, ctx: McpContext) -> None:
         skip_existing: Annotated[
             bool, Field(description="Leave rows whose key exists alone instead of stopping.")
         ] = False,
+        intent: IntentParam = None,
         summary: Summary = None,
     ) -> ProposalResult:
         """Propose creating the tags or documents of a valid derived document.
@@ -257,4 +266,5 @@ def register_derivation_tools(server: MCPServer, ctx: McpContext) -> None:
                 expected_content_rev=expected_content_rev,
                 skip_existing=skip_existing,
                 summary=summary,
+                intent=intent,
             )

@@ -20,6 +20,7 @@ from mcp.server.mcpserver import MCPServer
 from mcp.types import ToolAnnotations
 from pydantic import BaseModel, Field
 from tl_api.thread_runner import thread_runner
+from tl_core.intent import Intent
 from tl_core.services import proposals
 from tl_core.threads.contract import (
     MAX_MESSAGE_CHARS,
@@ -32,6 +33,7 @@ from tl_core.threads.queries import read_thread as read_thread_page
 
 from tl_mcp.context import McpContext
 from tl_mcp.errors import MAX_PART, guarded, resource_name
+from tl_mcp.intent_param import IntentParam
 from tl_mcp.tools import resolve_record_id
 from tl_mcp.write_tools import (  # pyright: ignore[reportPrivateUsage]
     POSTS,
@@ -112,7 +114,13 @@ def post_thread_message_impl(
 
 
 def propose_dispatch_impl(
-    ctx: McpContext, *, record: str, scope: str | None, text: str, summary: str | None
+    ctx: McpContext,
+    *,
+    record: str,
+    scope: str | None,
+    text: str,
+    summary: str | None,
+    intent: Intent | None = None,
 ) -> ProposalResult:
     """Plan ``text`` as the agent and file the proposal of the dispatch (never run it).
 
@@ -131,6 +139,7 @@ def propose_dispatch_impl(
         agent=ctx.actor,
         runner=runner,
     )
+    command = command.model_copy(update={"intent": intent})
     label = summary or f"Dispatch on {envelope.get('key') or envelope['id']}: {_short(text, 120)}"
     view = proposals.submit(
         ctx.factory,
@@ -193,6 +202,7 @@ def register_thread_tools(server: MCPServer, ctx: McpContext) -> None:
             ),
         ],
         scope: ScopeOfKey = None,
+        intent: IntentParam = None,
         summary: Summary = None,
     ) -> ProposalResult:
         """Propose a dispatch from a record's thread. A person must accept it before anything runs.
@@ -203,5 +213,5 @@ def register_thread_tools(server: MCPServer, ctx: McpContext) -> None:
         """
         with guarded(ctx, "propose_dispatch", resource_name("record", record)):
             return propose_dispatch_impl(
-                ctx, record=record, scope=scope, text=text, summary=summary
+                ctx, record=record, scope=scope, text=text, summary=summary, intent=intent
             )
