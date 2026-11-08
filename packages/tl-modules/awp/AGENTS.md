@@ -11,3 +11,8 @@ Read the root `AGENTS.md` first. These rules add to it.
 - Events are immutable. Never delete or rewrite an `awp` event; a correction is a new event.
 - Reinstate, do not delete. A retired WBS node comes back by `ReinstateWbsNode` (`WBSNode.Reinstated`) or by a reload under the same parent. No awp command removes a node, a CWA or a CWP row.
 - The MCP tool `propose_cwp` only files a proposal. No agent tool may create, revise or void an awp record.
+- IWP sign-off and issue are gated by the record hash: `SignOffIwp` and `IssueIwp` take the hash from `iwp hash`, and a stale hash is refused. Sign-off needs two distinct signers, each holding a role in `awp.release.signoff_roles`; do not widen that setting to get a sign-off through.
+- `IWP.Ready` and `IWP.ReadinessEvaluated` are written only by the readiness job (`ready:<iwp>`, `tl_mod_awp/readiness/`), never by a command or a projector. The readiness projector writes `cur_awp_readiness` from those events only.
+- The nine readiness checks are read-only: a check reads nothing it does not need, uses no write, and answers one fixed detail text. `n_a` counts as passing (D9). A new check is registered through the entry-point group `throughline.readiness_checks`.
+- Constraints are core records (ADR-0024). awp holds no `awp.constraint.*` word; a constraint is raised, assigned, cleared or withdrawn only through the core commands (`core.constraint.edit`), and read through `core.constraint.view`.
+- The MCP IWP tools (`tl_mcp/iwp_tools.py`) are four reads and `propose_iwp_scope`. The proposal is not a write. Agents hold no constraint tool (D37).

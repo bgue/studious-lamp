@@ -6,7 +6,7 @@ import sys
 from functools import partial
 from pathlib import Path
 
-from awp_world import ROOT, SCOPE, World, refuses  # noqa: I001
+from awp_world import SCOPE, World, refuses  # noqa: I001
 from sqlalchemy import text
 from tl_adapters.db import as_target, create_schema, open_uow, rebuild_projections
 from tl_core.auth.errors import ForbiddenError
@@ -14,7 +14,6 @@ from tl_core.auth.module_roles import require_command_access
 from tl_core.links.expected import (
     default_expected_links,
     missing_expected_links,
-    parse_expected_links,
 )
 from tl_core.settings.service import set_setting
 from tl_mod_awp import actions, errors
@@ -31,11 +30,9 @@ ROLES = "awp.release.signoff_roles"
 
 
 def permit_registry():
-    """The default expectations plus the IWP's permit to work, read from its schema class (the
-    fixture ``schema/fixtures/links/awp.yaml`` does not carry it; a schema piece adds it)."""
-    found = default_expected_links()
-    found.merge(parse_expected_links((ROOT / "schema/modules/awp/iwp.yaml").read_text()))
-    return found
+    """The default expectations: ``schema/fixtures/links/awp.yaml`` carries the IWP's permit to
+    work (``requires`` at Issued), so nothing is merged in here."""
+    return default_expected_links()
 
 
 def ok(name: str, cond: bool = True) -> None:
