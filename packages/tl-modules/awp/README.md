@@ -110,11 +110,11 @@ Palette ids (keyless entries in `tl_tui/commands.py` `APP_COMMANDS`, opened with
 | `cwas` | CWA register | code, title, position on the path, CWP count, budget hours |
 | `path` | Path of construction | steps of one version; `[` `]` previous and next version, `v` compare |
 | `packages` | External packages | EWP and PWP: number, title, status, forecast, actual, constraint source |
-| `iwps` | IWP log | IWP number, title, state, foreman; `r` opens the readiness screen, `c` the constraint log (`tl_tui/widgets/iwp_register.py`) |
+| `iwps` | IWP log | IWP number, title, state, foreman; `r` filters to the Ready IWPs; `Enter` opens the IWP screen, where `r` opens readiness and `c` the constraints (`tl_tui/widgets/iwp_register.py`) |
 | `constraints` | Constraint log | open constraints and their owners (core constraint screen) |
 | `backlog` | Backlog | IWPs by view, with the sizing view |
 
-The readiness screen (`tl_tui/widgets/readiness_screen.py`) has no palette id; it opens from the IWP log with `r`.
+The readiness screen (`tl_tui/widgets/readiness_screen.py`) has no palette id; it opens from the IWP screen with `r`. Full key lists: `docs/reference/awp.md`.
 
 The CWP record's Details tab uses the same renderer as the panels (`tl_tui/details/awp.py`).
 
