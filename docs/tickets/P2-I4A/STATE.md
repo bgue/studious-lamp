@@ -1,6 +1,6 @@
 # P2-I4A STATE  r=2 base=0ae6527 C=0 ck=0 gate=n/a wt=/home/user/wt/p2-i4a
 ## BOARD   (ws all A; pieces S, tickets T; nothing dispatches before P2-INT C2 is on the trunk and merged here)
-S1 p disp f - schema + module spec; spec r2; gate orch P2-Q10
+S1 p mrg f 010b695 schema + module spec; spec r2; gate orch P2-Q10
 S2 p todo f - engine cmds + subject-class join; spec r2; needs S1; gate orch
 S3 p todo f - fulfil, FIFO lots, stock(), shortage constraint; spec at C1; gate orch
 S4 p todo f - tests piece at C3
@@ -50,6 +50,10 @@ Q2 closed r2 (intent slot arrives with P2-INT C2; S2 asserts round-trip)
 3. Moving a requisitions access word to another role per project (data edit through module roles) | S1 drops the module-roles edit, T10b grants superuser (F13) | Phase 3 with module-role editing
 ## DEC-ORCH
 D-o1 2026-11-08 C2 taken from p2/int @9700d54 (holds trunk @4fff675) instead of waiting for P2-INT on the trunk; P2-INT T02-T05 come with it later
+## OPEN-ORCH
+Q-o1 feed cards for Requisition.Approved/.Rejected and WorkOrder.Completed need POLICY_EVENT_TYPES in tl_core/feed/cards.py (S2 or a core ticket)
+Q-o2 docs/reference/access-words.md and docs/build-spec/specs/offline-classes.md not updated (Haiku docs ticket)
+Q-o3 contract §3: say Raised payload is flat and Revised carries changes {field: [old, new]} (review F1 LO)
 ## NEXT
 1. Orchestrator: merge trunk after P2-INT C2 into p2/i4a; send `13.` with the merge sha.
 2. r3 dispatch: S1 alone (human gate P2-Q10, APPROVALS line). S2 after it merges; nothing else is ready.
