@@ -160,9 +160,7 @@ def _web() -> Any:
 
     url = os.environ["TL_DEMO_URL"]
     client = httpx.Client(base_url=url, headers={"Origin": url}, follow_redirects=False)
-    response = client.post(
-        "/web/sign-in", data={"username": "demo", "password": DEMO_PASSWORD}
-    )
+    response = client.post("/web/sign-in", data={"username": "demo", "password": DEMO_PASSWORD})
     assert response.status_code == 303, f"web sign-in answered {response.status_code}"
     return client
 
@@ -226,7 +224,8 @@ async def _readiness_tui(number: str) -> bool:
                     break
             rows = [" ".join(c) for c in _cells(screen)]
             say(f"TUI readiness of {number}: {len(rows)} checks from the IWP screen")
-            return any("documents_current" in row and " ok " in row for row in rows)
+            norm = [row.lower().replace("_", " ") for row in rows]
+            return any("documents current" in row and " ok" in row for row in norm)
     finally:
         client.close()
 
@@ -312,7 +311,7 @@ def backlog() -> None:
 
 
 def locations() -> None:
-    """Clause 3's stock needs a place: sue (a materials superuser) defines the chain through the API."""
+    """Clause 3's stock needs a place: sue (a materials superuser) defines the chain via the API."""
     import httpx
     from tl_api.client.auth import sign_in
 
@@ -325,7 +324,13 @@ def locations() -> None:
     ]
     with httpx.Client(base_url=url, headers={"Authorization": f"Bearer {token}"}) as client:
         for code, title, kind, parent in chain:
-            body = {"scope": SCOPE, "code": code, "title": title, "kind": kind, "parent_code": parent}
+            body = {
+                "scope": SCOPE,
+                "code": code,
+                "title": title,
+                "kind": kind,
+                "parent_code": parent,
+            }
             made = client.post("/commands/DefineLocation", json=body)
             assert made.status_code == 200, f"DefineLocation {code}: {made.status_code}"
     say("sue defined the location chain P123 > WH1 > L2")
@@ -357,7 +362,7 @@ def publish(key: str) -> None:
 
 
 async def _sizing(number: str) -> dict[str, Any]:
-    """The backlog from the palette, then its sizing view (key ``z``): the rows outside the bounds."""
+    """The backlog from the palette, then its sizing view (key ``z``): rows outside the bounds."""
     from tl_tui.app import TlApp
     from tl_tui.embedded import EmbeddedClient
 

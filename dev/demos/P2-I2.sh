@@ -390,7 +390,7 @@ YAML
 
   step "[$backend] clause 9: the same state over the API, the TUI, the web and MCP; readiness history; the backlog"
   driver screens "$IWP"
-  history="$(as demo tl events tail --project "$PROJECT" --limit 400 2>/dev/null | grep -c 'IWP.ReadinessEvaluated' || true)"
+  history="$(as demo tl events tail --project "$PROJECT" -n 2000 2>/dev/null | grep -c 'IWP.ReadinessEvaluated' || true)"
   [ "$history" -ge 3 ] || fail "the ledger holds $history readiness evaluations, not three"
   echo "readiness evaluations in the ledger: $history"
   driver backlog
