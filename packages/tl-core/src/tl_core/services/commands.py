@@ -8,6 +8,7 @@ from typing import Any, cast
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
+from tl_core.intent import Intent
 from tl_core.ledger import Event
 
 _SCOPE_PATTERN = re.compile(r"(?:company|project:[A-Za-z0-9_.-]+)")
@@ -43,6 +44,7 @@ class Command(BaseModel):
     correlation_id: str | None = None
     causation_id: str | None = None
     idempotency_key: str | None = None  # accepted and ignored in this increment
+    intent: Intent | None = None
 
     @field_validator("scope")
     @classmethod

@@ -17,6 +17,8 @@ from typing import Any, Literal
 
 from pydantic import BaseModel
 
+from tl_core.intent import Intent
+
 # Proposal.Created: {proposal_id, tool, agent, command_type, command: dict, summary}
 PROPOSAL_CREATED = "Proposal.Created"
 # Proposal.Accepted: {proposal_id, by, result_stream_id, result_version}
@@ -80,6 +82,7 @@ class ProposalView(BaseModel):
     result_stream_id: str | None = None
     seq: int
     setting: SettingProposalInfo | None = None  # set for a ChangeSetting proposal (P0-I8)
+    intent: Intent | None = None  # from the Created event's column, as the reader may see it
 
 
 # Service signatures (implemented in tl_core.services.proposals):

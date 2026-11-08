@@ -7,6 +7,7 @@ the person holds from their account.
 from __future__ import annotations
 
 from collections.abc import Callable, Iterator
+from typing import Any
 
 import pytest
 from tl_adapters.db import DbTarget, create_schema, open_uow
@@ -139,7 +140,7 @@ def test_a_thread_write_is_made_as_the_signed_in_person(
     posted = client.thread_post(
         PostThreadMessage(actor="user:jo", source="tui", scope=SCOPE, record_id=rid, body="mine")
     )
-    base = {"source": "tui", "scope": SCOPE, "record_id": rid}
+    base: dict[str, Any] = {"source": "tui", "scope": SCOPE, "record_id": rid}
     with pytest.raises(ForbiddenError):
         client.thread_post(PostThreadMessage(actor="user:mallory", body="as someone", **base))
     with pytest.raises(ForbiddenError):

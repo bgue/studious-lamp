@@ -51,6 +51,16 @@
             ],
             "title": "Idempotency Key"
           },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "scope": {
             "title": "Scope",
             "type": "string"
@@ -119,6 +129,16 @@
               }
             ],
             "title": "Idempotency Key"
+          },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "link_id": {
             "title": "Link Id",
@@ -193,6 +213,16 @@
               }
             ],
             "title": "Idempotency Key"
+          },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "scope": {
             "title": "Scope",
@@ -505,6 +535,16 @@
             ],
             "title": "Idempotency Key"
           },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "label": {
             "maxLength": 500,
             "minLength": 1,
@@ -593,6 +633,16 @@
             ],
             "title": "Idempotency Key"
           },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "party_id": {
             "maxLength": 128,
             "title": "Party Id",
@@ -652,6 +702,16 @@
               }
             ],
             "title": "Idempotency Key"
+          },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "items": {
             "items": {
@@ -728,6 +788,16 @@
               }
             ],
             "title": "Idempotency Key"
+          },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "link_source": {
             "default": "manual",
@@ -1055,6 +1125,16 @@
             ],
             "title": "Idempotency Key"
           },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "movements": {
             "items": {
               "$ref": "#/components/schemas/Movement"
@@ -1128,6 +1208,16 @@
               }
             ],
             "title": "Idempotency Key"
+          },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "link_id": {
             "title": "Link Id",
@@ -1212,6 +1302,16 @@
             ],
             "title": "Idempotency Key"
           },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "link_id": {
             "title": "Link Id",
             "type": "string"
@@ -1274,6 +1374,16 @@
               }
             ],
             "title": "Idempotency Key"
+          },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "item_code": {
             "maxLength": 40,
@@ -1348,6 +1458,16 @@
             ],
             "title": "Impact Sha256"
           },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "package": {
             "maxLength": 200,
             "minLength": 1,
@@ -1421,6 +1541,16 @@
               }
             ],
             "title": "Idempotency Key"
+          },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "package": {
             "maxLength": 200,
@@ -1700,6 +1830,16 @@
             ],
             "title": "Idempotency Key"
           },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "scope": {
             "title": "Scope",
             "type": "string"
@@ -1754,6 +1894,16 @@
               }
             ],
             "title": "Idempotency Key"
+          },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "package_id": {
             "title": "Package Id",
@@ -1884,6 +2034,16 @@
             ],
             "title": "Idempotency Key"
           },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "schedule_impact": {
             "default": "unknown",
             "maxLength": 7,
@@ -1961,6 +2121,16 @@
             ],
             "title": "Idempotency Key"
           },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "package_id": {
             "title": "Package Id",
             "type": "string"
@@ -2030,6 +2200,16 @@
               }
             ],
             "title": "Idempotency Key"
+          },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "scope": {
             "title": "Scope",
@@ -2135,6 +2315,16 @@
               }
             ],
             "title": "Idempotency Key"
+          },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "note": {
             "anyOf": [
@@ -2266,6 +2456,16 @@
             ],
             "title": "Idempotency Key"
           },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "owner": {
             "pattern": "^user:.{1,59}$",
             "title": "Owner",
@@ -2325,6 +2525,16 @@
               }
             ],
             "title": "Idempotency Key"
+          },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "mto_lines": {
             "items": {
@@ -2406,6 +2616,16 @@
               }
             ],
             "title": "Idempotency Key"
+          },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "responds_to_id": {
             "anyOf": [
@@ -2499,6 +2719,16 @@
             ],
             "title": "Idempotency Key"
           },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "record_id": {
             "title": "Record Id",
             "type": "string"
@@ -2586,6 +2816,16 @@
               }
             ],
             "title": "Idempotency Key"
+          },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "page_count": {
             "anyOf": [
@@ -2803,6 +3043,16 @@
             ],
             "title": "Idempotency Key"
           },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "on": {
             "anyOf": [
               {
@@ -2876,6 +3126,16 @@
             ],
             "title": "Idempotency Key"
           },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "iwp": {
             "maxLength": 40,
             "minLength": 1,
@@ -2942,6 +3202,16 @@
               }
             ],
             "title": "Idempotency Key"
+          },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "job_id": {
             "title": "Job Id",
@@ -3071,6 +3341,16 @@
               }
             ],
             "title": "Idempotency Key"
+          },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "key": {
             "title": "Key",
@@ -3472,6 +3752,16 @@
             ],
             "title": "Idempotency Key"
           },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "reason": {
             "maxLength": 300,
             "minLength": 1,
@@ -3825,6 +4115,16 @@
             ],
             "title": "Idempotency Key"
           },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "lifecycle": {
             "default": "retired",
             "enum": [
@@ -3920,6 +4220,16 @@
             ],
             "title": "Idempotency Key"
           },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "reason": {
             "anyOf": [
               {
@@ -4001,6 +4311,16 @@
             ],
             "title": "Idempotency Key"
           },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "reason": {
             "anyOf": [
               {
@@ -4077,6 +4397,16 @@
             ],
             "title": "Idempotency Key"
           },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "scope": {
             "title": "Scope",
             "type": "string"
@@ -4141,6 +4471,16 @@
               }
             ],
             "title": "Idempotency Key"
+          },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "outcome": {
             "anyOf": [
@@ -4251,6 +4591,16 @@
             ],
             "title": "Idempotency Key"
           },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "lifecycle": {
             "default": "retired",
             "enum": [
@@ -4345,6 +4695,16 @@
               }
             ],
             "title": "Idempotency Key"
+          },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "lifecycle": {
             "default": "retired",
@@ -4441,6 +4801,16 @@
             ],
             "title": "Idempotency Key"
           },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "reason": {
             "anyOf": [
               {
@@ -4521,6 +4891,16 @@
               }
             ],
             "title": "Idempotency Key"
+          },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "reason": {
             "anyOf": [
@@ -5584,6 +5964,16 @@
             ],
             "title": "Idempotency Key"
           },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "reason": {
             "maxLength": 2000,
             "title": "Reason",
@@ -5770,6 +6160,16 @@
             ],
             "title": "Idempotency Key"
           },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "scope": {
             "title": "Scope",
             "type": "string"
@@ -5871,6 +6271,16 @@
               }
             ],
             "title": "Idempotency Key"
+          },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "referenced_ids": {
             "items": {
@@ -7182,6 +7592,16 @@
             ],
             "title": "Idempotency Key"
           },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "planned_finish": {
             "anyOf": [
               {
@@ -7323,6 +7743,16 @@
               }
             ],
             "title": "Idempotency Key"
+          },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "mapping": {
             "title": "Mapping",
@@ -7551,6 +7981,16 @@
             ],
             "title": "Idempotency Key"
           },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "planned_finish": {
             "anyOf": [
               {
@@ -7647,6 +8087,16 @@
               }
             ],
             "title": "Idempotency Key"
+          },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "lines": {
             "items": {
@@ -7754,6 +8204,16 @@
               }
             ],
             "title": "Idempotency Key"
+          },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "key": {
             "anyOf": [
@@ -7885,6 +8345,16 @@
             ],
             "title": "Intended Status"
           },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "purpose": {
             "anyOf": [
               {
@@ -8005,6 +8475,16 @@
               }
             ],
             "title": "Integration App"
+          },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "key": {
             "title": "Key",
@@ -8128,6 +8608,16 @@
             ],
             "title": "Idempotency Key"
           },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "qty": {
             "maxLength": 20,
             "minLength": 1,
@@ -8221,6 +8711,16 @@
               }
             ],
             "title": "Idempotency Key"
+          },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "number": {
             "maxLength": 128,
@@ -8323,6 +8823,16 @@
               }
             ],
             "title": "Idempotency Key"
+          },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "notes": {
             "anyOf": [
@@ -8941,6 +9451,16 @@
             ],
             "title": "Idempotency Key"
           },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "link_id": {
             "title": "Link Id",
             "type": "string"
@@ -9058,6 +9578,16 @@
               }
             ],
             "title": "Integration App"
+          },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "label": {
             "maxLength": 200,
@@ -9194,6 +9724,16 @@
             ],
             "title": "Idempotency Key"
           },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "notice_requirements": {
             "anyOf": [
               {
@@ -9319,6 +9859,16 @@
             ],
             "title": "Idempotency Key"
           },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "location_text": {
             "anyOf": [
               {
@@ -9414,6 +9964,16 @@
               }
             ],
             "title": "Idempotency Key"
+          },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "material_code": {
             "anyOf": [
@@ -9520,6 +10080,16 @@
             ],
             "title": "Idempotency Key"
           },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "kind": {
             "maxLength": 16,
             "minLength": 1,
@@ -9601,6 +10171,16 @@
             ],
             "title": "Idempotency Key"
           },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "scope": {
             "title": "Scope",
             "type": "string"
@@ -9669,6 +10249,16 @@
               }
             ],
             "title": "Idempotency Key"
+          },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "name": {
             "maxLength": 200,
@@ -9797,6 +10387,16 @@
             ],
             "title": "Idempotency Key"
           },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "itr_templates": {
             "default": [],
             "items": {
@@ -9892,6 +10492,16 @@
             ],
             "title": "Idempotency Key"
           },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "parent_code": {
             "anyOf": [
               {
@@ -9976,6 +10586,16 @@
               }
             ],
             "title": "Idempotency Key"
+          },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "package_id": {
             "title": "Package Id",
@@ -10589,6 +11209,16 @@
               }
             ],
             "title": "Idempotency Key"
+          },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "reason": {
             "anyOf": [
@@ -11283,6 +11913,16 @@
             ],
             "title": "Idempotency Key"
           },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "medium": {
             "default": "letter",
             "enum": [
@@ -11420,6 +12060,16 @@
               }
             ],
             "title": "Idempotency Key"
+          },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "scope": {
             "title": "Scope",
@@ -11763,6 +12413,16 @@
             ],
             "title": "Idempotency Key"
           },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "post_id": {
             "title": "Post Id",
             "type": "string"
@@ -11831,6 +12491,16 @@
               }
             ],
             "title": "Idempotency Key"
+          },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "pset_edits": {
             "default": [],
@@ -11902,6 +12572,16 @@
               }
             ],
             "title": "Idempotency Key"
+          },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "message_id": {
             "title": "Message Id",
@@ -12079,6 +12759,16 @@
             ],
             "title": "Idempotency Key"
           },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "reason": {
             "anyOf": [
               {
@@ -12147,6 +12837,16 @@
               }
             ],
             "title": "Idempotency Key"
+          },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "party_id": {
             "maxLength": 128,
@@ -12356,6 +13056,16 @@
             ],
             "title": "Idempotency Key"
           },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "require_impact": {
             "default": false,
             "title": "Require Impact",
@@ -12470,6 +13180,16 @@
           "hash": {
             "title": "Hash",
             "type": "string"
+          },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "payload": {
             "additionalProperties": true,
@@ -13481,6 +14201,16 @@
             ],
             "title": "Idempotency Key"
           },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "link_id": {
             "title": "Link Id",
             "type": "string"
@@ -13652,6 +14382,16 @@
             ],
             "title": "Idempotency Key"
           },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "reason": {
             "maxLength": 2000,
             "title": "Reason",
@@ -13816,6 +14556,16 @@
               }
             ],
             "title": "Idempotency Key"
+          },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "iwp": {
             "maxLength": 40,
@@ -14054,6 +14804,16 @@
             ],
             "title": "Idempotency Key"
           },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "period": {
             "maxLength": 7,
             "minLength": 7,
@@ -14183,6 +14943,16 @@
             ],
             "title": "Idempotency Key"
           },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "notes": {
             "anyOf": [
               {
@@ -14217,6 +14987,131 @@
           "stream_id"
         ],
         "title": "InspectReceiptBody",
+        "type": "object"
+      },
+      "Intent": {
+        "additionalProperties": false,
+        "properties": {
+          "goal_ref": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Goal Ref"
+          },
+          "next": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/IntentRef"
+            },
+            "title": "Next",
+            "type": "array"
+          },
+          "toward": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/IntentToward"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "why": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Why"
+          }
+        },
+        "title": "Intent",
+        "type": "object"
+      },
+      "IntentRef": {
+        "additionalProperties": false,
+        "description": "One next item: ``{command, target}`` or ``{text}``.",
+        "properties": {
+          "command": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Command"
+          },
+          "target": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target"
+          },
+          "text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text"
+          }
+        },
+        "title": "IntentRef",
+        "type": "object"
+      },
+      "IntentToward": {
+        "additionalProperties": false,
+        "description": "What the work moves toward: a target with a state xor a condition.",
+        "properties": {
+          "condition": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Condition"
+          },
+          "state": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "State"
+          },
+          "target": {
+            "title": "Target",
+            "type": "string"
+          }
+        },
+        "required": [
+          "target"
+        ],
+        "title": "IntentToward",
         "type": "object"
       },
       "InvokeActionBody": {
@@ -14259,6 +15154,16 @@
               }
             ],
             "title": "Idempotency Key"
+          },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "parameters": {
             "additionalProperties": true,
@@ -14411,6 +15316,16 @@
             ],
             "title": "Idempotency Key"
           },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "issued_on": {
             "anyOf": [
               {
@@ -14516,6 +15431,16 @@
             ],
             "title": "Idempotency Key"
           },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "issued_on": {
             "anyOf": [
               {
@@ -14611,6 +15536,16 @@
             ],
             "title": "Idempotency Key"
           },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "iwp": {
             "maxLength": 40,
             "minLength": 1,
@@ -14700,6 +15635,16 @@
             ],
             "title": "Idempotency Key"
           },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "issue_status": {
             "maxLength": 128,
             "minLength": 1,
@@ -14775,6 +15720,16 @@
               }
             ],
             "title": "Idempotency Key"
+          },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "movements": {
             "items": {
@@ -14861,6 +15816,16 @@
               }
             ],
             "title": "Idempotency Key"
+          },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "issued_on": {
             "anyOf": [
@@ -15005,6 +15970,16 @@
               }
             ],
             "title": "Idempotency Key"
+          },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "issued_on": {
             "anyOf": [
@@ -15966,6 +16941,16 @@
             ],
             "title": "Idempotency Key"
           },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "note": {
             "anyOf": [
               {
@@ -16200,6 +17185,16 @@
               }
             ],
             "title": "Idempotency Key"
+          },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "note": {
             "anyOf": [
@@ -16900,6 +17895,16 @@
             ],
             "title": "Idempotency Key"
           },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "node": {
             "maxLength": 40,
             "minLength": 1,
@@ -17098,6 +18103,16 @@
             ],
             "title": "Idempotency Key"
           },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "on": {
             "anyOf": [
               {
@@ -17188,6 +18203,16 @@
               }
             ],
             "title": "Idempotency Key"
+          },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "new_number": {
             "maxLength": 128,
@@ -17424,6 +18449,16 @@
               }
             ],
             "title": "Idempotency Key"
+          },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "note": {
             "anyOf": [
@@ -18102,6 +19137,16 @@
             ],
             "title": "Idempotency Key"
           },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "revision_id": {
             "title": "Revision Id",
             "type": "string"
@@ -18228,6 +19273,16 @@
             ],
             "title": "Idempotency Key"
           },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "reviewers": {
             "items": {
               "$ref": "#/components/schemas/ReviewerRequest"
@@ -18295,6 +19350,16 @@
               }
             ],
             "title": "Idempotency Key"
+          },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "p6_project": {
             "anyOf": [
@@ -18456,6 +19521,16 @@
               }
             ],
             "title": "Idempotency Key"
+          },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "outcome": {
             "enum": [
@@ -19367,6 +20442,16 @@
             ],
             "title": "Idempotency Key"
           },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "on": {
             "anyOf": [
               {
@@ -19445,6 +20530,16 @@
               }
             ],
             "title": "Idempotency Key"
+          },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "iwp": {
             "maxLength": 40,
@@ -19737,6 +20832,16 @@
             ],
             "title": "Idempotency Key"
           },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "record_id": {
             "title": "Record Id",
             "type": "string"
@@ -19809,6 +20914,16 @@
             ],
             "title": "Importance",
             "type": "string"
+          },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "post_id": {
             "anyOf": [
@@ -20050,6 +21165,16 @@
             ],
             "title": "Decided By"
           },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "proposal_id": {
             "title": "Proposal Id",
             "type": "string"
@@ -20284,6 +21409,16 @@
             ],
             "title": "Idempotency Key"
           },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "scope": {
             "title": "Scope",
             "type": "string"
@@ -20352,6 +21487,16 @@
               }
             ],
             "title": "Idempotency Key"
+          },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "scope": {
             "title": "Scope",
@@ -20434,6 +21579,16 @@
               }
             ],
             "title": "Idempotency Key"
+          },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "scope": {
             "title": "Scope",
@@ -20610,6 +21765,16 @@
             ],
             "title": "Idempotency Key"
           },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "scope": {
             "title": "Scope",
             "type": "string"
@@ -20672,6 +21837,16 @@
               }
             ],
             "title": "Idempotency Key"
+          },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "package_id": {
             "title": "Package Id",
@@ -20954,6 +22129,16 @@
             ],
             "title": "Idempotency Key"
           },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "references": {
             "items": {
               "$ref": "#/components/schemas/Reference"
@@ -21139,6 +22324,16 @@
             ],
             "title": "Idempotency Key"
           },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "owner": {
             "anyOf": [
               {
@@ -21304,6 +22499,16 @@
             ],
             "title": "Idempotency Key"
           },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "potential_cost_impact": {
             "default": "unknown",
             "maxLength": 7,
@@ -21440,6 +22645,16 @@
               }
             ],
             "title": "Idempotency Key"
+          },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "on": {
             "default": true,
@@ -22085,6 +23300,16 @@
             ],
             "title": "In Reply To"
           },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "medium": {
             "default": "letter",
             "enum": [
@@ -22284,6 +23509,16 @@
             ],
             "title": "Idempotency Key"
           },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "reason": {
             "maxLength": 2000,
             "title": "Reason",
@@ -22371,6 +23606,16 @@
               }
             ],
             "title": "Idempotency Key"
+          },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "reason": {
             "maxLength": 2000,
@@ -22498,6 +23743,16 @@
               }
             ],
             "title": "Idempotency Key"
+          },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "package_no": {
             "maxLength": 64,
@@ -22713,6 +23968,16 @@
             ],
             "title": "Idempotency Key"
           },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "item_code": {
             "maxLength": 40,
             "minLength": 1,
@@ -22837,6 +24102,16 @@
             ],
             "title": "Idempotency Key"
           },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "reason": {
             "anyOf": [
               {
@@ -22948,6 +24223,16 @@
             ],
             "title": "Idempotency Key"
           },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "outcome": {
             "enum": [
               "approved",
@@ -23045,6 +24330,16 @@
               }
             ],
             "title": "Idempotency Key"
+          },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "outcome": {
             "enum": [
@@ -23145,6 +24440,16 @@
               }
             ],
             "title": "Idempotency Key"
+          },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "number": {
             "maxLength": 128,
@@ -23250,6 +24555,16 @@
               }
             ],
             "title": "Idempotency Key"
+          },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "responded_on": {
             "anyOf": [
@@ -23395,6 +24710,16 @@
               }
             ],
             "title": "Idempotency Key"
+          },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "reason": {
             "maxLength": 2000,
@@ -23555,6 +24880,16 @@
             ],
             "title": "Idempotency Key"
           },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "label": {
             "maxLength": 500,
             "minLength": 1,
@@ -23691,6 +25026,16 @@
             ],
             "title": "Idempotency Key"
           },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "number": {
             "maxLength": 128,
             "minLength": 1,
@@ -23807,6 +25152,16 @@
               }
             ],
             "title": "Idempotency Key"
+          },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "json_schema": {
             "additionalProperties": true,
@@ -23967,6 +25322,16 @@
             ],
             "title": "Integration App"
           },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "name": {
             "title": "Name",
             "type": "string"
@@ -24056,6 +25421,16 @@
               }
             ],
             "title": "Idempotency Key"
+          },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "label": {
             "maxLength": 200,
@@ -24334,6 +25709,16 @@
             ],
             "title": "Idempotency Key"
           },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "label": {
             "maxLength": 500,
             "minLength": 1,
@@ -24471,6 +25856,16 @@
               }
             ],
             "title": "Idempotency Key"
+          },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "label": {
             "maxLength": 500,
@@ -24611,6 +26006,16 @@
             ],
             "title": "Idempotency Key"
           },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "name": {
             "maxLength": 500,
             "minLength": 1,
@@ -24692,6 +26097,16 @@
               }
             ],
             "title": "Idempotency Key"
+          },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "page_count": {
             "anyOf": [
@@ -24787,6 +26202,16 @@
             ],
             "title": "Idempotency Key"
           },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "record_id": {
             "title": "Record Id",
             "type": "string"
@@ -24869,6 +26294,16 @@
             ],
             "title": "Idempotency Key"
           },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "node": {
             "maxLength": 40,
             "minLength": 1,
@@ -24946,6 +26381,16 @@
               }
             ],
             "title": "Idempotency Key"
+          },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "reason": {
             "maxLength": 2000,
@@ -25028,6 +26473,16 @@
             ],
             "title": "Idempotency Key"
           },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "reason": {
             "maxLength": 1000,
             "minLength": 1,
@@ -25104,6 +26559,16 @@
               }
             ],
             "title": "Idempotency Key"
+          },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "reason": {
             "maxLength": 500,
@@ -25285,6 +26750,16 @@
             ],
             "title": "Idempotency Key"
           },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "scope": {
             "title": "Scope",
             "type": "string"
@@ -25339,6 +26814,16 @@
               }
             ],
             "title": "Idempotency Key"
+          },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "iwp": {
             "maxLength": 40,
@@ -25462,6 +26947,16 @@
             ],
             "title": "Idempotency Key"
           },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "items": {
             "items": {
               "maxLength": 40,
@@ -25544,6 +27039,16 @@
               }
             ],
             "title": "Idempotency Key"
+          },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "new_number": {
             "maxLength": 128,
@@ -25672,6 +27177,16 @@
             ],
             "title": "Idempotency Key"
           },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "reason": {
             "maxLength": 500,
             "minLength": 1,
@@ -25743,6 +27258,16 @@
               }
             ],
             "title": "Idempotency Key"
+          },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "link_id": {
             "title": "Link Id",
@@ -25826,6 +27351,16 @@
             ],
             "title": "Idempotency Key"
           },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "link_id": {
             "title": "Link Id",
             "type": "string"
@@ -25900,6 +27435,16 @@
               }
             ],
             "title": "Idempotency Key"
+          },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "page_count": {
             "anyOf": [
@@ -26017,6 +27562,16 @@
             ],
             "title": "Idempotency Key"
           },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "scope": {
             "title": "Scope",
             "type": "string"
@@ -26069,6 +27624,16 @@
               }
             ],
             "title": "Idempotency Key"
+          },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "package_id": {
             "title": "Package Id",
@@ -26140,6 +27705,16 @@
               }
             ],
             "title": "Idempotency Key"
+          },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "path": {
             "maxLength": 200,
@@ -26299,6 +27874,16 @@
               }
             ],
             "title": "Idempotency Key"
+          },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "movements": {
             "items": {
@@ -26510,6 +28095,16 @@
             ],
             "title": "Idempotency Key"
           },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "on": {
             "anyOf": [
               {
@@ -26586,6 +28181,16 @@
               }
             ],
             "title": "Idempotency Key"
+          },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "on": {
             "anyOf": [
@@ -26670,6 +28275,16 @@
             ],
             "title": "Idempotency Key"
           },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "reason": {
             "maxLength": 1000,
             "minLength": 1,
@@ -26736,6 +28351,16 @@
             ],
             "title": "Idempotency Key"
           },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "reason": {
             "maxLength": 2000,
             "title": "Reason",
@@ -26801,6 +28426,16 @@
               }
             ],
             "title": "Idempotency Key"
+          },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "reason": {
             "maxLength": 500,
@@ -26874,6 +28509,16 @@
             ],
             "title": "Idempotency Key"
           },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "reason": {
             "maxLength": 2000,
             "title": "Reason",
@@ -26944,6 +28589,16 @@
             ],
             "title": "Idempotency Key"
           },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "reason": {
             "maxLength": 500,
             "minLength": 1,
@@ -27011,6 +28666,16 @@
             ],
             "title": "Idempotency Key"
           },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "reason": {
             "maxLength": 500,
             "minLength": 1,
@@ -27071,6 +28736,16 @@
               }
             ],
             "title": "Idempotency Key"
+          },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "party_id": {
             "maxLength": 128,
@@ -27137,6 +28812,16 @@
             ],
             "title": "Idempotency Key"
           },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "package_id": {
             "title": "Package Id",
             "type": "string"
@@ -27201,6 +28886,16 @@
               }
             ],
             "title": "Idempotency Key"
+          },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "node": {
             "maxLength": 40,
@@ -27280,6 +28975,16 @@
             ],
             "title": "Idempotency Key"
           },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "link_id": {
             "title": "Link Id",
             "type": "string"
@@ -27354,6 +29059,16 @@
             ],
             "title": "Idempotency Key"
           },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "post_id": {
             "title": "Post Id",
             "type": "string"
@@ -27416,6 +29131,16 @@
               }
             ],
             "title": "Idempotency Key"
+          },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "message_id": {
             "title": "Message Id",
@@ -27498,6 +29223,16 @@
             ],
             "title": "Idempotency Key"
           },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "scope": {
             "title": "Scope",
             "type": "string"
@@ -27562,6 +29297,16 @@
               }
             ],
             "title": "Idempotency Key"
+          },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "reason": {
             "maxLength": 2000,
@@ -27633,6 +29378,16 @@
             ],
             "title": "Idempotency Key"
           },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "reason": {
             "maxLength": 500,
             "minLength": 1,
@@ -27693,6 +29448,16 @@
               }
             ],
             "title": "Idempotency Key"
+          },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "iwp": {
             "maxLength": 40,
@@ -27765,6 +29530,16 @@
               }
             ],
             "title": "Idempotency Key"
+          },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "movements": {
             "items": {
@@ -27839,6 +29614,16 @@
               }
             ],
             "title": "Idempotency Key"
+          },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "reason": {
             "maxLength": 2000,
@@ -27959,6 +29744,16 @@
             ],
             "title": "Idempotency Key"
           },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "note": {
             "anyOf": [
               {
@@ -28047,6 +29842,16 @@
               }
             ],
             "title": "Idempotency Key"
+          },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "note": {
             "anyOf": [
@@ -28167,6 +29972,16 @@
             ],
             "title": "Idempotency Key"
           },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "reason": {
             "maxLength": 1000,
             "minLength": 1,
@@ -28234,6 +30049,16 @@
               }
             ],
             "title": "Idempotency Key"
+          },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "location_text": {
             "anyOf": [
@@ -28356,6 +30181,16 @@
               }
             ],
             "title": "Idempotency Key"
+          },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "planned_finish": {
             "anyOf": [
@@ -28483,6 +30318,16 @@
             ],
             "title": "Idempotency Key"
           },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "reason": {
             "title": "Reason",
             "type": "string"
@@ -28563,6 +30408,16 @@
             ],
             "title": "Idempotency Key"
           },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "reason": {
             "maxLength": 1000,
             "minLength": 1,
@@ -28633,6 +30488,16 @@
               }
             ],
             "title": "Idempotency Key"
+          },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "reason": {
             "maxLength": 1000,
@@ -28738,6 +30603,16 @@
               }
             ],
             "title": "Idempotency Key"
+          },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "material_code": {
             "anyOf": [
@@ -28848,6 +30723,16 @@
             ],
             "title": "Idempotency Key"
           },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "kind": {
             "anyOf": [
               {
@@ -28951,6 +30836,16 @@
               }
             ],
             "title": "Idempotency Key"
+          },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "lines": {
             "anyOf": [
@@ -29095,6 +30990,16 @@
             ],
             "title": "Idempotency Key"
           },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "reason": {
             "title": "Reason",
             "type": "string"
@@ -29176,6 +31081,16 @@
             ],
             "title": "Idempotency Key"
           },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "package_id": {
             "title": "Package Id",
             "type": "string"
@@ -29252,6 +31167,16 @@
             ],
             "title": "Idempotency Key"
           },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "reason": {
             "maxLength": 2000,
             "title": "Reason",
@@ -29316,6 +31241,16 @@
               }
             ],
             "title": "Idempotency Key"
+          },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "node": {
             "maxLength": 40,
@@ -29600,6 +31535,16 @@
               }
             ],
             "title": "Idempotency Key"
+          },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "reason": {
             "maxLength": 1000,
@@ -29971,6 +31916,16 @@
             ],
             "title": "Idempotency Key"
           },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "overlap_hours": {
             "default": 24.0,
             "title": "Overlap Hours",
@@ -30033,6 +31988,16 @@
               }
             ],
             "title": "Idempotency Key"
+          },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "overlap_hours": {
             "default": 24.0,
@@ -30288,6 +32253,16 @@
               }
             ],
             "title": "Idempotency Key"
+          },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "record_id": {
             "title": "Record Id",
@@ -30954,6 +32929,16 @@
             ],
             "title": "Idempotency Key"
           },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "movements": {
             "items": {
               "$ref": "#/components/schemas/Movement"
@@ -31106,6 +33091,16 @@
             ],
             "title": "Idempotency Key"
           },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "iwp": {
             "maxLength": 40,
             "minLength": 1,
@@ -31252,6 +33247,16 @@
             ],
             "title": "Idempotency Key"
           },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "reason": {
             "maxLength": 2000,
             "title": "Reason",
@@ -31354,6 +33359,16 @@
             ],
             "title": "Idempotency Key"
           },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "reason": {
             "maxLength": 2000,
             "title": "Reason",
@@ -31425,6 +33440,16 @@
               }
             ],
             "title": "Idempotency Key"
+          },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "reason": {
             "anyOf": [
@@ -31499,6 +33524,16 @@
               }
             ],
             "title": "Idempotency Key"
+          },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "reason": {
             "anyOf": [
@@ -31575,6 +33610,16 @@
             ],
             "title": "Idempotency Key"
           },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "reason": {
             "anyOf": [
               {
@@ -31645,6 +33690,16 @@
               }
             ],
             "title": "Idempotency Key"
+          },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "layer": {
             "enum": [
@@ -32125,6 +34180,16 @@
             ],
             "title": "Idempotency Key"
           },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "iwp": {
             "maxLength": 40,
             "minLength": 1,
@@ -32540,6 +34605,16 @@
             ],
             "title": "Idempotency Key"
           },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "iwp": {
             "maxLength": 40,
             "minLength": 1,
@@ -32877,6 +34952,16 @@
             ],
             "title": "Idempotency Key"
           },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "item_id": {
             "title": "Item Id",
             "type": "string"
@@ -33003,6 +35088,16 @@
             ],
             "title": "Idempotency Key"
           },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "scope": {
             "title": "Scope",
             "type": "string"
@@ -33062,6 +35157,16 @@
               }
             ],
             "title": "Idempotency Key"
+          },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "scope": {
             "title": "Scope",
@@ -33150,6 +35255,16 @@
               }
             ],
             "title": "Idempotency Key"
+          },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "options": {
             "additionalProperties": true,
@@ -33255,6 +35370,16 @@
             ],
             "title": "Idempotency Key"
           },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "iwp": {
             "maxLength": 40,
             "minLength": 1,
@@ -33326,6 +35451,16 @@
               }
             ],
             "title": "Idempotency Key"
+          },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "scope": {
             "title": "Scope",
@@ -33503,6 +35638,16 @@
             ],
             "title": "Idempotency Key"
           },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "scope": {
             "title": "Scope",
             "type": "string"
@@ -33560,6 +35705,16 @@
               }
             ],
             "title": "Idempotency Key"
+          },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "package_id": {
             "title": "Package Id",
@@ -33629,6 +35784,16 @@
               }
             ],
             "title": "Idempotency Key"
+          },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "scope": {
             "title": "Scope",
@@ -33735,6 +35900,16 @@
               }
             ],
             "title": "Idempotency Key"
+          },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "link_source": {
             "default": "key_detected",
@@ -33933,6 +36108,16 @@
             ],
             "title": "Idempotency Key"
           },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "reason": {
             "maxLength": 2000,
             "title": "Reason",
@@ -34014,6 +36199,16 @@
             ],
             "title": "Idempotency Key"
           },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "reason": {
             "maxLength": 2000,
             "title": "Reason",
@@ -34094,6 +36289,16 @@
             ],
             "title": "Idempotency Key"
           },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "reason": {
             "maxLength": 2000,
             "title": "Reason",
@@ -34162,6 +36367,16 @@
               }
             ],
             "title": "Idempotency Key"
+          },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "on": {
             "anyOf": [
@@ -35509,6 +37724,16 @@
             ],
             "title": "Idempotency Key"
           },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "movements": {
             "items": {
               "$ref": "#/components/schemas/Movement"
@@ -35616,6 +37841,16 @@
               }
             ],
             "title": "Idempotency Key"
+          },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "reason": {
             "anyOf": [
@@ -36395,6 +38630,16 @@
             ],
             "title": "Idempotency Key"
           },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "movements": {
             "items": {
               "$ref": "#/components/schemas/Movement"
@@ -36558,6 +38803,16 @@
               }
             ],
             "title": "Idempotency Key"
+          },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "reason": {
             "anyOf": [
@@ -36755,6 +39010,16 @@
               }
             ],
             "title": "Idempotency Key"
+          },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "medium": {
             "anyOf": [
@@ -36966,6 +39231,16 @@
             ],
             "title": "Idempotency Key"
           },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "originator": {
             "anyOf": [
               {
@@ -37102,6 +39377,16 @@
             ],
             "title": "Idempotency Key"
           },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "scope": {
             "title": "Scope",
             "type": "string"
@@ -37167,6 +39452,16 @@
               }
             ],
             "title": "Idempotency Key"
+          },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "line_no": {
             "maximum": 99999.0,
@@ -37270,6 +39565,16 @@
             ],
             "title": "Idempotency Key"
           },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "scope": {
             "title": "Scope",
             "type": "string"
@@ -37367,6 +39672,16 @@
               }
             ],
             "title": "Idempotency Key"
+          },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "potential_cost_impact": {
             "anyOf": [
@@ -37584,6 +39899,16 @@
             ],
             "title": "Idempotency Key"
           },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "schema_semver": {
             "anyOf": [
               {
@@ -37721,6 +40046,16 @@
             ],
             "title": "Idempotency Key"
           },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "link_id": {
             "title": "Link Id",
             "type": "string"
@@ -37801,6 +40136,16 @@
             ],
             "title": "Idempotency Key"
           },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "reason": {
             "maxLength": 2000,
             "title": "Reason",
@@ -37870,6 +40215,16 @@
               }
             ],
             "title": "Idempotency Key"
+          },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "reason": {
             "maxLength": 500,
@@ -37942,6 +40297,16 @@
               }
             ],
             "title": "Idempotency Key"
+          },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "reason": {
             "maxLength": 2000,
@@ -38018,6 +40383,16 @@
             ],
             "title": "Idempotency Key"
           },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "reason": {
             "maxLength": 2000,
             "title": "Reason",
@@ -38093,6 +40468,16 @@
             ],
             "title": "Idempotency Key"
           },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "reason": {
             "maxLength": 2000,
             "title": "Reason",
@@ -38162,6 +40547,16 @@
               }
             ],
             "title": "Idempotency Key"
+          },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "reason": {
             "maxLength": 500,
@@ -38235,6 +40630,16 @@
               }
             ],
             "title": "Idempotency Key"
+          },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "reason": {
             "maxLength": 500,
@@ -38314,6 +40719,16 @@
             ],
             "title": "Idempotency Key"
           },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "reason": {
             "maxLength": 2000,
             "title": "Reason",
@@ -38377,6 +40792,16 @@
               }
             ],
             "title": "Idempotency Key"
+          },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "reason": {
             "maxLength": 2000,
@@ -38453,6 +40878,16 @@
               }
             ],
             "title": "Idempotency Key"
+          },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "reason": {
             "maxLength": 2000,
@@ -38736,6 +41171,16 @@
             ],
             "title": "Idempotency Key"
           },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "reason": {
             "maxLength": 2000,
             "title": "Reason",
@@ -38806,6 +41251,16 @@
               }
             ],
             "title": "Idempotency Key"
+          },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Intent"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "reason": {
             "maxLength": 300,

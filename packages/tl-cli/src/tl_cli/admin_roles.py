@@ -10,7 +10,7 @@ roles, an agent holding a role outside the agent roles, and a revoke of a role n
 from __future__ import annotations
 
 import json
-from typing import Annotated
+from typing import Annotated, Any
 
 import typer
 from pydantic import ValidationError
@@ -63,7 +63,7 @@ def _change(
     scope = scope_of(project)
     with service_errors():
         target = find_account(backend, username)
-        fields = {
+        fields: dict[str, Any] = {
             "actor": admin.actor,
             "source": "cli",
             "account_id": target.account_id,

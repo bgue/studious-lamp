@@ -82,6 +82,9 @@ description: >-
   - `tl:value_list_policy` (`closed` | `extensible` | `project_defined`): how projects may change a value list.
   - `tl:required_in_states` (JSON list of states): states in which the property must have a value.
   - `tl:crosswalk` (string, on enum permissible values): the company code a project-added value maps to.
+  - `tl:valid_time` (`at` | `from` | `to`): this payload slot is the world date of the fact the event records
+    (ADR-0026). `at`: the moment it happened; `from` / `to`: the start / end of a span. Never a deadline, forecast or
+    expiry. At most one `at`, or one `from` and one `to`, per payload class. No generator reads it yet.
 prefixes:
   linkml: https://w3id.org/linkml/
   throughline: https://example.org/throughline/

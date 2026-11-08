@@ -16,6 +16,7 @@ from pydantic import ValidationError
 from tl_api.auth import Forbidden
 from tl_api.errors import ApiError
 from tl_core import confidentiality
+from tl_core.intent import IntentInvalid, IntentReferenceUnknown
 from tl_core.ledger import ConcurrencyError
 from tl_core.query import QuerySyntaxError
 from tl_core.services.errors import ServiceError
@@ -48,6 +49,8 @@ def describe(exc: BaseException) -> str:
         return describe_lake_error(exc)
     if isinstance(exc, QuerySyntaxError):
         return f"query syntax error at position {exc.position}: {exc}"
+    if isinstance(exc, (IntentInvalid, IntentReferenceUnknown)):
+        return f"{exc.code}: {exc}"  # the stable code, then the message text (as the API table)
     if isinstance(exc, GuardError):
         return f"refused: {exc}"
     if isinstance(exc, ValidationError):

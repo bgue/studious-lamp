@@ -94,7 +94,8 @@ def _pages(conn: Connection, statement: Any, size: int) -> Iterator[Sequence[Any
 
 
 def _event_rows(conn: Connection, after: int, upto: int, size: int) -> Iterator[Mapping[str, Any]]:
-    names = ", ".join(c.name for c in EVENTS_COLUMNS)
+    have = set(table_columns(conn, EVENTS_TABLE))  # a ledger made before ADR-0025 has no intent
+    names = ", ".join(c.name if c.name in have else f"NULL AS {c.name}" for c in EVENTS_COLUMNS)
     statement = text(
         f"SELECT {names} FROM {EVENTS_TABLE} WHERE seq > :after AND seq <= :upto ORDER BY seq"
     ).bindparams(after=after, upto=upto)
@@ -144,6 +145,7 @@ def _redacted(rows: Iterator[Mapping[str, Any]]) -> Iterator[Mapping[str, Any]]:
                 "source": "internal",
                 "prev_hash": None,
                 "hash": REDACTED_HASH,
+                "intent": None,  # dropped where the payload is (ADR-0025 d5)
             }
         else:
             yield row

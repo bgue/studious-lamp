@@ -19,6 +19,7 @@ from typing import Annotated
 from mcp.server.mcpserver import MCPServer
 from mcp.types import ToolAnnotations
 from pydantic import Field
+from tl_core.intent import Intent
 from tl_core.services import proposals
 from tl_mod_correspondence import (
     evidence,
@@ -31,6 +32,7 @@ from tl_mod_correspondence.handlers.triage import ConfirmTriage
 
 from tl_mcp.context import McpContext
 from tl_mcp.errors import MAX_PART, guarded, resource_name
+from tl_mcp.intent_param import IntentParam
 from tl_mcp.write_tools import (  # pyright: ignore[reportPrivateUsage]
     PROPOSES,
     ProposalResult,
@@ -148,6 +150,7 @@ def propose_triage_impl(
     subtype: str,
     referenced_ids: list[str],
     summary: str | None,
+    intent: Intent | None = None,
 ) -> ProposalResult:
     scope = f"project:{project}"
     with ctx.factory(True) as uow:
@@ -160,6 +163,7 @@ def propose_triage_impl(
         domain=domain,
         subtype=subtype,
         referenced_ids=referenced_ids,
+        intent=intent,
     )
     view = proposals.submit(
         ctx.factory,
@@ -346,6 +350,7 @@ def register_correspondence_tools(server: MCPServer, ctx: McpContext) -> None:
                 description="Record ids the item refers to; each gets a `references` link.",
             ),
         ] = [],  # noqa: B006 - copied before use, never mutated
+        intent: IntentParam = None,
         summary: Summary = None,
     ) -> ProposalResult:
         """Propose the domain and subtype of a received item. A person must accept it.
@@ -362,4 +367,5 @@ def register_correspondence_tools(server: MCPServer, ctx: McpContext) -> None:
                 subtype=subtype,
                 referenced_ids=list(referenced_ids),
                 summary=summary,
+                intent=intent,
             )

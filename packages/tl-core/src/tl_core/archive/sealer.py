@@ -48,21 +48,26 @@ from tl_core.archive.types import (
     SegmentManifest,
     SegmentSignature,
 )
+from tl_core.intent import Intent
 from tl_core.ledger import Event
 from tl_core.util import utcnow
 
 DEFAULT_MAX_EVENTS = 10_000
 
-_SELECT_RANGE = text(
-    "SELECT seq, event_id, stream_id, stream_type, stream_version, event_type, schema_version, "
+_COLUMNS = (
+    "seq, event_id, stream_id, stream_type, stream_version, event_type, schema_version, "
     "scope, payload, actor, recorded_at, effective_at, correlation_id, causation_id, source, "
-    "prev_hash, hash FROM events WHERE seq >= :first AND seq <= :last ORDER BY seq"
+    "prev_hash, hash"
 )
-_SELECT_AFTER = text(
-    "SELECT seq, event_id, stream_id, stream_type, stream_version, event_type, schema_version, "
-    "scope, payload, actor, recorded_at, effective_at, correlation_id, causation_id, source, "
-    "prev_hash, hash FROM events WHERE seq > :after ORDER BY seq LIMIT :limit"
-)
+
+
+def _select(conn: Connection, where: str) -> Any:
+    """The event SELECT; the ``intent`` column only when the table has it (made before ADR-0025)."""
+    have = conn.execute(text("SELECT * FROM events WHERE 1 = 0")).keys()
+    columns = _COLUMNS + (", intent" if "intent" in have else "")
+    return text(f"SELECT {columns} FROM events {where}")
+
+
 _HEAD = text("SELECT COALESCE(MAX(seq), 0) FROM events")
 
 
@@ -89,19 +94,34 @@ def _event_from_row(row: Any) -> Event:
         source=row["source"],
         prev_hash=row["prev_hash"],
         hash=row["hash"],
+        intent=None if row.get("intent") is None else Intent.model_validate_json(row["intent"]),
     )
 
 
 def read_events(conn: Connection, first_seq: int, last_seq: int) -> list[Event]:
     """The events ``first_seq`` to ``last_seq`` from the ledger table, in seq order."""
-    rows = conn.execute(_SELECT_RANGE, {"first": first_seq, "last": last_seq}).mappings().all()
+    rows = (
+        conn.execute(
+            _select(conn, "WHERE seq >= :first AND seq <= :last ORDER BY seq"),
+            {"first": first_seq, "last": last_seq},
+        )
+        .mappings()
+        .all()
+    )
     return [_event_from_row(row) for row in rows]
 
 
 def read_events_after(conn: Connection, after_seq: int, limit: int) -> list[Event]:
     """Up to ``limit`` events with ``seq > after_seq``, in seq order (a cursor, so gaps in the
     numbers do not end a page early)."""
-    rows = conn.execute(_SELECT_AFTER, {"after": after_seq, "limit": limit}).mappings().all()
+    rows = (
+        conn.execute(
+            _select(conn, "WHERE seq > :after ORDER BY seq LIMIT :limit"),
+            {"after": after_seq, "limit": limit},
+        )
+        .mappings()
+        .all()
+    )
     return [_event_from_row(row) for row in rows]
 
 

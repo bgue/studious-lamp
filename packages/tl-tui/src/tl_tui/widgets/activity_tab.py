@@ -18,10 +18,12 @@ from textual.binding import Binding, BindingType
 from textual.containers import Vertical
 from textual.widgets import DataTable, Input, Static
 from tl_core.insights.types import ActivityPage, ActivityRow
+from tl_core.intent import NOT_AVAILABLE, Intent
 
 from tl_tui.client import ClientInterface
 from tl_tui.display import Labels, mode_of
 from tl_tui.errors import CLIENT_ERRORS, describe_error
+from tl_tui.intent_text import intent_lines
 from tl_tui.labels_load import load_labels
 from tl_tui.messages import OpenRecord, StatusMessage
 from tl_tui.record_activity_text import (
@@ -44,6 +46,9 @@ class ActivityTab(Vertical, can_focus=True):
     DEFAULT_CSS = """
     ActivityTab #activity-table {
         height: 1fr;
+    }
+    ActivityTab #activity-why {
+        height: auto;
     }
     """
 
@@ -74,11 +79,13 @@ class ActivityTab(Vertical, can_focus=True):
         self.related = True
         self.text = ""
         self.labels = Labels()
+        self._names: dict[str, str] = {}  # record id -> key, for the ids of intents
 
     def compose(self) -> ComposeResult:
         yield Static("", id="activity-title", markup=False)
         yield Input(placeholder="Filter", id="activity-filter")
         yield DataTable(id="activity-table", cursor_type="row", zebra_stripes=True)
+        yield Static("", id="activity-why", markup=False)
         yield Static("Nothing recorded yet.", id="activity-empty", markup=False)
         yield Static("", id="activity-hint", markup=False)
 
@@ -160,6 +167,8 @@ class ActivityTab(Vertical, can_focus=True):
         for row_cells in cells:
             table.add_row(*(Text(cell) for cell in row_cells))
 
+        self._show_why(table.cursor_row if shown else -1)
+
         order = " · oldest first" if self.revisions_only else " · newest first"
         title = filter_title(self.revisions_only, self.related, self.text) + order
         self.query_one("#activity-title", Static).update(title)
@@ -167,6 +176,38 @@ class ActivityTab(Vertical, can_focus=True):
         more = "  o older" if self.next_before_seq is not None else ""
         hint = "v revisions only · r related · / filter" + more
         self.query_one("#activity-hint", Static).update(hint)
+
+    # --- intent of the highlighted row ------------------------------------------------------
+
+    def _names_for(self, intent: Intent) -> dict[str, str]:
+        """Keys of the records an intent names; a failed read leaves the id shown."""
+        ids = [i.target for i in intent.next if i.target]
+        if intent.toward is not None:
+            ids.append(intent.toward.target)
+        for record_id in ids:
+            if record_id in self._names or record_id == NOT_AVAILABLE:
+                continue
+            try:
+                found = self.client.get_record_by_id(record_id)
+            except (*CLIENT_ERRORS, NotImplementedError):
+                continue
+            if found is not None and found.get("key"):
+                self._names[record_id] = str(found["key"])
+        return self._names
+
+    def _show_why(self, index: int) -> None:
+        """The intent of the event of row ``index``; empty and hidden when it has none."""
+        intent = self.shown[index].event.intent if 0 <= index < len(self.shown) else None
+        technical = mode_of(self.app).technical
+        names = None if intent is None or technical else self._names_for(intent)
+        lines = intent_lines(intent, technical=technical, names=names)
+        panel = self.query_one("#activity-why", Static)
+        panel.update("\n".join(lines))
+        panel.display = bool(lines)
+
+    def on_data_table_row_highlighted(self, event: DataTable.RowHighlighted) -> None:
+        event.stop()
+        self._show_why(event.cursor_row)
 
     # --- keys -----------------------------------------------------------------------------
 
