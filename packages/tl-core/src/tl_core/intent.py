@@ -85,7 +85,7 @@ class IntentReferenceUnknown(ValueError):
     code = "intent_reference_unknown"
     MESSAGE: Final = "intent reference not found"
 
-    def __init__(self) -> None:
+    def __init__(self, *_: object) -> None:  # the text is fixed: whatever is passed is dropped
         super().__init__(self.MESSAGE)
 
 
