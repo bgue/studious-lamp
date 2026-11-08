@@ -21,6 +21,7 @@ from tl_tui.widgets.file_panel import FilePanel
 from tl_tui.widgets.footer import DEFAULT_HINTS
 from tl_tui.widgets.grid import RecordGrid
 from tl_tui.widgets.help_screen import HelpScreen
+from tl_tui.widgets.insights_tab import InsightsTab
 from tl_tui.widgets.link_picker import LinkPicker
 from tl_tui.widgets.links_tab import LinksTab
 from tl_tui.widgets.new_record_form import NewRecordForm
@@ -52,6 +53,7 @@ OWNERS: dict[str, Any] = {
     "AdminScreen": AdminScreen,
     "AccountForm": AccountForm,
     "ActivityTab": ActivityTab,
+    "InsightsTab": InsightsTab,
 }
 
 

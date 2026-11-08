@@ -194,6 +194,20 @@ KEYMAP: tuple[KeyEntry, ...] = (
     KeyEntry("Record view", "9", "Insights tab", "RecordView", "9"),
     KeyEntry(
         "Record view",
+        "Left  Right",
+        "Insights tab: previous or next subtab (Checks, Suggestions, Analysis, Ask)",
+        "InsightsTab",
+        "left",
+    ),
+    KeyEntry(
+        "Record view",
+        "Enter",
+        "Insights tab: open the record the highlighted finding points to",
+        "InsightsTab",
+        "enter",
+    ),
+    KeyEntry(
+        "Record view",
         "v",
         "Activity tab: revisions only on or off",
         "ActivityTab",

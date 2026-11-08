@@ -284,21 +284,22 @@ def test_the_plain_cells_show_no_technical_token() -> None:
     run_pilot(app, scenario)
 
 
-def test_the_insights_stub_keeps_the_record_and_draws_its_word() -> None:
-    _, record = setup()
-    stub = InsightsTab()
-    assert stub.record is None
-    stub.show_record(record)
-    assert stub.record is record
+def test_the_insights_tab_draws_the_checks_subtab_in_the_record_view_host() -> None:
+    client, record = setup()
 
     class InsightsHost(App[None]):
         def compose(self) -> ComposeResult:
-            yield InsightsTab(id="insights")
+            yield InsightsTab(client, SCOPE, id="insights")
+
+        def on_mount(self) -> None:
+            self.query_one(InsightsTab).show_record(record)
 
     app = InsightsHost()
 
     async def scenario(pilot: Pilot[Any]) -> None:
+        await app.workers.wait_for_complete()
         await pilot.pause()
-        assert static_of(app, "#insights-body") == "Insights"
+        assert static_of(app, "#insights-subtabs") == "[Checks]  Suggestions  Analysis  Ask"
+        assert static_of(app, "#insights-body") == "Nothing needs attention."
 
     run_pilot(app, scenario)

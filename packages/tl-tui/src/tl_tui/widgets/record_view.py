@@ -140,7 +140,7 @@ class RecordView(Vertical, can_focus=True):
             with TabPane("Files", id="tab-files"):  # hidden until the record has files
                 yield FilePanel(self.client, id="files-tab")
             with TabPane("Insights", id="tab-insights"):
-                yield InsightsTab(id="insights-tab")
+                yield InsightsTab(self.client, self.scope, id="insights-tab")
 
     def _actor(self) -> str:
         return str(getattr(self.app, "actor", "user:dev"))
@@ -327,6 +327,9 @@ class RecordView(Vertical, can_focus=True):
         self.query_one("#rv-tabs", TabbedContent).active = TABS[name]
         if name == "files":  # its keys (Up, Down, v, Enter) are the panel's
             self.query_one("#files-tab", FilePanel).call_after_refresh(self._focus_files)
+        if name == "insights":  # its keys (Left, Right, Up, Down, Enter) are the tab's
+            tab = self.query_one("#insights-tab", InsightsTab)
+            tab.call_after_refresh(tab.focus)
 
     def _focus_files(self) -> None:
         self.query_one("#files-tab", FilePanel).focus()
