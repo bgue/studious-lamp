@@ -1,0 +1,224 @@
+id: https://example.org/throughline/modules/requisitions/requisition
+name: tl_mod_requisitions_requisition
+title: Requisitions (brief 9, M9)
+description: >-
+  The abstract `Requisition` and its four kinds. Every kind is its own record type and its own table
+  (ADR-0010); the base has no table and no record type, its slots are induced into each kind. Decimals are
+  text with ASCII digits and dates are `YYYY-MM-DD`. Approval is the single access word `requisitions.approve`;
+  there is no approval chain slot. Spec: docs/tickets/P2-I4A/S1-schema-and-module.md.
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+  - ../../core/annotations
+  - ../../core/record
+default_range: string
+annotations:
+  tl:module: requisitions
+
+enums:
+  RequisitionKind:
+    description: Which kind of requisition a record is.
+    permissible_values:
+      labor:
+        description: Labour (a crew or craft for a period).
+      material:
+        description: Material issued from stock.
+      general:
+        description: A general service, typed by `general_type` (a crane lift, hot work support).
+      scaffold:
+        description: Scaffold to erect, modify or dismantle.
+  RequisitionPriority:
+    description: How urgent a requisition is.
+    permissible_values:
+      low:
+        description: No rush.
+      normal:
+        description: The usual.
+      high:
+        description: Needed ahead of the usual.
+      urgent:
+        description: Needed now.
+
+classes:
+  Requisition:
+    abstract: true
+    title: Requisition
+    description: >-
+      What the four kinds of requisition share. Not a record type: a record is one of the four kinds, named
+      by its `kind` slot and its record type. `for_record_id` is the IWP or CWP the request serves; it is the
+      record whose confidentiality class the requisition follows (S2). `work_order_id` is null until approved.
+    attributes:
+      id:
+        identifier: true
+        range: Ulid
+        required: true
+        description: "Record id; equals the ledger stream id and the `cur_core_record` id."
+      scope:
+        range: ScopeId
+        required: true
+        description: "The project scope, `project:<id>`."
+      kind:
+        range: RequisitionKind
+        required: true
+        description: "labor, material, general or scaffold; fixed by the record type."
+      subject:
+        pattern: "^.{1,200}$"
+        required: true
+        description: "What is asked for, at most 200 characters."
+      requester:
+        pattern: "^.{1,64}$"
+        required: true
+        description: "The requester, an actor text (`user:<name>`), at most 64 characters."
+      need_by:
+        pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+        description: "Date the request is needed by, `YYYY-MM-DD`; null when none."
+      location_text:
+        pattern: "^.{1,200}$"
+        description: "Where, in words, at most 200 characters; null when none."
+      priority:
+        range: RequisitionPriority
+        required: true
+        description: "low, normal, high or urgent."
+      for_record_id:
+        range: Ulid
+        description: "The IWP or CWP the request serves; null when none."
+      approved_by:
+        description: "Actor who approved; null until approved."
+      approved_at:
+        description: "UTC time of the approval; null until approved."
+      reject_reason:
+        pattern: "^.{1,300}$"
+        description: "Why it was rejected, at most 300 characters; null unless rejected."
+      work_order_id:
+        range: Ulid
+        description: "The work order approval opened; null until approved."
+      last_seq:
+        range: integer
+        required: true
+        description: "Ledger `seq` of the last event applied to this row."
+    annotations:
+      tl:ix_scope_kind: "scope, kind"
+      tl:ix_for_record: "for_record_id"
+
+  LaborRequisition:
+    is_a: Requisition
+    title: Labour requisition
+    description: >-
+      A crew of one craft for a period. Record type `requisitions.LaborRequisition`; its key is allocated
+      (`P123-REQ-LAB-0001`, gap-free). Offline class `draft_only`: a foreman raises it offline and it is
+      numbered when it syncs.
+    annotations:
+      tl:current_state: true
+      tl:record_types: "requisitions.LaborRequisition"
+      tl:offline: draft_only
+      tl:ix_craft_start: "craft, start_date"
+    attributes:
+      craft:
+        pattern: "^.{1,64}$"
+        required: true
+        description: "The craft, at most 64 characters."
+      classification:
+        pattern: "^.{1,64}$"
+        description: "The classification within the craft, at most 64 characters; null when none."
+      headcount:
+        range: integer
+        required: true
+        minimum_value: 1
+        maximum_value: 500
+        description: "People wanted, 1 to 500."
+      start_date:
+        pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+        required: true
+        description: "First day, `YYYY-MM-DD`."
+      end_date:
+        pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+        required: true
+        description: "Last day, `YYYY-MM-DD`; not before the start and at most 366 days after it."
+      shift:
+        pattern: "^.{1,32}$"
+        description: "The shift, at most 32 characters; null when none."
+      requirements:
+        pattern: "^[\\s\\S]{1,500}$"
+        description: "Special requirements, at most 500 characters; null when none."
+
+  MaterialRequisition:
+    is_a: Requisition
+    title: Material requisition
+    description: >-
+      Material issued from stock. Record type `requisitions.MaterialRequisition`; its key is allocated
+      (`P123-REQ-MAT-0001`, gap-free). Offline class `draft_only`.
+    annotations:
+      tl:current_state: true
+      tl:record_types: "requisitions.MaterialRequisition"
+      tl:offline: draft_only
+    attributes:
+      from_location_id:
+        range: Ulid
+        description: "The `materials.InventoryLocation` to issue from; null when any."
+      lines:
+        range: Any
+        annotations:
+          tl:json: true
+        description: >-
+          JSON list of at most 200 lines `{item_id, qty, uom, cost_code_id?, fulfilled_qty}`; quantities are
+          decimal text. Column `lines_json`.
+
+  GeneralRequisition:
+    is_a: Requisition
+    title: General requisition
+    description: >-
+      A general service. Record type `requisitions.GeneralRequisition`; its key is allocated
+      (`P123-REQ-GEN-0001`, gap-free). `general_type` is a code of the code list `GeneralRequisitionType`; a
+      `crane_lift` request also carries the `crane_lift` property set, bound by class. Offline class `draft_only`.
+    annotations:
+      tl:current_state: true
+      tl:record_types: "requisitions.GeneralRequisition"
+      tl:offline: draft_only
+    attributes:
+      general_type:
+        pattern: "^[a-z][a-z0-9_]{0,31}$"
+        required: true
+        description: "Code of the code list `GeneralRequisitionType` (crane_lift, hot_work_support, other)."
+
+  ScaffoldRequest:
+    is_a: Requisition
+    title: Scaffold request
+    description: >-
+      A request for scaffold. Record type `requisitions.ScaffoldRequest`; its key is allocated
+      (`P123-REQ-SCF-0001`, gap-free). Offline class `draft_only`.
+    annotations:
+      tl:current_state: true
+      tl:record_types: "requisitions.ScaffoldRequest"
+      tl:offline: draft_only
+    attributes:
+      purpose:
+        pattern: "^[\\s\\S]{1,300}$"
+        required: true
+        description: "What the scaffold is for, at most 300 characters."
+      elevation:
+        pattern: "^.{1,32}$"
+        description: "Elevation as the plans word it, at most 32 characters; null when none."
+      gridline:
+        pattern: "^.{1,32}$"
+        description: "Gridline, at most 32 characters; null when none."
+      length_m:
+        pattern: "^(0|[1-9][0-9]{0,5})(\\.[0-9]{1,3})?$"
+        description: "Length in metres, decimal text; null when none."
+      width_m:
+        pattern: "^(0|[1-9][0-9]{0,5})(\\.[0-9]{1,3})?$"
+        description: "Width in metres, decimal text; null when none."
+      height_m:
+        pattern: "^(0|[1-9][0-9]{0,5})(\\.[0-9]{1,3})?$"
+        description: "Height in metres, decimal text; null when none."
+      load_class:
+        pattern: "^.{1,32}$"
+        description: "Load class, at most 32 characters; null when none."
+      duration_days:
+        range: integer
+        required: true
+        minimum_value: 1
+        maximum_value: 1000
+        description: "How long it stands, 1 to 1000 days."

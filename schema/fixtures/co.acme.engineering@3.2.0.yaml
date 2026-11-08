@@ -249,3 +249,41 @@ psets:
         description: How the item was delivered.
         range: DeliveryMethod
         value_list_policy: extensible
+
+  crane_lift:
+    label: Crane lift
+    description: >-
+      What a crane lift request needs to be planned (requisitions, I4-A). Bound by class to the general
+      requisition; the plan itself is a document, named here by reference.
+    applies_to: [requisitions.GeneralRequisition]
+    enforcement: advisory
+    adoption: optional
+    custom_section: {allowed: true, max_properties: 10}
+    properties:
+      load_t:
+        label: Load
+        description: Weight of the load including rigging, in tonnes, decimal text.
+        range: decimal
+        unit: {ucum: t}
+        minimum: 0
+        maximum: 1000
+      radius_m:
+        label: Radius
+        description: Working radius of the lift in metres.
+        range: decimal
+        unit: {ucum: m}
+        minimum: 0
+      boom_m:
+        label: Boom length
+        description: Boom length in metres.
+        range: decimal
+        unit: {ucum: m}
+        minimum: 0
+      lift_date:
+        label: Lift date
+        description: Day of the lift.
+        range: date
+      plan_reference:
+        label: Lift plan reference
+        description: Reference of the lift plan document.
+        range: string
