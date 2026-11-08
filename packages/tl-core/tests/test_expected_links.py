@@ -157,7 +157,7 @@ def test_load_names_the_bad_file(tmp_path: Path) -> None:
 
 def test_the_shipped_sample_declares_one_expectation_for_core_record() -> None:
     registry = load_expected_links(FIXTURE_DIR)
-    assert registry.record_types() == ["awp.CWP", "core.Record"]
+    assert registry.record_types() == ["awp.CWP", "awp.IWP", "core.Record"]
     assert registry.for_type("core.Record") == [
         ExpectedLink(
             relation="references", direction="out", by_state="Approved", label="supporting record"
@@ -169,7 +169,7 @@ def test_default_expected_links_follows_the_schema_directory(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     monkeypatch.delenv("TL_SCHEMA_DIR", raising=False)
-    assert default_expected_links().record_types() == ["awp.CWP", "core.Record"]
+    assert default_expected_links().record_types() == ["awp.CWP", "awp.IWP", "core.Record"]
     (tmp_path / "links").mkdir()
     (tmp_path / "links" / "x.yaml").write_text(SCHEMA, encoding="utf-8")
     monkeypatch.setenv("TL_SCHEMA_DIR", str(tmp_path))

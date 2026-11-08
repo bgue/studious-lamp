@@ -17,6 +17,7 @@ from tl_adapters.db import DbTarget, is_postgres, open_uow
 from tl_cli import sim_agent
 from tl_core.auth.errors import ForbiddenError
 from tl_core.auth.tokens import token_kind
+from tl_sim.orchestrator import all_identities
 from typer import Exit
 
 AUTO_SIGN_IN = False  # these tests decide who is signed in
@@ -96,7 +97,9 @@ def test_a_signed_in_admin_mints_it_on_a_server_and_the_events_name_that_admin(
         # the admin was made by the recovery command; then the agent and two tokens: by that admin
         assert who == ["svc:bootstrap", "user:root", "user:root", "user:root"]
     else:
-        assert who.count("svc:sim") == 3  # the agent and two tokens
+        people = [i for i in all_identities() if i.startswith("user:sim-")]
+        # the agent, two tokens, and one account for each simulated person (made once)
+        assert who.count("svc:sim") == 3 + len(people)
 
 
 def test_outside_a_dev_setup_nothing_is_minted_whatever_the_ledger(

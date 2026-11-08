@@ -29,7 +29,7 @@ P2-Q6 A: simulated people do `user` acts; the scenario names operators for sign-
    hash refused.
 6. Issue to a foreman: Issued; `permit to work` reported missing (class-level `tl:expects_link`, no workflow guard), not blocking.
 7. Oversize IWP (hours over `awp.iwp.size_hours`) warns; the split tool makes two.
-8. An agent proposes a constraint; a person accepts it.
+8. An agent proposes adding scope to an IWP over MCP (`propose_iwp_scope`), a person accepts it, the scope item is on the IWP. Note: agent constraint proposals wait for agent core words (Phase 3, DEFERRED).
 9. Same state over API, TUI, web and MCP; readiness history in the ledger; dashboard tile shows backlog weeks per foreman.
 Added by wave plan: `materials_reserved` is `ok` on the demo IWP: T10b assigns MTO lines to the `awp.IWP` key (`work_package_id`, types already accepted), then reserves.
 
