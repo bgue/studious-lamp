@@ -97,11 +97,11 @@ This is a try-it copy on your own machine. It is not a deployment.
 1. Install: in a Python 3.12 virtual environment, run
    pip install --find-links <the folder of this release's wheels> tl-cli tl-api tl-tui
 2. Open a terminal in this folder and set the variables for this ledger:
-   export TL_ENV=demo TL_DB=./ledger/p200.db TL_SCHEMA_DIR=./schema TL_OBJECT_ROOT=./ledger/files TL_OBJECT_SECRET=$try_it_secret
+   export TL_ENV=demo TL_PROJECT=P200 TL_DB=./ledger/p200.db TL_SCHEMA_DIR=./schema TL_OBJECT_ROOT=./ledger/files TL_OBJECT_SECRET=$try_it_secret
 3. Start the API on this machine:   tl serve
 4. In a second terminal, in this folder with the same variables:   tl-tui --remote http://127.0.0.1:8765
-5. Sign in as the project administrator: user mokafor, password p200-demo-pass
-   The other demo accounts (ipetrov, lhartmann, treyes, cbrooks, pnair, hsato, odoyle, gwhitfield)
+   It asks you to sign in: user mokafor, password p200-demo-pass (the project administrator).
+5. The other demo accounts (ipetrov, lhartmann, treyes, cbrooks, pnair, hsato, odoyle, gwhitfield)
    use the same password.
 
 Warnings:

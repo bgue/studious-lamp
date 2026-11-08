@@ -96,6 +96,7 @@ def test_starter_bundle_members_and_start_txt(tmp_path: Path) -> None:
     assert DEMO_PASSWORD in text
     assert text.count(DEMO_PASSWORD) == 1
     assert f"TL_OBJECT_SECRET={TRY_IT_SECRET}" in text
+    assert "TL_PROJECT=P200" in text
     lowered = text.lower()
     for word in ("token", "hash", "argon", "session"):
         assert word not in lowered, f"START.txt mentions {word}"
