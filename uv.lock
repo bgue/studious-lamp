@@ -3108,6 +3108,7 @@ dependencies = [
     { name = "pydantic" },
     { name = "sqlalchemy" },
     { name = "tl-core" },
+    { name = "tl-mod-engineering" },
     { name = "tl-schema" },
 ]
 
@@ -3116,6 +3117,7 @@ requires-dist = [
     { name = "pydantic", specifier = ">=2" },
     { name = "sqlalchemy", specifier = ">=2" },
     { name = "tl-core", editable = "packages/tl-core" },
+    { name = "tl-mod-engineering", editable = "packages/tl-modules/engineering" },
     { name = "tl-schema", editable = "packages/tl-schema" },
 ]
 

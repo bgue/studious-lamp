@@ -1,4 +1,4 @@
-"""The requisitions module spec: record types, projectors, no command yet (P2-I4A S1)."""
+"""The requisitions module spec: record types, projectors, ten commands (P2-I4A S1, S2)."""
 
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ def test_spec_registers_five_record_types_and_two_projectors() -> None:
     assert [p.name for p in projectors()] == ["requisitions_requisition", "requisitions_work_order"]
 
 
-def test_no_command_and_one_table_per_type() -> None:
-    assert REQUISITIONS_COMMANDS == ()
+def test_ten_commands_and_one_table_per_type() -> None:
+    assert len(REQUISITIONS_COMMANDS) == 10
     assert set(TABLES) == RECORD_TYPES
     assert all(t.startswith("cur_requisitions_") for t in TABLES.values())

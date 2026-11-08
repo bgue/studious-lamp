@@ -694,3 +694,46 @@ def test_events_of_a_hidden_stream_are_filtered(db: DbTarget, vault: Vault) -> N
     # the link event has a hidden end: it is hidden for the user, shown to the controller
     kinds = lambda events: [e.event_type for e in events if e.event_type.startswith("Link.")]  # noqa: E731
     assert kinds(shown) == [] and kinds(more) == ["Link.Added"]
+
+
+def test_a_record_that_names_a_subject_is_hidden_when_its_subject_is_through_two_hops(
+    db: DbTarget, vault: Vault, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Requisition-like records (P2-I4A): ``Ask`` names an item, ``Reply`` names an ``Ask``; a null
+    subject falls back to the record's own class, a dangling subject hides nothing."""
+    ask, reply = "vaultx.Ask", "vaultx.Reply"
+    monkeypatch.setattr(
+        cf,
+        "SUBJECT_LINKS",
+        ((ask, "cur_vault_ask", "id", "item_id"), (reply, "cur_vault_reply", "id", "ask_id")),
+    )
+    other = ModuleSpec(name="vaultx", record_types=frozenset({ask, reply}), projectors=lambda: [])
+    with open_uow(db) as uow:
+        for ddl in (
+            "CREATE TABLE cur_vault_ask (id TEXT PRIMARY KEY, item_id TEXT)",
+            "CREATE TABLE cur_vault_reply (id TEXT PRIMARY KEY, ask_id TEXT)",
+        ):
+            uow.conn().execute(text(ddl))
+    with use_modules([spec(), other]):
+        for name, subject in (
+            ("ask-open", vault.ids["open"]),
+            ("ask-restricted", vault.ids["restricted"]),
+            ("ask-null", None),
+            ("ask-dangling", "no-such-record"),
+        ):
+            vault.add(name, ask, None)
+            _insert(db, "cur_vault_ask", "item_id", vault.ids[name], subject)
+        for name, parent in (("reply-open", "ask-open"), ("reply-restricted", "ask-restricted")):
+            vault.add(name, reply, None)
+            _insert(db, "cur_vault_reply", "ask_id", vault.ids[name], vault.ids[parent])
+        low, high = titles(db, NOBODY), titles(db, CONTROLLER)
+    assert {"ask-open", "ask-null", "ask-dangling", "reply-open"} <= low
+    assert not {"ask-restricted", "reply-restricted"} & low
+    assert {"ask-restricted", "reply-restricted"} <= high
+
+
+def _insert(db: DbTarget, table: str, column: str, record: str, subject: str | None) -> None:
+    with open_uow(db) as uow:
+        uow.conn().execute(
+            text(f"INSERT INTO {table} (id, {column}) VALUES (:i, :p)"), {"i": record, "p": subject}
+        )

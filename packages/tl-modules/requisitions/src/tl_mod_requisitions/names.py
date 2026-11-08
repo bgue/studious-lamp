@@ -78,3 +78,45 @@ WORK_ORDER_EVENTS: Final = frozenset(
 )
 
 MAX_LINES: Final = 200
+
+# --- states (the workflow files ``schema/fixtures/workflows/requisitions-*.yaml``) ---------------
+ST_REQUESTED: Final = "Requested"
+ST_APPROVED: Final = "Approved"
+ST_SCHEDULED: Final = "Scheduled"
+ST_IN_PROGRESS: Final = "In progress"
+ST_DONE: Final = "Done"
+ST_CLOSED: Final = "Closed"
+ST_REJECTED: Final = "Rejected"
+ST_CANCELLED: Final = "Cancelled"
+ST_OPEN: Final = "Open"
+#: States of a requisition, and of a work order, that take no further command.
+REQUISITION_FINAL: Final = frozenset({ST_CLOSED, ST_REJECTED, ST_CANCELLED})
+WORK_ORDER_FINAL: Final = frozenset({ST_CLOSED, ST_CANCELLED})
+
+# --- links ---------------------------------------------------------------------------------------
+REQUIRES_RELATION: Final = "requires"
+REFERENCES_RELATION: Final = "references"
+RULE_LINK_SOURCE: Final = "rule"
+FEED_NONE: Final = "none"
+FEED_FULL: Final = "full"
+
+# --- other modules' record types the commands name (read through ``cur_core_record`` only) -------
+IWP_TYPE: Final = "awp.IWP"
+CWP_TYPE: Final = "awp.CWP"
+COST_CODE_TYPE: Final = "cost.CostCode"
+ACTIVITY_TYPE: Final = "schedule.ActivityRef"
+PROJECT_ITEM_TYPE: Final = "materials.ProjectItem"
+LOCATION_TYPE: Final = "materials.InventoryLocation"
+GENERAL_TYPE_LIST: Final = "GeneralRequisitionType"
+
+# --- access words (``schema/settings/access-words.yaml``) ----------------------------------------
+RAISE: Final = "requisitions.raise"
+EDIT: Final = "requisitions.edit"
+APPROVE: Final = "requisitions.approve"
+REJECT: Final = "requisitions.reject"
+CANCEL: Final = "requisitions.cancel"
+SCHEDULE: Final = "requisitions.schedule"
+ASSIGN: Final = "requisitions.assign"
+START: Final = "requisitions.start"
+COMPLETE: Final = "requisitions.complete"
+CLOSE: Final = "requisitions.close"

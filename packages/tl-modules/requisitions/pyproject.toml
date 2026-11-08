@@ -6,6 +6,7 @@ dependencies = [
   "pydantic>=2",
   "sqlalchemy>=2",
   "tl-core",
+  "tl-mod-engineering",
   "tl-schema",
 ]
 

@@ -266,6 +266,9 @@ classes:
         description: "YYYY-MM-DD."
       planned_finish:
         description: "YYYY-MM-DD, not before the start."
+      hours_planned:
+        pattern: "^((0|[1-9][0-9]{0,6})\\.[0-9]|10000000\\.0)$"
+        description: 'Planned hours, text with one decimal from "0.0" to "10000000.0"; absent when the command gives none.'
       at:
         range: datetime
         annotations:

@@ -32,7 +32,12 @@ from sqlalchemy import Connection, bindparam, text
 
 from tl_core.auth.types import Principal
 from tl_core.ledger import Event
-from tl_core.modules import ChildSource, ConfidentialSource, confidential_sources
+from tl_core.modules import (
+    ChildSource,
+    ConfidentialSource,
+    confidential_sources,
+    is_module_record_type,
+)
 from tl_core.services.errors import RecordNotFoundError
 
 INTERNAL: Final = "internal"
@@ -138,26 +143,64 @@ def _only(only: str | None) -> str:
     return f" AND {only}" if only else ""
 
 
-# A part also answers for the constraints raised on its records (ADR-0024: a constraint is hidden
-# when its subject is; class by join, no copy). ``k`` is the constraint row (NULL for any other
-# record), ``sr`` its subject's record row, ``subj`` the id the confidential table is asked about.
-_CONSTRAINT_JOIN = (
-    " LEFT JOIN cur_core_constraint k ON k.id = hr.id AND hr.type = 'core.Constraint'"
-    " LEFT JOIN cur_core_record sr ON sr.id = k.subject_id"
+# A part also answers for the records that name a subject (ADR-0024 constraints; requisitions and
+# their work orders, P2-I4A F1): such a record is hidden when its subject is, class by join, no
+# copy. ``k`` is the constraint row (NULL for any other record). Each ``SUBJECT_LINKS`` row is a
+# table with one row per record of a type and the column naming that record's subject. The subject
+# is followed ``_HOPS`` times (constraint -> work order -> requisition -> work package), each hop
+# one flat LEFT JOIN per table on its primary key (nesting subqueries overflows SQLite's parser
+# stack). A record with no subject, or whose subject is not a record, is its own subject (a null
+# subject falls back to the record's own class). ``rr`` is the record that governs.
+SUBJECT_LINKS: Final = (
+    ("requisitions.LaborRequisition", "cur_requisitions_labor_requisition", "id", "for_record_id"),
+    (
+        "requisitions.MaterialRequisition",
+        "cur_requisitions_material_requisition",
+        "id",
+        "for_record_id",
+    ),
+    (
+        "requisitions.GeneralRequisition",
+        "cur_requisitions_general_requisition",
+        "id",
+        "for_record_id",
+    ),
+    ("requisitions.ScaffoldRequest", "cur_requisitions_scaffold_request", "id", "for_record_id"),
+    ("requisitions.WorkOrder", "cur_requisitions_work_order", "id", "requisition_id"),
 )
-_SUBJ = "COALESCE(k.subject_id, hr.id)"
+_HOPS: Final = 2
+
+
+def _subject_chain() -> tuple[str, str]:
+    """``(joins, id expression)`` of the record whose class governs ``hr``; only the tables of
+    installed modules are named."""
+    links = [link for link in SUBJECT_LINKS if is_module_record_type(link[0])]
+    joins = " LEFT JOIN cur_core_constraint k ON k.id = hr.id AND hr.type = 'core.Constraint'"
+    # the subject columns reached so far, the latest hop first (a flat COALESCE)
+    found: list[str] = []
+    for hop in range(_HOPS if links else 0):
+        current = f"COALESCE({', '.join([*found, 'k.subject_id', 'hr.id'])})"
+        hopped: list[str] = []
+        for number, (_, table, id_column, subject_column) in enumerate(links):
+            alias = f"q{hop}{number}"
+            joins += f" LEFT JOIN {table} {alias} ON {alias}.{id_column} = {current}"
+            hopped.append(f"{alias}.{subject_column}")
+        found = [*hopped, *found]
+    final = f"COALESCE({', '.join([*found, 'k.subject_id', 'hr.id'])})"
+    return joins + f" LEFT JOIN cur_core_record rr ON rr.id = {final}", final
 
 
 def _of_types(types: frozenset[str]) -> str:
-    return f"(hr.type IN ({_types(types)}) OR (k.id IS NOT NULL AND sr.type IN ({_types(types)})))"
+    return f"rr.type IN ({_types(types)})"
 
 
 def _source_hidden(source: ConfidentialSource, viewer: Viewer, only: str | None = None) -> str:
+    joins, subj = _subject_chain()
     return (
-        f"SELECT hr.id FROM cur_core_record hr{_CONSTRAINT_JOIN} "
+        f"SELECT hr.id FROM cur_core_record hr{joins} "
         f"WHERE {_of_types(source.record_types)}"
         f"{_only(only)} "
-        f"AND NOT EXISTS (SELECT 1 FROM {source.table} s WHERE s.{source.id_column} = {_SUBJ} "
+        f"AND NOT EXISTS (SELECT 1 FROM {source.table} s WHERE s.{source.id_column} = {subj} "
         f"AND ({_allowed(source, viewer)}))"
     )
 
@@ -173,13 +216,14 @@ def _child_hidden(
         table, key, root = child.hop
         via = f" JOIN {table} hop ON hop.{key} = ch.{child.root_column}"
         root_key = f"hop.{root}"
+    joins, subj = _subject_chain()
     return (
-        f"SELECT hr.id FROM cur_core_record hr{_CONSTRAINT_JOIN} "
+        f"SELECT hr.id FROM cur_core_record hr{joins} "
         f"WHERE {_of_types(child.record_types)}"
         f"{_only(only)} "
         f"AND NOT EXISTS (SELECT 1 FROM {child.table} ch{via} "
         f"JOIN {source.table} s ON s.{source.id_column} = {root_key} "
-        f"WHERE ch.{child.id_column} = {_SUBJ} AND ({_allowed(source, viewer)}))"
+        f"WHERE ch.{child.id_column} = {subj} AND ({_allowed(source, viewer)}))"
     )
 
 
