@@ -16,6 +16,8 @@ from tl_core.intent import Intent, check_intent, intent_scope
 from tl_core.services.commands import Command
 from tl_core.uow import UnitOfWork
 
+from tl_cli.session import require_command
+
 _NOTE = "Intent is recorded with the event and read by nobody to decide anything."
 
 WhyOpt = Annotated[
@@ -83,10 +85,12 @@ def run_with_intent[C: Command, R](
     handler: Callable[[UnitOfWork, C], R],
     intent: dict[str, Any] | None,
 ) -> R:
-    """Run ``handler`` with the intent checked and carried, as the API dispatcher does.
+    """Run ``handler`` with the access, the intent checked and carried, as the API dispatcher does.
 
+    The module-role gate runs first (the API checks access before intent), then the intent.
     ``IntentInvalid`` and ``IntentReferenceUnknown`` propagate before the handler appends anything.
     """
+    require_command(uow, command)
     if intent is None:
         return handler(uow, command)
     command = command.model_copy(update={"intent": Intent.model_validate(intent)})
