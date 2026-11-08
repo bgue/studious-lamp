@@ -1,6 +1,6 @@
 # P2-I5 STATE  r=2 base=ec3314d C=0 ck=0 gate=n/a wt=/home/user/wt/p2-i5
 ## BOARD   (pieces S, tickets T; nothing dispatched until P2-INT C2 is on the trunk and merged into p2/i5)
-S1 p todo f - schema, package content, words, settings; spec r2; HELD for P2-INT C2; gate orch P2-Q10
+S1 p disp f - schema, package content, words, settings; spec r2; gate orch P2-Q10
 S2 p todo f - engine, progress cmds, IWP start/complete, math rules; spec r2; needs S1
 S3 p todo f - rollup + CSV export; spec at C1; pairs S4 A
 S4 p todo f - A weekly cmds (human gate); B waive word on clear + hold rule + worker word; spec at C1
