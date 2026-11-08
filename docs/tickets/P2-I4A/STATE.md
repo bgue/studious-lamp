@@ -1,7 +1,7 @@
 # P2-I4A STATE  r=2 base=0ae6527 C=0 ck=0 gate=n/a wt=/home/user/wt/p2-i4a
 ## BOARD   (ws all A; pieces S, tickets T; nothing dispatches before P2-INT C2 is on the trunk and merged here)
 S1 p mrg f 010b695 schema + module spec; spec r2; gate orch P2-Q10
-S2 p todo f - engine cmds + subject-class join; spec r2; needs S1; gate orch
+S2 p disp f - engine cmds + subject-class join; spec r2; needs S1; gate orch
 S3 p todo f - fulfil, FIFO lots, stock(), shortage constraint; spec at C1; gate orch
 S4 p todo f - tests piece at C3
 T04a t todo f - read views, viewer=; needs S2
