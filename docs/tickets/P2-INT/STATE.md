@@ -6,7 +6,7 @@ T01 t mrg f c55317a tl:valid_time tag + frozen baseline
 T02 t mrg f 9e897a7 CLI --why/--next/--toward on record+link (D6)
 T03 t mrg f e337656 MCP intent param on 12 propose submits
 T04 t mrg f 97a2ede Activity-tab intent panel + core redact in record_activity, embedded.history
-T05 t stg l - demo driver (after T02-T04)
+T05 t mrg l 9f3599e demo driver (after T02-T04)
 ## DEC
 D1 2026-11-07 plan from ADR-0025 answers F3-F6,F13,F14 + ADR-0026 F5 + ADR-0027 F9; no PLANCHK (7 items, ADRs already checked)
 D2 2026-11-07 S1 refuses non-null intent through ONE function check_intent (S2 replaces its body); S1 may add one line in tl_api run_command
