@@ -1,15 +1,15 @@
 # P2-INS-T01 — Activity text: columns, words, why, related mark (INS-A2)
 
-Status: draft (written round 1 against the S1 contract; the next round re-reads the merged `ActivityRow` and refreshes the pasted block before dispatch)
+Status: ready (round 2, against merged S1 @2fbcdcf)
 Tier: haiku
 review: lite
 Labels: tui
-Depends on: S1 merged (`tl_core.insights.types.ActivityRow`, `ActivityPage`)
+Depends on: S1 merged (it is: `tl_core.insights.types`). Runs in one workflow with T02: the stub below is committed on p2/ins, T02 imports it and never edits it
 Branch: `p2/ins-t01-activity-text`
 Worktree: `/home/user/wt/ins-t01`
 
 ## Goal
-`tl_tui/record_activity_text.py` exists: pure functions (no client call, no I/O, no `textual` import, so the web client can reuse the words) that turn
+`tl_tui/record_activity_text.py` (a stub is in the tree: frozen signatures, placeholder bodies for 6 of the 9 functions; you replace the bodies and add the missing 3) holds the real text: pure functions (no client call, no I/O, no `textual` import, so the web client can reuse the words) that turn
 `ActivityRow`s into table columns and cells, in plain words by default. The module is NOT named `activity_text` (plan check F3: the schedule has an activity screen).
 
 ## Brief references (pasted; spec A1.1, A1.4, A3)
@@ -25,7 +25,7 @@ Technical mode: columns `#` (event stream version), `When`, `Event` (type), `Act
 Narrow width: drop `Kind`, then `From`, shorten `What`, `Why` last (module-local tuple like `READINESS_DROP` in `readiness_text.py`; do not edit `layout.py`).
 Never name a model type or provider. Hidden records have no rows, so nothing here filters.
 
-## Interfaces (verbatim from the repo at the branch point; pasted after S1 merges)
+## Interfaces (verbatim from the repo at @2fbcdcf; `packages/tl-core/src/tl_core/insights/types.py`)
 ```python
 ActivityKind = Literal["change", "move", "link", "file", "post", "proposal", "constraint", "check"]
 class ActivityRow(BaseModel):
@@ -34,24 +34,27 @@ class ActivityRow(BaseModel):
 class ActivityPage(BaseModel):
     rows: list[ActivityRow]; next_before_seq: int | None
 ```
-Functions to write (all pure; `labels: Labels | None`, `technical: bool` keyword):
-`activity_columns(rows, *, technical)`, `activity_cells(row, labels, *, technical, with_why)`, `kind_word(kind)`, `who_text(row, labels)`, `what_text(row, labels, *, technical)`,
-`why_text(row)`, `from_text(row)`, `page_has_why(rows)`, `filter_title(revisions_only, related, text)` (`Activity` plus ` · Revisions only` / ` · Related off` / ` · "text"`), `row_matches(row, text, labels)` (case-insensitive over the What, Who and From cells).
+Event (`tl_core.ledger`) fields used: `seq`, `stream_version`, `event_type`, `actor`, `recorded_at` (datetime), `payload`. Helpers to call, not rewrite:
+`record_text.event_label(event_type) -> str`, `record_text.event_summary(event, labels=None, *, technical=True) -> str`, `record_text.history_columns(technical)`, `history_cells(event, labels, *, technical)`,
+`display.actor_label(labels, actor) -> str`, `display.humanize(name)`, `display.find_technical(text, labels=None) -> list[str]`, `text.timestamp(iso_str | None) -> str`, `text.EMPTY` (the dash).
+Frozen signatures already in the stub (do not change): `kind_word(kind)`, `page_has_why(rows)`, `activity_columns(rows, *, technical)`, `activity_cells(row, labels, *, technical, with_why)`, `filter_title(revisions_only, related, text)`, `row_matches(row, text, labels)`.
+To add (pure, same file): `who_text(row, labels)`, `what_text(row, labels, *, technical)`, `why_text(row)`, `from_text(row)`. `activity_columns` leaves `Why` out when `page_has_why(rows)` is false; `activity_cells` is called with `with_why=page_has_why(rows)` and has as many cells as the columns.
+`filter_title` is `Activity` plus ` · Revisions only` / ` · Related off` / ` · "text"` (in that order, each only when active). `row_matches`: case-insensitive over the What, Who and From cells.
 
 ## Context (<= 6 files)
-`packages/tl-tui/src/tl_tui/record_text.py` (`event_label`, `event_summary`, `history_*`); `display.py` (`humanize`, `actor_label`); `text.py` (`timestamp`); `readiness_text.py` (the pattern); `packages/tl-tui/tests/test_awp_text.py` (test style); S1's `types.py`.
+`packages/tl-tui/src/tl_tui/record_activity_text.py` (the stub); `record_text.py` (`event_label`, `event_summary`, `history_*`); `display.py`; `readiness_text.py` (the pattern, `READINESS_DROP`); `packages/tl-tui/tests/test_awp_text.py` (test style).
 may explore: (none)
 
 ## Allowed paths
-- `packages/tl-tui/src/tl_tui/record_activity_text.py` (create)
+- `packages/tl-tui/src/tl_tui/record_activity_text.py` (modify: replace bodies, add 4 functions)
 - `packages/tl-tui/tests/test_record_activity_text.py` (create)
 - `docs/reports/P2-INS/T01.md` (create)
-Not allowed: `record_view.py`, `layout.py`, any widget, `client.py`.
+Not allowed: changing a frozen signature, `record_view.py`, `layout.py`, any widget, `client.py`.
 
 ## Acceptance
 ```
 just check
-uv run pytest packages/tl-tui/tests/test_record_activity_text.py -q
+just gate packages/tl-tui/tests/test_record_activity_text.py
 ```
 Expected: all pass; `just check` clean (the test file is under 200 lines).
 
@@ -65,7 +68,7 @@ One test per kind word; a proposal accepted by a person; a proposal filed by an 
 `P2-INS-T01: <imperative summary>`; trailer lines as `docs/build-spec/SUPERVISOR-PROMPT.md`; no model names. Do not merge; do not push.
 
 ## Escalation triggers
-- Stop and report *Blocked* if `ActivityRow` differs from the pasted block; an existing helper you need is private; a word in the table has no `labels` source.
+- Stop and report *Blocked* if `ActivityRow` differs from the pasted block; a frozen signature cannot give the table in the Brief references; an existing helper you need is private; a word in the table has no `labels` source.
 
 ## Blocked
 (implementer writes here)
