@@ -1,6 +1,6 @@
 # P2-I4A STATE  r=2 base=0ae6527 C=0 ck=0 gate=n/a wt=/home/user/wt/p2-i4a
 ## BOARD   (ws all A; pieces S, tickets T; nothing dispatches before P2-INT C2 is on the trunk and merged here)
-S1 p todo f - schema + module spec; spec r2; gate orch P2-Q10
+S1 p disp f - schema + module spec; spec r2; gate orch P2-Q10
 S2 p todo f - engine cmds + subject-class join; spec r2; needs S1; gate orch
 S3 p todo f - fulfil, FIFO lots, stock(), shortage constraint; spec at C1; gate orch
 S4 p todo f - tests piece at C3
@@ -48,6 +48,8 @@ Q2 closed r2 (intent slot arrives with P2-INT C2; S2 asserts round-trip)
 1. Constraints whose target is a reference to a record (not the record itself), e.g. a requisition constraint pointing at its subject | needs the ADR-0024 target model extended | wave 3 follow-up
 2. Thread `/dispatch` wiring for material-request, labour, crane-lift, general requisitions | W3-4 internal only; T11 cut by plan check F10 | after P1-I7 WS-B is on trunk
 3. Moving a requisitions access word to another role per project (data edit through module roles) | S1 drops the module-roles edit, T10b grants superuser (F13) | Phase 3 with module-role editing
+## DEC-ORCH
+D-o1 2026-11-08 C2 taken from p2/int @9700d54 (holds trunk @4fff675) instead of waiting for P2-INT on the trunk; P2-INT T02-T05 come with it later
 ## NEXT
 1. Orchestrator: merge trunk after P2-INT C2 into p2/i4a; send `13.` with the merge sha.
 2. r3 dispatch: S1 alone (human gate P2-Q10, APPROVALS line). S2 after it merges; nothing else is ready.
