@@ -44,13 +44,13 @@ Examples use project `P123`. Replace the IWP number, keys and actors with yours.
    uv run tl awp iwp pin P123-IWP-PIP-0001 <document-key> --project P123
    uv run tl awp iwp scope P123-IWP-PIP-0001 --project P123
    ```
-   Expected: `add-scope P123-IWP-PIP-0001 1 items version <v>`; `pin P123-IWP-PIP-0001 version <v>`; the scope lists the item.
+   Expected: `add-scope P123-IWP-PIP-0001  1 items  version <v>`; `pin P123-IWP-PIP-0001  version <v>`; the scope lists the item.
 4. Start development, then send the package to the constraint check. The check is what readiness evaluates.
    ```
    uv run tl awp iwp move P123-IWP-PIP-0001 start-development --project P123
    uv run tl awp iwp move P123-IWP-PIP-0001 constraint-check --project P123 --reason "scope complete"
    ```
-   Expected: `move P123-IWP-PIP-0001 version <n>` each time.
+   Expected: `move P123-IWP-PIP-0001  version <n>` each time.
 
 ### 2. Read and clear constraints
 1. List the open blocking constraints on the project, then the ones on this IWP.
@@ -68,13 +68,13 @@ Examples use project `P123`. Replace the IWP number, keys and actors with yours.
    ```
    uv run tl constraint raise --project P123 --subject P123-IWP-PIP-0001 --phase ready --severity blocking --category permit --owner user:planner-a --description "permit to work not yet issued" --due 2026-11-13
    ```
-   Expected: `raised <key> version <v>`.
+   Expected: `raised <key>  version <v>`.
 4. Assign an open constraint to its owner, then clear it when it is resolved. Clear needs a reason.
    ```
    uv run tl constraint assign <constraint-key> --project P123 --owner user:planner-a
    uv run tl constraint clear <constraint-key> --project P123 --reason "permit issued, reference PTW-0042" --cleared-at 2026-11-12
    ```
-   Expected: `assign <key> version <v>`; `clear <key> version <v>`.
+   Expected: `assign <key>  version <v>`; `clear <key>  version <v>`.
 5. A constraint on a record you may not read is not listed. Do not ask for a wider viewer to see it; ask the owner of the record.
 
 Known limit: a new blocking constraint on an IWP that is already Issued does not put it On hold. The brief's rule (Q1 in `docs/tickets/P2-I2/STATE.md`; `docs/build-spec/DEFERRED.md`) is not built. Hold it by hand (step 6) if the work must stop.
@@ -86,12 +86,12 @@ Known limit: a new blocking constraint on an IWP that is already Issued does not
    uv run tl awp readiness show P123-IWP-PIP-0001 --project P123
    uv run tl awp readiness ls --project P123
    ```
-   Expected from `show`: `readiness P123-IWP-PIP-0001`, `ready yes` or `ready no`, `checks <passing>/<total>`, then one line per check.
+   Expected from `show`: `readiness P123-IWP-PIP-0001`, `ready  yes` or `ready  no`, `checks  <passing>/<total>`, then one line per check.
 2. Read the checks that are not passing. A `blocked` check names the record to resolve. An `unknown` check stops Ready unless `awp.release.allow_unknown_checks` is true.
 3. The nine checks: `documents_current`, `rfis_answered`, `materials_reserved` and `constraints_cleared` are real. `permits_planned`, `inspections_planned`, `labour_requested`, `predecessors_handed_over` and `model_slice_available` answer `n_a` in this release and count as passing (D9).
 4. The IWP moves to `Ready` only when every check passes. The job then writes `IWP.Ready`. A webhook subscribed to that event receives it (`docs/runbooks/webhook-operations.md`).
 
-Note: one worker run takes one batch of 100 outbox events. After a large setup, run the worker several times before an IWP event is seen.
+Note: each worker poll reads one batch of 100 outbox events (`BATCH = 100` in `packages/tl-modules/awp/src/tl_mod_awp/readiness/follow.py`), and `tl awp worker` polls once before each job run (`packages/tl-cli/src/tl_cli/awp_run.py`, the `made.follower.poll()` call). After a large setup, run `uv run tl awp worker --once` several times before an IWP event is seen.
 
 ### 4. Sign off
 1. Read the record hash. The sign-off carries it; a stale hash is refused.
@@ -104,7 +104,7 @@ Note: one worker run takes one batch of 100 outbox events. After a large setup, 
    uv run tl awp iwp sign-off P123-IWP-PIP-0001 --project P123 --hash <sha256> --actor user:controller-a
    uv run tl awp iwp sign-off P123-IWP-PIP-0001 --project P123 --hash <sha256> --actor user:controller-b
    ```
-   Expected: `sign-off P123-IWP-PIP-0001 version <n>` each time.
+   Expected: `sign-off P123-IWP-PIP-0001  version <n>` each time.
 3. If the scope or a pin changes after a sign-off, the hash changes. Read the hash again and have both signers sign again.
 
 ### 5. Issue
@@ -112,7 +112,7 @@ Note: one worker run takes one batch of 100 outbox events. After a large setup, 
    ```
    uv run tl awp iwp issue P123-IWP-PIP-0001 --project P123 --hash <sha256> --foreman user:foreman-a --actor user:controller-a
    ```
-   Expected: `issue P123-IWP-PIP-0001 version <n>`.
+   Expected: `issue P123-IWP-PIP-0001  version <n>`.
 2. Read the result: `uv run tl awp iwp show P123-IWP-PIP-0001 --project P123` shows the state `Issued`, the foreman, and the two sign-offs.
 
 ### 6. Hold and release the hold
@@ -120,12 +120,12 @@ Note: one worker run takes one batch of 100 outbox events. After a large setup, 
    ```
    uv run tl awp iwp hold P123-IWP-PIP-0001 --project P123 --reason "crane unavailable" --actor user:controller-a
    ```
-   Expected: `hold P123-IWP-PIP-0001 version <n>`. A hold is allowed from `Ready`, `Issued` or `In progress`.
+   Expected: `hold P123-IWP-PIP-0001  version <n>`. A hold is allowed from `Ready`, `Issued` or `In progress`.
 2. Lift the hold when the reason is gone.
    ```
    uv run tl awp iwp release-hold P123-IWP-PIP-0001 --project P123 --reason "crane back" --actor user:controller-a
    ```
-   Expected: `release-hold P123-IWP-PIP-0001 version <n>`.
+   Expected: `release-hold P123-IWP-PIP-0001  version <n>`.
 
 ### 7. Reports
 ```

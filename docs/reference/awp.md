@@ -21,12 +21,16 @@ The MCP tools are in `packages/tl-mcp/src/tl_mcp/iwp_tools.py`; each needs `mcp.
 
 ## Access
 
-| Read | Access |
-|---|---|
-| IWP reads (CLI, API, TUI, web, MCP) | the module's class filter applies; the CLI checks no access word |
-| Readiness reads (CLI) | the class filter applies; the CLI checks no access word (API and web: not checked in this page; see the sources) |
-| `tl awp report` (IWP and constraint names) | the class filter applies; no access word is checked by the CLI |
-| Constraint reads (CLI `tl constraint ls|show|groups`, web constraint log) | `core.constraint.view` |
+Every read names its check per surface. A route's `Depends(guard(...))` is the API check; the web client runs the
+same check as the route (`tl_web/reads.py`, `guard_action`).
+
+| Surface | IWP reads (list, show, scope) | Readiness reads | Constraint reads (`ls`, `show`, `groups`) | Reports (`tl awp report`) |
+|---|---|---|---|---|
+| CLI | class filter; no access word checked (`tl_cli/awp_iwp_read.py`) | class filter; no access word checked (`tl_cli/awp_readiness_read.py`) | `core.constraint.view` (`tl_cli/constraint_read.py`) | class filter; no access word checked (README) |
+| API | `document.read` (`tl_api/routes/awp.py:34`; routes at lines 238, 263, 274) | `document.read` (`routes/awp.py:314`) | `core.constraint.view` (`tl_api/routes/constraints.py:42`) | not checked in this page |
+| TUI | not checked in this page | not checked in this page | not checked in this page | not applicable |
+| Web | `document.read` (`tl_web/reads.py`, `_call`) | `document.read` (`tl_web/reads.py`, `_call`) | `core.constraint.view` (`tl_web/reads.py`, `_call_viewed`) | not applicable |
+| MCP | `document.read` per tool through `guarded` (`tl_mcp/iwp_tools.py`; action per the awp README) | `get_iwp_readiness`, same | none (no constraint tools, D37) | not applicable |
 
 A record the viewer may not see is absent from every list, and its page answers as a missing record. The default
 viewer is the lowest clearance (ADR-0016).
