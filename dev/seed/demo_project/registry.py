@@ -7,11 +7,21 @@ from collections.abc import Callable
 from dataclasses import dataclass
 
 from tl_core.modules import load_modules
+from tl_schema.generated import models
 
 from dev.seed.demo_project.world import World
 
 #: The order sections run in. A later section may read what an earlier one wrote.
-ORDER = ("core", "engineering", "documents", "correspondence", "awp", "materials", "quality")
+ORDER = (
+    "core",
+    "engineering",
+    "documents",
+    "correspondence",
+    "awp",
+    "constraints",
+    "materials",
+    "quality",
+)
 
 Build = Callable[[World, random.Random], None]
 
@@ -36,4 +46,10 @@ def register(name: str, build: Build, needs: tuple[str, ...] = ()) -> None:
 def missing_types(section: Section) -> list[str]:
     """The record types ``section`` needs that no installed module provides."""
     installed = {t for spec in load_modules() for t in spec.record_types}
-    return [t for t in section.needs if t not in installed]
+    return [t for t in section.needs if t not in installed and not _core_type(t)]
+
+
+def _core_type(record_type: str) -> bool:
+    """A ``core.<Name>`` record type that the generated schema models carry (no module owns it)."""
+    kind, _, name = record_type.partition(".")
+    return kind == "core" and hasattr(models, name)
