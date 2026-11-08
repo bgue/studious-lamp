@@ -27,8 +27,9 @@ from tl_core.offline import NodeKindNotBuiltError, require_node_built
 
 from tl_tui.app import TlApp
 from tl_tui.embedded import DEFAULT_ACTOR, EmbeddedAuthenticator, EmbeddedClient
-from tl_tui.remote import RemoteAuthenticator, RemoteClient, sign_out
+from tl_tui.remote import RemoteAuthenticator, RemoteClient, server_version, sign_out
 from tl_tui.sign_in import SignedIn, SignInApp
+from tl_tui.version_note import app_version, version_pair_note
 
 DEFAULT_DB = "./dev/data/tl.db"
 DEFAULT_PROJECT = "P123"
@@ -197,8 +198,13 @@ def sign_in_first(*, remote: str | None = None, db: str | Path | None = None) ->
         if not url.startswith(("http://", "https://")):
             raise ValueError(f"--remote must be an http(s) URL, got {url!r}")
         check_remote_policy(url)
+        # The server's version is read once, before the prompt; a failure shows nothing.
+        notice = version_pair_note(server_version(url), app_version())
         return SignInApp(
-            RemoteAuthenticator(url), target=f"server {url}", hint=plain_http_warning(url)
+            RemoteAuthenticator(url),
+            target=f"server {url}",
+            hint=plain_http_warning(url),
+            notice=notice,
         ).run()
     target = as_target(db or os.environ.get("TL_DB", DEFAULT_DB))
     where = display_target(target)

@@ -30,7 +30,8 @@ def test_an_unknown_token_is_401(harness: Harness) -> None:
 
 
 def test_health_needs_no_token(harness: Harness) -> None:
-    assert harness.client_for(None).get("/health").json() == {"status": "ok"}
+    body = harness.client_for(None).get("/health").json()
+    assert body == {"status": "ok", "version": body["version"]}  # the version: test_health_version
 
 
 def test_the_hook_sees_the_actor_the_action_and_the_resource(harness: Harness) -> None:

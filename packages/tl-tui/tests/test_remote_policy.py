@@ -94,13 +94,16 @@ def test_the_override_opens_the_sign_in_with_the_warning(
     seen: dict[str, object] = {}
 
     class Fake:
-        def __init__(self, auth: object, *, target: str, hint: str | None) -> None:
+        def __init__(
+            self, auth: object, *, target: str, hint: str | None, notice: str | None
+        ) -> None:
             seen.update(target=target, hint=hint)
 
         def run(self) -> None:
             return None
 
     monkeypatch.setattr(tui_main, "SignInApp", Fake)
+    monkeypatch.setattr(tui_main, "server_version", lambda url: None)  # no network call in a test
     assert tui_main.sign_in_first(remote="http://tl.example") is None
     assert "plain http" in str(seen["hint"])
 
