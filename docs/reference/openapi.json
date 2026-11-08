@@ -3179,6 +3179,62 @@
         "title": "CheckBody",
         "type": "object"
       },
+      "CheckFinding": {
+        "description": "One thing that needs attention on a record, shaped like a readiness ``CheckResult``.\n\nA finding is a fact read from the record's own sources; it is never labelled a suggestion.",
+        "properties": {
+          "resolve_via": {
+            "items": {
+              "$ref": "#/components/schemas/tl_core__readiness__types__RecordRef"
+            },
+            "title": "Resolve Via",
+            "type": "array"
+          },
+          "severity": {
+            "enum": [
+              "blocking",
+              "warning"
+            ],
+            "title": "Severity",
+            "type": "string"
+          },
+          "since": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Since"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          },
+          "subject_id": {
+            "title": "Subject Id",
+            "type": "string"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source",
+          "subject_id",
+          "state",
+          "text",
+          "severity"
+        ],
+        "title": "CheckFinding",
+        "type": "object"
+      },
       "ClassificationReport": {
         "description": "What changed between ``base`` and ``target`` and what the change means.",
         "properties": {
@@ -17925,6 +17981,42 @@
           "need_by"
         ],
         "title": "MtoLineView",
+        "type": "object"
+      },
+      "NeedIn": {
+        "additionalProperties": false,
+        "description": "What a screen may say about a need: kind, trigger, type and, for a request, a record.",
+        "properties": {
+          "record_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Record Id"
+          },
+          "record_type": {
+            "title": "Record Type",
+            "type": "string"
+          },
+          "request_kind": {
+            "title": "Request Kind",
+            "type": "string"
+          },
+          "trigger": {
+            "title": "Trigger",
+            "type": "string"
+          }
+        },
+        "required": [
+          "request_kind",
+          "trigger",
+          "record_type"
+        ],
+        "title": "NeedIn",
         "type": "object"
       },
       "NotifyArgs": {
@@ -67296,6 +67388,86 @@
         ]
       }
     },
+    "/insights/needs": {
+      "post": {
+        "description": "Record that a need was shown. 403 for an agent token, 429 `rate_limited` past 30 in 10\nminutes per actor, 204 otherwise (also when the write itself failed: it is never the caller's\nproblem).",
+        "operationId": "note_need",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NeedIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Post Need",
+        "tags": [
+          "insights"
+        ]
+      }
+    },
     "/integration/{kind}": {
       "get": {
         "description": "One kind of integration record: ``apps``, ``actions``, ``rules``, ``endpoints``,\n``enrichers``, ``invocations`` or ``enrichments`` (``state`` filters the values waiting for\nreview). Never a secret, a payload or an executor's configuration.",
@@ -79059,6 +79231,98 @@
         "summary": "Put Record Body",
         "tags": [
           "extension types"
+        ]
+      }
+    },
+    "/records/{record_id}/checks": {
+      "get": {
+        "description": "What needs attention on the record, from five sources. 404 `record_not_found` when the\nrecord is unknown or hidden from the caller (the same body).",
+        "operationId": "get_record_checks",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "record_id",
+            "required": true,
+            "schema": {
+              "title": "Record Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/CheckFinding"
+                  },
+                  "title": "Response Get Record Checks",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Record Checks",
+        "tags": [
+          "insights"
         ]
       }
     },

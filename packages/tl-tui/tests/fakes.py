@@ -34,7 +34,7 @@ from fakes_tags import FakeTagSupport
 from fakes_threads import FakeThreadSupport
 from fakes_types import FakeTypeSupport
 from tl_core.insights.activity import kind_of
-from tl_core.insights.types import ActivityPage, ActivityRow
+from tl_core.insights.types import ActivityPage, ActivityRow, CheckFinding
 from tl_core.ledger import ConcurrencyError, Event
 from tl_core.services.commands import CommandResult, CreateRecord, UpdateRecord
 from tl_core.services.edit import EditRecord
@@ -255,6 +255,8 @@ class FakeClient(
         self._events: dict[str, list[Event]] = {}
         self._seq = 0
         self._id = 0
+        self.findings: dict[str, list[CheckFinding]] = {}  # record id -> its check findings
+        self.needs: list[tuple[str, str, str, str | None]] = []  # note_need calls
         self._init_actions()
         self._init_links()
         self._init_feed()
@@ -668,6 +670,16 @@ class FakeClient(
             issues=issues,
             effective_schema_hash=self.metadata.effective_schema_hash,
         )
+
+    def checks(self, record_id: str) -> list[CheckFinding]:
+        self.calls.append("checks")
+        return list(self.findings.get(record_id, []))
+
+    def note_need(
+        self, *, request_kind: str, trigger: str, record_type: str, record_id: str | None = None
+    ) -> None:
+        self.calls.append("note_need")
+        self.needs.append((request_kind, trigger, record_type, record_id))
 
 
 def keys(rows: Sequence[dict[str, Any]]) -> list[str]:

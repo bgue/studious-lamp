@@ -18,8 +18,10 @@ from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Any, BinaryIO, Literal
 
+from sqlalchemy import text
 from tl_api.auth import AGENT_MUST_PROPOSE
 from tl_api.client.files import save_download
+from tl_api.insights_sources import SOURCES
 from tl_api.routes import constraints as constraint_routes
 from tl_api.routes.awp import CheckBody, CwpDetailView, ReadinessBody, TimelineRow, _note
 from tl_api.routes.constraints import (
@@ -78,7 +80,8 @@ from tl_core.files.queries import FileInfo, list_files
 from tl_core.files.service import CompleteUpload, FileResult, FileService, RegisterUpload
 from tl_core.files.types import ObjectStore
 from tl_core.insights.activity import record_activity
-from tl_core.insights.types import ActivityPage
+from tl_core.insights.checks import record_checks, record_facts
+from tl_core.insights.types import ActivityPage, CheckFinding
 from tl_core.integration import registry as integration_registry
 from tl_core.integration.actor_access import held_access
 from tl_core.integration.contract import SERVER_SET_FIELDS, Access
@@ -136,6 +139,7 @@ from tl_core.settings import revert_setting as revert_in_force
 from tl_core.settings import set_setting as set_in_force
 from tl_core.settings.types import SettingChange
 from tl_core.settings.views import SettingView, get_view, list_views, view_at
+from tl_core.telemetry import note_need, role_word
 from tl_core.threads.contract import ParseProblem
 from tl_core.threads.dispatch import DispatchFromThread, handle_dispatch_from_thread
 from tl_core.threads.holds import account_holds
@@ -761,6 +765,46 @@ class EmbeddedClient:
     def expected_links(self, record_id: str) -> list[MissingLink]:
         with self._uow(True) as uow:
             return missing_expected_links(uow, record_id)
+
+    def checks(self, record_id: str) -> list[CheckFinding]:
+        with self._uow(True) as uow:
+            facts = record_facts(uow.conn(), record_id)
+            if facts is None:  # unknown and hidden answer alike
+                return []
+            return record_checks(uow.conn(), facts, SOURCES)
+
+    def note_need(
+        self, *, request_kind: str, trigger: str, record_type: str, record_id: str | None = None
+    ) -> None:
+        """Append one telemetry row as this client's person. Never raises (an agent actor is
+        refused at construction; a bad value or a database error is dropped)."""
+        if self.actor.startswith("agent:"):
+            return
+        try:
+            with self._uow(False) as uow:
+                conn = uow.conn()
+                scope: str | None = None
+                if record_id is not None:
+                    row = conn.execute(
+                        text("SELECT scope FROM cur_core_record WHERE id = :id"), {"id": record_id}
+                    ).first()
+                    if row is None or confidentiality.is_hidden(conn, record_id):
+                        record_id = None
+                    else:
+                        scope = str(row.scope)
+                account = account_queries.find_account(conn, username=self.actor.partition(":")[2])
+                note_need(
+                    conn,
+                    request_kind=request_kind,
+                    trigger=trigger,
+                    record_type=record_type,
+                    viewer_role=role_word(account.roles) if account is not None else "unknown",
+                    outcome="shown",
+                    scope=scope,
+                    record_id=record_id,
+                )
+        except Exception:
+            return
 
     def search_linkable(
         self,
