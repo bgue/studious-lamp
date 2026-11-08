@@ -91,7 +91,8 @@ linkml_meta = LinkMLMeta({'default_prefix': 'throughline',
                  'events',
                  'auth',
                  'jobs',
-                 'integration_ops'],
+                 'integration_ops',
+                 'constraint'],
      'name': 'tl_core',
      'prefixes': {'linkml': {'prefix_prefix': 'linkml',
                              'prefix_reference': 'https://w3id.org/linkml/'},
@@ -171,6 +172,7 @@ class LinkRelation(str, Enum):
     belongs_to = "belongs_to"
     requires = "requires"
     blocks = "blocks"
+    targets = "targets"
     verifies = "verifies"
     dispatched_from = "dispatched_from"
     attached_to = "attached_to"
@@ -671,6 +673,21 @@ class DeliveryState(str, Enum):
     """
 
 
+class ConstraintCategory(str, Enum):
+    """
+    What kind of thing holds the subject back (the code list that replaces the awp `ConstraintType`).
+    """
+    materials = "materials"
+    labour = "labour"
+    scaffold = "scaffold"
+    equipment = "equipment"
+    permit = "permit"
+    engineering = "engineering"
+    rfi = "rfi"
+    predecessor = "predecessor"
+    other = "other"
+
+
 
 class RecordEnvelope(ConfiguredBaseModel):
     """
@@ -678,7 +695,11 @@ class RecordEnvelope(ConfiguredBaseModel):
     """
     linkml_meta: ClassVar[LinkMLMeta] = LinkMLMeta({'abstract': True, 'from_schema': 'https://example.org/throughline/core/record'})
 
-    id: str = Field(default=..., description="""Immutable global identifier; equals the ledger `stream_id`.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope', 'EventOrigin', 'EventLinkRef', 'CloudEvent']} })
+    id: str = Field(default=..., description="""Immutable global identifier; equals the ledger `stream_id`.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
+                       'EventOrigin',
+                       'EventLinkRef',
+                       'CloudEvent',
+                       'Constraint']} })
     key: Optional[str] = Field(default=None, description="""Human-readable number, unique within a scope. Null until numbering assigns one.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'RecordCreatedPayload',
                        'NumberingAllocatedPayload',
@@ -726,7 +747,8 @@ class RecordEnvelope(ConfiguredBaseModel):
                        'RecordBody',
                        'BodyQuarantine',
                        'JobQueue',
-                       'InboundDelivery']} })
+                       'InboundDelivery',
+                       'Constraint']} })
     title: str = Field(default=..., description="""Short human-readable title.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'RecordCreatedPayload',
                        'RuleCreatedPayload',
@@ -737,7 +759,9 @@ class RecordEnvelope(ConfiguredBaseModel):
                        'ActionDefinitionDefinedPayload',
                        'SettingDefinition',
                        'IntegrationApp',
-                       'ActionDefinition']} })
+                       'ActionDefinition',
+                       'Constraint',
+                       'ConstraintRaisedPayload']} })
     status: Optional[str] = Field(default=None, description="""Workflow state; null when the record type has no workflow.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'Link',
                        'LinkFlaggedPayload',
@@ -810,7 +834,8 @@ class RecordEnvelope(ConfiguredBaseModel):
                        'Account',
                        'AgentToken',
                        'RuleCursor',
-                       'EnrichmentCursor']} })
+                       'EnrichmentCursor',
+                       'Constraint']} })
     effective_schema_hash: Optional[str] = Field(default=None, description="""Hash of the effective schema in force at the last write; null before Increment 2.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'PsetValuesSetPayload',
                        'WorkflowTransitionedPayload',
@@ -879,7 +904,11 @@ class Record(RecordEnvelope):
                                        'unique_key_name': 'scope_key',
                                        'unique_key_slots': ['scope', 'key']}}})
 
-    id: str = Field(default=..., description="""Immutable global identifier; equals the ledger `stream_id`.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope', 'EventOrigin', 'EventLinkRef', 'CloudEvent']} })
+    id: str = Field(default=..., description="""Immutable global identifier; equals the ledger `stream_id`.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
+                       'EventOrigin',
+                       'EventLinkRef',
+                       'CloudEvent',
+                       'Constraint']} })
     key: Optional[str] = Field(default=None, description="""Human-readable number, unique within a scope. Null until numbering assigns one.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'RecordCreatedPayload',
                        'NumberingAllocatedPayload',
@@ -927,7 +956,8 @@ class Record(RecordEnvelope):
                        'RecordBody',
                        'BodyQuarantine',
                        'JobQueue',
-                       'InboundDelivery']} })
+                       'InboundDelivery',
+                       'Constraint']} })
     title: str = Field(default=..., description="""Short human-readable title.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'RecordCreatedPayload',
                        'RuleCreatedPayload',
@@ -938,7 +968,9 @@ class Record(RecordEnvelope):
                        'ActionDefinitionDefinedPayload',
                        'SettingDefinition',
                        'IntegrationApp',
-                       'ActionDefinition']} })
+                       'ActionDefinition',
+                       'Constraint',
+                       'ConstraintRaisedPayload']} })
     status: Optional[str] = Field(default=None, description="""Workflow state; null when the record type has no workflow.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'Link',
                        'LinkFlaggedPayload',
@@ -1011,7 +1043,8 @@ class Record(RecordEnvelope):
                        'Account',
                        'AgentToken',
                        'RuleCursor',
-                       'EnrichmentCursor']} })
+                       'EnrichmentCursor',
+                       'Constraint']} })
     effective_schema_hash: Optional[str] = Field(default=None, description="""Hash of the effective schema in force at the last write; null before Increment 2.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'PsetValuesSetPayload',
                        'WorkflowTransitionedPayload',
@@ -1116,7 +1149,8 @@ class Event(ConfiguredBaseModel):
                        'RecordBody',
                        'BodyQuarantine',
                        'JobQueue',
-                       'InboundDelivery']} })
+                       'InboundDelivery',
+                       'Constraint']} })
     payload: Any = Field(default=..., description="""Event payload, a JSON object validated against the event type's schema.""", json_schema_extra = { "linkml_meta": {'annotations': {'tl:json': {'tag': 'tl:json', 'value': True}},
          'domain_of': ['Event']} })
     actor: str = Field(default=..., description="""`user:<id>`, `svc:<name>` or `agent:<id>`.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Event',
@@ -1128,7 +1162,7 @@ class Event(ConfiguredBaseModel):
                        'OutboxEvent',
                        'AuthAudit']} })
     recorded_at: datetime  = Field(default=..., description="""System (transaction) time.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Event', 'SettingChangeRow', 'SettingLockRow', 'OutboxEvent']} })
-    effective_at: datetime  = Field(default=..., description="""Business (valid) time.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Event']} })
+    effective_at: datetime  = Field(default=..., description="""Business (valid) time.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Event', 'Constraint', 'ConstraintRaisedPayload']} })
     correlation_id: str = Field(default=..., description="""Ties a command chain, import, or automated process together.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Event', 'OutboxEvent']} })
     causation_id: Optional[str] = Field(default=None, description="""Identifier of the event or command that caused this one; may be null.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Event']} })
     source: str = Field(default=..., description="""`tui`, `api`, `mcp:<agent>`, `cli`, `import:<job>` or `sim:<run>`.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Event',
@@ -1137,7 +1171,9 @@ class Event(ConfiguredBaseModel):
                        'LinkSuggestedPayload',
                        'SettingChangeRow',
                        'CloudEvent',
-                       'OutboxEvent']} })
+                       'OutboxEvent',
+                       'Constraint',
+                       'ConstraintRaisedPayload']} })
     prev_hash: Optional[str] = Field(default=None, description="""Hash of the previous event in the same scope; null for the first.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Event']} })
     hash: str = Field(default=..., description="""Hash of this event chained to `prev_hash`.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Event', 'RecordBody']} })
 
@@ -1208,7 +1244,8 @@ class PsetValue(ConfiguredBaseModel):
                        'RecordBody',
                        'BodyQuarantine',
                        'JobQueue',
-                       'InboundDelivery']} })
+                       'InboundDelivery',
+                       'Constraint']} })
     path: str = Field(default=..., description="""Layer-aware path, for example `psets.valve_data.x.fat_witness_by`.""", json_schema_extra = { "linkml_meta": {'annotations': {'tl:indexed': {'tag': 'tl:indexed', 'value': True}},
          'domain_of': ['PsetValue']} })
     pset: str = Field(default=..., description="""Pset name, for example `valve_data` or `prj.shutdown_tie_in`.""", json_schema_extra = { "linkml_meta": {'domain_of': ['PsetValue', 'PsetValuesSetPayload', 'TypeRegistrationRow']} })
@@ -1248,7 +1285,8 @@ class PsetValue(ConfiguredBaseModel):
                        'Account',
                        'AgentToken',
                        'RuleCursor',
-                       'EnrichmentCursor']} })
+                       'EnrichmentCursor',
+                       'Constraint']} })
     updated_at: datetime  = Field(default=..., description="""Timestamp of that event (system time).""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'PsetValue',
                        'Link',
@@ -1311,7 +1349,8 @@ class Link(ConfiguredBaseModel):
                        'RecordBody',
                        'BodyQuarantine',
                        'JobQueue',
-                       'InboundDelivery']} })
+                       'InboundDelivery',
+                       'Constraint']} })
     from_id: str = Field(default=..., description="""The record the link starts at (the subject of the relation).""", json_schema_extra = { "linkml_meta": {'annotations': {'tl:indexed': {'tag': 'tl:indexed', 'value': True}},
          'domain_of': ['Link']} })
     to_id: str = Field(default=..., description="""The record the link points to.""", json_schema_extra = { "linkml_meta": {'annotations': {'tl:indexed': {'tag': 'tl:indexed', 'value': True}},
@@ -1347,7 +1386,9 @@ class Link(ConfiguredBaseModel):
                        'LinkSuggestedPayload',
                        'SettingChangeRow',
                        'CloudEvent',
-                       'OutboxEvent']} })
+                       'OutboxEvent',
+                       'Constraint',
+                       'ConstraintRaisedPayload']} })
     confidence: Optional[float] = Field(default=None, description="""Confidence of a suggested link, between 0 and 1.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Link',
                        'LinkAddedPayload',
                        'LinkSuggestedPayload',
@@ -1395,7 +1436,9 @@ class Link(ConfiguredBaseModel):
                        'AccountEnabledPayload',
                        'AgentTokenRevokedPayload',
                        'AccountModuleRoleGrantedPayload',
-                       'AccountModuleRoleRevokedPayload']} })
+                       'AccountModuleRoleRevokedPayload',
+                       'ConstraintClearedPayload',
+                       'ConstraintWithdrawnPayload']} })
     declined: bool = Field(default=False, description="""True when the link was a suggestion that a person declined. Declines are remembered.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Link'], 'ifabsent': 'false'} })
     verified_by: Optional[str] = Field(default=None, description="""Actor of the last `Link.Verified` event.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Link']} })
     verified_at: Optional[datetime ] = Field(default=None, description="""Time of the last `Link.Verified` event.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Link']} })
@@ -1493,7 +1536,8 @@ class Link(ConfiguredBaseModel):
                        'Account',
                        'AgentToken',
                        'RuleCursor',
-                       'EnrichmentCursor']} })
+                       'EnrichmentCursor',
+                       'Constraint']} })
 
 
 class LinkCount(ConfiguredBaseModel):
@@ -1553,7 +1597,8 @@ class LinkCount(ConfiguredBaseModel):
                        'RecordBody',
                        'BodyQuarantine',
                        'JobQueue',
-                       'InboundDelivery']} })
+                       'InboundDelivery',
+                       'Constraint']} })
     active_out: int = Field(default=0, description="""Active links that start at the record.""", json_schema_extra = { "linkml_meta": {'domain_of': ['LinkCount'], 'ifabsent': 'int(0)'} })
     active_in: int = Field(default=0, description="""Active links that point to the record.""", json_schema_extra = { "linkml_meta": {'domain_of': ['LinkCount'], 'ifabsent': 'int(0)'} })
     stale: int = Field(default=0, description="""Stale links in either direction.""", json_schema_extra = { "linkml_meta": {'domain_of': ['LinkCount'], 'ifabsent': 'int(0)'} })
@@ -1581,7 +1626,8 @@ class LinkCount(ConfiguredBaseModel):
                        'Account',
                        'AgentToken',
                        'RuleCursor',
-                       'EnrichmentCursor']} })
+                       'EnrichmentCursor',
+                       'Constraint']} })
 
 
 class NumberingCounter(ConfiguredBaseModel):
@@ -1622,7 +1668,8 @@ class NumberingCounter(ConfiguredBaseModel):
                        'RecordBody',
                        'BodyQuarantine',
                        'JobQueue',
-                       'InboundDelivery']} })
+                       'InboundDelivery',
+                       'Constraint']} })
     pattern: str = Field(default=..., description="""Identifier of the numbering pattern.""", json_schema_extra = { "linkml_meta": {'domain_of': ['NumberingCounter',
                        'NumberingAllocatedPayload',
                        'SettingValidation']} })
@@ -1685,7 +1732,8 @@ class NumberingCounter(ConfiguredBaseModel):
                        'Account',
                        'AgentToken',
                        'RuleCursor',
-                       'EnrichmentCursor']} })
+                       'EnrichmentCursor',
+                       'Constraint']} })
     updated_at: datetime  = Field(default=..., description="""Time of the last allocation (system time).""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'PsetValue',
                        'Link',
@@ -1761,7 +1809,8 @@ class WorkflowState(ConfiguredBaseModel):
                        'RecordBody',
                        'BodyQuarantine',
                        'JobQueue',
-                       'InboundDelivery']} })
+                       'InboundDelivery',
+                       'Constraint']} })
     workflow: str = Field(default=..., description="""Identifier of the workflow definition, for example `core.review`.""", json_schema_extra = { "linkml_meta": {'domain_of': ['WorkflowState', 'WorkflowTransitionedPayload']} })
     workflow_version: int = Field(default=..., description="""Version of the workflow definition that was in force.""", json_schema_extra = { "linkml_meta": {'domain_of': ['WorkflowState', 'WorkflowTransitionedPayload']} })
     state: str = Field(default=..., description="""Current state name.""", json_schema_extra = { "linkml_meta": {'annotations': {'tl:indexed': {'tag': 'tl:indexed', 'value': True}},
@@ -1795,7 +1844,8 @@ class WorkflowState(ConfiguredBaseModel):
                        'Account',
                        'AgentToken',
                        'RuleCursor',
-                       'EnrichmentCursor']} })
+                       'EnrichmentCursor',
+                       'Constraint']} })
 
 
 class EventPayload(ConfiguredBaseModel):
@@ -1868,7 +1918,9 @@ class RecordCreatedPayload(EventPayload):
                        'ActionDefinitionDefinedPayload',
                        'SettingDefinition',
                        'IntegrationApp',
-                       'ActionDefinition']} })
+                       'ActionDefinition',
+                       'Constraint',
+                       'ConstraintRaisedPayload']} })
     psets: Optional[Any] = Field(default=None, description="""Initial property-set values keyed by pset name.""", json_schema_extra = { "linkml_meta": {'annotations': {'tl:json': {'tag': 'tl:json', 'value': True}},
          'domain_of': ['RecordEnvelope', 'RecordCreatedPayload']} })
 
@@ -1947,7 +1999,9 @@ class RecordVoidedPayload(EventPayload):
                        'AccountEnabledPayload',
                        'AgentTokenRevokedPayload',
                        'AccountModuleRoleGrantedPayload',
-                       'AccountModuleRoleRevokedPayload']} })
+                       'AccountModuleRoleRevokedPayload',
+                       'ConstraintClearedPayload',
+                       'ConstraintWithdrawnPayload']} })
 
 
 class RecordCorrectedPayload(EventPayload):
@@ -2012,7 +2066,9 @@ class RecordCorrectedPayload(EventPayload):
                        'AccountEnabledPayload',
                        'AgentTokenRevokedPayload',
                        'AccountModuleRoleGrantedPayload',
-                       'AccountModuleRoleRevokedPayload']} })
+                       'AccountModuleRoleRevokedPayload',
+                       'ConstraintClearedPayload',
+                       'ConstraintWithdrawnPayload']} })
 
 
 class PsetValuesSetPayload(EventPayload):
@@ -2084,7 +2140,9 @@ class LinkAddedPayload(LinkPayload):
                        'LinkSuggestedPayload',
                        'SettingChangeRow',
                        'CloudEvent',
-                       'OutboxEvent']} })
+                       'OutboxEvent',
+                       'Constraint',
+                       'ConstraintRaisedPayload']} })
     confidence: Optional[float] = Field(default=None, description="""Confidence of a suggested link, 0 to 1.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Link',
                        'LinkAddedPayload',
                        'LinkSuggestedPayload',
@@ -2126,7 +2184,9 @@ class LinkSuggestedPayload(LinkPayload):
                        'LinkSuggestedPayload',
                        'SettingChangeRow',
                        'CloudEvent',
-                       'OutboxEvent']} })
+                       'OutboxEvent',
+                       'Constraint',
+                       'ConstraintRaisedPayload']} })
     confidence: Optional[float] = Field(default=None, description="""Confidence, 0 to 1.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Link',
                        'LinkAddedPayload',
                        'LinkSuggestedPayload',
@@ -2202,7 +2262,9 @@ class LinkDeclinedPayload(LinkPayload):
                        'AccountEnabledPayload',
                        'AgentTokenRevokedPayload',
                        'AccountModuleRoleGrantedPayload',
-                       'AccountModuleRoleRevokedPayload']} })
+                       'AccountModuleRoleRevokedPayload',
+                       'ConstraintClearedPayload',
+                       'ConstraintWithdrawnPayload']} })
 
 
 class LinkRepinnedPayload(LinkPayload):
@@ -2301,7 +2363,9 @@ class LinkFlaggedPayload(LinkPayload):
                        'AccountEnabledPayload',
                        'AgentTokenRevokedPayload',
                        'AccountModuleRoleGrantedPayload',
-                       'AccountModuleRoleRevokedPayload']} })
+                       'AccountModuleRoleRevokedPayload',
+                       'ConstraintClearedPayload',
+                       'ConstraintWithdrawnPayload']} })
 
 
 class LinkRetractedPayload(LinkPayload):
@@ -2356,7 +2420,9 @@ class LinkRetractedPayload(LinkPayload):
                        'AccountEnabledPayload',
                        'AgentTokenRevokedPayload',
                        'AccountModuleRoleGrantedPayload',
-                       'AccountModuleRoleRevokedPayload']} })
+                       'AccountModuleRoleRevokedPayload',
+                       'ConstraintClearedPayload',
+                       'ConstraintWithdrawnPayload']} })
 
 
 class WorkflowTransitionedPayload(EventPayload):
@@ -2428,7 +2494,9 @@ class WorkflowTransitionedPayload(EventPayload):
                        'AccountEnabledPayload',
                        'AgentTokenRevokedPayload',
                        'AccountModuleRoleGrantedPayload',
-                       'AccountModuleRoleRevokedPayload']} })
+                       'AccountModuleRoleRevokedPayload',
+                       'ConstraintClearedPayload',
+                       'ConstraintWithdrawnPayload']} })
     conformance: Optional[str] = Field(default=None, description="""Conformance after the transition.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'PsetValuesSetPayload',
                        'WorkflowTransitionedPayload']} })
@@ -2673,7 +2741,9 @@ class FileRejectedPayload(EventPayload):
                        'AccountEnabledPayload',
                        'AgentTokenRevokedPayload',
                        'AccountModuleRoleGrantedPayload',
-                       'AccountModuleRoleRevokedPayload']} })
+                       'AccountModuleRoleRevokedPayload',
+                       'ConstraintClearedPayload',
+                       'ConstraintWithdrawnPayload']} })
     report: Optional[Any] = Field(default=None, description="""Scan report.""", json_schema_extra = { "linkml_meta": {'annotations': {'tl:json': {'tag': 'tl:json', 'value': True}},
          'domain_of': ['FileProcessedPayload',
                        'FileRejectedPayload',
@@ -2723,7 +2793,8 @@ class SchemaEffectiveChangedPayload(EventPayload):
                        'RecordBody',
                        'BodyQuarantine',
                        'JobQueue',
-                       'InboundDelivery']} })
+                       'InboundDelivery',
+                       'Constraint']} })
     effective_schema_hash: str = Field(default=..., description="""New hash.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'PsetValuesSetPayload',
                        'WorkflowTransitionedPayload',
@@ -2862,7 +2933,10 @@ class WebhookSubscriptionCreatedPayload(WebhookEventPayload):
                        'InboundEndpoint',
                        'Enricher',
                        'TypeRegistrationRegisteredPayload',
-                       'TypeRegistrationRow']} })
+                       'TypeRegistrationRow',
+                       'Constraint',
+                       'ConstraintRaisedPayload',
+                       'ConstraintAssignedPayload']} })
     integration_app: Optional[str] = Field(default=None, description="""Integration app.""", json_schema_extra = { "linkml_meta": {'domain_of': ['WebhookSubscriptionCreatedPayload',
                        'ActionDefinitionDefinedPayload',
                        'RuleCreatedPayload',
@@ -2965,7 +3039,9 @@ class WebhookSubscriptionDisabledPayload(WebhookEventPayload):
                        'AccountEnabledPayload',
                        'AgentTokenRevokedPayload',
                        'AccountModuleRoleGrantedPayload',
-                       'AccountModuleRoleRevokedPayload']} })
+                       'AccountModuleRoleRevokedPayload',
+                       'ConstraintClearedPayload',
+                       'ConstraintWithdrawnPayload']} })
     detail: Optional[str] = Field(default=None, description="""Free-text detail, for example the failure counts.""", json_schema_extra = { "linkml_meta": {'domain_of': ['WebhookSubscriptionDisabledPayload',
                        'CloudEventData',
                        'AuthAudit']} })
@@ -3127,7 +3203,9 @@ class IntegrationAppRegisteredPayload(IntegrationAppEventPayload):
                        'ActionDefinitionDefinedPayload',
                        'SettingDefinition',
                        'IntegrationApp',
-                       'ActionDefinition']} })
+                       'ActionDefinition',
+                       'Constraint',
+                       'ConstraintRaisedPayload']} })
     owner: str = Field(default=..., description="""Owner actor.""", json_schema_extra = { "linkml_meta": {'domain_of': ['WebhookSubscriptionCreatedPayload',
                        'IntegrationAppRegisteredPayload',
                        'ActionDefinitionDefinedPayload',
@@ -3142,7 +3220,10 @@ class IntegrationAppRegisteredPayload(IntegrationAppEventPayload):
                        'InboundEndpoint',
                        'Enricher',
                        'TypeRegistrationRegisteredPayload',
-                       'TypeRegistrationRow']} })
+                       'TypeRegistrationRow',
+                       'Constraint',
+                       'ConstraintRaisedPayload',
+                       'ConstraintAssignedPayload']} })
     enabled: Optional[bool] = Field(default=None, description="""Whether its endpoints, rules, actions and enrichers run.""", json_schema_extra = { "linkml_meta": {'domain_of': ['IntegrationAppRegisteredPayload',
                        'ActionDefinitionDefinedPayload',
                        'RuleCreatedPayload',
@@ -3214,7 +3295,9 @@ class IntegrationAppRevisedPayload(IntegrationAppEventPayload):
                        'AccountEnabledPayload',
                        'AgentTokenRevokedPayload',
                        'AccountModuleRoleGrantedPayload',
-                       'AccountModuleRoleRevokedPayload']} })
+                       'AccountModuleRoleRevokedPayload',
+                       'ConstraintClearedPayload',
+                       'ConstraintWithdrawnPayload']} })
 
 
 class IntegrationAppEnabledPayload(IntegrationAppEventPayload):
@@ -3269,7 +3352,9 @@ class IntegrationAppEnabledPayload(IntegrationAppEventPayload):
                        'AccountEnabledPayload',
                        'AgentTokenRevokedPayload',
                        'AccountModuleRoleGrantedPayload',
-                       'AccountModuleRoleRevokedPayload']} })
+                       'AccountModuleRoleRevokedPayload',
+                       'ConstraintClearedPayload',
+                       'ConstraintWithdrawnPayload']} })
 
 
 class IntegrationAppDisabledPayload(IntegrationAppEventPayload):
@@ -3324,7 +3409,9 @@ class IntegrationAppDisabledPayload(IntegrationAppEventPayload):
                        'AccountEnabledPayload',
                        'AgentTokenRevokedPayload',
                        'AccountModuleRoleGrantedPayload',
-                       'AccountModuleRoleRevokedPayload']} })
+                       'AccountModuleRoleRevokedPayload',
+                       'ConstraintClearedPayload',
+                       'ConstraintWithdrawnPayload']} })
 
 
 class ActionDefinitionDefinedPayload(ActionDefinitionEventPayload):
@@ -3385,7 +3472,9 @@ class ActionDefinitionDefinedPayload(ActionDefinitionEventPayload):
                        'ActionDefinitionDefinedPayload',
                        'SettingDefinition',
                        'IntegrationApp',
-                       'ActionDefinition']} })
+                       'ActionDefinition',
+                       'Constraint',
+                       'ConstraintRaisedPayload']} })
     version: int = Field(default=..., description="""Definition version.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'Link',
                        'NumberingCounter',
@@ -3454,7 +3543,10 @@ class ActionDefinitionDefinedPayload(ActionDefinitionEventPayload):
                        'InboundEndpoint',
                        'Enricher',
                        'TypeRegistrationRegisteredPayload',
-                       'TypeRegistrationRow']} })
+                       'TypeRegistrationRow',
+                       'Constraint',
+                       'ConstraintRaisedPayload',
+                       'ConstraintAssignedPayload']} })
     enabled: Optional[bool] = Field(default=None, description="""Whether it can be invoked.""", json_schema_extra = { "linkml_meta": {'domain_of': ['IntegrationAppRegisteredPayload',
                        'ActionDefinitionDefinedPayload',
                        'RuleCreatedPayload',
@@ -3580,7 +3672,9 @@ class ActionDefinitionRevisedPayload(ActionDefinitionEventPayload):
                        'AccountEnabledPayload',
                        'AgentTokenRevokedPayload',
                        'AccountModuleRoleGrantedPayload',
-                       'AccountModuleRoleRevokedPayload']} })
+                       'AccountModuleRoleRevokedPayload',
+                       'ConstraintClearedPayload',
+                       'ConstraintWithdrawnPayload']} })
 
 
 class ActionDefinitionRetiredPayload(ActionDefinitionEventPayload):
@@ -3643,7 +3737,9 @@ class ActionDefinitionRetiredPayload(ActionDefinitionEventPayload):
                        'AccountEnabledPayload',
                        'AgentTokenRevokedPayload',
                        'AccountModuleRoleGrantedPayload',
-                       'AccountModuleRoleRevokedPayload']} })
+                       'AccountModuleRoleRevokedPayload',
+                       'ConstraintClearedPayload',
+                       'ConstraintWithdrawnPayload']} })
 
 
 class ActionDefinitionSecretRotatedPayload(ActionDefinitionEventPayload):
@@ -3930,7 +4026,10 @@ class RuleCreatedPayload(RuleEventPayload):
                        'InboundEndpoint',
                        'Enricher',
                        'TypeRegistrationRegisteredPayload',
-                       'TypeRegistrationRow']} })
+                       'TypeRegistrationRow',
+                       'Constraint',
+                       'ConstraintRaisedPayload',
+                       'ConstraintAssignedPayload']} })
     enabled: Optional[bool] = Field(default=None, description="""Whether it runs.""", json_schema_extra = { "linkml_meta": {'domain_of': ['IntegrationAppRegisteredPayload',
                        'ActionDefinitionDefinedPayload',
                        'RuleCreatedPayload',
@@ -4047,7 +4146,9 @@ class RuleRevisedPayload(RuleEventPayload):
                        'AccountEnabledPayload',
                        'AgentTokenRevokedPayload',
                        'AccountModuleRoleGrantedPayload',
-                       'AccountModuleRoleRevokedPayload']} })
+                       'AccountModuleRoleRevokedPayload',
+                       'ConstraintClearedPayload',
+                       'ConstraintWithdrawnPayload']} })
 
 
 class RuleEnabledPayload(RuleEventPayload):
@@ -4110,7 +4211,9 @@ class RuleEnabledPayload(RuleEventPayload):
                        'AccountEnabledPayload',
                        'AgentTokenRevokedPayload',
                        'AccountModuleRoleGrantedPayload',
-                       'AccountModuleRoleRevokedPayload']} })
+                       'AccountModuleRoleRevokedPayload',
+                       'ConstraintClearedPayload',
+                       'ConstraintWithdrawnPayload']} })
 
 
 class RuleDisabledPayload(RuleEventPayload):
@@ -4173,7 +4276,9 @@ class RuleDisabledPayload(RuleEventPayload):
                        'AccountEnabledPayload',
                        'AgentTokenRevokedPayload',
                        'AccountModuleRoleGrantedPayload',
-                       'AccountModuleRoleRevokedPayload']} })
+                       'AccountModuleRoleRevokedPayload',
+                       'ConstraintClearedPayload',
+                       'ConstraintWithdrawnPayload']} })
 
 
 class RuleBlockedPayload(RuleEventPayload):
@@ -4338,7 +4443,10 @@ class InboundEndpointCreatedPayload(InboundEndpointEventPayload):
                        'InboundEndpoint',
                        'Enricher',
                        'TypeRegistrationRegisteredPayload',
-                       'TypeRegistrationRow']} })
+                       'TypeRegistrationRow',
+                       'Constraint',
+                       'ConstraintRaisedPayload',
+                       'ConstraintAssignedPayload']} })
     secret_id: str = Field(default=..., description="""Id of the first secret (not the secret).""", json_schema_extra = { "linkml_meta": {'domain_of': ['WebhookSubscriptionCreatedPayload',
                        'WebhookSubscriptionSecretRotatedPayload',
                        'ActionDefinitionDefinedPayload',
@@ -4450,7 +4558,9 @@ class InboundEndpointRevisedPayload(InboundEndpointEventPayload):
                        'AccountEnabledPayload',
                        'AgentTokenRevokedPayload',
                        'AccountModuleRoleGrantedPayload',
-                       'AccountModuleRoleRevokedPayload']} })
+                       'AccountModuleRoleRevokedPayload',
+                       'ConstraintClearedPayload',
+                       'ConstraintWithdrawnPayload']} })
 
 
 class InboundEndpointEnabledPayload(InboundEndpointEventPayload):
@@ -4517,7 +4627,9 @@ class InboundEndpointEnabledPayload(InboundEndpointEventPayload):
                        'AccountEnabledPayload',
                        'AgentTokenRevokedPayload',
                        'AccountModuleRoleGrantedPayload',
-                       'AccountModuleRoleRevokedPayload']} })
+                       'AccountModuleRoleRevokedPayload',
+                       'ConstraintClearedPayload',
+                       'ConstraintWithdrawnPayload']} })
 
 
 class InboundEndpointDisabledPayload(InboundEndpointEventPayload):
@@ -4584,7 +4696,9 @@ class InboundEndpointDisabledPayload(InboundEndpointEventPayload):
                        'AccountEnabledPayload',
                        'AgentTokenRevokedPayload',
                        'AccountModuleRoleGrantedPayload',
-                       'AccountModuleRoleRevokedPayload']} })
+                       'AccountModuleRoleRevokedPayload',
+                       'ConstraintClearedPayload',
+                       'ConstraintWithdrawnPayload']} })
 
 
 class InboundEndpointSecretRotatedPayload(InboundEndpointEventPayload):
@@ -4854,7 +4968,10 @@ class EnricherRegisteredPayload(EnricherEventPayload):
                        'InboundEndpoint',
                        'Enricher',
                        'TypeRegistrationRegisteredPayload',
-                       'TypeRegistrationRow']} })
+                       'TypeRegistrationRow',
+                       'Constraint',
+                       'ConstraintRaisedPayload',
+                       'ConstraintAssignedPayload']} })
     enabled: Optional[bool] = Field(default=None, description="""Whether it runs.""", json_schema_extra = { "linkml_meta": {'domain_of': ['IntegrationAppRegisteredPayload',
                        'ActionDefinitionDefinedPayload',
                        'RuleCreatedPayload',
@@ -4970,7 +5087,9 @@ class EnricherRevisedPayload(EnricherEventPayload):
                        'AccountEnabledPayload',
                        'AgentTokenRevokedPayload',
                        'AccountModuleRoleGrantedPayload',
-                       'AccountModuleRoleRevokedPayload']} })
+                       'AccountModuleRoleRevokedPayload',
+                       'ConstraintClearedPayload',
+                       'ConstraintWithdrawnPayload']} })
 
 
 class EnricherEnabledPayload(EnricherEventPayload):
@@ -5031,7 +5150,9 @@ class EnricherEnabledPayload(EnricherEventPayload):
                        'AccountEnabledPayload',
                        'AgentTokenRevokedPayload',
                        'AccountModuleRoleGrantedPayload',
-                       'AccountModuleRoleRevokedPayload']} })
+                       'AccountModuleRoleRevokedPayload',
+                       'ConstraintClearedPayload',
+                       'ConstraintWithdrawnPayload']} })
 
 
 class EnricherDisabledPayload(EnricherEventPayload):
@@ -5092,7 +5213,9 @@ class EnricherDisabledPayload(EnricherEventPayload):
                        'AccountEnabledPayload',
                        'AgentTokenRevokedPayload',
                        'AccountModuleRoleGrantedPayload',
-                       'AccountModuleRoleRevokedPayload']} })
+                       'AccountModuleRoleRevokedPayload',
+                       'ConstraintClearedPayload',
+                       'ConstraintWithdrawnPayload']} })
 
 
 class EnrichmentProposedPayload(EnrichmentEventPayload):
@@ -5236,7 +5359,9 @@ class EnrichmentRejectedPayload(EnrichmentEventPayload):
                        'AccountEnabledPayload',
                        'AgentTokenRevokedPayload',
                        'AccountModuleRoleGrantedPayload',
-                       'AccountModuleRoleRevokedPayload']} })
+                       'AccountModuleRoleRevokedPayload',
+                       'ConstraintClearedPayload',
+                       'ConstraintWithdrawnPayload']} })
 
 
 class FeedTag(ConfiguredBaseModel):
@@ -5327,7 +5452,8 @@ class ActivityPost(ConfiguredBaseModel):
                        'RecordBody',
                        'BodyQuarantine',
                        'JobQueue',
-                       'InboundDelivery']} })
+                       'InboundDelivery',
+                       'Constraint']} })
     author: str = Field(default=..., description="""Actor that posted (`user:<id>`, `agent:<id>` or `svc:<name>`).""", json_schema_extra = { "linkml_meta": {'domain_of': ['ActivityPost',
                        'FeedPostedPayload',
                        'ThreadMessage',
@@ -5387,7 +5513,8 @@ class EventCard(ConfiguredBaseModel):
                        'RecordBody',
                        'BodyQuarantine',
                        'JobQueue',
-                       'InboundDelivery']} })
+                       'InboundDelivery',
+                       'Constraint']} })
     actor: str = Field(default=..., description="""Actor of the aggregated events.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Event',
                        'EventCard',
                        'FeedItemRow',
@@ -5543,7 +5670,9 @@ class FeedRetractedPayload(EventPayload):
                        'AccountEnabledPayload',
                        'AgentTokenRevokedPayload',
                        'AccountModuleRoleGrantedPayload',
-                       'AccountModuleRoleRevokedPayload']} })
+                       'AccountModuleRoleRevokedPayload',
+                       'ConstraintClearedPayload',
+                       'ConstraintWithdrawnPayload']} })
 
 
 class FeedReactedPayload(EventPayload):
@@ -5621,7 +5750,8 @@ class FeedItemRow(ConfiguredBaseModel):
                        'RecordBody',
                        'BodyQuarantine',
                        'JobQueue',
-                       'InboundDelivery']} })
+                       'InboundDelivery',
+                       'Constraint']} })
     actor: str = Field(default=..., description="""Author of a post, or the actor of a card's events.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Event',
                        'EventCard',
                        'FeedItemRow',
@@ -5738,7 +5868,8 @@ class Hashtag(ConfiguredBaseModel):
                        'RecordBody',
                        'BodyQuarantine',
                        'JobQueue',
-                       'InboundDelivery']} })
+                       'InboundDelivery',
+                       'Constraint']} })
     kind: TagKind = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['SchemaPackagePublishedPayload',
                        'FeedTag',
                        'Hashtag',
@@ -6129,7 +6260,9 @@ class ThreadMessageRetractedPayload(EventPayload):
                        'AccountEnabledPayload',
                        'AgentTokenRevokedPayload',
                        'AccountModuleRoleGrantedPayload',
-                       'AccountModuleRoleRevokedPayload']} })
+                       'AccountModuleRoleRevokedPayload',
+                       'ConstraintClearedPayload',
+                       'ConstraintWithdrawnPayload']} })
 
 
 class ThreadDispatchedPayload(EventPayload):
@@ -6246,7 +6379,8 @@ class ThreadRow(ConfiguredBaseModel):
                        'RecordBody',
                        'BodyQuarantine',
                        'JobQueue',
-                       'InboundDelivery']} })
+                       'InboundDelivery',
+                       'Constraint']} })
     message_count: int = Field(default=0, description="""Messages posted, retracted ones included.""", json_schema_extra = { "linkml_meta": {'domain_of': ['ThreadRow'], 'ifabsent': 'int(0)'} })
     created_by: str = Field(default=..., description="""Author of the first message.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Link',
                        'ThreadRow',
@@ -6296,7 +6430,8 @@ class ThreadRow(ConfiguredBaseModel):
                        'Account',
                        'AgentToken',
                        'RuleCursor',
-                       'EnrichmentCursor']} })
+                       'EnrichmentCursor',
+                       'Constraint']} })
     version: int = Field(default=..., description="""Ledger `stream_version` of the thread stream after the last event applied.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'Link',
                        'NumberingCounter',
@@ -6398,7 +6533,8 @@ class ThreadMessageRow(ConfiguredBaseModel):
                        'RecordBody',
                        'BodyQuarantine',
                        'JobQueue',
-                       'InboundDelivery']} })
+                       'InboundDelivery',
+                       'Constraint']} })
     seq: int = Field(default=..., description="""`seq` of `Thread.MessagePosted`; orders the thread.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Event',
                        'FeedItemRow',
                        'Hashtag',
@@ -6631,7 +6767,9 @@ class ProposalRejectedPayload(EventPayload):
                        'AccountEnabledPayload',
                        'AgentTokenRevokedPayload',
                        'AccountModuleRoleGrantedPayload',
-                       'AccountModuleRoleRevokedPayload']} })
+                       'AccountModuleRoleRevokedPayload',
+                       'ConstraintClearedPayload',
+                       'ConstraintWithdrawnPayload']} })
 
 
 class ProposalFailedPayload(EventPayload):
@@ -6711,7 +6849,8 @@ class ProposalRow(ConfiguredBaseModel):
                        'RecordBody',
                        'BodyQuarantine',
                        'JobQueue',
-                       'InboundDelivery']} })
+                       'InboundDelivery',
+                       'Constraint']} })
     tool: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['ProposalCreatedPayload', 'ProposalRow']} })
     agent: str = Field(default=..., json_schema_extra = { "linkml_meta": {'annotations': {'tl:indexed': {'tag': 'tl:indexed', 'value': True}},
          'domain_of': ['ProposalCreatedPayload', 'ProposalRow']} })
@@ -6803,7 +6942,9 @@ class ProposalRow(ConfiguredBaseModel):
                        'AccountEnabledPayload',
                        'AgentTokenRevokedPayload',
                        'AccountModuleRoleGrantedPayload',
-                       'AccountModuleRoleRevokedPayload']} })
+                       'AccountModuleRoleRevokedPayload',
+                       'ConstraintClearedPayload',
+                       'ConstraintWithdrawnPayload']} })
     result_stream_id: Optional[str] = Field(default=None, description="""Accepted only; the stream the command wrote to.""", json_schema_extra = { "linkml_meta": {'domain_of': ['ProposalAcceptedPayload', 'ProposalRow']} })
     seq: int = Field(default=..., description="""`seq` of `Proposal.Created`.""", json_schema_extra = { "linkml_meta": {'annotations': {'tl:indexed': {'tag': 'tl:indexed', 'value': True}},
          'domain_of': ['Event',
@@ -6901,7 +7042,9 @@ class SettingDefinition(ConfiguredBaseModel):
                        'ActionDefinitionDefinedPayload',
                        'SettingDefinition',
                        'IntegrationApp',
-                       'ActionDefinition']} })
+                       'ActionDefinition',
+                       'Constraint',
+                       'ConstraintRaisedPayload']} })
     docs: Optional[str] = Field(default=None, description="""Longer explanation shown in the detail pane.""", json_schema_extra = { "linkml_meta": {'domain_of': ['SettingDefinition']} })
     scopes: list[SettingScope] = Field(default=..., description="""Which layers may set the key.""", json_schema_extra = { "linkml_meta": {'domain_of': ['SettingDefinition']} })
     lockable: Optional[bool] = Field(default=False, description="""Whether the company can lock the key, or bound its values, for its projects.""", json_schema_extra = { "linkml_meta": {'domain_of': ['SettingDefinition'], 'ifabsent': 'false'} })
@@ -6926,7 +7069,10 @@ class SettingDefinition(ConfiguredBaseModel):
                        'InboundEndpoint',
                        'Enricher',
                        'TypeRegistrationRegisteredPayload',
-                       'TypeRegistrationRow'],
+                       'TypeRegistrationRow',
+                       'Constraint',
+                       'ConstraintRaisedPayload',
+                       'ConstraintAssignedPayload'],
          'ifabsent': 'string(platform)'} })
 
     @field_validator('key')
@@ -7022,7 +7168,9 @@ class SettingChangedPayload(EventPayload):
                        'AccountEnabledPayload',
                        'AgentTokenRevokedPayload',
                        'AccountModuleRoleGrantedPayload',
-                       'AccountModuleRoleRevokedPayload']} })
+                       'AccountModuleRoleRevokedPayload',
+                       'ConstraintClearedPayload',
+                       'ConstraintWithdrawnPayload']} })
     applies_at: Optional[datetime ] = Field(default=None, description="""When the change takes effect, if later than the time it was recorded.""", json_schema_extra = { "linkml_meta": {'domain_of': ['SettingChangedPayload', 'SettingChangeRow']} })
     accept_risk: Optional[bool] = Field(default=None, description="""The person confirmed \"I accept the risk\" (a `dangerous` key).""", json_schema_extra = { "linkml_meta": {'domain_of': ['SettingChangedPayload', 'SettingChangeRow']} })
 
@@ -7102,7 +7250,9 @@ class SettingLockedPayload(EventPayload):
                        'AccountEnabledPayload',
                        'AgentTokenRevokedPayload',
                        'AccountModuleRoleGrantedPayload',
-                       'AccountModuleRoleRevokedPayload']} })
+                       'AccountModuleRoleRevokedPayload',
+                       'ConstraintClearedPayload',
+                       'ConstraintWithdrawnPayload']} })
 
 
 class SettingChangeRow(ConfiguredBaseModel):
@@ -7166,7 +7316,8 @@ class SettingChangeRow(ConfiguredBaseModel):
                        'RecordBody',
                        'BodyQuarantine',
                        'JobQueue',
-                       'InboundDelivery']} })
+                       'InboundDelivery',
+                       'Constraint']} })
     value: Any = Field(default=..., description="""The new value as JSON; `null` for a reset.""", json_schema_extra = { "linkml_meta": {'annotations': {'tl:json': {'tag': 'tl:json', 'value': True}},
          'domain_of': ['EnrichmentProposedPayload',
                        'SettingChangeRow',
@@ -7219,7 +7370,9 @@ class SettingChangeRow(ConfiguredBaseModel):
                        'AccountEnabledPayload',
                        'AgentTokenRevokedPayload',
                        'AccountModuleRoleGrantedPayload',
-                       'AccountModuleRoleRevokedPayload']} })
+                       'AccountModuleRoleRevokedPayload',
+                       'ConstraintClearedPayload',
+                       'ConstraintWithdrawnPayload']} })
     actor: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['Event',
                        'EventCard',
                        'FeedItemRow',
@@ -7234,7 +7387,9 @@ class SettingChangeRow(ConfiguredBaseModel):
                        'LinkSuggestedPayload',
                        'SettingChangeRow',
                        'CloudEvent',
-                       'OutboxEvent']} })
+                       'OutboxEvent',
+                       'Constraint',
+                       'ConstraintRaisedPayload']} })
     accept_risk: bool = Field(default=False, json_schema_extra = { "linkml_meta": {'domain_of': ['SettingChangedPayload', 'SettingChangeRow'],
          'ifabsent': 'false'} })
     applies_at: Optional[datetime ] = Field(default=None, description="""Set only for a change that was scheduled for later.""", json_schema_extra = { "linkml_meta": {'domain_of': ['SettingChangedPayload', 'SettingChangeRow']} })
@@ -7355,7 +7510,9 @@ class SettingLockRow(ConfiguredBaseModel):
                        'AccountEnabledPayload',
                        'AgentTokenRevokedPayload',
                        'AccountModuleRoleGrantedPayload',
-                       'AccountModuleRoleRevokedPayload']} })
+                       'AccountModuleRoleRevokedPayload',
+                       'ConstraintClearedPayload',
+                       'ConstraintWithdrawnPayload']} })
     actor: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['Event',
                        'EventCard',
                        'FeedItemRow',
@@ -7470,7 +7627,8 @@ class File(ConfiguredBaseModel):
                        'RecordBody',
                        'BodyQuarantine',
                        'JobQueue',
-                       'InboundDelivery']} })
+                       'InboundDelivery',
+                       'Constraint']} })
     record_id: str = Field(default=..., description="""The record the file is attached to.""", json_schema_extra = { "linkml_meta": {'annotations': {'tl:indexed': {'tag': 'tl:indexed', 'value': True}},
          'domain_of': ['PsetValue',
                        'LinkCount',
@@ -7565,7 +7723,9 @@ class File(ConfiguredBaseModel):
                        'AccountEnabledPayload',
                        'AgentTokenRevokedPayload',
                        'AccountModuleRoleGrantedPayload',
-                       'AccountModuleRoleRevokedPayload']} })
+                       'AccountModuleRoleRevokedPayload',
+                       'ConstraintClearedPayload',
+                       'ConstraintWithdrawnPayload']} })
     uploaded_by: str = Field(default=..., description="""Actor of the `File.Uploaded` event; the only reader while the file is quarantined.""", json_schema_extra = { "linkml_meta": {'domain_of': ['File']} })
     uploaded_at: datetime  = Field(default=..., description="""Time of the `File.Uploaded` event (system time).""", json_schema_extra = { "linkml_meta": {'domain_of': ['File']} })
     processed_at: Optional[datetime ] = Field(default=None, description="""Time of the `File.Processed` or `File.Rejected` event.""", json_schema_extra = { "linkml_meta": {'domain_of': ['File']} })
@@ -7638,7 +7798,8 @@ class File(ConfiguredBaseModel):
                        'Account',
                        'AgentToken',
                        'RuleCursor',
-                       'EnrichmentCursor']} })
+                       'EnrichmentCursor',
+                       'Constraint']} })
 
 
 class SubscriptionFilter(ConfiguredBaseModel):
@@ -7709,7 +7870,8 @@ class WebhookSubscription(ConfiguredBaseModel):
                        'RecordBody',
                        'BodyQuarantine',
                        'JobQueue',
-                       'InboundDelivery']} })
+                       'InboundDelivery',
+                       'Constraint']} })
     name: str = Field(default=..., description="""Short label for lists and logs.""", json_schema_extra = { "linkml_meta": {'domain_of': ['WebhookSubscriptionCreatedPayload',
                        'IntegrationAppRegisteredPayload',
                        'ActionDefinitionDefinedPayload',
@@ -7739,7 +7901,10 @@ class WebhookSubscription(ConfiguredBaseModel):
                        'InboundEndpoint',
                        'Enricher',
                        'TypeRegistrationRegisteredPayload',
-                       'TypeRegistrationRow']} })
+                       'TypeRegistrationRow',
+                       'Constraint',
+                       'ConstraintRaisedPayload',
+                       'ConstraintAssignedPayload']} })
     integration_app: Optional[str] = Field(default=None, description="""The integration app the subscription belongs to, when there is one.""", json_schema_extra = { "linkml_meta": {'domain_of': ['WebhookSubscriptionCreatedPayload',
                        'ActionDefinitionDefinedPayload',
                        'RuleCreatedPayload',
@@ -7876,7 +8041,8 @@ class WebhookSubscription(ConfiguredBaseModel):
                        'Account',
                        'AgentToken',
                        'RuleCursor',
-                       'EnrichmentCursor']} })
+                       'EnrichmentCursor',
+                       'Constraint']} })
 
 
 class EventOrigin(ConfiguredBaseModel):
@@ -7885,7 +8051,11 @@ class EventOrigin(ConfiguredBaseModel):
     """
     linkml_meta: ClassVar[LinkMLMeta] = LinkMLMeta({'from_schema': 'https://example.org/throughline/core/integration'})
 
-    id: str = Field(default=..., description="""`urn:tl:<ulid>` of the record.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope', 'EventOrigin', 'EventLinkRef', 'CloudEvent']} })
+    id: str = Field(default=..., description="""`urn:tl:<ulid>` of the record.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
+                       'EventOrigin',
+                       'EventLinkRef',
+                       'CloudEvent',
+                       'Constraint']} })
     key: Optional[str] = Field(default=None, description="""Human-readable key.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'RecordCreatedPayload',
                        'NumberingAllocatedPayload',
@@ -7947,7 +8117,11 @@ class EventLinkRef(ConfiguredBaseModel):
     linkml_meta: ClassVar[LinkMLMeta] = LinkMLMeta({'from_schema': 'https://example.org/throughline/core/integration'})
 
     rel: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['EventLinkRef']} })
-    id: Optional[str] = Field(default=None, description="""`urn:tl:<ulid>` of the record at the other end.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope', 'EventOrigin', 'EventLinkRef', 'CloudEvent']} })
+    id: Optional[str] = Field(default=None, description="""`urn:tl:<ulid>` of the record at the other end.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
+                       'EventOrigin',
+                       'EventLinkRef',
+                       'CloudEvent',
+                       'Constraint']} })
     type: Optional[str] = Field(default=None, json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'SettingDefinition',
                        'EventOrigin',
@@ -7998,14 +8172,20 @@ class CloudEvent(ConfiguredBaseModel):
     linkml_meta: ClassVar[LinkMLMeta] = LinkMLMeta({'from_schema': 'https://example.org/throughline/core/integration'})
 
     specversion: Literal["1.0"] = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['CloudEvent'], 'equals_string': '1.0'} })
-    id: str = Field(default=..., description="""The ledger event id. Receivers dedupe on it.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope', 'EventOrigin', 'EventLinkRef', 'CloudEvent']} })
+    id: str = Field(default=..., description="""The ledger event id. Receivers dedupe on it.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
+                       'EventOrigin',
+                       'EventLinkRef',
+                       'CloudEvent',
+                       'Constraint']} })
     source: str = Field(default=..., description="""URI of the company and project the event came from.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Event',
                        'Link',
                        'LinkAddedPayload',
                        'LinkSuggestedPayload',
                        'SettingChangeRow',
                        'CloudEvent',
-                       'OutboxEvent']} })
+                       'OutboxEvent',
+                       'Constraint',
+                       'ConstraintRaisedPayload']} })
     type: str = Field(default=..., description="""`tl.<module>.<Class>.<Verb>.v<schema version>`, for example `tl.core.Record.Created.v1`.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'SettingDefinition',
                        'EventOrigin',
@@ -8080,7 +8260,8 @@ class IntegrationApp(ConfiguredBaseModel):
                        'RecordBody',
                        'BodyQuarantine',
                        'JobQueue',
-                       'InboundDelivery']} })
+                       'InboundDelivery',
+                       'Constraint']} })
     name: str = Field(default=..., description="""A slug, unique across the ledger.""", json_schema_extra = { "linkml_meta": {'domain_of': ['WebhookSubscriptionCreatedPayload',
                        'IntegrationAppRegisteredPayload',
                        'ActionDefinitionDefinedPayload',
@@ -8108,7 +8289,9 @@ class IntegrationApp(ConfiguredBaseModel):
                        'ActionDefinitionDefinedPayload',
                        'SettingDefinition',
                        'IntegrationApp',
-                       'ActionDefinition']} })
+                       'ActionDefinition',
+                       'Constraint',
+                       'ConstraintRaisedPayload']} })
     owner: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['WebhookSubscriptionCreatedPayload',
                        'IntegrationAppRegisteredPayload',
                        'ActionDefinitionDefinedPayload',
@@ -8123,7 +8306,10 @@ class IntegrationApp(ConfiguredBaseModel):
                        'InboundEndpoint',
                        'Enricher',
                        'TypeRegistrationRegisteredPayload',
-                       'TypeRegistrationRow']} })
+                       'TypeRegistrationRow',
+                       'Constraint',
+                       'ConstraintRaisedPayload',
+                       'ConstraintAssignedPayload']} })
     enabled: bool = Field(default=True, json_schema_extra = { "linkml_meta": {'domain_of': ['IntegrationAppRegisteredPayload',
                        'ActionDefinitionDefinedPayload',
                        'RuleCreatedPayload',
@@ -8229,7 +8415,8 @@ class IntegrationApp(ConfiguredBaseModel):
                        'Account',
                        'AgentToken',
                        'RuleCursor',
-                       'EnrichmentCursor']} })
+                       'EnrichmentCursor',
+                       'Constraint']} })
 
 
 class ActionDefinition(ConfiguredBaseModel):
@@ -8280,7 +8467,9 @@ class ActionDefinition(ConfiguredBaseModel):
                        'ActionDefinitionDefinedPayload',
                        'SettingDefinition',
                        'IntegrationApp',
-                       'ActionDefinition']} })
+                       'ActionDefinition',
+                       'Constraint',
+                       'ConstraintRaisedPayload']} })
     scope: str = Field(default=..., description="""`company` actions may be invoked on any project's records; a project action only on its own.""", json_schema_extra = { "linkml_meta": {'annotations': {'tl:indexed': {'tag': 'tl:indexed', 'value': True}},
          'domain_of': ['RecordEnvelope',
                        'Event',
@@ -8311,7 +8500,8 @@ class ActionDefinition(ConfiguredBaseModel):
                        'RecordBody',
                        'BodyQuarantine',
                        'JobQueue',
-                       'InboundDelivery']} })
+                       'InboundDelivery',
+                       'Constraint']} })
     version: int = Field(default=..., description="""Definition version (1, 2, ...). The ledger stream version is `stream_version`.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'Link',
                        'NumberingCounter',
@@ -8382,7 +8572,10 @@ class ActionDefinition(ConfiguredBaseModel):
                        'InboundEndpoint',
                        'Enricher',
                        'TypeRegistrationRegisteredPayload',
-                       'TypeRegistrationRow']} })
+                       'TypeRegistrationRow',
+                       'Constraint',
+                       'ConstraintRaisedPayload',
+                       'ConstraintAssignedPayload']} })
     enabled: bool = Field(default=True, json_schema_extra = { "linkml_meta": {'domain_of': ['IntegrationAppRegisteredPayload',
                        'ActionDefinitionDefinedPayload',
                        'RuleCreatedPayload',
@@ -8480,7 +8673,8 @@ class ActionDefinition(ConfiguredBaseModel):
                        'Account',
                        'AgentToken',
                        'RuleCursor',
-                       'EnrichmentCursor']} })
+                       'EnrichmentCursor',
+                       'Constraint']} })
 
 
 class ActionInvocation(ConfiguredBaseModel):
@@ -8533,7 +8727,8 @@ class ActionInvocation(ConfiguredBaseModel):
                        'RecordBody',
                        'BodyQuarantine',
                        'JobQueue',
-                       'InboundDelivery']} })
+                       'InboundDelivery',
+                       'Constraint']} })
     action: str = Field(default=..., description="""The definition's name.""", json_schema_extra = { "linkml_meta": {'domain_of': ['ActionRequestedPayload', 'ActionInvocation']} })
     action_version: int = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['ActionRequestedPayload', 'ActionInvocation']} })
     definition_id: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['ActionDefinitionDefinedPayload',
@@ -8659,7 +8854,8 @@ class ActionInvocation(ConfiguredBaseModel):
                        'Account',
                        'AgentToken',
                        'RuleCursor',
-                       'EnrichmentCursor']} })
+                       'EnrichmentCursor',
+                       'Constraint']} })
 
 
 class ActionInvocationTarget(ConfiguredBaseModel):
@@ -8676,7 +8872,10 @@ class ActionInvocationTarget(ConfiguredBaseModel):
                                                 'unique_key_slots': ['invocation_id',
                                                                      'record_id']}}})
 
-    target_id: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['ActionInvocationTarget', 'EnrichmentValue']} })
+    target_id: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['ActionInvocationTarget',
+                       'EnrichmentValue',
+                       'Constraint',
+                       'ConstraintRaisedPayload']} })
     invocation_id: str = Field(default=..., json_schema_extra = { "linkml_meta": {'annotations': {'tl:indexed': {'tag': 'tl:indexed', 'value': True}},
          'domain_of': ['ActionRequestedPayload',
                        'ActionRunningPayload',
@@ -8780,7 +8979,8 @@ class Rule(ConfiguredBaseModel):
                        'RecordBody',
                        'BodyQuarantine',
                        'JobQueue',
-                       'InboundDelivery']} })
+                       'InboundDelivery',
+                       'Constraint']} })
     version: int = Field(default=..., description="""Rule version (1, 2, ...). The ledger stream version is `stream_version`.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'Link',
                        'NumberingCounter',
@@ -8851,7 +9051,10 @@ class Rule(ConfiguredBaseModel):
                        'InboundEndpoint',
                        'Enricher',
                        'TypeRegistrationRegisteredPayload',
-                       'TypeRegistrationRow']} })
+                       'TypeRegistrationRow',
+                       'Constraint',
+                       'ConstraintRaisedPayload',
+                       'ConstraintAssignedPayload']} })
     enabled: bool = Field(default=False, json_schema_extra = { "linkml_meta": {'domain_of': ['IntegrationAppRegisteredPayload',
                        'ActionDefinitionDefinedPayload',
                        'RuleCreatedPayload',
@@ -8940,7 +9143,8 @@ class Rule(ConfiguredBaseModel):
                        'Account',
                        'AgentToken',
                        'RuleCursor',
-                       'EnrichmentCursor']} })
+                       'EnrichmentCursor',
+                       'Constraint']} })
 
 
 class InboundEndpoint(ConfiguredBaseModel):
@@ -9016,7 +9220,8 @@ class InboundEndpoint(ConfiguredBaseModel):
                        'RecordBody',
                        'BodyQuarantine',
                        'JobQueue',
-                       'InboundDelivery']} })
+                       'InboundDelivery',
+                       'Constraint']} })
     version: int = Field(default=..., description="""Endpoint version (1, 2, ...). The ledger stream version is `stream_version`.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'Link',
                        'NumberingCounter',
@@ -9104,7 +9309,10 @@ class InboundEndpoint(ConfiguredBaseModel):
                        'InboundEndpoint',
                        'Enricher',
                        'TypeRegistrationRegisteredPayload',
-                       'TypeRegistrationRow']} })
+                       'TypeRegistrationRow',
+                       'Constraint',
+                       'ConstraintRaisedPayload',
+                       'ConstraintAssignedPayload']} })
     created_by: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['Link',
                        'ThreadRow',
                        'WebhookSubscription',
@@ -9173,7 +9381,8 @@ class InboundEndpoint(ConfiguredBaseModel):
                        'Account',
                        'AgentToken',
                        'RuleCursor',
-                       'EnrichmentCursor']} })
+                       'EnrichmentCursor',
+                       'Constraint']} })
 
 
 class InboundEndpointVersion(ConfiguredBaseModel):
@@ -9316,7 +9525,8 @@ class Enricher(ConfiguredBaseModel):
                        'RecordBody',
                        'BodyQuarantine',
                        'JobQueue',
-                       'InboundDelivery']} })
+                       'InboundDelivery',
+                       'Constraint']} })
     version: int = Field(default=..., description="""Registration version (1, 2, ...). The ledger stream version is `stream_version`.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'Link',
                        'NumberingCounter',
@@ -9390,7 +9600,10 @@ class Enricher(ConfiguredBaseModel):
                        'InboundEndpoint',
                        'Enricher',
                        'TypeRegistrationRegisteredPayload',
-                       'TypeRegistrationRow']} })
+                       'TypeRegistrationRow',
+                       'Constraint',
+                       'ConstraintRaisedPayload',
+                       'ConstraintAssignedPayload']} })
     enabled: bool = Field(default=False, json_schema_extra = { "linkml_meta": {'domain_of': ['IntegrationAppRegisteredPayload',
                        'ActionDefinitionDefinedPayload',
                        'RuleCreatedPayload',
@@ -9479,7 +9692,8 @@ class Enricher(ConfiguredBaseModel):
                        'Account',
                        'AgentToken',
                        'RuleCursor',
-                       'EnrichmentCursor']} })
+                       'EnrichmentCursor',
+                       'Constraint']} })
 
 
 class EnrichmentValue(ConfiguredBaseModel):
@@ -9532,10 +9746,14 @@ class EnrichmentValue(ConfiguredBaseModel):
                        'RecordBody',
                        'BodyQuarantine',
                        'JobQueue',
-                       'InboundDelivery']} })
+                       'InboundDelivery',
+                       'Constraint']} })
     target: Any = Field(default=..., description="""The `RecordRef` of the record, as JSON.""", json_schema_extra = { "linkml_meta": {'annotations': {'tl:json': {'tag': 'tl:json', 'value': True}},
          'domain_of': ['EnrichmentProposedPayload', 'EnrichmentValue']} })
-    target_id: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['ActionInvocationTarget', 'EnrichmentValue']} })
+    target_id: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['ActionInvocationTarget',
+                       'EnrichmentValue',
+                       'Constraint',
+                       'ConstraintRaisedPayload']} })
     property_path: str = Field(default=..., description="""`enrich.<enricher>.<property>`.""", json_schema_extra = { "linkml_meta": {'domain_of': ['EnrichmentProposedPayload', 'EnrichmentValue']} })
     value: Optional[Any] = Field(default=None, description="""A scalar or a list of scalars, as JSON.""", json_schema_extra = { "linkml_meta": {'annotations': {'tl:json': {'tag': 'tl:json', 'value': True}},
          'domain_of': ['EnrichmentProposedPayload',
@@ -9602,7 +9820,9 @@ class EnrichmentValue(ConfiguredBaseModel):
                        'AccountEnabledPayload',
                        'AgentTokenRevokedPayload',
                        'AccountModuleRoleGrantedPayload',
-                       'AccountModuleRoleRevokedPayload']} })
+                       'AccountModuleRoleRevokedPayload',
+                       'ConstraintClearedPayload',
+                       'ConstraintWithdrawnPayload']} })
     seq: int = Field(default=..., description="""`seq` of `Enrichment.Proposed`.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Event',
                        'FeedItemRow',
                        'Hashtag',
@@ -9671,7 +9891,8 @@ class EnrichmentValue(ConfiguredBaseModel):
                        'Account',
                        'AgentToken',
                        'RuleCursor',
-                       'EnrichmentCursor']} })
+                       'EnrichmentCursor',
+                       'Constraint']} })
 
 
 class OutboxEvent(ConfiguredBaseModel):
@@ -9727,7 +9948,8 @@ class OutboxEvent(ConfiguredBaseModel):
                        'RecordBody',
                        'BodyQuarantine',
                        'JobQueue',
-                       'InboundDelivery']} })
+                       'InboundDelivery',
+                       'Constraint']} })
     event_type: str = Field(default=..., description="""Ledger event type, for example `Record.Created`.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Event', 'EventCard', 'FeedItemRow', 'OutboxEvent']} })
     schema_version: int = Field(default=1, json_schema_extra = { "linkml_meta": {'domain_of': ['Event', 'OutboxEvent'], 'ifabsent': 'int(1)'} })
     stream_id: str = Field(default=..., description="""The stream the event was appended to.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Event',
@@ -9742,7 +9964,10 @@ class OutboxEvent(ConfiguredBaseModel):
                        'Enricher',
                        'OutboxEvent']} })
     subject_id: str = Field(default=..., description="""The record the event is about, and the delivery ordering key: the stream for record events, the `from` record for link events, the record of a file, the record of a numbering allocation. Equal to `stream_id` when the event has no other subject.""", json_schema_extra = { "linkml_meta": {'annotations': {'tl:indexed': {'tag': 'tl:indexed', 'value': True}},
-         'domain_of': ['OutboxEvent', 'WebhookDelivery']} })
+         'domain_of': ['OutboxEvent',
+                       'WebhookDelivery',
+                       'Constraint',
+                       'ConstraintRaisedPayload']} })
     subject_type: Optional[str] = Field(default=None, description="""Record type of the subject (`core.Record`), when it is a known record.""", json_schema_extra = { "linkml_meta": {'domain_of': ['OutboxEvent']} })
     subject_key: Optional[str] = Field(default=None, description="""Human-readable key of the subject, when it has one.""", json_schema_extra = { "linkml_meta": {'domain_of': ['OutboxEvent']} })
     subject_version: Optional[int] = Field(default=None, description="""Version of the subject record after the event (the stream version when the stream is the subject).""", json_schema_extra = { "linkml_meta": {'domain_of': ['OutboxEvent']} })
@@ -9760,7 +9985,9 @@ class OutboxEvent(ConfiguredBaseModel):
                        'LinkSuggestedPayload',
                        'SettingChangeRow',
                        'CloudEvent',
-                       'OutboxEvent']} })
+                       'OutboxEvent',
+                       'Constraint',
+                       'ConstraintRaisedPayload']} })
     recorded_at: str = Field(default=..., description="""ISO-8601 UTC time of the event (the CloudEvents `time`).""", json_schema_extra = { "linkml_meta": {'domain_of': ['Event', 'SettingChangeRow', 'SettingLockRow', 'OutboxEvent']} })
     correlation_id: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['Event', 'OutboxEvent']} })
     changed_fields: Any = Field(default=..., description="""JSON list of changed field paths (`status`, `psets.vt.result`), for filters.""", json_schema_extra = { "linkml_meta": {'annotations': {'tl:json': {'tag': 'tl:json', 'value': True}},
@@ -9823,7 +10050,10 @@ class WebhookDelivery(ConfiguredBaseModel):
                        'AccountModuleRole',
                        'RuleFiring']} })
     event_id: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['Event', 'OutboxEvent', 'WebhookDelivery', 'RuleFiring']} })
-    subject_id: str = Field(default=..., description="""The delivery ordering key (see `OutboxEvent.subject_id`).""", json_schema_extra = { "linkml_meta": {'domain_of': ['OutboxEvent', 'WebhookDelivery']} })
+    subject_id: str = Field(default=..., description="""The delivery ordering key (see `OutboxEvent.subject_id`).""", json_schema_extra = { "linkml_meta": {'domain_of': ['OutboxEvent',
+                       'WebhookDelivery',
+                       'Constraint',
+                       'ConstraintRaisedPayload']} })
     origin: DeliveryOrigin = Field(default=DeliveryOrigin("live"), json_schema_extra = { "linkml_meta": {'domain_of': ['CloudEventData', 'WebhookDelivery'], 'ifabsent': 'string(live)'} })
     status: DeliveryStatus = Field(default=DeliveryStatus("pending"), json_schema_extra = { "linkml_meta": {'annotations': {'tl:indexed': {'tag': 'tl:indexed', 'value': True}},
          'domain_of': ['RecordEnvelope',
@@ -10053,7 +10283,8 @@ class WebhookCursor(ConfiguredBaseModel):
                        'Account',
                        'AgentToken',
                        'RuleCursor',
-                       'EnrichmentCursor'],
+                       'EnrichmentCursor',
+                       'Constraint'],
          'ifabsent': 'int(0)'} })
 
 
@@ -10064,7 +10295,11 @@ class ExtensionRecord(RecordEnvelope):
     linkml_meta: ClassVar[LinkMLMeta] = LinkMLMeta({'abstract': True,
          'from_schema': 'https://example.org/throughline/core/extension'})
 
-    id: str = Field(default=..., description="""Immutable global identifier; equals the ledger `stream_id`.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope', 'EventOrigin', 'EventLinkRef', 'CloudEvent']} })
+    id: str = Field(default=..., description="""Immutable global identifier; equals the ledger `stream_id`.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
+                       'EventOrigin',
+                       'EventLinkRef',
+                       'CloudEvent',
+                       'Constraint']} })
     key: Optional[str] = Field(default=None, description="""Human-readable number, unique within a scope. Null until numbering assigns one.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'RecordCreatedPayload',
                        'NumberingAllocatedPayload',
@@ -10112,7 +10347,8 @@ class ExtensionRecord(RecordEnvelope):
                        'RecordBody',
                        'BodyQuarantine',
                        'JobQueue',
-                       'InboundDelivery']} })
+                       'InboundDelivery',
+                       'Constraint']} })
     title: str = Field(default=..., description="""Short human-readable title.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'RecordCreatedPayload',
                        'RuleCreatedPayload',
@@ -10123,7 +10359,9 @@ class ExtensionRecord(RecordEnvelope):
                        'ActionDefinitionDefinedPayload',
                        'SettingDefinition',
                        'IntegrationApp',
-                       'ActionDefinition']} })
+                       'ActionDefinition',
+                       'Constraint',
+                       'ConstraintRaisedPayload']} })
     status: Optional[str] = Field(default=None, description="""Workflow state; null when the record type has no workflow.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'Link',
                        'LinkFlaggedPayload',
@@ -10196,7 +10434,8 @@ class ExtensionRecord(RecordEnvelope):
                        'Account',
                        'AgentToken',
                        'RuleCursor',
-                       'EnrichmentCursor']} })
+                       'EnrichmentCursor',
+                       'Constraint']} })
     effective_schema_hash: Optional[str] = Field(default=None, description="""Hash of the effective schema in force at the last write; null before Increment 2.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'PsetValuesSetPayload',
                        'WorkflowTransitionedPayload',
@@ -10333,7 +10572,10 @@ class TypeRegistrationRegisteredPayload(EventPayload):
                        'InboundEndpoint',
                        'Enricher',
                        'TypeRegistrationRegisteredPayload',
-                       'TypeRegistrationRow']} })
+                       'TypeRegistrationRow',
+                       'Constraint',
+                       'ConstraintRaisedPayload',
+                       'ConstraintAssignedPayload']} })
     status: TypeStatus = Field(default=..., description="""`active` for this event.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'Link',
                        'LinkFlaggedPayload',
@@ -10448,7 +10690,9 @@ class TypeRegistrationDeprecatedPayload(EventPayload):
                        'AccountEnabledPayload',
                        'AgentTokenRevokedPayload',
                        'AccountModuleRoleGrantedPayload',
-                       'AccountModuleRoleRevokedPayload']} })
+                       'AccountModuleRoleRevokedPayload',
+                       'ConstraintClearedPayload',
+                       'ConstraintWithdrawnPayload']} })
 
 
 class RecordBodyStoredPayload(EventPayload):
@@ -10567,7 +10811,10 @@ class TypeRegistrationRow(ConfiguredBaseModel):
                        'InboundEndpoint',
                        'Enricher',
                        'TypeRegistrationRegisteredPayload',
-                       'TypeRegistrationRow']} })
+                       'TypeRegistrationRow',
+                       'Constraint',
+                       'ConstraintRaisedPayload',
+                       'ConstraintAssignedPayload']} })
     status: TypeStatus = Field(default=..., json_schema_extra = { "linkml_meta": {'annotations': {'tl:indexed': {'tag': 'tl:indexed', 'value': True}},
          'domain_of': ['RecordEnvelope',
                        'Link',
@@ -10639,7 +10886,9 @@ class TypeRegistrationRow(ConfiguredBaseModel):
                        'AccountEnabledPayload',
                        'AgentTokenRevokedPayload',
                        'AccountModuleRoleGrantedPayload',
-                       'AccountModuleRoleRevokedPayload']} })
+                       'AccountModuleRoleRevokedPayload',
+                       'ConstraintClearedPayload',
+                       'ConstraintWithdrawnPayload']} })
     first_seq: int = Field(default=..., description="""`seq` of the first event of the stream.""", json_schema_extra = { "linkml_meta": {'domain_of': ['FeedItemRow', 'ThreadParticipantRow', 'TypeRegistrationRow']} })
     last_seq: int = Field(default=..., description="""`seq` of the last event of the stream.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'PsetValue',
@@ -10663,7 +10912,8 @@ class TypeRegistrationRow(ConfiguredBaseModel):
                        'Account',
                        'AgentToken',
                        'RuleCursor',
-                       'EnrichmentCursor']} })
+                       'EnrichmentCursor',
+                       'Constraint']} })
     version_n: int = Field(default=..., description="""Stream version after the last event applied.""", json_schema_extra = { "linkml_meta": {'domain_of': ['TypeRegistrationRow']} })
     updated_at: datetime  = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'PsetValue',
@@ -10740,7 +10990,8 @@ class RecordBody(ConfiguredBaseModel):
                        'RecordBody',
                        'BodyQuarantine',
                        'JobQueue',
-                       'InboundDelivery']} })
+                       'InboundDelivery',
+                       'Constraint']} })
     type_name: str = Field(default=..., json_schema_extra = { "linkml_meta": {'annotations': {'tl:indexed': {'tag': 'tl:indexed', 'value': True}},
          'domain_of': ['TypeRegistrationRow', 'RecordBody', 'BodyQuarantine']} })
     uri: str = Field(default=..., description="""Object key `records/<type>/<id>/<sha256>.json`.""", json_schema_extra = { "linkml_meta": {'domain_of': ['EventOrigin', 'EventLinkRef', 'RecordBody', 'BodyQuarantine']} })
@@ -10772,7 +11023,8 @@ class RecordBody(ConfiguredBaseModel):
                        'Account',
                        'AgentToken',
                        'RuleCursor',
-                       'EnrichmentCursor']} })
+                       'EnrichmentCursor',
+                       'Constraint']} })
     updated_at: datetime  = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'PsetValue',
                        'Link',
@@ -10848,7 +11100,8 @@ class BodyQuarantine(ConfiguredBaseModel):
                        'RecordBody',
                        'BodyQuarantine',
                        'JobQueue',
-                       'InboundDelivery']} })
+                       'InboundDelivery',
+                       'Constraint']} })
     type_name: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['TypeRegistrationRow', 'RecordBody', 'BodyQuarantine']} })
     uri: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['EventOrigin', 'EventLinkRef', 'RecordBody', 'BodyQuarantine']} })
     expected_hash: str = Field(default=..., description="""The hash the ledger recorded for the body.""", json_schema_extra = { "linkml_meta": {'domain_of': ['BodyQuarantine']} })
@@ -10895,7 +11148,9 @@ class BodyQuarantine(ConfiguredBaseModel):
                        'AccountEnabledPayload',
                        'AgentTokenRevokedPayload',
                        'AccountModuleRoleGrantedPayload',
-                       'AccountModuleRoleRevokedPayload']} })
+                       'AccountModuleRoleRevokedPayload',
+                       'ConstraintClearedPayload',
+                       'ConstraintWithdrawnPayload']} })
     detected_at: datetime  = Field(default=..., description="""When the mismatch was found.""", json_schema_extra = { "linkml_meta": {'domain_of': ['BodyQuarantine']} })
 
 
@@ -11055,7 +11310,8 @@ class Account(ConfiguredBaseModel):
                        'Account',
                        'AgentToken',
                        'RuleCursor',
-                       'EnrichmentCursor']} })
+                       'EnrichmentCursor',
+                       'Constraint']} })
 
 
 class AgentToken(ConfiguredBaseModel):
@@ -11126,7 +11382,8 @@ class AgentToken(ConfiguredBaseModel):
                        'Account',
                        'AgentToken',
                        'RuleCursor',
-                       'EnrichmentCursor']} })
+                       'EnrichmentCursor',
+                       'Constraint']} })
 
 
 class AccountModuleRole(ConfiguredBaseModel):
@@ -11493,7 +11750,9 @@ class AccountRolesSetPayload(AccountEventPayload):
                        'AccountEnabledPayload',
                        'AgentTokenRevokedPayload',
                        'AccountModuleRoleGrantedPayload',
-                       'AccountModuleRoleRevokedPayload']} })
+                       'AccountModuleRoleRevokedPayload',
+                       'ConstraintClearedPayload',
+                       'ConstraintWithdrawnPayload']} })
 
 
 class AccountDisabledPayload(AccountEventPayload):
@@ -11564,7 +11823,9 @@ class AccountDisabledPayload(AccountEventPayload):
                        'AccountEnabledPayload',
                        'AgentTokenRevokedPayload',
                        'AccountModuleRoleGrantedPayload',
-                       'AccountModuleRoleRevokedPayload']} })
+                       'AccountModuleRoleRevokedPayload',
+                       'ConstraintClearedPayload',
+                       'ConstraintWithdrawnPayload']} })
 
 
 class AccountEnabledPayload(AccountEventPayload):
@@ -11635,7 +11896,9 @@ class AccountEnabledPayload(AccountEventPayload):
                        'AccountEnabledPayload',
                        'AgentTokenRevokedPayload',
                        'AccountModuleRoleGrantedPayload',
-                       'AccountModuleRoleRevokedPayload']} })
+                       'AccountModuleRoleRevokedPayload',
+                       'ConstraintClearedPayload',
+                       'ConstraintWithdrawnPayload']} })
 
 
 class AccountPasswordChangedPayload(AccountEventPayload):
@@ -11794,7 +12057,9 @@ class AgentTokenRevokedPayload(AccountEventPayload):
                        'AccountEnabledPayload',
                        'AgentTokenRevokedPayload',
                        'AccountModuleRoleGrantedPayload',
-                       'AccountModuleRoleRevokedPayload']} })
+                       'AccountModuleRoleRevokedPayload',
+                       'ConstraintClearedPayload',
+                       'ConstraintWithdrawnPayload']} })
 
 
 class AccountModuleRoleGrantedPayload(AccountEventPayload):
@@ -11876,7 +12141,9 @@ class AccountModuleRoleGrantedPayload(AccountEventPayload):
                        'AccountEnabledPayload',
                        'AgentTokenRevokedPayload',
                        'AccountModuleRoleGrantedPayload',
-                       'AccountModuleRoleRevokedPayload']} })
+                       'AccountModuleRoleRevokedPayload',
+                       'ConstraintClearedPayload',
+                       'ConstraintWithdrawnPayload']} })
 
 
 class AccountModuleRoleRevokedPayload(AccountEventPayload):
@@ -11958,7 +12225,9 @@ class AccountModuleRoleRevokedPayload(AccountEventPayload):
                        'AccountEnabledPayload',
                        'AgentTokenRevokedPayload',
                        'AccountModuleRoleGrantedPayload',
-                       'AccountModuleRoleRevokedPayload']} })
+                       'AccountModuleRoleRevokedPayload',
+                       'ConstraintClearedPayload',
+                       'ConstraintWithdrawnPayload']} })
 
 
 class JobQueue(ConfiguredBaseModel):
@@ -12012,7 +12281,8 @@ class JobQueue(ConfiguredBaseModel):
                        'RecordBody',
                        'BodyQuarantine',
                        'JobQueue',
-                       'InboundDelivery']} })
+                       'InboundDelivery',
+                       'Constraint']} })
     state: str = Field(default=..., description="""queued, running, done, failed or cancelled.""", json_schema_extra = { "linkml_meta": {'domain_of': ['WorkflowState',
                        'WebhookSecret',
                        'JobQueue',
@@ -12176,7 +12446,8 @@ class InboundDelivery(ConfiguredBaseModel):
                        'RecordBody',
                        'BodyQuarantine',
                        'JobQueue',
-                       'InboundDelivery']} })
+                       'InboundDelivery',
+                       'Constraint']} })
     state: DeliveryState = Field(default=DeliveryState("queued"), json_schema_extra = { "linkml_meta": {'domain_of': ['WorkflowState',
                        'WebhookSecret',
                        'JobQueue',
@@ -12266,7 +12537,8 @@ class RuleCursor(ConfiguredBaseModel):
                        'Account',
                        'AgentToken',
                        'RuleCursor',
-                       'EnrichmentCursor'],
+                       'EnrichmentCursor',
+                       'Constraint'],
          'ifabsent': 'int(0)'} })
 
 
@@ -12357,8 +12629,531 @@ class EnrichmentCursor(ConfiguredBaseModel):
                        'Account',
                        'AgentToken',
                        'RuleCursor',
-                       'EnrichmentCursor'],
+                       'EnrichmentCursor',
+                       'Constraint'],
          'ifabsent': 'int(0)'} })
+
+
+class Constraint(ConfiguredBaseModel):
+    """
+    One constraint on one record. Record type `core.Constraint`; key `P123-CON-0001` (gap-free). `suppress_hash` is the sha256 hex of the check result a person chose to suppress (R-P2-11). The facts hash of a raise lives in the raise event only.
+    """
+    linkml_meta: ClassVar[LinkMLMeta] = LinkMLMeta({'annotations': {'tl:current_state': {'tag': 'tl:current_state', 'value': True},
+                         'tl:ix_scope_subject': {'tag': 'tl:ix_scope_subject',
+                                                 'value': 'scope, subject_id'},
+                         'tl:offline': {'tag': 'tl:offline', 'value': 'draft_only'},
+                         'tl:record_types': {'tag': 'tl:record_types',
+                                             'value': 'core.Constraint'},
+                         'tl:table': {'tag': 'tl:table',
+                                      'value': 'cur_core_constraint'}},
+         'from_schema': 'https://example.org/throughline/core/constraint',
+         'title': 'Constraint'})
+
+    id: str = Field(default=..., description="""Record id; equals the ledger stream id and the `cur_core_record` id.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
+                       'EventOrigin',
+                       'EventLinkRef',
+                       'CloudEvent',
+                       'Constraint']} })
+    scope: str = Field(default=..., description="""The project scope, `project:<id>`.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
+                       'Event',
+                       'PsetValue',
+                       'Link',
+                       'LinkCount',
+                       'NumberingCounter',
+                       'WorkflowState',
+                       'SchemaEffectiveChangedPayload',
+                       'ActivityPost',
+                       'EventCard',
+                       'FeedItemRow',
+                       'Hashtag',
+                       'ThreadRow',
+                       'ThreadMessageRow',
+                       'ProposalRow',
+                       'SettingChangeRow',
+                       'File',
+                       'WebhookSubscription',
+                       'IntegrationApp',
+                       'ActionDefinition',
+                       'ActionInvocation',
+                       'Rule',
+                       'InboundEndpoint',
+                       'Enricher',
+                       'EnrichmentValue',
+                       'OutboxEvent',
+                       'RecordBody',
+                       'BodyQuarantine',
+                       'JobQueue',
+                       'InboundDelivery',
+                       'Constraint']} })
+    subject_id: str = Field(default=..., description="""The record held back (any record type). Its confidentiality class governs this row, by join at read time.""", json_schema_extra = { "linkml_meta": {'domain_of': ['OutboxEvent',
+                       'WebhookDelivery',
+                       'Constraint',
+                       'ConstraintRaisedPayload']} })
+    phase: str = Field(default=..., description="""The gated move, a lowercase code a guard of the subject's workflow names.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Constraint', 'ConstraintRaisedPayload']} })
+    severity: str = Field(default=..., description="""`blocking` stops a move, `advisory` is only shown.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Constraint', 'ConstraintRaisedPayload']} })
+    category: ConstraintCategory = Field(default=..., description="""Code of the code list `ConstraintCategory`.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Constraint', 'ConstraintRaisedPayload']} })
+    source: str = Field(default=..., description="""How the constraint arose: manual, check, rule, feed_hold or thread_hold.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Event',
+                       'Link',
+                       'LinkAddedPayload',
+                       'LinkSuggestedPayload',
+                       'SettingChangeRow',
+                       'CloudEvent',
+                       'OutboxEvent',
+                       'Constraint',
+                       'ConstraintRaisedPayload']} })
+    owner: Optional[str] = Field(default=None, description="""Who must clear it, an actor text `user:<name>`; null until assigned.""", json_schema_extra = { "linkml_meta": {'domain_of': ['WebhookSubscriptionCreatedPayload',
+                       'IntegrationAppRegisteredPayload',
+                       'ActionDefinitionDefinedPayload',
+                       'RuleCreatedPayload',
+                       'InboundEndpointCreatedPayload',
+                       'EnricherRegisteredPayload',
+                       'SettingDefinition',
+                       'WebhookSubscription',
+                       'IntegrationApp',
+                       'ActionDefinition',
+                       'Rule',
+                       'InboundEndpoint',
+                       'Enricher',
+                       'TypeRegistrationRegisteredPayload',
+                       'TypeRegistrationRow',
+                       'Constraint',
+                       'ConstraintRaisedPayload',
+                       'ConstraintAssignedPayload']} })
+    description: Optional[str] = Field(default=None, description="""What holds the subject back (at most 500 characters).""", json_schema_extra = { "linkml_meta": {'annotations': {'tl:column': {'tag': 'tl:column',
+                                       'value': 'description_text'}},
+         'domain_of': ['RecordEnvelope',
+                       'RecordCreatedPayload',
+                       'IntegrationAppRegisteredPayload',
+                       'ActionDefinitionDefinedPayload',
+                       'SettingDefinition',
+                       'IntegrationApp',
+                       'ActionDefinition',
+                       'Constraint',
+                       'ConstraintRaisedPayload']} })
+    check_name: Optional[str] = Field(default=None, description="""The readiness check that raised it (at most 64 characters; only for source `check`).""", json_schema_extra = { "linkml_meta": {'domain_of': ['Constraint', 'ConstraintRaisedPayload']} })
+    suppress_hash: Optional[str] = Field(default=None, description="""SHA-256 hex of the check result suppressed (R-P2-11).""", json_schema_extra = { "linkml_meta": {'domain_of': ['Constraint']} })
+    clear_reason: Optional[str] = Field(default=None, description="""Why it was cleared (at most 300 characters).""", json_schema_extra = { "linkml_meta": {'domain_of': ['Constraint']} })
+    target_kind: Optional[str] = Field(default=None, description="""What must happen to clear it: a `record` (joined by a `targets` link) or a plain `reference`.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Constraint', 'ConstraintRaisedPayload']} })
+    target_id: Optional[str] = Field(default=None, description="""The record named when `target_kind` is `record`.""", json_schema_extra = { "linkml_meta": {'domain_of': ['ActionInvocationTarget',
+                       'EnrichmentValue',
+                       'Constraint',
+                       'ConstraintRaisedPayload']} })
+    target_ref_type: Optional[str] = Field(default=None, description="""Type of a plain reference, for things that have no record type yet.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Constraint', 'ConstraintRaisedPayload']} })
+    target_ref_text: Optional[str] = Field(default=None, description="""Text of a plain reference (at most 60 characters).""", json_schema_extra = { "linkml_meta": {'domain_of': ['Constraint', 'ConstraintRaisedPayload']} })
+    effective_at: Optional[str] = Field(default=None, description="""World time it began to hold things back: a date `YYYY-MM-DD` or a UTC timestamp text.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Event', 'Constraint', 'ConstraintRaisedPayload']} })
+    due_at: Optional[str] = Field(default=None, description="""World time it must be cleared by: a date `YYYY-MM-DD` or a UTC timestamp text.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Constraint', 'ConstraintRaisedPayload']} })
+    cleared_at: Optional[str] = Field(default=None, description="""World time it stopped holding things back: a date or UTC timestamp text; null while open.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Constraint', 'ConstraintClearedPayload']} })
+    cleared_by: Optional[str] = Field(default=None, description="""Who cleared it, an actor text.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Constraint', 'ConstraintClearedPayload']} })
+    last_seq: int = Field(default=..., description="""Ledger `seq` of the last event applied to this row.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
+                       'PsetValue',
+                       'Link',
+                       'LinkCount',
+                       'NumberingCounter',
+                       'WorkflowState',
+                       'ThreadRow',
+                       'File',
+                       'WebhookSubscription',
+                       'IntegrationApp',
+                       'ActionDefinition',
+                       'ActionInvocation',
+                       'Rule',
+                       'InboundEndpoint',
+                       'Enricher',
+                       'EnrichmentValue',
+                       'WebhookCursor',
+                       'TypeRegistrationRow',
+                       'RecordBody',
+                       'Account',
+                       'AgentToken',
+                       'RuleCursor',
+                       'EnrichmentCursor',
+                       'Constraint']} })
+
+    @field_validator('phase')
+    def pattern_phase(cls, v):
+        pattern=re.compile(r"^[a-z][a-z0-9_]{0,31}$")
+        if isinstance(v, list):
+            for element in v:
+                if isinstance(element, str) and not pattern.search(element):
+                    err_msg = f"Invalid phase format: {element}"
+                    raise ValueError(err_msg)
+        elif isinstance(v, str) and not pattern.search(v):
+            err_msg = f"Invalid phase format: {v}"
+            raise ValueError(err_msg)
+        return v
+
+    @field_validator('severity')
+    def pattern_severity(cls, v):
+        pattern=re.compile(r"^(blocking|advisory)$")
+        if isinstance(v, list):
+            for element in v:
+                if isinstance(element, str) and not pattern.search(element):
+                    err_msg = f"Invalid severity format: {element}"
+                    raise ValueError(err_msg)
+        elif isinstance(v, str) and not pattern.search(v):
+            err_msg = f"Invalid severity format: {v}"
+            raise ValueError(err_msg)
+        return v
+
+    @field_validator('source')
+    def pattern_source(cls, v):
+        pattern=re.compile(r"^(manual|check|rule|feed_hold|thread_hold)$")
+        if isinstance(v, list):
+            for element in v:
+                if isinstance(element, str) and not pattern.search(element):
+                    err_msg = f"Invalid source format: {element}"
+                    raise ValueError(err_msg)
+        elif isinstance(v, str) and not pattern.search(v):
+            err_msg = f"Invalid source format: {v}"
+            raise ValueError(err_msg)
+        return v
+
+    @field_validator('owner')
+    def pattern_owner(cls, v):
+        pattern=re.compile(r"^user:.{1,59}$")
+        if isinstance(v, list):
+            for element in v:
+                if isinstance(element, str) and not pattern.search(element):
+                    err_msg = f"Invalid owner format: {element}"
+                    raise ValueError(err_msg)
+        elif isinstance(v, str) and not pattern.search(v):
+            err_msg = f"Invalid owner format: {v}"
+            raise ValueError(err_msg)
+        return v
+
+    @field_validator('description')
+    def pattern_description(cls, v):
+        pattern=re.compile(r"^.{0,500}$")
+        if isinstance(v, list):
+            for element in v:
+                if isinstance(element, str) and not pattern.search(element):
+                    err_msg = f"Invalid description format: {element}"
+                    raise ValueError(err_msg)
+        elif isinstance(v, str) and not pattern.search(v):
+            err_msg = f"Invalid description format: {v}"
+            raise ValueError(err_msg)
+        return v
+
+    @field_validator('check_name')
+    def pattern_check_name(cls, v):
+        pattern=re.compile(r"^.{0,64}$")
+        if isinstance(v, list):
+            for element in v:
+                if isinstance(element, str) and not pattern.search(element):
+                    err_msg = f"Invalid check_name format: {element}"
+                    raise ValueError(err_msg)
+        elif isinstance(v, str) and not pattern.search(v):
+            err_msg = f"Invalid check_name format: {v}"
+            raise ValueError(err_msg)
+        return v
+
+    @field_validator('suppress_hash')
+    def pattern_suppress_hash(cls, v):
+        pattern=re.compile(r"^[0-9a-f]{64}$")
+        if isinstance(v, list):
+            for element in v:
+                if isinstance(element, str) and not pattern.search(element):
+                    err_msg = f"Invalid suppress_hash format: {element}"
+                    raise ValueError(err_msg)
+        elif isinstance(v, str) and not pattern.search(v):
+            err_msg = f"Invalid suppress_hash format: {v}"
+            raise ValueError(err_msg)
+        return v
+
+    @field_validator('clear_reason')
+    def pattern_clear_reason(cls, v):
+        pattern=re.compile(r"^.{0,300}$")
+        if isinstance(v, list):
+            for element in v:
+                if isinstance(element, str) and not pattern.search(element):
+                    err_msg = f"Invalid clear_reason format: {element}"
+                    raise ValueError(err_msg)
+        elif isinstance(v, str) and not pattern.search(v):
+            err_msg = f"Invalid clear_reason format: {v}"
+            raise ValueError(err_msg)
+        return v
+
+    @field_validator('target_kind')
+    def pattern_target_kind(cls, v):
+        pattern=re.compile(r"^(record|reference)$")
+        if isinstance(v, list):
+            for element in v:
+                if isinstance(element, str) and not pattern.search(element):
+                    err_msg = f"Invalid target_kind format: {element}"
+                    raise ValueError(err_msg)
+        elif isinstance(v, str) and not pattern.search(v):
+            err_msg = f"Invalid target_kind format: {v}"
+            raise ValueError(err_msg)
+        return v
+
+    @field_validator('target_ref_type')
+    def pattern_target_ref_type(cls, v):
+        pattern=re.compile(r"^(purchase_order|labour_requisition|scaffold_requisition|equipment|permit|other)$")
+        if isinstance(v, list):
+            for element in v:
+                if isinstance(element, str) and not pattern.search(element):
+                    err_msg = f"Invalid target_ref_type format: {element}"
+                    raise ValueError(err_msg)
+        elif isinstance(v, str) and not pattern.search(v):
+            err_msg = f"Invalid target_ref_type format: {v}"
+            raise ValueError(err_msg)
+        return v
+
+    @field_validator('target_ref_text')
+    def pattern_target_ref_text(cls, v):
+        pattern=re.compile(r"^.{0,60}$")
+        if isinstance(v, list):
+            for element in v:
+                if isinstance(element, str) and not pattern.search(element):
+                    err_msg = f"Invalid target_ref_text format: {element}"
+                    raise ValueError(err_msg)
+        elif isinstance(v, str) and not pattern.search(v):
+            err_msg = f"Invalid target_ref_text format: {v}"
+            raise ValueError(err_msg)
+        return v
+
+
+class ConstraintRaisedPayload(EventPayload):
+    """
+    A constraint was raised on a record. Carries the facts hash of a check raise (no column holds it).
+    """
+    linkml_meta: ClassVar[LinkMLMeta] = LinkMLMeta({'annotations': {'tl:event_type': {'tag': 'tl:event_type',
+                                           'value': 'Constraint.Raised'},
+                         'tl:event_version': {'tag': 'tl:event_version', 'value': '1'}},
+         'examples': [{'value': '{"category": "materials", "constraint_id": '
+                                '"01J9Z6Q4W3X2Y1V0T9S8R7Q6P2", "description": "Spools '
+                                'not delivered", "due_at": "2026-11-05", "owner": '
+                                '"user:ana", "phase": "ready", "severity": "blocking", '
+                                '"source": "manual", "subject_id": '
+                                '"01J9Z6Q4W3X2Y1V0T9S8R7Q6P1", "target_kind": '
+                                '"reference", "target_ref_text": "PO-1042", '
+                                '"target_ref_type": "purchase_order"}'}],
+         'from_schema': 'https://example.org/throughline/core/constraint'})
+
+    constraint_id: str = Field(default=..., description="""The constraint record.""", json_schema_extra = { "linkml_meta": {'domain_of': ['ConstraintRaisedPayload',
+                       'ConstraintAssignedPayload',
+                       'ConstraintClearedPayload',
+                       'ConstraintWithdrawnPayload']} })
+    subject_id: str = Field(default=..., description="""The record held back.""", json_schema_extra = { "linkml_meta": {'domain_of': ['OutboxEvent',
+                       'WebhookDelivery',
+                       'Constraint',
+                       'ConstraintRaisedPayload']} })
+    phase: str = Field(default=..., description="""The gated move, a lowercase code.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Constraint', 'ConstraintRaisedPayload']} })
+    severity: str = Field(default=..., description="""blocking or advisory.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Constraint', 'ConstraintRaisedPayload']} })
+    category: ConstraintCategory = Field(default=..., description="""Code of the code list `ConstraintCategory`.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Constraint', 'ConstraintRaisedPayload']} })
+    source: str = Field(default=..., description="""manual, check, rule, feed_hold or thread_hold.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Event',
+                       'Link',
+                       'LinkAddedPayload',
+                       'LinkSuggestedPayload',
+                       'SettingChangeRow',
+                       'CloudEvent',
+                       'OutboxEvent',
+                       'Constraint',
+                       'ConstraintRaisedPayload']} })
+    owner: Optional[str] = Field(default=None, description="""Actor text `user:<name>`, or null.""", json_schema_extra = { "linkml_meta": {'domain_of': ['WebhookSubscriptionCreatedPayload',
+                       'IntegrationAppRegisteredPayload',
+                       'ActionDefinitionDefinedPayload',
+                       'RuleCreatedPayload',
+                       'InboundEndpointCreatedPayload',
+                       'EnricherRegisteredPayload',
+                       'SettingDefinition',
+                       'WebhookSubscription',
+                       'IntegrationApp',
+                       'ActionDefinition',
+                       'Rule',
+                       'InboundEndpoint',
+                       'Enricher',
+                       'TypeRegistrationRegisteredPayload',
+                       'TypeRegistrationRow',
+                       'Constraint',
+                       'ConstraintRaisedPayload',
+                       'ConstraintAssignedPayload']} })
+    description: Optional[str] = Field(default=None, description="""What holds the subject back, or null.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
+                       'RecordCreatedPayload',
+                       'IntegrationAppRegisteredPayload',
+                       'ActionDefinitionDefinedPayload',
+                       'SettingDefinition',
+                       'IntegrationApp',
+                       'ActionDefinition',
+                       'Constraint',
+                       'ConstraintRaisedPayload']} })
+    check_name: Optional[str] = Field(default=None, description="""The check that raised it, or null.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Constraint', 'ConstraintRaisedPayload']} })
+    facts_hash: Optional[str] = Field(default=None, description="""SHA-256 hex of the check facts, or null.""", json_schema_extra = { "linkml_meta": {'domain_of': ['ConstraintRaisedPayload']} })
+    effective_at: Optional[str] = Field(default=None, description="""World time it began to hold things back (date or UTC timestamp text), or null.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Event', 'Constraint', 'ConstraintRaisedPayload']} })
+    due_at: Optional[str] = Field(default=None, description="""World time it must be cleared by (date or UTC timestamp text), or null.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Constraint', 'ConstraintRaisedPayload']} })
+    target_kind: Optional[str] = Field(default=None, description="""record or reference, or null.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Constraint', 'ConstraintRaisedPayload']} })
+    target_id: Optional[str] = Field(default=None, description="""The target record when target_kind is record, or null.""", json_schema_extra = { "linkml_meta": {'domain_of': ['ActionInvocationTarget',
+                       'EnrichmentValue',
+                       'Constraint',
+                       'ConstraintRaisedPayload']} })
+    target_ref_type: Optional[str] = Field(default=None, description="""Type of a plain reference, or null.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Constraint', 'ConstraintRaisedPayload']} })
+    target_ref_text: Optional[str] = Field(default=None, description="""Text of a plain reference, or null.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Constraint', 'ConstraintRaisedPayload']} })
+
+
+class ConstraintAssignedPayload(EventPayload):
+    """
+    A constraint was assigned to an owner.
+    """
+    linkml_meta: ClassVar[LinkMLMeta] = LinkMLMeta({'annotations': {'tl:event_type': {'tag': 'tl:event_type',
+                                           'value': 'Constraint.Assigned'},
+                         'tl:event_version': {'tag': 'tl:event_version', 'value': '1'}},
+         'examples': [{'value': '{"constraint_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P2", '
+                                '"owner": "user:ben"}'}],
+         'from_schema': 'https://example.org/throughline/core/constraint'})
+
+    constraint_id: str = Field(default=..., description="""The constraint record.""", json_schema_extra = { "linkml_meta": {'domain_of': ['ConstraintRaisedPayload',
+                       'ConstraintAssignedPayload',
+                       'ConstraintClearedPayload',
+                       'ConstraintWithdrawnPayload']} })
+    owner: str = Field(default=..., description="""Actor text `user:<name>`.""", json_schema_extra = { "linkml_meta": {'domain_of': ['WebhookSubscriptionCreatedPayload',
+                       'IntegrationAppRegisteredPayload',
+                       'ActionDefinitionDefinedPayload',
+                       'RuleCreatedPayload',
+                       'InboundEndpointCreatedPayload',
+                       'EnricherRegisteredPayload',
+                       'SettingDefinition',
+                       'WebhookSubscription',
+                       'IntegrationApp',
+                       'ActionDefinition',
+                       'Rule',
+                       'InboundEndpoint',
+                       'Enricher',
+                       'TypeRegistrationRegisteredPayload',
+                       'TypeRegistrationRow',
+                       'Constraint',
+                       'ConstraintRaisedPayload',
+                       'ConstraintAssignedPayload']} })
+
+
+class ConstraintClearedPayload(EventPayload):
+    """
+    A constraint was cleared. `suppress` is true when a person cleared a check-raised constraint (R-P2-11).
+    """
+    linkml_meta: ClassVar[LinkMLMeta] = LinkMLMeta({'annotations': {'tl:event_type': {'tag': 'tl:event_type',
+                                           'value': 'Constraint.Cleared'},
+                         'tl:event_version': {'tag': 'tl:event_version', 'value': '1'}},
+         'examples': [{'value': '{"cleared_at": "2026-11-04T09:30:00Z", "cleared_by": '
+                                '"user:ana", "constraint_id": '
+                                '"01J9Z6Q4W3X2Y1V0T9S8R7Q6P2", "reason": "Spools '
+                                'delivered", "resolved_by": '
+                                '"01J9Z6Q4W3X2Y1V0T9S8R7Q6P3", "suppress": false}'}],
+         'from_schema': 'https://example.org/throughline/core/constraint'})
+
+    constraint_id: str = Field(default=..., description="""The constraint record.""", json_schema_extra = { "linkml_meta": {'domain_of': ['ConstraintRaisedPayload',
+                       'ConstraintAssignedPayload',
+                       'ConstraintClearedPayload',
+                       'ConstraintWithdrawnPayload']} })
+    cleared_at: str = Field(default=..., description="""World time it stopped holding things back (date or UTC timestamp text).""", json_schema_extra = { "linkml_meta": {'domain_of': ['Constraint', 'ConstraintClearedPayload']} })
+    cleared_by: str = Field(default=..., description="""The actor that cleared it.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Constraint', 'ConstraintClearedPayload']} })
+    reason: str = Field(default=..., description="""Why it was cleared.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Link',
+                       'RecordVoidedPayload',
+                       'RecordCorrectedPayload',
+                       'LinkDeclinedPayload',
+                       'LinkFlaggedPayload',
+                       'LinkRetractedPayload',
+                       'WorkflowTransitionedPayload',
+                       'FileRejectedPayload',
+                       'WebhookSubscriptionDisabledPayload',
+                       'IntegrationAppRevisedPayload',
+                       'IntegrationAppEnabledPayload',
+                       'IntegrationAppDisabledPayload',
+                       'ActionDefinitionRevisedPayload',
+                       'ActionDefinitionRetiredPayload',
+                       'RuleRevisedPayload',
+                       'RuleEnabledPayload',
+                       'RuleDisabledPayload',
+                       'InboundEndpointRevisedPayload',
+                       'InboundEndpointEnabledPayload',
+                       'InboundEndpointDisabledPayload',
+                       'EnricherRevisedPayload',
+                       'EnricherEnabledPayload',
+                       'EnricherDisabledPayload',
+                       'EnrichmentRejectedPayload',
+                       'FeedRetractedPayload',
+                       'ThreadMessageRetractedPayload',
+                       'ProposalRejectedPayload',
+                       'ProposalRow',
+                       'SettingChangedPayload',
+                       'SettingLockedPayload',
+                       'SettingChangeRow',
+                       'SettingLockRow',
+                       'File',
+                       'EnrichmentValue',
+                       'TypeRegistrationDeprecatedPayload',
+                       'TypeRegistrationRow',
+                       'BodyQuarantine',
+                       'AccountRolesSetPayload',
+                       'AccountDisabledPayload',
+                       'AccountEnabledPayload',
+                       'AgentTokenRevokedPayload',
+                       'AccountModuleRoleGrantedPayload',
+                       'AccountModuleRoleRevokedPayload',
+                       'ConstraintClearedPayload',
+                       'ConstraintWithdrawnPayload']} })
+    resolved_by: Optional[str] = Field(default=None, description="""The record that resolved it, or null.""", json_schema_extra = { "linkml_meta": {'domain_of': ['ConstraintClearedPayload']} })
+    suppress: bool = Field(default=..., description="""True when the check result is suppressed.""", json_schema_extra = { "linkml_meta": {'domain_of': ['ConstraintClearedPayload']} })
+
+
+class ConstraintWithdrawnPayload(EventPayload):
+    """
+    A constraint was withdrawn (raised in error or no longer applies).
+    """
+    linkml_meta: ClassVar[LinkMLMeta] = LinkMLMeta({'annotations': {'tl:event_type': {'tag': 'tl:event_type',
+                                           'value': 'Constraint.Withdrawn'},
+                         'tl:event_version': {'tag': 'tl:event_version', 'value': '1'}},
+         'examples': [{'value': '{"constraint_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P2", '
+                                '"reason": "Raised on the wrong package"}'}],
+         'from_schema': 'https://example.org/throughline/core/constraint'})
+
+    constraint_id: str = Field(default=..., description="""The constraint record.""", json_schema_extra = { "linkml_meta": {'domain_of': ['ConstraintRaisedPayload',
+                       'ConstraintAssignedPayload',
+                       'ConstraintClearedPayload',
+                       'ConstraintWithdrawnPayload']} })
+    reason: str = Field(default=..., description="""Why it was withdrawn.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Link',
+                       'RecordVoidedPayload',
+                       'RecordCorrectedPayload',
+                       'LinkDeclinedPayload',
+                       'LinkFlaggedPayload',
+                       'LinkRetractedPayload',
+                       'WorkflowTransitionedPayload',
+                       'FileRejectedPayload',
+                       'WebhookSubscriptionDisabledPayload',
+                       'IntegrationAppRevisedPayload',
+                       'IntegrationAppEnabledPayload',
+                       'IntegrationAppDisabledPayload',
+                       'ActionDefinitionRevisedPayload',
+                       'ActionDefinitionRetiredPayload',
+                       'RuleRevisedPayload',
+                       'RuleEnabledPayload',
+                       'RuleDisabledPayload',
+                       'InboundEndpointRevisedPayload',
+                       'InboundEndpointEnabledPayload',
+                       'InboundEndpointDisabledPayload',
+                       'EnricherRevisedPayload',
+                       'EnricherEnabledPayload',
+                       'EnricherDisabledPayload',
+                       'EnrichmentRejectedPayload',
+                       'FeedRetractedPayload',
+                       'ThreadMessageRetractedPayload',
+                       'ProposalRejectedPayload',
+                       'ProposalRow',
+                       'SettingChangedPayload',
+                       'SettingLockedPayload',
+                       'SettingChangeRow',
+                       'SettingLockRow',
+                       'File',
+                       'EnrichmentValue',
+                       'TypeRegistrationDeprecatedPayload',
+                       'TypeRegistrationRow',
+                       'BodyQuarantine',
+                       'AccountRolesSetPayload',
+                       'AccountDisabledPayload',
+                       'AccountEnabledPayload',
+                       'AgentTokenRevokedPayload',
+                       'AccountModuleRoleGrantedPayload',
+                       'AccountModuleRoleRevokedPayload',
+                       'ConstraintClearedPayload',
+                       'ConstraintWithdrawnPayload']} })
 
 
 # Model rebuild
@@ -12526,3 +13321,8 @@ InboundCounter.model_rebuild()
 RuleCursor.model_rebuild()
 RuleFiring.model_rebuild()
 EnrichmentCursor.model_rebuild()
+Constraint.model_rebuild()
+ConstraintRaisedPayload.model_rebuild()
+ConstraintAssignedPayload.model_rebuild()
+ConstraintClearedPayload.model_rebuild()
+ConstraintWithdrawnPayload.model_rebuild()

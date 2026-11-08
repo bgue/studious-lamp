@@ -20,6 +20,9 @@ documents = "tl_mod_documents.module:spec"
 tags = "tl_mod_documents.derivation.publish:tags_target"
 documents = "tl_mod_documents.derivation.publish:documents_target"
 
+[project.entry-points."throughline.readiness_checks"]
+documents_current = "tl_mod_documents.readiness:documents_current"
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"

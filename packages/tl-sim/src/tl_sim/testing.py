@@ -26,7 +26,7 @@ from tl_mod_schedule.errors import (
 )
 
 from tl_sim.actors.base import Rec, Recorder
-from tl_sim.client import Keys, ProposeUnavailableError
+from tl_sim.client import OPEN_CONSTRAINT_STATES, Keys, ProposeUnavailableError
 from tl_sim.clock import SimClock
 from tl_sim.mcp_caller import ProposalRefusedError
 from tl_sim.rng import actor_rng
@@ -70,6 +70,9 @@ class FakeWorld:
         self.schedule_rows: list[dict[str, Any]] = []
         self.area_codes: list[str] = []  # the CWA codes of the path of construction
         self.cwp_rows: list[dict[str, Any]] = []  # the CWPs accepted proposals created
+        self.iwp_rows: list[dict[str, Any]] = []  # the IWPs (``IwpDesk``): id, number, title, state
+        self.scope_rows: list[dict[str, Any]] = []  # IWP scope links: iwp_id, item_id
+        self.constraint_rows: list[dict[str, Any]] = []  # constraints: id, key, subject_id, state
         self._seq = 0
 
     # --- the store -------------------------------------------------------------------------
@@ -438,6 +441,114 @@ class FakeClient:
         self.world.record_rows.append(record)
         self._write("Record.Created", record["id"])
         return {"id": record["id"], "key": number, "version": 1}
+
+    # --- IWPs and constraints, for the person who builds the packages (``IwpDesk``) ----------
+
+    def _project(self) -> str:
+        return self.world.scope.removeprefix("project:")
+
+    def _iwp(self, iwp_id: str) -> dict[str, Any]:
+        for row in self.world.iwp_rows:
+            if row["id"] == iwp_id:
+                return row
+        raise LookupError(f"no IWP {iwp_id!r}")
+
+    def _constraint(self, constraint_id: str) -> dict[str, Any]:
+        for row in self.world.constraint_rows:
+            if row["id"] == constraint_id:
+                return row
+        raise LookupError(f"no constraint {constraint_id!r}")
+
+    def iwps(self) -> list[dict[str, Any]]:
+        self.calls.append(("iwps", ()))
+        found = [
+            {"id": r["id"], "number": r["number"], "state": r["state"]} for r in self.world.iwp_rows
+        ]
+        return sorted(found, key=lambda r: r["number"])
+
+    def create_iwp(self, discipline: str, title: str) -> dict[str, Any]:
+        self.calls.append(("create_iwp", (title,)))
+        number = f"{self._project()}-IWP-{len(self.world.iwp_rows) + 1:04d}"
+        made = self._new_record(number, "awp.IWP", title, status="Draft")
+        self.world.iwp_rows.append(
+            {
+                "id": made["id"],
+                "number": number,
+                "title": title,
+                "discipline": discipline,
+                "state": "Draft",
+            }
+        )
+        return {"id": made["id"], "key": number, "title": title}
+
+    def create_scope_item(
+        self, commodity: str, description: str, qty: str, uom: str, est_hours: str
+    ) -> dict[str, Any]:
+        self.calls.append(("create_scope_item", (description,)))
+        taken = sum(1 for r in self.world.record_rows if r["type"] == "awp.ScopeItem")
+        key = f"{self._project()}-ITEM-{taken + 1:04d}"
+        made = self._new_record(key, "awp.ScopeItem", description, status=None)
+        return {"id": made["id"], "key": key, "title": description}
+
+    def add_scope(self, iwp_id: str, item_ids: list[str]) -> dict[str, Any]:
+        self.calls.append(("add_scope", (iwp_id,)))
+        self._iwp(iwp_id)
+        for item_id in item_ids:
+            self.world.scope_rows.append({"iwp_id": iwp_id, "item_id": item_id})
+            self._write("IWP.ScopeAdded", iwp_id)
+            self._write("Link.Added", iwp_id)
+        return {"id": iwp_id, "version": 1}
+
+    def start_development(self, iwp_id: str) -> dict[str, Any]:
+        self.calls.append(("start_development", (iwp_id,)))
+        row = self._iwp(iwp_id)
+        if row["state"] != "Draft":
+            raise ValueError(f"IWP {row['number']} is {row['state']}; this needs Draft")
+        row["state"] = "In development"
+        record = self.world.record(iwp_id)
+        record["status"] = "In development"
+        record["version"] += 1
+        self._write("Workflow.Transitioned", iwp_id)
+        return {"id": iwp_id, "version": record["version"], "state": "In development"}
+
+    def raise_constraint(self, subject_id: str, category: str, description: str) -> dict[str, Any]:
+        self.calls.append(("raise_constraint", (subject_id, category)))
+        self.world.record(subject_id)  # a constraint is on a record that exists
+        key = f"{self._project()}-CON-{len(self.world.constraint_rows) + 1:04d}"
+        title = (description or category)[:200].strip() or category
+        made = self._new_record(key, "core.Constraint", title, status="Open")
+        self.world.constraint_rows.append(
+            {
+                "id": made["id"],
+                "key": key,
+                "subject_id": subject_id,
+                "category": category,
+                "state": "Open",
+            }
+        )
+        self._write("Constraint.Raised", made["id"])
+        return {"id": made["id"], "key": key, "title": title}
+
+    def open_constraints(self) -> list[dict[str, Any]]:
+        self.calls.append(("open_constraints", ()))
+        found = [
+            {"id": r["id"], "key": r["key"], "subject_id": r["subject_id"]}
+            for r in self.world.constraint_rows
+            if r["state"] in OPEN_CONSTRAINT_STATES
+        ]
+        return sorted(found, key=lambda r: r["key"])
+
+    def clear_constraint(self, constraint_id: str, reason: str) -> dict[str, Any]:
+        self.calls.append(("clear_constraint", (constraint_id,)))
+        row = self._constraint(constraint_id)
+        if row["state"] not in OPEN_CONSTRAINT_STATES:
+            raise ValueError(f"constraint {row['key']} is {row['state']}; this needs an open one")
+        row["state"] = "Cleared"
+        record = self.world.record(constraint_id)
+        record["status"] = "Cleared"
+        record["version"] += 1
+        self._write("Constraint.Cleared", constraint_id)
+        return {"id": constraint_id, "version": record["version"], "state": "Cleared"}
 
     # --- RFIs, for the site engineer and the client's representative (``TechnicalDesk``) -------
 

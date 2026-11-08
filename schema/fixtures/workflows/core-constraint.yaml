@@ -1,0 +1,25 @@
+# Workflow of a constraint on any record (ADR-0024): Open, Assigned, Cleared. A constraint can be cleared from Open or
+# Assigned and withdrawn unless it is Cleared. Cleared and Withdrawn are final. No guards: moves are commands of the core.
+id: core.constraint
+version: 1
+record_type: core.Constraint
+scope: company
+initial_state: Open
+states:
+  - name: Open
+  - name: Assigned
+  - name: Cleared
+  - name: Withdrawn
+transitions:
+  - name: assign
+    label: Assign the constraint to an owner
+    from: [Open]
+    to: Assigned
+  - name: clear
+    label: Clear the constraint
+    from: [Open, Assigned]
+    to: Cleared
+  - name: withdraw
+    label: Withdraw the constraint
+    from: [Open, Assigned]
+    to: Withdrawn

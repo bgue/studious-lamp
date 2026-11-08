@@ -1,0 +1,295 @@
+id: https://example.org/throughline/modules/awp/iwp_events
+name: tl_mod_awp_iwp_events
+title: Awp IWP, scope item and readiness events
+description: >-
+  The ledger events of interim work packages, scope items and readiness (brief 18.3), in the same form as
+  `events.yaml`. `Record.*`, `Link.*`, `Numbering.Allocated` and `Workflow.Transitioned` are core events. Events with
+  `feed_policy: none` in the payload make no feed card; `IWP.Ready`, `IWP.Issued` and `IWP.ReadinessEvaluated` are
+  visible to webhooks through `tl:event_type`.
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+  - ../../core/annotations
+  - ../../core/record
+  - ../../core/events
+default_range: string
+annotations:
+  tl:module: awp
+
+classes:
+  IWPCreatedPayload:
+    is_a: EventPayload
+    description: >-
+      An interim work package was created.
+    annotations:
+      tl:event_type: IWP.Created
+      tl:event_version: "1"
+    attributes:
+      discipline:
+        description: "Code of the code list `Discipline`."
+        required: true
+      cwp_id:
+        description: "The CWP, or null."
+      planned_start:
+        description: "YYYY-MM-DD, or null."
+      planned_finish:
+        description: "YYYY-MM-DD, or null."
+      foreman:
+        description: "Actor text `user:<name>`, or null."
+      estimated_hours:
+        description: "Decimal text with one decimal, or null."
+      crew_text:
+        description: "The crew in words, or null."
+    examples:
+      - value: "{\"crew_text\": \"Crew of six\", \"cwp_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P1\", \"discipline\": \"PIP\", \"estimated_hours\": \"120.0\", \"foreman\": \"user:ana\", \"planned_finish\": \"2026-11-13\", \"planned_start\": \"2026-11-02\"}"
+  IWPRevisedPayload:
+    is_a: EventPayload
+    description: >-
+      Fields of an interim work package changed.
+    annotations:
+      tl:event_type: IWP.Revised
+      tl:event_version: "1"
+    attributes:
+      changes:
+        description: "Object of field -> [old, new] for title, cwp_id, planned_start, planned_finish, foreman, estimated_hours and crew_text."
+        range: Any
+        annotations:
+          tl:json: true
+        required: true
+    examples:
+      - value: "{\"changes\": {\"foreman\": [null, \"user:ana\"]}}"
+  IWPScopeAddedPayload:
+    is_a: EventPayload
+    description: >-
+      A record was added to the scope of an interim work package.
+    annotations:
+      tl:event_type: IWP.ScopeAdded
+      tl:event_version: "1"
+    attributes:
+      record_id:
+        description: "The scope item or tag added."
+        required: true
+      record_type:
+        description: "Its record type."
+        required: true
+      feed_policy:
+        description: "The feed policy the handler fixed when it wrote the event; always \"none\" (no feed card)."
+        equals_string: none
+        required: true
+    examples:
+      - value: "{\"feed_policy\": \"none\", \"record_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P2\", \"record_type\": \"awp.ScopeItem\"}"
+  IWPScopeRemovedPayload:
+    is_a: EventPayload
+    description: >-
+      A record was removed from the scope of an interim work package.
+    annotations:
+      tl:event_type: IWP.ScopeRemoved
+      tl:event_version: "1"
+    attributes:
+      record_id:
+        description: "The scope item or tag removed."
+        required: true
+      record_type:
+        description: "Its record type."
+        required: true
+      feed_policy:
+        description: "The feed policy the handler fixed when it wrote the event; always \"none\" (no feed card)."
+        equals_string: none
+        required: true
+    examples:
+      - value: "{\"feed_policy\": \"none\", \"record_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P2\", \"record_type\": \"awp.ScopeItem\"}"
+  IWPDocumentPinnedPayload:
+    is_a: EventPayload
+    description: >-
+      A document revision was pinned to an interim work package.
+    annotations:
+      tl:event_type: IWP.DocumentPinned
+      tl:event_version: "1"
+    attributes:
+      document_id:
+        description: "The document."
+        required: true
+      revision_id:
+        description: "The revision pinned."
+        required: true
+    examples:
+      - value: "{\"document_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P1\", \"revision_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P2\"}"
+  IWPSplitPayload:
+    is_a: EventPayload
+    description: >-
+      An interim work package was split into new ones.
+    annotations:
+      tl:event_type: IWP.Split
+      tl:event_version: "1"
+    attributes:
+      new_ids:
+        description: "The ids of the new packages."
+        range: Any
+        annotations:
+          tl:json: true
+        required: true
+    examples:
+      - value: "{\"new_ids\": [\"01J9Z6Q4W3X2Y1V0T9S8R7Q6P1\", \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P2\"]}"
+  IWPSignedOffPayload:
+    is_a: EventPayload
+    description: >-
+      A role signed off an interim work package.
+    annotations:
+      tl:event_type: IWP.SignedOff
+      tl:event_version: "1"
+    attributes:
+      by:
+        description: "The actor that signed (`user:<id>`)."
+        required: true
+      role:
+        description: "The role signed for."
+        required: true
+      record_hash:
+        description: "SHA-256 of the package as signed, hex."
+        required: true
+    examples:
+      - value: "{\"by\": \"user:01J9Z6Q4W3X2Y1V0T9S8R7Q6P1\", \"record_hash\": \"0000000000000000000000000000000000000000000000000000000000000000\", \"role\": \"foreman\"}"
+  IWPIssuedPayload:
+    is_a: EventPayload
+    description: >-
+      An interim work package was issued to its foreman.
+    annotations:
+      tl:event_type: IWP.Issued
+      tl:event_version: "1"
+    attributes:
+      by:
+        description: "The actor that issued it."
+        required: true
+      foreman:
+        description: "The foreman (`user:<name>`)."
+        required: true
+    examples:
+      - value: "{\"by\": \"user:01J9Z6Q4W3X2Y1V0T9S8R7Q6P1\", \"foreman\": \"user:ana\"}"
+  IWPHeldPayload:
+    is_a: EventPayload
+    description: >-
+      An interim work package was put on hold.
+    annotations:
+      tl:event_type: IWP.Held
+      tl:event_version: "1"
+    attributes:
+      by:
+        description: "The actor that held it."
+        required: true
+      reason:
+        description: "Why it was held."
+        required: true
+    examples:
+      - value: "{\"by\": \"user:01J9Z6Q4W3X2Y1V0T9S8R7Q6P1\", \"reason\": \"Waiting for permit\"}"
+  IWPHoldReleasedPayload:
+    is_a: EventPayload
+    description: >-
+      The hold on an interim work package was lifted into a re-check.
+    annotations:
+      tl:event_type: IWP.HoldReleased
+      tl:event_version: "1"
+    attributes:
+    examples:
+      - value: "{}"
+  ScopeItemCreatedPayload:
+    is_a: EventPayload
+    description: >-
+      A scope item was created.
+    annotations:
+      tl:event_type: ScopeItem.Created
+      tl:event_version: "1"
+    attributes:
+      commodity:
+        description: "Code of the code list `Commodity`."
+        required: true
+      description:
+        description: "What the item is, or null."
+      qty:
+        description: "Decimal text, or null."
+      uom:
+        description: "Code of `UnitOfMeasure`, or null."
+      est_hours:
+        description: "Decimal text with one decimal, or null."
+      cwp_id:
+        description: "The CWP, or null."
+      feed_policy:
+        description: "The feed policy the handler fixed when it wrote the event; always \"none\" (no feed card)."
+        equals_string: none
+        required: true
+    examples:
+      - value: "{\"commodity\": \"piping\", \"cwp_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P1\", \"description\": \"Spool 14\", \"est_hours\": \"8.0\", \"feed_policy\": \"none\", \"qty\": \"12.0\", \"uom\": \"m\"}"
+  ScopeItemRevisedPayload:
+    is_a: EventPayload
+    description: >-
+      Fields of a scope item changed.
+    annotations:
+      tl:event_type: ScopeItem.Revised
+      tl:event_version: "1"
+    attributes:
+      changes:
+        description: "Object of field -> [old, new] for commodity, description, qty, uom, est_hours and cwp_id."
+        range: Any
+        annotations:
+          tl:json: true
+        required: true
+      feed_policy:
+        description: "The feed policy the handler fixed when it wrote the event; always \"none\" (no feed card)."
+        equals_string: none
+        required: true
+    examples:
+      - value: "{\"changes\": {\"qty\": [\"12.0\", \"14.0\"]}, \"feed_policy\": \"none\"}"
+  IWPReadinessEvaluatedPayload:
+    is_a: EventPayload
+    description: >-
+      The readiness of an interim work package was evaluated (low importance).
+    annotations:
+      tl:event_type: IWP.ReadinessEvaluated
+      tl:event_version: "1"
+    attributes:
+      iwp_id:
+        description: "The IWP."
+        required: true
+      evaluated_at:
+        description: "UTC timestamp text."
+        required: true
+      today:
+        description: "YYYY-MM-DD the evaluation was made for."
+        required: true
+      ready:
+        description: "True when no check blocks."
+        range: boolean
+        required: true
+      checks:
+        description: "List of at most 32 check results `{name, version, state, detail, resolve_via, count_ok, count_total}`."
+        range: Any
+        annotations:
+          tl:json: true
+        required: true
+      facts_hash:
+        description: "SHA-256 hex of the canonical facts."
+        required: true
+      feed_policy:
+        description: "The feed policy the handler fixed when it wrote the event; always \"none\" (no feed card)."
+        equals_string: none
+        required: true
+    examples:
+      - value: "{\"checks\": [{\"count_ok\": 3, \"count_total\": 3, \"detail\": \"All current\", \"name\": \"documents_current\", \"resolve_via\": [], \"state\": \"ok\", \"version\": \"1\"}], \"evaluated_at\": \"2026-11-02T08:00:00Z\", \"facts_hash\": \"0000000000000000000000000000000000000000000000000000000000000000\", \"feed_policy\": \"none\", \"iwp_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P1\", \"ready\": true, \"today\": \"2026-11-02\"}"
+  IWPReadyPayload:
+    is_a: EventPayload
+    description: >-
+      An interim work package turned ready.
+    annotations:
+      tl:event_type: IWP.Ready
+      tl:event_version: "1"
+    attributes:
+      iwp_id:
+        description: "The IWP."
+        required: true
+      evaluated_at:
+        description: "UTC timestamp text of the evaluation."
+        required: true
+    examples:
+      - value: "{\"evaluated_at\": \"2026-11-02T08:00:00Z\", \"iwp_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P1\"}"

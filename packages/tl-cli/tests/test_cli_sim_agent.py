@@ -37,7 +37,7 @@ def test_the_provider_makes_the_agent_and_a_token_once_per_process(tmp_path: Pat
     finally:
         factory.dispose()
     created = rows(env, "SELECT actor FROM events WHERE event_type = 'Account.Created'")
-    assert created == [("svc:sim",)]
+    assert created and set(created) == {("svc:sim",)}  # the agent and the simulated people
     assert first not in str(rows(env, "SELECT payload FROM events"))
 
 
@@ -147,3 +147,18 @@ def test_the_token_it_makes_starts_the_mcp_server_as_the_agent(tmp_path: Path) -
     assert get is not None
     result = stdio_caller(db, get()).call_tool("search_records", {"scope": "project:sim-r1"})
     assert result["total"] == 0
+
+
+def test_the_provider_makes_the_simulated_people_accounts_once(tmp_path: Path) -> None:
+    env = new_ledger(tmp_path)
+    db = Path(env["TL_DB"])
+    assert sim_agent.provider(db) is not None
+    assert sim_agent.provider(db) is not None  # a second run: nothing new
+    people = rows(env, "SELECT username, kind FROM cur_account WHERE username LIKE 'sim-%'")
+    assert ("sim-iwp_planner", "sim") in people
+    assert len(people) == len(set(people)) and len(people) >= 8
+    created = rows(
+        env,
+        "SELECT COUNT(*) FROM events WHERE event_type = 'Account.Created' AND actor = 'svc:sim'",
+    )
+    assert int(created[0][0]) >= len(people)

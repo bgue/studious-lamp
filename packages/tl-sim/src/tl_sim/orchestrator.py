@@ -86,7 +86,7 @@ def default_run_id(scenario: Scenario) -> str:
 
 
 def all_identities() -> list[str]:
-    people = (*ROLE_NAMES, "approver")
+    people = (*ROLE_NAMES, "approver", "iwp_planner")
     return [ORCHESTRATOR, *(f"user:sim-{name}" for name in people), ASSISTANT]
 
 

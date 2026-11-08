@@ -12,7 +12,8 @@ from pathlib import Path
 from typing import Any, Literal, Protocol
 
 from pydantic import BaseModel
-from tl_api.routes.awp import CwpDetailView
+from tl_api.routes.awp import CwpDetailView, ReadinessBody
+from tl_api.routes.constraints import ConstraintGroups, ConstraintList, ConstraintRow
 from tl_core.actions import RecordActions
 from tl_core.addable import AddableProperties
 from tl_core.auth.module_grants import ModuleRoleResult
@@ -51,6 +52,7 @@ from tl_core.threads.dispatch import DispatchFromThread
 from tl_core.threads.messages import EditThreadMessage, PostThreadMessage, RetractThreadMessage
 from tl_core.threads.planner import PreviewResult
 from tl_core.threads.queries import ThreadPage
+from tl_mod_awp import iwp_views
 from tl_mod_awp import views as awp_views
 from tl_mod_correspondence import evidence as correspondence_evidence
 from tl_mod_correspondence import reports_commercial, reports_technical
@@ -1028,6 +1030,63 @@ class ClientInterface(Protocol):
         self, project: str, *, kind: Literal["EWP", "PWP"] | None = None
     ) -> list[awp_views.PackageRow]:
         """The EWP and PWP references by package number; ``kind`` keeps one of them."""
+        ...
+
+    # --- the IWP, constraint and readiness reads (P2-I2 T04c2) ---------------------------------
+    #
+    # The same names and signatures as ``tl_api.client.ApiClient``. A missing, hidden or
+    # never-evaluated IWP raises the service's ``RecordNotFoundError`` with one text. The
+    # constraint reads are checked for ``core.constraint.view`` first (a refusal is a
+    # ``ForbiddenError``); a hidden constraint is absent from the rows and the total. ``by``
+    # outside ``BY_WORDS`` raises ``ValueError``.
+
+    def list_iwps(
+        self,
+        project: str,
+        *,
+        state: str | None = None,
+        discipline: str | None = None,
+        foreman: str | None = None,
+        limit: int = 200,
+    ) -> list[iwp_views.IwpRow]:
+        """A project's IWPs by number, filtered by state, discipline and foreman."""
+        ...
+
+    def get_iwp(self, project: str, number: str) -> iwp_views.IwpDetail:
+        """One IWP with its fields, pins, open constraints and scope count by type."""
+        ...
+
+    def list_iwp_scope(
+        self, project: str, number: str, *, limit: int = 200
+    ) -> list[iwp_views.ScopeRow]:
+        """The scope items and tags of one IWP, by item number."""
+        ...
+
+    def get_iwp_readiness(self, project: str, number: str) -> ReadinessBody:
+        """The last readiness evaluation of one IWP (no facts hash)."""
+        ...
+
+    def list_constraints(
+        self,
+        project: str,
+        *,
+        subject: str | None = None,
+        state: str | None = None,
+        category: str | None = None,
+        phase: str | None = None,
+        blocking: bool | None = None,
+        owner: str | None = None,
+        limit: int = 200,
+    ) -> ConstraintList:
+        """The constraints a viewer may read, by key, with the total the same filters find."""
+        ...
+
+    def constraint_groups(self, project: str, by: str) -> ConstraintGroups:
+        """The visible constraints grouped by ``owner``, ``category`` or ``age``."""
+        ...
+
+    def get_constraint(self, project: str, key: str) -> ConstraintRow:
+        """One constraint by key, with the key and type of its subject."""
         ...
 
     # --- the schema workbench (P1-I8; brief 27.8) ----------------------------------------------

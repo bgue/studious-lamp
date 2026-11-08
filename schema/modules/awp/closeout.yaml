@@ -1,0 +1,60 @@
+id: https://example.org/throughline/modules/awp/closeout
+name: tl_mod_awp_closeout
+title: IWP closeout (brief 9, M3)
+description: >-
+  An `IWPCloseout` records the actuals of one closed IWP. Schema only in this increment; the commands come in I5.
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+  - ../../core/annotations
+  - ../../core/record
+default_range: string
+annotations:
+  tl:module: awp
+
+classes:
+  IWPCloseout:
+    title: IWP closeout
+    description: >-
+      The closeout of one IWP. Record type `awp.IWPCloseout`; no allocator: one per IWP, key `<iwp key>-CLOSE` (composed key).
+      No workflow and no command yet.
+    annotations:
+      tl:current_state: true
+      tl:record_types: "awp.IWPCloseout"
+      tl:offline: none
+      tl:table: cur_awp_iwp_closeout
+      tl:ix_scope_iwp: "scope, iwp_id"
+    attributes:
+      id:
+        identifier: true
+        range: Ulid
+        required: true
+        description: Record id; equals the ledger stream id and the `cur_core_record` id.
+      scope:
+        range: ScopeId
+        required: true
+        description: The project scope, `project:<id>`.
+      iwp_id:
+        range: Ulid
+        required: true
+        description: The `awp.IWP` closed.
+      actual_hours:
+        pattern: "^(0|[1-9][0-9]{0,11})\\.[0-9]$"
+        description: 'Actual hours, decimal text with one decimal.'
+      remaining_punch:
+        range: integer
+        minimum_value: 0
+        description: Punch items still open at closeout.
+      feedback:
+        pattern: "^.{0,1000}$"
+        description: Lessons and feedback in words (at most 1000 characters).
+      actuals_file_id:
+        range: Ulid
+        description: The file that holds the actuals, or null.
+      last_seq:
+        range: integer
+        required: true
+        description: Ledger `seq` of the last event applied to this row.

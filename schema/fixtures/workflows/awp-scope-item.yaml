@@ -1,0 +1,29 @@
+# Workflow of a scope item (brief 9, M3): Planned, Installed, Verified. An installed item returns to Planned; any
+# item that is not Verified can be voided. Verified and Void are final. Moves are commands of the awp module.
+id: awp.scope_item
+version: 1
+record_type: awp.ScopeItem
+scope: company
+initial_state: Planned
+states:
+  - name: Planned
+  - name: Installed
+  - name: Verified
+  - name: Void
+transitions:
+  - name: install
+    label: Mark the item installed
+    from: [Planned]
+    to: Installed
+  - name: return
+    label: Return the item to planned
+    from: [Installed]
+    to: Planned
+  - name: verify
+    label: Verify the item
+    from: [Installed]
+    to: Verified
+  - name: void
+    label: Void the item
+    from: [Planned, Installed]
+    to: Void

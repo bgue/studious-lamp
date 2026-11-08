@@ -38,6 +38,10 @@ Every ledger event type that can reach a webhook subscriber, generated from the 
 | [`Commercial.Assessed`](#commercialassessed) | `tl.core.Commercial.Assessed.v1` | The other party assessed an issued Commercial item: agreed, disputed or partially agreed, with the value they assessed. |
 | [`Commercial.Defined`](#commercialdefined) | `tl.core.Commercial.Defined.v1` | A Commercial item (early warning, change notice, claim ...) was raised. |
 | [`Commercial.Updated`](#commercialupdated) | `tl.core.Commercial.Updated.v1` | The domain fields of a Commercial item that is not yet issued changed. |
+| [`Constraint.Assigned`](#constraintassigned) | `tl.core.Constraint.Assigned.v1` | A constraint was assigned to an owner. |
+| [`Constraint.Cleared`](#constraintcleared) | `tl.core.Constraint.Cleared.v1` | A constraint was cleared. |
+| [`Constraint.Raised`](#constraintraised) | `tl.core.Constraint.Raised.v1` | A constraint was raised on a record. |
+| [`Constraint.Withdrawn`](#constraintwithdrawn) | `tl.core.Constraint.Withdrawn.v1` | A constraint was withdrawn (raised in error or no longer applies). |
 | [`ContractClause.Defined`](#contractclausedefined) | `tl.core.ContractClause.Defined.v1` | A contract clause was entered. |
 | [`ContractClause.Retired`](#contractclauseretired) | `tl.core.ContractClause.Retired.v1` | A clause was retired; clocks that cited it keep their reference. |
 | [`Correspondence.ClearanceGranted`](#correspondenceclearancegranted) | `tl.core.Correspondence.ClearanceGranted.v1` | An account was named as able to read a privileged item (ADR-0016). |
@@ -85,6 +89,18 @@ Every ledger event type that can reach a webhook subscriber, generated from the 
 | [`File.Processed`](#fileprocessed) | `tl.core.File.Processed.v1` | A file passed its scan and is available. |
 | [`File.Rejected`](#filerejected) | `tl.core.File.Rejected.v1` | A file failed its scan and was rejected. |
 | [`File.Uploaded`](#fileuploaded) | `tl.core.File.Uploaded.v1` | A file was uploaded and attached to a record; it is quarantined until its scan finishes. |
+| [`IWP.Created`](#iwpcreated) | `tl.core.IWP.Created.v1` | An interim work package was created. |
+| [`IWP.DocumentPinned`](#iwpdocumentpinned) | `tl.core.IWP.DocumentPinned.v1` | A document revision was pinned to an interim work package. |
+| [`IWP.Held`](#iwpheld) | `tl.core.IWP.Held.v1` | An interim work package was put on hold. |
+| [`IWP.HoldReleased`](#iwpholdreleased) | `tl.core.IWP.HoldReleased.v1` | The hold on an interim work package was lifted into a re-check. |
+| [`IWP.Issued`](#iwpissued) | `tl.core.IWP.Issued.v1` | An interim work package was issued to its foreman. |
+| [`IWP.ReadinessEvaluated`](#iwpreadinessevaluated) | `tl.core.IWP.ReadinessEvaluated.v1` | The readiness of an interim work package was evaluated (low importance). |
+| [`IWP.Ready`](#iwpready) | `tl.core.IWP.Ready.v1` | An interim work package turned ready. |
+| [`IWP.Revised`](#iwprevised) | `tl.core.IWP.Revised.v1` | Fields of an interim work package changed. |
+| [`IWP.ScopeAdded`](#iwpscopeadded) | `tl.core.IWP.ScopeAdded.v1` | A record was added to the scope of an interim work package. |
+| [`IWP.ScopeRemoved`](#iwpscoperemoved) | `tl.core.IWP.ScopeRemoved.v1` | A record was removed from the scope of an interim work package. |
+| [`IWP.SignedOff`](#iwpsignedoff) | `tl.core.IWP.SignedOff.v1` | A role signed off an interim work package. |
+| [`IWP.Split`](#iwpsplit) | `tl.core.IWP.Split.v1` | An interim work package was split into new ones. |
 | [`Inbound.Applied`](#inboundapplied) | `tl.core.Inbound.Applied.v1` | A delivery was mapped and its commands ran (or, for a dry-run endpoint, were planned). |
 | [`Inbound.Failed`](#inboundfailed) | `tl.core.Inbound.Failed.v1` | A delivery could not be applied; it is in the error queue until an admin retries it. |
 | [`Inbound.Received`](#inboundreceived) | `tl.core.Inbound.Received.v1` | A signed POST was accepted and queued for mapping. |
@@ -198,6 +214,8 @@ Every ledger event type that can reach a webhook subscriber, generated from the 
 | [`SchemaPackage.Retired`](#schemapackageretired) | `tl.core.SchemaPackage.Retired.v1` | A deprecated version was retired: it is out of every effective schema. |
 | [`SchemaPackage.Revised`](#schemapackagerevised) | `tl.core.SchemaPackage.Revised.v1` | The author changed the content of a draft. |
 | [`SchemaPackage.Submitted`](#schemapackagesubmitted) | `tl.core.SchemaPackage.Submitted.v1` | The author sent the package to review. |
+| [`ScopeItem.Created`](#scopeitemcreated) | `tl.core.ScopeItem.Created.v1` | A scope item was created. |
+| [`ScopeItem.Revised`](#scopeitemrevised) | `tl.core.ScopeItem.Revised.v1` | Fields of a scope item changed. |
 | [`Setting.Changed`](#settingchanged) | `tl.core.Setting.Changed.v1` | One key was set, or reset to what the layer above gives, at one layer. |
 | [`Setting.Locked`](#settinglocked) | `tl.core.Setting.Locked.v1` | The company locked a key for its projects, unlocked it, or changed the bounds projects must keep to. |
 | [`Standard.Closed`](#standardclosed) | `tl.core.Standard.Closed.v1` | A registry entry was superseded by another or retired; it stays resolvable for history. |
@@ -2085,6 +2103,238 @@ The domain fields of a Commercial item that is not yet issued changed.
   "tlseq": 48211933,
   "tlstreamversion": 7,
   "type": "tl.core.Commercial.Updated.v1"
+}
+```
+
+## Constraint.Assigned
+
+A constraint was assigned to an owner.
+
+- CloudEvents type: `tl.core.Constraint.Assigned.v1`
+- Ledger payload class: `ConstraintAssignedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `constraint_id` | string | yes | The constraint record. |
+| `owner` | string | yes | Actor text `user:<name>`. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "constraint_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P2",
+      "owner": "user:ben"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Constraint.Assigned/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Constraint.Assigned.v1"
+}
+```
+
+## Constraint.Cleared
+
+A constraint was cleared. `suppress` is true when a person cleared a check-raised constraint (R-P2-11).
+
+- CloudEvents type: `tl.core.Constraint.Cleared.v1`
+- Ledger payload class: `ConstraintClearedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `cleared_at` | string | yes | World time it stopped holding things back (date or UTC timestamp text). |
+| `cleared_by` | string | yes | The actor that cleared it. |
+| `constraint_id` | string | yes | The constraint record. |
+| `reason` | string | yes | Why it was cleared. |
+| `resolved_by` | string or null | no | The record that resolved it, or null. |
+| `suppress` | boolean | yes | True when the check result is suppressed. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "cleared_at": "2026-11-04T09:30:00Z",
+      "cleared_by": "user:ana",
+      "constraint_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P2",
+      "reason": "Spools delivered",
+      "resolved_by": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P3",
+      "suppress": false
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Constraint.Cleared/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Constraint.Cleared.v1"
+}
+```
+
+## Constraint.Raised
+
+A constraint was raised on a record. Carries the facts hash of a check raise (no column holds it).
+
+- CloudEvents type: `tl.core.Constraint.Raised.v1`
+- Ledger payload class: `ConstraintRaisedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `category` | string | yes | Code of the code list `ConstraintCategory`. |
+| `check_name` | string or null | no | The check that raised it, or null. |
+| `constraint_id` | string | yes | The constraint record. |
+| `description` | string or null | no | What holds the subject back, or null. |
+| `due_at` | string or null | no | World time it must be cleared by (date or UTC timestamp text), or null. |
+| `effective_at` | string or null | no | World time it began to hold things back (date or UTC timestamp text), or null. |
+| `facts_hash` | string or null | no | SHA-256 hex of the check facts, or null. |
+| `owner` | string or null | no | Actor text `user:<name>`, or null. |
+| `phase` | string | yes | The gated move, a lowercase code. |
+| `severity` | string | yes | blocking or advisory. |
+| `source` | string | yes | manual, check, rule, feed_hold or thread_hold. |
+| `subject_id` | string | yes | The record held back. |
+| `target_id` | string or null | no | The target record when target_kind is record, or null. |
+| `target_kind` | string or null | no | record or reference, or null. |
+| `target_ref_text` | string or null | no | Text of a plain reference, or null. |
+| `target_ref_type` | string or null | no | Type of a plain reference, or null. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "category": "materials",
+      "constraint_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P2",
+      "description": "Spools not delivered",
+      "due_at": "2026-11-05",
+      "owner": "user:ana",
+      "phase": "ready",
+      "severity": "blocking",
+      "source": "manual",
+      "subject_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P1",
+      "target_kind": "reference",
+      "target_ref_text": "PO-1042",
+      "target_ref_type": "purchase_order"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Constraint.Raised/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Constraint.Raised.v1"
+}
+```
+
+## Constraint.Withdrawn
+
+A constraint was withdrawn (raised in error or no longer applies).
+
+- CloudEvents type: `tl.core.Constraint.Withdrawn.v1`
+- Ledger payload class: `ConstraintWithdrawnPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `constraint_id` | string | yes | The constraint record. |
+| `reason` | string | yes | Why it was withdrawn. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "constraint_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P2",
+      "reason": "Raised on the wrong package"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Constraint.Withdrawn/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Constraint.Withdrawn.v1"
 }
 ```
 
@@ -4871,6 +5121,640 @@ A file was uploaded and attached to a record; it is quarantined until its scan f
   "tlseq": 48211933,
   "tlstreamversion": 7,
   "type": "tl.core.File.Uploaded.v1"
+}
+```
+
+## IWP.Created
+
+An interim work package was created.
+
+- CloudEvents type: `tl.core.IWP.Created.v1`
+- Ledger payload class: `IWPCreatedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `crew_text` | string or null | no | The crew in words, or null. |
+| `cwp_id` | string or null | no | The CWP, or null. |
+| `discipline` | string | yes | Code of the code list `Discipline`. |
+| `estimated_hours` | string or null | no | Decimal text with one decimal, or null. |
+| `foreman` | string or null | no | Actor text `user:<name>`, or null. |
+| `planned_finish` | string or null | no | YYYY-MM-DD, or null. |
+| `planned_start` | string or null | no | YYYY-MM-DD, or null. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "crew_text": "Crew of six",
+      "cwp_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P1",
+      "discipline": "PIP",
+      "estimated_hours": "120.0",
+      "foreman": "user:ana",
+      "planned_finish": "2026-11-13",
+      "planned_start": "2026-11-02"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/IWP.Created/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.IWP.Created.v1"
+}
+```
+
+## IWP.DocumentPinned
+
+A document revision was pinned to an interim work package.
+
+- CloudEvents type: `tl.core.IWP.DocumentPinned.v1`
+- Ledger payload class: `IWPDocumentPinnedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `document_id` | string | yes | The document. |
+| `revision_id` | string | yes | The revision pinned. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "document_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P1",
+      "revision_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P2"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/IWP.DocumentPinned/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.IWP.DocumentPinned.v1"
+}
+```
+
+## IWP.Held
+
+An interim work package was put on hold.
+
+- CloudEvents type: `tl.core.IWP.Held.v1`
+- Ledger payload class: `IWPHeldPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `by` | string | yes | The actor that held it. |
+| `reason` | string | yes | Why it was held. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "by": "user:01J9Z6Q4W3X2Y1V0T9S8R7Q6P1",
+      "reason": "Waiting for permit"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/IWP.Held/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.IWP.Held.v1"
+}
+```
+
+## IWP.HoldReleased
+
+The hold on an interim work package was lifted into a re-check.
+
+- CloudEvents type: `tl.core.IWP.HoldReleased.v1`
+- Ledger payload class: `IWPHoldReleasedPayload`
+- Version: 1
+
+### Payload fields
+
+No fields.
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {},
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/IWP.HoldReleased/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.IWP.HoldReleased.v1"
+}
+```
+
+## IWP.Issued
+
+An interim work package was issued to its foreman.
+
+- CloudEvents type: `tl.core.IWP.Issued.v1`
+- Ledger payload class: `IWPIssuedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `by` | string | yes | The actor that issued it. |
+| `foreman` | string | yes | The foreman (`user:<name>`). |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "by": "user:01J9Z6Q4W3X2Y1V0T9S8R7Q6P1",
+      "foreman": "user:ana"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/IWP.Issued/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.IWP.Issued.v1"
+}
+```
+
+## IWP.ReadinessEvaluated
+
+The readiness of an interim work package was evaluated (low importance).
+
+- CloudEvents type: `tl.core.IWP.ReadinessEvaluated.v1`
+- Ledger payload class: `IWPReadinessEvaluatedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `checks` | any | yes |  |
+| `evaluated_at` | string | yes | UTC timestamp text. |
+| `facts_hash` | string | yes | SHA-256 hex of the canonical facts. |
+| `feed_policy` | string | yes | The feed policy the handler fixed when it wrote the event; always "none" (no feed card). |
+| `iwp_id` | string | yes | The IWP. |
+| `ready` | boolean | yes | True when no check blocks. |
+| `today` | string | yes | YYYY-MM-DD the evaluation was made for. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "checks": [
+        {
+          "count_ok": 3,
+          "count_total": 3,
+          "detail": "All current",
+          "name": "documents_current",
+          "resolve_via": [],
+          "state": "ok",
+          "version": "1"
+        }
+      ],
+      "evaluated_at": "2026-11-02T08:00:00Z",
+      "facts_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "feed_policy": "none",
+      "iwp_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P1",
+      "ready": true,
+      "today": "2026-11-02"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/IWP.ReadinessEvaluated/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.IWP.ReadinessEvaluated.v1"
+}
+```
+
+## IWP.Ready
+
+An interim work package turned ready.
+
+- CloudEvents type: `tl.core.IWP.Ready.v1`
+- Ledger payload class: `IWPReadyPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `evaluated_at` | string | yes | UTC timestamp text of the evaluation. |
+| `iwp_id` | string | yes | The IWP. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "evaluated_at": "2026-11-02T08:00:00Z",
+      "iwp_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P1"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/IWP.Ready/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.IWP.Ready.v1"
+}
+```
+
+## IWP.Revised
+
+Fields of an interim work package changed.
+
+- CloudEvents type: `tl.core.IWP.Revised.v1`
+- Ledger payload class: `IWPRevisedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `changes` | any | yes |  |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "changes": {
+        "foreman": [
+          null,
+          "user:ana"
+        ]
+      }
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/IWP.Revised/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.IWP.Revised.v1"
+}
+```
+
+## IWP.ScopeAdded
+
+A record was added to the scope of an interim work package.
+
+- CloudEvents type: `tl.core.IWP.ScopeAdded.v1`
+- Ledger payload class: `IWPScopeAddedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `feed_policy` | string | yes | The feed policy the handler fixed when it wrote the event; always "none" (no feed card). |
+| `record_id` | string | yes | The scope item or tag added. |
+| `record_type` | string | yes | Its record type. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "feed_policy": "none",
+      "record_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P2",
+      "record_type": "awp.ScopeItem"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/IWP.ScopeAdded/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.IWP.ScopeAdded.v1"
+}
+```
+
+## IWP.ScopeRemoved
+
+A record was removed from the scope of an interim work package.
+
+- CloudEvents type: `tl.core.IWP.ScopeRemoved.v1`
+- Ledger payload class: `IWPScopeRemovedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `feed_policy` | string | yes | The feed policy the handler fixed when it wrote the event; always "none" (no feed card). |
+| `record_id` | string | yes | The scope item or tag removed. |
+| `record_type` | string | yes | Its record type. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "feed_policy": "none",
+      "record_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P2",
+      "record_type": "awp.ScopeItem"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/IWP.ScopeRemoved/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.IWP.ScopeRemoved.v1"
+}
+```
+
+## IWP.SignedOff
+
+A role signed off an interim work package.
+
+- CloudEvents type: `tl.core.IWP.SignedOff.v1`
+- Ledger payload class: `IWPSignedOffPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `by` | string | yes | The actor that signed (`user:<id>`). |
+| `record_hash` | string | yes | SHA-256 of the package as signed, hex. |
+| `role` | string | yes | The role signed for. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "by": "user:01J9Z6Q4W3X2Y1V0T9S8R7Q6P1",
+      "record_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "role": "foreman"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/IWP.SignedOff/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.IWP.SignedOff.v1"
+}
+```
+
+## IWP.Split
+
+An interim work package was split into new ones.
+
+- CloudEvents type: `tl.core.IWP.Split.v1`
+- Ledger payload class: `IWPSplitPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `new_ids` | any | yes |  |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "new_ids": [
+        "01J9Z6Q4W3X2Y1V0T9S8R7Q6P1",
+        "01J9Z6Q4W3X2Y1V0T9S8R7Q6P2"
+      ]
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/IWP.Split/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.IWP.Split.v1"
 }
 ```
 
@@ -11138,6 +12022,121 @@ The author sent the package to review.
   "tlseq": 48211933,
   "tlstreamversion": 7,
   "type": "tl.core.SchemaPackage.Submitted.v1"
+}
+```
+
+## ScopeItem.Created
+
+A scope item was created.
+
+- CloudEvents type: `tl.core.ScopeItem.Created.v1`
+- Ledger payload class: `ScopeItemCreatedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `commodity` | string | yes | Code of the code list `Commodity`. |
+| `cwp_id` | string or null | no | The CWP, or null. |
+| `description` | string or null | no | What the item is, or null. |
+| `est_hours` | string or null | no | Decimal text with one decimal, or null. |
+| `feed_policy` | string | yes | The feed policy the handler fixed when it wrote the event; always "none" (no feed card). |
+| `qty` | string or null | no | Decimal text, or null. |
+| `uom` | string or null | no | Code of `UnitOfMeasure`, or null. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "commodity": "piping",
+      "cwp_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P1",
+      "description": "Spool 14",
+      "est_hours": "8.0",
+      "feed_policy": "none",
+      "qty": "12.0",
+      "uom": "m"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/ScopeItem.Created/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.ScopeItem.Created.v1"
+}
+```
+
+## ScopeItem.Revised
+
+Fields of a scope item changed.
+
+- CloudEvents type: `tl.core.ScopeItem.Revised.v1`
+- Ledger payload class: `ScopeItemRevisedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `changes` | any | yes |  |
+| `feed_policy` | string | yes | The feed policy the handler fixed when it wrote the event; always "none" (no feed card). |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "changes": {
+        "qty": [
+          "12.0",
+          "14.0"
+        ]
+      },
+      "feed_policy": "none"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/ScopeItem.Revised/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.ScopeItem.Revised.v1"
 }
 ```
 

@@ -1,0 +1,102 @@
+id: https://example.org/throughline/modules/awp/readiness
+name: tl_mod_awp_readiness
+title: Readiness tables (brief 9, M3)
+description: >-
+  The last readiness evaluation of an IWP and its checks. Not records: written by the readiness projector only, from `IWP.ReadinessEvaluated`.
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+  - ../../core/annotations
+  - ../../core/record
+default_range: string
+annotations:
+  tl:module: awp
+
+classes:
+  AwpReadiness:
+    description: >-
+      The last evaluation of one IWP. Not a record; one row per IWP, replaced by each evaluation.
+    annotations:
+      tl:current_state: true
+      tl:table: cur_awp_readiness
+    attributes:
+      iwp_id:
+        identifier: true
+        range: Ulid
+        required: true
+        description: The `awp.IWP` evaluated.
+      scope:
+        range: ScopeId
+        required: true
+        description: The project scope, `project:<id>`.
+      evaluated_at:
+        required: true
+        description: When the evaluation ran, UTC timestamp text.
+      today:
+        required: true
+        pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+        description: "The date the evaluation was made for, `YYYY-MM-DD`."
+      ready:
+        range: boolean
+        required: true
+        description: True when no check blocks the release.
+      facts_hash:
+        required: true
+        description: SHA-256 hex of the canonical `IwpFacts`.
+      as_of_seq:
+        range: integer
+        required: true
+        description: The ledger `seq` of the event that wrote the row.
+
+  AwpReadinessCheck:
+    description: >-
+      One check result of the last evaluation of an IWP. Not a record; the rows of an IWP are replaced together.
+    annotations:
+      tl:current_state: true
+      tl:table: cur_awp_readiness_check
+      tl:ix_iwp: "iwp_id"
+    attributes:
+      row_id:
+        identifier: true
+        required: true
+        description: "`<iwp id>:<check name>`."
+      scope:
+        range: ScopeId
+        required: true
+        description: The project scope, `project:<id>`.
+      iwp_id:
+        range: Ulid
+        required: true
+        description: The `awp.IWP` evaluated.
+      name:
+        required: true
+        pattern: "^.{1,64}$"
+        description: The check name (at most 64 characters).
+      version:
+        required: true
+        description: The check version.
+      state:
+        required: true
+        pattern: "^(ok|blocked|pending|n_a|unknown)$"
+        description: "ok, blocked, pending, n_a or unknown."
+      detail:
+        pattern: "^.{0,500}$"
+        description: Fixed text plus counts (at most 500 characters).
+      count_ok:
+        range: integer
+        description: Count for the screen; null when the check has no denominator.
+      count_total:
+        range: integer
+        description: Denominator for the screen; null when none.
+      resolve_via:
+        range: Any
+        annotations:
+          tl:json: true
+        description: 'JSON list of at most 50 `{record_id, record_type, key}`. Column `resolve_via_json`.'
+      as_of_seq:
+        range: integer
+        required: true
+        description: The ledger `seq` of the event that wrote the row.

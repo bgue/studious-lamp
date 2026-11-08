@@ -31,10 +31,12 @@ def test_every_command_in_the_table_has_a_route(harness: Harness) -> None:
     # + the derivation pipeline (P1-I3), the cost (1) and schedule (6) modules (P1-I4), the
     # correspondence module's 28 (P1-I5), rules and actions (P1-I7 WS-A: 4 + 3 + 5 + 6 + 1) and
     # the thread messages (WS-B: 3), the 19 for RFIs and Commercial items (P1-I6) and the schema
-    # registry (P1-I8: 13; AdoptSchemaSet: 14), the awp module (P2-I1: 25) and the materials
-    # module (P2-I3: 22 + the 2 take-off commands)
+    # registry (P1-I8: 13; AdoptSchemaSet: 14), the awp module (P2-I1: 25; P2-I2 IWP, scope
+    # item commands: 10, the 4 constraint commands having left for the core; S3 sign-off, issue
+    # and hold: 4) and the materials module (P2-I3: 22 + the 2 take-off commands) and
+    # the 4 core constraint commands (P2-I2 C2)
     assert len(COMMANDS) == (
-        20 + 14 + 24 + 10 + 1 + 6 + 28 + 4 + 3 + 5 + 6 + 1 + 3 + 19 + 14 + 25 + 24
+        20 + 14 + 24 + 10 + 1 + 6 + 28 + 4 + 3 + 5 + 6 + 1 + 3 + 19 + 14 + 25 + 10 + 4 + 24 + 4
     )
 
 
@@ -288,6 +290,13 @@ def test_the_controller_actions_are_exactly_the_commands_marked_controller() -> 
             "ReopenCwp",
             "VoidCwp",
             "VoidExternalPackage",
+            # the awp module (P2-I2): the cancel of an IWP reads as the word awp.void
+            "CancelIwp",
+            # P2-I2 S3: sign-off, issue and hold of an IWP
+            "SignOffIwp",
+            "IssueIwp",
+            "HoldIwp",
+            "ReleaseHold",
             # the materials module (P2-I3): the library, the location tree, the stock write-offs,
             # the voiding of a receipt and the take-off publish
             "DefineItem",

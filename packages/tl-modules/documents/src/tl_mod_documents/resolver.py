@@ -28,11 +28,12 @@ current one. A pin that names a revision the document does not have resolves as 
 
 from __future__ import annotations
 
+from collections.abc import Collection
 from dataclasses import dataclass, field
 from typing import Literal
 
 from pydantic import ConfigDict, Field
-from sqlalchemy import Connection, text
+from sqlalchemy import Connection, bindparam, text
 from tl_core import confidentiality
 from tl_core.ledger import Event
 from tl_core.services.commands import Command, CommandResult
@@ -172,31 +173,47 @@ def links_to_documents(
     document_id: str | None = None,
     only_stale: bool = False,
     limit: int = 1000,
+    link_ids: Collection[str] | None = None,
 ) -> list[PinnedLink]:
     """Links (active or stale) that point to a document of the scope, with each pin resolved.
 
     ``only_stale`` keeps links whose status is stale or whose pin is behind. Ordered by document
     number, then the key of the record that links. This is what the stale pinned revisions report
     and a document's links tab read.
+
+    ``link_ids`` asks for exactly those links (the pins of one IWP): the statement is narrowed to
+    them and the visibility test is made per row. An empty collection returns ``[]`` with no
+    statement. Each ``(document, pin)`` is resolved once per call.
     """
+    if link_ids is not None and not link_ids:
+        return []
     sql = _LINKS_OF_DOCS_SQL
     params: dict[str, object] = {"document_type": DOCUMENT, "scope": scope, "limit": limit}
     if document_id is not None:
         sql += " AND l.to_id = :document_id"
         params["document_id"] = document_id
+    if link_ids is not None:
+        sql += " AND l.link_id IN :link_ids"
+        params["link_ids"] = list(link_ids)
     # both ends must be readable (ADR-0016): the document, and the record that links to it
-    # (one document: the few rows are tested one by one; the scope's links: the hidden set once)
-    test = (
-        confidentiality.not_hidden_each if document_id is not None else confidentiality.not_hidden
-    )
+    # (a few rows: each is tested by its own lookup; the scope's links: the hidden set once)
+    few = document_id is not None or link_ids is not None
+    test = confidentiality.not_hidden_each if few else confidentiality.not_hidden
     for end in ("d.id", "x.id"):
         visible, visible_params = test(end)
         sql += f" AND {visible}"
         params.update(visible_params)
     sql += " ORDER BY d.key, x.key, l.link_id LIMIT :limit"
+    statement = text(sql)
+    if link_ids is not None:
+        statement = statement.bindparams(bindparam("link_ids", expanding=True))
+    resolved: dict[tuple[str, str | None], PinResolution] = {}
     found: list[PinnedLink] = []
-    for row in conn.execute(text(sql), params).all():
-        resolution = resolve_pin(conn, row.to_id, row.pin)
+    for row in conn.execute(statement, params).all():
+        key = (row.to_id, row.pin)
+        if key not in resolved:
+            resolved[key] = resolve_pin(conn, row.to_id, row.pin)
+        resolution = resolved[key]
         if only_stale and row.status != "stale" and not resolution.stale:
             continue
         found.append(

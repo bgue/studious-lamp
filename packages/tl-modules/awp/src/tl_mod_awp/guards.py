@@ -6,6 +6,8 @@ path included), after the record is known to be visible to the viewer.
 
 * **CWP, every generic command it takes** (values, links, link life, files): ``not_closed``. A
   Closed or Void package is the record of what was built or abandoned and takes no more.
+* **IWP, every generic command it takes**: ``iwp_not_closed``. A Closed, Split or Cancelled
+  package takes no more values, links or files.
 """
 
 from __future__ import annotations
@@ -13,10 +15,11 @@ from __future__ import annotations
 from sqlalchemy import Connection
 from tl_core.services.errors import UnsupportedRecordTypeError
 
-from tl_mod_awp.common import package_state
-from tl_mod_awp.names import ST_CLOSED, ST_VOID
+from tl_mod_awp.common import package_state, record_state
+from tl_mod_awp.names import IWP_DRAFT, IWP_TERMINAL, ST_CLOSED, ST_VOID
 
 MSG_CLOSED = "a closed or void package takes no more values, links or files"
+MSG_IWP_CLOSED = "a closed, split or cancelled package takes no more values, links or files"
 
 
 def not_closed(conn: Connection, record_id: str, slot: str | None) -> None:
@@ -24,3 +27,10 @@ def not_closed(conn: Connection, record_id: str, slot: str | None) -> None:
     del slot
     if package_state(conn, record_id) in (ST_CLOSED, ST_VOID):
         raise UnsupportedRecordTypeError(MSG_CLOSED)
+
+
+def iwp_not_closed(conn: Connection, record_id: str, slot: str | None) -> None:
+    """Refuse a generic command on an IWP that is Closed, Split or Cancelled."""
+    del slot
+    if record_state(conn, record_id, IWP_DRAFT) in IWP_TERMINAL:
+        raise UnsupportedRecordTypeError(MSG_IWP_CLOSED)

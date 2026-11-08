@@ -35,10 +35,14 @@ transitions:
     label: Start executing the package
     from: [Released for IWP development]
     to: Executing
+    guards:
+      - {kind: no_open_blocking_constraints}
   - name: complete
     label: Mark the package complete
     from: [Executing]
     to: Complete
+    guards:
+      - {kind: no_open_blocking_constraints}
   - name: reopen
     label: Reopen a complete package
     from: [Complete]
