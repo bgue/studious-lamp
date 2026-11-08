@@ -151,6 +151,10 @@ scan-secrets:
 release-build:
     bash dev/release/build.sh
 
+# P200 starter bundle (ledger, overlay schema, START.txt) into dist/release-<version>/ (dev/release/starter.sh, P2-REL-T04)
+release-starter *args:
+    bash dev/release/starter.sh {{args}}
+
 # Known-vulnerability audit of the locked dependencies (needs network; pip-audit runs through uvx
 # and is not a dependency of the project)
 audit-deps:
