@@ -48,3 +48,7 @@ Stop and report *Blocked* if a command in the smoke script does not behave as th
 
 ## Decision
 (supervisor or orchestrator writes here)
+
+## Orchestrator addendum (2026-11-08, from the S2 security review)
+- The runbook says that the plain-http refusal is enforced by the TUI only; other `ApiClient` users (MCP) are not guarded, so operators must put the server behind TLS or a trusted proxy (S2 F2).
+- The runbook says to set a real `TL_OBJECT_SECRET` in production and never the public try-it value from the starter bundle; note that the server does not yet refuse that exact value (S2 F1, logged as a follow-up).
