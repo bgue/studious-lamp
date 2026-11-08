@@ -81,6 +81,8 @@ def test_the_platform_file_defines_the_keys_of_decision_d2() -> None:
         "awp.release.signoff_roles",
         "awp.release.allow_unknown_checks",
         "awp.rules_of_credit.set",
+        "awp.pack.pdf",  # P2-I5 S1
+        "tui.landing",
         "awp.constraint.aging_days",
         "awp.constraint.auto_raise",
         "awp.constraint.default_owners",
@@ -95,7 +97,7 @@ def test_every_platform_default_is_valid_and_no_key_is_secret() -> None:
     assert all(d.sensitivity == "normal" and d.owner == "platform" for d in loaded)
     assert all("platform" in d.scopes for d in loaded)
     user_keys = [d.key for d in loaded if "user" in d.scopes]
-    assert user_keys and all(k.startswith("ui.") for k in user_keys)
+    assert user_keys and all(k.startswith("ui.") or k == "tui.landing" for k in user_keys)
 
 
 def test_the_dangerous_and_advanced_keys_are_marked() -> None:
