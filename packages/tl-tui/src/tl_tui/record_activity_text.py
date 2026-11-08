@@ -6,6 +6,8 @@ bodies are the plain placeholders T02 (the tab) is built against, and T01 replac
 
 from __future__ import annotations
 
+import re
+
 from tl_core.insights.types import ActivityRow
 
 from tl_tui.display import Labels, actor_label
@@ -27,6 +29,7 @@ PROPOSAL_WORDS: dict[str, str] = {
     "Proposal.Accepted": "Proposal accepted",
     "Proposal.Rejected": "Proposal rejected",
 }
+DECIDED_WORDS: dict[str, str] = {"Proposal.Accepted": "accepted", "Proposal.Rejected": "rejected"}
 READINESS_EVENT = "IWP.ReadinessEvaluated"
 ACTIVITY_DROP = ("Kind", "From", "What", "Why")  # the order the Activity table drops columns
 TECHNICAL_COLUMNS = ("#", "When", "Event", "Actor", "Summary", "From")
@@ -47,10 +50,21 @@ def activity_columns(rows: list[ActivityRow], *, technical: bool) -> tuple[str, 
     return (*base, "Why") if page_has_why(rows) else base
 
 
+def _name(actor: str, labels: Labels) -> str:
+    """A decider's name: an agent by its id, anyone else as ``display.actor_label`` gives it."""
+    if actor.startswith("agent:"):
+        return actor[len("agent:") :]
+    return actor_label(labels, actor)
+
+
 def who_text(row: ActivityRow, labels: Labels) -> str:
     """The actor's words: a person by name and a service by its label (``display.actor_label``);
-    an agent as ``Agent: <id>`` (brief A1.1)."""
+    an agent as ``Agent: <id>`` (brief A1.1). A decided proposal reads ``accepted by <decider>``
+    or ``rejected by <decider>``; the filing row already names who filed it."""
     actor = row.event.actor
+    verb = DECIDED_WORDS.get(row.event.event_type)
+    if row.kind == "proposal" and verb:
+        return f"{verb} by {_name(row.decided_by or actor, labels)}"
     if actor.startswith("agent:"):
         return f"Agent: {actor[len('agent:') :]}"
     return actor_label(labels, actor)
@@ -58,7 +72,8 @@ def who_text(row: ActivityRow, labels: Labels) -> str:
 
 def what_text(row: ActivityRow, labels: Labels, *, technical: bool) -> str:
     """What happened: the proposal and readiness words, else the event's label, and the summary
-    for the record's own rows (a related row reads as its label only)."""
+    for the record's own rows (a related row reads as its label only). A summary that already
+    begins with the label's word stands alone."""
     event = row.event
     if row.kind == "proposal" and event.event_type in PROPOSAL_WORDS:
         return PROPOSAL_WORDS[event.event_type]
@@ -68,7 +83,11 @@ def what_text(row: ActivityRow, labels: Labels, *, technical: bool) -> str:
     if row.related:
         return label
     summary = event_summary(event, labels, technical=technical)
-    return f"{label}: {summary}" if summary else label
+    if not summary:
+        return label
+    if re.match(rf"{re.escape(label)}\b", summary, re.IGNORECASE):
+        return summary
+    return f"{label}: {summary}"
 
 
 def why_text(row: ActivityRow) -> str:

@@ -48,7 +48,8 @@ def row(
     event_type: str = "Record.Updated", actor: str = "user:Maria Lee", **kw: object
 ) -> ActivityRow:
     kind = kw.pop("kind", "change")
-    return ActivityRow(event=event(event_type, actor), kind=kind, **kw)  # type: ignore[arg-type]
+    payload = kw.pop("payload", None)
+    return ActivityRow(event=event(event_type, actor, payload), kind=kind, **kw)  # type: ignore[arg-type]
 
 
 def plain(item: ActivityRow) -> tuple[str, ...]:
@@ -84,7 +85,7 @@ def test_a_proposal_accepted_by_a_person_reads_by_name() -> None:
         decided_by="user:Maria Lee",
     )
     cells = plain(item)
-    assert cells[1] == "Maria Lee"
+    assert cells[1] == "accepted by Maria Lee"
     assert cells[3] == "Proposal accepted"
 
 
@@ -98,7 +99,13 @@ def test_a_proposal_filed_by_an_agent_names_the_agent() -> None:
 
 def test_a_rejected_proposal_reads_rejected() -> None:
     item = row("Proposal.Rejected", "user:Maria Lee", kind="proposal", decided_by="user:Maria Lee")
+    assert plain(item)[1] == "rejected by Maria Lee"
     assert plain(item)[3] == "Proposal rejected"
+
+
+def test_a_summary_that_starts_with_the_label_word_stands_alone() -> None:
+    item = row(payload={"changes": {"size_in": {"from": 4, "to": 6}}})
+    assert plain(item)[3] == "changed: Size in"
 
 
 def test_a_readiness_row_reads_its_note() -> None:
