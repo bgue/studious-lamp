@@ -14,6 +14,7 @@ from fastapi import APIRouter, Depends, Response
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy import text
 from tl_core import confidentiality
+from tl_core.auth.module_roles import holder_for_principal
 from tl_core.auth.types import Principal
 from tl_core.insights.checks import record_checks, record_facts
 from tl_core.insights.types import CheckFinding
@@ -23,7 +24,7 @@ from tl_core.telemetry import note_need, role_word
 from tl_api.auth import current_principal, guard
 from tl_api.context import ApiContext, get_ctx
 from tl_api.errors import ApiError
-from tl_api.insights_sources import SOURCES
+from tl_api.insights_sources import sources_for
 from tl_api.ratelimit import SourceLimiter
 
 router = APIRouter(tags=["insights"])
@@ -53,14 +54,15 @@ class NeedIn(BaseModel):
 
 
 @router.get("/records/{record_id}/checks", operation_id="get_record_checks")
-def get_record_checks(ctx: Ctx, actor: Reader, record_id: str) -> list[CheckFinding]:
+def get_record_checks(ctx: Ctx, actor: Reader, who: Who, record_id: str) -> list[CheckFinding]:
     """What needs attention on the record, from five sources. 404 `record_not_found` when the
     record is unknown or hidden from the caller (the same body)."""
     with ctx.backend(True) as uow:
         facts = record_facts(uow.conn(), record_id)
         if facts is None:
             raise RecordNotFoundError(f"no record {record_id!r}")
-        return record_checks(uow.conn(), facts, SOURCES)
+        sources = sources_for(uow.conn(), holder_for_principal(who), facts.scope)
+        return record_checks(uow.conn(), facts, sources)
 
 
 @router.post("/insights/needs", operation_id="note_need", status_code=204)
