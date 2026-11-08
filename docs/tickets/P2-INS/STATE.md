@@ -2,11 +2,11 @@
 ## BOARD   <id> <t|p> <todo|stg|disp|pass|mrg|abn|2s|gr|blk> <l|f> <sha|-> <note, <= 8 words>
 S1 p mrg f 96d4a51 Activity read, route, client; APPROVALS a6a854e
 S2 p mrg f 06e2c3e Checks, telemetry, note_need; APPROVALS 2fbcdcf
-T01 t todo l - real text bodies over committed stub; ready
+T01 t mrg l 8b54026 real text bodies over committed stub; ready
 T02 t mrg f 8c9682d ActivityTab + InsightsTab stub widgets, no record_view; ready
 T02b t mrg f 2f3c264 record_view wiring, keys 4/h/9, keymap, pins; after T01+T02
 T03 t mrg f 48c1561 Insights tab Checks + 3 unmet subtabs; after T02b
-T04 t todo f - twin tests core level; independent, ready now
+T04 t mrg f e7691d6 twin tests core level; independent, ready now
 ## DEC     D<n> <date> <one line: what, why, where recorded>
 D1 2026-11-08 Activity pages by outbox seq (before_seq), not recorded_at; S1 spec
 D2 2026-11-08 Link events found via subject_id IN + stream_id IN (no stream_id index); S1
