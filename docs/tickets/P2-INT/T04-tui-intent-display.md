@@ -17,7 +17,7 @@ A reader of a record's History tab sees why an event happened. After this ticket
 ## Interfaces
 Drift found at r3: (1) the Activity screen lists schedule activities, not events: it is out of scope. Trace shows links, not events (S2: trace has no intent): out of scope. (2) History is a `DataTable` of one row per event (`record_text.history_cells`, `widgets/record_view.py` `_draw_history`), so there is no block "under the event line"; the panel below the table is the design. (3) `tl_core.ledger.Event` already carries `intent` (S2); the remote client parses it from the API, which redacts. The embedded client calls `queries.record_history`, which does NOT redact, so a hidden reference would show as an id: `embedded.history` must pass its result through `tl_core.intent.redact_events(uow.conn(), events)` (the viewer is the current one).
 ```python
-# tl_tui/intent_text.py (create; provided test packages/tl-tui/tests/test_intent_text.py, committed)
+# tl_tui/intent_text.py (create; provided test docs/tickets/P2-INT/provided/test_intent_text.py: copy it to packages/tl-tui/tests/ unchanged)
 def intent_lines(intent: Intent | None, *, technical: bool, names: Mapping[str, str] | None = None) -> list[str]
 # None or empty (intent_json(intent) is None) -> []; order Why, Next (one per item), Toward, Goal.
 # plain: "Why: <t>", "Next: <command> <name>" | "Next: <text>", "Toward: <name> -> <state or condition>", "Goal: <ref>"; names maps record id -> key, an id with no entry is shown as is ("not available" too)
