@@ -74,3 +74,7 @@ One line each: what, why it waits, and the phase it belongs to. Newest at the bo
 | Insights: Ask, a record-scoped conversation with cited answers (item 12) | Needs retrieval, analysis jobs, a streaming route and a spend decision unless local | Phase 3 to 4 |
 | Insights: web versions of the Insights tab, inbox and Ask (item 13) | Owner: CLI and TUI first | Web increment after wave 4 |
 | Activity and Insights extras: "show in graph" from an Activity row, related activity beyond one hop, subtab hot keys, an Activity web page | Part C keeps one hop and the TUI only | Phase 4 and the web increment |
+| Intent on the remaining CLI write paths: about 440 `handle_*` calls in tl-cli skip the dispatcher, so their events keep NULL intent (P2-INT-T02 covers record create/void and link add/retract) | P2-INT D6: one wrapper per path is wide; the API, MCP propose tools and these four CLI paths carry intent now | Phase 3 (CLI dispatcher) |
+| Intent on the web action route, MCP non-propose tools, and the entries that bypass the dispatcher (simulator, rule and integration runners, jobs, thread dispatch) | P2-INT S2 D5: they keep NULL intent and are reported, not extended | Phase 3 |
+| `tl events` reads without intent redaction | Found at P2-INT r3; the CLI reads as the local operator | Phase 3, with the CLI dispatcher |
+| A TUI live-remote timing test (`test_remote_a_write_by_another_client_marks_the_row_within_two_seconds`) fails under heavy parallel load and passes alone | Seen at the P2-INT close; timing bound, not a defect found | Next test-hardening slot |
