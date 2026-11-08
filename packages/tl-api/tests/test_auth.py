@@ -124,7 +124,7 @@ def test_only_loopback_binds_are_allowed_by_default() -> None:
         check_bind(host, insecure_dev=False)
     for host in ("0.0.0.0", "192.168.1.5", "example.com", "::"):
         assert not is_loopback(host)
-        with pytest.raises(ValueError, match="--insecure-dev"):
+        with pytest.raises(ValueError, match="TLS proxy"):
             check_bind(host, insecure_dev=False)
         check_bind(host, insecure_dev=True)
 

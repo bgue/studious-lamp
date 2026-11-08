@@ -3,6 +3,9 @@
 A thin wrapper over ``tl_api.main.main`` (what ``just serve`` runs): it passes the ledger chosen by
 the root ``--db`` option (a SQLite file or a ``postgresql://`` URL) and the options below, and
 exits with the server's exit code. The call is in process, so a URL is not on any command line.
+
+Bind rule: loopback always; a non-loopback host only with --insecure-dev or when TL_ENV names a
+deployment (then TL_OBJECT_SECRET is required and a TLS proxy in front is the deployer's duty).
 """
 
 from __future__ import annotations
@@ -19,7 +22,13 @@ DEFAULT_PORT = 8765
 
 def serve(
     ctx: typer.Context,
-    host: Annotated[str, typer.Option("--host", help="Bind address.")] = DEFAULT_HOST,
+    host: Annotated[
+        str,
+        typer.Option(
+            "--host",
+            help="Bind address; non-loopback needs TL_ENV=prod (TLS proxy) or --insecure-dev.",
+        ),
+    ] = DEFAULT_HOST,
     port: Annotated[int, typer.Option("--port", help="Bind port.")] = DEFAULT_PORT,
     tokens: Annotated[
         Path, typer.Option("--tokens", envvar="TL_TOKENS", help="Dev token file.")
@@ -28,7 +37,7 @@ def serve(
         bool, typer.Option("--insecure-dev", help="Allow a non-loopback bind (dev only).")
     ] = False,
 ) -> None:
-    """Serve the API and the event stream on the dev ledger (loopback unless --insecure-dev)."""
+    """Serve the API and event stream (non-loopback: --insecure-dev, or TL_ENV=prod behind TLS)."""
     from tl_api import main as api_main
 
     argv = ["--db", str(ctx.obj), "--tokens", str(tokens), "--host", host, "--port", str(port)]
