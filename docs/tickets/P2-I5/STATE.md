@@ -13,7 +13,7 @@ T07a t mrg f bcf3c2e pack HTML + QR + `iwp pack`; build_pack_data, render_html -
 T04 t mrg f 674310a look-ahead + week CLI; ready after T09; provided test in tree (R-B)
 T11a1 t mrg f 42ac14f API progress/rollup/kpis/counts/hash routes; after T09 (R-B)
 T11c t mrg f 36c990d MCP five reads; after T09 (R-B)
-T11a2 t todo f - API weeks/miss-reasons/look-ahead; after T11a1 (R-C)
+T11a2 t mrg f 8d4e0cb API weeks/miss-reasons/look-ahead; after T11a1 (R-C)
 T07b t mrg l 8b77cfb pack template; ready; provided test r6; golden made by the ticket (R-C)
 T11b t todo f - client methods + fakes + two command doors; after T11a1 T11a2 (R-D)
 T06a t todo f - TUI cycle steps 1-3; after T11b; stub weekly_text.py + provided test in tree (R-E)
