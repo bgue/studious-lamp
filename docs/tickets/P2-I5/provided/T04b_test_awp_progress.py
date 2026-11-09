@@ -3,12 +3,39 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 import pytest
+from sqlalchemy import text
 from test_cli_awp import Cli, load_world, seed_copy
-from tl_adapters.db import as_target
+from tl_adapters.db import as_target, open_uow
+from tl_mod_awp.handlers.signoff import iwp_record_hash
 
 NUMBER_SQL = "SELECT key FROM cur_core_record WHERE id = :i"
+
+
+def issue_the_real_way(w: Any, iwp: str) -> None:
+    """Ready, a readiness row that says ready, two distinct signers of the current record hash,
+    then IssueIwp (the same commands the module tests use). The readiness row is written by hand,
+    as the module tests do: the readiness projection is not under test here."""
+    w.set_status(iwp, "Ready")
+    with open_uow(w.db) as uow:
+        conn = uow.conn()
+        conn.execute(text("DELETE FROM cur_awp_readiness_check WHERE iwp_id = :i"), {"i": iwp})
+        conn.execute(text("DELETE FROM cur_awp_readiness WHERE iwp_id = :i"), {"i": iwp})
+        conn.execute(
+            text(
+                "INSERT INTO cur_awp_readiness (iwp_id, scope, evaluated_at, today, ready, "
+                "facts_hash, as_of_seq) VALUES (:i, :s, '2026-11-07T08:00:00Z', '2026-11-07', "
+                "1, :h, 1)"
+            ),
+            {"i": iwp, "s": load_world().SCOPE, "h": "0" * 64},
+        )
+    with open_uow(w.db, readonly=True) as uow:
+        digest = iwp_record_hash(uow.conn(), iwp)
+    w.call("ada", "SignOffIwp", iwp=iwp, record_hash=digest)
+    w.call("sue", "SignOffIwp", iwp=iwp, record_hash=digest)
+    w.call("sue", "IssueIwp", iwp=iwp, record_hash=digest)
 
 
 class Built:
@@ -22,8 +49,8 @@ class Built:
         self.small, self.large = (str(self.w.scalar(NUMBER_SQL, i=i)) for i in ids)
 
     def issue(self) -> None:
-        """Issued as the projection holds it (the sign-off path is not under test here)."""
-        self.w.set_status(self.iwp, "Issued")
+        """Issued through the real command path, so every projection agrees."""
+        issue_the_real_way(self.w, self.iwp)
 
     def earned(self) -> str:
         return self.cli.ok("iwp", "progress", self.number)[1]
