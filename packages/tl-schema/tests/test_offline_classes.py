@@ -25,6 +25,7 @@ SPEC_RECORDS: dict[str, str] = {
     "awp.PWPRef": "none",
     "awp.PathOfConstruction": "none",
     "awp.WBSNode": "none",
+    "awp.WeeklyPlan": "none",  # P2-I5-S1: added after the spec table
     "core.Constraint": "draft_only",
     "core.Record": "full",
     "correspondence.CommercialItem": "none",
@@ -87,7 +88,7 @@ SPEC_STREAMS: dict[str, str] = {
 
 def test_every_labelled_record_type_has_a_class_and_nothing_else() -> None:
     assert set(OFFLINE_CLASSES) == set(TYPE_LABELS)
-    assert len(OFFLINE_CLASSES) == 49
+    assert len(OFFLINE_CLASSES) == 50
 
 
 def test_the_record_table_is_the_spec_table_cell_for_cell() -> None:

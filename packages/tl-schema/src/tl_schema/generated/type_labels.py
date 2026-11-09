@@ -14,6 +14,7 @@ TYPE_LABELS: Final[dict[str, str]] = {
     "awp.PathOfConstruction": "Path of construction",
     "awp.ScopeItem": "Scope item",
     "awp.WBSNode": "WBS node",
+    "awp.WeeklyPlan": "Weekly plan",
     "core.Constraint": "Constraint",
     "core.Record": "Record",
     "correspondence.CommercialItem": "Commercial item",

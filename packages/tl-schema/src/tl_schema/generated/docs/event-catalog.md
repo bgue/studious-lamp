@@ -62,6 +62,8 @@ Every ledger event type that can reach a webhook subscriber, generated from the 
 | [`CostCode.MeasuresRecorded`](#costcodemeasuresrecorded) | `tl.core.CostCode.MeasuresRecorded.v1` | A snapshot stated the figures of a cost code. |
 | [`CostCode.Revised`](#costcoderevised) | `tl.core.CostCode.Revised.v1` | A snapshot changed the description, parent or unit of measure of an existing cost code. |
 | [`CostSnapshot.Defined`](#costsnapshotdefined) | `tl.core.CostSnapshot.Defined.v1` | A period of figures was imported. |
+| [`Cwp.PartyAssigned`](#cwppartyassigned) | `tl.core.Cwp.PartyAssigned.v1` | A construction work package was assigned to a party. |
+| [`Cwp.SubcontractProgressRecorded`](#cwpsubcontractprogressrecorded) | `tl.core.Cwp.SubcontractProgressRecorded.v1` | Progress of a subcontracted construction work package was recorded from a file. |
 | [`DerivedDocument.ContentRecorded`](#deriveddocumentcontentrecorded) | `tl.core.DerivedDocument.ContentRecorded.v1` | One extractor pass over a source file finished: a new content revision of the derived document. |
 | [`DerivedDocument.Defined`](#deriveddocumentdefined) | `tl.core.DerivedDocument.Defined.v1` | A derived document was opened for a source revision and a document schema. |
 | [`DerivedDocument.PublicationCompensated`](#deriveddocumentpublicationcompensated) | `tl.core.DerivedDocument.PublicationCompensated.v1` | The publication of a derived document was rolled back: reversing events for everything its import made were appended under a correlation id of their own. |
@@ -91,9 +93,11 @@ Every ledger event type that can reach a webhook subscriber, generated from the 
 | [`File.Uploaded`](#fileuploaded) | `tl.core.File.Uploaded.v1` | A file was uploaded and attached to a record; it is quarantined until its scan finishes. |
 | [`IWP.Created`](#iwpcreated) | `tl.core.IWP.Created.v1` | An interim work package was created. |
 | [`IWP.DocumentPinned`](#iwpdocumentpinned) | `tl.core.IWP.DocumentPinned.v1` | A document revision was pinned to an interim work package. |
+| [`IWP.FieldCompleted`](#iwpfieldcompleted) | `tl.core.IWP.FieldCompleted.v1` | Field work on an interim work package was completed. |
 | [`IWP.Held`](#iwpheld) | `tl.core.IWP.Held.v1` | An interim work package was put on hold. |
 | [`IWP.HoldReleased`](#iwpholdreleased) | `tl.core.IWP.HoldReleased.v1` | The hold on an interim work package was lifted into a re-check. |
 | [`IWP.Issued`](#iwpissued) | `tl.core.IWP.Issued.v1` | An interim work package was issued to its foreman. |
+| [`IWP.ProgressRecorded`](#iwpprogressrecorded) | `tl.core.IWP.ProgressRecorded.v1` | The earned progress of an interim work package was recorded. |
 | [`IWP.ReadinessEvaluated`](#iwpreadinessevaluated) | `tl.core.IWP.ReadinessEvaluated.v1` | The readiness of an interim work package was evaluated (low importance). |
 | [`IWP.Ready`](#iwpready) | `tl.core.IWP.Ready.v1` | An interim work package turned ready. |
 | [`IWP.Revised`](#iwprevised) | `tl.core.IWP.Revised.v1` | Fields of an interim work package changed. |
@@ -101,6 +105,8 @@ Every ledger event type that can reach a webhook subscriber, generated from the 
 | [`IWP.ScopeRemoved`](#iwpscoperemoved) | `tl.core.IWP.ScopeRemoved.v1` | A record was removed from the scope of an interim work package. |
 | [`IWP.SignedOff`](#iwpsignedoff) | `tl.core.IWP.SignedOff.v1` | A role signed off an interim work package. |
 | [`IWP.Split`](#iwpsplit) | `tl.core.IWP.Split.v1` | An interim work package was split into new ones. |
+| [`IWP.Started`](#iwpstarted) | `tl.core.IWP.Started.v1` | Field work on an interim work package started. |
+| [`IWPCloseout.Recorded`](#iwpcloseoutrecorded) | `tl.core.IWPCloseout.Recorded.v1` | The closeout of an interim work package was recorded. |
 | [`Inbound.Applied`](#inboundapplied) | `tl.core.Inbound.Applied.v1` | A delivery was mapped and its commands ran (or, for a dry-run endpoint, were planned). |
 | [`Inbound.Failed`](#inboundfailed) | `tl.core.Inbound.Failed.v1` | A delivery could not be applied; it is in the error queue until an admin retries it. |
 | [`Inbound.Received`](#inboundreceived) | `tl.core.Inbound.Received.v1` | A signed POST was accepted and queued for mapping. |
@@ -257,6 +263,10 @@ Every ledger event type that can reach a webhook subscriber, generated from the 
 | [`WebhookSubscription.Enabled`](#webhooksubscriptionenabled) | `tl.core.WebhookSubscription.Enabled.v1` | A disabled subscription started receiving events again, from this event on. |
 | [`WebhookSubscription.SecretRotated`](#webhooksubscriptionsecretrotated) | `tl.core.WebhookSubscription.SecretRotated.v1` | A new signing secret was issued; the previous one keeps signing until the overlap ends. |
 | [`WebhookSubscription.Updated`](#webhooksubscriptionupdated) | `tl.core.WebhookSubscription.Updated.v1` | A subscription's name, target, filter or payload mode changed. |
+| [`WeeklyPlan.Closed`](#weeklyplanclosed) | `tl.core.WeeklyPlan.Closed.v1` | The weekly plan was closed with its percent plan complete. |
+| [`WeeklyPlan.IwpCommitted`](#weeklyplaniwpcommitted) | `tl.core.WeeklyPlan.IwpCommitted.v1` | A foreman committed an interim work package to the week. |
+| [`WeeklyPlan.Opened`](#weeklyplanopened) | `tl.core.WeeklyPlan.Opened.v1` | A weekly plan was opened for a project week. |
+| [`WeeklyPlan.OutcomeRecorded`](#weeklyplanoutcomerecorded) | `tl.core.WeeklyPlan.OutcomeRecorded.v1` | The outcome of one commitment was recorded: done, or missed with a reason. |
 | [`Workflow.Transitioned`](#workflowtransitioned) | `tl.core.Workflow.Transitioned.v1` | A record moved from one workflow state to another. |
 
 ## Account.Created
@@ -3482,6 +3492,115 @@ A period of figures was imported.
 }
 ```
 
+## Cwp.PartyAssigned
+
+A construction work package was assigned to a party.
+
+- CloudEvents type: `tl.core.Cwp.PartyAssigned.v1`
+- Ledger payload class: `CwpPartyAssignedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `at` | string or null | no | UTC timestamp of the assignment. |
+| `feed_policy` | string | yes | The feed policy the handler fixed when it wrote the event; always "none" (no feed card). |
+| `party` | string or null | no | The party in words (at most 120 characters), or null to clear it. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "at": "2026-11-02T09:00:00Z",
+      "feed_policy": "none",
+      "party": "North Piping Ltd"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Cwp.PartyAssigned/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Cwp.PartyAssigned.v1"
+}
+```
+
+## Cwp.SubcontractProgressRecorded
+
+Progress of a subcontracted construction work package was recorded from a file.
+
+- CloudEvents type: `tl.core.Cwp.SubcontractProgressRecorded.v1`
+- Ledger payload class: `CwpSubcontractProgressRecordedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `at` | string or null | no | UTC timestamp the progress was reported as of. |
+| `feed_policy` | string | yes | The feed policy the handler fixed when it wrote the event; always "none" (no feed card). |
+| `rows` | any | yes |  |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "at": "2026-11-06T12:00:00Z",
+      "feed_policy": "none",
+      "rows": [
+        {
+          "commodity": "piping",
+          "percent": "40.0"
+        }
+      ]
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Cwp.SubcontractProgressRecorded/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Cwp.SubcontractProgressRecorded.v1"
+}
+```
+
 ## DerivedDocument.ContentRecorded
 
 One extractor pass over a source file finished: a new content revision of the derived document. The rows are in the result file; this event keeps the counts, the file's hash and the extractor's real metadata.
@@ -5234,6 +5353,56 @@ A document revision was pinned to an interim work package.
 }
 ```
 
+## IWP.FieldCompleted
+
+Field work on an interim work package was completed.
+
+- CloudEvents type: `tl.core.IWP.FieldCompleted.v1`
+- Ledger payload class: `IWPFieldCompletedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `at` | string | yes | UTC timestamp field work was completed. |
+| `feed_policy` | string | yes | The feed policy the handler fixed when it wrote the event; always "none" (no feed card). |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "at": "2026-11-06T15:00:00Z",
+      "feed_policy": "none"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/IWP.FieldCompleted/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.IWP.FieldCompleted.v1"
+}
+```
+
 ## IWP.Held
 
 An interim work package was put on hold.
@@ -5375,6 +5544,62 @@ An interim work package was issued to its foreman.
   "tlseq": 48211933,
   "tlstreamversion": 7,
   "type": "tl.core.IWP.Issued.v1"
+}
+```
+
+## IWP.ProgressRecorded
+
+The earned progress of an interim work package was recorded.
+
+- CloudEvents type: `tl.core.IWP.ProgressRecorded.v1`
+- Ledger payload class: `IWPProgressRecordedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `at` | string | yes | UTC timestamp the progress was earned as of. |
+| `earned_pct` | string | yes | Earned percent, decimal text with one decimal. |
+| `edition` | string | yes | The `package@version` of the rules of credit used. |
+| `feed_policy` | string | yes | The feed policy the handler fixed when it wrote the event; always "none" (no feed card). |
+| `iwp_id` | string | yes | The IWP. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "at": "2026-11-05T16:00:00Z",
+      "earned_pct": "42.5",
+      "edition": "co.acme.awp@1.1.0",
+      "feed_policy": "none",
+      "iwp_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P1"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/IWP.ProgressRecorded/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.IWP.ProgressRecorded.v1"
 }
 ```
 
@@ -5755,6 +5980,113 @@ An interim work package was split into new ones.
   "tlseq": 48211933,
   "tlstreamversion": 7,
   "type": "tl.core.IWP.Split.v1"
+}
+```
+
+## IWP.Started
+
+Field work on an interim work package started.
+
+- CloudEvents type: `tl.core.IWP.Started.v1`
+- Ledger payload class: `IWPStartedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `at` | string | yes | UTC timestamp field work started. |
+| `feed_policy` | string | yes | The feed policy the handler fixed when it wrote the event; always "none" (no feed card). |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "at": "2026-11-03T07:00:00Z",
+      "feed_policy": "none"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/IWP.Started/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.IWP.Started.v1"
+}
+```
+
+## IWPCloseout.Recorded
+
+The closeout of an interim work package was recorded.
+
+- CloudEvents type: `tl.core.IWPCloseout.Recorded.v1`
+- Ledger payload class: `IWPCloseoutRecordedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `actual_hours` | string or null | no | Actual hours, decimal text with one decimal, or null. |
+| `actuals_file_id` | string or null | no | The file that holds the actuals, or null. |
+| `at` | string or null | no | UTC timestamp the closeout was recorded. |
+| `feedback` | string or null | no | Lessons and feedback in words (at most 1000 characters), or null. |
+| `redlines_file_id` | string or null | no | The file that holds the redlines, or null. |
+| `remaining_punch` | integer or null | no | Punch items still open at closeout, or null. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "actual_hours": "118.5",
+      "actuals_file_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P2",
+      "at": "2026-11-09T10:00:00Z",
+      "redlines_file_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P3",
+      "remaining_punch": 2
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/IWPCloseout.Recorded/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.IWPCloseout.Recorded.v1"
 }
 ```
 
@@ -14543,6 +14875,222 @@ A subscription's name, target, filter or payload mode changed.
   "tlseq": 48211933,
   "tlstreamversion": 7,
   "type": "tl.core.WebhookSubscription.Updated.v1"
+}
+```
+
+## WeeklyPlan.Closed
+
+The weekly plan was closed with its percent plan complete.
+
+- CloudEvents type: `tl.core.WeeklyPlan.Closed.v1`
+- Ledger payload class: `WeeklyPlanClosedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `at` | string or null | no | UTC timestamp the plan was closed. |
+| `ppc` | string | yes | Percent plan complete, decimal text with one decimal. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "at": "2026-11-06T17:00:00Z",
+      "ppc": "75.0"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/WeeklyPlan.Closed/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.WeeklyPlan.Closed.v1"
+}
+```
+
+## WeeklyPlan.IwpCommitted
+
+A foreman committed an interim work package to the week.
+
+- CloudEvents type: `tl.core.WeeklyPlan.IwpCommitted.v1`
+- Ledger payload class: `WeeklyPlanIwpCommittedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `at` | string or null | no | UTC timestamp of the commitment. |
+| `committed_hours` | string | yes | Decimal text with one decimal. |
+| `feed_policy` | string | yes | The feed policy the handler fixed when it wrote the event; always "none" (no feed card). |
+| `foreman` | string | yes | The foreman, actor text (at most 64 characters). |
+| `iwp_id` | string | yes | The IWP committed. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "at": "2026-11-02T08:30:00Z",
+      "committed_hours": "40.0",
+      "feed_policy": "none",
+      "foreman": "user:ana",
+      "iwp_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P1"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/WeeklyPlan.IwpCommitted/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.WeeklyPlan.IwpCommitted.v1"
+}
+```
+
+## WeeklyPlan.Opened
+
+A weekly plan was opened for a project week.
+
+- CloudEvents type: `tl.core.WeeklyPlan.Opened.v1`
+- Ledger payload class: `WeeklyPlanOpenedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `at` | string or null | no | UTC timestamp the plan was opened. |
+| `feed_policy` | string | yes | The feed policy the handler fixed when it wrote the event; always "none" (no feed card). |
+| `week` | string | yes | The ISO week, `YYYY-Www`. |
+| `week_start` | string | yes | The Monday of the week, `YYYY-MM-DD`. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "at": "2026-11-02T08:00:00Z",
+      "feed_policy": "none",
+      "week": "2026-W45",
+      "week_start": "2026-11-02"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/WeeklyPlan.Opened/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.WeeklyPlan.Opened.v1"
+}
+```
+
+## WeeklyPlan.OutcomeRecorded
+
+The outcome of one commitment was recorded: done, or missed with a reason.
+
+- CloudEvents type: `tl.core.WeeklyPlan.OutcomeRecorded.v1`
+- Ledger payload class: `WeeklyPlanOutcomeRecordedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `at` | string or null | no | UTC timestamp the outcome was recorded. |
+| `feed_policy` | string | yes | The feed policy the handler fixed when it wrote the event; always "none" (no feed card). |
+| `iwp_id` | string | yes | The IWP. |
+| `miss_reason` | string or null | no | Code of the code list `MissReason` when the outcome is `missed`, else null. |
+| `outcome` | string | yes | `done` or `missed`. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "at": "2026-11-06T16:00:00Z",
+      "feed_policy": "none",
+      "iwp_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P1",
+      "miss_reason": "Weather",
+      "outcome": "missed"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/WeeklyPlan.OutcomeRecorded/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.WeeklyPlan.OutcomeRecorded.v1"
 }
 ```
 

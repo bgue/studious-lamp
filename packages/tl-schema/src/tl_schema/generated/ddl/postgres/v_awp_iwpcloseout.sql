@@ -17,6 +17,9 @@ SELECT
   t.actual_hours AS actual_hours,
   t.remaining_punch AS remaining_punch,
   t.feedback AS feedback,
-  t.actuals_file_id AS actuals_file_id
+  t.actuals_file_id AS actuals_file_id,
+  t.redlines_file_id AS redlines_file_id,
+  t.closed_by AS closed_by,
+  t.closed_at AS closed_at
 FROM cur_awp_iwp_closeout AS t
 JOIN cur_core_record AS r ON r.id = t.id;

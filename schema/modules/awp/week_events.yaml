@@ -1,0 +1,119 @@
+id: https://example.org/throughline/modules/awp/week_events
+name: tl_mod_awp_week_events
+title: Awp weekly plan events
+description: >-
+  The ledger events of the weekly plan (brief 18.3), in the same form as `events.yaml`. They are written on the stream of
+  the `awp.WeeklyPlan`. Only `WeeklyPlan.Closed` makes a feed card; the others carry `feed_policy: none` in the payload.
+  `at` is the moment the fact happened (`tl:valid_time`, ADR-0026); `week_start` is a plan, not valid time.
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+  - ../../core/annotations
+  - ../../core/record
+  - ../../core/events
+default_range: string
+annotations:
+  tl:module: awp
+
+classes:
+  WeeklyPlanOpenedPayload:
+    is_a: EventPayload
+    description: >-
+      A weekly plan was opened for a project week.
+    annotations:
+      tl:event_type: WeeklyPlan.Opened
+      tl:event_version: "1"
+    attributes:
+      week:
+        description: "The ISO week, `YYYY-Www`."
+        required: true
+      week_start:
+        description: "The Monday of the week, `YYYY-MM-DD`."
+        required: true
+      at:
+        description: "UTC timestamp the plan was opened."
+        range: datetime
+        annotations:
+          tl:valid_time: at
+      feed_policy:
+        description: "The feed policy the handler fixed when it wrote the event; always \"none\" (no feed card)."
+        equals_string: none
+        required: true
+    examples:
+      - value: "{\"at\": \"2026-11-02T08:00:00Z\", \"feed_policy\": \"none\", \"week\": \"2026-W45\", \"week_start\": \"2026-11-02\"}"
+  WeeklyPlanIwpCommittedPayload:
+    is_a: EventPayload
+    description: >-
+      A foreman committed an interim work package to the week.
+    annotations:
+      tl:event_type: WeeklyPlan.IwpCommitted
+      tl:event_version: "1"
+    attributes:
+      iwp_id:
+        description: "The IWP committed."
+        required: true
+      foreman:
+        description: "The foreman, actor text (at most 64 characters)."
+        required: true
+      committed_hours:
+        description: "Decimal text with one decimal."
+        required: true
+      at:
+        description: "UTC timestamp of the commitment."
+        range: datetime
+        annotations:
+          tl:valid_time: at
+      feed_policy:
+        description: "The feed policy the handler fixed when it wrote the event; always \"none\" (no feed card)."
+        equals_string: none
+        required: true
+    examples:
+      - value: "{\"at\": \"2026-11-02T08:30:00Z\", \"committed_hours\": \"40.0\", \"feed_policy\": \"none\", \"foreman\": \"user:ana\", \"iwp_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P1\"}"
+  WeeklyPlanOutcomeRecordedPayload:
+    is_a: EventPayload
+    description: >-
+      The outcome of one commitment was recorded: done, or missed with a reason.
+    annotations:
+      tl:event_type: WeeklyPlan.OutcomeRecorded
+      tl:event_version: "1"
+    attributes:
+      iwp_id:
+        description: "The IWP."
+        required: true
+      outcome:
+        description: "`done` or `missed`."
+        required: true
+      miss_reason:
+        description: "Code of the code list `MissReason` when the outcome is `missed`, else null."
+      at:
+        description: "UTC timestamp the outcome was recorded."
+        range: datetime
+        annotations:
+          tl:valid_time: at
+      feed_policy:
+        description: "The feed policy the handler fixed when it wrote the event; always \"none\" (no feed card)."
+        equals_string: none
+        required: true
+    examples:
+      - value: "{\"at\": \"2026-11-06T16:00:00Z\", \"feed_policy\": \"none\", \"iwp_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P1\", \"miss_reason\": \"Weather\", \"outcome\": \"missed\"}"
+  WeeklyPlanClosedPayload:
+    is_a: EventPayload
+    description: >-
+      The weekly plan was closed with its percent plan complete.
+    annotations:
+      tl:event_type: WeeklyPlan.Closed
+      tl:event_version: "1"
+    attributes:
+      ppc:
+        description: "Percent plan complete, decimal text with one decimal."
+        required: true
+      at:
+        description: "UTC timestamp the plan was closed."
+        range: datetime
+        annotations:
+          tl:valid_time: at
+    examples:
+      - value: "{\"at\": \"2026-11-06T17:00:00Z\", \"ppc\": \"75.0\"}"
