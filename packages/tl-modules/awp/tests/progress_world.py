@@ -26,10 +26,12 @@ from tl_core.constraints.commands import RaiseConstraint
 from tl_core.constraints.handlers import handle_raise_constraint
 from tl_core.modules import ConfidentialSource
 from tl_core.services import proposals
+from tl_core.services.commands import Command
 from tl_core.services.errors import ProposalAccessError, RecordNotFoundError, ServiceError
 from tl_core.settings.service import set_setting
 from tl_mod_awp import errors
 from tl_mod_awp.commands import CommitIwpToWeek, RecordManualProgress
+from tl_mod_awp.common import move
 from tl_mod_awp.names import SCOPE_ITEM, WEEKLY_PLAN
 from tl_mod_awp.progress import engine
 
@@ -359,6 +361,33 @@ WEEK_PLAN_TABLES = (("cur_awp_weekly_plan", "id"), ("cur_awp_week_commitment", "
 OTHER_SCOPE = "project:P999"
 
 
+#: The workflow path from Draft to each state the week helpers ask for (schema/fixtures/workflows/
+#: awp-iwp.yaml). StartIwpDevelopment and SendIwpToConstraintCheck are awp commands; the other steps
+#: are the module's own transitions run by ``common.move`` (the call the readiness engine makes),
+#: since IssueIwp needs two sign-offs and no command closes. Each step writes the record status and
+#: ``cur_workflow_state`` together (``WorkflowProjector``), so the two never disagree.
+IWP_PATH: dict[str, tuple[str, ...]] = {
+    "Draft": (),
+    "In development": ("develop",),
+    "Constraint check": ("develop", "check_constraints"),
+    "Ready": ("develop", "check_constraints", "ready"),
+    "On hold": ("develop", "check_constraints", "ready", "hold"),
+    "Issued": ("develop", "check_constraints", "ready", "issue"),
+    "In progress": ("develop", "check_constraints", "ready", "issue", "start"),
+    "Closed": ("develop", "check_constraints", "ready", "issue", "start", "complete", "close"),
+}
+
+
+def _move_iwp(w: World, iwp: str, step: str) -> None:
+    if step == "develop":
+        w.call("uma", "StartIwpDevelopment", iwp=iwp)
+    elif step == "check_constraints":
+        w.call("uma", "SendIwpToConstraintCheck", iwp=iwp)
+    else:
+        with open_uow(w.db) as uow:
+            move(uow, Command(actor="user:uma", source="test", scope=SCOPE), iwp, step)
+
+
 class WeekWorld:
     """Weekly plan helpers over a ``ProgressWorld``: Issued IWPs, plans, commitments, outcomes."""
 
@@ -379,9 +408,10 @@ class WeekWorld:
                 load_standards(uow, doc, actor="user:seed", source="test")
 
     def issued(self, state: str = "Issued", foreman: str | None = "user:uma") -> str:
-        """An IWP in ``state`` (set by hand: a projection write, as the S2 checks do)."""
+        """An IWP in ``state``, reached along the real workflow (``IWP_PATH``), never by a write."""
         iwp = self.w.iwp(planned_start="2026-12-01", foreman=foreman) if foreman else self.w.iwp()
-        self.w.set_status(iwp, state)
+        for step in IWP_PATH[state]:
+            _move_iwp(self.w, iwp, step)
         return iwp
 
     def open(self, day: str = "2026-11-02", who: str = "uma") -> str:
