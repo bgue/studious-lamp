@@ -88,7 +88,6 @@ def report(
         fail(f"report must be one of {', '.join(ALL_NAMES)}")
     target = _target(ctx, db)
     scope = f"project:{project}"
-    viewer = session_viewer(target)
     with service_errors(), open_uow(target, readonly=True) as uow:
         conn = uow.conn()
         if name == "cwp_status":
@@ -104,9 +103,9 @@ def report(
         elif name == "constraint_log":
             rows = iwp_reports.constraint_log(conn, scope)
         elif name == "kpi_ppc":
-            rows = [kpis.ppc_tile(conn, scope, viewer)]
+            rows = [kpis.ppc_tile(conn, scope, session_viewer(target))]
         elif name == "kpi_constraint_free":
-            rows = [kpis.constraint_free_tile(conn, scope, viewer)]
+            rows = [kpis.constraint_free_tile(conn, scope, session_viewer(target))]
         else:
             rows = iwp_reports.constraint_groups_report(conn, scope, _GROUP_BY[name])
     if as_csv:
