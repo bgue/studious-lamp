@@ -4,7 +4,7 @@
 - `MSG_WAIVE_WORD` is in `errors.py` as the spec says; it is raised as `ForbiddenError` (the word class), so the text is fixed and names `core.constraint.waive`. The constant `WAIVE_WORD` sits in `constraints/commands.py` next to `EDIT_WORD` (a path not listed in Allowed paths; two lines, no behaviour).
 - `tl awp worker` had no `--actor`; it gains the standard `Actor` option (default dev) so the word can be asked of someone. The word is asked at company scope (the worker is not project scoped), so a project-only superuser (`user:sue`) is refused; company admin passes. Open question below.
 - `waived` on `ConstraintView` is `field(default=False, kw_only=True)` so `ConstraintRow` (tl-api) and a tl-tui fake that builds rows keep compiling; `_build` always sets it.
-- A new hold follower starts at the head of the outbox like `Follower` (no catch-up sweep): a constraint raised before the very first poll of a fresh ledger is not held.
+- A new hold follower (no `awp.hold` cursor row) starts at seq 0, not the outbox head (round 2, F1), so an existing ledger's open blocking constraints on Issued IWPs are held by the first poll. `poll()` now drains batches of 100 within one call until caught up or a batch fails (the first poll must reach seq 270 on a 271-row ledger); before, it did one batch per call. Cursor row, retry, poison-skip and never-backwards are unchanged. `Follower` still starts at the head.
 
 ## Core paths touched (for the APPROVALS line)
 - `packages/tl-core/src/tl_core/constraints/handlers.py` (`require_waive`, call in `_clear`: not by_module, source check, after `require_edit` and `_load`)
@@ -29,10 +29,14 @@ The clear is the existing `Constraint.Cleared` with `suppress` true; `waived` is
 - Checked, no change: sim (client, testing, actors, iwp_planner test: fake client), `constraint_write.py`, `t04a_checks`, `s1_world` and `P2-I2.sh` (manual constraints), `access-words` table test. `tests/tools/proposable_exclusions.toml` does not exist: nothing added.
 
 ## Gates
-`just check` ok; `S4b.py` prints `S4b ok`; gate-pg constraints 36 passed; gate readiness + test_awp_run 48 passed; gate test_iwp_planner 14 passed (`.gate/summary.txt`).
+Round 2: `just check` ok; `S4b.py` prints `S4b ok`; gate readiness + test_awp_run 49 passed. Round 1 (not re-run in round 2, tl-core and sim untouched): gate-pg constraints 36 passed; gate test_iwp_planner 14 passed.
 
 ## Mutation
 sentinel (remove the word check) killed; 5 of 5 killed: source-check branch flipped, word check before `_load`, Issued-only guard widened, constraint re-read at apply removed, worker word check removed. No survivors, no test added for a survivor.
 
 ## Open questions
 - Scope of `awp.worker.run`: company (as built). Project controllers cannot run the worker; say if it should be per project.
+
+## Round 2
+- F1 (review): a new `HoldFollower` with no `awp.hold` cursor row starts at seq 0 and `poll()` drains the outbox in batches until caught up or a batch fails, so an existing ledger's open blocking constraints on Issued IWPs are held on the first `tl awp worker` run; `apply_raised` re-reads and `hold_by_module` is Issued-only and idempotent, so the sweep changes nothing else.
+- New test `test_a_constraint_raised_before_the_first_poll_holds_on_that_poll` (271-row ledger, fresh cursor): the first poll holds the IWP, a replay from seq 0 applies no events and writes no second `IWP.Held`.

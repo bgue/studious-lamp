@@ -28,7 +28,7 @@ def pw(world: World) -> ProgressWorld:
 @pytest.fixture
 def follower(pw: ProgressWorld) -> HoldFollower:
     f = HoldFollower(make_uow_factory(pw.w.db))
-    assert f.poll() == 0  # a new follower starts at the head of the outbox
+    assert f.poll() == 0  # a new follower sweeps from seq 0; a fresh ledger holds nothing
     return f
 
 
@@ -83,6 +83,24 @@ def test_a_blocking_constraint_holds_an_issued_iwp(
     assert len(held) == 1
     assert held[0]["actor"] == "svc:awp.hold" and held[0]["source"] == "job:awp.hold"
     assert f"blocking constraint raised: {key}" in str(held[0]["payload"])
+
+
+def test_a_constraint_raised_before_the_first_poll_holds_on_that_poll(pw: ProgressWorld) -> None:
+    # F1: existing ledger, open blocking constraint on an Issued IWP, no cursor row yet
+    w = pw.w
+    iwp = issued(pw)
+    pw.raise_blocking(iwp, "complete")
+    first = HoldFollower(make_uow_factory(w.db))
+    assert first.poll() == 1
+    assert w.state(iwp) == "On hold"
+    before = events(w)
+    from sqlalchemy import text
+
+    with open_uow(w.db) as uow:  # replay from the start of the ledger
+        uow.conn().execute(text("UPDATE rule_cursor SET last_seq = 0 WHERE name = 'awp.hold'"))
+    assert HoldFollower(make_uow_factory(w.db)).poll() == 0
+    assert events(w) == before
+    assert count(w, "SELECT COUNT(*) FROM events WHERE event_type = 'IWP.Held'") == 1
 
 
 def test_a_second_poll_and_a_replay_change_nothing(

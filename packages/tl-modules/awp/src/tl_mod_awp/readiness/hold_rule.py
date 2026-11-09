@@ -32,7 +32,6 @@ CURSOR_TABLE: Final = "rule_cursor"
 BATCH: Final = 100
 POISON_AFTER: Final = 3
 REASON_PREFIX: Final = "blocking constraint raised: "
-_HEAD = text("SELECT COALESCE(MAX(seq), 0) FROM outbox_events")
 _READ = text(f"SELECT {OUTBOX_COLUMNS} FROM outbox_events WHERE seq > :after ORDER BY seq LIMIT :n")
 _GET = text(f"SELECT last_seq FROM {CURSOR_TABLE} WHERE name = :n")
 _PUT = text(f"UPDATE {CURSOR_TABLE} SET last_seq = :seq WHERE name = :n AND last_seq < :seq")
@@ -83,45 +82,56 @@ class HoldFollower:
         with self._open() as uow:
             conn = uow.conn()
             position = self._read(conn)
-            if position is None:  # a new follower starts at the head of the outbox
-                position = int(conn.execute(_HEAD).scalar_one())
+            if position is None:  # a new follower sweeps the outbox from seq 0 (F1)
+                position = 0
                 self._write(conn, position)
         self._seq = position
 
     def poll(self) -> int:
-        """Handle one batch of new events; the number of holds applied."""
+        """Handle new events batch by batch until caught up or a batch fails; the holds applied.
+
+        A new follower sweeps the outbox from seq 0 in this call (F1), so the first poll on an
+        existing ledger holds every open blocking constraint already on an Issued IWP.
+        A failed event ends the call; the next poll retries it (or skips it after POISON_AFTER).
+        """
         if self._seq is None:
             self._start()
-        with self._open() as uow:
-            rows = [
-                OutboxRow.from_mapping(r)
-                for r in uow.conn()
-                .execute(_READ, {"after": self._seq, "n": self._batch})
-                .mappings()
-            ]
         held = 0
-        for row in rows:
-            try:
-                with self._open() as uow:
-                    if row.event_type == EV_RAISED and apply_raised(uow, row.stream_id):
-                        held += 1
-                    self._write(uow.conn(), row.seq)
-                self._seq = row.seq  # the unit of work committed
-            except Exception:
-                seq, n = self._failed
-                n = n + 1 if seq == row.seq else 1
-                self._failed = (row.seq, n)
-                log.exception("hold follower failed on seq %s (%s of %s)", row.seq, n, POISON_AFTER)
-                if n >= POISON_AFTER:
-                    try:
-                        with self._open() as uow:
-                            self._write(uow.conn(), row.seq)
-                        self._seq = row.seq
-                        self._failed = (0, 0)
-                    except Exception:
-                        log.exception("hold follower could not skip seq %s", row.seq)
-                break  # the cursor stays; the next poll retries
-        return held
+        while True:
+            with self._open() as uow:
+                rows = [
+                    OutboxRow.from_mapping(r)
+                    for r in uow.conn()
+                    .execute(_READ, {"after": self._seq, "n": self._batch})
+                    .mappings()
+                ]
+            failed = False
+            for row in rows:
+                try:
+                    with self._open() as uow:
+                        if row.event_type == EV_RAISED and apply_raised(uow, row.stream_id):
+                            held += 1
+                        self._write(uow.conn(), row.seq)
+                    self._seq = row.seq  # the unit of work committed
+                except Exception:
+                    failed = True
+                    seq, n = self._failed
+                    n = n + 1 if seq == row.seq else 1
+                    self._failed = (row.seq, n)
+                    log.exception(
+                        "hold follower failed on seq %s (%s of %s)", row.seq, n, POISON_AFTER
+                    )
+                    if n >= POISON_AFTER:
+                        try:
+                            with self._open() as uow:
+                                self._write(uow.conn(), row.seq)
+                            self._seq = row.seq
+                            self._failed = (0, 0)
+                        except Exception:
+                            log.exception("hold follower could not skip seq %s", row.seq)
+                    break  # the cursor stays; the next poll retries
+            if failed or len(rows) < self._batch:
+                return held
 
 
 __all__ = ["BATCH", "CURSOR_NAME", "HoldFollower", "apply_raised"]
