@@ -178,6 +178,13 @@ def _package_doc(key: str) -> Any:
     raise RulesOfCreditError(MSG_NO_EDITION)
 
 
+def package_doc(key: str) -> Any:
+    """The schema package behind the edition ``key`` (``package@version``), as ``_package_doc``
+    returns it: its ``rules_of_credit`` carry each rule's ``kind``. ``RulesOfCreditError`` when the
+    edition is unknown or not adopted."""
+    return _package_doc(key)
+
+
 def rules_for(key: str) -> Rules:
     """The rules of the edition ``key`` (``package@version``). ``RulesOfCreditError`` when it is
     unknown, not adopted, or holds no rules."""
