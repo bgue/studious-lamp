@@ -56,7 +56,7 @@ def ppc_tile(conn: Connection, scope: str, viewer: Viewer, *, weeks: int = PPC_W
                 done += 1 if c.outcome == "done" else 0
     value, _ = engine.ppc(done, committed)
     if value is None:
-        detail = "no closed week yet"
+        detail = "nothing committed in closed weeks" if closed else "no closed week yet"
     else:
         detail = f"{done} of {committed} IWPs done, last {len(closed)} closed weeks"
     return KpiTile(

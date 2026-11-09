@@ -2,21 +2,88 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterator
+from contextlib import contextmanager
 from decimal import Decimal
 
 import pytest
 from awp_world import SCOPE, World
 from progress_world import WeekWorld, build_week_world
+from sqlalchemy import text
 from tl_adapters.db import open_uow
 from tl_core import confidentiality as cf
+from tl_core import modules as core_modules
+from tl_core.modules import ConfidentialSource
+from tl_core.services.commands import Command
+from tl_mod_awp.common import move
 from tl_mod_awp.kpis import KPI_NAMES, KpiTile, constraint_free_tile, kpi_rows, ppc_tile
+from tl_mod_awp.names import IWP
 
 LOWEST = cf.Viewer(actor="user:nobody", level=0, account="user:nobody")
+#: The workflow moves from Draft to each state (schema/fixtures/workflows/awp-iwp.yaml). The first
+#: two are awp commands; the rest are the module's own transitions (``common.move``, the call the
+#: readiness engine makes for ``ready``), since IssueIwp needs two sign-offs and no command closes.
+STEPS: dict[str, tuple[str, ...]] = {
+    "Draft": (),
+    "In development": ("develop",),
+    "Constraint check": ("develop", "check_constraints"),
+    "Ready": ("develop", "check_constraints", "ready"),
+    "Issued": ("develop", "check_constraints", "ready", "issue"),
+    "Closed": ("develop", "check_constraints", "ready", "issue", "start", "complete", "close"),
+}
+
+
+def move_iwp(w: World, iwp: str, step: str) -> None:
+    if step == "develop":
+        w.call("uma", "StartIwpDevelopment", iwp=iwp)
+    elif step == "check_constraints":
+        w.call("uma", "SendIwpToConstraintCheck", iwp=iwp)
+    else:
+        with open_uow(w.db) as uow:
+            move(uow, Command(actor="user:uma", source="test", scope=SCOPE), iwp, step)
+
+
+@contextmanager
+def hidden_iwp(ww: WeekWorld, iwp: str) -> Iterator[None]:
+    """The IWP is restricted: the lowest viewer cannot open it (a test source, as the look-ahead
+    test does), so its commitments are left out of the plan."""
+    ids = [str(r["id"]) for r in ww.w.rows("SELECT id FROM cur_awp_iwp")]
+    with open_uow(ww.w.db) as uow:
+        conn = uow.conn()
+        conn.execute(
+            text("CREATE TABLE IF NOT EXISTS kpi_iwp_class (id TEXT PRIMARY KEY, cls TEXT)")
+        )
+        conn.execute(text("DELETE FROM kpi_iwp_class"))
+        for row_id in ids:
+            cls = "restricted" if row_id == iwp else "internal"
+            conn.execute(text("INSERT INTO kpi_iwp_class VALUES (:i, :c)"), {"i": row_id, "c": cls})
+    source = ConfidentialSource(
+        record_types=frozenset({IWP}),
+        table="kpi_iwp_class",
+        id_column="id",
+        class_column="cls",
+    )
+    real = core_modules.confidential_sources
+    cf.confidential_sources = lambda: [*real(), source]  # type: ignore[attr-defined]
+    try:
+        yield
+    finally:
+        cf.confidential_sources = real  # type: ignore[attr-defined]
+
+
+class KpiWeekWorld(WeekWorld):
+    """The week world whose IWPs reach their state along the real workflow, not by a write."""
+
+    def issued(self, state: str = "Issued", foreman: str | None = "user:uma") -> str:
+        iwp = self.w.iwp(planned_start="2026-12-01", foreman=foreman) if foreman else self.w.iwp()
+        for step in STEPS[state]:
+            move_iwp(self.w, iwp, step)
+        return iwp
 
 
 @pytest.fixture
 def ww(world: World) -> WeekWorld:
-    return build_week_world(world)
+    return KpiWeekWorld(build_week_world(world).pw)
 
 
 def tile(ww: WeekWorld, name: str, viewer: cf.Viewer = LOWEST, **more: int) -> KpiTile:
@@ -33,7 +100,7 @@ def closed_week(ww: WeekWorld, day: str, results: list[str]) -> str:
     for n, result in enumerate(results):
         iwp = ww.issued()
         ww.commit(plan, iwp, hours=f"{10 + n}.0")
-        ww.outcome(plan, iwp, result, None if result == "done" else "weather")
+        ww.outcome(plan, iwp, result, None if result == "done" else "Weather")
     ww.close(plan)
     return plan
 
@@ -81,6 +148,16 @@ def test_open_and_draft_plans_do_not_count_and_nothing_closed_is_none(ww: WeekWo
     assert empty.value is None
     assert (empty.numerator, empty.denominator) == (0, 0)
     assert "closed" in empty.detail.lower()
+    # CloseWeek refuses a plan with nothing committed, so a closed week that holds nothing the
+    # viewer may read is one whose only commitment is of a hidden IWP.
+    closed = ww.open("2026-10-26")
+    held = ww.issued()
+    ww.commit(closed, held)
+    ww.outcome(closed, held, "missed", "Weather")
+    ww.close(closed)
+    with hidden_iwp(ww, held):
+        nothing = tile(ww, "ppc")
+    assert (nothing.value, nothing.detail) == (None, "nothing committed in closed weeks")
 
 
 def test_a_hidden_plan_is_left_out_of_the_pool(ww: WeekWorld) -> None:
@@ -88,7 +165,7 @@ def test_a_hidden_plan_is_left_out_of_the_pool(ww: WeekWorld) -> None:
     shown, hidden = ww.issued(), ww.issued()
     for iwp, result in ((shown, "done"), (hidden, "missed")):
         ww.commit(plan, iwp)
-        ww.outcome(plan, iwp, result, None if result == "done" else "weather")
+        ww.outcome(plan, iwp, result, None if result == "done" else "Weather")
     ww.close(plan)
     both = tile(ww, "ppc")
     assert (both.numerator, both.denominator) == (1, 2)
