@@ -77,9 +77,7 @@ def test_a_signed_in_non_admin_is_refused_and_nothing_is_written(
     assert events(env) == before
 
 
-def test_a_signed_in_admin_passes_the_gate(
-    new_db: Callable[[], DbTarget], tmp_path: Path
-) -> None:
+def test_a_signed_in_admin_passes_the_gate(new_db: Callable[[], DbTarget], tmp_path: Path) -> None:
     env = new_env(new_db, tmp_path)
     env["TL_SESSION_FILE"] = str(tmp_path / "session.json")
     seed(env)
@@ -103,9 +101,7 @@ def admin_handlers() -> set[str]:
     """Handler names of every command the API gates as admin, or as company access (which it
     raises to admin at company scope)."""
     return {
-        spec.handler.__name__
-        for spec in COMMANDS
-        if effective_access(spec) in ("admin", "company")
+        spec.handler.__name__ for spec in COMMANDS if effective_access(spec) in ("admin", "company")
     }
 
 
