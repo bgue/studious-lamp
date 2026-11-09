@@ -1,8 +1,32 @@
 # Outside review, 2026-11-09
 
 Five read-only questions put to the planner tier at the owner's request (2026-11-09, "ask your hardest questions").
-Each answer is abridged; file and line evidence is in the reviewers' returns, summarised here. Sections 1-3 are
-added when those reviews finish.
+Each answer is abridged; file and line evidence is in the reviewers' returns. Sections 1-2 are added when those reviews finish.
+
+## 3. Write paths (one dispatcher)
+
+Entry points that append events and how they compare with the API's order (`run_command`: authorizer -> reserved
+check -> company/admin -> module word -> `check_intent` -> intent carrier -> handler):
+- API JSON routes: the reference. `POST /types/{t}/records` skips `run_command` (no reserved check, no intent): MD.
+- `TableCommandRunner` (rules, inbound, thread dispatch, accepted dispatch proposals): module word checked, but no
+  reserved check, no company/admin step for module commands, and **no intent** (an accepted proposal's intent is lost
+  on this path): MD.
+- CLI: module handlers gated by `require_command`; intent on four commands only. **HI: admin commands (rule, action,
+  enricher, endpoint, integration app, link admin-flag) check only that someone is signed in; the API requires admin.**
+  Being fixed on `p2/fix-cli-admin`. Latent: company-scope core commands are not escalated to admin in the CLI or the
+  embedded TUI client.
+- TUI embedded: module words via its own gates, admin/controller via its own code; no intent.
+- MCP: propose tools carry intent and accept re-checks access; two direct tools match the API's agent exceptions.
+  Read-side confidentiality in MCP was not traced (open question).
+- Simulator: goes through the API. Files service and jobs append after their own checks.
+- The CLI has about 143 direct handler calls (not 440; that figure likely counted imports).
+
+Recommended single write path: a `tl_core.dispatch` (registry of command specs, a `Caller` resolved by each entry point,
+one `dispatch(uow, command, caller)` doing reserved -> platform word -> module word -> agent rule -> intent -> handler,
+one refusal error family). Lock it with the existing gate sweep extended to every package and a ruff banned-api rule
+for direct handler imports. Migration about 17 points (~30 agent-hours): extract the dispatcher (3), runner and proposal
+accept (3), CLI codemod (5), embedded TUI (3), MCP and two API routes (1), lint lockdown (2). Owner decision needed:
+whether the dev-file `--actor` freedom stays.
 
 ## 4. Build-process economics (how to halve the cost per merged ticket)
 

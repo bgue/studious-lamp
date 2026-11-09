@@ -78,3 +78,7 @@ One line each: what, why it waits, and the phase it belongs to. Newest at the bo
 | Intent on the web action route, MCP non-propose tools, and the entries that bypass the dispatcher (simulator, rule and integration runners, jobs, thread dispatch) | P2-INT S2 D5: they keep NULL intent and are reported, not extended | Phase 3 |
 | `tl events` reads without intent redaction | Found at P2-INT r3; the CLI reads as the local operator | Phase 3, with the CLI dispatcher |
 | A TUI live-remote timing test (`test_remote_a_write_by_another_client_marks_the_row_within_two_seconds`) fails under heavy parallel load and passes alone | Seen at the P2-INT close; timing bound, not a defect found | Next test-hardening slot |
+| One write path: `tl_core.dispatch` used by the API, CLI, embedded TUI, runners, proposal accept and MCP (about 17 points) | Outside review 2026-11-09 §3: access, intent and agent checks differ by entry point | Phase 3 (before the web write paths) |
+| `TableCommandRunner` (rules, inbound, thread dispatch) carries no intent; an accepted dispatch proposal's intent is lost | Outside review §3 MD | With the dispatcher |
+| `POST /types/{t}/records` bypasses `run_command` (no reserved check, no intent) | Outside review §3 MD | With the dispatcher |
+| MCP read-side confidentiality not traced end to end | Outside review §3 open question | Next security review |
