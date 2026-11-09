@@ -19,6 +19,7 @@ from tl_cli import (
     awp_report,
     awp_roc,
     awp_run,
+    awp_week,
     awp_write,
     awp_write2,
 )
@@ -34,6 +35,7 @@ awp_report.register(app)
 awp_roc.register(app)  # the rules-of-credit group (P2-I5-T01)
 awp_run.register(app)  # rollup and worker verbs (T04e)
 awp_export.register(app)  # `export progress` (P2-I5-S3)
+awp_week.register(app)  # look-ahead and the week group (P2-I5-T04)
 iwp_app = typer.Typer(help="Interim work packages (IWPs).", no_args_is_help=True)
 app.add_typer(iwp_app, name="iwp")
 awp_iwp_read.register(iwp_app)  # reads first, as for the other groups
