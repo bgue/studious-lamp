@@ -11,8 +11,8 @@ T04b t mrg f 02a926d CLI for S2 writes
 T09 t mrg l b1666b8 KPI tiles; fix round (provided test had wrong-case miss key, IWP state by shortcut)
 T07a t mrg f bcf3c2e pack HTML + QR + `iwp pack`; build_pack_data, render_html -> Rendered
 T04 t todo f - look-ahead + week CLI; ready after T09; provided test in tree (R-B)
-T11a1 t todo f - API progress/rollup/kpis/counts/hash routes; after T09 (R-B)
-T11c t todo f - MCP five reads; after T09 (R-B)
+T11a1 t mrg f 42ac14f API progress/rollup/kpis/counts/hash routes; after T09 (R-B)
+T11c t mrg f 36c990d MCP five reads; after T09 (R-B)
 T11a2 t todo f - API weeks/miss-reasons/look-ahead; after T11a1 (R-C)
 T07b t mrg l 8b77cfb pack template; ready; provided test r6; golden made by the ticket (R-C)
 T11b t todo f - client methods + fakes + two command doors; after T11a1 T11a2 (R-D)
@@ -42,6 +42,7 @@ Q4 core feed policy list lacks the eight new quiet events (S1 dev 6) and POLICY_
 Q5 awp.worker.run is company scope (S4b): project controllers cannot run the worker; per project? needs owner raised r4
 Q-o1 at merge with p2/i4a or the trunk: add the four S2 exclusion lines (S2 report) and the three S4a lines (OpenWeeklyPlan, RecordWeekOutcome, CloseWeek) to tests/tools/proposable_exclusions.toml
 Q6 platform.yaml tui.landing docs say default lands "on their packages"; D7 makes unset resolve to iwp_mine and explicit default land as before: T06c2 does that; fix the description text at close (schema/settings/platform.yaml is S1's) needs orch raised r5
+Q-o4 T11a1 F1: roll-up node rows carry no label after ids were dropped; decide label source at T11b or T06a
 ## NEXT
 1. After T09 fix merges: R-B [T11a1, T04, T11c]. T04 test r6: look-ahead Plant now evaluates readiness through evaluate_now (no cur_* inserts); T06a miss key is `Weather` (edition code).
 2. R-C [T11a2, T07b] may go now for T07b (needs only T07a).
