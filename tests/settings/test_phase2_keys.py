@@ -31,13 +31,14 @@ PHASE2: dict[str, tuple[str, Any, Any, Any, Any, Any, str]] = {
         "advanced",
     ),
     "awp.release.allow_unknown_checks": ("bool", False, None, None, None, None, "advanced"),
+    # P2-I5 S1: the pattern holds package@version
     "awp.rules_of_credit.set": (
         "string",
         "",
         None,
         None,
         None,
-        "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}@[0-9]+\\.[0-9]+\\.[0-9]+$|^$",  # P2-I5 S1: package@version
+        "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}@[0-9]+\\.[0-9]+\\.[0-9]+$|^$",
         "normal",
     ),
     "awp.constraint.aging_days": ("int", 14, 1, 365, None, None, "normal"),
