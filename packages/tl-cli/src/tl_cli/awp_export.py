@@ -6,6 +6,8 @@ class filter). ``--out`` writes a new file with mode 0600 and prints ``wrote <pa
 
 from __future__ import annotations
 
+import csv
+import io
 import os
 from pathlib import Path
 from typing import Annotated
@@ -53,7 +55,7 @@ def progress(
         typer.echo(data, nl=False)
         return
     _write_private(out, data)
-    typer.echo(f"wrote {out} rows={max(data.count(chr(10)) - 1, 0)}")
+    typer.echo(f"wrote {out} rows={max(len(list(csv.reader(io.StringIO(data)))) - 1, 0)}")
 
 
 def register(app: typer.Typer) -> None:
