@@ -13,8 +13,10 @@ from __future__ import annotations
 
 import asyncio
 import importlib.util
+import json
 import sys
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 from types import ModuleType
@@ -24,7 +26,7 @@ import pytest
 from mcp.server.mcpserver.exceptions import ToolError
 from mcp_harness import McpHarness
 from sqlalchemy import bindparam, text
-from tl_adapters.db import DbTarget, open_uow
+from tl_adapters.db import DbTarget, create_schema, open_uow
 from tl_core import confidentiality as cf
 from tl_core import modules as core_modules
 from tl_core.modules import ConfidentialSource
@@ -42,6 +44,9 @@ WEEK_TOOLS = (
     "get_progress_rollup",
     "list_kpis",
 )
+#: The two reads that carry figures: each must equal a ledger without the hidden records (rule (d)).
+FIGURE_TOOLS = ("get_progress_rollup", "list_kpis")
+READER_IDS = [reader.split(":")[1] for reader in READERS]  # "bob", "ctl", "boss", "amy", "bot"
 WEEK_CLOSED = "2026-W45"  # restricted
 WEEK_OPEN = "2026-W46"
 NO_WEEK = "2099-W01"
@@ -74,6 +79,63 @@ def text_of(server: Any, tool: str, args: dict[str, Any]) -> str:
     except ToolError as exc:
         return f"ERROR {exc}"
     return result.model_dump_json() if hasattr(result, "model_dump_json") else str(result)
+
+
+def body_of(reply: str) -> Any:
+    """A figure reply as data: its structured content, without ``as_of_seq`` (the ledger head counts
+    events, which two ledgers never share, so it is not a figure)."""
+    data: Any = json.loads(reply)["structured_content"]
+    if isinstance(data, dict):
+        return {k: v for k, v in data.items() if k != "as_of_seq"}  # pyright: ignore[reportUnknownVariableType]
+    return data
+
+
+@contextmanager
+def no_sources() -> Iterator[None]:
+    """The ledger with none of this walk's class sources: every record is readable (the reference
+    of rule (d) is a ledger in which nothing is hidden)."""
+    patch = pytest.MonkeyPatch()
+    patch.setattr(cf, "confidential_sources", core_modules.confidential_sources)
+    try:
+        yield
+    finally:
+        patch.undo()  # back to the walk's own sources, as the ledger fixture set them
+
+
+def seed_visible(db: DbTarget) -> None:
+    """The ledger of ``ledger`` without the closed plan, the restricted and privileged IWPs and the
+    restricted scope item: the same states and commitments for every record that remains."""
+    awp, progress = load_worlds()
+    w = awp.World(db)
+    w.people()
+    w.editions()
+    pw = progress.ProgressWorld(w)
+    ww = progress.WeekWorld(pw)
+    ww.standards()
+    ww.issued()  # the closed plan's IWP: visible, committed to nothing here
+    opened = ww.open("2026-11-09")
+    ww.commit(opened, ww.issued(), hours="20.0")
+    w.iwp(planned_start="2026-12-01", foreman="user:uma")  # the Draft IWP, no scope item
+
+
+@pytest.fixture
+def visible(new_db: Callable[[], DbTarget], tmp_path: Path) -> dict[str, Any]:
+    """The roll-up and the KPIs of the project on the ledger without the hidden records. MCP reads
+    as the lowest clearance for every actor, so one reference serves the five readers."""
+    target = new_db()
+    create_schema(target)
+    root = tmp_path / "visible"
+    root.mkdir()
+    built = McpHarness.build(root, target=target)
+    try:
+        with no_sources():
+            seed_visible(built.db)
+            server = build_server(built.factory, actor="user:bob", lake_dir=root / "lake")
+            return {
+                tool: body_of(text_of(server, tool, {"project": PROJECT})) for tool in FIGURE_TOOLS
+            }
+    finally:
+        built.close()
 
 
 def _rows(db: DbTarget, sql: str, **params: Any) -> list[dict[str, Any]]:
@@ -206,7 +268,30 @@ def calls(led: Ledger) -> list[tuple[str, dict[str, Any]]]:
     return out
 
 
-def test_the_five_readers_get_the_same_answers_and_none_of_the_hidden(
+@pytest.mark.parametrize("actor", READERS, ids=READER_IDS)
+def test_a_reader_walks_the_week_tools_and_sees_none_of_the_hidden(
+    env: McpHarness, ledger: Ledger, visible: dict[str, Any], tmp_path: Path, actor: str
+) -> None:
+    server = build_server(env.factory, actor=actor, lake_dir=tmp_path / "lake")
+    replies: dict[tuple[str, str], str] = {}
+    for tool, args in calls(ledger):
+        reply = text_of(server, tool, args)
+        assert "internal error" not in reply.lower(), (tool, reply[:200])
+        replies[(tool, repr(sorted(args.items())))] = reply
+        if reply.startswith("ERROR"):  # an error repeats the id the caller sent, and no more
+            continue
+        for marker in ledger.markers():
+            assert marker not in reply, (tool, args, marker)
+    listed = replies[("list_weekly_plans", repr([("project", PROJECT)]))]
+    assert WEEK_OPEN in listed and WEEK_CLOSED not in listed
+    assert ledger.closed_plan not in listed
+    key = repr(sorted({"project": PROJECT, "number": ledger.visible_number}.items()))
+    assert ledger.visible_number in replies[("get_iwp_progress", key)]  # the reader reads some
+    for tool in FIGURE_TOOLS:
+        assert body_of(replies[(tool, repr([("project", PROJECT)]))]) == visible[tool], tool
+
+
+def test_the_five_readers_get_the_same_answers(
     env: McpHarness, ledger: Ledger, tmp_path: Path
 ) -> None:
     answers: dict[str, dict[tuple[str, str], str]] = {}
@@ -214,38 +299,28 @@ def test_the_five_readers_get_the_same_answers_and_none_of_the_hidden(
         server = build_server(env.factory, actor=actor, lake_dir=tmp_path / "lake")
         answers[actor] = {}
         for tool, args in calls(ledger):
-            reply = text_of(server, tool, args)
-            assert "internal error" not in reply.lower(), (actor, tool, reply[:200])
-            answers[actor][(tool, repr(sorted(args.items())))] = reply
+            answers[actor][(tool, repr(sorted(args.items())))] = text_of(server, tool, args)
     first = answers[READERS[0]]
     for actor in READERS[1:]:
         assert answers[actor] == first, actor
-    for (tool, args), reply in first.items():
-        if reply.startswith("ERROR"):  # an error repeats the id the caller sent, and no more
-            continue
-        for marker in ledger.markers():
-            assert marker not in reply, (tool, args, marker)
-    listed = first[("list_weekly_plans", repr([("project", PROJECT)]))]
-    assert WEEK_OPEN in listed and WEEK_CLOSED not in listed
-    assert ledger.closed_plan not in listed
-    key = repr(sorted({"project": PROJECT, "number": ledger.visible_number}.items()))
-    assert ledger.visible_number in first[("get_iwp_progress", key)]  # the reader reads some
 
 
+@pytest.mark.parametrize("actor", READERS, ids=READER_IDS)
 def test_a_hidden_plan_and_an_unknown_week_raise_the_same_text(
-    env: McpHarness, ledger: Ledger
+    env: McpHarness, ledger: Ledger, actor: str
 ) -> None:
-    server = build_server(env.factory, actor="user:bob")
+    server = build_server(env.factory, actor=actor)
     hidden = text_of(server, "get_weekly_plan", {"project": PROJECT, "week": WEEK_CLOSED})
     missing = text_of(server, "get_weekly_plan", {"project": PROJECT, "week": NO_WEEK})
     assert hidden.startswith("ERROR")
     assert hidden.replace(WEEK_CLOSED, "X") == missing.replace(NO_WEEK, "X")
 
 
+@pytest.mark.parametrize("actor", READERS, ids=READER_IDS)
 def test_a_hidden_iwp_and_a_made_up_number_raise_the_same_text(
-    env: McpHarness, ledger: Ledger
+    env: McpHarness, ledger: Ledger, actor: str
 ) -> None:
-    server = build_server(env.factory, actor="agent:bot")
+    server = build_server(env.factory, actor=actor)
     for hidden_number in (ledger.hidden_number, ledger.privileged_number):
         hidden = text_of(server, "get_iwp_progress", {"project": PROJECT, "number": hidden_number})
         missing = text_of(server, "get_iwp_progress", {"project": PROJECT, "number": MISSING_IWP})

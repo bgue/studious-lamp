@@ -19,6 +19,7 @@ import importlib.util
 import json
 import sys
 from collections.abc import Callable, Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 from types import ModuleType
@@ -28,7 +29,7 @@ import pytest
 from harness import Harness
 from sqlalchemy import bindparam, text
 from test_api_awp import ROOT, load_world, seed_awp
-from tl_adapters.db import open_uow
+from tl_adapters.db import create_schema, open_uow
 from tl_api.client import ApiClient
 from tl_core import confidentiality as cf
 from tl_core import modules as core_modules
@@ -447,3 +448,99 @@ def test_the_clients_answer_a_hidden_record_as_a_missing_one(
                 missing = error_of(client.get_iwp_progress, PROJECT, MISSING_IWP)
                 assert hidden[0] == missing[0]
                 assert hidden[1].replace(label, "X") == missing[1].replace(MISSING_IWP, "X")
+
+
+# --- rule (d): the roll-up and the KPIs against a ledger without the hidden records ----------
+
+
+@contextmanager
+def no_sources() -> Iterator[None]:
+    """The ledger with none of this walk's class sources: the module sources only, so every record
+    is readable by every viewer (the reference of rule (d) hides nothing)."""
+    patch = pytest.MonkeyPatch()
+    patch.setattr(cf, "confidential_sources", core_modules.confidential_sources)
+    try:
+        yield
+    finally:
+        patch.undo()  # back to the walk's own sources, as the ledger fixture set them
+
+
+def seed_visible(ref: Harness, *, omit: frozenset[str]) -> None:
+    """The ledger of ``ledger`` with the records of ``omit`` never written. The records kept are
+    written in the walk's order and states, so only the hidden ones are missing."""
+    world = seed_awp(ref, rollup=True)
+    pw = progress_module().ProgressWorld(world)
+    ww = progress_module().WeekWorld(pw)
+    ww.standards()
+    closed_iwp = ww.issued()
+    if "restricted_plan" not in omit:
+        closed = ww.open("2026-11-02")
+        ww.commit(closed, closed_iwp, hours="40.0")
+        ww.outcome(closed, closed_iwp, "done")
+        ww.close(closed)
+    opened = ww.open("2026-11-09")
+    ww.commit(opened, ww.issued(), hours="20.0")  # the visible commitment
+    if "restricted_iwp" not in omit:
+        ww.commit(opened, ww.issued(), hours="10.0")
+    if "privileged_iwp" not in omit:
+        ww.commit(opened, ww.issued(), hours="12.0")
+    if "restricted_item" not in omit:
+        pw.package(["8.0"])
+    else:
+        world.iwp(planned_start="2026-12-01", foreman="user:uma")  # the Draft IWP, no scope item
+
+
+def wire(value: Any) -> Any:
+    """An answer as the JSON it is on the wire: a client's model, a dataclass or a plain dict."""
+    return json.loads(json.dumps(plain(value), default=str))
+
+
+def without_head(body: Any) -> Any:
+    """A roll-up without ``as_of_seq``: the ledger head counts events, which two ledgers never
+    share, so it is not a figure and is left out of the comparison."""
+    if isinstance(body, dict):
+        return {k: v for k, v in body.items() if k != "as_of_seq"}  # pyright: ignore[reportUnknownVariableType]
+    return body
+
+
+def reference_reads(
+    new_db: Callable[[], str | Path], root: Path, reader: str, omit: frozenset[str]
+) -> tuple[Any, Any]:
+    """(kpis, roll-up) of ``reader`` on the ledger without the ``omit`` records, as the embedded
+    client reads them. The reference holds no hidden record, so no class source is consulted."""
+    target = new_db()
+    create_schema(target)
+    root.mkdir()
+    ref = Harness.build(root, target=target)
+    try:
+        with no_sources():
+            seed_visible(ref, omit=omit)
+            client = EmbeddedClient.for_target(target, actor=f"user:{reader}")
+            kpis = wire(client.list_kpis(PROJECT))
+            rollup = without_head(wire(client.get_progress_rollup(PROJECT)))
+    finally:
+        ref.close()
+    return kpis, rollup
+
+
+@pytest.mark.parametrize("reader", READERS)
+def test_kpis_and_rollup_change_as_a_ledger_without_the_hidden_records_would(
+    harness: Harness,
+    seeded: Seed,
+    ledger: Ledger,
+    new_db: Callable[[], str | Path],
+    tmp_path: Path,
+    reader: str,
+) -> None:
+    omit = frozenset(ledger.hidden_kinds(reader))
+    kpis, rollup = reference_reads(new_db, tmp_path / f"reference-{reader}", reader, omit)
+    client = harness.client_for(None)
+    for url, expected in ((f"{P}/kpis", kpis), (f"{P}/progress/rollup", rollup)):
+        response = client.get(url, headers=bearer(seeded, reader))
+        assert response.status_code == 200, (reader, url, response.status_code)
+        assert without_head(response.json()) == expected, (reader, url)
+    remote = ApiClient("http://testserver", seeded.tokens[reader], http=harness.client_for(None))
+    embedded = EmbeddedClient.for_target(harness.target or harness.db, actor=f"user:{reader}")
+    for name, client_ in (("embedded", embedded), ("remote", remote)):
+        assert wire(client_.list_kpis(PROJECT)) == kpis, (reader, name)
+        assert without_head(wire(client_.get_progress_rollup(PROJECT))) == rollup, (reader, name)
