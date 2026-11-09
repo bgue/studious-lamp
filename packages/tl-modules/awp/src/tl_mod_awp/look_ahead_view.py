@@ -1,6 +1,6 @@
 """The look-ahead joined with the IWPs linked to each activity and their readiness (P2-I5-T03).
 
-STUB: the interface is fixed here; T03 writes the body. Reads only; ids and counts only.
+Reads only; ids and counts only. `open_blocking` counts per IWP with the viewer, never truncated.
 """
 
 from __future__ import annotations
