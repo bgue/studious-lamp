@@ -11,11 +11,15 @@ import type { AppPlugin, ViewerApp } from '../app';
 import { registerAction } from '../input/actions';
 import { buildInput } from '../classify/build';
 import { disciplineRgb, rgbCss } from '../classify/palette';
-import { detectWebGpu, describeModel, WEBLLM_MODELS, webllmModelInfo } from '../classify/providers/webllm';
+import { detectWebGpu, describeModel, customModelCheck, WEBLLM_EMBED_MODELS, WEBLLM_MODELS, WEBLLM_MODES, webllmModelInfo } from '../classify/providers/webllm';
+import { DECISION_DEVICES, DECISION_DTYPES, DECISION_MODELS, DEFAULT_HYPOTHESES, HYPOTHESIS_KEYS, decisionModelInfo, describeDecisionModel } from '../classify/providers/decision';
+import type { DecisionStats, ModelCacheInfo } from '../classify/providers/decision';
+import type { WebLlmStats } from '../classify/providers/webllm';
+import type { ApiKeyStore } from '../classify/keyStore';
 import { topTwo, overallConfidence } from '../classify/review';
 import { browserKeyStorages } from '../classify/keyStore';
 import { ClassifyService } from '../classify/service';
-import type { RunOptions, Target } from '../classify/service';
+import type { ModelTest, RunOptions, Target } from '../classify/service';
 import { PROVIDERS } from '../classify/settings';
 import type { ProviderId } from '../classify/settings';
 import { JEV_DEFAULTS } from '../classify/settings';
@@ -50,7 +54,7 @@ export interface ClassifyApi {
   results(): ClassifyResult[];
   override(id: string | number, partial: ManualPartial): ClassifyResult;
   clear(): void;
-  export(kind: 'json' | 'csv'): string;
+  export(kind: 'json' | 'csv' | 'throughline'): string;
   abort(): void;
   stats(): ClassifyStats;
   /** Extras for scripts. */
@@ -60,6 +64,18 @@ export interface ClassifyApi {
   setKey(key: string, remember?: boolean): void;
   keyState(): { set: boolean; remembered: boolean; mask: string };
   testConnection(): Promise<unknown>;
+  /** Decision model: load it, run one tiny choice, report the load time, the device, the data type and the size. */
+  testModel(): Promise<ModelTest>;
+  setHfToken(token: string, remember?: boolean): void;
+  hfTokenState(): { set: boolean; remembered: boolean; mask: string };
+  /** Size of the downloaded models in the browser cache. */
+  modelCache(): Promise<ModelCacheInfo>;
+  clearModelCache(): Promise<boolean>;
+  /** Pairs and forward passes of the decision model since the provider was created (null for other providers). */
+  decisionStats(): DecisionStats | null;
+  webllmStats(): WebLlmStats | null;
+  /** Use a Throughline `Discipline` code list (JSON of CodeValue entries) as the schema. Returns the problems; empty means accepted. */
+  importThroughline(json: unknown): { errors: string[]; warnings: string[] };
   selectNeedsReview(): number;
   colourByDiscipline(on?: boolean): boolean;
   state(): { running: boolean; provider: string; model: string; schemaTitle: string; placeholder: boolean; hash: string };
@@ -79,6 +95,7 @@ const CSS = `
 .xc-edit{background:transparent;border:1px solid transparent;color:var(--sb-dim,#8d99a8);cursor:pointer;padding:0 4px;border-radius:3px}
 .xc-edit:hover{color:#fff;border-color:#3a4a66}
 .xc-editor{display:flex;flex-direction:column;gap:6px;padding:8px;border:1px solid #2d6aa8;border-radius:4px;background:#10141b}
+.xc-adv summary{cursor:pointer;color:var(--sb-dim,#8d99a8);font-size:11px}
 .xc-prog{height:6px;background:#10141b;border:1px solid var(--sb-line,#262d3a);border-radius:3px;overflow:hidden}
 .xc-prog>i{display:block;height:100%;background:#2d6aa8;width:0}
 `;
@@ -184,7 +201,58 @@ function pick<T extends string>(label: string, options: ReadonlyArray<{ value: T
   return { root, sel, update: () => { sel.value = get(); } };
 }
 
-const PROVIDER_LABEL: Record<ProviderId, string> = { off: 'Off (rules and cache only)', jev: 'Jev (HTTP)', webllm: 'Browser model (WebLLM)', mock: 'Mock (tests)' };
+const PROVIDER_LABEL: Record<ProviderId, string> = {
+  off: 'Off (rules and cache only)',
+  decision: 'Decision model (in browser, WebGPU)',
+  webllm: 'Browser chat model (WebLLM)',
+  jev: 'Jev (HTTP)',
+  mock: 'Mock (tests)',
+};
+
+const fmtMB = (b: number): string => (b >= 1e9 ? `${(b / 1e9).toFixed(2)} GB` : `${Math.round(b / 1e5) / 10} MB`);
+
+/** A password box for a secret, with Save and Forget and a "remember" switch. The secret is never shown again. */
+function secretField(
+  add: <W extends Widget>(w: W) => W,
+  o: { label: string; aria: string; name: string; store: ApiKeyStore; status: string; remember: string; save: string; forget: string; saveTitle: string; forgetTitle: string },
+): { nodes: HTMLElement[]; paint(): void } {
+  const box = el('label', 'xt-select');
+  const input = el('input', 'xc-text', { type: 'password', autocomplete: 'off', spellcheck: 'false', 'aria-label': o.aria, placeholder: 'not shown after saving', name: o.name });
+  box.append(el('span', 'xt-lbl', undefined, o.label), input);
+  const status = statusLine('');
+  const remember = add(check(o.remember, () => o.store.remembered(), (v) => {
+    const k = input.value.trim() || o.store.get();
+    if (k) o.store.set(k, v);
+    paint();
+  }));
+  const save = (): void => {
+    if (input.value.trim()) o.store.set(input.value, (remember.root.querySelector('input') as HTMLInputElement).checked);
+    input.value = '';
+    paint();
+  };
+  input.addEventListener('change', save);
+  const paint = (): void => {
+    status.set(`${o.status}: ${o.store.mask()}${o.store.remembered() ? ', kept on this device' : o.store.get() ? ', kept for this tab only' : ''}`);
+    remember.update();
+  };
+  return {
+    nodes: [
+      box, remember.root, status,
+      row(
+        button(o.save, save, { title: o.saveTitle }),
+        button(o.forget, () => { o.store.clear(); input.value = ''; paint(); }, { title: o.forgetTitle }),
+      ),
+    ],
+    paint,
+  };
+}
+
+function details(summary: string): HTMLDetailsElement {
+  const d = el('details', 'xc-adv') as HTMLDetailsElement;
+  d.appendChild(el('summary', undefined, undefined, summary));
+  d.style.cssText = 'display:flex;flex-direction:column;gap:6px';
+  return d;
+}
 
 // ---------------------------------------------------------------- drawer
 
@@ -215,6 +283,39 @@ function panel(box: HTMLElement, app: ViewerApp, svc: ClassifyService, tint: Tin
     issues.hidden = errors.length + warnings.length === 0;
   };
 
+  // Decision model (a small NLI model with transformers.js): the recommended local provider
+  const dec = el('div', 'xc-group');
+  dec.setAttribute('data-for', 'decision');
+  dec.style.cssText = 'display:flex;flex-direction:column;gap:6px';
+  const CUSTOM = '__custom';
+  const decPreset = add(pick('Decision model', [...DECISION_MODELS.map((m) => ({ value: m.id, text: m.label })), { value: CUSTOM, text: 'Another model from Hugging Face...' }],
+    () => (decisionModelInfo(d().hfModel) ? d().hfModel : CUSTOM), (v) => { if (v !== CUSTOM) apply({ hfModel: v }); else decModelId.input.focus(); }));
+  const decModelId = add(textField('Hugging Face model id', () => d().hfModel, (v) => apply({ hfModel: v.trim() }), { placeholder: 'owner/name, for example MoritzLaurer/deberta-v3-xsmall-zeroshot-v1.1-all-33' }));
+  const decDevice = add(pick('Device', DECISION_DEVICES.map((v) => ({ value: v, text: v === 'auto' ? 'Auto (WebGPU when present)' : v === 'webgpu' ? 'WebGPU' : 'WASM (CPU, slower)' })), () => d().device, (v) => apply({ device: v })));
+  const decDtype = add(pick('Data type', DECISION_DTYPES.map((v) => ({ value: v, text: v === 'auto' ? 'Auto (q8 on WASM, fp16 on WebGPU)' : v })), () => d().dtype, (v) => apply({ dtype: v })));
+  const decInfo = el('div', 'xt-note');
+  const decRuntime = el('div', 'xt-note');
+  decRuntime.setAttribute('role', 'status');
+  const hfTok = secretField(add, {
+    label: 'Hugging Face token', aria: 'Hugging Face token', name: 'xray-classify-hf-token', store: svc.hfToken, status: 'Hugging Face token', remember: 'Remember token on this device',
+    save: 'Save token', forget: 'Forget token', saveTitle: 'Keep the token typed above', forgetTitle: 'Remove the token from this browser',
+  });
+  const decProg = el('div', 'xc-prog');
+  const decBar = el('i');
+  decProg.appendChild(decBar);
+  const decProgLine = statusLine('');
+  const cacheLine = statusLine('');
+  const advDec = details('Advanced: endpoint and hypotheses');
+  advDec.append(
+    add(textField('Hugging Face endpoint', () => d().hfEndpoint, (v) => apply({ hfEndpoint: v.trim() }), { type: 'url', placeholder: 'https://huggingface.co' })).root,
+    note('Use another address for a mirror or your own proxy. A token goes to this address only.'),
+  );
+  const HYP_LABEL: Record<(typeof HYPOTHESIS_KEYS)[number], string> = { discipline: 'Discipline hypothesis', sub_discipline: 'Sub-discipline hypothesis', masterformat: 'Division hypothesis', building_element: 'Building hypothesis' };
+  for (const k of HYPOTHESIS_KEYS) advDec.append(add(textField(HYP_LABEL[k], () => d().hypothesis[k], (v) => apply({ hypothesis: { ...d().hypothesis, [k]: v.trim() } }))).root);
+  advDec.append(row(button('Reset hypotheses', () => apply({ hypothesis: { ...DEFAULT_HYPOTHESES } }), { title: 'Use the default hypothesis sentences' })));
+  dec.append(decPreset.root, decModelId.root, decDevice.root, decDtype.root, decInfo, decRuntime, ...hfTok.nodes, decProg, decProgLine, cacheLine, advDec);
+  box.appendChild(dec);
+
   // Jev
   const jev = el('div', 'xc-group');
   jev.setAttribute('data-for', 'jev');
@@ -227,46 +328,34 @@ function panel(box: HTMLElement, app: ViewerApp, svc: ClassifyService, tint: Tin
     add(numField('Timeout (ms)', 1000, 300000, 1000, () => d().timeoutMs, (v) => apply({ timeoutMs: v }))).root,
   );
   // API key
-  const keyBox = el('label', 'xt-select');
-  const keyInput = el('input', 'xc-text', { type: 'password', autocomplete: 'off', spellcheck: 'false', 'aria-label': 'API key', placeholder: 'not shown after saving', name: 'xray-classify-key' });
-  keyBox.append(el('span', 'xt-lbl', undefined, 'API key'), keyInput);
-  const keyStatus = statusLine('');
-  const remember = add(check('Remember on this device', () => svc.keys.remembered(), (v) => {
-    const k = keyInput.value.trim() || svc.keys.get();
-    if (k) svc.keys.set(k, v);
-    paintKey();
-  }));
-  const saveKey = (): void => {
-    if (keyInput.value.trim()) svc.keys.set(keyInput.value, (remember.root.querySelector('input') as HTMLInputElement).checked);
-    keyInput.value = '';
-    paintKey();
-  };
-  keyInput.addEventListener('change', saveKey);
-  const paintKey = (): void => {
-    keyStatus.set(`API key: ${svc.keys.mask()}${svc.keys.remembered() ? ', kept on this device' : svc.keys.get() ? ', kept for this tab only' : ''}`);
-    remember.update();
-  };
-  jev.append(
-    keyBox,
-    remember.root,
-    keyStatus,
-    row(
-      button('Save key', saveKey, { title: 'Keep the key typed above' }),
-      button('Forget key', () => { svc.keys.clear(); keyInput.value = ''; paintKey(); }, { title: 'Remove the key from this browser' }),
-    ),
-    note('A key in a page can be read by anyone who uses this browser. For a shared viewer, use a same-origin proxy as the endpoint and leave the key empty.'),
-  );
+  const jevKey = secretField(add, {
+    label: 'API key', aria: 'API key', name: 'xray-classify-key', store: svc.keys, status: 'API key', remember: 'Remember on this device',
+    save: 'Save key', forget: 'Forget key', saveTitle: 'Keep the key typed above', forgetTitle: 'Remove the key from this browser',
+  });
+  jev.append(...jevKey.nodes, note('A key in a page can be read by anyone who uses this browser. For a shared viewer, use a same-origin proxy as the endpoint and leave the key empty.'));
+  const paintKey = jevKey.paint;
   box.appendChild(jev);
 
   // WebLLM
   const web = el('div', 'xc-group');
   web.setAttribute('data-for', 'webllm');
   web.style.cssText = 'display:flex;flex-direction:column;gap:6px';
+  const webMode = add(pick('Mode', WEBLLM_MODES.map((m) => ({ value: m, text: m === 'chat' ? 'Chat (one letter per question)' : m === 'embed' ? 'Embed (similarity, every option scored)' : 'Hybrid (embed, chat for close calls)' })), () => d().webllmMode, (v) => apply({ webllmMode: v })));
   const webModel = add(pick('Browser model', WEBLLM_MODELS.map((m) => ({ value: m.id, text: m.label })), () => d().webllmModel, (v) => apply({ webllmModel: v })));
+  const webEmbed = add(pick('Embedding model', WEBLLM_EMBED_MODELS.map((m) => ({ value: m.id, text: m.label })), () => d().webllmEmbedModel, (v) => apply({ webllmEmbedModel: v })));
+  const webTemp = add(numField('Embedding temperature', 0.005, 1, 0.005, () => d().embedTemperature, (v) => apply({ embedTemperature: v })));
+  const webMargin = add(numField('Hybrid margin', 0, 1, 0.05, () => d().hybridMargin, (v) => apply({ hybridMargin: v })));
   const webInfo = el('div', 'xt-note');
   const gpuNote = el('div', 'xt-note');
   gpuNote.setAttribute('role', 'status');
-  web.append(webModel.root, webInfo, gpuNote);
+  const webCustomNote = el('div', 'xt-note xc-warn');
+  const advWeb = details('Advanced: a custom model from Hugging Face');
+  advWeb.append(
+    add(textField('Custom model URL', () => d().webllmCustomModel, (v) => apply({ webllmCustomModel: v.trim() }), { type: 'url', placeholder: 'https://huggingface.co/owner/name-q4f16_1-MLC' })).root,
+    add(textField('Custom library URL', () => d().webllmCustomLib, (v) => apply({ webllmCustomLib: v.trim() }), { type: 'url', placeholder: 'https://.../model-webgpu.wasm' })).root,
+    webCustomNote,
+  );
+  web.append(webMode.root, webModel.root, webEmbed.root, webTemp.root, webMargin.root, webInfo, gpuNote, advWeb);
   box.appendChild(web);
 
   box.appendChild(issues);
@@ -281,7 +370,31 @@ function panel(box: HTMLElement, app: ViewerApp, svc: ClassifyService, tint: Tin
       conn.classList.toggle('xc-err', !r.ok);
     });
   }, { title: 'Send one small yes or no question to the provider' });
-  box.append(row(testBtn), conn);
+  const testModelBtn = button('Test model', () => {
+    conn.set('Loading the model...');
+    conn.classList.remove('xc-err');
+    void svc.testModel().then((r) => {
+      conn.set(r.message);
+      conn.classList.toggle('xc-err', !r.ok);
+      void paintCache();
+    });
+  }, { title: 'Load the model, run one small question and report the time, the device and the size' });
+  const clearCacheBtn = button('Clear model cache', () => {
+    void svc.clearModelCache().then((ok) => { conn.set(ok ? 'The downloaded models were deleted from the browser cache.' : 'The browser cache holds no models.'); conn.classList.remove('xc-err'); void paintCache(); });
+  }, { title: 'Delete the downloaded model files from the browser cache' });
+  box.append(row(testBtn, testModelBtn, clearCacheBtn), conn);
+  let cacheBusy = false;
+  const paintCache = async (): Promise<void> => {
+    if (cacheBusy) return;
+    cacheBusy = true;
+    try {
+      const c = await svc.modelCacheInfo();
+      cacheLine.set(!c.available ? 'Model cache: not available in this browser.' : c.files === 0 ? 'Model cache: empty. The model downloads on first use.' : `Model cache: ${fmtMB(c.bytes)} in ${c.files} file${c.files === 1 ? '' : 's'}.`);
+      clearCacheBtn.setDisabled(c.available && c.files > 0 ? false : 'Nothing is cached');
+    } finally {
+      cacheBusy = false;
+    }
+  };
 
   // ---- schema
   box.appendChild(section('Schema'));
@@ -297,14 +410,28 @@ function panel(box: HTMLElement, app: ViewerApp, svc: ClassifyService, tint: Tin
     schemaIssues.textContent = errs.join(' ');
     file.value = '';
   });
+  const tlFile = el('input', undefined, { type: 'file', accept: '.json,application/json', hidden: '' });
+  const schemaNotes = el('div', 'xt-note xc-warn');
+  schemaNotes.hidden = true;
+  tlFile.addEventListener('change', async () => {
+    const f = tlFile.files?.[0];
+    if (!f) return;
+    const errs = svc.importThroughline(await f.text());
+    schemaIssues.hidden = errs.length === 0;
+    schemaIssues.textContent = errs.join(' ');
+    tlFile.value = '';
+  });
   box.append(
     schemaLine,
     row(
       button('Load schema file', () => file.click(), { title: 'Use your own xray-classification-schema/1 file' }),
-      button('Use built-in schema', () => { svc.useDefaultSchema(); schemaIssues.hidden = true; }, { title: 'Go back to the shipped placeholder schema' }),
+      button('Import Throughline list', () => tlFile.click(), { title: 'Use a Throughline Discipline code list (a JSON export of its entries) as the schema' }),
+      button('Use built-in schema', () => { svc.useDefaultSchema(); schemaIssues.hidden = true; }, { title: 'Go back to the Throughline-aligned default schema' }),
     ),
     file,
+    tlFile,
     schemaIssues,
+    schemaNotes,
     add(numField('Minimum confidence', 0, 1, 0.05, () => svc.minConfidence(), (v) => apply({ minConfidence: Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : null }))).root,
     add(check('Write properties to the model', () => d().writePset, (v) => apply({ writePset: v }))).root,
   );
@@ -475,6 +602,9 @@ function panel(box: HTMLElement, app: ViewerApp, svc: ClassifyService, tint: Tin
       button('Export JSON', () => downloadText(`classification-${app.modelName}.json`, svc.export('json'), 'application/json'), { title: 'Save the results as a JSON file' }),
     ),
     row(
+      button('Export Throughline JSON', () => downloadText(`classification-${app.modelName}.throughline.json`, svc.export('throughline'), 'application/json'), { title: 'Save the results in the shape of a Throughline Discipline code list' }),
+    ),
+    row(
       button('Clear results', () => { svc.clear(); tint.apply(); }, { title: 'Remove the results and the written properties. Manual overrides stay.' }),
       button('Clear cache', () => svc.clearCache(), { title: 'Forget the stored decisions of this model' }),
     ),
@@ -500,22 +630,48 @@ function panel(box: HTMLElement, app: ViewerApp, svc: ClassifyService, tint: Tin
     estTimer = setTimeout(estimateNow, 120);
   };
 
+  let cacheFor: string | null = null;
+  let loadSeen: unknown = null;
+  const show = (e: HTMLElement, on: boolean): void => { e.hidden = !on; e.style.display = on ? 'flex' : 'none'; };
   const refresh = (): void => {
     for (const w of widgets) w.update();
     const p = d().provider;
-    jev.hidden = p !== 'jev';
-    web.hidden = p !== 'webllm';
-    jev.style.display = p === 'jev' ? 'flex' : 'none';
-    web.style.display = p === 'webllm' ? 'flex' : 'none';
+    show(jev, p === 'jev');
+    show(web, p === 'webllm');
+    show(dec, p === 'decision');
     showIssues(svc.issues.errors, svc.issues.warnings);
+    testBtn.style.display = p === 'decision' ? 'none' : '';
+    testModelBtn.style.display = p === 'decision' ? '' : 'none';
+    clearCacheBtn.style.display = p === 'decision' ? '' : 'none';
     testBtn.setDisabled(p === 'off' ? 'Choose a provider first' : false);
-    webInfo.textContent = `${describeModel(d().webllmModel)}. The browser loads the library and the model on first use and keeps them in its cache.${webllmModelInfo(d().webllmModel) ? '' : ' This model id is not in the tested list.'}`;
+    // decision model
+    if (p === 'decision') {
+      decInfo.textContent = `${describeDecisionModel(d().hfModel, d().dtype)}${decisionModelInfo(d().hfModel) ? '' : ' A model that is not in the list is checked before it downloads: it must be a zero-shot or NLI model.'}`;
+      if (!svc.gpu) void svc.probeGpu().then(() => svc.notify());
+      decRuntime.textContent = svc.runtimeNote();
+      const pr = svc.decisionProgress;
+      decBar.style.width = pr ? `${Math.round(pr.progress * 100)}%` : '0';
+      decProgLine.set(pr ? pr.text : '');
+      if (cacheFor !== 'decision' || loadSeen !== svc.lastLoad) { cacheFor = 'decision'; loadSeen = svc.lastLoad; void paintCache(); }
+    } else cacheFor = null;
+    // browser chat model
+    webInfo.textContent = `${d().webllmMode === 'chat' || d().webllmMode === 'hybrid' ? describeModel(d().webllmModel) : ''}${d().webllmMode !== 'chat' ? ` ${describeModel(d().webllmEmbedModel)}.` : ''} The browser loads the library and the models on first use and keeps them in its cache.${webllmModelInfo(d().webllmModel) ? '' : ' This model id is not in the tested list.'}`.trim();
+    webModel.root.style.display = d().webllmMode === 'embed' ? 'none' : '';
+    webEmbed.root.style.display = d().webllmMode === 'chat' ? 'none' : '';
+    webTemp.root.style.display = d().webllmMode === 'chat' ? 'none' : '';
+    webMargin.root.style.display = d().webllmMode === 'hybrid' ? '' : 'none';
+    const cm = customModelCheck(d().webllmCustomModel, d().webllmCustomLib);
+    webCustomNote.textContent = [...cm.errors, ...cm.warnings].join(' ');
+    webCustomNote.hidden = webCustomNote.textContent === '';
     if (p === 'webllm') void detectWebGpu().then((g) => { gpuNote.textContent = g.ok ? 'WebGPU is available.' : g.reason; gpuNote.classList.toggle('xc-err', !g.ok); });
     else gpuNote.textContent = '';
     const s = svc.schema;
-    schemaLine.set(`${s.title}${svc.customSchema ? '' : ' (built in)'}${s.placeholder ? ' - PLACEHOLDER, replace it with your own schema' : ''}. ${s.disciplines.length} disciplines, ${s.masterformat.divisions.length} divisions. Property set ${s.psetName}.`);
+    schemaLine.set(`${s.title}${svc.customSchema ? '' : ' (built in)'}${s.placeholder ? ' - PLACEHOLDER, replace it with your own schema' : ''}. ${s.disciplines.length} disciplines, ${s.masterformat.divisions.length} divisions. Property set ${s.psetName}.${svc.customSchema ? '' : ' Load the Discipline code list of your company standards to replace it.'}`);
     schemaLine.classList.toggle('xc-warn', s.placeholder === true);
+    schemaNotes.textContent = svc.importNotes.join(' ');
+    schemaNotes.hidden = svc.importNotes.length === 0;
     paintKey();
+    hfTok.paint();
     const running = svc.running;
     bSel.setDisabled(running ? 'A run is in progress' : false);
     bAll.setDisabled(running ? 'A run is in progress' : false);
@@ -527,7 +683,9 @@ function panel(box: HTMLElement, app: ViewerApp, svc: ClassifyService, tint: Tin
     } else if (!running) {
       bar.style.width = svc.lastStats ? '100%' : '0';
       const st = svc.lastStats;
-      progLine.set(runMsg ?? infoMsg ?? (st ? `${summaryText(st, svc.results().length)}${st.errors[0] ? ` ${st.errors[0]}` : ''}` : ''));
+      const ds = svc.decisionStats();
+      const decText = ds && ds.requests ? ` Decision model: ${ds.pairs} text pairs in ${ds.passes} passes${ds.cachedPairs ? `, ${ds.cachedPairs} from the pair cache` : ''}.` : '';
+      progLine.set(runMsg ?? infoMsg ?? (st ? `${summaryText(st, svc.results().length)}${decText}${st.errors[0] ? ` ${st.errors[0]}` : ''}` : ''));
       progLine.classList.toggle('xc-err', !!runMsg || (!!st && st.failed > 0));
     }
     renderTable();
@@ -612,6 +770,17 @@ export const classifyPlugin: AppPlugin = {
       setKey: (key, remember) => service.keys.set(key, remember === true),
       keyState: () => ({ set: !!service.keys.get(), remembered: service.keys.remembered(), mask: service.keys.mask() }),
       testConnection: () => service.testConnection(),
+      testModel: () => service.testModel(),
+      setHfToken: (token, remember) => service.hfToken.set(token, remember === true),
+      hfTokenState: () => ({ set: !!service.hfToken.get(), remembered: service.hfToken.remembered(), mask: service.hfToken.mask() }),
+      modelCache: () => service.modelCacheInfo(),
+      clearModelCache: () => service.clearModelCache(),
+      decisionStats: () => service.decisionStats(),
+      webllmStats: () => service.webllmStats(),
+      importThroughline: (json) => {
+        const errors = service.importThroughline(json);
+        return { errors, warnings: [...service.importNotes] };
+      },
       selectNeedsReview: () => {
         const ids = service.needsReviewIds();
         app.selectIds(ids);

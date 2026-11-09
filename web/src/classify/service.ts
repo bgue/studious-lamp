@@ -9,12 +9,17 @@ import { StorageCache, cacheKey } from './cache';
 import type { KeyValueStorage, SignatureCache } from './cache';
 import { buildRequest, JEV_DEFAULT_MODEL } from './jevAdapter';
 import type { JevRequest } from './jevAdapter';
-import { ApiKeyStore } from './keyStore';
+import { ApiKeyStore, HF_TOKEN_STORAGE_NAME } from './keyStore';
 import type { KeyStorages } from './keyStore';
 import { classifyInputs, estimateCalls, SUB_STRATEGIES } from './pipeline';
 import type { CallEstimate, SubDisciplineStrategy } from './pipeline';
 import { createProvider, providerId, testConnection } from './providers';
 import type { ConnectionTest } from './providers';
+import { clearModelCache, decisionModelInfo, inspectModel, modelCacheInfo, probeGpu, runtimeText } from './providers/decision';
+import type { CacheStorageLike, DecisionProgress, DecisionProvider, DecisionStats, GpuProbe, LoadReport, ModelCacheInfo, ModelInspection } from './providers/decision';
+import type { WebLlmStats } from './providers/webllm';
+import { importDisciplineList, exportThroughlineJson } from './throughline';
+import type { ImportOptions } from './throughline';
 import { classByRules, resolveRule } from './rules';
 import { mainQuestions, subQuestions } from './questions';
 import { exportCsv, exportJson, makeManual, manualKey, ResultStore } from './results';
@@ -37,6 +42,30 @@ export interface ServiceEnv {
   /** Current selection as element indexes. */
   selection?: () => number[];
   onWebLlmProgress?: (text: string, progress: number) => void;
+  /** Progress of the model download (decision provider). */
+  onDecisionProgress?: (p: DecisionProgress) => void;
+  /** The Cache API (tests inject a fake). Default: the browser's `caches`. */
+  cacheStorage?: CacheStorageLike | null;
+  /** Replace the library loaders and the GPU probe (tests). */
+  decisionLoad?: Parameters<typeof createProvider>[1]['decisionLoad'];
+  decisionGpu?: () => Promise<GpuProbe>;
+  webllmLoad?: Parameters<typeof createProvider>[1]['webllmLoad'];
+}
+
+/** The result of "Test model". */
+export interface ModelTest {
+  ok: boolean;
+  message: string;
+  model?: string;
+  device?: string;
+  dtype?: string;
+  /** Library and model load, ms. */
+  loadMs?: number;
+  /** Size of the files that the loader reported, MB. */
+  sizeMB?: number;
+  /** One tiny choice: the option it chose and its probability. */
+  choice?: { code: string; probability: number; ms: number };
+  note?: string;
 }
 
 export type Target = readonly (string | number)[] | 'selection' | 'all';
@@ -57,6 +86,15 @@ export class ClassifyService {
   /** True when the schema in use is the shipped placeholder. */
   customSchema = false;
   readonly keys: ApiKeyStore;
+  /** The Hugging Face token (gated or private models). Same rules as the API key: not a setting, never in params, links or views. */
+  readonly hfToken: ApiKeyStore;
+  /** Messages of the last schema import (warnings that did not stop it). */
+  importNotes: string[] = [];
+  /** The last load of the decision model, and the download progress while it loads. */
+  lastLoad: LoadReport | null = null;
+  decisionProgress: DecisionProgress | null = null;
+  gpu: GpuProbe | null = null;
+  private testCtl: AbortController | null = null;
   model: SceneModel | null = null;
   modelName = '';
   store = new ResultStore();
@@ -73,6 +111,7 @@ export class ClassifyService {
 
   constructor(private readonly env: ServiceEnv) {
     this.keys = new ApiKeyStore(env.keyStorages);
+    this.hfToken = new ApiKeyStore(env.keyStorages, HF_TOKEN_STORAGE_NAME);
     this.loadStoredSchema();
   }
 
@@ -176,6 +215,7 @@ export class ClassifyService {
   }
 
   useDefaultSchema(): void {
+    this.importNotes = [];
     this.useSchema(defaultSchema(), false);
     try {
       this.env.storage?.removeItem(SCHEMA_STORAGE_KEY);
@@ -258,14 +298,121 @@ export class ClassifyService {
         key,
         provider: createProvider(this.settings(), {
           apiKey: () => this.keys.get(),
+          hfToken: () => this.hfToken.get(),
           ...(this.env.fetchImpl ? { fetchImpl: this.env.fetchImpl } : {}),
           ...(this.env.onWebLlmProgress ? { onWebLlmProgress: (p: { text: string; progress: number }) => this.env.onWebLlmProgress?.(p.text, p.progress) } : {}),
+          onDecisionProgress: (p) => {
+            this.decisionProgress = p;
+            this.env.onDecisionProgress?.(p);
+            this.emit();
+          },
+          ...(this.env.decisionLoad ? { decisionLoad: this.env.decisionLoad } : {}),
+          ...(this.env.decisionGpu ? { decisionGpu: this.env.decisionGpu } : {}),
+          ...(this.env.webllmLoad ? { webllmLoad: this.env.webllmLoad } : {}),
         }),
       };
     }
     return this.providerMemo.provider;
   }
   private providerMemo: { key: string; provider: DecisionModel | null } | null = null;
+
+  /** Counts of the decision model (pairs, passes) since the provider was created. Null for other providers. */
+  decisionStats(): DecisionStats | null {
+    const p = this.provider() as Partial<DecisionProvider> | null;
+    return p && p.provider === 'decision' && p.stats ? p.stats() : null;
+  }
+
+  webllmStats(): WebLlmStats | null {
+    const p = this.provider() as { provider?: string; stats?: () => WebLlmStats } | null;
+    return p && p.provider === 'webllm' && p.stats ? p.stats() : null;
+  }
+
+  /** Look at the GPU once and keep the answer for the drawer. */
+  async probeGpu(): Promise<GpuProbe> {
+    this.gpu = await (this.env.decisionGpu ?? probeGpu)();
+    return this.gpu;
+  }
+
+  /** Size of the downloaded models in the Cache API. */
+  modelCacheInfo(): Promise<ModelCacheInfo> {
+    return modelCacheInfo(this.env.cacheStorage === undefined ? undefined : this.env.cacheStorage);
+  }
+
+  /** Delete the downloaded models (the Cache API entry of transformers.js) and free the loaded one. */
+  async clearModelCache(): Promise<boolean> {
+    const p = this.provider() as Partial<DecisionProvider> | null;
+    await p?.dispose?.();
+    this.lastLoad = null;
+    this.decisionProgress = null;
+    const ok = await clearModelCache(this.env.cacheStorage === undefined ? undefined : this.env.cacheStorage);
+    this.emit();
+    return ok;
+  }
+
+  /**
+   * Load the decision model, run one tiny choice and report the load time, the device, the data type and the size.
+   * For other providers it is the connection test. Never throws.
+   */
+  async testModel(): Promise<ModelTest> {
+    if (this.draft.provider !== 'decision') {
+      const r = await this.testConnection();
+      return { ok: r.ok, message: r.message, ...(r.model ? { model: r.model } : {}) };
+    }
+    const s = this.settings();
+    if (s.provider !== 'decision') return { ok: false, message: 'The decision model is not selected.' };
+    const provider = this.provider() as DecisionProvider;
+    this.testCtl = new AbortController();
+    const signal = this.testCtl.signal;
+    this.decisionProgress = null;
+    this.emit();
+    try {
+      let sizeNote = '';
+      if (!decisionModelInfo(s.hfModel)) {
+        const ins: ModelInspection = await inspectModel(s.hfModel, { endpoint: s.hfEndpoint, token: this.hfToken.get(), ...(this.env.fetchImpl ? { fetchImpl: this.env.fetchImpl } : {}), signal });
+        if (!ins.ok) return { ok: false, message: ins.message, model: s.hfModel };
+        sizeNote = ins.sizesMB ? ` Files: ${Object.entries(ins.sizesMB).map(([k, v]) => `${k} ${v} MB`).join(', ')}.` : '';
+      }
+      const rep = await provider.load(signal);
+      this.lastLoad = rep;
+      const t0 = Date.now();
+      const a = await provider.decide(
+        { class: 'IfcDuctSegment', name: 'Duct 300x200', building_context: true },
+        {
+          pick: {
+            type: 'choice',
+            instructions: 'Choose the discipline.',
+            criteria: { MEC: 'Mechanical. Heating, ventilation and air conditioning: ducts, fans.', ARC: 'Architectural. Walls, doors, windows, finishes.', PLB: 'Plumbing. Water supply and drainage pipes.' },
+          },
+        },
+        signal,
+      );
+      const ans = a.answers['pick'];
+      const choice = ans && ans.type === 'choice' ? { code: ans.choice, probability: ans.probabilities[ans.choice] ?? ans.confidence, ms: Date.now() - t0 } : undefined;
+      const sizeText = rep.sizeMB > 0 ? `, ${rep.sizeMB} MB of files` : '';
+      return {
+        ok: true,
+        model: s.hfModel,
+        device: rep.device,
+        dtype: rep.dtype,
+        loadMs: rep.loadMs,
+        sizeMB: rep.sizeMB,
+        ...(choice ? { choice } : {}),
+        ...(rep.note ? { note: rep.note } : {}),
+        message: `Ready: ${s.hfModel} on ${rep.device} (${rep.dtype}) in ${(rep.loadMs / 1000).toFixed(1)} s${sizeText}.${choice ? ` Test question: chose ${choice.code} (${choice.probability.toFixed(2)}) in ${choice.ms} ms.` : ''}${rep.note ? ` ${rep.note}` : ''}${sizeNote}`,
+      };
+    } catch (e) {
+      if (signal.aborted) return { ok: false, message: 'Stopped.' };
+      return { ok: false, message: e instanceof Error ? e.message : String(e) };
+    } finally {
+      this.testCtl = null;
+      this.emit();
+    }
+  }
+
+  /** Text for the drawer: where the decision model runs, and what that costs. */
+  runtimeNote(): string {
+    return runtimeText(this.lastLoad, this.gpu);
+  }
 
   async testConnection(): Promise<ConnectionTest> {
     const ctl = new AbortController();
@@ -341,6 +488,7 @@ export class ClassifyService {
 
   abort(): void {
     this.ctl?.abort();
+    this.testCtl?.abort();
   }
 
   // ------------------------------------------------------------ results
@@ -393,9 +541,21 @@ export class ClassifyService {
     return this.store.all().filter((r) => r.needsReview).map((r) => m.byGlobalId.get(r.id)).filter((x): x is number => x !== undefined);
   }
 
-  export(kind: 'json' | 'csv'): string {
+  export(kind: 'json' | 'csv' | 'throughline'): string {
     const all = this.store.all();
+    if (kind === 'throughline') return exportThroughlineJson(all, this.schema, this.modelName);
     return kind === 'csv' ? exportCsv(all) : exportJson(all, this.schema, this.stats(), this.modelName);
+  }
+
+  /**
+   * Use a Throughline `Discipline` code list (JSON of CodeValue entries) as the schema. Returns the problems (empty: accepted).
+   * Warnings that did not stop the import are in `importNotes`.
+   */
+  importThroughline(json: unknown, o: ImportOptions = {}): string[] {
+    const r = importDisciplineList(json, o);
+    this.importNotes = r.warnings;
+    if (!r.schema) return r.errors;
+    return this.setSchema(r.schema);
   }
 
   // ------------------------------------------------------------ properties in the model

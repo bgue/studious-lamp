@@ -20,6 +20,7 @@ import { fakeApp } from './presets-helpers';
 import { jsonResponse, sidecarModel } from './classify-helpers';
 
 const KEY = 'sk-live-ABCDEF-0123456789';
+const HF_TOKEN = 'hf_QWERTYUIOPasdfghjkl0123456789';
 
 function storages(): { session: MemoryStorage; local: MemoryStorage } {
   return { session: new MemoryStorage(), local: new MemoryStorage() };
@@ -47,14 +48,16 @@ describe('settings validation', () => {
     const j = toSettings({ ...defaultDraft(), provider: 'jev' });
     expect(Object.keys(j).sort()).toEqual(['concurrency', 'endpoint', 'maxStateBytes', 'minConfidence', 'model', 'provider', 'schemaUrl', 'timeoutMs', 'writePset']);
     const w = toSettings({ ...defaultDraft(), provider: 'webllm' });
-    expect(Object.keys(w).sort()).toEqual(['minConfidence', 'provider', 'schemaUrl', 'webllmModel', 'writePset']);
+    expect(Object.keys(w).sort()).toEqual(['embedTemperature', 'hybridMargin', 'minConfidence', 'provider', 'schemaUrl', 'webllmCustomLib', 'webllmCustomModel', 'webllmEmbedModel', 'webllmMode', 'webllmModel', 'writePset']);
+    const dm = toSettings({ ...defaultDraft(), provider: 'decision' });
+    expect(Object.keys(dm).sort()).toEqual(['device', 'dtype', 'hfEndpoint', 'hfModel', 'hypothesis', 'minConfidence', 'provider', 'schemaUrl', 'writePset']);
     expect(Object.keys(toSettings({ ...defaultDraft(), provider: 'mock' })).sort()).toEqual(['minConfidence', 'provider', 'schemaUrl', 'writePset']);
   });
 
   it('gives a plain message for each bad value and falls back to the default', () => {
     const c = validateSettings({ provider: 'gpt', minConfidence: 2, writePset: 'yes', schemaUrl: 'javascript:alert(1)' });
     expect(c.errors).toHaveLength(4);
-    expect(c.errors[0]).toBe('provider must be one of off, jev, webllm, mock. Using "off".');
+    expect(c.errors[0]).toBe('provider must be one of off, decision, webllm, jev, mock. Using "off".');
     expect(c.errors.join(' ')).toMatch(/minConfidence must be a number from 0 to 1/);
     expect(c.errors.join(' ')).toMatch(/writePset must be true or false/);
     expect(c.errors.join(' ')).toMatch(/schemaUrl must use https:\/\/ or http:\/\//);
@@ -133,12 +136,14 @@ describe('the API key never leaves the key store', () => {
   const offs: Array<() => void> = [];
   afterEach(() => { while (offs.length) offs.pop()!(); });
 
-  it('is absent from collectParams, the share URL, saved views and packed output', async () => {
+  // Both secrets are set at once (the Jev key and the Hugging Face token) under each provider: neither may appear anywhere.
+  for (const provider of ['jev', 'decision'] as const) it(`is absent from collectParams, the share URL, saved views and packed output (provider ${provider}, key and Hugging Face token)`, async () => {
     const { svc, storage, k } = makeService();
     const f = fakeApp();
     svc.setModel(sidecarModel('fzk-haus'), 'fzk-haus');
-    svc.patch({ provider: 'jev', endpoint: 'https://api.typesafe.ai/v1/systemone' });
+    svc.patch(provider === 'jev' ? { provider: 'jev', endpoint: 'https://api.typesafe.ai/v1/systemone' } : { provider: 'decision', hfModel: 'org/custom-nli', hfEndpoint: 'https://mirror.example.org' });
     svc.keys.set(KEY, true); // even with "remember on this device"
+    svc.hfToken.set(HF_TOKEN, true);
     offs.push(registerParamSection('classify', {
       collect: () => svc.collect(),
       apply: (v, bad, path) => { for (const e of svc.applySettings(v).errors) bad.push(`${path} (${e})`); },
@@ -149,9 +154,9 @@ describe('the API key never leaves the key store', () => {
 
     const doc = collectParams(f.app, f.env);
     const docText = JSON.stringify(doc);
-    expect(doc['classify']).toMatchObject({ provider: 'jev', model: 'jev-1.13.0' });
+    expect(doc['classify']).toMatchObject(provider === 'jev' ? { provider: 'jev', model: 'jev-1.13.0' } : { provider: 'decision', hfModel: 'org/custom-nli', hfEndpoint: 'https://mirror.example.org' });
     const b64 = (s: string): string => btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-    const hasKey = (text: string): boolean => text.includes(KEY) || text.includes(b64(KEY)) || text.includes(encodeURIComponent(KEY));
+    const hasKey = (text: string): boolean => [KEY, HF_TOKEN].some((k) => text.includes(k) || text.includes(b64(k)) || text.includes(encodeURIComponent(k)));
     expect(hasKey(docText)).toBe(false);
 
     // share URL (#p=) and the encoded share document
@@ -188,6 +193,9 @@ describe('the API key never leaves the key store', () => {
     const dump = JSON.stringify([...storage.map.entries()]);
     expect(hasKey(dump)).toBe(false);
     expect(k.local.getItem('xray.classify.apiKey')).toBe(KEY); // it is only here
+    expect(k.local.getItem('xray.classify.hfToken')).toBe(HF_TOKEN); // the token too, in its own entry
+    expect(JSON.stringify(svc.settings())).not.toMatch(/token|apiKey/i); // not a field of the settings
+    expect(Object.keys(svc.collect())).not.toEqual(expect.arrayContaining(['hfToken']));
   });
 
   it('is sent to the configured endpoint only, and not when the endpoint is a proxy with no key', async () => {
@@ -404,7 +412,7 @@ describe('the service: properties, persistence, overrides', () => {
     const m = sidecarModel('fzk-haus');
     svc.setModel(m, 'fzk-haus');
     const s = JSON.parse(JSON.stringify(defaultSchema()));
-    s.psetName = 'Truxion_Class';
+    s.psetName = 'Throughline_Class';
     s.properties = { discipline: 'Disc', subDiscipline: 'Sub' };
     s.title = 'Test schema';
     s.disciplines.find((d: { code: string }) => d.code === 'ARC').code = 'A';
@@ -414,8 +422,8 @@ describe('the service: properties, persistence, overrides', () => {
     expect(Object.keys((svc.questions(svc.buildInput(0)!).main.questions['discipline'] as { criteria: object }).criteria)).toContain('A');
     await svc.classify('all');
     const door = m.elements.find((e) => e.ifcClass === 'IfcDoor')!;
-    expect(door.props!['Truxion_Class.Disc']).toBe('A');
-    expect(door.props!['Truxion_Class.Sub']).toBe('DOR');
+    expect(door.props!['Throughline_Class.Disc']).toBe('A');
+    expect(door.props!['Throughline_Class.Sub']).toBe('DOR');
     expect(door.props!['XR_Classification.Discipline']).toBeUndefined();
   });
 });

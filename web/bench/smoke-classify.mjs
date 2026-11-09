@@ -136,16 +136,19 @@ async function runDesktop(browser) {
   try {
     check(`${tag} the Classify tool is in the action panel`, (await page.locator('.xt-btn-tool[data-tool="classify"]').count()) === 1);
     await openDrawer(page);
-    check(`${tag} the drawer names the placeholder schema`, /PLACEHOLDER/.test(await page.locator('.xt-drawer').textContent()));
+    {
+      const dt = await page.locator('.xt-drawer').textContent();
+      check(`${tag} the drawer names the Throughline-aligned default schema and says how to replace it`, /Throughline-aligned default/.test(dt) && /Load the Discipline code list of your company standards/.test(dt) && !/PLACEHOLDER/.test(dt));
+    }
 
     // ---- the settings: jev, key, test connection
     await page.evaluate(() => window.__xrayClassify.configure({ provider: 'jev' }));
     await page.waitForTimeout(200);
-    await page.locator('.xt-drawer input[type=password]').fill(KEY);
+    await page.locator('.xt-drawer input[aria-label="API key"]').fill(KEY);
     await page.locator('.xt-drawer .xt-btn', { hasText: 'Save key' }).click();
     const keyText = await page.locator('.xt-drawer .xt-status', { hasText: 'API key' }).textContent();
     check(`${tag} the key is masked in the drawer`, !keyText.includes(KEY) && /hidden/.test(keyText), keyText);
-    check(`${tag} the key box is a password field and empty after saving`, (await page.locator('.xt-drawer input[type=password]').inputValue()) === '');
+    check(`${tag} the key box is a password field and empty after saving`, (await page.locator('.xt-drawer input[aria-label="API key"]').inputValue()) === '');
     await page.locator('.xt-drawer .xt-btn', { hasText: 'Test connection' }).click();
     await page.waitForFunction(() => /Connected/.test(document.querySelector('.xt-drawer')?.textContent ?? ''), null, { timeout: 15000 });
     check(`${tag} test connection reaches the fake endpoint and reports the model`, jev.calls === 1 && /jev-1\.13\.0/.test(await page.locator('.xt-drawer').textContent()), `calls ${jev.calls}`);

@@ -1,4 +1,4 @@
-// Where the API key lives. Nowhere else: not in the settings, not in params documents, share links, saved views, presets
+// Where a secret lives (the API key of Jev, and the Hugging Face token). Nowhere else: not in the settings, not in params documents, share links, saved views, presets
 // or packed pages. By default the key is kept in sessionStorage (gone when the tab closes); the person may tick "remember
 // on this device" to keep it in localStorage. It is sent only to the configured endpoint, and it is never logged.
 //
@@ -8,6 +8,8 @@
 import type { KeyValueStorage } from './cache';
 
 export const KEY_STORAGE_NAME = 'xray.classify.apiKey';
+/** The Hugging Face token (gated or private models) lives in its own entry, with exactly the same rules as the API key. */
+export const HF_TOKEN_STORAGE_NAME = 'xray.classify.hfToken';
 
 export interface KeyStorages {
   session: KeyValueStorage | null;
@@ -27,12 +29,13 @@ export function browserKeyStorages(): KeyStorages {
 
 export class ApiKeyStore {
   private mem: string | null = null;
-  constructor(private readonly s: KeyStorages) {}
+  /** `name` is the storage entry. The same class holds the Jev API key and the Hugging Face token. */
+  constructor(private readonly s: KeyStorages, private readonly name: string = KEY_STORAGE_NAME) {}
 
   /** The key, or null when none is set. */
   get(): string | null {
     try {
-      const v = this.s.session?.getItem(KEY_STORAGE_NAME) ?? this.s.local?.getItem(KEY_STORAGE_NAME);
+      const v = this.s.session?.getItem(this.name) ?? this.s.local?.getItem(this.name);
       if (v) return v;
     } catch {
       /* storage blocked */
@@ -43,7 +46,7 @@ export class ApiKeyStore {
   /** True when the key is kept on this device (localStorage). */
   remembered(): boolean {
     try {
-      return !!this.s.local?.getItem(KEY_STORAGE_NAME);
+      return !!this.s.local?.getItem(this.name);
     } catch {
       return false;
     }
@@ -56,11 +59,11 @@ export class ApiKeyStore {
     this.mem = k;
     try {
       if (remember) {
-        this.s.local?.setItem(KEY_STORAGE_NAME, k);
-        this.s.session?.removeItem(KEY_STORAGE_NAME);
+        this.s.local?.setItem(this.name, k);
+        this.s.session?.removeItem(this.name);
       } else {
-        this.s.session?.setItem(KEY_STORAGE_NAME, k);
-        this.s.local?.removeItem(KEY_STORAGE_NAME);
+        this.s.session?.setItem(this.name, k);
+        this.s.local?.removeItem(this.name);
       }
     } catch {
       /* the key stays in memory for this page */
@@ -70,8 +73,8 @@ export class ApiKeyStore {
   clear(): void {
     this.mem = null;
     try {
-      this.s.session?.removeItem(KEY_STORAGE_NAME);
-      this.s.local?.removeItem(KEY_STORAGE_NAME);
+      this.s.session?.removeItem(this.name);
+      this.s.local?.removeItem(this.name);
     } catch {
       /* ignore */
     }

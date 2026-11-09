@@ -3,13 +3,21 @@
 // It lives in keyStore.ts.
 
 import { JEV_DEFAULT_ENDPOINT, JEV_DEFAULT_MODEL, isMovingAlias } from './jevAdapter';
-import { WEBLLM_DEFAULT_MODEL, WEBLLM_MODELS } from './providers/webllm';
+import {
+  DECISION_DEFAULT_MODEL, DECISION_DEVICES, DECISION_DTYPES, DEFAULT_HYPOTHESES, HF_DEFAULT_ENDPOINT, HYPOTHESIS_KEYS, hfModelProblem, hypothesisProblem,
+} from './providers/decision';
+import type { DecisionDevice, DecisionDtype, HypothesisTemplates } from './providers/decision';
+import {
+  DEFAULT_EMBED_TEMPERATURE, DEFAULT_HYBRID_MARGIN, WEBLLM_DEFAULT_EMBED_MODEL, WEBLLM_DEFAULT_MODEL, WEBLLM_EMBED_MODELS, WEBLLM_MODELS, WEBLLM_MODES, customModelCheck,
+} from './providers/webllm';
+import type { WebLlmMode } from './providers/webllm';
 
-export const PROVIDERS = ['off', 'jev', 'webllm', 'mock'] as const;
+/** `decision` is the recommended local provider (a small NLI model, WebGPU or WASM), then `webllm` (a chat model), then `jev` (HTTP). */
+export const PROVIDERS = ['off', 'decision', 'webllm', 'jev', 'mock'] as const;
 export type ProviderId = (typeof PROVIDERS)[number];
 
 export interface ClassifyShared {
-  /** URL of a schema file (`xray-classification-schema/1`). Empty: the built-in placeholder schema. */
+  /** URL of a schema file (`xray-classification-schema/1`). Empty: the built-in Throughline-aligned default schema. */
   schemaUrl: string;
   /** Results below this need review. null: the value of the schema. */
   minConfidence: number | null;
@@ -30,8 +38,30 @@ export interface JevSettings {
 export interface WebLlmSettings {
   provider: 'webllm';
   webllmModel: string;
+  /** chat: the chat model answers; embed: an embedding model; hybrid: embed first, the chat model decides close calls. */
+  webllmMode: WebLlmMode;
+  webllmEmbedModel: string;
+  /** Softmax temperature over the cosine similarities (embed and hybrid). */
+  embedTemperature: number;
+  /** Hybrid: the top-2 margin below which the chat model decides. */
+  hybridMargin: number;
+  /** Advanced: a custom MLC model from Hugging Face. The repository URL and the compiled library URL. Both, or both empty. */
+  webllmCustomModel: string;
+  webllmCustomLib: string;
 }
-export type ClassifySettings = ClassifyShared & ({ provider: 'off' } | JevSettings | WebLlmSettings | { provider: 'mock' });
+export interface DecisionSettings {
+  provider: 'decision';
+  /** A Hugging Face repository id (owner/name) of a zero-shot or NLI model with ONNX weights. */
+  hfModel: string;
+  device: DecisionDevice;
+  /** auto: fp16 on WebGPU when the adapter supports it, q8 on WASM. */
+  dtype: DecisionDtype;
+  /** Where the weights come from (a mirror or a proxy). transformers.js `env.remoteHost`. */
+  hfEndpoint: string;
+  /** Hypothesis sentence per question; `{}` is where the option goes. */
+  hypothesis: HypothesisTemplates;
+}
+export type ClassifySettings = ClassifyShared & ({ provider: 'off' } | DecisionSettings | JevSettings | WebLlmSettings | { provider: 'mock' });
 
 export const JEV_DEFAULTS = {
   endpoint: JEV_DEFAULT_ENDPOINT,
@@ -50,11 +80,33 @@ export interface ClassifyDraft extends ClassifyShared {
   concurrency: number;
   maxStateBytes: number;
   webllmModel: string;
+  webllmMode: WebLlmMode;
+  webllmEmbedModel: string;
+  embedTemperature: number;
+  hybridMargin: number;
+  webllmCustomModel: string;
+  webllmCustomLib: string;
+  hfModel: string;
+  device: DecisionDevice;
+  dtype: DecisionDtype;
+  hfEndpoint: string;
+  hypothesis: HypothesisTemplates;
 }
 
+export const DECISION_DEFAULTS = { hfModel: DECISION_DEFAULT_MODEL, device: 'auto', dtype: 'auto', hfEndpoint: HF_DEFAULT_ENDPOINT } as const;
+export const WEBLLM_DEFAULTS = {
+  webllmModel: WEBLLM_DEFAULT_MODEL, webllmMode: 'chat', webllmEmbedModel: WEBLLM_DEFAULT_EMBED_MODEL, embedTemperature: DEFAULT_EMBED_TEMPERATURE,
+  hybridMargin: DEFAULT_HYBRID_MARGIN, webllmCustomModel: '', webllmCustomLib: '',
+} as const;
+
 export function defaultDraft(): ClassifyDraft {
-  return { provider: 'off', schemaUrl: '', minConfidence: null, writePset: true, ...JEV_DEFAULTS, webllmModel: WEBLLM_DEFAULT_MODEL };
+  return {
+    provider: 'off', schemaUrl: '', minConfidence: null, writePset: true, ...JEV_DEFAULTS, ...WEBLLM_DEFAULTS, ...DECISION_DEFAULTS, hypothesis: { ...DEFAULT_HYPOTHESES },
+  };
 }
+
+/** True when the hypothesis templates are not the defaults (they then belong to the cache identity). */
+export const customHypotheses = (h: HypothesisTemplates): boolean => HYPOTHESIS_KEYS.some((k) => h[k] !== DEFAULT_HYPOTHESES[k]);
 
 export function toSettings(d: ClassifyDraft): ClassifySettings {
   const shared: ClassifyShared = { schemaUrl: d.schemaUrl, minConfidence: d.minConfidence, writePset: d.writePset };
@@ -62,7 +114,12 @@ export function toSettings(d: ClassifyDraft): ClassifySettings {
     case 'jev':
       return { ...shared, provider: 'jev', endpoint: d.endpoint, model: d.model, timeoutMs: d.timeoutMs, concurrency: d.concurrency, maxStateBytes: d.maxStateBytes };
     case 'webllm':
-      return { ...shared, provider: 'webllm', webllmModel: d.webllmModel };
+      return {
+        ...shared, provider: 'webllm', webllmModel: d.webllmModel, webllmMode: d.webllmMode, webllmEmbedModel: d.webllmEmbedModel, embedTemperature: d.embedTemperature,
+        hybridMargin: d.hybridMargin, webllmCustomModel: d.webllmCustomModel, webllmCustomLib: d.webllmCustomLib,
+      };
+    case 'decision':
+      return { ...shared, provider: 'decision', hfModel: d.hfModel, device: d.device, dtype: d.dtype, hfEndpoint: d.hfEndpoint, hypothesis: { ...d.hypothesis } };
     case 'mock':
       return { ...shared, provider: 'mock' };
     default:
@@ -73,7 +130,13 @@ export function toSettings(d: ClassifyDraft): ClassifySettings {
 export function toDraft(s: ClassifySettings, base: ClassifyDraft = defaultDraft()): ClassifyDraft {
   const d: ClassifyDraft = { ...base, provider: s.provider, schemaUrl: s.schemaUrl, minConfidence: s.minConfidence, writePset: s.writePset };
   if (s.provider === 'jev') Object.assign(d, { endpoint: s.endpoint, model: s.model, timeoutMs: s.timeoutMs, concurrency: s.concurrency, maxStateBytes: s.maxStateBytes });
-  if (s.provider === 'webllm') d.webllmModel = s.webllmModel;
+  if (s.provider === 'webllm') {
+    Object.assign(d, {
+      webllmModel: s.webllmModel, webllmMode: s.webllmMode, webllmEmbedModel: s.webllmEmbedModel, embedTemperature: s.embedTemperature, hybridMargin: s.hybridMargin,
+      webllmCustomModel: s.webllmCustomModel, webllmCustomLib: s.webllmCustomLib,
+    });
+  }
+  if (s.provider === 'decision') Object.assign(d, { hfModel: s.hfModel, device: s.device, dtype: s.dtype, hfEndpoint: s.hfEndpoint, hypothesis: { ...s.hypothesis } });
   return d;
 }
 
@@ -88,7 +151,11 @@ export interface SettingsCheck {
 
 const isObj = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v);
 const SECRET_NAME = /key|token|secret|password|authorization|bearer/i;
-const KNOWN = new Set(['provider', 'schemaUrl', 'minConfidence', 'writePset', 'endpoint', 'model', 'timeoutMs', 'concurrency', 'maxStateBytes', 'webllmModel']);
+const KNOWN = new Set([
+  'provider', 'schemaUrl', 'minConfidence', 'writePset', 'endpoint', 'model', 'timeoutMs', 'concurrency', 'maxStateBytes', 'webllmModel',
+  'webllmMode', 'webllmEmbedModel', 'embedTemperature', 'hybridMargin', 'webllmCustomModel', 'webllmCustomLib',
+  'hfModel', 'device', 'dtype', 'hfEndpoint', 'hypothesis',
+]);
 
 /** Problem with an endpoint or schema URL, or null. Accepts an absolute http(s) URL or a path on the same origin. */
 export function urlProblem(u: string, what: string): string | null {
@@ -190,6 +257,79 @@ export function validateSettings(raw: unknown): SettingsCheck {
     else {
       d.webllmModel = m.trim();
       if (!WEBLLM_MODELS.some((x) => x.id === d.webllmModel)) warnings.push(`webllmModel "${d.webllmModel}" is not one of the tested models (${WEBLLM_MODELS.map((x) => x.id).join(', ')}).`);
+    }
+  }
+  if (raw['webllmMode'] !== undefined) {
+    if ((WEBLLM_MODES as readonly unknown[]).includes(raw['webllmMode'])) d.webllmMode = raw['webllmMode'] as WebLlmMode;
+    else errors.push(`webllmMode must be one of ${WEBLLM_MODES.join(', ')}. Using "${WEBLLM_DEFAULTS.webllmMode}".`);
+  }
+  if (raw['webllmEmbedModel'] !== undefined) {
+    const m = raw['webllmEmbedModel'];
+    if (typeof m !== 'string' || !m.trim()) errors.push(`webllmEmbedModel must be a model id. Using ${WEBLLM_DEFAULT_EMBED_MODEL}.`);
+    else {
+      d.webllmEmbedModel = m.trim();
+      if (!WEBLLM_EMBED_MODELS.some((x) => x.id === d.webllmEmbedModel)) warnings.push(`webllmEmbedModel "${d.webllmEmbedModel}" is not one of the tested embedding models (${WEBLLM_EMBED_MODELS.map((x) => x.id).join(', ')}).`);
+    }
+  }
+  if (raw['embedTemperature'] !== undefined) {
+    const v = raw['embedTemperature'];
+    if (typeof v !== 'number' || !Number.isFinite(v) || v < 0.005 || v > 1) errors.push(`embedTemperature must be a number from 0.005 to 1. Using ${DEFAULT_EMBED_TEMPERATURE}.`);
+    else d.embedTemperature = v;
+  }
+  if (raw['hybridMargin'] !== undefined) {
+    const v = raw['hybridMargin'];
+    if (typeof v !== 'number' || !Number.isFinite(v) || v < 0 || v > 1) errors.push(`hybridMargin must be a number from 0 to 1. Using ${DEFAULT_HYBRID_MARGIN}.`);
+    else d.hybridMargin = v;
+  }
+  for (const k of ['webllmCustomModel', 'webllmCustomLib'] as const) {
+    if (raw[k] === undefined) continue;
+    if (typeof raw[k] !== 'string') errors.push(`${k} must be text. Using none.`);
+    else d[k] = (raw[k] as string).trim();
+  }
+  if (d.webllmCustomModel || d.webllmCustomLib) {
+    const c = customModelCheck(d.webllmCustomModel, d.webllmCustomLib);
+    if (c.errors.length) {
+      errors.push(...c.errors.map((e) => `${e} The custom model was ignored.`));
+      d.webllmCustomModel = '';
+      d.webllmCustomLib = '';
+    } else if (d.provider === 'webllm') warnings.push(...c.warnings);
+  }
+
+  // ---- decision model (transformers.js)
+  const usesDecision = d.provider === 'decision';
+  if (raw['hfModel'] !== undefined) {
+    const p = hfModelProblem(raw['hfModel']);
+    if (p) errors.push(`hfModel: ${p} Using ${DECISION_DEFAULTS.hfModel}.`);
+    else d.hfModel = (raw['hfModel'] as string).trim();
+  }
+  if (raw['device'] !== undefined) {
+    if ((DECISION_DEVICES as readonly unknown[]).includes(raw['device'])) d.device = raw['device'] as DecisionDevice;
+    else errors.push(`device must be one of ${DECISION_DEVICES.join(', ')}. Using "auto".`);
+  }
+  if (raw['dtype'] !== undefined) {
+    if ((DECISION_DTYPES as readonly unknown[]).includes(raw['dtype'])) d.dtype = raw['dtype'] as DecisionDtype;
+    else errors.push(`dtype must be one of ${DECISION_DTYPES.join(', ')}. Using "auto" (q8 on WASM, fp16 on WebGPU when the GPU supports it).`);
+  }
+  if (raw['hfEndpoint'] !== undefined) {
+    if (typeof raw['hfEndpoint'] !== 'string') errors.push(`hfEndpoint must be text. Using ${HF_DEFAULT_ENDPOINT}.`);
+    else {
+      const p = urlProblem(raw['hfEndpoint'], 'hfEndpoint');
+      if (p) errors.push(`${p} Using ${HF_DEFAULT_ENDPOINT}.`);
+      else d.hfEndpoint = raw['hfEndpoint'].trim().replace(/\/+$/, '') || HF_DEFAULT_ENDPOINT;
+    }
+  }
+  if (usesDecision && /^http:/i.test(d.hfEndpoint) && !isLocal(d.hfEndpoint)) warnings.push('The Hugging Face endpoint uses http://, so the model and any token travel without encryption. Use https://.');
+  if (raw['hypothesis'] !== undefined) {
+    const h = raw['hypothesis'];
+    if (!isObj(h)) errors.push('hypothesis must be an object with one sentence per question. Using the defaults.');
+    else {
+      for (const k of Object.keys(h)) if (!(HYPOTHESIS_KEYS as readonly string[]).includes(k)) warnings.push(`Unknown hypothesis "${k}" was ignored. The questions are ${HYPOTHESIS_KEYS.join(', ')}.`);
+      for (const k of HYPOTHESIS_KEYS) {
+        if (h[k] === undefined) continue;
+        const p = hypothesisProblem(h[k], k);
+        if (p) errors.push(`${p} Using the default.`);
+        else d.hypothesis[k] = (h[k] as string).trim();
+      }
     }
   }
   return { settings: toSettings(d), errors, warnings };

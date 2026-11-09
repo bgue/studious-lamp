@@ -1,9 +1,10 @@
 {
   "schema": "xray-classification-schema/1",
-  "title": "X-ray default classification schema (DRAFT placeholder)",
-  "version": "0.1.0-draft",
-  "placeholder": true,
-  "notice": "PLACEHOLDER. This is a draft written by the viewer authors, not a specified standard. Replace it with the schema that your project specifies (load a file in the Classify drawer, or bundle one with the packager). Discipline codes follow the Throughline Discipline code list where it has an entry (origin \"throughline\"); the other codes are common AEC disciplines (origin \"added\").",
+  "title": "Throughline-aligned default",
+  "version": "1.0.0",
+  "codeList": "Discipline",
+  "edition": "local:xray-throughline-aligned-default@1.0.0",
+  "notice": "Throughline-aligned default. The discipline codes follow the Throughline `Discipline` code list where it has an entry (PIP, MEC, ELE, INS, CIV, STR; origin \"throughline\"). ARC, PLB, FPR, TEL and GEN are added (origin \"added\"); a crosswalk to a company code is suggested where one fits, because a Throughline project value must map to a company value. This list is a stand-in: load the project's actual `Discipline` code list (the company standards edition) in the Classify drawer to replace it.",
   "psetName": "XR_Classification",
   "minConfidence": 0.6,
   "properties": {
@@ -143,6 +144,7 @@
       "label": "Plumbing",
       "description": "Building plumbing: domestic water supply, sanitary drainage and vent, storm drainage, fixtures and plumbing equipment.",
       "origin": "added",
+      "crosswalk": "PIP",
       "subDisciplines": [
         {
           "code": "SUP",
@@ -176,6 +178,7 @@
       "label": "Fire protection",
       "description": "Fire suppression: sprinklers, standpipes, hose connections, fire pumps and tanks, extinguishers.",
       "origin": "added",
+      "crosswalk": "PIP",
       "subDisciplines": [
         {
           "code": "SPR",
@@ -242,6 +245,7 @@
       "label": "Telecom and low voltage",
       "description": "Telecom and low voltage: data and voice networks, audio and video, security and access control, fire alarm and detection.",
       "origin": "added",
+      "crosswalk": "ELE",
       "subDisciplines": [
         {
           "code": "DAT",

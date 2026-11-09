@@ -7,9 +7,10 @@ so downstream processing can rely on them: a check, a quantity sum or a query ne
 The core is `src/classify/`: pure TypeScript with no DOM, so it runs in Node as well (`import { classifyInputs } from './classify'`).
 The viewer adds the drawer, the settings section and `window.__xrayClassify` (`src/plugins/classify.ts`).
 
-> **The shipped schema is a PLACEHOLDER.** The project's own target schema (the "Truxion specified schema") was not available.
-> `public/classification/default-schema.json` is a draft written by the viewer authors. Swap in your own file, see
-> [Your own schema](#your-own-schema). The drawer shows "PLACEHOLDER" while the draft is in use.
+> **The shipped schema is the "Throughline-aligned default".** Its discipline codes follow the Throughline `Discipline` code list where
+> it has an entry (`PIP`, `MEC`, `ELE`, `INS`, `CIV`, `STR`); `ARC`, `PLB`, `FPR`, `TEL` and `GEN` are added. It is a stand-in:
+> **load the project's actual `Discipline` code list (the company standards edition) to replace it**, see
+> [Throughline alignment](#throughline-alignment). `public/classification/default-schema.json` is the file.
 
 ## The pipeline
 
@@ -25,7 +26,7 @@ Cheapest step first. An element leaves the pipeline at the first step that decid
    whether the element is in a building. A model with 5,000 elements needs tens of requests, not thousands. The cache is kept
    per model in `localStorage`, keyed by **model name, schema hash and provider/model id**, so a decision of another schema or
    another model is never reused.
-4. **The decision model**, for the rest, one signature at a time (the first element of the signature is the representative):
+4. **The decision model** (the in-browser `decision` provider, WebLLM, Jev or the mock), for the rest, one signature at a time (the first element of the signature is the representative):
    - Request 1: `discipline` (a choice over the schema's disciplines), `building_element` (a yes/no statement that decides
      whether MasterFormat applies) and `masterformat` (a choice over the divisions).
    - Request 2: `sub_discipline`, a choice limited to the sub-codes of the chosen discipline. When the discipline confidence is
@@ -143,7 +144,7 @@ packed pages unless you pass it to `--params`). It is a discriminated union on `
 
 | Field | Applies to | Default | Meaning |
 | --- | --- | --- | --- |
-| `provider` | all | `off` | `off` (rules and cache only), `jev`, `webllm`, `mock` |
+| `provider` | all | `off` | `off` (rules and cache only), `decision` (a small NLI model in the browser, recommended), `webllm`, `jev`, `mock` |
 | `schemaUrl` | all | empty | URL of a schema file. Empty: the built-in placeholder (or the file you loaded in the drawer) |
 | `minConfidence` | all | `null` | 0 to 1. `null`: the value of the schema |
 | `writePset` | all | `true` | Write the results as properties of the elements |
@@ -152,10 +153,21 @@ packed pages unless you pass it to `--params`). It is a discriminated union on `
 | `timeoutMs` | `jev` | 30000 | 1000 to 300000 |
 | `concurrency` | `jev` | 4 | Requests in flight, 1 to 16 |
 | `maxStateBytes` | `jev` | 4000 | Cap of the element state, 500 to 64000 |
-| `webllmModel` | `webllm` | `Qwen2.5-0.5B-Instruct-q4f16_1-MLC` | One of the tested WebLLM model ids |
+| `hfModel` | `decision` | `MoritzLaurer/deberta-v3-xsmall-zeroshot-v1.1-all-33` | A Hugging Face repository id, `owner/name`, of a zero-shot or NLI model with ONNX weights |
+| `device` | `decision` | `auto` | `auto` (WebGPU when the browser has it, else WASM), `webgpu`, `wasm` |
+| `dtype` | `decision` | `auto` | `auto` (q8 on WASM, fp16 on WebGPU when the adapter has `shader-f16` and the model has fp16 weights, else fp32), `fp32`, `fp16`, `q8`, `q4` |
+| `hfEndpoint` | `decision` | `https://huggingface.co` | Where the weights come from (a mirror or your own proxy; `env.remoteHost` of transformers.js). An https URL or a same-origin path |
+| `hypothesis` | `decision` | the 4 default sentences | Advanced. One hypothesis sentence per question (`discipline`, `sub_discipline`, `masterformat`, `building_element`); `{}` marks the option |
+| `webllmModel` | `webllm` | `Qwen3-0.6B-q4f16_1-MLC` | One of the tested WebLLM model ids |
+| `webllmMode` | `webllm` | `chat` | `chat`, `embed` or `hybrid` |
+| `webllmEmbedModel` | `webllm` | `snowflake-arctic-embed-s-q0f32-MLC-b4` | Embedding model for `embed` and `hybrid` (`-m-` is the larger one) |
+| `embedTemperature` | `webllm` | 0.05 | 0.005 to 1. Softmax temperature over the cosine similarities |
+| `hybridMargin` | `webllm` | 0.15 | 0 to 1. Hybrid: below this top-2 margin the chat model decides |
+| `webllmCustomModel`, `webllmCustomLib` | `webllm` | empty | Advanced. A custom MLC model: the Hugging Face repository URL and the compiled `.wasm` library URL. Both or neither |
 
 Settings are checked on load with plain messages (for example `concurrency must be a whole number from 1 to 16. Using 4.`); a bad
-value keeps its default, and a field that looks like a secret (`apiKey`, `token`, ...) is refused. The drawer shows the
+value keeps its default, and a field that looks like a secret (`apiKey`, `hfToken`, `token`, ...) is refused. Neither the Jev key nor the
+Hugging Face token is a setting. The drawer shows the
 messages. `window.__xrayClassify.configure({ provider: 'jev', model: 'typesafe-jev-1.13.0' })` changes settings from a script.
 
 ## Setup: Jev
@@ -200,29 +212,172 @@ createServer(async (req, res) => {
 Run `JEV_API_KEY=... node proxy.mjs ./dist-single`, with the viewer page as `index.html` in that folder, and open
 `http://127.0.0.1:8787/`. The proxy has no login: bind it to localhost, or put your own authentication in front of it.
 
-## Setup: WebLLM (a tiny model in the browser)
+## Setup: the decision model in the browser (recommended local option)
 
-Choose **Browser model (WebLLM)**. The viewer then loads `@mlc-ai/web-llm` **at run time from a CDN, from an exact pinned
-version** (`https://cdn.jsdelivr.net/npm/@mlc-ai/web-llm@0.2.82/+esm`, constant `WEBLLM_VERSION`), never bundled, so the
-single-file viewer does not grow, and nothing downloads until you start a run or click **Test connection**.
+Choose **Decision model (in browser, WebGPU)**. It is a small **zero-shot NLI classifier** (DeBERTa-v3 family) that runs in the page
+with [transformers.js](https://github.com/huggingface/transformers.js). It decides, it does not generate: a choice answer has a probability
+for **every** option (not the top 5 of a chat model), a yes/no answer has p(yes), and nothing leaves the browser except the download of the
+weights. The provider is `src/classify/providers/decision.ts`.
 
-| Model id | Download (estimate) | GPU memory (`vram_required_MB` of WebLLM 0.2.82) |
+**Loading.** `@huggingface/transformers` is **not bundled**. It is loaded at run time, only when the provider is used, from an exact
+pinned version (`https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.3.2/dist/transformers.min.js`, constant `TRANSFORMERS_VERSION`; this
+file contains onnxruntime-web, so no other import is needed). The single-file viewer does not grow. The weights come from huggingface.co (or
+`hfEndpoint`) on first use, and **the browser keeps them in the Cache API** (`transformers-cache`). The drawer shows the cache size and has
+**Clear model cache**.
+
+**Models** (ids and sizes checked against the Hugging Face model API; sizes are the ONNX files):
+
+| Model id | Sizes | Note |
 | --- | --- | --- |
-| `SmolLM2-360M-Instruct-q4f16_1-MLC` | about 210 MB | 376 MB |
-| `Qwen2.5-0.5B-Instruct-q4f16_1-MLC` (default) | about 300 MB | 945 MB |
-| `Qwen2.5-1.5B-Instruct-q4f16_1-MLC` | about 900 MB | 1630 MB |
+| `MoritzLaurer/deberta-v3-xsmall-zeroshot-v1.1-all-33` (default) | q8 87 MB, fp32 284 MB | Trained for zero-shot on 33 datasets. Labels `entailment` / `not_entailment` |
+| `MoritzLaurer/xtremedistil-l6-h256-zeroshot-v1.1-all-33` | q8 13 MB, fp32 51 MB | Tiniest and fastest, less exact |
+| `Xenova/nli-deberta-v3-xsmall` | q8 87 MB, fp16 143 MB, fp32 284 MB | Plain NLI (SNLI, MNLI), labels `contradiction` / `entailment` / `neutral`. Has fp16 for WebGPU |
+| `MoritzLaurer/deberta-v3-base-zeroshot-v1.1-all-33` (better) | q8 244 MB, fp32 739 MB | About 3 times slower than xsmall |
+| `MoritzLaurer/deberta-v3-base-zeroshot-v2.0` | fp32 739 MB only | The repository has no quantized file: a large download |
 
-WebLLM does not list the download size; the download figures are estimates for the 4-bit weights. The browser caches the model.
+The dropdown shows these with their sizes, and the **Hugging Face model id** box takes any other repository id (`owner/name`,
+checked for its format). **Device** is `auto` (WebGPU when `navigator.gpu` gives an adapter, else WASM), `webgpu` or `wasm`; a forced
+WebGPU that is not there is an error, never a silent switch. **Data type** is `auto` (q8 on WASM, fp16 on WebGPU when the adapter has
+`shader-f16` and the model has fp16 weights, else fp32), `fp32`, `fp16`, `q8` or `q4`. Without WebGPU the drawer says in plain words:
+"Slower: this browser has no WebGPU, so the model runs on the CPU with WebAssembly." The WebGPU path was **not run** here (no GPU in the sandbox).
 
-It follows the Jev semantics. Each option of a choice question gets a one-character label (A to Z, then a to z). The model
-answers with one token and the **probabilities are the log probabilities of the label tokens at that position** (WebLLM
-returns the top 5; an option outside the top 5 gets 0), renormalised over the labels. `confidence` is the top probability times
-the probability mass that fell on labels. A yes/no question uses the tokens `Y` and `N`. The answer has the Jev shape, so the
-pipeline does not know which provider it talks to. The returned `model` is `webllm:<model id>`.
+**How a question becomes NLI.** The *premise* is a compact text of the element, the *hypothesis* is one sentence per option:
 
-A tiny model is much weaker than Jev. Treat its results as a draft: more elements will need review. It needs **WebGPU**
-(Chrome or Edge on a computer with a GPU). Without it the drawer says so in plain words and **Test connection** returns the same
-message; use Jev or the rules only. Requests run one at a time.
+- **Premise** (`buildPremise`): built from the state, most informative first, and cut to 160 tokens (about 3 characters each) at a field
+  boundary: `Element class IfcPipeSegment (pipe segment). Type Pipe PVC 100 (pipe segment type). Name Pipe riser L0. Properties:
+  PredefinedType RIGIDSEGMENT, ObjectType Pipe PVC 100. System Domestic Water. Material PVC. Storey Level 0. Hosted in slab Slab L0. It is
+  inside a building.` Class, type and name come first, then key properties, system, material, storey, parent and the building flag. The
+  tokenizer truncates as a backstop (the model limit is 512).
+- **Choice** (`discipline`, `sub_discipline`, `masterformat`): one pair per option. The hypothesis is the template of the question with the
+  label and a short description of the option from the schema: `This building element belongs to the Mechanical and HVAC (heating,
+  ventilation and air conditioning: ducts, fans) discipline.` The entailment logits of all options go through **one softmax** (the
+  `multi_label: false` rule of the pipeline), so the probabilities sum to 1 over all options. `choice` is the largest, `confidence` is its
+  probability, and the answer maps back to the option codes.
+- **Noul** (`building_element`): one pair, the statement as the hypothesis. p(yes) = `softmax([contradiction, entailment])[1]` of that pair. A binary
+  zero-shot model has no `contradiction` label: its `not_entailment` label is used as the "against" score.
+- The hypothesis sentences are the **advanced** `hypothesis` setting, one per question; `{}` marks the option and must appear exactly once.
+  Other sentences give other decisions, so a non-default set is part of the cache identity (`decision:<model>@h<hash>`).
+
+**Passes.** A cross-encoder reads premise and hypothesis together, so an option cannot be encoded once and reused; what is cached and batched:
+
+- All pairs of one request share the premise and run **in batches** (8 pairs per forward pass on WASM, 16 on WebGPU), across the questions of
+  the request: the 47 pairs of the first request (11 disciplines, 1 statement, 35 divisions) take 6 passes, not 9. The provider calls the
+  tokenizer and the model of the pipeline directly for this (the public pipeline call runs one pair per pass), and falls back to the public
+  call when a pipeline does not expose them.
+- A **pair cache** (4000 pairs) answers a repeated (premise, hypothesis); the option sentences are built once per request.
+- It runs **per signature only**, never per element (the pipeline caches the decision per signature). Measured with the fake model on `synth5k`
+  with the rules off (the pairs and passes depend on the schema and the batch size, not on the model; `bench/smoke-classify-local.mjs`):
+
+| Element type (first element of its class) | Requests | Text pairs | Forward passes (batch 8) |
+| --- | --- | --- | --- |
+| `IfcSlab`, `IfcBeam`, `IfcColumn`, `IfcWall` | 2 | 61 | 8 |
+| `IfcDuctSegment` | 2 | 59 | 8 |
+| `IfcPipeSegment` | 2 | 52 | 7 |
+| **9 signatures of `synth5k`** | 18 | 525 (58.3 per signature) | 70 (7.8 per signature) |
+
+  A request 1 is 47 pairs and 6 passes. The sub-discipline request (request 2) adds 5 to 14 pairs and 1 to 2 passes: 14 when the
+  discipline confidence is under the minimum and the question covers the sub-codes of the top 2 disciplines together. A second run costs 0
+  passes (signature cache).
+
+**Test model.** The button loads the model, runs one tiny choice (a duct against two disciplines) and reports the load time, the device,
+the data type and the size: `Ready: <id> on wasm (q8) in 1.7 s, 87 MB of files. Test question: chose MEC (0.86) in 2 ms.` The drawer shows the
+download progress (all files added together) while it loads. For a model that is not in the list it first reads `config.json` and the
+file sizes from the Hub API.
+
+**Custom Hugging Face models** ("pull from HF"): type any `owner/name`. Before any weights are downloaded the viewer reads its
+`config.json` and refuses what cannot decide, in plain words:
+
+- a language model: `"org/chat" is not a classifier (its architecture is Qwen2ForCausalLM), so it cannot decide among options. It needs a sequence-classification (NLI) model with an "entailment" label and a "contradiction" or "not_entailment" label, such as a DeBERTa zero-shot model.`
+- a sentiment or other classifier: `... is not a zero-shot or NLI model: its labels are negative, positive, and none is "entailment".`
+- not found (`HTTP 404`), private or gated (`HTTP 401/403`: save a token), host not reachable (check the network and the endpoint). The labels of
+  the loaded model are checked once more after the load. A repository without the chosen data type's file gives `... has no q4 weights ...
+  Choose another data type`; with `auto` the provider retries fp32 itself.
+
+A failed load is not repeated for every signature of a run (30 seconds), so a run over 40 signatures does not try 40 downloads.
+
+**Hugging Face token** (private or gated models): handled exactly like the Jev key (`keyStore.ts`, a second entry `xray.classify.hfToken`).
+It is not a setting and never in the params document, the share link, saved views, presets or packed pages. It is kept in
+`sessionStorage` (the tab), or in `localStorage` with **Remember token on this device**; the box is a password field that empties; the drawer
+shows only that a token is set and its length. It is sent **only to the Hugging Face endpoint** (the origin of `hfEndpoint`), through the
+`env.fetch` of transformers.js for the weights and in the header of the `config.json` check; not to the CDN, not to any other host, and
+the wrapper is removed after the load. The leak test covers it together with the Jev key.
+
+**Privacy.** The element data stays in the page: only the model files are downloaded. A model from a mirror is a download from that mirror.
+
+**Checked against the real models** (`bench/real-classify-decision.mjs`; the real transformers.js 4.3.2, real weights from huggingface.co). 20 elements with
+distinct signatures from `fzk-haus` (10) and `synth5k` (10) with a final rule, the rules' answers as the truth, the rules off for the model. This is a
+small sample and the rules are only a proxy for the truth: read it as an order of magnitude.
+
+| Model (q8, Node CPU) | Discipline | Sub-discipline | Division | Time per element |
+| --- | --- | --- | --- | --- |
+| `MoritzLaurer/deberta-v3-xsmall-zeroshot-v1.1-all-33` (default) | 14 of 20 | 8 of 20 | 5 of 20 | 845 ms |
+| `Xenova/nli-deberta-v3-xsmall` | 13 of 20 | 7 of 20 | 2 of 20 | 818 ms |
+| `MoritzLaurer/deberta-v3-base-zeroshot-v1.1-all-33` | 12 of 20 | 4 of 20 | 6 of 20 | 1596 ms |
+| `MoritzLaurer/xtremedistil-l6-h256-zeroshot-v1.1-all-33` | 11 of 20 | 8 of 20 | 6 of 20 | 132 ms |
+
+In Chromium, on the WASM path with the real CDN module and the real download (`device wasm`, `q8`, no WebGPU in the sandbox): load 10.1 s for 95.9 MB of files
+(the model, its tokenizer and config), the test question in 341 ms, and `synth5k` with the rules off (9 signatures, 544 pairs, 73 passes) in **86 s**, about 9.6 s per signature.
+
+Read these results as follows:
+
+- The **probabilities are flat**: with 11 disciplines the top probability is 0.1 to 0.5 (35 divisions: lower), so with the default minimum confidence 0.6 **every** decision of
+  this provider needs review. The ranking carries the information, the confidence barely does. Lower **Minimum confidence** (0.15 to 0.25 is a start) and use the top-2
+  margin and a person's review for what matters. A model of this size is a draft maker, as WebLLM is; use Jev when the labels must stand.
+- The discipline is right in about 7 of 10 (this sample), the sub-discipline and the division much less often: they depend on the discipline, and the NLI model reads class
+  names ("IfcMember") worse than words. The rules stay the first step for a reason.
+- Option sentences with a short description beat the bare label (14 of 20 against 11 of 20 in the same run); three other templates for the discipline sentence gave 9 to 14 of 20.
+  The `hypothesis` setting is there for a project that wants to tune them.
+
+## Setup: WebLLM (a chat or embedding model in the browser)
+
+Choose **Browser chat model (WebLLM)**. The viewer loads `@mlc-ai/web-llm` **at run time from a CDN, from an exact pinned
+version** (`https://cdn.jsdelivr.net/npm/@mlc-ai/web-llm@0.2.87/+esm`, constant `WEBLLM_VERSION`), never bundled, so the
+single-file viewer does not grow, and nothing downloads until you start a run or click **Test connection**. It needs **WebGPU**.
+
+| Model id | Download | GPU memory (`vram_required_MB` of WebLLM 0.2.87) |
+| --- | --- | --- |
+| `SmolLM2-360M-Instruct-q4f16_1-MLC` | 206 MB | 376 MB |
+| `gemma3-1b-it-q4f16_1-MLC` | 602 MB | 711 MB |
+| `Qwen2.5-0.5B-Instruct-q4f16_1-MLC` | 285 MB | 945 MB |
+| `Qwen3-0.6B-q4f16_1-MLC` (default) | 347 MB | 1403 MB |
+| `Qwen3.5-0.8B-q4f16_1-MLC` | 437 MB | 1629 MB |
+| `Qwen2.5-1.5B-Instruct-q4f16_1-MLC` | 876 MB | 1630 MB |
+| `Qwen3-1.7B-q4f16_1-MLC` | 979 MB | 2037 MB |
+| `snowflake-arctic-embed-s-q0f32-MLC-b4` (embedding, default) | 67 MB | 239 MB |
+| `snowflake-arctic-embed-m-q0f32-MLC-b4` (embedding) | 218 MB | 540 MB |
+
+The GPU memory figures are read from the `0.2.87` package. The download figures are the sizes of the weight shards and the tokenizer in the
+model repositories on huggingface.co (the package does not list them). The browser caches the models. Qwen3 and Qwen3.5 think before they
+answer unless told not to: the provider sends `extra_body: { enable_thinking: false }` for them, so the first token is an answer.
+
+**Modes** (`webllmMode`):
+
+- `chat` (default, as before). Each option of a choice question gets a one-character label (A to Z, then a to z). The model answers with one
+  token and the **probabilities are the log probabilities of the label tokens at that position** (WebLLM returns the top 5; an option outside
+  the top 5 gets 0), renormalised over the labels. `confidence` is the top probability times the probability mass that fell on labels. A
+  yes/no question uses the tokens `Y` and `N`. The returned `model` is `webllm:<model id>`.
+- `embed`. An embedding model (Snowflake Arctic Embed) turns the element text (the same premise as the decision model, with the retrieval
+  prefix `Represent this sentence for searching relevant passages: `) and every option text into vectors. The **cosine similarity** of the
+  element against each option goes through a **softmax with a temperature** (`embedTemperature`, default 0.05; cosines of related texts differ
+  by 0.05 to 0.2), which gives a probability for **every** option, with no top-5 limit. The option vectors are computed once and kept, so a
+  new element costs one embedding. A yes/no question is answered weakly (the statement against its negation): use `hybrid` or the decision
+  provider when `building_element` matters. The returned `model` is `webllm:embed:<embed model>@T<temperature>`.
+- `hybrid`. Embed first. When the **top-2 probability margin is below `hybridMargin`** (default 0.15), the chat model chooses **among the top 5
+  options only** (the top-k order breaks ties by option order), where its top-5 log probabilities are complete. The top options share the
+  probability mass that the embedding gave them, and the chat model splits it (the other options keep their embedding probability), so the
+  probabilities still sum to 1. If the chat model names no letter, the embedding answer stays. A yes/no question always goes to the chat
+  model. Both models load in one engine. The returned `model` is `webllm:hybrid:<embed model>+<chat model>@T..,m..`.
+
+The mode and its knobs are part of the cache identity, so a decision of another mode is never reused. Requests run one at a time.
+
+**A custom model from Hugging Face** (advanced): the **Custom model URL** (a repository such as `https://huggingface.co/mlc-ai/Qwen3-0.6B-q4f16_1-MLC`)
+and the **Custom library URL** (the compiled `.wasm`, https). Both or neither. They are added to the engine as an `appConfig` model entry
+(`model`, `model_id` `custom-<repository name>`, `model_lib`). A model library runs as code in the page: the drawer warns, and warns more for a
+host other than huggingface.co, raw.githubusercontent.com and github.com. Settings with half a custom model, a non-https URL or a library that is not `.wasm`
+are refused with a plain message.
+
+Without WebGPU the drawer says so in plain words and **Test connection** returns the same message. A tiny model is weaker than Jev: treat
+its results as a draft and expect more elements to need review.
 
 ## Number of calls
 
@@ -234,6 +389,8 @@ Measured on the shipped models, with the mock provider (the numbers do not depen
 | `synth5k`, rules off | 5000 | 0 | 9 | **18** | model 9, cache 4991 |
 | `fzk-haus`, default | 82 | 40 | 1 (the 42 `IfcMember`) | **2** | rules 40, model 1, cache 41 |
 | a repeat of any run | | | | **0** | cache |
+
+For the decision provider a "request" is one `decide` call; each is several forward passes of the NLI model (see [Passes](#setup-the-decision-model-in-the-browser-recommended-local-option)).
 
 Requests are at most 2 per signature (discipline, building and division, then sub-discipline). The drawer estimates them before
 a run (`estimate(target)` in the API): "elements, by rules, cached, signatures, N to M requests". Retries after 429 and 5xx
@@ -248,6 +405,8 @@ are not counted in `stats.calls`.
   "schema": "xray-classification-schema/1",
   "title": "My project schema",
   "version": "1.0.0",
+  "codeList": "Discipline",
+  "edition": "co.acme.standards@1.0.0",
   "psetName": "XR_Classification",
   "minConfidence": 0.6,
   "properties": { "discipline": "Discipline", "subDiscipline": "SubDiscipline", "masterformatDivision": "MasterFormatDivision",
@@ -256,7 +415,7 @@ are not counted in `stats.calls`.
   "fallbackDiscipline": "GEN",
   "disciplines": [
     { "code": "MEC", "label": "Mechanical and HVAC", "description": "Heating, ventilation and air conditioning: ducts, fans, ...",
-      "rulesKey": "MEC",
+      "rulesKey": "MEC", "origin": "throughline", "crosswalk": null, "meaning": null, "sortOrder": 20,
       "subDisciplines": [ { "code": "DUC", "label": "Ductwork", "description": "Duct segments and duct fittings." } ] }
   ],
   "masterformat": { "edition": "MasterFormat 2018", "appliesTo": "building",
@@ -279,8 +438,10 @@ are not counted in `stats.calls`.
   your schema does not have gives no rule; the element goes on to the cache and the model.
 
 The default codes follow the Throughline `Discipline` list where it has an entry (`PIP`, `MEC`, `ELE`, `INS`, `CIV`, `STR`; `origin:
-"throughline"`); `ARC`, `PLB`, `FPR`, `TEL` and the fallback `GEN` are added. Throughline's `PRO` (process) is merged into `PIP`
-here, because the specification asked for "Piping/Process" as one discipline.
+"throughline"`); `ARC`, `PLB`, `FPR`, `TEL` and the fallback `GEN` are added (`origin: "added"`; `PLB` and `FPR` suggest the crosswalk `PIP`, `TEL` suggests
+`ELE`). Throughline's `PRO` (process) is merged into `PIP` here, because the specification asked for "Piping/Process" as one discipline. The optional fields
+`codeList`, `edition` and, per discipline, `crosswalk`, `meaning` and `sortOrder` carry the Throughline `CodeValue` fields (below); they do not change a
+decision, so they are not part of the schema hash.
 
 ### Your own schema
 
@@ -291,6 +452,65 @@ here, because the specification asked for "Piping/Process" as one discipline.
 - In Node: `parseSchema(json)` and pass `schema` to `classifyInputs`.
 
 A new schema has a new hash, so caches and manual overrides of the old one are not mixed in.
+
+### Throughline alignment
+
+The target schema is Throughline's (read from `/home/user/studious-lamp/schema/modules/engineering/`; "Truxion" in the first request was a typo).
+A coded list is an `engineering.CodeList` registry entry (`standard.yaml`); each value of it is an `engineering.CodeValue` row (`code_value.yaml`,
+`events.yaml`, `docs/modules/engineering/standards.md`):
+
+| `CodeValue` field | Meaning | Here |
+| --- | --- | --- |
+| `code_list` | The list the value belongs to | `Discipline` (`schema.codeList`) |
+| `code`, `label` | The value | `disciplines[].code`, `label` |
+| `meaning` | An IRI that says what the value means | `disciplines[].meaning` |
+| `crosswalk` | The **company** code that a project-added value maps to | `disciplines[].crosswalk` |
+| `origin` | `company` or `project` | `throughline` and `company` are `company`; anything else (`added`, `project`) is `project` |
+| `sort_order` | Position in the list | `disciplines[].sortOrder`, else 10, 20, 30, ... |
+| `edition` | The standards edition, `co.acme.standards@1.0.0` | `schema.edition` |
+| `attributes` | List-specific JSON | `description`, `sub_disciplines`, `rules_key`, `fallback` |
+
+Elsewhere `discipline` is a plain code of that list: `documents.Document.discipline` ("a value of the code list `Discipline`") and
+`correspondence.TechnicalItem.discipline` ("a code of the project standards, for example `M`, `E`, `C`"). The sub-discipline and the
+MasterFormat division are **not** Throughline code lists, so the export carries them as `attributes`, as a code list's own `attributes` do.
+
+**Import** (`importDisciplineList`, drawer button **Import Throughline list**, `__xrayClassify.importThroughline(json)`,
+`service.importThroughline(json)`): a JSON list of `Discipline` entries, or an object with `values`, `code_values` or `entries`, becomes the
+schema. Entries of another list, and retired or superseded ones (`lifecycle`, `effective_to`), are skipped with a note. `label` and `code` carry over; the
+text the decision model reads is `attributes.description` (the label when there is none, with a warning); `attributes.sub_disciplines`
+(`{ code, label, description }`) gives the sub-disciplines; `origin`, `crosswalk`, `meaning`, `sort_order` and `edition` carry over; `attributes.fallback: true` (else `GEN`, else the
+first entry) marks the discipline for elements that nothing could place. **The built-in rules keep working** when the project's codes differ from ours: `attributes.rules_key`
+(else the `crosswalk`, else the code itself) names the rules code it replaces, so `M` with `rules_key: MEC` still gets ducts from the rule. The MasterFormat list is the shipped one
+(Throughline has no MasterFormat list). A new schema has a new hash, so decisions of the old one are not reused. A file that is not a list gets a plain message.
+
+**Export** (`exportThroughline`, drawer button **Export Throughline JSON**, `__xrayClassify.export('throughline')`): `xray-throughline-classification/1`.
+
+```json
+{
+  "format": "xray-throughline-classification/1",
+  "model": "fzk-haus",
+  "count": 82,
+  "code_list": { "code_list": "Discipline", "edition": "local:xray-throughline-aligned-default@1.0.0", "schema_title": "Throughline-aligned default", "schema_version": "1.0.0", "schema_hash": "..." },
+  "code_values": [
+    { "code_list": "Discipline", "code": "MEC", "label": "Mechanical and HVAC", "meaning": null, "crosswalk": null, "origin": "company", "sort_order": 30,
+      "edition": "local:xray-throughline-aligned-default@1.0.0", "effective_from": null, "effective_to": null,
+      "attributes": { "description": "...", "sub_disciplines": [ { "code": "DUC", "label": "Ductwork", "description": "..." } ] } }
+  ],
+  "needs_crosswalk": ["ARC"],
+  "elements": [
+    { "global_id": "2O2Fr$t4X7Zf8NOew3FLOH", "discipline": "PLB", "discipline_origin": "project", "crosswalk": "PIP",
+      "attributes": { "sub_discipline": "SUP", "sub_discipline_label": "Domestic water supply", "masterformat_division": "22", "masterformat_title": "Plumbing",
+                      "masterformat_section": null, "masterformat_edition": "MasterFormat 2018", "confidence": 0.93, "source": "model", "model": "decision:...", "needs_review": false } }
+  ]
+}
+```
+
+- `elements[].discipline` is a code of the `Discipline` list, never free text; `discipline_origin` and `crosswalk` say whether it is a company value or a
+  project value and which company code it maps to.
+- `code_values` is the whole list as `CodeValue` rows, so **the export file imports again** with the same importer (a round trip test keeps this true).
+- `needs_crosswalk` lists the codes the elements use that are project values without a crosswalk (`ARC` in the default: Throughline's sample company list has no
+  architectural discipline). A closed company list (`value_list_policy: closed`) takes company codes only: load the real list, or add the crosswalk, before you
+  load the results into Throughline.
 
 ## Output
 
@@ -329,8 +549,10 @@ element a result with source `manual` and confidence 1. A manual result wins ove
 | `results()`, `stats()` | The results; counts by source, `calls`, `signatures`, `needsReview`, `failed`, `errors`, `models`, `usage` |
 | `override(id, { discipline?, subDiscipline?, masterformat? })` | A manual result |
 | `clear()`, `abort()` | Remove results and written properties (manual results stay); stop a run |
-| `export('json' \| 'csv')` | The export text |
+| `export('json' \| 'csv' \| 'throughline')` | The export text. `throughline` is the Throughline shape, see [Throughline alignment](#throughline-alignment) |
 | extras | `estimate`, `configure`, `settings`, `setKey`, `keyState`, `testConnection`, `selectNeedsReview`, `colourByDiscipline`, `state` |
+| decision model | `testModel()` (load, one tiny choice, load time, device, data type, size), `setHfToken(token, remember?)`, `hfTokenState()`, `modelCache()`, `clearModelCache()`, `decisionStats()` (requests, pairs, passes), `webllmStats()` |
+| Throughline | `importThroughline(json)` returns `{ errors, warnings }` |
 
 Types (`src/classify/types.ts`): `ClassifyInput { id, ifcClass, name, psets, quantities?, type?, hierarchy?: { path, parents? },
 systems?, material? }` and `ClassifyResult { id, discipline: { code, label, confidence, probabilities }, subDiscipline | null,
@@ -350,7 +572,7 @@ Commands (palette): `classify.selection`, `classify.all`, `classify.review`, `cl
 
 ## Key security
 
-- The API key is **never** in the params document, the share link (`#p=`), the exported params JSON, saved views, presets or packed
+- The API key and the **Hugging Face token** (decision provider) are **never** in the params document, the share link (`#p=`), the exported params JSON, saved views, presets or packed
   pages. It is not a setting: a params document that contains a key field is refused with a message. A unit test checks
   `collectParams`, the share URL, saved views and the packed output.
 - It is kept in `sessionStorage` (gone when the tab closes). The **Remember on this device** switch, off by default, keeps it
@@ -381,5 +603,6 @@ the vendor documentation.** Every field name is in one file, `src/classify/jevAd
 - Whether `probabilities` always lists every option (the viewer accepts a subset) and whether an option key may be a
   bare number such as `"23"` (the division codes are sent as keys).
 
-The WebLLM model sizes and the library version were read from the `@mlc-ai/web-llm@0.2.82` package; the load from the CDN was not
-run in this environment (no WebGPU, no model download), only a fake engine in the tests.
+The WebLLM model list and `vram_required_MB` were read from the `@mlc-ai/web-llm@0.2.87` package, and the download sizes from the model
+repositories on huggingface.co; the WebLLM load from the CDN was not run in this environment (no WebGPU, no model download), only a fake engine in the
+tests. The decision provider was run for real on the WASM and CPU paths (see below); its WebGPU path was not run.

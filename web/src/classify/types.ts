@@ -94,8 +94,14 @@ export interface SchemaDiscipline {
   label: string;
   description: string;
   rulesKey?: string;
-  /** Free text: where the code comes from. */
+  /** Free text: where the code comes from ("throughline", "added", "company", "project"). */
   origin?: string;
+  /** Throughline `CodeValue.crosswalk`: the company code that a project-added value maps to. */
+  crosswalk?: string;
+  /** Throughline `CodeValue.meaning`: an IRI that says what the value means. */
+  meaning?: string;
+  /** Throughline `CodeValue.sort_order`. */
+  sortOrder?: number;
   subDisciplines: SchemaSubDiscipline[];
 }
 export interface SchemaDivision {
@@ -120,8 +126,12 @@ export interface ClassificationSchema {
   schema: 'xray-classification-schema/1';
   title: string;
   version?: string;
-  /** True for the shipped draft. Shown in the UI. */
+  /** True for a schema that must be replaced (shown in the UI). The shipped default is Throughline-aligned and has none. */
   placeholder?: boolean;
+  /** Throughline: the code list that `disciplines` is (`Discipline`). */
+  codeList?: string;
+  /** Throughline: the standards edition that supplied the list, for example `co.acme.standards@1.0.0`. */
+  edition?: string;
   notice?: string;
   /** Name of the property set that results are written under. */
   psetName: string;

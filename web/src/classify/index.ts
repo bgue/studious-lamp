@@ -17,11 +17,17 @@ export { computeNeedsReview, overallConfidence, topMargin, topTwo, DEFAULT_MIN_M
 export { ResultStore, makeManual, exportCsv, exportJson, CSV_HEADER } from './results';
 export { createJevProvider, redact } from './providers/jev';
 export { createMockProvider } from './providers/mock';
-export { createWebLlmProvider, detectWebGpu, WEBLLM_MODELS, WEBLLM_VERSION } from './providers/webllm';
+export { createWebLlmProvider, detectWebGpu, WEBLLM_MODELS, WEBLLM_EMBED_MODELS, WEBLLM_MODES, WEBLLM_VERSION } from './providers/webllm';
+export {
+  createDecisionProvider, checkNliConfig, inspectModel, chooseRuntime, buildPremise, hfModelProblem, DECISION_MODELS, DEFAULT_HYPOTHESES, TRANSFORMERS_CDN_URL, TRANSFORMERS_VERSION,
+} from './providers/decision';
+export type { DecisionProvider, DecisionStats, TransformersModule } from './providers/decision';
+export { importDisciplineList, exportThroughline, exportThroughlineJson, schemaToCodeValues, THROUGHLINE_EXPORT_SCHEMA } from './throughline';
+export type { ThroughlineCodeValue, ThroughlineExport } from './throughline';
 export { createProvider, providerId, testConnection } from './providers';
 export { buildRequest, parseResponse, JEV_DEFAULT_ENDPOINT, JEV_DEFAULT_MODEL, JEV_LATEST_ALIAS } from './jevAdapter';
 export { validateSettings, defaultDraft, toSettings, toDraft, JEV_DEFAULTS, PROVIDERS } from './settings';
-export { ApiKeyStore } from './keyStore';
+export { ApiKeyStore, HF_TOKEN_STORAGE_NAME, KEY_STORAGE_NAME } from './keyStore';
 export { withBackoff } from './retry';
 
 export { ClassifyService, SCHEMA_STORAGE_KEY } from './service';

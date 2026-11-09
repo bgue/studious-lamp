@@ -101,6 +101,9 @@ export function parseSchema(input: unknown): SchemaParse {
         subDisciplines: subs,
         ...(str(d['rulesKey']) ? { rulesKey: (d['rulesKey'] as string).trim() } : {}),
         ...(str(d['origin']) ? { origin: d['origin'] as string } : {}),
+        ...(str(d['crosswalk']) ? { crosswalk: (d['crosswalk'] as string).trim() } : {}),
+        ...(str(d['meaning']) ? { meaning: (d['meaning'] as string).trim() } : {}),
+        ...(typeof d['sortOrder'] === 'number' && Number.isFinite(d['sortOrder']) ? { sortOrder: d['sortOrder'] } : {}),
       });
     });
   }
@@ -143,6 +146,8 @@ export function parseSchema(input: unknown): SchemaParse {
     title: str(v['title']) ? (v['title'] as string) : 'Classification schema',
     ...(str(v['version']) ? { version: v['version'] as string } : {}),
     ...(v['placeholder'] === true ? { placeholder: true } : {}),
+    ...(str(v['codeList']) ? { codeList: (v['codeList'] as string).trim() } : {}),
+    ...(str(v['edition']) ? { edition: (v['edition'] as string).trim() } : {}),
     ...(str(v['notice']) ? { notice: v['notice'] as string } : {}),
     psetName: (v['psetName'] as string).trim(),
     minConfidence,
