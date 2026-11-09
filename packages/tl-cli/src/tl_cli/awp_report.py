@@ -15,15 +15,16 @@ import typer
 from pydantic import BaseModel
 from sqlalchemy import Connection
 from tl_adapters.db import DbTarget, as_target, open_uow
-from tl_mod_awp import iwp_reports, reports
+from tl_mod_awp import iwp_reports, kpis, reports
 from tl_mod_awp.iwp_reports import IWP_REPORT_NAMES
 from tl_mod_awp.reports import REPORT_NAMES, CostFigure
 from tl_mod_cost.views import cost_codes
 
 from tl_cli.derive_support import Project, cell, fail, service_errors
+from tl_cli.session import session_viewer
 
 COST_CODE_LIMIT: int = 20000
-ALL_NAMES: tuple[str, ...] = (*REPORT_NAMES, *IWP_REPORT_NAMES)
+ALL_NAMES: tuple[str, ...] = (*REPORT_NAMES, *IWP_REPORT_NAMES, *kpis.KPI_NAMES)
 #: The constraint reports and the field each groups by.
 _GROUP_BY: dict[str, str] = {
     "constraints_by_category": "category",
@@ -62,7 +63,8 @@ def report(
         str,
         typer.Argument(
             help="cwp_status, wbs_vs_cost_code, cwa_sequence, iwp_status, iwp_readiness, "
-            "constraint_log, constraints_by_category, constraints_by_owner or constraints_by_age.",
+            "constraint_log, constraints_by_category, constraints_by_owner, constraints_by_age, "
+            "kpi_ppc or kpi_constraint_free.",
         ),
     ],
     project: Project,
@@ -76,7 +78,8 @@ def report(
 ) -> None:
     """Print one awp report for a project: the CWP reports (`cwp_status`, `wbs_vs_cost_code`,
     `cwa_sequence`), the IWP reports (`iwp_status`, `iwp_readiness`) or the constraint reports
-    (`constraint_log`, `constraints_by_category`, `constraints_by_owner`, `constraints_by_age`).
+    (`constraint_log`, `constraints_by_category`, `constraints_by_owner`, `constraints_by_age`) or
+    the KPI tiles (`kpi_ppc`, `kpi_constraint_free`).
 
     Without `--csv`, one line per row with the fields two spaces apart. An unknown NAME is
     `error: ...` on stderr, exit 1.
@@ -85,6 +88,7 @@ def report(
         fail(f"report must be one of {', '.join(ALL_NAMES)}")
     target = _target(ctx, db)
     scope = f"project:{project}"
+    viewer = session_viewer(target)
     with service_errors(), open_uow(target, readonly=True) as uow:
         conn = uow.conn()
         if name == "cwp_status":
@@ -99,6 +103,10 @@ def report(
             rows = iwp_reports.iwp_readiness(conn, scope)
         elif name == "constraint_log":
             rows = iwp_reports.constraint_log(conn, scope)
+        elif name == "kpi_ppc":
+            rows = [kpis.ppc_tile(conn, scope, viewer)]
+        elif name == "kpi_constraint_free":
+            rows = [kpis.constraint_free_tile(conn, scope, viewer)]
         else:
             rows = iwp_reports.constraint_groups_report(conn, scope, _GROUP_BY[name])
     if as_csv:
