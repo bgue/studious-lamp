@@ -5564,6 +5564,7 @@ The earned progress of an interim work package was recorded.
 | `edition` | string | yes | The `package@version` of the rules of credit used. |
 | `feed_policy` | string | yes | The feed policy the handler fixed when it wrote the event; always "none" (no feed card). |
 | `iwp_id` | string | yes | The IWP. |
+| `manual` | any | no | The whole list of manual credit in force, at most 500 entries of `scope_item_id` and `step` (a step marked done by hand). Absent or null means none. Replaces the list of the previous figure. |
 
 ### Sample delivered event
 

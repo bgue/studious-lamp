@@ -51,7 +51,7 @@ classes:
         range: Any
         annotations:
           tl:json: true
-        description: 'JSON list of at most 50 entries of manual credit. Column `manual_json`.'
+        description: 'JSON list of at most 500 entries of manual credit (`scope_item_id`, `step`). Column `manual_json`.'
       last_seq:
         range: integer
         required: true

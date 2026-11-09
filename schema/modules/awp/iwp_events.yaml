@@ -336,6 +336,13 @@ classes:
         required: true
         annotations:
           tl:valid_time: at
+      manual:
+        description: >-
+          The whole list of manual credit in force, at most 500 entries of `scope_item_id` and `step` (a step
+          marked done by hand). Absent or null means none. Replaces the list of the previous figure.
+        range: Any
+        annotations:
+          tl:json: true
       feed_policy:
         description: "The feed policy the handler fixed when it wrote the event; always \"none\" (no feed card)."
         equals_string: none
