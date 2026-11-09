@@ -19,8 +19,8 @@ Examples use project `P123` and IWP `P123-IWP-PIP-0001`.
 Export: `tl awp export progress --project P --period YYYY-Www [--out FILE]` prints earned progress by cost code as CSV
 (`period,scope,cost_code,earned_hours,budget_hours,earned_pct,as_of_seq`; `(unallocated)` last; an empty cell is no budget).
 It is computed on read from the stored IWP progress, stores nothing and writes no event. Cells that start with
-`=`, `+`, `-` or `@` get a leading apostrophe; `--out` writes mode 0600. A reader who cannot open every package gets
-no budget figures. Code: `tl_mod_awp/progress/{rollup,export}.py`, `tl_cli/awp_export.py`.
+`=`, `+`, `-` or `@` get a leading apostrophe; `--out` writes mode 0600. A reader sees only what they can open (budgets
+computed from that too); earned hours reaching no node are the `Unallocated` line. Code: `tl_mod_awp/progress/{rollup,export}.py`, `tl_cli/awp_export.py`.
 
 The API routes are in `docs/reference/openapi.json`. The web routes are not in it (`packages/tl-web/README.md`).
 The MCP tools are in `packages/tl-mcp/src/tl_mcp/iwp_tools.py`; each needs `mcp.<tool>` in the agent's identity.
