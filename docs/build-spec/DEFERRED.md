@@ -101,3 +101,5 @@ One line each: what, why it waits, and the phase it belongs to. Newest at the bo
 | PyPI upload, signed wheels, a package index | Release is a wheel directory with `SHA256SUMS` used through `--find-links` | after first user release |
 | TLS inside the server; a built-in reverse-proxy example per vendor | Deployer runs a TLS proxy (ADR-0009 deployment duty) | Phase 3 |
 | In-app update check and upgrade prompt | Version warning at sign-in only | Phase 3 |
+| `packages/tl-api/tests/test_commands.py` grows to about 4 GB resident, so a one-session tl-api gate is OOM-killed on the 16 GB box | Seen at the P2-REL refresh; the folder passes in four file groups | With the gate work (outside review §4) |
+| Rename the distribution before publishing (`tl-cli` is an unrelated PyPI package) | Outside review §5; owner release go 2026-11-09 | Before the first public release |
