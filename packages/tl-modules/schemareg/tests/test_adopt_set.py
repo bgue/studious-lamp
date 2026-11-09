@@ -51,7 +51,7 @@ def add_sets_and_a_required_property(data: dict[str, Any]) -> None:
 
 
 def adopt(world: RegistryWorld, project: str, pset: str, **more: Any) -> Any:
-    fields = {"scope": f"project:{project}", "project": project, "package": PKG}
+    fields: dict[str, Any] = {"scope": f"project:{project}", "project": project, "package": PKG}
     fields.update({"version": "3.3.0", "pset": pset, **more})
     return world.run(AdoptSchemaSet(actor=ADMIN, source="test", **fields))
 

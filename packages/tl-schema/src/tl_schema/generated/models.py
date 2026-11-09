@@ -92,7 +92,8 @@ linkml_meta = LinkMLMeta({'default_prefix': 'throughline',
                  'auth',
                  'jobs',
                  'integration_ops',
-                 'constraint'],
+                 'constraint',
+                 'telemetry'],
      'name': 'tl_core',
      'prefixes': {'linkml': {'prefix_prefix': 'linkml',
                              'prefix_reference': 'https://w3id.org/linkml/'},
@@ -748,7 +749,8 @@ class RecordEnvelope(ConfiguredBaseModel):
                        'BodyQuarantine',
                        'JobQueue',
                        'InboundDelivery',
-                       'Constraint']} })
+                       'Constraint',
+                       'TelemetryNeed']} })
     title: str = Field(default=..., description="""Short human-readable title.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'RecordCreatedPayload',
                        'RuleCreatedPayload',
@@ -957,7 +959,8 @@ class Record(RecordEnvelope):
                        'BodyQuarantine',
                        'JobQueue',
                        'InboundDelivery',
-                       'Constraint']} })
+                       'Constraint',
+                       'TelemetryNeed']} })
     title: str = Field(default=..., description="""Short human-readable title.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'RecordCreatedPayload',
                        'RuleCreatedPayload',
@@ -1150,7 +1153,8 @@ class Event(ConfiguredBaseModel):
                        'BodyQuarantine',
                        'JobQueue',
                        'InboundDelivery',
-                       'Constraint']} })
+                       'Constraint',
+                       'TelemetryNeed']} })
     payload: Any = Field(default=..., description="""Event payload, a JSON object validated against the event type's schema.""", json_schema_extra = { "linkml_meta": {'annotations': {'tl:json': {'tag': 'tl:json', 'value': True}},
          'domain_of': ['Event']} })
     actor: str = Field(default=..., description="""`user:<id>`, `svc:<name>` or `agent:<id>`.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Event',
@@ -1161,7 +1165,11 @@ class Event(ConfiguredBaseModel):
                        'SettingLockRow',
                        'OutboxEvent',
                        'AuthAudit']} })
-    recorded_at: datetime  = Field(default=..., description="""System (transaction) time.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Event', 'SettingChangeRow', 'SettingLockRow', 'OutboxEvent']} })
+    recorded_at: datetime  = Field(default=..., description="""System (transaction) time.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Event',
+                       'SettingChangeRow',
+                       'SettingLockRow',
+                       'OutboxEvent',
+                       'TelemetryNeed']} })
     effective_at: datetime  = Field(default=..., description="""Business (valid) time.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Event', 'Constraint', 'ConstraintRaisedPayload']} })
     correlation_id: str = Field(default=..., description="""Ties a command chain, import, or automated process together.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Event', 'OutboxEvent']} })
     causation_id: Optional[str] = Field(default=None, description="""Identifier of the event or command that caused this one; may be null.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Event']} })
@@ -1214,7 +1222,8 @@ class PsetValue(ConfiguredBaseModel):
                        'File',
                        'ActionInvocationTarget',
                        'RecordBody',
-                       'BodyQuarantine']} })
+                       'BodyQuarantine',
+                       'TelemetryNeed']} })
     scope: str = Field(default=..., description="""Scope of the record, repeated so scope-wide filters need no join.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'Event',
                        'PsetValue',
@@ -1245,7 +1254,8 @@ class PsetValue(ConfiguredBaseModel):
                        'BodyQuarantine',
                        'JobQueue',
                        'InboundDelivery',
-                       'Constraint']} })
+                       'Constraint',
+                       'TelemetryNeed']} })
     path: str = Field(default=..., description="""Layer-aware path, for example `psets.valve_data.x.fat_witness_by`.""", json_schema_extra = { "linkml_meta": {'annotations': {'tl:indexed': {'tag': 'tl:indexed', 'value': True}},
          'domain_of': ['PsetValue']} })
     pset: str = Field(default=..., description="""Pset name, for example `valve_data` or `prj.shutdown_tie_in`.""", json_schema_extra = { "linkml_meta": {'domain_of': ['PsetValue', 'PsetValuesSetPayload', 'TypeRegistrationRow']} })
@@ -1350,7 +1360,8 @@ class Link(ConfiguredBaseModel):
                        'BodyQuarantine',
                        'JobQueue',
                        'InboundDelivery',
-                       'Constraint']} })
+                       'Constraint',
+                       'TelemetryNeed']} })
     from_id: str = Field(default=..., description="""The record the link starts at (the subject of the relation).""", json_schema_extra = { "linkml_meta": {'annotations': {'tl:indexed': {'tag': 'tl:indexed', 'value': True}},
          'domain_of': ['Link']} })
     to_id: str = Field(default=..., description="""The record the link points to.""", json_schema_extra = { "linkml_meta": {'annotations': {'tl:indexed': {'tag': 'tl:indexed', 'value': True}},
@@ -1567,7 +1578,8 @@ class LinkCount(ConfiguredBaseModel):
                        'File',
                        'ActionInvocationTarget',
                        'RecordBody',
-                       'BodyQuarantine']} })
+                       'BodyQuarantine',
+                       'TelemetryNeed']} })
     scope: str = Field(default=..., description="""Scope of the record.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'Event',
                        'PsetValue',
@@ -1598,7 +1610,8 @@ class LinkCount(ConfiguredBaseModel):
                        'BodyQuarantine',
                        'JobQueue',
                        'InboundDelivery',
-                       'Constraint']} })
+                       'Constraint',
+                       'TelemetryNeed']} })
     active_out: int = Field(default=0, description="""Active links that start at the record.""", json_schema_extra = { "linkml_meta": {'domain_of': ['LinkCount'], 'ifabsent': 'int(0)'} })
     active_in: int = Field(default=0, description="""Active links that point to the record.""", json_schema_extra = { "linkml_meta": {'domain_of': ['LinkCount'], 'ifabsent': 'int(0)'} })
     stale: int = Field(default=0, description="""Stale links in either direction.""", json_schema_extra = { "linkml_meta": {'domain_of': ['LinkCount'], 'ifabsent': 'int(0)'} })
@@ -1669,7 +1682,8 @@ class NumberingCounter(ConfiguredBaseModel):
                        'BodyQuarantine',
                        'JobQueue',
                        'InboundDelivery',
-                       'Constraint']} })
+                       'Constraint',
+                       'TelemetryNeed']} })
     pattern: str = Field(default=..., description="""Identifier of the numbering pattern.""", json_schema_extra = { "linkml_meta": {'domain_of': ['NumberingCounter',
                        'NumberingAllocatedPayload',
                        'SettingValidation']} })
@@ -1779,7 +1793,8 @@ class WorkflowState(ConfiguredBaseModel):
                        'File',
                        'ActionInvocationTarget',
                        'RecordBody',
-                       'BodyQuarantine']} })
+                       'BodyQuarantine',
+                       'TelemetryNeed']} })
     scope: str = Field(default=..., description="""Scope of the record.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'Event',
                        'PsetValue',
@@ -1810,7 +1825,8 @@ class WorkflowState(ConfiguredBaseModel):
                        'BodyQuarantine',
                        'JobQueue',
                        'InboundDelivery',
-                       'Constraint']} })
+                       'Constraint',
+                       'TelemetryNeed']} })
     workflow: str = Field(default=..., description="""Identifier of the workflow definition, for example `core.review`.""", json_schema_extra = { "linkml_meta": {'domain_of': ['WorkflowState', 'WorkflowTransitionedPayload']} })
     workflow_version: int = Field(default=..., description="""Version of the workflow definition that was in force.""", json_schema_extra = { "linkml_meta": {'domain_of': ['WorkflowState', 'WorkflowTransitionedPayload']} })
     state: str = Field(default=..., description="""Current state name.""", json_schema_extra = { "linkml_meta": {'annotations': {'tl:indexed': {'tag': 'tl:indexed', 'value': True}},
@@ -1894,7 +1910,8 @@ class RecordCreatedPayload(EventPayload):
 
     record_type: str = Field(default=..., description="""Fully qualified record type.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordCreatedPayload',
                        'NumberingAllocatedPayload',
-                       'ActionInvocationTarget']} })
+                       'ActionInvocationTarget',
+                       'TelemetryNeed']} })
     key: Optional[str] = Field(default=None, description="""Human-readable key; null until numbering assigns one.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'RecordCreatedPayload',
                        'NumberingAllocatedPayload',
@@ -2556,10 +2573,12 @@ class NumberingAllocatedPayload(EventPayload):
                        'File',
                        'ActionInvocationTarget',
                        'RecordBody',
-                       'BodyQuarantine']} })
+                       'BodyQuarantine',
+                       'TelemetryNeed']} })
     record_type: Optional[str] = Field(default=None, description="""Record type.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordCreatedPayload',
                        'NumberingAllocatedPayload',
-                       'ActionInvocationTarget']} })
+                       'ActionInvocationTarget',
+                       'TelemetryNeed']} })
 
 
 class FileUploadedPayload(EventPayload):
@@ -2602,7 +2621,8 @@ class FileUploadedPayload(EventPayload):
                        'File',
                        'ActionInvocationTarget',
                        'RecordBody',
-                       'BodyQuarantine']} })
+                       'BodyQuarantine',
+                       'TelemetryNeed']} })
     slot: Optional[str] = Field(default=None, description="""File slot; null for a generic attachment.""", json_schema_extra = { "linkml_meta": {'domain_of': ['FileUploadedPayload', 'File']} })
     revision: Optional[int] = Field(default=None, description="""Position in the slot.""", json_schema_extra = { "linkml_meta": {'domain_of': ['FileUploadedPayload', 'File']} })
     sha256: str = Field(default=..., description="""SHA-256 of the bytes.""", json_schema_extra = { "linkml_meta": {'domain_of': ['FileUploadedPayload', 'File']} })
@@ -2794,7 +2814,8 @@ class SchemaEffectiveChangedPayload(EventPayload):
                        'BodyQuarantine',
                        'JobQueue',
                        'InboundDelivery',
-                       'Constraint']} })
+                       'Constraint',
+                       'TelemetryNeed']} })
     effective_schema_hash: str = Field(default=..., description="""New hash.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'PsetValuesSetPayload',
                        'WorkflowTransitionedPayload',
@@ -2866,7 +2887,8 @@ class SchemaPackagePublishedPayload(EventPayload):
                        'File',
                        'ActionInvocationTarget',
                        'RecordBody',
-                       'BodyQuarantine']} })
+                       'BodyQuarantine',
+                       'TelemetryNeed']} })
     kind: Optional[str] = Field(default=None, description="""company, extension or project.""", json_schema_extra = { "linkml_meta": {'domain_of': ['SchemaPackagePublishedPayload',
                        'FeedTag',
                        'Hashtag',
@@ -4307,7 +4329,10 @@ class RuleBlockedPayload(RuleEventPayload):
     trigger_event_id: str = Field(default=..., description="""The event that matched.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RuleBlockedPayload']} })
     trigger_seq: int = Field(default=..., description="""Its seq.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RuleBlockedPayload']} })
     depth: int = Field(default=..., description="""Causation depth of the trigger.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RuleBlockedPayload', 'RuleFiring']} })
-    outcome: str = Field(default=..., description="""refused, depth_limit or budget.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RuleBlockedPayload', 'WebhookAttempt', 'RuleFiring']} })
+    outcome: str = Field(default=..., description="""refused, depth_limit or budget.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RuleBlockedPayload',
+                       'WebhookAttempt',
+                       'RuleFiring',
+                       'TelemetryNeed']} })
     problems: Any = Field(default=..., description="""List of Problem objects.""", json_schema_extra = { "linkml_meta": {'annotations': {'tl:json': {'tag': 'tl:json', 'value': True}},
          'domain_of': ['ActionFailedPayload', 'RuleBlockedPayload', 'ActionInvocation']} })
 
@@ -5405,7 +5430,8 @@ class FeedTag(ConfiguredBaseModel):
                        'File',
                        'ActionInvocationTarget',
                        'RecordBody',
-                       'BodyQuarantine']} })
+                       'BodyQuarantine',
+                       'TelemetryNeed']} })
 
 
 class ActivityPost(ConfiguredBaseModel):
@@ -5453,7 +5479,8 @@ class ActivityPost(ConfiguredBaseModel):
                        'BodyQuarantine',
                        'JobQueue',
                        'InboundDelivery',
-                       'Constraint']} })
+                       'Constraint',
+                       'TelemetryNeed']} })
     author: str = Field(default=..., description="""Actor that posted (`user:<id>`, `agent:<id>` or `svc:<name>`).""", json_schema_extra = { "linkml_meta": {'domain_of': ['ActivityPost',
                        'FeedPostedPayload',
                        'ThreadMessage',
@@ -5514,7 +5541,8 @@ class EventCard(ConfiguredBaseModel):
                        'BodyQuarantine',
                        'JobQueue',
                        'InboundDelivery',
-                       'Constraint']} })
+                       'Constraint',
+                       'TelemetryNeed']} })
     actor: str = Field(default=..., description="""Actor of the aggregated events.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Event',
                        'EventCard',
                        'FeedItemRow',
@@ -5751,7 +5779,8 @@ class FeedItemRow(ConfiguredBaseModel):
                        'BodyQuarantine',
                        'JobQueue',
                        'InboundDelivery',
-                       'Constraint']} })
+                       'Constraint',
+                       'TelemetryNeed']} })
     actor: str = Field(default=..., description="""Author of a post, or the actor of a card's events.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Event',
                        'EventCard',
                        'FeedItemRow',
@@ -5869,7 +5898,8 @@ class Hashtag(ConfiguredBaseModel):
                        'BodyQuarantine',
                        'JobQueue',
                        'InboundDelivery',
-                       'Constraint']} })
+                       'Constraint',
+                       'TelemetryNeed']} })
     kind: TagKind = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['SchemaPackagePublishedPayload',
                        'FeedTag',
                        'Hashtag',
@@ -5906,7 +5936,8 @@ class Hashtag(ConfiguredBaseModel):
                        'File',
                        'ActionInvocationTarget',
                        'RecordBody',
-                       'BodyQuarantine']} })
+                       'BodyQuarantine',
+                       'TelemetryNeed']} })
     start_pos: int = Field(default=..., description="""Offset of the sigil in the post body; 0 for a card's subject row.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Hashtag']} })
     end_pos: int = Field(default=..., description="""Offset just past the tag; 0 for a card's subject row.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Hashtag']} })
     seq: int = Field(default=..., description="""`seq` of the event that added the row; orders a card's subjects.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Event',
@@ -5956,7 +5987,8 @@ class ThreadMessage(ConfiguredBaseModel):
                        'File',
                        'ActionInvocationTarget',
                        'RecordBody',
-                       'BodyQuarantine']} })
+                       'BodyQuarantine',
+                       'TelemetryNeed']} })
     author: str = Field(default=..., description="""Actor that wrote it (`user:<id>`, `agent:<id>` or `svc:threads`).""", json_schema_extra = { "linkml_meta": {'domain_of': ['ActivityPost',
                        'FeedPostedPayload',
                        'ThreadMessage',
@@ -6088,7 +6120,8 @@ class ThreadMessagePostedPayload(EventPayload):
                        'File',
                        'ActionInvocationTarget',
                        'RecordBody',
-                       'BodyQuarantine']} })
+                       'BodyQuarantine',
+                       'TelemetryNeed']} })
     author: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['ActivityPost',
                        'FeedPostedPayload',
                        'ThreadMessage',
@@ -6161,7 +6194,8 @@ class ThreadMessageEditedPayload(EventPayload):
                        'File',
                        'ActionInvocationTarget',
                        'RecordBody',
-                       'BodyQuarantine']} })
+                       'BodyQuarantine',
+                       'TelemetryNeed']} })
     body: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['ActivityPost',
                        'FeedPostedPayload',
                        'FeedEditedPayload',
@@ -6217,7 +6251,8 @@ class ThreadMessageRetractedPayload(EventPayload):
                        'File',
                        'ActionInvocationTarget',
                        'RecordBody',
-                       'BodyQuarantine']} })
+                       'BodyQuarantine',
+                       'TelemetryNeed']} })
     reason: str = Field(default=..., description="""Why the message was retracted.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Link',
                        'RecordVoidedPayload',
                        'RecordCorrectedPayload',
@@ -6307,7 +6342,8 @@ class ThreadDispatchedPayload(EventPayload):
                        'File',
                        'ActionInvocationTarget',
                        'RecordBody',
-                       'BodyQuarantine']} })
+                       'BodyQuarantine',
+                       'TelemetryNeed']} })
     verb: str = Field(default=..., description="""The slash command verb (`link`, `status`, `raise`, `dispatch`, `notify`, `remind`, `summarise`...).""", json_schema_extra = { "linkml_meta": {'domain_of': ['ThreadDispatchedPayload']} })
     results: Optional[list[ThreadDispatchResult]] = Field(default=None, json_schema_extra = { "linkml_meta": {'domain_of': ['ThreadDispatchedPayload']} })
     link_ids: Optional[list[str]] = Field(default=None, json_schema_extra = { "linkml_meta": {'domain_of': ['ThreadDispatchedPayload']} })
@@ -6348,7 +6384,8 @@ class ThreadRow(ConfiguredBaseModel):
                        'File',
                        'ActionInvocationTarget',
                        'RecordBody',
-                       'BodyQuarantine']} })
+                       'BodyQuarantine',
+                       'TelemetryNeed']} })
     scope: str = Field(default=..., json_schema_extra = { "linkml_meta": {'annotations': {'tl:indexed': {'tag': 'tl:indexed', 'value': True}},
          'domain_of': ['RecordEnvelope',
                        'Event',
@@ -6380,7 +6417,8 @@ class ThreadRow(ConfiguredBaseModel):
                        'BodyQuarantine',
                        'JobQueue',
                        'InboundDelivery',
-                       'Constraint']} })
+                       'Constraint',
+                       'TelemetryNeed']} })
     message_count: int = Field(default=0, description="""Messages posted, retracted ones included.""", json_schema_extra = { "linkml_meta": {'domain_of': ['ThreadRow'], 'ifabsent': 'int(0)'} })
     created_by: str = Field(default=..., description="""Author of the first message.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Link',
                        'ThreadRow',
@@ -6503,7 +6541,8 @@ class ThreadMessageRow(ConfiguredBaseModel):
                        'File',
                        'ActionInvocationTarget',
                        'RecordBody',
-                       'BodyQuarantine']} })
+                       'BodyQuarantine',
+                       'TelemetryNeed']} })
     scope: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'Event',
                        'PsetValue',
@@ -6534,7 +6573,8 @@ class ThreadMessageRow(ConfiguredBaseModel):
                        'BodyQuarantine',
                        'JobQueue',
                        'InboundDelivery',
-                       'Constraint']} })
+                       'Constraint',
+                       'TelemetryNeed']} })
     seq: int = Field(default=..., description="""`seq` of `Thread.MessagePosted`; orders the thread.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Event',
                        'FeedItemRow',
                        'Hashtag',
@@ -6620,7 +6660,8 @@ class ThreadParticipantRow(ConfiguredBaseModel):
                        'File',
                        'ActionInvocationTarget',
                        'RecordBody',
-                       'BodyQuarantine']} })
+                       'BodyQuarantine',
+                       'TelemetryNeed']} })
     actor: str = Field(default=..., description="""`user:<id>`, `agent:<id>` or a mention as typed (`crew:P-07`) when it names no account.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Event',
                        'EventCard',
                        'FeedItemRow',
@@ -6850,7 +6891,8 @@ class ProposalRow(ConfiguredBaseModel):
                        'BodyQuarantine',
                        'JobQueue',
                        'InboundDelivery',
-                       'Constraint']} })
+                       'Constraint',
+                       'TelemetryNeed']} })
     tool: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['ProposalCreatedPayload', 'ProposalRow']} })
     agent: str = Field(default=..., json_schema_extra = { "linkml_meta": {'annotations': {'tl:indexed': {'tag': 'tl:indexed', 'value': True}},
          'domain_of': ['ProposalCreatedPayload', 'ProposalRow']} })
@@ -7317,7 +7359,8 @@ class SettingChangeRow(ConfiguredBaseModel):
                        'BodyQuarantine',
                        'JobQueue',
                        'InboundDelivery',
-                       'Constraint']} })
+                       'Constraint',
+                       'TelemetryNeed']} })
     value: Any = Field(default=..., description="""The new value as JSON; `null` for a reset.""", json_schema_extra = { "linkml_meta": {'annotations': {'tl:json': {'tag': 'tl:json', 'value': True}},
          'domain_of': ['EnrichmentProposedPayload',
                        'SettingChangeRow',
@@ -7394,7 +7437,11 @@ class SettingChangeRow(ConfiguredBaseModel):
          'ifabsent': 'false'} })
     applies_at: Optional[datetime ] = Field(default=None, description="""Set only for a change that was scheduled for later.""", json_schema_extra = { "linkml_meta": {'domain_of': ['SettingChangedPayload', 'SettingChangeRow']} })
     effective_us: int = Field(default=..., description="""Microseconds since the epoch at which the change takes effect (`applies_at`, else the time it was recorded).""", json_schema_extra = { "linkml_meta": {'domain_of': ['SettingChangeRow']} })
-    recorded_at: datetime  = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['Event', 'SettingChangeRow', 'SettingLockRow', 'OutboxEvent']} })
+    recorded_at: datetime  = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['Event',
+                       'SettingChangeRow',
+                       'SettingLockRow',
+                       'OutboxEvent',
+                       'TelemetryNeed']} })
     seq: int = Field(default=..., json_schema_extra = { "linkml_meta": {'annotations': {'tl:indexed': {'tag': 'tl:indexed', 'value': True}},
          'domain_of': ['Event',
                        'FeedItemRow',
@@ -7567,7 +7614,11 @@ class SettingLockRow(ConfiguredBaseModel):
                        'TypeRegistrationRegisteredPayload',
                        'TypeRegistrationRow',
                        'Account']} })
-    recorded_at: datetime  = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['Event', 'SettingChangeRow', 'SettingLockRow', 'OutboxEvent']} })
+    recorded_at: datetime  = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['Event',
+                       'SettingChangeRow',
+                       'SettingLockRow',
+                       'OutboxEvent',
+                       'TelemetryNeed']} })
 
 
 class SettingEffectApplied(ConfiguredBaseModel):
@@ -7628,7 +7679,8 @@ class File(ConfiguredBaseModel):
                        'BodyQuarantine',
                        'JobQueue',
                        'InboundDelivery',
-                       'Constraint']} })
+                       'Constraint',
+                       'TelemetryNeed']} })
     record_id: str = Field(default=..., description="""The record the file is attached to.""", json_schema_extra = { "linkml_meta": {'annotations': {'tl:indexed': {'tag': 'tl:indexed', 'value': True}},
          'domain_of': ['PsetValue',
                        'LinkCount',
@@ -7649,7 +7701,8 @@ class File(ConfiguredBaseModel):
                        'File',
                        'ActionInvocationTarget',
                        'RecordBody',
-                       'BodyQuarantine']} })
+                       'BodyQuarantine',
+                       'TelemetryNeed']} })
     slot: Optional[str] = Field(default=None, description="""Name of the record type's file slot; null for a generic attachment.""", json_schema_extra = { "linkml_meta": {'domain_of': ['FileUploadedPayload', 'File']} })
     revision: int = Field(default=1, description="""Position of the file among the attachments of its record and slot, starting at 1.""", json_schema_extra = { "linkml_meta": {'domain_of': ['FileUploadedPayload', 'File'], 'ifabsent': 'int(1)'} })
     sha256: str = Field(default=..., description="""Lower-case SHA-256 hex digest of the bytes; the object key derives from it.""", json_schema_extra = { "linkml_meta": {'annotations': {'tl:indexed': {'tag': 'tl:indexed', 'value': True}},
@@ -7871,7 +7924,8 @@ class WebhookSubscription(ConfiguredBaseModel):
                        'BodyQuarantine',
                        'JobQueue',
                        'InboundDelivery',
-                       'Constraint']} })
+                       'Constraint',
+                       'TelemetryNeed']} })
     name: str = Field(default=..., description="""Short label for lists and logs.""", json_schema_extra = { "linkml_meta": {'domain_of': ['WebhookSubscriptionCreatedPayload',
                        'IntegrationAppRegisteredPayload',
                        'ActionDefinitionDefinedPayload',
@@ -8261,7 +8315,8 @@ class IntegrationApp(ConfiguredBaseModel):
                        'BodyQuarantine',
                        'JobQueue',
                        'InboundDelivery',
-                       'Constraint']} })
+                       'Constraint',
+                       'TelemetryNeed']} })
     name: str = Field(default=..., description="""A slug, unique across the ledger.""", json_schema_extra = { "linkml_meta": {'domain_of': ['WebhookSubscriptionCreatedPayload',
                        'IntegrationAppRegisteredPayload',
                        'ActionDefinitionDefinedPayload',
@@ -8501,7 +8556,8 @@ class ActionDefinition(ConfiguredBaseModel):
                        'BodyQuarantine',
                        'JobQueue',
                        'InboundDelivery',
-                       'Constraint']} })
+                       'Constraint',
+                       'TelemetryNeed']} })
     version: int = Field(default=..., description="""Definition version (1, 2, ...). The ledger stream version is `stream_version`.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'Link',
                        'NumberingCounter',
@@ -8728,7 +8784,8 @@ class ActionInvocation(ConfiguredBaseModel):
                        'BodyQuarantine',
                        'JobQueue',
                        'InboundDelivery',
-                       'Constraint']} })
+                       'Constraint',
+                       'TelemetryNeed']} })
     action: str = Field(default=..., description="""The definition's name.""", json_schema_extra = { "linkml_meta": {'domain_of': ['ActionRequestedPayload', 'ActionInvocation']} })
     action_version: int = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['ActionRequestedPayload', 'ActionInvocation']} })
     definition_id: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['ActionDefinitionDefinedPayload',
@@ -8902,11 +8959,13 @@ class ActionInvocationTarget(ConfiguredBaseModel):
                        'File',
                        'ActionInvocationTarget',
                        'RecordBody',
-                       'BodyQuarantine']} })
+                       'BodyQuarantine',
+                       'TelemetryNeed']} })
     record_key: Optional[str] = Field(default=None, json_schema_extra = { "linkml_meta": {'domain_of': ['ActionInvocationTarget']} })
     record_type: Optional[str] = Field(default=None, json_schema_extra = { "linkml_meta": {'domain_of': ['RecordCreatedPayload',
                        'NumberingAllocatedPayload',
-                       'ActionInvocationTarget']} })
+                       'ActionInvocationTarget',
+                       'TelemetryNeed']} })
     record_version: Optional[int] = Field(default=None, json_schema_extra = { "linkml_meta": {'domain_of': ['ActionInvocationTarget']} })
 
 
@@ -8980,7 +9039,8 @@ class Rule(ConfiguredBaseModel):
                        'BodyQuarantine',
                        'JobQueue',
                        'InboundDelivery',
-                       'Constraint']} })
+                       'Constraint',
+                       'TelemetryNeed']} })
     version: int = Field(default=..., description="""Rule version (1, 2, ...). The ledger stream version is `stream_version`.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'Link',
                        'NumberingCounter',
@@ -9221,7 +9281,8 @@ class InboundEndpoint(ConfiguredBaseModel):
                        'BodyQuarantine',
                        'JobQueue',
                        'InboundDelivery',
-                       'Constraint']} })
+                       'Constraint',
+                       'TelemetryNeed']} })
     version: int = Field(default=..., description="""Endpoint version (1, 2, ...). The ledger stream version is `stream_version`.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'Link',
                        'NumberingCounter',
@@ -9526,7 +9587,8 @@ class Enricher(ConfiguredBaseModel):
                        'BodyQuarantine',
                        'JobQueue',
                        'InboundDelivery',
-                       'Constraint']} })
+                       'Constraint',
+                       'TelemetryNeed']} })
     version: int = Field(default=..., description="""Registration version (1, 2, ...). The ledger stream version is `stream_version`.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'Link',
                        'NumberingCounter',
@@ -9747,7 +9809,8 @@ class EnrichmentValue(ConfiguredBaseModel):
                        'BodyQuarantine',
                        'JobQueue',
                        'InboundDelivery',
-                       'Constraint']} })
+                       'Constraint',
+                       'TelemetryNeed']} })
     target: Any = Field(default=..., description="""The `RecordRef` of the record, as JSON.""", json_schema_extra = { "linkml_meta": {'annotations': {'tl:json': {'tag': 'tl:json', 'value': True}},
          'domain_of': ['EnrichmentProposedPayload', 'EnrichmentValue']} })
     target_id: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['ActionInvocationTarget',
@@ -9949,7 +10012,8 @@ class OutboxEvent(ConfiguredBaseModel):
                        'BodyQuarantine',
                        'JobQueue',
                        'InboundDelivery',
-                       'Constraint']} })
+                       'Constraint',
+                       'TelemetryNeed']} })
     event_type: str = Field(default=..., description="""Ledger event type, for example `Record.Created`.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Event', 'EventCard', 'FeedItemRow', 'OutboxEvent']} })
     schema_version: int = Field(default=1, json_schema_extra = { "linkml_meta": {'domain_of': ['Event', 'OutboxEvent'], 'ifabsent': 'int(1)'} })
     stream_id: str = Field(default=..., description="""The stream the event was appended to.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Event',
@@ -9988,7 +10052,11 @@ class OutboxEvent(ConfiguredBaseModel):
                        'OutboxEvent',
                        'Constraint',
                        'ConstraintRaisedPayload']} })
-    recorded_at: str = Field(default=..., description="""ISO-8601 UTC time of the event (the CloudEvents `time`).""", json_schema_extra = { "linkml_meta": {'domain_of': ['Event', 'SettingChangeRow', 'SettingLockRow', 'OutboxEvent']} })
+    recorded_at: str = Field(default=..., description="""ISO-8601 UTC time of the event (the CloudEvents `time`).""", json_schema_extra = { "linkml_meta": {'domain_of': ['Event',
+                       'SettingChangeRow',
+                       'SettingLockRow',
+                       'OutboxEvent',
+                       'TelemetryNeed']} })
     correlation_id: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['Event', 'OutboxEvent']} })
     changed_fields: Any = Field(default=..., description="""JSON list of changed field paths (`status`, `psets.vt.result`), for filters.""", json_schema_extra = { "linkml_meta": {'annotations': {'tl:json': {'tag': 'tl:json', 'value': True}},
          'domain_of': ['SubscriptionFilter', 'OutboxEvent']} })
@@ -10155,7 +10223,10 @@ class WebhookAttempt(ConfiguredBaseModel):
                        'TypeRegistrationRegisteredPayload',
                        'TypeRegistrationRow',
                        'Account']} })
-    outcome: str = Field(default=..., description="""`delivered`, `retry`, `dead`.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RuleBlockedPayload', 'WebhookAttempt', 'RuleFiring']} })
+    outcome: str = Field(default=..., description="""`delivered`, `retry`, `dead`.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RuleBlockedPayload',
+                       'WebhookAttempt',
+                       'RuleFiring',
+                       'TelemetryNeed']} })
     error: Optional[str] = Field(default=None, description="""Short failure reason.""", json_schema_extra = { "linkml_meta": {'domain_of': ['ProposalFailedPayload', 'WebhookAttempt']} })
     response_excerpt: Optional[str] = Field(default=None, description="""First 512 characters of the response body, control characters removed.""", json_schema_extra = { "linkml_meta": {'domain_of': ['WebhookAttempt']} })
 
@@ -10348,7 +10419,8 @@ class ExtensionRecord(RecordEnvelope):
                        'BodyQuarantine',
                        'JobQueue',
                        'InboundDelivery',
-                       'Constraint']} })
+                       'Constraint',
+                       'TelemetryNeed']} })
     title: str = Field(default=..., description="""Short human-readable title.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'RecordCreatedPayload',
                        'RuleCreatedPayload',
@@ -10960,7 +11032,8 @@ class RecordBody(ConfiguredBaseModel):
                        'File',
                        'ActionInvocationTarget',
                        'RecordBody',
-                       'BodyQuarantine']} })
+                       'BodyQuarantine',
+                       'TelemetryNeed']} })
     scope: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'Event',
                        'PsetValue',
@@ -10991,7 +11064,8 @@ class RecordBody(ConfiguredBaseModel):
                        'BodyQuarantine',
                        'JobQueue',
                        'InboundDelivery',
-                       'Constraint']} })
+                       'Constraint',
+                       'TelemetryNeed']} })
     type_name: str = Field(default=..., json_schema_extra = { "linkml_meta": {'annotations': {'tl:indexed': {'tag': 'tl:indexed', 'value': True}},
          'domain_of': ['TypeRegistrationRow', 'RecordBody', 'BodyQuarantine']} })
     uri: str = Field(default=..., description="""Object key `records/<type>/<id>/<sha256>.json`.""", json_schema_extra = { "linkml_meta": {'domain_of': ['EventOrigin', 'EventLinkRef', 'RecordBody', 'BodyQuarantine']} })
@@ -11070,7 +11144,8 @@ class BodyQuarantine(ConfiguredBaseModel):
                        'File',
                        'ActionInvocationTarget',
                        'RecordBody',
-                       'BodyQuarantine']} })
+                       'BodyQuarantine',
+                       'TelemetryNeed']} })
     scope: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'Event',
                        'PsetValue',
@@ -11101,7 +11176,8 @@ class BodyQuarantine(ConfiguredBaseModel):
                        'BodyQuarantine',
                        'JobQueue',
                        'InboundDelivery',
-                       'Constraint']} })
+                       'Constraint',
+                       'TelemetryNeed']} })
     type_name: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['TypeRegistrationRow', 'RecordBody', 'BodyQuarantine']} })
     uri: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['EventOrigin', 'EventLinkRef', 'RecordBody', 'BodyQuarantine']} })
     expected_hash: str = Field(default=..., description="""The hash the ledger recorded for the body.""", json_schema_extra = { "linkml_meta": {'domain_of': ['BodyQuarantine']} })
@@ -12282,7 +12358,8 @@ class JobQueue(ConfiguredBaseModel):
                        'BodyQuarantine',
                        'JobQueue',
                        'InboundDelivery',
-                       'Constraint']} })
+                       'Constraint',
+                       'TelemetryNeed']} })
     state: str = Field(default=..., description="""queued, running, done, failed or cancelled.""", json_schema_extra = { "linkml_meta": {'domain_of': ['WorkflowState',
                        'WebhookSecret',
                        'JobQueue',
@@ -12447,7 +12524,8 @@ class InboundDelivery(ConfiguredBaseModel):
                        'BodyQuarantine',
                        'JobQueue',
                        'InboundDelivery',
-                       'Constraint']} })
+                       'Constraint',
+                       'TelemetryNeed']} })
     state: DeliveryState = Field(default=DeliveryState("queued"), json_schema_extra = { "linkml_meta": {'domain_of': ['WorkflowState',
                        'WebhookSecret',
                        'JobQueue',
@@ -12578,7 +12656,10 @@ class RuleFiring(ConfiguredBaseModel):
                        'AccountModuleRole',
                        'RuleFiring']} })
     depth: int = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['RuleBlockedPayload', 'RuleFiring']} })
-    outcome: str = Field(default=..., description="""`fired`, `proposed`, `skipped_condition`, `refused`, `depth_limit`, `budget` or `killed`.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RuleBlockedPayload', 'WebhookAttempt', 'RuleFiring']} })
+    outcome: str = Field(default=..., description="""`fired`, `proposed`, `skipped_condition`, `refused`, `depth_limit`, `budget` or `killed`.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RuleBlockedPayload',
+                       'WebhookAttempt',
+                       'RuleFiring',
+                       'TelemetryNeed']} })
     command_count: int = Field(default=0, json_schema_extra = { "linkml_meta": {'domain_of': ['InboundAppliedPayload', 'InboundDelivery', 'RuleFiring'],
          'ifabsent': 'int(0)'} })
     fired_at: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['RuleFiring']} })
@@ -12684,7 +12765,8 @@ class Constraint(ConfiguredBaseModel):
                        'BodyQuarantine',
                        'JobQueue',
                        'InboundDelivery',
-                       'Constraint']} })
+                       'Constraint',
+                       'TelemetryNeed']} })
     subject_id: str = Field(default=..., description="""The record held back (any record type). Its confidentiality class governs this row, by join at read time.""", json_schema_extra = { "linkml_meta": {'domain_of': ['OutboxEvent',
                        'WebhookDelivery',
                        'Constraint',
@@ -13156,6 +13238,92 @@ class ConstraintWithdrawnPayload(EventPayload):
                        'ConstraintWithdrawnPayload']} })
 
 
+class TelemetryNeed(ConfiguredBaseModel):
+    """
+    One state of one need: a request was shown, accepted, dismissed, expired or went unmet. Operational, append-only, not a projection. `need_id` ties a request to its later outcomes. Never holds content.
+    """
+    linkml_meta: ClassVar[LinkMLMeta] = LinkMLMeta({'annotations': {'tl:current_state': {'tag': 'tl:current_state', 'value': True},
+                         'tl:table': {'tag': 'tl:table', 'value': 'telemetry_need'}},
+         'from_schema': 'https://example.org/throughline/core/telemetry'})
+
+    row_id: str = Field(default=..., description="""One row; a need has one `row_id` per outcome and one `need_id` for all of them.""", json_schema_extra = { "linkml_meta": {'domain_of': ['TelemetryNeed']} })
+    need_id: str = Field(default=..., description="""Ties a request to its later outcomes.""", json_schema_extra = { "linkml_meta": {'annotations': {'tl:indexed': {'tag': 'tl:indexed', 'value': True}},
+         'domain_of': ['TelemetryNeed']} })
+    scope: Optional[str] = Field(default=None, description="""`company` or `project:<id>`, when known.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
+                       'Event',
+                       'PsetValue',
+                       'Link',
+                       'LinkCount',
+                       'NumberingCounter',
+                       'WorkflowState',
+                       'SchemaEffectiveChangedPayload',
+                       'ActivityPost',
+                       'EventCard',
+                       'FeedItemRow',
+                       'Hashtag',
+                       'ThreadRow',
+                       'ThreadMessageRow',
+                       'ProposalRow',
+                       'SettingChangeRow',
+                       'File',
+                       'WebhookSubscription',
+                       'IntegrationApp',
+                       'ActionDefinition',
+                       'ActionInvocation',
+                       'Rule',
+                       'InboundEndpoint',
+                       'Enricher',
+                       'EnrichmentValue',
+                       'OutboxEvent',
+                       'RecordBody',
+                       'BodyQuarantine',
+                       'JobQueue',
+                       'InboundDelivery',
+                       'Constraint',
+                       'TelemetryNeed']} })
+    recorded_at: str = Field(default=..., description="""ISO-8601 UTC with a `Z` suffix; the prune key.""", json_schema_extra = { "linkml_meta": {'annotations': {'tl:indexed': {'tag': 'tl:indexed', 'value': True}},
+         'domain_of': ['Event',
+                       'SettingChangeRow',
+                       'SettingLockRow',
+                       'OutboxEvent',
+                       'TelemetryNeed']} })
+    request_kind: str = Field(default=..., description="""`check`, `suggestion`, `analysis` or `ask`.""", json_schema_extra = { "linkml_meta": {'domain_of': ['TelemetryNeed']} })
+    trigger: str = Field(default=..., description="""`screen:insights.<subtab>`, `request` or `event:<type>`.""", json_schema_extra = { "linkml_meta": {'domain_of': ['TelemetryNeed']} })
+    record_type: str = Field(default=..., description="""The record type the need was about.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordCreatedPayload',
+                       'NumberingAllocatedPayload',
+                       'ActionInvocationTarget',
+                       'TelemetryNeed']} })
+    record_id: Optional[str] = Field(default=None, description="""Set only for an explicit request, never by a screen opening.""", json_schema_extra = { "linkml_meta": {'domain_of': ['PsetValue',
+                       'LinkCount',
+                       'WorkflowState',
+                       'NumberingAllocatedPayload',
+                       'FileUploadedPayload',
+                       'SchemaPackagePublishedPayload',
+                       'FeedTag',
+                       'Hashtag',
+                       'ThreadMessage',
+                       'ThreadMessagePostedPayload',
+                       'ThreadMessageEditedPayload',
+                       'ThreadMessageRetractedPayload',
+                       'ThreadDispatchedPayload',
+                       'ThreadRow',
+                       'ThreadMessageRow',
+                       'ThreadParticipantRow',
+                       'File',
+                       'ActionInvocationTarget',
+                       'RecordBody',
+                       'BodyQuarantine',
+                       'TelemetryNeed']} })
+    viewer_role: str = Field(default=..., description="""`admin`, `document_controller`, `user` or `unknown` when there is none.""", json_schema_extra = { "linkml_meta": {'domain_of': ['TelemetryNeed']} })
+    provider_kind: Optional[str] = Field(default=None, description="""Which kind of provider answered, when one did.""", json_schema_extra = { "linkml_meta": {'domain_of': ['TelemetryNeed']} })
+    duration_ms: Optional[int] = Field(default=None, description="""How long the answer took.""", json_schema_extra = { "linkml_meta": {'domain_of': ['TelemetryNeed']} })
+    outcome: str = Field(default=..., description="""`shown`, `accepted`, `dismissed`, `expired` or `unmet`.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RuleBlockedPayload',
+                       'WebhookAttempt',
+                       'RuleFiring',
+                       'TelemetryNeed']} })
+    why: Optional[str] = Field(default=None, description="""Always written null; no reader and no privacy review yet.""", json_schema_extra = { "linkml_meta": {'domain_of': ['TelemetryNeed']} })
+
+
 # Model rebuild
 # see https://pydantic-docs.helpmanual.io/usage/models/#rebuilding-a-model
 RecordEnvelope.model_rebuild()
@@ -13326,3 +13494,4 @@ ConstraintRaisedPayload.model_rebuild()
 ConstraintAssignedPayload.model_rebuild()
 ConstraintClearedPayload.model_rebuild()
 ConstraintWithdrawnPayload.model_rebuild()
+TelemetryNeed.model_rebuild()

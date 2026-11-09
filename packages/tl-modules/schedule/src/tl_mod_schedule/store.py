@@ -11,6 +11,7 @@ from __future__ import annotations
 import hashlib
 import io
 from dataclasses import dataclass
+from typing import Any
 
 from tl_core.files.service import CompleteUpload, FileService, RegisterUpload
 from tl_core.uow import UnitOfWork
@@ -70,7 +71,7 @@ class SnapshotFiles:
         if slot not in _TYPES:
             raise ValueError(f"the module writes only {SLOT_REPORT} and {SLOT_RAW}")
         digest = hashlib.sha256(data).hexdigest()
-        base = {
+        base: dict[str, Any] = {
             "actor": ACTOR,
             "source": SOURCE,
             "scope": scope,

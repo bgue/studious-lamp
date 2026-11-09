@@ -13,6 +13,7 @@ from __future__ import annotations
 import hashlib
 import io
 from dataclasses import dataclass
+from typing import Any
 
 from tl_core.files.service import CompleteUpload, FileService, RegisterUpload
 from tl_core.uow import UnitOfWork
@@ -64,7 +65,12 @@ def store_file(
     """
     files = file_service()
     digest = hashlib.sha256(data).hexdigest()
-    base = {"actor": actor, "source": source, "scope": scope, "correlation_id": correlation_id}
+    base: dict[str, Any] = {
+        "actor": actor,
+        "source": source,
+        "scope": scope,
+        "correlation_id": correlation_id,
+    }
     ticket = files.register_upload(
         uow,
         RegisterUpload(

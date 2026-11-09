@@ -23,6 +23,7 @@ from tl_core.extypes.service import BodyStoredOut, BodyView, TypeDetail, TypeSum
 from tl_core.extypes.types import TypeStatus
 from tl_core.files.queries import FileInfo
 from tl_core.files.service import FileResult
+from tl_core.insights.types import ActivityPage, CheckFinding
 from tl_core.ledger import Event
 from tl_core.links.expected import MissingLink
 from tl_core.numbering.detect import KeyChip
@@ -142,6 +143,19 @@ class ClientInterface(Protocol):
     def get_record_by_id(self, record_id: str) -> dict[str, Any] | None: ...
 
     def history(self, record_id: str) -> list[Event]: ...
+
+    def activity(
+        self,
+        record_id: str,
+        *,
+        revisions_only: bool = False,
+        related: bool = True,
+        before_seq: int | None = None,
+        limit: int = 120,
+    ) -> ActivityPage:
+        """What happened around the record, newest first (an empty page for an unknown or hidden
+        record)."""
+        ...
 
     def record_types(self) -> list[RecordTypeRow]:
         """Every record type: label, module, offline class, drafting commands (no record data)."""
@@ -266,6 +280,16 @@ class ClientInterface(Protocol):
 
     def expected_links(self, record_id: str) -> list[MissingLink]:
         """Expected links the record does not have yet (all states)."""
+        ...
+
+    def checks(self, record_id: str) -> list[CheckFinding]:
+        """What needs attention on the record, from five sources (empty when hidden or unknown)."""
+        ...
+
+    def note_need(
+        self, *, request_kind: str, trigger: str, record_type: str, record_id: str | None = None
+    ) -> None:
+        """Tell the telemetry that a need was shown. Never raises: a refusal is dropped."""
         ...
 
     def search_linkable(

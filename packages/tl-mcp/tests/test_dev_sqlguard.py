@@ -72,6 +72,11 @@ def test_sqlite_refuses_to_name_a_credential_table(table: str) -> None:
         check_sqlite_select(f"SELECT * FROM {table.upper()}")
 
 
+def test_sqlite_refuses_to_name_the_telemetry_table() -> None:
+    with pytest.raises(DevGuardError, match="telemetry_need"):
+        check_sqlite_select("SELECT * FROM TELEMETRY_NEED")
+
+
 # The review of S41 found that a Postgres function deny-list cannot be complete: ts_stat and
 # ts_rewrite run a SQL string server-side, so a denied name split with `||` reads files, the role
 # password hashes and wh_secret as the superuser. There is no Postgres guard to bypass any more:

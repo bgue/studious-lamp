@@ -17,6 +17,7 @@ from mcp.server.mcpserver import MCPServer
 from mcp.types import ToolAnnotations
 from pydantic import Field
 from sqlalchemy import Connection
+from tl_core.intent import Intent
 from tl_core.services import proposals
 from tl_mod_materials import views
 from tl_mod_materials.errors import MtoLineNotFoundError
@@ -25,6 +26,7 @@ from tl_mod_materials.limits import MAX_VIEW_ROWS
 
 from tl_mcp.context import McpContext
 from tl_mcp.errors import MAX_PART, guarded, resource_name
+from tl_mcp.intent_param import IntentParam
 from tl_mcp.write_tools import (  # pyright: ignore[reportPrivateUsage]
     PROPOSES,
     ProposalResult,
@@ -183,6 +185,7 @@ def propose_reservation_impl(
     mto_line: str,
     qty: str,
     summary: str | None,
+    intent: Intent | None = None,
 ) -> ProposalResult:
     scope = _scope(project)
     with ctx.factory(True) as uow:
@@ -201,6 +204,7 @@ def propose_reservation_impl(
                 mto_line_id=line.id,
             )
         ],
+        intent=intent,
     )
     view = proposals.submit(
         ctx.factory,
@@ -488,6 +492,7 @@ def register_materials_tools(server: MCPServer, ctx: McpContext) -> None:
                 description="The quantity to hold, in the lot's unit, as a decimal string.",
             ),
         ],
+        intent: IntentParam = None,
         summary: Summary = None,
     ) -> ProposalResult:
         """Propose holding some of a lot's available stock for a take-off line.
@@ -511,4 +516,5 @@ def register_materials_tools(server: MCPServer, ctx: McpContext) -> None:
                 mto_line=mto_line,
                 qty=qty,
                 summary=summary,
+                intent=intent,
             )

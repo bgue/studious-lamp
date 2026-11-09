@@ -22,6 +22,7 @@ from mcp.server.mcpserver import MCPServer
 from mcp.types import ToolAnnotations
 from pydantic import BaseModel, Field
 from tl_core.feed.types import Importance
+from tl_core.intent import Intent
 from tl_core.proposals.types import PROPOSABLE_TOOLS, ProposalView, ToolMode
 from tl_core.services import proposals, queries
 from tl_core.services.commands import CreateRecord
@@ -35,6 +36,7 @@ from tl_core.settings.values import format_value
 
 from tl_mcp.context import McpContext
 from tl_mcp.errors import MAX_PART, guarded, resource_name
+from tl_mcp.intent_param import IntentParam
 from tl_mcp.tools import resolve_record_id
 
 MAX_TITLE = 500
@@ -143,6 +145,7 @@ def create_record_impl(
     psets: dict[str, Any] | None,
     numbering: dict[str, str] | None,
     summary: str | None,
+    intent: Intent | None = None,
 ) -> ProposalResult:
     check_json("psets", psets or {})
     command = CreateRecord(
@@ -155,6 +158,7 @@ def create_record_impl(
         key=key,
         psets=psets or {},
         numbering=numbering or {},
+        intent=intent,
     )
     line = summary or f"Create {record_type} {_short(title)!r} in {scope}"
     view = proposals.submit(
@@ -173,6 +177,7 @@ def update_psets_impl(
     values: dict[str, Any],
     expected_version: int | None,
     summary: str | None,
+    intent: Intent | None = None,
 ) -> ProposalResult:
     check_json("values", values)
     found = _envelope(ctx, record, scope)
@@ -185,6 +190,7 @@ def update_psets_impl(
         pset=pset,
         layer=layer,
         values=values,
+        intent=intent,
     )
     label = found["key"] or found["id"]
     line = summary or f"Set {pset} on {label}: {_short(', '.join(sorted(values)))}"
@@ -203,6 +209,7 @@ def link_records_impl(
     relation: str | None,
     note: str | None,
     summary: str | None,
+    intent: Intent | None = None,
 ) -> ProposalResult:
     with ctx.factory(True) as uow:
         from_id = resolve_record_id(uow, from_record, scope)
@@ -217,6 +224,7 @@ def link_records_impl(
         to_id=to_id,
         relation=relation,
         note=note,
+        intent=intent,
     )
     line = summary or f"Link {_short(from_record)} to {_short(to_record)}" + (
         f" ({relation})" if relation else ""
@@ -236,6 +244,7 @@ def transition_workflow_impl(
     expected_version: int | None,
     reason: str | None,
     summary: str | None,
+    intent: Intent | None = None,
 ) -> ProposalResult:
     found = _envelope(ctx, record, scope)
     command = TransitionWorkflow(
@@ -246,6 +255,7 @@ def transition_workflow_impl(
         expected_version=expected_version if expected_version is not None else found["version"],
         transition=transition,
         reason=reason,
+        intent=intent,
     )
     label = found["key"] or found["id"]
     line = summary or f"Run transition {transition!r} on {label}"
@@ -265,6 +275,7 @@ def propose_setting_change_impl(
     reason: str | None,
     applies_at: str | None,
     summary: str | None,
+    intent: Intent | None = None,
 ) -> ProposalResult:
     check_json("value", value)
     ref = parse_layer(layer)
@@ -284,6 +295,7 @@ def propose_setting_change_impl(
         reset=reset,
         reason=reason,
         applies_at=when,
+        intent=intent,
     )
     shown = "reset" if reset else f"set to {_short(format_value(value, max_items=5))}"
     line = summary or f"Change setting {key} at {ref.name}: {shown}"
@@ -347,6 +359,7 @@ def register_write_tools(server: MCPServer, ctx: McpContext, modes: dict[str, To
                 description="Values for other numbering pattern fields, e.g. `{discipline: PIP}`.",
             ),
         ] = None,
+        intent: IntentParam = None,
         summary: Summary = None,
     ) -> ProposalResult:
         """Propose a new record. A person must accept the proposal before the record exists.
@@ -365,6 +378,7 @@ def register_write_tools(server: MCPServer, ctx: McpContext, modes: dict[str, To
                 psets=psets,
                 numbering=numbering,
                 summary=summary,
+                intent=intent,
             )
 
     @server.tool(annotations=PROPOSES)
@@ -386,6 +400,7 @@ def register_write_tools(server: MCPServer, ctx: McpContext, modes: dict[str, To
             Field(description="Which layer of the property set the values belong to."),
         ] = "standard",
         expected_version: ExpectedVersion = None,
+        intent: IntentParam = None,
         summary: Summary = None,
     ) -> ProposalResult:
         """Propose property values for a record. A person must accept before anything changes.
@@ -403,6 +418,7 @@ def register_write_tools(server: MCPServer, ctx: McpContext, modes: dict[str, To
                 values=values,
                 expected_version=expected_version,
                 summary=summary,
+                intent=intent,
             )
 
     @server.tool(annotations=PROPOSES)
@@ -418,6 +434,7 @@ def register_write_tools(server: MCPServer, ctx: McpContext, modes: dict[str, To
             ),
         ] = None,
         note: Annotated[str | None, Field(max_length=MAX_NOTE)] = None,
+        intent: IntentParam = None,
         summary: Summary = None,
     ) -> ProposalResult:
         """Propose a link between two records. A person must accept before the link exists."""
@@ -430,6 +447,7 @@ def register_write_tools(server: MCPServer, ctx: McpContext, modes: dict[str, To
                 relation=relation,
                 note=note,
                 summary=summary,
+                intent=intent,
             )
 
     @server.tool(annotations=PROPOSES)
@@ -439,6 +457,7 @@ def register_write_tools(server: MCPServer, ctx: McpContext, modes: dict[str, To
         scope: ScopeForKey = None,
         expected_version: ExpectedVersion = None,
         reason: Annotated[str | None, Field(max_length=MAX_NOTE)] = None,
+        intent: IntentParam = None,
         summary: Summary = None,
     ) -> ProposalResult:
         """Propose a workflow transition. A person must accept before the record moves.
@@ -455,6 +474,7 @@ def register_write_tools(server: MCPServer, ctx: McpContext, modes: dict[str, To
                 expected_version=expected_version,
                 reason=reason,
                 summary=summary,
+                intent=intent,
             )
 
     @server.tool(annotations=PROPOSES)
@@ -489,6 +509,7 @@ def register_write_tools(server: MCPServer, ctx: McpContext, modes: dict[str, To
                 description="ISO 8601 time (Z or offset) in the future: schedules the change.",
             ),
         ] = None,
+        intent: IntentParam = None,
         summary: Summary = None,
     ) -> ProposalResult:
         """Propose a settings change. A person must accept before the setting changes.
@@ -507,6 +528,7 @@ def register_write_tools(server: MCPServer, ctx: McpContext, modes: dict[str, To
                 reason=reason,
                 applies_at=applies_at,
                 summary=summary,
+                intent=intent,
             )
 
     @server.tool(annotations=POSTS)

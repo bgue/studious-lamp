@@ -12,6 +12,10 @@ One line each: what, why it waits, and the phase it belongs to. Newest at the bo
 | Wave security reviews for P2-I2 to I5 beyond the per-increment Sec rows | Owner: security reviews are owner-optional; keep to what release needs | Phase 2 exit |
 | Per-viewer redaction of scanned-stream events: an IWP readiness event (like a proposal or thread event) that names a hidden record is hidden whole, so a viewer may notice a missing evaluation; redact the hidden ids instead of hiding the event | ADR-0016 accepts whole-event hiding; no hidden id or key is shown | Phase 3 I8 |
 | An agent's own module role is not checked when it files a proposal (`submit` skips `require_command_access`), and agents read internal records of any project (agent-first spec 3.1) | People still decide every proposal with their own access; fix with read scoping | Phase 3 |
+| Refuse the public try-it `TL_OBJECT_SECRET` value in prod (P2-REL-S2 review F1); the runbook warns until then | Small server check after the terminal release | Phase 2 exit |
+| Plain-http refusal only in the TUI; MCP and other ApiClient users are not guarded (P2-REL-S2 F2); runbook requires a TLS proxy | Client-side guard for other clients | Phase 2 exit |
+| Split `packages/tl-schema/tests` per file in the gate: the whole folder OOMs in one pytest session on 16 GB | Gate tooling | Phase 2 exit |
+| Related Activity rows miss Constraint.Cleared and Proposal.Accepted of linked records (subject is the constraint or proposal id) (P2-INS-S1 F1) | Coverage, not a leak | Phase 3 early |
 | Agents and core access words: agents hold no `core.constraint.view`/`.edit`, so the MCP constraint read and propose tools were left out of P2-I2-T09b; define agent grants for core words with the ADR-0027 filing rule | Access change for agents; IWP tools cover wave 2 | Phase 3 |
 
 ## Test runs
@@ -70,6 +74,10 @@ One line each: what, why it waits, and the phase it belongs to. Newest at the bo
 | Insights: Ask, a record-scoped conversation with cited answers (item 12) | Needs retrieval, analysis jobs, a streaming route and a spend decision unless local | Phase 3 to 4 |
 | Insights: web versions of the Insights tab, inbox and Ask (item 13) | Owner: CLI and TUI first | Web increment after wave 4 |
 | Activity and Insights extras: "show in graph" from an Activity row, related activity beyond one hop, subtab hot keys, an Activity web page | Part C keeps one hop and the TUI only | Phase 4 and the web increment |
+| Intent on the remaining CLI write paths: about 440 `handle_*` calls in tl-cli skip the dispatcher, so their events keep NULL intent (P2-INT-T02 covers record create/void and link add/retract) | P2-INT D6: one wrapper per path is wide; the API, MCP propose tools and these four CLI paths carry intent now | Phase 3 (CLI dispatcher) |
+| Intent on the web action route, MCP non-propose tools, and the entries that bypass the dispatcher (simulator, rule and integration runners, jobs, thread dispatch) | P2-INT S2 D5: they keep NULL intent and are reported, not extended | Phase 3 |
+| `tl events` reads without intent redaction | Found at P2-INT r3; the CLI reads as the local operator | Phase 3, with the CLI dispatcher |
+| A TUI live-remote timing test (`test_remote_a_write_by_another_client_marks_the_row_within_two_seconds`) fails under heavy parallel load and passes alone | Seen at the P2-INT close; timing bound, not a defect found | Next test-hardening slot |
 
 ## Terminal release follow-ups (P2-REL, 2026-11-07)
 | Item | Why deferred | Phase |

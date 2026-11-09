@@ -13,6 +13,7 @@ from typing import Annotated
 
 from mcp.server.mcpserver import MCPServer
 from pydantic import Field
+from tl_core.intent import Intent
 from tl_core.services import proposals
 from tl_core.services.errors import RecordNotFoundError
 from tl_mod_awp import views
@@ -20,6 +21,7 @@ from tl_mod_awp.commands import CreateCwp
 
 from tl_mcp.context import McpContext
 from tl_mcp.errors import MAX_PART, guarded, resource_name
+from tl_mcp.intent_param import IntentParam
 from tl_mcp.schedule_read_tools import READ_ONLY
 from tl_mcp.write_tools import (  # pyright: ignore[reportPrivateUsage]
     PROPOSES,
@@ -93,6 +95,7 @@ def propose_cwp_impl(
     planned_finish: str | None,
     budget_hours: str | None,
     summary: str | None,
+    intent: Intent | None = None,
 ) -> ProposalResult:
     scope = f"project:{project}"
     command = CreateCwp(
@@ -105,6 +108,7 @@ def propose_cwp_impl(
         planned_start=planned_start,
         planned_finish=planned_finish,
         budget_hours=budget_hours,
+        intent=intent,
     )
     view = proposals.submit(
         ctx.factory,
@@ -203,6 +207,7 @@ def register_awp_tools(server: MCPServer, ctx: McpContext) -> None:
         budget_hours: Annotated[
             str | None, Field(max_length=MAX_PART, description="The budget, in hours.")
         ] = None,
+        intent: IntentParam = None,
         summary: Summary = None,
     ) -> ProposalResult:
         """Propose a new construction work package (CWP).
@@ -222,4 +227,5 @@ def register_awp_tools(server: MCPServer, ctx: McpContext) -> None:
                 planned_finish=planned_finish,
                 budget_hours=budget_hours,
                 summary=summary,
+                intent=intent,
             )

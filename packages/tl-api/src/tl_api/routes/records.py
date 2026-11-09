@@ -10,6 +10,7 @@ from __future__ import annotations
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, Query, Response
+from tl_core.intent import redact_events
 from tl_core.ledger import Event
 from tl_core.query import And, Compare, Expr, QuerySpec, count_query, parse, run_query
 from tl_core.services import queries
@@ -176,6 +177,7 @@ def get_record_history(ctx: Ctx, actor: Reader, record_id: str) -> list[Event]:
     """Every event of the record's stream, oldest first. 404 when the record is unknown."""
     with ctx.backend(True) as uow:
         events = queries.record_history(uow, record_id)
+        shown = redact_events(uow.conn(), events)  # unreadable intent references: "not available"
     if not events:
         raise RecordNotFoundError(f"no record {record_id!r}")
-    return events
+    return shown
