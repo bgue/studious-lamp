@@ -1,7 +1,7 @@
 # Outside review, 2026-11-09
 
 Five read-only questions put to the planner tier at the owner's request (2026-11-09, "ask your hardest questions").
-Each answer is abridged; file and line evidence is in the reviewers' returns. Section 2 is added when that review finishes.
+Each answer is abridged; file and line evidence is in the reviewers' returns.
 
 ## 1. Hidden must look like missing (confidentiality)
 
@@ -32,6 +32,28 @@ Harness that would catch the next leak class: build two ledgers from the same se
 without (same number of filler events so sequence numbers align), then walk every API route, MCP tool, CLI read, lake
 query, webhook mode and the SSE feed as each reader who may not see the secrets, and byte-compare the two worlds.
 About 150 lines plus one seed mode; it would have caught F1, F2, F4 and the three leaks fixed on 2026-11-08.
+
+## 2. Can every projection be rebuilt from the events? (event-sourcing integrity)
+
+- **F1 HI** No payload validation on append in any module: payloads are plain dicts written as they are (225 handler
+  sites, 10 with `**` splats). The generated payload classes are strict but never used at write time, so the
+  "projector reads a field the schema does not declare" bug (`hours_planned`, 2026-11-08) can recur anywhere.
+- **F2 MD** Undeclared keys written today: `link_id` on every Link.* event and `note` on Link.Verified. The projector
+  does not depend on them (no rebuild loss), but strict validation would reject them; fix by adding the slots (additive).
+- **F3 MD** The published event catalog allows extra properties, so consumers cannot detect undeclared keys; tighten only
+  after F1 and F2 are clean.
+- **F4 MD** A rebuild depends on the ledger and on the schema files (promoted columns, package contents); restore already
+  warns when the schema hash differs. Document it; any rebuild-equality test must pin the schema provider.
+- **F5-F9 LO/OK** Projector order is fixed and deterministic; no projector reads clocks or randomness; old events hash
+  identically and old archive segments restore (tests exist); service side events inside a request inherit the user's
+  intent (attribution only); new weekly-plan events are declared and tagged; static audits found no other undeclared
+  projector read after the `hours_planned` fix.
+
+Guards: (G1) one repo-wide rebuild-equality test over every `cur_*` table (exists per module only; ~1 day);
+(G2) a static audit that every payload key a projector reads or a handler writes is declared (~0.5 day);
+(G3) strict validation in `BaseUnitOfWork.append` against the generated payload class, first in collect mode to flush
+F2 and the splat sites, then enforced (~1-2 days); (G4) catalog `additionalProperties: false` after G3 (~2 h);
+(G5) an intent round-trip property test for hash stability (~1 h).
 
 ## 3. Write paths (one dispatcher)
 
