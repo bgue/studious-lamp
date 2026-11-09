@@ -14,7 +14,7 @@ T04 t todo f - look-ahead + week CLI; ready after T09; provided test in tree (R-
 T11a1 t todo f - API progress/rollup/kpis/counts/hash routes; after T09 (R-B)
 T11c t todo f - MCP five reads; after T09 (R-B)
 T11a2 t todo f - API weeks/miss-reasons/look-ahead; after T11a1 (R-C)
-T07b t stg l - pack template; ready; provided test r6; golden made by the ticket (R-C)
+T07b t mrg l 8b77cfb pack template; ready; provided test r6; golden made by the ticket (R-C)
 T11b t todo f - client methods + fakes + two command doors; after T11a1 T11a2 (R-D)
 T06a t todo f - TUI cycle steps 1-3; after T11b; stub weekly_text.py + provided test in tree (R-E)
 T16 t todo f - five-reader walk, three test files; after T11c T11b T04 (R-E)
