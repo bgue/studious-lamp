@@ -191,7 +191,7 @@ def week_outcome(
     """Record the outcome of a committed IWP: `done` or `missed`. Prints
     `outcome <week>  version <n>`."""
     if result not in ("done", "missed"):
-        raise typer.BadParameter(f"{result!r} is not done or missed", param_hint="RESULT")
+        fail(f"{result!r} is not done or missed")
     db: DbTarget = ctx.obj
     who = acting(db, actor)
     viewer = session_viewer(db)
@@ -300,6 +300,8 @@ def week_ppc(
         ]
     value = "-" if tile.value is None else str(tile.value)
     typer.echo(f"ppc {value}  weeks {min(len(closed), weeks)}")
+    if tile.value is None:
+        typer.echo(tile.detail)  # "no closed week yet" or "nothing committed in closed weeks"
 
 
 def week_reasons(ctx: typer.Context, project: Project) -> None:
