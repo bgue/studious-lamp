@@ -71,3 +71,25 @@ def test_a_user_without_the_rollup_word_is_refused(cli: Cli) -> None:
     result = cli.write("rollup", who="user:vera")
     assert result.exit_code == 1
     assert "error: forbidden" in result.stderr
+
+
+MSG_WORKER_WORD = "error: forbidden: tl awp worker needs the awp.worker.run access word"
+
+
+@pytest.mark.parametrize("who", ["user:sue", "user:uma", "user:vera", "user:dev", "agent:bot"])
+def test_worker_without_the_word_is_refused_with_the_fixed_text(cli: Cli, who: str) -> None:
+    """P2-I5-S4b: a project superuser, a user, a viewer, the dev actor and an agent hold no
+    company-scope ``awp.worker.run`` (a controller word); nothing runs and the queue is untouched."""
+    cli.write("rollup")
+    result = cli.run("worker", "--once", "--actor", who)
+    assert result.exit_code == 1
+    assert result.stderr.strip() == MSG_WORKER_WORD
+    assert result.stdout == ""
+    assert cli.scalar("SELECT COUNT(*) FROM job_queue WHERE kind = 'awp.rollup'") == 1
+    assert cli.scalar("SELECT COUNT(*) FROM rule_cursor WHERE name = 'awp.hold'") == 0
+
+
+def test_worker_with_the_word_runs_both_followers(cli: Cli) -> None:
+    assert cli.run("worker", "--once", "--actor", "user:ada").exit_code == 0
+    assert cli.scalar("SELECT COUNT(*) FROM rule_cursor WHERE name = 'awp.hold'") == 1
+    assert cli.scalar("SELECT COUNT(*) FROM rule_cursor WHERE name = 'awp.readiness'") == 1
