@@ -17,7 +17,7 @@ import argparse
 import json
 import sys
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 PACKAGE_DIR = Path(__file__).resolve().parent
 CATALOG_DIR = PACKAGE_DIR / "generated" / "catalog"
@@ -33,13 +33,14 @@ _MAX = ("maximum", "exclusiveMaximum", "maxLength", "maxItems", "maxProperties")
 def _clean(node: Any, in_properties: bool = False) -> Any:
     """Drop description and title, except where they are property names."""
     if isinstance(node, dict):
+        items = cast("dict[str, Any]", node)
         return {
             k: _clean(v, k == "properties" and not in_properties)
-            for k, v in node.items()
+            for k, v in items.items()
             if in_properties or k not in _DROP
         }
     if isinstance(node, list):
-        return [_clean(v) for v in node]
+        return [_clean(v) for v in cast("list[Any]", node)]
     return node
 
 
@@ -67,7 +68,7 @@ def _types(node: dict[str, Any]) -> set[str] | None:
     t = node.get("type")
     if t is None:
         return None
-    return set(t) if isinstance(t, list) else {t}
+    return set(cast("list[str]", t)) if isinstance(t, list) else {cast(str, t)}
 
 
 def _node(old: dict[str, Any], new: dict[str, Any], where: str, out: list[str]) -> None:
