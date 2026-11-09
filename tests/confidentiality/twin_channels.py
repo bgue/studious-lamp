@@ -94,12 +94,24 @@ def drop_fillers(body: str) -> str:
     return body
 
 
+def canon(body: str) -> str:
+    """A JSON body with its object keys in order: the order of a mapping (the feed's ``labels``) is
+    the database's, and Postgres hands rows back in the order its pages hold them."""
+    head, _, tail = body.partition("\n")
+    for text_, prefix in ((tail, head + "\n"), (body, "")):
+        try:
+            return prefix + json.dumps(json.loads(text_), sort_keys=True, separators=(",", ":"))
+        except ValueError:
+            continue
+    return body
+
+
 def mask(channel: str, body: str) -> str:
     body = HASH_RE.sub(
         lambda m: f"{m.group(1)}HASH{m.group(2)}" if m.group(1) else f"{m.group(3)}HASH", body
     )
-    body = COUNTER_RE.sub(lambda m: f"{m.group(1) or m.group(2) or m.group(3)}N", body)
-    return HEX64_RE.sub("HASH", body) if channel == "lake" else body
+    body = COUNTER_RE.sub(lambda m: f"{m.group(1) or m.group(2) or m.group(3)}0", body)
+    return canon(HEX64_RE.sub("HASH", body) if channel == "lake" else body)
 
 
 @dataclass
