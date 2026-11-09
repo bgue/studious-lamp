@@ -49,3 +49,6 @@ Standard report (`docs/templates/haiku-report.md`), <= 60 lines, deviations firs
 
 ## Decision
 (supervisor or orchestrator writes here)
+
+## Addendum (orchestrator, 2026-11-09)
+Also fix review F1 of T06a (LO, same screen): in `packages/tl-tui/src/tl_tui/widgets/weekly_screen.py` `load_rows`, keep only Cleared rows with `row.waived` (check-raised waives) in the open-blocking list, so ordinary cleared constraints do not linger as "Cleared". Allowed path widened to that file; add one assertion in `test_weekly_screen.py`.
