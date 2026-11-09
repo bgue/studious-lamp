@@ -40,6 +40,7 @@ def test_the_rounding_is_half_up_and_exact() -> None:
         ("10.0", ["1", "1", "1"], ["3.4", "3.3", "3.3"]),
         ("0.1", ["50", "50"], ["0.1", "0.0"]),
         ("7.0", ["100"], ["7.0"]),
+        ("0.9", ["15", "35", "50"], ["0.1", "0.3", "0.5"]),
     ],
 )
 def test_largest_remainder_sums_to_the_rounded_total(
@@ -200,3 +201,19 @@ def test_the_database_holds_one_row_per_iwp(pw: ProgressWorld) -> None:
     assert pw.count(iwp) == 2
     rows = pw.w.rows("SELECT earned_pct FROM cur_awp_iwp_progress WHERE iwp_id = :i", i=iwp)
     assert [r["earned_pct"] for r in rows] == ["60.0"]
+
+
+def test_an_edition_whose_weights_pass_100_is_capped(pw: ProgressWorld) -> None:
+    from tl_schema.packages import CreditStep
+
+    steps = (
+        CreditStep(name="Installed", weight=60, evidence="scope_state:Installed"),
+        CreditStep(name="Verified", weight=60, evidence="scope_state:Verified"),
+    )
+    rules = engine.Rules(edition="x.over@1.0.0", by_commodity={"piping": steps})
+    iwp, (a,) = pw.package(["10.0"])
+    pw.move("InstallScopeItem", a)
+    pw.move("VerifyScopeItem", a)
+    with open_uow(pw.w.db, readonly=True) as uow:
+        figure = engine.compute_figure(uow.conn(), iwp, rules)
+    assert str(figure.pct) == "100.0" and str(figure.items[0].pct) == "100.0"
