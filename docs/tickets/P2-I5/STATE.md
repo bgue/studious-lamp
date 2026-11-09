@@ -9,7 +9,7 @@ T01 t mrg f 7c094c8 tl awp roc ls|show|set
 T03 t mrg f 998797d look_ahead_view
 T04b t mrg f 02a926d CLI for S2 writes
 T09 t todo l - KPI tiles; ready; stub kpis.py + provided test in tree (wave R-A)
-T07a t todo f - pack HTML + QR + `iwp pack`; ready; reads module code only (wave R-A)
+T07a t mrg f 92a54e4 pack HTML + QR + `iwp pack`; ready; reads module code only (wave R-A)
 T04 t todo f - look-ahead + week CLI; ready after T09; provided test in tree (R-B)
 T11a1 t todo f - API progress/rollup/kpis/counts/hash routes; after T09 (R-B)
 T11c t todo f - MCP five reads; after T09 (R-B)

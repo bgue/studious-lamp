@@ -12,6 +12,7 @@ from tl_cli import (
     awp_export,
     awp_iwp_read,
     awp_iwp_write,
+    awp_pack,
     awp_progress,
     awp_read,
     awp_readiness_read,
@@ -38,4 +39,5 @@ app.add_typer(iwp_app, name="iwp")
 awp_iwp_read.register(iwp_app)  # reads first, as for the other groups
 awp_iwp_write.register(iwp_app)
 awp_progress.register(iwp_app)  # field progress verbs (P2-I5-T04b)
+awp_pack.register(iwp_app)  # the IWP work pack (P2-I5-T07a)
 awp_readiness_read.register(app)  # adds the readiness group (T04d2)
