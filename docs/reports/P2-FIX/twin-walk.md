@@ -1,13 +1,10 @@
 # P2-TWIN: twin-world confidentiality walk
 
-Rule: a record a viewer may not read is indistinguishable from one that never existed, through every channel.
 Design: `docs/reports/OUTSIDE-REVIEW-2026-11-09.md` section 1. No product code changed.
-
 ## Deviations
 - `confseed.seed_hidden_world` gained an optional `twin` hook (`Twin.mark(kind)` before each step; off by default,
   A unchanged); the RFI/commercial steps were split into small functions to host the marks.
-- One extra step in the walker's own script (not the seed): a constraint on the open item whose target is hidden.
-
+- One extra step in the walker's own script (not the seed): a constraint on the open item with a hidden target.
 ## What it does
 `tests/confidentiality/test_twin_walk.py`, `twin_world.py` (worlds), `twin_channels.py` (channels, compare).
 - A is the seed as is. B skips every step that writes a kind the reader may not read, and what points at it (links,
@@ -21,14 +18,12 @@ Design: `docs/reports/OUTSIDE-REVIEW-2026-11-09.md` section 1. No product code c
   1 SSE catch-up, 4 `lake_query`, ~85 CLI reads (no bot: no CLI session), webhooks per mode. About 8.3k call pairs.
 - Byte for byte: status, headers minus date/request id/content-length, body with JSON keys in order. A failure names
   channel, route and reader and shows the first differing bytes. A more than 2x B (and >0.1 s) is a warning only.
-
 ## Masks (explicit, `MASKS`)
 - hash chain: `prev_hash`/`hash` cover every event of a scope, hidden ones too; no content.
 - numbering counter: stream version and `sequence` of a numbering stream. A number follows its place in the counter,
   so a gap in numbers shows that something was numbered. **Not on the owner's list: needs a ruling.**
 - filler events: dropped from the event list an admin reads (admins read account streams).
 Known limit kept as a test: key oracle on create, 409 vs 200 (`test_the_key_oracle_on_create_is_the_known_limit`).
-
 ## Leaks found (`test_known_leak[...]`, strict xfail, one probe each; the walk explains them in `LEAKS`)
 1. dedup-flag: `File.Attached.deduplicated=true` on a visible document when a hidden file has the same bytes
    (events, history, webhooks delta/full, lake). bob, bot, amy.
@@ -39,16 +34,12 @@ Known limit kept as a test: key oracle on create, 409 vs 200 (`test_the_key_orac
 4. link-total: `link_total` of `/links/search` counts links to hidden records. **Aggregate: the owner to say whether it
    is an accepted figure; not allow-listed.** bob, bot, amy.
 Another difference in the same response as a known leak stays masked until that leak is fixed.
-
 ## Sentinel
 `PAYLOAD_REFS` emptied in `tl_core/intent.py`: the amy walk fails with 4 differences (`/events?record_id=<constraint>`,
 `/records/<id>/activity`, `/history`: `target_id` shows the hidden record where B has null). Restored.
-
 ## Not covered
-- `Constraint.Cleared.resolved_by`: its link lands between visible events, where a filler cannot stand.
-- No requisition or IWP in the seed. GET routes only, plus the key-oracle POST.
-- Timing flags are noisy (A is walked first, CLI warm-up); none confirmed.
-
+- `Constraint.Cleared.resolved_by` (its link lands between visible events, where a filler cannot stand); no requisition
+  or IWP in the seed; GET routes only, plus the key-oracle POST. Timing flags are noisy (A first, CLI warm-up).
 ## Gates
 - `NODE_OPTIONS=--max-old-space-size=6144 just check`: pass.
 - `just gate tests/confidentiality/test_twin_walk.py`: exit 0, 5 passed, 4 xfailed (547 s).
