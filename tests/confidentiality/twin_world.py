@@ -22,9 +22,12 @@ import pytest
 from harness import Harness
 from sqlalchemy import text
 from tl_adapters.db import DbTarget, open_uow
+from tl_core import confidentiality as cf
 from tl_core import util
 from tl_core.auth import accounts, sessions
 from tl_core.auth.password import prepare_password
+from tl_core.constraints.commands import RaiseConstraint
+from tl_core.constraints.handlers import handle_raise_constraint
 from tl_core.ledger import NewEvent
 from tl_core.webhooks.delivery import DeliveryEngine
 from tl_core.webhooks.dispatch import Dispatcher
@@ -295,9 +298,36 @@ def build_world(
         run_id, run_files = seed_restricted_run(target, h.service)
         hidden.ids["loadrun"] = run_id
         hidden.extra_ids.update({f"loadrun_{slot}_file": fid for slot, fid in run_files.items()})
+    _constraint_on_open_item(target, hidden, marks.mark("restricted"))
     marks.mark(None)
     marks.a_trace = list(IDS.trace)
     return World(name, h, hidden, tokens, subs, root, clock, marks)
+
+
+def _constraint_on_open_item(target: DbTarget, hidden: Hidden, no_target: bool) -> None:
+    """A constraint on the open item whose target is the restricted item (``Constraint.Raised`` is
+    the payload reference of ``intent.PAYLOAD_REFS``); where the restricted item never existed the
+    constraint has no target. It is the last step: the link to the hidden target is the last event
+    of the step, and B's filler takes its place. (A clear that names the hidden record as its
+    resolver puts its link between visible events, where a filler cannot stand.)"""
+    gone = None if no_target else hidden.ids["restricted"]
+    cmd = {"actor": "user:ctl", "source": "test", "scope": SCOPE}
+    with cf.system_view(), open_uow(target) as uow:
+        raised = handle_raise_constraint(
+            uow,
+            RaiseConstraint(
+                **cmd,
+                subject=hidden.ids["open"],
+                phase="execution",
+                severity="advisory",
+                category="other",
+                owner="user:amy",
+                description="Waiting on the hidden item",
+                target=gone,
+            ),
+        )
+    hidden.ids["constraint"] = raised.stream_id
+    hidden.numbers["constraint"] = raised.key or ""
 
 
 def webhook_bodies(world: World) -> dict[tuple[str, str], list[str]]:

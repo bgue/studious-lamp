@@ -508,7 +508,11 @@ def diff(a: list[Call], b: list[Call], tw: Twinning) -> tuple[list[Failure], lis
 class Leak:
     reason: str  # "LEAK: ..." (the text of the strict xfail)
     group: str  # the readers whose worlds show it
-    mask: re.Pattern[str] | None  # what the leak writes into a response: masked, the twins agree
+    # what the leak writes into a response: masked, the twins agree
+    mask: re.Pattern[str] | None = None
+    # or: what is in B's answer and not in A's (a card, an event the reader is not given)
+    extra_in_b: str | None = None
+    where: str = ""  # a fragment of the route, for the evidence
 
 
 LEAKS = {
@@ -516,22 +520,29 @@ LEAKS = {
         "LEAK: File.Attached of a visible document says deduplicated=true when a file the reader "
         "may not read has the same bytes (events, history, webhooks delta/full, lake)",
         "bob+bot",
-        re.compile(r'(\\*"deduplicated\\*": ?)(true|false)'),
+        mask=re.compile(r'(\\*"deduplicated\\*": ?)(true|false)'),
     ),
     "link-total": Leak(
         "LEAK: link_total of /links/search counts links to records the reader may not read "
         "(aggregate: owner to rule whether accepted)",
         "bob+bot",
-        re.compile(r'("link_total": ?)\d+'),
+        mask=re.compile(r'("link_total": ?)\d+'),
     ),
     "transmittal-line": Leak(
         "LEAK: a transmittal that lists a revision the reader may not read keeps its position "
         "(position 2 with no 1), and its Transmittal.Defined event is withheld from the reader",
         "bob+bot",
-        re.compile(r'(\\*"position\\*": ?)\d+'),
+        mask=re.compile(r'(\\*"position\\*": ?)\d+'),
+        extra_in_b="Transmittal.Defined",
+    ),
+    "feed-card-group": Leak(
+        "LEAK: the feed folds consecutive events into one card and withholds the whole card when "
+        "one event is hidden, so the card of a visible link is missing next to a hidden one",
+        "amy",
+        extra_in_b="ctl added a link",
+        where="feed",
     ),
 }
-DEFINED = "Transmittal.Defined"
 
 
 def explained_by(failure: Failure) -> set[str]:
@@ -546,6 +557,9 @@ def explained_by(failure: Failure) -> set[str]:
             a, b = a2, b2
     if a == b:
         return names
-    if b.count(DEFINED) > a.count(DEFINED):  # the withheld event is in B's list and not in A's
-        return {*names, "transmittal-line"}
+    for name, leak in LEAKS.items():
+        if leak.extra_in_b and leak.where in failure.route:
+            if b.count(leak.extra_in_b) > a.count(leak.extra_in_b):
+                names.add(name)
+                return names
     return set()

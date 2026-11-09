@@ -164,13 +164,17 @@ def _probe(world: World, tw: Twinning | None, reader: str, kind: str) -> list[Ca
     if kind == "lake":
         return lake_calls(world, reader, sync_world_lake(world))
     url = {
+        "feed-card-group": "/feed",
         "link-total": "/links/search",
         "transmittal-line": f"/projects/P123/transmittals/{world.hidden.numbers['transmittal']}",
     }[kind]
     client = world.h.client_for(None)
     headers = {"Authorization": f"Bearer {world.tokens[reader]}"}
     started = time.perf_counter()
-    response = client.get(ask(url), params={"scope": "project:P123"}, headers=headers)
+    params = {"scope": "project:P123"}
+    if kind == "feed-card-group":
+        params |= {"item_type": "card", "limit": "200"}
+    response = client.get(ask(url), params=params, headers=headers)
     return [
         Call(
             "api",
@@ -193,7 +197,8 @@ def test_known_leak(name: str, new_db: object, tmp_path: Path) -> None:
     a, b, _, tw = _worlds(LEAKS[name].group, new_db, tmp_path)
     try:
         kind = "lake" if name == "dedup-flag" else name
-        failures, _ = diff(_probe(a, None, "bob", kind), _probe(b, tw, "bob", kind), tw)
+        who = GROUPS[LEAKS[name].group][0]
+        failures, _ = diff(_probe(a, None, who, kind), _probe(b, tw, who, kind), tw)
         assert not failures, "\n".join(map(str, failures))
     finally:
         a.close()
