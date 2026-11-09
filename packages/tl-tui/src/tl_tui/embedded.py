@@ -24,6 +24,7 @@ from tl_api.client.files import save_download
 from tl_api.insights_sources import sources_for
 from tl_api.routes import constraints as constraint_routes
 from tl_api.routes.awp import CheckBody, CwpDetailView, ReadinessBody, TimelineRow, _note
+from tl_api.routes.awp_progress import IwpHash, IwpProgress, ProgressItem, RollupBody
 from tl_api.routes.constraints import (
     ConstraintGroupRow,
     ConstraintGroups,
@@ -158,8 +159,16 @@ from tl_core.threads.visibility import readable_record
 from tl_core.uow import UnitOfWork
 from tl_core.util import utcnow
 from tl_core.workflow.roles import workflow_roles
-from tl_mod_awp import iwp_views
+from tl_mod_awp import iwp_views, week_views
 from tl_mod_awp import views as awp_views
+from tl_mod_awp.commands import AWP_COMMANDS
+from tl_mod_awp.handlers.signoff import iwp_record_hash
+from tl_mod_awp.iwp_counts import IwpCountRow, iwp_counts
+from tl_mod_awp.kpis import KpiTile, kpi_rows
+from tl_mod_awp.look_ahead_view import LookAheadView
+from tl_mod_awp.look_ahead_view import look_ahead_view as awp_look_ahead_view
+from tl_mod_awp.progress import engine as awp_progress_engine
+from tl_mod_awp.progress.rollup import progress_rollup
 from tl_mod_awp.readiness.views import visible_readiness
 from tl_mod_correspondence import evidence as correspondence_evidence
 from tl_mod_correspondence import reports_commercial, reports_technical
@@ -1968,6 +1977,113 @@ class EmbeddedClient:
             if found is None:
                 raise RecordNotFoundError(f"no constraint {key!r}")
             return constraint_routes._rows(conn, [found])[0]
+
+    # --- the awp progress, weekly-plan and look-ahead reads (P2-I5 T11b) and the two command doors
+    #
+    # The same calls the API routes make (``tl_api.routes.awp_progress``, ``awp_weeks``), under the
+    # signed-in viewer. A missing or hidden IWP or week answers the one error text of its route.
+
+    def list_iwp_counts(self, project: str) -> list[IwpCountRow]:
+        with self._uow(True) as uow:
+            return iwp_counts(uow.conn(), f"project:{project}")
+
+    def get_iwp_progress(self, project: str, number: str) -> IwpProgress:
+        scope = f"project:{project}"
+        with self._uow(True) as uow:
+            conn = uow.conn()
+            detail = iwp_views.iwp_detail(conn, scope, number)
+            if detail is None:
+                raise RecordNotFoundError(f"no IWP {number!r}")
+            earned = awp_progress_engine.earned_fraction(
+                conn, detail.id, viewer=confidentiality.current_viewer()
+            )
+            return IwpProgress(
+                number=detail.number,
+                pct=earned.pct,
+                edition=earned.edition,
+                items=[
+                    ProgressItem(key=i.key, pct=i.pct, steps=list(i.steps), hours=i.hours)
+                    for i in earned.items
+                ],
+                notes=list(earned.notes),
+            )
+
+    def get_progress_rollup(self, project: str) -> RollupBody:
+        with self._uow(True) as uow:
+            found = progress_rollup(
+                uow.conn(), f"project:{project}", viewer=confidentiality.current_viewer()
+            )
+            return RollupBody.model_validate(dataclasses.asdict(found))
+
+    def get_iwp_hash(self, project: str, number: str) -> IwpHash:
+        scope = f"project:{project}"
+        with self._uow(True) as uow:
+            conn = uow.conn()
+            detail = iwp_views.iwp_detail(conn, scope, number)
+            if detail is None:
+                raise RecordNotFoundError(f"no IWP {number!r}")
+            return IwpHash(number=detail.number, record_hash=iwp_record_hash(conn, detail.id))
+
+    def list_kpis(self, project: str) -> list[KpiTile]:
+        with self._uow(True) as uow:
+            return kpi_rows(uow.conn(), f"project:{project}", confidentiality.current_viewer())
+
+    def list_weekly_plans(self, project: str, *, limit: int = 60) -> list[week_views.WeekRow]:
+        with self._uow(True) as uow:
+            return week_views.list_weeks(
+                uow.conn(), f"project:{project}", confidentiality.current_viewer(), limit=limit
+            )
+
+    def get_weekly_plan(self, project: str, week: str) -> week_views.WeekDetail:
+        scope = f"project:{project}"
+        with self._uow(True) as uow:
+            conn = uow.conn()
+            viewer = confidentiality.current_viewer()
+            found = [
+                r
+                for r in week_views.list_weeks(conn, scope, viewer, limit=week_views.MAX_WEEKS)
+                if r.week == week
+            ]
+            if not found:
+                raise RecordNotFoundError(f"no week {week!r}")
+            return week_views.week_detail(conn, found[0].id, viewer)
+
+    def list_miss_reasons(self, project: str) -> list[str]:
+        with self._uow(True) as uow:
+            return week_views.miss_reasons(uow.conn(), f"project:{project}")
+
+    def get_awp_look_ahead(
+        self, project: str, schedule: str, *, snapshot: int | None = None, weeks: int = 4
+    ) -> LookAheadView:
+        scope = f"project:{project}"
+        with self._uow(True) as uow:
+            conn = uow.conn()
+            found = schedule_views.find_snapshot(
+                conn, schedule_views.find_schedule(conn, scope, schedule), snapshot, built=True
+            )
+            return awp_look_ahead_view(
+                conn, scope, found, confidentiality.current_viewer(), weeks=weeks
+            )
+
+    def awp_command(self, name: str, cmd: Command) -> CommandResult:
+        spec = next((c for c in AWP_COMMANDS if c.model.__name__ == name), None)
+        if spec is None or type(cmd) is not spec.model:
+            raise ForbiddenError(f"{name} is not an awp command")
+        with self._uow(False) as uow:
+            self._own_command(cmd.actor)
+            self._command_gate(uow, cmd)
+            return self.own_writes.note(spec.handler(uow, cmd))
+
+    def constraint_command(self, name: str, cmd: Command) -> CommandResult:
+        spec = next(
+            (c for c in constraint_commands.command_table() if c.model.__name__ == name), None
+        )
+        if spec is None or type(cmd) is not spec.model:
+            raise ForbiddenError(f"{name} is not a constraint command")
+        with self._uow(False) as uow:
+            self._own_command(cmd.actor)
+            self._command_gate(uow, cmd)
+            return self.own_writes.note(spec.handler(uow, cmd))
 
     # --- the schema workbench (P1-I8) ---------------------------------------------------------
 
