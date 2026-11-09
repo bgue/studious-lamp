@@ -311,12 +311,13 @@ def _constraint_on_open_item(target: DbTarget, hidden: Hidden, no_target: bool) 
     of the step, and B's filler takes its place. (A clear that names the hidden record as its
     resolver puts its link between visible events, where a filler cannot stand.)"""
     gone = None if no_target else hidden.ids["restricted"]
-    cmd = {"actor": "user:ctl", "source": "test", "scope": SCOPE}
     with cf.system_view(), open_uow(target) as uow:
         raised = handle_raise_constraint(
             uow,
             RaiseConstraint(
-                **cmd,
+                actor="user:ctl",
+                source="test",
+                scope=SCOPE,
                 subject=hidden.ids["open"],
                 phase="execution",
                 severity="advisory",

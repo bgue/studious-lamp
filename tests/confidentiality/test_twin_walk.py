@@ -17,6 +17,7 @@ import os
 import time
 import warnings
 from pathlib import Path
+from typing import Any
 
 import pytest
 from sqlalchemy import text
@@ -74,7 +75,7 @@ def _ledger_text(world: World) -> str:
         return " ".join(f"{s} {p}" for s, p in rows)
 
 
-def _worlds(group: str, new_db: object, tmp_path: Path) -> tuple[World, World, object, Twinning]:
+def _worlds(group: str, new_db: object, tmp_path: Path) -> tuple[World, World, Any, Twinning]:
     walk = load_walk()
     secret = secret_kinds(walk.MAY_READ[GROUPS[group][0]])
     a = build_world("A", _target(new_db), tmp_path / "a", walk, frozenset(), None)
