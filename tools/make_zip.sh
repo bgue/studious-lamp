@@ -2,7 +2,8 @@
 # Build /home/user/xray-ref-dist/xray-ref.zip:
 #   - the whole repo minus web/node_modules, web/dist, web/dist-single, web/.single-build, models-probe, .git,
 #     __pycache__ and *.png larger than 2 MB;
-#   - the single-file viewer at the zip root as xray-viewer.html (built with `npm run bundle` if missing or stale);
+#   - the single-file viewer at the zip root (built with `npm run bundle` if missing or stale), named $XRAY_VIEWER_NAME when
+#     set (tools/release_viewer.sh prints a name like xray-viewer-v10-20261109-afaeb00.html), else xray-viewer.html;
 #   - web/public/models/*.glb and *.json (always, including synth5k, which is not embedded in the viewer).
 # Usage: bash tools/make_zip.sh [output.zip]
 # Uses Python's zipfile (the `zip` CLI is not required).
@@ -21,10 +22,11 @@ fi
 mkdir -p "$(dirname "$OUT")"
 rm -f "$OUT"
 
-python3 -I - "$REPO" "$OUT" "$SINGLE" <<'PY'
+python3 -I - "$REPO" "$OUT" "$SINGLE" "${XRAY_VIEWER_NAME:-xray-viewer.html}" <<'PY'
 import os, sys, zipfile
 
-repo, out, single = sys.argv[1:4]
+repo, out, single, viewer_name = sys.argv[1:5]
+added_root_viewer = viewer_name != 'xray-viewer.html'
 PNG_LIMIT = 2 * 1024 * 1024
 EXCLUDE_DIRS = {'.git', '__pycache__', 'node_modules'}
 KEEP_BENCH_PNG = {'app-building.png', 'app-synth5k.png', 'smoke-scope-all.png', 'ghost-after-all-0.15.png', 'explode-storeys.png', 'help-tooltip.png', 'smoke-dock-closed.png', 'oit-oblique-reversed-on.png', 'oit-oblique-reversed-off.png', 'layers-front.png'}
@@ -57,8 +59,10 @@ with zipfile.ZipFile(out, 'w', zipfile.ZIP_DEFLATED, compresslevel=9) as zf:
                 continue
             if fn.endswith('.pyc'):
                 continue
+            if added_root_viewer and arc == 'xray-viewer.html':
+                continue
             add(zf, full, arc)
-    add(zf, single, 'xray-viewer.html')
+    add(zf, single, viewer_name)
     models = os.path.join(repo, 'web', 'public', 'models')
     for fn in sorted(os.listdir(models)):
         if fn.endswith('.glb') or fn.endswith('.json'):

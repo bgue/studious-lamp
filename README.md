@@ -46,7 +46,7 @@ plugins (see "Development"), so every feature below is a separate module with it
 
 ## Quick start
 
-**Without installing anything:** open `xray-viewer.html` (at the root of the zip) in Chromium, Edge or Chrome by double-click. It
+**Without installing anything:** open `xray-viewer-v<N>-<date>-<sha>.html` (at the root of the zip; `xray-viewer.html` in the repo) in Chromium, Edge or Chrome by double-click. It
 is one file with the app, the sample models (`building`, `fzk-haus`, `plumbing`, `debris-demo`) and the IFC reader inside; it
 makes no network requests. Firefox and Safari were not available for testing here.
 
@@ -384,6 +384,11 @@ npm run bundle -- --no-ifc     # without the IFC reader -> web/dist-single/xray-
 npm run template               # templates for xray-pack in web/dist-single (rebuilt automatically when stale)
 npm run zip                    # same as: bash tools/make_zip.sh -> /home/user/xray-ref-dist/xray-ref.zip
 ```
+
+Each viewer handed out gets a numbered name, `xray-viewer-v<N>-<YYYYMMDD>-<sha>.html`. `bash tools/release_viewer.sh` (from the repo
+root, after `npm run bundle`) adds 1 to the number in `tools/viewer-release.txt`, takes the short hash of the source commit, copies
+the viewer under that name to `/home/user/xray-ref-dist/viewers/` and refreshes the root `xray-viewer.html`. Commit the counter
+file afterwards. To put the same name in the zip: `XRAY_VIEWER_NAME=<that name> bash tools/make_zip.sh`.
 
 The single file has the app JS and CSS, `xray.config.json`, `xray.presets.json` and the models `building`, `fzk-haus`, `plumbing`
 and `debris-demo` inlined (`window.__xrayEmbeddedModels`, `__xrayEmbeddedConfig`, `__xrayEmbeddedPresets`); `synth5k` only with
