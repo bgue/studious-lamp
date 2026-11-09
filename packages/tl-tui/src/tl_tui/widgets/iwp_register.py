@@ -21,13 +21,20 @@ from textual.binding import Binding, BindingType
 from textual.containers import Vertical, VerticalScroll
 from textual.screen import ModalScreen
 from textual.widgets import Input, Static
+from tl_mod_awp.iwp_counts import IwpCountRow
 from tl_mod_awp.iwp_views import IwpRow
 
 from tl_tui.awp_text import DISCIPLINE_LIST
 from tl_tui.client import ClientInterface
 from tl_tui.display import Labels, humanize, mode_of
 from tl_tui.errors import CLIENT_ERRORS, describe_error
-from tl_tui.iwp_text import IWP_COLUMNS, IWP_DROP, iwp_cells, iwp_page, iwp_summary
+from tl_tui.iwp_text import (
+    IWP_COUNT_COLUMNS,
+    IWP_COUNT_DROP,
+    iwp_count_cells,
+    iwp_page,
+    iwp_summary,
+)
 from tl_tui.labels_load import load_labels
 from tl_tui.layout import Page, Panel, render
 from tl_tui.widgets.log_screen import LogAction, LogScreen
@@ -75,14 +82,15 @@ class IwpRegisterScreen(LogScreen[IwpRow]):
         Binding("r", "ready", "Ready", show=False),
     ]
 
-    def __init__(self, client: ClientInterface, project: str) -> None:
+    def __init__(self, client: ClientInterface, project: str, *, mine: bool = False) -> None:
         super().__init__()
         self.client = client
         self.project = project
         self.state_filter: str | None = None
         self.discipline_filter: str | None = None
-        self.mine = False  # True: only the IWPs whose foreman is the signed-in actor
+        self.mine = mine  # True: only the IWPs whose foreman is the signed-in actor
         self.views: list[IwpRow] = []  # as listed, before the screen's own filters
+        self.counts: dict[str, IwpCountRow] = {}  # by IWP number; a missing one reads as none
         self.labels = Labels()  # the discipline labels, loaded with the first rows
         self._labelled = False
 
@@ -92,23 +100,24 @@ class IwpRegisterScreen(LogScreen[IwpRow]):
         return self.project
 
     def columns(self) -> Sequence[str]:
-        return IWP_COLUMNS
+        return IWP_COUNT_COLUMNS
 
     def drop_order(self) -> Sequence[str]:
-        return IWP_DROP
+        return IWP_COUNT_DROP
 
     def load_rows(self) -> Sequence[IwpRow]:
         if not self._labelled:
             self.labels = load_labels(self.client, f"project:{self.project}", ("awp.IWP",))
             self._labelled = True
         self.views = self.client.list_iwps(self.project)
+        self.counts = {row.number: row for row in self.client.list_iwp_counts(self.project)}
         return self._filtered()
 
     def row_key(self, row: IwpRow) -> str:
         return row.number
 
     def row_cells(self, row: IwpRow) -> Sequence[str]:
-        return iwp_cells(row, self.labels)
+        return iwp_count_cells(row, self.counts.get(row.number), self.labels)
 
     def row_record(self, row: IwpRow) -> tuple[str, str]:
         return (row.number, row.title)
@@ -132,15 +141,20 @@ class IwpRegisterScreen(LogScreen[IwpRow]):
 
     def summary_text(self) -> str:
         foreman = self._actor() if self.mine else None
-        head = iwp_summary(
-            len(self.views), len(self.shown), state=self.state_filter, foreman=foreman
+        discipline = (
+            None
+            if self.discipline_filter is None
+            else self._discipline_label(self.discipline_filter)
         )
-        named: list[str] = []
-        if self.discipline_filter is not None:
-            named.append(f"discipline {self._discipline_label(self.discipline_filter)}")
-        if self.filter_text.strip():
-            named.append(f"filter {self.filter_text.strip()!r}")
-        return " · ".join([head, *named])
+        text = self.filter_text.strip() or None
+        return iwp_summary(
+            len(self.views),
+            len(self.shown),
+            state=self.state_filter,
+            foreman=foreman,
+            discipline=discipline,
+            text=text,
+        )
 
     def open_row(self, row: IwpRow) -> None:
         """Enter on a row opens the IWP screen for it."""
