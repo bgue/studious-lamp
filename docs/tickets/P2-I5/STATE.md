@@ -7,7 +7,7 @@ S4a p disp f - weekly cmds, week reads, propose_week_commitment; building; orch 
 S4b p todo f - waive word, hold rule, worker word; READY r4 (F1 F2 F11 applied); human gate, owner approver
 S5 p abn f - roadmap 3c (closeout, subcontract CSV)
 S6 p abn f - replaced by T16 (Haiku five-reader walk)
-T01 t todo f - tl awp roc ls|show|set; READY r4; provided/T01_test_awp_roc.py
+T01 t mrg f 7c094c8 tl awp roc ls|show|set; READY r4; provided/T01_test_awp_roc.py
 T03 t todo f - look_ahead_view; READY r4 (stub in tree); provided/T03_test_look_ahead_view.py
 T04 t stg f - look-ahead + week open|ls|show|commit|outcome|close|ppc|reasons CLI; needs S4a T03; test after S4a
 T04b t todo f - CLI for S2 writes (start-work, complete-field, item-move, step, progress); READY after T01 merges
