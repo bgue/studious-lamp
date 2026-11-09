@@ -29,8 +29,8 @@ from tl_core.services import proposals
 from tl_core.services.errors import ProposalAccessError, RecordNotFoundError, ServiceError
 from tl_core.settings.service import set_setting
 from tl_mod_awp import errors
-from tl_mod_awp.commands import RecordManualProgress
-from tl_mod_awp.names import SCOPE_ITEM
+from tl_mod_awp.commands import CommitIwpToWeek, RecordManualProgress
+from tl_mod_awp.names import SCOPE_ITEM, WEEKLY_PLAN
 from tl_mod_awp.progress import engine
 
 EDITION = "awp.rules_of_credit.set"
@@ -351,3 +351,262 @@ def checks(pw: ProgressWorld) -> None:
     before_rows = pw.snapshot()
     pw.rebuild()
     ok("a rebuild equals the progress and week tables", pw.snapshot() == before_rows)
+
+
+# --- weekly plan (P2-I5 S4a) ------------------------------------------------------------------
+
+WEEK_PLAN_TABLES = (("cur_awp_weekly_plan", "id"), ("cur_awp_week_commitment", "row_id"))
+OTHER_SCOPE = "project:P999"
+
+
+class WeekWorld:
+    """Weekly plan helpers over a ``ProgressWorld``: Issued IWPs, plans, commitments, outcomes."""
+
+    def __init__(self, pw: ProgressWorld) -> None:
+        self.pw = pw
+        self.w = pw.w
+
+    def standards(self) -> None:
+        """The second awp edition: it holds the code list ``MissReason``."""
+        from awp_world import ROOT, STANDARDS
+        from tl_core.schema_provider import DirectorySchemaProvider, use_provider
+        from tl_mod_engineering.document import load_standards_file
+        from tl_mod_engineering.loader import load_standards
+
+        with use_provider(DirectorySchemaProvider(ROOT / "schema" / "fixtures")):
+            doc = load_standards_file(STANDARDS / "co.acme.awp@1.1.0.yaml")
+            with open_uow(self.w.db) as uow:
+                load_standards(uow, doc, actor="user:seed", source="test")
+
+    def issued(self, state: str = "Issued", foreman: str | None = "user:uma") -> str:
+        """An IWP in ``state`` (set by hand: a projection write, as the S2 checks do)."""
+        iwp = self.w.iwp(planned_start="2026-12-01", foreman=foreman) if foreman else self.w.iwp()
+        self.w.set_status(iwp, state)
+        return iwp
+
+    def open(self, day: str = "2026-11-02", who: str = "uma") -> str:
+        from datetime import date
+
+        return str(self.w.call(who, "OpenWeeklyPlan", week_start=date.fromisoformat(day)).stream_id)
+
+    def commit(
+        self, plan: str, iwp: str, hours: str = "40.0", who: str = "uma", **more: Any
+    ) -> Any:
+        return self.w.call(
+            who,
+            "CommitIwpToWeek",
+            plan_id=plan,
+            iwp_id=iwp,
+            committed_hours=hours,
+            expected_version=self.w.version(plan),
+            **more,
+        )
+
+    def outcome(
+        self, plan: str, iwp: str, outcome: str, reason: str | None = None, who: str = "uma"
+    ) -> Any:
+        return self.w.call(
+            who,
+            "RecordWeekOutcome",
+            plan_id=plan,
+            iwp_id=iwp,
+            outcome=outcome,
+            miss_reason=reason,
+            expected_version=self.w.version(plan),
+        )
+
+    def close(self, plan: str, who: str = "sue") -> Any:
+        return self.w.call(who, "CloseWeek", plan_id=plan, expected_version=self.w.version(plan))
+
+    def plan_row(self, plan: str) -> dict[str, Any]:
+        return self.w.rows("SELECT * FROM cur_awp_weekly_plan WHERE id = :i", i=plan)[0]
+
+    def commitments(self, plan: str) -> list[dict[str, Any]]:
+        return self.w.rows(
+            "SELECT * FROM cur_awp_week_commitment WHERE plan_id = :p ORDER BY iwp_id", p=plan
+        )
+
+    def snapshot(self) -> dict[str, list[dict[str, Any]]]:
+        return {t: self.w.rows(f"SELECT * FROM {t} ORDER BY {o}") for t, o in WEEK_PLAN_TABLES}
+
+    @contextmanager
+    def hidden_plan(self, plan: str) -> Iterator[None]:
+        """The plan is restricted to everyone below a person with clearance (a test source)."""
+        with open_uow(self.w.db) as uow:
+            conn = uow.conn()
+            conn.execute(
+                text("CREATE TABLE IF NOT EXISTS pw_plan_class (id TEXT PRIMARY KEY, cls TEXT)")
+            )
+            conn.execute(text("DELETE FROM pw_plan_class"))
+            for row in self.w.rows("SELECT id FROM cur_awp_weekly_plan"):
+                cls = "restricted" if row["id"] == plan else "internal"
+                conn.execute(
+                    text("INSERT INTO pw_plan_class VALUES (:i, :c)"), {"i": row["id"], "c": cls}
+                )
+        source = ConfidentialSource(
+            record_types=frozenset({WEEKLY_PLAN}),
+            table="pw_plan_class",
+            id_column="id",
+            class_column="cls",
+        )
+        real = core_modules.confidential_sources
+        cf.confidential_sources = lambda: [*real(), source]  # type: ignore[attr-defined]
+        try:
+            yield
+        finally:
+            cf.confidential_sources = real  # type: ignore[attr-defined]
+
+    def other_project_iwp(self) -> str:
+        """An Issued IWP of another project (made as the module would, by its own command)."""
+        from tl_mod_awp.commands import CreateIwp
+        from tl_mod_awp.handlers.iwp import handle_create_iwp
+
+        cmd = CreateIwp(
+            actor="user:sue", source="test", scope=OTHER_SCOPE, discipline="PIP", title="Other"
+        )
+        with open_uow(self.w.db) as uow:
+            made = handle_create_iwp(uow, cmd)
+        self.w.set_status(made.stream_id, "Issued")
+        return str(made.stream_id)
+
+
+def build_week_world(w: World) -> WeekWorld:
+    """A ``WeekWorld`` over a ``World`` that already has its people and editions."""
+    ww = WeekWorld(ProgressWorld(w))
+    ww.standards()
+    return ww
+
+
+def build_week(db: Path) -> WeekWorld:
+    ww = WeekWorld(build(db))
+    ww.standards()
+    return ww
+
+
+def week_checks(ww: WeekWorld) -> None:
+    from datetime import date
+
+    from tl_mod_awp.week_views import week_detail
+
+    w = ww.w
+    plan = ww.open("2026-11-04")  # a Wednesday: its Monday is 2026-11-02
+    refuses(errors.WeekRuleError, lambda: ww.open("2026-11-02"))
+    ok("a second open of the same week is refused")
+    row = ww.plan_row(plan)
+    ok("a week of 2026-11-04 is 2026-W45 from Monday 2026-11-02", row["week"] == "2026-W45")
+    ok(
+        "the key is composed from the week",
+        w.column("cur_core_record", "key", plan) == "P123-WK-2026W45",
+    )
+    ok("a new plan is Draft", w.state(plan) in ("Draft", "Planned"))
+
+    a, b, c, d = (ww.issued() for _ in range(4))
+    ww.commit(plan, a, "40.0")
+    ok("a commit moves the plan to Committed", w.state(plan) == "Committed")
+    ready = ww.issued("Ready")
+    refuses(errors.WeekStateError, lambda: ww.commit(plan, ready))
+    far = ww.other_project_iwp()
+    refuses(RecordNotFoundError, lambda: ww.commit(plan, far))
+    ok("a Ready IWP and an IWP of another project are refused", len(ww.commitments(plan)) == 1)
+    ww.commit(plan, a, "32.5")
+    rows = ww.commitments(plan)
+    ok(
+        "a re-commit replaces the hours (one row)",
+        len(rows) == 1 and rows[0]["committed_hours"] == "32.5",
+    )
+    stale = w.version(plan)
+    ww.commit(plan, b)
+    refuses(
+        errors.StaleVersionError,
+        lambda: w.call(
+            "uma",
+            "CommitIwpToWeek",
+            plan_id=plan,
+            iwp_id=c,
+            committed_hours="8.0",
+            expected_version=stale,
+        ),
+    )
+    ok("a stale expected_version is refused", len(ww.commitments(plan)) == 2)
+    ww.commit(plan, c)
+    ww.commit(plan, d)
+
+    refuses(errors.WeekRuleError, lambda: ww.outcome(plan, a, "missed"))
+    refuses(errors.WeekRuleError, lambda: ww.outcome(plan, a, "missed", "NoSuchReason"))
+    refuses(errors.WeekRuleError, lambda: ww.outcome(plan, a, "done", "Weather"))
+    ok(
+        "missed without a reason, with an unknown reason, and done with a reason are refused",
+        all(r["outcome"] is None for r in ww.commitments(plan)),
+    )
+    ww.outcome(plan, a, "done")
+    refuses(errors.WeekRuleError, lambda: ww.close(plan))
+    ok("a close with an unjudged commitment is refused", w.state(plan) == "Committed")
+    ww.outcome(plan, b, "done")
+    ww.outcome(plan, c, "done")
+    ww.outcome(plan, d, "missed", "Weather")
+    refuses(ForbiddenError, lambda: ww.close(plan, who="uma"))
+    ok("a plain user cannot close (awp.week.close)", w.state(plan) == "Committed")
+    ww.close(plan)
+    ok(
+        "3 done of 4 closes at 75.0 and the plan is Closed",
+        ww.plan_row(plan)["ppc"] == "75.0" and w.state(plan) == "Closed",
+    )
+    refuses(errors.WeekStateError, lambda: ww.commit(plan, a))
+    refuses(errors.WeekStateError, lambda: ww.outcome(plan, a, "done"))
+    refuses(errors.WeekStateError, lambda: ww.close(plan))
+    ok("a command on a Closed plan is refused", True)
+
+    empty = ww.open("2026-11-09")
+    refuses(errors.WeekRuleError, lambda: ww.close(empty))
+    ok("a close of an empty plan is refused", w.state(empty) != "Closed")
+
+    with open_uow(w.db, readonly=True) as uow:
+        seen = week_detail(uow.conn(), plan, cf.Viewer(actor="user:uma", level=1, account="uma"))
+        refuses(RecordNotFoundError, lambda: week_detail(uow.conn(), "0" * 26, cf.Viewer()))
+    ok(
+        "week_detail reads the plan with its commitments and ppc",
+        seen.ppc == "75.0" and len(seen.commitments) == 4,
+    )
+    with ww.hidden_plan(plan):
+        with open_uow(w.db, readonly=True) as uow:
+            refuses(RecordNotFoundError, lambda: week_detail(uow.conn(), plan, cf.Viewer()))
+    ok("a viewer who cannot open the plan gets not-found from week_detail")
+
+    # an agent proposes a commitment; only a person holding awp.week.commit accepts
+    plan2 = ww.open("2026-11-16")
+    e = ww.issued()
+    command = CommitIwpToWeek(
+        actor="agent:bot",
+        source="mcp:bot",
+        scope=SCOPE,
+        plan_id=plan2,
+        iwp_id=e,
+        committed_hours="12.0",
+        expected_version=w.version(plan2),
+    )
+    with open_uow(w.db) as uow:
+        filed = proposals.propose(
+            uow,
+            tool="propose_week_commitment",
+            agent="agent:bot",
+            command=command,
+            summary="Commit",
+        )
+
+    def accept(by: str) -> Any:
+        with open_uow(w.db) as uow:
+            holder = holder_for_actor(uow.conn(), f"user:{by}")
+            return proposals.accept_proposal(
+                uow, proposal_id=filed.proposal_id, by=f"user:{by}", holder=holder
+            )
+
+    refuses(ProposalAccessError, lambda: accept("vera"))
+    ok("a person without awp.week.commit cannot accept", not ww.commitments(plan2))
+    accept("uma")
+    ok("a person holding awp.week.commit accepts the proposal", len(ww.commitments(plan2)) == 1)
+
+    before = ww.snapshot()
+    pw_rebuild = ww.pw.rebuild
+    pw_rebuild()
+    ok("a rebuild equals the weekly plan tables, ppc included", ww.snapshot() == before)
+    _ = date

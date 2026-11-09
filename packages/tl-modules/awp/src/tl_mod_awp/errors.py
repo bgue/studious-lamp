@@ -105,3 +105,12 @@ class RulesOfCreditError(AwpError):
 class ProgressRuleError(AwpError):
     """A rule of progress entry: a record outside the package, a step that takes no hand entry, a
     size bound."""
+
+
+class WeekRuleError(AwpError):
+    """A rule of the weekly plan: a week already open, nothing committed, outcomes missing, a
+    reason that does not fit the outcome."""
+
+
+class WeekStateError(AwpError):
+    """The weekly plan is in a state that does not take the command (Closed, not yet committed)."""
