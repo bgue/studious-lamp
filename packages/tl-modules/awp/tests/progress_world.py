@@ -19,6 +19,7 @@ from awp_world import SCOPE, World, refuses
 from sqlalchemy import text
 from tl_adapters.db import as_target, create_schema, open_uow, rebuild_projections
 from tl_core import confidentiality as cf
+from tl_core import modules as core_modules
 from tl_core.auth.errors import ForbiddenError
 from tl_core.auth.module_roles import holder_for_actor
 from tl_core.constraints.commands import RaiseConstraint
@@ -158,12 +159,12 @@ class ProgressWorld:
             id_column="id",
             class_column="cls",
         )
-        real = cf.confidential_sources
-        cf.confidential_sources = lambda: [*real(), source]  # type: ignore[assignment]
+        real = core_modules.confidential_sources
+        cf.confidential_sources = lambda: [*real(), source]  # type: ignore[attr-defined]
         try:
             yield
         finally:
-            cf.confidential_sources = real  # type: ignore[assignment]
+            cf.confidential_sources = real  # type: ignore[attr-defined]
 
 
 def ok(name: str, cond: bool = True) -> None:
