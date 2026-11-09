@@ -3,7 +3,7 @@
 S1 p mrg f 76c15b4 schema, package content, words, settings
 S2 p mrg f 00647bf engine, progress cmds, IWP start/complete, math rules
 S3 p stg f - rollup+CSV export on read; after S4a merges (F4, F6); pins named (F10)
-S4a p disp f - weekly cmds, week reads, propose_week_commitment; building; orch APPROVALS only
+S4a p mrg f 011349c weekly cmds, week reads, propose_week_commitment; building; orch APPROVALS only
 S4b p todo f - waive word, hold rule, worker word; READY r4 (F1 F2 F11 applied); human gate, owner approver
 S5 p abn f - roadmap 3c (closeout, subcontract CSV)
 S6 p abn f - replaced by T16 (Haiku five-reader walk)
@@ -64,6 +64,7 @@ Q4 core feed policy list lacks the eight new feed_policy none events (S1 dev 6) 
 D-o1 2026-11-09 owner: reorder accepted; I5 trimmed now (S1-S4, look-ahead, mine log and landing, HTML pack); deferred to roadmap item 3c: T07c PDF pack, S5 closeout and subcontract CSV (T08, T10, T05), five of seven KPI tiles
 Q-o1 at merge with p2/i4a or the trunk: add the four proposable-exclusion lines listed in docs/reports/P2-I5/S2.md to tests/tools/proposable_exclusions.toml
 Q-o2 actions.RULES lacks StartIwpWork and CompleteIwpField: assigned to T06b r4
+Q-o3 feed cards: tl_core.feed.cards.POLICY_EVENT_TYPES lacks the WeeklyPlan.* and IWP.* quiet events (S1 dev 6, S4a F1); core ticket
 ## NEXT
 1. Orchestrator now: dispatch workflow [T01, T03] and builder S4b (S4a is running: 3 heavy slots). T04b after T01 merges (both edit awp.py by one line).
 2. After S4a merges: dispatch S3; write the T04 provided test, the T09 provided test and T11a2 (S4a, T03 in the tree); T11a1 after S3.
