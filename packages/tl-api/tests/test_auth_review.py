@@ -511,6 +511,7 @@ AGENT_MAY_NOT = {
     "control.command.IssueIwp",
     "control.command.ReleaseHold",
     "control.command.SignOffIwp",
+    "control.command.CloseWeek",  # P2-I5-S4a: closing a weekly plan is a controller act
 }
 FEED_COMMANDS = {
     "PostToFeed",
