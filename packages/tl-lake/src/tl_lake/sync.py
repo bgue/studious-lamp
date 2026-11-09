@@ -24,6 +24,7 @@ the current snapshot plus one, is the one the commit produces. That is checked a
 
 from __future__ import annotations
 
+import json
 from collections.abc import Callable, Iterator, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -32,6 +33,15 @@ from typing import Any
 
 from sqlalchemy import Connection, bindparam, text
 from tl_core import confidentiality
+from tl_core.intent import (
+    Intent,
+    intent_ids,
+    intent_json,
+    payload_ref_ids,
+    redact_intent_ids,
+    redacted_payload,
+)
+from tl_core.ledger.hashing import canonical_json
 from tl_core.modules import confidential_sources
 from tl_core.projection.promoted import table_columns
 from tl_core.schema_provider import get_provider
@@ -105,8 +115,47 @@ def _event_rows(conn: Connection, after: int, upto: int, size: int) -> Iterator[
         # (restricted, privileged or of an unknown class) are redacted like account events
         # (ADR-0016, brief 18.10). A reclassification is applied at the next sync only.
         hidden = confidentiality.hidden_row_ids(conn, rows, confidentiality.LOWEST)
+        shown = _redact_visible(conn, [r for r in rows if r["event_id"] not in hidden])
         for row in rows:
-            yield {**row, HIDDEN_KEY: True} if row["event_id"] in hidden else row
+            if row["event_id"] in hidden:
+                yield {**row, HIDDEN_KEY: True}
+            else:
+                yield shown[row["event_id"]]
+
+
+def _redact_visible(
+    conn: Connection, rows: Sequence[Mapping[str, Any]]
+) -> dict[str, Mapping[str, Any]]:
+    """The rows the lake keeps, with the references the lowest viewer may not read removed from
+    the intent ("not available") and from the payload (``PAYLOAD_REFS``), like every other read."""
+    parsed: dict[str, tuple[Any, Any]] = {}
+    ids: set[str] = set()
+    for row in rows:
+        payload = row["payload"]
+        data = json.loads(payload) if isinstance(payload, str) else payload
+        raw = row.get("intent")
+        found = Intent.model_validate_json(raw) if raw else None
+        parsed[row["event_id"]] = (data, found)
+        ids |= payload_ref_ids(row["stream_type"], row["event_type"], data)
+        if found is not None:
+            ids |= intent_ids(found)
+    hidden = (
+        confidentiality.hidden_among(conn, sorted(ids), confidentiality.LOWEST) if ids else set()
+    )
+    out: dict[str, Mapping[str, Any]] = {}
+    for row in rows:
+        data, found = parsed[row["event_id"]]
+        if not hidden:
+            out[row["event_id"]] = row
+            continue
+        changed: dict[str, Any] = {}
+        new = redacted_payload(row["stream_type"], row["event_type"], data, hidden)
+        if new is not data:
+            changed["payload"] = canonical_json(new) if isinstance(row["payload"], str) else new
+        if found is not None:
+            changed["intent"] = intent_json(redact_intent_ids(found, hidden))
+        out[row["event_id"]] = {**row, **changed} if changed else row
+    return out
 
 
 #: Streams whose events never reach the lake (usernames and roles of accounts, ADR-0009). The lake

@@ -12,7 +12,7 @@ import unicodedata
 from collections.abc import Generator, Iterable, Sequence
 from contextlib import contextmanager
 from contextvars import ContextVar
-from typing import TYPE_CHECKING, Any, Final
+from typing import TYPE_CHECKING, Any, Final, cast
 
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy import text
@@ -240,14 +240,14 @@ def intent_scope(intent: Intent | None) -> Generator[None]:
 # --- reads --------------------------------------------------------------------------------------
 
 
-def _ids(intent: Intent) -> set[str]:
+def intent_ids(intent: Intent) -> set[str]:
     found = {item.target for item in intent.next if item.target}
     if intent.toward is not None:
         found.add(intent.toward.target)
     return found
 
 
-def _redacted(intent: Intent, hidden: set[str]) -> Intent:
+def redact_intent_ids(intent: Intent, hidden: set[str]) -> Intent:
     nxt = [IntentRef(text=NOT_AVAILABLE) if item.target in hidden else item for item in intent.next]
     toward = intent.toward
     if toward is not None and toward.target in hidden:
@@ -255,10 +255,47 @@ def _redacted(intent: Intent, hidden: set[str]) -> Intent:
     return intent.model_copy(update={"next": nxt, "toward": toward})
 
 
-def redact_events[E: BaseModel](
+#: Payload fields that name a record the viewer may not read, by stream type and event type:
+#: ``(id fields to look up, fields shown as null when any of them is hidden)``. A hidden target
+#: reads as a constraint raised with no target (the no-target twin of the constraint read,
+#: ADR-0024 F7). A stream type listed here is not a scanned one: the stream stays visible.
+PAYLOAD_REFS: Final[dict[str, dict[str, tuple[tuple[str, ...], tuple[str, ...]]]]] = {
+    "core.Constraint": {
+        "Constraint.Raised": (
+            ("target_id",),
+            ("target_kind", "target_id", "target_ref_type", "target_ref_text"),
+        ),
+        "Constraint.Cleared": (("resolved_by",), ("resolved_by",)),
+    },
+}
+
+
+def payload_ref_ids(stream_type: str, event_type: str, payload: Any) -> set[str]:
+    """The record ids in ``payload`` that ``PAYLOAD_REFS`` says may be hidden from a viewer."""
+    rule = PAYLOAD_REFS.get(stream_type, {}).get(event_type)
+    if rule is None or not isinstance(payload, dict):
+        return set()
+    data: dict[str, Any] = cast("dict[str, Any]", payload)
+    return {str(data[f]) for f in rule[0] if data.get(f) is not None}
+
+
+def redacted_payload(stream_type: str, event_type: str, payload: Any, hidden: set[str]) -> Any:
+    """``payload`` with the fields of a hidden reference set to null (the same keys stay)."""
+    rule = PAYLOAD_REFS.get(stream_type, {}).get(event_type)
+    if rule is None or not payload_ref_ids(stream_type, event_type, payload) & hidden:
+        return payload
+    shown: dict[str, Any] = {**cast("dict[str, Any]", payload)}
+    shown.update({f: None for f in rule[1]})
+    return shown
+
+
+def redact_for_viewer[E: BaseModel](
     conn: Connection, events: Sequence[E], viewer: Viewer | None = None
 ) -> list[E]:
-    """``events`` with every unreadable reference of an intent shown as "not available"."""
+    """``events`` as the viewer may read them: every unreadable reference of an intent is "not
+    available" and the payload fields that name a hidden record (``PAYLOAD_REFS``) are null.
+
+    Apply it after ``filter_events``, wherever events leave the core for a reader."""
     from tl_core import confidentiality
 
     who = viewer if viewer is not None else confidentiality.current_viewer()
@@ -266,16 +303,32 @@ def redact_events[E: BaseModel](
     for event in events:
         found: Intent | None = getattr(event, "intent", None)
         if found is not None:
-            ids |= _ids(found)
+            ids |= intent_ids(found)
+        ids |= payload_ref_ids(
+            getattr(event, "stream_type", ""),
+            getattr(event, "event_type", ""),
+            getattr(event, "payload", None),
+        )
     hidden: set[str] = confidentiality.hidden_among(conn, sorted(ids), who) if ids else set()
     if not hidden:
         return list(events)
-    return [
-        event.model_copy(update={"intent": _redacted(found, hidden)})
-        if (found := getattr(event, "intent", None)) is not None
-        else event
-        for event in events
-    ]
+    out: list[E] = []
+    for event in events:
+        update: dict[str, Any] = {}
+        found = getattr(event, "intent", None)
+        if found is not None:
+            update["intent"] = redact_intent_ids(found, hidden)
+        payload = getattr(event, "payload", None)
+        shown = redacted_payload(
+            getattr(event, "stream_type", ""), getattr(event, "event_type", ""), payload, hidden
+        )
+        if shown is not payload:
+            update["payload"] = shown
+        out.append(event.model_copy(update=update) if update else event)
+    return out
+
+
+redact_events = redact_for_viewer  # the name the intent redaction had before payloads joined it
 
 
 def redact_intent(conn: Connection, intent: Intent | None, viewer: Viewer) -> IntentView | None:
@@ -284,6 +337,6 @@ def redact_intent(conn: Connection, intent: Intent | None, viewer: Viewer) -> In
 
     if intent is None:
         return None
-    ids = _ids(intent)
+    ids = intent_ids(intent)
     hidden: set[str] = confidentiality.hidden_among(conn, sorted(ids), viewer) if ids else set()
-    return _redacted(intent, hidden) if hidden else intent
+    return redact_intent_ids(intent, hidden) if hidden else intent

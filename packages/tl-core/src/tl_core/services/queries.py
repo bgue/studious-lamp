@@ -13,6 +13,7 @@ from sqlalchemy import text
 from sqlalchemy.engine import RowMapping
 
 from tl_core import confidentiality
+from tl_core.intent import redact_for_viewer
 from tl_core.ledger import Event
 from tl_core.uow import UnitOfWork
 
@@ -84,7 +85,8 @@ def record_history(uow: UnitOfWork, record_id: str) -> list[Event]:
         return []
     # the id may also be a file, a link or a feed item: the events of those about a hidden record
     # are hidden too (the walking test of the routes found this)
-    return confidentiality.filter_events(uow.conn(), uow.ledger.read_stream(record_id))
+    shown = confidentiality.filter_events(uow.conn(), uow.ledger.read_stream(record_id))
+    return redact_for_viewer(uow.conn(), shown)  # intent and payload references (ADR-0025 d5)
 
 
 SORTABLE_COLUMNS = frozenset(
