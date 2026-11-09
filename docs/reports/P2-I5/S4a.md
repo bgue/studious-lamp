@@ -20,6 +20,7 @@ $ just gate packages/tl-modules/awp/tests ...  -> part 1: exit 0, 299 passed; ga
 $ just gate test_commands test_mcp_write_tools test_modules -> exit 0, 290 passed; gate: PASS
 ```
 (The second gate failed once on the controller pin above; fixed, re-run green.)
+Gate fix note: the third gate step is slow (370s, 290 passed, gate: PASS); it needs a background run or a timeout above 600s, not a code change.
 
 ## The three greps
 - `intent` in `handlers/week.py`: one hit, the docstring saying handlers never read it; no code reads `cmd.intent` (test pins `cmd.intent` absent).
