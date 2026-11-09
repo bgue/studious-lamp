@@ -15,17 +15,28 @@ from typing import TYPE_CHECKING, Any
 from sqlalchemy import Connection, text
 from tl_core.auth.module_roles import effective_roles, holder_for_actor
 from tl_core.ledger import NewEvent, canonical_json
-from tl_core.services.commands import CommandResult
+from tl_core.services.commands import Command, CommandResult
 from tl_core.uow import UnitOfWork
+from tl_core.util import new_ulid
 
-from tl_mod_awp.common import append, correlated, has_table, move, require_project, setting_value
+from tl_mod_awp.common import (
+    append,
+    correlated,
+    has_table,
+    move,
+    record_state,
+    require_project,
+    setting_value,
+)
 from tl_mod_awp.errors import IwpNotReadyError, IwpRuleError, IwpSignoffError
 from tl_mod_awp.facts import iwp_facts
 from tl_mod_awp.handlers.iwp import Iwp, check_foreman, load_iwp, require_state
 from tl_mod_awp.names import (
     IWP,
+    IWP_DRAFT,
     IWP_HELD,
     IWP_HOLD_RELEASED,
+    IWP_ISSUED,
     IWP_ISSUED_EVENT,
     IWP_SIGNED_OFF,
     IWP_TABLE,
@@ -184,6 +195,23 @@ def handle_issue_iwp(uow: UnitOfWork, cmd: IssueIwp) -> CommandResult:
     )
 
 
+def _apply(
+    uow: UnitOfWork,
+    cmd: Command,
+    iwp_id: str,
+    event: str,
+    payload: dict[str, Any],
+    transition: str,
+    reason: str | None,
+) -> CommandResult:
+    """The event of a hold or release and the workflow move that follows it."""
+    done = append(uow, cmd, iwp_id, IWP, [NewEvent(event_type=event, payload=payload)])
+    moved = move(uow, cmd, iwp_id, transition, reason)
+    return CommandResult(
+        stream_id=iwp_id, key=None, version=moved.version, events=[*done.events, *moved.events]
+    )
+
+
 def _held(
     uow: UnitOfWork,
     cmd: Any,
@@ -197,11 +225,32 @@ def _held(
     cmd = correlated(cmd)
     iwp = load_iwp(uow, cmd.scope, cmd.iwp)
     require_state(iwp, command)
-    done = append(uow, cmd, iwp.id, IWP, [NewEvent(event_type=event, payload=payload)])
-    moved = move(uow, cmd, iwp.id, transition, reason)
-    return CommandResult(
-        stream_id=iwp.id, key=iwp.key, version=moved.version, events=[*done.events, *moved.events]
+    done = _apply(uow, cmd, iwp.id, event, payload, transition, reason)
+    return CommandResult(stream_id=iwp.id, key=iwp.key, version=done.version, events=done.events)
+
+
+HOLD_ACTOR = "svc:awp.hold"
+HOLD_SOURCE = "job:awp.hold"
+MAX_HOLD_REASON = 300
+_SCOPE_SQL = text("SELECT scope, type, voided FROM cur_core_record WHERE id = :id")
+
+
+def hold_by_module(uow: UnitOfWork, iwp_id: str, reason: str) -> bool:
+    """Issued to On hold as the module (actor ``svc:awp.hold``, source ``job:awp.hold``): the same
+    ``IWP.Held`` event and ``hold`` move as ``HoldIwp``. No viewer is read. False, and nothing
+    written, when the record is not a live IWP or is not Issued now."""
+    conn = uow.conn()
+    row = conn.execute(_SCOPE_SQL, {"id": iwp_id}).first()
+    if row is None or bool(row.voided) or row.type != IWP or not str(row.scope).startswith("project:"):
+        return False
+    if record_state(conn, iwp_id, IWP_DRAFT) != IWP_ISSUED:
+        return False
+    cmd = Command(
+        actor=HOLD_ACTOR, source=HOLD_SOURCE, scope=str(row.scope), correlation_id=new_ulid()
     )
+    text_ = reason[:MAX_HOLD_REASON]
+    _apply(uow, cmd, iwp_id, IWP_HELD, {"by": cmd.actor, "reason": text_}, "hold", text_)
+    return True
 
 
 def handle_hold_iwp(uow: UnitOfWork, cmd: HoldIwp) -> CommandResult:
@@ -217,6 +266,7 @@ def handle_release_hold(uow: UnitOfWork, cmd: ReleaseHold) -> CommandResult:
 
 
 __all__ = [
+    "hold_by_module",
     "handle_hold_iwp",
     "handle_issue_iwp",
     "handle_release_hold",

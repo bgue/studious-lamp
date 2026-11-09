@@ -24,7 +24,7 @@ def test_rollup_queues_once_and_is_idempotent(cli: Cli) -> None:
 
 def test_worker_once_runs_the_queued_rollup_then_has_nothing_to_run(cli: Cli) -> None:
     cli.write("rollup")
-    once = cli.run("worker", "--once")
+    once = cli.run("worker", "--once", "--actor", "user:ada")
     lines = once.stdout.splitlines()
     ran = [r for r in lines if r.startswith("ran ")]
     assert once.exit_code == 0
@@ -37,7 +37,7 @@ def test_worker_once_runs_the_queued_rollup_then_has_nothing_to_run(cli: Cli) ->
     assert "total 4,200.0" in node or any(
         line.startswith("total ") and line != "total -" for line in node
     )
-    idle = cli.run("worker", "--once")
+    idle = cli.run("worker", "--once", "--actor", "user:ada")
     assert idle.exit_code == 0
     assert idle.stdout.splitlines() == ["worker done: ran=0"]
 
@@ -45,7 +45,7 @@ def test_worker_once_runs_the_queued_rollup_then_has_nothing_to_run(cli: Cli) ->
 def test_worker_once_requeue_prints_requeued_0_first_then_runs_the_queued_job(cli: Cli) -> None:
     """T04e: after a ``rollup`` request nothing is lost, so 0 are requeued; the job still runs."""
     cli.write("rollup")
-    result = cli.run("worker", "--once", "--requeue")
+    result = cli.run("worker", "--once", "--requeue", "--actor", "user:ada")
     lines = result.stdout.splitlines()
     assert result.exit_code == 0
     assert lines[0] == "requeued 0"
@@ -60,7 +60,7 @@ def test_requeue_finds_a_project_whose_queue_row_was_lost(cli: Cli) -> None:
 
     with open_uow(as_target(str(cli.db))) as uow:
         uow.conn().execute(text("DELETE FROM job_queue WHERE kind = 'awp.rollup'"))
-    result = cli.run("worker", "--once", "--requeue")
+    result = cli.run("worker", "--once", "--requeue", "--actor", "user:ada")
     lines = result.stdout.splitlines()
     assert lines[0] == "requeued 1"
     assert lines[-1] == "worker done: ran=1"
