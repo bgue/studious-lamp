@@ -63,10 +63,11 @@ check -> company/admin -> module word -> `check_intent` -> intent carrier -> han
 - `TableCommandRunner` (rules, inbound, thread dispatch, accepted dispatch proposals): module word checked, but no
   reserved check, no company/admin step for module commands, and **no intent** (an accepted proposal's intent is lost
   on this path): MD.
-- CLI: module handlers gated by `require_command`; intent on four commands only. **HI: admin commands (rule, action,
-  enricher, endpoint, integration app, link admin-flag) check only that someone is signed in; the API requires admin.**
-  Being fixed on `p2/fix-cli-admin`. Latent: company-scope core commands are not escalated to admin in the CLI or the
-  embedded TUI client.
+- CLI: module handlers gated by `require_command`; intent on four commands only. The reviewer reported admin commands
+  (rule, action, enricher, endpoint, integration app) as ungated; **this did not reproduce**: every CLI call site of
+  the 38 admin-gated handlers already calls `admin_gate` or `require_admin` (the reviewer missed `admin_gate`), and
+  the two company-access commands use `require_admin`. Regression tests and an AST pin were added
+  (`packages/tl-cli/tests/test_cli_admin_commands.py`, SQLite and Postgres).
 - TUI embedded: module words via its own gates, admin/controller via its own code; no intent.
 - MCP: propose tools carry intent and accept re-checks access; two direct tools match the API's agent exceptions.
   Read-side confidentiality in MCP was not traced (open question).
