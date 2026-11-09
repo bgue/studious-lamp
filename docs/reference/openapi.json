@@ -7569,6 +7569,44 @@
         "title": "CostCodeView",
         "type": "object"
       },
+      "CostLineRollupRow": {
+        "description": "Earned hours of one cost code against its budget; ``code`` None is the unallocated line.",
+        "properties": {
+          "budget_hours": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Budget Hours"
+          },
+          "code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Code"
+          },
+          "earned_hours": {
+            "title": "Earned Hours",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "earned_hours",
+          "budget_hours"
+        ],
+        "title": "CostLineRollupRow",
+        "type": "object"
+      },
       "CostRow": {
         "additionalProperties": false,
         "description": "One code of a snapshot: what the cost system says about it for the period.\n\n``description``, ``parent_code`` and ``uom`` are null when the file does not state them\n(a new code then has the code as its title, no parent and no unit; an existing code keeps what\nit has). ``figures`` holds only the measures the file states, keyed by the fifteen names of\n``MEASURE_COLUMNS``; a figure the file does not state is absent, never zero.",
@@ -9525,6 +9563,35 @@
           "timeline"
         ],
         "title": "CwpDetailView",
+        "type": "object"
+      },
+      "CwpRollupRow": {
+        "description": "Earned and planned hours of one CWP by its key.",
+        "properties": {
+          "earned_hours": {
+            "title": "Earned Hours",
+            "type": "string"
+          },
+          "hours": {
+            "title": "Hours",
+            "type": "string"
+          },
+          "iwps": {
+            "title": "Iwps",
+            "type": "integer"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "iwps",
+          "earned_hours",
+          "hours"
+        ],
+        "title": "CwpRollupRow",
         "type": "object"
       },
       "CwpRow": {
@@ -16741,6 +16808,52 @@
         "title": "ItemView",
         "type": "object"
       },
+      "IwpCountRow": {
+        "description": "One IWP's counts as the IWP log shows them. ``state_since`` is the transition date as\n``YYYY-MM-DD`` (``None`` for a Draft with no workflow row); ``ready_ok`` and ``ready_total``\ncount the readiness checks as last evaluated (0 and 0 when ``evaluated`` is False).",
+        "properties": {
+          "evaluated": {
+            "title": "Evaluated",
+            "type": "boolean"
+          },
+          "number": {
+            "title": "Number",
+            "type": "string"
+          },
+          "open_blocking": {
+            "title": "Open Blocking",
+            "type": "integer"
+          },
+          "ready_ok": {
+            "title": "Ready Ok",
+            "type": "integer"
+          },
+          "ready_total": {
+            "title": "Ready Total",
+            "type": "integer"
+          },
+          "state_since": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "State Since"
+          }
+        },
+        "required": [
+          "number",
+          "state_since",
+          "ready_ok",
+          "ready_total",
+          "evaluated",
+          "open_blocking"
+        ],
+        "title": "IwpCountRow",
+        "type": "object"
+      },
       "IwpDetail": {
         "description": "One IWP with its crew, sign-offs, pins, open constraints and scope by record type.",
         "properties": {
@@ -16875,6 +16988,65 @@
           "state"
         ],
         "title": "IwpDetail",
+        "type": "object"
+      },
+      "IwpHash": {
+        "description": "The record hash an IWP sign-off carries (SHA-256, hex).",
+        "properties": {
+          "number": {
+            "title": "Number",
+            "type": "string"
+          },
+          "record_hash": {
+            "title": "Record Hash",
+            "type": "string"
+          }
+        },
+        "required": [
+          "number",
+          "record_hash"
+        ],
+        "title": "IwpHash",
+        "type": "object"
+      },
+      "IwpProgress": {
+        "description": "The earned progress of one IWP (the stored figure, the items the viewer may open).",
+        "properties": {
+          "edition": {
+            "title": "Edition",
+            "type": "string"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ProgressItem"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "notes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Notes",
+            "type": "array"
+          },
+          "number": {
+            "title": "Number",
+            "type": "string"
+          },
+          "pct": {
+            "title": "Pct",
+            "type": "string"
+          }
+        },
+        "required": [
+          "number",
+          "pct",
+          "edition",
+          "items",
+          "notes"
+        ],
+        "title": "IwpProgress",
         "type": "object"
       },
       "IwpRow": {
@@ -17241,6 +17413,47 @@
           "record_id"
         ],
         "title": "KeyChip",
+        "type": "object"
+      },
+      "KpiTile": {
+        "description": "One tile: ``value`` is a percentage with one decimal (``None``: nothing to count).",
+        "properties": {
+          "denominator": {
+            "title": "Denominator",
+            "type": "integer"
+          },
+          "detail": {
+            "title": "Detail",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "numerator": {
+            "title": "Numerator",
+            "type": "integer"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          }
+        },
+        "required": [
+          "name",
+          "value",
+          "numerator",
+          "denominator",
+          "detail"
+        ],
+        "title": "KpiTile",
         "type": "object"
       },
       "LinkActivityBody": {
@@ -19431,6 +19644,44 @@
         "title": "NeedIn",
         "type": "object"
       },
+      "NodeRollupRow": {
+        "description": "Earned hours of one WBS node against its budget (percent None without a budget).",
+        "properties": {
+          "budget_hours": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Budget Hours"
+          },
+          "earned_hours": {
+            "title": "Earned Hours",
+            "type": "string"
+          },
+          "pct": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pct"
+          }
+        },
+        "required": [
+          "earned_hours",
+          "budget_hours",
+          "pct"
+        ],
+        "title": "NodeRollupRow",
+        "type": "object"
+      },
       "NotifyArgs": {
         "properties": {
           "note": {
@@ -21583,6 +21834,45 @@
           "new_remaining_days"
         ],
         "title": "ProgressChange",
+        "type": "object"
+      },
+      "ProgressItem": {
+        "description": "One scope item of an IWP: its key, earned percent, the steps earned and the hours.",
+        "properties": {
+          "hours": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hours"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "pct": {
+            "title": "Pct",
+            "type": "string"
+          },
+          "steps": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Steps",
+            "type": "array"
+          }
+        },
+        "required": [
+          "key",
+          "pct",
+          "steps",
+          "hours"
+        ],
+        "title": "ProgressItem",
         "type": "object"
       },
       "ProposalView": {
@@ -32586,6 +32876,57 @@
           "roles"
         ],
         "title": "RolesBody",
+        "type": "object"
+      },
+      "RollupBody": {
+        "description": "The progress roll-up of a project (``progress.rollup.ProgressRollup``).",
+        "properties": {
+          "as_of_seq": {
+            "title": "As Of Seq",
+            "type": "integer"
+          },
+          "cwps": {
+            "items": {
+              "$ref": "#/components/schemas/CwpRollupRow"
+            },
+            "title": "Cwps",
+            "type": "array"
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/CostLineRollupRow"
+            },
+            "title": "Lines",
+            "type": "array"
+          },
+          "nodes": {
+            "items": {
+              "$ref": "#/components/schemas/NodeRollupRow"
+            },
+            "title": "Nodes",
+            "type": "array"
+          },
+          "notes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Notes",
+            "type": "array"
+          },
+          "scope": {
+            "title": "Scope",
+            "type": "string"
+          }
+        },
+        "required": [
+          "scope",
+          "as_of_seq",
+          "cwps",
+          "nodes",
+          "lines",
+          "notes"
+        ],
+        "title": "RollupBody",
         "type": "object"
       },
       "RotateActionSecretBody": {
@@ -72840,6 +73181,98 @@
         ]
       }
     },
+    "/projects/{project}/awp/iwps/counts": {
+      "get": {
+        "description": "The IWP log counts by number: Ready checks, open blocking constraints and the state-since\ndate, for the viewer-visible IWPs (at most 500). A hidden IWP is absent.",
+        "operationId": "list_iwp_counts",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project",
+            "required": true,
+            "schema": {
+              "title": "Project",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/IwpCountRow"
+                  },
+                  "title": "Response List Iwp Counts",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Iwp Counts",
+        "tags": [
+          "awp"
+        ]
+      }
+    },
     "/projects/{project}/awp/iwps/{number}": {
       "get": {
         "description": "One IWP with its fields, pins, open constraints and scope count by type. 404\n`record_not_found` when it is missing, hidden or voided.",
@@ -72932,6 +73365,200 @@
           }
         ],
         "summary": "Get Iwp",
+        "tags": [
+          "awp"
+        ]
+      }
+    },
+    "/projects/{project}/awp/iwps/{number}/hash": {
+      "get": {
+        "description": "The record hash of one IWP, the value a sign-off carries. 404 `record_not_found` when the\nIWP is missing or hidden (the same answer as the progress read).",
+        "operationId": "get_iwp_hash",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project",
+            "required": true,
+            "schema": {
+              "title": "Project",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "number",
+            "required": true,
+            "schema": {
+              "title": "Number",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IwpHash"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Iwp Hash",
+        "tags": [
+          "awp"
+        ]
+      }
+    },
+    "/projects/{project}/awp/iwps/{number}/progress": {
+      "get": {
+        "description": "The earned progress of one IWP. 404 `record_not_found` when it is missing or hidden.",
+        "operationId": "get_iwp_progress",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project",
+            "required": true,
+            "schema": {
+              "title": "Project",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "number",
+            "required": true,
+            "schema": {
+              "title": "Number",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IwpProgress"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Iwp Progress",
         "tags": [
           "awp"
         ]
@@ -73144,6 +73771,98 @@
           }
         ],
         "summary": "List Iwp Scope",
+        "tags": [
+          "awp"
+        ]
+      }
+    },
+    "/projects/{project}/awp/kpis": {
+      "get": {
+        "description": "The two KPI tiles: PPC and percent constraint-free, in their fixed order.",
+        "operationId": "list_kpis",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project",
+            "required": true,
+            "schema": {
+              "title": "Project",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/KpiTile"
+                  },
+                  "title": "Response List Kpis",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Kpis",
         "tags": [
           "awp"
         ]
@@ -73457,6 +74176,94 @@
           }
         ],
         "summary": "List Path Versions",
+        "tags": [
+          "awp"
+        ]
+      }
+    },
+    "/projects/{project}/awp/progress/rollup": {
+      "get": {
+        "description": "The earned hours of the project by CWP, WBS node and cost code, through the viewer's\nclass filter.",
+        "operationId": "get_progress_rollup",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project",
+            "required": true,
+            "schema": {
+              "title": "Project",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RollupBody"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Progress Rollup",
         "tags": [
           "awp"
         ]
