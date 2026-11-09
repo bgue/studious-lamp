@@ -82,3 +82,6 @@ One line each: what, why it waits, and the phase it belongs to. Newest at the bo
 | `TableCommandRunner` (rules, inbound, thread dispatch) carries no intent; an accepted dispatch proposal's intent is lost | Outside review §3 MD | With the dispatcher |
 | `POST /types/{t}/records` bypasses `run_command` (no reserved check, no intent) | Outside review §3 MD | With the dispatcher |
 | MCP read-side confidentiality not traced end to end | Outside review §3 open question | Next security review |
+| Hidden-vs-absent twin walker over every route, MCP tool, CLI read, lake query, webhook mode and SSE (byte compare of two seeded worlds) | Outside review §1: catches the next leak class; F1, F2, F4 were found by reading | Next slice (high priority, ~1 builder piece) |
+| Module-declared subject links (`ModuleSpec.subjects`) and a `cur_core_governor` root pointer replacing `SUBJECT_LINKS` and the two-hop bound; `NOT EXISTS` hidden set for scale | Outside review §1 F5 and design; latent until a third module links subjects | Before a third module declares subject links |
+| Key oracle: CreateRecord with a key used by a hidden record answers 409; known limit, rate-limit repeated 409s, counter keys in confidential scopes | Outside review §1 F3; uniqueness requires it | Known limit; mitigation with the dispatcher |

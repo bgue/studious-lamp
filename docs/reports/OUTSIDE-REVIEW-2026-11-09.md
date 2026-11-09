@@ -1,7 +1,37 @@
 # Outside review, 2026-11-09
 
 Five read-only questions put to the planner tier at the owner's request (2026-11-09, "ask your hardest questions").
-Each answer is abridged; file and line evidence is in the reviewers' returns. Sections 1-2 are added when those reviews finish.
+Each answer is abridged; file and line evidence is in the reviewers' returns. Section 2 is added when that review finishes.
+
+## 1. Hidden must look like missing (confidentiality)
+
+Open leak channels found (all verified against the code by the orchestrator except F3, F5, F8, F9):
+- **F1 HI** `core.Constraint` event payloads carry the target (`target_id`, `target_ref_type`, `target_ref_text`) and
+  `resolved_by`; the stream is hidden only when the subject is, and nothing redacts payload fields. Events, history,
+  Activity, the embedded client, `tl events tail` and lake bronze show a restricted target, while the constraint read
+  already nulls it. Fix on `p2/fix-conf-payloads`: one payload redaction table applied wherever intent is redacted.
+- **F2 HI** Lake bronze keeps raw intent on visible rows. Fix on the same branch.
+- **F3 MD** Key oracle: creating a record with a key already used (even by a hidden record) answers 409 instead of 201.
+  Not fixable without breaking key uniqueness: record as a known limit (like sequence gaps), rate-limit repeated 409s,
+  prefer counter-allocated keys in scopes with confidential types.
+- **F4 MD** The Activity "next page" cursor can be the sequence number of a hidden event. Fix on the same branch.
+- **F5 MD (latent)** `SUBJECT_LINKS` plus two hops is right only because requisitions restrict their subject to IWPs
+  and CWPs, an invariant the core neither declares nor tests; a dangling subject id does not fall back as the comment says.
+- **F6 LO** `tl events tail` does not redact; the CWP timeline reads history without filtering. Fix on the same branch.
+- **F7 LO (cost)** Link trace rebuilds the whole hidden set per graph node. Fix on the same branch.
+- **F8 LO** List latency grows with the number of hidden rows on a page (one extra query each); unsure whether measurable.
+- **F9 LO (accepted)** Free text (descriptions, clear reasons, intent `why`) can carry a hidden key.
+
+Design: replace the hard-coded `SUBJECT_LINKS` with links each module declares (`ModuleSpec.subjects`), checked at
+start-up for depth and cycles, and have the core keep a `cur_core_governor(id, root_id)` pointer to each record's
+governing root, so `hidden_sql` needs one indexed lookup and no hop bound. The set form (`NOT IN` a union of parts)
+degrades on Postgres above about 100k hidden ids; prefer `NOT EXISTS` against a per-request hidden set and the per-row
+form where row counts are small.
+
+Harness that would catch the next leak class: build two ledgers from the same seed, one with the secret items and one
+without (same number of filler events so sequence numbers align), then walk every API route, MCP tool, CLI read, lake
+query, webhook mode and the SSE feed as each reader who may not see the secrets, and byte-compare the two worlds.
+About 150 lines plus one seed mode; it would have caught F1, F2, F4 and the three leaks fixed on 2026-11-08.
 
 ## 3. Write paths (one dispatcher)
 
