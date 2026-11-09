@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>IWP work pack</title>
+<style>
+@page { size: A4; margin: 12mm; }
+body { font-family: sans-serif; margin: 0; color: #000; }
+section { padding: 0 0 4mm 0; }
+h1 { font-size: 18pt; margin: 0 0 4mm 0; }
+h2 { font-size: 13pt; margin: 0 0 3mm 0; border-bottom: 1px solid #000; }
+dl { display: grid; grid-template-columns: 40mm 1fr; gap: 1mm 3mm; margin: 0 0 4mm 0; }
+dt { font-family: monospace; font-weight: bold; }
+dd { margin: 0; }
+table { border-collapse: collapse; width: 100%; margin-bottom: 4mm; }
+th, td { border: 1px solid #000; padding: 2mm; text-align: left; vertical-align: top; }
+th { background: #eee; }
+#scope td:first-child, #mto td:first-child { font-family: monospace; }
+table.ruled td { height: 9mm; }
+.drawing { display: inline-block; margin: 0 6mm 4mm 0; text-align: center; vertical-align: top; }
+.drawing > div:first-of-type { font-family: monospace; }
+.drawing svg { width: 30mm; height: 30mm; }
+.note { font-size: 9pt; margin: 0 0 2mm 0; }
+footer { font-size: 9pt; margin-top: 4mm; }
+@media print {
+  section + section { page-break-before: always; }
+  .drawing { page-break-inside: avoid; }
+  table, tr { page-break-inside: avoid; }
+}
+</style>
+</head>
+<body>
+<section id="cover"><h2>Cover</h2><h1>Pipe rack &lt;A&gt; &amp; &quot;B&quot;</h1><dl><dt>IWP</dt><dd>P123-IWP-0007</dd><dt>Title</dt><dd>Pipe rack &lt;A&gt; &amp; &quot;B&quot;</dd><dt>State</dt><dd>Issued</dd><dt>Discipline</dt><dd>PIP</dd><dt>Foreman</dt><dd>user:uma</dd><dt>CWP</dt><dd>P123-CWP-0002</dd><dt>Planned start</dt><dd>2026-11-16</dd><dt>Planned finish</dt><dd>2026-11-27</dd><dt>Estimated hours</dt><dd>120.5</dd><dt>Crew</dt><dd>1 foreman, 4 fitters</dd></dl></section>
+<section id="scope"><h2>Scope and steps</h2><table><thead><tr><th>Key</th><th>Type</th><th>Description</th><th>Qty</th><th>UoM</th><th>Pct</th><th>Steps</th></tr></thead><tbody><tr><td>P123-WI-0011</td><td>Item</td><td>Spools 1 to 4</td><td>4</td><td>ea</td><td>25.0</td><td>Material received</td></tr><tr><td>-</td><td>Tag</td><td>Support tag</td><td>-</td><td>-</td><td>-</td><td>-</td></tr></tbody></table></section>
+<section id="drawings"><h2>Drawings</h2><div class="drawing"><div>ISO-1</div><div>Rack isometric</div><div>pin A</div></div></section>
+<section id="mto"><h2>Take-off</h2><table><thead><tr><th>Line</th><th>Item</th><th>Qty</th><th>UoM</th><th>Reserved</th><th>Issued</th></tr></thead><tbody><tr><td>1</td><td>P123-ITM-0003</td><td>12</td><td>m</td><td>12</td><td>0</td></tr></tbody></table></section>
+<section id="safety"><h2>Safety</h2><p>No safety plan attached yet.</p></section>
+<section id="quality"><h2>Inspection and test plan</h2><p>No inspection and test plan attached yet.</p></section>
+<section id="permits"><h2>Permits and scaffold tags</h2><p>not tracked yet</p></section>
+<section id="signoff"><h2>Sign-off</h2><table><thead><tr><th>Who</th><th>Role</th><th>Day</th></tr></thead><tbody><tr><td>user:sue</td><td>Superintendent</td><td>2026-11-12</td></tr></tbody></table>
+<table class="ruled">
+<thead><tr><th>Name</th><th>Role</th><th>Signature</th><th>Date</th></tr></thead>
+<tbody>
+<tr><td></td><td></td><td></td><td></td></tr>
+<tr><td></td><td></td><td></td><td></td></tr>
+<tr><td></td><td></td><td></td><td></td></tr>
+<tr><td></td><td></td><td></td><td></td></tr>
+<tr><td></td><td></td><td></td><td></td></tr>
+<tr><td></td><td></td><td></td><td></td></tr>
+</tbody>
+</table>
+</section>
+<footer>Generated 2026-11-09</footer>
+</body>
+</html>
