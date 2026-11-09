@@ -8,7 +8,7 @@ S4b p mrg f 450b814 waive word, hold rule, worker word; human gate done
 T01 t mrg f 7c094c8 tl awp roc ls|show|set
 T03 t mrg f 998797d look_ahead_view
 T04b t mrg f 02a926d CLI for S2 writes
-T09 t fx l - KPI tiles; fix round (provided test had wrong-case miss key, IWP state by shortcut)
+T09 t mrg l b1666b8 KPI tiles; fix round (provided test had wrong-case miss key, IWP state by shortcut)
 T07a t mrg f bcf3c2e pack HTML + QR + `iwp pack`; build_pack_data, render_html -> Rendered
 T04 t todo f - look-ahead + week CLI; ready after T09; provided test in tree (R-B)
 T11a1 t todo f - API progress/rollup/kpis/counts/hash routes; after T09 (R-B)
