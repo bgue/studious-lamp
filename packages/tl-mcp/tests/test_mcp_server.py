@@ -105,6 +105,13 @@ READING = (
     | AWP_READ_TOOLS
     | MATERIALS_READ_TOOLS
     | {"list_iwps", "get_iwp", "list_iwp_scope", "get_iwp_readiness"}  # T09b
+    | {
+        "list_weekly_plans",
+        "get_weekly_plan",
+        "get_iwp_progress",
+        "get_progress_rollup",
+        "list_kpis",
+    }  # T11c
 )
 TOOLS = (
     READING
@@ -115,6 +122,13 @@ TOOLS = (
     | AWP_PROPOSE_TOOLS
     | MATERIALS_PROPOSE_TOOLS
     | {"list_iwps", "get_iwp", "list_iwp_scope", "get_iwp_readiness", "propose_iwp_scope"}  # T09b
+    | {
+        "list_weekly_plans",
+        "get_weekly_plan",
+        "get_iwp_progress",
+        "get_progress_rollup",
+        "list_kpis",
+    }  # T11c
     | {"post_feed", "post_thread_message", "propose_dispatch"}
 )
 
