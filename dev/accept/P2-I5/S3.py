@@ -67,9 +67,8 @@ def main() -> None:
     with rr.hidden(ids["b"], record_type=CWP):
         seen = rr.read(viewer=lowest)
         check(
-            "a hidden CWP is absent and the note shows",
-            ids["b"] not in {c.cwp_id for c in seen.cwps}
-            and "some packages not shown" in seen.notes,
+            "a hidden CWP is absent and leaves no note",
+            ids["b"] not in {c.cwp_id for c in seen.cwps} and seen.notes == [],
         )
         check(
             "the figure of what remains is unchanged",

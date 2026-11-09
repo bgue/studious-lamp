@@ -4,18 +4,23 @@ from __future__ import annotations
 
 import csv
 import io
+from collections.abc import Callable
 from decimal import Decimal
 
 import pytest
 from awp_world import SCOPE, World
 from progress_world import ProgressWorld, RollRig, roll_on
-from tl_adapters.db import DbTarget, rebuild_projections
+from tl_adapters.db import DbTarget, create_schema, rebuild_projections
 from tl_core import confidentiality as cf
 from tl_mod_awp.names import CWP
 from tl_mod_awp.progress.export import ExportError, csv_cell
 
 LOWEST = cf.Viewer()
 D = Decimal
+
+
+def rows_of(text: str) -> list[list[str]]:
+    return list(csv.reader(io.StringIO(text)))
 
 
 @pytest.fixture
@@ -108,11 +113,9 @@ def test_a_hidden_cwp_is_absent_for_the_viewer_and_the_note_shows(rr: RollRig) -
     with rr.hidden(rr.ids["b"], record_type=CWP):
         seen = rr.read(viewer=LOWEST)
         assert rr.ids["b"] not in {c.cwp_id for c in seen.cwps}
-        assert "some packages not shown" in seen.notes
-        assert rr.read(viewer=None) == rr.read(viewer=None)
+        assert seen.notes == ["no budget rollup yet"] or not seen.notes
         unfiltered = rr.read(viewer=cf.Viewer(actor="user:x", level=1, account="user:x"))
     assert rr.ids["b"] in {c.cwp_id for c in full.cwps}
-    assert "some packages not shown" not in full.notes
     assert unfiltered.cwps == full.cwps  # a reader who may open it sees the unfiltered figure
     a_full = next(c for c in full.cwps if c.cwp_id == rr.ids["a"])
     a_seen = next(c for c in seen.cwps if c.cwp_id == rr.ids["a"])
@@ -125,15 +128,71 @@ def test_a_hidden_item_inside_a_visible_iwp_changes_no_figure(rr: RollRig) -> No
         assert rr.read(viewer=LOWEST).cwps == rr.read().cwps
 
 
-def test_a_viewer_gets_no_budget_figure_that_adds_a_hidden_package(rr: RollRig) -> None:
-    rr.run_rollup()
-    assert any(ln.budget_hours is not None for ln in rr.read().lines)
+def test_a_hidden_package_leaves_no_note_and_no_trace_in_the_budget(rr: RollRig) -> None:
     with rr.hidden(rr.ids["b"], record_type=CWP):
         seen = rr.read(viewer=LOWEST)
-        assert all(ln.budget_hours is None for ln in seen.lines)
-        assert all(n.budget_hours is None and n.pct is None for n in seen.nodes)
-        rows = list(csv.reader(io.StringIO(rr.export(viewer=LOWEST))))
-    assert all(r[4] == "" and r[5] == "" for r in rows[1:])
+    assert seen.notes == []
+    assert all("hidden" not in n and "shown" not in n for n in seen.notes)
+
+
+def test_a_viewer_gets_exactly_what_a_world_without_the_package_gives(
+    rr: RollRig, new_db: Callable[[], DbTarget]
+) -> None:
+    other = new_db()
+    create_schema(other)
+    w2 = World(other)
+    w2.people()
+    w2.editions()
+    missing = roll_on(ProgressWorld(w2), without_b=True)
+    for run in (True, False):
+        if run:
+            rr.run_rollup()  # the stored rows now add the hidden package; they are not read
+            missing.run_rollup()
+        with rr.hidden(rr.ids["b"], record_type=CWP):
+            got = rr.read(viewer=LOWEST)
+            data = rr.export(viewer=LOWEST)
+        want = missing.read(viewer=LOWEST)
+        assert [(ln.code, ln.earned_hours, ln.budget_hours) for ln in got.lines] == [
+            (ln.code, ln.earned_hours, ln.budget_hours) for ln in want.lines
+        ]
+        assert [c.key for c in got.cwps] != []
+        assert got.notes == want.notes
+        assert [(n.earned_hours, n.budget_hours, n.pct) for n in got.nodes] == [
+            (n.earned_hours, n.budget_hours, n.pct) for n in want.nodes
+        ]
+
+        # the as_of_seq column (the ledger head) is the one cell that differs between two ledgers
+        def strip(text: str) -> list[list[str]]:
+            return [r[:-1] for r in rows_of(text)]
+
+        assert strip(data) == strip(missing.export(viewer=LOWEST))
+        assert any(r[4] for r in rows_of(data)[1:])  # budgets are shown, computed on read
+
+
+def test_a_hidden_node_or_cost_code_is_absent_like_a_missing_one(rr: RollRig) -> None:
+    ids = rr.w.rows("SELECT id FROM cur_cost_costcode WHERE code = '4210-PIP-WLD'")
+    with rr.hidden(ids[0]["id"], record_type="cost.CostCode"):
+        seen = rr.read(viewer=LOWEST)
+    assert "4210-PIP-WLD" not in {ln.code for ln in seen.lines}
+    node = rr.w.id_of("1.1.1")
+    with rr.hidden(node, record_type="awp.WBSNode"):
+        seen = rr.read(viewer=LOWEST)
+    assert node not in {n.node_id for n in seen.nodes}
+
+
+def test_earned_hours_that_reach_no_node_are_the_unallocated_line(rr: RollRig) -> None:
+    extra = rr.cwp("5.0", [])  # no allocation: the earned hours reach no node
+    rr.iwp(extra, ["10.0"], "100.0")
+    found = rr.read()
+    last = found.lines[-1]
+    assert (last.code, last.cost_code_id, last.earned_hours, last.budget_hours) == (
+        "Unallocated",
+        None,
+        D("10.0"),
+        None,
+    )
+    assert rows_of(rr.export())[-1][2] == "Unallocated"
+    assert [ln.code for ln in found.lines].count("Unallocated") == 1
 
 
 def test_a_node_without_a_stored_budget_exports_an_empty_cell_and_the_note(rr: RollRig) -> None:

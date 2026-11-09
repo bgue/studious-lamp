@@ -640,12 +640,13 @@ class RollRig:
             planned_finish="2027-01-29",
             budget_hours=hours,
         )
-        self.w.call(
-            "uma",
-            "AllocateCwpToWbs",
-            cwp=cwp,
-            allocations=[{"wbs_code": c, "percent": p} for c, p in allocs],
-        )
+        if allocs:
+            self.w.call(
+                "uma",
+                "AllocateCwpToWbs",
+                cwp=cwp,
+                allocations=[{"wbs_code": c, "percent": p} for c, p in allocs],
+            )
         return cwp
 
     def map_codes(self, node: str, *lines: tuple[str, str]) -> None:
@@ -742,7 +743,7 @@ def build_roll(db: Path) -> RollRig:
     return roll_on(build(db))
 
 
-def roll_on(pw: ProgressWorld) -> RollRig:
+def roll_on(pw: ProgressWorld, *, without_b: bool = False) -> RollRig:
     """Worked scenario: package A (40 h: IWPs 10, 10, 20 h at 50.0, 100.0, 25.0 percent) on leaf
     1.1.1 mapped 60/40 to two cost codes; package B (10.0 earned) split 33/33/34 over three
     unmapped leaves; package C (a null hour weighs the mean) on 1.1.2. ``rr.ids`` names them."""
@@ -754,8 +755,10 @@ def roll_on(pw: ProgressWorld) -> RollRig:
         rr.iwp(a, ["10.0"], "100.0"),
         rr.iwp(a, ["20.0"], "25.0"),
     )
-    b = rr.cwp("10.0", [("1.2.1", "33.00"), ("1.2.2", "33.00"), ("1.2.3", "34.00")])
-    b1 = rr.iwp(b, ["10.0"], "100.0")
+    b = b1 = ""
+    if not without_b:
+        b = rr.cwp("10.0", [("1.2.1", "33.00"), ("1.2.2", "33.00"), ("1.2.3", "34.00")])
+        b1 = rr.iwp(b, ["10.0"], "100.0")
     c = rr.cwp("20.0", [("1.1.2", "100.00")])
     c1 = rr.iwp(c, ["10.0", None], "50.0")
     rr.ids.update(a=a, a1=a1, a2=a2, a3=a3, b=b, b1=b1, c=c, c1=c1)

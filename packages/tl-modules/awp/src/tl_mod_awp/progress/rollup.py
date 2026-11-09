@@ -7,9 +7,12 @@ unfiltered one (rule 1); a null item hour weighs the mean of the set ones, none 
 (rule 3); the cap of 100 is per IWP only, so earned hours are not capped to the CWP budget.
 
 The spreading over WBS nodes and cost codes is ``tl_mod_awp.rollup.compute``, called with the CWP
-earned hours as its ``budgets``. A budget figure is the stored ``cur_awp_rollup`` row; a viewer who
-cannot open every package of the project gets no budget figure at all, because the stored rows add
-the packages it cannot open (no figure may reveal them).
+earned hours as its ``budgets``. Without a ``viewer`` a budget figure is the stored
+``cur_awp_rollup`` row. With a ``viewer`` nothing hidden may show, not even as a note: the roll-up
+is computed from the CWPs, IWPs, WBS nodes and cost codes the viewer can open only (the stored
+totals add the hidden ones and are not read), so the answer is the one a project without them
+would give. Earned hours that reach no node (no allocation, a hidden node, a share under 100
+percent) are the ``Unallocated`` line (no budget).
 
 Reads only: one statement per table, never one per IWP.
 """
@@ -44,14 +47,14 @@ from tl_mod_awp.names import (
 )
 from tl_mod_awp.progress.engine import ScopeItemRow, _weights, round_half_up
 
-NOTE_HIDDEN: Final = "some packages not shown"
 NOTE_NO_BUDGET: Final = "no budget rollup yet"
-NOTE_UNALLOCATED: Final = "earned hours without a WBS allocation are not shown"
+UNALLOCATED_CODE: Final = "Unallocated"
 _PRECISION: Final = 60
 
 _HEAD_SQL = text("SELECT COALESCE(MAX(seq), 0) FROM events")
 _CWPS_SQL = text(
-    f"SELECT c.id AS id, r.key AS key FROM {CWP_TABLE} c JOIN cur_core_record r ON r.id = c.id "
+    "SELECT c.id AS id, r.key AS key, c.budget_hours AS budget_hours "
+    f"FROM {CWP_TABLE} c JOIN cur_core_record r ON r.id = c.id "
     "WHERE c.scope = :scope AND r.type = :type AND r.voided = :voided ORDER BY r.key, r.id"
 )
 _IWPS_SQL = text(
@@ -138,14 +141,14 @@ def progress_rollup(
 ) -> ProgressRollup:
     """Earned hours of ``scope`` by CWP, WBS node and cost code (see the module docstring).
 
-    ``viewer``: a CWP or IWP it cannot open drops out and the note ``some packages not shown`` is
-    added; the figures of what remains do not change with the items hidden inside a visible IWP.
+    ``viewer``: records it cannot open are absent, as if they did not exist (no note, no count);
+    the figure of an IWP it can open does not change with the items hidden inside it.
     """
     as_of = int(conn.execute(_HEAD_SQL).scalar_one())  # read first: the data is at least this new
     params = {"scope": scope}
     notes: list[str] = []
-    cwp_rows = [
-        (str(r.id), str(r.key or ""))
+    cwp_all = [
+        (str(r.id), str(r.key or ""), None if r.budget_hours in (None, "") else str(r.budget_hours))
         for r in conn.execute(_CWPS_SQL, {**params, "type": CWP, "voided": False})
     ]
     iwp_rows = [
@@ -153,20 +156,40 @@ def progress_rollup(
         for r in conn.execute(_IWPS_SQL, {**params, "type": IWP, "voided": False})
         if r.cwp_id is not None and str(r.status or "") not in (IWP_CANCELLED, IWP_SPLIT_STATE)
     ]
-    hidden: set[str] = set()
+    parents = {str(r.id): r.parent_id for r in conn.execute(_NODES_SQL, params)}
+    mapping: dict[str, list[tuple[str, Decimal]]] = defaultdict(list)
+    for r in conn.execute(_MAPPING_SQL, params):
+        mapping[str(r.node_id)].append((str(r.cost_code_id), Decimal(str(r.percent))))
+    allocations = [
+        (str(r.cwp_id), str(r.wbs_node_id), Decimal(str(r.percent)))
+        for r in conn.execute(_ALLOC_SQL, params)
+    ]
+    codes = {str(r.id): str(r.code) for r in conn.execute(_CODES_SQL, params)}
     if viewer is not None:
         hidden = confidentiality.hidden_among(
-            conn, [c for c, _ in cwp_rows] + [str(r.id) for r in iwp_rows], viewer
+            conn,
+            [c for c, _, _ in cwp_all]
+            + [str(r.id) for r in iwp_rows]
+            + list(parents)
+            + list(codes),
+            viewer,
         )
-    if hidden:
-        notes.append(NOTE_HIDDEN)
-    cwp_rows = [(c, k) for c, k in cwp_rows if c not in hidden]
+        cwp_all = [c for c in cwp_all if c[0] not in hidden]
+        iwp_rows = [r for r in iwp_rows if str(r.id) not in hidden]
+        parents = {n: (None if p in hidden else p) for n, p in parents.items() if n not in hidden}
+        mapping = defaultdict(
+            list,
+            {
+                n: [(c, pc) for c, pc in lines if c not in hidden]
+                for n, lines in mapping.items()
+                if n not in hidden
+            },
+        )
+        allocations = [a for a in allocations if a[0] not in hidden and a[1] not in hidden]
+        codes = {i: c for i, c in codes.items() if i not in hidden}
+    cwp_rows = [(c, k) for c, k, _ in cwp_all]
     visible_cwps = {c for c, _ in cwp_rows}
-    iwp_cwp = {
-        str(r.id): str(r.cwp_id)
-        for r in iwp_rows
-        if str(r.id) not in hidden and str(r.cwp_id) in visible_cwps
-    }
+    iwp_cwp = {str(r.id): str(r.cwp_id) for r in iwp_rows if str(r.cwp_id) in visible_cwps}
 
     items: dict[str, list[ScopeItemRow]] = defaultdict(list)
     for r in conn.execute(
@@ -218,34 +241,39 @@ def progress_rollup(
         if count[c]
     ]
 
-    parents = {str(r.id): r.parent_id for r in conn.execute(_NODES_SQL, params)}
-    mapping: dict[str, list[tuple[str, Decimal]]] = defaultdict(list)
-    for r in conn.execute(_MAPPING_SQL, params):
-        mapping[str(r.node_id)].append((str(r.cost_code_id), Decimal(str(r.percent))))
-    allocations = [
-        (str(r.cwp_id), str(r.wbs_node_id), Decimal(str(r.percent)))
-        for r in conn.execute(_ALLOC_SQL, params)
-    ]
     budgets = {c.cwp_id: _decimal(earned[c.cwp_id]) for c in cwps}
-    placed = {cwp for cwp, node, _ in allocations if node in parents}
-    if any(c not in placed for c in budgets):
-        notes.append(NOTE_UNALLOCATED)
     figures = rollup.compute(parents, mapping, budgets, allocations)
+    roots = {n for n, p in parents.items() if p is None or p not in parents}
+    children = {p for p in parents.values() if p in parents}
+    # earned hours that reach no leaf: the Unallocated line
+    placed: dict[str, Decimal] = defaultdict(Decimal)
+    for cwp, node, percent in allocations:
+        if cwp in budgets and node in parents and node not in children:
+            placed[cwp] += percent
+    lost = Fraction(0)
+    for c in budgets:
+        share = Fraction(min(placed[c], Decimal(100))) / 100
+        lost += earned[c] * (1 - share)
 
     node_budget: dict[str, Decimal] = {}
     line_budget: dict[rollup.Key, Decimal] = {}
-    roots = {n for n, p in parents.items() if p is None or p not in parents}
-    for r in conn.execute(
-        _STORED_SQL, {**params, "kind": rollup.SUBJECT_KIND, "measure": rollup.MEASURE}
-    ):
-        value = Decimal(str(r.value))
-        if r.line == rollup.LINE_TOTAL:
-            node_budget[str(r.subject_id)] = value
-        elif str(r.subject_id) in roots:
-            key = None if r.line == rollup.LINE_UNALLOCATED else str(r.cost_code_id)
-            line_budget[key] = line_budget.get(key, Decimal(0)) + value
-    if hidden:  # the stored rows add the packages the viewer cannot open
-        node_budget, line_budget = {}, {}
+    if viewer is not None:  # computed from what the viewer can open; the stored rows are not read
+        cwp_budget = {c: Decimal(b) for c, _, b in cwp_all if b is not None}
+        for node, figure in rollup.compute(parents, mapping, cwp_budget, allocations).items():
+            node_budget[node] = Decimal(figure.total)
+            if node in roots:
+                for key, value in figure.lines:
+                    line_budget[key] = line_budget.get(key, Decimal(0)) + Decimal(value)
+    else:
+        for r in conn.execute(
+            _STORED_SQL, {**params, "kind": rollup.SUBJECT_KIND, "measure": rollup.MEASURE}
+        ):
+            value = Decimal(str(r.value))
+            if r.line == rollup.LINE_TOTAL:
+                node_budget[str(r.subject_id)] = value
+            elif str(r.subject_id) in roots:
+                key = None if r.line == rollup.LINE_UNALLOCATED else str(r.cost_code_id)
+                line_budget[key] = line_budget.get(key, Decimal(0)) + value
 
     nodes: list[NodeProgress] = []
     line_earned: dict[rollup.Key, Decimal] = defaultdict(Decimal)
@@ -260,10 +288,11 @@ def progress_rollup(
         if node in roots:
             for key, value in figure.lines:
                 line_earned[key] += Decimal(value)
-    if not node_budget or any(n.budget_hours is None and n.earned_hours for n in nodes):
+    if viewer is None and (
+        not node_budget or any(n.budget_hours is None and n.earned_hours for n in nodes)
+    ):
         notes.append(NOTE_NO_BUDGET)
 
-    codes = {str(r.id): str(r.code) for r in conn.execute(_CODES_SQL, params)}
     keys = sorted(set(line_earned) | set(line_budget), key=rollup.line_order)
     lines = [
         CostLine(
@@ -275,4 +304,7 @@ def progress_rollup(
         for k in keys
     ]
     lines.sort(key=lambda ln: (ln.cost_code_id is None, ln.code or "", ln.cost_code_id or ""))
+    if lost > 0:
+        lost_hours = round_half_up(lost)
+        lines.append(CostLine(None, UNALLOCATED_CODE, lost_hours, None))
     return ProgressRollup(scope, as_of, cwps, nodes, lines, notes)

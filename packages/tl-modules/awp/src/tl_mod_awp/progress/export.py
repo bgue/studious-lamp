@@ -77,7 +77,9 @@ def export_progress(
             [
                 csv_cell(period),
                 csv_cell(scope),
-                csv_cell(UNALLOCATED if line.cost_code_id is None else line.code),
+                csv_cell(
+                    UNALLOCATED if line.cost_code_id is None and line.code is None else line.code
+                ),
                 csv_cell(_figure(line.earned_hours)),
                 csv_cell(_figure(line.budget_hours)),
                 csv_cell(_figure(pct)),
