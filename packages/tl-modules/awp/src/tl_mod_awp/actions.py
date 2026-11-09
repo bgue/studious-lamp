@@ -172,6 +172,14 @@ RULES: tuple[Rule, ...] = (
         states=(IWP_READY, IWP_ISSUED, IWP_IN_PROGRESS),
     ),
     Rule("ReleaseHold", "Release the hold", "awp.iwp.hold", (IWP,), states=(IWP_ON_HOLD,)),
+    Rule("StartIwpWork", "Start work", "awp.iwp.edit", (IWP,), states=(IWP_ISSUED,)),
+    Rule(
+        "CompleteIwpField",
+        "Complete field work",
+        "awp.iwp.edit",
+        (IWP,),
+        states=(IWP_IN_PROGRESS,),
+    ),
     # last: a retirement or a void ends the use of the node, the area or the package
     Rule("RetireWbsNode", "Retire", "awp.wbs.configure", (WBS_NODE,), _active_node),
     Rule("RetireCwa", "Retire", "awp.wbs.configure", (CWA,), _active_cwa),
