@@ -23,7 +23,7 @@ from sqlalchemy import Connection, bindparam, text
 from tl_core import confidentiality
 from tl_core.archive.sealer import _event_from_row  # pyright: ignore[reportPrivateUsage]
 from tl_core.insights.types import ActivityKind, ActivityPage, ActivityRow
-from tl_core.intent import redact_events
+from tl_core.intent import redact_for_viewer
 from tl_core.ledger import Event
 from tl_core.uow import UnitOfWork
 
@@ -260,6 +260,7 @@ def record_activity(
     related_rows = 0
     scanned = 0
     exhausted = quota_stop = False
+    resume: int | None = None  # the smallest seq the viewer may read among the candidates seen
     for _ in range(MAX_ROUNDS):
         room = min(limit + 1 - len(rows), MAX_CANDIDATES - scanned)
         if room <= 0:
@@ -280,12 +281,15 @@ def record_activity(
         # An intent may name a record the viewer cannot read: "not available" (ADR-0025 d5).
         kept = {
             e.event_id: e
-            for e in redact_events(conn, _visible(conn, [events[s] for s in batch if s in events]))
+            for e in redact_for_viewer(
+                conn, _visible(conn, [events[s] for s in batch if s in events])
+            )
         }
         for seq in batch:
             event = events.get(seq)
             if event is None or event.event_id not in kept:
                 continue
+            resume = seq if resume is None else min(resume, seq)
             event = kept[event.event_id]
             far_id = merged[seq]
             if far_id is not None:
@@ -311,4 +315,5 @@ def record_activity(
         return ActivityPage(rows=rows, next_before_seq=rows[-1].event.seq)
     if quota_stop and rows:
         return ActivityPage(rows=rows, next_before_seq=rows[-1].event.seq)
-    return ActivityPage(rows=rows, next_before_seq=None if exhausted else cursor)
+    # never the seq of a candidate the viewer cannot read: it would tell that one exists there
+    return ActivityPage(rows=rows, next_before_seq=None if exhausted else resume)
