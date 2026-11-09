@@ -19,7 +19,7 @@ blocks)."""
 from __future__ import annotations
 
 from collections.abc import Mapping
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 from datetime import date
 from typing import Any, cast
 
@@ -80,7 +80,7 @@ class ConstraintView:
     age_days: int
     aging: bool
     phase_ungated: bool
-    waived: bool
+    waived: bool = field(default=False, kw_only=True)  # Cleared check constraint, hash kept
 
 
 def _field(row: Any, name: str) -> Any:

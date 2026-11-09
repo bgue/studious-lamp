@@ -16,11 +16,11 @@ ACCEPT = Path(__file__).resolve().parents[4] / "dev" / "accept" / "P2-I2"
 sys.path.insert(0, str(ACCEPT))
 import c2_checks as c2  # noqa: E402  # pyright: ignore[reportMissingImports]
 from awp_world import SCOPE, hidden_record, refuses  # noqa: E402  # pyright: ignore
+from pydantic import ValidationError  # noqa: E402
 from tl_adapters.db import rebuild_projections  # noqa: E402
 from tl_core import confidentiality as cf  # noqa: E402
 from tl_core.auth import accounts  # noqa: E402
 from tl_core.auth.errors import ForbiddenError  # noqa: E402
-from pydantic import ValidationError  # noqa: E402
 from tl_core.constraints import queries, raise_constraint  # noqa: E402
 from tl_core.constraints.errors import MSG_WAIVE_WORD  # noqa: E402
 from tl_core.services.errors import RecordNotFoundError  # noqa: E402
@@ -55,7 +55,9 @@ def check_constraint(w: c2.C2, iwp: str, facts: str = H1) -> Any:
 
 
 def status(w: c2.C2, cid: str) -> str:
-    return str(w.scalar("SELECT COALESCE(status, 'Open') FROM cur_core_record WHERE id = :i", i=cid))
+    return str(
+        w.scalar("SELECT COALESCE(status, 'Open') FROM cur_core_record WHERE id = :i", i=cid)
+    )
 
 
 def waived(w: c2.C2, who: str, cid: str) -> bool:

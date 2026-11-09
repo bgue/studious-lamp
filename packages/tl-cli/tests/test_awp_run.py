@@ -79,7 +79,7 @@ MSG_WORKER_WORD = "error: forbidden: tl awp worker needs the awp.worker.run acce
 @pytest.mark.parametrize("who", ["user:sue", "user:uma", "user:vera", "user:dev", "agent:bot"])
 def test_worker_without_the_word_is_refused_with_the_fixed_text(cli: Cli, who: str) -> None:
     """P2-I5-S4b: a project superuser, a user, a viewer, the dev actor and an agent hold no
-    company-scope ``awp.worker.run`` (a controller word); nothing runs and the queue is untouched."""
+    company-scope ``awp.worker.run`` (a controller word); nothing runs, the queue is untouched."""
     cli.write("rollup")
     result = cli.run("worker", "--once", "--actor", who)
     assert result.exit_code == 1

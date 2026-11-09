@@ -241,7 +241,12 @@ def hold_by_module(uow: UnitOfWork, iwp_id: str, reason: str) -> bool:
     written, when the record is not a live IWP or is not Issued now."""
     conn = uow.conn()
     row = conn.execute(_SCOPE_SQL, {"id": iwp_id}).first()
-    if row is None or bool(row.voided) or row.type != IWP or not str(row.scope).startswith("project:"):
+    if (
+        row is None
+        or bool(row.voided)
+        or row.type != IWP
+        or not str(row.scope).startswith("project:")
+    ):
         return False
     if record_state(conn, iwp_id, IWP_DRAFT) != IWP_ISSUED:
         return False

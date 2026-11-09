@@ -8,18 +8,16 @@ payload key: the move is the existing ``IWP.Held`` and the ``hold`` transition.
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Literal
 
 import pytest
 from awp_world import SCOPE, World
 from progress_world import ProgressWorld
-from tl_adapters.db import make_uow_factory, rebuild_projections
-from tl_core.constraints.commands import ClearConstraint
-from tl_core.constraints.handlers import handle_clear_constraint
-from tl_core.constraints.handlers import handle_raise_constraint
-from tl_core.constraints.commands import RaiseConstraint
+from tl_adapters.db import make_uow_factory, open_uow, rebuild_projections
+from tl_core.constraints.commands import ClearConstraint, RaiseConstraint
+from tl_core.constraints.handlers import handle_clear_constraint, handle_raise_constraint
 from tl_mod_awp.readiness import hold_rule
 from tl_mod_awp.readiness.hold_rule import HoldFollower
-from tl_adapters.db import open_uow
 
 
 @pytest.fixture
@@ -52,7 +50,7 @@ def constraint_of(w: World, iwp: str) -> str:
     return str(w.rows("SELECT id FROM cur_core_constraint WHERE subject_id = :i", i=iwp)[0]["id"])
 
 
-def raise_severity(pw: ProgressWorld, iwp: str, severity: str) -> None:
+def raise_severity(pw: ProgressWorld, iwp: str, severity: Literal["blocking", "advisory"]) -> None:
     cmd = RaiseConstraint(
         actor="user:sue",
         source="test",
@@ -67,7 +65,9 @@ def raise_severity(pw: ProgressWorld, iwp: str, severity: str) -> None:
         handle_raise_constraint(uow, cmd)
 
 
-def test_a_blocking_constraint_holds_an_issued_iwp(pw: ProgressWorld, follower: HoldFollower) -> None:
+def test_a_blocking_constraint_holds_an_issued_iwp(
+    pw: ProgressWorld, follower: HoldFollower
+) -> None:
     w = pw.w
     iwp = issued(pw)
     pw.raise_blocking(iwp, "complete")
@@ -76,7 +76,8 @@ def test_a_blocking_constraint_holds_an_issued_iwp(pw: ProgressWorld, follower: 
     assert w.state(iwp) == "On hold"
     key = w.rows("SELECT key FROM cur_core_record WHERE id = :i", i=constraint_of(w, iwp))[0]["key"]
     held = w.rows(
-        "SELECT actor, source, payload FROM events WHERE stream_id = :i AND event_type = 'IWP.Held'",
+        "SELECT actor, source, payload FROM events "
+        "WHERE stream_id = :i AND event_type = 'IWP.Held'",
         i=iwp,
     )
     assert len(held) == 1
@@ -84,7 +85,9 @@ def test_a_blocking_constraint_holds_an_issued_iwp(pw: ProgressWorld, follower: 
     assert f"blocking constraint raised: {key}" in str(held[0]["payload"])
 
 
-def test_a_second_poll_and_a_replay_change_nothing(pw: ProgressWorld, follower: HoldFollower) -> None:
+def test_a_second_poll_and_a_replay_change_nothing(
+    pw: ProgressWorld, follower: HoldFollower
+) -> None:
     w = pw.w
     iwp = issued(pw)
     pw.raise_blocking(iwp, "complete")
@@ -136,7 +139,9 @@ def test_a_non_blocking_severity_holds_nothing(pw: ProgressWorld, follower: Hold
     assert pw.w.state(iwp) == "Issued"
 
 
-def test_the_hold_raises_nothing_and_does_not_loop(pw: ProgressWorld, follower: HoldFollower) -> None:
+def test_the_hold_raises_nothing_and_does_not_loop(
+    pw: ProgressWorld, follower: HoldFollower
+) -> None:
     w = pw.w
     iwp = issued(pw)
     pw.raise_blocking(iwp, "complete")
