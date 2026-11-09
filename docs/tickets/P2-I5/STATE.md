@@ -1,7 +1,7 @@
 # P2-I5 STATE  r=2 base=ec3314d C=0 ck=0 gate=n/a wt=/home/user/wt/p2-i5
 ## BOARD   (pieces S, tickets T; nothing dispatched until P2-INT C2 is on the trunk and merged into p2/i5)
 S1 p mrg f 76c15b4 schema, package content, words, settings; spec r2; gate orch P2-Q10
-S2 p disp f - engine, progress cmds, IWP start/complete, math rules; spec r2; needs S1
+S2 p mrg f 00647bf engine, progress cmds, IWP start/complete, math rules; spec r2; needs S1
 S3 p todo f - rollup + CSV export; spec at C1; pairs S4 A
 S4 p todo f - A weekly cmds (human gate); B waive word on clear + hold rule + worker word; spec at C1
 S5 p todo f - closeout, hours and subcontract CSV readers; spec at C1; pairs S4 B
@@ -50,6 +50,8 @@ D16 2026-11-08 deferred, not folded: WBS node workflow/opt-in, automatic constra
 Q1 When is P2-INT C2 on the trunk? S1 is held until then; merge the trunk into p2/i5 first needs orch raised r2
 Q2 Does the package content model accept a new section without a core change? S1 checks and escalates needs builder raised r2
 D-o1 2026-11-09 owner: reorder accepted; I5 trimmed now (S1-S4, look-ahead, mine log and landing, HTML pack); deferred to roadmap item 3c: T07c PDF pack, S5 closeout and subcontract CSV (T08, T10, T05), five of seven KPI tiles
+Q-o1 at merge with p2/i4a or the trunk: add the four proposable-exclusion lines listed in docs/reports/P2-I5/S2.md to tests/tools/proposable_exclusions.toml
+Q-o2 actions.RULES lacks StartIwpWork and CompleteIwpField (no screen action yet; a ticket)
 ## NEXT
 1. Orchestrator: after P2-INT C2, merge the trunk into p2/i5, send `13.`; round 3 dispatches S1 alone.
 2. After S1: S2 (alone, owns module.py); T01 spec beside it.
