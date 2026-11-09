@@ -14,6 +14,7 @@ from tl_mod_awp.actions import awp_actions
 from tl_mod_awp.commands import (
     AWP_COMMANDS,
     AddIwpScope,
+    CommitIwpToWeek,
     CreateCwp,
     InstallScopeItem,
     RecordManualProgress,
@@ -25,6 +26,7 @@ from tl_mod_awp.handlers.progress import (
     handle_record_manual_progress,
 )
 from tl_mod_awp.handlers.scope import handle_add_iwp_scope
+from tl_mod_awp.handlers.week import handle_commit_iwp_to_week
 from tl_mod_awp.names import (
     CWA,
     CWP,
@@ -83,6 +85,10 @@ PROPOSABLE = (
     ),
     ProposableCommand(
         "propose_scope_installed", InstallScopeItem, handle_install_scope_item, "user"
+    ),
+    # a commitment to a week is a foreman's word (awp.week.commit, a user word)
+    ProposableCommand(
+        "propose_week_commitment", CommitIwpToWeek, handle_commit_iwp_to_week, "user"
     ),
 )
 

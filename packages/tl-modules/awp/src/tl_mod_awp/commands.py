@@ -96,6 +96,13 @@ from tl_mod_awp.handlers.wbs import (
     handle_retire_wbs_node,
     handle_revise_wbs_node,
 )
+from tl_mod_awp.handlers.week import (
+    handle_close_week,
+    handle_commit_iwp_to_week,
+    handle_open_weekly_plan,
+    handle_record_week_outcome,
+    parse_week_hours,
+)
 from tl_mod_awp.limits import (
     ACTOR_PATTERN,
     CODE_PATTERN,
@@ -788,6 +795,49 @@ class CompleteIwpField(StartIwpWork):
     """In progress to Field complete, as of ``at`` (default now); writes a last progress figure."""
 
 
+class OpenWeeklyPlan(_Strict):
+    """Open the plan of the project week that holds ``week_start`` (normalised to its Monday)."""
+
+    week_start: date
+
+
+class CommitIwpToWeek(_Strict):
+    """Commit an Issued or In progress IWP to a week, with its hours; a second commit replaces."""
+
+    plan_id: str = Field(min_length=1, max_length=MAX_ID)
+    iwp_id: str = Field(min_length=1, max_length=MAX_ID)
+    committed_hours: str = Field(min_length=1, max_length=16)
+    foreman: str | None = Field(default=None, pattern=ACTOR_PATTERN, max_length=MAX_FOREMAN)
+    expected_version: int = Field(ge=1)
+
+    @field_validator("committed_hours")
+    @classmethod
+    def _hours(cls, value: str) -> str:
+        return parse_week_hours(value)
+
+
+class RecordWeekOutcome(_Strict):
+    """Record a commitment done, or missed with a reason of the code list MissReason."""
+
+    plan_id: str = Field(min_length=1, max_length=MAX_ID)
+    iwp_id: str = Field(min_length=1, max_length=MAX_ID)
+    outcome: Literal["done", "missed"]
+    miss_reason: str | None = Field(default=None, max_length=MAX_CLEAR_REASON)
+    expected_version: int = Field(ge=1)
+
+    @field_validator("miss_reason")
+    @classmethod
+    def _reason(cls, value: str | None) -> str | None:
+        return clean_optional_text(value)
+
+
+class CloseWeek(_Strict):
+    """Close a Committed week whose commitments are all judged; writes the PPC."""
+
+    plan_id: str = Field(min_length=1, max_length=MAX_ID)
+    expected_version: int = Field(ge=1)
+
+
 @dataclass(frozen=True)
 class AwpCommand:
     model: type[Command]
@@ -841,4 +891,8 @@ AWP_COMMANDS: tuple[AwpCommand, ...] = (
     AwpCommand(RecordManualProgress, handle_record_manual_progress, "awp.progress.record"),
     AwpCommand(StartIwpWork, handle_start_iwp_work, "awp.iwp.edit"),
     AwpCommand(CompleteIwpField, handle_complete_iwp_field, "awp.iwp.edit"),
+    AwpCommand(OpenWeeklyPlan, handle_open_weekly_plan, "awp.week.plan"),
+    AwpCommand(CommitIwpToWeek, handle_commit_iwp_to_week, "awp.week.commit"),
+    AwpCommand(RecordWeekOutcome, handle_record_week_outcome, "awp.week.commit"),
+    AwpCommand(CloseWeek, handle_close_week, "awp.week.close"),
 )
