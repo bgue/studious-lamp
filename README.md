@@ -4,6 +4,8 @@ Throughline is a general contractor's construction management suite: a Textual T
 append-only ledger with realtime access, open APIs/MCP, and layered LinkML schemas.
 The product and technical brief is `docs/brief-v0.4.md`; everything else cites it as `§n`.
 
+To install the terminal app and try it, or to run a real server, see `docs/runbooks/terminal-release.md`.
+
 This repository is built by a three-tier agent workflow:
 
 | Tier | Model | Does |

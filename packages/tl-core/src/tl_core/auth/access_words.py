@@ -22,12 +22,11 @@ from types import MappingProxyType
 from typing import Any, cast
 
 import yaml
+from tl_schema.resources import schema_root
 
 #: The words of the role table, weakest first.
 TABLE_WORDS = ("read", "user", "controller")
-DEFAULT_ACCESS_WORDS_FILE = (
-    Path(__file__).resolve().parents[5] / "schema" / "settings" / "access-words.yaml"
-)
+DEFAULT_ACCESS_WORDS_FILE = schema_root() / "settings" / "access-words.yaml"
 _VERSION = 1
 _FINE = re.compile(r"[a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*)+")
 

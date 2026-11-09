@@ -62,4 +62,5 @@ Purpose: start the Textual TUI in embedded mode against the dev ledger (a SQLite
 - No live marks in embedded mode when another process writes: both must use the same `TL_DB` (the same file, or the same Postgres database and schema); the TUI polls the ledger every 0.25 s on either database.
 
 ## Related
+- For an installed release (no checkout) and a real server behind TLS: `docs/runbooks/terminal-release.md`.
 - `packages/tl-tui/README.md`; `docs/runbooks/rebuild-projections.md`; `docs/runbooks/schema-package-change.md`.

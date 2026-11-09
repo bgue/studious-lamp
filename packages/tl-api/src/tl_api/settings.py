@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from tl_adapters.db import DbTarget, as_target
-from tl_core.auth.env import dev_tokens_allowed
+from tl_core.auth.env import dev_tokens_allowed, prod_like
 
 DEFAULT_DB = "./dev/data/tl.db"
 DEFAULT_TOKENS = "./dev/data/tokens.json"
@@ -72,13 +72,18 @@ def is_loopback(host: str) -> bool:
         return False
 
 
-def check_bind(host: str, *, insecure_dev: bool) -> None:
-    """Refuse a non-loopback bind unless ``insecure_dev`` (ADR-0005). Raises ``ValueError``."""
-    if not is_loopback(host) and not insecure_dev:
-        raise ValueError(
-            f"refusing to bind {host!r}: the Phase 0 API has no real authentication. "
-            "Bind 127.0.0.1, or pass --insecure-dev to accept the risk."
-        )
+def check_bind(host: str, *, insecure_dev: bool, env: Mapping[str, str] | None = None) -> None:
+    """Refuse a non-loopback bind unless ``insecure_dev`` or ``TL_ENV`` names a deployment.
+
+    Loopback is always allowed. ``env`` defaults to the process environment. Raises ``ValueError``.
+    """
+    if is_loopback(host) or insecure_dev or prod_like(env):
+        return
+    raise ValueError(
+        f"refusing to bind {host!r}: a non-loopback bind needs a deployment. Bind 127.0.0.1 "
+        "behind a TLS proxy, or set TL_ENV to a production name (for example prod); "
+        "--insecure-dev accepts the risk for a throwaway container."
+    )
 
 
 def web_enabled(env: Mapping[str, str]) -> bool:
