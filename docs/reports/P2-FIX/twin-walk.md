@@ -1,21 +1,18 @@
 # P2-TWIN: twin-world confidentiality walk
-
 Design: `docs/reports/OUTSIDE-REVIEW-2026-11-09.md` section 1. No product code changed.
 ## Deviations
 - `confseed.seed_hidden_world` gained an optional `twin` hook (`Twin.mark(kind)` before each step; off by default,
   A unchanged); the RFI/commercial steps were split into small functions to host the marks.
-- One extra step in the walker's own script (not the seed): a constraint on the open item with a hidden target.
+- One extra step in the walker's own script: a constraint on the open item with a hidden target.
 ## What it does
 `tests/confidentiality/test_twin_walk.py`, `twin_world.py` (worlds), `twin_channels.py` (channels, compare).
 - A is the seed as is. B skips every step that writes a kind the reader may not read, and what points at it (links,
   posts, proposals, clocks, files, the constraint target). Before each step B pads to A's `seq` with filler events
   (`Account.TwinFiller` on a `core.Account` stream, which readers skip) and burns ids to A's counter.
-- Clock fixed, ids a counter. The A->B table is the identity but for ids B took after one file A deduplicated (call-site
-  trace) and numbers, which follow their place in the counter (A's secret keys are asked of B as an unused key of the
-  same shape; the answer is mapped back).
+- Clock fixed, ids a counter; the A->B table maps ids B took after a deduplicated file, and numbers (asked of B as an unused key).
 - Four world pairs (secret sets: bob+bot, ctl, boss, amy), SQLite always, Postgres under `--adapters`. Per reader:
   ~1070 API GETs (every OpenAPI GET route, the old walk's combinations, `MIN_ROUTES` guard), ~530 MCP read-tool calls,
-  1 SSE catch-up, 4 `lake_query`, ~85 CLI reads (no bot: no CLI session), webhooks per mode. About 8.3k call pairs.
+  1 SSE catch-up, 4 `lake_query`, ~85 CLI reads (no bot), webhooks per mode.
 - Byte for byte: status, headers minus date/request id/content-length, body with JSON keys in order. A failure names
   channel, route and reader and shows the first differing bytes. A more than 2x B (and >0.1 s) is a warning only.
 ## Masks (explicit, `MASKS`; each says what it masks)
@@ -48,8 +45,7 @@ Unit tests (no worlds) pin the narrowness: other route, other channel, another d
 ## Timing
 The SQLite 2x-and-0.1 s bound is a warning, not enforced (CLI warm-up and A-first order make it noisy).
 ## Not covered
-- `Constraint.Cleared.resolved_by` (its link lands between visible events, where a filler cannot stand); no requisition
-  or IWP in the seed; GET routes only, plus the key-oracle POST. Timing flags are noisy (A first, CLI warm-up).
+`Constraint.Cleared.resolved_by`; requisition and IWP; POST routes but the key oracle.
 ## Gates
 - `NODE_OPTIONS=--max-old-space-size=6144 just check`: pass.
 - `just gate tests/confidentiality/test_twin_walk.py`: exit 0, 9 passed, 5 xfailed (548 s).
