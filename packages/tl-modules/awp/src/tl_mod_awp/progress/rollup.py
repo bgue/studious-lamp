@@ -200,11 +200,11 @@ def progress_rollup(
 
     count: dict[str, int] = defaultdict(int)
     earned: dict[str, Fraction] = defaultdict(Fraction)
-    hours: dict[str, Fraction] = defaultdict(Fraction)
+    cwp_hours: dict[str, Fraction] = defaultdict(Fraction)
     for iwp, cwp in iwp_cwp.items():
         weight = _iwp_hours(items.get(iwp, []))
         count[cwp] += 1
-        hours[cwp] += weight
+        cwp_hours[cwp] += weight
         earned[cwp] += stored.get(iwp, Fraction(0)) / 100 * weight  # no stored row earns 0
     cwps = [
         CwpProgress(
@@ -212,7 +212,7 @@ def progress_rollup(
             key=k,
             iwps=count[c],
             earned_hours=round_half_up(earned[c]),
-            hours=round_half_up(hours[c]),
+            hours=round_half_up(cwp_hours[c]),
         )
         for c, k in cwp_rows
         if count[c]
