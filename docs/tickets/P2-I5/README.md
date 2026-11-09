@@ -138,3 +138,18 @@ Planner-tier check F1-F12, all accepted by the orchestrator; each answer is the 
 - F10 hold rule: accepted; Issued only, state re-checked on apply, idempotent on replay; the `tl awp worker` access word folded into S4 B.
 - F11 approvers: accepted; S4 and S5 get orchestrator APPROVALS, S4 also a human gate; the S1 gate runs `uv sync --extra pack` before the licence check; one SR3 range.
 - F12 trims: accepted; `api.public_base_url` dropped, QR is segno SVG inside the HTML, PDF is T07c behind the flag, T14 deferred to I6, the sample package is `co.acme.awp@1.1.0`.
+
+## Plan check (2026-11-09, trimmed set)
+4 PLANCHK docs/tickets/P2-I5/README.md, answers by the orchestrator:
+- F1 HI accepted: S4b reads `handlers/signoff.py:207` `handle_hold_iwp` (extract only); fix Context and Allowed paths.
+- F2 HI accepted: S4b allows `openapi.json` and `tl-api/tests/test_auth_review.py` (AGENT_MAY_NOT) as pins; S4b added to the Depends of T06a, T11b, T12.
+- F3 HI accepted: add `week open` to T04; new Haiku ticket T04b for the CLI of the S2 writes (progress, scope-item moves, StartIwpWork, CompleteIwpField).
+- F4 MD accepted in effect: S4a (already dispatched) keeps `progress_world.py`; S3 runs after S4a merges, so there is no parallel edit; `openapi.json` regenerated at merge.
+- F5 MD accepted: T01 and T03 can run as a ticket workflow now; drop S3 from T09's Depends.
+- F6 MD accepted: order S4a (running), then S4b, then S3; at most 3 heavy agents.
+- F7 MD accepted: strike or mark "roadmap 3c" every cut item in the Objective, demo clauses 7-8, the order of work, SR3's S5 row and S6's CSV-reader tests; T12 clause 10 drops close-out.
+- F8 MD accepted: S6 becomes a Haiku five-reader-walk ticket after T11c.
+- F9 MD accepted: S4a is orchestrator APPROVALS only; S4b's human gate (core constraint handler, `core.constraint.waive`, `awp.worker.run`) recorded in STATE with the owner as approver; SR3 Sec list drops S5 and adds the S4a week words.
+- F10 LO accepted: S3 pins name `test_cli_awp.py`, `test_reports.py`, `docs/reference/awp.md`.
+- F11 MD accepted for S4b (drop `S1.md`, cite `require_word` at `tl_cli/constraint_read.py:52`); S4a was dispatched before the check and keeps its context.
+- F12 LO accepted: T03, T07b and T09 name their provided tests under `provided/`; the `actions.RULES` rows (Q-o2) go to T06b by name.
