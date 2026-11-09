@@ -264,3 +264,29 @@ def _forget_extension_type_settings() -> Iterator[None]:
     from tl_core.extypes import settings_link
 
     settings_link.forget_all()
+
+
+# --- Payload validation (P2-GUARD): collect mode for the whole test session -------------------
+os.environ.setdefault("TL_PAYLOAD_VALIDATION", "collect")
+
+
+def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
+    """Merge what append validation collected into ``.gate/payload-violations.txt``.
+
+    The gate runs several pytest sessions; counts add up across them. Delete the file to reset.
+    """
+    from tl_adapters import _payload_check
+
+    if not _payload_check.VIOLATIONS:
+        return
+    out = Path(str(session.config.rootpath)) / ".gate" / "payload-violations.txt"
+    merged: dict[tuple[str, str, str], int] = {}
+    if out.exists():
+        for line in out.read_text(encoding="utf-8").splitlines()[1:]:
+            event, key, reason, count = line.split("\t")
+            merged[(event, key, reason)] = int(count)
+    for triple, count in _payload_check.VIOLATIONS.items():
+        merged[triple] = merged.get(triple, 0) + count
+    out.parent.mkdir(exist_ok=True)
+    rows = "".join(f"{e}\t{k}\t{r}\t{n}\n" for (e, k, r), n in sorted(merged.items()))
+    out.write_text("event_type\tkey\treason\tcount\n" + rows, encoding="utf-8")
