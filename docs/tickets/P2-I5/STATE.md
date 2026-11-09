@@ -1,30 +1,31 @@
-# P2-I5 STATE  r=2 base=ec3314d C=0 ck=0 gate=n/a wt=/home/user/wt/p2-i5
-## BOARD   (pieces S, tickets T; nothing dispatched until P2-INT C2 is on the trunk and merged into p2/i5)
-S1 p mrg f 76c15b4 schema, package content, words, settings; spec r2; gate orch P2-Q10
-S2 p mrg f 00647bf engine, progress cmds, IWP start/complete, math rules; spec r2; needs S1
-S3 p todo f - rollup + CSV export; spec at C1; pairs S4 A
-S4 p todo f - A weekly cmds (human gate); B waive word on clear + hold rule + worker word; spec at C1
-S5 p todo f - closeout, hours and subcontract CSV readers; spec at C1; pairs S4 B
+# P2-I5 STATE  r=3 base=ec3314d C=1 ck=0 gate=n/a wt=/home/user/wt/p2-i5
+## BOARD   (C1 reached: S1 mrg@76c15b4, S2 mrg@00647bf; reports docs/reports/P2-I5/S1.md, S2.md)
+S1 p mrg f 76c15b4 schema, package content, words, settings
+S2 p mrg f 00647bf engine, progress cmds, IWP start/complete, math rules
+S3 p stg f - rollup+CSV export on read; spec S3-rollup-export.md; needs S2
+S4a p stg f - weekly cmds, week views, propose_week_commitment; S4a-weekly-plan.md
+S4b p stg f - waive word, hold rule, worker word; S4b-waive-hold.md; human gate
+S5 p abn f - roadmap 3c (closeout, subcontract CSV)
 S6 p todo f - tests piece at C3
 T01 t todo f - tl awp roc ls|show|set; needs S1
-T03 t todo f - look_ahead_view; needs S2 S4A
-T04 t todo f - look-ahead and week CLI
-T05 t todo f - interface-constraint helper; needs S5
+T03 t todo f - look_ahead_view; needs S2 S4a
+T04 t todo f - look-ahead and week CLI; needs T03 S4a
+T05 t abn f - roadmap 3c
 T06a t todo f - TUI cycle steps 1-3; needs T11b
-T06b t todo f - TUI cycle steps 4-6
-T06c1 t todo f - IWP log mine/counts/state-since
-T06c2 t todo f - tui.landing at sign-in
-T07a t todo f - pack HTML + segno QR svg
+T06b t todo f - TUI cycle steps 4-5 (closeout deferred)
+T06c1 t todo f - IWP log mine/counts/state-since; needs T11b
+T06c2 t todo f - tui.landing at sign-in; needs T06c1
+T07a t todo f - pack HTML + segno QR svg; needs T11b
 T07b t todo l - pack template
-T07c t todo f - pack PDF behind flag
-T08 t todo f - closeout reads, routes, CLI
-T09 t todo l - seven KPIs + recount test
-T10 t todo f - subcontract reads, routes, CLI
-T11a1 t todo f - API routes S2/S3 models
-T11a2 t todo f - API routes weekly + look-ahead
+T07c t abn f - roadmap 3c (PDF)
+T08 t abn f - roadmap 3c
+T09 t todo l - two KPI tiles (PPC, % constraint-free); needs S3 S4a
+T10 t abn f - roadmap 3c
+T11a1 t todo f - API routes S2/S3 models; needs S3
+T11a2 t todo f - API routes weekly + look-ahead; needs S4a T03
 T11b t todo f - client methods + fakes
-T11c t todo f - MCP reads + two proposable rows
-T12 t todo f - demo, ten clauses
+T11c t todo f - MCP reads; rows already in S2 and S4a
+T12 t todo f - demo clauses 1-6,9,10
 T13 t todo l - docs, three runbooks
 T15 t todo f - registrations only if glue > 50 lines
 ## DEC
@@ -44,21 +45,27 @@ D13 2026-11-08 F7 pairs: S3 with S4 A, S5 with S4 B; at most one builder + one t
 D14 2026-11-08 F8: look_ahead_view T03 and interface helper T05 are tickets; T11a and T06c split in two; closeout and subcontract routes live in T08, T10; T14 sim actor deferred to I6 (F12)
 D15 2026-11-08 F11: S4 human gate + APPROVALS, S5 APPROVALS; S1 gate runs uv sync --extra pack before the licence check; one SR3 range ec3314d..head
 D16 2026-11-08 deferred, not folded: WBS node workflow/opt-in, automatic constraint population, materials screen gaps; folded: hold rule, IWP log follow-ups, awp worker word
+D17 2026-11-09 r3: S3 computes the progress rollup on read (reuses rollup.compute with earned hours as budgets); no stored figure, no new event, no human gate; demo clause 5 'rollup job writes' read as 'rollup reads'
+D18 2026-11-09 r3: waived is derived (Cleared, source check, suppress_hash kept); no new payload key or column; S4b adds `waived` to the constraint read row only
+D19 2026-11-09 r3: propose_week_commitment row lives in S4a (ADR-0027 per piece); T11c writes MCP reads only; OpenWeeklyPlan, RecordWeekOutcome, CloseWeek are exclusions
+D20 2026-11-09 r3: S3 and S4a share a round (disjoint paths); S4b is independent, run when a slot is free (3 heavy max incl. supervisor)
+D21 2026-11-09 r3: remaining plan is 17 tickets (> 10): PLANCHK asked for the trimmed ticket set; pieces S3, S4a, S4b are inside the checked plan and may dispatch
 ## SEC   (SR3 I5 rows in README)
 (none yet)
 ## OPEN
-Q1 When is P2-INT C2 on the trunk? S1 is held until then; merge the trunk into p2/i5 first needs orch raised r2
-Q2 Does the package content model accept a new section without a core change? S1 checks and escalates needs builder raised r2
+Q1 closed r3 (trunk merged, S1 merged); Q2 closed r3 (S1 shipped the section; package-form file path schema/fixtures/packages/ pending orch confirm, S1 dev 1, S2 dev 3)
+Q3 PLANCHK of the trimmed 17-ticket set needs orch raised r3
+Q4 core feed policy list lacks the eight new feed_policy none events (S1 dev 6) needs orch raised r3
 D-o1 2026-11-09 owner: reorder accepted; I5 trimmed now (S1-S4, look-ahead, mine log and landing, HTML pack); deferred to roadmap item 3c: T07c PDF pack, S5 closeout and subcontract CSV (T08, T10, T05), five of seven KPI tiles
 Q-o1 at merge with p2/i4a or the trunk: add the four proposable-exclusion lines listed in docs/reports/P2-I5/S2.md to tests/tools/proposable_exclusions.toml
 Q-o2 actions.RULES lacks StartIwpWork and CompleteIwpField (no screen action yet; a ticket)
 ## NEXT
-1. Orchestrator: after P2-INT C2, merge the trunk into p2/i5, send `13.`; round 3 dispatches S1 alone.
-2. After S1: S2 (alone, owns module.py); T01 spec beside it.
-3. At C1 (S1, S2 merged) write S3, S4, S5 specs; rounds pair S3 with S4 A, then S5 with S4 B.
-4. T03, T11a1 after S2/S3/S4 A; then T11a2, T11b; screens, CLI, pack after.
-5. At C2 registrations (<= 50 lines) else T15; pinned lists as union after I4-A merges.
-6. At close add the web-pages line to DEFERRED.md and the I6 actor line (not now).
+1. Orchestrator: dispatch S3 + S4a (one round); S4b when a slot is free; PLANCHK of the 17-ticket set in parallel (read-only).
+2. After S3, S4a merged: write T03, T11a1, T11a2 tickets (S2/S3/S4a code in the tree), then T01, T04.
+3. After T11a1/T11a2 merged: T11b, then T06a, T06c1, T07a, T09, T11c in batches of 2-3; T06b, T06c2, T07b after.
+4. Before T06a: add actions.RULES rows for StartIwpWork, CompleteIwpField (Q-o2) inside the screen ticket.
+5. At C2 registrations (<= 50 lines) else T15; pinned lists as union; add the four S2 exclusion lines and the S4a/S4b lines at the I4-A merge (Q-o1).
+6. At close add the web-pages line and the roadmap-3c line (S5, T05, T07c, T08, T10, five KPI tiles, clauses 7-8) to DEFERRED.md; I6 actor line.
 ## REFS
 Plan `docs/build-spec/08-phase2-plan.md` Increment 5; design `module-designs/field-work-packaging.md`; format `docs/tickets/P2-I2/`; parallel `p2/i4a:docs/tickets/P2-I4A/README.md`.
 Patterns: rollup `tl_mod_awp/rollup.py`; readiness `readiness/views.py` (`visible_readiness`); look-ahead `tl_mod_schedule/lookahead.py`; envelope `tl_core/derivation/envelope.py`; constraints `tl_core/constraints/`; packages `tl_schema/packages.py`, `lint.py`; file slots `schema/fixtures/files/`.
