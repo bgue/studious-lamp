@@ -92,3 +92,12 @@ One line each: what, why it waits, and the phase it belongs to. Newest at the bo
 | On-device client (phone or tablet) for field flows | Owner 2026-11-09: field users are terminal, web and soon on-device | Roadmap item 7b: spec and ADR first |
 | Activity paging stops when a scan budget ends with only hidden candidates (older visible events unreachable); an opaque signed cursor would page on without naming a hidden seq | P2-FIX-CONF review F1 LO: safe truncation chosen | With the twin walker |
 | Check whether `Constraint.Raised` `description` or `facts_hash` can carry target information | P2-FIX-CONF review F3 LO | With the twin walker |
+
+## Terminal release follow-ups (P2-REL, 2026-11-07)
+| Item | Why deferred | Phase |
+|---|---|---|
+| Remote CLI: `tl login --remote` and a client under every `tl` command group | Release treats `tl` as an operator tool; the TUI is the user client | Phase 3 |
+| Native Windows support; Python 3.13 and later; Postgres other than 16 | Not tested; WSL2 and 3.12 only in the release | Phase 2 exit review |
+| PyPI upload, signed wheels, a package index | Release is a wheel directory with `SHA256SUMS` used through `--find-links` | after first user release |
+| TLS inside the server; a built-in reverse-proxy example per vendor | Deployer runs a TLS proxy (ADR-0009 deployment duty) | Phase 3 |
+| In-app update check and upgrade prompt | Version warning at sign-in only | Phase 3 |

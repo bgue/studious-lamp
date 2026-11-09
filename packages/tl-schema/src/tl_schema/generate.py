@@ -13,9 +13,10 @@ from collections.abc import Callable
 from pathlib import Path
 
 from tl_schema.generators import catalog, ddl, jsonschema_gen, offline, pydantic_gen, type_labels
+from tl_schema.resources import schema_root
 
 GENERATED_DIR: Path = Path(__file__).resolve().parent / "generated"
-SCHEMA_DIR: Path = Path(__file__).resolve().parents[4] / "schema" / "core"
+SCHEMA_DIR: Path = schema_root() / "core"
 GENERATORS: list[Callable[[Path], dict[str, str]]] = [
     pydantic_gen.generate,
     jsonschema_gen.generate,
