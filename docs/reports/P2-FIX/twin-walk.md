@@ -23,6 +23,9 @@ Design: `docs/reports/OUTSIDE-REVIEW-2026-11-09.md` section 1. No product code c
 - numbering counter: `stream_version` of a `numbering:` stream (and `numbering:.. vN` text) and `payload.sequence`
   of `Numbering.Allocated` only (flat object with pattern/key/prefix/record_type). Owner ruling 2026-11-09: numbering
   gaps are a known limit.
+- redacted row scope: the `scope` column of an `Internal.Redacted` lake row only. On Postgres one account event sits a
+  seq later in A than in B (A's hidden event precedes it in the step), so the placeholder there differs in scope. Harness
+  order, not content; the old broad lake mask hid it. Follow-up: pad inside the step.
 - filler events: dropped from the event list an admin reads (admins read account streams).
 Known limit kept as a test: key oracle on create, 409 vs 200 (`test_the_key_oracle_on_create_is_the_known_limit`).
 ## Leaks (`test_known_leak[...]`, strict xfail, one probe each)
@@ -50,4 +53,4 @@ The SQLite 2x-and-0.1 s bound is a warning, not enforced (CLI warm-up and A-firs
 ## Gates
 - `NODE_OPTIONS=--max-old-space-size=6144 just check`: pass.
 - `just gate tests/confidentiality/test_twin_walk.py`: exit 0, 9 passed, 5 xfailed (548 s).
-- `just gate-pg tests/confidentiality/test_twin_walk.py`: PGRESULT
+- `just gate-pg tests/confidentiality/test_twin_walk.py`: exit 0, 14 passed, 10 xfailed (4552 s; includes the SQLite cases).
