@@ -92,9 +92,10 @@ def test_the_stored_figure_does_not_depend_on_the_writer(pw: ProgressWorld) -> N
         )  # the writer (a person) can open both; the figure covers both
     assert pw.pct(iwp) == "30.0"
     pw.move("InstallScopeItem", a)
+    pw.move("VerifyScopeItem", a)
     with pw.hidden(a):
         seen = pw.earned(iwp, cf.Viewer())
-    assert str(seen.pct) == pw.pct(iwp) == "60.0"
+    assert str(seen.pct) == pw.pct(iwp) == "65.0"  # the visible item alone would give 60.0
     assert [i.item_id for i in seen.items] == [b]
     assert "some items not shown" in seen.notes
     assert not any("1" in n for n in seen.notes if "shown" in n)  # no count of hidden
