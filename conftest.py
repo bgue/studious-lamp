@@ -14,6 +14,8 @@ from __future__ import annotations
 import atexit
 import os
 import signal
+import sys
+import tempfile
 import uuid
 from collections.abc import Callable, Iterator
 from dataclasses import dataclass, field
@@ -275,9 +277,13 @@ def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
 
     The gate runs several pytest sessions; counts add up across them. Delete the file to reset.
     """
-    from tl_adapters import _payload_check
-
-    if not _payload_check.VIOLATIONS:
+    # A session that never imported tl_adapters collected nothing; do not import it at teardown.
+    loaded = sys.modules.get("tl_adapters._payload_check")
+    if loaded is None or not loaded.VIOLATIONS:
+        return
+    try:
+        from tl_adapters import _payload_check
+    except ImportError:
         return
     out = Path(str(session.config.rootpath)) / ".gate" / "payload-violations.txt"
     merged: dict[tuple[str, str, str], int] = {}
@@ -289,4 +295,13 @@ def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
         merged[triple] = merged.get(triple, 0) + count
     out.parent.mkdir(exist_ok=True)
     rows = "".join(f"{e}\t{k}\t{r}\t{n}\n" for (e, k, r), n in sorted(merged.items()))
-    out.write_text("event_type\tkey\treason\tcount\n" + rows, encoding="utf-8")
+    # Write a temp file in the same directory, then rename over the target so a reader never
+    # sees a half-written file (os.replace is atomic on the same filesystem).
+    fd, tmp_name = tempfile.mkstemp(dir=out.parent, prefix=out.name + ".", suffix=".tmp")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            handle.write("event_type\tkey\treason\tcount\n" + rows)
+        os.replace(tmp_name, out)
+    except BaseException:
+        Path(tmp_name).unlink(missing_ok=True)
+        raise
