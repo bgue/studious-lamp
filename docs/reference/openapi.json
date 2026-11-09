@@ -6964,6 +6964,11 @@
               }
             ],
             "title": "Target Ref Type"
+          },
+          "waived": {
+            "default": false,
+            "title": "Waived",
+            "type": "boolean"
           }
         },
         "required": [

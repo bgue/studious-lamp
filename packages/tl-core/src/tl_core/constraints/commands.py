@@ -22,6 +22,7 @@ RECORD_TYPE: Final = "core.Constraint"
 WORKFLOW_ID: Final = "core.constraint"
 EDIT_WORD: Final = "core.constraint.edit"
 VIEW_WORD: Final = "core.constraint.view"
+WAIVE_WORD: Final = "core.constraint.waive"
 ACCESS_MODULE: Final = "core"  # the module name the role resolver is asked about
 
 ST_OPEN: Final = "Open"

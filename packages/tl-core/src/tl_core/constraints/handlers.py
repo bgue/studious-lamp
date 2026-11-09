@@ -24,6 +24,7 @@ from typing import Any, Literal
 from sqlalchemy import Connection, text
 
 from tl_core import confidentiality
+from tl_core.auth.errors import ForbiddenError
 from tl_core.auth.module_roles import holder_for_actor, normalise_word, require_word
 from tl_core.constraints import guard
 from tl_core.constraints.commands import (
@@ -49,6 +50,7 @@ from tl_core.constraints.commands import (
     ST_ASSIGNED,
     ST_CLEARED,
     ST_OPEN,
+    WAIVE_WORD,
     WORLD_TIME_PATTERN,
     AssignConstraint,
     ClearConstraint,
@@ -56,6 +58,7 @@ from tl_core.constraints.commands import (
     WithdrawConstraint,
 )
 from tl_core.constraints.errors import (
+    MSG_WAIVE_WORD,
     ConstraintRuleError,
     ConstraintSourceError,
     ConstraintStateError,
@@ -188,6 +191,23 @@ def require_edit(conn: Connection, ctx: _Ctx) -> None:
         word=normalise_word(EDIT_WORD),
         what=EDIT_WORD,
     )
+
+
+def require_waive(conn: Connection, ctx: _Ctx) -> None:
+    """The caller holds the word ``core.constraint.waive`` (table word ``controller``) here.
+
+    The refusal is the fixed ``MSG_WAIVE_WORD``; it says nothing of the constraint."""
+    try:
+        require_word(
+            conn,
+            holder_for_actor(conn, ctx.actor),
+            scope=ctx.scope,
+            module=ACCESS_MODULE,
+            word=normalise_word(WAIVE_WORD),
+            what=WAIVE_WORD,
+        )
+    except ForbiddenError:
+        raise ForbiddenError(MSG_WAIVE_WORD) from None
 
 
 def _version(uow: UnitOfWork, record_id: str) -> int:
@@ -578,6 +598,8 @@ def _clear(
     held = _load(uow, constraint_id, ctx.scope)
     if by_module and held.source == SOURCE_MANUAL:
         raise ConstraintSourceError(MSG_CLEAR_SOURCE)
+    if not by_module and held.source == SOURCE_CHECK:
+        require_waive(conn, ctx)  # after _load: a hidden constraint answers as missing first
     if held.state not in (ST_OPEN, ST_ASSIGNED):
         raise ConstraintStateError(MSG_OPEN_ONLY)
     when = cleared_at if cleared_at is not None else utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")

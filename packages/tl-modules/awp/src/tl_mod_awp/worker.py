@@ -34,6 +34,7 @@ from tl_mod_awp.names import (
     WBS_NODE_TABLE,
 )
 from tl_mod_awp.readiness.follow import Follower
+from tl_mod_awp.readiness.hold_rule import HoldFollower
 from tl_mod_awp.readiness.job import ReadinessKind
 
 _HEAD_SQL = text("SELECT COALESCE(MAX(seq), 0) FROM events")
@@ -194,6 +195,7 @@ class Worker:
     def __init__(self, runner: JobRunner, open_uow: UowFactory) -> None:
         self.runner = runner
         self.follower = Follower(open_uow)
+        self.hold = HoldFollower(open_uow)
         self._open_uow = open_uow
 
     def close(self) -> None:

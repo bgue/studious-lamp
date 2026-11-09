@@ -27,3 +27,7 @@ class ConstraintStateError(ConstraintError):
 
 class PhaseNotGatedError(ConstraintError):
     """A blocking constraint names a phase that no guard of the subject's workflow names."""
+
+
+#: The refusal of a person's clear of a check-raised constraint without the waive word (fixed).
+MSG_WAIVE_WORD = "clearing a check-raised constraint needs the core.constraint.waive access word"
