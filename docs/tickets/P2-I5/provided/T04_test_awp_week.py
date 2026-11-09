@@ -11,6 +11,8 @@ from typing import Any
 import pytest
 from test_cli_awp import ROOT, Cli, load_world, seed_copy
 from tl_adapters.db import as_target, open_uow
+from tl_cli.session import session_viewer
+from tl_mod_awp import kpis
 from tl_mod_awp.readiness.engine import evaluate_now
 from tl_mod_schedule.testing import BASE as SCHEDULE_BASE
 from tl_mod_schedule.testing import ScheduleWorld
@@ -88,6 +90,50 @@ def test_commit_outcome_and_close_give_the_ppc(built: Built) -> None:
     assert built.lines("ppc") == ["ppc 66.7  weeks 1"]
 
 
+def number_of(built: Built, iwp: str) -> str:
+    return str(built.ww.w.scalar(NUMBER_SQL, i=iwp))
+
+
+def test_week_ppc_is_the_ppc_tile_with_open_weeks_among_the_latest_four(
+    built: Built, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("TL_ENV", "dev")
+    monkeypatch.setenv("TL_SESSION_FILE", str(tmp_path / "session.json"))
+    assert built.lines("ppc") == ["ppc -  weeks 0", "no closed week yet"]
+
+    def commit_new(week: str) -> str:
+        number = number_of(built, built.ww.issued())
+        said = built.week("commit", week, number, "--hours", "40.0")
+        assert said.exit_code == 0, said.output
+        return number
+
+    reason = built.lines("reasons")[0]
+    closed_plans = (
+        ("2026-10-26", "2026-W44", ("done", "missed")),
+        ("2026-11-02", "2026-W45", ("done", "done", "missed")),
+    )
+    for day, week, results in closed_plans:
+        assert built.week("open", "--date", day).exit_code == 0
+        for result in results:
+            number = commit_new(week)
+            extra = ("--reason", reason) if result == "missed" else ()
+            said = built.week("outcome", week, number, result, *extra)
+            assert said.exit_code == 0, said.output
+        closed = built.week("close", week, who="user:sue")
+        assert closed.exit_code == 0, closed.output
+    # Two open weeks sit among the latest four; their commitments are not in the pool.
+    assert built.week("open", "--date", "2026-11-09").exit_code == 0
+    assert built.week("open", "--date", "2026-11-16").exit_code == 0
+    commit_new("2026-W46")
+
+    shown = built.lines("ppc")
+    target = as_target(str(built.cli.db))
+    with open_uow(target, readonly=True) as uow:
+        tile = kpis.ppc_tile(uow.conn(), SCOPE, session_viewer(target), weeks=4)
+    assert shown == [f"ppc {tile.value}  weeks 2"]
+    assert shown == ["ppc 60.0  weeks 2"]  # 3 done of 5 committed in the two closed weeks
+
+
 def test_show_lists_each_commitment_and_an_unknown_week_is_one_error(built: Built) -> None:
     built.week("open", "--date", "2026-11-02")
     built.week("commit", "2026-W45", built.numbers[0], "--hours", "12.5")
@@ -110,6 +156,10 @@ def test_a_viewer_is_refused_every_write_and_a_stale_version_too(built: Built) -
     )
     assert stale.exit_code == 1
     assert built.lines("show", "2026-W45")[3] == "commitments 0"
+    other = built.week("outcome", "2026-W45", built.numbers[0], "maybe")
+    assert other.exit_code == 1
+    assert "error: 'maybe' is not done or missed" in other.stderr
+    assert "Traceback" not in other.output
 
 
 def test_the_reasons_are_keys_one_per_line(built: Built) -> None:

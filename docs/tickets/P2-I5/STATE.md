@@ -10,7 +10,7 @@ T03 t mrg f 998797d look_ahead_view
 T04b t mrg f 02a926d CLI for S2 writes
 T09 t mrg l b1666b8 KPI tiles; fix round (provided test had wrong-case miss key, IWP state by shortcut)
 T07a t mrg f bcf3c2e pack HTML + QR + `iwp pack`; build_pack_data, render_html -> Rendered
-T04 t todo f - look-ahead + week CLI; ready after T09; provided test in tree (R-B)
+T04 t mrg f 674310a look-ahead + week CLI; ready after T09; provided test in tree (R-B)
 T11a1 t mrg f 42ac14f API progress/rollup/kpis/counts/hash routes; after T09 (R-B)
 T11c t mrg f 36c990d MCP five reads; after T09 (R-B)
 T11a2 t todo f - API weeks/miss-reasons/look-ahead; after T11a1 (R-C)
