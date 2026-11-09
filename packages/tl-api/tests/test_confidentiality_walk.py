@@ -161,6 +161,7 @@ def candidates(seed_data: Seed) -> dict[str, list[str]]:
         "kind": ["x"],
         "type_ref": ["x"],
         "activity_id": ["x", *all_ids[:2]],
+        "week": ["2026-W01"],  # P2-I5-T11a2: the weekly-plan route (no plan is seeded here)
     }
 
 

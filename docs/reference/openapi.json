@@ -5970,6 +5970,61 @@
         "title": "CommitIwpToWeekBody",
         "type": "object"
       },
+      "CommitmentRow": {
+        "properties": {
+          "committed_hours": {
+            "title": "Committed Hours",
+            "type": "string"
+          },
+          "foreman": {
+            "title": "Foreman",
+            "type": "string"
+          },
+          "iwp_id": {
+            "title": "Iwp Id",
+            "type": "string"
+          },
+          "iwp_key": {
+            "title": "Iwp Key",
+            "type": "string"
+          },
+          "iwp_state": {
+            "title": "Iwp State",
+            "type": "string"
+          },
+          "miss_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Miss Reason"
+          },
+          "outcome": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Outcome"
+          }
+        },
+        "required": [
+          "iwp_id",
+          "iwp_key",
+          "iwp_state",
+          "foreman",
+          "committed_hours"
+        ],
+        "title": "CommitmentRow",
+        "type": "object"
+      },
       "Comparison": {
         "properties": {
           "added": {
@@ -18229,6 +18284,155 @@
         "title": "LookAhead",
         "type": "object"
       },
+      "LookAheadBody": {
+        "description": "The look-ahead of a snapshot joined with its IWPs (``look_ahead_view.LookAheadView``).",
+        "properties": {
+          "counts": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Counts",
+            "type": "object"
+          },
+          "data_date": {
+            "title": "Data Date",
+            "type": "string"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/LookAheadItemBody"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "lead_weeks": {
+            "title": "Lead Weeks",
+            "type": "integer"
+          },
+          "snapshot_key": {
+            "title": "Snapshot Key",
+            "type": "string"
+          },
+          "weeks": {
+            "title": "Weeks",
+            "type": "integer"
+          },
+          "window_end": {
+            "title": "Window End",
+            "type": "string"
+          },
+          "window_start": {
+            "title": "Window Start",
+            "type": "string"
+          }
+        },
+        "required": [
+          "snapshot_key",
+          "data_date",
+          "window_start",
+          "window_end",
+          "weeks",
+          "lead_weeks",
+          "counts",
+          "items"
+        ],
+        "title": "LookAheadBody",
+        "type": "object"
+      },
+      "LookAheadItemBody": {
+        "description": "One look-ahead row with the IWPs linked to its activity, by number.",
+        "properties": {
+          "iwps": {
+            "items": {
+              "$ref": "#/components/schemas/LookAheadIwpBody"
+            },
+            "title": "Iwps",
+            "type": "array"
+          },
+          "row": {
+            "$ref": "#/components/schemas/LookAheadRowBody"
+          }
+        },
+        "required": [
+          "row",
+          "iwps"
+        ],
+        "title": "LookAheadItemBody",
+        "type": "object"
+      },
+      "LookAheadIwpBody": {
+        "description": "One IWP linked to an activity of the window (``look_ahead_view.LookAheadIwp``).",
+        "properties": {
+          "checks_ok": {
+            "title": "Checks Ok",
+            "type": "integer"
+          },
+          "checks_total": {
+            "title": "Checks Total",
+            "type": "integer"
+          },
+          "evaluated": {
+            "title": "Evaluated",
+            "type": "boolean"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "need_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Need By"
+          },
+          "number": {
+            "title": "Number",
+            "type": "string"
+          },
+          "open_blocking": {
+            "title": "Open Blocking",
+            "type": "integer"
+          },
+          "planned_start": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Planned Start"
+          },
+          "ready": {
+            "title": "Ready",
+            "type": "boolean"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "number",
+          "state",
+          "planned_start",
+          "need_by",
+          "evaluated",
+          "ready",
+          "checks_ok",
+          "checks_total",
+          "open_blocking"
+        ],
+        "title": "LookAheadIwpBody",
+        "type": "object"
+      },
       "LookAheadRow": {
         "properties": {
           "activity_id": {
@@ -18306,6 +18510,86 @@
           "percent_complete"
         ],
         "title": "LookAheadRow",
+        "type": "object"
+      },
+      "LookAheadRowBody": {
+        "description": "One activity of the look-ahead window (``tl_mod_schedule.lookahead.LookAheadRow``).",
+        "properties": {
+          "activity_id": {
+            "title": "Activity Id",
+            "type": "string"
+          },
+          "critical": {
+            "title": "Critical",
+            "type": "boolean"
+          },
+          "early_finish": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Early Finish"
+          },
+          "early_start": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Early Start"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "percent_complete": {
+            "title": "Percent Complete",
+            "type": "number"
+          },
+          "phase": {
+            "title": "Phase",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "total_float_days": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Float Days"
+          },
+          "wbs_path": {
+            "title": "Wbs Path",
+            "type": "string"
+          }
+        },
+        "required": [
+          "activity_id",
+          "name",
+          "wbs_path",
+          "status",
+          "phase",
+          "early_start",
+          "early_finish",
+          "total_float_days",
+          "critical",
+          "percent_complete"
+        ],
+        "title": "LookAheadRowBody",
         "type": "object"
       },
       "LotDetailView": {
@@ -42344,6 +42628,139 @@
           "by_cost_code"
         ],
         "title": "WbsRow",
+        "type": "object"
+      },
+      "WeekDetail": {
+        "description": "A plan with its commitments (IWP keys and states) and notes.",
+        "properties": {
+          "closed_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Closed At"
+          },
+          "commitments": {
+            "items": {
+              "$ref": "#/components/schemas/CommitmentRow"
+            },
+            "title": "Commitments",
+            "type": "array"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "notes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Notes",
+            "type": "array"
+          },
+          "ppc": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ppc"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          },
+          "week": {
+            "title": "Week",
+            "type": "string"
+          },
+          "week_start": {
+            "title": "Week Start",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "key",
+          "week",
+          "week_start",
+          "state",
+          "version",
+          "commitments",
+          "notes"
+        ],
+        "title": "WeekDetail",
+        "type": "object"
+      },
+      "WeekRow": {
+        "description": "One weekly plan as a list shows it.",
+        "properties": {
+          "closed_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Closed At"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "ppc": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ppc"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          },
+          "week": {
+            "title": "Week",
+            "type": "string"
+          },
+          "week_start": {
+            "title": "Week Start",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "key",
+          "week",
+          "week_start",
+          "state"
+        ],
+        "title": "WeekRow",
         "type": "object"
       },
       "WithdrawClearanceBody": {
@@ -73868,6 +74285,231 @@
         ]
       }
     },
+    "/projects/{project}/awp/look-ahead": {
+      "get": {
+        "description": "What is under way and what starts in the next `weeks` weeks of the data date, each row with\nthe IWPs linked to its activity. 404 `schedule_not_found` or `snapshot_not_found`; 409 when the\nsnapshot is not built.",
+        "operationId": "get_awp_look_ahead",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project",
+            "required": true,
+            "schema": {
+              "title": "Project",
+              "type": "string"
+            }
+          },
+          {
+            "description": "A schedule code.",
+            "in": "query",
+            "name": "schedule",
+            "required": true,
+            "schema": {
+              "description": "A schedule code.",
+              "maxLength": 64,
+              "minLength": 1,
+              "title": "Schedule",
+              "type": "string"
+            }
+          },
+          {
+            "description": "A snapshot number; the current one if omitted.",
+            "in": "query",
+            "name": "snapshot",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 1000000000,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "A snapshot number; the current one if omitted.",
+              "title": "Snapshot"
+            }
+          },
+          {
+            "in": "query",
+            "name": "weeks",
+            "required": false,
+            "schema": {
+              "default": 4,
+              "maximum": 26,
+              "minimum": 1,
+              "title": "Weeks",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LookAheadBody"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Awp Look Ahead",
+        "tags": [
+          "awp"
+        ]
+      }
+    },
+    "/projects/{project}/awp/miss-reasons": {
+      "get": {
+        "description": "The keys of the miss-reason code list of the adopted awp edition (no labels).",
+        "operationId": "list_miss_reasons",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project",
+            "required": true,
+            "schema": {
+              "title": "Project",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "title": "Response List Miss Reasons",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Miss Reasons",
+        "tags": [
+          "awp"
+        ]
+      }
+    },
     "/projects/{project}/awp/packages": {
       "get": {
         "description": "A project's EWP and PWP references by package number.",
@@ -74583,6 +75225,210 @@
           }
         ],
         "summary": "Get Wbs Node",
+        "tags": [
+          "awp"
+        ]
+      }
+    },
+    "/projects/{project}/awp/weeks": {
+      "get": {
+        "description": "The weekly plans of the project, the latest week first, those the viewer may read.",
+        "operationId": "list_weekly_plans",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project",
+            "required": true,
+            "schema": {
+              "title": "Project",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 60,
+              "maximum": 520,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/WeekRow"
+                  },
+                  "title": "Response List Weekly Plans",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Weekly Plans",
+        "tags": [
+          "awp"
+        ]
+      }
+    },
+    "/projects/{project}/awp/weeks/{week}": {
+      "get": {
+        "description": "One weekly plan with its commitments. 404 `record_not_found` when the plan is missing,\nvoided or hidden from the viewer (the same answer for all three).",
+        "operationId": "get_weekly_plan",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project",
+            "required": true,
+            "schema": {
+              "title": "Project",
+              "type": "string"
+            }
+          },
+          {
+            "description": "An ISO week, `YYYY-Www`.",
+            "in": "path",
+            "name": "week",
+            "required": true,
+            "schema": {
+              "description": "An ISO week, `YYYY-Www`.",
+              "pattern": "^\\d{4}-W\\d{2}$",
+              "title": "Week",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WeekDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Weekly Plan",
         "tags": [
           "awp"
         ]
