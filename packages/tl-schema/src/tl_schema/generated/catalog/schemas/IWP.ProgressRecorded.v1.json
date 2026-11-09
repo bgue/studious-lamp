@@ -36,6 +36,9 @@
             "iwp_id": {
               "description": "The IWP.",
               "type": "string"
+            },
+            "manual": {
+              "description": "The whole list of manual credit in force, at most 500 entries of `scope_item_id` and `step` (a step marked done by hand). Absent or null means none. Replaces the list of the previous figure."
             }
           },
           "required": [

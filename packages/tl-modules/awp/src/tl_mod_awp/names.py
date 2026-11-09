@@ -202,3 +202,14 @@ PART3_NO_CARD_EVENTS: Final = (
     CWP_PARTY_ASSIGNED,
     CWP_SUBCONTRACT_PROGRESS,
 )
+
+#: Rules of credit and progress (P2-I5 S2).
+EDITION_SETTING: Final = "awp.rules_of_credit.set"
+DEFAULT_EDITION: Final = "co.acme.awp@1.1.0"
+DEFAULT_COMMODITY: Final = "piping"
+SCI_INSTALLED: Final = "Installed"
+#: The scope item states a ``scope_state:<State>`` step is measured against, in order.
+SCOPE_STATE_ORDER: Final = (SCI_PLANNED, SCI_INSTALLED, SCI_VERIFIED)
+#: The most manual credit entries one IWP holds (``IWP.ProgressRecorded.manual``).
+MAX_MANUAL: Final = 500
+MAX_MANUAL_PER_COMMAND: Final = 50
