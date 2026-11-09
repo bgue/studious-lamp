@@ -15,7 +15,7 @@ from typing import Final
 from sqlalchemy import Connection, bindparam, text
 from tl_core import confidentiality
 from tl_core.confidentiality import Viewer
-from tl_core.constraints.queries import list_constraints
+from tl_core.constraints.queries import count_constraints
 from tl_mod_schedule.lookahead import LookAheadRow, look_ahead
 from tl_mod_schedule.registry import SnapshotRow
 
@@ -115,15 +115,17 @@ def _readiness(
 def _open_blocking(
     conn: Connection, scope: str, viewer: Viewer | None, ids: set[str]
 ) -> dict[str, int]:
-    """Open or Assigned blocking constraints counted per IWP id; one list per open state."""
-    counted: dict[str, int] = defaultdict(int)
-    for state in iwp_views.OPEN_STATES:
-        for constraint in list_constraints(
-            conn, scope, state=state, blocking=True, viewer=viewer, limit=500
-        ):
-            if constraint.subject_id in ids:
-                counted[constraint.subject_id] += 1
-    return counted
+    """Open or Assigned blocking constraints per IWP id, by count (never a truncated list): one
+    ``count_constraints`` per IWP and open state, the viewer's class filter applied."""
+    return {
+        iwp_id: sum(
+            count_constraints(
+                conn, scope, subject_id=iwp_id, state=state, blocking=True, viewer=viewer
+            )
+            for state in iwp_views.OPEN_STATES
+        )
+        for iwp_id in sorted(ids)
+    }
 
 
 def look_ahead_view(
