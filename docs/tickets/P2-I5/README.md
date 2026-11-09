@@ -1,6 +1,6 @@
 # P2-I5 — Weekly cycle, rules of credit, progress, IWP pack, closeout (module M3, part 3), CLI and TUI only
 
-Status: r4 (2026-11-09): trimmed scope, both plan checks answered at the end (all accepted). 4 live pieces (S1-S4b; S5 is roadmap 3c), 19 live tickets (T16 replaces the S6 piece). Nothing is dispatched until P2-INT C2 is on
+Status: r5 (2026-11-09): trimmed scope, both plan checks answered at the end (all accepted); every remaining ticket is written (r5) and the next slice only dispatches (waves below). 4 live pieces (S1-S4b; S5 is roadmap 3c), 20 live tickets (T16 replaces the S6 piece; T17 is the tour, owner 2026-11-09). Nothing is dispatched until P2-INT C2 is on
 the trunk (F4); the S1 and S2 specs are written. Plan sources: `docs/build-spec/08-phase2-plan.md` "Increment 5" (re-cut here), `specs/phase2-wave-plan.md`
 (wave 3 row), `module-designs/field-work-packaging.md`, `roadmap-2026-11-07.md` (P2-Q1, P2-Q11, P2-Q13, W3-5, W3-6, W3-7), `DEFERRED.md` (wave 3 rows),
 ADR-0024 to ADR-0027. Board: `STATE.md`.
@@ -62,28 +62,35 @@ Policy kept: cross-piece tests deferred to T16; each piece leaves `dev/accept/P2
 |---|---|---|---|
 | T01 | CLI `tl awp roc ls\|show\|set` over the adopted package content and the setting (provided test `provided/T01_test_awp_roc.py`; ready r4) | full | S1 |
 | T03 | `look_ahead_view(conn, scope, snapshot, viewer)`: `look_ahead` joined with the IWPs linked to each activity, readiness counts and blocking counts through the viewer filter, ids only (stub `look_ahead_view.py` and provided test `provided/T03_test_look_ahead_view.py`; ready r4) | full | S2 |
-| T04 | CLI `tl awp look-ahead` and `tl awp week open\|ls\|show\|commit\|outcome\|close\|ppc\|reasons` (print keys, L-P2-I3-3); written r4, provided test after S4a merges | full | T03, S4a |
+| T04 | CLI `tl awp look-ahead --schedule` and `tl awp week open\|ls\|show\|commit\|outcome\|close\|ppc\|reasons` (print keys, L-P2-I3-3; `week ppc` is the T09 tile; provided test `provided/T04_test_awp_week.py`; ready r5) | full | T03, S4a, T09 |
 | T04b | CLI for the S2 writes: `tl awp iwp start-work\|complete-field\|item-move\|step\|progress` (provided test `provided/T04b_test_awp_progress.py`; ready r4, after T01) | full | S2 |
 | T05 **abn (roadmap 3c)** | Interface-constraint helper: raise an `Interface` constraint on a CWP for a party (over the frozen `raise_constraint`) and its report | full | S5 |
-| T06a | TUI weekly cycle steps 1 to 3: `weekly_text.py` (Textual-free), look-ahead, constraint review with the waive action, release | full | T11b, S4b |
+| T06a | TUI weekly cycle steps 1 to 3 (look-ahead, constraint review with Waive, release with Sign off and Issue): `weekly_text.py` (stub and provided test `provided/T06a_test_weekly_text.py` in the tree), `widgets/weekly_screen.py`, palette entry `week` | full | T11b, S4b, T09 |
 | T06b | TUI weekly cycle steps 4 and 5: commitments, progress and PPC; adds the `actions.RULES` rows for `StartIwpWork` and `CompleteIwpField` (Q-o2, here by name; closeout step deferred, roadmap 3c) | full | T06a |
-| T06c1 | IWP log extras: `m` mine filter, Ready and Constraints counts, state-since, discipline and text filters feed the counts, backlog read past 200 (P2-I2 follow-ups) | full | T11b |
+| T06c1 | IWP log extras: Ready and Blocking counts and Since (`IWP_COUNT_COLUMNS`; the web page keeps `IWP_COLUMNS`), discipline and text filters in the summary, backlog read past 200, `mine=` constructor flag (the `m` key already exists) | full | T11b |
 | T06c2 | Landing: setting `tui.landing` read at sign-in, unset default `iwp_mine` for a person who is foreman on any IWP (one read over IWP foreman fields) | full | T06c1 |
-| T07a | Pack data assembly over committed read views, Jinja2 to HTML with segno QR as inline SVG when installed; slot `pack`; templates are repository files, autoescape on | full | S2, T11b |
+| T07a | Pack data assembly over committed read views, HTML by `string.Template` + `html.escape` (no Jinja2, D26), segno QR as inline SVG when installed; `tl awp iwp pack [--attach]`; slot `pack`; template is a repository file | full | S2 |
 | T07b | Pack template: cover, scope and steps, drawings, MTO, safety, ITP, permits, scaffold placeholders, sign-off sheet; snapshot test (provided test `provided/T07b_test_pack_template.py`, written when T07a merges) | lite | T07a |
 | T07c **abn (roadmap 3c)** | Pack PDF with reportlab behind `awp.pack.pdf`; says so when the library or the flag is missing | full | T07b |
 | T08 **abn (roadmap 3c)** | Closeout reads, closeout routes, `redlines` slot view, `tl awp closeout show\|do` over S5 | full | S5 |
-| T09 | KPI report functions and tiles (two: PPC and % constraint-free; five deferred to roadmap 3c) with a ledger-recount test (provided test `provided/T09_test_kpis.py`, written when S4a merges); `tl awp report` names | lite | S4a |
+| T09 | KPI functions and tiles (two: PPC pooled over the last 4 closed weeks, and % constraint-free; five deferred to roadmap 3c) with a ledger-recount test (provided test `provided/T09_test_kpis.py`, stub `kpis.py` in the tree); `tl awp report kpi_ppc\|kpi_constraint_free` | lite | S4a |
 | T10 **abn (roadmap 3c)** | Subcontract reads, routes and `tl awp subcontract assign\|import\|ls` over S5 | full | S5, T05 |
-| T11a1 | API read routes for S2 models and rules (progress, edition, KPIs), embedded and remote | full | S2, S3 |
-| T11a2 | API read routes for S4 A models (weekly plan, commitments, look-ahead) | full | S4 A, T03 |
-| T11b | `ApiClient` and TUI client methods with the fakes (P1-I4 S9 pattern) for T11a1, T11a2 (T08, T10 deferred) | full | T11a1, T11a2, S4b |
-| T11c | MCP read tools (the proposable rows `propose_progress`, `propose_week_commitment` are written by S2 and S4a), closed-list lines | full | T11b |
-| T12 | `dev/demos/P2-I5.sh`, clauses 1-6, 9, 10 (7, 8 roadmap 3c; 6 without PDF; 5 as D17; 10 without close-out), both adapters | full | T06c2, T06b, T07b, T09, S4b |
+| T11a1 | API read routes: IWP progress, roll-up, KPIs, IWP counts (Ready, blocking, state-since) and the record hash (D30), embedded and remote | full | S2, S3, T09 |
+| T11a2 | API read routes: weekly plans, miss reasons, look-ahead | full | S4a, T03, T11a1 (file order) |
+| T11b | `ApiClient`, `ClientInterface`, embedded client and fake: eleven reads and the two command doors `awp_command` and `constraint_command` (D28) | full | T11a1, T11a2, S4b |
+| T11c | MCP read tools: `list_weekly_plans`, `get_weekly_plan`, `get_iwp_progress`, `get_progress_rollup`, `list_kpis` (look-ahead off MCP, D29); closed-list lines | full | T09 |
+| T12 | `dev/demos/P2-I5.sh`, clauses 1-6, 9, 10 (7, 8 roadmap 3c; 6 without PDF; 5 as D17; 10 without close-out), both adapters | full | T06c2, T06b, T07b, T09, T16, S4b |
+| T17 | Highlights tour steps: Activity, Insights, intent, IWP landing and the weekly loop, the pack (runs last, owner 2026-11-09) | full | T12, T06c2, T06b, T07a, T09 |
 | T13 | Docs: awp README and AGENTS rows, runbooks `weekly-cycle`, `rules-of-credit`, `iwp-pack`, reference page | lite | T12 |
 | T15 | Registrations as one ticket only if glue passes 50 lines: `add_typer`, `MCP_ACTIONS`, palette | full | S4, T11c |
-| T16 | Five-reader walk (CLI, TUI, API, MCP, embedded) of every new route and tool: a test that walks as the five kinds of reader (AGENTS.md); replaces the S6 tests piece | full | T11c, S4b |
+| T16 | Five-reader walk (CLI, TUI, API, MCP, embedded) of every new route and tool: a test that walks as the five kinds of reader (AGENTS.md); replaces the S6 tests piece | full | T11c, T11b, T04, S4b |
 Trimmed r3 (owner 2026-11-09, STATE D-o1): 17 live tickets (T01, T03, T04, T06a, T06b, T06c1, T06c2, T07a, T07b, T09, T11a1, T11a2, T11b, T11c, T12, T13, T15) and S6; T05, T07c, T08, T10 and piece S5 are `abn` with "roadmap 3c". Demo clauses 7 and 8 and the PDF half of 6 move to 3c; clause 5's "rollup job writes" is read as "the rollup reads" (D17). T16 replaces S6 (r4, F8). T14 (simulator `ForemanDesk`, actor `foreman`) goes to I6, where the roster is registered (F12). Every screen ticket needs its text module in the tree first (L-P2-WEB1-1).
+
+## Next slice: waves (r5; rounds between waves are supervisor rounds that check reports and write what the next wave needs)
+Each wave is one ticket workflow of 2-3 tickets with disjoint files; no builder is left. Shared one-line files (`awp.py`, `app.py`, `openapi.json`) are touched by one ticket per wave.
+- R-A: T09, T07a (kpis.py + awp_report.py; pack.py + awp_pack.py).
+- R-B: T11a1, T04, T11c (routes + app.py + openapi; awp_week.py; mcp). Between A and B the supervisor writes `provided/T07b_test_pack_template.py`.
+- R-C: T11a2, T07b.   R-D: T11b.   R-E: T06a, T16 (screens; tests only).   R-F: T06b, T06c1.   R-G: T06c2.   R-H: T12.   R-I: T13, T17.   T15 only if glue passes 50 lines.
 
 ## Order of work and checkpoints
 Trunk with P2-INT C2 merged in (F4) -> S1 -> S2 -> S4a (running) -> S4b -> S3 (after S4a merges; F4, F6) with T01, T03 -> T04, T04b, T11a1, T11a2 -> T11b -> T06a, T06c1, T07a, T09, T11c -> T06b, T06c2, T07b -> T16 -> T12 -> T13. Struck (roadmap 3c): S5, T05, T07c, T08, T10.
@@ -112,7 +119,7 @@ Scope when run: commit range `ec3314d..p2/i5` head, <= 450k tokens, findings `F<
 arithmetic (Decimal, rounding, cap 100), viewer filter on read, state-move words; S3 CSV export (formula cells, source prefix, no write to `cur_cost_*`); S4a week words (`awp.week.plan|commit|close`, stale `expected_version`, agent proposals); S4 B waive word on clearing a check-raised
 constraint (word, required reason, ledger, agents refused), hold rule (Issued only, no loop, idempotent, `by_module`), `expected_version`, look-ahead ids only for a viewer who cannot read some blockers;
 T07a template input (repository files only, autoescape, QR payload a relative path or key, hidden records omitted); T11a1 and
-T11a2 routes (word before read) and the five-reader walk; T11c agent tools and the row-or-exclusion test.
+T11a2 routes (word before read; the hash route, D30) and the five-reader walk; T06a release actions (sign-off with the read hash); T11c agent tools and the row-or-exclusion test.
 
 ## Process lessons applied (P2-I2 STATE)
 Gates name test files or one package (L-P2-I1-2); dialect-neutral tests; provided tests pass ruff; pinned lists written as the union; a check name used twice is an error; readiness is read by ids only
@@ -125,6 +132,9 @@ project are fixed at the generator; one text module, then one screen; no new F-k
 - P2-INT C2 is a start condition for S1 (F4); there is no untagged fallback.
 - `reportlab` or `segno` licence checks failing `tests/tools/test_check_licences.py`: S1 escalates.
 - Escalate: a frozen contract change; an access word the table lacks; a piece failing twice.
+
+## r5 decisions (2026-11-09; STATE D26-D31)
+D26 pack without Jinja2 (not a dependency of the awp package; `string.Template` plus one escape helper). D27 `week ppc` and the PPC tile are one definition (pooled over the last 4 closed weeks). D28 the TUI writes through two client doors, `awp_command` and `constraint_command` (T11b). D29 look-ahead is not an MCP tool this increment. D30 a route and client read for the IWP record hash (the remote release step needs what `tl awp iwp hash` prints; handlers stay the gate). D31 the web page keeps `IWP_COLUMNS`; the TUI log has `IWP_COUNT_COLUMNS`.
 
 ## Plan check (2026-11-08) and answers
 Planner-tier check F1-F12, all accepted by the orchestrator; each answer is the change made in round 2.

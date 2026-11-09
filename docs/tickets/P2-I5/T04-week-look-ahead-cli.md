@@ -1,55 +1,66 @@
 # P2-I5-T04 — CLI `tl awp look-ahead` and `tl awp week open|ls|show|commit|outcome|close|ppc|reasons`
 
-Status: draft (needs S4a and T03 merged; its provided test is written in the round after S4a merges, against the merged names)
+Status: ready (S4a, T03 merged; needs T09 merged: `week ppc` calls its tile)
 Tier: haiku
 Kind: ticket
 Review: full
 Labels: cli
-Depends on: T03 (`look_ahead_view`), S4a (week commands and `week_views`)
+Depends on: T03, S4a, T09
 Branch: `p2/i5-t04-week-cli`
 Worktree: harness-created under `/home/user/wt/i5/t04` (from `p2/i5` head)
 
 ## Goal
 The planner's weekly cycle at the terminal: the look-ahead of the next weeks with IWPs and readiness, and the week plan: open, commit IWPs, record outcomes, close with PPC. Verbs build the S4a commands and call the S4a reads; the handlers decide.
 
-## Brief references (pasted; S4a spec `S4a-weekly-plan.md` is the source of names)
-- Commands (S4a): `OpenWeeklyPlan(week_start)`, `CommitIwpToWeek(plan_id, iwp_id, committed_hours, foreman|None, expected_version)`, `RecordWeekOutcome(plan_id, iwp_id, outcome done|missed, miss_reason|None, expected_version)`, `CloseWeek(plan_id, expected_version)`. Reads: `week_views.list_weeks(conn, scope, viewer, limit)`, `week_detail(conn, plan_id, viewer)`, `miss_reasons(conn, scope)`. Week key `<project>-WK-<year>W<ww>`; PPC is a count, one decimal.
-- Verbs (group `week` of `tl awp`; `--project`, `--actor` as in `awp_iwp_write.py`; a plan is named by `YYYY-Www`, resolved to its id through `list_weeks`; an IWP by its number):
-  - `look-ahead [--weeks N] [--snapshot KEY]` (top level of `tl awp`): the latest published snapshot of the project's schedule unless `--snapshot`; `look_ahead_view(conn, scope, snapshot, session_viewer(db), weeks=N)`. Prints `window <start> to <end>  weeks <n>  need-by lead <lead_weeks>w`, `activities: <n>` then per activity `<activity_id>  <phase>  <early_start|->  <critical *|->  <name cut 40>` and per linked IWP `  <number>  <state>  need-by <date|->  ready <ok>/<total>  blocking <n>` (`ready -` when not evaluated).
-  - `week open [--date YYYY-MM-DD]` (default: today's Monday via the command's own normalisation) prints `open <week>  version <v>`.
-  - `week ls` prints `weeks: <n>` then `<week>  <state>  <commitments>  ppc <x|->`; `week show WEEK` prints `week`, `state`, `ppc`, `commitments <n>` then `  <number>  <state>  <hours>  <foreman|->  <outcome|->  <miss reason|->`, then notes; an unknown or hidden plan is `error: no week <week>` (exit 1).
-  - `week commit WEEK NUMBER --hours H [--foreman user:X]`, `week outcome WEEK NUMBER done|missed [--reason KEY]`, `week close WEEK`: print `<verb> <week>  version <v>`. `--expected-version N` on each (default: the plan's current version, read in the same unit of work).
-  - `week ppc` prints `ppc <x>  weeks <n>` over the Closed plans (mean of their stored `ppc`, one decimal, half-up via `progress.engine.round_half_up`; `-` when none).
-  - `week reasons` prints one miss-reason key per line from `miss_reasons` (keys, never labels: L-P2-I3-3).
-- Reads need no word beyond what the views check; writes go through `_execute` (word gate, handler).
+## Brief references (pasted)
+- Commands (S4a, `tl_mod_awp.commands`): `OpenWeeklyPlan(week_start: date)`, `CommitIwpToWeek(plan_id, iwp_id, committed_hours: str, foreman: str|None, expected_version)`, `RecordWeekOutcome(plan_id, iwp_id, outcome "done"|"missed", miss_reason: str|None, expected_version)`, `CloseWeek(plan_id, expected_version)`. Reads: `week_views.list_weeks(conn, scope, viewer, limit=60)` -> `WeekRow(id, key, week "2026-W45", week_start, state, ppc|None, closed_at)`; `week_detail(conn, plan_id, viewer)` -> `WeekDetail(... version, commitments: list[CommitmentRow(iwp_id, iwp_key, iwp_state, foreman, committed_hours, outcome, miss_reason)], notes)`; `miss_reasons(conn, scope)` -> keys.
+- Verbs (`--project`, `--actor` as in `awp_iwp_write.py`; a plan is named by `YYYY-Www`, resolved with `list_weeks(limit=520)`; an IWP by its number as `awp_iwp_write._iwp_id`):
+  - `look-ahead --schedule CODE [--snapshot N] [--weeks N]` (top level of `tl awp`; read as `xer_compare.look_ahead`: `schedule_views.find_schedule`, `find_snapshot(conn, schedule, N, built=True)`, errors through `service_errors`): `look_ahead_view(conn, scope, snapshot_row, session_viewer(db), weeks=N)`. Prints `window <start> to <end>  weeks <n>  need-by lead <lead>w`, `activities: <n>`, then per item `<activity_id>  <phase>  <early_start|->  <critical *|->  <name cut 40>` and per IWP `  <number>  <state>  need-by <date|->  ready <ok>/<total>|-  blocking <n>` (`ready -` when `evaluated` is false).
+  - `week open [--date YYYY-MM-DD]` (default today; the command picks the Monday) prints `open <week>  version <v>`.
+  - `week ls` prints `weeks: <n>` then `<week>  <state>  <commitments>  ppc <x|->` (commitments from `week_detail`); `week show WEEK` prints `week <week>`, `state <s>`, `ppc <x|->`, `commitments <n>`, then `  <number>  <state>  <hours>  <foreman|->  <outcome|->  <reason|->`, then `note: <text>` lines. Unknown or hidden: `error: no week <week>` (exit 1).
+  - `week commit WEEK NUMBER --hours H [--foreman user:X]`, `week outcome WEEK NUMBER done|missed [--reason KEY]`, `week close WEEK` print `<verb> <week>  version <v>`. `--expected-version N` on each; default is the plan's version read in the same unit of work.
+  - `week ppc [--weeks N]` (default 4) prints `ppc <x|->  weeks <k>`: `x` is `kpis.ppc_tile(conn, scope, viewer, weeks=N).value`, `k` is the number of Closed plans among `list_weeks` capped at N.
+  - `week reasons` prints one miss-reason key per line (keys, never labels: L-P2-I3-3).
+- Reads need no word beyond what the views check; writes go through `_execute` (word gate, handler). Never print a URL or a traceback.
+
+## Interfaces (verbatim from repo)
+```python
+# tl_cli/awp_write.py
+def _execute(db: DbTarget, build: Callable[[UnitOfWork], Command]) -> CommandResult
+def _line(verb: str, number: str, result: CommandResult) -> None      # "<verb> <number>  version <v>"
+# tl_mod_awp/kpis.py (T09)
+def ppc_tile(conn, scope, viewer, *, weeks=4) -> KpiTile              # .value Decimal|None
+# tl_cli/session.py
+def session_viewer(db: DbTarget) -> Viewer
+```
 
 ## Context (read these, nothing else)
-- `packages/tl-cli/src/tl_cli/{awp_iwp_write.py (1-80, register), awp_write.py (100-132), awp_iwp_read.py, awp.py, xer_read.py (find the latest published snapshot; copy its lookup)}`
-- `packages/tl-modules/awp/src/tl_mod_awp/{look_ahead_view.py, week_views.py, commands.py (the four week models)}`
-- `docs/reports/P2-I5/S4a.md`, `docs/reports/P2-I5/T03.md`
+- `packages/tl-cli/src/tl_cli/{awp_progress.py (the T04b pattern, whole), awp_write.py (100-132), xer_compare.py (115-150)}`
+- `packages/tl-modules/awp/src/tl_mod_awp/{look_ahead_view.py (27-60, 131-end), week_views.py (33-62)}`
+- the provided test `docs/tickets/P2-I5/provided/T04_test_awp_week.py`
 
 ## Allowed paths
 - `packages/tl-cli/src/tl_cli/awp_week.py` (create): `register(app: typer.Typer) -> None` adds `look-ahead` and the `week` group
-- `packages/tl-cli/src/tl_cli/awp.py`: one import and one register line
-- `packages/tl-cli/tests/test_awp_week.py` (create: byte-identical copy of the provided test once it exists, else the tests below)
-- `docs/reports/P2-I5/T04.md` (create)
-- consequential pins: none expected; list any
+- `packages/tl-cli/src/tl_cli/awp.py`: one import and one `awp_week.register(app)` line after `awp_export.register(app)`
+- `packages/tl-cli/tests/test_awp_week.py` (create: byte-identical copy of the provided test)
+- `docs/reports/P2-I5/T04.md` (create); consequential pins: none expected; list any
 
 ## Acceptance
 ```
 just check
 just gate packages/tl-cli/tests/test_awp_week.py packages/tl-cli/tests/test_cli_awp.py
 ```
+Expected: 7 passed in the first file; `cmp` of the test and the provided copy identical.
 
 ## Tests to add
-`test_awp_week.py` over the seed ledger with `awp_world` (see `test_awp_progress.py` for the pattern): open twice refused; commit, outcome, close of three IWPs gives `ppc 66.7`; `week ls` and `week show` lines; `week reasons` keys; `look-ahead` lists a linked IWP under its activity with `ready 2/3`; a plain user refused `close`; no `Traceback` in any output.
-
-## Report requirements
-Standard report (`docs/templates/haiku-report.md`), <= 60 lines, deviations first. Commit subjects `P2-I5-T04: ...`; trailer is the attribution lines your harness requires then `Claude-Session: https://claude.ai/code/session_01MSkuXpRjf5XzVwbAVQNqK4`. No model names in committed files.
+The provided test (copied). Nothing else.
 
 ## Escalation triggers
-- A name in this ticket differs from the merged S4a or T03 code: the supervisor re-specs; do not guess.
-- No published snapshot lookup exists for the CLI without a new query.
+- A name here differs from merged S4a, T03 or T09 code (supervisor re-specs).
+- The provided test fails on a line this ticket does not explain (write the answer under Blocked; do not edit the test).
+
+## Report requirements
+Standard report (`docs/templates/haiku-report.md`), <= 60 lines, deviations first; pins updated outside Allowed paths listed. Commit subjects `P2-I5-T04: ...`; trailer is the attribution lines your harness requires then `Claude-Session: https://claude.ai/code/session_01MSkuXpRjf5XzVwbAVQNqK4`. No model names in committed files.
 
 ## Blocked
 (implementer writes here)
