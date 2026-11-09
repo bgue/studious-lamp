@@ -2,7 +2,7 @@
 ## BOARD   (C1 reached: S1 mrg@76c15b4, S2 mrg@00647bf; reports docs/reports/P2-I5/S1.md, S2.md)
 S1 p mrg f 76c15b4 schema, package content, words, settings
 S2 p mrg f 00647bf engine, progress cmds, IWP start/complete, math rules
-S3 p stg f - rollup+CSV export on read; after S4a merges (F4, F6); pins named (F10)
+S3 p mrg f 3eafc70 rollup+CSV export on read; after S4a merges (F4, F6); pins named (F10)
 S4a p mrg f 011349c weekly cmds, week reads, propose_week_commitment; building; orch APPROVALS only
 S4b p mrg f 450b814 waive word, hold rule, worker word; READY r4 (F1 F2 F11 applied); human gate, owner approver
 S5 p abn f - roadmap 3c (closeout, subcontract CSV)
