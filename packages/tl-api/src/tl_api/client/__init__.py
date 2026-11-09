@@ -11,6 +11,7 @@ from tl_api.client.activity import ActivityApi
 from tl_api.client.admin import AdminApi
 from tl_api.client.auth import AuthApi
 from tl_api.client.awp import AwpApi
+from tl_api.client.awp_weeks import AwpWeeksApi
 from tl_api.client.base import ApiClientBase
 from tl_api.client.correspondence import CorrespondenceApi
 from tl_api.client.cost import CostApi
@@ -50,6 +51,7 @@ class ApiClient(
     DerivationApi,
     ScheduleApi,
     AwpApi,
+    AwpWeeksApi,
     CostApi,
     MaterialsApi,
     SchemaRegistryApi,

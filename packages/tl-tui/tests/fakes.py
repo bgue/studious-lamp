@@ -33,6 +33,7 @@ from fakes_settings import FakeSettingsSupport
 from fakes_tags import FakeTagSupport
 from fakes_threads import FakeThreadSupport
 from fakes_types import FakeTypeSupport
+from fakes_week import FakeWeekSupport
 from tl_core.insights.activity import kind_of
 from tl_core.insights.types import ActivityPage, ActivityRow, CheckFinding
 from tl_core.ledger import ConcurrencyError, Event
@@ -238,6 +239,7 @@ class FakeClient(
     FakeIwpSupport,
     FakeSchemaRegistrySupport,
     FakeMaterialsSupport,
+    FakeWeekSupport,
 ):
     """Implements `tl_tui.client.ClientInterface` in memory."""
 
@@ -274,6 +276,7 @@ class FakeClient(
         self._init_iwp()
         self._init_schemareg()
         self._init_materials()
+        self._init_week()
 
     # --- seeding -----------------------------------------------------------------------------
 
