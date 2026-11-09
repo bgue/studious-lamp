@@ -25,10 +25,12 @@ from tl_mod_awp.commands import IssueIwp, SignOffIwp
 
 from tl_tui.action_ui import ENVELOPE, FormField, stamp
 from tl_tui.client import ClientInterface
+from tl_tui.errors import CLIENT_ERRORS, describe_error
 from tl_tui.weekly_text import (
     CONSTRAINT_REVIEW_COLUMNS,
     LOOK_AHEAD_COLUMNS,
     NO_SCHEDULE,
+    OPEN_STATES,
     RELEASE_COLUMNS,
     LookAheadLine,
     constraint_cells,
@@ -186,7 +188,8 @@ class LookAheadScreen(WeeklyScreen[LookAheadLine]):
 
 
 class ConstraintReviewScreen(WeeklyScreen["ConstraintRow"]):
-    """Step 2: the open blocking constraints (Open, Assigned); ``x`` waives a check-raised one."""
+    """Step 2: the open blocking constraints (Open, Assigned) and the waived ones (Cleared, so a
+    waived row shows ``waived``); ``x`` waives a check-raised open one."""
 
     KEY_CELLS: ClassVar[tuple[str, ...]] = ("/ filter", "x waive", "1 look-ahead", "3 release")
     HELP_KEYS: ClassVar[tuple[tuple[str, str], ...]] = (
@@ -203,7 +206,8 @@ class ConstraintReviewScreen(WeeklyScreen["ConstraintRow"]):
     def load_rows(self) -> Sequence[ConstraintRow]:
         opened = self.client.list_constraints(self.project, blocking=True, state="Open")
         assigned = self.client.list_constraints(self.project, blocking=True, state="Assigned")
-        return merge_constraints(opened.rows, assigned.rows)
+        cleared = self.client.list_constraints(self.project, blocking=True, state="Cleared")
+        return merge_constraints(opened.rows, assigned.rows, cleared.rows)
 
     def row_key(self, row: ConstraintRow) -> str:
         return row.key
@@ -225,7 +229,7 @@ class ConstraintReviewScreen(WeeklyScreen["ConstraintRow"]):
         return [LogAction("x", "Waive", lambda: self._waive(row))]
 
     def summary_text(self) -> str:
-        return review_summary(len(self.shown))
+        return review_summary(sum(1 for row in self.shown if row.state in OPEN_STATES))
 
     def _waive(self, row: ConstraintRow) -> None:
         """Ask for the reason (one required line), then send the clear; an empty reason is not
@@ -283,9 +287,15 @@ class ReleaseScreen(WeeklyScreen["IwpRow"]):
         return (row.number, row.title)
 
     def panel_text(self, row: IwpRow | None) -> str:
+        """The highlighted IWP in full; one ``get_iwp`` for it gives the sign-off count."""
         if row is None:
             return "No Ready IWP."
-        return release_panel(row)
+        try:
+            detail = self.client.get_iwp(self.project, row.number)
+        except CLIENT_ERRORS as exc:
+            self.say(describe_error(exc), error=True)
+            return release_panel(row, None)
+        return release_panel(row, len(detail.signoffs))
 
     def actions_for(self, row: IwpRow) -> Sequence[LogAction]:
         return [

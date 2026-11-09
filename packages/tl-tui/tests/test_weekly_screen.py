@@ -22,6 +22,7 @@ from tl_mod_schedule.lookahead import LookAheadRow
 from tl_tui.app import TlApp
 from tl_tui.commands import APP_COMMANDS
 from tl_tui.errors import describe_error
+from tl_tui.weekly_text import review_summary
 from tl_tui.widgets.action_form import ActionFormScreen
 from tl_tui.widgets.weekly_screen import (
     STEPS,
@@ -278,6 +279,58 @@ def test_step_three_lists_the_ready_iwps_and_signs_off_and_issues_with_the_hash(
     assert sign_off.iwp == ready[0].id and sign_off.record_hash == HASH
     assert issue.iwp == ready[0].id and issue.foreman == ready[0].foreman
     assert issue.record_hash == HASH and sign_off.actor == "user:kim"
+
+
+def test_step_two_lists_a_waived_constraint_as_waived_and_does_not_count_it() -> None:
+    app, client = make_app()
+    target = check_raised(client)
+    client.load_constraints(
+        PROJECT,
+        [
+            replace(r, state="Cleared", waived=True) if r.id == target.id else r
+            for r in client.list_constraints(PROJECT).rows
+        ],
+    )
+    open_now = [
+        r
+        for r in client.list_constraints(PROJECT, blocking=True).rows
+        if r.state in ("Open", "Assigned")
+    ]
+    seen: dict[str, Any] = {}
+
+    async def steps(pilot: Pilot[Any]) -> None:
+        app.action_week()
+        await settle(pilot)
+        await press(pilot, "2")
+        seen["text"] = screen_text(app)
+
+    run(app, steps)
+    assert target.key in seen["text"]
+    assert "waived" in seen["text"]
+    assert review_summary(len(open_now)) in seen["text"]
+    assert client.sent_commands == []
+
+
+def test_step_three_panel_shows_the_signoff_count_of_the_highlighted_iwp() -> None:
+    app, client = make_app()
+    ready = client.list_iwps(PROJECT, state="Ready")[0]
+    detail = client.get_iwp(PROJECT, ready.number)
+    client._iwps[PROJECT] = [
+        d.model_copy(update={"signoffs": [{"by": "user:sue"}]}) if d.number == ready.number else d
+        for d in client._iwps[PROJECT]
+    ]
+    assert detail.signoffs == []
+    seen: dict[str, Any] = {}
+
+    async def steps(pilot: Pilot[Any]) -> None:
+        app.action_week()
+        await settle(pilot)
+        await press(pilot, "3")
+        seen["text"] = screen_text(app)
+
+    run(app, steps)
+    assert "signoffs 1 of 2" in seen["text"]
+    assert "Sign-offs" not in seen["text"], "the sign-off count is in the panel, not a column"
 
 
 # --- the keys and the ids -------------------------------------------------------------------------

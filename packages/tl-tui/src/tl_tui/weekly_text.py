@@ -39,9 +39,10 @@ LOOK_AHEAD_COLUMNS = (
 WEEK_COLUMNS = ("Week", "State", "PPC")
 COMMITMENT_COLUMNS = ("IWP", "State", "Hours", "Foreman", "Outcome", "Reason")
 CONSTRAINT_REVIEW_COLUMNS = ("Key", "Subject", "Phase", "State", "Source", "Owner", "Age")
-RELEASE_COLUMNS = ("Number", "Subject", "Foreman", "Sign-offs", "Ready")
+RELEASE_COLUMNS = ("Number", "Subject", "Foreman", "Ready")
 
-#: An IWP is issued to its foreman after two distinct sign-offs (``IssueIwp``).
+#: An IWP is issued to its foreman after two distinct sign-offs (``IssueIwp``). The count is not
+#: in any list read: the panel of the highlighted IWP shows it (one ``get_iwp`` for that row).
 SIGNOFFS_NEEDED = 2
 #: The look-ahead's line when no schedule has a published snapshot.
 NO_SCHEDULE = "No published schedule yet."
@@ -227,22 +228,23 @@ def ready_cell(count: IwpCountRow | None) -> str:
     return f"{count.ready_ok}/{count.ready_total}"
 
 
-def release_cells(
-    row: IwpRow, count: IwpCountRow | None, signoffs: int | None = None
-) -> tuple[str, ...]:
-    """The five cells in the order of ``RELEASE_COLUMNS``."""
+def release_cells(row: IwpRow, count: IwpCountRow | None) -> tuple[str, ...]:
+    """The four cells in the order of ``RELEASE_COLUMNS``."""
     return (
         row.number,
         row.title or EMPTY,
         actor_label(Labels(), row.foreman) if row.foreman else EMPTY,
-        signoff_cell(signoffs),
         ready_cell(count),
     )
 
 
-def release_panel(row: IwpRow) -> str:
-    """The Ready IWP in full: its subject and planned start."""
-    return f"{row.title or EMPTY} · planned start {date_text(row.planned_start)}"
+def release_panel(row: IwpRow, signoffs: int | None) -> str:
+    """The Ready IWP in full: its subject, planned start and sign-off count (the empty mark when
+    the read does not give it)."""
+    return (
+        f"{row.title or EMPTY} · planned start {date_text(row.planned_start)}\n"
+        f"{signoff_cell(signoffs)}"
+    )
 
 
 def release_summary(ready: int) -> str:
