@@ -10,7 +10,7 @@ S6 p abn f - replaced by T16 (Haiku five-reader walk)
 T01 t mrg f 7c094c8 tl awp roc ls|show|set; READY r4; provided/T01_test_awp_roc.py
 T03 t mrg f 998797d look_ahead_view; READY r4 (stub in tree); provided/T03_test_look_ahead_view.py
 T04 t stg f - look-ahead + week open|ls|show|commit|outcome|close|ppc|reasons CLI; needs S4a T03; test after S4a
-T04b t todo f - CLI for S2 writes (start-work, complete-field, item-move, step, progress); READY after T01 merges
+T04b t mrg f 02a926d CLI for S2 writes (start-work, complete-field, item-move, step, progress); READY after T01 merges
 T06a t todo f - TUI cycle steps 1-3; needs T11b S4b
 T06b t todo f - TUI cycle steps 4-5 + actions.RULES rows StartIwpWork, CompleteIwpField (Q-o2)
 T06c1 t todo f - IWP log mine/counts/state-since; needs T11b
