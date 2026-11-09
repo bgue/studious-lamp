@@ -130,7 +130,7 @@ def test_week_and_commitment_cells() -> None:
         foreman="user:uma",
         committed_hours="12.5",
         outcome="missed",
-        miss_reason="weather",
+        miss_reason="Weather",
     )
     open_ = missed.model_copy(
         update={"outcome": None, "miss_reason": None, "committed_hours": "1200.0"}

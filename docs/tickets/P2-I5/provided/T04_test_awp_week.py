@@ -4,13 +4,14 @@ from __future__ import annotations
 
 import importlib.util
 import sys
+from datetime import date
 from pathlib import Path
 from typing import Any
 
 import pytest
-from sqlalchemy import text
 from test_cli_awp import ROOT, Cli, load_world, seed_copy
 from tl_adapters.db import as_target, open_uow
+from tl_mod_awp.readiness.engine import evaluate_now
 from tl_mod_schedule.testing import BASE as SCHEDULE_BASE
 from tl_mod_schedule.testing import ScheduleWorld
 from tl_xer.synth import make_xer, week_pair
@@ -127,25 +128,12 @@ class Plant:
         self.sw.publish(self.sw.upload(make_xer(first)))
         for iwp in built.iwps[:2]:
             self.sw.link(iwp, "A1230")
+        # A real evaluation through the engine entry point (appends IWP.ReadinessEvaluated).
         with open_uow(built.ww.w.db) as uow:
-            conn = uow.conn()
-            conn.execute(
-                text(
-                    "INSERT INTO cur_awp_readiness (iwp_id, scope, evaluated_at, today, ready, "
-                    "facts_hash, as_of_seq) VALUES (:i, :s, '2026-10-05T00:00:00+00:00', "
-                    "'2026-10-05', 0, 'h', 0)"
-                ),
-                {"i": built.iwps[0], "s": SCOPE},
-            )
-            for n, state in enumerate(("ok", "n_a", "unknown")):
-                conn.execute(
-                    text(
-                        "INSERT INTO cur_awp_readiness_check (row_id, scope, iwp_id, name, "
-                        "version, state, detail, count_ok, count_total, resolve_via_json, "
-                        "as_of_seq) VALUES (:row, :s, :i, :n, '1', :st, '', 0, 0, '[]', 0)"
-                    ),
-                    {"row": f"r{n}", "s": SCOPE, "i": built.iwps[0], "n": f"check{n}", "st": state},
-                )
+            view = evaluate_now(uow, built.iwps[0], date(2026, 10, 5))
+        self.ok = sum(1 for c in view.checks if c.state in ("ok", "n_a"))
+        self.total = len(view.checks)
+        self.ready = view.ready
 
 
 def test_look_ahead_lists_the_linked_iwps_under_their_activity(
@@ -153,7 +141,7 @@ def test_look_ahead_lists_the_linked_iwps_under_their_activity(
 ) -> None:
     saved = dict(SCHEDULE_BASE)
     try:
-        Plant(built, tmp_path)
+        plant = Plant(built, tmp_path)
         out = built.cli.ok("look-ahead", "--schedule", "MAIN", "--weeks", "4")
     finally:
         SCHEDULE_BASE.clear()
@@ -168,7 +156,7 @@ def test_look_ahead_lists_the_linked_iwps_under_their_activity(
         "need-by",
         "2026-11-03",
         "ready",
-        "2/3",
+        f"{plant.ok}/{plant.total}",
         "blocking",
         "0",
     ]
