@@ -13,6 +13,7 @@ flagged in the output (a timing channel), not failed.
 
 from __future__ import annotations
 
+import json
 import os
 import time
 import warnings
@@ -33,6 +34,8 @@ from twin_channels import (
     diff,
     explained_by,
     lake_calls,
+    mask,
+    mask_chain_columns,
     mcp_calls,
     sse_calls,
     sync_world_lake,
@@ -146,7 +149,7 @@ def test_twin_walk(group: str, new_db: object, tmp_path: Path) -> None:
             "calls per channel:", counts, "| known leaks seen:", explained, "| masks:", list(MASKS)
         )
         if dump := os.environ.get("TWIN_DUMP"):
-            Path(f"{dump}.{group}").write_text("\n".join(map(str, failures)))
+            Path(f"{dump}.{group}").write_text(json.dumps([vars(f) for f in failures], indent=0))
         assert counts["api"] > 300 * len(readers) and counts["mcp"] > 100 * len(readers)
         assert counts["cli"] >= 50 * len([r for r in readers if r != "bot"])
         assert not unexplained, f"{len(unexplained)} differences:\n" + "\n".join(
@@ -164,6 +167,8 @@ def _probe(world: World, tw: Twinning | None, reader: str, kind: str) -> list[Ca
     ask = tw.ask if tw else (lambda t: t)
     if kind == "lake":
         return lake_calls(world, reader, sync_world_lake(world))
+    if kind == "webhook":
+        return webhook_calls(world, reader, webhook_bodies(world))
     url = {
         "feed-card-group": "/feed",
         "link-total": "/links/search",
@@ -197,13 +202,58 @@ def _probe(world: World, tw: Twinning | None, reader: str, kind: str) -> list[Ca
 def test_known_leak(name: str, new_db: object, tmp_path: Path) -> None:
     a, b, _, tw = _worlds(LEAKS[name].group, new_db, tmp_path)
     try:
-        kind = "lake" if name == "dedup-flag" else name
+        kind = {"dedup-flag": "lake", "webhook-target": "webhook"}.get(name, name)
         who = GROUPS[LEAKS[name].group][0]
         failures, _ = diff(_probe(a, None, who, kind), _probe(b, tw, who, kind), tw)
         assert not failures, "\n".join(map(str, failures))
     finally:
         a.close()
         b.close()
+
+
+# --- the allow-list is as narrow as its reasons ---
+
+_EVENT = '{"event_type":"Transmittal.Defined","seq":7}'
+
+
+def _failure(channel: str, route: str, a: str, b: str) -> Failure:
+    return Failure(channel, route, "bob", a, b)
+
+
+def test_a_leak_explains_only_its_own_unit_on_its_own_calls() -> None:
+    route = "GET /events {'scope': 'project:P123'}"
+    base = '200 {}\n{"rows":[{"seq":6}%s],"total":1}'
+    a, b = base % "", base % ("," + _EVENT)
+    assert explained_by(_failure("api", route, a, b)) == {"transmittal-line"}
+    # another difference on the same call is not the leak's
+    assert not explained_by(_failure("api", route, a, b.replace('"total":1', '"total":2')))
+    assert not explained_by(_failure("api", route, a.replace('"seq":6', '"seq":5'), b))
+    # the same marker on a call the leak does not name
+    assert not explained_by(_failure("api", "GET /records/x/tags {}", a, b))
+    assert not explained_by(_failure("mcp", route, a, b))
+
+
+def test_a_mask_applies_only_to_the_calls_that_name_it() -> None:
+    a, b = '{"link_total":3}', '{"link_total":2}'
+    assert explained_by(_failure("api", "GET /links/search {}", a, b)) == {"link-total"}
+    assert not explained_by(_failure("api", "GET /records {}", a, b))
+    a, b = '{"deduplicated":true}', '{"deduplicated":false}'
+    assert not explained_by(_failure("api", "GET /records/x {}", a, b))
+    assert explained_by(_failure("api", "GET /events {}", a, b)) == {"dedup-flag"}
+
+
+def test_a_numbering_counter_is_all_the_counter_mask_zeroes() -> None:
+    allocated = '{"key":"K-1","pattern":"p","prefix":"K-","record_type":"t","sequence":%d}'
+    assert mask("api", allocated % 5) == mask("api", allocated % 9)
+    other = '{"code":"x","sequence":%d}'
+    assert mask("api", other % 1) != mask("api", other % 2)
+
+
+def test_the_lake_masks_the_chain_hashes_and_not_a_content_hash() -> None:
+    h = "a" * 64
+    data = {"columns": ["seq", "prev_hash", "hash", "sha256"], "rows": [[1, h, h, h]]}
+    mask_chain_columns(data)
+    assert data["rows"] == [[1, "HASH", "HASH", h]]
 
 
 # --- the one difference the owner knows ---

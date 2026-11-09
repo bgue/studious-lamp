@@ -12,6 +12,7 @@ import itertools
 import json
 import re
 import time
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -38,9 +39,15 @@ ULID_RE = re.compile(r"\b[0-9A-HJKMNP-TV-Z]{26}\b")
 HASH_RE = re.compile(r'("(?:prev_)?hash": ?")[0-9a-f]{64}(")|( v\d+ )[0-9a-f]{64}$', re.MULTILINE)
 COUNTER_RE = re.compile(
     r'("stream_id": ?"numbering:[^"]*", ?"stream_type": ?"[^"]*", ?"stream_version": ?)\d+'
-    r'|("sequence": ?)\d+|(numbering:\S+ v)\d+'
+    r"|(numbering:\S+ v)\d+"
 )
-HEX64_RE = re.compile(r"[0-9a-f]{64}")
+#: A flat JSON object (a payload, possibly written with escaped quotes) that holds a ``sequence``.
+FLAT_OBJECT_RE = re.compile(r"\{[^{}]*\\*\"sequence\\*\": ?\d+[^{}]*\}")
+SEQUENCE_RE = re.compile(r'(\\*"sequence\\*": ?)\d+')
+#: The keys that make a flat object the payload of ``Numbering.Allocated``.
+ALLOCATED_KEYS = ("pattern", "key", "prefix", "record_type")
+#: Lake columns that hold the chain hashes.
+LAKE_HASH_COLUMNS = ("prev_hash", "hash")
 
 #: (what is masked, why). Every other difference between A and B fails the walk.
 MASKS = {
@@ -53,9 +60,10 @@ MASKS = {
         "event list an admin reads; every other reader skips account streams"
     ),
     "numbering counter": (
-        "the version of a numbering stream and the sequence in its events: a number follows its "
-        "place in the counter, so a gap in the numbers (and the counter's count) shows that "
-        "something was numbered; the keys themselves are mapped A -> B"
+        "stream_version of a numbering:<scope>:<pattern>:<prefix> stream (and numbering vN in "
+        "text) and payload.sequence of Numbering.Allocated, nothing else called sequence: a number "
+        "follows its place in the counter, so a gap in the numbers shows that something was "
+        "numbered (owner ruling 2026-11-09: a known limit); the keys themselves are mapped A -> B"
     ),
 }
 
@@ -110,8 +118,18 @@ def mask(channel: str, body: str) -> str:
     body = HASH_RE.sub(
         lambda m: f"{m.group(1)}HASH{m.group(2)}" if m.group(1) else f"{m.group(3)}HASH", body
     )
-    body = COUNTER_RE.sub(lambda m: f"{m.group(1) or m.group(2) or m.group(3)}0", body)
-    return canon(HEX64_RE.sub("HASH", body) if channel == "lake" else body)
+    body = COUNTER_RE.sub(lambda m: f"{m.group(1) or m.group(2)}0", body)
+    body = FLAT_OBJECT_RE.sub(_zero_allocated_sequence, body)
+    return canon(body)
+
+
+def _zero_allocated_sequence(m: re.Match[str]) -> str:
+    """The sequence of a Numbering.Allocated payload; any other object that has a ``sequence``
+    (a tag's, a schedule's) is left as it is."""
+    obj = m.group(0)
+    if all(re.search(rf'\\*"{key}\\*":', obj) for key in ALLOCATED_KEYS):
+        return SEQUENCE_RE.sub(r"\g<1>0", obj)
+    return obj
 
 
 @dataclass
@@ -383,6 +401,15 @@ def sync_world_lake(world: World) -> Path:
     return lake
 
 
+def mask_chain_columns(data: dict[str, Any]) -> None:
+    """The chain hashes of a lake result, by column (MASKS "hash chain"); content hashes stay."""
+    cols = [i for i, c in enumerate(data.get("columns", [])) if c in LAKE_HASH_COLUMNS]
+    for row in data.get("rows", []):
+        for i in cols:
+            if isinstance(row[i], str) and re.fullmatch(r"[0-9a-f]{64}", row[i]):
+                row[i] = "HASH"
+
+
 def lake_calls(world: World, reader: str, lake: Path) -> list[Call]:
     server = build_server(world.h.backend, actor=mcp_actor(reader), lake_dir=lake)
     out: list[Call] = []
@@ -394,6 +421,8 @@ def lake_calls(world: World, reader: str, lake: Path) -> list[Call]:
             data = data.get("structured_content") or data
             for volatile in ("snapshot_id", "as_of", "elapsed_ms", "content"):
                 data.pop(volatile, None)
+            # the chain hashes, by column (MASKS "hash chain"); a file's content hash stays
+            mask_chain_columns(data)
             reply = json.dumps(data, sort_keys=True)
         except (ValueError, AttributeError):
             pass
@@ -516,15 +545,42 @@ def diff(a: list[Call], b: list[Call], tw: Twinning) -> tuple[list[Failure], lis
 # --- leaks the walk found ---
 
 
+def _redacted_row(unit: str) -> str:
+    """What the lake shows a reader in the place of an event it may not read: a placeholder row."""
+    seq = unit[1 : unit.index(",")]
+    return (
+        f'[{seq},"redacted-{seq}","internal","internal",1,"Internal.Redacted",1,"project:P123","{{}}",'
+        f'"internal","2026-10-19T00:00:00.000000+00:00","2026-10-19T00:00:00.000000+00:00",'
+        f'"redacted-{seq}",null,"internal",null,"redacted",null]'
+    )
+
+
+Where = tuple[tuple[str, str], ...]  # (channel, a fragment of the route that is never empty)
+
+
 @dataclass(frozen=True)
 class Leak:
     reason: str  # "LEAK: ..." (the text of the strict xfail)
     group: str  # the readers whose worlds show it
-    # what the leak writes into a response: masked, the twins agree
+    # what the leak writes into a response, masked where ``mask_where`` says: the twins then agree
     mask: re.Pattern[str] | None = None
-    # or: what is in B's answer and not in A's (a card, an event the reader is not given)
+    mask_where: Where = ()
+    # or: a unit (a JSON object, a row, a line) that is in B's answer and not in A's (a card, an
+    # event the reader is not given): it is cut out of B where ``where`` says, and the rest of
+    # the answer must then be byte for byte A's
     extra_in_b: str | None = None
-    where: str = ""  # a fragment of the route, for the evidence
+    where: Where = ()
+    # what A shows in the place of the unit it does not give (None: nothing)
+    stands_for: Callable[[str], str] | None = None
+    # the answer is a page of fixed size: A shows older units where B shows the cut ones
+    page_shift: bool = False
+
+    def __post_init__(self) -> None:
+        for scope, used in ((self.mask_where, self.mask), (self.where, self.extra_in_b)):
+            assert bool(scope) == bool(used), (
+                f"a leak that sets a mask or an extra names its calls: {self}"
+            )
+            assert all(c and frag for c, frag in scope), f"no empty route fragment: {self}"
 
 
 LEAKS = {
@@ -533,45 +589,175 @@ LEAKS = {
         "may not read has the same bytes (events, history, webhooks delta/full, lake)",
         "bob+bot",
         mask=re.compile(r'(\\*"deduplicated\\*": ?)(true|false)'),
+        mask_where=(
+            ("api", "GET /events "),
+            ("lake", "SELECT * FROM events"),
+            ("webhook", "delivery delta"),
+            ("webhook", "delivery full"),
+        ),
     ),
     "link-total": Leak(
         "LEAK: link_total of /links/search counts links to records the reader may not read "
-        "(aggregate: owner to rule whether accepted)",
+        "(owner ruling 2026-11-09: it must count only the visible links)",
         "bob+bot",
         mask=re.compile(r'("link_total": ?)\d+'),
+        mask_where=(("api", "GET /links/search "),),
     ),
     "transmittal-line": Leak(
         "LEAK: a transmittal that lists a revision the reader may not read keeps its position "
         "(position 2 with no 1), and its Transmittal.Defined event is withheld from the reader",
         "bob+bot",
         mask=re.compile(r'(\\*"position\\*": ?)\d+'),
+        mask_where=(("api", "GET /projects/P123/transmittals/"), ("mcp", "get_transmittal ")),
         extra_in_b="Transmittal.Defined",
+        stands_for=lambda unit: _redacted_row(unit) if unit.startswith("[") else "",
+        where=(
+            ("api", "GET /events "),
+            ("api", "/activity "),
+            ("api", "/history "),
+            ("cli", "tl events tail"),
+            ("lake", "SELECT * FROM events"),
+            ("webhook", "delivery "),
+        ),
+    ),
+    "webhook-target": Leak(
+        "LEAK: a delta or full webhook of a constraint whose target is unreadable carries "
+        "the target's id and kind (the API and the events show null)",
+        "bob+bot",
+        mask=re.compile(
+            r'(\\*"target_id\\*": ?)(null|\\*"[0-9A-Z]{26}\\*")'
+            r'(, ?\\*"target_kind\\*": ?)(null|\\*"record\\*")'
+        ),
+        mask_where=(("webhook", "delivery delta"), ("webhook", "delivery full")),
     ),
     "feed-card-group": Leak(
         "LEAK: the feed folds consecutive events into one card and withholds the whole card when "
         "one event is hidden, so the card of a visible link is missing next to a hidden one",
         "amy",
         extra_in_b="ctl added a link",
-        where="feed",
+        where=(("api", "GET /feed "), ("cli", "tl feed ls")),
+        page_shift=True,
     ),
 }
 
 
+def _in_scope(failure: Failure, where: Where) -> bool:
+    return any(failure.channel == c and frag in failure.route for c, frag in where)
+
+
+def _opener(text_: str, at: int) -> int:
+    """The ``{`` or ``[`` that opens the bracket holding ``text_[at]`` on its line; -1 when none."""
+    line = text_.rfind("\n", 0, at) + 1
+    depth = 0
+    for i in range(at - 1, line - 1, -1):
+        if text_[i] in "}]":
+            depth += 1
+        elif text_[i] in "{[":
+            if depth == 0:
+                return i
+            depth -= 1
+    return -1
+
+
+def _unit_at(text_: str, at: int) -> tuple[int, int]:
+    """The element of a JSON list that holds ``text_[at]`` (an event, a row, a card); when no list
+    holds it on its line, the line."""
+    inner = _opener(text_, at)
+    while inner >= 0:
+        outer = _opener(text_, inner)
+        if outer >= 0 and text_[outer] == "[":
+            end = _object_end(text_, inner) if text_[inner] == "{" else _list_end(text_, inner)
+            return inner, end
+        inner = outer
+    line = text_.rfind("\n", 0, at) + 1
+    end = text_.find("\n", at)
+    return line, len(text_) if end < 0 else end + 1
+
+
+def _list_end(text_: str, start: int) -> int:
+    depth, quoted, at = 0, False, start
+    while at < len(text_):
+        ch = text_[at]
+        if quoted:
+            if ch == "\\":
+                at += 1
+            quoted = ch != '"'
+        elif ch == '"':
+            quoted = True
+        elif ch in "[]":
+            depth += 1 if ch == "[" else -1
+            if depth == 0:
+                return at + 1
+        at += 1
+    raise AssertionError("an unfinished JSON list")
+
+
+def cut_extra(a: str, b: str, leak: Leak) -> tuple[str, int]:
+    """``b`` without the units that hold the leak's marker and that ``a`` does not hold (and the
+    comma or the line that went with each), and how many; the rest of ``b`` is not touched. A leak
+    that ``stands_for`` its unit puts what A shows there instead."""
+    assert leak.extra_in_b
+    at, cut = len(b), 0
+    while (at := b.rfind(leak.extra_in_b, 0, at)) >= 0:
+        start, end = _unit_at(b, at)
+        unit = b[start:end].rstrip("\n")
+        if unit not in a:
+            cut += 1
+            instead = leak.stands_for(unit) if leak.stands_for else ""
+            if instead:
+                b = b[:start] + instead + b[start + len(unit) :]
+            else:
+                if b[end : end + 1] == ",":
+                    end += 1
+                elif b[start - 1 : start] == ",":
+                    start -= 1
+                elif b[start - 1 : start] == "\n" and b[end - 1 : end] == "\n":
+                    pass  # a whole line goes, with its own newline
+                b = b[:start] + b[end:]
+        at = start
+    return b, cut
+
+
+def _page_shift(a: str, b: str, cut: int) -> bool:
+    """What the cut units drag along on a page of fixed size: A shows at most ``cut`` older units
+    at the end where B had the cut ones; ``next_before`` and the label of a record that only one
+    page names may differ (labels that both name must agree). Nothing else may."""
+    head_a, _, tail_a = a.partition("\n")
+    head_b, _, tail_b = b.partition("\n")
+    if head_a != head_b:
+        return False
+    try:
+        da, db = json.loads(tail_a), json.loads(tail_b)
+    except ValueError:  # text: B's lines, then at most ``cut`` more
+        la, lb = a.splitlines(), b.splitlines()
+        return len(lb) < len(la) <= len(lb) + cut and la[: len(lb)] == lb
+    ia, ib = da.pop("items", None), db.pop("items", None)
+    if ia is None or ib is None or not (0 <= len(ia) - len(ib) <= cut) or ia[: len(ib)] != ib:
+        return False
+    la, lb = da.pop("labels", {}), db.pop("labels", {})
+    da.pop("next_before", None), db.pop("next_before", None)
+    return da == db and all(la[k] == lb[k] for k in la.keys() & lb.keys())
+
+
 def explained_by(failure: Failure) -> set[str]:
-    """The leaks that account for a difference; empty when something else is going on."""
+    """The leaks that account for a difference; empty when something else is going on.
+
+    A leak counts only on the calls it names (channel and route), only for the one thing it writes
+    (a masked field, or one cut-out unit), and the rest of the answer must be A's byte for byte."""
     a, b, names = failure.a, failure.b, set[str]()
     for name, leak in LEAKS.items():
-        if leak.mask is None:
+        if leak.mask is None or not _in_scope(failure, leak.mask_where):
             continue
         a2, b2 = leak.mask.sub(r"\1N", a), leak.mask.sub(r"\1N", b)
         if (a2, b2) != (a, b):
             names.add(name)
             a, b = a2, b2
-    if a == b:
-        return names
     for name, leak in LEAKS.items():
-        if leak.extra_in_b and leak.where in failure.route:
-            if b.count(leak.extra_in_b) > a.count(leak.extra_in_b):
+        if leak.extra_in_b and _in_scope(failure, leak.where):
+            b2, cut = cut_extra(a, b, leak)
+            if cut:
                 names.add(name)
-                return names
-    return set()
+                b = b2
+                if leak.page_shift and a != b and _page_shift(a, b, cut):
+                    return names
+    return names if a == b else set()
