@@ -16,6 +16,8 @@ Examples use project `P123` and IWP `P123-IWP-PIP-0001`.
 | Web | `/web/p/{project}/iwps` | `/web/p/{project}/constraints`, and `/web/p/{project}/constraints?subject=<subject key>` for one subject | `/web/p/{project}/readiness?number=<IWP number>` |
 | MCP | `list_iwps`, `get_iwp`, `list_iwp_scope` | none (the agent holds no `core.constraint.*` word, D37) | `get_iwp_readiness` |
 
+Work pack: `tl awp iwp pack NUMBER [--out FILE] [--attach]` writes one printable HTML file of an IWP (QR codes need the `pack` extra); `--attach` stores it in the IWP's `pack` file slot. Code: `tl_mod_awp/pack.py`, `tl_cli/awp_pack.py`.
+
 Export: `tl awp export progress --project P --period YYYY-Www [--out FILE]` prints earned progress by cost code as CSV
 (`period,scope,cost_code,earned_hours,budget_hours,earned_pct,as_of_seq`; the `Unallocated` line last; an empty cell is no budget).
 It is computed on read from the stored IWP progress, stores nothing and writes no event. Cells that start with
