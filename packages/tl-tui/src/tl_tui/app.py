@@ -720,6 +720,7 @@ class TlApp(App[None]):
         from tl_tui.widgets.package_log import PackageLogScreen
         from tl_tui.widgets.path_screen import PathScreen
         from tl_tui.widgets.wbs_screen import WbsScreen
+        from tl_tui.widgets.weekly_screen import LookAheadScreen
 
         project = project_of_scope(self.scope)
         if project is None:
@@ -734,6 +735,7 @@ class TlApp(App[None]):
             "iwps": IwpRegisterScreen,
             "constraints": ConstraintScreen,
             "backlog": BacklogScreen,
+            "week": LookAheadScreen,
         }
         self.push_screen(screens[which](self.client, project))
 
@@ -768,6 +770,10 @@ class TlApp(App[None]):
     def action_packages(self) -> None:
         """External packages: the EWP and PWP log of this project (palette only)."""
         self._push_awp("packages")
+
+    def action_week(self) -> None:
+        """The weekly cycle of this project: look-ahead, constraints, release (palette only)."""
+        self._push_awp("week")
 
     def action_settings(self) -> None:
         """about:config: the settings of this project, with their origin and history."""
