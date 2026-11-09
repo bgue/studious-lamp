@@ -84,3 +84,22 @@ def test_the_activity_feed_and_the_event_read_redact_too(db: str | Path, tmp_pat
         )
     assert hidden not in "".join(r.event.model_dump_json() for r in page.rows)
     assert hidden not in "".join(e.model_dump_json() for e in read if e.stream_type != "core.Link")
+
+
+def test_a_visible_target_is_kept_beside_a_hidden_one(db: str | Path, tmp_path: Path) -> None:
+    built = sw.build(tmp_path, db)
+    hidden = sw.add_hidden(built)
+    mine = _raise(built, target_id=built.ids["to"])
+    _raise(built, target_id=hidden)
+    with open_uow(built.w.db, readonly=True) as uow, cf.use_viewer(cf.LOWEST):
+        raised = [
+            e
+            for e in redact_for_viewer(
+                uow.conn(),
+                cf.filter_events(uow.conn(), uow.ledger.read_after(0, limit=100_000)),
+            )
+            if e.event_type == "Constraint.Raised"
+        ]
+    by_id = {e.stream_id: e.payload["target_id"] for e in raised}
+    assert by_id[mine] == built.ids["to"]
+    assert None in by_id.values() and hidden not in by_id.values()
