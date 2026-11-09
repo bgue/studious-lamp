@@ -12,12 +12,17 @@ default:
 gen:
     uv run python -m tl_schema.generate
 
+# Refresh the event-schema compat baseline; refuses when a change is not additive (P2-GUARD)
+compat-update:
+    uv run python -m tl_schema.compat --update
+
 # Lint, format check, types, and codegen drift (fails if `just gen` would change committed output)
 check:
     uv run ruff check .
     uv run ruff format --check .
     uv run pyright
     uv run python -m tl_schema.generate --check
+    uv run python -m tl_schema.compat --check
     uv run python -m tl_api.openapi --check
     uv run python dev/tools/check_licences.py
 

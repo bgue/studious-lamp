@@ -1,0 +1,7740 @@
+{
+ "Account.Created": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "account_id": {
+     "type": "string"
+    },
+    "display_name": {
+     "type": "string"
+    },
+    "kind": {
+     "enum": [
+      "person",
+      "agent",
+      "sim"
+     ],
+     "type": "string"
+    },
+    "roles": {},
+    "username": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "account_id",
+    "username",
+    "display_name",
+    "kind",
+    "roles"
+   ],
+   "type": "object"
+  }
+ },
+ "Account.Disabled": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "account_id": {
+     "type": "string"
+    },
+    "reason": {
+     "type": [
+      "string",
+      "null"
+     ]
+    }
+   },
+   "required": [
+    "account_id"
+   ],
+   "type": "object"
+  }
+ },
+ "Account.Enabled": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "account_id": {
+     "type": "string"
+    },
+    "reason": {
+     "type": [
+      "string",
+      "null"
+     ]
+    }
+   },
+   "required": [
+    "account_id"
+   ],
+   "type": "object"
+  }
+ },
+ "Account.ModuleRoleGranted": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "account_id": {
+     "type": "string"
+    },
+    "module": {
+     "type": "string"
+    },
+    "project": {
+     "type": "string"
+    },
+    "reason": {
+     "type": "string"
+    },
+    "role": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "account_id",
+    "project",
+    "module",
+    "role",
+    "reason"
+   ],
+   "type": "object"
+  }
+ },
+ "Account.ModuleRoleRevoked": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "account_id": {
+     "type": "string"
+    },
+    "module": {
+     "type": "string"
+    },
+    "project": {
+     "type": "string"
+    },
+    "reason": {
+     "type": "string"
+    },
+    "role": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "account_id",
+    "project",
+    "module",
+    "role",
+    "reason"
+   ],
+   "type": "object"
+  }
+ },
+ "Account.PasswordChanged": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "account_id": {
+     "type": "string"
+    },
+    "by": {
+     "type": "string"
+    },
+    "forced": {
+     "type": "boolean"
+    }
+   },
+   "required": [
+    "account_id",
+    "by",
+    "forced"
+   ],
+   "type": "object"
+  }
+ },
+ "Account.RolesSet": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "account_id": {
+     "type": "string"
+    },
+    "reason": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "roles": {}
+   },
+   "required": [
+    "account_id",
+    "roles"
+   ],
+   "type": "object"
+  }
+ },
+ "Action.Completed": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "attempt": {
+     "type": "integer"
+    },
+    "http_status": {
+     "type": [
+      "integer",
+      "null"
+     ]
+    },
+    "invocation_id": {
+     "type": "string"
+    },
+    "result": {}
+   },
+   "required": [
+    "invocation_id",
+    "attempt"
+   ],
+   "type": "object"
+  }
+ },
+ "Action.Failed": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "attempt": {
+     "type": "integer"
+    },
+    "http_status": {
+     "type": [
+      "integer",
+      "null"
+     ]
+    },
+    "invocation_id": {
+     "type": "string"
+    },
+    "problems": {}
+   },
+   "required": [
+    "invocation_id",
+    "attempt",
+    "problems"
+   ],
+   "type": "object"
+  }
+ },
+ "Action.Requested": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "action": {
+     "type": "string"
+    },
+    "action_version": {
+     "type": "integer"
+    },
+    "definition_id": {
+     "type": "string"
+    },
+    "invocation_id": {
+     "type": "string"
+    },
+    "invoked_by": {
+     "type": "string"
+    },
+    "parameters": {},
+    "proposal_id": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "targets": {}
+   },
+   "required": [
+    "invocation_id",
+    "action",
+    "action_version",
+    "definition_id",
+    "targets",
+    "parameters",
+    "invoked_by"
+   ],
+   "type": "object"
+  }
+ },
+ "Action.Running": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "attempt": {
+     "type": "integer"
+    },
+    "invocation_id": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "invocation_id",
+    "attempt"
+   ],
+   "type": "object"
+  }
+ },
+ "ActionDefinition.Defined": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "access": {
+     "type": "string"
+    },
+    "applies_to": {},
+    "definition_id": {
+     "type": "string"
+    },
+    "description": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "enabled": {
+     "type": [
+      "boolean",
+      "null"
+     ]
+    },
+    "executor": {
+     "type": "string"
+    },
+    "executor_config": {},
+    "integration_app": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "label": {
+     "type": "string"
+    },
+    "name": {
+     "type": "string"
+    },
+    "owner": {
+     "type": "string"
+    },
+    "parameters": {},
+    "requires_approval": {
+     "type": [
+      "boolean",
+      "null"
+     ]
+    },
+    "result_handling": {},
+    "secret_id": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "side_effect_class": {
+     "type": "string"
+    },
+    "version": {
+     "type": "integer"
+    }
+   },
+   "required": [
+    "definition_id",
+    "name",
+    "label",
+    "version",
+    "applies_to",
+    "parameters",
+    "executor",
+    "executor_config",
+    "side_effect_class",
+    "access",
+    "result_handling",
+    "owner"
+   ],
+   "type": "object"
+  }
+ },
+ "ActionDefinition.Retired": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "definition_id": {
+     "type": "string"
+    },
+    "reason": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "definition_id",
+    "reason"
+   ],
+   "type": "object"
+  }
+ },
+ "ActionDefinition.Revised": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "definition": {},
+    "definition_id": {
+     "type": "string"
+    },
+    "reason": {
+     "type": "string"
+    },
+    "version": {
+     "type": "integer"
+    }
+   },
+   "required": [
+    "definition_id",
+    "version",
+    "definition",
+    "reason"
+   ],
+   "type": "object"
+  }
+ },
+ "ActionDefinition.SecretRotated": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "definition_id": {
+     "type": "string"
+    },
+    "previous_expires_at": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "previous_secret_id": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "secret_id": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "definition_id",
+    "secret_id"
+   ],
+   "type": "object"
+  }
+ },
+ "ActivityRef.Defined": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "activity_id": {
+     "type": "string"
+    },
+    "first_snapshot_id": {
+     "type": "string"
+    },
+    "first_snapshot_number": {
+     "type": "integer"
+    },
+    "schedule_code": {
+     "type": "string"
+    },
+    "schedule_id": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "schedule_id",
+    "schedule_code",
+    "activity_id",
+    "first_snapshot_id",
+    "first_snapshot_number"
+   ],
+   "type": "object"
+  }
+ },
+ "ActivityRef.PresenceChanged": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "last_seen_number": {
+     "type": "integer"
+    },
+    "last_seen_snapshot_id": {
+     "type": "string"
+    },
+    "present": {
+     "type": "boolean"
+    },
+    "snapshot_id": {
+     "type": "string"
+    },
+    "snapshot_number": {
+     "type": "integer"
+    }
+   },
+   "required": [
+    "present",
+    "snapshot_id",
+    "snapshot_number",
+    "last_seen_snapshot_id",
+    "last_seen_number"
+   ],
+   "type": "object"
+  }
+ },
+ "Adoption.Pinned": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "adopted_by": {
+     "type": "string"
+    },
+    "auto": {
+     "type": [
+      "boolean",
+      "null"
+     ]
+    },
+    "impact_sha256": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "package": {
+     "type": "string"
+    },
+    "previous_version": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "project": {
+     "type": "string"
+    },
+    "version": {
+     "type": "string"
+    },
+    "worst_class": {
+     "type": [
+      "string",
+      "null"
+     ]
+    }
+   },
+   "required": [
+    "project",
+    "package",
+    "version",
+    "adopted_by"
+   ],
+   "type": "object"
+  }
+ },
+ "AgentToken.Issued": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "account_id": {
+     "type": "string"
+    },
+    "expires_at": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "label": {
+     "type": "string"
+    },
+    "token_id": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "token_id",
+    "account_id",
+    "label"
+   ],
+   "type": "object"
+  }
+ },
+ "AgentToken.Revoked": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "account_id": {
+     "type": "string"
+    },
+    "reason": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "token_id": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "token_id",
+    "account_id"
+   ],
+   "type": "object"
+  }
+ },
+ "CWA.Defined": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "code": {
+     "type": "string"
+    },
+    "location_text": {
+     "type": [
+      "string",
+      "null"
+     ]
+    }
+   },
+   "required": [
+    "code"
+   ],
+   "type": "object"
+  }
+ },
+ "CWA.Retired": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "reason": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "reason"
+   ],
+   "type": "object"
+  }
+ },
+ "CWA.Revised": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "changes": {}
+   },
+   "required": [
+    "changes"
+   ],
+   "type": "object"
+  }
+ },
+ "CWP.AllocatedToWbs": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "allocations": {},
+    "feed_policy": {
+     "const": "none",
+     "type": "string"
+    }
+   },
+   "required": [
+    "allocations",
+    "feed_policy"
+   ],
+   "type": "object"
+  }
+ },
+ "CWP.Defined": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "budget_hours": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "contractor_text": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "cwa_id": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "discipline": {
+     "type": "string"
+    },
+    "planned_finish": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "planned_start": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "quantities": {}
+   },
+   "required": [
+    "discipline"
+   ],
+   "type": "object"
+  }
+ },
+ "CWP.Released": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "by": {
+     "type": "string"
+    },
+    "record_hash": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "by",
+    "record_hash"
+   ],
+   "type": "object"
+  }
+ },
+ "CWP.Revised": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "changes": {}
+   },
+   "required": [
+    "changes"
+   ],
+   "type": "object"
+  }
+ },
+ "CodeValue.Closed": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "effective_to": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "lifecycle": {
+     "type": "string"
+    },
+    "reason": {
+     "type": "string"
+    },
+    "superseded_by": {
+     "type": [
+      "string",
+      "null"
+     ]
+    }
+   },
+   "required": [
+    "lifecycle",
+    "reason"
+   ],
+   "type": "object"
+  }
+ },
+ "CodeValue.Defined": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "attributes": {},
+    "code": {
+     "type": "string"
+    },
+    "code_list": {
+     "type": "string"
+    },
+    "crosswalk": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "edition": {
+     "type": "string"
+    },
+    "effective_from": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "effective_to": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "label": {
+     "type": "string"
+    },
+    "meaning": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "origin": {
+     "type": "string"
+    },
+    "sort_order": {
+     "type": [
+      "integer",
+      "null"
+     ]
+    }
+   },
+   "required": [
+    "code_list",
+    "code",
+    "label",
+    "origin",
+    "edition"
+   ],
+   "type": "object"
+  }
+ },
+ "Commercial.Assessed": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "assessed_on": {
+     "type": "string"
+    },
+    "assessed_value": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "date_reason": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "feed_policy": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "feed_text": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "note": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "status": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "status",
+    "assessed_on"
+   ],
+   "type": "object"
+  }
+ },
+ "Commercial.Defined": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "aware_on": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "contract_clause_id": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "cost_code_impacts": {},
+    "currency": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "derived_from_id": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "entitlement_basis": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "estimated_hours": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "estimated_value": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "schedule_impact_days": {
+     "type": [
+      "integer",
+      "null"
+     ]
+    },
+    "schedule_impact_note": {
+     "type": [
+      "string",
+      "null"
+     ]
+    }
+   },
+   "required": [
+    "cost_code_impacts"
+   ],
+   "type": "object"
+  }
+ },
+ "Commercial.Updated": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "changes": {},
+    "reason": {
+     "type": [
+      "string",
+      "null"
+     ]
+    }
+   },
+   "required": [
+    "changes"
+   ],
+   "type": "object"
+  }
+ },
+ "Constraint.Assigned": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "constraint_id": {
+     "type": "string"
+    },
+    "owner": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "constraint_id",
+    "owner"
+   ],
+   "type": "object"
+  }
+ },
+ "Constraint.Cleared": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "cleared_at": {
+     "type": "string"
+    },
+    "cleared_by": {
+     "type": "string"
+    },
+    "constraint_id": {
+     "type": "string"
+    },
+    "reason": {
+     "type": "string"
+    },
+    "resolved_by": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "suppress": {
+     "type": "boolean"
+    }
+   },
+   "required": [
+    "constraint_id",
+    "cleared_at",
+    "cleared_by",
+    "reason",
+    "suppress"
+   ],
+   "type": "object"
+  }
+ },
+ "Constraint.Raised": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "category": {
+     "enum": [
+      "materials",
+      "labour",
+      "scaffold",
+      "equipment",
+      "permit",
+      "engineering",
+      "rfi",
+      "predecessor",
+      "other"
+     ],
+     "type": "string"
+    },
+    "check_name": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "constraint_id": {
+     "type": "string"
+    },
+    "description": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "due_at": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "effective_at": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "facts_hash": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "owner": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "phase": {
+     "type": "string"
+    },
+    "severity": {
+     "type": "string"
+    },
+    "source": {
+     "type": "string"
+    },
+    "subject_id": {
+     "type": "string"
+    },
+    "target_id": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "target_kind": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "target_ref_text": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "target_ref_type": {
+     "type": [
+      "string",
+      "null"
+     ]
+    }
+   },
+   "required": [
+    "constraint_id",
+    "subject_id",
+    "phase",
+    "severity",
+    "category",
+    "source"
+   ],
+   "type": "object"
+  }
+ },
+ "Constraint.Withdrawn": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "constraint_id": {
+     "type": "string"
+    },
+    "reason": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "constraint_id",
+    "reason"
+   ],
+   "type": "object"
+  }
+ },
+ "ContractClause.Defined": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "clause_number": {
+     "type": "string"
+    },
+    "contract": {
+     "type": "string"
+    },
+    "contract_document_id": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "domains": {},
+    "notice_requirements": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "required_recipients": {},
+    "service_method": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "time_bar_day_type": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "time_bar_days": {
+     "type": [
+      "integer",
+      "null"
+     ]
+    }
+   },
+   "required": [
+    "contract",
+    "clause_number",
+    "required_recipients",
+    "domains"
+   ],
+   "type": "object"
+  }
+ },
+ "ContractClause.Retired": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "reason": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "reason"
+   ],
+   "type": "object"
+  }
+ },
+ "Correspondence.ClearanceGranted": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "account": {
+     "type": "string"
+    },
+    "granted_on": {
+     "type": "string"
+    },
+    "reason": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "account",
+    "granted_on",
+    "reason"
+   ],
+   "type": "object"
+  }
+ },
+ "Correspondence.ClearanceWithdrawn": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "account": {
+     "type": "string"
+    },
+    "reason": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "account",
+    "reason"
+   ],
+   "type": "object"
+  }
+ },
+ "Correspondence.ConfidentialityChanged": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "from_class": {
+     "type": "string"
+    },
+    "reason": {
+     "type": "string"
+    },
+    "to_class": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "from_class",
+    "to_class",
+    "reason"
+   ],
+   "type": "object"
+  }
+ },
+ "Correspondence.Defined": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "body": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "cc": {},
+    "confidentiality": {
+     "type": "string"
+    },
+    "direction": {
+     "type": "string"
+    },
+    "domain": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "external_ref": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "from_name": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "from_party_id": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "in_reply_to": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "medium": {
+     "type": "string"
+    },
+    "message_id": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "number": {
+     "type": "string"
+    },
+    "received_on": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "received_via": {
+     "type": "string"
+    },
+    "responds_to_id": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "response_due": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "response_required": {
+     "type": [
+      "boolean",
+      "null"
+     ]
+    },
+    "sent_on": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "subtype": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "to": {}
+   },
+   "required": [
+    "number",
+    "direction",
+    "medium",
+    "received_via",
+    "to",
+    "cc",
+    "confidentiality"
+   ],
+   "type": "object"
+  }
+ },
+ "Correspondence.Issued": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "clock_ids": {},
+    "date_reason": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "delivery": {
+     "type": "string"
+    },
+    "feed_policy": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "feed_text": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "issued_on": {
+     "type": "string"
+    },
+    "rendition_file_id": {
+     "type": "string"
+    },
+    "rendition_sha256": {
+     "type": "string"
+    },
+    "template": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "issued_on",
+    "rendition_file_id",
+    "rendition_sha256",
+    "template",
+    "delivery",
+    "clock_ids"
+   ],
+   "type": "object"
+  }
+ },
+ "Correspondence.Reclassified": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "domain": {
+     "type": "string"
+    },
+    "from_domain": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "from_subtype": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "reason": {
+     "type": "string"
+    },
+    "subtype": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "domain",
+    "subtype",
+    "reason"
+   ],
+   "type": "object"
+  }
+ },
+ "Correspondence.Responded": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "responded_on": {
+     "type": "string"
+    },
+    "response_id": {
+     "type": [
+      "string",
+      "null"
+     ]
+    }
+   },
+   "required": [
+    "responded_on"
+   ],
+   "type": "object"
+  }
+ },
+ "Correspondence.Superseded": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "reason": {
+     "type": "string"
+    },
+    "superseded_by_id": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "superseded_by_id",
+    "reason"
+   ],
+   "type": "object"
+  }
+ },
+ "Correspondence.ThreadAssigned": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "matched_by": {
+     "type": "string"
+    },
+    "responds_to_id": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "thread_id": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "thread_id",
+    "matched_by"
+   ],
+   "type": "object"
+  }
+ },
+ "Correspondence.Triaged": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "clock_ids": {},
+    "domain": {
+     "type": "string"
+    },
+    "referenced_ids": {},
+    "subtype": {
+     "type": "string"
+    },
+    "suggestion": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "triaged_on": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "domain",
+    "subtype",
+    "referenced_ids",
+    "clock_ids",
+    "triaged_on"
+   ],
+   "type": "object"
+  }
+ },
+ "Correspondence.Updated": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "changes": {},
+    "reason": {
+     "type": [
+      "string",
+      "null"
+     ]
+    }
+   },
+   "required": [
+    "changes"
+   ],
+   "type": "object"
+  }
+ },
+ "CorrespondenceThread.Defined": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "domain": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "governing_item_id": {
+     "type": "string"
+    },
+    "item_on": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "number": {
+     "type": "string"
+    },
+    "subject_key": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "number",
+    "subject_key",
+    "governing_item_id"
+   ],
+   "type": "object"
+  }
+ },
+ "CorrespondenceThread.ItemAdded": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "item_id": {
+     "type": "string"
+    },
+    "item_on": {
+     "type": [
+      "string",
+      "null"
+     ]
+    }
+   },
+   "required": [
+    "item_id"
+   ],
+   "type": "object"
+  }
+ },
+ "CorrespondenceThread.StateChanged": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "reason": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "state": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "state"
+   ],
+   "type": "object"
+  }
+ },
+ "CostCode.Defined": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "code": {
+     "type": "string"
+    },
+    "level": {
+     "type": "integer"
+    },
+    "parent_code": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "uom": {
+     "type": [
+      "string",
+      "null"
+     ]
+    }
+   },
+   "required": [
+    "code",
+    "level"
+   ],
+   "type": "object"
+  }
+ },
+ "CostCode.MeasuresRecorded": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "as_of": {
+     "type": "string"
+    },
+    "measures": {},
+    "period": {
+     "type": "string"
+    },
+    "revision": {
+     "type": "integer"
+    },
+    "snapshot_id": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "snapshot_id",
+    "period",
+    "revision",
+    "as_of",
+    "measures"
+   ],
+   "type": "object"
+  }
+ },
+ "CostCode.Revised": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "changes": {},
+    "snapshot_id": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "snapshot_id",
+    "changes"
+   ],
+   "type": "object"
+  }
+ },
+ "CostSnapshot.Defined": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "as_of": {
+     "type": "string"
+    },
+    "currency": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "new_code_count": {
+     "type": "integer"
+    },
+    "period": {
+     "type": "string"
+    },
+    "revised_code_count": {
+     "type": "integer"
+    },
+    "revision": {
+     "type": "integer"
+    },
+    "row_count": {
+     "type": "integer"
+    },
+    "source_name": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "source_sha256": {
+     "type": [
+      "string",
+      "null"
+     ]
+    }
+   },
+   "required": [
+    "period",
+    "revision",
+    "as_of",
+    "row_count",
+    "new_code_count",
+    "revised_code_count"
+   ],
+   "type": "object"
+  }
+ },
+ "DerivedDocument.ContentRecorded": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "column_count": {
+     "type": "integer"
+    },
+    "content_rev": {
+     "type": "integer"
+    },
+    "extraction_status": {
+     "type": "string"
+    },
+    "extractor": {
+     "type": "string"
+    },
+    "extractor_notes": {},
+    "extractor_version": {
+     "type": "string"
+    },
+    "file_metadata": {},
+    "job_id": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "method": {
+     "type": "string"
+    },
+    "problem_count": {
+     "type": "integer"
+    },
+    "result_file_id": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "result_sha256": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "row_count": {
+     "type": "integer"
+    },
+    "source_file_id": {
+     "type": "string"
+    },
+    "source_kind": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "content_rev",
+    "source_kind",
+    "source_file_id",
+    "extractor",
+    "extractor_version",
+    "extraction_status",
+    "row_count",
+    "column_count",
+    "problem_count",
+    "method"
+   ],
+   "type": "object"
+  }
+ },
+ "DerivedDocument.Defined": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "method": {
+     "type": "string"
+    },
+    "previous_derived_id": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "schema_code": {
+     "type": "string"
+    },
+    "schema_id": {
+     "type": "string"
+    },
+    "schema_version": {
+     "type": "string"
+    },
+    "source_document_id": {
+     "type": "string"
+    },
+    "source_document_number": {
+     "type": "string"
+    },
+    "source_ref": {
+     "type": "string"
+    },
+    "source_revision_code": {
+     "type": "string"
+    },
+    "source_revision_id": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "source_document_id",
+    "source_revision_id",
+    "source_document_number",
+    "source_revision_code",
+    "source_ref",
+    "schema_id",
+    "schema_code",
+    "schema_version",
+    "method"
+   ],
+   "type": "object"
+  }
+ },
+ "DerivedDocument.PublicationCompensated": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "compensation_correlation_id": {
+     "type": "string"
+    },
+    "content_rev": {
+     "type": "integer"
+    },
+    "import_correlation_id": {
+     "type": "string"
+    },
+    "reason": {
+     "type": "string"
+    },
+    "reversed_count": {
+     "type": "integer"
+    }
+   },
+   "required": [
+    "content_rev",
+    "import_correlation_id",
+    "compensation_correlation_id",
+    "reversed_count",
+    "reason"
+   ],
+   "type": "object"
+  }
+ },
+ "DerivedDocument.Published": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "content_rev": {
+     "type": "integer"
+    },
+    "created_count": {
+     "type": "integer"
+    },
+    "import_correlation_id": {
+     "type": "string"
+    },
+    "link_ids": {
+     "items": {
+      "type": "string"
+     },
+     "maxItems": 20000,
+     "type": "array"
+    },
+    "mapping_hash": {
+     "type": "string"
+    },
+    "record_ids": {
+     "items": {
+      "type": "string"
+     },
+     "maxItems": 20000,
+     "type": "array"
+    },
+    "result_sha256": {
+     "type": "string"
+    },
+    "target_kind": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "content_rev",
+    "import_correlation_id",
+    "target_kind",
+    "created_count",
+    "record_ids",
+    "link_ids",
+    "mapping_hash",
+    "result_sha256"
+   ],
+   "type": "object"
+  }
+ },
+ "DerivedDocument.Validated": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "content_rev": {
+     "type": "integer"
+    },
+    "error_count": {
+     "type": "integer"
+    },
+    "job_id": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "report_file_id": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "report_sha256": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "schema_code": {
+     "type": "string"
+    },
+    "schema_id": {
+     "type": "string"
+    },
+    "schema_version": {
+     "type": "string"
+    },
+    "validation_status": {
+     "type": "string"
+    },
+    "warning_count": {
+     "type": "integer"
+    }
+   },
+   "required": [
+    "content_rev",
+    "schema_id",
+    "schema_code",
+    "schema_version",
+    "validation_status",
+    "error_count",
+    "warning_count"
+   ],
+   "type": "object"
+  }
+ },
+ "Document.CurrentRevisionChanged": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "current_revision_class": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "current_revision_code": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "current_revision_id": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "current_revision_issued_on": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "current_revision_status": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "previous_revision_id": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "reason": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "reason"
+   ],
+   "type": "object"
+  }
+ },
+ "Document.Defined": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "confidentiality": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "discipline": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "doc_type": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "number": {
+     "type": "string"
+    },
+    "originator": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "pattern_code": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "revision_scheme": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "number",
+    "revision_scheme"
+   ],
+   "type": "object"
+  }
+ },
+ "Document.Superseded": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "reason": {
+     "type": "string"
+    },
+    "superseded_by": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "superseded_by",
+    "reason"
+   ],
+   "type": "object"
+  }
+ },
+ "Document.Updated": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "changes": {},
+    "reason": {
+     "type": [
+      "string",
+      "null"
+     ]
+    }
+   },
+   "required": [
+    "changes"
+   ],
+   "type": "object"
+  }
+ },
+ "DocumentSchema.Defined": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "code": {
+     "type": "string"
+    },
+    "content_hash": {
+     "type": "string"
+    },
+    "doc_types": {},
+    "json_schema": {},
+    "key_column": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "mapping": {},
+    "mapping_notes": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "ordinal": {
+     "type": "integer"
+    },
+    "sample": {},
+    "semver": {
+     "type": "string"
+    },
+    "target_kind": {
+     "type": [
+      "string",
+      "null"
+     ]
+    }
+   },
+   "required": [
+    "code",
+    "semver",
+    "ordinal",
+    "json_schema",
+    "content_hash"
+   ],
+   "type": "object"
+  }
+ },
+ "DocumentSchema.Retired": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "reason": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "reason"
+   ],
+   "type": "object"
+  }
+ },
+ "EWPRef.Defined": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "actual_date": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "constraint_source": {
+     "type": "boolean"
+    },
+    "forecast_date": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "package_no": {
+     "type": "string"
+    },
+    "source_system": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "status_text": {
+     "type": [
+      "string",
+      "null"
+     ]
+    }
+   },
+   "required": [
+    "package_no",
+    "constraint_source"
+   ],
+   "type": "object"
+  }
+ },
+ "EWPRef.Updated": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "changes": {}
+   },
+   "required": [
+    "changes"
+   ],
+   "type": "object"
+  }
+ },
+ "Enricher.Disabled": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "enricher_id": {
+     "type": "string"
+    },
+    "reason": {
+     "type": [
+      "string",
+      "null"
+     ]
+    }
+   },
+   "required": [
+    "enricher_id"
+   ],
+   "type": "object"
+  }
+ },
+ "Enricher.Enabled": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "enricher_id": {
+     "type": "string"
+    },
+    "reason": {
+     "type": [
+      "string",
+      "null"
+     ]
+    }
+   },
+   "required": [
+    "enricher_id"
+   ],
+   "type": "object"
+  }
+ },
+ "Enricher.Registered": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "access": {
+     "type": "string"
+    },
+    "code_version": {
+     "type": "string"
+    },
+    "enabled": {
+     "type": [
+      "boolean",
+      "null"
+     ]
+    },
+    "enricher_id": {
+     "type": "string"
+    },
+    "integration_app": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "model_ref": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "name": {
+     "type": "string"
+    },
+    "owner": {
+     "type": "string"
+    },
+    "properties": {},
+    "service_actor": {
+     "type": "string"
+    },
+    "version": {
+     "type": "integer"
+    },
+    "when": {}
+   },
+   "required": [
+    "enricher_id",
+    "name",
+    "version",
+    "code_version",
+    "when",
+    "properties",
+    "service_actor",
+    "access",
+    "owner"
+   ],
+   "type": "object"
+  }
+ },
+ "Enricher.Revised": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "enricher": {},
+    "enricher_id": {
+     "type": "string"
+    },
+    "reason": {
+     "type": "string"
+    },
+    "version": {
+     "type": "integer"
+    }
+   },
+   "required": [
+    "enricher_id",
+    "version",
+    "enricher",
+    "reason"
+   ],
+   "type": "object"
+  }
+ },
+ "Enrichment.Accepted": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "automatic": {
+     "type": "boolean"
+    },
+    "by": {
+     "type": "string"
+    },
+    "value_id": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "value_id",
+    "by",
+    "automatic"
+   ],
+   "type": "object"
+  }
+ },
+ "Enrichment.Proposed": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "acceptance_state": {
+     "type": "string"
+    },
+    "confidence": {
+     "type": "number"
+    },
+    "enricher": {
+     "type": "string"
+    },
+    "enricher_version": {
+     "type": "string"
+    },
+    "inputs": {},
+    "model_ref": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "produced_at": {
+     "type": "string"
+    },
+    "property_path": {
+     "type": "string"
+    },
+    "target": {},
+    "value": {},
+    "value_id": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "value_id",
+    "target",
+    "property_path",
+    "enricher",
+    "enricher_version",
+    "confidence",
+    "inputs",
+    "produced_at",
+    "acceptance_state"
+   ],
+   "type": "object"
+  }
+ },
+ "Enrichment.Rejected": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "by": {
+     "type": "string"
+    },
+    "reason": {
+     "type": "string"
+    },
+    "value_id": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "value_id",
+    "by",
+    "reason"
+   ],
+   "type": "object"
+  }
+ },
+ "Feed.Edited": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "body": {
+     "type": "string"
+    },
+    "post_id": {
+     "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+     "type": "string"
+    },
+    "record_ids": {
+     "items": {
+      "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+      "type": "string"
+     },
+     "type": [
+      "array",
+      "null"
+     ]
+    },
+    "tags": {
+     "items": {
+      "additionalProperties": false,
+      "properties": {
+       "end": {
+        "type": "integer"
+       },
+       "kind": {
+        "enum": [
+         "record",
+         "code",
+         "signal",
+         "topic",
+         "mention"
+        ],
+        "type": "string"
+       },
+       "namespace": {
+        "type": [
+         "string",
+         "null"
+        ]
+       },
+       "record_id": {
+        "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+        "type": [
+         "string",
+         "null"
+        ]
+       },
+       "start": {
+        "type": "integer"
+       },
+       "text": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "text",
+       "kind",
+       "start",
+       "end"
+      ],
+      "type": "object"
+     },
+     "type": [
+      "array",
+      "null"
+     ]
+    }
+   },
+   "required": [
+    "post_id",
+    "body"
+   ],
+   "type": "object"
+  }
+ },
+ "Feed.Posted": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "author": {
+     "type": "string"
+    },
+    "body": {
+     "type": "string"
+    },
+    "importance": {
+     "enum": [
+      "low",
+      "normal",
+      "high"
+     ],
+     "type": "string"
+    },
+    "post_id": {
+     "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+     "type": "string"
+    },
+    "record_ids": {
+     "items": {
+      "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+      "type": "string"
+     },
+     "type": [
+      "array",
+      "null"
+     ]
+    },
+    "tags": {
+     "items": {
+      "additionalProperties": false,
+      "properties": {
+       "end": {
+        "type": "integer"
+       },
+       "kind": {
+        "enum": [
+         "record",
+         "code",
+         "signal",
+         "topic",
+         "mention"
+        ],
+        "type": "string"
+       },
+       "namespace": {
+        "type": [
+         "string",
+         "null"
+        ]
+       },
+       "record_id": {
+        "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+        "type": [
+         "string",
+         "null"
+        ]
+       },
+       "start": {
+        "type": "integer"
+       },
+       "text": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "text",
+       "kind",
+       "start",
+       "end"
+      ],
+      "type": "object"
+     },
+     "type": [
+      "array",
+      "null"
+     ]
+    }
+   },
+   "required": [
+    "post_id",
+    "body",
+    "author",
+    "importance"
+   ],
+   "type": "object"
+  }
+ },
+ "Feed.Reacted": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "on": {
+     "type": "boolean"
+    },
+    "post_id": {
+     "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+     "type": "string"
+    },
+    "reaction": {
+     "pattern": "^(ack|\\+1|resolved)$",
+     "type": "string"
+    }
+   },
+   "required": [
+    "post_id",
+    "reaction",
+    "on"
+   ],
+   "type": "object"
+  }
+ },
+ "Feed.Retracted": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "post_id": {
+     "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+     "type": "string"
+    },
+    "reason": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "post_id",
+    "reason"
+   ],
+   "type": "object"
+  }
+ },
+ "File.Processed": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "file_id": {
+     "type": "string"
+    },
+    "report": {},
+    "status": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "supersedes": {}
+   },
+   "required": [
+    "file_id"
+   ],
+   "type": "object"
+  }
+ },
+ "File.Rejected": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "file_id": {
+     "type": "string"
+    },
+    "reason": {
+     "type": "string"
+    },
+    "report": {},
+    "status": {
+     "type": [
+      "string",
+      "null"
+     ]
+    }
+   },
+   "required": [
+    "file_id",
+    "reason"
+   ],
+   "type": "object"
+  }
+ },
+ "File.Uploaded": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "content_type": {
+     "type": "string"
+    },
+    "deduplicated": {
+     "type": [
+      "boolean",
+      "null"
+     ]
+    },
+    "file_id": {
+     "type": "string"
+    },
+    "filename": {
+     "type": "string"
+    },
+    "record_id": {
+     "type": "string"
+    },
+    "revision": {
+     "type": [
+      "integer",
+      "null"
+     ]
+    },
+    "sha256": {
+     "type": "string"
+    },
+    "size": {
+     "type": "integer"
+    },
+    "slot": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "status": {
+     "type": [
+      "string",
+      "null"
+     ]
+    }
+   },
+   "required": [
+    "file_id",
+    "record_id",
+    "sha256",
+    "size",
+    "content_type",
+    "filename"
+   ],
+   "type": "object"
+  }
+ },
+ "IWP.Created": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "crew_text": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "cwp_id": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "discipline": {
+     "type": "string"
+    },
+    "estimated_hours": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "foreman": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "planned_finish": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "planned_start": {
+     "type": [
+      "string",
+      "null"
+     ]
+    }
+   },
+   "required": [
+    "discipline"
+   ],
+   "type": "object"
+  }
+ },
+ "IWP.DocumentPinned": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "document_id": {
+     "type": "string"
+    },
+    "revision_id": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "document_id",
+    "revision_id"
+   ],
+   "type": "object"
+  }
+ },
+ "IWP.Held": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "by": {
+     "type": "string"
+    },
+    "reason": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "by",
+    "reason"
+   ],
+   "type": "object"
+  }
+ },
+ "IWP.HoldReleased": {
+  "1": {
+   "additionalProperties": true,
+   "type": "object"
+  }
+ },
+ "IWP.Issued": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "by": {
+     "type": "string"
+    },
+    "foreman": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "by",
+    "foreman"
+   ],
+   "type": "object"
+  }
+ },
+ "IWP.ReadinessEvaluated": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "checks": {},
+    "evaluated_at": {
+     "type": "string"
+    },
+    "facts_hash": {
+     "type": "string"
+    },
+    "feed_policy": {
+     "const": "none",
+     "type": "string"
+    },
+    "iwp_id": {
+     "type": "string"
+    },
+    "ready": {
+     "type": "boolean"
+    },
+    "today": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "iwp_id",
+    "evaluated_at",
+    "today",
+    "ready",
+    "checks",
+    "facts_hash",
+    "feed_policy"
+   ],
+   "type": "object"
+  }
+ },
+ "IWP.Ready": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "evaluated_at": {
+     "type": "string"
+    },
+    "iwp_id": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "iwp_id",
+    "evaluated_at"
+   ],
+   "type": "object"
+  }
+ },
+ "IWP.Revised": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "changes": {}
+   },
+   "required": [
+    "changes"
+   ],
+   "type": "object"
+  }
+ },
+ "IWP.ScopeAdded": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "feed_policy": {
+     "const": "none",
+     "type": "string"
+    },
+    "record_id": {
+     "type": "string"
+    },
+    "record_type": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "record_id",
+    "record_type",
+    "feed_policy"
+   ],
+   "type": "object"
+  }
+ },
+ "IWP.ScopeRemoved": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "feed_policy": {
+     "const": "none",
+     "type": "string"
+    },
+    "record_id": {
+     "type": "string"
+    },
+    "record_type": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "record_id",
+    "record_type",
+    "feed_policy"
+   ],
+   "type": "object"
+  }
+ },
+ "IWP.SignedOff": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "by": {
+     "type": "string"
+    },
+    "record_hash": {
+     "type": "string"
+    },
+    "role": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "by",
+    "role",
+    "record_hash"
+   ],
+   "type": "object"
+  }
+ },
+ "IWP.Split": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "new_ids": {}
+   },
+   "required": [
+    "new_ids"
+   ],
+   "type": "object"
+  }
+ },
+ "Inbound.Applied": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "command_count": {
+     "type": "integer"
+    },
+    "delivery_id": {
+     "type": "string"
+    },
+    "dry_run": {
+     "type": "boolean"
+    }
+   },
+   "required": [
+    "delivery_id",
+    "command_count",
+    "dry_run"
+   ],
+   "type": "object"
+  }
+ },
+ "Inbound.Failed": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "code": {
+     "type": "string"
+    },
+    "delivery_id": {
+     "type": "string"
+    },
+    "message": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "delivery_id",
+    "code",
+    "message"
+   ],
+   "type": "object"
+  }
+ },
+ "Inbound.Received": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "delivery_id": {
+     "type": "string"
+    },
+    "endpoint_id": {
+     "type": "string"
+    },
+    "endpoint_version": {
+     "type": "integer"
+    },
+    "payload_sha256": {
+     "type": "string"
+    },
+    "payload_size": {
+     "type": "integer"
+    }
+   },
+   "required": [
+    "delivery_id",
+    "endpoint_id",
+    "endpoint_version",
+    "payload_sha256",
+    "payload_size"
+   ],
+   "type": "object"
+  }
+ },
+ "Inbound.Retried": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "by": {
+     "type": "string"
+    },
+    "corrected_sha256": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "delivery_id": {
+     "type": "string"
+    },
+    "original_sha256": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "delivery_id",
+    "by",
+    "original_sha256"
+   ],
+   "type": "object"
+  }
+ },
+ "InboundEndpoint.Created": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "access": {
+     "type": "string"
+    },
+    "allowed_commands": {},
+    "app": {
+     "type": "string"
+    },
+    "auth": {
+     "type": "string"
+    },
+    "dry_run": {
+     "type": [
+      "boolean",
+      "null"
+     ]
+    },
+    "enabled": {
+     "type": [
+      "boolean",
+      "null"
+     ]
+    },
+    "endpoint_id": {
+     "type": "string"
+    },
+    "external_schema": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "mapping": {
+     "type": "string"
+    },
+    "mapping_language": {
+     "type": "string"
+    },
+    "max_body_bytes": {
+     "type": "integer"
+    },
+    "name": {
+     "type": "string"
+    },
+    "owner": {
+     "type": "string"
+    },
+    "rate_per_minute": {
+     "type": "integer"
+    },
+    "secret_id": {
+     "type": "string"
+    },
+    "service_actor": {
+     "type": "string"
+    },
+    "version": {
+     "type": "integer"
+    }
+   },
+   "required": [
+    "endpoint_id",
+    "app",
+    "name",
+    "version",
+    "auth",
+    "mapping",
+    "mapping_language",
+    "allowed_commands",
+    "service_actor",
+    "access",
+    "max_body_bytes",
+    "rate_per_minute",
+    "owner",
+    "secret_id"
+   ],
+   "type": "object"
+  }
+ },
+ "InboundEndpoint.Disabled": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "endpoint_id": {
+     "type": "string"
+    },
+    "reason": {
+     "type": [
+      "string",
+      "null"
+     ]
+    }
+   },
+   "required": [
+    "endpoint_id"
+   ],
+   "type": "object"
+  }
+ },
+ "InboundEndpoint.Enabled": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "endpoint_id": {
+     "type": "string"
+    },
+    "reason": {
+     "type": [
+      "string",
+      "null"
+     ]
+    }
+   },
+   "required": [
+    "endpoint_id"
+   ],
+   "type": "object"
+  }
+ },
+ "InboundEndpoint.Revised": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "endpoint": {},
+    "endpoint_id": {
+     "type": "string"
+    },
+    "reason": {
+     "type": "string"
+    },
+    "version": {
+     "type": "integer"
+    }
+   },
+   "required": [
+    "endpoint_id",
+    "version",
+    "endpoint",
+    "reason"
+   ],
+   "type": "object"
+  }
+ },
+ "InboundEndpoint.SecretRotated": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "endpoint_id": {
+     "type": "string"
+    },
+    "previous_expires_at": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "previous_secret_id": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "secret_id": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "endpoint_id",
+    "secret_id"
+   ],
+   "type": "object"
+  }
+ },
+ "IntegrationApp.Disabled": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "reason": {
+     "type": [
+      "string",
+      "null"
+     ]
+    }
+   },
+   "type": "object"
+  }
+ },
+ "IntegrationApp.Enabled": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "reason": {
+     "type": [
+      "string",
+      "null"
+     ]
+    }
+   },
+   "type": "object"
+  }
+ },
+ "IntegrationApp.Registered": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "app_id": {
+     "type": "string"
+    },
+    "description": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "enabled": {
+     "type": [
+      "boolean",
+      "null"
+     ]
+    },
+    "label": {
+     "type": "string"
+    },
+    "name": {
+     "type": "string"
+    },
+    "owner": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "app_id",
+    "name",
+    "label",
+    "owner"
+   ],
+   "type": "object"
+  }
+ },
+ "IntegrationApp.Revised": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "changes": {},
+    "reason": {
+     "type": [
+      "string",
+      "null"
+     ]
+    }
+   },
+   "required": [
+    "changes"
+   ],
+   "type": "object"
+  }
+ },
+ "InventoryLocation.Defined": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "code": {
+     "pattern": "^[A-Z0-9][A-Z0-9.\\-]{0,15}$",
+     "type": "string"
+    },
+    "depth": {
+     "type": "integer"
+    },
+    "kind": {
+     "type": "string"
+    },
+    "parent_id": {
+     "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+     "type": [
+      "string",
+      "null"
+     ]
+    }
+   },
+   "required": [
+    "code",
+    "kind",
+    "depth"
+   ],
+   "type": "object"
+  }
+ },
+ "InventoryLocation.Retired": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "reason": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "reason"
+   ],
+   "type": "object"
+  }
+ },
+ "InventoryLocation.Revised": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "kind": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "title": {
+     "type": [
+      "string",
+      "null"
+     ]
+    }
+   },
+   "type": "object"
+  }
+ },
+ "ItemMaster.Defined": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "base_uom": {
+     "type": "string"
+    },
+    "category": {
+     "type": "string"
+    },
+    "code": {
+     "pattern": "^[A-Z0-9][A-Z0-9._\\-]{0,39}$",
+     "type": "string"
+    },
+    "consumable": {
+     "type": "boolean"
+    },
+    "material_code": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "rating_text": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "size_text": {
+     "type": [
+      "string",
+      "null"
+     ]
+    }
+   },
+   "required": [
+    "code",
+    "category",
+    "base_uom",
+    "consumable"
+   ],
+   "type": "object"
+  }
+ },
+ "ItemMaster.Retired": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "reason": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "reason"
+   ],
+   "type": "object"
+  }
+ },
+ "ItemMaster.Revised": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "base_uom": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "category": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "code": {
+     "pattern": "^[A-Z0-9][A-Z0-9._\\-]{0,39}$",
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "consumable": {
+     "type": [
+      "boolean",
+      "null"
+     ]
+    },
+    "material_code": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "rating_text": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "size_text": {
+     "type": [
+      "string",
+      "null"
+     ]
+    }
+   },
+   "type": "object"
+  }
+ },
+ "Link.Accepted": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "note": {
+     "type": [
+      "string",
+      "null"
+     ]
+    }
+   },
+   "type": "object"
+  }
+ },
+ "Link.Added": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "confidence": {
+     "type": [
+      "number",
+      "null"
+     ]
+    },
+    "from_ref": {
+     "type": "string"
+    },
+    "note": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "pin": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "relation": {
+     "type": "string"
+    },
+    "source": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "to_ref": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "from_ref",
+    "to_ref",
+    "relation"
+   ],
+   "type": "object"
+  }
+ },
+ "Link.Declined": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "reason": {
+     "type": [
+      "string",
+      "null"
+     ]
+    }
+   },
+   "type": "object"
+  }
+ },
+ "Link.Flagged": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "reason": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "status": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "status"
+   ],
+   "type": "object"
+  }
+ },
+ "Link.Repinned": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "pin": {
+     "type": [
+      "string",
+      "null"
+     ]
+    }
+   },
+   "type": "object"
+  }
+ },
+ "Link.Retracted": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "reason": {
+     "type": [
+      "string",
+      "null"
+     ]
+    }
+   },
+   "type": "object"
+  }
+ },
+ "Link.Suggested": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "confidence": {
+     "type": [
+      "number",
+      "null"
+     ]
+    },
+    "from_ref": {
+     "type": "string"
+    },
+    "note": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "pin": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "relation": {
+     "type": "string"
+    },
+    "source": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "to_ref": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "from_ref",
+    "to_ref",
+    "relation"
+   ],
+   "type": "object"
+  }
+ },
+ "Link.Verified": {
+  "1": {
+   "additionalProperties": true,
+   "type": "object"
+  }
+ },
+ "LoadRun.Bronzed": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "bronze_rows": {
+     "type": "integer"
+    },
+    "include_confidential": {
+     "type": [
+      "boolean",
+      "null"
+     ]
+    }
+   },
+   "required": [
+    "bronze_rows"
+   ],
+   "type": "object"
+  }
+ },
+ "LoadRun.Compensated": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "correlation_id": {
+     "type": "string"
+    },
+    "reversed": {
+     "type": "integer"
+    }
+   },
+   "required": [
+    "reversed",
+    "correlation_id"
+   ],
+   "type": "object"
+  }
+ },
+ "LoadRun.Extracted": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "column_count": {
+     "type": "integer"
+    },
+    "extracted_file_id": {
+     "type": "string"
+    },
+    "extracted_sha256": {
+     "type": "string"
+    },
+    "extractor": {
+     "type": "string"
+    },
+    "row_count": {
+     "type": "integer"
+    }
+   },
+   "required": [
+    "row_count",
+    "column_count",
+    "extractor",
+    "extracted_file_id",
+    "extracted_sha256"
+   ],
+   "type": "object"
+  }
+ },
+ "LoadRun.Failed": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "code": {
+     "type": "string"
+    },
+    "message": {
+     "type": "string"
+    },
+    "stage": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "stage",
+    "code",
+    "message"
+   ],
+   "type": "object"
+  }
+ },
+ "LoadRun.Loaded": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "correlation_id": {
+     "type": "string"
+    },
+    "loaded_count": {
+     "type": "integer"
+    },
+    "record_ids": {
+     "items": {
+      "type": "string"
+     },
+     "type": "array"
+    },
+    "skipped_existing": {
+     "type": "integer"
+    },
+    "skipped_invalid": {
+     "type": "integer"
+    }
+   },
+   "required": [
+    "loaded_count",
+    "record_ids",
+    "skipped_existing",
+    "skipped_invalid",
+    "correlation_id"
+   ],
+   "type": "object"
+  }
+ },
+ "LoadRun.Opened": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "confidentiality": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "loader": {
+     "type": "string"
+    },
+    "opened_by": {
+     "type": "string"
+    },
+    "run_number": {
+     "type": "integer"
+    },
+    "source_name": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "source_sha256": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "source_size": {
+     "type": [
+      "integer",
+      "null"
+     ]
+    },
+    "source_system": {
+     "type": "string"
+    },
+    "source_table": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "source_system",
+    "source_table",
+    "run_number",
+    "loader",
+    "opened_by"
+   ],
+   "type": "object"
+  }
+ },
+ "LoadRun.Planned": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "mapping_name": {
+     "type": "string"
+    },
+    "mapping_sha256": {
+     "type": "string"
+    },
+    "plan_existing": {
+     "type": "integer"
+    },
+    "plan_invalid": {
+     "type": "integer"
+    },
+    "plan_new": {
+     "type": "integer"
+    }
+   },
+   "required": [
+    "mapping_name",
+    "mapping_sha256",
+    "plan_new",
+    "plan_existing",
+    "plan_invalid"
+   ],
+   "type": "object"
+  }
+ },
+ "LoadRun.Profiled": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "profile_file_id": {
+     "type": "string"
+    },
+    "profile_sha256": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "profile_file_id",
+    "profile_sha256"
+   ],
+   "type": "object"
+  }
+ },
+ "LoadRun.Reconciled": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "mismatches": {
+     "type": "integer"
+    },
+    "report_document_id": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "report_file_id": {
+     "type": "string"
+    },
+    "report_sha256": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "report_file_id",
+    "report_sha256",
+    "mismatches"
+   ],
+   "type": "object"
+  }
+ },
+ "LoadRun.Voided": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "reason": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "reason"
+   ],
+   "type": "object"
+  }
+ },
+ "MTO.Defined": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "derived_document_id": {
+     "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+     "type": "string"
+    },
+    "line_count": {
+     "type": "integer"
+    },
+    "revision_id": {
+     "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+     "type": "string"
+    }
+   },
+   "required": [
+    "derived_document_id",
+    "revision_id",
+    "line_count"
+   ],
+   "type": "object"
+  }
+ },
+ "MTOLine.Assigned": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "work_package_id": {
+     "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+     "type": "string"
+    }
+   },
+   "required": [
+    "work_package_id"
+   ],
+   "type": "object"
+  }
+ },
+ "MTOLine.Defined": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "line_no": {
+     "type": "integer"
+    },
+    "mto_id": {
+     "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+     "type": "string"
+    },
+    "project_item_id": {
+     "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+     "type": "string"
+    },
+    "qty": {
+     "pattern": "^[0-9]{1,10}(\\.[0-9]{1,3})?$",
+     "type": "string"
+    },
+    "tag_id": {
+     "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "uom": {
+     "type": "string"
+    },
+    "work_package_id": {
+     "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+     "type": [
+      "string",
+      "null"
+     ]
+    }
+   },
+   "required": [
+    "mto_id",
+    "line_no",
+    "project_item_id",
+    "qty",
+    "uom"
+   ],
+   "type": "object"
+  }
+ },
+ "Numbering.Allocated": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "key": {
+     "type": "string"
+    },
+    "pattern": {
+     "type": "string"
+    },
+    "prefix": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "record_id": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "record_type": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "sequence": {
+     "type": "integer"
+    }
+   },
+   "required": [
+    "pattern",
+    "key",
+    "sequence"
+   ],
+   "type": "object"
+  }
+ },
+ "POLineRef.Defined": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "line_no": {
+     "type": "integer"
+    },
+    "po_number": {
+     "type": "string"
+    },
+    "project_item_id": {
+     "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+     "type": "string"
+    },
+    "promised_date": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "qty_ordered": {
+     "pattern": "^[0-9]{1,10}(\\.[0-9]{1,3})?$",
+     "type": "string"
+    },
+    "supplier_text": {
+     "type": "string"
+    },
+    "uom": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "po_number",
+    "line_no",
+    "project_item_id",
+    "qty_ordered",
+    "uom",
+    "supplier_text"
+   ],
+   "type": "object"
+  }
+ },
+ "POLineRef.Updated": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "promised_date": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "qty_ordered": {
+     "pattern": "^[0-9]{1,10}(\\.[0-9]{1,3})?$",
+     "type": [
+      "string",
+      "null"
+     ]
+    }
+   },
+   "type": "object"
+  }
+ },
+ "PWPRef.Defined": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "actual_date": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "constraint_source": {
+     "type": "boolean"
+    },
+    "forecast_date": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "package_no": {
+     "type": "string"
+    },
+    "source_system": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "status_text": {
+     "type": [
+      "string",
+      "null"
+     ]
+    }
+   },
+   "required": [
+    "package_no",
+    "constraint_source"
+   ],
+   "type": "object"
+  }
+ },
+ "PWPRef.Updated": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "changes": {}
+   },
+   "required": [
+    "changes"
+   ],
+   "type": "object"
+  }
+ },
+ "Party.ContactAdded": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "domain": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "email": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "is_authorised": {
+     "type": "boolean"
+    },
+    "name": {
+     "type": "string"
+    },
+    "position": {
+     "type": "integer"
+    },
+    "title": {
+     "type": [
+      "string",
+      "null"
+     ]
+    }
+   },
+   "required": [
+    "position",
+    "name",
+    "is_authorised"
+   ],
+   "type": "object"
+  }
+ },
+ "Party.ContactEnded": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "position": {
+     "type": "integer"
+    },
+    "reason": {
+     "type": [
+      "string",
+      "null"
+     ]
+    }
+   },
+   "required": [
+    "position"
+   ],
+   "type": "object"
+  }
+ },
+ "Party.Defined": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "code": {
+     "type": "string"
+    },
+    "contacts": {},
+    "email_domains": {},
+    "project_role": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "code",
+    "project_role",
+    "email_domains",
+    "contacts"
+   ],
+   "type": "object"
+  }
+ },
+ "Party.Retired": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "reason": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "reason"
+   ],
+   "type": "object"
+  }
+ },
+ "PathOfConstruction.Defined": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "feed_policy": {
+     "const": "none",
+     "type": "string"
+    },
+    "steps": {},
+    "version": {
+     "type": "integer"
+    }
+   },
+   "required": [
+    "version",
+    "steps",
+    "feed_policy"
+   ],
+   "type": "object"
+  }
+ },
+ "PathOfConstruction.Resequenced": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "feed_policy": {
+     "const": "none",
+     "type": "string"
+    },
+    "note": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "reason_code": {
+     "type": "string"
+    },
+    "steps": {},
+    "version": {
+     "type": "integer"
+    }
+   },
+   "required": [
+    "version",
+    "steps",
+    "reason_code",
+    "feed_policy"
+   ],
+   "type": "object"
+  }
+ },
+ "ProcessingJob.Cancelled": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "reason": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "reason"
+   ],
+   "type": "object"
+  }
+ },
+ "ProcessingJob.Defined": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "derived_id": {
+     "type": "string"
+    },
+    "derived_key": {
+     "type": "string"
+    },
+    "extractor": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "kind": {
+     "type": "string"
+    },
+    "max_attempts": {
+     "type": "integer"
+    },
+    "options": {},
+    "requested_by": {
+     "type": "string"
+    },
+    "schema_id": {
+     "type": "string"
+    },
+    "source_file_id": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "source_ref": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "kind",
+    "derived_id",
+    "derived_key",
+    "source_ref",
+    "schema_id",
+    "requested_by",
+    "max_attempts"
+   ],
+   "type": "object"
+  }
+ },
+ "ProcessingJob.Failed": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "attempt": {
+     "type": "integer"
+    },
+    "error_code": {
+     "type": "string"
+    },
+    "error_message": {
+     "type": "string"
+    },
+    "final": {
+     "type": "boolean"
+    },
+    "retry_at": {
+     "type": [
+      "string",
+      "null"
+     ]
+    }
+   },
+   "required": [
+    "attempt",
+    "error_code",
+    "error_message",
+    "final"
+   ],
+   "type": "object"
+  }
+ },
+ "ProcessingJob.Started": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "attempt": {
+     "type": "integer"
+    },
+    "lease_until": {
+     "type": "string"
+    },
+    "worker": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "attempt",
+    "worker",
+    "lease_until"
+   ],
+   "type": "object"
+  }
+ },
+ "ProcessingJob.Succeeded": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "attempt": {
+     "type": "integer"
+    },
+    "result": {}
+   },
+   "required": [
+    "attempt"
+   ],
+   "type": "object"
+  }
+ },
+ "ProjectItem.Defined": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "category": {
+     "type": "string"
+    },
+    "code": {
+     "pattern": "^[A-Z0-9][A-Z0-9._\\-]{0,39}$",
+     "type": "string"
+    },
+    "consumable": {
+     "type": "boolean"
+    },
+    "item_master_id": {
+     "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+     "type": "string"
+    },
+    "uom": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "item_master_id",
+    "code",
+    "category",
+    "uom",
+    "consumable"
+   ],
+   "type": "object"
+  }
+ },
+ "Proposal.Accepted": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "by": {
+     "type": "string"
+    },
+    "proposal_id": {
+     "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+     "type": "string"
+    },
+    "result_stream_id": {
+     "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+     "type": "string"
+    },
+    "result_version": {
+     "type": "integer"
+    }
+   },
+   "required": [
+    "proposal_id",
+    "by",
+    "result_stream_id",
+    "result_version"
+   ],
+   "type": "object"
+  }
+ },
+ "Proposal.Created": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "agent": {
+     "type": "string"
+    },
+    "command": {},
+    "command_type": {
+     "type": "string"
+    },
+    "proposal_id": {
+     "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+     "type": "string"
+    },
+    "summary": {
+     "type": "string"
+    },
+    "tool": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "proposal_id",
+    "tool",
+    "agent",
+    "command_type",
+    "command",
+    "summary"
+   ],
+   "type": "object"
+  }
+ },
+ "Proposal.Failed": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "by": {
+     "type": "string"
+    },
+    "error": {
+     "type": "string"
+    },
+    "proposal_id": {
+     "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+     "type": "string"
+    }
+   },
+   "required": [
+    "proposal_id",
+    "by",
+    "error"
+   ],
+   "type": "object"
+  }
+ },
+ "Proposal.Rejected": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "by": {
+     "type": "string"
+    },
+    "proposal_id": {
+     "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+     "type": "string"
+    },
+    "reason": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "proposal_id",
+    "by",
+    "reason"
+   ],
+   "type": "object"
+  }
+ },
+ "Pset.ValuesSet": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "conformance": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "effective_schema_hash": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "layer": {
+     "type": "string"
+    },
+    "pset": {
+     "type": "string"
+    },
+    "units": {},
+    "values": {}
+   },
+   "required": [
+    "pset",
+    "layer",
+    "values"
+   ],
+   "type": "object"
+  }
+ },
+ "Receipt.Accepted": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "decided_by": {
+     "type": "string"
+    },
+    "decided_on": {
+     "type": "string"
+    },
+    "lots": {}
+   },
+   "required": [
+    "decided_by",
+    "decided_on",
+    "lots"
+   ],
+   "type": "object"
+  }
+ },
+ "Receipt.Defined": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "delivery_ref": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "lines": {},
+    "location_id": {
+     "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+     "type": "string"
+    },
+    "po_line_id": {
+     "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "received_on": {
+     "type": "string"
+    },
+    "supplier_text": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "supplier_text",
+    "received_on",
+    "location_id",
+    "lines"
+   ],
+   "type": "object"
+  }
+ },
+ "Receipt.Inspected": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "inspected_by": {
+     "type": "string"
+    },
+    "inspected_on": {
+     "type": "string"
+    },
+    "notes": {
+     "type": [
+      "string",
+      "null"
+     ]
+    }
+   },
+   "required": [
+    "inspected_by",
+    "inspected_on"
+   ],
+   "type": "object"
+  }
+ },
+ "Receipt.Rejected": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "decided_by": {
+     "type": "string"
+    },
+    "decided_on": {
+     "type": "string"
+    },
+    "reason": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "decided_by",
+    "decided_on",
+    "reason"
+   ],
+   "type": "object"
+  }
+ },
+ "Receipt.Revised": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "delivery_ref": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "lines": {},
+    "location_id": {
+     "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "po_line_id": {
+     "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "received_on": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "supplier_text": {
+     "type": [
+      "string",
+      "null"
+     ]
+    }
+   },
+   "type": "object"
+  }
+ },
+ "Record.BodyStored": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "pointer": {},
+    "previous_hash": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "stream_id": {
+     "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+     "type": "string"
+    }
+   },
+   "required": [
+    "stream_id",
+    "pointer"
+   ],
+   "type": "object"
+  }
+ },
+ "Record.Corrected": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "changes": {},
+    "reason": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "changes",
+    "reason"
+   ],
+   "type": "object"
+  }
+ },
+ "Record.Created": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "description": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "key": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "psets": {},
+    "record_type": {
+     "type": "string"
+    },
+    "title": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "record_type",
+    "title"
+   ],
+   "type": "object"
+  }
+ },
+ "Record.Updated": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "changes": {}
+   },
+   "required": [
+    "changes"
+   ],
+   "type": "object"
+  }
+ },
+ "Record.Voided": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "reason": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "reason"
+   ],
+   "type": "object"
+  }
+ },
+ "Rendition.Defined": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "content_type": {
+     "type": "string"
+    },
+    "document_id": {
+     "type": "string"
+    },
+    "file_id": {
+     "type": "string"
+    },
+    "filename": {
+     "type": "string"
+    },
+    "kind": {
+     "type": "string"
+    },
+    "page_count": {
+     "type": [
+      "integer",
+      "null"
+     ]
+    },
+    "replace_reason": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "revision_id": {
+     "type": "string"
+    },
+    "sha256": {
+     "type": "string"
+    },
+    "size": {
+     "type": "integer"
+    },
+    "supersedes": {}
+   },
+   "required": [
+    "revision_id",
+    "document_id",
+    "kind",
+    "file_id",
+    "filename",
+    "content_type",
+    "size",
+    "sha256"
+   ],
+   "type": "object"
+  }
+ },
+ "Rendition.Superseded": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "superseded_by": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "superseded_by"
+   ],
+   "type": "object"
+  }
+ },
+ "ResponseClock.Cancelled": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "day": {
+     "type": "string"
+    },
+    "reason": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "day",
+    "reason"
+   ],
+   "type": "object"
+  }
+ },
+ "ResponseClock.Expired": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "day": {
+     "type": "string"
+    },
+    "days_overdue": {
+     "type": "integer"
+    }
+   },
+   "required": [
+    "day",
+    "days_overdue"
+   ],
+   "type": "object"
+  }
+ },
+ "ResponseClock.Met": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "day": {
+     "type": "string"
+    },
+    "reason": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "response_id": {
+     "type": [
+      "string",
+      "null"
+     ]
+    }
+   },
+   "required": [
+    "day"
+   ],
+   "type": "object"
+  }
+ },
+ "ResponseClock.Paused": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "day": {
+     "type": "string"
+    },
+    "reason": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "day",
+    "reason"
+   ],
+   "type": "object"
+  }
+ },
+ "ResponseClock.Restarted": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "due_on": {
+     "type": "string"
+    },
+    "reason": {
+     "type": "string"
+    },
+    "start_on": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "start_on",
+    "due_on",
+    "reason"
+   ],
+   "type": "object"
+  }
+ },
+ "ResponseClock.Resumed": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "day": {
+     "type": "string"
+    },
+    "due_on": {
+     "type": "string"
+    },
+    "reason": {
+     "type": [
+      "string",
+      "null"
+     ]
+    }
+   },
+   "required": [
+    "day",
+    "due_on"
+   ],
+   "type": "object"
+  }
+ },
+ "ResponseClock.Started": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "calendar": {
+     "type": "string"
+    },
+    "clause_id": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "day_type": {
+     "type": "string"
+    },
+    "due_on": {
+     "type": "string"
+    },
+    "duration_days": {
+     "type": "integer"
+    },
+    "item_id": {
+     "type": "string"
+    },
+    "item_number": {
+     "type": "string"
+    },
+    "kind": {
+     "type": "string"
+    },
+    "label": {
+     "type": "string"
+    },
+    "owner": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "start_on": {
+     "type": "string"
+    },
+    "trigger": {
+     "type": "string"
+    },
+    "warn_days": {}
+   },
+   "required": [
+    "item_id",
+    "item_number",
+    "label",
+    "kind",
+    "start_on",
+    "duration_days",
+    "day_type",
+    "calendar",
+    "warn_days",
+    "due_on",
+    "trigger"
+   ],
+   "type": "object"
+  }
+ },
+ "ResponseClock.Warned": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "day": {
+     "type": "string"
+    },
+    "days_left": {
+     "type": "integer"
+    },
+    "level": {
+     "type": "integer"
+    }
+   },
+   "required": [
+    "day",
+    "level",
+    "days_left"
+   ],
+   "type": "object"
+  }
+ },
+ "ReviewCycle.Closed": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "closed_on": {
+     "type": "string"
+    },
+    "outcome": {
+     "type": "string"
+    },
+    "reason": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "worst_answer": {
+     "type": [
+      "string",
+      "null"
+     ]
+    }
+   },
+   "required": [
+    "outcome",
+    "closed_on"
+   ],
+   "type": "object"
+  }
+ },
+ "ReviewCycle.Defined": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "document_id": {
+     "type": "string"
+    },
+    "due_date": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "opened_on": {
+     "type": "string"
+    },
+    "reviewers": {},
+    "revision_id": {
+     "type": "string"
+    },
+    "round": {
+     "type": "integer"
+    }
+   },
+   "required": [
+    "revision_id",
+    "document_id",
+    "round",
+    "opened_on",
+    "reviewers"
+   ],
+   "type": "object"
+  }
+ },
+ "ReviewCycle.OutcomeRecorded": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "comment": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "outcome": {
+     "type": "string"
+    },
+    "recorded_by": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "responded_on": {
+     "type": "string"
+    },
+    "reviewer": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "reviewer",
+    "outcome",
+    "responded_on"
+   ],
+   "type": "object"
+  }
+ },
+ "Revision.Defined": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "change_note": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "code": {
+     "type": "string"
+    },
+    "document_id": {
+     "type": "string"
+    },
+    "document_number": {
+     "type": "string"
+    },
+    "intended_status": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "ordinal": {
+     "type": "integer"
+    },
+    "previous_revision_id": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "purpose": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "revision_date": {
+     "type": [
+      "string",
+      "null"
+     ]
+    }
+   },
+   "required": [
+    "document_id",
+    "document_number",
+    "code",
+    "ordinal"
+   ],
+   "type": "object"
+  }
+ },
+ "Revision.Issued": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "date_reason": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "issue_status": {
+     "type": "string"
+    },
+    "issued_on": {
+     "type": "string"
+    },
+    "status_class": {
+     "type": "string"
+    },
+    "superseded_revision_ids": {}
+   },
+   "required": [
+    "issue_status",
+    "status_class",
+    "issued_on"
+   ],
+   "type": "object"
+  }
+ },
+ "Revision.Superseded": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "reason": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "status_class": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "superseded_by": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "superseded_by"
+   ],
+   "type": "object"
+  }
+ },
+ "Rule.Blocked": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "depth": {
+     "type": "integer"
+    },
+    "outcome": {
+     "type": "string"
+    },
+    "problems": {},
+    "rule_id": {
+     "type": "string"
+    },
+    "rule_version": {
+     "type": "integer"
+    },
+    "trigger_event_id": {
+     "type": "string"
+    },
+    "trigger_seq": {
+     "type": "integer"
+    }
+   },
+   "required": [
+    "rule_id",
+    "rule_version",
+    "trigger_event_id",
+    "trigger_seq",
+    "depth",
+    "outcome",
+    "problems"
+   ],
+   "type": "object"
+  }
+ },
+ "Rule.Created": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "access": {
+     "type": "string"
+    },
+    "condition": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "enabled": {
+     "type": [
+      "boolean",
+      "null"
+     ]
+    },
+    "integration_app": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "key": {
+     "type": "string"
+    },
+    "mode": {
+     "type": "string"
+    },
+    "owner": {
+     "type": "string"
+    },
+    "rule_id": {
+     "type": "string"
+    },
+    "service_actor": {
+     "type": "string"
+    },
+    "then": {},
+    "title": {
+     "type": "string"
+    },
+    "version": {
+     "type": "integer"
+    },
+    "when": {}
+   },
+   "required": [
+    "rule_id",
+    "key",
+    "title",
+    "version",
+    "when",
+    "then",
+    "mode",
+    "service_actor",
+    "access",
+    "owner"
+   ],
+   "type": "object"
+  }
+ },
+ "Rule.Disabled": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "reason": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "rule_id": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "rule_id"
+   ],
+   "type": "object"
+  }
+ },
+ "Rule.Enabled": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "reason": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "rule_id": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "rule_id"
+   ],
+   "type": "object"
+  }
+ },
+ "Rule.Revised": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "reason": {
+     "type": "string"
+    },
+    "rule": {},
+    "rule_id": {
+     "type": "string"
+    },
+    "version": {
+     "type": "integer"
+    }
+   },
+   "required": [
+    "rule_id",
+    "version",
+    "rule",
+    "reason"
+   ],
+   "type": "object"
+  }
+ },
+ "Schedule.Defined": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "code": {
+     "type": "string"
+    },
+    "owner": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "p6_project": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "schedule_type": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "code",
+    "schedule_type"
+   ],
+   "type": "object"
+  }
+ },
+ "Schedule.OrphansChecked": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "complete": {
+     "type": "boolean"
+    },
+    "links_flagged": {
+     "type": "integer"
+    },
+    "links_restored": {
+     "type": "integer"
+    },
+    "refs_changed": {
+     "type": "integer"
+    },
+    "snapshot_id": {
+     "type": "string"
+    },
+    "snapshot_number": {
+     "type": "integer"
+    }
+   },
+   "required": [
+    "snapshot_id",
+    "snapshot_number",
+    "refs_changed",
+    "links_flagged",
+    "links_restored",
+    "complete"
+   ],
+   "type": "object"
+  }
+ },
+ "Schedule.SnapshotPublished": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "data_date": {
+     "type": "string"
+    },
+    "orphan_check_queued": {
+     "type": "boolean"
+    },
+    "previous_snapshot_id": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "snapshot_id": {
+     "type": "string"
+    },
+    "snapshot_number": {
+     "type": "integer"
+    }
+   },
+   "required": [
+    "snapshot_id",
+    "snapshot_number",
+    "data_date",
+    "orphan_check_queued"
+   ],
+   "type": "object"
+  }
+ },
+ "ScheduleSnapshot.BuildFailed": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "attempt": {
+     "type": "integer"
+    },
+    "error_code": {
+     "type": "string"
+    },
+    "error_message": {
+     "type": "string"
+    },
+    "final": {
+     "type": "boolean"
+    },
+    "retry_at": {
+     "type": [
+      "string",
+      "null"
+     ]
+    }
+   },
+   "required": [
+    "attempt",
+    "error_code",
+    "error_message",
+    "final"
+   ],
+   "type": "object"
+  }
+ },
+ "ScheduleSnapshot.BuildStarted": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "attempt": {
+     "type": "integer"
+    },
+    "lease_until": {
+     "type": "string"
+    },
+    "worker": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "attempt",
+    "worker",
+    "lease_until"
+   ],
+   "type": "object"
+  }
+ },
+ "ScheduleSnapshot.Built": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "counts": {},
+    "data_date": {
+     "type": "string"
+    },
+    "p6_project": {
+     "type": "string"
+    },
+    "p6_version": {
+     "type": "string"
+    },
+    "raw_file_id": {
+     "type": "string"
+    },
+    "raw_sha256": {
+     "type": "string"
+    },
+    "report_file_id": {
+     "type": "string"
+    },
+    "typed_sha256": {
+     "type": "string"
+    },
+    "warning_count": {
+     "type": "integer"
+    }
+   },
+   "required": [
+    "data_date",
+    "p6_version",
+    "p6_project",
+    "counts",
+    "warning_count",
+    "typed_sha256",
+    "raw_sha256",
+    "report_file_id",
+    "raw_file_id"
+   ],
+   "type": "object"
+  }
+ },
+ "ScheduleSnapshot.Defined": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "number": {
+     "type": "integer"
+    },
+    "p6_project_option": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "schedule_code": {
+     "type": "string"
+    },
+    "schedule_id": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "schedule_id",
+    "schedule_code",
+    "number"
+   ],
+   "type": "object"
+  }
+ },
+ "ScheduleSnapshot.MadeCurrent": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "orphan_check_queued": {
+     "type": "boolean"
+    },
+    "previous_snapshot_id": {
+     "type": [
+      "string",
+      "null"
+     ]
+    }
+   },
+   "required": [
+    "orphan_check_queued"
+   ],
+   "type": "object"
+  }
+ },
+ "ScheduleSnapshot.Queued": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "requested_by": {
+     "type": "string"
+    },
+    "source_file_id": {
+     "type": "string"
+    },
+    "source_name": {
+     "type": "string"
+    },
+    "source_sha256": {
+     "type": "string"
+    },
+    "source_size": {
+     "type": "integer"
+    }
+   },
+   "required": [
+    "source_file_id",
+    "source_name",
+    "source_sha256",
+    "source_size",
+    "requested_by"
+   ],
+   "type": "object"
+  }
+ },
+ "ScheduleSnapshot.Rejected": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "error_count": {
+     "type": "integer"
+    },
+    "first_codes": {},
+    "outcome": {
+     "type": "string"
+    },
+    "report_file_id": {
+     "type": "string"
+    },
+    "warning_count": {
+     "type": "integer"
+    }
+   },
+   "required": [
+    "outcome",
+    "error_count",
+    "warning_count",
+    "first_codes",
+    "report_file_id"
+   ],
+   "type": "object"
+  }
+ },
+ "Schema.EffectiveChanged": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "effective_schema_hash": {
+     "type": "string"
+    },
+    "packages": {
+     "items": {
+      "type": "string"
+     },
+     "type": [
+      "array",
+      "null"
+     ]
+    },
+    "previous_hash": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "scope": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "scope",
+    "effective_schema_hash"
+   ],
+   "type": "object"
+  }
+ },
+ "SchemaPackage.Analysed": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "base_ref": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "classification": {},
+    "classification_digest": {
+     "type": "string"
+    },
+    "content_sha256": {
+     "type": "string"
+    },
+    "impact": {},
+    "impact_sha256": {
+     "type": "string"
+    },
+    "worst_class": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "classification",
+    "classification_digest",
+    "worst_class",
+    "impact",
+    "impact_sha256",
+    "content_sha256"
+   ],
+   "type": "object"
+  }
+ },
+ "SchemaPackage.Approved": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "approver": {
+     "type": "string"
+    },
+    "classification_digest": {
+     "type": "string"
+    },
+    "comment": {
+     "type": [
+      "string",
+      "null"
+     ]
+    }
+   },
+   "required": [
+    "approver",
+    "classification_digest"
+   ],
+   "type": "object"
+  }
+ },
+ "SchemaPackage.ChangesRequested": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "reason": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "reason"
+   ],
+   "type": "object"
+  }
+ },
+ "SchemaPackage.Deprecated": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "reason": {
+     "type": "string"
+    },
+    "replacement": {
+     "type": [
+      "string",
+      "null"
+     ]
+    }
+   },
+   "required": [
+    "reason"
+   ],
+   "type": "object"
+  }
+ },
+ "SchemaPackage.Drafted": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "changelog": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "content": {
+     "type": "string"
+    },
+    "content_sha256": {
+     "type": "string"
+    },
+    "drafted_by": {
+     "type": "string"
+    },
+    "kind": {
+     "type": "string"
+    },
+    "package": {
+     "type": "string"
+    },
+    "package_title": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "project": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "version": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "package",
+    "version",
+    "kind",
+    "content",
+    "content_sha256",
+    "drafted_by"
+   ],
+   "type": "object"
+  }
+ },
+ "SchemaPackage.Published": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "auto_adopted": {
+     "items": {
+      "type": "string"
+     },
+     "type": [
+      "array",
+      "null"
+     ]
+    },
+    "content_sha256": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "kind": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "package": {
+     "type": "string"
+    },
+    "record_id": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "version": {
+     "type": "string"
+    },
+    "worst_class": {
+     "type": [
+      "string",
+      "null"
+     ]
+    }
+   },
+   "required": [
+    "package",
+    "version"
+   ],
+   "type": "object"
+  }
+ },
+ "SchemaPackage.Retired": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "reason": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "reason"
+   ],
+   "type": "object"
+  }
+ },
+ "SchemaPackage.Revised": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "changelog": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "content": {
+     "type": "string"
+    },
+    "content_sha256": {
+     "type": "string"
+    },
+    "package_title": {
+     "type": [
+      "string",
+      "null"
+     ]
+    }
+   },
+   "required": [
+    "content",
+    "content_sha256"
+   ],
+   "type": "object"
+  }
+ },
+ "SchemaPackage.Submitted": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "classification_digest": {
+     "type": "string"
+    },
+    "submitted_by": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "submitted_by",
+    "classification_digest"
+   ],
+   "type": "object"
+  }
+ },
+ "ScopeItem.Created": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "commodity": {
+     "type": "string"
+    },
+    "cwp_id": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "description": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "est_hours": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "feed_policy": {
+     "const": "none",
+     "type": "string"
+    },
+    "qty": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "uom": {
+     "type": [
+      "string",
+      "null"
+     ]
+    }
+   },
+   "required": [
+    "commodity",
+    "feed_policy"
+   ],
+   "type": "object"
+  }
+ },
+ "ScopeItem.Revised": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "changes": {},
+    "feed_policy": {
+     "const": "none",
+     "type": "string"
+    }
+   },
+   "required": [
+    "changes",
+    "feed_policy"
+   ],
+   "type": "object"
+  }
+ },
+ "Setting.Changed": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "accept_risk": {
+     "type": [
+      "boolean",
+      "null"
+     ]
+    },
+    "applies_at": {
+     "format": "date-time",
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "key": {
+     "type": "string"
+    },
+    "layer": {
+     "type": "string"
+    },
+    "new_value": {},
+    "old_set": {
+     "type": [
+      "boolean",
+      "null"
+     ]
+    },
+    "old_value": {},
+    "reason": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "reset": {
+     "type": [
+      "boolean",
+      "null"
+     ]
+    }
+   },
+   "required": [
+    "key",
+    "layer"
+   ],
+   "type": "object"
+  }
+ },
+ "Setting.Locked": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "bounds": {},
+    "key": {
+     "type": "string"
+    },
+    "layer": {
+     "type": "string"
+    },
+    "locked": {
+     "type": "boolean"
+    },
+    "reason": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "key",
+    "layer",
+    "locked",
+    "reason"
+   ],
+   "type": "object"
+  }
+ },
+ "Standard.Closed": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "effective_to": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "lifecycle": {
+     "type": "string"
+    },
+    "reason": {
+     "type": "string"
+    },
+    "superseded_by": {
+     "type": [
+      "string",
+      "null"
+     ]
+    }
+   },
+   "required": [
+    "lifecycle",
+    "reason"
+   ],
+   "type": "object"
+  }
+ },
+ "Standard.Defined": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "adoption": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "code": {
+     "type": "string"
+    },
+    "data": {},
+    "definition": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "edition": {
+     "type": "string"
+    },
+    "effective_from": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "effective_to": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "kind": {
+     "type": "string"
+    },
+    "label": {
+     "type": "string"
+    },
+    "owner": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "value_list_policy": {
+     "type": [
+      "string",
+      "null"
+     ]
+    }
+   },
+   "required": [
+    "kind",
+    "code",
+    "label",
+    "edition"
+   ],
+   "type": "object"
+  }
+ },
+ "StockLot.Defined": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "heat_no": {
+     "pattern": "^[A-Za-z0-9][A-Za-z0-9./\\-]{0,39}$",
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "project_item_id": {
+     "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+     "type": "string"
+    },
+    "receipt_id": {
+     "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+     "type": "string"
+    },
+    "receipt_line": {
+     "type": "integer"
+    },
+    "uom": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "project_item_id",
+    "receipt_id",
+    "receipt_line",
+    "uom"
+   ],
+   "type": "object"
+  }
+ },
+ "StockLot.Moved": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "cost_code_id": {
+     "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "direction": {
+     "anyOf": [
+      {
+       "enum": [
+        "in",
+        "out"
+       ],
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    },
+    "feed_policy": {
+     "const": "none",
+     "type": "string"
+    },
+    "from_location_id": {
+     "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "iwp_id": {
+     "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "kind": {
+     "enum": [
+      "receive",
+      "issue",
+      "transfer",
+      "return",
+      "adjust",
+      "scrap",
+      "reserve",
+      "unreserve"
+     ],
+     "type": "string"
+    },
+    "mto_line_id": {
+     "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "person": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "qty": {
+     "pattern": "^[0-9]{1,10}(\\.[0-9]{1,3})?$",
+     "type": "string"
+    },
+    "reason": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "requisition_id": {
+     "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "to_location_id": {
+     "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "uom": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "kind",
+    "qty",
+    "uom",
+    "feed_policy"
+   ],
+   "type": "object"
+  }
+ },
+ "Tag.Defined": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "area": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "bound_psets": {},
+    "class_code": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "conformance": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "effective_schema_hash": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "mnemonic": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "number": {
+     "type": "string"
+    },
+    "number_status": {
+     "type": "string"
+    },
+    "origin": {
+     "type": "string"
+    },
+    "pattern_code": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "segments": {},
+    "sequence": {
+     "type": [
+      "integer",
+      "null"
+     ]
+    },
+    "supersedes": {},
+    "violations": {}
+   },
+   "required": [
+    "number",
+    "number_status",
+    "origin"
+   ],
+   "type": "object"
+  }
+ },
+ "Tag.Reclassified": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "bound_psets": {},
+    "conformance": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "effective_schema_hash": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "from_class": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "reason": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "to_class": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "to_class"
+   ],
+   "type": "object"
+  }
+ },
+ "Tag.Superseded": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "operation": {
+     "type": "string"
+    },
+    "reason": {
+     "type": "string"
+    },
+    "superseded_by": {}
+   },
+   "required": [
+    "operation",
+    "superseded_by",
+    "reason"
+   ],
+   "type": "object"
+  }
+ },
+ "TagClass.Closed": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "lifecycle": {
+     "type": "string"
+    },
+    "reason": {
+     "type": "string"
+    },
+    "superseded_by": {
+     "type": [
+      "string",
+      "null"
+     ]
+    }
+   },
+   "required": [
+    "lifecycle",
+    "reason"
+   ],
+   "type": "object"
+  }
+ },
+ "TagClass.Defined": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "code": {
+     "type": "string"
+    },
+    "edition": {
+     "type": "string"
+    },
+    "family": {
+     "type": "string"
+    },
+    "itr_templates": {},
+    "label": {
+     "type": "string"
+    },
+    "mnemonics": {},
+    "required_psets": {}
+   },
+   "required": [
+    "code",
+    "label",
+    "family",
+    "edition"
+   ],
+   "type": "object"
+  }
+ },
+ "TagClass.Revised": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "changes": {},
+    "reason": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "changes",
+    "reason"
+   ],
+   "type": "object"
+  }
+ },
+ "Technical.Answered": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "answer": {
+     "type": "string"
+    },
+    "answer_item_id": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "answered_on": {
+     "type": "string"
+    },
+    "answering_revision_id": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "cost_impact": {
+     "type": "string"
+    },
+    "date_reason": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "feed_policy": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "feed_text": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "schedule_impact": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "answer",
+    "answered_on",
+    "cost_impact",
+    "schedule_impact"
+   ],
+   "type": "object"
+  }
+ },
+ "Technical.Defined": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "discipline": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "potential_cost_impact": {
+     "type": "string"
+    },
+    "potential_schedule_impact": {
+     "type": "string"
+    },
+    "proposed_solution": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "question": {
+     "type": "string"
+    },
+    "required_by": {
+     "type": [
+      "string",
+      "null"
+     ]
+    }
+   },
+   "required": [
+    "question",
+    "potential_cost_impact",
+    "potential_schedule_impact"
+   ],
+   "type": "object"
+  }
+ },
+ "Technical.Reissued": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "reason": {
+     "type": "string"
+    },
+    "round": {
+     "type": "integer"
+    }
+   },
+   "required": [
+    "reason",
+    "round"
+   ],
+   "type": "object"
+  }
+ },
+ "Technical.Reviewed": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "decision": {
+     "type": "string"
+    },
+    "note": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "reviewed_on": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "decision",
+    "reviewed_on"
+   ],
+   "type": "object"
+  }
+ },
+ "Technical.Updated": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "changes": {},
+    "reason": {
+     "type": [
+      "string",
+      "null"
+     ]
+    }
+   },
+   "required": [
+    "changes"
+   ],
+   "type": "object"
+  }
+ },
+ "Thread.Dispatched": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "link_ids": {
+     "items": {
+      "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+      "type": "string"
+     },
+     "type": [
+      "array",
+      "null"
+     ]
+    },
+    "message_id": {
+     "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+     "type": "string"
+    },
+    "record_id": {
+     "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+     "type": "string"
+    },
+    "results": {
+     "items": {
+      "additionalProperties": false,
+      "properties": {
+       "command_type": {
+        "type": "string"
+       },
+       "key": {
+        "type": [
+         "string",
+         "null"
+        ]
+       },
+       "stream_id": {
+        "type": "string"
+       },
+       "version": {
+        "type": "integer"
+       }
+      },
+      "required": [
+       "command_type",
+       "stream_id",
+       "version"
+      ],
+      "type": "object"
+     },
+     "type": [
+      "array",
+      "null"
+     ]
+    },
+    "summary": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "verb": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "message_id",
+    "record_id",
+    "verb"
+   ],
+   "type": "object"
+  }
+ },
+ "Thread.MessageEdited": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "body": {
+     "type": "string"
+    },
+    "mentions": {
+     "items": {
+      "type": "string"
+     },
+     "type": [
+      "array",
+      "null"
+     ]
+    },
+    "message_id": {
+     "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+     "type": "string"
+    },
+    "record_id": {
+     "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+     "type": "string"
+    },
+    "record_refs": {
+     "items": {
+      "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+      "type": "string"
+     },
+     "type": [
+      "array",
+      "null"
+     ]
+    }
+   },
+   "required": [
+    "message_id",
+    "record_id",
+    "body"
+   ],
+   "type": "object"
+  }
+ },
+ "Thread.MessagePosted": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "author": {
+     "type": "string"
+    },
+    "body": {
+     "type": "string"
+    },
+    "kind": {
+     "enum": [
+      "message",
+      "dispatch",
+      "summary",
+      "reminder"
+     ],
+     "type": "string"
+    },
+    "mentions": {
+     "items": {
+      "type": "string"
+     },
+     "type": [
+      "array",
+      "null"
+     ]
+    },
+    "message_id": {
+     "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+     "type": "string"
+    },
+    "record_creator": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "record_id": {
+     "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+     "type": "string"
+    },
+    "record_refs": {
+     "items": {
+      "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+      "type": "string"
+     },
+     "type": [
+      "array",
+      "null"
+     ]
+    }
+   },
+   "required": [
+    "message_id",
+    "record_id",
+    "author",
+    "body",
+    "kind"
+   ],
+   "type": "object"
+  }
+ },
+ "Thread.MessageRetracted": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "message_id": {
+     "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+     "type": "string"
+    },
+    "reason": {
+     "type": "string"
+    },
+    "record_id": {
+     "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+     "type": "string"
+    }
+   },
+   "required": [
+    "message_id",
+    "record_id",
+    "reason"
+   ],
+   "type": "object"
+  }
+ },
+ "Transmittal.Defined": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "direction": {
+     "type": "string"
+    },
+    "due_date": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "items": {},
+    "number": {
+     "type": "string"
+    },
+    "purpose": {
+     "type": "string"
+    },
+    "recipients": {}
+   },
+   "required": [
+    "number",
+    "direction",
+    "purpose",
+    "recipients",
+    "items"
+   ],
+   "type": "object"
+  }
+ },
+ "Transmittal.Issued": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "date_reason": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "issued_on": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "issued_on"
+   ],
+   "type": "object"
+  }
+ },
+ "Transmittal.ResponseRecorded": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "date_reason": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "responded_on": {
+     "type": "string"
+    },
+    "response_code": {
+     "type": "string"
+    },
+    "response_note": {
+     "type": [
+      "string",
+      "null"
+     ]
+    }
+   },
+   "required": [
+    "response_code",
+    "responded_on"
+   ],
+   "type": "object"
+  }
+ },
+ "TypeRegistration.Deprecated": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "reason": {
+     "type": "string"
+    },
+    "type_ref": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "type_ref",
+    "reason"
+   ],
+   "type": "object"
+  }
+ },
+ "TypeRegistration.Quarantined": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "content_hash": {
+     "type": "string"
+    },
+    "location_uri": {
+     "type": "string"
+    },
+    "report": {},
+    "type_ref": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "type_ref",
+    "location_uri",
+    "content_hash",
+    "report"
+   ],
+   "type": "object"
+  }
+ },
+ "TypeRegistration.Registered": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "content_hash": {
+     "type": "string"
+    },
+    "index_fields": {
+     "items": {
+      "type": "string"
+     },
+     "type": [
+      "array",
+      "null"
+     ]
+    },
+    "location_uri": {
+     "type": "string"
+    },
+    "name": {
+     "type": "string"
+    },
+    "namespace": {
+     "type": "string"
+    },
+    "owner": {
+     "type": "string"
+    },
+    "schema_hash": {
+     "type": "string"
+    },
+    "status": {
+     "enum": [
+      "active",
+      "quarantined",
+      "deprecated"
+     ],
+     "type": "string"
+    },
+    "storage_mode": {
+     "enum": [
+      "managed",
+      "object-backed",
+      "directory-backed"
+     ],
+     "type": "string"
+    },
+    "type_ref": {
+     "type": "string"
+    },
+    "version": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "namespace",
+    "name",
+    "version",
+    "type_ref",
+    "location_uri",
+    "content_hash",
+    "owner",
+    "status",
+    "storage_mode",
+    "schema_hash"
+   ],
+   "type": "object"
+  }
+ },
+ "WBSNode.BudgetRolledUp": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "as_of_seq": {
+     "type": "integer"
+    },
+    "by_cost_code": {},
+    "feed_policy": {
+     "const": "none",
+     "type": "string"
+    },
+    "run_id": {
+     "type": "string"
+    },
+    "total": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "run_id",
+    "as_of_seq",
+    "total",
+    "by_cost_code",
+    "feed_policy"
+   ],
+   "type": "object"
+  }
+ },
+ "WBSNode.CostCodesMapped": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "allocations": {},
+    "feed_policy": {
+     "const": "none",
+     "type": "string"
+    }
+   },
+   "required": [
+    "allocations",
+    "feed_policy"
+   ],
+   "type": "object"
+  }
+ },
+ "WBSNode.Defined": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "code": {
+     "type": "string"
+    },
+    "depth": {
+     "type": "integer"
+    },
+    "feed_policy": {
+     "const": "none",
+     "type": "string"
+    },
+    "parent_id": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "position": {
+     "type": "integer"
+    }
+   },
+   "required": [
+    "code",
+    "depth",
+    "position",
+    "feed_policy"
+   ],
+   "type": "object"
+  }
+ },
+ "WBSNode.Reinstated": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "feed_policy": {
+     "const": "none",
+     "type": "string"
+    },
+    "reason": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "reason",
+    "feed_policy"
+   ],
+   "type": "object"
+  }
+ },
+ "WBSNode.Retired": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "feed_policy": {
+     "const": "none",
+     "type": "string"
+    },
+    "reason": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "reason",
+    "feed_policy"
+   ],
+   "type": "object"
+  }
+ },
+ "WBSNode.Revised": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "changes": {},
+    "feed_policy": {
+     "const": "none",
+     "type": "string"
+    }
+   },
+   "required": [
+    "changes",
+    "feed_policy"
+   ],
+   "type": "object"
+  }
+ },
+ "Waiver.Approved": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "approver": {
+     "type": "string"
+    },
+    "comment": {
+     "type": [
+      "string",
+      "null"
+     ]
+    }
+   },
+   "required": [
+    "approver"
+   ],
+   "type": "object"
+  }
+ },
+ "Waiver.Requested": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "expires": {
+     "type": "string"
+    },
+    "number": {
+     "type": "integer"
+    },
+    "path": {
+     "type": "string"
+    },
+    "project": {
+     "type": "string"
+    },
+    "reason": {
+     "type": "string"
+    },
+    "requested_by": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "project",
+    "path",
+    "number",
+    "reason",
+    "expires",
+    "requested_by"
+   ],
+   "type": "object"
+  }
+ },
+ "Waiver.Revoked": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "reason": {
+     "type": "string"
+    },
+    "revoked_by": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "revoked_by",
+    "reason"
+   ],
+   "type": "object"
+  }
+ },
+ "WebhookSubscription.Created": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "event_schema_version": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "expires_at": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "filter": {},
+    "integration_app": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "name": {
+     "type": "string"
+    },
+    "owner": {
+     "type": "string"
+    },
+    "payload_mode": {
+     "type": "string"
+    },
+    "secret_id": {
+     "type": "string"
+    },
+    "subscription_id": {
+     "type": "string"
+    },
+    "target_url": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "subscription_id",
+    "name",
+    "owner",
+    "target_url",
+    "filter",
+    "payload_mode",
+    "secret_id"
+   ],
+   "type": "object"
+  }
+ },
+ "WebhookSubscription.Disabled": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "detail": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "reason": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "reason"
+   ],
+   "type": "object"
+  }
+ },
+ "WebhookSubscription.Enabled": {
+  "1": {
+   "additionalProperties": true,
+   "type": "object"
+  }
+ },
+ "WebhookSubscription.SecretRotated": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "previous_expires_at": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "previous_secret_id": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "secret_id": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "secret_id"
+   ],
+   "type": "object"
+  }
+ },
+ "WebhookSubscription.Updated": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "changes": {}
+   },
+   "required": [
+    "changes"
+   ],
+   "type": "object"
+  }
+ },
+ "Workflow.Transitioned": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "conformance": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "effective_schema_hash": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "from_state": {
+     "type": "string"
+    },
+    "guards_evaluated": {},
+    "reason": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "signature": {},
+    "to_state": {
+     "type": "string"
+    },
+    "transition": {
+     "type": "string"
+    },
+    "workflow": {
+     "type": "string"
+    },
+    "workflow_version": {
+     "type": [
+      "integer",
+      "null"
+     ]
+    }
+   },
+   "required": [
+    "workflow",
+    "from_state",
+    "to_state",
+    "transition"
+   ],
+   "type": "object"
+  }
+ }
+}
