@@ -17,7 +17,7 @@ Examples use project `P123` and IWP `P123-IWP-PIP-0001`.
 | MCP | `list_iwps`, `get_iwp`, `list_iwp_scope` | none (the agent holds no `core.constraint.*` word, D37) | `get_iwp_readiness` |
 
 Export: `tl awp export progress --project P --period YYYY-Www [--out FILE]` prints earned progress by cost code as CSV
-(`period,scope,cost_code,earned_hours,budget_hours,earned_pct,as_of_seq`; `(unallocated)` last; an empty cell is no budget).
+(`period,scope,cost_code,earned_hours,budget_hours,earned_pct,as_of_seq`; the `Unallocated` line last; an empty cell is no budget).
 It is computed on read from the stored IWP progress, stores nothing and writes no event. Cells that start with
 `=`, `+`, `-` or `@` get a leading apostrophe; `--out` writes mode 0600. A reader sees only what they can open (budgets
 computed from that too); earned hours reaching no node are the `Unallocated` line. Code: `tl_mod_awp/progress/{rollup,export}.py`, `tl_cli/awp_export.py`.

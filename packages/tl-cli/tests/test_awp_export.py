@@ -29,7 +29,7 @@ def test_export_progress_prints_the_header_and_one_row_per_cost_code_line(cli: C
     rows = rows_of(result.stdout)
     assert rows[0] == HEADER
     assert result.stdout.splitlines()[0].startswith('"period"')
-    assert rows[-1][2] == "(unallocated)"
+    assert rows[-1][2] == "Unallocated"
     assert all(r[0] == "2026-W45" and r[1] == "project:P123" for r in rows[1:])
     head = cli.scalar("SELECT COALESCE(MAX(seq), 0) FROM events")
     assert {r[6] for r in rows[1:]} == {str(head)}

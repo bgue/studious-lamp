@@ -53,7 +53,7 @@ def main() -> None:
     check(
         "the cost code lines sum to the node total",
         sum(ln.earned_hours for ln in found.lines) == nodes[w.id_of("1")].earned_hours
-        and found.lines[-1].code is None,
+        and found.lines[-1].code == "Unallocated",
     )
     check(
         "a null hour weighs the mean",

@@ -60,7 +60,8 @@ def test_cost_code_lines_of_a_node_sum_to_the_node_total(rr: RollRig) -> None:
     assert by_code["4210-PIP-ERC"] == D("8.0")
     root = next(n for n in found.nodes if n.node_id == rr.w.id_of("1"))
     assert sum(ln.earned_hours for ln in found.lines) == root.earned_hours
-    assert found.lines[-1].code is None  # the unallocated line is last
+    assert found.lines[-1].code == "Unallocated"  # one such line, last
+    assert [ln.code for ln in found.lines].count("Unallocated") == 1
 
 
 def test_an_iwp_with_null_hours_weighs_the_mean(rr: RollRig) -> None:
@@ -180,19 +181,35 @@ def test_a_hidden_node_or_cost_code_is_absent_like_a_missing_one(rr: RollRig) ->
     assert node not in {n.node_id for n in seen.nodes}
 
 
-def test_earned_hours_that_reach_no_node_are_the_unallocated_line(rr: RollRig) -> None:
+def test_earned_hours_that_reach_no_node_join_the_one_unallocated_line(rr: RollRig) -> None:
     extra = rr.cwp("5.0", [])  # no allocation: the earned hours reach no node
     rr.iwp(extra, ["10.0"], "100.0")
     found = rr.read()
     last = found.lines[-1]
-    assert (last.code, last.cost_code_id, last.earned_hours, last.budget_hours) == (
-        "Unallocated",
-        None,
-        D("10.0"),
-        None,
-    )
-    assert rows_of(rr.export())[-1][2] == "Unallocated"
+    # 20.0 sit on unmapped nodes (packages B and C) and 10.0 reach none: one line, last
+    assert (last.code, last.cost_code_id, last.earned_hours) == ("Unallocated", None, D("30.0"))
     assert [ln.code for ln in found.lines].count("Unallocated") == 1
+    assert rows_of(rr.export())[-1][2] == "Unallocated"
+
+
+def test_the_lines_add_up_to_the_rounded_total_on_a_tie(rr: RollRig) -> None:
+    for allocs in ([], [("1.1.1", "100.00")]):
+        extra = rr.cwp("5.0", allocs)
+        rr.iwp(extra, ["0.5"], "50.0")  # 0.25 exact each
+    found = rr.read()
+    assert sum(ln.earned_hours for ln in found.lines) == D("40.5")  # 40.0 + 0.5, rounded once
+    assert found.lines[-1].code == "Unallocated"
+    assert [ln.code for ln in found.lines].count("Unallocated") == 1
+
+
+def test_a_longer_export_than_the_cap_is_refused(
+    rr: RollRig, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from tl_mod_awp.progress import export
+
+    monkeypatch.setattr(export, "MAX_ROWS", 1)
+    with pytest.raises(ExportError, match="^export: too many rows$"):
+        rr.export()
 
 
 def test_a_node_without_a_stored_budget_exports_an_empty_cell_and_the_note(rr: RollRig) -> None:
@@ -222,7 +239,7 @@ def test_a_stored_budget_gives_the_budget_and_the_percent(rr: RollRig) -> None:
     wld = next(r for r in rows if r[2] == "4210-PIP-WLD")
     assert wld[:2] == ["2026-W45", SCOPE]
     assert (wld[3], wld[4], wld[5]) == ("12.0", "24.0", "50.0")
-    assert rows[-1][2] == "(unallocated)"
+    assert rows[-1][2] == "Unallocated"
 
 
 @pytest.mark.parametrize("title", ["=cmd|' /C calc'!A0", "+1", "-1", "@SUM(A1)"])

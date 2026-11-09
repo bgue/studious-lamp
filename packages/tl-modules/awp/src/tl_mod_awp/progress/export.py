@@ -2,8 +2,9 @@
 
 Reads only. Every cell is text and goes through the ``csv`` module with ``QUOTE_ALL``; a cell whose
 first character could start a formula in a spreadsheet gets a leading apostrophe (``csv_cell``).
-The size is bounded by the number of cost code lines, which is bounded by the cost codes of one
-project; the rows are written one by one into the buffer, never held as a second copy.
+The CSV is built in memory; its size is bounded by ``MAX_ROWS`` cost code lines (a longer one is
+refused). A viewer, a system viewer included, takes the viewer path of ``progress_rollup``: the
+budgets are computed from what it can open, never read from the stored rows.
 """
 
 from __future__ import annotations
@@ -31,7 +32,7 @@ HEADER: Final = (
     "earned_pct",
     "as_of_seq",
 )
-UNALLOCATED: Final = "(unallocated)"
+UNALLOCATED: Final = "Unallocated"
 MSG_PERIOD: Final = "period: expected YYYY-Www"
 MSG_TOO_MANY: Final = "export: too many rows"
 #: At most this many cost code lines are written (the cost code limit of the awp reports).

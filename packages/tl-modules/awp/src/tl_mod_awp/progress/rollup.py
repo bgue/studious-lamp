@@ -11,8 +11,8 @@ earned hours as its ``budgets``. Without a ``viewer`` a budget figure is the sto
 ``cur_awp_rollup`` row. With a ``viewer`` nothing hidden may show, not even as a note: the roll-up
 is computed from the CWPs, IWPs, WBS nodes and cost codes the viewer can open only (the stored
 totals add the hidden ones and are not read), so the answer is the one a project without them
-would give. Earned hours that reach no node (no allocation, a hidden node, a share under 100
-percent) are the ``Unallocated`` line (no budget).
+would give. Earned hours that reach no cost code (unmapped node, no allocation, a hidden node)
+are the one ``Unallocated`` line, last, so the lines add up to the rounded total of the packages.
 
 Reads only: one statement per table, never one per IWP.
 """
@@ -244,17 +244,6 @@ def progress_rollup(
     budgets = {c.cwp_id: _decimal(earned[c.cwp_id]) for c in cwps}
     figures = rollup.compute(parents, mapping, budgets, allocations)
     roots = {n for n, p in parents.items() if p is None or p not in parents}
-    children = {p for p in parents.values() if p in parents}
-    # earned hours that reach no leaf: the Unallocated line
-    placed: dict[str, Decimal] = defaultdict(Decimal)
-    for cwp, node, percent in allocations:
-        if cwp in budgets and node in parents and node not in children:
-            placed[cwp] += percent
-    lost = Fraction(0)
-    for c in budgets:
-        share = Fraction(min(placed[c], Decimal(100))) / 100
-        lost += earned[c] * (1 - share)
-
     node_budget: dict[str, Decimal] = {}
     line_budget: dict[rollup.Key, Decimal] = {}
     if viewer is not None:  # computed from what the viewer can open; the stored rows are not read
@@ -293,18 +282,19 @@ def progress_rollup(
     ):
         notes.append(NOTE_NO_BUDGET)
 
-    keys = sorted(set(line_earned) | set(line_budget), key=rollup.line_order)
+    # Rule 3: the lines and the Unallocated line add up to the rounded total of the packages. The
+    # coded lines are the rounded figures of ``compute``; Unallocated takes what is left of the
+    # rounded total (the unmapped nodes, a package without allocation, a hidden node).
+    coded = sorted(
+        (k for k in set(line_earned) | set(line_budget) if k is not None), key=rollup.line_order
+    )
     lines = [
-        CostLine(
-            cost_code_id=k,
-            code=None if k is None else codes.get(k),
-            earned_hours=line_earned.get(k, Decimal("0.0")),
-            budget_hours=line_budget.get(k),
-        )
-        for k in keys
+        CostLine(k, codes.get(k), line_earned.get(k, Decimal("0.0")), line_budget.get(k))
+        for k in coded
     ]
-    lines.sort(key=lambda ln: (ln.cost_code_id is None, ln.code or "", ln.cost_code_id or ""))
-    if lost > 0:
-        lost_hours = round_half_up(lost)
-        lines.append(CostLine(None, UNALLOCATED_CODE, lost_hours, None))
+    lines.sort(key=lambda ln: (ln.code or "", ln.cost_code_id or ""))
+    total = round_half_up(sum(earned[c] for c in budgets) if budgets else Fraction(0))
+    rest = total - sum((ln.earned_hours for ln in lines), Decimal("0.0"))
+    if rest != 0 or None in line_budget:
+        lines.append(CostLine(None, UNALLOCATED_CODE, rest, line_budget.get(None)))
     return ProgressRollup(scope, as_of, cwps, nodes, lines, notes)
