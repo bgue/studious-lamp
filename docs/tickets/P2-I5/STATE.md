@@ -15,7 +15,7 @@ T11a1 t mrg f 42ac14f API progress/rollup/kpis/counts/hash routes; after T09 (R-
 T11c t mrg f 36c990d MCP five reads; after T09 (R-B)
 T11a2 t mrg f 8d4e0cb API weeks/miss-reasons/look-ahead; after T11a1 (R-C)
 T07b t mrg l 8b77cfb pack template; ready; provided test r6; golden made by the ticket (R-C)
-T11b t todo f - client methods + fakes + two command doors; after T11a1 T11a2 (R-D)
+T11b t mrg f 11a70a7 client methods + fakes + two command doors; after T11a1 T11a2 (R-D)
 T06a t todo f - TUI cycle steps 1-3; after T11b; stub weekly_text.py + provided test in tree (R-E)
 T16 t todo f - five-reader walk, three test files; after T11c T11b T04 (R-E)
 T06b t todo f - TUI steps 4-5 + actions.RULES rows StartIwpWork, CompleteIwpField; after T06a (R-F)
@@ -43,6 +43,7 @@ Q5 awp.worker.run is company scope (S4b): project controllers cannot run the wor
 Q-o1 at merge with p2/i4a or the trunk: add the four S2 exclusion lines (S2 report) and the three S4a lines (OpenWeeklyPlan, RecordWeekOutcome, CloseWeek) to tests/tools/proposable_exclusions.toml
 Q6 platform.yaml tui.landing docs say default lands "on their packages"; D7 makes unset resolve to iwp_mine and explicit default land as before: T06c2 does that; fix the description text at close (schema/settings/platform.yaml is S1's) needs orch raised r5
 Q-o4 T11a1 F1: roll-up node rows carry no label after ids were dropped; decide label source at T11b or T06a
+Q-o5 FakeClient: T11b renamed `sent` to `sent_commands` and `_look_aheads` to `_awp_look_aheads`; the awp look-ahead read is `get_awp_look_ahead` (later tickets use these names)
 ## NEXT
 1. After T09 fix merges: R-B [T11a1, T04, T11c]. T04 test r6: look-ahead Plant now evaluates readiness through evaluate_now (no cur_* inserts); T06a miss key is `Weather` (edition code).
 2. R-C [T11a2, T07b] may go now for T07b (needs only T07a).
