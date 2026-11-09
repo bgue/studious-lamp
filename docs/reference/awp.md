@@ -17,6 +17,7 @@ Examples use project `P123` and IWP `P123-IWP-PIP-0001`.
 | MCP | `list_iwps`, `get_iwp`, `list_iwp_scope` | none (the agent holds no `core.constraint.*` word, D37) | `get_iwp_readiness` |
 
 KPI tiles (weekly cycle, P2-I5-T09): `tl awp report kpi_ppc` (PPC over the last 4 closed weeks) and `tl awp report kpi_constraint_free` (share of live IWPs with no open blocking constraint), one row each.
+Weekly-plan MCP reads (P2-I5-T11c, agent reads only): `list_weekly_plans`, `get_weekly_plan` (week `YYYY-Www`), `get_iwp_progress`, `get_progress_rollup`, `list_kpis`. Code: `tl_mcp/awp_week_tools.py`; each needs its `mcp.<tool>` action (`WEEK_MCP_ACTIONS`). The look-ahead is not on MCP this increment (D29).
 Work pack: `tl awp iwp pack NUMBER [--out FILE] [--attach]` writes one printable HTML file of an IWP (QR codes need the `pack` extra); `--attach` stores it in the IWP's `pack` file slot. Code: `tl_mod_awp/pack.py`, `tl_cli/awp_pack.py`.
 
 Export: `tl awp export progress --project P --period YYYY-Www [--out FILE]` prints earned progress by cost code as CSV
