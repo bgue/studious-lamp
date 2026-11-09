@@ -48,6 +48,7 @@ SEQUENCE_RE = re.compile(r'(\\*"sequence\\*": ?)\d+')
 ALLOCATED_KEYS = ("pattern", "key", "prefix", "record_type")
 #: Lake columns that hold the chain hashes.
 LAKE_HASH_COLUMNS = ("prev_hash", "hash")
+REDACTED_SCOPE = "SCOPE"
 
 #: (what is masked, why). Every other difference between A and B fails the walk.
 MASKS = {
@@ -58,6 +59,12 @@ MASKS = {
     "filler events": (
         "B's filler events (Account.TwinFiller on a core.Account stream) are written out of the "
         "event list an admin reads; every other reader skips account streams"
+    ),
+    "redacted row scope": (
+        "the scope column of an Internal.Redacted row of the lake events table (the placeholder of "
+        "an event the reader may not read): on Postgres one account event sits a seq later in A "
+        "(A's hidden event comes first in its step) than in B (the filler is padded after it), so "
+        "the placeholder at that seq differs in scope; nothing else of the row is masked"
     ),
     "numbering counter": (
         "stream_version of a numbering:<scope>:<pattern>:<prefix> stream (and numbering vN in "
@@ -402,12 +409,17 @@ def sync_world_lake(world: World) -> Path:
 
 
 def mask_chain_columns(data: dict[str, Any]) -> None:
-    """The chain hashes of a lake result, by column (MASKS "hash chain"); content hashes stay."""
-    cols = [i for i, c in enumerate(data.get("columns", [])) if c in LAKE_HASH_COLUMNS]
+    """The lake columns the MASKS "hash chain" and "redacted row scope" entries name; a file's
+    content hash stays."""
+    cols = data.get("columns", [])
+    chain = [i for i, c in enumerate(cols) if c in LAKE_HASH_COLUMNS]
+    kind, scope = (cols.index(c) if c in cols else -1 for c in ("event_type", "scope"))
     for row in data.get("rows", []):
-        for i in cols:
+        for i in chain:
             if isinstance(row[i], str) and re.fullmatch(r"[0-9a-f]{64}", row[i]):
                 row[i] = "HASH"
+        if kind >= 0 and scope >= 0 and row[kind] == "Internal.Redacted":
+            row[scope] = REDACTED_SCOPE
 
 
 def lake_calls(world: World, reader: str, lake: Path) -> list[Call]:
@@ -549,7 +561,7 @@ def _redacted_row(unit: str) -> str:
     """What the lake shows a reader in the place of an event it may not read: a placeholder row."""
     seq = unit[1 : unit.index(",")]
     return (
-        f'[{seq},"redacted-{seq}","internal","internal",1,"Internal.Redacted",1,"project:P123","{{}}",'
+        f'[{seq},"redacted-{seq}","internal","internal",1,"Internal.Redacted",1,"{REDACTED_SCOPE}","{{}}",'
         f'"internal","2026-10-19T00:00:00.000000+00:00","2026-10-19T00:00:00.000000+00:00",'
         f'"redacted-{seq}",null,"internal",null,"redacted",null]'
     )

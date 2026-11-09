@@ -251,9 +251,13 @@ def test_a_numbering_counter_is_all_the_counter_mask_zeroes() -> None:
 
 def test_the_lake_masks_the_chain_hashes_and_not_a_content_hash() -> None:
     h = "a" * 64
-    data = {"columns": ["seq", "prev_hash", "hash", "sha256"], "rows": [[1, h, h, h]]}
+    cols = ["seq", "event_type", "scope", "prev_hash", "hash", "sha256"]
+    data = {"columns": cols, "rows": [[1, "Internal.Redacted", "company", h, h, h]]}
     mask_chain_columns(data)
-    assert data["rows"] == [[1, "HASH", "HASH", h]]
+    assert data["rows"] == [[1, "Internal.Redacted", "SCOPE", "HASH", "HASH", h]]
+    data = {"columns": cols, "rows": [[1, "Record.Created", "company", h, h, h]]}
+    mask_chain_columns(data)
+    assert data["rows"][0][2] == "company"
 
 
 # --- the one difference the owner knows ---
