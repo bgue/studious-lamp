@@ -49,7 +49,7 @@ mapping by largest remainder. Do not re-implement it. (4) `budget_hours` of a no
 - `packages/tl-modules/awp/src/tl_mod_awp/progress/{rollup.py,export.py}` (new); `progress/__init__.py` (export lines only)
 - `packages/tl-cli/src/tl_cli/{awp_export.py (new),awp.py (one register line)}`
 - `packages/tl-modules/awp/tests/{test_progress_rollup.py (new),progress_world.py (extend)}`; `packages/tl-cli/tests/test_awp_export.py` (new)
-- pinned lists written as the union, each listed in the report: `packages/tl-cli/tests/test_cli_awp.py` (verb list, if it pins one), `docs/reference/cli*` pages and tests that pin the awp help text (grep `rollup` and `worker` in `packages/tl-cli/tests` and `docs/reference`)
+- pinned lists written as the union, each listed in the report: `packages/tl-cli/tests/test_cli_awp.py` (verb list, if it pins one), `packages/tl-cli/tests/test_reports.py` (if the report names or awp help change), `docs/reference/awp.md` (a line for the export verb; plan check F10)
 - `dev/accept/P2-I5/S3.py`, `docs/reports/P2-I5/S3.md` (create)
 Not allowed: schema, `tl_core/**`, `rollup.py`, `worker.py`, `module.py`, `commands.py`, other modules, `tl-api`, `tl-tui`, `tl-mcp`, `cur_cost_*` writes.
 

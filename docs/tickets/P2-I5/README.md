@@ -1,6 +1,6 @@
 # P2-I5 — Weekly cycle, rules of credit, progress, IWP pack, closeout (module M3, part 3), CLI and TUI only
 
-Status: r2, plan check F1-F12 answered at the end (all accepted). 6 pieces (5 builder + tests), 21 tickets. Nothing is dispatched until P2-INT C2 is on
+Status: r4 (2026-11-09): trimmed scope, both plan checks answered at the end (all accepted). 4 live pieces (S1-S4b; S5 is roadmap 3c), 19 live tickets (T16 replaces the S6 piece). Nothing is dispatched until P2-INT C2 is on
 the trunk (F4); the S1 and S2 specs are written. Plan sources: `docs/build-spec/08-phase2-plan.md` "Increment 5" (re-cut here), `specs/phase2-wave-plan.md`
 (wave 3 row), `module-designs/field-work-packaging.md`, `roadmap-2026-11-07.md` (P2-Q1, P2-Q11, P2-Q13, W3-5, W3-6, W3-7), `DEFERRED.md` (wave 3 rows),
 ADR-0024 to ADR-0027. Board: `STATE.md`.
@@ -10,11 +10,11 @@ Runs beside P2-I4-A (`p2/i4a`).
 ## Objective
 After this increment a planner runs the weekly workface-planning cycle from the terminal: look-ahead of the next four weeks (activities, their IWPs, readiness),
 constraint review (a person with `core.constraint.waive` may clear a check-raised constraint as waived, with a reason), release, foreman commitments, progress, PPC,
-closeout. A person who is foreman on any IWP lands on the IWP log filtered to mine (setting `tui.landing`). Earned progress comes from linked record states through
+closeout (roadmap 3c, not here). A person who is foreman on any IWP lands on the IWP log filtered to mine (setting `tui.landing`). Earned progress comes from linked record states through
 rules of credit held in a schema package chosen per project (`awp.rules_of_credit.set` = `package@version`), rolls up IWP to CWP to WBS node to cost code, and leaves as
-a CSV per period. The IWP pack renders as HTML (QR codes as inline SVG when `segno` is installed; a PDF when `reportlab` is installed; both behind a flag). Closeout takes
-the actual hours, redlines slot, punch count and feedback. A subcontracted CWP records progress by CSV; there are no subcontractor accounts. KPIs agree with the ledger on both adapters.
-Out of scope: every web page (deferred), welds and joints as records (Phase 3), permits, model slice, P6 write-back, automatic constraint population (needs I4-B), the WBS node
+a CSV per period. The IWP pack renders as HTML (QR codes as inline SVG when `segno` is installed). Two KPIs, PPC and % constraint-free, agree with the ledger on both adapters.
+~~Closeout (actual hours, redlines slot, punch count, feedback), subcontract progress by CSV, the PDF pack and the other five KPI tiles~~: roadmap 3c.
+Out of scope: closeout, subcontract CSV, PDF pack and five KPI tiles (roadmap 3c); every web page (deferred), welds and joints as records (Phase 3), permits, model slice, P6 write-back, automatic constraint population (needs I4-B), the WBS node
 workflow, the GC's own rules-of-credit edition (data, later), the simulator `foreman` actor (I6).
 
 ## Owner answers applied (2026-11-08)
@@ -37,13 +37,13 @@ excluded; edits take `expected_version`.
 4. A blocking constraint raised on an Issued IWP puts it On hold (the rule left open in P2-I2; Issued only; a replay changes nothing); foremen commit IWPs for the week (stale `expected_version` refused).
 5. Progress: scope items move state, earned % per IWP follows the rules (S2 math rules), PPC (committed IWPs done / committed) follows the commitments and miss reasons; the rollup job writes earned
    quantities per CWP and WBS node; `tl awp export progress --period 2026-W45` writes the CSV by cost code (a cell starting with `=`, `+`, `-` or `@` is quoted).
-6. The pack renders as HTML (cover, scope and steps, drawings with QR as inline SVG, MTO, safety and quality placeholders, permits and scaffold tags as "not tracked yet", sign-off sheet); with the
-   flag and `reportlab` also a PDF (T07c); with a library missing the command says so and writes what it can. No base-URL setting: links are relative paths and record keys. Stored in file slot `pack`.
-7. Closeout: actual-hours CSV read in the envelope (a bad file is refused whole), redlines slot, remaining punch, feedback; the KPIs (backlog weeks, % constraint-free, constraint aging, schedule
-   compliance, PPC, earned vs burned, stale-pin issues) equal a ledger recount on both adapters.
-8. A CWP assigned to a party records progress by CSV (`RecordSubcontractProgress`); an interface constraint shows in the report.
+6. The pack renders as HTML (cover, scope and steps, drawings with QR as inline SVG, MTO, safety and quality placeholders, permits and scaffold tags as "not tracked yet", sign-off sheet); with a
+   library missing the command says so and writes what it can. ~~PDF with the flag: roadmap 3c (T07c).~~ No base-URL setting: links are relative paths and record keys. Stored in file slot `pack`.
+7. ~~Closeout: roadmap 3c.~~ (was: actual-hours CSV read in the envelope (a bad file is refused whole), redlines slot, remaining punch, feedback; the KPIs (backlog weeks, % constraint-free, constraint aging, schedule
+   compliance, PPC, earned vs burned, stale-pin issues) equal a ledger recount on both adapters.) Only PPC and % constraint-free are checked against a ledger recount (T09).
+8. ~~A CWP assigned to a party records progress by CSV; an interface constraint shows in the report~~: roadmap 3c.
 9. A person who is foreman on an IWP lands on the IWP log filtered to mine (`tui.landing` unset); `default` lands as before.
-10. Agents: a proposal to record progress or commit an IWP is accepted by a person with the access; waived clears, close-out and weekly close are refused to agents (excluded, with reasons). Same reads
+10. Agents: a proposal to record progress or commit an IWP is accepted by a person with the access; waived clears and weekly close are refused to agents (excluded, with reasons). Same reads
     over CLI, TUI, API and MCP; the five-reader walk passes.
 
 ## Pieces (builder, `kind: piece`, review full; specs `S<n>-<slug>.md`)
@@ -52,43 +52,45 @@ excluded; edits take `expected_version`.
 | S1 | Schema and package (human gate, P2-Q10): `rules_of_credit` section of the schema-package content (package lint refuses weights not summing to 100), standards package `co.acme.awp@1.1.0` (sample rules, `MissReason`, `Interface` constraint type), `awp.WeeklyPlan` record and commitment rows, IWP progress table, closeout and CWP fields, awp file-slot fixtures for IWP and `IWPCloseout` (`pack`, `redlines`, `actuals`), events with valid-time tags, access words, settings `awp.pack.pdf`, `tui.landing` and a pattern change for `awp.rules_of_credit.set`, optional extra `pack`. No rules record class, no bespoke loader | written | wave 2 close, P2-INT C2 on trunk | schema, package lint, dependency |
 | S2 | Engine and field lifecycle: `earned_fraction`, scope item moves, `RecordManualProgress`, `IWP.ProgressRecorded`, `StartIwpWork`, `CompleteIwpField`, edition from the adopted package, ADR-0027 rows, the four math rules (F9). Owns `module.py`, `names.py`, `AWP_COMMANDS` edits | written | S1 | quantities, state moves |
 | S3 (r3 spec written) | Rollup and export (computed on read, no stored figure, D17): `awp.rollup` progress measure (IWP to CWP to WBS to cost code; `cost.CostCode` read, never written), `export_progress(conn, scope, period)` CSV, formula-safe cells, `tl awp export progress`. Pairs with S4 A | at C1 | S2 | money, export |
-| S4 (r3: specs `S4a-weekly-plan.md`, `S4b-waive-hold.md`) | Weekly cycle and hold rule, two ordered phases. A (orchestrator APPROVALS and human gate): `OpenWeeklyPlan`, `CommitIwpToWeek`, `RecordWeekOutcome`, `CloseWeek` (PPC). B (gated core handler change, orchestrator APPROVALS): clearing a check-raised constraint needs `core.constraint.waive` and a reason, shown as waived (`tl_core/constraints/handlers.py`); the hold-on-new-constraint rule in the awp follower worker (Issued only, state re-checked on apply, idempotent on replay); the `tl awp worker` access word. A pairs with S3, B with S5 | at C1 | S2 | access words, guard, hold rule |
-| S5 **abn (roadmap 3c)** | Closeout and subcontract: `CloseOutIwp`, actual-hours reader and `RecordSubcontractProgress` CSV reader in `run_in_envelope`, `AssignCwpToParty`. APPROVALS by the orchestrator (parsers) | at C1 | S2 | parsers, envelope |
-| S6 | Tests piece at C3: schema, engine arithmetic and the four rules, package lint refusal, waive word and hold guards, week arithmetic and stale write, both CSV readers hostile cases, export injection, five-reader walk of every new route and tool, sentinel + <= 5 mutants per piece | at C3 | all, T11b | - |
-Policy kept: tests deferred to S6; each piece leaves `dev/accept/P2-I5/<id>.py`; tour once at C4. Never more than one builder and one ticket workflow in a round (F7).
+| S4 (r3: specs `S4a-weekly-plan.md`, `S4b-waive-hold.md`) | Weekly cycle and hold rule, two ordered phases. A (orchestrator APPROVALS only, F9): `OpenWeeklyPlan`, `CommitIwpToWeek`, `RecordWeekOutcome`, `CloseWeek` (PPC). B (human gate, owner approver: core constraint handler, `core.constraint.waive`, `awp.worker.run`; plus orchestrator APPROVALS): clearing a check-raised constraint needs `core.constraint.waive` and a reason, shown as waived (`tl_core/constraints/handlers.py`); the hold-on-new-constraint rule in the awp follower worker (Issued only, state re-checked on apply, idempotent on replay); the `tl awp worker` access word. A pairs with S3, B with S5 | at C1 | S2 | access words, guard, hold rule |
+| ~~S5~~ **abn (roadmap 3c)** | Closeout and subcontract: `CloseOutIwp`, actual-hours reader and `RecordSubcontractProgress` CSV reader in `run_in_envelope`, `AssignCwpToParty`. APPROVALS by the orchestrator (parsers) | at C1 | S2 | parsers, envelope |
+| S6 **replaced by T16** | Was a tests piece; now the Haiku ticket T16 (five-reader walk of every new route and tool, after T11c). Per-piece tests stay in each piece | - | - | - |
+Policy kept: cross-piece tests deferred to T16; each piece leaves `dev/accept/P2-I5/<id>.py`; tour once at C4. Never more than one builder and one ticket workflow in a round (F7).
 
 ## Tickets (Haiku; `review` lite or full; specs written when their dependencies are in the tree)
 | Id | Title | Rev | Depends |
 |---|---|---|---|
-| T01 | CLI `tl awp roc ls\|show\|set` over the adopted package content and the setting | full | S1 |
-| T03 | `look_ahead_view(conn, scope, snapshot, viewer)`: `look_ahead` joined with `visible_readiness`, ids only, constraints counted through the viewer filter (provided test) | full | S2, S4 A |
-| T04 | CLI `tl awp look-ahead` and `tl awp week ls\|show\|commit\|outcome\|close\|ppc`, miss reasons view (print keys, L-P2-I3-3) | full | T03, S4 A |
+| T01 | CLI `tl awp roc ls\|show\|set` over the adopted package content and the setting (provided test `provided/T01_test_awp_roc.py`; ready r4) | full | S1 |
+| T03 | `look_ahead_view(conn, scope, snapshot, viewer)`: `look_ahead` joined with the IWPs linked to each activity, readiness counts and blocking counts through the viewer filter, ids only (stub `look_ahead_view.py` and provided test `provided/T03_test_look_ahead_view.py`; ready r4) | full | S2 |
+| T04 | CLI `tl awp look-ahead` and `tl awp week open\|ls\|show\|commit\|outcome\|close\|ppc\|reasons` (print keys, L-P2-I3-3); written r4, provided test after S4a merges | full | T03, S4a |
+| T04b | CLI for the S2 writes: `tl awp iwp start-work\|complete-field\|item-move\|step\|progress` (provided test `provided/T04b_test_awp_progress.py`; ready r4, after T01) | full | S2 |
 | T05 **abn (roadmap 3c)** | Interface-constraint helper: raise an `Interface` constraint on a CWP for a party (over the frozen `raise_constraint`) and its report | full | S5 |
-| T06a | TUI weekly cycle steps 1 to 3: `weekly_text.py` (Textual-free), look-ahead, constraint review with the waive action, release | full | T11b |
-| T06b | TUI weekly cycle steps 4 and 5: commitments, progress and PPC (closeout step deferred, roadmap 3c) | full | T06a |
+| T06a | TUI weekly cycle steps 1 to 3: `weekly_text.py` (Textual-free), look-ahead, constraint review with the waive action, release | full | T11b, S4b |
+| T06b | TUI weekly cycle steps 4 and 5: commitments, progress and PPC; adds the `actions.RULES` rows for `StartIwpWork` and `CompleteIwpField` (Q-o2, here by name; closeout step deferred, roadmap 3c) | full | T06a |
 | T06c1 | IWP log extras: `m` mine filter, Ready and Constraints counts, state-since, discipline and text filters feed the counts, backlog read past 200 (P2-I2 follow-ups) | full | T11b |
 | T06c2 | Landing: setting `tui.landing` read at sign-in, unset default `iwp_mine` for a person who is foreman on any IWP (one read over IWP foreman fields) | full | T06c1 |
 | T07a | Pack data assembly over committed read views, Jinja2 to HTML with segno QR as inline SVG when installed; slot `pack`; templates are repository files, autoescape on | full | S2, T11b |
-| T07b | Pack template: cover, scope and steps, drawings, MTO, safety, ITP, permits, scaffold placeholders, sign-off sheet; snapshot test | lite | T07a |
+| T07b | Pack template: cover, scope and steps, drawings, MTO, safety, ITP, permits, scaffold placeholders, sign-off sheet; snapshot test (provided test `provided/T07b_test_pack_template.py`, written when T07a merges) | lite | T07a |
 | T07c **abn (roadmap 3c)** | Pack PDF with reportlab behind `awp.pack.pdf`; says so when the library or the flag is missing | full | T07b |
 | T08 **abn (roadmap 3c)** | Closeout reads, closeout routes, `redlines` slot view, `tl awp closeout show\|do` over S5 | full | S5 |
-| T09 | KPI report functions and tiles (trimmed to two: PPC and % constraint-free; five deferred to roadmap 3c) with a ledger-recount test; `tl awp report` names | lite | S3, S4 A |
+| T09 | KPI report functions and tiles (two: PPC and % constraint-free; five deferred to roadmap 3c) with a ledger-recount test (provided test `provided/T09_test_kpis.py`, written when S4a merges); `tl awp report` names | lite | S4a |
 | T10 **abn (roadmap 3c)** | Subcontract reads, routes and `tl awp subcontract assign\|import\|ls` over S5 | full | S5, T05 |
 | T11a1 | API read routes for S2 models and rules (progress, edition, KPIs), embedded and remote | full | S2, S3 |
 | T11a2 | API read routes for S4 A models (weekly plan, commitments, look-ahead) | full | S4 A, T03 |
-| T11b | `ApiClient` and TUI client methods with the fakes (P1-I4 S9 pattern) for T11a1, T11a2 (T08, T10 deferred) | full | T11a1, T11a2 |
+| T11b | `ApiClient` and TUI client methods with the fakes (P1-I4 S9 pattern) for T11a1, T11a2 (T08, T10 deferred) | full | T11a1, T11a2, S4b |
 | T11c | MCP read tools (the proposable rows `propose_progress`, `propose_week_commitment` are written by S2 and S4a), closed-list lines | full | T11b |
-| T12 | `dev/demos/P2-I5.sh`, clauses 1-6, 9, 10 (7, 8 deferred; 6 without PDF; 5 as D17), both adapters | full | T06c2, T06b, T07b, T09 |
+| T12 | `dev/demos/P2-I5.sh`, clauses 1-6, 9, 10 (7, 8 roadmap 3c; 6 without PDF; 5 as D17; 10 without close-out), both adapters | full | T06c2, T06b, T07b, T09, S4b |
 | T13 | Docs: awp README and AGENTS rows, runbooks `weekly-cycle`, `rules-of-credit`, `iwp-pack`, reference page | lite | T12 |
 | T15 | Registrations as one ticket only if glue passes 50 lines: `add_typer`, `MCP_ACTIONS`, palette | full | S4, T11c |
-Trimmed r3 (owner 2026-11-09, STATE D-o1): 17 live tickets (T01, T03, T04, T06a, T06b, T06c1, T06c2, T07a, T07b, T09, T11a1, T11a2, T11b, T11c, T12, T13, T15) and S6; T05, T07c, T08, T10 and piece S5 are `abn` with "roadmap 3c". Demo clauses 7 and 8 and the PDF half of 6 move to 3c; clause 5's "rollup job writes" is read as "the rollup reads" (D17). T14 (simulator `ForemanDesk`, actor `foreman`) goes to I6, where the roster is registered (F12). Every screen ticket needs its text module in the tree first (L-P2-WEB1-1).
+| T16 | Five-reader walk (CLI, TUI, API, MCP, embedded) of every new route and tool: a test that walks as the five kinds of reader (AGENTS.md); replaces the S6 tests piece | full | T11c, S4b |
+Trimmed r3 (owner 2026-11-09, STATE D-o1): 17 live tickets (T01, T03, T04, T06a, T06b, T06c1, T06c2, T07a, T07b, T09, T11a1, T11a2, T11b, T11c, T12, T13, T15) and S6; T05, T07c, T08, T10 and piece S5 are `abn` with "roadmap 3c". Demo clauses 7 and 8 and the PDF half of 6 move to 3c; clause 5's "rollup job writes" is read as "the rollup reads" (D17). T16 replaces S6 (r4, F8). T14 (simulator `ForemanDesk`, actor `foreman`) goes to I6, where the roster is registered (F12). Every screen ticket needs its text module in the tree first (L-P2-WEB1-1).
 
 ## Order of work and checkpoints
-Trunk with P2-INT C2 merged in (F4) -> S1 -> S2 -> S3 with S4 A -> T03, T11a1 -> S5 with S4 B -> T11a2 -> T11b -> T01, T04, T05, T06a, T06c1, T07a, T08, T09, T10, T11c -> T06b, T06c2, T07b -> T07c -> T12 -> T13; S6 beside T12.
+Trunk with P2-INT C2 merged in (F4) -> S1 -> S2 -> S4a (running) -> S4b -> S3 (after S4a merges; F4, F6) with T01, T03 -> T04, T04b, T11a1, T11a2 -> T11b -> T06a, T06c1, T07a, T09, T11c -> T06b, T06c2, T07b -> T16 -> T12 -> T13. Struck (roadmap 3c): S5, T05, T07c, T08, T10.
 Each round runs at most one builder and one ticket workflow; the pairs say which piece shares a round with which.
-- C1: S1, S2 merged (S3 to S5 specs are written once S2 is in the tree). C2: S3, S4 (A and B), S5, T11a1, T11a2, T11b merged and registrations done.
-- C3: every ticket merged or abandoned, S6 merged. C4: per-folder gate on touched packages (`uv sync --extra pack` before the licence check, F11), demo green on both adapters, tour once, SR3 (I5 rows) closed.
-Merge order: after I4-A's merge; S1 to S5, then T11a1; this increment regenerates pinned lists and `openapi.json` last.
+- C1: S1, S2 merged. C2: S3, S4a, S4b, T11a1, T11a2, T11b merged and registrations done.
+- C3: every ticket merged or abandoned, T16 merged. C4: per-folder gate on touched packages (`uv sync --extra pack` before the licence check, F11), demo green on both adapters, tour once, SR3 (I5 rows) closed.
+Merge order: after I4-A's merge; S1 to S4b, then T11a1; this increment regenerates pinned lists and `openapi.json` last.
 
 ## Seams with P2-I4-A (parallel rounds; no overlapping paths)
 I4-A owns `schema/modules/requisitions/`, `packages/tl-modules/requisitions/`, `tl_cli/{req,wo}*.py`, its text, widget and MCP files. I5 owns only `schema/modules/awp/`, `packages/tl-modules/awp/`, the new awp
@@ -107,9 +109,9 @@ Added at close: web pages for the weekly cycle, look-ahead, progress, pack and c
 
 ## Security rows (SR3, I5 part; owner-optional beyond these; one range)
 Scope when run: commit range `ec3314d..p2/i5` head, <= 450k tokens, findings `F<n> <HI|MD|LO> file:line`. S1 package lint bounds (weights, size, NUL, ASCII digits), settings pattern, new dependency; S2 earned
-arithmetic (Decimal, rounding, cap 100), viewer filter on read, state-move words; S3 CSV export (formula cells, source prefix, no write to `cur_cost_*`); S4 B waive word on clearing a check-raised
+arithmetic (Decimal, rounding, cap 100), viewer filter on read, state-move words; S3 CSV export (formula cells, source prefix, no write to `cur_cost_*`); S4a week words (`awp.week.plan|commit|close`, stale `expected_version`, agent proposals); S4 B waive word on clearing a check-raised
 constraint (word, required reason, ledger, agents refused), hold rule (Issued only, no loop, idempotent, `by_module`), `expected_version`, look-ahead ids only for a viewer who cannot read some blockers;
-S5 both CSV readers in the envelope (size, rows, hostile text), party scope; T07a template input (repository files only, autoescape, QR payload a relative path or key, hidden records omitted); T11a1 and
+T07a template input (repository files only, autoescape, QR payload a relative path or key, hidden records omitted); T11a1 and
 T11a2 routes (word before read) and the five-reader walk; T11c agent tools and the row-or-exclusion test.
 
 ## Process lessons applied (P2-I2 STATE)
@@ -153,3 +155,5 @@ Planner-tier check F1-F12, all accepted by the orchestrator; each answer is the 
 - F10 LO accepted: S3 pins name `test_cli_awp.py`, `test_reports.py`, `docs/reference/awp.md`.
 - F11 MD accepted for S4b (drop `S1.md`, cite `require_word` at `tl_cli/constraint_read.py:52`); S4a was dispatched before the check and keeps its context.
 - F12 LO accepted: T03, T07b and T09 name their provided tests under `provided/`; the `actions.RULES` rows (Q-o2) go to T06b by name.
+
+All twelve answers of 2026-11-09 are applied in r4 (STATE D22): F1, F2, F11 in `S4b-waive-hold.md`; F3 in T04 and the new T04b; F5 in T01, T03, T09; F7 in the Objective, clauses 7, 8, 10, the order of work and SR3; F8 as T16; F9 in STATE gate rows; F10 in `S3-rollup-export.md`; F12 provided tests under `provided/` (T01, T03, T04b written; T07b, T09 and the T04 test are written when their dependencies merge) and the `actions.RULES` rows in T06b.

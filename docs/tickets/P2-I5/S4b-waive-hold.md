@@ -1,6 +1,6 @@
 # P2-I5-S4b — waive word on clearing a check-raised constraint, hold rule, worker word (S4 part B)
 
-Status: ready (human gate and orchestrator APPROVALS before merge; independent of S3 and S4a, run after them when slots are short)
+Status: ready, dispatch now (r4: plan check F1, F2, F11 applied; human gate, owner approver, and orchestrator APPROVALS before merge; independent of S3 and S4a)
 Tier: builder
 Kind: piece
 Review: full
@@ -8,7 +8,7 @@ Labels: core, security, guard
 Depends on: S1 (words `core.constraint.waive` controller, `awp.worker.run` controller, `awp.iwp.hold` controller); S2 not needed
 Branch: `p2/i5-s4b-waive-hold`
 Worktree: `/home/user/wt/i5-s4b`
-Approver: human gate (core handler change) and orchestrator APPROVALS (access words, guard); security rows S4 B of the README SR3 list
+Approver: human gate (core constraint handler, words `core.constraint.waive` and `awp.worker.run`), the owner is the approver; orchestrator APPROVALS also (access words, guard); security rows S4 B of the README SR3 list
 
 ## Goal
 Three changes, each small. (1) A person clears a constraint that a check raised only if they hold `core.constraint.waive`; the reason stays required (cap 300) and the cleared constraint reads as waived. (2) A blocking constraint raised on an Issued IWP puts the IWP On hold, run by the awp follower worker
@@ -35,19 +35,20 @@ Hold rule: on an outbox event `Constraint.Raised` whose subject is an IWP and wh
 No new event type and no new payload key (the move is the existing `IWP.Held` path); say so in the report.
 
 ## Context (<= 12 files)
-`packages/tl-core/src/tl_core/constraints/{handlers,errors,queries,guard}.py`; `packages/tl-modules/awp/src/tl_mod_awp/{guards.py,handlers/iwp.py (handle_hold_iwp),readiness/follow.py,worker.py (build_worker)}`; `packages/tl-cli/src/tl_cli/awp_run.py`; `schema/settings/access-words.yaml` (read);
-`packages/tl-core/tests/constraints/test_constraint_commands.py`; `docs/reports/P2-I5/S1.md`. For the CLI word check, `grep -rn "has_word\|require_word\|access.check" packages/tl-cli/src` and copy the existing pattern; if the CLI has none for a non-command verb, escalate with the smallest shape that works.
+`packages/tl-core/src/tl_core/constraints/{handlers,errors,queries,guard}.py`; `packages/tl-modules/awp/src/tl_mod_awp/{guards.py,handlers/signoff.py (`handle_hold_iwp` at line 207 and `_held`),readiness/follow.py,worker.py (build_worker)}`; `packages/tl-cli/src/tl_cli/awp_run.py`; `schema/settings/access-words.yaml` (read);
+`packages/tl-core/tests/constraints/test_constraint_commands.py`; `packages/tl-cli/src/tl_cli/constraint_read.py` lines 45-60 (the CLI word check: copy its `require_word(conn, holder_for_actor(conn, actor), scope=, module=, word=normalise_word(...), what=...)` call and its `ForbiddenError` handling for `awp.worker.run`; if the shape does not fit a non-command verb, escalate with the smallest shape that works).
 
 ## Allowed paths
 - `packages/tl-core/src/tl_core/constraints/{handlers.py,errors.py,queries.py}`
-- `packages/tl-modules/awp/src/tl_mod_awp/{readiness/hold_rule.py (new),handlers/iwp.py (extract only),worker.py (wire the follower)}`
+- `packages/tl-modules/awp/src/tl_mod_awp/{readiness/hold_rule.py (new),handlers/signoff.py (extract only: `hold_by_module` out of `_held`/`handle_hold_iwp`),worker.py (wire the follower)}`
 - `packages/tl-cli/src/tl_cli/awp_run.py`
 - tests: `packages/tl-core/tests/constraints/{test_constraint_waive.py (new),test_constraint_commands.py (consequential)}`, `packages/tl-modules/awp/tests/readiness/test_hold_rule.py` (new), `packages/tl-cli/tests/test_awp_run.py`
 - **consequential pins, updated here and listed in the report (the old form stays pinned for a holder of the word and for a manual or module clear):** every test, script or seed that clears a check-raised constraint as an ordinary user: `grep -rln "ClearConstraint\|constraint clear" packages tests dev` found `packages/tl-core/tests/constraints/test_constraint_commands.py`,
   `packages/tl-sim/src/tl_sim/{client,testing}.py` and `actors/{base,iwp_planner}.py`, `packages/tl-sim/tests/test_iwp_planner.py`, `packages/tl-cli/src/tl_cli/constraint_write.py` (help text only), `dev/seed/demo_project/constraints.py`, `dev/accept/P2-I2/{t04a_checks,c2_checks}.py`, `dev/accept/P2-INS/s1_world.py`; re-grep and add `core.constraint.waive` to the actor that needs it (a grant in the seed or fixture), never loosen the word
 - pinned lists as the union, listed in the report: access-word tables and agent `AGENT_MAY_NOT` (add `core.constraint.waive`, `awp.worker.run` if that list exists), `tests/tools/proposable_exclusions.toml` (`ClearConstraint` line with the reason `a waived clear is a person's act`, if the file exists and lacks it)
+- `docs/reference/openapi.json` (regenerated: `python -m tl_api.openapi`, if the clear route text changes) and `packages/tl-api/tests/test_auth_review.py` (`AGENT_MAY_NOT` gains the two words if that set lists words; consequential pin, listed in the report; plan check F2)
 - `dev/accept/P2-I5/S4b.py`, `docs/reports/P2-I5/S4b.md` (create)
-Not allowed: schema, other modules, `tl-api`, `tl-tui`, `tl-mcp`, `docs/reference` (a changed message that a reference page pins is a consequential pin: list it and stop for the orchestrator).
+Not allowed: schema, other modules, `tl-api` source, `tl-tui`, `tl-mcp`, `docs/reference` pages other than `openapi.json` (a changed message that a reference page pins is a consequential pin: list it and stop for the orchestrator).
 
 ## Acceptance (run once each)
 ```
