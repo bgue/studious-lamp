@@ -610,3 +610,153 @@ def week_checks(ww: WeekWorld) -> None:
     pw_rebuild()
     ok("a rebuild equals the weekly plan tables, ppc included", ww.snapshot() == before)
     _ = date
+
+
+# --- progress rollup and export (P2-I5 S3) -----------------------------------------------------
+
+
+class RollRig:
+    """CWPs with IWPs and a stored progress figure each, over the seed WBS tree.
+
+    The rows of ``cur_awp_iwp_progress`` are put in by hand (a projection write) so a figure is
+    exact; ``rebuild`` tests use the real commands instead. Nothing here writes ``cur_cost_*``.
+    """
+
+    def __init__(self, pw: ProgressWorld) -> None:
+        self.pw = pw
+        self.w = pw.w
+        self.ids: dict[str, str] = {}
+        w = self.w
+        w.cost_codes(("4210-PIP-WLD", "Welding"), ("4210-PIP-ERC", "Erection"))
+        w.wbs_tree()
+        w.areas_and_path(("A1",))
+
+    def cwp(self, hours: str, allocs: Sequence[tuple[str, str]]) -> str:
+        cwp = self.w.new_cwp(
+            "PIP",
+            f"Package {hours}",
+            "A1",
+            planned_start="2026-11-02",
+            planned_finish="2027-01-29",
+            budget_hours=hours,
+        )
+        self.w.call(
+            "uma",
+            "AllocateCwpToWbs",
+            cwp=cwp,
+            allocations=[{"wbs_code": c, "percent": p} for c, p in allocs],
+        )
+        return cwp
+
+    def map_codes(self, node: str, *lines: tuple[str, str]) -> None:
+        from awp_world import line
+
+        self.w.call(
+            "sue",
+            "MapWbsToCostCodes",
+            node=self.w.id_of(node),
+            allocations=[line(c, p) for c, p in lines],
+        )
+
+    def iwp(self, cwp: str, hours: Sequence[str | None], pct: str | None) -> str:
+        """An IWP of ``cwp`` with one item per entry of ``hours`` (None: no estimate) and the
+        stored figure ``pct`` (None: no stored row)."""
+        iwp, items = self.pw.package([h or "1.0" for h in hours], cwp_id=cwp)
+        for item, h in zip(items, hours, strict=True):
+            if h is None:
+                self.pw.set_hours(item, None)
+        if pct is not None:
+            with open_uow(self.w.db) as uow:
+                uow.conn().execute(
+                    text(
+                        "INSERT INTO cur_awp_iwp_progress (iwp_id, scope, earned_pct, edition, "
+                        "as_of_seq, last_seq) VALUES (:i, :s, :p, 'co.acme.awp@1.1.0', 1, 1)"
+                    ),
+                    {"i": iwp, "s": SCOPE, "p": pct},
+                )
+        return iwp
+
+    def run_rollup(self) -> None:
+        """Store the budget rollup (the awp job), so budget figures exist."""
+        from tl_mod_awp import rollup
+        from tl_mod_awp.worker import build_worker
+
+        with open_uow(self.w.db) as uow:
+            rollup.request(uow, SCOPE)
+        with build_worker(self.w.db) as wk:
+            wk.runner.run_once()
+
+    def read(self, viewer: cf.Viewer | None = None) -> Any:
+        from tl_mod_awp.progress.rollup import progress_rollup
+
+        with open_uow(self.w.db, readonly=True) as uow:
+            return progress_rollup(uow.conn(), SCOPE, viewer=viewer)
+
+    def export(self, period: str = "2026-W45", viewer: cf.Viewer | None = None) -> str:
+        from tl_mod_awp.progress.export import export_progress
+
+        with open_uow(self.w.db, readonly=True) as uow:
+            return export_progress(uow.conn(), SCOPE, period, viewer=viewer)
+
+    def counts(self) -> tuple[int, int, int]:
+        """Rows of ``cur_cost_*`` tables, and the ledger head: an export changes neither."""
+        names = [
+            str(r["name"])
+            for r in self.w.rows(
+                "SELECT name FROM sqlite_master WHERE name LIKE 'cur\\_cost\\_%' ESCAPE '\\'"
+            )
+        ]
+        rows = sum(int(self.w.scalar(f"SELECT COUNT(*) FROM {n}")) for n in names)
+        stored = int(self.w.scalar("SELECT COUNT(*) FROM cur_awp_rollup"))
+        return rows, stored, int(self.w.scalar("SELECT COALESCE(MAX(seq), 0) FROM events"))
+
+    @contextmanager
+    def hidden(self, *ids: str, record_type: str) -> Iterator[None]:
+        """``ids`` of ``record_type`` are restricted: the lowest viewer cannot open them."""
+        with open_uow(self.w.db) as uow:
+            conn = uow.conn()
+            conn.execute(
+                text("CREATE TABLE IF NOT EXISTS pw_roll_class (id TEXT PRIMARY KEY, cls TEXT)")
+            )
+            conn.execute(text("DELETE FROM pw_roll_class"))
+            for row in self.w.rows("SELECT id FROM cur_core_record WHERE type = :t", t=record_type):
+                cls = "restricted" if row["id"] in ids else "internal"
+                conn.execute(
+                    text("INSERT INTO pw_roll_class VALUES (:i, :c)"), {"i": row["id"], "c": cls}
+                )
+        source = ConfidentialSource(
+            record_types=frozenset({record_type}),
+            table="pw_roll_class",
+            id_column="id",
+            class_column="cls",
+        )
+        real = core_modules.confidential_sources
+        cf.confidential_sources = lambda: [*real(), source]  # type: ignore[attr-defined]
+        try:
+            yield
+        finally:
+            cf.confidential_sources = real  # type: ignore[attr-defined]
+
+
+def build_roll(db: Path) -> RollRig:
+    return roll_on(build(db))
+
+
+def roll_on(pw: ProgressWorld) -> RollRig:
+    """Worked scenario: package A (40 h: IWPs 10, 10, 20 h at 50.0, 100.0, 25.0 percent) on leaf
+    1.1.1 mapped 60/40 to two cost codes; package B (10.0 earned) split 33/33/34 over three
+    unmapped leaves; package C (a null hour weighs the mean) on 1.1.2. ``rr.ids`` names them."""
+    rr = RollRig(pw)
+    rr.map_codes("1.1.1", ("4210-PIP-WLD", "60.00"), ("4210-PIP-ERC", "40.00"))
+    a = rr.cwp("40.0", [("1.1.1", "100.00")])
+    a1, a2, a3 = (
+        rr.iwp(a, ["10.0"], "50.0"),
+        rr.iwp(a, ["10.0"], "100.0"),
+        rr.iwp(a, ["20.0"], "25.0"),
+    )
+    b = rr.cwp("10.0", [("1.2.1", "33.00"), ("1.2.2", "33.00"), ("1.2.3", "34.00")])
+    b1 = rr.iwp(b, ["10.0"], "100.0")
+    c = rr.cwp("20.0", [("1.1.2", "100.00")])
+    c1 = rr.iwp(c, ["10.0", None], "50.0")
+    rr.ids.update(a=a, a1=a1, a2=a2, a3=a3, b=b, b1=b1, c=c, c1=c1)
+    return rr
