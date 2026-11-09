@@ -45,6 +45,7 @@ APP_COMMANDS: tuple[AppCommand, ...] = (
         "constraints", "Constraint log: open constraints and their owners", "", "constraints"
     ),
     AppCommand("backlog", "Backlog: IWPs by view, with the sizing view", "", "backlog"),
+    AppCommand("week", "Weekly cycle: look-ahead, constraint review, release", "", "week"),
     AppCommand("path", "Path of construction: the order of the areas, by version", "", "path"),
     AppCommand("packages", "External packages: EWP and PWP, forecast and actual", "", "packages"),
     AppCommand("settings", "about:config: settings and their history", "F9", "settings"),
