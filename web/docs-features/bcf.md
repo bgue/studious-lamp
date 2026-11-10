@@ -2,6 +2,8 @@
 
 Open, review, create and export BCF topics. Reads BCF 2.0, 2.1 and 3.0; writes 2.1 (default) and 3.0. A topic can carry viewpoints (camera, selected elements, hidden elements, colours, clip planes) and a snapshot, and the viewer applies them to the model. Topics are pinned to a 3D point, and viewpoints carry annotations (callouts, notes, arrows, linked measurements, rectangles and freehand lines); see "Pins and annotations".
 
+For internal coordination without a topic (clouds, highlights, shapes, a PDF with a comment table, a JSON file that restores the marked-up view) see [markup.md](markup.md); a markup set converts to a BCF topic (`Convert to BCF topic`).
+
 Where: the `BCF` tool in the action panel (a drawer), the `BCF` folder in the parameter panel, and the command palette. Scripting: `window.__xrayBcf`.
 
 ## Workflow

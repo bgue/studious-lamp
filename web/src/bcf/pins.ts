@@ -413,6 +413,7 @@ export function renderOps(g: SVGGElement, ops: readonly DrawOp[]): void {
         break;
     }
     if (o.alpha !== undefined && o.alpha !== 1) e.setAttribute('opacity', String(o.alpha));
+    if (o.blend) e.style.mixBlendMode = o.blend;
     if (o.key) e.setAttribute('data-key', o.key);
     if (o.role) e.setAttribute('data-role', o.role);
     g.appendChild(e);
