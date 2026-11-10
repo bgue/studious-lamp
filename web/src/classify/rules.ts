@@ -112,6 +112,73 @@ type Ctx = { i: ClassifyInput; hay: string; building: boolean };
 type ClassRule = (c: Ctx) => RuleHit | null;
 const fixed = (d: string, s: string | null, div: string | null, conf: number, why: string, section: string | null = null): ClassRule => () => hit(d, s, div, conf, why, section);
 
+// ---- civil and site works
+// A site item (paving, kerbs, fences, trench drains, ...) is recognised by its names, not by its class alone: the IFC has
+// no class for most of them (paving is an IfcSlab, a kerb an IfcBuildingElementProxy). Only the classes in CIVIL_CLASSES are
+// tested, so a pipe, valve or duct never takes a civil name (a pipe named "drain" stays PIP or PLB).
+
+/** Text that names an item: the name, the type name, ObjectType, Description, Tag and PredefinedType. Pset names and systems are left out. */
+export function civilTextOf(i: ClassifyInput): string {
+  const parts: string[] = [i.name, i.type?.name ?? ''];
+  for (const k of ['ObjectType', 'Description', 'Tag', 'PredefinedType']) {
+    const v = i.psets['Attr']?.[k];
+    if (typeof v === 'string') parts.push(v);
+  }
+  return parts.join(' | ').toLowerCase();
+}
+
+interface CivilName {
+  re: RegExp;
+  sub: string;
+  division: string;
+  section: string;
+  why: string;
+}
+
+/** Site items by name. The first match wins, so the more specific words come first. */
+const CIVIL_NAMES: CivilName[] = [
+  { re: /drain(age)? trench|trench drain|drain(age)? channel|channel drain|\bgully|catch ?basin/, sub: 'DRN', division: '33', section: '33 44 00', why: 'site drain trench, channel, gully or catch basin' },
+  { re: /\bculvert/, sub: 'DRN', division: '33', section: '33 41 00', why: 'culvert' },
+  { re: /\bmanholes?\b|inspection chamber/, sub: 'DRN', division: '33', section: '33 39 00', why: 'manhole or inspection chamber' },
+  { re: /\bkerbs?\b|\bcurbs?\b/, sub: 'PAV', division: '32', section: '32 16 13', why: 'kerb or curb' },
+  { re: /paving|pavement|hardstanding|\bapron\b|\broads?\b|highway|\bstreet\b|car park/, sub: 'PAV', division: '32', section: '32 13 00', why: 'paving, pavement, hardstanding or road' },
+  { re: /retaining wall/, sub: 'ERT', division: '32', section: '32 32 00', why: 'retaining wall' },
+  { re: /\bbund\b|earthworks?|excavat|\bgrading\b/, sub: 'ERT', division: '31', section: '31 23 00', why: 'earthwork, excavation, grading or bund' },
+  { re: /\bfenc(e|es|ing)\b|\b(site|vehicle|entrance|security|perimeter|pedestrian) gate\b/, sub: 'LND', division: '32', section: '32 31 00', why: 'fence or site gate' },
+];
+
+/** The classes that can carry a site item in the IFC. Flow, pipe, duct, cable and valve classes are never tested. */
+const CIVIL_CLASSES = new Set([
+  'IfcBuildingElementProxy', 'IfcElementAssembly', 'IfcDiscreteAccessory', 'IfcRailing', 'IfcWall', 'IfcWallStandardCase', 'IfcSlab',
+  'IfcPlate', 'IfcMember', 'IfcGeographicElement', 'IfcCivilElement',
+]);
+
+/** The civil rule that a name gives, or null. */
+export function civilByName(i: ClassifyInput): RuleHit | null {
+  const t = civilTextOf(i);
+  for (const n of CIVIL_NAMES) if (n.re.test(t)) return hit('CIV', n.sub, n.division, 0.88, `${n.why}, by name`, n.section);
+  return null;
+}
+
+/** For a class that can also be a site item: a civil name decides first, the class rule is the fallback. */
+const civilFirst = (rule: ClassRule): ClassRule => (c) => (CIVIL_CLASSES.has(c.i.ifcClass) ? civilByName(c.i) : null) ?? rule(c);
+
+/** Equipment foundations and plinths, by name or ObjectType. A building footing does not match these words. */
+const EQUIPMENT_FOUNDATION = /equipment (foundation|base|pad|plinth)|(pump|skid|machine|vessel|tank|exchanger|compressor) (base|foundation|plinth|pad)|\bplinth\b|\bpad under\b|\bpad for (equipment|pump|vessel|tank|compressor)\b/;
+
+/**
+ * A footing is structural (a building footing), unless its name or ObjectType says equipment foundation, or it is in the
+ * site and not in a building storey: then it is a civil foundation (CIV FND).
+ */
+const footing: ClassRule = (c) => {
+  if (EQUIPMENT_FOUNDATION.test(civilTextOf(c.i))) return hit('CIV', 'FND', '03', 0.9, 'equipment foundation, by name', '03 30 00');
+  const path = c.i.hierarchy?.path ?? [];
+  if (path.some((n) => n.ifcClass === 'IfcSite') && !path.some((n) => n.ifcClass === 'IfcBuildingStorey')) {
+    return hit('CIV', 'FND', '03', 0.88, 'footing in the site, not in a building storey', '03 30 00');
+  }
+  return hit('STR', 'FND', '03', 0.95, 'IfcFooting is a foundation', '03 30 00');
+};
+
 /** For classes that several disciplines share: the system hint decides; without one the rule is weak and the model decides. */
 const shared = (kind: 'pipe' | 'pump' | 'valve' | 'tank', weak: RuleHit): ClassRule => (c) => {
   const h = systemHint(c.hay, c.building);
@@ -140,6 +207,10 @@ const slab: ClassRule = (c) => {
   const lb = asBool(prop(c.i, 'LoadBearing'));
   const steel = /steel deck|metal deck/.test(c.hay);
   if (lb === false) return hit('ARC', 'FIN', '09', 0.7, 'slab with LoadBearing=false');
+  // a base slab outside a building is site paving; a building ground slab stays structural
+  if (String(c.i.psets['Attr']?.['PredefinedType'] ?? '').toUpperCase() === 'BASESLAB' && !c.building) {
+    return hit('CIV', 'PAV', '32', 0.88, 'base slab outside a building (site paving)', '32 13 00');
+  }
   return hit('STR', 'SLB', steel ? '05' : '03', lb === true ? 0.92 : 0.88, `slab${lb === true ? ' with LoadBearing=true' : ''}`, steel ? '05 31 00' : '03 30 00');
 };
 
@@ -178,16 +249,16 @@ export const CLASS_RULES: Record<string, ClassRule> = {
   // structure
   IfcBeam: fixed('STR', 'BEM', '05', 0.93, 'IfcBeam is a structural member', '05 12 00'),
   IfcColumn: fixed('STR', 'COL', '05', 0.93, 'IfcColumn is a structural member', '05 12 00'),
-  IfcFooting: fixed('STR', 'FND', '03', 0.95, 'IfcFooting is a foundation', '03 30 00'),
+  IfcFooting: footing,
   IfcPile: fixed('STR', 'FND', '31', 0.95, 'IfcPile is a foundation', '31 60 00'),
   IfcReinforcingBar: fixed('STR', 'REB', '03', 0.95, 'reinforcement', '03 20 00'),
   IfcReinforcingMesh: fixed('STR', 'REB', '03', 0.95, 'reinforcement', '03 20 00'),
   IfcTendon: fixed('STR', 'REB', '03', 0.9, 'tendon', '03 38 00'),
-  IfcMember: member,
-  IfcSlab: slab,
-  IfcWall: wall,
-  IfcWallStandardCase: wall,
-  IfcPlate: fixed('STR', 'BRC', '05', 0.6, 'plate, structural or architectural'),
+  IfcMember: civilFirst(member),
+  IfcSlab: civilFirst(slab),
+  IfcWall: civilFirst(wall),
+  IfcWallStandardCase: civilFirst(wall),
+  IfcPlate: civilFirst(fixed('STR', 'BRC', '05', 0.6, 'plate, structural or architectural')),
   // architecture
   IfcDoor: fixed('ARC', 'DOR', '08', 0.95, 'IfcDoor', '08 10 00'),
   IfcWindow: fixed('ARC', 'WIN', '08', 0.95, 'IfcWindow', '08 50 00'),
@@ -196,7 +267,7 @@ export const CLASS_RULES: Record<string, ClassRule> = {
   IfcStairFlight: fixed('ARC', 'STA', '05', 0.9, 'IfcStairFlight', '05 51 00'),
   IfcRamp: fixed('ARC', 'STA', '03', 0.86, 'IfcRamp'),
   IfcRampFlight: fixed('ARC', 'STA', '03', 0.86, 'IfcRampFlight'),
-  IfcRailing: fixed('ARC', 'STA', '05', 0.9, 'IfcRailing', '05 52 00'),
+  IfcRailing: civilFirst(fixed('ARC', 'STA', '05', 0.9, 'IfcRailing', '05 52 00')),
   IfcRoof: fixed('ARC', 'ROF', '07', 0.9, 'IfcRoof'),
   IfcCovering: covering,
   IfcChimney: fixed('ARC', 'WAL', '04', 0.86, 'IfcChimney'),
@@ -266,21 +337,23 @@ export const CLASS_RULES: Record<string, ClassRule> = {
   IfcUnitaryControlElement: fixed('INS', 'CTL', '25', 0.88, 'IfcUnitaryControlElement'),
   IfcFlowMeter: fixed('INS', 'SNS', '25', 0.65, 'IfcFlowMeter'),
   // site
-  IfcRoad: fixed('CIV', 'PAV', null, 0.95, 'IfcRoad'),
-  IfcRoadPart: fixed('CIV', 'PAV', null, 0.95, 'IfcRoadPart'),
-  IfcPavement: fixed('CIV', 'PAV', null, 0.95, 'IfcPavement'),
-  IfcKerb: fixed('CIV', 'PAV', null, 0.95, 'IfcKerb'),
-  IfcCourse: fixed('CIV', 'PAV', null, 0.93, 'IfcCourse'),
-  IfcEarthworksElement: fixed('CIV', 'ERT', null, 0.95, 'earthworks'),
-  IfcEarthworksFill: fixed('CIV', 'ERT', null, 0.95, 'earthworks'),
-  IfcEarthworksCut: fixed('CIV', 'ERT', null, 0.95, 'earthworks'),
+  IfcCivilElement: civilFirst(fixed('CIV', null, null, 0.88, 'IfcCivilElement')),
+  IfcAlignment: fixed('CIV', 'PAV', null, 0.9, 'IfcAlignment, a road or rail line'),
+  IfcRoad: fixed('CIV', 'PAV', '32', 0.95, 'IfcRoad', '32 13 00'),
+  IfcRoadPart: fixed('CIV', 'PAV', '32', 0.95, 'IfcRoadPart', '32 13 00'),
+  IfcPavement: fixed('CIV', 'PAV', '32', 0.95, 'IfcPavement', '32 13 00'),
+  IfcKerb: fixed('CIV', 'PAV', '32', 0.95, 'IfcKerb', '32 16 13'),
+  IfcCourse: fixed('CIV', 'PAV', '32', 0.93, 'IfcCourse, a pavement layer', '32 11 00'),
+  IfcEarthworksElement: fixed('CIV', 'ERT', '31', 0.95, 'earthworks', '31 23 00'),
+  IfcEarthworksFill: fixed('CIV', 'ERT', '31', 0.95, 'earthworks', '31 23 00'),
+  IfcEarthworksCut: fixed('CIV', 'ERT', '31', 0.95, 'earthworks', '31 23 00'),
   IfcGeotechnicalElement: fixed('CIV', 'ERT', null, 0.9, 'geotechnical element'),
-  IfcGeographicElement: fixed('CIV', 'LND', null, 0.9, 'IfcGeographicElement'),
+  IfcGeographicElement: civilFirst(fixed('CIV', 'LND', null, 0.9, 'IfcGeographicElement')),
   IfcRailway: fixed('CIV', 'PAV', null, 0.9, 'IfcRailway'),
   IfcTrackElement: fixed('CIV', 'PAV', null, 0.9, 'IfcTrackElement'),
   IfcBridge: fixed('STR', null, null, 0.86, 'IfcBridge'),
   // generic classes: only the name can say
-  IfcBuildingElementProxy: nameRule,
+  IfcBuildingElementProxy: civilFirst(nameRule),
   IfcDistributionElement: nameRule,
   IfcFlowSegment: nameRule,
   IfcFlowFitting: nameRule,
@@ -290,9 +363,9 @@ export const CLASS_RULES: Record<string, ClassRule> = {
   IfcFlowStorageDevice: nameRule,
   IfcFlowTreatmentDevice: nameRule,
   IfcEnergyConversionDevice: nameRule,
-  IfcDiscreteAccessory: nameRule,
+  IfcDiscreteAccessory: civilFirst(nameRule),
   IfcMechanicalFastener: nameRule,
-  IfcElementAssembly: nameRule,
+  IfcElementAssembly: civilFirst(nameRule),
 };
 
 /** The rule result for an element, in rules keys (the codes of the default schema), or null when no rule applies. */

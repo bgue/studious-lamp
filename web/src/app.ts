@@ -1,9 +1,12 @@
 // X-ray viewer: wires the loader, renderer, XrayController, lil-gui panel and the status bar (src/ui/statusBar.ts).
 //   /?model=building|fzk-haus|plumbing|process-plant|synth5k|debris-demo|procedural
+// The sample models and their labels: src/samples.ts. The panel lists them in the "Sample Projects" folder.
 
 import GUI from 'lil-gui';
 import { loadModel, parseModel } from './model/loader';
 import type { LoadedModel } from './model/loader';
+import { importIfc } from './model/ifcImport';
+import { SAMPLE_PROJECTS, UNAVAILABLE_HINT, bundleContents, inflateEmbedded, menuOptions, sampleAvailable, sampleMenu } from './samples';
 import { buildProceduralGlb, proceduralSidecar } from './model/procedural';
 import { BvhGeometryProvider } from './render/geometry';
 import { XrayRenderer } from './render/renderer';
@@ -41,15 +44,17 @@ export interface AppPlugin {
 
 export const MODEL_NAMES = ['building', 'fzk-haus', 'plumbing', 'process-plant', 'synth5k', 'debris-demo', 'procedural'] as const;
 
-/** Model names offered in the picker: the built-in list plus any embedded models (single-file bundle). */
 /** Models the user opened from a file picker or by drag and drop, in this session only. */
 export const USER_MODELS = new Map<string, LoadedModel>();
 
+/** The names that can be loaded here: the samples the page can reach (a single file: the ones it carries), then the opened models. */
 export function availableModelNames(): string[] {
-  const embedded = window.__xrayEmbeddedModels;
-  // A single-file bundle cannot fetch /models/*, so offer only what it carries plus the procedural demo.
-  const base = embedded ? [...Object.keys(embedded), 'procedural'] : [...MODEL_NAMES];
-  return [...base, ...USER_MODELS.keys()];
+  return sampleMenu(bundleContents(), [...USER_MODELS.keys()]).filter((e) => e.available).map((e) => e.value);
+}
+
+/** The label of a model name in the Sample Projects menu (the name itself when it is not a sample). */
+function sampleLabel(name: string): string {
+  return SAMPLE_PROJECTS.find((s) => s.name === name)?.label ?? name;
 }
 
 function base64ToArrayBuffer(b64: string): ArrayBuffer {
@@ -160,16 +165,30 @@ export class ViewerApp {
   /** Load a model by name. Falls back to the procedural model with a visible message on failure. */
   async loadScene(name: string): Promise<void> {
     const token = ++this.loadToken;
+    const bundle = bundleContents();
+    // A single file does not carry every sample: say so in plain words and show the procedural demo, not a failed fetch.
+    if (!USER_MODELS.has(name) && !sampleAvailable(name, bundle)) {
+      this.showMessage(`${sampleLabel(name)} ${UNAVAILABLE_HINT}. Showing the procedural demo model.`);
+      const demo = await parseModel(buildProceduralGlb(), proceduralSidecar());
+      if (token !== this.loadToken) return;
+      this.installModel(demo, 'procedural');
+      return;
+    }
     this.showMessage(`Loading ${name}...`);
     let loaded: LoadedModel;
     let used = name;
     try {
       const embedded = window.__xrayEmbeddedModels?.[name];
+      const embeddedIfc = window.__xrayEmbeddedIfc?.[name];
       const user = USER_MODELS.get(name);
       if (user) loaded = user;
       else if (name === 'procedural') loaded = await parseModel(buildProceduralGlb(), proceduralSidecar());
       else if (embedded) loaded = await parseModel(base64ToArrayBuffer(embedded.glb), embedded.json as Parameters<typeof parseModel>[1]);
-      else loaded = await loadModel(`/models/${name}.glb`, `/models/${name}.json`);
+      else if (embeddedIfc) {
+        // a sample embedded as gzip-compressed IFC (single file): inflated here, then read by the built-in IFC reader
+        const res = await importIfc([{ name: embeddedIfc.file, data: await inflateEmbedded(embeddedIfc.gz) }], { edges: 'auto' });
+        loaded = res.loaded;
+      } else loaded = await loadModel(`/models/${name}.glb`, `/models/${name}.json`);
       this.showMessage(null);
     } catch (e) {
       const why = e instanceof Error ? e.message : String(e);
@@ -192,12 +211,31 @@ export class ViewerApp {
     this.installModel(loaded, name);
   }
 
+  /** The model names the Sample Projects menu lists now: the samples, the bundle's models and the opened files. */
+  pickerValues(): string[] {
+    return sampleMenu(bundleContents(), [...USER_MODELS.keys()]).map((e) => e.value);
+  }
+
+  /**
+   * Refresh the Sample Projects menu with the opened models. lil-gui replaces the controller on `options()`, so the change
+   * handler is attached again to the new one.
+   */
   private rebuildModelPicker(): void {
-    const ctrl = this.gui?.controllers.find((c) => c.property === 'model');
+    const ctrl = this.gui?.controllersRecursive().find((c) => c.property === 'model');
     if (!ctrl) return;
-    const names = availableModelNames();
-    const opts = ctrl as unknown as { options?: (values: string[]) => unknown };
-    opts.options?.(names);
+    const next = ctrl.options(menuOptions(sampleMenu(bundleContents(), [...USER_MODELS.keys()])));
+    next.onChange((v: string) => this.chooseModel(v));
+  }
+
+  /** The Sample Projects menu chose a model. An entry that the page cannot load says why, and the current model stays. */
+  private chooseModel(name: string): void {
+    if (USER_MODELS.has(name) || sampleAvailable(name, bundleContents())) {
+      void this.loadScene(name);
+      return;
+    }
+    this.showMessage(`${sampleLabel(name)} ${UNAVAILABLE_HINT}.`);
+    if (this.guiModel) this.guiModel.model = this.modelName;
+    this.gui?.controllersRecursive().forEach((c) => c.updateDisplay());
   }
 
   private installModel(loaded: LoadedModel, name: string): void {
@@ -437,8 +475,11 @@ export class ViewerApp {
     const sl = (): void => this.runSightlinesNow();
     const touch = (): void => this.controller.touch();
 
+    // The Sample Projects folder: the models with their readable labels. The folder goes first, under Open model (fileLoader.ts).
     this.guiModel = { model: this.modelName };
-    gui.add(this.guiModel, 'model', availableModelNames()).name('Model').onChange((v: string) => void this.loadScene(v));
+    const samples = gui.addFolder('Sample Projects');
+    samples.add(this.guiModel, 'model', menuOptions(sampleMenu(bundleContents(), [...USER_MODELS.keys()])))
+      .name('Model').onChange((v: string) => this.chooseModel(v));
     gui.add(s, 'xray').name('X-ray (X)').onChange(() => this.setXray(s.xray));
     gui.add(s, 'tiersMode').name('Tiers mode').onChange(re);
 

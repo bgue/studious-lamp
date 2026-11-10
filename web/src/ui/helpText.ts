@@ -123,6 +123,12 @@ export const FOLDER_HELP: Record<string, HelpEntry> = {
     'Click Open IFC or glb file to choose a file. Drop files on the viewer for the same action.',
     'Report: Appendix B, WebGL',
   ),
+  'Sample Projects': h(
+    'The folder lists the example models that come with the viewer. Each example has a readable name.',
+    'Each chosen entry replaces the scene on screen. Saved views and share links still open the model they name.',
+    'Open the Model list in the folder. Choose an entry and wait until the loading message disappears.',
+    'Report: Onboarding checklist',
+  ),
   'Class styles': h(
     'The folder holds the styles of the object classes. A style sets alpha limits, a floor, a hide flag and a colour for a class.',
     'This folder lets you set the look of each kind of building part, such as walls or slabs. Changes show at once.',
@@ -527,9 +533,9 @@ export const FOLDER_HELP: Record<string, HelpEntry> = {
 /** Control entries. */
 export const CONTROL_HELP: Record<string, HelpEntry> = {
   // ------------------------------------------------------------------ root folder
-  'X-ray/Model': h(
-    'The list selects the model to load. The viewer replaces the current scene with the chosen model.',
-    'Choose another name and the screen shows a different building after a short wait.',
+  'Sample Projects/Model': h(
+    'The list selects the example model to load. Models that you opened from files are listed after the examples.',
+    'The viewer replaces the current scene with the chosen one. An entry marked as needing the served app or the zip stays out of this file.',
     'Select a model name from the list. Wait until the loading message disappears.',
     'Report: Onboarding checklist',
   ),

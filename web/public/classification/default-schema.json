@@ -299,6 +299,11 @@
           "code": "LND",
           "label": "Landscape and site improvements",
           "description": "Planting, fences, site furniture and other site improvements."
+        },
+        {
+          "code": "FND",
+          "label": "Equipment foundations and plinths",
+          "description": "Foundations, plinths and pump or skid bases for equipment outside the building."
         }
       ]
     },

@@ -58,7 +58,8 @@ npm install
 npm run dev          # http://127.0.0.1:5173/?model=building
 ```
 
-`?model=` takes `building`, `fzk-haus`, `plumbing`, `process-plant`, `synth5k`, `debris-demo` or `procedural`. An unknown or unloadable value
+`?model=` takes `building`, `fzk-haus`, `plumbing`, `process-plant`, `synth5k`, `debris-demo` or `procedural`. The panel lists the same
+models in the **Sample Projects** folder under **Open model**, with readable names (`src/samples.ts`). An unknown or unloadable value
 falls back to the in-memory procedural model and shows a red message at the top. Then: click an element (a duct is a good start),
 orbit with the left mouse button, press `X` to switch x-ray on and off, `?` for the key list.
 
@@ -68,6 +69,8 @@ Open IFC and glb files from disk without the Python converter and without a serv
 
 - **Open model** (top of the panel, and the first tool of the action panel): **Open IFC or glb file** (multiple files allowed),
   **Cancel load**, and the read-only **Load status**. Or drop files anywhere on the page.
+- **Sample Projects** (the folder right under Open model): one list of the sample models with readable names. Choosing one loads
+  it; a single file lists only the samples it carries (the others say "needs the served app or the zip").
 - Accepted: `.ifc`, `.ifczip`, `.glb`, and `.json` (the `xray-model/1` sidecar of a glb). Several IFC files are **federated** into
   one model with the converter's rules (consecutive ids, storeys merged by name and elevation within 1 cm, an element with the same
   GlobalId, class and bounds is skipped, the same GlobalId with different geometry is renamed `<GlobalId>~<n>`). One glb takes the
@@ -402,8 +405,10 @@ file afterwards. To put the same name in the zip: `XRAY_VIEWER_NAME=<that name> 
 
 The single file has the app JS and CSS, `xray.config.json`, `xray.presets.json` and the models `building`, `fzk-haus`, `plumbing`
 and `debris-demo` inlined (`window.__xrayEmbeddedModels`, `__xrayEmbeddedConfig`, `__xrayEmbeddedPresets`); `synth5k` only with
-`--all`. The IFC reader (web-ifc's worker script and wasm, gzip and base64) adds 1.2 MB and is inflated when the first file is
-opened. The zip contains the repo without `node_modules`, `dist` and `dist-single`, the single file at its root, and always the
+`--all`. `process-plant` is embedded as its IFC file, gzip-compressed (0.29 MB, `window.__xrayEmbeddedIfc`), and the built-in IFC reader
+reads it when you choose it, so the file needs no glb. A sample that the file does not carry shows in the Sample Projects menu as
+"needs the served app or the zip". The IFC reader (web-ifc's worker script and wasm, gzip and base64) adds 1.2 MB and is inflated when
+the first file is opened. The zip contains the repo without `node_modules`, `dist` and `dist-single`, the single file at its root, and always the
 `web/public/models` files. Opened from `file://` the bundle makes no network requests (checked by `node bench/single-file.mjs`);
 a plain `web/dist` build cannot be opened by double-click because browsers block module scripts from `file://`.
 

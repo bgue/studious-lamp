@@ -272,8 +272,7 @@ export const fileLoaderPlugin: AppPlugin = (() => {
 
   /** A name the model picker does not list yet (opening the same file twice adds " (2)"). */
   const uniqueName = (name: string): string => {
-    const select = (app?.panel?.controllers.find((c) => c.property === 'model') as unknown as { $select?: HTMLSelectElement } | undefined)?.$select;
-    const taken = new Set(select ? Array.from(select.options).map((o) => o.value) : []);
+    const taken = new Set(app?.pickerValues() ?? []);
     if (!taken.has(name)) return name;
     for (let i = 2; ; i++) if (!taken.has(`${name} (${i})`)) return `${name} (${i})`;
   };

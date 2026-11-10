@@ -16,6 +16,7 @@ Switch the tooltips off with `window.__xrayHelp.disable()` or `localStorage["xra
 - [Display](#display)
 - [Overrides (Alg 7)](#overrides-alg-7)
 - [Open model](#open-model)
+- [Sample Projects](#sample-projects)
 - [Class styles](#class-styles)
 - [Classes](#classes)
 - [Class styles/*](#class-styles)
@@ -160,7 +161,6 @@ Impact follows the same sentence rules and adds these:
 | Setting | Intent | Impact | Use | Ref |
 | --- | --- | --- | --- | --- |
 | *Folder: X-ray* | The panel holds every setting of the X-ray viewer. Each folder groups the settings of a stage. | This panel changes how the building looks on screen. Open a folder to find the controls for one part of the picture. | Open a folder to see its settings. Hover over a setting for 350 ms to read its help. | Report: Purpose |
-| Model | The list selects the model to load. The viewer replaces the current scene with the chosen model. | Choose another name and the screen shows a different building after a short wait. | Select a model name from the list. Wait until the loading message disappears. | Report: Onboarding checklist |
 | X-ray (X) | The switch turns the X-ray mode on or off. In the off state every object keeps alpha 1. | Turn it on and walls and slabs in the way fade so you can see inside. Turn it off and everything looks solid. | Turn the switch off to compare with the plain model. Press the X key for the same action. | Report: Purpose |
 | Tiers mode | The switch ranks the object categories in tiers. A tier ghosts only the objects of a lower tier that block it. | On: slabs and walls fade the most, beams and columns fade less, and the selected item stays solid. Off: every blocking part follows one fade rule. | Turn the switch on when several kinds of object compete for the view. Turn it off for a plain focus and context view. | Report: Appendix D, Algorithms 8 and 9 |
 | Pin selected | The button pins the selected objects. A pinned object keeps its alpha at or above the user pin floor. | The items you picked stay fairly solid, even behind walls and slabs. Other parts keep fading as before. | Select the objects first. Click the button to keep them clear behind ghosts. | Report: Appendix C, pin sources |
@@ -226,6 +226,13 @@ Impact follows the same sentence rules and adds these:
 | edges | The list sets whether the loader builds edge lines for an IFC file. The value auto skips edge lines above 50,000 elements. | Choose none, or auto on a big building, and the file loads faster. The sharp outlines then go missing. Choose all to keep every outline. | Select auto for most files. Select none for a huge file. Select all to force edge lines. The choice applies to the next IFC file that you open. | Report: Appendix K, Packaging, point clouds and large models |
 | properties | The list sets whether the loader reads the properties of each element from an IFC file. The value none skips property extraction for speed. | Choose none and a big file loads faster. The info card and the side list then have no facts to show. Choose common to keep them. | Select common to keep the usual facts. Select none for the fastest load. The choice applies to the next IFC file that you open. | Report: Appendix L, Hover info and properties |
 | Model stats | The read-only field shows the size of the last model. It lists the elements, the triangles and the load time. | A short text of numbers tells you how big the building is and how long it took to load. | Read the line after a load. Open the Large model tool for all figures. | Report: Appendix K, Packaging, point clouds and large models |
+
+## Sample Projects
+
+| Setting | Intent | Impact | Use | Ref |
+| --- | --- | --- | --- | --- |
+| *Folder: Sample Projects* | The folder lists the example models that come with the viewer. Each example has a readable name. | Each chosen entry replaces the scene on screen. Saved views and share links still open the model they name. | Open the Model list in the folder. Choose an entry and wait until the loading message disappears. | Report: Onboarding checklist |
+| Model | The list selects the example model to load. Models that you opened from files are listed after the examples. | The viewer replaces the current scene with the chosen one. An entry marked as needing the served app or the zip stays out of this file. | Select a model name from the list. Wait until the loading message disappears. | Report: Onboarding checklist |
 
 ## Class styles
 

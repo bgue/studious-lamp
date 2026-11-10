@@ -5,7 +5,7 @@ Usage: python3 tools/make_process_plant_ifc.py -o models/Process-Plant.ifc [--se
 
 A small pump and heat-exchanger skid area with a two-tier steel pipe rack (about 60 m long, 6 m bays, levels +5.0 and
 +8.0), a single-level equipment platform (+3.5) with stair and railings, and a small control/MCC building. Metres, Z up.
-Four disciplines: civil (site, paving, pad and pier footings, roads, drain trench), structural (rack columns, beams,
+Four disciplines: civil (site, paving, pad footings, equipment foundations, roads, drain trench), structural (rack columns, beams,
 struts, bracing, platform), architectural (control building: walls with openings, doors, windows, floor, roof, spaces)
 and MEPI (equipment, process and utility piping by service with fittings, valves, instruments, cable tray, luminaires,
 switchboards, motors). Every element has a placement relative to its storey, an IfcExtrudedAreaSolid body (rectangle
@@ -367,8 +367,10 @@ class Plant:
                       anchor=(x + BAY / 2, -6.0, -0.3), pset="Pset_DrainTrenchCommon",
                       props=[("Reference", "DT"), ("Width", 0.6), ("Depth", 0.3), ("Medium", "Process drain")])
 
-    def footing(self, x, y, w, d, tag):
-        self.elem(GRADE, "IfcFooting", f"Footing {tag}", f"F-{tag}", f"Pad footing {w:.1f} x {d:.1f} m",
+    def footing(self, x, y, w, d, tag, equipment=False):
+        name = f"Equipment foundation {tag}" if equipment else f"Footing {tag}"
+        otype = f"Equipment foundation {w:.1f} x {d:.1f} m" if equipment else f"Pad footing {w:.1f} x {d:.1f} m"
+        self.elem(GRADE, "IfcFooting", name, f"F-{tag}", otype,
                   self.rect(w, d), 0.7, "civil", anchor=(x, y, -0.3), predef="PAD_FOOTING",
                   pset="Pset_FootingCommon", props=[("ConcreteGrade", "C32/40"), ("Reference", tag)])
 
@@ -532,7 +534,7 @@ class Plant:
     # ------------------------------------------------------------ MEPI
     def equipment(self):
         for tag, x, y in PUMPS:
-            self.footing(x, y, 1.6, 1.2, tag)
+            self.footing(x, y, 1.6, 1.2, tag, equipment=True)
             self.elem(GRADE, "IfcPump", f"Pump {tag}", tag, "End-suction centrifugal pump", self.circ(0.35), 1.0,
                       "pump", anchor=(x - 0.5, y, 0.85), z=(1.0, 0.0, 0.0), predef="ENDSUCTION",
                       pset="Pset_PumpCommon", props=[("Duty kW", 55.0 if tag.endswith("A") else 37.0),
@@ -541,12 +543,12 @@ class Plant:
                       self.circ(0.3), 0.8, "motor", anchor=(x + 0.5, y, 0.85), z=(1.0, 0.0, 0.0), predef="INDUCTION",
                       pset="Pset_ElectricMotorCommon", props=[("Voltage", 415.0), ("Driver", tag)])
         for tag, x, y in EXCHANGERS:
-            self.footing(x, y, 5.0, 1.6, tag)
+            self.footing(x, y, 5.0, 1.6, tag, equipment=True)
             self.elem(GRADE, "IfcHeatExchanger", f"Heat exchanger {tag}", tag, "Shell and tube heat exchanger",
                       self.circ(0.5), 4.0, "hx", anchor=(x - 2.0, y, 1.3), z=(1.0, 0.0, 0.0), predef="SHELLANDTUBE",
                       pset="Pset_HeatExchangerCommon", props=[("Duty kW", 1200.0), ("Reference", tag)])
         for tag, x, y in VESSELS:
-            self.footing(x, y, 2.4, 2.4, tag)
+            self.footing(x, y, 2.4, 2.4, tag, equipment=True)
             self.elem(GRADE, "IfcTank", f"Vessel {tag}", tag, "Vertical drum", self.circ(0.8), 4.0, "vessel",
                       anchor=(x, y, 0.4), z=(0.0, 0.0, 1.0), predef="VESSEL", pset="Pset_TankCommon",
                       props=[("Volume m3", 15.0), ("Reference", tag)])
