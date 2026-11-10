@@ -731,12 +731,11 @@ class RollRig:
 
     def counts(self) -> tuple[int, int, int]:
         """Rows of ``cur_cost_*`` tables, and the ledger head: an export changes neither."""
-        names = [
-            str(r["name"])
-            for r in self.w.rows(
-                "SELECT name FROM sqlite_master WHERE name LIKE 'cur\\_cost\\_%' ESCAPE '\\'"
-            )
-        ]
+        from sqlalchemy import inspect
+
+        with open_uow(self.w.db, readonly=True) as uow:  # both adapters: no sqlite_master
+            tables = inspect(uow.conn()).get_table_names()
+        names = sorted(n for n in tables if n.startswith("cur_cost_"))
         rows = sum(int(self.w.scalar(f"SELECT COUNT(*) FROM {n}")) for n in names)
         stored = int(self.w.scalar("SELECT COUNT(*) FROM cur_awp_rollup"))
         return rows, stored, int(self.w.scalar("SELECT COALESCE(MAX(seq), 0) FROM events"))
