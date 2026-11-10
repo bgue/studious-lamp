@@ -21,7 +21,8 @@ T16 t mrg f 7c5552b five-reader walk, three test files; after T11c T11b T04 (R-E
 T06b t mrg f 8cc2290 TUI steps 4-5 + actions.RULES rows StartIwpWork, CompleteIwpField; after T06a (R-F)
 T06c1 t mrg f f4f550a IWP log counts, filters, backlog 500, mine flag; after T11b (R-F)
 T06c2 t mrg f ed77ead landing at sign-in; after T06c1 T06b (R-G)
-T12 t todo f - demo clauses 1-6, 9, 10; after T06c2 T06b T07b T09 T16 (R-H)
+T12 t blk f c6310e4 clauses 1-2 pass; stops at 3; retry after T12a
+T12a p stg f - four demo gaps (MCP propose x2, agent refusals, user layer, waived line)
 T13 t todo l - docs, three runbooks; after T12 (R-I)
 T17 t todo f - tour steps (Activity, Insights, intent, weekly loop, pack); after T12 (R-I)
 T15 t todo f - registrations only if glue > 50 lines
@@ -31,6 +32,7 @@ D26 2026-11-09 r5 pack without Jinja2: not a dependency of tl-mod-awp; string.Te
 D27 2026-11-09 r5 `week ppc` = PPC tile = pooled done/committed over the last 4 Closed plans (T09), one definition
 D28 2026-11-09 r5 TUI writes go through two client doors, awp_command and constraint_command (T11b); nothing like them existed
 D29 2026-11-09 r5 look-ahead is not an MCP tool this increment (needs a schedule snapshot); five MCP reads only
+D31 2026-11-10 close: user layer takes tui.* keys too (tui.landing is personal, D7); core gate, APPROVALS at merge; T12a
 D30 2026-11-09 r5 route and client read for the IWP record hash (T11a1, T11b) so the remote release step can sign off and issue; no new word; SR3 row added
 D31 2026-11-09 r5 web IWP page keeps IWP_COLUMNS; the TUI log gets IWP_COUNT_COLUMNS (T06c1); no web change
 D32 2026-11-09 r5 waves R-A..R-I in README; one workflow of 2-3 tickets with disjoint files per round; no builder left; shared one-line files (awp.py, app.py, openapi.json) are touched by one ticket per wave
