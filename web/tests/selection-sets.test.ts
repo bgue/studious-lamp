@@ -117,11 +117,12 @@ describe('persistence', () => {
 
 describe('default sets', () => {
   it('has a table entry for every sample model', () => {
-    expect(Object.keys(DEFAULT_SETS).sort()).toEqual(['building', 'debris-demo', 'fzk-haus', 'plumbing', 'synth5k']);
+    expect(Object.keys(DEFAULT_SETS).sort()).toEqual(['building', 'debris-demo', 'fzk-haus', 'plumbing', 'process-plant', 'synth5k']);
     expect(DEFAULT_SETS['building']!.map((d) => d.name)).toEqual(['Duct run', 'Roof beams']);
     expect(DEFAULT_SETS['fzk-haus']!.map((d) => d.name)).toEqual(['Rafters', 'Ground floor walls']);
     expect(DEFAULT_SETS['synth5k']!.map((d) => d.name)).toEqual(['Level 0 ducts', 'Risers']);
     expect(DEFAULT_SETS['plumbing']!.map((d) => d.name)).toEqual(['All pipes']);
+    expect(DEFAULT_SETS['process-plant']!.map((d) => d.name)).toEqual(['Process piping', 'Pipe rack steel', 'Instruments', 'Foundations']);
   });
 
   it('resolves synth5k rules: ducts on storey 0 and elements named riser', () => {

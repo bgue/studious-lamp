@@ -1,5 +1,5 @@
 // X-ray viewer: wires the loader, renderer, XrayController, lil-gui panel and the status bar (src/ui/statusBar.ts).
-//   /?model=building|fzk-haus|plumbing|synth5k|debris-demo|procedural
+//   /?model=building|fzk-haus|plumbing|process-plant|synth5k|debris-demo|procedural
 
 import GUI from 'lil-gui';
 import { loadModel, parseModel } from './model/loader';
@@ -39,7 +39,7 @@ export interface AppPlugin {
   afterFrame?(app: ViewerApp, now: number): void;
 }
 
-export const MODEL_NAMES = ['building', 'fzk-haus', 'plumbing', 'synth5k', 'debris-demo', 'procedural'] as const;
+export const MODEL_NAMES = ['building', 'fzk-haus', 'plumbing', 'process-plant', 'synth5k', 'debris-demo', 'procedural'] as const;
 
 /** Model names offered in the picker: the built-in list plus any embedded models (single-file bundle). */
 /** Models the user opened from a file picker or by drag and drop, in this session only. */

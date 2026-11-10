@@ -15,6 +15,7 @@ export const MODEL_CREDITS: Record<string, string> = {
   building: 'buildingSMART Simple-Scene: Building-Structural + Building-Architecture + Building-Hvac (IFC4)',
   'fzk-haus': 'KIT FZK-Haus (AC20-FZK-Haus.ifc, from the IfcOpenShell repository)',
   plumbing: 'buildingSMART Simple-Scene: Infra-Plumbing (IFC4)',
+  'process-plant': 'Synthetic process unit: civil, structural, architecture, MEPI (generated)',
   synth5k: 'synthetic 5,000-element benchmark model (tools/synth_model.py)',
   'debris-demo': 'synthetic 400-element building with scattered debris for the cleanup tool (tools/synth_model.py --debris 24)',
   procedural: 'procedural demo model, built in the browser',

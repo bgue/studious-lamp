@@ -80,6 +80,13 @@ export const DEFAULT_SETS: Readonly<Record<string, readonly DefaultSetDef[]>> = 
     { name: 'Risers', nameContains: 'riser' },
   ],
   plumbing: [{ name: 'All pipes', classes: ['IfcPipeSegment'] }],
+  // Synthetic process unit (tools/make_process_plant_ifc.py): piping and valves, the rack steel, instruments, foundations.
+  'process-plant': [
+    { name: 'Process piping', classes: ['IfcPipeSegment', 'IfcPipeFitting', 'IfcValve'] },
+    { name: 'Pipe rack steel', classes: ['IfcColumn', 'IfcBeam', 'IfcMember'] },
+    { name: 'Instruments', classes: ['IfcSensor'] },
+    { name: 'Foundations', classes: ['IfcFooting'] },
+  ],
   // Every item the debris generator added is named "Debris ..." (bolts, offcuts, stray cluster, far stray, duplicate beams, zero-thickness wall).
   'debris-demo': [{ name: 'Debris', nameContains: 'debris' }],
 };

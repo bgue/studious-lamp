@@ -58,7 +58,7 @@ npm install
 npm run dev          # http://127.0.0.1:5173/?model=building
 ```
 
-`?model=` takes `building`, `fzk-haus`, `plumbing`, `synth5k`, `debris-demo` or `procedural`. An unknown or unloadable value
+`?model=` takes `building`, `fzk-haus`, `plumbing`, `process-plant`, `synth5k`, `debris-demo` or `procedural`. An unknown or unloadable value
 falls back to the in-memory procedural model and shows a red message at the top. Then: click an element (a duct is a good start),
 orbit with the left mouse button, press `X` to switch x-ray on and off, `?` for the key list.
 
@@ -346,6 +346,8 @@ scripts: the preinstalled Playwright Chromium (`/opt/node-tools/node_modules/pla
 ```sh
 python3 tools/ifc2glb.py models/Building-Structural.ifc models/Building-Architecture.ifc models/Building-Hvac.ifc -o web/public/models/building
 python3 tools/ifc2glb.py models/Infra-Plumbing.ifc -o web/public/models/plumbing
+python3 tools/make_process_plant_ifc.py -o models/Process-Plant.ifc                    # synthetic process unit (seed 1)
+python3 tools/ifc2glb.py models/Process-Plant.ifc -o web/public/models/process-plant
 python3 tools/synth_model.py -n 5000 -o web/public/models/synth5k                    # synthetic benchmark model
 python3 tools/synth_model.py -n 400 --debris 24 -o web/public/models/debris-demo     # cleanup demo
 python3 tools/validate_glb.py web/public/models/debris-demo                          # independent glb + sidecar check
