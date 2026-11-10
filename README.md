@@ -168,6 +168,13 @@ parameter documents with `glowNear: true` load as `near`.
   colours, clip planes), create topics with snapshots, comment, export BCF 2.1 or 3.0. Topics are pinned to a 3D point (numbered
   markers on the model) and viewpoints carry callouts, notes, arrows and linked measurements; they live in a side file
   `xray-markup.json` per topic folder (the BCF XML still validates) and are burned into the exported snapshot.
+- **Markup** ([markup.md](web/docs-features/markup.md)). Internal coordination without a BCF topic: key `K` opens the tool. A markup set is
+  one saved view plus its markups: revision clouds (scalloped, box or freehand), callouts, text boxes, pointers, linked measurements,
+  highlighter strokes and boxes, rectangles, ellipses, lines, arrows, polylines, polygons and a pen, in five colours with line weights and
+  fill, undo and redo, and per-markup status, assignee, due date and comments. Export a landscape A4 or Letter PDF (clean view, view with
+  numbered markups, comment table, "how to get back" block) that carries the markup as an embedded JSON file, or the JSON alone
+  (`xray-markup-set/1`), at 150, 200 or 300 dpi rendered off screen. `Update view` re-captures a set from the current camera. Drop either on the viewer to restore the view and the markups; unknown GlobalIds and a different model are
+  reported. Any set converts to a BCF topic. Scripting: `window.__xrayMarkup`.
 - **Point cloud** ([pointcloud.md](web/docs-features/pointcloud.md)). Open LAS, E57, PLY, PCD, XYZ or PTS scans, align them (Align by 3 points and Refine (ICP) with oriented point normals, room by room with `align within`, also for phone LiDAR scans), and colour
   the points by deviation from the model (tolerance 2 cm by default). `tools/make_pointcloud.py` makes a sample scan.
 - **Cleanup** ([cleanup.md](web/docs-features/cleanup.md)). Rules for floating, tiny, distant, duplicate and degenerate elements

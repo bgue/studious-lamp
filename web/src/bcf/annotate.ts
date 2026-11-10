@@ -118,8 +118,10 @@ export function snapshotProjector(view: BcfSnapshotView, shift: Vec3, width: num
 interface OpBase {
   /** Annotation guid or `pin:<topic guid>`, for hit testing. */
   key?: string;
-  role?: 'pin' | 'box' | 'anchor' | 'edge' | 'line' | 'shape';
+  role?: 'pin' | 'box' | 'anchor' | 'edge' | 'line' | 'shape' | 'badge' | 'select';
   alpha?: number;
+  /** Compositing: `multiply` darkens what is under it (highlighter markers). */
+  blend?: 'multiply';
 }
 export type DrawOp =
   | (OpBase & { op: 'line'; x1: number; y1: number; x2: number; y2: number; stroke: string; width: number; dash?: number[] })
@@ -216,6 +218,8 @@ export interface LayoutContext {
   shapeView?: BcfSnapshotView | null;
   /** The image is the view of that camera (a snapshot burn-in): shape fractions map straight to pixels. */
   shapeDirect?: boolean;
+  /** Colours of an annotation's box and leader, replacing the BCF defaults (the markup tool colours by its palette). */
+  style?: (a: BcfAnnotation) => { stroke: string; fill: string; text: string } | undefined;
 }
 
 const add3 = (a: Vec3, b: Vec3): Vec3 => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
@@ -345,7 +349,7 @@ export function layoutAnnotation(a: BcfAnnotation, ctx: LayoutContext, opts: { s
   if (a.type === 'rect' || a.type === 'freehand') return layoutShape(a, ctx, opts);
   const s = ctx.scale ?? 1;
   const ops: DrawOp[] = [];
-  const st = STYLE[a.type];
+  const st = ctx.style?.(a) ?? STYLE[a.type];
   const key = a.guid;
   const m = a.anchor.measurement;
   let mid: { p: Vec3; displaced: boolean } | null = null;
@@ -502,6 +506,7 @@ export function snapshotScale(height: number): number {
 /** The part of CanvasRenderingContext2D that drawOps uses (a mock records the calls in the tests). */
 export interface Ctx2D {
   globalAlpha: number;
+  globalCompositeOperation?: string;
   fillStyle: unknown;
   strokeStyle: unknown;
   lineWidth: number;
@@ -540,6 +545,7 @@ export function drawOps(g: Ctx2D, ops: readonly DrawOp[]): void {
   for (const o of ops) {
     g.save();
     g.globalAlpha = o.alpha ?? 1;
+    if (o.blend) g.globalCompositeOperation = o.blend;
     g.lineCap = 'round';
     g.lineJoin = 'round';
     g.setLineDash([]);

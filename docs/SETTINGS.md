@@ -54,6 +54,8 @@ Switch the tooltips off with `window.__xrayHelp.disable()` or `localStorage["xra
 - [Measure](#measure)
 - [Clearance](#clearance)
 - [BCF](#bcf)
+- [Markup](#markup)
+- [Markup drawer](#markup-drawer)
 - [Keyboard](#keyboard)
 - [Imaging](#imaging)
 - [MRI slice](#mri-slice)
@@ -668,6 +670,53 @@ Impact follows the same sentence rules and adds these:
 | Clear viewpoint | The button undoes what the viewpoint changed. It shows the elements that BCF hid and removes its colours and clip planes. | Click and the parts that an issue note hid come back with their normal colours and no cuts. Your camera stays. | Click the button after you review a topic. | Report: Appendix J, Coordination tools |
 | BCF status | The read-only field shows what the last BCF step did, such as what applied and what it skipped. | A short text tells you what the last step did and what it had to skip. | Read the line after you apply a viewpoint. | Report: Appendix J, Coordination tools |
 
+## Markup
+
+| Setting | Intent | Impact | Use | Ref |
+| --- | --- | --- | --- | --- |
+| *Folder: Markup* | The folder controls markup sets. A set is 1 saved view with clouds, notes, highlights and shapes. | These controls save a view, open a shared file and write a PDF for your team. | Click New markup set from view. Open the Markup tool to draw. | Report: Appendix J, Coordination tools |
+| New markup set from view | The button saves the current view as a new markup set. | Click and the camera, cuts and look go into storage. You can draw at once. | Frame the view. Click the button. | Report: Appendix J, Coordination tools |
+| Open markup file | The button opens a file picker for a markup PDF or JSON file. You can also drop a file on the page. | Click and the picture and the notes of the shared document come back. | Click the button. Choose the file. | Report: Appendix J, Coordination tools |
+| Export markup PDF | The button downloads a PDF of all sets. The PDF shows the clean view, the marked view and a table of comments. | Click and you get a page file to print or to send. It also carries the data to restore the notes. | Click the button after you finish the markup. | Report: Appendix J, Coordination tools |
+| Export markup JSON | The button downloads all sets as a JSON file. | Click and you get a small file. Drop it on the viewer to restore the view and the notes. | Click the button. Send the file with the model name. | Report: Appendix J, Coordination tools |
+| Markup page size | The list sets the page size of the PDF. Both sizes are landscape. | The choice changes the paper of the next PDF. | Select A4 or Letter. | Report: Appendix J, Coordination tools |
+| Markup status | The read-only field shows the last message of the Markup tool. | A short text tells you what the tool did or why it did not. | Read the line after each action. | Report: Appendix J, Coordination tools |
+| Markup PDF resolution (dpi) | The list sets the picture quality of the PDF in dots per inch. Screen uses the pixels of your window. | A higher number gives sharper pages and a bigger file. | Select 200 for most prints. Select 300 for fine detail. | Report: Appendix J, Coordination tools |
+
+## Markup drawer
+
+| Setting | Intent | Impact | Use | Ref |
+| --- | --- | --- | --- | --- |
+| *Folder: Markup drawer* | The heading names the Markup drawer. The drawer holds the sets, the drawing tools and the list of markups. | This panel lets you sketch on a saved view for your team without an issue topic. | Make a set. Pick a tool. Draw on the view. Export a PDF. | Report: Appendix J, Coordination tools |
+| New set from view | The button saves the current view as a new markup set. | Click and a card appears in the list with a small picture. | Frame the view. Click the button. | Report: Appendix J, Coordination tools |
+| Open file | The button opens a markup PDF or JSON file. | Click and the sheets of the shared document join the list. The first one comes back on screen. | Click the button. Choose the file. | Report: Appendix J, Coordination tools |
+| Restore view | The button brings back the camera, cuts and look of the set. | Click and the model looks as it did when you made the card. | Click the button after you move the camera. | Report: Appendix J, Coordination tools |
+| Export PDF | The button downloads a PDF of this set. It has the clean view, the marked view and the comment table. | Click and the viewer renders both pictures. The file carries the data to bring back the notes. | Click the button. Wait for the download. | Report: Appendix J, Coordination tools |
+| Export JSON | The button downloads this set as a JSON file. | Click and you get a small file that brings back the notes on the same model. | Click the button. | Report: Appendix J, Coordination tools |
+| PDF of all sets | The button downloads a single PDF with every set. | Click and each card gets its own pages in the file. | Click the button when you have more than 1 set. | Report: Appendix J, Coordination tools |
+| Convert to BCF topic | The button makes a BCF topic from the set. The topic has the viewpoint, the annotations and the comments. | Click and the sheet joins the issue list. You can then send it as an issue file. | Click the button. Open the BCF tool to export it. | Report: Appendix J, Coordination tools |
+| Delete set | The button removes the set and its markups from the session. | Click twice and the card is gone. Save a file first if you need it later. | Click the button. Click again to confirm. | Report: Appendix J, Coordination tools |
+| Undo | The button undoes the last change to the markups. The keys are Ctrl+Z. | Click and the last change goes back. | Click the button or press Ctrl+Z. | Report: Appendix J, Coordination tools |
+| Redo | The button repeats the change that you undid. The keys are Ctrl+Shift+Z. | Click and the change comes back. | Click the button or press Ctrl+Shift+Z. | Report: Appendix J, Coordination tools |
+| Finish | The button ends a polyline or polygon with the corners so far. | Click and the shape stays on the view. | Click the button. You can also press Enter. | Report: Appendix J, Coordination tools |
+| Cancel drawing | The button drops the corners that you placed. | Click and the unfinished shape disappears from the view. | Click the button. You can also press Escape. | Report: Appendix J, Coordination tools |
+| Add comment | The button adds your comment to the chosen markup. | Click and your note shows with your name and the time. | Type the comment. Click the button. | Report: Appendix J, Coordination tools |
+| Page size | The list sets the page size of the PDF. Both sizes are landscape. | The choice changes the paper of the next PDF. | Select A4 or Letter. | Report: Appendix J, Coordination tools |
+| Show markups on the model | The tick shows or hides the markups of the active set. | Clear the tick and only the plain building remains. | Clear the tick to see the plain model. | Report: Appendix J, Coordination tools |
+| Fill | The tick fills closed shapes with a light colour. | Tick it and clouds, rectangles, ellipses and polygons get a tint. | Tick it before you draw. Or select a shape and tick it. | Report: Appendix J, Coordination tools |
+| Tool button | The button picks a drawing tool. Press the tool again to go back to Select. | The next drag or click on the picture makes that shape. | Click a tool. Draw on the view. | Report: Appendix J, Coordination tools |
+| Colour swatch | The swatch sets the colour of the next markup or of the chosen item. | Each tool keeps its own hue. Clouds start red and highlights start yellow. | Click a colour. | Report: Appendix J, Coordination tools |
+| Line weight | The button sets the line weight of the next markup or of the chosen item. | A higher number makes a thicker stroke. | Click a weight. | Report: Appendix J, Coordination tools |
+| Set card | The card shows a set with its picture and its counts. | Click and the view comes back with its notes. | Click a card. | Report: Appendix J, Coordination tools |
+| Markup row | The row shows a single markup with its number, kind, status and text. | Click and the entry opens. It shows the comments. | Click a row. Edit the text. | Report: Appendix J, Coordination tools |
+| Sets (heading) | The heading names the list of markup sets. | The list shows each card with a picture. | Read the cards. | Report: Appendix J, Coordination tools |
+| Tools (heading) | The heading names the drawing tools. | Each one makes a different kind of mark. | Pick a tool. | Report: Appendix J, Coordination tools |
+| Markups (heading) | The heading names the list of markups of the active set. | Each row has a number that matches the number on the view and in the PDF. | Click a row to edit it. | Report: Appendix J, Coordination tools |
+| Status line | The line shows the last message of the Markup tool. | A short text tells you what the tool did or why it did not. | Read the line after each action. | Report: Appendix J, Coordination tools |
+| Picture quality | The list sets the picture quality of the PDF in dots per inch. Screen uses the pixels of your window. | A higher number gives sharper pages and a bigger file. | Select 200 for most prints. Select 300 for fine detail. | Report: Appendix J, Coordination tools |
+| Update view | The button captures the view of the set again from the current camera, cuts and look. | Click and the set opens from this angle. The marks follow your choice of the list beside it. | Move the camera. Click the button. Press Ctrl+Z to go back. | Report: Appendix J, Coordination tools |
+| Shapes stay | The list sets where drawn shapes go when you update the view. They stay on the model or on the screen. | The first choice keeps each mark on the part that it covers. The second keeps its place in the window. | Select on the model for most cases. | Report: Appendix J, Coordination tools |
+
 ## Keyboard
 
 | Setting | Intent | Impact | Use | Ref |
@@ -813,6 +862,7 @@ Impact follows the same sentence rules and adds these:
 | X-ray | The button turns the x-ray on or off. The tool has no drawer. The button shows blue while x-ray is on. | Click and the walls and slabs in the way fade, or they turn solid again. | Click the button or press the X key. | Report: Purpose |
 | View modes | The button opens the drawer of the View modes tool. The drawer holds the main controls of behind only and peelback. | Click to open quick controls that cut holes in what hides the selected item. | Select an object. Click the button. Turn a cut on. | Report: Appendix F, View modes |
 | Measure | The button opens the drawer of the Measure tool. Clicks on the canvas then measure distances. | Click to turn the mouse into a ruler. Click on the building to read a length. | Click the button. Click 2 points on the model. | Report: Appendix J, Coordination tools |
+| Markup | The button opens the Markup drawer. The key K does the same. | The drawer lets you draw clouds, notes, highlights and shapes on a saved view. | Click the button or press K. | Report: Appendix J, Coordination tools |
 | BCF | The button opens the drawer of the BCF tool. The drawer opens, reviews, creates and exports BCF topics. | Click to open the issue list. You can read, add and share notes tied to views of the building. | Click the button. Click Open BCF. Click a topic to review it. | Report: Appendix J, Coordination tools |
 | Clearance | The button opens the drawer of the Clearance tool. The button shows blue while the colouring is on. | Click to open the closeness check. It paints parts red, amber or blue by their distance to the selected item. | Select an object. Click the button. Turn the colouring on. | Report: Appendix J, Coordination tools |
 | Penetrations | The button opens the drawer of the Penetrations tool. The drawer holds the penetration schedule. | Click to open the list of places where pipes and ducts go through slabs and walls. | Click the button. Click Analyse. Click a row to fly to the crossing. | Report: Appendix J, Coordination tools |

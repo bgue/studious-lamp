@@ -66,6 +66,28 @@ const ICON =
 let ctl: BcfController | null = null;
 let markup: BcfMarkupView | null = null;
 
+/** The remembered author name (localStorage `xray.bcf.author`), shared with the markup tool. */
+export const sharedAuthor = {
+  get(): string {
+    if (ctl) return ctl.author;
+    try {
+      return window.localStorage.getItem('xray.bcf.author') ?? '';
+    } catch {
+      return '';
+    }
+  },
+  set(a: string): void {
+    if (ctl) ctl.setAuthor(a);
+    else {
+      try {
+        window.localStorage.setItem('xray.bcf.author', a.trim());
+      } catch {
+        /* ignore */
+      }
+    }
+  },
+};
+
 function obj(v: unknown): Record<string, unknown> {
   return v && typeof v === 'object' ? (v as Record<string, unknown>) : {};
 }

@@ -83,6 +83,12 @@ export interface ViewsApi {
   importJson(text: string): { added: number; replaced: number; bad: string[]; error?: string };
   /** The current camera, as a view stores it. */
   camera(): ViewCamera;
+  /** Capture the current state as a view without adding it to the list (the markup tool keeps its own views). */
+  capture(name?: string): SavedView;
+  /** Restore a view object that is not in the list (a markup set). Same effect as restore(). */
+  restoreView(view: SavedView, opts?: { animate?: boolean }): RestoreResult;
+  /** The share link of a view object, or '' when there is no model. */
+  shareUrlFor(view: SavedView): string;
   /** Views from a shared link or a packed page, applied but maybe not in the list. */
   readonly lastRestore: RestoreResult | null;
 }
@@ -509,6 +515,16 @@ function buildApi(c: ViewsController): ViewsApi {
     camera: () => {
       const v = captureView(c.vapp, 'x', { ortho: isPseudoOrtho() });
       return v.camera;
+    },
+    capture: (name) => {
+      if (!c.app.loaded) throw new Error('No model loaded');
+      return c.capture(name?.trim() || 'View');
+    },
+    restoreView: (view, opts) => c.restoreView(view, opts?.animate ?? true),
+    shareUrlFor: (view) => {
+      if (!c.app.loaded) return '';
+      const enc = encodeViewShare(c.modelName, view, c.factory);
+      return viewShareUrl({ origin: location.origin, pathname: location.pathname, search: location.search }, c.modelName, enc);
     },
     get lastRestore() {
       return c.lastRestore;
