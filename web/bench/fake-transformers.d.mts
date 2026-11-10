@@ -4,3 +4,7 @@ export const __log: { pipelines: Array<{ task: string; model: string; device?: s
 export function __reset(): void;
 export function entailLogit(premise: string, hypothesis: string): number;
 export function pipeline(task: string, model: string, opts?: Record<string, unknown>): Promise<any>;
+export class PreTrainedTokenizer {
+  constructor(tokenizerJson: unknown, tokenizerConfig: unknown);
+  encode(text: string): number[];
+}

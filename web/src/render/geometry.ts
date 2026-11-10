@@ -50,6 +50,11 @@ export class BvhGeometryProvider implements GeometryProvider {
     this.merged = merged;
   }
 
+  /** World-space triangles of one element for a preview (a copy; the caller disposes it). Null for an element without geometry. */
+  elementMesh(id: ElementId): BufferGeometry | null {
+    return this.merged.elementMesh(id);
+  }
+
   /** Stored Box3 (world space). Treat as read-only. Empty box for elements without geometry. */
   bounds(id: ElementId): Box3 {
     return this.merged.bounds[id]!;

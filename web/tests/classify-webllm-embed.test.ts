@@ -6,6 +6,7 @@ import { defaultDraft, defaultSchema, providerId, toSettings, validateSettings }
 import { choiceQuestion, noulQuestion } from '../src/classify/jevAdapter';
 import type { ChoiceAnswer, NoulAnswer } from '../src/classify/jevAdapter';
 import { createProvider } from '../src/classify/providers';
+import { calibrateAnswers, softmaxT } from '../src/classify/calibrate';
 import {
   ARCTIC_QUERY_PREFIX, cosine, createWebLlmProvider, customModelCheck, customModelId, DEFAULT_EMBED_TEMPERATURE, DEFAULT_HYBRID_MARGIN, marginOf, normalise, softmaxTemp, topK,
   WEBLLM_CDN_URL, WEBLLM_DEFAULT_EMBED_MODEL, WEBLLM_DEFAULT_MODEL, WEBLLM_EMBED_MODELS, WEBLLM_MODELS, WEBLLM_VERSION,
@@ -380,5 +381,33 @@ describe('a custom MLC model from Hugging Face (advanced)', () => {
     expect(seen[0]).toEqual([['custom-Qwen3-0.6B-q4f16_1-MLC'], { model: MODEL, lib: LIB }]);
     expect(providerId(validateSettings({ provider: 'webllm', webllmCustomModel: MODEL, webllmCustomLib: LIB }).settings)).toBe('webllm:custom-Qwen3-0.6B-q4f16_1-MLC');
     expect(defaultSchema().disciplines.length).toBeGreaterThan(0);
+  });
+});
+
+describe('embed temperature and logit scaling are one scaling', () => {
+  it('gives the logits cosine / embedTemperature, so the calibration temperature multiplies the embed temperature', async () => {
+    const s = spy();
+    const p = createWebLlmProvider({ model: WEBLLM_DEFAULT_MODEL, mode: 'embed', embedModel: WEBLLM_DEFAULT_EMBED_MODEL, temperature: 0.05, hybridMargin: DEFAULT_HYBRID_MARGIN, load: load(s) });
+    const a = (await p.decide(ductState, { pick: Q.pick }, SIGNAL)).answers['pick'] as ChoiceAnswer;
+    expect(a.logits).toBeDefined();
+    const lg = a.logits!;
+    // the provider's own probabilities are the softmax of its logits (T = 1: unchanged)
+    const keys = Object.keys(lg);
+    const own = softmaxTemp(keys.map((k) => lg[k]! * 0.05), 0.05);
+    keys.forEach((k, i) => expect(a.probabilities[k]).toBeCloseTo(own[i]!, 3));
+    // a calibration temperature of 0.5 is the same as an embed temperature of 0.025
+    const half = createWebLlmProvider({ model: WEBLLM_DEFAULT_MODEL, mode: 'embed', embedModel: WEBLLM_DEFAULT_EMBED_MODEL, temperature: 0.025, hybridMargin: DEFAULT_HYBRID_MARGIN, load: load(spy()) });
+    const b = (await half.decide(ductState, { pick: Q.pick }, SIGNAL)).answers['pick'] as ChoiceAnswer;
+    const scaled = calibrateAnswers({ model: 'm', answers: { pick: a } }, { discipline: 0.5, sub_discipline: 0.5, masterformat: 0.5, building_element: 0.5 } as never);
+    // the question is called "pick", which has no temperature: use the scaling function directly
+    const direct = softmaxT(keys.map((k) => lg[k]!), 0.5);
+    keys.forEach((k, i) => expect(direct[i]).toBeCloseTo(b.probabilities[k]!, 3));
+    expect(scaled.answers['pick']).toBe(a); // an unknown question name is left alone
+  });
+  it('gives the log-odds of a statement in embed mode', async () => {
+    const p = createWebLlmProvider({ model: WEBLLM_DEFAULT_MODEL, mode: 'embed', embedModel: WEBLLM_DEFAULT_EMBED_MODEL, temperature: 0.05, hybridMargin: DEFAULT_HYBRID_MARGIN, load: load(spy()) });
+    const a = (await p.decide(ductState, { s: noulQuestion('Is this a duct?') }, SIGNAL)).answers['s'] as NoulAnswer;
+    expect(typeof a.logit).toBe('number');
+    expect(1 / (1 + Math.exp(-a.logit!))).toBeCloseTo(a.noul, 3);
   });
 });

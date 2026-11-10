@@ -5,6 +5,8 @@ import { Q_BUILDING, Q_DISCIPLINE, Q_MASTERFORMAT, Q_SUB, COMBINED_SEP, mainQues
 import { readChoice, readNoul } from './jevAdapter';
 import type { Answers, ChoiceAnswer } from './jevAdapter';
 import { MemoryCache } from './cache';
+import { answersFromRaw, calibrateAnswers, isIdentity, rawOfAnswers } from './calibrate';
+import type { Temperatures } from './calibrate';
 import type { CachedDecision, SignatureCache } from './cache';
 import { classByRules, isBuildingContext, resolveRule, RULE_FINAL } from './rules';
 import type { Decision } from './rules';
@@ -14,7 +16,7 @@ import { computeNeedsReview, DEFAULT_MIN_MARGIN } from './review';
 import { divisionTitle, masterformatBuildingOnly } from './schema';
 import { buildState, DEFAULT_MAX_STATE_BYTES, signatureOf } from './state';
 import { ProviderError } from './types';
-import type { ChoiceResult, ClassificationSchema, ClassifyInput, ClassifyResult, ClassifyStats, DecisionModel, ProgressInfo, ResultSource } from './types';
+import type { ChoiceResult, ClassificationSchema, ClassifyInput, ClassifyResult, ClassifyStats, DecideExtra, DecisionModel, ProgressInfo, ResultSource } from './types';
 
 // ---------------------------------------------------------------- sub-discipline strategy
 
@@ -52,6 +54,16 @@ export interface ClassifyRunOptions {
   concurrency?: number;
   maxStateBytes?: number;
   subDiscipline?: SubDisciplineStrategy;
+  /**
+   * Temperatures of the logit scaling, per question (see calibrate.ts). Applied when a decision is read, from the raw scores
+   * in the cache; the ranking never changes, only the probabilities. Empty or all 1: the model as it comes.
+   */
+  temperatures?: Temperatures;
+  /**
+   * Pictures of the representative element of a signature (base64 data URLs), sent with both requests to a provider that reads
+   * images. A failure is not fatal: the request goes out with the text alone and the message is added to `stats.errors`.
+   */
+  images?: (input: ClassifyInput, signal: AbortSignal) => Promise<readonly string[]> | readonly string[];
   retry?: RetryOptions;
   signal?: AbortSignal;
   onProgress?: (p: ProgressInfo) => void;
@@ -85,7 +97,8 @@ function fromRule(schema: ClassificationSchema, d: Decision, building: boolean):
 }
 
 function finish(id: string, d: CachedDecision, source: ResultSource, minConfidence: number, minMargin: number, signature?: string, forceReview = false): ClassifyResult {
-  const r: ClassifyResult = { id, ...d, source, needsReview: false, ...(signature ? { signature } : {}) };
+  const { raw: _raw, ...plain } = d;
+  const r: ClassifyResult = { id, ...plain, source, needsReview: false, ...(signature ? { signature } : {}) };
   if (source !== 'model' && source !== 'cache') delete r.model;
   r.needsReview = forceReview || computeNeedsReview(r, minConfidence, minMargin);
   return r;
@@ -133,6 +146,35 @@ export function decodeAnswers(schema: ClassificationSchema, main: Answers, sub: 
   }
   const models = [main.model, ...(sub && sub.model !== main.model ? [sub.model] : [])];
   return { discipline, subDiscipline, masterformat, buildingElement: building, model: models.join('+') };
+}
+
+/**
+ * A cached decision at the given temperatures. A decision with raw scores is decoded again from them (the same code path as a
+ * fresh answer, so tie-breaks and the building check follow the scaled probabilities); one without (a rule, or an entry from
+ * before calibration) is returned as it is. With no scaling the stored decision is returned untouched.
+ */
+export function rescoreDecision(schema: ClassificationSchema, d: CachedDecision, temps: Temperatures | undefined): CachedDecision {
+  if (!d.raw || isIdentity(temps)) return d;
+  try {
+    const main = answersFromRaw(d.raw.main, temps);
+    const sub = d.raw.sub ? answersFromRaw(d.raw.sub, temps) : null;
+    return { ...decodeAnswers(schema, main, sub, d.raw.subCodes), raw: d.raw };
+  } catch {
+    return d;
+  }
+}
+
+/**
+ * A stored result at the given temperatures, for a result that came from the model or the cache. Returns the result itself when
+ * nothing changes (no raw scores, or no scaling that differs). The review flag follows the new confidences.
+ */
+export function rescoreResult(schema: ClassificationSchema, r: ClassifyResult, cached: CachedDecision | undefined, temps: Temperatures | undefined, minConfidence: number, minMargin = DEFAULT_MIN_MARGIN): ClassifyResult {
+  if (!cached?.raw || (r.source !== 'model' && r.source !== 'cache')) return r;
+  const d = rescoreDecision(schema, cached, temps);
+  const { raw: _raw, ...plain } = d;
+  const next: ClassifyResult = { ...r, ...plain, id: r.id, source: r.source, needsReview: false };
+  next.needsReview = computeNeedsReview(next, minConfidence, minMargin);
+  return next;
 }
 
 // ---------------------------------------------------------------- estimate
@@ -219,7 +261,7 @@ export async function classifyInputs(inputs: readonly ClassifyInput[], o: Classi
   const todo = new Map<string, typeof rest>();
   for (const r of rest) {
     const hit = cache.get(r.sig);
-    if (hit) { put(finish(r.input.id, hit, 'cache', minConfidence, minMargin, r.sig)); continue; }
+    if (hit) { put(finish(r.input.id, rescoreDecision(schema, hit, o.temperatures), 'cache', minConfidence, minMargin, r.sig)); continue; }
     const l = todo.get(r.sig);
     if (l) l.push(r);
     else todo.set(r.sig, [r]);
@@ -242,10 +284,10 @@ export async function classifyInputs(inputs: readonly ClassifyInput[], o: Classi
     const provider = o.provider;
     const queue = [...todo.entries()];
     let next = 0;
-    const call = async (state: ReturnType<typeof buildState>, questions: ReturnType<typeof mainQuestions>): Promise<Answers> => {
+    const call = async (state: ReturnType<typeof buildState>, questions: ReturnType<typeof mainQuestions>, extra?: DecideExtra): Promise<Answers> => {
       stats.calls++;
       progress('model');
-      const a = await withBackoff(() => provider.decide(state, questions, signal), signal, o.retry);
+      const a = await withBackoff(() => provider.decide(state, questions, signal, extra), signal, o.retry);
       stats.models[a.model] = (stats.models[a.model] ?? 0) + 1;
       stats.usage.input_tokens += a.usage?.input_tokens ?? 0;
       stats.usage.output_tokens += a.usage?.output_tokens ?? 0;
@@ -260,17 +302,31 @@ export async function classifyInputs(inputs: readonly ClassifyInput[], o: Classi
         const rep = members[0]!.input;
         try {
           const state = buildState(rep, o.maxStateBytes ?? DEFAULT_MAX_STATE_BYTES);
-          const main = await call(state, mainQuestions(schema));
+          let extra: DecideExtra | undefined;
+          if (o.images) {
+            try {
+              const imgs = await o.images(rep, signal);
+              if (imgs.length) extra = { images: imgs };
+            } catch (e) {
+              if (isAbort(e) || signal.aborted) return;
+              addError(`Pictures of an element could not be made, so it went out as text only: ${e instanceof Error ? e.message : String(e)}`);
+            }
+          }
+          const main = await call(state, mainQuestions(schema), extra);
           // Check the discipline now: the sub-discipline question depends on it.
-          const dAns = readChoice(main, Q_DISCIPLINE);
+          // The sub-discipline strategy sees the scaled confidence: a sharper discipline needs fewer options in the second request.
+          const dAns = readChoice(calibrateAnswers(main, o.temperatures), Q_DISCIPLINE);
           const dChoice = schema.disciplines.some((d) => d.code === dAns.choice) ? choice(schema, dAns.choice, dAns.confidence, dAns.probabilities) : null;
           if (!dChoice) throw new ProviderError(`The model chose the discipline "${dAns.choice}", which is not in the schema.`);
           const codes = strategy(schema, dChoice, minConfidence).filter((c) => schema.disciplines.some((d) => d.code === c));
           const sq = subQuestions(schema, codes.length ? codes : [dChoice.code]);
-          const subAns = sq ? await call(state, sq) : null;
-          const decision = decodeAnswers(schema, main, subAns, codes.length ? codes : [dChoice.code]);
+          const subAns = sq ? await call(state, sq, extra) : null;
+          const subCodes = codes.length ? codes : [dChoice.code];
+          // Stored as the model gave it, with the raw scores; the temperatures apply when the decision is read.
+          const decision: CachedDecision = { ...decodeAnswers(schema, main, subAns, subCodes), raw: { main: rawOfAnswers(main), sub: subAns ? rawOfAnswers(subAns) : null, subCodes } };
           cache.set(sig, decision);
-          members.forEach((m, k) => put(finish(m.input.id, decision, k === 0 ? 'model' : 'cache', minConfidence, minMargin, sig)));
+          const shown = rescoreDecision(schema, decision, o.temperatures);
+          members.forEach((m, k) => put(finish(m.input.id, shown, k === 0 ? 'model' : 'cache', minConfidence, minMargin, sig)));
           progress('model');
         } catch (e) {
           if (isAbort(e) || signal.aborted) return;

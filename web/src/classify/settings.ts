@@ -2,7 +2,14 @@
 // The API key is NOT a setting: it never enters this object, a params document, a share link, a saved view or a preset.
 // It lives in keyStore.ts.
 
+import { CALIBRATION_MODES, TEMPERATURE_KEYS, T_MAX, T_MIN, temperatureProblem } from './calibrate';
+import type { CalibrationMode, Temperatures } from './calibrate';
 import { JEV_DEFAULT_ENDPOINT, JEV_DEFAULT_MODEL, isMovingAlias } from './jevAdapter';
+import {
+  D3_BACKENDS, D3_DEVICES, D3_ENDPOINT_DEFAULT, D3_HF_ENDPOINT_DEFAULT, D3_MODEL_DEFAULT, D3_REPO_DEFAULT, D3_REVISION_DEFAULT, D3_STATE_BYTES_DEFAULT, IMAGE_MODES,
+  IMAGE_SIZE_DEFAULT, IMAGE_SIZE_MAX, IMAGE_SIZE_MIN, IMAGE_VIEWS_DEFAULT, IMAGE_VIEWS_MAX, IMAGE_VIEWS_MIN, d3RepoProblem, d3RevisionProblem, isCommitHash,
+} from './providers/d3Config';
+import type { D3Backend, D3Device, ImageMode } from './providers/d3Config';
 import {
   DECISION_DEFAULT_MODEL, DECISION_DEVICES, DECISION_DTYPES, DEFAULT_HYPOTHESES, HF_DEFAULT_ENDPOINT, HYPOTHESIS_KEYS, hfModelProblem, hypothesisProblem,
 } from './providers/decision';
@@ -13,7 +20,7 @@ import {
 import type { WebLlmMode } from './providers/webllm';
 
 /** `decision` is the recommended local provider (a small NLI model, WebGPU or WASM), then `webllm` (a chat model), then `jev` (HTTP). */
-export const PROVIDERS = ['off', 'decision', 'webllm', 'jev', 'mock'] as const;
+export const PROVIDERS = ['off', 'decision', 'd3', 'webllm', 'jev', 'mock'] as const;
 export type ProviderId = (typeof PROVIDERS)[number];
 
 export interface ClassifyShared {
@@ -23,6 +30,16 @@ export interface ClassifyShared {
   minConfidence: number | null;
   /** Write the results as properties under the pset name of the schema. */
   writePset: boolean;
+  /** Logit scaling of the confidence: shipped numbers per model (auto), numbers fitted on this model (fitted), your own (manual), or none (off). */
+  calibration: CalibrationMode;
+  /** Temperatures of the `manual` mode, per question. A question that is missing is not scaled. */
+  temperatures: Temperatures;
+  /** Pictures of the element for a provider that reads images (d3 endpoint, and Jev when `jevImages` is on). Never leaves the page except in the request. */
+  images: ImageMode;
+  /** Views per picture set: 1 plan, 2 plan and front, 3 plan, front and axonometric. */
+  imageViews: number;
+  /** Picture size in pixels. */
+  imageSize: number;
 }
 export interface JevSettings {
   provider: 'jev';
@@ -34,6 +51,27 @@ export interface JevSettings {
   concurrency: number;
   /** Cap of the JSON state that is sent, in bytes. */
   maxStateBytes: number;
+  /** Send the pictures (see `images`) to this endpoint. Untested: Jev is not known to read images. */
+  jevImages: boolean;
+}
+export interface D3Settings {
+  provider: 'd3';
+  /** browser: onnxruntime-web (WebGPU) with the third-party export; endpoint: a System One server for vllm-sr/d3-edge. */
+  d3Backend: D3Backend;
+  /** Browser: Hugging Face repository of the ONNX export, and its pinned revision. */
+  d3Repo: string;
+  d3Revision: string;
+  /** Browser: where the files come from (a mirror or your own proxy). */
+  d3HfEndpoint: string;
+  d3Device: D3Device;
+  /** Endpoint: the System One URL and the model id. */
+  d3Endpoint: string;
+  d3Model: string;
+  /** Endpoint: request timeout and requests in flight. */
+  timeoutMs: number;
+  concurrency: number;
+  /** Cap of the JSON state in the prompt, in bytes (both backends). */
+  d3MaxStateBytes: number;
 }
 export interface WebLlmSettings {
   provider: 'webllm';
@@ -61,7 +99,7 @@ export interface DecisionSettings {
   /** Hypothesis sentence per question; `{}` is where the option goes. */
   hypothesis: HypothesisTemplates;
 }
-export type ClassifySettings = ClassifyShared & ({ provider: 'off' } | DecisionSettings | JevSettings | WebLlmSettings | { provider: 'mock' });
+export type ClassifySettings = ClassifyShared & ({ provider: 'off' } | DecisionSettings | D3Settings | JevSettings | WebLlmSettings | { provider: 'mock' });
 
 export const JEV_DEFAULTS = {
   endpoint: JEV_DEFAULT_ENDPOINT,
@@ -69,7 +107,13 @@ export const JEV_DEFAULTS = {
   timeoutMs: 30_000,
   concurrency: 4,
   maxStateBytes: 4000,
+  jevImages: false,
 } as const;
+export const D3_DEFAULTS = {
+  d3Backend: 'browser', d3Repo: D3_REPO_DEFAULT, d3Revision: D3_REVISION_DEFAULT, d3HfEndpoint: D3_HF_ENDPOINT_DEFAULT, d3Device: 'auto',
+  d3Endpoint: D3_ENDPOINT_DEFAULT, d3Model: D3_MODEL_DEFAULT, d3MaxStateBytes: D3_STATE_BYTES_DEFAULT,
+} as const;
+export const SHARED_DEFAULTS = { calibration: 'auto', images: 'off', imageViews: IMAGE_VIEWS_DEFAULT, imageSize: IMAGE_SIZE_DEFAULT } as const;
 
 /** Every field at once: the form behind the union. The drawer edits this; `toSettings` picks the part that the provider uses. */
 export interface ClassifyDraft extends ClassifyShared {
@@ -79,6 +123,15 @@ export interface ClassifyDraft extends ClassifyShared {
   timeoutMs: number;
   concurrency: number;
   maxStateBytes: number;
+  jevImages: boolean;
+  d3Backend: D3Backend;
+  d3Repo: string;
+  d3Revision: string;
+  d3HfEndpoint: string;
+  d3Device: D3Device;
+  d3Endpoint: string;
+  d3Model: string;
+  d3MaxStateBytes: number;
   webllmModel: string;
   webllmMode: WebLlmMode;
   webllmEmbedModel: string;
@@ -101,7 +154,7 @@ export const WEBLLM_DEFAULTS = {
 
 export function defaultDraft(): ClassifyDraft {
   return {
-    provider: 'off', schemaUrl: '', minConfidence: null, writePset: true, ...JEV_DEFAULTS, ...WEBLLM_DEFAULTS, ...DECISION_DEFAULTS, hypothesis: { ...DEFAULT_HYPOTHESES },
+    provider: 'off', schemaUrl: '', minConfidence: null, writePset: true, ...SHARED_DEFAULTS, temperatures: {}, ...JEV_DEFAULTS, ...D3_DEFAULTS, ...WEBLLM_DEFAULTS, ...DECISION_DEFAULTS, hypothesis: { ...DEFAULT_HYPOTHESES },
   };
 }
 
@@ -109,10 +162,18 @@ export function defaultDraft(): ClassifyDraft {
 export const customHypotheses = (h: HypothesisTemplates): boolean => HYPOTHESIS_KEYS.some((k) => h[k] !== DEFAULT_HYPOTHESES[k]);
 
 export function toSettings(d: ClassifyDraft): ClassifySettings {
-  const shared: ClassifyShared = { schemaUrl: d.schemaUrl, minConfidence: d.minConfidence, writePset: d.writePset };
+  const shared: ClassifyShared = {
+    schemaUrl: d.schemaUrl, minConfidence: d.minConfidence, writePset: d.writePset, calibration: d.calibration, temperatures: { ...d.temperatures },
+    images: d.images, imageViews: d.imageViews, imageSize: d.imageSize,
+  };
   switch (d.provider) {
     case 'jev':
-      return { ...shared, provider: 'jev', endpoint: d.endpoint, model: d.model, timeoutMs: d.timeoutMs, concurrency: d.concurrency, maxStateBytes: d.maxStateBytes };
+      return { ...shared, provider: 'jev', endpoint: d.endpoint, model: d.model, timeoutMs: d.timeoutMs, concurrency: d.concurrency, maxStateBytes: d.maxStateBytes, jevImages: d.jevImages };
+    case 'd3':
+      return {
+        ...shared, provider: 'd3', d3Backend: d.d3Backend, d3Repo: d.d3Repo, d3Revision: d.d3Revision, d3HfEndpoint: d.d3HfEndpoint, d3Device: d.d3Device,
+        d3Endpoint: d.d3Endpoint, d3Model: d.d3Model, timeoutMs: d.timeoutMs, concurrency: d.concurrency, d3MaxStateBytes: d.d3MaxStateBytes,
+      };
     case 'webllm':
       return {
         ...shared, provider: 'webllm', webllmModel: d.webllmModel, webllmMode: d.webllmMode, webllmEmbedModel: d.webllmEmbedModel, embedTemperature: d.embedTemperature,
@@ -128,8 +189,17 @@ export function toSettings(d: ClassifyDraft): ClassifySettings {
 }
 
 export function toDraft(s: ClassifySettings, base: ClassifyDraft = defaultDraft()): ClassifyDraft {
-  const d: ClassifyDraft = { ...base, provider: s.provider, schemaUrl: s.schemaUrl, minConfidence: s.minConfidence, writePset: s.writePset };
-  if (s.provider === 'jev') Object.assign(d, { endpoint: s.endpoint, model: s.model, timeoutMs: s.timeoutMs, concurrency: s.concurrency, maxStateBytes: s.maxStateBytes });
+  const d: ClassifyDraft = {
+    ...base, provider: s.provider, schemaUrl: s.schemaUrl, minConfidence: s.minConfidence, writePset: s.writePset, calibration: s.calibration, temperatures: { ...s.temperatures },
+    images: s.images, imageViews: s.imageViews, imageSize: s.imageSize,
+  };
+  if (s.provider === 'jev') Object.assign(d, { endpoint: s.endpoint, model: s.model, timeoutMs: s.timeoutMs, concurrency: s.concurrency, maxStateBytes: s.maxStateBytes, jevImages: s.jevImages });
+  if (s.provider === 'd3') {
+    Object.assign(d, {
+      d3Backend: s.d3Backend, d3Repo: s.d3Repo, d3Revision: s.d3Revision, d3HfEndpoint: s.d3HfEndpoint, d3Device: s.d3Device, d3Endpoint: s.d3Endpoint,
+      d3Model: s.d3Model, timeoutMs: s.timeoutMs, concurrency: s.concurrency, d3MaxStateBytes: s.d3MaxStateBytes,
+    });
+  }
   if (s.provider === 'webllm') {
     Object.assign(d, {
       webllmModel: s.webllmModel, webllmMode: s.webllmMode, webllmEmbedModel: s.webllmEmbedModel, embedTemperature: s.embedTemperature, hybridMargin: s.hybridMargin,
@@ -155,6 +225,8 @@ const KNOWN = new Set([
   'provider', 'schemaUrl', 'minConfidence', 'writePset', 'endpoint', 'model', 'timeoutMs', 'concurrency', 'maxStateBytes', 'webllmModel',
   'webllmMode', 'webllmEmbedModel', 'embedTemperature', 'hybridMargin', 'webllmCustomModel', 'webllmCustomLib',
   'hfModel', 'device', 'dtype', 'hfEndpoint', 'hypothesis',
+  'calibration', 'temperatures', 'images', 'imageViews', 'imageSize', 'jevImages',
+  'd3Backend', 'd3Repo', 'd3Revision', 'd3HfEndpoint', 'd3Device', 'd3Endpoint', 'd3Model', 'd3MaxStateBytes',
 ]);
 
 /** Problem with an endpoint or schema URL, or null. Accepts an absolute http(s) URL or a path on the same origin. */
@@ -293,6 +365,84 @@ export function validateSettings(raw: unknown): SettingsCheck {
       d.webllmCustomModel = '';
       d.webllmCustomLib = '';
     } else if (d.provider === 'webllm') warnings.push(...c.warnings);
+  }
+
+  // ---- logit scaling and pictures (shared)
+  if (raw['calibration'] !== undefined) {
+    if ((CALIBRATION_MODES as readonly unknown[]).includes(raw['calibration'])) d.calibration = raw['calibration'] as CalibrationMode;
+    else errors.push(`calibration must be one of ${CALIBRATION_MODES.join(', ')}. Using "${SHARED_DEFAULTS.calibration}".`);
+  }
+  if (raw['temperatures'] !== undefined) {
+    const t = raw['temperatures'];
+    if (!isObj(t)) errors.push('temperatures must be an object with one number per question. Using none.');
+    else {
+      for (const k of Object.keys(t)) {
+        if (!(TEMPERATURE_KEYS as readonly string[]).includes(k)) { warnings.push(`Unknown temperature "${k}" was ignored. The questions are ${TEMPERATURE_KEYS.join(', ')}.`); continue; }
+        const p = temperatureProblem(t[k], `temperatures.${k}`);
+        if (p) errors.push(`${p} It was ignored.`);
+        else d.temperatures[k as keyof Temperatures] = t[k] as number;
+      }
+    }
+  }
+  if (d.calibration === 'manual' && TEMPERATURE_KEYS.every((k) => d.temperatures[k] === undefined)) warnings.push(`calibration is "manual" but no temperature is set, so the answers are not scaled. Set temperatures from ${T_MIN} to ${T_MAX}.`);
+  if (raw['images'] !== undefined) {
+    if ((IMAGE_MODES as readonly unknown[]).includes(raw['images'])) d.images = raw['images'] as ImageMode;
+    else errors.push(`images must be one of ${IMAGE_MODES.join(', ')}. Using "off".`);
+  }
+  d.imageViews = int(raw, 'imageViews', d.imageViews, IMAGE_VIEWS_MIN, IMAGE_VIEWS_MAX, errors);
+  d.imageSize = int(raw, 'imageSize', d.imageSize, IMAGE_SIZE_MIN, IMAGE_SIZE_MAX, errors);
+  if (raw['jevImages'] !== undefined) {
+    if (typeof raw['jevImages'] === 'boolean') d.jevImages = raw['jevImages'];
+    else errors.push('jevImages must be true or false. Using false.');
+  }
+
+  // ---- d3 (Decision 3.0 d3-edge)
+  const usesD3 = d.provider === 'd3';
+  if (raw['d3Backend'] !== undefined) {
+    if ((D3_BACKENDS as readonly unknown[]).includes(raw['d3Backend'])) d.d3Backend = raw['d3Backend'] as D3Backend;
+    else errors.push(`d3Backend must be one of ${D3_BACKENDS.join(', ')}. Using "${D3_DEFAULTS.d3Backend}".`);
+  }
+  if (raw['d3Repo'] !== undefined) {
+    const p = d3RepoProblem(raw['d3Repo']);
+    if (p) errors.push(`d3Repo: ${p} Using ${D3_DEFAULTS.d3Repo}.`);
+    else d.d3Repo = (raw['d3Repo'] as string).trim();
+  }
+  if (raw['d3Revision'] !== undefined) {
+    const p = d3RevisionProblem(raw['d3Revision']);
+    if (p) errors.push(`d3Revision: ${p} Using the pinned revision of ${D3_DEFAULTS.d3Repo}.`);
+    else d.d3Revision = (raw['d3Revision'] as string).trim();
+  }
+  if (raw['d3HfEndpoint'] !== undefined) {
+    if (typeof raw['d3HfEndpoint'] !== 'string') errors.push(`d3HfEndpoint must be text. Using ${D3_HF_ENDPOINT_DEFAULT}.`);
+    else {
+      const p = urlProblem(raw['d3HfEndpoint'], 'd3HfEndpoint');
+      if (p) errors.push(`${p} Using ${D3_HF_ENDPOINT_DEFAULT}.`);
+      else d.d3HfEndpoint = raw['d3HfEndpoint'].trim().replace(/\/+$/, '') || D3_HF_ENDPOINT_DEFAULT;
+    }
+  }
+  if (raw['d3Device'] !== undefined) {
+    if ((D3_DEVICES as readonly unknown[]).includes(raw['d3Device'])) d.d3Device = raw['d3Device'] as D3Device;
+    else errors.push(`d3Device must be one of ${D3_DEVICES.join(', ')}. Using "auto".`);
+  }
+  if (raw['d3Endpoint'] !== undefined) {
+    if (typeof raw['d3Endpoint'] !== 'string') errors.push(`d3Endpoint must be text. Using ${D3_ENDPOINT_DEFAULT}.`);
+    else {
+      const p = urlProblem(raw['d3Endpoint'], 'd3Endpoint');
+      if (p) errors.push(`${p} Using ${D3_ENDPOINT_DEFAULT}.`);
+      else d.d3Endpoint = raw['d3Endpoint'].trim();
+    }
+  }
+  if (raw['d3Model'] !== undefined) {
+    const m = raw['d3Model'];
+    if (typeof m !== 'string' || !m.trim() || m.length > 100) errors.push(`d3Model must be a model id of 1 to 100 characters. Using ${D3_MODEL_DEFAULT}.`);
+    else d.d3Model = m.trim();
+  }
+  d.d3MaxStateBytes = int(raw, 'd3MaxStateBytes', d.d3MaxStateBytes, 500, 64_000, errors);
+  if (usesD3) {
+    if (d.d3Backend === 'endpoint' && /^http:/i.test(d.d3Endpoint) && !isLocal(d.d3Endpoint)) warnings.push('The d3 endpoint uses http://, so the element data travel without encryption. Use https://.');
+    if (d.d3Backend === 'browser' && /^http:/i.test(d.d3HfEndpoint) && !isLocal(d.d3HfEndpoint)) warnings.push('The d3 file address uses http://, so the model and any token travel without encryption. Use https://.');
+    if (d.d3Backend === 'browser' && !isCommitHash(d.d3Revision)) warnings.push(`The d3 revision "${d.d3Revision}" is not a commit hash, so the files can change. Pin a commit hash when results must be repeatable.`);
+    if (d.d3Backend === 'browser' && d.images !== 'off') warnings.push('The browser build of d3-edge reads text only, so the pictures are not sent. Use the endpoint backend to send images.');
   }
 
   // ---- decision model (transformers.js)

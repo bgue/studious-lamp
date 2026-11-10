@@ -1,15 +1,22 @@
 // The signature cache: one decision per signature. In memory for Node; the browser persists it per model in localStorage,
 // keyed by the model name, the schema hash and the model id, so a decision of another schema or model is never reused.
 
+import type { RawDecision } from './calibrate';
 import type { ClassifyResult } from './types';
 
-/** A stored decision: a result without the element id, the source and the review flag (both are set when it is used). */
-export type CachedDecision = Omit<ClassifyResult, 'id' | 'source' | 'needsReview' | 'signature'>;
+/**
+ * A stored decision: a result without the element id, the source and the review flag (both are set when it is used).
+ * `raw` holds the raw scores (logits) of the model, so that calibration is applied when the decision is read and a change of
+ * the temperatures re-scores without running the model. The other fields are the decision as the model gave it (T = 1).
+ */
+export type CachedDecision = Omit<ClassifyResult, 'id' | 'source' | 'needsReview' | 'signature'> & { raw?: RawDecision };
 
 export interface SignatureCache {
   get(signature: string): CachedDecision | undefined;
   set(signature: string, d: CachedDecision): void;
   readonly size: number;
+  /** Every stored decision with its signature (for calibration on the rules). */
+  entries(): IterableIterator<[string, CachedDecision]>;
   clear(): void;
   /** Write to storage, when there is one. */
   flush(): void;
@@ -25,6 +32,9 @@ export class MemoryCache implements SignatureCache {
   }
   get size(): number {
     return this.map.size;
+  }
+  entries(): IterableIterator<[string, CachedDecision]> {
+    return this.map.entries();
   }
   clear(): void {
     this.map.clear();

@@ -21,16 +21,18 @@ import { jsonResponse, sidecarModel } from './classify-helpers';
 
 const KEY = 'sk-live-ABCDEF-0123456789';
 const HF_TOKEN = 'hf_QWERTYUIOPasdfghjkl0123456789';
+const D3_KEY = 'd3-live-ZXCVBN-9876543210';
+const THUMB = 'data:image/webp;base64,UklGRlRIVU1CTkFJTEJZVEVT'; // what a picture looks like: it must never leave the request
 
 function storages(): { session: MemoryStorage; local: MemoryStorage } {
   return { session: new MemoryStorage(), local: new MemoryStorage() };
 }
 const kv = (m: MemoryStorage): KeyValueStorage => m as unknown as KeyValueStorage;
 
-function makeService(opts: { storage?: MemoryStorage; k?: ReturnType<typeof storages>; fetchImpl?: typeof fetch } = {}): { svc: ClassifyService; storage: MemoryStorage; k: ReturnType<typeof storages> } {
+function makeService(opts: { storage?: MemoryStorage; k?: ReturnType<typeof storages>; fetchImpl?: typeof fetch; thumbnails?: ConstructorParameters<typeof ClassifyService>[0]['thumbnails'] } = {}): { svc: ClassifyService; storage: MemoryStorage; k: ReturnType<typeof storages> } {
   const storage = opts.storage ?? new MemoryStorage();
   const k = opts.k ?? storages();
-  const svc = new ClassifyService({ storage: kv(storage), keyStorages: { session: kv(k.session), local: kv(k.local) }, ...(opts.fetchImpl ? { fetchImpl: opts.fetchImpl } : {}) });
+  const svc = new ClassifyService({ storage: kv(storage), keyStorages: { session: kv(k.session), local: kv(k.local) }, ...(opts.fetchImpl ? { fetchImpl: opts.fetchImpl } : {}), ...(opts.thumbnails ? { thumbnails: opts.thumbnails } : {}) });
   return { svc, storage, k };
 }
 
@@ -38,7 +40,7 @@ describe('settings validation', () => {
   it('has safe defaults: off, pinned model, the Jev endpoint', () => {
     const c = validateSettings(undefined);
     expect(c.errors).toEqual([]);
-    expect(c.settings).toEqual({ provider: 'off', schemaUrl: '', minConfidence: null, writePset: true });
+    expect(c.settings).toEqual({ provider: 'off', schemaUrl: '', minConfidence: null, writePset: true, calibration: 'auto', temperatures: {}, images: 'off', imageViews: 1, imageSize: 384 });
     const d = defaultDraft();
     expect(d.endpoint).toBe('https://api.typesafe.ai/v1/systemone');
     expect(d.model).toBe('jev-1.13.0');
@@ -46,18 +48,21 @@ describe('settings validation', () => {
 
   it('is a union: only the fields of the provider are kept', () => {
     const j = toSettings({ ...defaultDraft(), provider: 'jev' });
-    expect(Object.keys(j).sort()).toEqual(['concurrency', 'endpoint', 'maxStateBytes', 'minConfidence', 'model', 'provider', 'schemaUrl', 'timeoutMs', 'writePset']);
+    const SHARED = ['calibration', 'imageSize', 'imageViews', 'images', 'minConfidence', 'provider', 'schemaUrl', 'temperatures', 'writePset'];
+    expect(Object.keys(j).sort()).toEqual([...SHARED, 'concurrency', 'endpoint', 'jevImages', 'maxStateBytes', 'model', 'timeoutMs'].sort());
     const w = toSettings({ ...defaultDraft(), provider: 'webllm' });
-    expect(Object.keys(w).sort()).toEqual(['embedTemperature', 'hybridMargin', 'minConfidence', 'provider', 'schemaUrl', 'webllmCustomLib', 'webllmCustomModel', 'webllmEmbedModel', 'webllmMode', 'webllmModel', 'writePset']);
+    expect(Object.keys(w).sort()).toEqual([...SHARED, 'embedTemperature', 'hybridMargin', 'webllmCustomLib', 'webllmCustomModel', 'webllmEmbedModel', 'webllmMode', 'webllmModel'].sort());
     const dm = toSettings({ ...defaultDraft(), provider: 'decision' });
-    expect(Object.keys(dm).sort()).toEqual(['device', 'dtype', 'hfEndpoint', 'hfModel', 'hypothesis', 'minConfidence', 'provider', 'schemaUrl', 'writePset']);
-    expect(Object.keys(toSettings({ ...defaultDraft(), provider: 'mock' })).sort()).toEqual(['minConfidence', 'provider', 'schemaUrl', 'writePset']);
+    expect(Object.keys(dm).sort()).toEqual([...SHARED, 'device', 'dtype', 'hfEndpoint', 'hfModel', 'hypothesis'].sort());
+    const d3 = toSettings({ ...defaultDraft(), provider: 'd3' });
+    expect(Object.keys(d3).sort()).toEqual([...SHARED, 'concurrency', 'd3Backend', 'd3Device', 'd3Endpoint', 'd3HfEndpoint', 'd3MaxStateBytes', 'd3Model', 'd3Repo', 'd3Revision', 'timeoutMs'].sort());
+    expect(Object.keys(toSettings({ ...defaultDraft(), provider: 'mock' })).sort()).toEqual(SHARED);
   });
 
   it('gives a plain message for each bad value and falls back to the default', () => {
     const c = validateSettings({ provider: 'gpt', minConfidence: 2, writePset: 'yes', schemaUrl: 'javascript:alert(1)' });
     expect(c.errors).toHaveLength(4);
-    expect(c.errors[0]).toBe('provider must be one of off, decision, webllm, jev, mock. Using "off".');
+    expect(c.errors[0]).toBe('provider must be one of off, decision, d3, webllm, jev, mock. Using "off".');
     expect(c.errors.join(' ')).toMatch(/minConfidence must be a number from 0 to 1/);
     expect(c.errors.join(' ')).toMatch(/writePset must be true or false/);
     expect(c.errors.join(' ')).toMatch(/schemaUrl must use https:\/\/ or http:\/\//);
@@ -136,27 +141,47 @@ describe('the API key never leaves the key store', () => {
   const offs: Array<() => void> = [];
   afterEach(() => { while (offs.length) offs.pop()!(); });
 
-  // Both secrets are set at once (the Jev key and the Hugging Face token) under each provider: neither may appear anywhere.
-  for (const provider of ['jev', 'decision'] as const) it(`is absent from collectParams, the share URL, saved views and packed output (provider ${provider}, key and Hugging Face token)`, async () => {
-    const { svc, storage, k } = makeService();
+  // All three secrets are set at once (the Jev key, the Hugging Face token and the d3 key) under each provider: none may appear anywhere.
+  // A picture of an element (a data URL) is sent in the request only: it is in no params, link, view, packed page or storage either.
+  const PATCH = {
+    jev: { provider: 'jev', endpoint: 'https://api.typesafe.ai/v1/systemone', jevImages: true, images: 'element+neighbours' },
+    decision: { provider: 'decision', hfModel: 'org/custom-nli', hfEndpoint: 'https://mirror.example.org' },
+    'd3-endpoint': { provider: 'd3', d3Backend: 'endpoint', d3Endpoint: 'https://d3.example.org/v1/systemone', images: 'element+neighbours', imageViews: 3, imageSize: 512 },
+    'd3-browser': { provider: 'd3', d3Backend: 'browser', d3HfEndpoint: 'https://mirror.example.org', calibration: 'manual', temperatures: { discipline: 0.3 } },
+  } as const;
+  for (const provider of ['jev', 'decision', 'd3-endpoint', 'd3-browser'] as const) it(`is absent from collectParams, the share URL, saved views and packed output (provider ${provider}, keys, token and pictures)`, async () => {
+    const bodies: string[] = [];
+    const fetchImpl = (async (_url: string, init: RequestInit) => {
+      bodies.push(String(init.body));
+      const body = JSON.parse(String(init.body)) as { questions: Record<string, { type: string; criteria?: Record<string, string> }> };
+      const answers: Record<string, unknown> = {};
+      for (const [n, q] of Object.entries(body.questions)) {
+        if (q.type === 'choice') { const ks = Object.keys(q.criteria!); answers[n] = { type: 'choice', choice: ks[0], confidence: 0.5, probabilities: Object.fromEntries(ks.map((c, i) => [c, i === 0 ? 0.5 : 0.5 / (ks.length - 1)])) }; } else answers[n] = { type: 'noul', noul: 0.9 };
+      }
+      return jsonResponse({ model: 'm', answers });
+    }) as unknown as typeof fetch;
+    const { svc, storage, k } = makeService({ fetchImpl, thumbnails: async (id, st) => ({ id, settings: st, neighbours: [], thumbs: [{ view: 'plan', dataUrl: THUMB, width: st.size, height: st.size, scaleBarM: 1, neighbours: [] }] }) });
     const f = fakeApp();
     svc.setModel(sidecarModel('fzk-haus'), 'fzk-haus');
-    svc.patch(provider === 'jev' ? { provider: 'jev', endpoint: 'https://api.typesafe.ai/v1/systemone' } : { provider: 'decision', hfModel: 'org/custom-nli', hfEndpoint: 'https://mirror.example.org' });
+    svc.patch(PATCH[provider] as never);
     svc.keys.set(KEY, true); // even with "remember on this device"
     svc.hfToken.set(HF_TOKEN, true);
+    svc.d3Key.set(D3_KEY, true);
     offs.push(registerParamSection('classify', {
       collect: () => svc.collect(),
       apply: (v, bad, path) => { for (const e of svc.applySettings(v).errors) bad.push(`${path} (${e})`); },
       share: true, // even when a deployment shares the section
     }));
-    await svc.classify('all'); // results, cache and manual data are written to storage
+    await svc.classify('all', provider === 'd3-endpoint' || provider === 'jev' ? { rules: false } : {}); // results, cache and manual data are written to storage
+    if (provider === 'd3-endpoint' || provider === 'jev') expect(bodies.some((b) => b.includes(THUMB)), 'the picture is in the request').toBe(true); // the one place it may be
+    await svc.thumbnails(0, { mode: 'element', views: 1, size: 256 }).catch(() => undefined); // the drawer preview
     svc.override(svc.model!.elements[0]!.globalId, { discipline: 'ARC' });
 
     const doc = collectParams(f.app, f.env);
     const docText = JSON.stringify(doc);
-    expect(doc['classify']).toMatchObject(provider === 'jev' ? { provider: 'jev', model: 'jev-1.13.0' } : { provider: 'decision', hfModel: 'org/custom-nli', hfEndpoint: 'https://mirror.example.org' });
+    expect(doc['classify']).toMatchObject(PATCH[provider] as never);
     const b64 = (s: string): string => btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-    const hasKey = (text: string): boolean => [KEY, HF_TOKEN].some((k) => text.includes(k) || text.includes(b64(k)) || text.includes(encodeURIComponent(k)));
+    const hasKey = (text: string): boolean => [KEY, HF_TOKEN, D3_KEY, THUMB, 'UklGRlRIVU1CTkFJTEJZVEVT', 'data:image'].some((k) => text.includes(k) || text.includes(b64(k)) || text.includes(encodeURIComponent(k)));
     expect(hasKey(docText)).toBe(false);
 
     // share URL (#p=) and the encoded share document
@@ -194,7 +219,9 @@ describe('the API key never leaves the key store', () => {
     expect(hasKey(dump)).toBe(false);
     expect(k.local.getItem('xray.classify.apiKey')).toBe(KEY); // it is only here
     expect(k.local.getItem('xray.classify.hfToken')).toBe(HF_TOKEN); // the token too, in its own entry
-    expect(JSON.stringify(svc.settings())).not.toMatch(/token|apiKey/i); // not a field of the settings
+    expect(k.local.getItem('xray.classify.d3Key')).toBe(D3_KEY); // the d3 key too, in its own entry
+    expect(JSON.stringify(svc.collect())).not.toMatch(/data:image/); // no picture in the settings
+    expect(JSON.stringify(svc.settings())).not.toMatch(/token|apiKey|d3Key/i); // not a field of the settings
     expect(Object.keys(svc.collect())).not.toEqual(expect.arrayContaining(['hfToken']));
   });
 

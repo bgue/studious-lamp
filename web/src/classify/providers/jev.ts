@@ -5,9 +5,13 @@
 import { buildRequest, parseResponse, requestHeaders } from '../jevAdapter';
 import type { Answers, JsonObject, Questions } from '../jevAdapter';
 import { ProviderError } from '../types';
-import type { DecisionModel } from '../types';
+import type { DecideExtra, DecisionModel } from '../types';
 
 export interface JevOptions {
+  /** Provider id that the object reports: `jev` (default) or `d3` (the System One endpoint of d3-edge: same wire format). */
+  provider?: string;
+  /** Send `images` when the request has them. Off by default: only a server that reads images may get them. */
+  sendImages?: boolean;
   endpoint: string;
   model: string;
   /** Returns the key, or null/'' for none (a same-origin proxy adds it). */
@@ -34,8 +38,8 @@ export function redact(text: string, key: string | null): string {
 
 export function createJevProvider(o: JevOptions): DecisionModel {
   return {
-    provider: 'jev',
-    async decide(state: JsonObject, questions: Questions, signal: AbortSignal): Promise<Answers> {
+    provider: o.provider ?? 'jev',
+    async decide(state: JsonObject, questions: Questions, signal: AbortSignal, extra?: DecideExtra): Promise<Answers> {
       const f = o.fetchImpl ?? globalThis.fetch.bind(globalThis);
       const key = o.apiKey();
       const ctl = new AbortController();
@@ -50,7 +54,7 @@ export function createJevProvider(o: JevOptions): DecisionModel {
       try {
         let res: Response;
         try {
-          res = await f(o.endpoint, { method: 'POST', headers: requestHeaders(key), body: JSON.stringify(buildRequest(o.model, state, questions)), signal: ctl.signal, credentials: 'omit' });
+          res = await f(o.endpoint, { method: 'POST', headers: requestHeaders(key), body: JSON.stringify(buildRequest(o.model, state, questions, o.sendImages ? extra?.images : undefined)), signal: ctl.signal, credentials: 'omit' });
         } catch (e) {
           if (signal.aborted) throw new DOMException('Aborted', 'AbortError');
           if (timedOut) throw new ProviderError(`The request timed out after ${Math.round(o.timeoutMs / 1000)} s.`, undefined, undefined, true);

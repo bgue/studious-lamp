@@ -777,6 +777,8 @@ export function createDecisionProvider(o: DecisionOptions): DecisionProvider {
       }
     }
     const probsByPlan: number[][] = [];
+    /** Raw scores per plan (entailment logits of a choice; the log-odds of a statement): kept for calibration. */
+    const rawByPlan: number[][] = [];
     if (scorer.batched) {
       const all = plans.flatMap((p) => p.hyps);
       const lg = await scorer.logits(premise, all, signal);
@@ -784,15 +786,22 @@ export function createDecisionProvider(o: DecisionOptions): DecisionProvider {
       for (const p of plans) {
         const part = lg.slice(at, at + p.hyps.length);
         at += p.hyps.length;
-        probsByPlan.push(p.kind === 'choice' ? softmax(part.map((x) => x[1])) : [softmax(part[0]!)[1]!]);
+        if (p.kind === 'choice') {
+          rawByPlan.push(part.map((x) => x[1]));
+          probsByPlan.push(softmax(part.map((x) => x[1])));
+        } else {
+          rawByPlan.push([part[0]![1] - part[0]![0]]);
+          probsByPlan.push([softmax(part[0]!)[1]!]);
+        }
       }
     } else {
       for (const p of plans) probsByPlan.push(p.kind === 'choice' ? await scorer.choice(premise, p.hyps, signal) : [await scorer.yes(premise, p.hyps[0]!, signal)]);
     }
     plans.forEach((p, k) => {
       const probs = probsByPlan[k]!;
+      const raw = rawByPlan[k];
       if (p.kind === 'noul') {
-        answers[p.name] = { type: 'noul', noul: probs[0]! };
+        answers[p.name] = { type: 'noul', noul: probs[0]!, ...(raw ? { logit: raw[0]! } : {}) };
         return;
       }
       const probabilities: Record<string, number> = {};
@@ -801,7 +810,10 @@ export function createDecisionProvider(o: DecisionOptions): DecisionProvider {
         probabilities[opt] = probs[i]!;
         if (probs[i]! > probs[best]!) best = i;
       });
-      answers[p.name] = { type: 'choice', choice: p.options[best]!, confidence: probs[best]!, probabilities };
+      answers[p.name] = {
+        type: 'choice', choice: p.options[best]!, confidence: probs[best]!, probabilities,
+        ...(raw ? { logits: Object.fromEntries(p.options.map((opt, i) => [opt, raw[i]!])) } : {}),
+      };
     });
     return { model: `decision:${o.model}`, answers };
   };

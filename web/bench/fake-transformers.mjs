@@ -65,3 +65,17 @@ export async function pipeline(task, model, opts = {}) {
   pipe.dispose = async () => {};
   return pipe;
 }
+
+/**
+ * A fake tokenizer for the d3 browser backend (the real one is PreTrainedTokenizer of transformers.js): the "token ids" are the character
+ * codes of the text, so that bench/fake-ort.mjs can read the prompt back from the ids.
+ */
+export class PreTrainedTokenizer {
+  constructor(tokenizerJson, tokenizerConfig) {
+    this.json = tokenizerJson;
+    this.config = tokenizerConfig;
+  }
+  encode(text) {
+    return Array.from(text, (c) => c.codePointAt(0));
+  }
+}

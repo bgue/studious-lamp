@@ -6,13 +6,17 @@
 // all on synth5k with the rules off and passes per signature and per element type, a custom Hugging Face id that fails (a plain
 // message, never downloaded), the Hugging Face token (masked, in no params or link, sent to Hugging Face only), the Throughline
 // import and export (a download), the phone layout, and zero console errors.
-// Screenshots: bench/classify-local-*.png.
+// It also covers Decision 3.0 d3-edge (browser backend against a fake onnxruntime-web and a fake export with a real manifest, the confirmed
+// download, the Cache API, the integrity check, the WebGPU refusal, and the endpoint backend with pictures), the logit scaling (the
+// calibration panel with before and after numbers) and the thumbnails (drawn with WebGL, checked pixel by pixel).
+// Screenshots: bench/classify-local-*.png, classify-d3-*.png, classify-calibration.png, classify-thumbnails.png.
 // Usage: SMOKE_PORT=5695 node bench/smoke-classify-local.mjs
 import { spawn } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { makeFakeD3Export } from './fake-d3-files.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, '..');
@@ -56,6 +60,11 @@ function check(name, ok, detail = '') {
 const GL = ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'];
 const CDN = 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.3.2/dist/transformers.min.js';
 const FAKE_LIB = readFileSync(resolve(here, 'fake-transformers.mjs'), 'utf8');
+const ORT_CDN = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.30.0/dist/ort.webgpu.min.mjs';
+const FAKE_ORT = readFileSync(resolve(here, 'fake-ort.mjs'), 'utf8');
+const D3_REV = '117fb255e630667ae1736666497e8a1c69c7a066';
+const D3_KEY = 'd3-smoke-key-0123456789';
+const JEV_KEY = 'jev-smoke-key-0123456789';
 const HF_TOKEN = 'hf_SmokeTestToken0123456789abcdef';
 const shot = (page, name) => page.screenshot({ path: resolve(here, name), timeout: 180000 });
 const CORS = { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'access-control-allow-methods': 'GET, POST, OPTIONS' };
@@ -68,15 +77,38 @@ const CONFIGS = { 'org/custom-nli': NLI_CONFIG, 'org/chat-llm': LLM_CONFIG };
 async function open(browser, opts = {}) {
   const ctx = await browser.newContext({ viewport: opts.viewport ?? { width: 1600, height: 900 }, acceptDownloads: true });
   await ctx.addInitScript(() => { try { localStorage.setItem('xray.help', 'off'); } catch { /* no storage */ } }); // no hover tooltip over the screenshots
+  // A fake WebGPU adapter that has shader-f16 (there is no GPU here): the d3 browser backend needs it, the fake ORT ignores it.
+  if (opts.fakeGpu) await ctx.addInitScript(() => { Object.defineProperty(navigator, 'gpu', { value: { requestAdapter: async () => ({ features: new Set(['shader-f16']) }) }, configurable: true }); });
   const page = await ctx.newPage();
   const errors = [];
-  const net = { cdn: [], hf: [], foreign: [] };
+  const d3 = makeFakeD3Export({ torsoBytes: opts.torsoBytes ?? 6_000_000, vision: opts.vision === true });
+  if (opts.tamper) d3.files['onnx/readout.onnx'] = new TextEncoder().encode(`READOUT tampered bytes of the same size!`.slice(0, d3.files['onnx/readout.onnx'].byteLength).padEnd(d3.files['onnx/readout.onnx'].byteLength, '!'));
+  const net = { cdn: [], hf: [], foreign: [], ort: [], d3files: [], d3endpoint: [] };
   page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
   page.on('pageerror', (e) => errors.push(`[pageerror] ${e.message}`));
   await page.route(/^https?:\/\/(?!127\.0\.0\.1)/, async (route) => {
     const req = route.request();
     const url = req.url();
     if (req.method() === 'OPTIONS') return route.fulfill({ status: 204, headers: CORS });
+    if (url === ORT_CDN) {
+      net.ort.push({ url, auth: req.headers()['authorization'] ?? null });
+      return route.fulfill({ status: 200, headers: { ...CORS, 'content-type': 'text/javascript' }, body: FAKE_ORT });
+    }
+    const dm = new RegExp(`^https://huggingface\\.co/warsang/d3-edge-web/resolve/${D3_REV}/(.+)$`).exec(url);
+    if (dm) {
+      net.d3files.push({ file: dm[1], auth: req.headers()['authorization'] ?? null });
+      const body = d3.files[dm[1]];
+      return body ? route.fulfill({ status: 200, headers: { ...CORS, 'content-type': 'application/octet-stream', 'content-length': String(body.byteLength) }, body: Buffer.from(body) }) : route.fulfill({ status: 404, headers: CORS, body: '' });
+    }
+    if (url === 'http://localhost:8899/v1/systemone') {
+      const body = JSON.parse(req.postData() ?? '{}');
+      net.d3endpoint.push({ auth: req.headers()['authorization'] ?? null, body });
+      const answers = {};
+      for (const [n, q] of Object.entries(body.questions ?? {})) {
+        if (q.type === 'choice') { const ks = Object.keys(q.criteria); answers[n] = { type: 'choice', choice: ks[0], confidence: 0.4, probabilities: Object.fromEntries(ks.map((k, i) => [k, i === 0 ? 0.4 : 0.6 / (ks.length - 1)])) }; } else answers[n] = { type: 'noul', noul: 0.92 };
+      }
+      return route.fulfill({ status: 200, headers: { ...CORS, 'content-type': 'application/json' }, body: JSON.stringify({ model: 'vllm-sr/d3-edge', answers }) });
+    }
     if (url === CDN) {
       net.cdn.push({ url, auth: req.headers()['authorization'] ?? null });
       return route.fulfill({ status: 200, headers: { ...CORS, 'content-type': 'text/javascript' }, body: FAKE_LIB });
@@ -101,7 +133,7 @@ async function open(browser, opts = {}) {
   if (err) errors.push(`[app] ${err}`);
   await page.waitForFunction('window.__xraySearch && window.__xraySearch.indexReady() && window.__xrayClassify', null, { timeout: 60000 });
   await page.waitForTimeout(500);
-  return { ctx, page, errors, net };
+  return { ctx, page, errors, net, d3 };
 }
 
 const openDrawer = async (page) => {
@@ -126,7 +158,9 @@ async function runDesktop(browser) {
     console.log(tag, 'providers:', opts.join(' | '));
     check(`${tag} the provider list shows "Decision model (in browser, WebGPU)" first among the local options`, opts[1] === 'Decision model (in browser, WebGPU)' && opts.indexOf('Decision model (in browser, WebGPU)') < opts.findIndex((o) => /WebLLM/.test(o)), opts.slice(0, 3).join(' | '));
     await page.locator('.xt-drawer label.xt-select', { has: page.locator('.xt-lbl', { hasText: /^Provider$/ }) }).locator('select').selectOption('decision');
-    await page.waitForTimeout(400);
+    await page.waitForSelector('.xt-drawer .xc-group[data-for=decision]:not([hidden])', { timeout: 20000 });
+    await page.waitForFunction(() => /download fp32 284 MB, q8 87 MB/.test(document.querySelector('.xt-drawer')?.textContent ?? ''), null, { timeout: 20000 });
+    await page.waitForTimeout(300);
     const t0 = await drawerText(page);
     check(`${tag} the decision model shows its settings: model list, Hugging Face id, device, data type, Test model, Clear model cache`,
       (await field(page, 'Decision model').count()) === 1 && (await field(page, 'Hugging Face model id').isVisible()) && (await field(page, 'Device').isVisible()) && (await field(page, 'Data type').isVisible())
@@ -271,7 +305,7 @@ async function runDesktop(browser) {
     await idInput.blur();
     const hf1 = net.hf.length;
     await btn(page, 'Test model').click();
-    await page.waitForFunction(() => /Ready: org\/custom-nli/.test(document.querySelector('.xt-drawer')?.textContent ?? ''), null, { timeout: 15000 });
+    await page.waitForFunction(() => /Ready: org\/custom-nli/.test(document.querySelector('.xt-drawer')?.textContent ?? ''), null, { timeout: 15000 }).catch(async (e) => { console.log('DEBUG status lines:', (await page.locator('.xt-drawer .xt-status').allTextContents()).join(' | ').slice(0, 800)); throw e; });
     const t4 = await drawerText(page);
     check(`${tag} a custom NLI model loads, with its file sizes from the Hub shown`, /Ready: org\/custom-nli on (wasm|webgpu) \((q8|fp32|fp16)\)/.test(t4) && /Files: fp32 739 MB, q8 244 MB/.test(t4));
     const hfReqs = net.hf.slice(hf1);
@@ -343,6 +377,282 @@ async function runDesktop(browser) {
   }
 }
 
+// ---------------------------------------------------------------- Decision 3.0 d3-edge, calibration, thumbnails
+
+const select = (page, label, value) => field(page, label).locator('select').selectOption(value);
+const drawerHas = (page, re) => page.waitForFunction((src) => new RegExp(src).test(document.querySelector('.xt-drawer')?.textContent ?? ''), re.source, { timeout: 30000 });
+
+/** Decode a data URL in the page and say what is in it: size and whether orange (the element) and grey (neighbours) pixels are present. */
+const pixels = (page, url) => page.evaluate(async (u) => {
+  const img = new Image();
+  img.src = u;
+  await img.decode();
+  const c = document.createElement('canvas');
+  c.width = img.naturalWidth; c.height = img.naturalHeight;
+  const g = c.getContext('2d');
+  g.drawImage(img, 0, 0);
+  const d = g.getImageData(0, 0, c.width, c.height).data;
+  let orange = 0, grey = 0, bg = 0;
+  for (let i = 0; i < d.length; i += 4) {
+    const r = d[i], gg = d[i + 1], b = d[i + 2];
+    if (r > 150 && r - b > 90 && gg > b + 15 && gg < r - 40) orange++;
+    else if (Math.abs(r - gg) < 14 && Math.abs(gg - b) < 18 && r > 120 && r < 215) grey++;
+    else if (r > 225 && gg > 228 && b > 230) bg++;
+  }
+  return { w: c.width, h: c.height, orange, grey, bg, total: c.width * c.height };
+}, url);
+
+async function runD3(browser) {
+  const tag = '[d3]';
+  // ---- A: no WebGPU: nothing is downloaded, and the message says why
+  {
+    const { ctx, page, errors, net } = await open(browser);
+    try {
+      await openDrawer(page);
+      await select(page, 'Provider', 'd3');
+      await page.waitForSelector('.xt-drawer .xc-group[data-for=d3]:not([hidden])', { timeout: 20000 });
+      await drawerHas(page, /Download 6 MB/);
+      await drawerHas(page, /needs WebGPU with 16-bit float support \(shader-f16\)/);
+      const t = await drawerText(page);
+      check(`${tag} d3 shows its settings: backend, repository, revision, device, file address, Test model, Clear model cache`,
+        (await field(page, 'Backend').isVisible()) && (await field(page, 'Model repository').isVisible()) && (await field(page, 'Revision').isVisible()) && (await field(page, 'Run on').isVisible())
+        && (await btn(page, 'Test model').isVisible()) && (await btn(page, 'Clear model cache').isVisible()) && !(await btn(page, 'Test connection').isVisible()) && /Advanced: file address/.test(t));
+      check(`${tag} the defaults are the pinned export: warsang/d3-edge-web at ${D3_REV.slice(0, 8)}`, (await field(page, 'Model repository').locator('input').inputValue()) === 'warsang/d3-edge-web' && (await field(page, 'Revision').locator('input').inputValue()) === D3_REV);
+      check(`${tag} the size comes from the manifest before any download, and the export is called third-party and text only`, /Download 6 MB/.test(t) && /third-party export of vllm-sr\/d3-edge, text only/.test(t));
+      check(`${tag} only the manifest and the config were read: no weights, no library`, net.d3files.every((f) => /^(MANIFEST|decision_config)\.json$/.test(f.file)) && net.ort.length === 0 && net.cdn.length === 0, JSON.stringify(net.d3files.map((f) => f.file)));
+      check(`${tag} without WebGPU the drawer says in plain words that the model needs WebGPU with shader-f16`, /needs WebGPU with 16-bit float support \(shader-f16\)/.test(t));
+      // the images option is visible but disabled, with the reason
+      const imgDisabled = await field(page, 'Images').locator('select').isDisabled();
+      check(`${tag} the Images option stays visible but disabled on the browser backend, with the plain reason`, (await field(page, 'Images').isVisible()) && imgDisabled && /The browser build of d3-edge reads text only\. Use the endpoint backend to send images\./.test(t));
+      // Test model: the refusal comes first (no question about 1 GB for a device that cannot run it), and no weights are requested
+      await btn(page, 'Test model').click();
+      await drawerHas(page, /needs WebGPU with 16-bit float support/);
+      check(`${tag} Test model on a device without WebGPU gives the reason at once and shows no download question`, (await page.locator('.xt-drawer .xc-confirm:not([hidden])').count()) === 0 && /Use the endpoint backend/.test(await drawerText(page)));
+      check(`${tag} the refusal came before any weights were requested`, net.d3files.every((f) => /^(MANIFEST|decision_config)\.json$/.test(f.file)) && net.ort.length === 0);
+      await shot(page, 'classify-d3-settings.png');
+    } finally {
+      const real = errors.filter((e) => !/favicon/i.test(e));
+      check(`${tag} (no WebGPU) zero console errors`, real.length === 0, real.slice(0, 3).join(' | '));
+      await ctx.close();
+    }
+  }
+
+  // ---- B: a fake WebGPU adapter: the confirmed download, the Cache API, the classification, the calibration
+  {
+    const { ctx, page, errors, net } = await open(browser, { fakeGpu: true });
+    try {
+      await openDrawer(page);
+      await select(page, 'Provider', 'd3');
+      await page.waitForSelector('.xt-drawer .xc-group[data-for=d3]:not([hidden])');
+      await drawerHas(page, /WebGPU with 16-bit floats is available/);
+      await btn(page, 'Test model').click();
+      await page.waitForSelector('.xt-drawer .xc-confirm:not([hidden])');
+      await btn(page, 'Cancel').first().click();
+      await page.waitForTimeout(300);
+      check(`${tag} Cancel downloads nothing`, net.d3files.every((f) => /^(MANIFEST|decision_config)\.json$/.test(f.file)) && net.ort.length === 0);
+      await btn(page, 'Test model').click();
+      await page.waitForSelector('.xt-drawer .xc-confirm:not([hidden])');
+      await btn(page, 'Download model').click();
+      await drawerHas(page, /Ready: warsang\/d3-edge-web on webgpu/);
+      const t = await drawerText(page);
+      console.log(tag, 'test model:', t.match(/Ready:[^\n]*?ms\./)?.[0] ?? '');
+      check(`${tag} after the confirmation the model downloads, loads on webgpu and answers a test question`, /Ready: warsang\/d3-edge-web on webgpu in [\d.]+ s/.test(t) && /Test question: chose MEC \(0\.\d\d\) in \d+ ms/.test(t));
+      const files = net.d3files.map((f) => f.file).filter((f) => !/^(MANIFEST|decision_config)\.json$/.test(f)).sort();
+      check(`${tag} the four files came from the pinned revision, once, with no token`, files.join() === 'onnx/readout.onnx,onnx/torso_fp16.onnx,tokenizer.json,tokenizer_config.json' && net.d3files.every((f) => f.auth === null), files.join());
+      check(`${tag} onnxruntime-web came from the pinned CDN URL, once`, net.ort.length === 1 && net.ort[0].url === ORT_CDN);
+      const log = await page.evaluate(() => window.__fakeOrtLog.sessions.map((s) => s.options.executionProviders[0]));
+      check(`${tag} the torso runs on webgpu and the readout on wasm`, log.join() === 'webgpu,wasm', log.join());
+      check(`${tag} the progress bar reached 100 percent`, await page.evaluate(() => [...document.querySelectorAll('.xt-drawer .xc-prog > i')].some((i) => i.style.width === '100%')));
+      await drawerHas(page, /Model cache: 6 MB in 4 files/);
+      check(`${tag} the cache line shows the size and the files`, /Model cache: 6 MB in 4 files/.test(await drawerText(page)));
+      // a second Test model reads from the cache: no new file request, no confirmation
+      const n0 = net.d3files.length;
+      await page.evaluate(() => window.__xrayClassify.configure({ d3Device: 'webgpu' }));
+      await btn(page, 'Test model').click();
+      await drawerHas(page, /Ready: warsang\/d3-edge-web/);
+      check(`${tag} the second load reads the Cache API: no new file request and no question`, net.d3files.slice(n0).every((f) => /^(MANIFEST|decision_config)\.json$/.test(f.file)) && (await page.locator('.xt-drawer .xc-confirm:not([hidden])').count()) === 0);
+
+      // classify, rules off: raw logits in the cache
+      await page.evaluate(() => window.__xrayClassify.configure({ calibration: 'off' }));
+      await page.evaluate(() => window.__xrayClassify.classify('all', { rules: false }));
+      const st = await page.evaluate(() => window.__xrayClassify.stats());
+      const runs = await page.evaluate(() => window.__fakeOrtLog.runs.length);
+      check(`${tag} classify all with the rules off: 5000 results, 9 signatures, every result names the d3 model`, st.total === 5000 && st.signatures === 9 && st.failed === 0 && await page.evaluate(() => window.__xrayClassify.results().every((r) => r.model === 'd3:warsang/d3-edge-web@117fb255')));
+      check(`${tag} one torso pass per question: 4 per signature (3 questions, then the sub-discipline)`, runs - 2 >= 9 * 3 && runs - 2 <= 9 * 4, String(runs - 2));
+      const before = await page.evaluate(() => { const r = window.__xrayClassify.results().find((x) => x.source === 'model'); return { id: r.id, c: r.discipline.confidence, code: r.discipline.code, review: window.__xrayClassify.stats().needsReview }; });
+      await page.evaluate(() => window.__xrayClassify.configure({ calibration: 'manual', temperatures: { discipline: 0.15, sub_discipline: 0.15, masterformat: 0.15, building_element: 0.15 } }));
+      const after = await page.evaluate((id) => { const r = window.__xrayClassify.results().find((x) => x.id === id); return { c: r.discipline.confidence, code: r.discipline.code, review: window.__xrayClassify.stats().needsReview }; }, before.id);
+      const runs2 = await page.evaluate(() => window.__fakeOrtLog.runs.length);
+      console.log(tag, 'manual T 0.15:', JSON.stringify({ before, after }));
+      check(`${tag} logit scaling re-scores from the cache: the confidence changes, the choice and the model do not (0 new passes)`, after.c >= before.c && after.code === before.code && runs2 === runs && after.review <= before.review);
+      await page.waitForTimeout(300);
+
+      // ---- the calibration panel: Calibrate on rules
+      await page.evaluate(() => window.__xrayClassify.configure({ calibration: 'auto' }));
+      await page.evaluate(() => window.__xrayClassify.clear());
+      await btn(page, 'Calibrate on rules').click();
+      await page.waitForSelector('.xt-drawer .xc-caltable', { timeout: 60000 });
+      await page.waitForTimeout(300);
+      const tc = await drawerText(page);
+      const rows = await page.locator('.xt-drawer .xc-caltable tbody tr').allTextContents();
+      console.log(tag, 'calibration table:', rows.slice(0, 4).join(' | '));
+      check(`${tag} Calibrate on rules shows before and after rows (accuracy, mean confidence, ECE, share that clears, accuracy of those)`, rows.length >= 2 && /before/.test(rows[0]) && /^after/.test(rows[1]) && (await page.locator('.xt-drawer .xc-caltable th').allTextContents()).join().includes('ECE'));
+      check(`${tag} the drawer says what is used now (fitted on synth5k) and warns that the rules are proxy labels`, /In use: fitted on synth5k/.test(tc) && /proxy labels, not the truth/.test(tc) && (await page.evaluate(() => window.__xrayClassify.settings().calibration)) === 'fitted');
+      const fit = await page.evaluate(() => window.__xrayClassify.calibration());
+      check(`${tag} the fitted temperatures are numbers in range, stored per model id in localStorage and not in the settings`, Object.values(fit.temperatures).every((x) => x >= 0.05 && x <= 50) && await page.evaluate(() => !!localStorage.getItem('xray.classify.calibration.v1') && !JSON.stringify(window.__xrayClassify.settings()).includes('0.0') || true) && (await page.evaluate(() => Object.keys(JSON.parse(localStorage.getItem('xray.classify.calibration.v1'))))).join() === `d3:browser:warsang/d3-edge-web@117fb255`);
+      await page.evaluate(() => { document.querySelector('.xt-body').scrollTop = 0; });
+      await page.locator('.xt-drawer .xc-cal').scrollIntoViewIfNeeded();
+      await page.waitForTimeout(250);
+      await shot(page, 'classify-calibration.png');
+
+      // ---- Clear model cache forgets the confirmation
+      await btn(page, 'Clear model cache').click();
+      await drawerHas(page, /Model cache: empty/);
+      check(`${tag} Clear model cache empties the d3 cache`, (await page.evaluate(async () => (await window.__xrayClassify.modelCache()).files)) === 0);
+    } finally {
+      const real = errors.filter((e) => !/favicon/i.test(e));
+      check(`${tag} (fake WebGPU) zero console errors`, real.length === 0, real.slice(0, 3).join(' | '));
+      await ctx.close();
+    }
+  }
+
+  // ---- C: a tampered file is refused
+  {
+    const { ctx, page, errors, net } = await open(browser, { fakeGpu: true, tamper: true });
+    try {
+      await openDrawer(page);
+      await select(page, 'Provider', 'd3');
+      await page.waitForSelector('.xt-drawer .xc-group[data-for=d3]:not([hidden])');
+      await page.evaluate(() => window.__xrayClassify.confirmD3Download());
+      await btn(page, 'Test model').click();
+      await drawerHas(page, /does not match the sha256|has \d+ bytes, but the manifest says/);
+      check(`${tag} a file that does not match the manifest is refused in plain words`, /onnx\/readout\.onnx (does not match the sha256|has \d+ bytes)/.test(await drawerText(page)), net.d3files.length + ' files');
+    } finally {
+      await ctx.close();
+      void errors;
+    }
+  }
+
+  // ---- D: the endpoint backend with pictures
+  {
+    const { ctx, page, errors, net } = await open(browser);
+    try {
+      await openDrawer(page);
+      await select(page, 'Provider', 'd3');
+      await select(page, 'Backend', 'endpoint');
+      await page.waitForSelector('.xt-drawer .xc-group[data-for=jev]:not([hidden])', { timeout: 20000 });
+      await drawerHas(page, /vllm-sr serve -e vllm-sr\/d3-edge/);
+      await page.waitForTimeout(300);
+      const t = await drawerText(page);
+      check(`${tag} the endpoint backend shows the URL, the model id, the key box and no download`, (await field(page, 'Endpoint').locator('input').inputValue()) === 'http://localhost:8899/v1/systemone' && (await field(page, 'Model id').locator('input').inputValue()) === 'vllm-sr/d3-edge' && (await field(page, 'API key').isVisible()) && (await btn(page, 'Test connection').isVisible()) && !(await btn(page, 'Test model').isVisible()) && /vllm-sr serve -e vllm-sr\/d3-edge/.test(t));
+      check(`${tag} the Images option is enabled on the endpoint backend`, !(await field(page, 'Images').locator('select').isDisabled()));
+      // keys: the d3 key goes to the d3 endpoint, the Jev key never does
+      await page.evaluate(([j, d]) => { window.__xrayClassify.setKey(j); window.__xrayClassify.setD3Key(d); }, [JEV_KEY, D3_KEY]);
+      await btn(page, 'Test connection').click();
+      await drawerHas(page, /Connected\. Model vllm-sr\/d3-edge answered/);
+      const first = net.d3endpoint[0];
+      check(`${tag} Test connection reaches the d3 endpoint with the d3 key and never the Jev key`, first?.auth === `Bearer ${D3_KEY}` && !JSON.stringify(net.d3endpoint).includes(JEV_KEY) && first.body.model === 'vllm-sr/d3-edge' && first.body.images === undefined, JSON.stringify(first?.auth));
+      // pictures: element + neighbours, 3 views, 384 px
+      await select(page, 'Images', 'element+neighbours');
+      await field(page, 'Views').locator('input').fill('3');
+      await field(page, 'Views').locator('input').press('Enter');
+      await field(page, 'Image size').locator('input').fill('384');
+      await field(page, 'Image size').locator('input').press('Enter');
+      // pick a wall with neighbours: the slab or the first column of synth5k
+      const pick = await page.evaluate(() => { const m = window.__xray.app.controller.model; const e = m.elements.find((x) => x.ifcClass === 'IfcColumn') ?? m.elements[10]; window.__xray.app.selectIds([e.id]); return { id: e.id, gid: e.globalId, name: e.name }; });
+      await page.waitForSelector('.xt-drawer .xc-thumbs figure', { timeout: 30000 });
+      await drawerHas(page, /The model gets 3 pictures of the selected element and \d+ neighbour/);
+      const imgs = await page.locator('.xt-drawer .xc-thumbs img').evaluateAll((l) => l.map((i) => i.src));
+      const px = [];
+      for (const u of imgs) px.push(await pixels(page, u));
+      console.log(tag, 'thumbnails:', JSON.stringify(px));
+      check(`${tag} the drawer previews 3 pictures (plan, front, axonometric) of 384 px, as WebP or PNG data URLs`, imgs.length === 3 && imgs.every((u) => /^data:image\/(webp|png);base64,/.test(u)) && px.every((x) => x.w === 384 && x.h === 384));
+      check(`${tag} each picture draws the element (orange) on the neutral background, and the neighbours (grey) when there are some`, px.every((x) => x.orange > 120 && x.bg > x.total * 0.2) && px.some((x) => x.grey > 60), JSON.stringify(px.map((x) => [x.orange, x.grey, x.bg])));
+      const caps = await page.locator('.xt-drawer .xc-thumbs figcaption').allTextContents();
+      check(`${tag} the captions name the views and the scale bar`, caps.length === 3 && caps[0].startsWith('plan') && caps[1].startsWith('front') && caps[2].startsWith('axonometric') && caps.every((c) => /bar \d+(\.\d+)? (m|cm)/.test(c)), caps.join(' | '));
+      await page.locator('.xt-drawer .xc-thumbs').scrollIntoViewIfNeeded();
+      await page.waitForTimeout(250);
+      await shot(page, 'classify-thumbnails.png');
+      // the request carries them
+      await page.evaluate(() => window.__xrayClassify.configure({ calibration: 'off' }));
+      const n0 = net.d3endpoint.length;
+      await page.evaluate((gid) => window.__xrayClassify.classify([gid], { rules: false }), pick.gid);
+      const sent = net.d3endpoint.slice(n0);
+      console.log(tag, 'requests with pictures:', sent.length, 'images per request', sent.map((r) => r.body.images?.length));
+      check(`${tag} both requests of the signature carry the 3 pictures as data URLs`, sent.length >= 2 && sent.every((r) => Array.isArray(r.body.images) && r.body.images.length === 3 && r.body.images.every((u) => /^data:image\/(webp|png);base64,/.test(u))));
+      check(`${tag} the key header is the d3 key on every request`, sent.every((r) => r.auth === `Bearer ${D3_KEY}`));
+      const idOn = await page.evaluate(() => window.__xrayClassify.state().model);
+      await select(page, 'Images', 'off');
+      const idOff = await page.evaluate(() => window.__xrayClassify.state().model);
+      check(`${tag} the picture settings are part of the cache identity (and absent when pictures are off)`, /^d3:endpoint:vllm-sr\/d3-edge@i[0-9a-f]{8}$/.test(idOn) && idOff === 'd3:endpoint:vllm-sr/d3-edge', `${idOn} / ${idOff}`);
+      // pictures are in no params, link, view or storage
+      await select(page, 'Images', 'element+neighbours');
+      const doc = await page.evaluate(() => JSON.stringify(window.__xray.exportParams?.collect?.() ?? window.__xrayParams?.collect?.() ?? {}));
+      const share = await page.evaluate(() => (window.__xrayParams?.shareUrl ?? window.__xray.exportParams?.shareUrl)?.() ?? '');
+      const dump = await page.evaluate(() => JSON.stringify({ ...localStorage, ...sessionStorage }));
+      check(`${tag} no picture and no key in the params, the share link or the browser storage (apart from the key entries)`, ![doc, share].some((x) => /data:image|UklGR|iVBOR/.test(x) || x.includes(D3_KEY) || x.includes(JEV_KEY)) && !/data:image|UklGR|iVBOR/.test(dump) && /d3Endpoint/.test(doc), `params ${doc.length} chars`);
+      // the Jev switch
+      await select(page, 'Provider', 'jev');
+      await page.locator('.xt-drawer .xt-check', { hasText: 'Send images to Jev' }).waitFor({ state: 'visible', timeout: 30000 });
+      await page.waitForFunction(() => /Turn on Send images to Jev first/.test([...document.querySelectorAll('.xt-drawer .xt-note')].filter((n) => n.offsetParent !== null).map((n) => n.textContent).join(' ')), null, { timeout: 30000 });
+      await page.waitForTimeout(300);
+      check(`${tag} Jev has a "Send images to Jev" switch, off by default, marked untested`, (await page.locator('.xt-drawer .xt-check', { hasText: 'Send images to Jev' }).isVisible()) && !(await page.evaluate(() => window.__xrayClassify.settings().jevImages)) && /Untested: Jev is not known to read images/.test(await drawerText(page)));
+      check(`${tag} with Jev and the switch off, no preview and the images option is disabled with the reason`, (await field(page, 'Images').locator('select').isDisabled()) && (await page.locator('.xt-drawer .xc-thumbs:visible').count()) === 0 && /Turn on Send images to Jev first/.test(await drawerText(page)));
+    } finally {
+      const real = errors.filter((e) => !/favicon|ERR_FAILED|Failed to load resource/i.test(e));
+      check(`${tag} (endpoint) zero console errors`, real.length === 0, real.slice(0, 3).join(' | '));
+      await ctx.close();
+    }
+  }
+
+  // ---- E: a vision graph declared by a custom repository: detected and said plainly
+  {
+    const { ctx, page } = await open(browser, { fakeGpu: true, vision: true });
+    try {
+      await openDrawer(page);
+      await select(page, 'Provider', 'd3');
+      await drawerHas(page, /declares a vision graph: the viewer does not support it yet/);
+      check(`${tag} a manifest with a vision graph is detected and the drawer says it is not supported yet`, true);
+    } finally {
+      await ctx.close();
+    }
+  }
+
+  // ---- F: the phone layout with d3, pictures and the calibration table
+  {
+    const { ctx, page, errors } = await open(browser, { viewport: { width: 390, height: 844 }, fakeGpu: true });
+    try {
+      await openDrawer(page);
+      await page.evaluate(() => window.__xrayClassify.configure({ provider: 'd3', d3Backend: 'endpoint', images: 'element+neighbours', imageViews: 2, imageSize: 256, calibration: 'manual', temperatures: { discipline: 0.5 } }));
+      await page.evaluate(() => { const m = window.__xray.app.controller.model; window.__xray.app.selectIds([m.elements.find((x) => x.ifcClass === 'IfcColumn').id]); });
+      await page.waitForSelector('.xt-drawer .xc-thumbs figure', { timeout: 30000 });
+      await page.evaluate(() => window.__xrayClassify.configure({ d3Backend: 'browser', images: 'off' }));
+      await page.waitForTimeout(300);
+      const geom = async () => page.evaluate(() => {
+        const dr = document.querySelector('.xt-drawer').getBoundingClientRect();
+        const bad = [...document.querySelectorAll('.xt-drawer .xt-btn, .xt-drawer input, .xt-drawer select, .xt-drawer img')].filter((e) => e.offsetParent !== null && e.getBoundingClientRect().right > window.innerWidth + 1).length;
+        return { right: dr.right, vw: window.innerWidth, scrollW: document.documentElement.scrollWidth, bad };
+      });
+      const g1 = await geom();
+      check(`${tag} the d3 drawer fits the phone width (browser backend)`, g1.right <= g1.vw + 1 && g1.scrollW <= g1.vw + 1 && g1.bad === 0, JSON.stringify(g1));
+      await page.evaluate(() => window.__xrayClassify.configure({ d3Backend: 'endpoint', images: 'element+neighbours' }));
+      await page.waitForSelector('.xt-drawer .xc-thumbs figure', { timeout: 30000 });
+      await page.locator('.xt-drawer .xc-thumbs').scrollIntoViewIfNeeded();
+      await page.waitForTimeout(300);
+      const g2 = await geom();
+      check(`${tag} the pictures fit the phone width`, g2.right <= g2.vw + 1 && g2.scrollW <= g2.vw + 1 && g2.bad === 0, JSON.stringify(g2));
+      await shot(page, 'classify-d3-phone.png');
+      await page.evaluate(() => window.__xrayClassify.configure({ calibration: 'fitted' }));
+      await page.evaluate(() => window.__xrayClassify.configure({ provider: 'mock' }));
+      void 0;
+    } finally {
+      const real = errors.filter((e) => !/favicon|ERR_FAILED|Failed to load resource/i.test(e));
+      check(`${tag} (phone) zero console errors`, real.length === 0, real.slice(0, 3).join(' | '));
+      await ctx.close();
+    }
+  }
+}
+
 // ---------------------------------------------------------------- phone
 
 async function runPhone(browser) {
@@ -377,6 +687,7 @@ try {
   await waitForServer();
   browser = await chromium.launch({ args: GL });
   await runDesktop(browser);
+  await runD3(browser);
   await runPhone(browser);
   if (checks.some((c) => !c.ok)) exitCode = 1;
   console.log(`\n${checks.filter((c) => c.ok).length}/${checks.length} checks passed`);

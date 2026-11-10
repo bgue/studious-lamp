@@ -10,6 +10,8 @@ import type { KeyValueStorage } from './cache';
 export const KEY_STORAGE_NAME = 'xray.classify.apiKey';
 /** The Hugging Face token (gated or private models) lives in its own entry, with exactly the same rules as the API key. */
 export const HF_TOKEN_STORAGE_NAME = 'xray.classify.hfToken';
+/** The API key of a d3 endpoint has its own entry: a Jev key is never sent to a d3 server, and the other way round. Same rules. */
+export const D3_KEY_STORAGE_NAME = 'xray.classify.d3Key';
 
 export interface KeyStorages {
   session: KeyValueStorage | null;

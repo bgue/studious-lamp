@@ -309,6 +309,11 @@ export class MergedGeometry {
     return g;
   }
 
+  /** A compact, world-space copy of one element's triangles without a BVH (cheap): for drawing a preview. Null without triangles. The caller disposes it. */
+  elementMesh(id: ElementId): BufferGeometry | null {
+    return this.hasGeometry(id) ? this.makeSub(id) : null;
+  }
+
   /**
    * Compact, world-space sub-geometry of one element with its own BVH
    * (`geometry.boundsTree` is set, which three-mesh-bvh uses for geometry-vs-geometry queries).

@@ -9,13 +9,24 @@ import { StorageCache, cacheKey } from './cache';
 import type { KeyValueStorage, SignatureCache } from './cache';
 import { buildRequest, JEV_DEFAULT_MODEL } from './jevAdapter';
 import type { JevRequest } from './jevAdapter';
-import { ApiKeyStore, HF_TOKEN_STORAGE_NAME } from './keyStore';
+import { calibrationStatus } from './calibrationStatus';
+import type { CalibrationStatus } from './calibrationStatus';
+import { collectSamples, fitFromSamples, pickTruths, ruleTruths, toStoredFit } from './calibrateRules';
+import type { CalibrationReport } from './calibrateRules';
+import { FitStore } from './calibrationStore';
+import { chooseTemperatures } from './calibrate';
+import type { CalibrationChoice } from './calibrate';
+import { shippedFor } from './calibrationDefaults';
+import { ApiKeyStore, D3_KEY_STORAGE_NAME, HF_TOKEN_STORAGE_NAME } from './keyStore';
 import type { KeyStorages } from './keyStore';
-import { classifyInputs, estimateCalls, SUB_STRATEGIES } from './pipeline';
+import { classifyInputs, estimateCalls, rescoreResult, SUB_STRATEGIES } from './pipeline';
 import type { CallEstimate, SubDisciplineStrategy } from './pipeline';
-import { createProvider, providerId, testConnection } from './providers';
+import { createProvider, providerId, sendsImages, testConnection } from './providers';
 import type { ConnectionTest } from './providers';
-import { clearModelCache, decisionModelInfo, inspectModel, modelCacheInfo, probeGpu, runtimeText } from './providers/decision';
+import { clearD3Cache, d3CacheInfo, inspectD3Repo } from './providers/d3';
+import type { D3BrowserProvider, D3CacheInfo, D3Inspection } from './providers/d3';
+import type { ThumbSet, ThumbSettings } from './thumbs';
+import { clearModelCache, decisionModelInfo, inspectModel, modelCacheInfo, probeGpu, probeGpu as probeGpuF, runtimeText } from './providers/decision';
 import type { CacheStorageLike, DecisionProgress, DecisionProvider, DecisionStats, GpuProbe, LoadReport, ModelCacheInfo, ModelInspection } from './providers/decision';
 import type { WebLlmStats } from './providers/webllm';
 import { importDisciplineList, exportThroughlineJson } from './throughline';
@@ -50,6 +61,14 @@ export interface ServiceEnv {
   decisionLoad?: Parameters<typeof createProvider>[1]['decisionLoad'];
   decisionGpu?: () => Promise<GpuProbe>;
   webllmLoad?: Parameters<typeof createProvider>[1]['webllmLoad'];
+  /** Draws the pictures of an element for a provider that reads images (the viewer has the geometry; tests pass a fake). */
+  thumbnails?: (id: number, s: ThumbSettings) => Promise<ThumbSet> | ThumbSet;
+  /** Replace the loaders of the d3 browser backend (tests): the runtime, the tokenizer, the file source and the cache. */
+  d3LoadOrt?: Parameters<typeof createProvider>[1]['d3LoadOrt'];
+  d3LoadTokenizerLib?: Parameters<typeof createProvider>[1]['d3LoadTokenizerLib'];
+  d3Source?: Parameters<typeof createProvider>[1]['d3Source'];
+  d3CacheStorage?: Parameters<typeof createProvider>[1]['d3CacheStorage'];
+  d3Gpu?: () => Promise<GpuProbe>;
 }
 
 /** The result of "Test model". */
@@ -88,6 +107,15 @@ export class ClassifyService {
   readonly keys: ApiKeyStore;
   /** The Hugging Face token (gated or private models). Same rules as the API key: not a setting, never in params, links or views. */
   readonly hfToken: ApiKeyStore;
+  /** The API key of a d3 endpoint. Its own entry, same rules: not a setting, never in params, links or views. */
+  readonly d3Key: ApiKeyStore;
+  /** Fitted temperatures per model id (localStorage; not secret, not part of the settings). */
+  readonly fits: FitStore;
+  /** The last "Calibrate on rules" report of this page. */
+  lastCalibration: CalibrationReport | null = null;
+  calibrating = false;
+  /** The person confirmed the download of the d3 files in this page. */
+  d3Confirmed = false;
   /** Messages of the last schema import (warnings that did not stop it). */
   importNotes: string[] = [];
   /** The last load of the decision model, and the download progress while it loads. */
@@ -112,6 +140,8 @@ export class ClassifyService {
   constructor(private readonly env: ServiceEnv) {
     this.keys = new ApiKeyStore(env.keyStorages);
     this.hfToken = new ApiKeyStore(env.keyStorages, HF_TOKEN_STORAGE_NAME);
+    this.d3Key = new ApiKeyStore(env.keyStorages, D3_KEY_STORAGE_NAME);
+    this.fits = new FitStore(env.storage);
     this.loadStoredSchema();
   }
 
@@ -160,6 +190,7 @@ export class ClassifyService {
 
   private afterSettingsChange(): void {
     this.reloadCaches();
+    this.rescore();
     this.store.rereview(this.minConfidence());
     if (this.store.size) {
       if (this.draft.writePset) this.writeToModel(this.store.all());
@@ -170,6 +201,125 @@ export class ClassifyService {
 
   minConfidence(): number {
     return effectiveMinConfidence(this.draft, this.schema.minConfidence);
+  }
+
+  // ------------------------------------------------------------ calibration (logit scaling)
+
+  /** The temperatures in use: shipped, fitted on this model, manual or none, from the calibration setting. */
+  calibration(): CalibrationChoice {
+    const s = this.settings();
+    return chooseTemperatures({ mode: s.calibration, manual: s.temperatures, shipped: shippedFor(s), fitted: this.fits.get(this.modelId()) });
+  }
+
+  /** Everything the drawer shows about calibration. */
+  calibrationStatus(): CalibrationStatus {
+    return calibrationStatus(this.settings(), this.calibration(), this.fits.get(this.modelId()), this.lastCalibration);
+  }
+
+  /** Score the results again from the raw scores in the cache, at the temperatures in use. The model does not run. */
+  rescore(): void {
+    if (!this.store.size) return;
+    const temps = this.calibration().temperatures;
+    const min = this.minConfidence();
+    const next = this.store.all().map((r) => (r.signature ? rescoreResult(this.schema, r, this.cache.get(r.signature), temps, min) : r));
+    this.store.merge(next);
+  }
+
+  /**
+   * Fit one temperature per question on the elements that the rules labelled in the loaded model (the rules as proxy labels), and report
+   * numbers on a held-out share. The model runs for the signatures that are not in the cache yet; the raw scores are kept in the cache,
+   * so a second fit costs nothing. The fit is stored for this model id and the calibration mode is set to `fitted`.
+   */
+  async calibrateOnRules(o: { maxSignatures?: number; heldOut?: number } = {}): Promise<CalibrationReport> {
+    if (!this.model) throw new Error('Load a model first: the rules label its elements.');
+    if (this.running || this.calibrating) throw new Error('A run is already in progress. Stop it first.');
+    const provider = this.provider();
+    if (!provider) throw new Error('Choose a decision model first. Calibration fits the temperatures of the model that is selected.');
+    const all = ruleTruths(this.inputsFor('all'), this.schema);
+    if (all.length < 8) throw new Error(`The rules label only ${all.length} kinds of element in this model (by signature). At least 8 are needed to fit a temperature. Load a model with more elements that the rules know.`);
+    const picked = pickTruths(all, o.maxSignatures ?? 120);
+    this.calibrating = true;
+    this.ctl = new AbortController();
+    this.progress = null;
+    this.emit();
+    try {
+      const s = this.settings();
+      await classifyInputs(picked.map((t) => t.input), this.runOptions(s, provider, this.ctl.signal, { rules: false, manual: new Map() }));
+      const sets = collectSamples(picked, (sig) => this.cache.get(sig));
+      const scored = picked.filter((t) => this.cache.get(t.signature)?.raw).length;
+      if (scored < 8) throw new Error(`Only ${scored} of ${picked.length} signatures were scored by the model, which is too few to fit. ${this.lastStats?.errors[0] ?? ''}`.trim());
+      const rep = fitFromSamples(sets, { modelId: this.modelId(), source: this.modelName, minConfidence: this.minConfidence(), signatures: all.length, scored, ...(o.heldOut !== undefined ? { heldOut: o.heldOut } : {}) });
+      if (!rep.questions.length) throw new Error('No question had enough labelled answers (4 or more) to fit.');
+      this.fits.set(this.modelId(), toStoredFit(rep));
+      this.lastCalibration = rep;
+      this.draft = { ...this.draft, calibration: 'fitted' };
+      this.afterSettingsChange();
+      return rep;
+    } finally {
+      this.calibrating = false;
+      this.ctl = null;
+      this.emit();
+    }
+  }
+
+  /** Forget the fit of the model in use. */
+  forgetFit(): void {
+    this.fits.remove(this.modelId());
+    this.lastCalibration = null;
+    this.afterSettingsChange();
+  }
+
+  /** The options that both a normal run and the calibration run pass to the pipeline. */
+  private runOptions(s: ClassifySettings, provider: DecisionModel | null, signal: AbortSignal, o: { rules?: boolean; manual?: ReadonlyMap<string, ClassifyResult>; sub?: SubDisciplineStrategy } = {}): Parameters<typeof classifyInputs>[1] {
+    const d3 = s.provider === 'd3';
+    const imgs = sendsImages(s) ? this.imageSettings() : null;
+    return {
+      schema: this.schema,
+      provider,
+      minConfidence: this.minConfidence(),
+      cache: this.cache,
+      manual: o.manual ?? this.store.manual,
+      concurrency: s.provider === 'jev' || (d3 && s.d3Backend === 'endpoint') ? s.concurrency : 1,
+      maxStateBytes: s.provider === 'jev' ? s.maxStateBytes : d3 ? s.d3MaxStateBytes : DEFAULT_MAX_STATE_BYTES,
+      subDiscipline: o.sub ?? SUB_STRATEGIES['top2-when-unsure'],
+      temperatures: this.calibration().temperatures,
+      signal,
+      ...(o.rules === false ? { rules: false } : {}),
+      ...(imgs && this.env.thumbnails ? { images: async (input: ClassifyInput) => this.thumbnailUrls(input.id, imgs) } : {}),
+      onProgress: (p: ProgressInfo) => {
+        this.progress = p;
+        this.emit();
+      },
+    };
+  }
+
+  // ------------------------------------------------------------ pictures
+
+  /** The picture settings in use, or null when this provider sends none. */
+  imageSettings(): ThumbSettings | null {
+    const s = this.settings();
+    if (!sendsImages(s) || s.images === 'off') return null;
+    return { mode: s.images, views: s.imageViews, size: s.imageSize };
+  }
+
+  private readonly thumbMemo = new Map<string, ThumbSet>();
+
+  /** The pictures of one element (a set per element and settings, kept for a short while: a rerun does not draw again). */
+  async thumbnails(id: string | number, s: ThumbSettings): Promise<ThumbSet> {
+    const idx = typeof id === 'number' ? id : this.model?.byGlobalId.get(id);
+    if (idx === undefined || !this.model?.elements[idx]) throw new Error(`No element "${String(id)}" in the model.`);
+    if (!this.env.thumbnails) throw new Error('This page cannot draw pictures.');
+    const key = `${this.modelName}|${idx}|${s.mode}|${s.views}|${s.size}`;
+    const hit = this.thumbMemo.get(key);
+    if (hit) return hit;
+    const set = await this.env.thumbnails(idx, s);
+    if (this.thumbMemo.size >= 60) this.thumbMemo.delete(this.thumbMemo.keys().next().value as string);
+    this.thumbMemo.set(key, set);
+    return set;
+  }
+
+  private async thumbnailUrls(gid: string, s: ThumbSettings): Promise<string[]> {
+    return (await this.thumbnails(gid, s)).thumbs.map((t) => t.dataUrl);
   }
 
   /** Cache identity: the provider and the model id. */
@@ -292,13 +442,27 @@ export class ClassifyService {
 
   /** The provider for the current settings. It is reused while the settings stay the same (a browser model keeps its engine). */
   provider(): DecisionModel | null {
-    const key = JSON.stringify(this.settings());
+    // The key leaves out what does not change the provider (the confidence limit, the calibration, the schema): a loaded model is kept.
+    const { calibration: _c, temperatures: _t, minConfidence: _m, writePset: _w, schemaUrl: _s, ...providerSettings } = this.settings();
+    const key = JSON.stringify(providerSettings);
     if (this.providerMemo?.key !== key) {
       this.providerMemo = {
         key,
         provider: createProvider(this.settings(), {
           apiKey: () => this.keys.get(),
+          d3ApiKey: () => this.d3Key.get(),
           hfToken: () => this.hfToken.get(),
+          d3Confirm: () => this.d3Confirmed,
+          onD3Progress: (p) => {
+            this.decisionProgress = p;
+            this.env.onDecisionProgress?.(p);
+            this.emit();
+          },
+          ...(this.env.d3LoadOrt ? { d3LoadOrt: this.env.d3LoadOrt } : {}),
+          ...(this.env.d3LoadTokenizerLib ? { d3LoadTokenizerLib: this.env.d3LoadTokenizerLib } : {}),
+          ...(this.env.d3Source ? { d3Source: this.env.d3Source } : {}),
+          ...(this.env.d3CacheStorage !== undefined ? { d3CacheStorage: this.env.d3CacheStorage } : {}),
+          d3Gpu: () => (this.env.d3Gpu ?? this.env.decisionGpu ?? probeGpuF)(),
           ...(this.env.fetchImpl ? { fetchImpl: this.env.fetchImpl } : {}),
           ...(this.env.onWebLlmProgress ? { onWebLlmProgress: (p: { text: string; progress: number }) => this.env.onWebLlmProgress?.(p.text, p.progress) } : {}),
           onDecisionProgress: (p) => {
@@ -335,6 +499,7 @@ export class ClassifyService {
 
   /** Size of the downloaded models in the Cache API. */
   modelCacheInfo(): Promise<ModelCacheInfo> {
+    if (this.draft.provider === 'd3') return this.d3CacheInfo();
     return modelCacheInfo(this.env.cacheStorage === undefined ? undefined : this.env.cacheStorage);
   }
 
@@ -344,6 +509,12 @@ export class ClassifyService {
     await p?.dispose?.();
     this.lastLoad = null;
     this.decisionProgress = null;
+    if (this.draft.provider === 'd3') {
+      this.d3Confirmed = false;
+      const ok = await clearD3Cache(this.env.d3CacheStorage === undefined ? undefined : this.env.d3CacheStorage as never);
+      this.emit();
+      return ok;
+    }
     const ok = await clearModelCache(this.env.cacheStorage === undefined ? undefined : this.env.cacheStorage);
     this.emit();
     return ok;
@@ -354,6 +525,7 @@ export class ClassifyService {
    * For other providers it is the connection test. Never throws.
    */
   async testModel(): Promise<ModelTest> {
+    if (this.draft.provider === 'd3' && this.draft.d3Backend === 'browser') return this.testD3();
     if (this.draft.provider !== 'decision') {
       const r = await this.testConnection();
       return { ok: r.ok, message: r.message, ...(r.model ? { model: r.model } : {}) };
@@ -409,6 +581,68 @@ export class ClassifyService {
     }
   }
 
+  // ------------------------------------------------------------ d3 (browser backend)
+
+  private d3Inspection: { key: string; value: Promise<D3Inspection> } | null = null;
+
+  /** Read the manifest of the d3 repository (a few KB) so the drawer can show the size before anything is downloaded. */
+  inspectD3(): Promise<D3Inspection> {
+    const s = this.settings();
+    if (s.provider !== 'd3') return Promise.resolve({ ok: false, message: 'd3 is not selected.', files: {}, totalBytes: 0, torsoBytes: 0, vision: false, scope: '' });
+    const key = `${s.d3Repo}|${s.d3Revision}|${s.d3HfEndpoint}`;
+    if (this.d3Inspection?.key !== key) {
+      const value = inspectD3Repo({ repo: s.d3Repo, revision: s.d3Revision, endpoint: s.d3HfEndpoint, token: this.hfToken.get(), ...(this.env.fetchImpl ? { fetchImpl: this.env.fetchImpl } : {}) });
+      this.d3Inspection = { key, value };
+      void value.then((r) => { if (!r.ok && this.d3Inspection?.key === key) this.d3Inspection = null; });
+    }
+    return this.d3Inspection.value;
+  }
+
+  d3CacheInfo(): Promise<D3CacheInfo> {
+    return d3CacheInfo(this.env.d3CacheStorage === undefined ? undefined : this.env.d3CacheStorage as never);
+  }
+
+  /** The person confirmed the download (the drawer asks first and shows the size). */
+  confirmD3Download(): void {
+    this.d3Confirmed = true;
+    this.emit();
+  }
+
+  /** Load the d3 browser model, run one tiny choice, report the load time, the device and the answer. Never throws. */
+  private async testD3(): Promise<ModelTest> {
+    const s = this.settings();
+    if (s.provider !== 'd3') return { ok: false, message: 'd3 is not selected.' };
+    const provider = this.provider() as D3BrowserProvider;
+    this.testCtl = new AbortController();
+    const signal = this.testCtl.signal;
+    this.decisionProgress = null;
+    this.emit();
+    try {
+      const ins = await this.inspectD3();
+      if (!ins.ok) return { ok: false, message: ins.message, model: s.d3Repo };
+      const rep = await provider.load(signal);
+      const t0 = Date.now();
+      const a = await provider.decide(
+        { class: 'IfcDuctSegment', name: 'Duct 300x200', building_context: true },
+        { pick: { type: 'choice', instructions: 'Choose the discipline.', criteria: { MEC: 'Mechanical. Heating, ventilation and air conditioning: ducts, fans.', ARC: 'Architectural. Walls, doors, windows, finishes.', PLB: 'Plumbing. Water supply and drainage pipes.' } } },
+        signal,
+      );
+      const ans = a.answers['pick'];
+      const choice = ans && ans.type === 'choice' ? { code: ans.choice, probability: ans.probabilities[ans.choice] ?? ans.confidence, ms: Date.now() - t0 } : undefined;
+      this.lastLoad = { device: rep.device, dtype: 'fp16', note: rep.note, loadMs: rep.loadMs, sizeMB: Math.round(rep.totalBytes / 1e5) / 10, labels: [] };
+      return {
+        ok: true, model: s.d3Repo, device: rep.device, dtype: 'fp16', loadMs: rep.loadMs, sizeMB: Math.round(rep.totalBytes / 1e5) / 10, ...(choice ? { choice } : {}), ...(rep.note ? { note: rep.note } : {}),
+        message: `Ready: ${s.d3Repo} on ${rep.device} in ${(rep.loadMs / 1000).toFixed(1)} s.${choice ? ` Test question: chose ${choice.code} (${choice.probability.toFixed(2)}) in ${choice.ms} ms.` : ''}${rep.note ? ` ${rep.note}` : ''}`,
+      };
+    } catch (e) {
+      if (signal.aborted) return { ok: false, message: 'Stopped.' };
+      return { ok: false, message: e instanceof Error ? e.message : String(e) };
+    } finally {
+      this.testCtl = null;
+      this.emit();
+    }
+  }
+
   /** Text for the drawer: where the decision model runs, and what that costs. */
   runtimeNote(): string {
     return runtimeText(this.lastLoad, this.gpu);
@@ -434,8 +668,8 @@ export class ClassifyService {
 
   /** The exact requests the viewer would send for an element: the first (discipline, building_element, masterformat) and an example of the second. */
   questions(input: ClassifyInput, discipline?: string): { model: string; stateBytes: number; main: JevRequest; sub: JevRequest | null; subFor: string } {
-    const model = this.draft.provider === 'jev' ? this.draft.model : JEV_DEFAULT_MODEL;
-    const maxBytes = this.draft.provider === 'jev' ? this.draft.maxStateBytes : DEFAULT_MAX_STATE_BYTES;
+    const model = this.draft.provider === 'jev' ? this.draft.model : this.draft.provider === 'd3' ? this.draft.d3Model : JEV_DEFAULT_MODEL;
+    const maxBytes = this.draft.provider === 'jev' ? this.draft.maxStateBytes : this.draft.provider === 'd3' ? this.draft.d3MaxStateBytes : DEFAULT_MAX_STATE_BYTES;
     const state = buildState(input, maxBytes);
     const guess = classByRules(input);
     const resolved = guess ? resolveRule(guess, this.schema, true) : null;
@@ -459,22 +693,7 @@ export class ClassifyService {
     const s = this.settings();
     try {
       const sub = typeof o.subDiscipline === 'function' ? o.subDiscipline : SUB_STRATEGIES[o.subDiscipline ?? 'top2-when-unsure'];
-      const run = await classifyInputs(inputs, {
-        schema: this.schema,
-        provider: this.provider(),
-        minConfidence: this.minConfidence(),
-        cache: this.cache,
-        manual: this.store.manual,
-        concurrency: s.provider === 'jev' ? s.concurrency : 1,
-        maxStateBytes: s.provider === 'jev' ? s.maxStateBytes : DEFAULT_MAX_STATE_BYTES,
-        subDiscipline: sub,
-        signal: this.ctl.signal,
-        ...(o.rules === false ? { rules: false } : {}),
-        onProgress: (p) => {
-          this.progress = p;
-          this.emit();
-        },
-      });
+      const run = await classifyInputs(inputs, this.runOptions(s, this.provider(), this.ctl.signal, { sub, ...(o.rules === false ? { rules: false } : {}) }));
       this.store.merge(run.results);
       this.lastStats = run.stats;
       if (s.writePset) this.writeToModel(run.results);

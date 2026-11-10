@@ -44,6 +44,8 @@ export interface NoulQuestion {
   type: 'noul';
   /** A statement to judge true or false. */
   instructions: string;
+  /** Optional wording of the two answers (System One servers of d3 read it). The viewer asks none. */
+  criteria?: { false?: string; true?: string };
 }
 export type Question = ChoiceQuestion | ScoreQuestion | NoulQuestion;
 export type Questions = Record<string, Question>;
@@ -53,6 +55,8 @@ export interface ChoiceAnswer {
   choice: string;
   confidence: number;
   probabilities: Record<string, number>;
+  /** Raw scores per option when the provider has them (logits). Without them, the log of the probabilities is used. Local providers only. */
+  logits?: Record<string, number>;
 }
 export interface ScoreAnswer {
   type: 'score';
@@ -65,6 +69,8 @@ export interface NoulAnswer {
   type: 'noul';
   /** P(the statement is true) */
   noul: number;
+  /** Raw log-odds of "true" when the provider has it. Local providers only. */
+  logit?: number;
 }
 export type Answer = ChoiceAnswer | ScoreAnswer | NoulAnswer;
 
@@ -85,10 +91,12 @@ export interface JevRequest {
   model: string;
   state: JsonObject;
   questions: Questions;
+  /** Base64 data URLs (PNG, JPEG or WebP) that every question sees. Only the System One servers that read images (d3-edge) take them. */
+  images?: string[];
 }
 
-export function buildRequest(model: string, state: JsonObject, questions: Questions): JevRequest {
-  return { model, state, questions };
+export function buildRequest(model: string, state: JsonObject, questions: Questions, images?: readonly string[]): JevRequest {
+  return { model, state, questions, ...(images && images.length ? { images: [...images] } : {}) };
 }
 
 /** Request headers. Without a key (a same-origin proxy that adds it) no Authorization header is sent. */

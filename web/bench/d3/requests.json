@@ -1,0 +1,35 @@
+[
+  {
+    "name": "ticket",
+    "state": "The order arrived damaged yesterday. The customer has a receipt and asks for a replacement today.",
+    "questions": {
+      "route": { "type": "choice", "instructions": "Which team should handle this request?", "criteria": { "returns": "Refunds, replacements and damaged deliveries", "billing": "Payments, invoices and charges", "technical": "Product setup and faults" } },
+      "receipt": { "type": "noul", "instructions": "Does the customer have a receipt?" },
+      "urgency": { "type": "score", "instructions": "How urgent is this request?", "criteria": ["Routine", "Soon", "Today"] }
+    }
+  },
+  {
+    "name": "blender",
+    "state": "The customer says the blender arrived cracked and attached the receipt.",
+    "questions": {
+      "route": { "type": "choice", "instructions": "Which team should handle this request?", "criteria": { "returns": "Refunds, replacements and damaged deliveries", "billing": "Payments, invoices and charges", "technical": "Product setup and faults" } },
+      "payment": { "type": "choice", "instructions": "How was the order paid?", "criteria": { "card": null, "cash": null, "gift card": null } }
+    }
+  },
+  {
+    "name": "kind",
+    "state": "Write a Python function that merges two sorted lists.",
+    "questions": {
+      "kind": { "type": "choice", "instructions": "What kind of work is this?", "criteria": { "code": "Writing or fixing code", "math": "Mathematics", "chat": "Anything else" } },
+      "reasoning": { "type": "noul", "instructions": "Does answering this need multi-step reasoning?" }
+    }
+  },
+  {
+    "name": "bim-json-state",
+    "state": { "class": "IfcPipeSegment", "name": "Pipe riser L0 4,0", "type": { "class": "IfcPipeSegmentType", "name": "Pipe PVC 100" }, "psets": { "Attr": { "ObjectType": "Pipe PVC 100", "PredefinedType": "RIGIDSEGMENT" } }, "material": "PVC", "systems": ["Domestic Water"], "building_context": true },
+    "questions": {
+      "discipline": { "type": "choice", "instructions": "Choose the engineering discipline that owns this BIM element.", "criteria": { "ARC": "Architectural. Walls, doors, windows, finishes.", "STR": "Structural. Footings, columns, beams, slabs.", "MEC": "Mechanical and HVAC. Ducts, fans, air handling.", "PLB": "Plumbing. Domestic water supply, drainage and fixtures." } },
+      "building_element": { "type": "noul", "instructions": "This element is part of a building (not of a road, a bridge, a site utility or a process plant)." }
+    }
+  }
+]

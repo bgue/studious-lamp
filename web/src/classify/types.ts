@@ -151,10 +151,16 @@ export interface ClassificationSchema {
 export type { Answer, Answers, ChoiceAnswer, ChoiceQuestion, JsonObject, JsonValue, NoulAnswer, NoulQuestion, Question, Questions, ScoreAnswer, ScoreQuestion } from './jevAdapter';
 import type { Answers, JsonObject, Questions } from './jevAdapter';
 
+/** What a request may carry besides the state and the questions. */
+export interface DecideExtra {
+  /** Base64 data URLs of pictures of the element. Only a provider that reads images uses them. */
+  images?: readonly string[];
+}
+
 export interface DecisionModel {
-  /** Provider id, for messages: 'jev', 'webllm', 'mock'. */
+  /** Provider id, for messages: 'jev', 'd3', 'webllm', 'mock'. */
   readonly provider: string;
-  decide(state: JsonObject, questions: Questions, signal: AbortSignal): Promise<Answers>;
+  decide(state: JsonObject, questions: Questions, signal: AbortSignal, extra?: DecideExtra): Promise<Answers>;
 }
 
 /** An error from a provider. `status` is the HTTP status when there is one. */

@@ -13,16 +13,24 @@ import { buildInput } from '../classify/build';
 import { disciplineRgb, rgbCss } from '../classify/palette';
 import { detectWebGpu, describeModel, customModelCheck, WEBLLM_EMBED_MODELS, WEBLLM_MODELS, WEBLLM_MODES, webllmModelInfo } from '../classify/providers/webllm';
 import { DECISION_DEVICES, DECISION_DTYPES, DECISION_MODELS, DEFAULT_HYPOTHESES, HYPOTHESIS_KEYS, decisionModelInfo, describeDecisionModel } from '../classify/providers/decision';
+import { D3_NO_WEBGPU, chooseD3Runtime } from '../classify/providers/d3';
+import { D3_BACKENDS, D3_DEVICES, IMAGE_MODES, IMAGE_SIZE_MAX, IMAGE_SIZE_MIN, IMAGE_VIEWS_MAX, IMAGE_VIEWS_MIN } from '../classify/providers/d3Config';
+import { TEMPERATURE_KEYS } from '../classify/calibrate';
+import type { QuestionReport, TemperatureKey } from '../classify/calibrate';
+import type { CalibrationReport } from '../classify/calibrateRules';
+import { renderThumbs, thumbKey, disposeThumbRenderer } from '../classify/thumbs';
+import type { ThumbSet, ThumbSource } from '../classify/thumbs';
 import type { DecisionStats, ModelCacheInfo } from '../classify/providers/decision';
 import type { WebLlmStats } from '../classify/providers/webllm';
 import type { ApiKeyStore } from '../classify/keyStore';
 import { topTwo, overallConfidence } from '../classify/review';
 import { browserKeyStorages } from '../classify/keyStore';
 import { ClassifyService } from '../classify/service';
+import type { CalibrationStatus } from '../classify/calibrationStatus';
 import type { ModelTest, RunOptions, Target } from '../classify/service';
 import { PROVIDERS } from '../classify/settings';
 import type { ProviderId } from '../classify/settings';
-import { JEV_DEFAULTS } from '../classify/settings';
+import { D3_DEFAULTS, JEV_DEFAULTS } from '../classify/settings';
 import { propertyNames } from '../classify/schema';
 import type { ManualPartial } from '../classify/results';
 import type { ClassifyInput, ClassifyResult, ClassifyStats } from '../classify/types';
@@ -78,6 +86,18 @@ export interface ClassifyApi {
   importThroughline(json: unknown): { errors: string[]; warnings: string[] };
   selectNeedsReview(): number;
   colourByDiscipline(on?: boolean): boolean;
+  /** The temperatures in use, the mode and the numbers of the last fit. */
+  calibration(): CalibrationStatus;
+  /** Fit one temperature per question on the elements that the rules labelled in this model (held-out numbers in the report). */
+  calibrate(opts?: { maxSignatures?: number; heldOut?: number }): Promise<CalibrationReport>;
+  forgetFit(): void;
+  /** The API key of a d3 endpoint (its own entry; never in params, links, views or packed pages). */
+  setD3Key(key: string, remember?: boolean): void;
+  d3KeyState(): { set: boolean; remembered: boolean; mask: string };
+  /** The person confirms the download of the d3 browser files (about 1 GB). */
+  confirmD3Download(): void;
+  /** The pictures that the model would see for an element (data URLs). Needs the picture settings of a provider that sends images. */
+  thumbnails(id: number | string): Promise<ThumbSet>
   state(): { running: boolean; provider: string; model: string; schemaTitle: string; placeholder: boolean; hash: string };
 }
 
@@ -98,6 +118,16 @@ const CSS = `
 .xc-adv summary{cursor:pointer;color:var(--sb-dim,#8d99a8);font-size:11px}
 .xc-prog{height:6px;background:#10141b;border:1px solid var(--sb-line,#262d3a);border-radius:3px;overflow:hidden}
 .xc-prog>i{display:block;height:100%;background:#2d6aa8;width:0}
+.xc-confirm{display:flex;flex-direction:column;gap:6px;padding:8px;border:1px solid #b8862b;border-radius:4px;background:#17130a}
+.xc-confirm[hidden],.xc-thumbs[hidden],.xc-cal[hidden]{display:none}
+.xc-thumbs{display:flex;flex-wrap:wrap;gap:6px}
+.xc-thumbs figure{margin:0;display:flex;flex-direction:column;gap:2px;font-size:11px;color:var(--sb-dim,#8d99a8)}
+.xc-thumbs img{display:block;max-width:100%;height:auto;border:1px solid var(--sb-line,#262d3a);border-radius:3px;background:#eef1f5}
+.xc-cal{display:flex;flex-direction:column;gap:4px;overflow-x:auto}
+.xc-caltable{border-collapse:collapse;font-size:11px;white-space:nowrap}
+.xc-caltable th,.xc-caltable td{padding:2px 6px;border-bottom:1px solid var(--sb-line,#262d3a);text-align:right}
+.xc-caltable th:first-child,.xc-caltable td:first-child{text-align:left}
+.xc-caltable tr.xc-after td{color:#9fe3b0}
 `;
 
 function ensureStyle(): void {
@@ -201,9 +231,17 @@ function pick<T extends string>(label: string, options: ReadonlyArray<{ value: T
   return { root, sel, update: () => { sel.value = get(); } };
 }
 
+const D3_LABEL = { browser: 'In the browser (WebGPU)', endpoint: 'Endpoint (System One server)' } as const;
+const IMAGE_LABEL: Record<(typeof IMAGE_MODES)[number], string> = { off: 'Off (text only)', element: 'The element', 'element+neighbours': 'The element and its neighbours' };
+const TEMP_LABEL: Record<TemperatureKey, string> = { discipline: 'Temperature: discipline', sub_discipline: 'Temperature: sub-discipline', masterformat: 'Temperature: division', building_element: 'Temperature: building' };
+const QUESTION_LABEL: Record<string, string> = { discipline: 'Discipline', sub_discipline: 'Sub-discipline', masterformat: 'Division', building_element: 'Building' };
+const CAL_MODE_LABEL = { auto: 'Auto (numbers shipped for this model)', fitted: 'Fitted on this model', manual: 'Manual', off: 'Off (the model as it comes)' } as const;
+const pct = (x: number): string => (Number.isFinite(x) ? `${Math.round(x * 100)}%` : '-');
+
 const PROVIDER_LABEL: Record<ProviderId, string> = {
   off: 'Off (rules and cache only)',
   decision: 'Decision model (in browser, WebGPU)',
+  d3: 'Decision 3.0 d3-edge',
   webllm: 'Browser chat model (WebLLM)',
   jev: 'Jev (HTTP)',
   mock: 'Mock (tests)',
@@ -214,25 +252,26 @@ const fmtMB = (b: number): string => (b >= 1e9 ? `${(b / 1e9).toFixed(2)} GB` : 
 /** A password box for a secret, with Save and Forget and a "remember" switch. The secret is never shown again. */
 function secretField(
   add: <W extends Widget>(w: W) => W,
-  o: { label: string; aria: string; name: string; store: ApiKeyStore; status: string; remember: string; save: string; forget: string; saveTitle: string; forgetTitle: string },
+  o: { label: string; aria: string; name: string; store: ApiKeyStore | (() => ApiKeyStore); status: string; remember: string; save: string; forget: string; saveTitle: string; forgetTitle: string },
 ): { nodes: HTMLElement[]; paint(): void } {
   const box = el('label', 'xt-select');
   const input = el('input', 'xc-text', { type: 'password', autocomplete: 'off', spellcheck: 'false', 'aria-label': o.aria, placeholder: 'not shown after saving', name: o.name });
   box.append(el('span', 'xt-lbl', undefined, o.label), input);
+  const st = (): ApiKeyStore => (typeof o.store === 'function' ? o.store() : o.store);
   const status = statusLine('');
-  const remember = add(check(o.remember, () => o.store.remembered(), (v) => {
-    const k = input.value.trim() || o.store.get();
-    if (k) o.store.set(k, v);
+  const remember = add(check(o.remember, () => st().remembered(), (v) => {
+    const k = input.value.trim() || st().get();
+    if (k) st().set(k, v);
     paint();
   }));
   const save = (): void => {
-    if (input.value.trim()) o.store.set(input.value, (remember.root.querySelector('input') as HTMLInputElement).checked);
+    if (input.value.trim()) st().set(input.value, (remember.root.querySelector('input') as HTMLInputElement).checked);
     input.value = '';
     paint();
   };
   input.addEventListener('change', save);
   const paint = (): void => {
-    status.set(`${o.status}: ${o.store.mask()}${o.store.remembered() ? ', kept on this device' : o.store.get() ? ', kept for this tab only' : ''}`);
+    status.set(`${o.status}: ${st().mask()}${st().remembered() ? ', kept on this device' : st().get() ? ', kept for this tab only' : ''}`);
     remember.update();
   };
   return {
@@ -240,7 +279,7 @@ function secretField(
       box, remember.root, status,
       row(
         button(o.save, save, { title: o.saveTitle }),
-        button(o.forget, () => { o.store.clear(); input.value = ''; paint(); }, { title: o.forgetTitle }),
+        button(o.forget, () => { st().clear(); input.value = ''; paint(); }, { title: o.forgetTitle }),
       ),
     ],
     paint,
@@ -257,6 +296,30 @@ function details(summary: string): HTMLDetailsElement {
 // ---------------------------------------------------------------- drawer
 
 const MAX_ROWS = 200;
+
+/** The before and after numbers of a fit, held out: accuracy, mean confidence, ECE, the share that clears the minimum and its accuracy. */
+function calTable(qs: QuestionReport[], source: string, min: number): HTMLElement {
+  const wrap = el('div');
+  const t = el('table', 'xc-caltable');
+  const head = el('tr');
+  for (const h of ['Question', 'n', 'T', 'Right', 'Conf.', 'ECE', `Clear ${fmt2(min)}`, 'Of clear']) head.appendChild(el('th', undefined, undefined, h));
+  t.appendChild(el('thead')).appendChild(head);
+  const body = el('tbody');
+  for (const q of qs) {
+    const mk = (cls: string, label: string, T: string, m: QuestionReport['before']): HTMLElement => {
+      const tr = el('tr', cls);
+      for (const c of [label, `${q.nTest || q.nTrain}`, T, pct(m.accuracy), fmt2(m.meanConfidence), fmt2(m.ece), pct(m.clearShare), pct(m.clearAccuracy)]) tr.appendChild(el('td', undefined, undefined, c));
+      return tr;
+    };
+    body.append(mk('xc-before', `${QUESTION_LABEL[q.question] ?? q.question}, before`, '1', q.before), mk('xc-after', 'after', fmt2(q.T), q.after));
+  }
+  t.appendChild(body);
+  wrap.append(
+    t,
+    el('div', 'xt-note', undefined, `n is the number of signatures. Conf. is the mean confidence. Of clear is the accuracy of the answers that clear the minimum. Numbers on ${qs[0] && qs[0].nTest ? 'the held-out share' : 'the signatures used for the fit (too few to hold any out)'} of the kinds of element that the rules label${source ? ` in ${source}` : ''}. The rules are proxy labels, not the truth: a rule can be wrong. ECE is the expected calibration error: lower is better.`),
+  );
+  return wrap;
+}
 
 function panel(box: HTMLElement, app: ViewerApp, svc: ClassifyService, tint: Tint, api: ClassifyApi): () => void {
   ensureStyle();
@@ -313,28 +376,83 @@ function panel(box: HTMLElement, app: ViewerApp, svc: ClassifyService, tint: Tin
   const HYP_LABEL: Record<(typeof HYPOTHESIS_KEYS)[number], string> = { discipline: 'Discipline hypothesis', sub_discipline: 'Sub-discipline hypothesis', masterformat: 'Division hypothesis', building_element: 'Building hypothesis' };
   for (const k of HYPOTHESIS_KEYS) advDec.append(add(textField(HYP_LABEL[k], () => d().hypothesis[k], (v) => apply({ hypothesis: { ...d().hypothesis, [k]: v.trim() } }))).root);
   advDec.append(row(button('Reset hypotheses', () => apply({ hypothesis: { ...DEFAULT_HYPOTHESES } }), { title: 'Use the default hypothesis sentences' })));
-  dec.append(decPreset.root, decModelId.root, decDevice.root, decDtype.root, decInfo, decRuntime, ...hfTok.nodes, decProg, decProgLine, cacheLine, advDec);
+  dec.append(decPreset.root, decModelId.root, decDevice.root, decDtype.root, decInfo, decRuntime, decProg, decProgLine, cacheLine, advDec);
   box.appendChild(dec);
 
-  // Jev
+  // Decision 3.0 d3-edge: in the browser (onnxruntime-web, WebGPU) or on a System One endpoint
+  const d3g = el('div', 'xc-group');
+  d3g.setAttribute('data-for', 'd3');
+  d3g.style.cssText = 'display:flex;flex-direction:column;gap:6px';
+  const d3Backend = add(pick('Backend', D3_BACKENDS.map((v) => ({ value: v, text: D3_LABEL[v] })), () => d().d3Backend, (v) => apply({ d3Backend: v })));
+  const d3Browser = el('div', 'xc-group');
+  d3Browser.style.cssText = 'display:flex;flex-direction:column;gap:6px';
+  const d3Info = el('div', 'xt-note');
+  const d3Runtime = el('div', 'xt-note');
+  d3Runtime.setAttribute('role', 'status');
+  const d3Prog = el('div', 'xc-prog');
+  const d3Bar = el('i');
+  d3Prog.appendChild(d3Bar);
+  const d3ProgLine = statusLine('');
+  const d3CacheLine = statusLine('');
+  const d3Confirm = el('div', 'xc-confirm');
+  d3Confirm.hidden = true;
+  const d3ConfirmText = el('div', 'xt-note');
+  d3Confirm.append(
+    d3ConfirmText,
+    row(
+      button('Download model', () => { d3Confirm.hidden = true; svc.confirmD3Download(); runTestModel(); }, { primary: true, title: 'Download the model files and test them' }),
+      button('Cancel', () => { d3Confirm.hidden = true; conn.set('The download was cancelled.'); }, { title: 'Do not download' }),
+    ),
+  );
+  const advD3 = details('Advanced: file address');
+  advD3.append(
+    add(textField('File address', () => d().d3HfEndpoint, (v) => apply({ d3HfEndpoint: v.trim() }), { type: 'url', placeholder: 'https://huggingface.co' })).root,
+    note('Use another address for a mirror or your own proxy. A token goes to this address only.'),
+  );
+  d3Browser.append(
+    add(textField('Model repository', () => d().d3Repo, (v) => apply({ d3Repo: v.trim() }), { placeholder: 'owner/name, for example warsang/d3-edge-web' })).root,
+    add(textField('Revision', () => d().d3Revision, (v) => apply({ d3Revision: v.trim() }), { placeholder: 'a commit hash of 40 characters' })).root,
+    add(pick('Run on', D3_DEVICES.map((v) => ({ value: v, text: v === 'auto' ? 'Auto (WebGPU with shader-f16)' : v === 'webgpu' ? 'WebGPU' : 'WASM (very slow, about 5 GB of memory)' })), () => d().d3Device, (v) => apply({ d3Device: v }))).root,
+    d3Info, d3Runtime, d3Confirm, d3Prog, d3ProgLine, d3CacheLine, advD3,
+  );
+  d3g.append(d3Backend.root, d3Browser);
+  box.appendChild(d3g);
+
+  // One token box for the models that come from Hugging Face (the decision model and d3 in the browser)
+  const tokBox = el('div', 'xc-group');
+  tokBox.style.cssText = 'display:flex;flex-direction:column;gap:6px';
+  tokBox.append(...hfTok.nodes);
+  box.appendChild(tokBox);
+
+  // A server that speaks the Jev wire format: Jev, or d3-edge on a System One endpoint. The same boxes edit the fields of the provider in use.
+  const isD3 = (): boolean => d().provider === 'd3';
   const jev = el('div', 'xc-group');
   jev.setAttribute('data-for', 'jev');
   jev.style.cssText = 'display:flex;flex-direction:column;gap:6px';
+  const srvEndpoint = add(textField('Endpoint', () => (isD3() ? d().d3Endpoint : d().endpoint), (v) => apply(isD3() ? { d3Endpoint: v.trim() } : { endpoint: v.trim() }), { type: 'url', placeholder: JEV_DEFAULTS.endpoint }));
+  const srvModel = add(textField('Model id', () => (isD3() ? d().d3Model : d().model), (v) => apply(isD3() ? { d3Model: v.trim() } : { model: v.trim() }), { placeholder: JEV_DEFAULTS.model }));
   jev.append(
-    add(textField('Endpoint', () => d().endpoint, (v) => apply({ endpoint: v.trim() }), { type: 'url', placeholder: JEV_DEFAULTS.endpoint })).root,
-    add(textField('Model id', () => d().model, (v) => apply({ model: v.trim() }), { placeholder: JEV_DEFAULTS.model })).root,
+    srvEndpoint.root, srvModel.root,
     add(numField('Requests at once', 1, 16, 1, () => d().concurrency, (v) => apply({ concurrency: v }))).root,
-    add(numField('State size cap (bytes)', 500, 64000, 500, () => d().maxStateBytes, (v) => apply({ maxStateBytes: v }))).root,
     add(numField('Timeout (ms)', 1000, 300000, 1000, () => d().timeoutMs, (v) => apply({ timeoutMs: v }))).root,
   );
-  // API key
+  // API key: Jev and d3 keep theirs in separate entries, so a Jev key never goes to a d3 server
   const jevKey = secretField(add, {
-    label: 'API key', aria: 'API key', name: 'xray-classify-key', store: svc.keys, status: 'API key', remember: 'Remember on this device',
+    label: 'API key', aria: 'API key', name: 'xray-classify-key', store: () => (isD3() ? svc.d3Key : svc.keys), status: 'API key', remember: 'Remember on this device',
     save: 'Save key', forget: 'Forget key', saveTitle: 'Keep the key typed above', forgetTitle: 'Remove the key from this browser',
   });
-  jev.append(...jevKey.nodes, note('A key in a page can be read by anyone who uses this browser. For a shared viewer, use a same-origin proxy as the endpoint and leave the key empty.'));
+  const srvNote = note('A key in a page can be read by anyone who uses this browser. For a shared viewer, use a same-origin proxy as the endpoint and leave the key empty.');
+  const d3Hint = note('Start the server with vllm-sr serve -e vllm-sr/d3-edge. Leave the key box empty when the server needs no key. The key is kept apart from the Jev key.');
+  const jevImages = add(check('Send images to Jev', () => d().jevImages, (v) => apply({ jevImages: v })));
+  const jevImagesNote = note('Untested: Jev is not known to read images. Turn it on only for a server that does. The pictures follow the settings in the Pictures section.');
+  jev.append(...jevKey.nodes, srvNote, d3Hint, jevImages.root, jevImagesNote);
   const paintKey = jevKey.paint;
   box.appendChild(jev);
+  // The cap of the state that goes into a request: Jev and d3 (both backends)
+  const capBox = el('div', 'xc-group');
+  capBox.style.cssText = 'display:flex;flex-direction:column;gap:6px';
+  capBox.append(add(numField('State size cap (bytes)', 500, 64000, 500, () => (isD3() ? d().d3MaxStateBytes : d().maxStateBytes), (v) => apply(isD3() ? { d3MaxStateBytes: v } : { maxStateBytes: v }))).root);
+  box.appendChild(capBox);
 
   // WebLLM
   const web = el('div', 'xc-group');
@@ -370,7 +488,7 @@ function panel(box: HTMLElement, app: ViewerApp, svc: ClassifyService, tint: Tin
       conn.classList.toggle('xc-err', !r.ok);
     });
   }, { title: 'Send one small yes or no question to the provider' });
-  const testModelBtn = button('Test model', () => {
+  const runTestModel = (): void => {
     conn.set('Loading the model...');
     conn.classList.remove('xc-err');
     void svc.testModel().then((r) => {
@@ -378,6 +496,22 @@ function panel(box: HTMLElement, app: ViewerApp, svc: ClassifyService, tint: Tin
       conn.classList.toggle('xc-err', !r.ok);
       void paintCache();
     });
+  };
+  // d3 in the browser downloads about 1 GB: ask first, with the size from the manifest.
+  const askD3 = async (): Promise<void> => {
+    // A device that cannot run the model gets the reason now, before any question about 1 GB.
+    const gpu = await svc.probeGpu();
+    try { chooseD3Runtime(d().d3Device, gpu); } catch (e) { conn.set(e instanceof Error ? e.message : String(e)); conn.classList.add('xc-err'); return; }
+    const [ins, c] = await Promise.all([svc.inspectD3(), svc.d3CacheInfo()]);
+    if (!ins.ok) { conn.set(ins.message); conn.classList.add('xc-err'); return; }
+    if (svc.d3Confirmed || c.files >= 3) { runTestModel(); return; }
+    d3ConfirmText.textContent = `The d3-edge model is not on this device. Testing it downloads ${fmtMB(ins.totalBytes)} from ${d().d3HfEndpoint} (revision ${d().d3Revision.slice(0, 8)}) and keeps the files in the browser cache. `
+      + 'The viewer checks every file against the size in the manifest, and the small files against their sha256.';
+    d3Confirm.hidden = false;
+  };
+  const testModelBtn = button('Test model', () => {
+    if (d().provider === 'd3' && d().d3Backend === 'browser') void askD3();
+    else runTestModel();
   }, { title: 'Load the model, run one small question and report the time, the device and the size' });
   const clearCacheBtn = button('Clear model cache', () => {
     void svc.clearModelCache().then((ok) => { conn.set(ok ? 'The downloaded models were deleted from the browser cache.' : 'The browser cache holds no models.'); conn.classList.remove('xc-err'); void paintCache(); });
@@ -394,6 +528,46 @@ function panel(box: HTMLElement, app: ViewerApp, svc: ClassifyService, tint: Tin
     } finally {
       cacheBusy = false;
     }
+  };
+
+  // ---- pictures (d3 endpoint, and Jev when its switch is on)
+  const picSec = el('div', 'xc-group');
+  picSec.style.cssText = 'display:flex;flex-direction:column;gap:6px';
+  const picMode = add(pick('Images', IMAGE_MODES.map((v) => ({ value: v, text: IMAGE_LABEL[v] })), () => d().images, (v) => apply({ images: v })));
+  const picViews = add(numField('Views', IMAGE_VIEWS_MIN, IMAGE_VIEWS_MAX, 1, () => d().imageViews, (v) => apply({ imageViews: v })));
+  const picSize = add(numField('Image size', IMAGE_SIZE_MIN, IMAGE_SIZE_MAX, 32, () => d().imageSize, (v) => apply({ imageSize: v })));
+  const picNote = el('div', 'xt-note');
+  const thumbBox = el('div', 'xc-thumbs');
+  thumbBox.hidden = true;
+  const thumbLine = statusLine('');
+  picSec.append(picMode.root, picViews.root, picSize.root, picNote, thumbLine, thumbBox);
+  box.append(section('Pictures'), picSec);
+  let thumbFor = '';
+  const paintThumbs = (): void => {
+    const st = svc.imageSettings();
+    thumbBox.hidden = !st;
+    thumbLine.hidden = !st;
+    if (!st) { thumbFor = ''; thumbBox.replaceChildren(); return; }
+    const sel = app.selection[0];
+    const key = `${sel ?? ''}|${svc.modelName}|${thumbKey(st)}`;
+    if (key === thumbFor) return;
+    thumbFor = key;
+    if (sel === undefined) { thumbBox.replaceChildren(); thumbLine.set('Select an element to see the pictures that the model gets.'); return; }
+    thumbLine.set('Drawing the pictures...');
+    thumbLine.classList.remove('xc-err');
+    void svc.thumbnails(sel, st).then(
+      (set) => {
+        if (thumbFor !== key) return;
+        thumbBox.replaceChildren(...set.thumbs.map((t) => {
+          const fig = el('figure');
+          const img = el('img', undefined, { alt: `${t.view} view of the selected element`, src: t.dataUrl, width: String(t.width), height: String(t.height) });
+          fig.append(img, el('figcaption', undefined, undefined, `${t.view}, bar ${t.scaleBarM >= 1 ? `${t.scaleBarM} m` : `${Math.round(t.scaleBarM * 100)} cm`}`));
+          return fig;
+        }));
+        thumbLine.set(`The model gets ${set.thumbs.length} picture${set.thumbs.length === 1 ? '' : 's'} of the selected element${set.neighbours.length ? ` and ${set.neighbours.length} neighbour${set.neighbours.length === 1 ? '' : 's'}` : ''}. They are not saved anywhere.`);
+      },
+      (e: unknown) => { if (thumbFor === key) { thumbBox.replaceChildren(); thumbLine.set(e instanceof Error ? e.message : String(e)); thumbLine.classList.add('xc-err'); } },
+    );
   };
 
   // ---- schema
@@ -435,6 +609,59 @@ function panel(box: HTMLElement, app: ViewerApp, svc: ClassifyService, tint: Tin
     add(numField('Minimum confidence', 0, 1, 0.05, () => svc.minConfidence(), (v) => apply({ minConfidence: Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : null }))).root,
     add(check('Write properties to the model', () => d().writePset, (v) => apply({ writePset: v }))).root,
   );
+
+  // ---- calibration (logit scaling)
+  const calSec = el('div', 'xc-group');
+  calSec.style.cssText = 'display:flex;flex-direction:column;gap:6px';
+  const calMode = add(pick('Calibration', (['auto', 'fitted', 'manual', 'off'] as const).map((v) => ({ value: v, text: CAL_MODE_LABEL[v] })), () => d().calibration, (v) => apply({ calibration: v })));
+  const calManual = el('div', 'xc-group');
+  calManual.style.cssText = 'display:flex;flex-direction:column;gap:6px';
+  for (const k of TEMPERATURE_KEYS) {
+    calManual.appendChild(add(numField(TEMP_LABEL[k], 0.05, 50, 0.05, () => d().temperatures[k] ?? 1, (v) => {
+      const t = { ...d().temperatures };
+      if (Number.isFinite(v)) t[k] = v;
+      else delete t[k];
+      apply({ temperatures: t });
+    })).root);
+  }
+  const calLine = statusLine('');
+  calLine.style.whiteSpace = 'pre-line';
+  const calReport = el('div', 'xc-cal');
+  calReport.hidden = true;
+  const calMsg = statusLine('');
+  let calMsgText: string | null = null;
+  let calBusy = false;
+  const calBtn = button('Calibrate on rules', () => {
+    calBusy = true;
+    calMsgText = 'Fitting: the model runs for the kinds of element that the rules label...';
+    calMsg.classList.remove('xc-err');
+    svc.notify();
+    void api.calibrate().then(
+      (r) => { calBusy = false; calMsgText = `Done. The temperatures were fitted on ${r.scored} kinds of element that the rules label in ${r.source}.`; svc.notify(); },
+      (e: unknown) => { calBusy = false; calMsgText = e instanceof Error ? e.message : String(e); calMsg.classList.add('xc-err'); svc.notify(); },
+    );
+  }, { title: 'Fit one temperature per question on the elements that the rules label in this model, and show the numbers before and after' });
+  const calForget = button('Forget fit', () => { svc.forgetFit(); calMsgText = null; }, { title: 'Delete the fitted temperatures of this model' });
+  calSec.append(calMode.root, calManual, calLine, row(calBtn, calForget), calMsg, calReport);
+  box.append(section('Calibration'), calSec);
+  const paintCal = (): void => {
+    const st = svc.calibrationStatus();
+    const p = d().provider;
+    const on = p !== 'off' && p !== 'mock';
+    calSec.hidden = !on;
+    calSec.style.display = on ? 'flex' : 'none';
+    calManual.style.display = d().calibration === 'manual' ? 'flex' : 'none';
+    const tempsText = TEMPERATURE_KEYS.filter((k) => st.temperatures[k] !== undefined).map((k) => `${QUESTION_LABEL[k]} ${fmt2(st.temperatures[k]!)}`).join(', ');
+    calLine.set(`In use: ${st.label}${tempsText ? `. Temperatures: ${tempsText}` : ''}.${st.note ? `\n${st.note}` : ''}\nA temperature below 1 sharpens the confidence, above 1 flattens it. The choice of the model never changes.`);
+    calBtn.setDisabled(calBusy ? 'Fitting is in progress' : svc.running ? 'A run is in progress' : !svc.model ? 'Load a model first' : false);
+    calForget.setDisabled(st.fitted ? false : 'No fit is stored for this model');
+    calMsg.set(calMsgText ?? '');
+    calMsg.hidden = !calMsgText;
+    const qs = st.questions;
+    calReport.hidden = qs.length === 0;
+    if (qs.length === 0) { calReport.replaceChildren(); return; }
+    calReport.replaceChildren(calTable(qs, st.source, svc.minConfidence()));
+  };
 
   // ---- run
   box.appendChild(section('Run'));
@@ -636,13 +863,25 @@ function panel(box: HTMLElement, app: ViewerApp, svc: ClassifyService, tint: Tin
   const refresh = (): void => {
     for (const w of widgets) w.update();
     const p = d().provider;
-    show(jev, p === 'jev');
+    const d3b = p === 'd3' && d().d3Backend === 'browser';
+    show(jev, p === 'jev' || (p === 'd3' && !d3b));
+    show(capBox, p === 'jev' || p === 'd3');
     show(web, p === 'webllm');
     show(dec, p === 'decision');
+    show(d3g, p === 'd3');
+    show(d3Browser, d3b);
+    show(tokBox, p === 'decision' || d3b);
+    srvNote.style.display = p === 'jev' ? '' : 'none';
+    d3Hint.style.display = p === 'd3' ? '' : 'none';
+    jevImages.root.style.display = p === 'jev' ? '' : 'none';
+    jevImagesNote.style.display = p === 'jev' ? '' : 'none';
+    srvEndpoint.input.placeholder = p === 'd3' ? D3_DEFAULTS.d3Endpoint : JEV_DEFAULTS.endpoint;
+    srvModel.input.placeholder = p === 'd3' ? D3_DEFAULTS.d3Model : JEV_DEFAULTS.model;
+    const local = p === 'decision' || d3b;
     showIssues(svc.issues.errors, svc.issues.warnings);
-    testBtn.style.display = p === 'decision' ? 'none' : '';
-    testModelBtn.style.display = p === 'decision' ? '' : 'none';
-    clearCacheBtn.style.display = p === 'decision' ? '' : 'none';
+    testBtn.style.display = local ? 'none' : '';
+    testModelBtn.style.display = local ? '' : 'none';
+    clearCacheBtn.style.display = local ? '' : 'none';
     testBtn.setDisabled(p === 'off' ? 'Choose a provider first' : false);
     // decision model
     if (p === 'decision') {
@@ -653,7 +892,33 @@ function panel(box: HTMLElement, app: ViewerApp, svc: ClassifyService, tint: Tin
       decBar.style.width = pr ? `${Math.round(pr.progress * 100)}%` : '0';
       decProgLine.set(pr ? pr.text : '');
       if (cacheFor !== 'decision' || loadSeen !== svc.lastLoad) { cacheFor = 'decision'; loadSeen = svc.lastLoad; void paintCache(); }
+    } else if (d3b) {
+      if (!svc.gpu) void svc.probeGpu().then(() => svc.notify());
+      void svc.inspectD3().then((ins) => {
+        d3Info.textContent = ins.ok
+          ? `Download ${fmtMB(ins.totalBytes)} (the model graph is ${fmtMB(ins.torsoBytes)}). This is a third-party export of vllm-sr/d3-edge, text only${ins.vision ? '. The repository declares a vision graph: the viewer does not support it yet' : ''}. It runs on WebGPU with 16-bit floats.`
+          : ins.message;
+        d3Info.classList.toggle('xc-err', !ins.ok);
+      });
+      d3Runtime.textContent = svc.gpu && !(svc.gpu.present && svc.gpu.adapter && svc.gpu.f16) && d().d3Device !== 'wasm' ? D3_NO_WEBGPU : svc.gpu ? 'WebGPU with 16-bit floats is available.' : '';
+      d3Runtime.classList.toggle('xc-warn', !!svc.gpu && !(svc.gpu.present && svc.gpu.adapter && svc.gpu.f16));
+      const pr = svc.decisionProgress;
+      d3Bar.style.width = pr ? `${Math.round(pr.progress * 100)}%` : '0';
+      d3ProgLine.set(pr ? pr.text : '');
+      if (cacheFor !== 'd3' || loadSeen !== svc.lastLoad) { cacheFor = 'd3'; loadSeen = svc.lastLoad; void paintCache(); }
     } else cacheFor = null;
+    // pictures
+    const imgCapable = p === 'd3' || p === 'jev';
+    picSec.style.display = imgCapable ? 'flex' : 'none';
+    picSec.hidden = !imgCapable;
+    const imgBlocked = d3b ? 'The browser build of d3-edge reads text only. Use the endpoint backend to send images.' : p === 'jev' && !d().jevImages ? 'Images are not sent to Jev. Turn on Send images to Jev first.' : '';
+    for (const w of [picMode, picViews, picSize]) for (const i of Array.from(w.root.querySelectorAll('input,select'))) (i as HTMLInputElement).disabled = imgBlocked !== '';
+    picNote.textContent = imgBlocked || (d().images === 'off' ? 'Pictures are off: the model reads text only.' : `The model gets ${d().imageViews} view${d().imageViews === 1 ? '' : 's'} of ${d().imageSize} pixels: plan, front and axonometric, in that order. Neighbours are drawn grey.`);
+    picNote.classList.toggle('xc-warn', imgBlocked !== '');
+    picViews.root.style.display = d().images === 'off' ? 'none' : '';
+    picSize.root.style.display = d().images === 'off' ? 'none' : '';
+    paintThumbs();
+    paintCal();
     // browser chat model
     webInfo.textContent = `${d().webllmMode === 'chat' || d().webllmMode === 'hybrid' ? describeModel(d().webllmModel) : ''}${d().webllmMode !== 'chat' ? ` ${describeModel(d().webllmEmbedModel)}.` : ''} The browser loads the library and the models on first use and keeps them in its cache.${webllmModelInfo(d().webllmModel) ? '' : ' This model id is not in the tested list.'}`.trim();
     webModel.root.style.display = d().webllmMode === 'embed' ? 'none' : '';
@@ -698,7 +963,7 @@ function panel(box: HTMLElement, app: ViewerApp, svc: ClassifyService, tint: Tin
     if (raf) return;
     raf = requestAnimationFrame(() => { raf = 0; refresh(); });
   });
-  const onSel = (): void => scheduleEstimate();
+  const onSel = (): void => { scheduleEstimate(); paintThumbs(); };
   document.addEventListener('xray-selection', onSel);
   refresh();
   return () => {
@@ -715,6 +980,24 @@ function summaryText(st: ClassifyStats | null, n: number): string {
   return `${n} classified: rules ${b.rules}, cache ${b.cache}, model ${b.model}, manual ${b.manual}. ${st.calls} request${st.calls === 1 ? '' : 's'} for ${st.signatures} signature${st.signatures === 1 ? '' : 's'}. ${st.needsReview} need review.${st.aborted ? ' Stopped.' : ''}`;
 }
 
+// ---------------------------------------------------------------- pictures: the geometry of the loaded model
+
+let thumbIds: { model: unknown; ids: number[] } | null = null;
+function thumbSource(app: ViewerApp): ThumbSource {
+  return {
+    bounds: (id) => {
+      const b = app.geometry?.bounds(id);
+      return !b || b.isEmpty() ? null : [b.min.x, b.min.y, b.min.z, b.max.x, b.max.y, b.max.z];
+    },
+    mesh: (id) => app.geometry?.elementMesh(id) ?? null,
+    ids: () => {
+      const m = app.controller.model;
+      if (thumbIds?.model !== m) thumbIds = { model: m, ids: m.elements.map((e) => e.id) };
+      return thumbIds.ids;
+    },
+  };
+}
+
 // ---------------------------------------------------------------- plugin
 
 let svc: ClassifyService | null = null;
@@ -728,6 +1011,8 @@ export const classifyPlugin: AppPlugin = {
       storage: localStore(),
       keyStorages: browserKeyStorages(),
       selection: () => app.selection,
+      // Pictures of an element for a model that reads images: drawn off screen from the geometry of the loaded model.
+      thumbnails: (id, ts) => renderThumbs(thumbSource(app), id, ts),
     });
     svc = service;
     tint = new Tint(app, service);
@@ -786,6 +1071,17 @@ export const classifyPlugin: AppPlugin = {
         app.selectIds(ids);
         return ids.length;
       },
+      calibration: () => service.calibrationStatus(),
+      calibrate: (opts) => service.calibrateOnRules(opts),
+      forgetFit: () => service.forgetFit(),
+      setD3Key: (key, remember) => service.d3Key.set(key, remember === true),
+      d3KeyState: () => ({ set: !!service.d3Key.get(), remembered: service.d3Key.remembered(), mask: service.d3Key.mask() }),
+      confirmD3Download: () => service.confirmD3Download(),
+      thumbnails: (id) => {
+        const st = service.imageSettings();
+        if (!st) throw new Error('This provider sends no pictures with the current settings.');
+        return service.thumbnails(id, st);
+      },
       colourByDiscipline: (on) => {
         if (on !== undefined) { t.set(on); service.notify(); }
         return t.on;
@@ -811,6 +1107,7 @@ export const classifyPlugin: AppPlugin = {
     if (!service || !app.loaded) return;
     tint?.forget();
     if (tint) tint.on = false;
+    disposeThumbRenderer();
     service.setModel(app.controller.model, app.modelName); // notifies the drawer
     lastSelKey = '';
     const url = service.settings().schemaUrl;

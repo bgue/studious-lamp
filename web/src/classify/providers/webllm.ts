@@ -356,26 +356,33 @@ export function createWebLlmProvider(o: WebLlmOptions): WebLlmProvider {
   };
   const queryText = (state: JsonObject): string => `${ARCTIC_QUERY_PREFIX}${buildPremise(state, 200)}`;
   /** Probabilities of the options by embedding similarity, and the cosines. */
-  const embedChoice = async (e: WebLlmEngine, q: string, texts: string[]): Promise<number[]> => {
+  const embedChoice = async (e: WebLlmEngine, q: string, texts: string[]): Promise<{ p: number[]; logits: number[] }> => {
     const [qv] = await embed(e, [q]);
     const ov = await optionVectors(e, texts);
-    return softmaxTemp(ov.map((v) => cosine(qv!, v)), temperature);
+    const cos = ov.map((v) => cosine(qv!, v));
+    const t = temperature > 0 ? temperature : 0.001;
+    // The logits are cosine / temperature: the scores that the softmax uses. Calibration then scales them further.
+    return { p: softmaxTemp(cos, temperature), logits: cos.map((c) => c / t) };
   };
   const choiceTexts = (q: ChoiceQuestion): { options: string[]; texts: string[] } => {
     const options = Object.keys(q.criteria);
     return { options, texts: options.map((k) => q.criteria[k]!.slice(0, 600)) };
   };
-  const embedYes = async (e: WebLlmEngine, q: string, s: NoulQuestion): Promise<number> => {
+  const embedYes = async (e: WebLlmEngine, q: string, s: NoulQuestion): Promise<{ p: number; logit: number }> => {
     const [qv] = await embed(e, [q]);
     const [pos, neg] = await optionVectors(e, [s.instructions, `It is not true that ${s.instructions.charAt(0).toLowerCase()}${s.instructions.slice(1)}`]);
-    return softmaxTemp([cosine(qv!, pos!), cosine(qv!, neg!)], temperature)[0]!;
+    const t = temperature > 0 ? temperature : 0.001;
+    return { p: softmaxTemp([cosine(qv!, pos!), cosine(qv!, neg!)], temperature)[0]!, logit: (cosine(qv!, pos!) - cosine(qv!, neg!)) / t };
   };
 
-  const choiceAnswer = (options: string[], p: number[], mass = 1): Answer => {
+  const choiceAnswer = (options: string[], p: number[], mass = 1, logits?: number[]): Answer => {
     const probabilities: Record<string, number> = {};
     options.forEach((opt, i) => { probabilities[opt] = r4(p[i]!); });
     const best = topK(p, 1)[0]!;
-    return { type: 'choice', choice: options[best]!, confidence: r4(p[best]! * mass), probabilities };
+    return {
+      type: 'choice', choice: options[best]!, confidence: r4(p[best]! * mass), probabilities,
+      ...(logits ? { logits: Object.fromEntries(options.map((opt, i) => [opt, logits[i]!])) } : {}),
+    };
   };
 
   const chatChoice = async (e: WebLlmEngine, state: JsonObject, q: ChoiceQuestion, signal: AbortSignal): Promise<Answer> => {
@@ -390,16 +397,17 @@ export function createWebLlmProvider(o: WebLlmOptions): WebLlmProvider {
   const embedOnlyChoice = async (e: WebLlmEngine, state: JsonObject, q: ChoiceQuestion): Promise<Answer> => {
     const { options, texts } = choiceTexts(q);
     stats.embedOnly++;
-    return choiceAnswer(options, await embedChoice(e, queryText(state), texts));
+    const r = await embedChoice(e, queryText(state), texts);
+    return choiceAnswer(options, r.p, 1, r.logits);
   };
 
   /** Embed first. Below the margin, the chat model chooses among the top options only (its top 5 are then complete). */
   const hybridChoice = async (e: WebLlmEngine, state: JsonObject, q: ChoiceQuestion, signal: AbortSignal): Promise<Answer> => {
     const { options, texts } = choiceTexts(q);
-    const p = await embedChoice(e, queryText(state), texts);
+    const { p, logits: embedLogits } = await embedChoice(e, queryText(state), texts);
     if (options.length <= 1 || marginOf(p) >= hybridMargin) {
       stats.embedOnly++;
-      return choiceAnswer(options, p);
+      return choiceAnswer(options, p, 1, embedLogits);
     }
     stats.escalated++;
     const idx = topK(p, Math.min(HYBRID_TOP_K, options.length));
@@ -410,7 +418,7 @@ export function createWebLlmProvider(o: WebLlmOptions): WebLlmProvider {
     if (!r) {
       // The chat model named no letter: keep the embedding answer (the top-k order breaks the tie).
       stats.embedOnly++;
-      return choiceAnswer(options, p);
+      return choiceAnswer(options, p, 1, embedLogits);
     }
     // The top options share the probability mass that the embedding gave them; the chat model splits it. Others keep theirs.
     const mass = idx.reduce((s, i) => s + p[i]!, 0);
@@ -427,7 +435,10 @@ export function createWebLlmProvider(o: WebLlmOptions): WebLlmProvider {
       if (q.type === 'choice') {
         answers[name] = mode === 'chat' ? await chatChoice(e, state, q, signal) : mode === 'embed' ? await embedOnlyChoice(e, state, q) : await hybridChoice(e, state, q, signal);
       } else if (q.type === 'noul') {
-        if (mode === 'embed') answers[name] = { type: 'noul', noul: r4(await embedYes(e, queryText(state), q)) };
+        if (mode === 'embed') {
+          const y = await embedYes(e, queryText(state), q);
+          answers[name] = { type: 'noul', noul: r4(y.p), logit: y.logit };
+        }
         else {
           const y = yesFromTop(await firstTop(e, noulPrompt(state, q.instructions), signal));
           if (y === null) throw new ProviderError('The browser model did not answer Y or N.');

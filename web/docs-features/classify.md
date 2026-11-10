@@ -26,7 +26,7 @@ Cheapest step first. An element leaves the pipeline at the first step that decid
    whether the element is in a building. A model with 5,000 elements needs tens of requests, not thousands. The cache is kept
    per model in `localStorage`, keyed by **model name, schema hash and provider/model id**, so a decision of another schema or
    another model is never reused.
-4. **The decision model** (the in-browser `decision` provider, WebLLM, Jev or the mock), for the rest, one signature at a time (the first element of the signature is the representative):
+4. **The decision model** (the in-browser `decision` provider, Decision 3.0 d3-edge, WebLLM, Jev or the mock), for the rest, one signature at a time (the first element of the signature is the representative):
    - Request 1: `discipline` (a choice over the schema's disciplines), `building_element` (a yes/no statement that decides
      whether MasterFormat applies) and `masterformat` (a choice over the divisions).
    - Request 2: `sub_discipline`, a choice limited to the sub-codes of the chosen discipline. When the discipline confidence is
@@ -34,6 +34,8 @@ Cheapest step first. An element leaves the pipeline at the first step that decid
      `MEC/DUC`), and the answer breaks the tie: if it names a sub-code of the runner-up, that discipline is used. A discipline
      with a single sub-code needs no request. The strategy is pluggable (`subDiscipline` option: `'top'`, `'top2-when-unsure'` or
      your own function).
+   - **Calibration** (logit scaling, see [Logit scaling](#logit-scaling-calibration)) is applied when a decision is read from the cache, so the
+     confidence is meaningful. The sub-discipline step sees the scaled discipline confidence.
    - Every answer is validated against the schema: a choice outside the options, a probability outside 0 to 1, a missing
      answer or a code that is not in the schema fails the signature. The elements then fall back to a weak rule (flagged for
      review) or stay unclassified (`stats.failed`). The reason is in `stats.errors`.
@@ -144,15 +146,27 @@ packed pages unless you pass it to `--params`). It is a discriminated union on `
 
 | Field | Applies to | Default | Meaning |
 | --- | --- | --- | --- |
-| `provider` | all | `off` | `off` (rules and cache only), `decision` (a small NLI model in the browser, recommended), `webllm`, `jev`, `mock` |
+| `provider` | all | `off` | `off` (rules and cache only), `decision` (a small NLI model in the browser, recommended), `d3` (Decision 3.0 d3-edge), `webllm`, `jev`, `mock` |
 | `schemaUrl` | all | empty | URL of a schema file. Empty: the built-in placeholder (or the file you loaded in the drawer) |
 | `minConfidence` | all | `null` | 0 to 1. `null`: the value of the schema |
 | `writePset` | all | `true` | Write the results as properties of the elements |
+| `calibration` | all | `auto` | Logit scaling of the confidence: `auto` (the numbers shipped for the model), `fitted` (fitted on this model by **Calibrate on rules**), `manual` (`temperatures`), `off` (the model as it comes) |
+| `temperatures` | all | `{}` | The `manual` mode: a number from 0.05 to 50 per question (`discipline`, `sub_discipline`, `masterformat`, `building_element`). A question that is missing is not scaled |
+| `images` | `d3` (endpoint), `jev` | `off` | Pictures of the element: `off`, `element`, `element+neighbours`. See [Pictures](#pictures-for-a-model-that-reads-images) |
+| `imageViews`, `imageSize` | `d3` (endpoint), `jev` | 1, 384 | Views per picture set (1 plan, 2 plan and front, 3 plan, front and axonometric) and the size in pixels (256 to 512) |
 | `endpoint` | `jev` | `https://api.typesafe.ai/v1/systemone` | An https URL, or a same-origin path such as `/api/jev` |
 | `model` | `jev` | `jev-1.13.0` | The pinned model id. `jev-latest` is a moving alias and gives a warning. DigitalOcean inference uses `typesafe-jev-1.13.0` |
 | `timeoutMs` | `jev` | 30000 | 1000 to 300000 |
 | `concurrency` | `jev` | 4 | Requests in flight, 1 to 16 |
 | `maxStateBytes` | `jev` | 4000 | Cap of the element state, 500 to 64000 |
+| `jevImages` | `jev` | `false` | Send the pictures (`images`) to the endpoint. **Untested**: Jev is not known to read images |
+| `d3Backend` | `d3` | `browser` | `browser` (onnxruntime-web with WebGPU) or `endpoint` (a System One server) |
+| `d3Repo`, `d3Revision` | `d3` | `warsang/d3-edge-web`, the pinned commit | The Hugging Face repository of the ONNX export and its commit (40 characters; a branch gives a warning) |
+| `d3HfEndpoint` | `d3` | `https://huggingface.co` | Where the files come from (a mirror or your own proxy) |
+| `d3Device` | `d3` | `auto` | `auto` (WebGPU with `shader-f16`, else a plain refusal), `webgpu`, `wasm` (very slow, about 5 GB of memory) |
+| `d3Endpoint`, `d3Model` | `d3` | `http://localhost:8899/v1/systemone`, `vllm-sr/d3-edge` | The System One URL and model id of the endpoint backend (what `vllm-sr serve -e vllm-sr/d3-edge` exposes) |
+| `d3MaxStateBytes` | `d3` | 2000 | Cap of the element state in the prompt, 500 to 64000. Each token costs time on a small device |
+| `timeoutMs`, `concurrency` | `jev`, `d3` (endpoint) | 30000, 4 | As for Jev |
 | `hfModel` | `decision` | `MoritzLaurer/deberta-v3-xsmall-zeroshot-v1.1-all-33` | A Hugging Face repository id, `owner/name`, of a zero-shot or NLI model with ONNX weights |
 | `device` | `decision` | `auto` | `auto` (WebGPU when the browser has it, else WASM), `webgpu`, `wasm` |
 | `dtype` | `decision` | `auto` | `auto` (q8 on WASM, fp16 on WebGPU when the adapter has `shader-f16` and the model has fp16 weights, else fp32), `fp32`, `fp16`, `q8`, `q4` |
@@ -167,7 +181,7 @@ packed pages unless you pass it to `--params`). It is a discriminated union on `
 
 Settings are checked on load with plain messages (for example `concurrency must be a whole number from 1 to 16. Using 4.`); a bad
 value keeps its default, and a field that looks like a secret (`apiKey`, `hfToken`, `token`, ...) is refused. Neither the Jev key nor the
-Hugging Face token is a setting. The drawer shows the
+Hugging Face token nor the d3 key is a setting. Fitted temperatures are not settings either (they are kept per model in `localStorage`). The drawer shows the
 messages. `window.__xrayClassify.configure({ provider: 'jev', model: 'typesafe-jev-1.13.0' })` changes settings from a script.
 
 ## Setup: Jev
@@ -379,6 +393,136 @@ are refused with a plain message.
 Without WebGPU the drawer says so in plain words and **Test connection** returns the same message. A tiny model is weaker than Jev: treat
 its results as a draft and expect more elements to need review.
 
+## Logit scaling (calibration)
+
+A decision model gives a score (a logit) per option. The probability is `exp(score / T)` normalised over the options; `T = 1` is the model as it comes.
+The zero-shot NLI models are not confident on this task, so most answers sat under the minimum confidence (0.6) and went to review. **Logit scaling** fits one
+temperature `T` per question (`discipline`, `sub_discipline`, `masterformat`, `building_element`) by minimising the negative log-likelihood on labelled answers.
+`T` is positive, so **the chosen option never changes**; only the confidence does. A provider that returns probabilities (Jev, d3 on the endpoint, WebLLM) is scaled in the
+log domain, `p_i ∝ exp(log p_i / T)`. The WebLLM embed mode gives the logits `cosine / embedTemperature`, so `embedTemperature` and the calibration temperature multiply.
+
+- **Raw scores are cached.** The signature cache keeps the logits (or log-probabilities) next to every model decision (`raw` in `CachedDecision`). The calibration is applied when a
+  decision is **read**, so a change of mode or temperature re-scores the results (and the stored results of the drawer) without running the model, and the calibration is **not**
+  part of the cache identity. The sub-discipline step uses the scaled discipline confidence to decide how many disciplines to put in the second request.
+  A cache entry from before this feature has no raw scores and is shown as it is.
+- **Modes** (`calibration`): `auto` uses the numbers shipped for the model (`calibrationDefaults.ts`; none for a model that is not listed: no scaling and a hint);
+  `fitted` uses the numbers fitted on this model by **Calibrate on rules** (kept per model id in `localStorage`, not secret, not in the settings); `manual` uses `temperatures`;
+  `off` is the model as it comes.
+- **Calibrate on rules.** The elements that a *final* rule labels in the loaded model (one per signature, at most 120) are the proxy labels. The model runs for the ones that are not in the
+  cache, a fixed 30 % of the signatures (by hash) is held out, `T` is fitted on the rest, and the drawer shows before and after on the held-out part: accuracy, mean confidence,
+  expected calibration error (ECE, 10 bins), the share of answers that clear the minimum confidence and their accuracy. The stored `T` is refitted on all signatures. **The rules are not the truth**: a rule can be wrong, and
+  a model that agrees with a wrong rule looks worse than it is. The mode is set to `fitted`. API: `window.__xrayClassify.calibrate()`.
+
+### Shipped numbers and what they show
+
+`node bench/real-classify-decision.mjs` (needs the network and a Node install of transformers.js outside the project; see the file header). It takes every distinct signature that a final rule labels
+in the bundled models: the five sidecars of `public/models` and the six IFC files of `models/` read with web-ifc, a model that is both counted once: **51 signatures** (fzk-haus 16, synth5k 9,
+building 10, plumbing 2, debris-demo 13, Infra-Electrical 1). That is every one there is: 60 or more distinct signatures do not exist in the bundled models. With so few, one 70/30 split is noisy, so the bench
+uses **5-fold cross-validation**: every number below is scored with a temperature fitted without that signature. Minimum confidence 0.6. Models run on CPU (onnxruntime-node, q8; v2.0 fp32), d3 with the fp16 torso.
+Times were measured while another job kept the machine at a load of 8 to 12 on 4 cores, so read them as upper bounds.
+
+Final labels (what the pipeline decides, including the sub-discipline tie-break), and the time per element (one element is 2 requests):
+
+| Model | Discipline | Sub-discipline | Division | ms per element |
+| --- | --- | --- | --- | --- |
+| xsmall zero-shot v1.1 (default) | 39/51 | 15/51 | 18/49 | 4,590 |
+| xtremedistil L6 | 26/51 | 18/51 | 10/49 | 684 |
+| nli-deberta-v3-xsmall | 27/51 | 11/51 | 4/49 | 4,306 |
+| base zero-shot v1.1 | 18/51 | 6/51 | 11/49 | 9,819 |
+| **base zero-shot v2.0 (fp32, 739 MB)** | **43/51** | **28/51** | **29/49** | 19,684 |
+| d3-edge (fp16 torso, CPU) | 24/51 | 24/51 | 23/49 | 44,769 |
+
+Per question, before and after scaling, out of fold (accuracy is of the first-stage answer; "clear" is the share with confidence at or above 0.6 and the accuracy of those):
+
+| Model, question | n | Right | T | Mean conf. | ECE | Clear 0.6 | Right of clear |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| v2.0 discipline | 51 | 69% | 0.53 | 0.55 to 0.77 | 0.20 to 0.10 | 53% to 65% | 96% to 94% |
+| v2.0 sub-discipline | 48 | 56% | 0.58 | 0.39 to 0.54 | 0.20 to 0.16 | 17% to 35% | 88% to 82% |
+| v2.0 division | 49 | 59% | 0.76 | 0.40 to 0.55 | 0.28 to 0.25 | 14% to 41% | 57% to 60% |
+| default xsmall discipline | 51 | 35% | not shipped | 0.34 | 0.12 (0.24 scaled) | 0% (39% scaled) | 55% scaled |
+| default xsmall sub-discipline | 47 | 30% | 0.43 | 0.16 to 0.33 | 0.14 to 0.11 | 0% to 6% | 100% (3 answers) |
+| default xsmall division | 49 | 39% | 0.26 | 0.08 to 0.35 | 0.31 to 0.13 | 0% to 6% | 67% (3 answers) |
+| d3-edge discipline | 51 | 45% | 1.53 | 0.65 to 0.48 | 0.30 to 0.18 | 63% to 18% | 50% to 89% |
+| d3-edge sub-discipline | 29 | 83% | 1.36 | 0.91 to 0.84 | 0.13 to 0.10 | 93% to 83% | 85% to 88% |
+| d3-edge division | 49 | 51% | not shipped | 0.44 | 0.30 | 39% | 63% |
+
+What this says, honestly:
+
+- **Scaling makes the confidence track accuracy; it does not make the model right.** The default model is right on 35% of the discipline questions before the tie-break; its raw discipline
+  confidence (0.34) was already close to that, so scaling the discipline question only trades a little more NLL for a worse ECE and **no temperature is shipped for it**. Its sub-discipline and
+  division answers were far under-confident (0.16 and 0.08 against 30% and 39% right), and scaling lifts them to about their accuracy, but almost nothing then clears 0.6,
+  because it is too often wrong. "All answers clear review" is not a result that any scaling can give a model that is mostly wrong; the divisions stay low because the model is wrong on them.
+- Of all the zero-shot models, **base zero-shot v2.0** is the one that works: 43/51 disciplines, 28/51 sub-disciplines, 29/49 divisions. After scaling, 65% of its discipline answers clear 0.6 and 94% of
+  those are right; 41% of its division answers clear and 60% are right, which is what a 0.6 confidence should mean. It is a 739 MB fp32 download (no quantized file) and about 20 s per element on this CPU.
+  It is **not** the default (size); it is the one to choose when quality matters. The 51 signatures are a small sample and the rules are proxy labels.
+- d3-edge is over-confident on the discipline question (63% clear at 50% right) and scaling (T = 1.53) corrects that to 18% clear at 89% right. It chooses `GEN` (the General fallback) for walls, stairs, beams and braces of
+  three of the models, which the rules call ARC and STR: its option reading of this schema is the weak point, not its confidence. Its sub-discipline answers are the best of all models (83%).
+- **The minimum confidence stays 0.6.** After scaling, the answers that clear 0.6 are right about as often as 0.6 promises or more (v2.0: 94%, 82%, 60%), so there is no held-out reason to lower it per provider.
+- A shipped temperature is kept for a question only when, out of fold, it lowered the NLL and did not raise the ECE. The numbers are in `src/classify/calibrationDefaults.ts`.
+
+## Setup: Decision 3.0 d3-edge
+
+Choose **Decision 3.0 d3-edge**. d3-edge ([vllm-sr/d3-edge](https://huggingface.co/vllm-sr/d3-edge), Apache-2.0, revision `bee5e872f75b9c5d1405767bf244a6948b95c0af`) is a
+0.6B Qwen3.5 fine-tune (0.10B of it the vision encoder) that answers typed questions with a probability for every option and generates no
+text. Its API, "System One", is the request and answer shape of Jev, so the pipeline sees no difference (`src/classify/providers/d3.ts`,
+`d3Format.ts`; the endpoint backend is the Jev HTTP provider with another id). It has two backends.
+
+**Endpoint** (`d3Backend: 'endpoint'`). `vllm-sr serve -e vllm-sr/d3-edge` exposes `http://localhost:8899/v1/systemone` with the model
+`vllm-sr/d3-edge` (the defaults). The official PyTorch model runs there, on a GPU or a CPU. The key box is optional and is **its own entry**
+(a Jev key is never sent to a d3 server). This is the only backend that can send [pictures](#pictures-for-a-model-that-reads-images).
+
+**In the browser** (`d3Backend: 'browser'`, the default). onnxruntime-web with the WebGPU backend runs the **third-party** export
+[warsang/d3-edge-web](https://huggingface.co/warsang/d3-edge-web) at the pinned revision `117fb255e630667ae1736666497e8a1c69c7a066` (it is not
+from the d3-edge authors: no README, 29 downloads when it was pinned, scope "text-only v1"). Files: `onnx/torso_fp16.onnx` (1,043,107,948 bytes, the
+Qwen3.5 stack with full attention, last-position hidden state), `onnx/readout.onnx` (fp32, 255 x 1024), `tokenizer.json`; 1.04 GB in all.
+
+- **Libraries are not bundled.** onnxruntime-web `1.30.0` (`ort.webgpu.min.mjs`) and transformers.js `4.3.2` (the Qwen tokenizer) load from
+  jsDelivr at exact versions, only when the provider is used.
+- **A confirmed download.** The drawer reads `MANIFEST.json` and `decision_config.json` first (a few KB) and shows the size. **Test model** asks
+  "download 1.04 GB from huggingface.co?" and downloads only after **Download model**. The files stream into the Cache API (`xray-d3-cache`); the next load
+  reads them from there. **Clear model cache** deletes them and the confirmation.
+- **Integrity.** Every file is checked against the size in the manifest, and the files up to 64 MB (readout, tokenizer) against its sha256. The torso is checked by
+  size only (hashing 1 GB in the page is not practical); its sha256 `f8f7dd3a...c557766` was checked once outside the page and matches the manifest.
+  A custom repository id is checked by its manifest and its `decision_config.json` (format `d3-code-readout-v1` and the same 255 codes) before any weights come.
+  A manifest with a vision graph is detected and the drawer says that the viewer does not run it yet (text only).
+- **Device.** The torso is fp16, so WebGPU needs `shader-f16`. Without it, or without WebGPU, `auto` **refuses with a plain message** before any download
+  ("needs WebGPU with 16-bit float support ... use the endpoint backend or the Decision model"). `wasm` can be chosen by name; see "What was run" below.
+- **Prompt and readout.** `d3Format.ts` ports `d3_format.py` exactly: the Qwen3.5 chat template (system and user, thinking off), `State:` with the Python
+  `json.dumps` text of the state, `Question:`, one `<code>: <key>: <description>` line per option, codes `A, B, ... AA, ...` from `decision_config.json`
+  (255, not plain A..ZZ), then a 255-way readout at the last position and a softmax over the options. One torso pass per question; the largest question of the
+  viewer has 35 options. The state cap defaults to 2000 bytes (each token costs time).
+- The torso reads the whole prompt at once (full attention), so questions that share a state cannot share work: a signature costs 3 passes plus 1 for the sub-discipline.
+
+### What was run (d3)
+
+- **Prompt parity, byte for byte.** `tests/fixtures/d3-golden-prompts.json` holds 13 prompts that the official `d3_format.py` and the chat template of vllm-sr/d3-edge produced (`bench/d3/golden_prompts.py`);
+  `tests/classify-d3-format.test.ts` requires the TypeScript prompt to be identical (text and JSON states, unicode, small floats, 60 options, options with no description, score levels). Python writes a float such as 1e-7 as `1e-07`; the port does the same.
+- **Model parity.** `bench/real-d3-parity.mjs` runs the model card examples (support ticket: route, receipt, urgency; payment; a code request) and one BIM state through **our** TypeScript prompt builder, the Qwen tokenizer of transformers.js,
+  the real torso and readout in onnxruntime-node (CPU), and `bench/d3/reference.py` runs the official `vllm-sr/d3-edge` with `transformers==5.17.0` and `trust_remote_code` (CPU, bf16) on the same requests: **the 9 prompts are identical and the
+  largest probability difference is 0.0071** (the export's own manifest claims 0.0118 worst case); every argmax agrees. Examples: ticket route `returns` 0.9926 against 0.9927, receipt yes 0.9995 in both, the BIM pipe `PLB` 0.9606.
+  The manifest's own parity requests are not given, so those numbers could not be reproduced one to one. The sha256 of every file of the export matches its manifest.
+- **WASM.** The fp16 torso loads and runs on the onnxruntime-web WASM backend (run in Node, one thread): 18 s to load, about 25 tokens per second, 4.8 GB of memory. A browser limits a WebAssembly heap to 4 GB, so it will probably refuse;
+  that was **not run in a browser**. It is offered only when chosen by name, with that warning.
+- **Not run:** WebGPU (no GPU here; the browser path ran against a fake onnxruntime-web and a fake export in the unit tests and the smoke), the endpoint with real pictures against a real server, and `vllm-sr serve`.
+
+## Pictures for a model that reads images
+
+d3-edge reads images. Set `images` to `element` or `element+neighbours` on the **endpoint** backend and every request carries `images`: an array of base64 data URLs
+(WebP, or PNG when the browser cannot encode WebP). They are drawn off screen with three.js from the loaded model (`src/classify/thumbs.ts`), on a canvas of their own:
+
+- the **element**, solid and orange, with its edges; **neighbours** (elements whose bounds lie within a margin of the element's bounds: half its largest
+  dimension, at least 0.5 m; the 40 nearest at most) ghosted and grey, for context; nothing else;
+- orthographic, fitted to the element plus an 18 % margin, on a neutral background, with a scale bar and the view name;
+- `imageViews`: 1 plan, 2 plan and front elevation, 3 plan, front elevation and axonometric; `imageSize`: 256 to 512 pixels, square.
+
+The drawer shows the pictures of the selected element (a preview, "what the model sees"). They are drawn once per element and settings and kept in memory only.
+**A picture is never in params, share links, saved views, presets, packed pages or `localStorage`** (a unit test checks it). The picture settings are part of the cache
+identity of a decision (`@i<hash>` in the model id) when they are sent, and absent when they are not.
+
+The **browser** backend reads text only: the Images option stays visible but disabled, with "The browser build of d3-edge reads text only. Use the endpoint backend to send images."
+A custom repository whose manifest declares a vision graph is detected and the drawer says that the viewer does not run it yet (no vision ONNX path was built).
+Jev has a **Send images to Jev** switch, off by default and documented as **untested** (Jev is not known to read images); it uses the same picture settings.
+
 ## Number of calls
 
 Measured on the shipped models, with the mock provider (the numbers do not depend on the provider):
@@ -553,6 +697,8 @@ element a result with source `manual` and confidence 1. A manual result wins ove
 | extras | `estimate`, `configure`, `settings`, `setKey`, `keyState`, `testConnection`, `selectNeedsReview`, `colourByDiscipline`, `state` |
 | decision model | `testModel()` (load, one tiny choice, load time, device, data type, size), `setHfToken(token, remember?)`, `hfTokenState()`, `modelCache()`, `clearModelCache()`, `decisionStats()` (requests, pairs, passes), `webllmStats()` |
 | Throughline | `importThroughline(json)` returns `{ errors, warnings }` |
+| calibration | `calibration()` (mode, what is in use, the numbers of the last fit), `calibrate({ maxSignatures?, heldOut? })` (**Calibrate on rules**), `forgetFit()` |
+| d3 and pictures | `setD3Key(key, remember?)`, `d3KeyState()`, `confirmD3Download()`, `thumbnails(id)` (the data URLs the model would get) |
 
 Types (`src/classify/types.ts`): `ClassifyInput { id, ifcClass, name, psets, quantities?, type?, hierarchy?: { path, parents? },
 systems?, material? }` and `ClassifyResult { id, discipline: { code, label, confidence, probabilities }, subDiscipline | null,
@@ -572,7 +718,8 @@ Commands (palette): `classify.selection`, `classify.all`, `classify.review`, `cl
 
 ## Key security
 
-- The API key and the **Hugging Face token** (decision provider) are **never** in the params document, the share link (`#p=`), the exported params JSON, saved views, presets or packed
+- The API key, the **d3 endpoint key** (its own entry, `xray.classify.d3Key`: a Jev key never goes to a d3 server and the other way round), the **Hugging Face token** (decision provider and d3 in the browser)
+  and the **pictures** of elements (data URLs) are **never** in the params document, the share link (`#p=`), the exported params JSON, saved views, presets or packed
   pages. It is not a setting: a params document that contains a key field is refused with a message. A unit test checks
   `collectParams`, the share URL, saved views and the packed output.
 - It is kept in `sessionStorage` (gone when the tab closes). The **Remember on this device** switch, off by default, keeps it
