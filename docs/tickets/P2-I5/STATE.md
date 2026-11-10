@@ -41,7 +41,7 @@ Q2 package-form file path schema/fixtures/packages/co.acme.awp@1.1.0.yaml (S1 de
 Q4 core feed policy list lacks the eight new quiet events (S1 dev 6) and POLICY_EVENT_TYPES lacks WeeklyPlan.* and IWP.* (Q-o3) needs orch raised r3
 Q5 awp.worker.run is company scope (S4b): project controllers cannot run the worker; per project? needs owner raised r4
 Q-o1 at merge with p2/i4a or the trunk: add the four S2 exclusion lines (S2 report) and the three S4a lines (OpenWeeklyPlan, RecordWeekOutcome, CloseWeek) to tests/tools/proposable_exclusions.toml
-Q6 platform.yaml tui.landing docs say default lands "on their packages"; D7 makes unset resolve to iwp_mine and explicit default land as before: T06c2 does that; fix the description text at close (schema/settings/platform.yaml is S1's) needs orch raised r5
+Q6 DONE at close: platform.yaml tui.landing docs said default lands "on their packages"; D7 makes unset resolve to iwp_mine and explicit default land as before: T06c2 does that; fix the description text at close (schema/settings/platform.yaml is S1's) needs orch raised r5
 Q-o4 T11a1 F1: roll-up node rows carry no label after ids were dropped; decide label source at T11b or T06a
 Q-o5 FakeClient: T11b renamed `sent` to `sent_commands` and `_look_aheads` to `_awp_look_aheads`; the awp look-ahead read is `get_awp_look_ahead` (later tickets use these names)
 ## NEXT

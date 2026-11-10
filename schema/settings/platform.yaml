@@ -139,8 +139,9 @@ settings:
     default: default
     description: Which screen the terminal opens on after sign-in.
     docs: >-
-      A personal preference. `default` opens the usual start screen (a person who is foreman on an IWP lands on
-      their packages); `iwp_mine` opens the IWP log filtered to the packages of the signed-in person.
+      A personal preference. When it is not set, a person who is foreman on any IWP opens on the IWP log filtered
+      to their packages and everyone else opens the usual start screen. Set `default` to always open the usual
+      start screen, or `iwp_mine` to always open the IWP log filtered to the packages of the signed-in person.
     scopes: [platform, user]
     validation:
       choices: [default, iwp_mine]
