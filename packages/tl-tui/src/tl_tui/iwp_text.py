@@ -31,6 +31,7 @@ from tl_tui.layout import (
 )
 
 if TYPE_CHECKING:
+    from tl_mod_awp.iwp_counts import IwpCountRow
     from tl_mod_awp.iwp_views import IwpDetail, IwpRow, ScopeRow
 
 IWP_COLUMNS = (
@@ -45,6 +46,10 @@ IWP_COLUMNS = (
 )
 IWP_DROP = ("Planned start", "Foreman", "Discipline")  # dropped first at narrow width
 IWP_RIGHT = ("Scope", "Hours")
+# the log of the register (P2-I5 T06c1): the readiness and blocking counts and the state's date
+IWP_COUNT_COLUMNS = (*IWP_COLUMNS, "Ready", "Blocking", "Since")
+IWP_COUNT_DROP = (*IWP_DROP, "Since")
+IWP_COUNT_RIGHT = (*IWP_RIGHT, "Ready", "Blocking")
 
 SCOPE = "Scope"
 SIGNOFFS = "Sign-offs"
@@ -97,17 +102,44 @@ def iwp_cells(row: IwpRow, labels: Labels | None = None) -> tuple[str, ...]:
     )
 
 
+def iwp_count_cells(
+    row: IwpRow, counts: IwpCountRow | None, labels: Labels | None = None
+) -> tuple[str, ...]:
+    """The eleven cells of a count-log row, in the order of ``IWP_COUNT_COLUMNS``: the eight of
+    ``iwp_cells``, then ``ok/total`` of the readiness checks (``—`` when there is no count or it
+    was never evaluated), the open blocking constraints as text (``—`` when there is no count),
+    and the date the state began (``date_text``)."""
+    if counts is None:
+        ready, blocking, since = EMPTY, EMPTY, None
+    else:
+        ready = f"{counts.ready_ok}/{counts.ready_total}" if counts.evaluated else EMPTY
+        blocking, since = str(counts.open_blocking), counts.state_since
+    return (*iwp_cells(row, labels), ready, blocking, date_text(since))
+
+
 def iwp_summary(
-    total: int, shown: int, *, state: str | None = None, foreman: str | None = None
+    total: int,
+    shown: int,
+    *,
+    state: str | None = None,
+    foreman: str | None = None,
+    discipline: str | None = None,
+    text: str | None = None,
 ) -> str:
-    """``7 IWPs``; with a filter ``3 of 7 IWPs, state Ready`` (the foreman is named by name)."""
-    if state is None and foreman is None:
+    """``7 IWPs``; with a filter ``3 of 7 IWPs, state Ready`` (the foreman is named by name).
+    ``discipline`` is the discipline's label, ``text`` the filter text; either one makes the
+    ``3 of 7`` form, e.g. ``3 of 7 IWPs, state Ready, discipline Piping, filter 'rack'``."""
+    if state is None and foreman is None and discipline is None and text is None:
         return _count(total)
     named: list[str] = []
     if state is not None:
         named.append(f"state {humanize(state)}")
     if foreman is not None:
         named.append(f"foreman {actor_label(Labels(), foreman)}")
+    if discipline is not None:
+        named.append(f"discipline {discipline}")
+    if text is not None:
+        named.append(f"filter {text!r}")
     return ", ".join([f"{shown} of {_count(total)}", *named])
 
 
