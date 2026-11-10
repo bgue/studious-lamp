@@ -9,7 +9,7 @@
 // It also covers Decision 3.0 d3-edge (browser backend against a fake onnxruntime-web and a fake export with a real manifest, the confirmed
 // download, the Cache API, the integrity check, the WebGPU refusal, and the endpoint backend with pictures), the logit scaling (the
 // calibration panel with before and after numbers) and the thumbnails (drawn with WebGL, checked pixel by pixel).
-// Screenshots: bench/classify-local-*.png, classify-d3-*.png, classify-calibration.png, classify-thumbnails.png.
+// Screenshots: bench/classify-local-*.png, classify-d3-*.png, classify-calibration.png, classify-pictures-drawer.png.
 // Usage: SMOKE_PORT=5695 node bench/smoke-classify-local.mjs
 import { spawn } from 'node:child_process';
 import { readFileSync } from 'node:fs';
@@ -94,7 +94,7 @@ async function open(browser, opts = {}) {
       net.ort.push({ url, auth: req.headers()['authorization'] ?? null });
       return route.fulfill({ status: 200, headers: { ...CORS, 'content-type': 'text/javascript' }, body: FAKE_ORT });
     }
-    const dm = new RegExp(`^https://huggingface\\.co/warsang/d3-edge-web/resolve/${D3_REV}/(.+)$`).exec(url);
+    const dm = new RegExp(`^https://huggingface\\.co/warsang/d3-edge-web/resolve/${D3_REV}/(.+)$`).exec(url) ?? /^https:\/\/d3\.example\.test\/export\/([^?]+)(?:\?.*)?$/.exec(url);
     if (dm) {
       net.d3files.push({ file: dm[1], auth: req.headers()['authorization'] ?? null });
       const body = d3.files[dm[1]];
@@ -418,12 +418,12 @@ async function runD3(browser) {
         (await field(page, 'Backend').isVisible()) && (await field(page, 'Model repository').isVisible()) && (await field(page, 'Revision').isVisible()) && (await field(page, 'Run on').isVisible())
         && (await btn(page, 'Test model').isVisible()) && (await btn(page, 'Clear model cache').isVisible()) && !(await btn(page, 'Test connection').isVisible()) && /Advanced: file address/.test(t));
       check(`${tag} the defaults are the pinned export: warsang/d3-edge-web at ${D3_REV.slice(0, 8)}`, (await field(page, 'Model repository').locator('input').inputValue()) === 'warsang/d3-edge-web' && (await field(page, 'Revision').locator('input').inputValue()) === D3_REV);
-      check(`${tag} the size comes from the manifest before any download, and the export is called third-party and text only`, /Download 6 MB/.test(t) && /third-party export of vllm-sr\/d3-edge, text only/.test(t));
+      check(`${tag} the size comes from the manifest before any download, and the export is called text only and third-party`, /Download 6 MB/.test(t) && /export of vllm-sr\/d3-edge that reads text only and comes from a third party/.test(t));
       check(`${tag} only the manifest and the config were read: no weights, no library`, net.d3files.every((f) => /^(MANIFEST|decision_config)\.json$/.test(f.file)) && net.ort.length === 0 && net.cdn.length === 0, JSON.stringify(net.d3files.map((f) => f.file)));
       check(`${tag} without WebGPU the drawer says in plain words that the model needs WebGPU with shader-f16`, /needs WebGPU with 16-bit float support \(shader-f16\)/.test(t));
       // the images option is visible but disabled, with the reason
       const imgDisabled = await field(page, 'Images').locator('select').isDisabled();
-      check(`${tag} the Images option stays visible but disabled on the browser backend, with the plain reason`, (await field(page, 'Images').isVisible()) && imgDisabled && /The browser build of d3-edge reads text only\. Use the endpoint backend to send images\./.test(t));
+      check(`${tag} the Images option stays visible but disabled on a text-only browser export, with the plain reason`, (await field(page, 'Images').isVisible()) && imgDisabled && /The d3 export in use reads text only\. Use the endpoint backend, or an export with a vision graph\./.test(t));
       // Test model: the refusal comes first (no question about 1 GB for a device that cannot run it), and no weights are requested
       await btn(page, 'Test model').click();
       await drawerHas(page, /needs WebGPU with 16-bit float support/);
@@ -552,41 +552,39 @@ async function runD3(browser) {
       await drawerHas(page, /Connected\. Model vllm-sr\/d3-edge answered/);
       const first = net.d3endpoint[0];
       check(`${tag} Test connection reaches the d3 endpoint with the d3 key and never the Jev key`, first?.auth === `Bearer ${D3_KEY}` && !JSON.stringify(net.d3endpoint).includes(JEV_KEY) && first.body.model === 'vllm-sr/d3-edge' && first.body.images === undefined, JSON.stringify(first?.auth));
-      // pictures: element + neighbours, 3 views, 384 px
-      await select(page, 'Images', 'element+neighbours');
-      await field(page, 'Views').locator('input').fill('3');
-      await field(page, 'Views').locator('input').press('Enter');
+      // pictures: both (the element alone, then the element in its bounding box), render, 384 px
+      await select(page, 'Images', 'both');
       await field(page, 'Image size').locator('input').fill('384');
       await field(page, 'Image size').locator('input').press('Enter');
-      // pick a wall with neighbours: the slab or the first column of synth5k
+      // pick a part with neighbours: the first column of synth5k
       const pick = await page.evaluate(() => { const m = window.__xray.app.controller.model; const e = m.elements.find((x) => x.ifcClass === 'IfcColumn') ?? m.elements[10]; window.__xray.app.selectIds([e.id]); return { id: e.id, gid: e.globalId, name: e.name }; });
-      await page.waitForSelector('.xt-drawer .xc-thumbs figure', { timeout: 30000 });
-      await drawerHas(page, /The model gets 3 pictures of the selected element and \d+ neighbour/);
-      const imgs = await page.locator('.xt-drawer .xc-thumbs img').evaluateAll((l) => l.map((i) => i.src));
+      await page.waitForSelector('.xt-drawer .xc-pics figure', { timeout: 30000 });
+      await drawerHas(page, /The model gets 2 pictures.*Picture 1: the element alone, a render, axonometric, with a scale bar\. Picture 2: the element \(orange\) in its bounding box with nearby elements in grey\./);
+      const imgs = await page.locator('.xt-drawer .xc-pics img').evaluateAll((l) => l.map((i) => i.src));
       const px = [];
       for (const u of imgs) px.push(await pixels(page, u));
       console.log(tag, 'thumbnails:', JSON.stringify(px));
-      check(`${tag} the drawer previews 3 pictures (plan, front, axonometric) of 384 px, as WebP or PNG data URLs`, imgs.length === 3 && imgs.every((u) => /^data:image\/(webp|png);base64,/.test(u)) && px.every((x) => x.w === 384 && x.h === 384));
-      check(`${tag} each picture draws the element (orange) on the neutral background, and the neighbours (grey) when there are some`, px.every((x) => x.orange > 120 && x.bg > x.total * 0.2) && px.some((x) => x.grey > 60), JSON.stringify(px.map((x) => [x.orange, x.grey, x.bg])));
-      const caps = await page.locator('.xt-drawer .xc-thumbs figcaption').allTextContents();
-      check(`${tag} the captions name the views and the scale bar`, caps.length === 3 && caps[0].startsWith('plan') && caps[1].startsWith('front') && caps[2].startsWith('axonometric') && caps.every((c) => /bar \d+(\.\d+)? (m|cm)/.test(c)), caps.join(' | '));
-      await page.locator('.xt-drawer .xc-thumbs').scrollIntoViewIfNeeded();
+      check(`${tag} the drawer previews 2 pictures (isolated, context) of 384 px, as WebP or PNG data URLs`, imgs.length === 2 && imgs.every((u) => /^data:image\/(webp|png);base64,/.test(u)) && px.every((x) => x.w === 384 && x.h === 384));
+      check(`${tag} each picture draws the element (orange) on the neutral background, and the context picture has the nearby elements in grey`, px.every((x) => x.orange > 120 && x.bg > x.total * 0.2) && px[1].grey > 60, JSON.stringify(px.map((x) => [x.orange, x.grey, x.bg])));
+      const caps = await page.locator('.xt-drawer .xc-pics figcaption').allTextContents();
+      check(`${tag} the captions name the pictures and the scale bar`, caps.length === 2 && caps[0].startsWith('element alone') && caps[1].startsWith('element in its box') && caps.every((c) => /bar \d+(\.\d+)? (m|cm)/.test(c)), caps.join(' | '));
+      await page.locator('.xt-drawer .xc-pics').scrollIntoViewIfNeeded();
       await page.waitForTimeout(250);
-      await shot(page, 'classify-thumbnails.png');
+      await shot(page, 'classify-pictures-drawer.png');
       // the request carries them
       await page.evaluate(() => window.__xrayClassify.configure({ calibration: 'off' }));
       const n0 = net.d3endpoint.length;
       await page.evaluate((gid) => window.__xrayClassify.classify([gid], { rules: false }), pick.gid);
       const sent = net.d3endpoint.slice(n0);
       console.log(tag, 'requests with pictures:', sent.length, 'images per request', sent.map((r) => r.body.images?.length));
-      check(`${tag} both requests of the signature carry the 3 pictures as data URLs`, sent.length >= 2 && sent.every((r) => Array.isArray(r.body.images) && r.body.images.length === 3 && r.body.images.every((u) => /^data:image\/(webp|png);base64,/.test(u))));
+      check(`${tag} both requests of the signature carry the 2 pictures as data URLs, and the state starts with the note about them`, sent.length >= 2 && sent.every((r) => Array.isArray(r.body.images) && r.body.images.length === 2 && r.body.images.every((u) => /^data:image\/(webp|png);base64,/.test(u)) && /^Picture 1: the element alone, a render, axonometric, with a scale bar\. Picture 2: /.test(r.body.state?.pictures ?? '') && Object.keys(r.body.state)[0] === 'pictures'), JSON.stringify(Object.keys(sent[0]?.body.state ?? {})));
       check(`${tag} the key header is the d3 key on every request`, sent.every((r) => r.auth === `Bearer ${D3_KEY}`));
       const idOn = await page.evaluate(() => window.__xrayClassify.state().model);
       await select(page, 'Images', 'off');
       const idOff = await page.evaluate(() => window.__xrayClassify.state().model);
       check(`${tag} the picture settings are part of the cache identity (and absent when pictures are off)`, /^d3:endpoint:vllm-sr\/d3-edge@i[0-9a-f]{8}$/.test(idOn) && idOff === 'd3:endpoint:vllm-sr/d3-edge', `${idOn} / ${idOff}`);
       // pictures are in no params, link, view or storage
-      await select(page, 'Images', 'element+neighbours');
+      await select(page, 'Images', 'both');
       const doc = await page.evaluate(() => JSON.stringify(window.__xray.exportParams?.collect?.() ?? window.__xrayParams?.collect?.() ?? {}));
       const share = await page.evaluate(() => (window.__xrayParams?.shareUrl ?? window.__xray.exportParams?.shareUrl)?.() ?? '');
       const dump = await page.evaluate(() => JSON.stringify({ ...localStorage, ...sessionStorage }));
@@ -597,7 +595,7 @@ async function runD3(browser) {
       await page.waitForFunction(() => /Turn on Send images to Jev first/.test([...document.querySelectorAll('.xt-drawer .xt-note')].filter((n) => n.offsetParent !== null).map((n) => n.textContent).join(' ')), null, { timeout: 30000 });
       await page.waitForTimeout(300);
       check(`${tag} Jev has a "Send images to Jev" switch, off by default, marked untested`, (await page.locator('.xt-drawer .xt-check', { hasText: 'Send images to Jev' }).isVisible()) && !(await page.evaluate(() => window.__xrayClassify.settings().jevImages)) && /Untested: Jev is not known to read images/.test(await drawerText(page)));
-      check(`${tag} with Jev and the switch off, no preview and the images option is disabled with the reason`, (await field(page, 'Images').locator('select').isDisabled()) && (await page.locator('.xt-drawer .xc-thumbs:visible').count()) === 0 && /Turn on Send images to Jev first/.test(await drawerText(page)));
+      check(`${tag} with Jev and the switch off, no preview and the images option is disabled with the reason`, (await field(page, 'Images').locator('select').isDisabled()) && (await page.locator('.xt-drawer .xc-pics:visible').count()) === 0 && /Turn on Send images to Jev first/.test(await drawerText(page)));
     } finally {
       const real = errors.filter((e) => !/favicon|ERR_FAILED|Failed to load resource/i.test(e));
       check(`${tag} (endpoint) zero console errors`, real.length === 0, real.slice(0, 3).join(' | '));
@@ -605,14 +603,31 @@ async function runD3(browser) {
     }
   }
 
-  // ---- E: a vision graph declared by a custom repository: detected and said plainly
+  // ---- E: an export with a vision graph, from a plain base URL: the pictures go through the vision graph in the page (fake onnxruntime-web)
   {
-    const { ctx, page } = await open(browser, { fakeGpu: true, vision: true });
+    const { ctx, page, errors, net } = await open(browser, { fakeGpu: true, vision: true });
     try {
       await openDrawer(page);
-      await select(page, 'Provider', 'd3');
-      await drawerHas(page, /declares a vision graph: the viewer does not support it yet/);
-      check(`${tag} a manifest with a vision graph is detected and the drawer says it is not supported yet`, true);
+      await page.evaluate(() => window.__xrayClassify.configure({ provider: 'd3', d3Backend: 'browser', d3Repo: 'https://d3.example.test/export', d3Revision: 'mm-1', images: 'both', imageSize: 384, calibration: 'off' }));
+      await drawerHas(page, /reads text and pictures/);
+      check(`${tag} a manifest with a vision graph is detected: the drawer says the export reads text and pictures, and Images is enabled`, !(await field(page, 'Images').locator('select').isDisabled()) && /Download 6 MB/.test(await drawerText(page)));
+      check(`${tag} the drawer takes a web address in place of a repository id (and the revision is a label)`, (await field(page, 'Model repository').locator('input').inputValue()) === 'https://d3.example.test/export');
+      const id = await page.evaluate(() => window.__xrayClassify.state().model);
+      check(`${tag} the cache identity names the folder and carries the picture settings once the export is known to read pictures`, /^d3:browser:https:\/\/d3\.example\.test\/export@mm-1@i[0-9a-f]{8}$/.test(id), id);
+      await page.evaluate(() => window.__xrayClassify.confirmD3Download());
+      const gid = await page.evaluate(() => { const m = window.__xray.app.controller.model; const e = m.elements.find((x) => x.ifcClass === 'IfcColumn') ?? m.elements[10]; window.__xray.app.selectIds([e.id]); return e.globalId; });
+      await page.evaluate((g) => window.__xrayClassify.classify([g], { rules: false }), gid);
+      const log = await page.evaluate(() => ({ vision: window.__fakeOrtLog.vision.map((v) => v.patches), runs: window.__fakeOrtLog.runs.map((r) => ({ imageTokens: r.imageTokens, rows: r.rows, L: r.tokens })), sessions: window.__fakeOrtLog.sessions.length }));
+      console.log(tag, 'vision path:', JSON.stringify(log));
+      check(`${tag} the vision graph ran once per picture (576 patches of a 384 px picture), not once per question`, log.vision.length === 2 && log.vision.every((n) => n === 576), JSON.stringify(log.vision));
+      check(`${tag} every torso pass got 2 x 144 picture tokens with as many embedding rows`, log.runs.length >= 4 && log.runs.every((r) => r.imageTokens === 288 && r.rows === 288), JSON.stringify(log.runs.map((r) => r.imageTokens)));
+      check(`${tag} the three graphs were loaded (torso, readout, vision) and no HTTP request carried a token to the folder`, log.sessions === 3 && net.d3files.every((f) => f.auth === null) && net.d3files.some((f) => f.file === 'onnx/vision_encoder.onnx'), JSON.stringify(net.d3files.map((f) => f.file)));
+      const r = await page.evaluate(() => window.__xrayClassify.results());
+      check(`${tag} the element got a decision through the browser path with pictures`, r.length === 1 && r[0].source === 'model', JSON.stringify(r.map((x) => [x.source, x.discipline?.code])));
+      const doc = await page.evaluate(() => JSON.stringify(window.__xray.exportParams?.collect?.() ?? window.__xrayParams?.collect?.() ?? {}));
+      check(`${tag} the folder address is in the params and no picture is`, /d3\.example\.test\/export/.test(doc) && !/data:image|UklGR|iVBOR/.test(doc));
+      const real = errors.filter((e) => !/favicon|ERR_FAILED|Failed to load resource/i.test(e));
+      check(`${tag} (vision) zero console errors`, real.length === 0, real.slice(0, 3).join(' | '));
     } finally {
       await ctx.close();
     }
@@ -623,9 +638,9 @@ async function runD3(browser) {
     const { ctx, page, errors } = await open(browser, { viewport: { width: 390, height: 844 }, fakeGpu: true });
     try {
       await openDrawer(page);
-      await page.evaluate(() => window.__xrayClassify.configure({ provider: 'd3', d3Backend: 'endpoint', images: 'element+neighbours', imageViews: 2, imageSize: 256, calibration: 'manual', temperatures: { discipline: 0.5 } }));
+      await page.evaluate(() => window.__xrayClassify.configure({ provider: 'd3', d3Backend: 'endpoint', images: 'both', imagePlan: true, imageStyle: 'vector', imageSize: 256, calibration: 'manual', temperatures: { discipline: 0.5 } }));
       await page.evaluate(() => { const m = window.__xray.app.controller.model; window.__xray.app.selectIds([m.elements.find((x) => x.ifcClass === 'IfcColumn').id]); });
-      await page.waitForSelector('.xt-drawer .xc-thumbs figure', { timeout: 30000 });
+      await page.waitForSelector('.xt-drawer .xc-pics figure', { timeout: 30000 });
       await page.evaluate(() => window.__xrayClassify.configure({ d3Backend: 'browser', images: 'off' }));
       await page.waitForTimeout(300);
       const geom = async () => page.evaluate(() => {
@@ -635,9 +650,9 @@ async function runD3(browser) {
       });
       const g1 = await geom();
       check(`${tag} the d3 drawer fits the phone width (browser backend)`, g1.right <= g1.vw + 1 && g1.scrollW <= g1.vw + 1 && g1.bad === 0, JSON.stringify(g1));
-      await page.evaluate(() => window.__xrayClassify.configure({ d3Backend: 'endpoint', images: 'element+neighbours' }));
-      await page.waitForSelector('.xt-drawer .xc-thumbs figure', { timeout: 30000 });
-      await page.locator('.xt-drawer .xc-thumbs').scrollIntoViewIfNeeded();
+      await page.evaluate(() => window.__xrayClassify.configure({ d3Backend: 'endpoint', images: 'both' }));
+      await page.waitForSelector('.xt-drawer .xc-pics figure', { timeout: 30000 });
+      await page.locator('.xt-drawer .xc-pics').scrollIntoViewIfNeeded();
       await page.waitForTimeout(300);
       const g2 = await geom();
       check(`${tag} the pictures fit the phone width`, g2.right <= g2.vw + 1 && g2.scrollW <= g2.vw + 1 && g2.bad === 0, JSON.stringify(g2));

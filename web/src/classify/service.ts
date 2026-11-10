@@ -21,7 +21,8 @@ import { ApiKeyStore, D3_KEY_STORAGE_NAME, HF_TOKEN_STORAGE_NAME } from './keySt
 import type { KeyStorages } from './keyStore';
 import { classifyInputs, estimateCalls, rescoreResult, SUB_STRATEGIES } from './pipeline';
 import type { CallEstimate, SubDisciplineStrategy } from './pipeline';
-import { createProvider, providerId, sendsImages, testConnection } from './providers';
+import { createProvider, providerId, sendsGeometry, sendsImages, testConnection } from './providers';
+import type { GeometrySet, GeometrySettings } from './geometrySvg';
 import type { ConnectionTest } from './providers';
 import { clearD3Cache, d3CacheInfo, inspectD3Repo } from './providers/d3';
 import type { D3BrowserProvider, D3CacheInfo, D3Inspection } from './providers/d3';
@@ -63,10 +64,13 @@ export interface ServiceEnv {
   webllmLoad?: Parameters<typeof createProvider>[1]['webllmLoad'];
   /** Draws the pictures of an element for a provider that reads images (the viewer has the geometry; tests pass a fake). */
   thumbnails?: (id: number, s: ThumbSettings) => Promise<ThumbSet> | ThumbSet;
+  /** Builds the SVG geometry of an element (the viewer has the meshes; tests pass a fake). */
+  geometry?: (id: number, s: GeometrySettings) => GeometrySet;
   /** Replace the loaders of the d3 browser backend (tests): the runtime, the tokenizer, the file source and the cache. */
   d3LoadOrt?: Parameters<typeof createProvider>[1]['d3LoadOrt'];
   d3LoadTokenizerLib?: Parameters<typeof createProvider>[1]['d3LoadTokenizerLib'];
   d3Source?: Parameters<typeof createProvider>[1]['d3Source'];
+  d3Decode?: Parameters<typeof createProvider>[1]['d3Decode'];
   d3CacheStorage?: Parameters<typeof createProvider>[1]['d3CacheStorage'];
   d3Gpu?: () => Promise<GpuProbe>;
 }
@@ -272,7 +276,7 @@ export class ClassifyService {
   /** The options that both a normal run and the calibration run pass to the pipeline. */
   private runOptions(s: ClassifySettings, provider: DecisionModel | null, signal: AbortSignal, o: { rules?: boolean; manual?: ReadonlyMap<string, ClassifyResult>; sub?: SubDisciplineStrategy } = {}): Parameters<typeof classifyInputs>[1] {
     const d3 = s.provider === 'd3';
-    const imgs = sendsImages(s) ? this.imageSettings() : null;
+    const imgs = this.imageSettings();
     return {
       schema: this.schema,
       provider,
@@ -285,7 +289,8 @@ export class ClassifyService {
       temperatures: this.calibration().temperatures,
       signal,
       ...(o.rules === false ? { rules: false } : {}),
-      ...(imgs && this.env.thumbnails ? { images: async (input: ClassifyInput) => this.thumbnailUrls(input.id, imgs) } : {}),
+      ...(this.geometrySettings() && this.env.geometry ? { geometry: (input: ClassifyInput) => this.geometryOf(input.id, this.geometrySettings()!) } : {}),
+      ...(imgs && this.env.thumbnails ? { images: async (input: ClassifyInput) => this.thumbnailPictures(input.id, imgs) } : {}),
       onProgress: (p: ProgressInfo) => {
         this.progress = p;
         this.emit();
@@ -298,8 +303,30 @@ export class ClassifyService {
   /** The picture settings in use, or null when this provider sends none. */
   imageSettings(): ThumbSettings | null {
     const s = this.settings();
-    if (!sendsImages(s) || s.images === 'off') return null;
-    return { mode: s.images, views: s.imageViews, size: s.imageSize };
+    if (s.images === 'off' || !sendsImages(s, this.visionNow())) return null;
+    return { mode: s.images, style: s.imageStyle, plan: s.imagePlan, size: s.imageSize, margin: s.imageMargin };
+  }
+
+  /** The SVG settings in use, or null when this provider puts no geometry into the state. */
+  geometrySettings(): GeometrySettings | null {
+    const s = this.settings();
+    return sendsGeometry(s) ? { context: s.geometryContext, margin: s.imageMargin } : null;
+  }
+
+  private readonly geoMemo = new Map<string, GeometrySet>();
+
+  /** The SVG geometry of one element (kept for a short while, like the pictures). */
+  geometryOf(id: string | number, s: GeometrySettings): GeometrySet {
+    const idx = typeof id === 'number' ? id : this.model?.byGlobalId.get(id);
+    if (idx === undefined || !this.model?.elements[idx]) throw new Error(`No element "${String(id)}" in the model.`);
+    if (!this.env.geometry) throw new Error('This page cannot build geometry.');
+    const key = `${this.modelName}|${idx}|${s.context}|${s.margin}`;
+    const hit = this.geoMemo.get(key);
+    if (hit) return hit;
+    const set = this.env.geometry(idx, s);
+    if (this.geoMemo.size >= 60) this.geoMemo.delete(this.geoMemo.keys().next().value as string);
+    this.geoMemo.set(key, set);
+    return set;
   }
 
   private readonly thumbMemo = new Map<string, ThumbSet>();
@@ -309,7 +336,7 @@ export class ClassifyService {
     const idx = typeof id === 'number' ? id : this.model?.byGlobalId.get(id);
     if (idx === undefined || !this.model?.elements[idx]) throw new Error(`No element "${String(id)}" in the model.`);
     if (!this.env.thumbnails) throw new Error('This page cannot draw pictures.');
-    const key = `${this.modelName}|${idx}|${s.mode}|${s.views}|${s.size}`;
+    const key = `${this.modelName}|${idx}|${s.mode}|${s.style}|${s.plan}|${s.size}|${s.margin}`;
     const hit = this.thumbMemo.get(key);
     if (hit) return hit;
     const set = await this.env.thumbnails(idx, s);
@@ -318,13 +345,14 @@ export class ClassifyService {
     return set;
   }
 
-  private async thumbnailUrls(gid: string, s: ThumbSettings): Promise<string[]> {
-    return (await this.thumbnails(gid, s)).thumbs.map((t) => t.dataUrl);
+  private async thumbnailPictures(gid: string, s: ThumbSettings): Promise<{ images: string[]; note: string }> {
+    const set = await this.thumbnails(gid, s);
+    return { images: set.thumbs.map((t) => t.dataUrl), note: set.note };
   }
 
   /** Cache identity: the provider and the model id. */
   modelId(): string {
-    return providerId(this.settings());
+    return providerId(this.settings(), { vision: this.visionNow() });
   }
 
   // ------------------------------------------------------------ schema
@@ -461,6 +489,7 @@ export class ClassifyService {
           ...(this.env.d3LoadOrt ? { d3LoadOrt: this.env.d3LoadOrt } : {}),
           ...(this.env.d3LoadTokenizerLib ? { d3LoadTokenizerLib: this.env.d3LoadTokenizerLib } : {}),
           ...(this.env.d3Source ? { d3Source: this.env.d3Source } : {}),
+          ...(this.env.d3Decode ? { d3Decode: this.env.d3Decode } : {}),
           ...(this.env.d3CacheStorage !== undefined ? { d3CacheStorage: this.env.d3CacheStorage } : {}),
           d3Gpu: () => (this.env.d3Gpu ?? this.env.decisionGpu ?? probeGpuF)(),
           ...(this.env.fetchImpl ? { fetchImpl: this.env.fetchImpl } : {}),
@@ -588,14 +617,35 @@ export class ClassifyService {
   /** Read the manifest of the d3 repository (a few KB) so the drawer can show the size before anything is downloaded. */
   inspectD3(): Promise<D3Inspection> {
     const s = this.settings();
-    if (s.provider !== 'd3') return Promise.resolve({ ok: false, message: 'd3 is not selected.', files: {}, totalBytes: 0, torsoBytes: 0, vision: false, scope: '' });
-    const key = `${s.d3Repo}|${s.d3Revision}|${s.d3HfEndpoint}`;
+    if (s.provider !== 'd3') return Promise.resolve({ ok: false, message: 'd3 is not selected.', files: {}, totalBytes: 0, torsoBytes: 0, vision: false, graphs: { torso: '', readout: '', vision: null }, mm: { patchSize: 16, mergeSize: 2, posGrid: 48, minPixels: 65_536, maxPixels: 1_638_400, imageTokenId: null }, scope: '' });
+    const key = this.d3RepoKey(s);
     if (this.d3Inspection?.key !== key) {
       const value = inspectD3Repo({ repo: s.d3Repo, revision: s.d3Revision, endpoint: s.d3HfEndpoint, token: this.hfToken.get(), ...(this.env.fetchImpl ? { fetchImpl: this.env.fetchImpl } : {}) });
       this.d3Inspection = { key, value };
-      void value.then((r) => { if (!r.ok && this.d3Inspection?.key === key) this.d3Inspection = null; });
+      void value.then((r) => {
+        if (!r.ok && this.d3Inspection?.key === key) this.d3Inspection = null;
+        if (r.ok && this.d3Inspection?.key === key && this.d3Vision?.key !== key) {
+          this.d3Vision = { key, vision: r.vision };
+          // The identity of a decision includes the pictures when they are sent: it changes now.
+          if (this.imageSettingsUsed()) this.afterSettingsChange();
+          else this.emit();
+        }
+      });
     }
     return this.d3Inspection.value;
+  }
+
+  private d3Vision: { key: string; vision: boolean } | null = null;
+  private d3RepoKey(s: ClassifySettings): string {
+    return s.provider === 'd3' ? `${s.d3Repo}|${s.d3Revision}|${s.d3HfEndpoint}` : '';
+  }
+  /** Does the d3 export in use (browser backend) read pictures? Known after its manifest was read. */
+  visionNow(): boolean {
+    const s = this.settings();
+    return s.provider === 'd3' && s.d3Backend === 'browser' && this.d3Vision?.key === this.d3RepoKey(s) && this.d3Vision.vision;
+  }
+  private imageSettingsUsed(): boolean {
+    return this.settings().images !== 'off';
   }
 
   d3CacheInfo(): Promise<D3CacheInfo> {
@@ -690,8 +740,11 @@ export class ClassifyService {
     this.ctl = new AbortController();
     this.progress = null;
     this.emit();
-    const s = this.settings();
     try {
+      // A browser export that reads pictures is known only after its manifest was read: do it first, so the identity of the decisions is right.
+      const s0 = this.settings();
+      if (s0.provider === 'd3' && s0.d3Backend === 'browser' && s0.images !== 'off') await this.inspectD3().catch(() => undefined);
+      const s = this.settings();
       const sub = typeof o.subDiscipline === 'function' ? o.subDiscipline : SUB_STRATEGIES[o.subDiscipline ?? 'top2-when-unsure'];
       const run = await classifyInputs(inputs, this.runOptions(s, this.provider(), this.ctl.signal, { sub, ...(o.rules === false ? { rules: false } : {}) }));
       this.store.merge(run.results);

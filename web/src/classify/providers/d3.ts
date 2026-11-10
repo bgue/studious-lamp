@@ -18,7 +18,9 @@ import type { Answers, JsonObject, Questions } from '../jevAdapter';
 import { loadTransformers, progressTracker } from './decision';
 import type { DecisionProgress, GpuProbe } from './decision';
 import { D3_CODES, D3_FORMAT_ID, D3_MAX_OPTIONS, d3Answer, d3Options, d3Render } from './d3Format';
-import { D3_CACHE_NAME, D3_FILES, ORT_CDN_URL, ORT_WASM_BASE } from './d3Config';
+import { D3_CACHE_NAME, D3_FILES, ORT_CDN_URL, ORT_WASM_BASE, isBaseUrl } from './d3Config';
+import { VISION_DEFAULTS, expandImagePads, mropePositions, preprocessPicture, textPositions, visionInputs } from './d3Vision';
+import type { Rgba, VisionParams } from './d3Vision';
 
 // ---------------------------------------------------------------- the parts that are injected (fakes in the tests)
 
@@ -58,6 +60,11 @@ export interface D3FileInfo {
   bytes: number;
   sha256: string;
 }
+export interface D3GraphFiles {
+  torso: string;
+  readout: string;
+  vision: string | null;
+}
 export interface D3Inspection {
   ok: boolean;
   /** Plain reason when not ok. */
@@ -66,36 +73,47 @@ export interface D3Inspection {
   /** Bytes that the browser must download in total (torso, readout, tokenizer, configs). */
   totalBytes: number;
   torsoBytes: number;
-  /** The manifest declares a vision graph (not supported by this viewer yet). */
+  /** The manifest declares a vision graph (and lists its file): the export reads pictures. */
   vision: boolean;
+  /** Paths of the graphs, from the manifest (`graphs`), or the defaults of the text-only export. */
+  graphs: D3GraphFiles;
+  /** Numbers of the picture side, from the manifest (`mm`), or the defaults of d3-edge. */
+  mm: VisionParams & { imageTokenId: number | null };
   /** Free text of the manifest, shown as it is (the scope of the export). */
   scope: string;
 }
 
 const isObj = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v);
 
-const baseUrl = (endpoint: string, repo: string, revision: string): string => `${endpoint.replace(/\/+$/, '')}/${repo}/resolve/${revision}/`;
+const baseUrl = (endpoint: string, repo: string, revision: string): string =>
+  isBaseUrl(repo) ? `${repo.trim().replace(/\/+$/, '')}/` : `${endpoint.replace(/\/+$/, '')}/${repo}/resolve/${revision}/`;
+/** The address of one file. A plain base URL gets `?v=<revision>` so that a new export under the same address is not served from an old cache entry. */
+const fileUrl = (repo: string, revision: string, base: string, name: string): string => (isBaseUrl(repo) ? `${base}${name}?v=${encodeURIComponent(revision)}` : base + name);
 
 /**
  * Read MANIFEST.json and decision_config.json of a repository and check that it is a d3 code-readout export with a torso, a readout and a
  * tokenizer: before 1 GB is downloaded. Never throws.
  */
 export async function inspectD3Repo(o: { repo: string; revision: string; endpoint: string; token?: string | null; fetchImpl?: typeof fetch; signal?: AbortSignal }): Promise<D3Inspection> {
-  const bad = (message: string): D3Inspection => ({ ok: false, message, files: {}, totalBytes: 0, torsoBytes: 0, vision: false, scope: '' });
+  const noGraphs: D3GraphFiles = { torso: D3_FILES.torso, readout: D3_FILES.readout, vision: null };
+  const noMm = { ...VISION_DEFAULTS, imageTokenId: null };
+  const bad = (message: string): D3Inspection => ({ ok: false, message, files: {}, totalBytes: 0, torsoBytes: 0, vision: false, graphs: noGraphs, mm: noMm, scope: '' });
   const f = o.fetchImpl ?? globalThis.fetch.bind(globalThis);
   const base = baseUrl(o.endpoint, o.repo, o.revision);
+  const where = isBaseUrl(o.repo) ? o.repo.trim() : o.endpoint;
   const headers: Record<string, string> = {};
-  if (o.token) headers['Authorization'] = `Bearer ${o.token}`;
+  // A Hugging Face token goes to the Hugging Face endpoint only, never to a plain base URL.
+  if (o.token && !isBaseUrl(o.repo)) headers['Authorization'] = `Bearer ${o.token}`;
   const get = async (name: string): Promise<{ json?: unknown; problem?: string }> => {
     try {
-      const r = await f(base + name, { headers, credentials: 'omit', ...(o.signal ? { signal: o.signal } : {}) });
-      if (r.status === 404) return { problem: `"${o.repo}" at revision "${o.revision}" has no ${name}. Check the repository id and the revision.` };
+      const r = await f(fileUrl(o.repo, o.revision, base, name), { headers, credentials: 'omit', ...(o.signal ? { signal: o.signal } : {}) });
+      if (r.status === 404) return { problem: isBaseUrl(o.repo) ? `${where} has no ${name}. Check the address of the folder.` : `"${o.repo}" at revision "${o.revision}" has no ${name}. Check the repository id and the revision.` };
       if (r.status === 401 || r.status === 403) return { problem: `"${o.repo}" needs a Hugging Face token (HTTP ${r.status}). Save a token with access to it.` };
-      if (!r.ok) return { problem: `${o.endpoint} answered HTTP ${r.status} for ${name} of "${o.repo}".` };
+      if (!r.ok) return { problem: `${where} answered HTTP ${r.status} for ${name} of "${o.repo}".` };
       return { json: await r.json() };
     } catch (e) {
       if (o.signal?.aborted) throw e;
-      return { problem: `Could not reach ${o.endpoint} (${e instanceof Error ? e.message : String(e)}). Check the network and the endpoint setting.` };
+      return { problem: `Could not reach ${where} (${e instanceof Error ? e.message : String(e)}). Check the network${isBaseUrl(o.repo) ? ', the address and that the server allows cross-origin requests' : ' and the endpoint setting'}.` };
     }
   };
   const man = await get(D3_FILES.manifest);
@@ -111,9 +129,13 @@ export async function inspectD3Repo(o: { repo: string; revision: string; endpoin
   }
   if (!isObj(man.json) || !isObj(man.json['files'])) return bad(`The MANIFEST.json of "${o.repo}" has no file list.`);
   const listed = man.json['files'];
+  const graphMap = isObj(man.json['graphs']) ? man.json['graphs'] : {};
+  // `graphs` values start with the path of the file ("onnx/torso_mm.onnx (Qwen3.5, ...)"); no entry means the layout of the text-only export.
+  const pathOf = (v: unknown, dflt: string | null): string | null => (typeof v === 'string' && /^\S+\.onnx\b/.test(v.trim()) ? v.trim().split(/\s+/)[0]! : dflt);
+  const graphs: D3GraphFiles = { torso: pathOf(graphMap['torso'], D3_FILES.torso)!, readout: pathOf(graphMap['readout'], D3_FILES.readout)!, vision: pathOf(graphMap['vision'], null) };
+  const wanted = [D3_FILES.config, D3_FILES.tokenizer, D3_FILES.tokenizerConfig, graphs.readout, graphs.torso, ...(graphs.vision ? [graphs.vision] : [])];
   const files: Record<string, D3FileInfo> = {};
-  for (const name of Object.values(D3_FILES)) {
-    if (name === D3_FILES.manifest) continue;
+  for (const name of wanted) {
     const e = listed[name];
     if (!isObj(e) || typeof e['bytes'] !== 'number' || typeof e['sha256'] !== 'string' || !/^[0-9a-f]{64}$/.test(e['sha256'])) {
       if (name === D3_FILES.tokenizerConfig || name === D3_FILES.config) continue;
@@ -121,11 +143,17 @@ export async function inspectD3Repo(o: { repo: string; revision: string; endpoin
     }
     files[name] = { bytes: e['bytes'], sha256: e['sha256'] };
   }
-  const graphs = isObj(man.json['graphs']) ? man.json['graphs'] : {};
-  const vision = 'vision' in graphs || Object.keys(listed).some((k) => /onnx\/.*(vision|visual|image).*\.onnx$/i.test(k));
+  const vision = graphs.vision !== null;
+  const mmRaw = isObj(man.json['mm']) ? man.json['mm'] : {};
+  const num = (k: string, d: number): number => (typeof mmRaw[k] === 'number' && Number.isFinite(mmRaw[k]) && (mmRaw[k] as number) > 0 ? (mmRaw[k] as number) : d);
+  const mm = {
+    patchSize: num('patch_size', VISION_DEFAULTS.patchSize), mergeSize: num('merge_size', VISION_DEFAULTS.mergeSize), posGrid: num('pos_grid', VISION_DEFAULTS.posGrid),
+    minPixels: num('min_pixels', VISION_DEFAULTS.minPixels), maxPixels: num('max_pixels', VISION_DEFAULTS.maxPixels),
+    imageTokenId: typeof mmRaw['image_token_id'] === 'number' ? (mmRaw['image_token_id'] as number) : null,
+  };
   const scope = typeof man.json['scope'] === 'string' ? man.json['scope'] : '';
   const totalBytes = Object.values(files).reduce((s, x) => s + x.bytes, 0);
-  return { ok: true, message: '', files, totalBytes, torsoBytes: files[D3_FILES.torso]?.bytes ?? 0, vision, scope };
+  return { ok: true, message: '', files, totalBytes, torsoBytes: files[graphs.torso]?.bytes ?? 0, vision, graphs, mm, scope };
 }
 
 // ---------------------------------------------------------------- files: Cache API and integrity
@@ -170,26 +198,26 @@ export function browserSource(o: { repo: string; revision: string; endpoint: str
     async has(file) {
       try {
         const c = await opened();
-        return !!c && !!(await c.match(base + file));
+        return !!c && !!(await c.match(fileUrl(o.repo, o.revision, base, file)));
       } catch {
         return false;
       }
     },
     async read(file, io = {}) {
-      const url = base + file;
+      const url = fileUrl(o.repo, o.revision, base, file);
       const c = await opened().catch(() => null);
       const hit = c ? await c.match(url).catch(() => undefined) : undefined;
       if (hit) return new Uint8Array(await hit.arrayBuffer());
       const f = o.fetchImpl ?? globalThis.fetch.bind(globalThis);
-      const token = o.token?.() ?? null;
+      const token = isBaseUrl(o.repo) ? null : (o.token?.() ?? null);
       let res: Response;
       try {
         res = await f(url, { credentials: 'omit', ...(token ? { headers: { Authorization: `Bearer ${token}` } } : {}), ...(io.signal ? { signal: io.signal } : {}) });
       } catch (e) {
         if (io.signal?.aborted) throw e;
-        throw new ProviderError(`Could not download ${file} from ${o.endpoint} (${e instanceof Error ? e.message : String(e)}). Check the network and the endpoint setting.`);
+        throw new ProviderError(`Could not download ${file} from ${isBaseUrl(o.repo) ? o.repo : o.endpoint} (${e instanceof Error ? e.message : String(e)}). Check the network and the endpoint setting.`);
       }
-      if (!res.ok) throw new ProviderError(`${o.endpoint} answered HTTP ${res.status} for ${file}.`);
+      if (!res.ok) throw new ProviderError(`${isBaseUrl(o.repo) ? o.repo : o.endpoint} answered HTTP ${res.status} for ${file}.`);
       const total = Number(res.headers.get('content-length')) || 0;
       let loaded = 0;
       const body = res.body;
@@ -325,9 +353,24 @@ export interface D3EngineOptions {
   sessionOptions?: (device: 'webgpu' | 'wasm') => Record<string, unknown>;
 }
 
+/** The pictures of one request, run through the vision encoder once (every question of the request sees the same pictures). */
+export interface PreparedPictures {
+  /** Embeddings of the pictures, [tokens, 1024] each, float32. */
+  embeds: Float32Array[];
+  /** Tokens each picture takes in the prompt. */
+  tokens: number[];
+  /** Merged grids [rows, columns] of the pictures. */
+  grids: Array<[number, number]>;
+  ms: number;
+}
+
 export interface D3Engine {
-  /** Code logits (the first `count` entries are the options) of one prompt, and the number of tokens. */
-  scores(prompt: string, count: number): Promise<{ logits: Float32Array; tokens: number }>;
+  /** Code logits (the first `count` entries are the options) of one prompt, and the number of tokens. `pictures` come from `prepare`. */
+  scores(prompt: string, count: number, pictures?: PreparedPictures): Promise<{ logits: Float32Array; tokens: number }>;
+  /** True when the export has a vision graph, so `prepare` works. */
+  vision: boolean;
+  /** Run the vision encoder on decoded pictures (one call per picture). Throws on an export without a vision graph. */
+  prepare(pictures: readonly Rgba[]): Promise<PreparedPictures>;
   dispose(): Promise<void>;
   inputNames: readonly string[];
 }
@@ -371,8 +414,9 @@ export async function loadD3Engine(o: D3EngineOptions): Promise<D3Engine> {
   } catch {
     /* the tokenizer config is optional: a missing file is not fatal */
   }
-  const readout = await read(D3_FILES.readout);
-  const torso = await read(D3_FILES.torso);
+  const readout = await read(ins.graphs.readout);
+  const torso = await read(ins.graphs.torso);
+  const visionBytes = ins.graphs.vision ? await read(ins.graphs.vision) : null;
 
   const ort = await (o.loadOrt ?? loadOrt)();
   const tokLib = await (o.loadTokenizerLib ?? loadTokenizerLib)();
@@ -384,12 +428,14 @@ export async function loadD3Engine(o: D3EngineOptions): Promise<D3Engine> {
   });
   let torsoSession: OrtSession;
   let readoutSession: OrtSession;
+  let visionSession: OrtSession | null = null;
   try {
     torsoSession = await ort.InferenceSession.create(torso, opts(o.runtime.device));
     readoutSession = await ort.InferenceSession.create(readout, { executionProviders: ['wasm'], ...(o.sessionOptions?.('wasm') ?? {}) });
+    if (visionBytes) visionSession = await ort.InferenceSession.create(visionBytes, opts(o.runtime.device));
   } catch (e) {
     const m = e instanceof Error ? e.message : String(e);
-    if (/memory|alloc|oom/i.test(m)) throw new ProviderError(`The device ran out of memory while it loaded the 1 GB model (${m}). Close other tabs, or use the endpoint backend.`);
+    if (/memory|alloc|oom/i.test(m)) throw new ProviderError(`The device ran out of memory while it loaded the model (${m}). Close other tabs, or use the endpoint backend.`);
     throw new ProviderError(`Could not start the d3 model on ${o.runtime.device} (${m}).`);
   }
   const names = torsoSession.inputNames;
@@ -397,18 +443,74 @@ export async function loadD3Engine(o: D3EngineOptions): Promise<D3Engine> {
   const idsName = find(/input_ids|^ids$|tokens/i) ?? names[0]!;
   const maskName = find(/attention_mask|^mask$/i);
   const posName = find(/position_ids|positions/i);
+  const imgName = find(/image_embeds/i);
   const outName = torsoSession.outputNames[0]!;
+  const multimodal = !!imgName;
+  if (visionSession && !multimodal) throw new ProviderError('The manifest declares a vision graph, but the torso graph has no image_embeds input. The export is not complete.');
+  const mm = ins.mm;
+  const imageTokenId = mm.imageTokenId ?? (tokenizer.encode(VISION_DEFAULTS.imageToken, { add_special_tokens: false })[0] ?? -1);
+  const big = (xs: ArrayLike<number>): BigInt64Array => BigInt64Array.from(Array.from(xs, (x) => BigInt(x)));
 
   return {
     inputNames: names,
-    async scores(prompt, count) {
-      const ids = tokenizer.encode(prompt, { add_special_tokens: false });
+    vision: !!visionSession,
+    async prepare(pictures) {
+      if (!visionSession) throw new ProviderError('This d3 export reads text only: its manifest has no vision graph.');
+      const t0 = Date.now();
+      const embeds: Float32Array[] = [];
+      const tokens: number[] = [];
+      const grids: Array<[number, number]> = [];
+      const vin = visionSession.inputNames;
+      const pick = (re: RegExp, i: number): string => vin.find((n) => re.test(n)) ?? vin[i]!;
+      for (const rgba of pictures) {
+        const pre = preprocessPicture(rgba, mm);
+        const taps = visionInputs(pre.gridH, pre.gridW, pre.hw, mm.posGrid);
+        const n = pre.gridH * pre.gridW;
+        const out = await visionSession.run({
+          [pick(/pixel/i, 0)]: new ort.Tensor('float32', pre.pixels, [n, 3 * mm.patchSize * mm.patchSize]),
+          [pick(/pos_hw|hw/i, 1)]: new ort.Tensor('int64', pre.hw, [n, 2]),
+          [pick(/pos_idx|idx/i, 2)]: new ort.Tensor('int64', taps.idx, [n, 4]),
+          [pick(/pos_w|weight/i, 3)]: new ort.Tensor('float32', taps.w, [n, 4]),
+        });
+        const e = out[visionSession.outputNames[0]!]!;
+        const data = Float32Array.from(e.data as ArrayLike<number>);
+        if (data.length !== pre.tokens * D3_HIDDEN) throw new ProviderError(`The vision graph gave ${data.length} values for ${pre.tokens} picture tokens.`);
+        embeds.push(data);
+        tokens.push(pre.tokens);
+        grids.push([pre.gridH / mm.mergeSize, pre.gridW / mm.mergeSize]);
+      }
+      return { embeds, tokens, grids, ms: Date.now() - t0 };
+    },
+    async scores(prompt, count, pictures) {
+      const withPictures = !!pictures && pictures.tokens.length > 0;
+      const rendered = withPictures ? expandImagePads(prompt, pictures!.tokens) : prompt;
+      const ids = tokenizer.encode(rendered, { add_special_tokens: false });
       if (!ids.length) throw new ProviderError('The tokenizer gave no tokens for the prompt.');
       const L = ids.length;
-      const big = (xs: ArrayLike<number>): BigInt64Array => BigInt64Array.from(Array.from(xs, (x) => BigInt(x)));
       const feeds: Record<string, OrtTensor> = { [idsName]: new ort.Tensor('int64', big(ids), [1, L]) };
-      if (maskName) feeds[maskName] = new ort.Tensor('int64', big(new Array<number>(L).fill(1)), [1, L]);
-      if (posName) feeds[posName] = new ort.Tensor('int64', big(Array.from({ length: L }, (_, i) => i)), [1, L]);
+      if (multimodal) {
+        let embed: Float32Array;
+        let rows: number;
+        let positions: BigInt64Array;
+        if (withPictures) {
+          rows = pictures!.tokens.reduce((a, b) => a + b, 0);
+          embed = new Float32Array(rows * D3_HIDDEN);
+          let at = 0;
+          for (const e of pictures!.embeds) { embed.set(e, at); at += e.length; }
+          positions = mropePositions(ids, imageTokenId, pictures!.grids);
+        } else {
+          rows = 1;
+          embed = new Float32Array(D3_HIDDEN); // no picture token in the prompt: the graph never reads it
+          positions = textPositions(L);
+        }
+        feeds[imgName!] = new ort.Tensor('float32', embed, [rows, D3_HIDDEN]);
+        feeds[posName!] = new ort.Tensor('int64', positions, [3, 1, L]);
+        if (maskName) feeds[maskName] = new ort.Tensor('int64', big(new Array<number>(L).fill(1)), [1, L]);
+      } else {
+        if (withPictures) throw new ProviderError('This d3 export reads text only. It cannot take pictures.');
+        if (maskName) feeds[maskName] = new ort.Tensor('int64', big(new Array<number>(L).fill(1)), [1, L]);
+        if (posName) feeds[posName] = new ort.Tensor('int64', big(Array.from({ length: L }, (_, i) => i)), [1, L]);
+      }
       const out = await torsoSession.run(feeds);
       const hidden = lastHidden(out[outName]!, D3_HIDDEN);
       const r = await readoutSession.run({
@@ -419,7 +521,7 @@ export async function loadD3Engine(o: D3EngineOptions): Promise<D3Engine> {
       return { logits, tokens: L };
     },
     async dispose() {
-      try { await torsoSession.release?.(); await readoutSession.release?.(); } catch { /* ignore */ }
+      try { await torsoSession.release?.(); await readoutSession.release?.(); await visionSession?.release?.(); } catch { /* ignore */ }
     },
   };
 }
@@ -442,6 +544,8 @@ export interface D3BrowserOptions {
   loadTokenizerLib?: D3EngineOptions['loadTokenizerLib'];
   sessionOptions?: D3EngineOptions['sessionOptions'];
   cacheStorage?: CacheStorageForD3 | null;
+  /** Decode a picture (a data URL) into RGBA pixels. The default uses the browser (createImageBitmap and a canvas); Node tests and benches pass their own. */
+  decodeImage?: (dataUrl: string) => Promise<Rgba>;
 }
 
 export interface D3LoadReport {
@@ -451,6 +555,7 @@ export interface D3LoadReport {
   /** Bytes that came over the network in this load (0 when all came from the cache). */
   downloadedBytes: number;
   totalBytes: number;
+  /** The export has a vision graph and the engine loaded it: pictures are read. */
   vision: boolean;
 }
 
@@ -459,6 +564,9 @@ export interface D3Stats {
   passes: number;
   tokens: number;
   ms: number;
+  /** Pictures run through the vision encoder, and the time that took. */
+  pictures: number;
+  pictureMs: number;
 }
 
 export interface D3BrowserProvider extends DecisionModel {
@@ -469,11 +577,30 @@ export interface D3BrowserProvider extends DecisionModel {
   dispose(): Promise<void>;
 }
 
+export const D3_TEXT_ONLY =
+  'This d3 export reads text only: its manifest has no vision graph. Use the endpoint backend, or an export with a vision graph (tools/export_d3_web.py), to send pictures.';
+
+/** Decode a picture (a data URL, WebP or PNG) into RGBA pixels with the browser's own decoder. */
+export async function browserDecodeImage(dataUrl: string): Promise<Rgba> {
+  const blob = await (await fetch(dataUrl)).blob();
+  const bmp = await createImageBitmap(blob, { colorSpaceConversion: 'none', premultiplyAlpha: 'none' });
+  try {
+    const c = typeof OffscreenCanvas !== 'undefined' ? new OffscreenCanvas(bmp.width, bmp.height) : Object.assign(document.createElement('canvas'), { width: bmp.width, height: bmp.height });
+    const g = (c as OffscreenCanvas).getContext('2d', { willReadFrequently: true }) as OffscreenCanvasRenderingContext2D | null;
+    if (!g) throw new ProviderError('The browser could not read the pixels of a picture.');
+    g.drawImage(bmp, 0, 0);
+    const d = g.getImageData(0, 0, bmp.width, bmp.height);
+    return { data: d.data, width: d.width, height: d.height };
+  } finally {
+    bmp.close();
+  }
+}
+
 /** Plain text for a model that is not cached yet: the confirm dialog and the drawer use it. */
 export const D3_DOWNLOAD_NEEDED = 'The d3-edge model is not downloaded yet. Confirm the download of about 1 GB in the Classify drawer first.';
 
 export function createD3BrowserProvider(o: D3BrowserOptions): D3BrowserProvider {
-  const stats: D3Stats = { requests: 0, passes: 0, tokens: 0, ms: 0 };
+  const stats: D3Stats = { requests: 0, passes: 0, tokens: 0, ms: 0, pictures: 0, pictureMs: 0 };
   let report: D3LoadReport | null = null;
   let loaded: Promise<D3Engine> | null = null;
   let failure: { error: unknown; at: number } | null = null;
@@ -485,14 +612,10 @@ export function createD3BrowserProvider(o: D3BrowserOptions): D3BrowserProvider 
     const token = o.token?.() ?? null;
     const ins = await inspectD3Repo({ repo: o.repo, revision: o.revision, endpoint: o.endpoint, token, ...(o.fetchImpl ? { fetchImpl: o.fetchImpl } : {}), ...(signal ? { signal } : {}) });
     if (!ins.ok) throw new ProviderError(ins.message);
-    if (ins.vision) {
-      // A vision graph is declared. This viewer does not run it yet: the text graphs still work, so say it and go on.
-      rt.note = `${rt.note} This repository declares a vision graph. The viewer does not support it yet; only text is read.`.trim();
-    }
     const source = o.source ?? browserSource({ repo: o.repo, revision: o.revision, endpoint: o.endpoint, ...(o.token ? { token: o.token } : {}), ...(o.fetchImpl ? { fetchImpl: o.fetchImpl } : {}), ...(o.cacheStorage !== undefined ? { storage: o.cacheStorage } : {}) });
     const missing: string[] = [];
     // The files that the engine reads (decision_config.json is read and checked above, with the manifest).
-    for (const f of [D3_FILES.tokenizer, D3_FILES.tokenizerConfig, D3_FILES.readout, D3_FILES.torso]) if (f in ins.files && !(await source.has(f))) missing.push(f);
+    for (const f of [D3_FILES.tokenizer, D3_FILES.tokenizerConfig, ins.graphs.readout, ins.graphs.torso, ...(ins.graphs.vision ? [ins.graphs.vision] : [])]) if (f in ins.files && !(await source.has(f))) missing.push(f);
     const needBytes = missing.reduce((s, f) => s + (ins.files[f]?.bytes ?? 0), 0);
     if (missing.length) {
       const ok = o.confirmDownload ? await o.confirmDownload({ bytes: needBytes, files: missing }) : false;
@@ -518,12 +641,33 @@ export function createD3BrowserProvider(o: D3BrowserOptions): D3BrowserProvider 
     return loaded;
   };
 
+  const memo = new Map<string, PreparedPictures>();
+  /** The pictures of a request through the vision encoder, once: both requests of a signature (main and sub-discipline) send the same pictures. */
+  const picturesOf = async (eng: D3Engine, urls: readonly string[], signal: AbortSignal): Promise<PreparedPictures> => {
+    const key = urls.join('\n');
+    const hit = memo.get(key);
+    if (hit) return hit;
+    const decode = o.decodeImage ?? browserDecodeImage;
+    const rgba: Rgba[] = [];
+    for (const u of urls) {
+      if (signal.aborted) throw new DOMException('Aborted', 'AbortError');
+      try { rgba.push(await decode(u)); } catch (e) { throw new ProviderError(`A picture could not be decoded (${e instanceof Error ? e.message : String(e)}).`); }
+    }
+    const p = await eng.prepare(rgba);
+    stats.pictures += urls.length;
+    stats.pictureMs += p.ms;
+    memo.set(key, p);
+    if (memo.size > 4) memo.delete(memo.keys().next().value as string);
+    return p;
+  };
+
   let chain: Promise<unknown> = Promise.resolve();
   const run = async (state: JsonObject, questions: Questions, signal: AbortSignal, extra?: DecideExtra): Promise<Answers> => {
     if (signal.aborted) throw new DOMException('Aborted', 'AbortError');
-    if (extra?.images?.length) throw new ProviderError('The browser build of d3-edge reads text only. Use the endpoint backend to send images.');
     const eng = await ensure(signal, false);
+    if (extra?.images?.length && !eng.vision) throw new ProviderError(D3_TEXT_ONLY);
     stats.requests++;
+    const pictures = extra?.images?.length ? await picturesOf(eng, extra.images, signal) : undefined;
     const answers: Answers['answers'] = {};
     let tokens = 0;
     for (const [name, q] of Object.entries(questions)) {
@@ -531,7 +675,7 @@ export function createD3BrowserProvider(o: D3BrowserOptions): D3BrowserProvider 
       const n = d3Options(q).keys.length;
       if (n > D3_MAX_OPTIONS) throw new ProviderError(`The question "${name}" has ${n} options. d3 has ${D3_MAX_OPTIONS} answer codes.`);
       const t0 = Date.now();
-      const s = await eng.scores(d3Render(state, q), n);
+      const s = await eng.scores(pictures ? d3Render(state, q, D3_CODES, pictures.tokens.length) : d3Render(state, q), n, pictures);
       stats.passes++;
       stats.tokens += s.tokens;
       stats.ms += Date.now() - t0;
@@ -550,6 +694,7 @@ export function createD3BrowserProvider(o: D3BrowserOptions): D3BrowserProvider 
       const l = loaded;
       loaded = null;
       report = null;
+      memo.clear();
       try { await (await l)?.dispose(); } catch { /* ignore */ }
     },
     decide(state, questions, signal, extra): Promise<Answers> {

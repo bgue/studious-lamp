@@ -23,16 +23,18 @@ const KEY = 'sk-live-ABCDEF-0123456789';
 const HF_TOKEN = 'hf_QWERTYUIOPasdfghjkl0123456789';
 const D3_KEY = 'd3-live-ZXCVBN-9876543210';
 const THUMB = 'data:image/webp;base64,UklGRlRIVU1CTkFJTEJZVEVT'; // what a picture looks like: it must never leave the request
+const SVG_MARK = "<svg id='plan' data-class='IfcDuctSegment' data-size='0.3x2x0.2' viewBox='0 0 0.3 2'><rect x='0' y='0' width='0.3' height='2'/></svg>"; // the SVG text of an element: in the request state only
+const PICTURE_NOTE = 'Picture 1: the element alone, a line drawing, axonometric, with a scale bar.'; // the note about the pictures goes into the request state, not into params
 
 function storages(): { session: MemoryStorage; local: MemoryStorage } {
   return { session: new MemoryStorage(), local: new MemoryStorage() };
 }
 const kv = (m: MemoryStorage): KeyValueStorage => m as unknown as KeyValueStorage;
 
-function makeService(opts: { storage?: MemoryStorage; k?: ReturnType<typeof storages>; fetchImpl?: typeof fetch; thumbnails?: ConstructorParameters<typeof ClassifyService>[0]['thumbnails'] } = {}): { svc: ClassifyService; storage: MemoryStorage; k: ReturnType<typeof storages> } {
+function makeService(opts: { storage?: MemoryStorage; k?: ReturnType<typeof storages>; fetchImpl?: typeof fetch; thumbnails?: ConstructorParameters<typeof ClassifyService>[0]['thumbnails']; geometry?: ConstructorParameters<typeof ClassifyService>[0]['geometry'] } = {}): { svc: ClassifyService; storage: MemoryStorage; k: ReturnType<typeof storages> } {
   const storage = opts.storage ?? new MemoryStorage();
   const k = opts.k ?? storages();
-  const svc = new ClassifyService({ storage: kv(storage), keyStorages: { session: kv(k.session), local: kv(k.local) }, ...(opts.fetchImpl ? { fetchImpl: opts.fetchImpl } : {}), ...(opts.thumbnails ? { thumbnails: opts.thumbnails } : {}) });
+  const svc = new ClassifyService({ storage: kv(storage), keyStorages: { session: kv(k.session), local: kv(k.local) }, ...(opts.fetchImpl ? { fetchImpl: opts.fetchImpl } : {}), ...(opts.thumbnails ? { thumbnails: opts.thumbnails } : {}), ...(opts.geometry ? { geometry: opts.geometry } : {}) });
   return { svc, storage, k };
 }
 
@@ -40,7 +42,7 @@ describe('settings validation', () => {
   it('has safe defaults: off, pinned model, the Jev endpoint', () => {
     const c = validateSettings(undefined);
     expect(c.errors).toEqual([]);
-    expect(c.settings).toEqual({ provider: 'off', schemaUrl: '', minConfidence: null, writePset: true, calibration: 'auto', temperatures: {}, images: 'off', imageViews: 1, imageSize: 384 });
+    expect(c.settings).toEqual({ provider: 'off', schemaUrl: '', minConfidence: null, writePset: true, calibration: 'auto', temperatures: {}, images: 'off', imageStyle: 'render', imagePlan: false, imageSize: 384, imageMargin: 25, geometryText: 'off', geometryContext: true });
     const d = defaultDraft();
     expect(d.endpoint).toBe('https://api.typesafe.ai/v1/systemone');
     expect(d.model).toBe('jev-1.13.0');
@@ -48,7 +50,7 @@ describe('settings validation', () => {
 
   it('is a union: only the fields of the provider are kept', () => {
     const j = toSettings({ ...defaultDraft(), provider: 'jev' });
-    const SHARED = ['calibration', 'imageSize', 'imageViews', 'images', 'minConfidence', 'provider', 'schemaUrl', 'temperatures', 'writePset'];
+    const SHARED = ['calibration', 'geometryContext', 'geometryText', 'imageMargin', 'imagePlan', 'imageSize', 'imageStyle', 'images', 'minConfidence', 'provider', 'schemaUrl', 'temperatures', 'writePset'];
     expect(Object.keys(j).sort()).toEqual([...SHARED, 'concurrency', 'endpoint', 'jevImages', 'maxStateBytes', 'model', 'timeoutMs'].sort());
     const w = toSettings({ ...defaultDraft(), provider: 'webllm' });
     expect(Object.keys(w).sort()).toEqual([...SHARED, 'embedTemperature', 'hybridMargin', 'webllmCustomLib', 'webllmCustomModel', 'webllmEmbedModel', 'webllmMode', 'webllmModel'].sort());
@@ -144,9 +146,9 @@ describe('the API key never leaves the key store', () => {
   // All three secrets are set at once (the Jev key, the Hugging Face token and the d3 key) under each provider: none may appear anywhere.
   // A picture of an element (a data URL) is sent in the request only: it is in no params, link, view, packed page or storage either.
   const PATCH = {
-    jev: { provider: 'jev', endpoint: 'https://api.typesafe.ai/v1/systemone', jevImages: true, images: 'element+neighbours' },
+    jev: { provider: 'jev', endpoint: 'https://api.typesafe.ai/v1/systemone', jevImages: true, images: 'both', imageStyle: 'vector', imagePlan: true, imageMargin: 40, geometryText: 'svg', geometryContext: true },
     decision: { provider: 'decision', hfModel: 'org/custom-nli', hfEndpoint: 'https://mirror.example.org' },
-    'd3-endpoint': { provider: 'd3', d3Backend: 'endpoint', d3Endpoint: 'https://d3.example.org/v1/systemone', images: 'element+neighbours', imageViews: 3, imageSize: 512 },
+    'd3-endpoint': { provider: 'd3', d3Backend: 'endpoint', d3Endpoint: 'https://d3.example.org/v1/systemone', images: 'both', imageStyle: 'vector', imagePlan: true, imageMargin: 40, imageSize: 512, geometryText: 'svg', geometryContext: false },
     'd3-browser': { provider: 'd3', d3Backend: 'browser', d3HfEndpoint: 'https://mirror.example.org', calibration: 'manual', temperatures: { discipline: 0.3 } },
   } as const;
   for (const provider of ['jev', 'decision', 'd3-endpoint', 'd3-browser'] as const) it(`is absent from collectParams, the share URL, saved views and packed output (provider ${provider}, keys, token and pictures)`, async () => {
@@ -160,7 +162,7 @@ describe('the API key never leaves the key store', () => {
       }
       return jsonResponse({ model: 'm', answers });
     }) as unknown as typeof fetch;
-    const { svc, storage, k } = makeService({ fetchImpl, thumbnails: async (id, st) => ({ id, settings: st, neighbours: [], thumbs: [{ view: 'plan', dataUrl: THUMB, width: st.size, height: st.size, scaleBarM: 1, neighbours: [] }] }) });
+    const { svc, storage, k } = makeService({ fetchImpl, geometry: (id: number) => ({ id, legend: 'Geometry as SVG, metres.', svg: SVG_MARK, tokens: 50, neighbours: 0, views: [{ name: 'plan', svg: SVG_MARK }] }), thumbnails: async (id, st) => ({ id, settings: st, neighbours: [], note: PICTURE_NOTE, thumbs: [{ view: 'isolated', label: 'element alone', dataUrl: THUMB, width: st.size, height: st.size, scaleBarM: 1, neighbours: [] }] }) });
     const f = fakeApp();
     svc.setModel(sidecarModel('fzk-haus'), 'fzk-haus');
     svc.patch(PATCH[provider] as never);
@@ -173,15 +175,19 @@ describe('the API key never leaves the key store', () => {
       share: true, // even when a deployment shares the section
     }));
     await svc.classify('all', provider === 'd3-endpoint' || provider === 'jev' ? { rules: false } : {}); // results, cache and manual data are written to storage
-    if (provider === 'd3-endpoint' || provider === 'jev') expect(bodies.some((b) => b.includes(THUMB)), 'the picture is in the request').toBe(true); // the one place it may be
-    await svc.thumbnails(0, { mode: 'element', views: 1, size: 256 }).catch(() => undefined); // the drawer preview
+    if (provider === 'd3-endpoint' || provider === 'jev') {
+      expect(bodies.some((b) => b.includes(THUMB)), 'the picture is in the request').toBe(true); // the one place it may be
+      expect(bodies.some((b) => b.includes(PICTURE_NOTE)), 'the note about the pictures is in the state of the request').toBe(true);
+      expect(bodies.some((b) => b.includes('data-class=') && b.includes('Geometry as SVG, metres.')), 'the SVG is in the state of the request').toBe(true);
+    }
+    await svc.thumbnails(0, { mode: 'both', style: 'vector', plan: true, size: 256, margin: 40 }).catch(() => undefined); // the drawer preview
     svc.override(svc.model!.elements[0]!.globalId, { discipline: 'ARC' });
 
     const doc = collectParams(f.app, f.env);
     const docText = JSON.stringify(doc);
     expect(doc['classify']).toMatchObject(PATCH[provider] as never);
     const b64 = (s: string): string => btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-    const hasKey = (text: string): boolean => [KEY, HF_TOKEN, D3_KEY, THUMB, 'UklGRlRIVU1CTkFJTEJZVEVT', 'data:image'].some((k) => text.includes(k) || text.includes(b64(k)) || text.includes(encodeURIComponent(k)));
+    const hasKey = (text: string): boolean => [KEY, HF_TOKEN, D3_KEY, THUMB, PICTURE_NOTE, 'Geometry as SVG', 'data-class=', 'UklGRlRIVU1CTkFJTEJZVEVT', 'data:image'].some((k) => text.includes(k) || text.includes(b64(k)) || text.includes(encodeURIComponent(k)));
     expect(hasKey(docText)).toBe(false);
 
     // share URL (#p=) and the encoded share document

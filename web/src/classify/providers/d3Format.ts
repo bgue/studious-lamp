@@ -108,10 +108,13 @@ export function d3UserPrompt(state: JsonValue | undefined, q: Question, codes: r
  * The full prompt text, ending where the model's answer would start: the Qwen3.5 chat template with a system and a user message,
  * the generation prompt and thinking off. The template trims both messages.
  */
-export function d3Render(state: JsonValue | undefined, q: Question, codes: readonly string[] = D3_CODES): string {
+export function d3Render(state: JsonValue | undefined, q: Question, codes: readonly string[] = D3_CODES, pictures = 0): string {
+  // With pictures, one placeholder per picture goes before the text of the user turn (d3_runtime.image_messages). The processor expands each
+  // placeholder to its tokens later (d3Vision.expandImagePads). The chat template adds no separator and the text begins at "State:".
+  const media = pictures > 0 ? '<|vision_start|><|image_pad|><|vision_end|>'.repeat(pictures) : '';
   return (
     `<|im_start|>system\n${D3_SYSTEM_PROMPT.trim()}<|im_end|>\n` +
-    `<|im_start|>user\n${d3UserPrompt(state, q, codes).trim()}<|im_end|>\n` +
+    `<|im_start|>user\n${media}${d3UserPrompt(state, q, codes).trim()}<|im_end|>\n` +
     '<|im_start|>assistant\n<think>\n\n</think>\n\n'
   );
 }

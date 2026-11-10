@@ -10,6 +10,9 @@
 //     HF_MODEL=MoritzLaurer/deberta-v3-xsmall-zeroshot-v1.1-all-33 DTYPE=q8 DEVICE=cpu node bench/real-classify-decision.mjs
 // PROVIDER=d3                  d3-edge in Node (onnxruntime-node, CPU) from a local copy of warsang/d3-edge-web:
 //     ORT_NODE=/tmp/ortnode/node_modules/onnxruntime-node/dist/index.js TRANSFORMERS_NODE=... D3_DIR=/tmp/d3web PROVIDER=d3 node bench/real-classify-decision.mjs
+// PROVIDER=d3 with D3_MM=1     our own multimodal export (tools/export_d3_web.py) in D3_DIR, read as a plain base URL; with PICTURES_DIR (bench/d3/make-bench-pictures.mjs)
+//     and PICTURES=both|isolated|context the pictures of every representative element go with both requests of its signature, as the viewer sends them
+//     (the state starts with the note about the pictures). Without PICTURES_DIR the same export runs text only.
 // Other knobs: N (cap of elements, default all), MIN_CONF (0.6), FOLDS (5), OUT (json file), HYP_DISCIPLINE / HYP_SUB / HYP_MF.
 import { readFile, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
@@ -51,19 +54,23 @@ try {
     const tjs = await import(pathToFileURL(need('TRANSFORMERS_NODE')).href);
     const DIR = need('D3_DIR');
     const source = { has: async () => true, read: async (f) => new Uint8Array(await readFile(join(DIR, f))) };
+    const MM = process.env.D3_MM === '1';
     const fetchImpl = async (url) => {
-      const f = String(url).split('/resolve/')[1]?.split('/').slice(1).join('/');
+      const f = MM ? String(url).split('/d3/')[1]?.split('?')[0] : String(url).split('/resolve/')[1]?.split('/').slice(1).join('/');
       try { return new Response(await readFile(join(DIR, f)), { status: 200 }); } catch { return new Response('', { status: 404 }); }
     };
+    // The pictures arrive as "rgba:<file>:<width>:<height>": the Node bench has no image decoder, the files hold the pixels (make-bench-pictures.mjs).
+    const decodeImage = async (u) => { const [, file, w, h] = /^rgba:(.+):(\d+):(\d+)$/.exec(u); const b = await readFile(file); return { data: new Uint8Array(b.buffer, b.byteOffset, b.byteLength), width: Number(w), height: Number(h) }; };
     const p = D3.createD3BrowserProvider({
-      repo: 'warsang/d3-edge-web', revision: '117fb255e630667ae1736666497e8a1c69c7a066', endpoint: 'https://huggingface.co', device: 'wasm', source, fetchImpl,
+      ...(MM ? { repo: 'http://bench.invalid/d3', revision: 'bench' } : { repo: 'warsang/d3-edge-web', revision: '117fb255e630667ae1736666497e8a1c69c7a066' }),
+      endpoint: 'https://huggingface.co', device: 'wasm', source, fetchImpl, decodeImage,
       loadOrt: async () => ort, loadTokenizerLib: async () => ({ PreTrainedTokenizer: tjs.PreTrainedTokenizer }),
       sessionOptions: () => ({ executionProviders: ['cpu'], logSeverityLevel: 3 }),
     });
     const t0 = Date.now();
     await p.load();
     console.log(`loaded d3-edge (onnxruntime-node, cpu) in ${Date.now() - t0} ms`);
-    provider = p; modelId = 'd3'; label = 'd3-edge (fp16 torso, CPU)'; stats = () => { const s = p.stats(); return { requests: s.requests, passes: s.passes, tokens: s.tokens }; };
+    provider = p; modelId = 'd3'; label = MM ? `d3-edge (our export, fp16, CPU${process.env.PICTURES_DIR ? `, pictures: ${process.env.PICTURES ?? 'both'}` : ''}${process.env.GEOMETRY && process.env.GEOMETRY !== 'none' ? `, svg: ${process.env.GEOMETRY}` : ''}${!process.env.PICTURES_DIR && !(process.env.GEOMETRY && process.env.GEOMETRY !== 'none') ? ', text only' : ''})` : 'd3-edge (fp16 torso, CPU)'; stats = () => { const s = p.stats(); return { requests: s.requests, passes: s.passes, tokens: s.tokens, pictures: s.pictures, pictureMs: s.pictureMs }; };
   } else {
     const D = await server.ssrLoadModule('/src/classify/providers/decision.ts');
     const lib = need('TRANSFORMERS_NODE');
@@ -89,7 +96,30 @@ try {
   // The model runs once per signature; the raw scores stay in the cache. rules:false: every element goes to the model.
   const cache = new C.MemoryCache();
   const t1 = Date.now();
-  const run = await C.classifyInputs(truths.map((t) => t.input), { schema, provider, rules: false, concurrency: 1, cache, maxStateBytes: PROVIDER === 'd3' ? 2000 : 4000 });
+  // With pictures: the representative element's pictures (drawn by make-bench-pictures.mjs) and the note, as the viewer passes them to the pipeline.
+  let images;
+  if (PROVIDER === 'd3' && process.env.PICTURES_DIR) {
+    const T = await server.ssrLoadModule('/src/classify/thumbs.ts');
+    const index = JSON.parse(await readFile(join(process.env.PICTURES_DIR, 'index.json'), 'utf8'));
+    const mode = process.env.PICTURES ?? 'both';
+    const modelOf = new Map(truths.map((t) => [t.input.id, t.model]));
+    let missing = 0;
+    images = (input) => {
+      const e = index[`${modelOf.get(input.id)}|${input.id}`];
+      const pics = (e?.pictures ?? []).filter((x) => mode === 'both' || x.view === mode);
+      if (!pics.length) { missing++; return []; }
+      return { images: pics.map((x) => `rgba:${x.rgba}:${x.width}:${x.height}`), note: T.pictureNote(pics.map((x) => x.view), 'render') };
+    };
+    process.on('exit', () => { if (missing) console.log(`${missing} elements had no pictures`); });
+  }
+  // With SVG: GEOMETRY=isolated|context and GEOMETRY_FILE=<geometry.json of make-bench-pictures.mjs with GEOMETRY_ONLY=1>.
+  let geometry;
+  if (process.env.GEOMETRY && process.env.GEOMETRY !== 'none') {
+    const gj = JSON.parse(await readFile(need('GEOMETRY_FILE'), 'utf8'));
+    const modelOf = new Map(truths.map((t) => [t.input.id, t.model]));
+    geometry = (input) => gj[`${modelOf.get(input.id)}|${input.id}`]?.[process.env.GEOMETRY] ?? null;
+  }
+  const run = await C.classifyInputs(truths.map((t) => t.input), { schema, provider, rules: false, concurrency: 1, cache, maxStateBytes: PROVIDER === 'd3' ? 2000 : 4000, ...(images ? { images } : {}), ...(geometry ? { geometry } : {}) });
   const ms = Date.now() - t1;
   const st = stats();
   const row = new Map(run.results.map((r) => [r.id, r]));
@@ -143,6 +173,7 @@ try {
     discipline: `${dOk}/${truths.length}`, subDiscipline: `${sOk}/${sN}`, masterformat: `${mOk}/${mN}`,
     totalMs: ms, msPerElement: Math.round(ms / truths.length), ...st,
     errors: run.stats.errors, minConfidence: MIN, folds: FOLDS,
+    perElement: truths.map((t) => { const r = row.get(t.input.id); return r ? { model: t.model, ifcClass: t.input.ifcClass, rule: [t.discipline, t.subDiscipline ?? null, t.division ?? null], d3: [r.discipline.code, r.subDiscipline?.code ?? null, r.masterformat?.division ?? null], confidence: +r.discipline.confidence.toFixed(3) } : null; }),
     temperatures: Object.fromEntries(Object.entries(cv).map(([q, c]) => [q, +c.T.toFixed(3)])),
     crossValidation: cv, joint,
   };

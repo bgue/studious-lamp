@@ -14,11 +14,14 @@ import { disciplineRgb, rgbCss } from '../classify/palette';
 import { detectWebGpu, describeModel, customModelCheck, WEBLLM_EMBED_MODELS, WEBLLM_MODELS, WEBLLM_MODES, webllmModelInfo } from '../classify/providers/webllm';
 import { DECISION_DEVICES, DECISION_DTYPES, DECISION_MODELS, DEFAULT_HYPOTHESES, HYPOTHESIS_KEYS, decisionModelInfo, describeDecisionModel } from '../classify/providers/decision';
 import { D3_NO_WEBGPU, chooseD3Runtime } from '../classify/providers/d3';
-import { D3_BACKENDS, D3_DEVICES, IMAGE_MODES, IMAGE_SIZE_MAX, IMAGE_SIZE_MIN, IMAGE_VIEWS_MAX, IMAGE_VIEWS_MIN } from '../classify/providers/d3Config';
+import { D3_BACKENDS, D3_DEVICES, IMAGE_MARGIN_MAX, IMAGE_MARGIN_MIN, IMAGE_MODES, IMAGE_SIZE_MAX, IMAGE_SIZE_MIN, IMAGE_SIZE_STEP, IMAGE_STYLES } from '../classify/providers/d3Config';
 import { TEMPERATURE_KEYS } from '../classify/calibrate';
 import type { QuestionReport, TemperatureKey } from '../classify/calibrate';
 import type { CalibrationReport } from '../classify/calibrateRules';
 import { renderThumbs, thumbKey, disposeThumbRenderer } from '../classify/thumbs';
+import { buildGeometry, previewSvg } from '../classify/geometrySvg';
+import type { GeoSource } from '../classify/geometrySvg';
+import { GEOMETRY_TEXT_MODES } from '../classify/providers/d3Config';
 import type { ThumbSet, ThumbSource } from '../classify/thumbs';
 import type { DecisionStats, ModelCacheInfo } from '../classify/providers/decision';
 import type { WebLlmStats } from '../classify/providers/webllm';
@@ -98,6 +101,8 @@ export interface ClassifyApi {
   confirmD3Download(): void;
   /** The pictures that the model would see for an element (data URLs). Needs the picture settings of a provider that sends images. */
   thumbnails(id: number | string): Promise<ThumbSet>
+  /** The SVG geometry the model would read for an element (needs geometryText on a provider that sends it). */
+  geometry(id: number | string): import('../classify/geometrySvg').GeometrySet
   state(): { running: boolean; provider: string; model: string; schemaTitle: string; placeholder: boolean; hash: string };
 }
 
@@ -232,7 +237,8 @@ function pick<T extends string>(label: string, options: ReadonlyArray<{ value: T
 }
 
 const D3_LABEL = { browser: 'In the browser (WebGPU)', endpoint: 'Endpoint (System One server)' } as const;
-const IMAGE_LABEL: Record<(typeof IMAGE_MODES)[number], string> = { off: 'Off (text only)', element: 'The element', 'element+neighbours': 'The element and its neighbours' };
+const IMAGE_LABEL: Record<(typeof IMAGE_MODES)[number], string> = { off: 'Off (text only)', isolated: 'The element alone', context: 'The element in its bounding box', both: 'Both pictures' };
+const STYLE_LABEL: Record<(typeof IMAGE_STYLES)[number], string> = { render: 'Render (shaded)', vector: 'Line drawing (black on white)' };
 const TEMP_LABEL: Record<TemperatureKey, string> = { discipline: 'Temperature: discipline', sub_discipline: 'Temperature: sub-discipline', masterformat: 'Temperature: division', building_element: 'Temperature: building' };
 const QUESTION_LABEL: Record<string, string> = { discipline: 'Discipline', sub_discipline: 'Sub-discipline', masterformat: 'Division', building_element: 'Building' };
 const CAL_MODE_LABEL = { auto: 'Auto (numbers shipped for this model)', fitted: 'Fitted on this model', manual: 'Manual', off: 'Off (the model as it comes)' } as const;
@@ -410,8 +416,8 @@ function panel(box: HTMLElement, app: ViewerApp, svc: ClassifyService, tint: Tin
     note('Use another address for a mirror or your own proxy. A token goes to this address only.'),
   );
   d3Browser.append(
-    add(textField('Model repository', () => d().d3Repo, (v) => apply({ d3Repo: v.trim() }), { placeholder: 'owner/name, for example warsang/d3-edge-web' })).root,
-    add(textField('Revision', () => d().d3Revision, (v) => apply({ d3Revision: v.trim() }), { placeholder: 'a commit hash of 40 characters' })).root,
+    add(textField('Model repository', () => d().d3Repo, (v) => apply({ d3Repo: v.trim() }), { placeholder: 'owner/name, or the web address of an export folder' })).root,
+    add(textField('Revision', () => d().d3Revision, (v) => apply({ d3Revision: v.trim() }), { placeholder: 'a commit hash of 40 characters (a label for a folder)' })).root,
     add(pick('Run on', D3_DEVICES.map((v) => ({ value: v, text: v === 'auto' ? 'Auto (WebGPU with shader-f16)' : v === 'webgpu' ? 'WebGPU' : 'WASM (very slow, about 5 GB of memory)' })), () => d().d3Device, (v) => apply({ d3Device: v }))).root,
     d3Info, d3Runtime, d3Confirm, d3Prog, d3ProgLine, d3CacheLine, advD3,
   );
@@ -505,7 +511,7 @@ function panel(box: HTMLElement, app: ViewerApp, svc: ClassifyService, tint: Tin
     const [ins, c] = await Promise.all([svc.inspectD3(), svc.d3CacheInfo()]);
     if (!ins.ok) { conn.set(ins.message); conn.classList.add('xc-err'); return; }
     if (svc.d3Confirmed || c.files >= 3) { runTestModel(); return; }
-    d3ConfirmText.textContent = `The d3-edge model is not on this device. Testing it downloads ${fmtMB(ins.totalBytes)} from ${d().d3HfEndpoint} (revision ${d().d3Revision.slice(0, 8)}) and keeps the files in the browser cache. `
+    d3ConfirmText.textContent = `The d3-edge model is not on this device. Testing it downloads ${fmtMB(ins.totalBytes)} from ${/^https?:\/\//i.test(d().d3Repo) ? d().d3Repo : d().d3HfEndpoint} (revision ${d().d3Revision.slice(0, 8)}) and keeps the files in the browser cache. `
       + 'The viewer checks every file against the size in the manifest, and the small files against their sha256.';
     d3Confirm.hidden = false;
   };
@@ -534,13 +540,15 @@ function panel(box: HTMLElement, app: ViewerApp, svc: ClassifyService, tint: Tin
   const picSec = el('div', 'xc-group');
   picSec.style.cssText = 'display:flex;flex-direction:column;gap:6px';
   const picMode = add(pick('Images', IMAGE_MODES.map((v) => ({ value: v, text: IMAGE_LABEL[v] })), () => d().images, (v) => apply({ images: v })));
-  const picViews = add(numField('Views', IMAGE_VIEWS_MIN, IMAGE_VIEWS_MAX, 1, () => d().imageViews, (v) => apply({ imageViews: v })));
-  const picSize = add(numField('Image size', IMAGE_SIZE_MIN, IMAGE_SIZE_MAX, 32, () => d().imageSize, (v) => apply({ imageSize: v })));
+  const picStyle = add(pick('Picture style', IMAGE_STYLES.map((v) => ({ value: v, text: STYLE_LABEL[v] })), () => d().imageStyle, (v) => apply({ imageStyle: v })));
+  const picPlan = add(check('Add a plan view', () => d().imagePlan, (v) => apply({ imagePlan: v })));
+  const picMargin = add(numField('Box margin (%)', IMAGE_MARGIN_MIN, IMAGE_MARGIN_MAX, 5, () => d().imageMargin, (v) => apply({ imageMargin: v })));
+  const picSize = add(numField('Image size', IMAGE_SIZE_MIN, IMAGE_SIZE_MAX, IMAGE_SIZE_STEP, () => d().imageSize, (v) => apply({ imageSize: v })));
   const picNote = el('div', 'xt-note');
-  const thumbBox = el('div', 'xc-thumbs');
+  const thumbBox = el('div', 'xc-thumbs xc-pics');
   thumbBox.hidden = true;
   const thumbLine = statusLine('');
-  picSec.append(picMode.root, picViews.root, picSize.root, picNote, thumbLine, thumbBox);
+  picSec.append(picMode.root, picStyle.root, picPlan.root, picMargin.root, picSize.root, picNote, thumbLine, thumbBox);
   box.append(section('Pictures'), picSec);
   let thumbFor = '';
   const paintThumbs = (): void => {
@@ -560,14 +568,55 @@ function panel(box: HTMLElement, app: ViewerApp, svc: ClassifyService, tint: Tin
         if (thumbFor !== key) return;
         thumbBox.replaceChildren(...set.thumbs.map((t) => {
           const fig = el('figure');
-          const img = el('img', undefined, { alt: `${t.view} view of the selected element`, src: t.dataUrl, width: String(t.width), height: String(t.height) });
-          fig.append(img, el('figcaption', undefined, undefined, `${t.view}, bar ${t.scaleBarM >= 1 ? `${t.scaleBarM} m` : `${Math.round(t.scaleBarM * 100)} cm`}`));
+          const img = el('img', undefined, { alt: `Picture of the selected element: ${t.label}`, src: t.dataUrl, width: String(t.width), height: String(t.height) });
+          fig.append(img, el('figcaption', undefined, undefined, `${t.label}, bar ${t.scaleBarM >= 1 ? `${t.scaleBarM} m` : `${Math.round(t.scaleBarM * 100)} cm`}`));
           return fig;
         }));
-        thumbLine.set(`The model gets ${set.thumbs.length} picture${set.thumbs.length === 1 ? '' : 's'} of the selected element${set.neighbours.length ? ` and ${set.neighbours.length} neighbour${set.neighbours.length === 1 ? '' : 's'}` : ''}. They are not saved anywhere.`);
+        thumbLine.set(`The model gets ${set.thumbs.length} picture${set.thumbs.length === 1 ? '' : 's'}${set.neighbours.length ? `, with ${set.neighbours.length} nearby element${set.neighbours.length === 1 ? '' : 's'} in the box` : ''}, and this note in the state: "${set.note}" The pictures are not saved anywhere.`);
       },
       (e: unknown) => { if (thumbFor === key) { thumbBox.replaceChildren(); thumbLine.set(e instanceof Error ? e.message : String(e)); thumbLine.classList.add('xc-err'); } },
     );
+  };
+
+  // ---- geometry as SVG text (jev, d3): what the model reads, rendered and as text
+  const geoSec = el('div', 'xc-group');
+  geoSec.style.cssText = 'display:flex;flex-direction:column;gap:6px';
+  const geoMode = add(pick('Geometry as text', GEOMETRY_TEXT_MODES.map((v) => ({ value: v, text: v === 'off' ? 'Off' : 'SVG in the state' })), () => d().geometryText, (v) => apply({ geometryText: v })));
+  const geoCtx = add(check('Add the element in its bounding box', () => d().geometryContext, (v) => apply({ geometryContext: v })));
+  const geoNote = el('div', 'xt-note');
+  const geoLine = statusLine('');
+  const geoViews = el('div', 'xc-thumbs xc-geo');
+  const geoText = el('pre');
+  geoText.style.cssText = 'max-height:180px;overflow:auto;white-space:pre-wrap;word-break:break-all;font-size:10px;margin:0';
+  geoViews.hidden = true;
+  geoText.hidden = true;
+  geoSec.append(geoMode.root, geoCtx.root, geoNote, geoLine, geoViews, geoText);
+  box.append(section('Geometry'), geoSec);
+  let geoFor = '';
+  const paintGeometry = (): void => {
+    const gs = svc.geometrySettings();
+    geoViews.hidden = !gs;
+    geoText.hidden = !gs;
+    geoLine.hidden = !gs;
+    if (!gs) { geoFor = ''; geoViews.replaceChildren(); geoText.textContent = ''; return; }
+    const sel = app.selection[0];
+    const key = `${sel ?? ''}|${svc.modelName}|${gs.context}|${gs.margin}`;
+    if (key === geoFor) return;
+    geoFor = key;
+    if (sel === undefined) { geoViews.replaceChildren(); geoText.textContent = ''; geoLine.set('Select an element to see the geometry that the model reads.'); return; }
+    try {
+      const set = svc.geometryOf(sel, gs);
+      geoViews.replaceChildren(...set.views.map((v) => {
+        const fig = el('figure');
+        const img = el('img', undefined, { alt: `Geometry of the selected element: ${v.name}`, src: `data:image/svg+xml;utf8,${encodeURIComponent(previewSvg(v.svg))}`, width: '180', height: '180' });
+        img.style.cssText = 'background:#fff;object-fit:contain';
+        fig.append(img, el('figcaption', undefined, undefined, v.name));
+        return fig;
+      }));
+      geoText.textContent = `${set.legend}\n${set.svg}`;
+      geoLine.set(`The model reads about ${set.tokens} tokens of geometry (${set.neighbours} nearby element${set.neighbours === 1 ? '' : 's'}), once for every question. The text below is exactly what goes into the state. It is not saved anywhere.`);
+      geoLine.classList.remove('xc-err');
+    } catch (e) { geoViews.replaceChildren(); geoText.textContent = ''; geoLine.set(e instanceof Error ? e.message : String(e)); geoLine.classList.add('xc-err'); }
   };
 
   // ---- schema
@@ -896,7 +945,7 @@ function panel(box: HTMLElement, app: ViewerApp, svc: ClassifyService, tint: Tin
       if (!svc.gpu) void svc.probeGpu().then(() => svc.notify());
       void svc.inspectD3().then((ins) => {
         d3Info.textContent = ins.ok
-          ? `Download ${fmtMB(ins.totalBytes)} (the model graph is ${fmtMB(ins.torsoBytes)}). This is a third-party export of vllm-sr/d3-edge, text only${ins.vision ? '. The repository declares a vision graph: the viewer does not support it yet' : ''}. It runs on WebGPU with 16-bit floats.`
+          ? `Download ${fmtMB(ins.totalBytes)} (the model graph is ${fmtMB(ins.torsoBytes)}). This is an export of vllm-sr/d3-edge that ${ins.vision ? 'reads text and pictures' : 'reads text only'}${d().d3Repo === 'warsang/d3-edge-web' ? ' and comes from a third party' : ''}. It runs on WebGPU with 16-bit floats.`
           : ins.message;
         d3Info.classList.toggle('xc-err', !ins.ok);
       });
@@ -911,12 +960,26 @@ function panel(box: HTMLElement, app: ViewerApp, svc: ClassifyService, tint: Tin
     const imgCapable = p === 'd3' || p === 'jev';
     picSec.style.display = imgCapable ? 'flex' : 'none';
     picSec.hidden = !imgCapable;
-    const imgBlocked = d3b ? 'The browser build of d3-edge reads text only. Use the endpoint backend to send images.' : p === 'jev' && !d().jevImages ? 'Images are not sent to Jev. Turn on Send images to Jev first.' : '';
-    for (const w of [picMode, picViews, picSize]) for (const i of Array.from(w.root.querySelectorAll('input,select'))) (i as HTMLInputElement).disabled = imgBlocked !== '';
-    picNote.textContent = imgBlocked || (d().images === 'off' ? 'Pictures are off: the model reads text only.' : `The model gets ${d().imageViews} view${d().imageViews === 1 ? '' : 's'} of ${d().imageSize} pixels: plan, front and axonometric, in that order. Neighbours are drawn grey.`);
+    const imgBlocked = d3b && !svc.visionNow() ? 'The d3 export in use reads text only. Use the endpoint backend, or an export with a vision graph.' : p === 'jev' && !d().jevImages ? 'Images are not sent to Jev. Turn on Send images to Jev first.' : '';
+    for (const w of [picMode, picStyle, picPlan, picMargin, picSize]) for (const i of Array.from(w.root.querySelectorAll('input,select'))) (i as HTMLInputElement).disabled = imgBlocked !== '';
+    const mode = d().images;
+    const iso = mode === 'isolated' || mode === 'both';
+    const ctxPic = mode === 'context' || mode === 'both';
+    const nPics = (iso ? 1 : 0) + (iso && d().imagePlan ? 1 : 0) + (ctxPic ? 1 : 0);
+    picNote.textContent = imgBlocked || (mode === 'off' ? 'Pictures are off: the model reads text only.' : `The model gets ${nPics} picture${nPics === 1 ? '' : 's'} of ${d().imageSize} pixels${iso ? `: the element alone${d().imagePlan ? ', then the same from above' : ''}` : ''}${ctxPic ? `${iso ? ', then' : ':'} the element in its bounding box with nearby elements in grey` : ''}.`);
     picNote.classList.toggle('xc-warn', imgBlocked !== '');
-    picViews.root.style.display = d().images === 'off' ? 'none' : '';
-    picSize.root.style.display = d().images === 'off' ? 'none' : '';
+    picStyle.root.style.display = mode === 'off' ? 'none' : '';
+    picPlan.root.style.display = mode === 'isolated' || mode === 'both' ? '' : 'none';
+    picMargin.root.style.display = mode === 'context' || mode === 'both' ? '' : 'none';
+    picSize.root.style.display = mode === 'off' ? 'none' : '';
+    {
+      const geoOk = p === 'jev' || p === 'd3';
+      geoSec.style.display = geoOk ? 'flex' : 'none';
+      geoSec.hidden = !geoOk;
+      geoNote.textContent = geoOk ? (d().geometryText === 'off' ? 'Geometry text is off: the model gets no shape as text.' : 'The shape goes into the state as SVG markup in metres: plan and elevation of the element, and its bounding box with the elements around it.') : '';
+      geoCtx.root.style.display = d().geometryText === 'off' ? 'none' : '';
+      if (geoOk) paintGeometry();
+    }
     paintThumbs();
     paintCal();
     // browser chat model
@@ -963,7 +1026,7 @@ function panel(box: HTMLElement, app: ViewerApp, svc: ClassifyService, tint: Tin
     if (raf) return;
     raf = requestAnimationFrame(() => { raf = 0; refresh(); });
   });
-  const onSel = (): void => { scheduleEstimate(); paintThumbs(); };
+  const onSel = (): void => { scheduleEstimate(); paintThumbs(); paintGeometry(); };
   document.addEventListener('xray-selection', onSel);
   refresh();
   return () => {
@@ -998,6 +1061,31 @@ function thumbSource(app: ViewerApp): ThumbSource {
   };
 }
 
+/** The meshes and the class and tag of the elements for the SVG geometry (positions are copied out; the geometry is freed at once). */
+function geoSource(app: ViewerApp): GeoSource {
+  const t = thumbSource(app);
+  return {
+    bounds: t.bounds,
+    ids: t.ids,
+    mesh: (id) => {
+      const g = t.mesh(id);
+      if (!g) return null;
+      const pos = g.getAttribute('position');
+      const out = { position: Float32Array.from(pos.array as ArrayLike<number>), index: g.index ? Uint32Array.from(g.index.array as ArrayLike<number>) : null };
+      g.dispose();
+      return out;
+    },
+    info: (id) => {
+      const e = app.controller.model.elements[id];
+      const props = (e?.props ?? {}) as Record<string, unknown>;
+      const str = (k: string): string | undefined => (typeof props[k] === 'string' && props[k] ? (props[k] as string) : undefined);
+      const tag = str('Attr.Tag');
+      const predefined = str('Attr.PredefinedType');
+      return { ifcClass: e?.ifcClass ?? 'IfcProduct', ...(tag ? { tag } : {}), ...(predefined ? { predefined } : {}) };
+    },
+  };
+}
+
 // ---------------------------------------------------------------- plugin
 
 let svc: ClassifyService | null = null;
@@ -1013,6 +1101,7 @@ export const classifyPlugin: AppPlugin = {
       selection: () => app.selection,
       // Pictures of an element for a model that reads images: drawn off screen from the geometry of the loaded model.
       thumbnails: (id, ts) => renderThumbs(thumbSource(app), id, ts),
+      geometry: (id, gs) => buildGeometry(geoSource(app), id, gs),
     });
     svc = service;
     tint = new Tint(app, service);
@@ -1077,6 +1166,11 @@ export const classifyPlugin: AppPlugin = {
       setD3Key: (key, remember) => service.d3Key.set(key, remember === true),
       d3KeyState: () => ({ set: !!service.d3Key.get(), remembered: service.d3Key.remembered(), mask: service.d3Key.mask() }),
       confirmD3Download: () => service.confirmD3Download(),
+      geometry: (id) => {
+        const gs = service.geometrySettings();
+        if (!gs) throw new Error('This provider sends no geometry with the current settings.');
+        return service.geometryOf(id, gs);
+      },
       thumbnails: (id) => {
         const st = service.imageSettings();
         if (!st) throw new Error('This provider sends no pictures with the current settings.');

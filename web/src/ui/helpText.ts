@@ -4228,6 +4228,24 @@ export const CONTROL_HELP: Record<string, HelpEntry> = {
     'Read the block. Turn the pictures on only for a model that reads images.',
     'Report: Limitations and extensions, classification',
   ),
+  'Classify drawer/Geometry (heading)': h(
+    'The heading starts the section for the shape of the element as drawing code. The model reads it as words, so no picture is needed.',
+    'The block below sets what shape data goes into the request, and shows the same markup for the selected part.',
+    'Read the block. Turn the markup on for Jev or d3-edge when names and properties do not tell the shape.',
+    'Report: Limitations and extensions, classification',
+  ),
+  'Classify drawer/Geometry as text': h(
+    'The list chooses whether the shape goes into the request as SVG markup. SVG is a plain drawing format in metres.',
+    'With SVG the model reads plan and side outlines of the part. This costs extra tokens for every question.',
+    'Keep Off for the fastest run. Choose SVG in the state for parts that look alike by name.',
+    'Report: Limitations and extensions, classification',
+  ),
+  'Classify drawer/Add the element in its bounding box': h(
+    'The switch adds the part inside its own box, with the outlines of nearby parts cut at the box.',
+    'On: the model sees the neighbours by type and tag, but never their answers. It reads more tokens. Off: it reads the part alone.',
+    'Turn it on when the place of a part tells what it is. Keep it off for a small request.',
+    'Report: Limitations and extensions, classification',
+  ),
   'Classify drawer/Calibration (heading)': h(
     'The heading starts the section for the scaling of the confidence. The scaling has a separate temperature for each question.',
     'The block below makes the confidence match how often the answers are right, so good answers need no review.',
@@ -4236,7 +4254,7 @@ export const CONTROL_HELP: Record<string, HelpEntry> = {
   ),
   'Classify drawer/Backend': h(
     'The list chooses where d3-edge runs. In the browser uses WebGPU and downloads the model. Endpoint calls a server that has a Jev style API.',
-    'The browser choice works offline after the download and reads text only. The server choice can also send pictures.',
+    'The browser choice works offline after the download. It reads pictures only with an export that has a vision graph. The server choice can send pictures.',
     'Choose Endpoint when you run vllm-sr serve. Choose In the browser to stay offline.',
     'Report: Limitations and extensions, classification',
   ),
@@ -4247,15 +4265,15 @@ export const CONTROL_HELP: Record<string, HelpEntry> = {
     'Report: Limitations and extensions, classification',
   ),
   'Classify drawer/Model repository': h(
-    'The box holds the Hugging Face repository of the ONNX files. The viewer checks the manifest of the repository before it downloads.',
+    'The box holds a Hugging Face repository of ONNX files, or the web address of a folder with them. The viewer checks the manifest first.',
     'A wrong name makes the check fail with a message. No large file arrives until the check is good.',
-    'Keep warsang/d3-edge-web. Type another owner and name only for a repository with the same format.',
+    'Keep warsang/d3-edge-web for text. Type the address of your own export folder to read pictures too.',
     'Report: Limitations and extensions, classification',
   ),
   'Classify drawer/Revision': h(
-    'The box holds the commit of the repository. A commit hash pins the files, so the answers stay repeatable.',
+    'The box holds the commit of the repository. A commit hash pins the files, so the answers stay repeatable. For a folder address it is only a label.',
     'A fixed commit keeps the files the same from day to day. A branch name can bring new files without notice.',
-    'Keep the pinned hash. Type a new hash only after you check the new files.',
+    'Keep the pinned hash. Type a new hash only after you check the new files. Change the label when you export again to the same folder.',
     'Report: Limitations and extensions, classification',
   ),
   'Classify drawer/File address': h(
@@ -4271,19 +4289,31 @@ export const CONTROL_HELP: Record<string, HelpEntry> = {
     'Report: Limitations and extensions, classification',
   ),
   'Classify drawer/Images': h(
-    'The list chooses what the pictures show. The element alone, or the element with grey neighbours for context.',
-    'With Off the model reads text only. With neighbours the model sees what lies around the part.',
-    'Choose The element and its neighbours when the text is thin. Keep Off for the fastest run.',
+    'The list chooses the pictures. The element alone, the element in its bounding box with nearby parts in grey, or both.',
+    'With Off the model reads text only. With both it gets the element alone first, then the element in its surroundings.',
+    'Choose Both pictures when the text is thin. Keep Off for the fastest run.',
     'Report: Limitations and extensions, classification',
   ),
-  'Classify drawer/Views': h(
-    'The number sets how many views each picture set has. 1 is the plan. 2 adds the front. 3 adds the axonometric view.',
-    'More angles show more sides of the part. Each angle adds work for the model and size to the request.',
-    'Keep 1 to start. Raise it when the shape of the part matters.',
+  'Classify drawer/Picture style': h(
+    'The list chooses how the pictures are drawn. Render is shaded. Line drawing is black lines on white, with no shading.',
+    'Lines alone make a small file and show the outline of the shape. Soft light shows the surface and the colour of the part.',
+    'Keep Render to start. Try Line drawing when the shape of the part matters more than its surface.',
+    'Report: Limitations and extensions, classification',
+  ),
+  'Classify drawer/Add a plan view': h(
+    'The switch adds a second picture of the element alone, seen from above.',
+    'On: the request grows by one picture and the model sees the footprint of the part. Off: the model gets the axonometric picture only.',
+    'Turn it on for flat parts such as slabs. Keep it off for the fastest run.',
+    'Report: Limitations and extensions, classification',
+  ),
+  'Classify drawer/Box margin (%)': h(
+    'The number sets how far the box around the element grows, in percent of its longest side. The box never grows less than 0.5 m.',
+    'A larger number shows more of the surroundings. A smaller number shows only the parts that touch the element.',
+    'Keep 25. Raise it to show more of the room around a small part.',
     'Report: Limitations and extensions, classification',
   ),
   'Classify drawer/Image size': h(
-    'The number sets the width and height of each picture in pixels, from 256 to 512.',
+    'The number sets the width and height of each picture in pixels, from 256 to 512 in steps of 32.',
     'A larger picture shows more detail. A smaller picture is faster and cheaper to send.',
     'Keep 384. Raise it for small parts. Lower it for a slow link.',
     'Report: Limitations and extensions, classification',

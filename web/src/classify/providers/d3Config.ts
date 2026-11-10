@@ -24,14 +24,25 @@ export type D3Backend = (typeof D3_BACKENDS)[number];
 export const D3_DEVICES = ['auto', 'webgpu', 'wasm'] as const;
 export type D3Device = (typeof D3_DEVICES)[number];
 
-export const IMAGE_MODES = ['off', 'element', 'element+neighbours'] as const;
+export const IMAGE_MODES = ['off', 'isolated', 'context', 'both'] as const;
 export type ImageMode = (typeof IMAGE_MODES)[number];
-export const IMAGE_VIEWS_MIN = 1;
-export const IMAGE_VIEWS_MAX = 3;
+/** `render` is shaded, `vector` is a simplified line drawing (silhouette and feature edges, black on white). */
+export const IMAGE_STYLES = ['render', 'vector'] as const;
+export type ImageStyle = (typeof IMAGE_STYLES)[number];
 export const IMAGE_SIZE_MIN = 256;
 export const IMAGE_SIZE_MAX = 512;
-export const IMAGE_VIEWS_DEFAULT = 1;
 export const IMAGE_SIZE_DEFAULT = 384;
+/** The vision encoder reads blocks of 32 pixels (patch 16, merge 2), so a size that is a multiple of 32 needs no resize. */
+export const IMAGE_SIZE_STEP = 32;
+/** Margin of the context box, in percent of the largest side of the element (and never under 0.5 m). */
+export const IMAGE_MARGIN_MIN = 0;
+export const IMAGE_MARGIN_MAX = 200;
+export const IMAGE_MARGIN_DEFAULT = 25;
+/** Settings values of the first picture design, and the new value that is nearest to each. */
+export const IMAGE_MODE_MIGRATION: Readonly<Record<string, ImageMode>> = { element: 'isolated', 'element+neighbours': 'context' };
+/** Native vector geometry (SVG markup) in the state text: independent of the pictures, works with any model that reads text. */
+export const GEOMETRY_TEXT_MODES = ['off', 'svg'] as const;
+export type GeometryText = (typeof GEOMETRY_TEXT_MODES)[number];
 /** The d3 state is smaller by default than the Jev one: every token costs time on a small device. */
 export const D3_STATE_BYTES_DEFAULT = 2000;
 
@@ -45,11 +56,24 @@ export const D3_FILES = {
   torso: 'onnx/torso_fp16.onnx',
 } as const;
 
-/** Problem with a Hugging Face repository id, or null. */
+/** A base URL instead of a Hugging Face repository id: the export folder served over http(s), for example http://localhost:8123/d3-mm. */
+export const isBaseUrl = (id: string): boolean => /^https?:\/\//i.test(id.trim());
+
+/** Problem with a Hugging Face repository id or a base URL, or null. */
 export function d3RepoProblem(id: unknown): string | null {
-  if (typeof id !== 'string' || !id.trim()) return 'The d3 repository id is empty. Write it as owner/name, for example warsang/d3-edge-web.';
+  if (typeof id !== 'string' || !id.trim()) return 'The d3 repository id is empty. Write it as owner/name, for example warsang/d3-edge-web, or as the web address of a folder.';
   const t = id.trim();
-  if (/^https?:\/\//i.test(t)) return `"${t}" is a web address. Write only the repository id, as owner/name.`;
+  if (isBaseUrl(t)) {
+    let u: URL;
+    try {
+      u = new URL(t);
+    } catch {
+      return `"${t}" is not a web address.`;
+    }
+    if (u.username || u.password) return 'The web address must not contain a user name or password.';
+    if (u.search || u.hash) return 'The web address of the folder must have no query and no fragment.';
+    return null;
+  }
   if (t.length > 200 || !/^[A-Za-z0-9][A-Za-z0-9._-]*\/[A-Za-z0-9][A-Za-z0-9._-]*$/.test(t) || t.includes('..')) {
     return `"${t}" is not a repository id. Use owner/name with letters, digits, dots, dashes and underscores, for example warsang/d3-edge-web.`;
   }

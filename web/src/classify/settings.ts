@@ -6,10 +6,11 @@ import { CALIBRATION_MODES, TEMPERATURE_KEYS, T_MAX, T_MIN, temperatureProblem }
 import type { CalibrationMode, Temperatures } from './calibrate';
 import { JEV_DEFAULT_ENDPOINT, JEV_DEFAULT_MODEL, isMovingAlias } from './jevAdapter';
 import {
-  D3_BACKENDS, D3_DEVICES, D3_ENDPOINT_DEFAULT, D3_HF_ENDPOINT_DEFAULT, D3_MODEL_DEFAULT, D3_REPO_DEFAULT, D3_REVISION_DEFAULT, D3_STATE_BYTES_DEFAULT, IMAGE_MODES,
-  IMAGE_SIZE_DEFAULT, IMAGE_SIZE_MAX, IMAGE_SIZE_MIN, IMAGE_VIEWS_DEFAULT, IMAGE_VIEWS_MAX, IMAGE_VIEWS_MIN, d3RepoProblem, d3RevisionProblem, isCommitHash,
+  D3_BACKENDS, D3_DEVICES, D3_ENDPOINT_DEFAULT, D3_HF_ENDPOINT_DEFAULT, D3_MODEL_DEFAULT, D3_REPO_DEFAULT, D3_REVISION_DEFAULT, D3_STATE_BYTES_DEFAULT, IMAGE_MARGIN_DEFAULT,
+  GEOMETRY_TEXT_MODES, IMAGE_MARGIN_MAX, IMAGE_MARGIN_MIN, IMAGE_MODES, IMAGE_MODE_MIGRATION, IMAGE_SIZE_DEFAULT, IMAGE_SIZE_MAX, IMAGE_SIZE_MIN, IMAGE_SIZE_STEP, IMAGE_STYLES, d3RepoProblem, d3RevisionProblem,
+  isBaseUrl, isCommitHash,
 } from './providers/d3Config';
-import type { D3Backend, D3Device, ImageMode } from './providers/d3Config';
+import type { D3Backend, D3Device, GeometryText, ImageMode, ImageStyle } from './providers/d3Config';
 import {
   DECISION_DEFAULT_MODEL, DECISION_DEVICES, DECISION_DTYPES, DEFAULT_HYPOTHESES, HF_DEFAULT_ENDPOINT, HYPOTHESIS_KEYS, hfModelProblem, hypothesisProblem,
 } from './providers/decision';
@@ -36,10 +37,18 @@ export interface ClassifyShared {
   temperatures: Temperatures;
   /** Pictures of the element for a provider that reads images (d3 endpoint, and Jev when `jevImages` is on). Never leaves the page except in the request. */
   images: ImageMode;
-  /** Views per picture set: 1 plan, 2 plan and front, 3 plan, front and axonometric. */
-  imageViews: number;
-  /** Picture size in pixels. */
+  /** `render` (shaded) or `vector` (a simplified line drawing) for the pictures. */
+  imageStyle: ImageStyle;
+  /** Add a plan view of the element alone to the isolated picture. */
+  imagePlan: boolean;
+  /** Picture size in pixels, a multiple of 32. */
   imageSize: number;
+  /** Margin of the context box, in percent of the largest side of the element (at least 0.5 m). */
+  imageMargin: number;
+  /** Native vector geometry as SVG text in the state (jev, d3). Never leaves the page except in the request. */
+  geometryText: GeometryText;
+  /** With the SVG: also the element in its bounding box with the elements around it (the margin is `imageMargin`). */
+  geometryContext: boolean;
 }
 export interface JevSettings {
   provider: 'jev';
@@ -113,7 +122,7 @@ export const D3_DEFAULTS = {
   d3Backend: 'browser', d3Repo: D3_REPO_DEFAULT, d3Revision: D3_REVISION_DEFAULT, d3HfEndpoint: D3_HF_ENDPOINT_DEFAULT, d3Device: 'auto',
   d3Endpoint: D3_ENDPOINT_DEFAULT, d3Model: D3_MODEL_DEFAULT, d3MaxStateBytes: D3_STATE_BYTES_DEFAULT,
 } as const;
-export const SHARED_DEFAULTS = { calibration: 'auto', images: 'off', imageViews: IMAGE_VIEWS_DEFAULT, imageSize: IMAGE_SIZE_DEFAULT } as const;
+export const SHARED_DEFAULTS = { calibration: 'auto', images: 'off', imageStyle: 'render', imagePlan: false, imageSize: IMAGE_SIZE_DEFAULT, imageMargin: IMAGE_MARGIN_DEFAULT, geometryText: 'off', geometryContext: true } as const;
 
 /** Every field at once: the form behind the union. The drawer edits this; `toSettings` picks the part that the provider uses. */
 export interface ClassifyDraft extends ClassifyShared {
@@ -164,7 +173,7 @@ export const customHypotheses = (h: HypothesisTemplates): boolean => HYPOTHESIS_
 export function toSettings(d: ClassifyDraft): ClassifySettings {
   const shared: ClassifyShared = {
     schemaUrl: d.schemaUrl, minConfidence: d.minConfidence, writePset: d.writePset, calibration: d.calibration, temperatures: { ...d.temperatures },
-    images: d.images, imageViews: d.imageViews, imageSize: d.imageSize,
+    images: d.images, imageStyle: d.imageStyle, imagePlan: d.imagePlan, imageSize: d.imageSize, imageMargin: d.imageMargin, geometryText: d.geometryText, geometryContext: d.geometryContext,
   };
   switch (d.provider) {
     case 'jev':
@@ -191,7 +200,7 @@ export function toSettings(d: ClassifyDraft): ClassifySettings {
 export function toDraft(s: ClassifySettings, base: ClassifyDraft = defaultDraft()): ClassifyDraft {
   const d: ClassifyDraft = {
     ...base, provider: s.provider, schemaUrl: s.schemaUrl, minConfidence: s.minConfidence, writePset: s.writePset, calibration: s.calibration, temperatures: { ...s.temperatures },
-    images: s.images, imageViews: s.imageViews, imageSize: s.imageSize,
+    images: s.images, imageStyle: s.imageStyle, imagePlan: s.imagePlan, imageSize: s.imageSize, imageMargin: s.imageMargin, geometryText: s.geometryText, geometryContext: s.geometryContext,
   };
   if (s.provider === 'jev') Object.assign(d, { endpoint: s.endpoint, model: s.model, timeoutMs: s.timeoutMs, concurrency: s.concurrency, maxStateBytes: s.maxStateBytes, jevImages: s.jevImages });
   if (s.provider === 'd3') {
@@ -225,7 +234,7 @@ const KNOWN = new Set([
   'provider', 'schemaUrl', 'minConfidence', 'writePset', 'endpoint', 'model', 'timeoutMs', 'concurrency', 'maxStateBytes', 'webllmModel',
   'webllmMode', 'webllmEmbedModel', 'embedTemperature', 'hybridMargin', 'webllmCustomModel', 'webllmCustomLib',
   'hfModel', 'device', 'dtype', 'hfEndpoint', 'hypothesis',
-  'calibration', 'temperatures', 'images', 'imageViews', 'imageSize', 'jevImages',
+  'calibration', 'temperatures', 'images', 'imageStyle', 'imagePlan', 'imageSize', 'imageMargin', 'imageViews', 'geometryText', 'geometryContext', 'jevImages',
   'd3Backend', 'd3Repo', 'd3Revision', 'd3HfEndpoint', 'd3Device', 'd3Endpoint', 'd3Model', 'd3MaxStateBytes',
 ]);
 
@@ -386,11 +395,39 @@ export function validateSettings(raw: unknown): SettingsCheck {
   }
   if (d.calibration === 'manual' && TEMPERATURE_KEYS.every((k) => d.temperatures[k] === undefined)) warnings.push(`calibration is "manual" but no temperature is set, so the answers are not scaled. Set temperatures from ${T_MIN} to ${T_MAX}.`);
   if (raw['images'] !== undefined) {
-    if ((IMAGE_MODES as readonly unknown[]).includes(raw['images'])) d.images = raw['images'] as ImageMode;
-    else errors.push(`images must be one of ${IMAGE_MODES.join(', ')}. Using "off".`);
+    const v = raw['images'];
+    if ((IMAGE_MODES as readonly unknown[]).includes(v)) d.images = v as ImageMode;
+    else if (typeof v === 'string' && IMAGE_MODE_MIGRATION[v]) {
+      // The first picture design had `element` and `element+neighbours`: the nearest new value is used.
+      d.images = IMAGE_MODE_MIGRATION[v]!;
+      warnings.push(`images "${v}" is from an older version. Using "${d.images}", the nearest new value.`);
+    } else errors.push(`images must be one of ${IMAGE_MODES.join(', ')}. Using "off".`);
   }
-  d.imageViews = int(raw, 'imageViews', d.imageViews, IMAGE_VIEWS_MIN, IMAGE_VIEWS_MAX, errors);
+  if (raw['imageViews'] !== undefined) warnings.push('imageViews is from an older version and was ignored. The pictures are now the isolated one, an optional plan (imagePlan) and the context one.');
+  if (raw['imageStyle'] !== undefined) {
+    if ((IMAGE_STYLES as readonly unknown[]).includes(raw['imageStyle'])) d.imageStyle = raw['imageStyle'] as ImageStyle;
+    else errors.push(`imageStyle must be one of ${IMAGE_STYLES.join(', ')}. Using "${SHARED_DEFAULTS.imageStyle}".`);
+  }
+  if (raw['imagePlan'] !== undefined) {
+    if (typeof raw['imagePlan'] === 'boolean') d.imagePlan = raw['imagePlan'];
+    else errors.push('imagePlan must be true or false. Using false.');
+  }
   d.imageSize = int(raw, 'imageSize', d.imageSize, IMAGE_SIZE_MIN, IMAGE_SIZE_MAX, errors);
+  if (d.imageSize % IMAGE_SIZE_STEP !== 0) {
+    const snapped = Math.min(IMAGE_SIZE_MAX, Math.max(IMAGE_SIZE_MIN, Math.round(d.imageSize / IMAGE_SIZE_STEP) * IMAGE_SIZE_STEP));
+    warnings.push(`imageSize ${d.imageSize} is not a multiple of ${IMAGE_SIZE_STEP}, which the vision model reads without a resize. Using ${snapped}.`);
+    d.imageSize = snapped;
+  }
+  d.imageMargin = int(raw, 'imageMargin', d.imageMargin, IMAGE_MARGIN_MIN, IMAGE_MARGIN_MAX, errors);
+  if (raw['geometryText'] !== undefined) {
+    if ((GEOMETRY_TEXT_MODES as readonly unknown[]).includes(raw['geometryText'])) d.geometryText = raw['geometryText'] as GeometryText;
+    else errors.push(`geometryText must be one of ${GEOMETRY_TEXT_MODES.join(', ')}. Using "off".`);
+  }
+  if (raw['geometryContext'] !== undefined) {
+    if (typeof raw['geometryContext'] === 'boolean') d.geometryContext = raw['geometryContext'];
+    else errors.push('geometryContext must be true or false. Using true.');
+  }
+  if (d.geometryText === 'svg' && (d.provider === 'decision' || d.provider === 'webllm')) warnings.push('geometryText is not used by this provider: its premise is short. Use Jev or d3-edge for the SVG.');
   if (raw['jevImages'] !== undefined) {
     if (typeof raw['jevImages'] === 'boolean') d.jevImages = raw['jevImages'];
     else errors.push('jevImages must be true or false. Using false.');
@@ -441,8 +478,9 @@ export function validateSettings(raw: unknown): SettingsCheck {
   if (usesD3) {
     if (d.d3Backend === 'endpoint' && /^http:/i.test(d.d3Endpoint) && !isLocal(d.d3Endpoint)) warnings.push('The d3 endpoint uses http://, so the element data travel without encryption. Use https://.');
     if (d.d3Backend === 'browser' && /^http:/i.test(d.d3HfEndpoint) && !isLocal(d.d3HfEndpoint)) warnings.push('The d3 file address uses http://, so the model and any token travel without encryption. Use https://.');
-    if (d.d3Backend === 'browser' && !isCommitHash(d.d3Revision)) warnings.push(`The d3 revision "${d.d3Revision}" is not a commit hash, so the files can change. Pin a commit hash when results must be repeatable.`);
-    if (d.d3Backend === 'browser' && d.images !== 'off') warnings.push('The browser build of d3-edge reads text only, so the pictures are not sent. Use the endpoint backend to send images.');
+    if (d.d3Backend === 'browser' && isBaseUrl(d.d3Repo) && /^http:/i.test(d.d3Repo) && !isLocal(d.d3Repo)) warnings.push('The d3 export address uses http://, so the model files travel without encryption. Use https://.');
+    if (d.d3Backend === 'browser' && !isBaseUrl(d.d3Repo) && !isCommitHash(d.d3Revision)) warnings.push(`The d3 revision "${d.d3Revision}" is not a commit hash, so the files can change. Pin a commit hash when results must be repeatable.`);
+    if (d.d3Backend === 'browser' && d.images !== 'off' && !isBaseUrl(d.d3Repo) && d.d3Repo === D3_REPO_DEFAULT) warnings.push('The default browser export of d3-edge reads text only, so the pictures are not sent. Use the endpoint backend, or an export with a vision graph (tools/export_d3_web.py).');
   }
 
   // ---- decision model (transformers.js)

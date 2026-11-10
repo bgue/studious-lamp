@@ -152,8 +152,14 @@ packed pages unless you pass it to `--params`). It is a discriminated union on `
 | `writePset` | all | `true` | Write the results as properties of the elements |
 | `calibration` | all | `auto` | Logit scaling of the confidence: `auto` (the numbers shipped for the model), `fitted` (fitted on this model by **Calibrate on rules**), `manual` (`temperatures`), `off` (the model as it comes) |
 | `temperatures` | all | `{}` | The `manual` mode: a number from 0.05 to 50 per question (`discipline`, `sub_discipline`, `masterformat`, `building_element`). A question that is missing is not scaled |
-| `images` | `d3` (endpoint), `jev` | `off` | Pictures of the element: `off`, `element`, `element+neighbours`. See [Pictures](#pictures-for-a-model-that-reads-images) |
-| `imageViews`, `imageSize` | `d3` (endpoint), `jev` | 1, 384 | Views per picture set (1 plan, 2 plan and front, 3 plan, front and axonometric) and the size in pixels (256 to 512) |
+| `images` | `d3` (endpoint, and the browser with a vision export), `jev` | `off` | Pictures of the element: `off`, `isolated` (the element alone), `context` (the element in its bounding box with the elements around it), `both` (isolated first, then context). The old values `element` and `element+neighbours` are read as `isolated` and `context`, with a warning. See [Pictures](#pictures-for-a-model-that-reads-images) |
+| `imageStyle` | same | `render` | `render` (shaded) or `vector` (a simplified line drawing: silhouette and feature edges, black on white) |
+| `imagePlan` | same | `false` | Add a plan view of the element alone to the isolated picture |
+| `imageSize` | same | 384 | Pixels, 256 to 512, a multiple of 32 (another value is moved to the nearest multiple, with a warning: the vision model reads blocks of 32 pixels and a picture of that size needs no resize) |
+| `imageMargin` | same | 25 | Margin of the context box, 0 to 200 percent of the largest side of the element, never under 0.5 m |
+| `geometryText` | `jev`, `d3` (both backends) | `off` | `off` or `svg`: put the shape of the element into the request state as compact SVG text. Independent of `images`. Not used by `decision` and `webllm` (their premise is short; a warning says so). See [Geometry as SVG text](#geometry-as-svg-text) |
+| `geometryContext` | same | `true` | With `svg`: also the element in its bounding box with the elements around it (the margin is `imageMargin`) |
+| `imageViews` | none | | Removed. An old value is ignored, with a warning |
 | `endpoint` | `jev` | `https://api.typesafe.ai/v1/systemone` | An https URL, or a same-origin path such as `/api/jev` |
 | `model` | `jev` | `jev-1.13.0` | The pinned model id. `jev-latest` is a moving alias and gives a warning. DigitalOcean inference uses `typesafe-jev-1.13.0` |
 | `timeoutMs` | `jev` | 30000 | 1000 to 300000 |
@@ -161,7 +167,7 @@ packed pages unless you pass it to `--params`). It is a discriminated union on `
 | `maxStateBytes` | `jev` | 4000 | Cap of the element state, 500 to 64000 |
 | `jevImages` | `jev` | `false` | Send the pictures (`images`) to the endpoint. **Untested**: Jev is not known to read images |
 | `d3Backend` | `d3` | `browser` | `browser` (onnxruntime-web with WebGPU) or `endpoint` (a System One server) |
-| `d3Repo`, `d3Revision` | `d3` | `warsang/d3-edge-web`, the pinned commit | The Hugging Face repository of the ONNX export and its commit (40 characters; a branch gives a warning) |
+| `d3Repo`, `d3Revision` | `d3` | `warsang/d3-edge-web`, the pinned commit | The Hugging Face repository of the ONNX export and its commit (40 characters; a branch gives a warning), **or the web address of a folder** that serves the export (for example `http://localhost:8123/d3-mm`; see [Your own export, with pictures](#your-own-export-with-pictures-in-the-browser)). For a folder address the revision is only a label: it goes into the cache identity and into the address of every file (`?v=<label>`), so change it when you export again to the same folder. A Hugging Face token is never sent to a folder address |
 | `d3HfEndpoint` | `d3` | `https://huggingface.co` | Where the files come from (a mirror or your own proxy) |
 | `d3Device` | `d3` | `auto` | `auto` (WebGPU with `shader-f16`, else a plain refusal), `webgpu`, `wasm` (very slow, about 5 GB of memory) |
 | `d3Endpoint`, `d3Model` | `d3` | `http://localhost:8899/v1/systemone`, `vllm-sr/d3-edge` | The System One URL and model id of the endpoint backend (what `vllm-sr serve -e vllm-sr/d3-edge` exposes) |
@@ -469,7 +475,7 @@ text. Its API, "System One", is the request and answer shape of Jev, so the pipe
 
 **Endpoint** (`d3Backend: 'endpoint'`). `vllm-sr serve -e vllm-sr/d3-edge` exposes `http://localhost:8899/v1/systemone` with the model
 `vllm-sr/d3-edge` (the defaults). The official PyTorch model runs there, on a GPU or a CPU. The key box is optional and is **its own entry**
-(a Jev key is never sent to a d3 server). This is the only backend that can send [pictures](#pictures-for-a-model-that-reads-images).
+(a Jev key is never sent to a d3 server). This backend always sends [pictures](#pictures-for-a-model-that-reads-images) when `images` is on; the browser backend does so only with an export that has a vision graph.
 
 **In the browser** (`d3Backend: 'browser'`, the default). onnxruntime-web with the WebGPU backend runs the **third-party** export
 [warsang/d3-edge-web](https://huggingface.co/warsang/d3-edge-web) at the pinned revision `117fb255e630667ae1736666497e8a1c69c7a066` (it is not
@@ -484,7 +490,7 @@ Qwen3.5 stack with full attention, last-position hidden state), `onnx/readout.on
 - **Integrity.** Every file is checked against the size in the manifest, and the files up to 64 MB (readout, tokenizer) against its sha256. The torso is checked by
   size only (hashing 1 GB in the page is not practical); its sha256 `f8f7dd3a...c557766` was checked once outside the page and matches the manifest.
   A custom repository id is checked by its manifest and its `decision_config.json` (format `d3-code-readout-v1` and the same 255 codes) before any weights come.
-  A manifest with a vision graph is detected and the drawer says that the viewer does not run it yet (text only).
+  A manifest with a vision graph (and its file in the list) is loaded: the viewer then reads pictures (see [Your own export, with pictures](#your-own-export-with-pictures-in-the-browser)). The vision graph is checked by size, as the torso.
 - **Device.** The torso is fp16, so WebGPU needs `shader-f16`. Without it, or without WebGPU, `auto` **refuses with a plain message** before any download
   ("needs WebGPU with 16-bit float support ... use the endpoint backend or the Decision model"). `wasm` can be chosen by name; see "What was run" below.
 - **Prompt and readout.** `d3Format.ts` ports `d3_format.py` exactly: the Qwen3.5 chat template (system and user, thinking off), `State:` with the Python
@@ -505,23 +511,162 @@ Qwen3.5 stack with full attention, last-position hidden state), `onnx/readout.on
   that was **not run in a browser**. It is offered only when chosen by name, with that warning.
 - **Not run:** WebGPU (no GPU here; the browser path ran against a fake onnxruntime-web and a fake export in the unit tests and the smoke), the endpoint with real pictures against a real server, and `vllm-sr serve`.
 
+### Your own export, with pictures (in the browser)
+
+The only browser export on Hugging Face, warsang/d3-edge-web, reads text only. `tools/export_d3_web.py` makes **our own** export from the official checkpoint
+([vllm-sr/d3-edge](https://huggingface.co/vllm-sr/d3-edge), Apache-2.0) with a vision graph. The output **stays local**: it is not uploaded anywhere by this repository. Run it in a throw-away
+virtual environment (it runs the repository's own modelling code; about 8 GB of memory; the torso takes 1 to 2 minutes with `--no-optimize`, 20 minutes or more without):
+
+```
+python -m venv /tmp/d3env && . /tmp/d3env/bin/activate
+pip install torch --index-url https://download.pytorch.org/whl/cpu
+pip install "transformers==5.17.0" safetensors pillow numpy onnx onnxscript onnxruntime huggingface_hub
+python tools/export_d3_web.py --checkpoint vllm-sr/d3-edge --out /tmp/d3-mm --no-optimize   # all graphs, the self-check, MANIFEST.json
+```
+
+The folder holds `MANIFEST.json`, `decision_config.json`, `tokenizer.json`, `tokenizer_config.json`, `config.json` and `onnx/vision_encoder.onnx`, `onnx/torso_mm.onnx`, `onnx/readout.onnx`.
+Then **serve the folder over http with CORS** and point the viewer at it. For example, with Node:
+
+```
+node -e "require('http').createServer((q,r)=>{const f=require('path').join('/tmp/d3-mm',decodeURIComponent(new URL(q.url,'http://x').pathname));require('fs').stat(f,(e,s)=>{if(e||!s.isFile()){r.writeHead(404,{'access-control-allow-origin':'*'});return r.end()}r.writeHead(200,{'access-control-allow-origin':'*','content-length':s.size});require('fs').createReadStream(f).pipe(r)})}).listen(8123)"
+```
+
+In the Classify drawer choose Decision 3.0 d3-edge, backend In the browser, **Model repository** `http://localhost:8123` (any folder address works; a path such as `https://example.org/models/d3-mm` too),
+and any text as **Revision** (a label: it goes into the cache identity and the file addresses, so change it when you export again to the same folder). Then set Images. Or upload the folder to a Hugging Face
+repository of your own and use its id and commit. The drawer reads the manifest first (a few KB) and shows the size; **Test model** asks before it downloads, as for the default export. A token is never sent to a
+folder address.
+
+What the export is (all numbers from this repository's run, see below):
+
+- `onnx/torso_mm.onnx`: input_ids `[1, L]`, image_embeds `[M, 1024]` (float32), position_ids `[3, 1, L]` (the T, H, W rows of the multimodal rotary positions) -> the last-position hidden state `[1, 1024]`.
+  The embedding is in the graph, the rows of the `<|image_pad|>` tokens are replaced by the picture embeddings in order (masked scatter), 12 layers as in the official runtime (the Gated DeltaNet layers keep their causal
+  scan, written as a `while_loop` over chunks of 64 tokens so that the length is dynamic; the 6 full-attention layers read the whole prompt, no causal mask), the final norm of the last position only. fp16 weights.
+  It also answers **text-only** requests (no picture token: a dummy embedding row and the text positions 0..L-1 on the three rows), so one torso serves both.
+- `onnx/vision_encoder.onnx`: pixel patches `[N, 768]` of **one** picture (merge-block order; the two equal frames of a still picture are folded into the patch matrix), the patch rows and columns, the 4 bilinear taps and weights into the
+  learned 48 x 48 position table -> embeddings `[N / 4, 1024]`. Axial 2-D rotary and 12 blocks of full attention inside the picture, then the 2 x 2 merger. fp16 weights, dynamic N (4 to 4096 patches).
+- `onnx/readout.onnx`: the official `readout.safetensors` (255 x 1024, fp32) as a matrix product, the codes beyond the option count masked to -inf. Its outputs equal those of the readout of warsang's export.
+- The picture preprocessing and the positions are done in the page, in `src/classify/providers/d3Vision.ts` (checked against the official processor and backbone, see `tests/classify-d3-vision.test.ts` and its golden file
+  `tests/fixtures/d3-vision-golden.json` from `bench/d3/vision_golden.py`): `smart_resize` (factor 32), the patch order, the position taps, the expansion of the placeholder to 1 token per 2 x 2 patches
+  (144 tokens for a 384 px picture), and `get_rope_index`. A picture whose size is not a multiple of 32 is resized with a separable bicubic (a = -0.5) with a widened kernel, which is not bit-identical with torchvision's
+  (the viewer's own pictures are multiples of 32 and are never resized). Several pictures run through the vision graph one by one, once per request (the main and the sub-discipline request share them).
+- A manifest declares it with `"graphs": {"torso": "onnx/torso_mm.onnx (...)", "vision": "onnx/vision_encoder.onnx (...)", "readout": "..."}`, `"scope": "text and images"`, an `"mm"` block (image token id, patch 16, merge 2, position grid 48,
+  pixel limits), the size and sha256 of every file, and a `"parity"` section. The viewer needs the vision file to be listed (a declared graph with no file is refused). The torso is checked by size (it is 1 GB), the vision graph too, the small files by sha256.
+- **Cast, not CastLike.** The exporter writes ONNX `CastLike` nodes; onnxruntime 1.30 on the CPU provider refuses the graph with "does not match expected type (tensor(float16))". The tool replaces every `CastLike` by a `Cast` to the type
+  that shape inference gives (86 nodes in the torso). The result loads in onnxruntime-node 1.30.0 (the version this viewer pins for the browser) and in Python onnxruntime 1.31.
+
+### What was run (pictures)
+
+All of it on this machine: 4 CPU cores, no GPU, onnxruntime-node 1.30.0 (the version the browser path pins), Python transformers 5.17.0 and torch 2.15 CPU for the official model.
+
+- **Export size.** `onnx/torso_mm.onnx` 1,045,719,940 bytes, `onnx/vision_encoder.onnx` 200,593,328, `onnx/readout.onnx` 1,051,146, `tokenizer.json` 12,807,982 and three small files:
+  **1,260,197,181 bytes (1.26 GB)** in all, 0.2 GB more than the text-only export (1.06 GB). Nothing of it is bundled into the viewer.
+- **Parity with the official model** (`bench/d3/mm_reference.py` runs `AutoModel(...).system_one(..., images=[...])` on CPU in bf16; `bench/d3/mm_parity.mjs` runs the same requests through
+  `createD3BrowserProvider` of the viewer with our export, the picture preprocessing and the positions in TypeScript):
+  - **with pictures**, 10 requests and 24 questions (the model card's receipt example; a pipe spool and a pump of process-plant with the pictures of the viewer, render and line drawing; main and sub-discipline requests):
+    the largest probability difference is **0.0348** (the pipe, "building" question: 0.4496 against 0.4844), every argmax agrees (24 of 24), and **the number of prompt tokens is identical to the official one in every request**.
+    The receipt (900 x 1000, so it goes through our own bicubic resize, not torchvision's) differs by at most 0.0253 (route `technical` 0.6466 against 0.6715; "does the receipt list the blender" 0.9421 against 0.9430).
+  - **text only**, the 4 requests of the earlier parity run (9 questions): largest difference **0.0074**, every argmax agrees (9 of 9).
+  - The text-only path with warsang's export is **unchanged**: the prompts are identical and the answers are bit-identical to the run before this change (difference 0).
+  - On the hidden state (the export's own self-check against the stock transformers code in fp32, with the official `PromptEncoder`): the vision graph has cosine 0.9999929 (largest difference 0.0146 on values up to 3.6),
+    the torso with a picture 0.9999998 (0.0032 on values up to 12.3) and the torso with text only 0.9999996 (0.0061 on 11.9). The references are fp32 or bf16 and ours is fp16, so these are the rounding of the weights.
+- **Time per element** (the main request with 3 questions and the sub-discipline request: 4 torso passes; Node, onnxruntime CPU, fp16 weights, 384 px pictures, mean of 3 runs after a warm-up, the vision graph runs once per request set):
+
+  | | text only | 1 picture (isolated) | 2 pictures (isolated, context) |
+  | --- | --- | --- | --- |
+  | pipe spool (tokens in the 4 passes) | 8.4 s (2,890) | 11.3 s (3,646), of which vision 0.54 s | 12.9 s (4,230), of which vision 0.80 s |
+  | pump | 7.5 s (2,622) | 10.4 s (3,378), of which vision 0.58 s | 13.2 s (3,962), of which vision 0.96 s |
+
+  A 384 px picture is 576 patches and **144 prompt tokens** per pass, plus about 45 tokens of note in the state. A picture roughly adds 25 to 40 % to the time of an element on this CPU.
+  The `bench/d3/mm_timing.mjs` script measures it. These are CPU numbers: WebGPU was not run.
+- **Not run:** WebGPU (no GPU here: the browser path ran against a fake onnxruntime-web in the unit tests and in the smoke, and against the real graphs in Node), the endpoint with pictures against a real `vllm-sr serve`
+  (the request body is checked against a fake server in the smoke), and the Loop operator of the torso on the WebGPU provider (the graph has one `Loop` per Gated DeltaNet layer, as the text-only export has).
+
 ## Pictures for a model that reads images
 
-d3-edge reads images. Set `images` to `element` or `element+neighbours` on the **endpoint** backend and every request carries `images`: an array of base64 data URLs
-(WebP, or PNG when the browser cannot encode WebP). They are drawn off screen with three.js from the loaded model (`src/classify/thumbs.ts`), on a canvas of their own:
+d3-edge reads images. Set `images` and every request carries up to three of them, as base64 data URLs (WebP for a render, PNG for a line drawing),
+placed before the text of the request (that is where the System One prompt puts them). They are drawn off screen with three.js from the loaded model
+(`src/classify/thumbs.ts`) on a canvas of their own, 256 to 512 pixels square (default 384, a multiple of 32 so that the vision model needs no resize).
 
-- the **element**, solid and orange, with its edges; **neighbours** (elements whose bounds lie within a margin of the element's bounds: half its largest
-  dimension, at least 0.5 m; the 40 nearest at most) ghosted and grey, for context; nothing else;
-- orthographic, fitted to the element plus an 18 % margin, on a neutral background, with a scale bar and the view name;
-- `imageViews`: 1 plan, 2 plan and front elevation, 3 plan, front elevation and axonometric; `imageSize`: 256 to 512 pixels, square.
+| `images` | The model gets |
+| --- | --- |
+| `off` (default) | text only |
+| `isolated` | **Picture 1**: the element alone, fitted, axonometric (from the corner x+, y+, z+, y up), neutral background, with a scale bar. With `imagePlan` a second picture of the element alone seen from above |
+| `context` | **Picture 1**: the element highlighted inside its own **bounding box**, grown by `imageMargin` (25 % of the largest side, at least 0.5 m) on every side. Every other element whose bounds touch that box (at most the 120 nearest) is drawn ghosted and grey and **clipped to the box** (clipping planes of the off-screen render), and the outline of the box is drawn in blue. The picture shows exactly the surroundings of the element within its box, and nothing beyond it |
+| `both` | the isolated picture first, then (the plan) and the context picture last |
 
-The drawer shows the pictures of the selected element (a preview, "what the model sees"). They are drawn once per element and settings and kept in memory only.
-**A picture is never in params, share links, saved views, presets, packed pages or `localStorage`** (a unit test checks it). The picture settings are part of the cache
-identity of a decision (`@i<hash>` in the model id) when they are sent, and absent when they are not.
+Two styles (`imageStyle`). **`render`** is shaded (the element orange with its edges, the ghosts grey and transparent). **`vector`** is a simplified line drawing, black on
+white: the crease edges of the mesh (30 degrees, the same machinery as the viewer's edges) plus the **silhouette edges** seen along the view (a pipe has no crease along its
+sides, so the silhouette is what draws it), hidden lines removed by a white fill, the ghosts in thin grey lines. The line drawing is a PNG (crisp lines), a lot smaller,
+and has no shading for the 0.6B model to misread. Which style reads better for the model was **not** measured on a large set (see the bench below).
 
-The **browser** backend reads text only: the Images option stays visible but disabled, with "The browser build of d3-edge reads text only. Use the endpoint backend to send images."
-A custom repository whose manifest declares a vision graph is detected and the drawer says that the viewer does not run it yet (no vision ONNX path was built).
-Jev has a **Send images to Jev** switch, off by default and documented as **untested** (Jev is not known to read images); it uses the same picture settings.
+**The note.** The prompt has no place for a caption, so the viewer adds a `pictures` entry first in the state (it is not counted in `d3MaxStateBytes`), for example:
+`Picture 1: the element alone, a render, axonometric, with a scale bar. Picture 2: the element (orange) in its bounding box with nearby elements in grey.`
+The sentences name the pictures in the order that they are sent.
+
+Example pictures (a pipe spool, a pump, a beam and a wall of process-plant; top row render, bottom row line drawing with the plan): `bench/classify-pictures-pipe.png`,
+`classify-pictures-pump.png`, `classify-pictures-beam.png`, `classify-pictures-wall.png`. The drawer with the preview of a column: `bench/classify-pictures-drawer.png`. `bench/smoke-thumbs.mjs` draws them and checks the sizes, the order, the note, that the
+line drawing is black on white and that no ghost line lies outside the box.
+
+The drawer shows the **same data URLs** that the request carries, for the selected element, with the note (a preview, "what the model sees"). They are drawn once per element and settings
+and kept in memory only. **A picture is never in params, share links, saved views, presets, packed pages or `localStorage`** (a unit test checks it, with the picture, its note and every
+setting). The picture settings that change a picture are part of the cache identity of a decision (`@i<hash>` in the model id) when pictures are sent, and absent when they are not; the plan
+view only counts with the isolated picture and the margin only with the context picture.
+
+**Where pictures are read.** On the **endpoint** backend always. In the **browser** backend only when the export has a **vision graph** (the manifest says so and lists its file): the
+default export (warsang/d3-edge-web) reads text only, so the Images option stays visible but disabled with "The d3 export in use reads text only. Use the endpoint backend, or an
+export with a vision graph." and a decision made with it is labelled as text only. See [Your own export, with pictures](#your-own-export-with-pictures-in-the-browser). Jev has a **Send images to Jev** switch, off by default and documented as
+**untested** (Jev is not known to read images); it uses the same picture settings.
+
+## Geometry as SVG text
+
+`geometryText: "svg"` puts the shape of the element into the `state` of the request as native vector markup, so the model reads it as **text tokens**. It needs no picture and no vision
+graph: it works with the text-only browser export (warsang), the endpoint and Jev. It is built by `src/classify/geometrySvg.ts` (pure, tested in Node) from the meshes of the loaded model.
+
+- **Isolated** (always): the element alone, orthographic: a **plan** and one **elevation** (seen across the longest horizontal side), as simplified outlines: the convex hull of the projected mesh,
+  simplified (Douglas-Peucker, a few points); a round outline is a `<circle>`, a filled rectangle a `<rect>`. Metres, IFC frame (X east, Y north, Z up), origin at the minimum corner of the bounding box, at most 2 decimals.
+  The class, the predefined type and the size are attributes: `<svg id='plan' data-class='IfcPipeSegment' data-type='RIGIDSEGMENT' data-size='0.27x0.27x2' viewBox='0 0 0.27 0.27'>...`.
+- **Context** (`geometryContext`, default on): the same two views of the bounding box grown by `imageMargin` (as for the context picture), with every other element that touches the box as an outline **clipped to the box**
+  (Sutherland-Hodgman) in `<g data-class='IfcPump' data-tag='P-101A'>` (class and tag only: **never a classification result**), nearest first, tiny ones (under 2 % of the box) left out, at most 25. The element is `<g id='target'>`.
+- A legend goes first: `Geometry as SVG, metres, plan then elevation; ... target element id=target.` The whole text is one line in `state.geometry`, after the note about the pictures when there are pictures. Attributes use
+  single quotes, so the JSON state needs no escapes (each escape costs a token). The text is **not** counted in `d3MaxStateBytes`; it has its own budget of about **1500 tokens** (estimated at 3 characters a token): over it, the farthest neighbours
+  are dropped first, then the outlines are simplified harder. Measured on the 51 representative elements of the real bench: the element alone about 110 tokens (largest 137), with the box about 750 on average (largest 1,479).
+- The torso runs **once per question** over the whole prompt, so the tokens multiply by the questions (4 passes per element). d3-edge takes up to 32k tokens, so the length is not a limit; the time is (see below).
+- The drawer shows the **same markup** for the selected element, rendered (the target in orange; the styles are for the preview only) and as text, with the token estimate. `window.__xrayClassify.geometry(id)` returns it.
+- It is part of the cache identity (`@g<hash>`: with the box or not and the margin) for Jev and d3, and nowhere else. **It is never in params, share links, saved views, presets or packed pages** (the leak test checks it).
+- Drawing: `bench/classify-geometry-svg.png` (pipe, pump, beam, wall: the element's plan and elevation, then the box views).
+- Limits. The outline is a convex hull: a wall with a door opening is a plain rectangle in the isolated views, an L is filled. Round parts are only a circle when the outline is round within 5 %.
+
+### The real bench with pictures and SVG (51 signatures)
+
+`bench/real-classify-decision.mjs` with `PROVIDER=d3 D3_MM=1` (our export, onnxruntime-node CPU, **default calibration** `auto`/T = 1: raw agreement) on the same 51 signatures that a final rule labels in the bundled models
+(fzk-haus 16, synth5k 9, building 10, plumbing 2, debris-demo 13, Infra-Electrical 1). The pictures come from `bench/d3/make-bench-pictures.mjs` (a headless browser draws the real elements, render, 384 px, isolated then context),
+the SVG from the same script with `GEOMETRY_ONLY=1`. Agreement with the rules (the rules are proxy labels, not the truth):
+
+| Arm | Discipline | Sub-discipline | Division | prompt tokens, 51 elements | discipline `GEN` (fallback) |
+| --- | --- | --- | --- | --- | --- |
+| (a) text only | **24/51** | **24/51** | **23/49** | 120,049 | 20 |
+| (b) text + SVG, element alone | 15/51 | 15/51 | 12/49 | 146,061 | 32 |
+| (c) text + SVG, element alone + box | 19/51 | 18/51 | 10/49 | 356,685 | 30 |
+| (d) text + 2 pictures (render, isolated + context) | 18/51 | 16/51 | 12/49 | 184,841 | 22 |
+| (e) text + SVG (alone + box) + 2 pictures | 14/51 | 13/51 | 11/49 | 423,645 | not counted |
+
+Text only with our export gives the same 24/51, 24/51, 23/49 as warsang's export did (the export is faithful). **Every arm that adds geometry is worse than text only on this proxy**, by 5 to 10 elements out of 51: against (a), (d) fixes 5 and breaks 11
+discipline answers, (b) fixes 1 and breaks 10, (c) fixes 3 and breaks 8, and the shape arms push the model towards `GEN` (the General fallback) more often. Read this with care:
+
+- The rules **partly judge by shape and name too** (class, name and properties are in the text already), so the 51 proxy labels are the cases where text is enough; they are exactly the cases where the model has nothing to gain from a picture. The bench cannot say that
+  pictures or SVG help for the parts that the rules **cannot** label (that is what they are for), and it has no truth set for those.
+- d3-edge was trained with images and with long text states, but not on BIM line drawings or this SVG dialect; the 0.6B model reads 100 to 1,500 more tokens of geometry per question and it is less sure (more `GEN`). Calibration (`fitted` on the rules) could shift this; the bench uses the default as asked.
+- Nothing here chooses between `render` and `vector`, or SVG and pictures, for the viewer: the defaults stay **off**.
+
+Time per element (the main request with 3 questions and the sub request: 4 torso passes; Node CPU, mean of 3 runs after a warm-up; the SVG arms use the text of the same elements):
+
+| | text only | SVG, element alone | SVG, element + box | 1 picture | 2 pictures |
+| --- | --- | --- | --- | --- | --- |
+| pipe spool | 7.5 s (2,890 tokens) | 9.5 s (3,494) | 16.7 s (5,958) | 9.9 s (3,646) | 11.8 s (4,230) |
+| pump | 7.0 s (2,622) | 8.1 s (3,154) | 12.9 s (4,894) | 9.7 s (3,378) | 11.5 s (3,962) |
+
+(The earlier table of this page, run with other background work, gave 8.4 / 11.3 / 12.9 s for the pipe and 7.5 / 10.4 / 13.2 s for the pump.) The SVG with the box costs about as much as two pictures or more on this CPU because every one of its 700 to 1,500
+tokens runs through the torso 4 times; the element alone costs about 100 tokens. Memory: a request with SVG and the box (6,000 tokens) needs about 8 GB in onnxruntime-node CPU, so run one such process at a time.
 
 ## Number of calls
 

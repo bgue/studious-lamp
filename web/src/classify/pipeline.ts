@@ -63,10 +63,21 @@ export interface ClassifyRunOptions {
    * Pictures of the representative element of a signature (base64 data URLs), sent with both requests to a provider that reads
    * images. A failure is not fatal: the request goes out with the text alone and the message is added to `stats.errors`.
    */
-  images?: (input: ClassifyInput, signal: AbortSignal) => Promise<readonly string[]> | readonly string[];
+  images?: (input: ClassifyInput, signal: AbortSignal) => Promise<PictureSet | readonly string[]> | PictureSet | readonly string[];
+  /**
+   * Native vector geometry of the representative element as SVG text (geometrySvg.ts): it goes into the state as `geometry`, with the one-line legend first.
+   * A failure is not fatal: the request goes out without it and the message is added to `stats.errors`.
+   */
+  geometry?: (input: ClassifyInput, signal: AbortSignal) => Promise<{ legend: string; svg: string } | null> | { legend: string; svg: string } | null;
   retry?: RetryOptions;
   signal?: AbortSignal;
   onProgress?: (p: ProgressInfo) => void;
+}
+
+/** The pictures of an element, and the note that tells the model what they are (it goes into the state as `pictures`). */
+export interface PictureSet {
+  images: readonly string[];
+  note?: string;
 }
 
 export interface ClassifyRun {
@@ -301,12 +312,27 @@ export async function classifyInputs(inputs: readonly ClassifyInput[], o: Classi
         const [sig, members] = entry;
         const rep = members[0]!.input;
         try {
-          const state = buildState(rep, o.maxStateBytes ?? DEFAULT_MAX_STATE_BYTES);
+          let state = buildState(rep, o.maxStateBytes ?? DEFAULT_MAX_STATE_BYTES);
           let extra: DecideExtra | undefined;
+          if (o.geometry) {
+            try {
+              const g = await o.geometry(rep, signal);
+              // One line (a newline would be escaped in the JSON state, which costs tokens); the legend comes first.
+              if (g) state = { geometry: `${g.legend} ${g.svg.replace(/\n/g, ' ')}`, ...state };
+            } catch (e) {
+              if (isAbort(e) || signal.aborted) return;
+              addError(`The geometry of an element could not be made, so it went out without it: ${e instanceof Error ? e.message : String(e)}`);
+            }
+          }
           if (o.images) {
             try {
-              const imgs = await o.images(rep, signal);
-              if (imgs.length) extra = { images: imgs };
+              const got = await o.images(rep, signal);
+              const set: PictureSet = Array.isArray(got) ? { images: got as readonly string[] } : (got as PictureSet);
+              if (set.images.length) {
+                extra = { images: set.images };
+                // The pictures come before the text in the prompt, so the note goes first in the state. It is short and not part of the byte cap.
+                if (set.note) state = { pictures: set.note, ...state };
+              }
             } catch (e) {
               if (isAbort(e) || signal.aborted) return;
               addError(`Pictures of an element could not be made, so it went out as text only: ${e instanceof Error ? e.message : String(e)}`);

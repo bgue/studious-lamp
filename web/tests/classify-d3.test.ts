@@ -26,18 +26,21 @@ const enc = (s: string): Uint8Array => new TextEncoder().encode(s);
 const sha = (b: Uint8Array): string => createHash('sha256').update(b).digest('hex');
 
 /** A fake export: tiny text files with a correct manifest. `torso` and `readout` start with the words that fake-ort.mjs looks for. */
-function makeExport(over: { manifest?: (m: Record<string, unknown>) => void; config?: (c: Record<string, unknown>) => void } = {}) {
+function makeExport(over: { manifest?: (m: Record<string, unknown>) => void; config?: (c: Record<string, unknown>) => void; vision?: boolean } = {}) {
   const files: Record<string, Uint8Array> = {
     [D3_FILES.tokenizer]: enc('{"fake":"tokenizer"}'),
     [D3_FILES.tokenizerConfig]: enc('{"fake":"config"}'),
     [D3_FILES.readout]: enc('READOUT fake readout graph'),
-    [D3_FILES.torso]: enc('TORSO fake torso graph with some more bytes'),
+    [over.vision ? 'onnx/torso_mm.onnx' : D3_FILES.torso]: enc(over.vision ? 'TORSOMM fake multimodal torso graph with some more bytes' : 'TORSO fake torso graph with some more bytes'),
+    ...(over.vision ? { 'onnx/vision_encoder.onnx': enc('VISION fake vision graph') } : {}),
   };
   const config: Record<string, unknown> = { format_id: 'd3-code-readout-v1', codes: [...D3_CODES] };
   over.config?.(config);
   files[D3_FILES.config] = enc(JSON.stringify(config));
   const manifest: Record<string, unknown> = {
-    model: 'd3-edge-web', scope: 'text-only v1; images/videos are not part of the browser export yet', graphs: { torso: 'torso', readout: 'readout' },
+    model: 'd3-edge-web', scope: over.vision ? 'text and images' : 'text-only v1; images/videos are not part of the browser export yet',
+    graphs: over.vision ? { torso: 'onnx/torso_mm.onnx (fake)', vision: 'onnx/vision_encoder.onnx (fake)', readout: 'onnx/readout.onnx (fake)' } : { torso: 'torso', readout: 'readout' },
+    ...(over.vision ? { mm: { image_token_id: 248056 } } : {}),
     files: Object.fromEntries(Object.entries(files).map(([k, v]) => [k, { bytes: v.byteLength, sha256: sha(v) }])),
   };
   over.manifest?.(manifest);
@@ -45,7 +48,7 @@ function makeExport(over: { manifest?: (m: Record<string, unknown>) => void; con
   const requests: Array<{ url: string; auth: string | undefined }> = [];
   const fetchImpl = (async (url: string, init?: RequestInit) => {
     requests.push({ url, auth: (init?.headers as Record<string, string> | undefined)?.['Authorization'] });
-    const name = url.split('/resolve/')[1]?.split('/').slice(1).join('/') ?? '';
+    const name = (url.includes('/resolve/') ? url.split('/resolve/')[1]!.split('/').slice(1).join('/') : url.split('/export/')[1] ?? '').split('?')[0]!;
     const f = files[name];
     return f ? new Response(f as unknown as BodyInit, { status: 200, headers: { 'content-length': String(f.byteLength) } }) : new Response('', { status: 404 });
   }) as unknown as typeof fetch;
@@ -104,7 +107,8 @@ describe('pins and checks', () => {
   });
   it('checks the repository id and the revision', () => {
     expect(d3RepoProblem('warsang/d3-edge-web')).toBeNull();
-    expect(d3RepoProblem('https://huggingface.co/a/b')).toMatch(/web address/);
+    expect(d3RepoProblem('https://host.example/a/b')).toBeNull(); // a web address is a base URL: the folder of an export
+    expect(d3RepoProblem('ftp://host/a')).toMatch(/owner\/name/);
     expect(d3RepoProblem('nope')).toMatch(/owner\/name/);
     expect(d3RevisionProblem('117fb255e630667ae1736666497e8a1c69c7a066')).toBeNull();
     expect(d3RevisionProblem('main')).toBeNull();
@@ -135,14 +139,38 @@ describe('checking a repository before any weights are downloaded', () => {
     const denied = (async () => new Response('', { status: 401 })) as unknown as typeof fetch;
     expect((await inspectD3Repo({ repo: 'a/b', revision: 'main', endpoint: 'https://huggingface.co', fetchImpl: denied })).message).toMatch(/needs a Hugging Face token/);
   });
-  it('detects a declared vision graph and says that it is not supported', async () => {
+  it('detects a vision graph, with its file in the manifest, and reads the graph paths from the manifest', async () => {
+    const exp = makeExport({ vision: true });
+    const r = await inspectD3Repo({ repo: 'a/b', revision: 'main', endpoint: 'https://huggingface.co', fetchImpl: exp.fetchImpl });
+    expect(r.ok).toBe(true);
+    expect(r.vision).toBe(true);
+    expect(r.graphs).toEqual({ torso: 'onnx/torso_mm.onnx', readout: 'onnx/readout.onnx', vision: 'onnx/vision_encoder.onnx' });
+    expect(r.mm).toMatchObject({ patchSize: 16, mergeSize: 2, posGrid: 48, imageTokenId: 248056 });
+    expect(r.scope).toBe('text and images');
+    expect(Object.keys(r.files)).toContain('onnx/vision_encoder.onnx');
+    const text = await inspectD3Repo({ repo: 'a/b', revision: 'main', endpoint: 'https://huggingface.co', fetchImpl: makeExport().fetchImpl });
+    expect(text.vision).toBe(false);
+    expect(text.graphs).toEqual({ torso: D3_FILES.torso, readout: D3_FILES.readout, vision: null });
+  });
+  it('refuses a manifest that declares a vision graph but does not list its file', async () => {
     const exp = makeExport({ manifest: (m) => { (m['graphs'] as Record<string, string>)['vision'] = 'onnx/vision.onnx'; } });
     const r = await inspectD3Repo({ repo: 'a/b', revision: 'main', endpoint: 'https://huggingface.co', fetchImpl: exp.fetchImpl });
-    expect(r.vision).toBe(true);
-    const { p } = make({ repo: 'a/b', revision: 'main' }, exp);
-    const rep = await p.load();
-    expect(rep.vision).toBe(true);
-    expect(rep.note).toMatch(/vision graph. The viewer does not support it yet/);
+    expect(r.ok).toBe(false);
+    expect(r.message).toMatch(/does not list onnx\/vision\.onnx/);
+  });
+  it('accepts a plain base URL instead of a repository id, reads the files from it and never sends a token there', async () => {
+    const exp = makeExport({ vision: true });
+    const base = 'http://localhost:8123/export';
+    expect(d3RepoProblem(base)).toBeNull();
+    expect(d3RepoProblem('http://user:pw@host/x')).toMatch(/user name/);
+    expect(d3RepoProblem('http://host/x?a=1')).toMatch(/no query/);
+    const r = await inspectD3Repo({ repo: base, revision: 'v1', endpoint: 'https://huggingface.co', token: 'hf_TOKEN', fetchImpl: exp.fetchImpl });
+    expect(r.ok).toBe(true);
+    expect(exp.requests.map((q) => q.url)).toEqual([`${base}/MANIFEST.json?v=v1`, `${base}/decision_config.json?v=v1`]);
+    expect(exp.requests.every((q) => q.auth === undefined)).toBe(true);
+    const src = browserSource({ repo: `${base}/`, revision: 'v1', endpoint: 'https://huggingface.co', token: () => 'hf_TOKEN', fetchImpl: exp.fetchImpl, storage: makeCaches() });
+    await src.read('onnx/readout.onnx');
+    expect(exp.requests.at(-1)).toEqual({ url: `${base}/onnx/readout.onnx?v=v1`, auth: undefined });
   });
   it('sends the token to the endpoint only', async () => {
     const exp = makeExport();
@@ -269,12 +297,76 @@ describe('the engine (fake onnxruntime-web, fake tokenizer)', () => {
     expect(a.usage?.input_tokens).toBe(fakeOrt.__log.runs[0]!.tokens + fakeOrt.__log.runs[1]!.tokens);
     expect(p.stats()).toMatchObject({ requests: 1, passes: 2 });
   });
-  it('is idempotent to load twice and refuses images, text only', async () => {
+  it('is idempotent to load twice and refuses pictures on a text-only export', async () => {
     const { p } = make();
     await p.load();
     await p.load();
     expect(fakeOrt.__log.sessions).toHaveLength(2);
-    await expect(p.decide(DUCT, PICK, SIGNAL, { images: ['data:image/png;base64,AAAA'] })).rejects.toThrow(/reads text only. Use the endpoint backend to send images/);
+    await expect(p.decide(DUCT, PICK, SIGNAL, { images: ['data:image/png;base64,AAAA'] })).rejects.toThrow(/This d3 export reads text only: its manifest has no vision graph/);
+  });
+  describe('with a vision graph', () => {
+    // A 256 x 256 picture (a multiple of 32 and the smallest size the processor keeps: no resize): 16 x 16 patches of 16 pixels, 8 x 8 tokens after the merge.
+    const grey = (v: number, w = 256, h = 256) => ({ data: new Uint8Array(w * h * 4).fill(v), width: w, height: h });
+    const decode = async (u: string) => (u.endsWith('A') ? grey(255) : grey(0));
+    const mm = (over: Partial<D3BrowserOptions> = {}) => make({ repo: 'me/d3-mm', revision: 'main', decodeImage: decode, ...over }, makeExport({ vision: true }));
+
+    it('loads the vision graph on the same device as the torso, and reports that pictures are read', async () => {
+      const { p } = mm();
+      const rep = await p.load();
+      expect(rep.vision).toBe(true);
+      expect(fakeOrt.__log.sessions).toHaveLength(3);
+      expect(fakeOrt.__log.sessions[0]!.options['executionProviders']).toEqual(['webgpu']); // torso
+      expect(fakeOrt.__log.sessions[2]!.options['executionProviders']).toEqual(['webgpu']); // vision
+    });
+    it('runs the pictures through the vision graph once per request, expands the placeholders and gives 3-row positions', async () => {
+      const { p } = mm();
+      const a = await p.decide(DUCT, PICK, SIGNAL, { images: ['data:image/png;base64,AAAA', 'data:image/png;base64,BBBB'] });
+      expect(Object.keys(a.answers)).toEqual(['pick', 'inside']);
+      // 2 pictures x 1 vision call each, even though there are 2 questions
+      expect(fakeOrt.__log.vision).toHaveLength(2);
+      expect(fakeOrt.__log.vision[0]).toMatchObject({ patches: 256, maxRow: 15 });
+      expect(fakeOrt.__log.vision[0]!.mean).toBeCloseTo(1, 5); // white, normalised to (255/255 - 0.5)/0.5 = 1
+      expect(fakeOrt.__log.vision[1]!.mean).toBeCloseTo(-1, 5);
+      expect(fakeOrt.__log.vision[0]!.weightMean).toBeCloseTo(1, 4); // bilinear weights sum to 1
+      const run = fakeOrt.__log.runs[0]!;
+      expect(run.imageTokens).toBe(128); // 64 tokens per picture
+      expect(run.rows).toBe(128);
+      expect(run.embedSlot0).toEqual([...Array(64).fill(1), ...Array(64).fill(-1)]);
+      // positions: rows T, H, W, L entries each. The first picture starts after the text before it: t equal, h and w count rows and columns.
+      const L = run.tokens;
+      const pos = run.pos!;
+      expect(pos).toHaveLength(3 * L);
+      const T = pos.slice(0, L), H = pos.slice(L, 2 * L), W = pos.slice(2 * L);
+      const first = T.findIndex((_, i) => (fakeOrt.__log.runs[0]!.imageTokens ?? 0) > 0 && H[i] !== T[i]);
+      expect(first).toBeGreaterThan(0);
+      expect(p.stats()).toMatchObject({ pictures: 2 });
+      expect(W.length).toBe(L);
+    });
+    it('does not run the vision graph again for the second request of a signature (same pictures)', async () => {
+      const { p } = mm();
+      const imgs = ['data:image/png;base64,AAAA'];
+      await p.decide(DUCT, PICK, SIGNAL, { images: imgs });
+      await p.decide(DUCT, PICK, SIGNAL, { images: imgs });
+      expect(fakeOrt.__log.vision).toHaveLength(1);
+      await p.decide(DUCT, PICK, SIGNAL, { images: ['data:image/png;base64,BBBB'] });
+      expect(fakeOrt.__log.vision).toHaveLength(2);
+    });
+    it('answers text-only requests with the same graph (no picture token: a dummy embedding row, text positions)', async () => {
+      const { p } = mm();
+      const a = await p.decide(DUCT, PICK, SIGNAL);
+      expect(a.answers['pick']).toMatchObject({ type: 'choice', choice: 'MEC' });
+      const run = fakeOrt.__log.runs[0]!;
+      expect(run.imageTokens).toBe(0);
+      expect(run.rows).toBe(1);
+      const L = run.tokens;
+      expect(run.pos!.slice(0, L)).toEqual(Array.from({ length: L }, (_, i) => i));
+      expect(run.pos!.slice(2 * L)).toEqual(Array.from({ length: L }, (_, i) => i));
+      expect(fakeOrt.__log.vision).toHaveLength(0);
+    });
+    it('turns a picture that cannot be decoded into a plain message', async () => {
+      const { p } = mm({ decodeImage: async () => { throw new Error('bad bytes'); } });
+      await expect(p.decide(DUCT, PICK, SIGNAL, { images: ['data:image/png;base64,AAAA'] })).rejects.toThrow(/A picture could not be decoded \(bad bytes\)/);
+    });
   });
   it('refuses a question with more than 255 options', async () => {
     const { p } = make();
@@ -284,7 +376,7 @@ describe('the engine (fake onnxruntime-web, fake tokenizer)', () => {
   it('turns an out-of-memory failure into a plain message', async () => {
     const failing = { ...fakeOrt, InferenceSession: { create: async () => { throw new Error('out of memory: alloc failed'); } } };
     const { p } = make({ loadOrt: async () => failing as never });
-    await expect(p.load()).rejects.toThrow(/ran out of memory while it loaded the 1 GB model/);
+    await expect(p.load()).rejects.toThrow(/ran out of memory while it loaded the model/);
   });
   it('reads a hidden state of shape [1, d] or [1, L, d] and converts half floats', () => {
     expect(Array.from(lastHidden({ data: new Float32Array([1, 2, 3, 4]), dims: [1, 4] }, 4))).toEqual([1, 2, 3, 4]);
@@ -299,31 +391,64 @@ describe('settings and identity', () => {
     const c = validateSettings({ provider: 'd3' });
     expect(c.errors).toEqual([]);
     expect(c.settings).toMatchObject({ provider: 'd3', d3Backend: 'browser', d3Repo: D3_REPO_DEFAULT, d3Revision: D3_REVISION_DEFAULT, d3Endpoint: D3_ENDPOINT_DEFAULT, d3Model: D3_MODEL_DEFAULT, d3Device: 'auto', d3MaxStateBytes: 2000 });
-    const bad = validateSettings({ provider: 'd3', d3Backend: 'x', d3Repo: 'no', d3Revision: '', d3HfEndpoint: 'ftp://x', d3Device: 'tpu', d3Endpoint: 'nope', d3Model: '', d3MaxStateBytes: 3, images: 'all', imageViews: 5, imageSize: 100, jevImages: 'yes' });
-    expect(bad.errors.map((e) => e.split(' ')[0]).sort()).toEqual(['d3Backend', 'd3Repo:', 'd3Revision:', 'd3HfEndpoint', 'd3Device', 'd3Endpoint', 'd3Model', 'd3MaxStateBytes', 'images', 'imageViews', 'imageSize', 'jevImages'].sort());
-    expect(bad.settings).toMatchObject({ d3Backend: 'browser', d3Repo: D3_REPO_DEFAULT, images: 'off', imageViews: 1, imageSize: 384 });
+    const bad = validateSettings({ provider: 'd3', d3Backend: 'x', d3Repo: 'no', d3Revision: '', d3HfEndpoint: 'ftp://x', d3Device: 'tpu', d3Endpoint: 'nope', d3Model: '', d3MaxStateBytes: 3, images: 'all', imageStyle: 'sketch', imagePlan: 'yes', imageMargin: 500, imageSize: 100, jevImages: 'yes' });
+    expect(bad.errors.map((e) => e.split(' ')[0]).sort()).toEqual(['d3Backend', 'd3Repo:', 'd3Revision:', 'd3HfEndpoint', 'd3Device', 'd3Endpoint', 'd3Model', 'd3MaxStateBytes', 'images', 'imageStyle', 'imagePlan', 'imageMargin', 'imageSize', 'jevImages'].sort());
+    expect(bad.settings).toMatchObject({ d3Backend: 'browser', d3Repo: D3_REPO_DEFAULT, images: 'off', imageStyle: 'render', imagePlan: false, imageMargin: 25, imageSize: 384 });
   });
   it('warns about a moving revision, an http endpoint and pictures on the browser backend', () => {
-    const w = validateSettings({ provider: 'd3', d3Revision: 'main', d3HfEndpoint: 'http://mirror.example.org', images: 'element' }).warnings.join(' ');
+    const w = validateSettings({ provider: 'd3', d3Revision: 'main', d3HfEndpoint: 'http://mirror.example.org', images: 'both' }).warnings.join(' ');
     expect(w).toMatch(/not a commit hash/);
     expect(w).toMatch(/d3 file address uses http/);
-    expect(w).toMatch(/reads text only, so the pictures are not sent/);
+    expect(w).toMatch(/default browser export of d3-edge reads text only, so the pictures are not sent/);
+    expect(validateSettings({ provider: 'd3', images: 'both', d3Repo: 'me/d3-mm' }).warnings.join(' ')).not.toMatch(/reads text only/);
     expect(validateSettings({ provider: 'd3', d3Backend: 'endpoint', d3Endpoint: 'http://example.org/v1/systemone' }).warnings.join(' ')).toMatch(/element data travel without encryption/);
     expect(validateSettings({ provider: 'd3', d3Backend: 'endpoint', d3Endpoint: 'http://localhost:8899/v1/systemone' }).warnings).toEqual([]);
   });
   it('the cache identity names the backend, the repository and revision, and the picture settings only when pictures are sent', () => {
-    const id = (p: Record<string, unknown>) => providerId(validateSettings({ provider: 'd3', ...p }).settings);
+    const id = (p: Record<string, unknown>, vision = false) => providerId(validateSettings({ provider: 'd3', ...p }).settings, { vision });
     expect(id({})).toBe(`d3:browser:${D3_REPO_DEFAULT}@117fb255`);
     expect(id({ d3Backend: 'endpoint' })).toBe('d3:endpoint:vllm-sr/d3-edge');
-    expect(id({ d3Backend: 'endpoint', images: 'element' })).toMatch(/^d3:endpoint:vllm-sr\/d3-edge@i[0-9a-f]{8}$/);
-    expect(id({ d3Backend: 'endpoint', images: 'element' })).not.toBe(id({ d3Backend: 'endpoint', images: 'element+neighbours' }));
-    expect(id({ d3Backend: 'endpoint', images: 'element', imageSize: 512 })).not.toBe(id({ d3Backend: 'endpoint', images: 'element' }));
-    expect(id({ images: 'element' })).toBe(id({})); // the browser build sends no pictures: the identity does not change
+    expect(id({ d3Backend: 'endpoint', images: 'isolated' })).toMatch(/^d3:endpoint:vllm-sr\/d3-edge@i[0-9a-f]{8}$/);
+    const ep = (p: Record<string, unknown>) => id({ d3Backend: 'endpoint', images: 'isolated', ...p });
+    const all = [ep({}), ep({ images: 'context' }), ep({ images: 'both' }), ep({ imageStyle: 'vector' }), ep({ imagePlan: true }), ep({ imageSize: 512 }), ep({ images: 'context', imageMargin: 50 })];
+    expect(new Set(all).size).toBe(all.length);
+    // what does not change a picture does not change the identity: no plan view in the context picture, no margin in the isolated one
+    expect(ep({ images: 'context', imagePlan: true })).toBe(ep({ images: 'context' }));
+    expect(ep({ imageMargin: 99 })).toBe(ep({}));
+    expect(id({ images: 'isolated' })).toBe(id({})); // the default browser export sends no pictures: the identity does not change
+    expect(id({ images: 'isolated' }, true)).toMatch(/@i[0-9a-f]{8}$/); // an export with a vision graph does
+    // SVG geometry in the state: part of the identity on both backends, and of Jev's, and only for the providers that send it
+    const g = (p: Record<string, unknown>) => id({ geometryText: 'svg', ...p });
+    expect(g({})).toBe(`${id({})}@g${g({}).split('@g')[1]}`);
+    expect(g({})).not.toBe(id({}));
+    expect(new Set([g({}), g({ geometryContext: false }), g({ imageMargin: 50 })]).size).toBe(3);
+    expect(g({ geometryContext: false, imageMargin: 50 })).toBe(g({ geometryContext: false })); // the margin only counts with the context
+    expect(providerId(validateSettings({ provider: 'jev', geometryText: 'svg' }).settings)).toMatch(/@g[0-9a-f]{8}$/);
+    expect(providerId(validateSettings({ provider: 'decision', geometryText: 'svg' }).settings)).not.toMatch(/@g/);
+    expect(validateSettings({ provider: 'decision', geometryText: 'svg' }).warnings.join(' ')).toMatch(/geometryText is not used by this provider/);
+    expect(validateSettings({ provider: 'd3', geometryText: 'pdf', geometryContext: 'yes' }).errors.map((e) => e.split(' ')[0])).toEqual(['geometryText', 'geometryContext']);
     expect(id({ d3MaxStateBytes: 3000 })).toBe(`d3:browser:${D3_REPO_DEFAULT}@117fb255@s3000`);
     // Jev: pictures only when its switch is on
     const jev = (p: Record<string, unknown>) => providerId(validateSettings({ provider: 'jev', ...p }).settings);
-    expect(jev({ images: 'element' })).toBe(jev({}));
-    expect(jev({ images: 'element', jevImages: true })).toMatch(/@i[0-9a-f]{8}$/);
+    expect(jev({ images: 'isolated' })).toBe(jev({}));
+    expect(jev({ images: 'isolated', jevImages: true })).toMatch(/@i[0-9a-f]{8}$/);
+  });
+  it('moves the settings of the first picture design to the nearest new value, and ignores the old view count', () => {
+    const c = validateSettings({ provider: 'd3', d3Backend: 'endpoint', images: 'element', imageViews: 3 });
+    expect(c.errors).toEqual([]);
+    expect(c.settings).toMatchObject({ images: 'isolated' });
+    expect(c.warnings.join(' ')).toMatch(/images "element" is from an older version. Using "isolated"/);
+    expect(c.warnings.join(' ')).toMatch(/imageViews is from an older version and was ignored/);
+    const n = validateSettings({ provider: 'd3', d3Backend: 'endpoint', images: 'element+neighbours' });
+    expect(n.settings).toMatchObject({ images: 'context' });
+    expect(Object.keys(n.settings)).not.toContain('imageViews');
+  });
+  it('keeps the image size on a multiple of 32, because the vision model reads blocks of 32 pixels', () => {
+    const c = validateSettings({ provider: 'd3', imageSize: 300 });
+    expect(c.settings).toMatchObject({ imageSize: 288 });
+    expect(c.warnings.join(' ')).toMatch(/imageSize 300 is not a multiple of 32/);
+    expect(validateSettings({ provider: 'd3', imageSize: 384 }).warnings.join(' ')).not.toMatch(/imageSize/);
+    expect(validateSettings({ provider: 'd3', imageSize: 511 }).settings).toMatchObject({ imageSize: 512 });
   });
   it('is a provider id in the union, and the calibration does not enter the cache identity', () => {
     expect(validateSettings({ provider: 'd3', calibration: 'manual', temperatures: { discipline: 0.3 } }).settings).toMatchObject({ calibration: 'manual' });
@@ -383,7 +508,7 @@ describe('the endpoint backend', () => {
     const off = createProvider(settings(), { apiKey: () => null, fetchImpl: endpointFetch(seen) })!;
     await off.decide(DUCT, PICK, SIGNAL, { images: IMG });
     expect(seen[0]!.body.images).toBeUndefined();
-    const on = createProvider(settings({ images: 'element' }), { apiKey: () => null, fetchImpl: endpointFetch(seen) })!;
+    const on = createProvider(settings({ images: 'isolated' }), { apiKey: () => null, fetchImpl: endpointFetch(seen) })!;
     await on.decide(DUCT, PICK, SIGNAL, { images: IMG });
     expect(seen[1]!.body.images).toEqual(IMG);
     await on.decide(DUCT, PICK, SIGNAL);
@@ -393,7 +518,7 @@ describe('the endpoint backend', () => {
     const IMG = ['data:image/png;base64,AAAA'];
     const seen: Seen[] = [];
     const f = endpointFetch(seen);
-    const jev = (p: Record<string, unknown>) => createProvider(validateSettings({ provider: 'jev', images: 'element', ...p }).settings, { apiKey: () => null, fetchImpl: f })!;
+    const jev = (p: Record<string, unknown>) => createProvider(validateSettings({ provider: 'jev', images: 'isolated', ...p }).settings, { apiKey: () => null, fetchImpl: f })!;
     await jev({}).decide(DUCT, PICK, SIGNAL, { images: IMG });
     await jev({ jevImages: true }).decide(DUCT, PICK, SIGNAL, { images: IMG });
     expect(seen[0]!.body.images).toBeUndefined();
@@ -405,8 +530,7 @@ describe('the endpoint backend', () => {
 // ---------------------------------------------------------------- the service
 
 describe('the service with d3', () => {
-  function service(over: Record<string, unknown> = {}) {
-    const exp = makeExport();
+  function service(over: Record<string, unknown> = {}, exp = makeExport()) {
     const caches = makeCaches();
     const storage = new MemoryStorage();
     const svc = new ClassifyService({
@@ -455,5 +579,53 @@ describe('the service with d3', () => {
     expect((svc.provider() as unknown as { stats(): { passes: number } }).stats().passes).toBe(passes); // no new model run
     expect(svc.calibration().label).toBe('manual');
     expect(svc.modelId()).toBe(providerId(svc.settings())); // the calibration is not in the identity
+  });
+
+  describe('pictures in the browser', () => {
+    const PIC = 'data:image/png;base64,AAAA';
+    // a fake picture source: 2 pictures of 384 px, and the note; the decoder reads the pixels from the data URL (A = white)
+    const thumbnails = async (id: number, st: { size: number }) => ({
+      id, settings: st as never, neighbours: [], note: 'Picture 1: the element alone. Picture 2: the element in its box.',
+      thumbs: ['isolated', 'context'].map((view) => ({ view: view as 'isolated', label: view, dataUrl: PIC, width: st.size, height: st.size, scaleBarM: 1, neighbours: [] })),
+    });
+    const decodeImage = async () => ({ data: new Uint8Array(384 * 384 * 4).fill(255), width: 384, height: 384 });
+    const mmService = () => {
+      // the browser backend reads a base URL with a vision export; the service gets the decoder through the provider factory options
+      const exp = makeExport({ vision: true });
+      const r = service({ thumbnails, d3Decode: decodeImage }, exp);
+      r.svc.patch({ d3Repo: 'https://d3.example.test/export', d3Revision: 'mm-1', images: 'both', calibration: 'off' });
+      return r;
+    };
+
+    it('sends pictures only once the export is known to read them, and the identity then names them', async () => {
+      const { svc } = mmService();
+      expect(svc.imageSettings()).toBeNull(); // the manifest has not been read yet
+      expect(svc.modelId()).toBe('d3:browser:https://d3.example.test/export@mm-1');
+      await svc.inspectD3();
+      expect(svc.visionNow()).toBe(true);
+      expect(svc.imageSettings()).toMatchObject({ mode: 'both', style: 'render', plan: false, size: 384, margin: 25 });
+      expect(svc.modelId()).toMatch(/^d3:browser:https:\/\/d3\.example\.test\/export@mm-1@i[0-9a-f]{8}$/);
+    });
+    it('runs the vision graph for the pictures of a classification and puts the note in the state', async () => {
+      const { svc } = mmService();
+      svc.confirmD3Download();
+      const out = await svc.classify('all', { rules: false });
+      expect(out.length).toBeGreaterThan(0);
+      expect(fakeOrt.__log.vision.length).toBeGreaterThan(0);
+      expect(fakeOrt.__log.vision.every((v) => v.patches === 576)).toBe(true);
+      expect(fakeOrt.__log.runs.every((r) => r.imageTokens === 288)).toBe(true); // 2 pictures x 144 tokens
+      expect(svc.stats().bySource.model).toBeGreaterThan(0);
+    });
+    it('keeps a text-only export text-only even with pictures switched on, and the identity says so', async () => {
+      const { svc } = service({ thumbnails });
+      svc.patch({ images: 'both', calibration: 'off' });
+      await svc.inspectD3();
+      expect(svc.visionNow()).toBe(false);
+      expect(svc.imageSettings()).toBeNull();
+      expect(svc.modelId()).toBe(`d3:browser:${D3_REPO_DEFAULT}@117fb255`);
+      svc.confirmD3Download();
+      await svc.classify('all', { rules: false });
+      expect(fakeOrt.__log.vision).toHaveLength(0);
+    });
   });
 });

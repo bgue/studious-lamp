@@ -32,6 +32,8 @@ export interface ProviderDeps {
   d3LoadOrt?: D3BrowserOptions['loadOrt'];
   d3LoadTokenizerLib?: D3BrowserOptions['loadTokenizerLib'];
   d3Source?: D3BrowserOptions['source'];
+  /** Decode a picture into pixels (tests and Node benches; the page uses the browser's decoder). */
+  d3Decode?: D3BrowserOptions['decodeImage'];
   d3CacheStorage?: D3BrowserOptions['cacheStorage'];
   onWebLlmProgress?: (p: LoadProgress) => void;
   onDecisionProgress?: (p: DecisionProgress) => void;
@@ -52,15 +54,34 @@ function shortHash(text: string): string {
   return (h >>> 0).toString(16).padStart(8, '0');
 }
 
-/** A short hash of the picture settings: pictures change what the model sees, so they belong to the identity of a decision. */
-export function imageHash(s: { images: string; imageViews: number; imageSize: number }): string {
-  return shortHash(`${s.images}|${s.imageViews}|${s.imageSize}`);
+/**
+ * A short hash of the picture settings: pictures change what the model sees, so they belong to the identity of a decision. Only what changes a
+ * picture counts: the plan view only matters with the isolated picture, the margin only with the context picture.
+ */
+export function imageHash(s: { images: string; imageStyle: string; imagePlan: boolean; imageSize: number; imageMargin: number }): string {
+  const iso = s.images === 'isolated' || s.images === 'both';
+  const ctx = s.images === 'context' || s.images === 'both';
+  return shortHash(`${s.images}|${s.imageStyle}|${iso && s.imagePlan ? 'plan' : '-'}|${s.imageSize}|${ctx ? s.imageMargin : '-'}`);
 }
 
-/** Does this provider send pictures with the current settings? d3 on the endpoint, and Jev when its switch is on. */
-export function sendsImages(s: ClassifySettings): boolean {
+/** A short hash of what changes the SVG text: it belongs to the identity of a decision when it is sent. */
+export function geometryHash(s: { geometryContext: boolean; imageMargin: number }): string {
+  return shortHash(`svg|${s.geometryContext ? `ctx${s.imageMargin}` : '-'}`);
+}
+
+/** Does this provider put SVG geometry into the state? Jev and d3-edge (either backend); the short-premise providers (decision, webllm) never do. */
+export function sendsGeometry(s: ClassifySettings): boolean {
+  return s.geometryText === 'svg' && (s.provider === 'jev' || s.provider === 'd3');
+}
+
+/**
+ * Does this provider send pictures with the current settings? d3 on the endpoint, d3 in the browser when its export has a vision graph
+ * (`vision`, known after the repository is inspected), and Jev when its switch is on.
+ */
+export function sendsImages(s: ClassifySettings, vision = false): boolean {
   if (s.images === 'off') return false;
-  return (s.provider === 'd3' && s.d3Backend === 'endpoint') || (s.provider === 'jev' && s.jevImages);
+  if (s.provider === 'd3') return s.d3Backend === 'endpoint' || vision;
+  return s.provider === 'jev' && s.jevImages;
 }
 
 export function createProvider(s: ClassifySettings, deps: ProviderDeps): DecisionModel | null {
@@ -80,6 +101,7 @@ export function createProvider(s: ClassifySettings, deps: ProviderDeps): Decisio
         ...(deps.d3LoadOrt ? { loadOrt: deps.d3LoadOrt } : {}),
         ...(deps.d3LoadTokenizerLib ? { loadTokenizerLib: deps.d3LoadTokenizerLib } : {}),
         ...(deps.d3Source ? { source: deps.d3Source } : {}),
+        ...(deps.d3Decode ? { decodeImage: deps.d3Decode } : {}),
         ...(deps.d3CacheStorage !== undefined ? { cacheStorage: deps.d3CacheStorage } : {}),
         ...(deps.fetchImpl ? { fetchImpl: deps.fetchImpl } : {}),
       });
@@ -107,14 +129,14 @@ export function createProvider(s: ClassifySettings, deps: ProviderDeps): Decisio
 }
 
 /** Id of the provider and model, for the cache key and the messages: "jev:jev-1.13.0", "webllm:Qwen2.5-...", "mock", "rules". */
-export function providerId(s: ClassifySettings): string {
+export function providerId(s: ClassifySettings, o: { vision?: boolean } = {}): string {
   switch (s.provider) {
     case 'jev':
-      return `jev:${s.model}${sendsImages(s) ? `@i${imageHash(s)}` : ''}`;
+      return `jev:${s.model}${sendsImages(s) ? `@i${imageHash(s)}` : ''}${sendsGeometry(s) ? `@g${geometryHash(s)}` : ''}`;
     case 'd3': {
       const state = s.d3MaxStateBytes !== D3_STATE_BYTES_DEFAULT ? `@s${s.d3MaxStateBytes}` : '';
-      if (s.d3Backend === 'endpoint') return `d3:endpoint:${s.d3Model}${state}${sendsImages(s) ? `@i${imageHash(s)}` : ''}`;
-      return `d3:browser:${s.d3Repo}@${s.d3Revision.slice(0, 8)}${state}`;
+      if (s.d3Backend === 'endpoint') return `d3:endpoint:${s.d3Model}${state}${sendsImages(s) ? `@i${imageHash(s)}` : ''}${sendsGeometry(s) ? `@g${geometryHash(s)}` : ''}`;
+      return `d3:browser:${s.d3Repo}@${s.d3Revision.slice(0, 8)}${state}${sendsImages(s, o.vision === true) ? `@i${imageHash(s)}` : ''}${sendsGeometry(s) ? `@g${geometryHash(s)}` : ''}`;
     }
     case 'webllm': {
       const chat = webllmChatModel(s);

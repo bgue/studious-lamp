@@ -1,6 +1,10 @@
 // Types of bench/fake-ort.mjs (the fake onnxruntime-web used by the tests and the local smoke).
 export const env: { wasm: Record<string, unknown> };
-export const __log: { sessions: Array<{ bytes: number; options: Record<string, unknown> }>; runs: Array<{ tokens: number; options: number }> };
+export const __log: {
+  sessions: Array<{ bytes: number; options: Record<string, unknown> }>;
+  runs: Array<{ tokens: number; options?: number; imageTokens?: number; rows?: number; pos?: number[]; embedSlot0?: number[] }>;
+  vision: Array<{ patches: number; mean: number; weightMean: number; maxRow: number }>;
+};
 export function __reset(): void;
 export class Tensor {
   constructor(type: string, data: unknown, dims: readonly number[]);

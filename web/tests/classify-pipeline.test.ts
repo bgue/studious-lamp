@@ -134,6 +134,51 @@ describe('signature cache and call counts', () => {
   });
 });
 
+describe('pictures with a request', () => {
+  const inputs = buildInputs(sidecarModel('synth5k')).slice(0, 3);
+  const seen: Array<{ state: Record<string, unknown>; images: readonly string[] | undefined }> = [];
+  const spy: DecisionModel = { provider: 'spy', async decide(state, questions, signal, extra) { seen.push({ state, images: extra?.images }); return createMockProvider().decide(state, questions, signal, extra); } };
+
+  it('sends the pictures with both requests of a signature and puts the note about them first in the state', async () => {
+    seen.length = 0;
+    const note = 'Picture 1: the element alone, a render, axonometric, with a scale bar. Picture 2: the element (orange) in its bounding box with nearby elements in grey.';
+    await classifyInputs(inputs, { schema, provider: spy, rules: false, images: () => ({ images: ['data:image/webp;base64,AA', 'data:image/webp;base64,BB'], note }) });
+    expect(seen.length).toBeGreaterThanOrEqual(2);
+    for (const r of seen) {
+      expect(r.images).toEqual(['data:image/webp;base64,AA', 'data:image/webp;base64,BB']);
+      expect(Object.keys(r.state)[0]).toBe('pictures');
+      expect(r.state['pictures']).toBe(note);
+    }
+  });
+  it('still takes a plain list of pictures (no note, the state is unchanged)', async () => {
+    seen.length = 0;
+    await classifyInputs(inputs, { schema, provider: spy, rules: false, images: () => ['data:image/png;base64,AA'] });
+    expect(seen.every((r) => r.images?.length === 1 && !('pictures' in r.state))).toBe(true);
+  });
+  it('puts the SVG geometry into the state as one line, legend first, and the note before it', async () => {
+    seen.length = 0;
+    await classifyInputs(inputs, { schema, provider: spy, rules: false, geometry: () => ({ legend: 'Geometry as SVG, metres.', svg: "<svg id='plan'/>\n<svg id='elev'/>" }), images: () => ({ images: ['data:image/png;base64,AA'], note: 'Picture 1: x.' }) });
+    for (const r of seen) {
+      expect(Object.keys(r.state).slice(0, 2)).toEqual(['pictures', 'geometry']);
+      expect(r.state['geometry']).toBe("Geometry as SVG, metres. <svg id='plan'/> <svg id='elev'/>");
+    }
+  });
+  it('goes on without the geometry when it cannot be made, and says so', async () => {
+    seen.length = 0;
+    const { stats } = await classifyInputs(inputs, { schema, provider: spy, rules: false, geometry: () => { throw new Error('no mesh'); } });
+    expect(seen.length).toBeGreaterThan(0);
+    expect(seen.every((r) => !('geometry' in r.state))).toBe(true);
+    expect(stats.errors.join(' ')).toMatch(/The geometry of an element could not be made, so it went out without it: no mesh/);
+  });
+  it('goes on with the text alone when the pictures cannot be made, and says so', async () => {
+    seen.length = 0;
+    const { stats } = await classifyInputs(inputs, { schema, provider: spy, rules: false, images: () => { throw new Error('no WebGL'); } });
+    expect(seen.length).toBeGreaterThan(0);
+    expect(seen.every((r) => r.images === undefined && !('pictures' in r.state))).toBe(true);
+    expect(stats.errors.join(' ')).toMatch(/Pictures of an element could not be made, so it went out as text only: no WebGL/);
+  });
+});
+
 describe('the Jev request', () => {
   it('has exactly this JSON for a sample element', () => {
     const i: ClassifyInput = {

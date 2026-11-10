@@ -76,6 +76,11 @@ export class PreTrainedTokenizer {
     this.config = tokenizerConfig;
   }
   encode(text) {
-    return Array.from(text, (c) => c.codePointAt(0));
+    // The picture placeholder is one token (the id of <|image_pad|> in the Qwen tokenizer); every other character is its own code.
+    const out = [];
+    for (let i = 0; i < text.length; ) {
+      if (text.startsWith('<|image_pad|>', i)) { out.push(248056); i += 13; } else { const c = text.codePointAt(i); out.push(c); i += c > 0xffff ? 2 : 1; }
+    }
+    return out;
   }
 }
