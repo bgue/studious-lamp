@@ -84,7 +84,7 @@ describe('key derivation', () => {
 
 describe('lookup', () => {
   it('finds exact keys', () => {
-    expect(lookupHelp('X-ray/Model')).toBe(HELP['X-ray/Model']);
+    expect(lookupHelp('Sample Projects/Model')).toBe(HELP['Sample Projects/Model']);
     expect(lookupHelp('Class styles/*')).toBe(HELP['Class styles/*']);
   });
 
@@ -108,7 +108,7 @@ describe('lookup', () => {
 
   it('derives a key with a text for every control the panel builds today', () => {
     const cases: Array<[GuiLike, string | undefined, string]> = [
-      [root, 'Model', 'model'], [root, 'X-ray (X)', 'xray'], [root, 'Tiers mode', 'tiersMode'],
+      [folder('Sample Projects', root), 'Model', 'model'], [root, 'X-ray (X)', 'xray'], [root, 'Tiers mode', 'tiersMode'],
       [classification, 'bufferBase (m)', 'bufferBase'], [classification, undefined, 'storeyBand'],
       [slab, 'alpha min', 'alphaMin'], [slab, undefined, 'hidden'], [slab, undefined, 'color'], [slab, 'Reset this class', 'reset'],
       [bloom, 'Selective bloom', 'bloom'], [edge, 'Colour', 'glowColor'],

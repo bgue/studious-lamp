@@ -2,7 +2,8 @@
 //   node tools/build-single-file.mjs [--all] [--no-ifc] [--keep] [--skip-vite]
 // Reads  web/.single-build/  (index.html, one JS chunk, one CSS file)
 // Writes web/dist-single/xray-viewer.html  (web/dist-single/xray-viewer-no-ifc.html with --no-ifc)
-// Embedded models: building, fzk-haus, plumbing, debris-demo (+ synth5k with --all). The scratch directory is removed unless --keep.
+// Embedded models: building, fzk-haus, plumbing, debris-demo (+ synth5k with --all) as glb with their sidecar, and process-plant as
+// gzip-compressed IFC (window.__xrayEmbeddedIfc, read by the built-in IFC reader; not with --no-ifc). The scratch directory is removed unless --keep.
 // IFC reader: the web-ifc wasm is embedded as base64 (window.__xrayIfcWasm) and the worker is already inside the JS chunk
 // (see src/model/ifcRuntime.single.ts). --no-ifc builds without the reader: no wasm, no worker, no web-ifc code.
 // --template [--variant ifc|none] builds the templates used by tools/xray-pack.mjs instead: web/dist-single/xray-template-ifc.html
@@ -43,6 +44,10 @@ const MODELS = template ? [] : [
   { name: 'plumbing', src: 'buildingSMART Simple-Scene: Infra-Plumbing (IFC4)' },
   { name: 'debris-demo', src: 'synthetic 400-element building with scattered debris for the cleanup tool (tools/synth_model.py --debris 24)' },
   ...(all ? [{ name: 'synth5k', src: 'synthetic 5,000-element benchmark model (tools/synth_model.py)' }] : []),
+];
+// IFC samples: the IFC file itself, gzip-compressed and base64-encoded, read by the built-in IFC reader. No glb, no sidecar.
+const IFC_MODELS = template || noIfc ? [] : [
+  { name: 'process-plant', file: 'Process-Plant.ifc', src: 'Synthetic process unit: civil, structural, architecture, MEPI (generated)' },
 ];
 
 const fmtMB = (n) => (n / 1048576).toFixed(2) + ' MB';
@@ -111,6 +116,20 @@ for (const m of MODELS) {
   embedded[m.name] = { glb: glb.toString('base64'), json: JSON.parse(readFileSync(jsonPath, 'utf8')) };
   sizes.push(`${m.name}: glb ${fmtMB(glb.length)}, json ${fmtMB(statSync(jsonPath).size)}`);
 }
+// The IFC samples: models/<file> (the source IFC, not the converted glb), gzip level 9, base64. The page inflates them.
+const embeddedIfc = {};
+let ifcSourceBytes = 0;
+let ifcGzipBytes = 0;
+for (const m of IFC_MODELS) {
+  const ifcPath = join(root, '..', 'models', m.file);
+  if (!existsSync(ifcPath)) die(`${m.file} missing (expected in models/ at the repository root)`);
+  const raw = readFileSync(ifcPath);
+  const gz = gzipSync(raw, { level: 9 });
+  embeddedIfc[m.name] = { file: m.file, gz: gz.toString('base64') };
+  ifcSourceBytes += raw.length;
+  ifcGzipBytes += gz.length;
+  sizes.push(`${m.name}: ifc ${fmtMB(raw.length)} -> gzip ${fmtMB(gz.length)} (base64 ${fmtMB(gz.toString('base64').length)})`);
+}
 const configPath = join(root, 'public', 'xray.config.json');
 const config = existsSync(configPath) ? JSON.parse(readFileSync(configPath, 'utf8')) : null;
 // Presets override (public/xray.presets.json, schema xray-presets/1): entries with a built-in id replace it, new ids are added.
@@ -144,16 +163,16 @@ if (!noIfc) {
 }
 // Model credits and a note about the build: the status bar shows them (model segment tooltip and its "About models"
 // popover, src/ui/statusBar.ts) instead of a banner over the canvas.
-const credits = Object.fromEntries(MODELS.map((m) => [m.name, m.src]));
+const credits = Object.fromEntries([...MODELS, ...IFC_MODELS].map((m) => [m.name, m.src]));
 const buildNote = 'Self-contained file: no server or network needed.' +
   (noIfc ? ' Built without the IFC reader: only glb files can be opened.' : ' Open your own .ifc or .glb files from the panel (Open model) or drop them on the viewer.');
-const creditScript = scriptSafe((MODELS.length ? `window.__xrayModelCredits = ${JSON.stringify(credits)};\n` : '') + `window.__xrayBuildNote = ${JSON.stringify(buildNote)};`) + '\n';
+const creditScript = scriptSafe((Object.keys(credits).length ? `window.__xrayModelCredits = ${JSON.stringify(credits)};\n` : '') + `window.__xrayBuildNote = ${JSON.stringify(buildNote)};`) + '\n';
 const embedScript = template
   // tools/xray-pack.mjs replaces everything between the two marker comments (models and window.__xrayBoot) and the <title>
   ? '<script>\n/* XRAY-PACK:INJECT-BEGIN */\nwindow.__xrayEmbeddedModels = {};\n/* XRAY-PACK:INJECT-END */\n</script>\n<script>\n' +
     scriptSafe(`window.__xrayEmbeddedConfig = ${JSON.stringify(config)};\nwindow.__xrayEmbeddedPresets = ${JSON.stringify(presetsDoc)};`) + '\n' + creditScript + '</script>\n' + wasmScript
   : '<script>\n' +
-    scriptSafe(`window.__xrayEmbeddedModels = ${JSON.stringify(embedded)};\nwindow.__xrayEmbeddedConfig = ${JSON.stringify(config)};\nwindow.__xrayEmbeddedPresets = ${JSON.stringify(presetsDoc)};`) +
+    scriptSafe(`window.__xrayEmbeddedModels = ${JSON.stringify(embedded)};\nwindow.__xrayEmbeddedIfc = ${JSON.stringify(embeddedIfc)};\nwindow.__xrayEmbeddedConfig = ${JSON.stringify(config)};\nwindow.__xrayEmbeddedPresets = ${JSON.stringify(presetsDoc)};`) +
     '\n' + creditScript + '</script>\n' + wasmScript;
 
 // ---- Assemble: embed data first, then the app module.

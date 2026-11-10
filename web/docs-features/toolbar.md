@@ -33,3 +33,15 @@ The Cleanup drawer reads and writes the live rules (`window.__xrayCleanup.rules`
 `src/ui/overlay.ts` provides `getOverlay(app)`: an SVG layer above the canvas inside the stage (pointer events off). `layer(name)` returns a `<g>`; `onUpdate(cb)` runs when the camera, canvas size or data (`invalidate()`) changed; `project(point)` gives CSS pixel coordinates with `visible` (inside the frustum) and `front` (in front of the camera). Penetration markers, measurements and the clearance legend use it.
 
 Reserved rects: `ov.reserved` lists, in canvas pixels, the parts of the view that chrome covers: the edge strips (status bar, top bar, tool strip and open drawer, phone rails), the gizmo box, the legends drawn on the overlay (`[data-legend]` groups and layers named `*legend`) and anything registered with `ov.reserve(key, rect | () => rect)` (null removes it). It is refreshed every frame, and a change re-runs the `onUpdate` callbacks. `ov.place(x, y, w, h, { gap, maxShift })` returns the nearest centre for a `w` x `h` label box that is clear of every reserved rect and inside the view (`moved` tells whether it moved; `null` when no spot is within `maxShift`). Every label on the overlay goes through it the same way: a measure label, a BCF callout or note box moves out with a dashed leader line back to its anchor; a penetration marker under the gizmo or a legend moves beside it with a leader line; a BCF pin whose point is covered is drawn beside the rect with a leader line, or as an edge marker when no spot is near. The pure maths is in `src/ui/reserved.ts` (`freeSpot`, `insetRects`, `underReserved`), tested in `tests/bcf-markup-fixes.test.ts`.
+
+## Sample Projects (parameter panel)
+
+The right-hand panel (lil-gui, "X-ray parameters") starts with the **Open model** folder and, right under it, the **Sample Projects** folder. Its
+**Model** list has one entry per sample with a readable label: Building (Simple-Scene), FZK-Haus, Plumbing, Process plant, Synthetic 5k,
+Debris demo and Procedural. Models that you opened from files follow the samples. Choosing an entry loads it, and the list shows the model on screen.
+
+- The names are the `?model=` values, the keys of saved views, presets, share links and selection sets. They do not change. The labels
+  come from `src/samples.ts`. The search bar and the command list do not list the samples.
+- The single file (`dist-single/xray-viewer.html`) carries building, fzk-haus, plumbing, debris-demo and process-plant (as its IFC, read by the
+  built-in IFC reader). Synthetic 5k is not in it: its entry says "needs the served app or the zip", and choosing it leaves the current model in place.
+- Tests: `tests/samples.test.ts` (labels, the names of the `?model=` values, availability, the menu, the embedded IFC).

@@ -54,6 +54,41 @@ A result needs review when the discipline, the sub-discipline or the division ha
 `building_element` is undecided (0.35 to 0.65). A weak rule used as a fallback is always flagged. Results keep their
 probabilities, so the table shows the top 2 disciplines.
 
+### Rules: civil and site works
+
+The deterministic rules place site works (CIV) before the structural and plumbing rules that would otherwise take them. Most
+site items have no IFC class of their own (paving is an `IfcSlab`, a kerb or a fence post an `IfcBuildingElementProxy`), so the
+rule reads the names: the name, the type name, `ObjectType`, `Description`, `Tag` and `PredefinedType`. Pset names and system
+names are not read for this. The name rules apply only to the classes that can carry a site item (proxies, slabs, walls,
+railings, plates, members, element assemblies and civil or geographic elements). A pipe, valve, duct or cable never takes a
+civil name.
+
+| Item | Rule | Discipline / sub-discipline | MasterFormat |
+| --- | --- | --- | --- |
+| Paving, pavement, hardstanding, apron, road, highway, car park | name; `IfcSlab` with `PredefinedType = BASESLAB` | CIV / PAV | 32 13 00 |
+| Base slab outside a building | `IfcSlab`, `BASESLAB`, not in a building | CIV / PAV | 32 13 00 |
+| Kerb, curb | name; `IfcKerb` | CIV / PAV | 32 16 13 |
+| Fence, site or vehicle gate | name | CIV / LND | 32 31 00 |
+| Drain trench, drain channel, gully, catch basin | name | CIV / DRN | 33 44 00 |
+| Culvert | name | CIV / DRN | 33 41 00 |
+| Manhole, inspection chamber | name | CIV / DRN | 33 39 00 |
+| Earthwork, excavation, grading, bund | name; `IfcEarthworks*` | CIV / ERT | 31 23 00 |
+| Retaining wall | name (any wall class) | CIV / ERT | 32 32 00 |
+| Equipment foundation, plinth, pump or skid base | name or `ObjectType` of an `IfcFooting` | CIV / FND | 03 30 00 |
+| Footing in the site, not in a storey | `IfcFooting` in an `IfcSite` with no storey | CIV / FND | 03 30 00 |
+
+- A **building footing** stays STR / FND, and a **building ground slab** (`BASESLAB` in a building, not named as paving) stays
+  STR / SLB.
+- The MasterFormat divisions of the schema apply to building elements. Outside a building the division is empty, as for every
+  other discipline, so a site item gets its division only when it is in a building storey.
+- The sub-discipline `FND` under CIV (equipment foundations and plinths) is in the default schema. The other CIV
+  sub-disciplines are `ERT`, `PAV`, `DRN`, `UTL` and `LND`.
+- Confidence: a name rule is 0.88, which is final. An equipment foundation is 0.9.
+- Process-plant sample (`models/Process-Plant.ifc`), rules only, before and after: STR 404 to 274, CIV 0 to 214, PLB 81 to 71,
+  unresolved 74 to 0. MEC 428, PIP 429, ELE 56, INS 19 and ARC 23 do not change. The 120 paving slabs, 2 roads, 48 kerbs,
+  26 fence posts, 10 drain trenches and 8 equipment foundations (under the pumps, exchangers and vessels) are now CIV. The
+  28 footings under the rack and platform columns stay STR.
+
 ## What is sent to Jev
 
 The viewer sends one `POST` per decision. This is the exact request for a pipe of `synth5k` (the lists in `criteria` are cut
