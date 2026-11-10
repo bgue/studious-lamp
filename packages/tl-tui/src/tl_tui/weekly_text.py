@@ -17,13 +17,14 @@ from tl_mod_awp.iwp_counts import IwpCountRow
 from tl_mod_awp.iwp_views import IwpRow
 from tl_mod_awp.kpis import KpiTile
 from tl_mod_awp.look_ahead_view import LookAheadItem, LookAheadIwp, LookAheadView
-from tl_mod_awp.week_views import CommitmentRow, WeekRow
+from tl_mod_awp.week_views import CommitmentRow, WeekDetail, WeekRow
 
 from tl_tui.awp_text import date_text, hours_text
 from tl_tui.display import Labels, actor_label, humanize
 from tl_tui.layout import EMPTY
 
 if TYPE_CHECKING:
+    from tl_api.routes.awp_progress import IwpProgress
     from tl_api.routes.constraints import ConstraintRow
 
 LOOK_AHEAD_COLUMNS = (
@@ -40,6 +41,14 @@ WEEK_COLUMNS = ("Week", "State", "PPC")
 COMMITMENT_COLUMNS = ("IWP", "State", "Hours", "Foreman", "Outcome", "Reason")
 CONSTRAINT_REVIEW_COLUMNS = ("Key", "Subject", "Phase", "State", "Source", "Owner", "Age")
 RELEASE_COLUMNS = ("Number", "Subject", "Foreman", "Ready")
+PROGRESS_COLUMNS = ("Number", "Subject", "State", "Ready", "Blocking")
+#: The IWP states step 5 lists: the field work and the one before it (Field complete is closed out
+#: in roadmap 3c, but its IWPs still show their earned progress).
+PROGRESS_STATES = ("Issued", "In progress", "Field complete")
+#: The state word of a closed week (``CloseWeek``).
+CLOSED_WEEK = "Closed"
+#: The line of step 4 when no week is open; ``o`` opens this week.
+NO_OPEN_WEEK = "No open week. o opens this week."
 
 #: An IWP is issued to its foreman after two distinct sign-offs (``IssueIwp``). The count is not
 #: in any list read: the panel of the highlighted IWP shows it (one ``get_iwp`` for that row).
@@ -250,3 +259,107 @@ def release_panel(row: IwpRow, signoffs: int | None) -> str:
 def release_summary(ready: int) -> str:
     """``3 Ready IWPs``."""
     return _plural(ready, "Ready IWP", "Ready IWPs")
+
+
+# --- step 4: the commitments ---------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class PlanLine:
+    """One row of step 4: the week's plan (``commitment`` None), or one of its commitments."""
+
+    plan: WeekDetail
+    commitment: CommitmentRow | None
+
+
+def plan_lines(plan: WeekDetail) -> list[PlanLine]:
+    """The plan's row, then one row per commitment, in the plan's order."""
+    return [PlanLine(plan, None), *(PlanLine(plan, row) for row in plan.commitments)]
+
+
+def plan_line_key(line: PlanLine) -> str:
+    """``2026-W45`` for the plan, ``2026-W45/<IWP id>`` for one of its commitments."""
+    if line.commitment is None:
+        return line.plan.week
+    return f"{line.plan.week}/{line.commitment.iwp_id}"
+
+
+def plan_line_cells(line: PlanLine) -> tuple[str, ...]:
+    """The six cells in the order of ``COMMITMENT_COLUMNS``: the plan's row names the week and
+    its state; the other cells are the empty mark."""
+    if line.commitment is None:
+        return (
+            f"Week {line.plan.week}",
+            humanize(line.plan.state),
+            EMPTY,
+            EMPTY,
+            EMPTY,
+            EMPTY,
+        )
+    return commitment_cells(line.commitment)
+
+
+def commitment_summary(plan: WeekDetail) -> str:
+    """``2026-W44 · Closed · 3 commitments · PPC 66.7%``; an open week reads ``PPC —``."""
+    ppc = f"PPC {plan.ppc}%" if plan.ppc is not None else f"PPC {EMPTY}"
+    count = _plural(len(plan.commitments), "commitment")
+    return f"{plan.week} · {humanize(plan.state)} · {count} · {ppc}"
+
+
+def plan_panel(plan: WeekDetail) -> str:
+    """The week in full: its start date, its state, the close date when closed, its notes."""
+    closed = f" · closed {plan.closed_at}" if plan.closed_at else ""
+    head = f"Week {plan.week}, starting {plan.week_start} · {humanize(plan.state)}{closed}"
+    return "\n".join([head, *plan.notes])
+
+
+def commitment_panel(row: CommitmentRow) -> str:
+    """The commitment in full: the IWP, the committed hours, the foreman, the outcome and the
+    miss reason (when there is one)."""
+    head = f"{row.iwp_key} · {humanize(row.iwp_state)}"
+    committed = f"Committed {hours_text(Decimal(row.committed_hours))} h"
+    foreman = f"foreman {actor_label(Labels(), row.foreman)}"
+    outcome = f"Outcome {humanize(row.outcome)}" if row.outcome else "Outcome not yet judged"
+    reason = f" · reason {humanize(row.miss_reason)}" if row.miss_reason else ""
+    return f"{head}\n{committed}, {foreman}\n{outcome}{reason}"
+
+
+def reason_labels(keys: Iterable[str]) -> dict[str, str]:
+    """The miss reasons as the form offers them: the humanized label, by label, to the code key."""
+    return {humanize(key): key for key in keys}
+
+
+# --- step 5: the progress ------------------------------------------------------------------------
+
+
+def progress_cells(row: IwpRow, count: IwpCountRow | None) -> tuple[str, ...]:
+    """The five cells in the order of ``PROGRESS_COLUMNS``: the number, the subject, the state,
+    the readiness checks and the open blocking constraints (the empty mark when the count is
+    not given). The earned percent is not a cell: it is one read per IWP, in the panel."""
+    blocking = EMPTY if count is None else str(count.open_blocking)
+    return (
+        row.number,
+        row.title or EMPTY,
+        humanize(row.state),
+        ready_cell(count),
+        blocking,
+    )
+
+
+def progress_panel(row: IwpRow, progress: IwpProgress | None) -> str:
+    """The IWP in full: its earned percent and edition, one line per scope item (its steps) and
+    the notes. ``progress`` None (the read failed) shows the empty mark for the earned percent."""
+    head = f"{row.title or EMPTY} · {row.number}"
+    if progress is None:
+        return f"{head}\nEarned {EMPTY}"
+    lines = [head, f"Earned {progress.pct}% · edition {progress.edition}"]
+    for item in progress.items:
+        steps = ", ".join(item.steps) if item.steps else EMPTY
+        lines.append(f"{item.key}: {item.pct}% · steps {steps}")
+    lines.extend(f"Note: {note}" for note in progress.notes)
+    return "\n".join(lines)
+
+
+def progress_summary(tiles: Iterable[KpiTile]) -> str:
+    """The KPI tiles, one after the other: ``PPC 80.0%  4 of 5 IWPs done  ·  Constraint-free …``."""
+    return "  ·  ".join(kpi_line(tile) for tile in tiles)

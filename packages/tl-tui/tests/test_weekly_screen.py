@@ -26,8 +26,10 @@ from tl_tui.weekly_text import review_summary
 from tl_tui.widgets.action_form import ActionFormScreen
 from tl_tui.widgets.weekly_screen import (
     STEPS,
+    CommitmentsScreen,
     ConstraintReviewScreen,
     LookAheadScreen,
+    ProgressScreen,
     ReleaseScreen,
     steps_line,
 )
@@ -284,12 +286,15 @@ def test_step_three_lists_the_ready_iwps_and_signs_off_and_issues_with_the_hash(
 def test_step_two_lists_a_waived_constraint_as_waived_and_does_not_count_it() -> None:
     app, client = make_app()
     target = check_raised(client)
+    # P2-I5-T06b (review F1): an ordinary cleared blocking constraint (not waived) is not listed
+    plain = replace(target, id="con-ordinary", key="CON-ORDINARY", source="manual", state="Cleared")
     client.load_constraints(
         PROJECT,
         [
             replace(r, state="Cleared", waived=True) if r.id == target.id else r
             for r in client.list_constraints(PROJECT).rows
-        ],
+        ]
+        + [plain],
     )
     open_now = [
         r
@@ -307,6 +312,7 @@ def test_step_two_lists_a_waived_constraint_as_waived_and_does_not_count_it() ->
     run(app, steps)
     assert target.key in seen["text"]
     assert "waived" in seen["text"]
+    assert plain.key not in seen["text"], "an ordinary cleared constraint lingers as Cleared"
     assert review_summary(len(open_now)) in seen["text"]
     assert client.sent_commands == []
 
@@ -336,7 +342,8 @@ def test_step_three_panel_shows_the_signoff_count_of_the_highlighted_iwp() -> No
 # --- the keys and the ids -------------------------------------------------------------------------
 
 
-def test_steps_four_and_five_say_not_available_yet() -> None:
+def test_steps_four_and_five_open_their_screens() -> None:
+    """P2-I5-T06b: keys 4 and 5 show the commitments and the progress (were "Not available yet")."""
     app, _ = make_app()
     seen: dict[str, Any] = {}
 
@@ -344,15 +351,13 @@ def test_steps_four_and_five_say_not_available_yet() -> None:
         app.action_week()
         await settle(pilot)
         await press(pilot, "4")
-        seen["four"] = status_of(app)
+        seen["four"] = app.screen
         await press(pilot, "5")
-        seen["five"] = status_of(app)
-        seen["screen"] = app.screen
+        seen["five"] = app.screen
 
     run(app, steps)
-    assert seen["four"] == "Not available yet"
-    assert seen["five"] == "Not available yet"
-    assert isinstance(seen["screen"], LookAheadScreen)
+    assert isinstance(seen["four"], CommitmentsScreen)
+    assert isinstance(seen["five"], ProgressScreen)
 
 
 def test_no_screen_text_holds_a_record_id() -> None:
