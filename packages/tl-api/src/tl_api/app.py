@@ -72,6 +72,7 @@ from tl_api.routes import (
     proposals,
     records,
     reference,
+    requisitions,
     schedule,
     schemareg,
     threads,
@@ -343,6 +344,7 @@ def create_app(
         materials,  # P2-I3-T04a
         schemareg,  # P1-I8
         awp,  # P2-I1 T03a: the awp read routes
+        requisitions,  # P2-I4A T04c1: the requisition and work order read routes
         constraints,  # P2-I2 T04c1: the constraint read routes
         insights,  # P2-INS S2: the Checks read and the one telemetry write
     ):
