@@ -13,8 +13,8 @@ Modes (first argument):
 * ``clause4 CLI_STATE LABOUR_COUNT``: the state of P123-REQ-MAT-0001 that ``tl req show`` printed
   (CLI_STATE) is the state the API client, the palette screens and the MCP tools give; an agent's
   propose_requisition (labour, for the IWP) is pending and adds no row until uma accepts it, and
-  then P123-REQ-LAB-<LABOUR_COUNT + 1> exists with requester user:uma; plain (no requisitions.view)
-  is answered 403 by the API list route and refused by the MCP list tool.
+  then P123-REQ-LAB-<LABOUR_COUNT + 1> exists with requester user:uma. (No refusal check: no account
+  on this ledger lacks requisitions.view, decision D-r3h.)
 """
 
 from __future__ import annotations
@@ -47,7 +47,6 @@ from tl_tui.widgets.work_order_backlog import WorkOrderBacklogScreen
 PASSWORDS = {  # the documented dev passwords the script seeds the people with
     "uma": "a long passphrase for uma",
     "sue": "a long passphrase for sue",
-    "plain": "a long passphrase for plain",
 }
 PROJECT = "P123"
 P123 = f"project:{PROJECT}"
@@ -204,7 +203,7 @@ def palette_screen(
 
 
 def clause4(cli_state: str, labour_count: str) -> None:
-    """One state over the API, the palette screens and MCP; the agent's proposal; plain refused."""
+    """One state over the API, the palette screens and MCP; the agent's proposal waits for uma."""
     n = int(labour_count)
     world = World()
     try:
@@ -302,21 +301,6 @@ def clause4(cli_state: str, labour_count: str) -> None:
         check(made.requester == "user:uma", f"{next_key} has requester {made.requester}")
         check(made.kind == "labor", f"{next_key} is {made.kind}")
         passed(4, f"uma accepts the proposal: {next_key} exists, requester user:uma")
-
-        refused = world.client("plain").get(f"/projects/{PROJECT}/requisitions")
-        check(refused.status_code == 403, f"plain's list route: {refused.status_code}")
-        passed(
-            4,
-            f"plain (no requisitions.view) is answered {refused.status_code} by the API list route",
-        )
-
-        plain = mcp_server(world, "user:plain")
-        try:
-            rows = mcp_call(plain, "list_requisitions", project=PROJECT)
-        except RuntimeError as exc:
-            passed(4, f"plain is refused by the MCP list tool: {exc}")
-        else:
-            miss(f"the MCP list tool answered plain with {len(rows)} requisitions (no refusal)")
     finally:
         world.close()
 

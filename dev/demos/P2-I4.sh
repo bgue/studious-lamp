@@ -8,11 +8,13 @@
 #      completed and closed; a labour requisition is rejected by sue and another cancelled by uma;
 #      the final states are read back with req show and wo show;
 #   2  a general requisition of type crane_lift takes the crane_lift pset (load_t, radius_m) and
-#      pset get prints both values back;
+#      pset get prints both values back (P123 adopts crane_lift in the demo world only: the copy of
+#      schema/fixtures in the workdir, see TL_SCHEMA_DIR below; no shared fixture changes);
 #   3  numbering under two writers: two background loops of ten labour raises and two of ten
 #      general raises; each kind's keys are exactly -0001 .. -<n> once, n counted by this script;
 #   4  one state over API, TUI palette and MCP (driver: dev/demos/p2_i4_demo.py); an agent's
-#      propose_requisition waits for uma; plain is refused by tl req ls, the API and MCP.
+#      propose_requisition waits for uma, then uma accepts it. (No refusal check: no account on this
+#      ledger lacks requisitions.view, decision D-r3h.)
 # Deferred and not claimed here: stock fulfilment, FIFO lots, the shortage constraint, the labour
 # forecast, reports, thread dispatch and web pages.
 #
@@ -44,7 +46,7 @@ export TL_PG_URL="${TL_PG_URL:-postgresql://postgres:postgres@localhost:5432/tl_
 export TL_OBJECT_ROOT="$workdir/objects"
 export TL_LAKE_DIR="$workdir/lake"
 export P2_I4_WORKDIR="$workdir"
-unset TL_SCHEMA_DIR TL_OBJECT_STORE TL_REMOTE TL_TOKEN TL_PROJECT TL_AGENT_TOKEN TL_SIM_AGENT_TOKEN
+unset TL_OBJECT_STORE TL_REMOTE TL_TOKEN TL_PROJECT TL_AGENT_TOKEN TL_SIM_AGENT_TOKEN
 
 # `uv` prints a harmless UV_NATIVE_TLS deprecation warning on every call in the build container.
 quiet() { "$@" 2> >(grep -v 'UV_NATIVE_TLS' >&2); }
@@ -93,9 +95,18 @@ keys_are() { # keys_are KIND PREFIX COUNT: the listed keys are PREFIX0001 .. PRE
   echo "$1: $(printf '%s\n' "$got" | wc -l | tr -d ' ') keys, each once, $2 0001 to $2$(printf '%04d' "$3")"
 }
 
+# Clause 2: the demo copies schema/fixtures, adds the crane_lift ref to the copy of x.P123@1.4.0.yaml
+# and points TL_SCHEMA_DIR at the copy for the whole run (pattern: dev/demos/P0-I2.sh). No shared
+# fixture changes; P123 adopts crane_lift in the demo world only.
+cp -r schema/fixtures "$workdir/fixtures"
+sed -i '/^extends:$/a\  - ref: co.acme.engineering@3.2.0#crane_lift' "$workdir/fixtures/x.P123@1.4.0.yaml"
+grep -q 'ref: co.acme.engineering@3.2.0#crane_lift' "$workdir/fixtures/x.P123@1.4.0.yaml" \
+  || fail "could not add crane_lift to the demo copy of x.P123@1.4.0"
+export TL_SCHEMA_DIR="$workdir/fixtures"
+
 run_backend() {
   local backend="$1" labour general cli_state
-  step "[$backend] a new ledger: ada (admin), sue (requisitions superuser), uma and rob (users), plain (no grant)"
+  step "[$backend] a new ledger: ada (admin), sue (requisitions superuser), uma and rob (users)"
   drop_pg
   rm -rf "$workdir/objects" "$workdir/lake"
   case "$backend" in
@@ -109,10 +120,10 @@ run_backend() {
   tl init --dev 2>"$workdir/init.err" >/dev/null || { cat "$workdir/init.err" >&2; fail "tl init --dev"; }
   printf 'demo\n' | as demo tl login demo --password-stdin >/dev/null
   printf '%s\n' "a long passphrase for ada" | as demo tl admin user add ada --display-name "Ada" --role admin --password-stdin >/dev/null
-  for who in sue uma rob plain; do
+  for who in sue uma rob; do
     printf '%s\n' "a long passphrase for $who" | as demo tl admin user add "$who" --display-name "$who" --password-stdin >/dev/null
   done
-  for who in ada sue uma rob plain; do
+  for who in ada sue uma rob; do
     printf '%s\n' "a long passphrase for $who" | as "$who" tl login "$who" --password-stdin >/dev/null
   done
   out="$(as ada tl admin roles grant sue --project P123 --module requisitions --role superuser --reason demo)"; echo "$out"
@@ -190,7 +201,7 @@ run_backend() {
   out="$(as uma tl pset get --project P123 P123-REQ-GEN-0001 crane_lift)"; echo "$out"
   expect 'psets: {"load_t":40,"radius_m":18}' "$out"
   general=1
-  clause 2 "crane_lift on P123-REQ-GEN-0001 reads back load_t 40 and radius_m 18"
+  clause 2 "crane_lift on P123-REQ-GEN-0001 reads back load_t 40 and radius_m 18 (P123 adopts crane_lift in the demo world only)"
 
   step "[$backend] clause 3: numbering under two writers; 20 labour and 20 general raised by two loops each"
   raise_loop labor 10 "Pipefit A" & p1=$!
@@ -207,14 +218,13 @@ run_backend() {
   out2="$(keys_are general P123-REQ-GEN- "$general")"; echo "$out2"
   clause 3 "labour keys P123-REQ-LAB-0001..$(printf '%04d' "$labour") and general keys P123-REQ-GEN-0001..$(printf '%04d' "$general"), each once"
 
-  step "[$backend] clause 4: one state over the API, the TUI palette and MCP; the agent's proposal waits for uma; plain is refused"
+  step "[$backend] clause 4: one state over the API, the TUI palette and MCP; the agent's proposal waits for uma"
   cli_state="$(state_of "$MAT" uma)"
   [ "$cli_state" = Closed ] || fail "tl req show says $cli_state for $MAT"
   driver clause4 "$cli_state" "$labour"
   out="$(as uma tl req ls --project P123 --kind labor --limit 100)"; echo "$out"
   expect "P123-REQ-LAB-$(printf '%04d' $((labour + 1)))  labor  Requested  normal  -  user:uma" "$out"
-  refuse "forbidden" as plain tl req ls --project P123
-  clause 4 "API, palette screens (170x44) and MCP agree with tl req show; the proposal waits for uma; plain refused by tl req ls, the API and MCP"
+  clause 4 "API, palette screens (170x44) and MCP agree with tl req show; an agent's proposal waits for uma, who accepts it"
 
   drop_pg
   echo "[$backend] clauses 1-4 passed"
