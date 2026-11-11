@@ -7,9 +7,9 @@ T02 t mrg f df020f8 tl punch group; D28
 T03 t mrg f 028128c 3 GET routes + generic door; D28
 T05 t mrg f 49dfc6d MCP reads + propose_punch_item
 T04 t mrg f fbd1873 client reads + quality_command + fake; D29
-T06 t disp f - TUI punch log + record screen
+T06 t mrg f 166e112 TUI punch log + record screen
 T07 t mrg f d82bb60 generator quality section + roster grant + pins; dispatch now
-T08 t todo f - dev/demos/P2-PUNCH.sh seven clauses; needs T02 T03 T04 T05 T06 T07
+T08 t disp f - demo seven clauses; D28 applied to clause 6
 T09 t todo l - docs, runbook, reference; needs T08
 ## DEC
 D1 2026-11-11 module `quality`, one record `quality.PunchItem`, table cur_quality_punch_item; README "Record shape"
