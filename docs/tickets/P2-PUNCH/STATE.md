@@ -9,8 +9,8 @@ T05 t mrg f 49dfc6d MCP reads + propose_punch_item
 T04 t mrg f fbd1873 client reads + quality_command + fake; D29
 T06 t mrg f 166e112 TUI punch log + record screen
 T07 t mrg f d82bb60 generator quality section + roster grant + pins; dispatch now
-T08 t disp f - demo seven clauses; D28 applied to clause 6
-T09 t todo l - docs, runbook, reference; needs T08
+T08 t mrg f f6fb221 demo 7 sq + 6 pg PASS; D30
+T09 t todo l - docs, runbook, reference; ready
 ## DEC
 D1 2026-11-11 module `quality`, one record `quality.PunchItem`, table cur_quality_punch_item; README "Record shape"
 D2 2026-11-11 states Open, Cleared, Verified, Void; reopen from Cleared or Verified; Void only terminal; assignment is a field; S1
@@ -39,6 +39,7 @@ D15 Q1: no fixed order with p2/i4a; whichever merges to trunk second unions SUBJ
 D16 Q3: T06 uses the generic record-screen action path if it covers clear/verify/reopen; else quality_command plus a form.
 D17 Q4: two hops claimed; the three-hop case is a known limit (DEFERRED line at close, with outside review 1 F5).
 D27 T07: restricting two existing letters for hidden sources and the WBS depth-3 title as `system` are accepted; anchors test passes at merge
+D30 2026-11-11 T08: sue also holds platform role document_controller in the demo (reads the restricted source in clause 5); accepted
 D29 2026-11-11 T04 F1: seed_punch has three Open of six (the source-key item is Open); accepted
 D28 2026-11-11 no account can lack quality.view (every role derives it): drop that test case in T02 T03 T04; code keeps the check
 D20 S2: quality tests keep conftest.py (path widened by orch; the retry that removed it broke collection, reverted)
