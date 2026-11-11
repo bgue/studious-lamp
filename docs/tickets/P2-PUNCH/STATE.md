@@ -27,6 +27,12 @@ D12 2026-11-11 Phase 3 compatibility is additive (kind, response_cycle, escalati
 D13 2026-11-11 S1 adds tl-mod-quality to the four consumer pyprojects and uv.lock once: no ticket touches uv.lock
 ## SEC
 (none yet; rows in README "Security rows")
+## ORCH 2026-11-11 answers
+D14 Q5: S1 may add the new event names to the feed-policy list in tl_core/feed/cards.py if a test refuses them (one line); compat baseline update allowed (additive).
+D15 Q1: no fixed order with p2/i4a; whichever merges to trunk second unions SUBJECT_LINKS rows and proposable_exclusions.toml.
+D16 Q3: T06 uses the generic record-screen action path if it covers clear/verify/reopen; else quality_command plus a form.
+D17 Q4: two hops claimed; the three-hop case is a known limit (DEFERRED line at close, with outside review 1 F5).
+D18 Q2: default applied (superuser verifies, never the clearer; verified can reopen); owner told.
 ## OPEN
 Q1 merge order with p2/i4a: both add SUBJECT_LINKS rows and tests/tools/proposable_exclusions.toml; default punch merges first (roadmap 4a before 4b), I4A then unions the rows | needs orch | raised r1
 Q2 who verifies: default module superuser, never the clearer; reopen and void controller acts; a verified item can be reopened | needs owner | raised r1 (default applied)

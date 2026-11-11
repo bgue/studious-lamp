@@ -65,7 +65,9 @@ may explore: `docs/reports/P2-I3/S1.md`, `docs/reports/P2-I2/S1.md` (its "Pinned
 - root `pyproject.toml` (workspace source line `tl-mod-quality`, the test path `packages/tl-modules/quality/tests` next to the materials one, the dependency line) and `uv.lock`; the `dependencies` list of `packages/tl-api/pyproject.toml`, `packages/tl-cli/pyproject.toml`, `packages/tl-mcp/pyproject.toml`, `packages/tl-tui/pyproject.toml` (one line each, `"tl-mod-quality"`, as `tl-mod-materials` is)
 - pinned lists (rule 12), union form, each listed in the report: `packages/tl-schema/tests/test_offline_classes.py` (49 -> 50), `test_ddl.py`, `test_generate.py`, `test_ddl_views.py` (a view if the generator makes one per class), `packages/tl-core/tests/auth/test_access_words.py` (28 -> 35: add the `QUALITY` set to the sum), `packages/tl-core/tests/test_numbering_config.py` (pattern list), `tests/services/test_modules.py` (module list: `"quality"` after `"materials"`), and any other test that fails only because these exist (find with `grep -rln "materials.StockLot" tests packages/*/tests packages/tl-modules/*/tests`)
 - `packages/tl-schema/tests/test_quality_schema.py` (create), `dev/accept/P2-PUNCH/S1.py`, `docs/reports/P2-PUNCH/S1.md` (create)
-Not allowed: commands or handlers, `tl_core/**` (including `tl_core/feed/cards.py`), other modules, any other `tl-api`, `tl-cli`, `tl-tui`, `tl-mcp` file.
+- `packages/tl-schema/compat/event-schemas.json` (`just compat-update` output only, additive)
+- `packages/tl-core/src/tl_core/feed/cards.py`: only if a test refuses the new events, add their names to the list it names (one line; orchestrator decision D14, Q5)
+Not allowed: commands or handlers, other `tl_core/**`, other modules, any other `tl-api`, `tl-cli`, `tl-tui`, `tl-mcp` file.
 
 ## Steps
 1. LinkML, fixtures, access words; `just gen`; commit schema and generated output together.
