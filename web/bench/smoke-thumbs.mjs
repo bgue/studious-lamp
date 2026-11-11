@@ -40,10 +40,10 @@ const checks = [];
 const check = (name, ok, detail = '') => { checks.push({ name, ok }); console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${detail ? ` (${detail})` : ''}`); };
 
 const ELEMENTS = [
-  { key: 'pipe', gid: 352, what: 'a pipe spool' },
-  { key: 'pump', gid: 330, what: 'a pump' },
-  { key: 'beam', gid: 177, what: 'a beam' },
-  { key: 'wall', gid: 314, what: 'a wall' },
+  { key: 'pipe', gid: 416, what: 'a pipe spool' },
+  { key: 'pump', gid: 362, what: 'a pump' },
+  { key: 'beam', gid: 197, what: 'a beam' },
+  { key: 'wall', gid: 343, what: 'a wall' },
 ];
 const CASES = [
   { tag: 'render', cfg: { images: 'both', imageStyle: 'render', imagePlan: false } },

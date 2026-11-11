@@ -80,12 +80,17 @@ export const DEFAULT_SETS: Readonly<Record<string, readonly DefaultSetDef[]>> = 
     { name: 'Risers', nameContains: 'riser' },
   ],
   plumbing: [{ name: 'All pipes', classes: ['IfcPipeSegment'] }],
-  // Synthetic process unit (tools/make_process_plant_ifc.py): piping and valves, the rack steel, instruments, foundations.
+  // Synthetic process unit (tools/make_process_plant_ifc.py): piping, fittings and valves of every service (nozzles, tees and
+  // the battery-limit spectacle blinds are fittings), the rack and support steel, instruments, foundations, the main equipment
+  // (pumps, motors, exchangers, drums), the cable tray and the battery-limit blinds.
   'process-plant': [
     { name: 'Process piping', classes: ['IfcPipeSegment', 'IfcPipeFitting', 'IfcValve'] },
     { name: 'Pipe rack steel', classes: ['IfcColumn', 'IfcBeam', 'IfcMember'] },
     { name: 'Instruments', classes: ['IfcSensor'] },
     { name: 'Foundations', classes: ['IfcFooting'] },
+    { name: 'Equipment', classes: ['IfcPump', 'IfcElectricMotor', 'IfcHeatExchanger', 'IfcTank'] },
+    { name: 'Cable tray', classes: ['IfcCableCarrierSegment'] },
+    { name: 'Battery-limit blinds', nameContains: 'spectacle blind' },
   ],
   // Every item the debris generator added is named "Debris ..." (bolts, offcuts, stray cluster, far stray, duplicate beams, zero-thickness wall).
   'debris-demo': [{ name: 'Debris', nameContains: 'debris' }],

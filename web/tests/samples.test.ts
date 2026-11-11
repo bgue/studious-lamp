@@ -92,7 +92,7 @@ describe('sample projects: the embedded IFC', () => {
     expect(back.every((b, i) => b === raw[i])).toBe(true);
   });
 
-  it('the process-plant IFC embeds in well under the glb (about 5.9 MB), so the single file stays small', async () => {
+  it('the process-plant IFC embeds in well under the glb (about 4 MB), so the single file stays small', async () => {
     const ifc = new Uint8Array(readFileSync(fileURLToPath(new URL('../../models/Process-Plant.ifc', import.meta.url))));
     expect((await gzip(ifc)).length).toBeLessThan(1024 * 1024);
   });
