@@ -1,14 +1,14 @@
-# P2-PUNCH STATE  r=1 base=bb6f855b C=0 ck=0 gate=n/a wt=/home/user/wt/p2-punch
-## BOARD   (r1: plan, two piece specs and nine tickets written; nothing dispatched; `todo` = spec written, deps unmet)
-S1 p mrg f 7c4ebaa schema + module spec; human gate (APPROVALS); dispatch r2 alone
-S2 p mrg f 1752551 six commands, subject join, row; needs S1; human gate
-T01 t todo f - read views + provided test (supervisor commits it after S2 merges); needs S2
+# P2-PUNCH STATE  r=4 base=bb6f855b C=2 ck=0 gate=n/a wt=/home/user/wt/p2-punch
+## BOARD   (r4: S1, S2 merged with APPROVALS; T01 provided test + views stub committed; tickets re-read against S1, S2; `todo` = deps unmet)
+S1 p mrg f 7c4ebaa schema + module spec; APPROVALS done
+S2 p mrg f 1752551 six commands, subject join, row; APPROVALS done
+T01 t stg f - read views; provided test + stub committed r4; dispatch now
 T02 t todo f - `tl punch` writes and reads; needs T01
 T03 t todo f - 3 API routes + PUNCH_COMMANDS door; needs T01
 T05 t todo f - punch_tools.py: 2 reads + propose_punch_item; needs T01
 T04 t todo f - client reads + quality_command + fake; needs T03
 T06 t todo f - punch_text, log, record screen c/v/o, palette; needs T04
-T07 t todo f - generator quality section + roster grant + pins; needs S2
+T07 t stg f - generator quality section + roster grant + pins; dispatch now
 T08 t todo f - dev/demos/P2-PUNCH.sh seven clauses; needs T02 T03 T04 T05 T06 T07
 T09 t todo l - docs, runbook, reference; needs T08
 ## DEC
@@ -25,6 +25,12 @@ D10 2026-11-11 routes use guard("document.read") then require_word quality.view 
 D11 2026-11-11 tests ride in tickets and pieces; only T01 gets a provided test, committed at r3 once S2 names exist
 D12 2026-11-11 Phase 3 compatibility is additive (kind, response_cycle, escalation_level); table in README
 D13 2026-11-11 S1 adds tl-mod-quality to the four consumer pyprojects and uv.lock once: no ticket touches uv.lock
+D21 2026-11-12 PunchRow gains `id` (record id, for commands, never printed; as IwpRow): T06 and T04 build `punch_item` from it; stub, provided test, T01 updated r4
+D22 2026-11-12 today is an ISO string everywhere (`date.today().isoformat()`): views, CLI, route, tool; T01-T05 text updated r4
+D23 2026-11-12 demo: rob holds the quality superuser grant as in punch_world (else his verify is `forbidden`, not the clearer rule); README clause setup and T08 fixed
+D24 2026-11-12 command field is `from_record_id` (an id); CLI, route door and MCP resolve keys first; T02, T03, T05, T07 say so
+D25 2026-11-12 no-view person = account whose roles derive no module role (`World.person(n, ())`); each ticket says to write Blocked if it cannot be made
+D26 2026-11-12 T01 provided test `provided/T01_test_views.py` passes ruff + pyright (checked in a temp copy at tests/test_views.py, removed); views.py stub: bodies raise NotImplementedError
 ## SEC
 (none yet; rows in README "Security rows")
 ## ORCH 2026-11-11 answers
@@ -36,19 +42,14 @@ D20 S2: quality tests keep conftest.py (path widened by orch; the retry that rem
 D19 S1 blk: FROZEN valid-time baseline never grows; new punch events get optional valid-time `at` (Raised, Edited, Reopened, Voided)
 D18 Q2: default applied (superuser verifies, never the clearer; verified can reopen); owner told.
 ## OPEN
-Q1 merge order with p2/i4a: both add SUBJECT_LINKS rows and tests/tools/proposable_exclusions.toml; default punch merges first (roadmap 4a before 4b), I4A then unions the rows | needs orch | raised r1
-Q2 who verifies: default module superuser, never the clearer; reopen and void controller acts; a verified item can be reopened | needs owner | raised r1 (default applied)
-Q3 TUI write keys c, v, o use quality_command and a form; if the generic record-screen action path is preferred instead, say so before r7 | needs orch | raised r1
-Q4 chain longer than two hops (constraint on a punch item raised from a requisition of a hidden IWP) is not claimed (_HOPS 2) | needs orch | raised r1
-Q5 POLICY_EVENT_TYPES in tl_core/feed/cards.py may reject new quiet events; S1 stops, does not edit core | needs orch | raised r1
+(none: Q1-Q5 answered at D14-D18; the three-hop case is a known limit, DEFERRED line at close)
 ## NEXT
-1. Orchestrator: dispatch S1 alone (human gate: APPROVALS line at merge; consumer pyproject and uv.lock lines are in it).
-2. After S1 merges: S2 alone (core gate). Then r4: supervisor commits provided/T01_test_views.py from the S2 report, then T01 with T07.
-3. r5 [T02, T03, T05] (disjoint: tl-cli, tl-api, tl-mcp); r6 T04; r7 T06; r8 T08; r9 T09. After each merge `just gen` last, pinned lists as union.
-4. Between rounds a supervisor reads the merged reports and re-specs a ticket whose named interface moved (names marked in each ticket: PunchRow, PunchDetail, PunchPage, PUNCH_COMMANDS, punch_world.py).
-5. Close: `just check`, whole gate, `just gate-pg` on touched dirs (tests/confidentiality, quality tests), `just demo P2-PUNCH`, security rows with the next wave review.
-6. DEFERRED lines for the orchestrator: web punch log and record page; walkdown fast-entry screen and `d` key; photo slot; thread target /raise punch; feed cards; Phase 3 Issue engine takeover and inspections; Phase 4 System/Subsystem links and punch-A completion checks; per-project move of a quality word.
+1. Orchestrator: dispatch T01 (gate `packages/tl-modules/quality/tests`) and T07 (gate `tests/tools/test_demo_project_quality.py test_demo_project.py test_demo_project_awp.py`); disjoint.
+2. r5 after T01 merges: T02, T03, T05 (disjoint folders). r6 T04. r7 T06. r8 T08 (needs T07 too). r9 T09.
+3. After each merge `just gen` last, pinned lists as union; read the merged report and re-spec if a named interface moved (PunchRow, PunchDetail, PunchPage, PUNCH_COMMANDS, punch_world.py).
+4. Close: `just check`, whole gate, `just gate-pg` on touched dirs (tests/confidentiality, quality tests), `just demo P2-PUNCH`, security rows with the next wave review.
+5. DEFERRED lines for the orchestrator: web punch log and record page; walkdown fast-entry screen and `d` key; photo slot; thread target /raise punch; feed cards; Phase 3 Issue engine takeover and inspections; Phase 4 System/Subsystem links and punch-A completion checks; per-project move of a quality word; three-hop subject chain.
 ## REFS
-Plan `docs/tickets/P2-PUNCH/README.md`; pieces `S1-schema-and-module.md`, `S2-commands-and-engine.md`; tickets `T01..T09`. Shape sources (read-only, branch p2/i4a): `docs/tickets/P2-I4A/`, `packages/tl-core/src/tl_core/confidentiality.py` (SUBJECT_LINKS), `tests/tools/proposable_exclusions.toml`, `packages/tl-modules/requisitions/tests/req_world.py`. Patterns on the trunk: `tl_mcp/iwp_tools.py`, `tl_api/routes/constraints.py` (_view_reader), `tl_cli/awp_iwp_write.py`, `dev/demos/P2-I3.sh`. No provided test or stub is in the tree yet.
+Plan `docs/tickets/P2-PUNCH/README.md`; pieces S1, S2 (merged); tickets `T01..T09`. Provided test `docs/tickets/P2-PUNCH/provided/T01_test_views.py` (T01 copies it byte-identical to `packages/tl-modules/quality/tests/test_views.py`); interface stub `packages/tl-modules/quality/src/tl_mod_quality/views.py`; test world `packages/tl-modules/quality/tests/punch_world.py` (people ada uma rob sue dora vera; `World.call(who, "RaisePunchItem", ...)`). Reports `docs/reports/P2-PUNCH/S1.md`, `S2.md`. Shape sources (read-only, p2/i4a): `docs/tickets/P2-I4A/`. Patterns on the trunk: `tl_mcp/iwp_tools.py`, `tl_api/routes/constraints.py`, `tl_cli/awp_iwp_write.py`, `dev/demos/P2-I3.sh`.
 ## TRAPS
-Gates name test files or one package (OOM on 16 GB); tests/tools gate about 10 min (background); gate-pg on tests/confidentiality about 26 min; demo-project gates take minutes; never pkill -f; never delete /tmp/pytest-of-root; pinned lists as union; tests dialect-neutral; `uv sync --all-packages` in a fresh worktree before pyright; an IWP is not confidential, so hidden-source tests use a restricted correspondence item made by commands.
+Gates name test files or one package (OOM on 16 GB); tests/tools gate about 10 min (background); gate-pg on tests/confidentiality about 26 min; demo-project gates take minutes; never pkill -f; never delete /tmp/pytest-of-root; pinned lists as union; tests dialect-neutral; `uv sync --all-packages` in a fresh worktree before pyright; an IWP is not confidential, so hidden-source tests use a restricted correspondence item made by commands. A fresh worktree needs `uv sync --all-packages` before pyright (done in /home/user/wt/p2-punch r4).

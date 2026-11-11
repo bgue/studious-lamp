@@ -16,9 +16,9 @@ An agent reads punch items and proposes a new one; nothing changes until a perso
 ## Tools (names exact; action word `mcp.<tool>`)
 | Tool | Args | Reads |
 |---|---|---|
-| `list_punch_items` | project, state?, area?, system?, assignee?, category?, overdue? (the tool passes `date.today()`) | `views.punch_list` under `confidentiality.current_viewer()` (rows and total) |
+| `list_punch_items` | project, state?, area?, system?, assignee?, category?, overdue? (the tool passes `date.today().isoformat()`) | `views.punch_list` under `confidentiality.current_viewer()` (rows and total) |
 | `get_punch_item` | project, key | `views.punch_detail`; `None` is the missing error (`no punch item <key>`) |
-| `propose_punch_item` | project, subject, description?, area?, system?, due_on?, category? (A/B/C), assignee?, from_key? (any record key), summary?, intent (`IntentParam`) | proposal of `RaisePunchItem`; `from_key` resolved to an id as above (unknown or hidden: `no record with that key`); there is no `raised_by` argument; default summary `Raise punch item: <subject>` |
+| `propose_punch_item` | project, subject, description?, area?, system?, due_on?, category? (A/B/C), assignee?, from_key? (any record key), summary?, intent (`IntentParam`) | proposal of `RaisePunchItem` (`from_key` becomes its `from_record_id`); `from_key` resolved to an id as above (unknown or hidden: `no record with that key`); there is no `raised_by` argument; default summary `Raise punch item: <subject>` |
 Declaration: the `PROPOSABLE` row `propose_punch_item` exists in `tl_mod_quality/module.py` (S2; do not edit). Action list: `PUNCH_MCP_ACTIONS` frozenset (the three words) in the new file, imported into `identity.py` and OR-ed into `MCP_ACTIONS` as `IWP_MCP_ACTIONS` is. The agent's filing check needs the module's `user` word on the scope (ADR-0027 plan check F1), as the existing proposing tools do. The row-or-exclusion test (`tests/tools`) must stay green.
 
 ## Context (read these, nothing else)

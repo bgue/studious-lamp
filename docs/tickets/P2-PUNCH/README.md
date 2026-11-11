@@ -42,8 +42,8 @@ The module is `quality`, so Phase 3 adds its classes to the same schema director
 - Category is A, B or C, default B; A means it blocks a later completion step (Phase 4 reads it).
 
 ## Demo clauses (`dev/demos/P2-PUNCH.sh`, SQLite then Postgres; `just demo P2-PUNCH`; clause 7 is SQLite only)
-A `PASS clause N: ...` line is printed only after a real check returned success. Project `P123`; `uma` and `rob` plain users,
-`sue` holds the module superuser role on `quality`, `dora` is the document controller. Each verb below has its owning ticket.
+A `PASS clause N: ...` line is printed only after a real check returned success. Project `P123`; `uma` a plain user,
+`rob` and `sue` hold the module superuser role on `quality` (rob so that his verify meets the clearer rule, not `forbidden`), `dora` is the document controller. Each verb below has its owning ticket.
 | # | Clause and exact verbs | Owners |
 |---|---|---|
 | 1 | Raise to verify. `tl punch raise --subject S --area A1 --system 47-01 --due D --category A --assignee user:rob --from <IWPNUMBER>` as uma prints `raised P123-PUN-0001  version <v>`; `tl punch ls --state Open` lists it; `tl punch clear P123-PUN-0001 --note N` as rob prints `cleared ...`; `tl punch verify P123-PUN-0001` as rob is refused (fixed message), as uma `error: forbidden`, as sue prints `verified ...`; `tl punch show P123-PUN-0001` prints `state  Verified`, who cleared and who verified | T02 verbs; S1 words; S2 rules |

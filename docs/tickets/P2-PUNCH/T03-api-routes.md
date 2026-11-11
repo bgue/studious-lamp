@@ -1,6 +1,6 @@
 # P2-PUNCH-T03 — API read routes and the command door for the punch commands
 
-Status: staged (dispatch after T01 merges; read its report for the dataclass names)
+Status: staged (dispatch after T01 merges; the dataclass names are in `views.py` and its report)
 Tier: haiku
 Kind: ticket
 Review: full
@@ -15,7 +15,7 @@ Three GET routes over `tl_mod_quality.views`, and the six punch commands reachab
 the API's 403 `forbidden`). Model: `routes/awp.py` IWP routes, `routes/constraints.py`, `docs/tickets/P2-I2/T04c1-api-read-routes.md`.
 
 ## Routes (operation ids exact; the viewer is the request's principal, a route passes none)
-- `GET /projects/{project}/punch` (`list_punch_items`; query `state`, `area`, `system`, `assignee`, `category`, `from` = a record key (alias of `from_key`), `overdue` (bool; the route passes `date.today()`), `limit` 1..500) returns `PunchPage` (`{rows, total}`); an unknown `state` or `category` is 422; an unknown or hidden `from` key is an empty page.
+- `GET /projects/{project}/punch` (`list_punch_items`; query `state`, `area`, `system`, `assignee`, `category`, `from` = a record key (alias of `from_key`), `overdue` (bool; the route passes `date.today().isoformat()`), `limit` 1..500) returns `PunchPage` (`{rows, total}`); an unknown `state` or `category` is 422; an unknown or hidden `from` key is an empty page.
 - `GET /projects/{project}/punch/{key}` (`get_punch_item`) returns `PunchDetail`; missing and hidden are one 404 `record_not_found` with one text.
 - `GET /projects/{project}/punch-counts` (`get_punch_counts`) returns `{"Open": n, "Cleared": n, "Verified": n, "Void": n}`, visible items only.
 Route models are the T01 dataclasses (same field names); no id other than what they carry; `total` is the visible row count.
@@ -41,7 +41,7 @@ just gate packages/tl-api/tests/test_api_punch.py packages/tl-api/tests/test_con
 (the last gate takes several minutes: background.)
 
 ## Tests to add
-`packages/tl-api/tests/test_api_punch.py`: the ledger is built by commands (`punch_world.py` loaded by path as `test_api_awp.py` loads its world; no projection writes). Two raised items, one cleared, one verified: list, each filter, `total` equals rows, detail, counts; the same writes through `POST /commands/RaisePunchItem`, `ClearPunchItem`, `VerifyPunchItem` as the right person (a plain user's verify is 403, the clearer's verify is the S2 refusal), a body with `raised_by` is 422; five kinds of reader on every route (no token 401; a person without `quality.view` 403 before any lookup, a missing key included; an agent holds read; a reader of the lowest clearance sees the rows; a cleared reader sees the same rows); an item raised from a restricted correspondence item (helper) is absent for the lowest-clearance reader in list, detail (404, the text of a missing key) and counts, present for a cleared one; 422 for `state=x`; the walk file lists the three routes.
+`packages/tl-api/tests/test_api_punch.py`: the ledger is built by commands (`punch_world.py` loaded by path as `test_api_awp.py` loads its world; no projection writes). Two raised items, one cleared, one verified: list, each filter, `total` equals rows, detail, counts; the same writes through `POST /commands/RaisePunchItem`, `ClearPunchItem`, `VerifyPunchItem` as the right person (a plain user's verify is 403, the clearer's verify is the S2 refusal), a body with `raised_by` is 422 (`from_record_id` is a record id, as the S2 model has it; no key lookup in the door); five kinds of reader on every route (no token 401; a person without `quality.view` (an account whose roles derive no module role, `World.person(name, ())`; if it cannot be created, write it under Blocked) 403 before any lookup, a missing key included; an agent holds read; a reader of the lowest clearance sees the rows; a cleared reader sees the same rows); an item raised from a restricted correspondence item (helper) is absent for the lowest-clearance reader in list, detail (404, the text of a missing key) and counts, present for a cleared one; 422 for `state=x`; the walk file lists the three routes.
 
 ## Escalation triggers
 - A route needs a viewer other than the request's; a route-count pin cannot be updated in union form; `PUNCH_COMMANDS` entries lack `model`, `handler` or `access`.

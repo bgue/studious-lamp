@@ -1,6 +1,6 @@
 # P2-PUNCH-T06 — TUI: `punch_text.py`, the punch log, the record screen, palette glue
 
-Status: staged (dispatch after T04 merges)
+Status: staged (dispatch after T04 merges; the row and detail names are in `views.py`)
 Tier: haiku
 Kind: ticket
 Review: full
@@ -21,7 +21,7 @@ def punch_cells(row, labels=None) -> tuple[str, ...]            # Due via awp_te
 def punch_summary(counts, total, shown, *, state=None, overdue=False) -> str   # `7 punch items: 3 Open, 2 Cleared, 1 Verified, 1 Void` / `2 of 7 punch items, state Open, overdue`
 def punch_page(detail, labels=None, technical=False, panel=False) -> Page   # identity `<key> · <subject>`, state line `Open · category A · due 2026-11-20`, summary line, sections Where (area, system, raised from), Work (assignee, cleared by and note, verified by), History (reopened n and reason, void reason)
 ```
-Keys of the log: `s` next state filter, `c` next category filter, `o` toggles overdue, `m` toggles `assignee = the signed-in actor`, `F5` reload; Enter opens `PunchScreen`; `KEY_HINTS` `/ filter  s state  c category  o overdue  m mine  F5 reload  Esc back`. `PunchScreen`: `Esc` back, `F5` reload, `c` Clear (asks a note), `v` Verify (asks "are you sure"), `o` Reopen (asks a reason); each key is shown only for the states the S2 `RULES` table offers it in, builds the S2 command with the screen's actor and scope as `widgets/receipt_entry.py` `build_command` does, sends it with `client.quality_command` inside `LogScreen.attempt`-style handling so a refusal (the clearer verifying) reaches the status line, then reloads. An item is never shown by id.
+Keys of the log: `s` next state filter, `c` next category filter, `o` toggles overdue, `m` toggles `assignee = the signed-in actor`, `F5` reload; Enter opens `PunchScreen`; `KEY_HINTS` `/ filter  s state  c category  o overdue  m mine  F5 reload  Esc back`. `PunchScreen`: `Esc` back, `F5` reload, `c` Clear (asks a note), `v` Verify (asks "are you sure"), `o` Reopen (asks a reason); each key is shown only for the states the S2 `RULES` table offers it in, builds the S2 command (`punch_item` is `detail.row.id`, which is carried but never shown; `ClearPunchItem(note=...)`, `VerifyPunchItem`, `ReopenPunchItem(reason=...)`) with the screen's actor and scope as `widgets/receipt_entry.py` `build_command` does, sends it with `client.quality_command` inside `LogScreen.attempt`-style handling so a refusal (the clearer verifying) reaches the status line, then reloads. An item is never shown by id.
 
 ## Context (read these, nothing else)
 - `packages/tl-tui/src/tl_tui/awp_text.py` (`date_text`), `iwp_text.py`, `widgets/iwp_register.py` (all), `widgets/action_form.py` (public names), `widgets/receipt_entry.py` (lines 255-290)

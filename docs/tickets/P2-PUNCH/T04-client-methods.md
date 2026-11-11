@@ -1,6 +1,6 @@
 # P2-PUNCH-T04 — Punch read methods, the `quality_command` door and the fake
 
-Status: staged (dispatch after T03 merges; read its report for the route model names)
+Status: staged (dispatch after T03 merges; the route model names are in its report)
 Tier: haiku
 Kind: ticket
 Review: full
@@ -19,7 +19,7 @@ def get_punch_item(self, project, key) -> PunchDetail            # RecordNotFoun
 def get_punch_counts(self, project) -> dict[str, int]
 def quality_command(self, name, cmd) -> CommandResult            # name is a model of PUNCH_COMMANDS, run as the person
 ```
-Routes: T03 (`from_key` is the `from` query). Embedded: the same calls the routes make, under the signed-in viewer, after the same `quality.view` check (a refusal is the module's refusal error); never a second SQL path; `quality_command` goes through `_module_command` with `PUNCH_COMMANDS`. `ApiClient.quality_command` posts to `/commands/<name>`. Fake: answers from lists a test gives it (`load_punch`), filters like the views, records each command in `sent_commands`-style list as the materials fake does; `seed_punch(client)` makes 6 items (two Open, one Cleared, one Verified, one Void, one from a source key), one overdue.
+Routes: T03 (`from_key` is the `from` query). Embedded: the same calls the routes make, under the signed-in viewer, after the same `quality.view` check (a refusal is the module's refusal error); never a second SQL path; a command names the item by `punch_item` = `PunchRow.id`; `quality_command` goes through `_module_command` with `PUNCH_COMMANDS`. `ApiClient.quality_command` posts to `/commands/<name>`. Fake: answers from lists a test gives it (`load_punch`), filters like the views, records each command in `sent_commands`-style list as the materials fake does; `seed_punch(client)` makes 6 items (two Open, one Cleared, one Verified, one Void, one from a source key), one overdue.
 
 ## Context (read these, nothing else)
 - `docs/reports/P2-PUNCH/T03.md`, `packages/tl-api/src/tl_api/routes/punch.py`
@@ -42,7 +42,7 @@ just gate tests/api/test_client_punch.py packages/tl-tui/tests/test_fakes_punch.
 ```
 
 ## Tests to add
-- `tests/api/test_client_punch.py`: ledger built by commands (`punch_world.py` loaded by path; no projection writes); the embedded client and `ApiClient` over a `TestClient` give equal answers for the three reads; `quality_command("RaisePunchItem", ...)` and `ClearPunchItem` through both change state and the next read shows it; `VerifyPunchItem` by the clearer is refused with the S2 text on both; `RecordNotFoundError` with one text for a missing key on both; an item of a restricted source is absent for the lowest-clearance client; an actor without `quality.view` is refused by the embedded list.
+- `tests/api/test_client_punch.py`: ledger built by commands (`punch_world.py` loaded by path; no projection writes); the embedded client and `ApiClient` over a `TestClient` give equal answers for the three reads; `quality_command("RaisePunchItem", ...)` and `ClearPunchItem` through both change state and the next read shows it; `VerifyPunchItem` by the clearer is refused with the S2 text on both; `RecordNotFoundError` with one text for a missing key on both; an item of a restricted source is absent for the lowest-clearance client; an actor without `quality.view` (`World.person(name, ())`; if it cannot be created, write it under Blocked) is refused by the embedded list. The test builds its own `db` and `World` (no conftest is added).
 - `packages/tl-tui/tests/test_fakes_punch.py`: `seed_punch` counts, each filter narrows, `total` equals rows, counts by state, missing key raises `RecordNotFoundError`, `quality_command` is recorded.
 
 ## Escalation triggers

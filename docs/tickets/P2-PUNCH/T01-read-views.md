@@ -1,6 +1,6 @@
 # P2-PUNCH-T01 — Read views: punch list, detail and counts
 
-Status: staged (dispatch after S2 merges; the supervisor then commits the provided test, below)
+Status: ready (r4: the provided test and the interface stub are committed on `p2/punch`; dispatch now)
 Tier: haiku
 Kind: ticket
 Review: full
@@ -10,17 +10,17 @@ Branch: `p2/punch-t01-read-views`
 Worktree: harness-created under `/home/user/wt/punch/t01` (from `p2/punch` head)
 
 ## Goal
-`tl_mod_quality.views` (an empty stub after S2) gives the CLI, API, MCP and screens one read layer: the punch list, one item's detail and counts by state. Nothing writes; no access word is
+`tl_mod_quality.views` gives the CLI, API, MCP and screens one read layer: the punch list, one item's detail and counts by state. Nothing writes; no access word is
 checked here (entry points do). Every read takes keyword-only `viewer=`, default `confidentiality.LOWEST`, and applies the same hidden filter as `api.py` (the subject join of S2 is inside `hidden_sql`) before LIMIT and before counting.
 
 ## Brief references (pasted)
 > Pattern: `packages/tl-modules/quality/src/tl_mod_quality/api.py` (`open_punch_for`: `not_hidden_each("r.id", viewer)` joined into `text()` SQL over `cur_core_record r`, `r.voided = :no`, state `COALESCE(r.status, :open)`, `MAX_ROWS` 500). Table `cur_quality_punch_item` (S1; columns in the README "Record shape"); `r.key` is the item number; the source key is read with one LEFT JOIN to `cur_core_record` on `source_id`.
 > Hidden looks like missing: a hidden item is absent from lists, its detail is `None`, counts and `total` never include it. Statements per call: at most two (no per-row query).
 
-## Interfaces (create in `views.py`; signatures fixed)
+## Interfaces (in the tree as a stub: the three dataclasses are final, the three function bodies raise `NotImplementedError`; fill the bodies, change no name, field or signature)
 ```python
 @dataclass(frozen=True)
-class PunchRow:      # key, subject, state, category, area, system, due_on, assignee, raised_by, source_key (str | None); all str | None except key, subject, state, category, raised_by
+class PunchRow:      # id (the record id, for commands; never printed), key, subject, state, category, area, system, due_on, assignee, raised_by, source_key (str | None); all str | None except key, subject, state, category, raised_by
 @dataclass(frozen=True)
 class PunchDetail:   # row: PunchRow, description, cleared_by, cleared_on, clear_note, verified_by, verified_on, reopen_count: int, last_reopen_reason, void_reason, source_type (str | None), version: int
 @dataclass(frozen=True)
@@ -29,15 +29,15 @@ def punch_list(conn, scope, *, state=None, area=None, system=None, assignee=None
 def punch_detail(conn, scope, key, *, viewer=LOWEST) -> PunchDetail | None
 def punch_counts(conn, scope, *, viewer=LOWEST) -> dict[str, int]   # keys Open, Cleared, Verified, Void, each present (0 allowed), visible items only
 ```
-`today` is an argument; entry points pass `date.today()`; the views never read the clock.
+`today` is an ISO date string (`YYYY-MM-DD`, compared as text with `due_on`); entry points pass `date.today().isoformat()`; the views never read the clock. A key of another project, or an unknown one, gives `None` (`scope` is checked: `r.scope = :scope`).
 
 ## Context (read these, nothing else)
 - `packages/tl-modules/quality/src/tl_mod_quality/{api.py, names.py, views.py}`, `docs/reports/P2-PUNCH/S2.md`
 - `packages/tl-modules/quality/tests/punch_world.py` and `test_punch_visibility.py` (lines 1-60), `packages/tl-modules/awp/src/tl_mod_awp/iwp_views.py` (the list/detail pattern, abridged)
-- the provided test `docs/tickets/P2-PUNCH/provided/T01_test_views.py` (the supervisor commits it before dispatch; if it is absent, stop under Blocked)
+- the provided test `docs/tickets/P2-PUNCH/provided/T01_test_views.py` (committed at r4; do not edit it); `packages/tl-modules/quality/tests/conftest.py` (fixtures `db`, `world`: they exist, nothing to add)
 
 ## Allowed paths
-- `packages/tl-modules/quality/src/tl_mod_quality/views.py`
+- `packages/tl-modules/quality/src/tl_mod_quality/views.py` (bodies only)
 - `packages/tl-modules/quality/tests/test_views.py` (create: byte-identical copy of the provided test)
 - `docs/reports/P2-PUNCH/T01.md` (create)
 
