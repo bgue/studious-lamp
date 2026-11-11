@@ -55,6 +55,10 @@ def values(hidden: Hidden) -> dict[str, list[Any]]:
         "code": ["MER", "x", "1.1.1"],
         "lot": ["P123-RCPT-0001@1", "x"],  # P2-I3-T11: get_material_lot (a lot key)
         "iwp": [*hidden.numbers.values(), "P123-IWP-0001", "x"],  # T09b: propose_iwp_scope
+        # P2-PUNCH-T05: get_punch_item (a punch key); the proposal arguments are not walked
+        "key": [*all_ids, *hidden.numbers.values(), "P123-PUN-0001", "x"],
+        "from_key": ["P123-PUN-0001", "x"],
+        "subject": ["x"],
     }
 
 
