@@ -81,6 +81,7 @@ from tl_cli import (
     new,
     proposal,
     pset,
+    punch,
     record,
     restore,
     review,
@@ -160,6 +161,7 @@ app.add_typer(corr.app, name="corr")
 app.add_typer(rfi.app, name="rfi")
 app.add_typer(comm.app, name="comm")
 app.add_typer(mat.app, name="mat")  # P2-I3
+app.add_typer(punch.app, name="punch")  # P2-PUNCH
 app.command("evidence")(evidence.evidence_cmd)
 corr.app.add_typer(corr_clock.app, name="clock")
 corr.app.add_typer(corr_registry.thread_app, name="thread")
