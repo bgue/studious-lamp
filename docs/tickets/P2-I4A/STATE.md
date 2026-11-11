@@ -14,7 +14,7 @@ T07b t mrg f 7f2876f work order backlog
 T07d t mrg f a9a14fc TUI glue; item 4 deferred D-r3f
 T08b t mrg f 78a134e MCP reads + propose_requisition
 T10b t mrg f 6eac974 demo P2-I4 both backends PASS (orch run); D-r3i
-T12 t todo l - docs + 3 stale pointers; needs T10b
+T12 t mrg l 6b6b248 docs; review F2 F3 checked false (handler, widget bindings)
 T04f t dfr l - roadmap 3c labour forecast
 T07c t dfr f - roadmap 3c forecast screen
 T08a t dfr l - roadmap 3c reports
