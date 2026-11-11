@@ -85,7 +85,7 @@ from tl_core.insights.types import ActivityPage, CheckFinding
 from tl_core.integration import registry as integration_registry
 from tl_core.integration.actor_access import held_access
 from tl_core.integration.contract import SERVER_SET_FIELDS, Access
-from tl_core.intent import redact_events
+from tl_core.intent import redact_for_viewer
 from tl_core.ledger import Event
 from tl_core.links.expected import MissingLink, missing_expected_links
 from tl_core.links.provider import get_vocabulary
@@ -480,7 +480,7 @@ class EmbeddedClient:
 
     def history(self, record_id: str) -> list[Event]:
         with self._uow(True) as uow:
-            return redact_events(uow.conn(), queries.record_history(uow, record_id))
+            return redact_for_viewer(uow.conn(), queries.record_history(uow, record_id))
 
     def activity(
         self,

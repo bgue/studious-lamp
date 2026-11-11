@@ -2,6 +2,8 @@
 
 The REST API, the SSE change stream and the HTTP client over the `tl_core` services (§11.1, §18.1 to §18.3, §20). Identity is real since P1-I0 (ADR-0009): accounts, sessions, agent tokens, two roles; the dev token file of ADR-0005 survives only for `TL_ENV` dev, test and ci.
 
+**Server mode.** `check_bind` allows loopback always, and a non-loopback host only when `--insecure-dev` is given or `TL_ENV` names a deployment (set, and not `dev`, `test`, `ci` or `demo`; `tl_core.auth.env.prod_like`). The server speaks plain http: for real accounts the deployer puts a TLS proxy in front (set `TL_TRUSTED_PROXY_HEADER` so sign-in rate limits see the client address). A prod-like non-loopback start needs `TL_OBJECT_SECRET`, refuses an enabled `demo` account, ignores the dev token file and logs `serving on <host>:<port> behind TLS proxy: <yes|no>`.
+
 ## Public interface
 | Symbol | Kind | Purpose |
 |---|---|---|
@@ -28,7 +30,7 @@ The REST API, the SSE change stream and the HTTP client over the `tl_core` servi
 | `tl_api.routes.extypes` | module | Extension record types (brief 31): `GET /types?status=`, `GET /types/{type_ref}` (with its generated form), `POST /types/{type_name}/records` (`psets` for a managed type, `body` for an object-backed one), `GET /records/{id}/body` (hash-verified; 502 `body_hash_mismatch`, 403 `body_quarantined`), `PUT /records/{id}/body` (`expected_version`; 422 `body_invalid` lists the problems). The two writes refuse an `agent:` token. `create_app(object_store=)` is the store that holds bodies (503 `body_store_unavailable` without one) |
 | `tl_api.client.types_api.TypesApi` | mixin of `ApiClient` | `list_types`, `get_type`, `create_instance`, `get_record_body`, `put_record_body`: the same models and exception classes as the embedded services |
 | `tl_api.openapi` | module | `python -m tl_api.openapi [--check]`; the document is `docs/reference/openapi.json` |
-| `python -m tl_api` / `just serve` | command | Run the server (loopback only unless `--insecure-dev`) |
+| `python -m tl_api` / `just serve` | command | Run the server (loopback, or non-loopback with `--insecure-dev` or a production `TL_ENV`) |
 | `tl_api.context.ApiContext` | class | The per-application context route handlers read from `request.app.state` |
 | `tl_api.main` | module | The server entry point: `uv run python -m tl_api` (or `just serve`) |
 | `tl_api.models` | module | Response and request models that have no `tl_core` class of their own |

@@ -14,6 +14,8 @@ from __future__ import annotations
 import atexit
 import os
 import signal
+import sys
+import tempfile
 import uuid
 from collections.abc import Callable, Iterator
 from dataclasses import dataclass, field
@@ -264,3 +266,42 @@ def _forget_extension_type_settings() -> Iterator[None]:
     from tl_core.extypes import settings_link
 
     settings_link.forget_all()
+
+
+# --- Payload validation (P2-GUARD): collect mode for the whole test session -------------------
+os.environ.setdefault("TL_PAYLOAD_VALIDATION", "collect")
+
+
+def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
+    """Merge what append validation collected into ``.gate/payload-violations.txt``.
+
+    The gate runs several pytest sessions; counts add up across them. Delete the file to reset.
+    """
+    # A session that never imported tl_adapters collected nothing; do not import it at teardown.
+    loaded = sys.modules.get("tl_adapters._payload_check")
+    if loaded is None or not loaded.VIOLATIONS:
+        return
+    try:
+        from tl_adapters import _payload_check
+    except ImportError:
+        return
+    out = Path(str(session.config.rootpath)) / ".gate" / "payload-violations.txt"
+    merged: dict[tuple[str, str, str], int] = {}
+    if out.exists():
+        for line in out.read_text(encoding="utf-8").splitlines()[1:]:
+            event, key, reason, count = line.split("\t")
+            merged[(event, key, reason)] = int(count)
+    for triple, count in _payload_check.VIOLATIONS.items():
+        merged[triple] = merged.get(triple, 0) + count
+    out.parent.mkdir(exist_ok=True)
+    rows = "".join(f"{e}\t{k}\t{r}\t{n}\n" for (e, k, r), n in sorted(merged.items()))
+    # Write a temp file in the same directory, then rename over the target so a reader never
+    # sees a half-written file (os.replace is atomic on the same filesystem).
+    fd, tmp_name = tempfile.mkstemp(dir=out.parent, prefix=out.name + ".", suffix=".tmp")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            handle.write("event_type\tkey\treason\tcount\n" + rows)
+        os.replace(tmp_name, out)
+    except BaseException:
+        Path(tmp_name).unlink(missing_ok=True)
+        raise

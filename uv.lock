@@ -2686,7 +2686,7 @@ dev = [
 
 [[package]]
 name = "tl-adapters"
-version = "0.0.1"
+version = "0.1.0"
 source = { editable = "packages/tl-adapters" }
 dependencies = [
     { name = "boto3" },
@@ -2707,7 +2707,7 @@ requires-dist = [
 
 [[package]]
 name = "tl-api"
-version = "0.0.1"
+version = "0.1.0"
 source = { editable = "packages/tl-api" }
 dependencies = [
     { name = "fastapi" },
@@ -2754,7 +2754,7 @@ requires-dist = [
 
 [[package]]
 name = "tl-cli"
-version = "0.0.1"
+version = "0.1.0"
 source = { editable = "packages/tl-cli" }
 dependencies = [
     { name = "pydantic" },
@@ -2805,7 +2805,7 @@ requires-dist = [
 
 [[package]]
 name = "tl-core"
-version = "0.0.1"
+version = "0.1.0"
 source = { editable = "packages/tl-core" }
 dependencies = [
     { name = "cryptography" },
@@ -2836,7 +2836,7 @@ requires-dist = [
 
 [[package]]
 name = "tl-extract"
-version = "0.0.1"
+version = "0.1.0"
 source = { editable = "packages/tl-extract" }
 dependencies = [
     { name = "pydantic" },
@@ -2865,7 +2865,7 @@ dev = [
 
 [[package]]
 name = "tl-lake"
-version = "0.0.1"
+version = "0.1.0"
 source = { editable = "packages/tl-lake" }
 dependencies = [
     { name = "duckdb" },
@@ -2892,7 +2892,7 @@ requires-dist = [
 
 [[package]]
 name = "tl-mcp"
-version = "0.0.1"
+version = "0.1.0"
 source = { editable = "packages/tl-mcp" }
 dependencies = [
     { name = "mcp" },
@@ -2927,7 +2927,7 @@ requires-dist = [
 
 [[package]]
 name = "tl-mod-awp"
-version = "0.0.1"
+version = "0.1.0"
 source = { editable = "packages/tl-modules/awp" }
 dependencies = [
     { name = "pydantic" },
@@ -2954,7 +2954,7 @@ requires-dist = [
 
 [[package]]
 name = "tl-mod-correspondence"
-version = "0.0.1"
+version = "0.1.0"
 source = { editable = "packages/tl-modules/correspondence" }
 dependencies = [
     { name = "pydantic" },
@@ -2979,7 +2979,7 @@ requires-dist = [
 
 [[package]]
 name = "tl-mod-cost"
-version = "0.0.1"
+version = "0.1.0"
 source = { editable = "packages/tl-modules/cost" }
 dependencies = [
     { name = "pydantic" },
@@ -3000,7 +3000,7 @@ requires-dist = [
 
 [[package]]
 name = "tl-mod-documents"
-version = "0.0.1"
+version = "0.1.0"
 source = { editable = "packages/tl-modules/documents" }
 dependencies = [
     { name = "pydantic" },
@@ -3025,7 +3025,7 @@ requires-dist = [
 
 [[package]]
 name = "tl-mod-engineering"
-version = "0.0.1"
+version = "0.1.0"
 source = { editable = "packages/tl-modules/engineering" }
 dependencies = [
     { name = "pydantic" },
@@ -3048,7 +3048,7 @@ requires-dist = [
 
 [[package]]
 name = "tl-mod-legacy"
-version = "0.0.1"
+version = "0.1.0"
 source = { editable = "packages/tl-modules/legacy" }
 dependencies = [
     { name = "pydantic" },
@@ -3077,7 +3077,7 @@ requires-dist = [
 
 [[package]]
 name = "tl-mod-materials"
-version = "0.0.1"
+version = "0.1.0"
 source = { editable = "packages/tl-modules/materials" }
 dependencies = [
     { name = "pydantic" },
@@ -3123,7 +3123,7 @@ requires-dist = [
 
 [[package]]
 name = "tl-mod-schedule"
-version = "0.0.1"
+version = "0.1.0"
 source = { editable = "packages/tl-modules/schedule" }
 dependencies = [
     { name = "pydantic" },
@@ -3146,7 +3146,7 @@ requires-dist = [
 
 [[package]]
 name = "tl-mod-schemareg"
-version = "0.0.1"
+version = "0.1.0"
 source = { editable = "packages/tl-modules/schemareg" }
 dependencies = [
     { name = "pydantic" },
@@ -3167,7 +3167,7 @@ requires-dist = [
 
 [[package]]
 name = "tl-schema"
-version = "0.0.1"
+version = "0.1.0"
 source = { editable = "packages/tl-schema" }
 dependencies = [
     { name = "jsonschema", extra = ["format-nongpl"] },
@@ -3188,7 +3188,7 @@ requires-dist = [
 
 [[package]]
 name = "tl-sim"
-version = "0.0.1"
+version = "0.1.0"
 source = { editable = "packages/tl-sim" }
 dependencies = [
     { name = "httpx2" },
@@ -3223,7 +3223,7 @@ requires-dist = [
 
 [[package]]
 name = "tl-tui"
-version = "0.0.1"
+version = "0.1.0"
 source = { editable = "packages/tl-tui" }
 dependencies = [
     { name = "httpx2" },
@@ -3270,7 +3270,7 @@ requires-dist = [
 
 [[package]]
 name = "tl-web"
-version = "0.0.1"
+version = "0.1.0"
 source = { editable = "packages/tl-web" }
 dependencies = [
     { name = "jinja2" },
@@ -3289,7 +3289,7 @@ requires-dist = [
 
 [[package]]
 name = "tl-xer"
-version = "0.0.1"
+version = "0.1.0"
 source = { editable = "packages/tl-xer" }
 dependencies = [
     { name = "tl-core" },

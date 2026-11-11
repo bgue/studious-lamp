@@ -17,6 +17,7 @@ import ipaddress
 import os
 import sys
 from collections.abc import Sequence
+from importlib.metadata import version as package_version
 from pathlib import Path
 from urllib.parse import urlsplit
 
@@ -26,8 +27,9 @@ from tl_core.offline import NodeKindNotBuiltError, require_node_built
 
 from tl_tui.app import TlApp
 from tl_tui.embedded import DEFAULT_ACTOR, EmbeddedAuthenticator, EmbeddedClient
-from tl_tui.remote import RemoteAuthenticator, RemoteClient, sign_out
+from tl_tui.remote import RemoteAuthenticator, RemoteClient, server_version, sign_out
 from tl_tui.sign_in import SignedIn, SignInApp
+from tl_tui.version_note import app_version, version_pair_note
 
 DEFAULT_DB = "./dev/data/tl.db"
 DEFAULT_PROJECT = "P123"
@@ -132,13 +134,14 @@ def make_app(
         raise ValueError("remote mode needs a token: sign in, pass --token or set TL_TOKEN")
     if not url.startswith(("http://", "https://")):
         raise ValueError(f"--remote must be an http(s) URL, got {url!r}")
+    check_remote_policy(url)
     return build_remote_app(
         url, secret, proj, actor=who, record_type=rtype, is_admin=admin, is_controller=controller
     )
 
 
-def plain_http_warning(url: str) -> str | None:
-    """A line for the sign-in screen when the password would cross the network unencrypted."""
+def _plain_http_host(url: str) -> str | None:
+    """The host of an ``http://`` URL that is not loopback, else ``None``."""
     parts = urlsplit(url)
     host = (parts.hostname or "").lower()
     if parts.scheme != "http" or host == "localhost":
@@ -148,7 +151,32 @@ def plain_http_warning(url: str) -> str | None:
             return None
     except ValueError:
         pass
-    return f"warning: {host or url} is plain http: your password would be sent unencrypted"
+    return host or url
+
+
+def plain_http_allowed() -> bool:
+    return os.environ.get("TL_ALLOW_PLAIN_HTTP", "").strip() == "1"
+
+
+def plain_http_warning(url: str) -> str | None:
+    """A line for the sign-in screen when the password would cross the network unencrypted."""
+    host = _plain_http_host(url)
+    if host is None:
+        return None
+    return f"warning: {host} is plain http: your password would be sent unencrypted"
+
+
+def check_remote_policy(url: str) -> None:
+    """Refuse (``ValueError``) plain http to a non-loopback host unless ``TL_ALLOW_PLAIN_HTTP=1``.
+
+    The text names the host only: never the URL (it may carry userinfo), a token or a password.
+    """
+    host = _plain_http_host(url)
+    if host is not None and not plain_http_allowed():
+        raise ValueError(
+            f"refusing plain http to {host}: a password or token would cross the network "
+            "unencrypted. Use an https:// URL, or set TL_ALLOW_PLAIN_HTTP=1 to accept the risk."
+        )
 
 
 def needs_sign_in(*, remote: str | None = None, token: str | None = None) -> bool:
@@ -169,8 +197,14 @@ def sign_in_first(*, remote: str | None = None, db: str | Path | None = None) ->
     if url is not None:
         if not url.startswith(("http://", "https://")):
             raise ValueError(f"--remote must be an http(s) URL, got {url!r}")
+        check_remote_policy(url)
+        # The server's version is read once, before the prompt; a failure shows nothing.
+        notice = version_pair_note(server_version(url), app_version())
         return SignInApp(
-            RemoteAuthenticator(url), target=f"server {url}", hint=plain_http_warning(url)
+            RemoteAuthenticator(url),
+            target=f"server {url}",
+            hint=plain_http_warning(url),
+            notice=notice,
         ).run()
     target = as_target(db or os.environ.get("TL_DB", DEFAULT_DB))
     where = display_target(target)
@@ -203,6 +237,8 @@ def run(
         print(f"error: {exc}", file=sys.stderr)
         raise SystemExit(2) from None
     url = remote or os.environ.get("TL_REMOTE") or None
+    if url is not None and url.startswith(("http://", "https://")):
+        check_remote_policy(url)  # before any prompt, token or no token
     session_token: str | None = None  # a server session this call made and must end
     if signed_in is None and needs_sign_in(remote=remote, token=token):
         signed_in = sign_in_first(remote=remote, db=db)
@@ -244,6 +280,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--actor", help="remote: the name the header shows")
     parser.add_argument(
         "--type", dest="record_type", help="record type of the grid (TL_TYPE, default core.Record)"
+    )
+    parser.add_argument(
+        "--version",
+        action="version",
+        version=f"throughline {package_version('tl-tui')}",
     )
     ns = parser.parse_args(argv)
     try:

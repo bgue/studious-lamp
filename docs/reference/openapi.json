@@ -14478,10 +14478,15 @@
           "status": {
             "title": "Status",
             "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
           }
         },
         "required": [
-          "status"
+          "status",
+          "version"
         ],
         "title": "Health",
         "type": "object"
@@ -69773,7 +69778,7 @@
     },
     "/health": {
       "get": {
-        "description": "The server is up. Does not touch the database.",
+        "description": "The server is up and its version. Does not touch the database.",
         "operationId": "health",
         "responses": {
           "200": {

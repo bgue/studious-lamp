@@ -17,6 +17,7 @@ import io
 import secrets
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Protocol
 
 from tl_adapters.db import DbTarget, open_uow
 from tl_core import confidentiality as cf
@@ -65,6 +66,18 @@ class Hidden:
     ]  # "<kind>_clock", "<kind>_thread", "<kind>_file", "<kind>_post", "link"
 
 
+class Twin(Protocol):
+    """The twin-walk hook (tests/confidentiality/test_twin_walk.py): the seed calls ``mark`` before
+    each step; ``kind`` names what the step writes (a key of ``TOKENS``, or ``None`` for a step
+    nobody is kept from). ``True`` means: leave the step out. Without a twin nothing is left out."""
+
+    def mark(self, kind: str | None) -> bool: ...
+
+
+def _skip(twin: Twin | None, kind: str | None) -> bool:
+    return twin is not None and twin.mark(kind)
+
+
 class _Cmd(Command):
     """A command carrier for seeding."""
 
@@ -76,9 +89,11 @@ def _seed_domain_items(
     ids: dict[str, str],
     numbers: dict[str, str],
     extra: dict[str, str],
+    twin: Twin | None = None,
 ) -> None:
     """An answered RFI anybody may read, a privileged RFI, and a restricted early warning derived
     from the RFI, linked to it (the evidence trail of the RFI leads to it, for a controller)."""
+    _skip(twin, None)
     word = TOKENS["open"]
     ids["open_rfi"] = world.forge_technical(
         "P123-RFI-0001",
@@ -91,23 +106,11 @@ def _seed_domain_items(
     )
     numbers["open_rfi"] = "P123-RFI-0001"
     secret = TOKENS["secret_rfi"]
-    ids["secret_rfi"] = world.forge_technical(
-        "P123-RFI-0002",
-        subject=f"{secret} subject",
-        state="Awaiting response",
-        scope=scope,
-        confidentiality="privileged",
-        question=f"{secret} question",
-        item={"body": f"{secret} body"},
-    )
-    numbers["secret_rfi"] = "P123-RFI-0002"
-    for account in ("user:amy", "user:ctl"):
-        world.forge_item_event(
-            ids["secret_rfi"],
-            CORR_CLEARANCE_GRANTED,
-            {"account": account, "granted_on": "2026-10-19", "reason": "counsel"},
-        )
+    if not _skip(twin, "secret_rfi"):
+        _secret_rfi(world, scope, ids, numbers, secret)
     comm = TOKENS["commercial"]
+    if _skip(twin, "commercial"):
+        return
     ids["commercial"] = world.forge_commercial(
         "P123-EW-0001",
         subject=f"{comm} subject",
@@ -134,6 +137,27 @@ def _seed_domain_items(
     extra["commercial_link"] = link.stream_id
 
 
+def _secret_rfi(
+    world: CorrWorld, scope: str, ids: dict[str, str], numbers: dict[str, str], secret: str
+) -> None:
+    ids["secret_rfi"] = world.forge_technical(
+        "P123-RFI-0002",
+        subject=f"{secret} subject",
+        state="Awaiting response",
+        scope=scope,
+        confidentiality="privileged",
+        question=f"{secret} question",
+        item={"body": f"{secret} body"},
+    )
+    numbers["secret_rfi"] = "P123-RFI-0002"
+    for account in ("user:amy", "user:ctl"):
+        world.forge_item_event(
+            ids["secret_rfi"],
+            CORR_CLEARANCE_GRANTED,
+            {"account": account, "granted_on": "2026-10-19", "reason": "counsel"},
+        )
+
+
 def _ensure_documents_actor(db: DbTarget) -> None:
     """Give ``user:u``, the actor of ``DocumentsWorld``, an account where the ledger needs one.
 
@@ -156,7 +180,12 @@ def _ensure_documents_actor(db: DbTarget) -> None:
 
 
 def seed_hidden_world(
-    db: DbTarget, service: FileService, objects: Path, *, scope: str = "project:P123"
+    db: DbTarget,
+    service: FileService,
+    objects: Path,
+    *,
+    scope: str = "project:P123",
+    twin: Twin | None = None,
 ) -> Hidden:
     cmd = _Cmd(actor="user:ctl", source="test", scope=scope)
     world = CorrWorld(db, objects / "corr")
@@ -170,6 +199,8 @@ def seed_hidden_world(
             ("privileged", "privileged"),
             ("bogus", "bogus"),
         ):
+            if _skip(twin, kind if kind != "open" else None):
+                continue
             with open_uow(db) as uow:
                 made = create_item(
                     uow,
@@ -185,14 +216,17 @@ def seed_hidden_world(
                     received=True,
                 )
             ids[kind], numbers[kind] = made.stream_id, made.key or ""
-        for account in ("user:amy", "user:ctl"):
-            world.forge_item_event(
-                ids["privileged"],
-                CORR_CLEARANCE_GRANTED,
-                {"account": account, "granted_on": "2026-10-19", "reason": "counsel"},
-            )
-        _seed_domain_items(db, world, scope, ids, numbers, extra)
+        if not _skip(twin, "privileged"):
+            for account in ("user:amy", "user:ctl"):
+                world.forge_item_event(
+                    ids["privileged"],
+                    CORR_CLEARANCE_GRANTED,
+                    {"account": account, "granted_on": "2026-10-19", "reason": "counsel"},
+                )
+        _seed_domain_items(db, world, scope, ids, numbers, extra, twin)
         for kind in ("open", "restricted", "privileged"):
+            if _skip(twin, kind if kind != "open" else None):
+                continue
             clock = world.start_clock(ids[kind], label=f"{TOKENS[kind]} clock")
             extra[f"{kind}_clock"] = clock.stream_id
             with open_uow(db) as uow:
@@ -202,6 +236,8 @@ def seed_hidden_world(
                 _join(uow, cmd, thread_id, row, None, "manual", first=True)
             extra[f"{kind}_thread"] = thread_id
         for kind in ("open", "restricted"):
+            if _skip(twin, "file" if kind == "restricted" else None):
+                continue
             word = TOKENS["file"] if kind == "restricted" else "OPENFILETEXT"
             data = f"{word} the original letter".encode()
             with open_uow(db) as uow:
@@ -230,21 +266,24 @@ def seed_hidden_world(
                     by_module=True,
                 )
             extra[f"{kind}_file"] = done.file_id
-        with open_uow(db) as uow:
-            link = handle_add_link(
-                uow,
-                AddLink(
-                    actor="user:ctl",
-                    source="test",
-                    scope=scope,
-                    from_id=ids["open"],
-                    to_id=ids["restricted"],
-                    relation="references",
-                ),  # fmt: skip
-                by_module=True,
-            )
-        extra["link"] = link.stream_id
+        if not _skip(twin, "restricted"):
+            with open_uow(db) as uow:
+                link = handle_add_link(
+                    uow,
+                    AddLink(
+                        actor="user:ctl",
+                        source="test",
+                        scope=scope,
+                        from_id=ids["open"],
+                        to_id=ids["restricted"],
+                        relation="references",
+                    ),  # fmt: skip
+                    by_module=True,
+                )
+            extra["link"] = link.stream_id
         for kind in ("open", "restricted", "privileged"):
+            if _skip(twin, kind if kind != "open" else None):
+                continue
             with open_uow(db) as uow:
                 post = handle_post(
                     uow,
@@ -257,6 +296,8 @@ def seed_hidden_world(
                 )
             extra[f"{kind}_post"] = post.stream_id
         for kind in ("open", "restricted"):  # an agent's pending proposal that names the item
+            if _skip(twin, kind if kind != "open" else None):
+                continue
             with open_uow(db) as uow:
                 proposal = proposals.propose(
                     uow,
@@ -277,6 +318,8 @@ def seed_hidden_world(
     docs = DocumentsWorld(db, objects / "docs")
     with cf.system_view():
         for kind, klass in (("document", "restricted"), ("open_document", None)):
+            if _skip(twin, kind if kind == "document" else None):
+                continue
             number = "ISO-9001" if kind == "document" else "ISO-9002"
             title = f"{TOKENS['document']} drawing" if kind == "document" else "OPENTOKEN drawing"
             made = docs.register(number, title=title, confidentiality=klass)
@@ -286,7 +329,10 @@ def seed_hidden_world(
             docs.issue(number, "A", "IFR")
         # one transmittal that lists a revision of each: the restricted one is left out for a
         # reader who may not read it, the transmittal itself is not hidden
-        revisions = [docs.revision(n, "A").id for n in ("ISO-9001", "ISO-9002")]
+        _skip(twin, None)
+        revisions = [
+            docs.revision(n, "A").id for n in ("ISO-9001", "ISO-9002") if n in numbers.values()
+        ]
         with open_uow(db) as uow:
             sent = handle_create_transmittal(
                 uow,

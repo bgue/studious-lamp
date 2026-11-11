@@ -19,10 +19,11 @@ from pydantic import ValidationError
 from tl_schema.effective import canonical_dump
 from tl_schema.packages import PackageDoc, version_tuple
 from tl_schema.plain_yaml import PlainYamlError, load_plain
+from tl_schema.resources import schema_root
 
 SCHEMA_DIR_ENV = "TL_SCHEMA_DIR"
 #: ``schema/fixtures`` at the repository root; the default package directory in development.
-DEFAULT_SCHEMA_DIR: Path = Path(__file__).resolve().parents[4] / "schema" / "fixtures"
+DEFAULT_SCHEMA_DIR: Path = schema_root() / "fixtures"
 
 _PROJECT_SCOPE = "project:"
 

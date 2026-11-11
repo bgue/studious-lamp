@@ -131,11 +131,11 @@ def test_a_remote_app_uses_the_session_token_of_the_sign_in(
 
     monkeypatch.setattr(tui_main, "build_remote_app", fake_remote)
     signed = SignedIn("user:root", "root", ("admin",), token="tls_x")
-    assert tui_main.make_app(remote="http://h", signed_in=signed) == "app"  # type: ignore[comparison-overlap]
+    assert tui_main.make_app(remote="https://h", signed_in=signed) == "app"  # type: ignore[comparison-overlap]
     assert seen["token"] == "tls_x" and seen["actor"] == "user:root" and seen["is_admin"] is True
     with pytest.raises(ValueError, match="sign in, pass --token or set TL_TOKEN"):
-        tui_main.make_app(remote="http://h")
-    assert tui_main.make_app(remote="http://h", token="dev-token") == "app"  # type: ignore[comparison-overlap]
+        tui_main.make_app(remote="https://h")
+    assert tui_main.make_app(remote="https://h", token="dev-token") == "app"  # type: ignore[comparison-overlap]
     assert seen["token"] == "dev-token"
 
 

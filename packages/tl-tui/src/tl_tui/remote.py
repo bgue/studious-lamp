@@ -27,7 +27,7 @@ from typing import Any, cast
 
 import httpx2
 from tl_api.client import ApiClient
-from tl_api.client.auth import sign_in
+from tl_api.client.auth import health, sign_in
 from tl_core.services.commands import Command, CommandResult
 
 from tl_tui.client import ClientInterface, RelationInfo
@@ -301,6 +301,20 @@ class RemoteAuthenticator:
             roles=tuple(out.principal.roles),
             token=out.token,
         )
+
+
+def server_version(base_url: str, *, http: httpx2.Client | None = None) -> str | None:
+    """The server's version from ``GET /health``, read once before the sign-in prompt.
+
+    ``None`` when it cannot be read (unreachable, refused, an answer without a string version).
+    Never raises: a failure here shows nothing and does not block sign-in.
+    """
+    try:
+        body = health(base_url, http=http, timeout=INTERACTIVE_TIMEOUT_S)
+    except (*CLIENT_ERRORS, httpx2.HTTPError, ValueError):
+        return None
+    version = body.get("version")
+    return version if isinstance(version, str) else None
 
 
 def sign_out(base_url: str, token: str, *, http: httpx2.Client | None = None) -> None:
