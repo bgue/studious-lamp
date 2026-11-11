@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pytest
+from punch_world import IWP, World
 from sqlalchemy import Connection
 from tl_adapters.db import open_uow
 from tl_core import confidentiality as cf
@@ -12,8 +13,6 @@ from tl_core.services.errors import RecordNotFoundError
 from tl_mod_quality import api
 from tl_mod_quality.actions import RULES, punch_actions, states_for
 from tl_mod_quality.module import PUNCH_COMMANDS, spec
-
-from .punch_world import IWP, World, db_fixture, world_fixture  # noqa: F401
 
 CLEARED = cf.Viewer(actor="user:dora", level=1, account="user:dora")
 

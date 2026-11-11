@@ -9,6 +9,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import pytest
+from punch_world import IWP, SCOPE, World
 from pydantic import ValidationError
 from tl_adapters.db import DbTarget
 from tl_core.auth.errors import ForbiddenError
@@ -19,8 +20,6 @@ from tl_mod_quality.commands import RaisePunchItem
 from tl_mod_quality.errors import PunchRuleError, PunchStateError, StaleVersionError
 from tl_mod_quality.guards import MSG_VOID
 from tl_mod_quality.handlers.punch import MSG_NOT_PARTY, MSG_NOTHING, MSG_SELF_VERIFY
-
-from .punch_world import IWP, SCOPE, World, db_fixture, world_fixture  # noqa: F401
 
 
 def raises(error: type[BaseException], world: World, who: str, name: str, **fields: object) -> str:

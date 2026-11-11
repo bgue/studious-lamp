@@ -11,12 +11,10 @@ correspondence module's own commands, never by a projection write.
 
 from __future__ import annotations
 
-from collections.abc import Callable
 from typing import Any
 
-import pytest
 from sqlalchemy import text
-from tl_adapters.db import DbTarget, create_schema, open_uow
+from tl_adapters.db import DbTarget, open_uow
 from tl_core import confidentiality as cf
 from tl_core.auth import accounts
 from tl_core.auth.module_grants import GrantModuleRole, grant_module_role
@@ -200,19 +198,3 @@ class World:
 
 
 __all__ = ["IWP", "PUNCH_ITEM", "SCOPE", "World"]
-
-
-@pytest.fixture(name="db")
-def db_fixture(new_db: Callable[[], DbTarget]) -> DbTarget:
-    """An empty ledger of the adapter under test, with every table (the module's included)."""
-    target = new_db()
-    create_schema(target)
-    return target
-
-
-@pytest.fixture(name="world")
-def world_fixture(db: DbTarget) -> World:
-    """A ledger with the people."""
-    w = World(db)
-    w.people()
-    return w
