@@ -3115,6 +3115,7 @@ dependencies = [
     { name = "sqlalchemy" },
     { name = "tl-adapters" },
     { name = "tl-core" },
+    { name = "tl-mod-correspondence" },
     { name = "tl-schema" },
 ]
 
@@ -3124,6 +3125,7 @@ requires-dist = [
     { name = "sqlalchemy", specifier = ">=2" },
     { name = "tl-adapters", editable = "packages/tl-adapters" },
     { name = "tl-core", editable = "packages/tl-core" },
+    { name = "tl-mod-correspondence", editable = "packages/tl-modules/correspondence" },
     { name = "tl-schema", editable = "packages/tl-schema" },
 ]
 

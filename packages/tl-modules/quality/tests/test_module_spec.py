@@ -29,11 +29,18 @@ def test_spec_loads_with_the_record_type_and_one_projector() -> None:
     assert [type(p) for p in projectors()] == [PunchItemProjector]
 
 
-def test_spec_has_zero_commands_and_no_offline_drafts() -> None:
+def test_spec_has_six_commands_and_the_raise_draft() -> None:
     built = spec()
-    assert PUNCH_COMMANDS == ()
-    assert dict(built.command_words) == {}
-    assert dict(built.offline_drafts) == {}
+    assert [c.model.__name__ for c in PUNCH_COMMANDS] == [
+        "RaisePunchItem",
+        "EditPunchItem",
+        "ClearPunchItem",
+        "VerifyPunchItem",
+        "ReopenPunchItem",
+        "VoidPunchItem",
+    ]
+    assert dict(built.command_words) == {c.model.__name__: c.access for c in PUNCH_COMMANDS}
+    assert dict(built.offline_drafts) == {PUNCH_ITEM: frozenset({"RaisePunchItem"})}
     assert not built.company_roles
 
 
