@@ -42,7 +42,7 @@ describe('settings validation', () => {
   it('has safe defaults: off, pinned model, the Jev endpoint', () => {
     const c = validateSettings(undefined);
     expect(c.errors).toEqual([]);
-    expect(c.settings).toEqual({ provider: 'off', schemaUrl: '', minConfidence: null, writePset: true, calibration: 'auto', temperatures: {}, images: 'off', imageStyle: 'render', imagePlan: false, imageSize: 384, imageMargin: 25, geometryText: 'off', geometryContext: true });
+    expect(c.settings).toEqual({ provider: 'off', schemaUrl: '', minConfidence: null, writePset: true, rulesMode: 'final', calibration: 'auto', temperatures: {}, images: 'off', imageStyle: 'render', imagePlan: false, imageSize: 384, imageMargin: 25, geometryText: 'off', geometryContext: true });
     const d = defaultDraft();
     expect(d.endpoint).toBe('https://api.typesafe.ai/v1/systemone');
     expect(d.model).toBe('jev-1.13.0');
@@ -50,7 +50,7 @@ describe('settings validation', () => {
 
   it('is a union: only the fields of the provider are kept', () => {
     const j = toSettings({ ...defaultDraft(), provider: 'jev' });
-    const SHARED = ['calibration', 'geometryContext', 'geometryText', 'imageMargin', 'imagePlan', 'imageSize', 'imageStyle', 'images', 'minConfidence', 'provider', 'schemaUrl', 'temperatures', 'writePset'];
+    const SHARED = ['calibration', 'geometryContext', 'geometryText', 'imageMargin', 'imagePlan', 'imageSize', 'imageStyle', 'images', 'minConfidence', 'provider', 'rulesMode', 'schemaUrl', 'temperatures', 'writePset'];
     expect(Object.keys(j).sort()).toEqual([...SHARED, 'concurrency', 'endpoint', 'jevImages', 'maxStateBytes', 'model', 'timeoutMs'].sort());
     const w = toSettings({ ...defaultDraft(), provider: 'webllm' });
     expect(Object.keys(w).sort()).toEqual([...SHARED, 'embedTemperature', 'hybridMargin', 'webllmCustomLib', 'webllmCustomModel', 'webllmEmbedModel', 'webllmMode', 'webllmModel'].sort());

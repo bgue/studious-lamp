@@ -4066,10 +4066,10 @@ export const CONTROL_HELP: Record<string, HelpEntry> = {
     'Keep it on to search by discipline. Turn it off to keep the elements clean.',
     'Report: Limitations and extensions, classification',
   ),
-  'Classify drawer/Use rules first': h(
-    'The switch lets the fixed rules decide clear cases before any question goes out.',
-    'On: fewer calls and instant answers for clear parts. Off: every part goes to the answering service.',
-    'Keep it on. Turn it off to test the provider.',
+  'Classify drawer/Rules and model': h(
+    'The list chooses how the fixed rules and the answering service work together. A certain rule can decide a part completely. Otherwise every part goes to the service.',
+    'The first choice answers clear parts at once. The service labels only the rest. The other choice sends every part out.',
+    'Keep Rules where certain. Choose the service for everything to test it on its own.',
     'Report: Limitations and extensions, classification',
   ),
   'Classify drawer/Classify selection': h(

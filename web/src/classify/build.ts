@@ -3,6 +3,7 @@
 // hierarchy path holds the storey (and the assembly when there is one).
 
 import type { ElementId, ElementRecord, SceneModel } from '../types';
+import { isProcessModel, processEvidenceOf } from './rules';
 import type { ClassifyInput, PsetRecord, PsetValue, RelatedElement } from './types';
 
 const QTO = /^(Qto_|BaseQuantities$)/;
@@ -27,15 +28,19 @@ interface Index {
   systems: Map<ElementId, string[]>;
   hosts: Map<ElementId, ElementId[]>;
   storeys: Map<number, string>;
+  /** True when the model as a whole shows a process context (rules.ts, isProcessModel). */
+  process: boolean;
 }
 const indexes = new WeakMap<SceneModel, Index>();
 
 function indexOf(model: SceneModel): Index {
   let ix = indexes.get(model);
   if (ix) return ix;
-  ix = { systems: new Map(), hosts: new Map(), storeys: new Map(model.storeys.map((s) => [s.id, s.name])) };
+  ix = { systems: new Map(), hosts: new Map(), storeys: new Map(model.storeys.map((s) => [s.id, s.name])), process: false };
   for (const s of model.relations.systems) for (const id of s.elements) (ix.systems.get(id) ?? ix.systems.set(id, []).get(id)!).push(s.name);
   for (const [filler, host] of model.relations.hosts) (ix.hosts.get(filler) ?? ix.hosts.set(filler, []).get(filler)!).push(host);
+  const evidence = model.elements.map((e) => processEvidenceOf({ id: e.globalId, ifcClass: e.ifcClass, name: e.name ?? '', psets: splitProps(e.props).psets, systems: ix!.systems.get(e.id) }));
+  ix.process = isProcessModel(evidence);
   indexes.set(model, ix);
   return ix;
 }
@@ -62,6 +67,7 @@ export function buildInput(model: SceneModel, idOrGlobalId: ElementId | string):
   const systems = ix.systems.get(id);
   if (systems?.length) out.systems = systems;
   if (e.material) out.material = e.material;
+  if (ix.process) out.processContext = true;
   return out;
 }
 

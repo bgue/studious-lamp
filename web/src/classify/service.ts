@@ -93,7 +93,7 @@ export interface ModelTest {
 
 export type Target = readonly (string | number)[] | 'selection' | 'all';
 export interface RunOptions {
-  /** false: skip the rules (every element goes to the cache and the model). */
+  /** false: skip the rules for this run (every element goes to the cache and the model). Default: the `rulesMode` setting. */
   rules?: boolean;
   subDiscipline?: keyof typeof SUB_STRATEGIES | SubDisciplineStrategy;
 }
@@ -288,7 +288,7 @@ export class ClassifyService {
       subDiscipline: o.sub ?? SUB_STRATEGIES['top2-when-unsure'],
       temperatures: this.calibration().temperatures,
       signal,
-      ...(o.rules === false ? { rules: false } : {}),
+      ...(o.rules === false || s.rulesMode === 'off' ? { rules: false } : {}),
       ...(this.geometrySettings() && this.env.geometry ? { geometry: (input: ClassifyInput) => this.geometryOf(input.id, this.geometrySettings()!) } : {}),
       ...(imgs && this.env.thumbnails ? { images: async (input: ClassifyInput) => this.thumbnailPictures(input.id, imgs) } : {}),
       onProgress: (p: ProgressInfo) => {
@@ -471,7 +471,7 @@ export class ClassifyService {
   /** The provider for the current settings. It is reused while the settings stay the same (a browser model keeps its engine). */
   provider(): DecisionModel | null {
     // The key leaves out what does not change the provider (the confidence limit, the calibration, the schema): a loaded model is kept.
-    const { calibration: _c, temperatures: _t, minConfidence: _m, writePset: _w, schemaUrl: _s, ...providerSettings } = this.settings();
+    const { calibration: _c, temperatures: _t, minConfidence: _m, writePset: _w, schemaUrl: _s, rulesMode: _r, ...providerSettings } = this.settings();
     const key = JSON.stringify(providerSettings);
     if (this.providerMemo?.key !== key) {
       this.providerMemo = {
@@ -711,7 +711,7 @@ export class ClassifyService {
   // ------------------------------------------------------------ estimate
 
   estimate(target: Target, o: RunOptions = {}): CallEstimate {
-    const e = estimateCalls(this.inputsFor(target), { schema: this.schema, cache: this.cache, manual: this.store.manual, ...(o.rules === false ? { rules: false } : {}) });
+    const e = estimateCalls(this.inputsFor(target), { schema: this.schema, cache: this.cache, manual: this.store.manual, ...(o.rules === false || this.settings().rulesMode === 'off' ? { rules: false } : {}) });
     this.lastEstimate = e;
     return e;
   }

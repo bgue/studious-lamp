@@ -59,6 +59,74 @@ export function isBuildingContext(i: ClassifyInput): boolean {
   return !/\b(road|highway|street|kerb|curb|railway|culvert|sewer|manhole)\b/.test(hayOf(i));
 }
 
+// ---- process context
+// A process facility (refinery, chemical plant, power block) reads differently from a building: its steam, condensate and cooling
+// water piping is utility piping (PIP/UTL, schema: "air, steam, water and nitrogen"), its pumps, vessels and exchangers are process
+// equipment (PIP, schema: "process pumps and compressors, heat exchangers, vessels"), and its instruments belong to division 40
+// ("instrumentation and control of process systems"). In a building the same words mean HVAC and plumbing (MEC/HYD, PLB). The context
+// is decided for the whole model, conservatively: it needs two different kinds of evidence, on at least three elements.
+
+/** Services that only a process facility has (a building has no flare or crude line). Utility words are NOT in here: a hospital has steam too. */
+const PROCESS_SERVICE = /\bprocess\b|\bflare\b|crude|hydrocarbon|slurry|solvent|chemical|blowdown|\binstrument air\b|\bplant air\b|\bfuel gas\b|\bnitrogen\b/;
+/** Utility services of a plant, read as utility piping once the context is process. */
+const UTILITY_SERVICE = /steam|condensate|cooling water|boiler feed|utility (air|water)|service water|\bn2\b/;
+/** ISA-style line number: size, service code, sequence (150-CW-1203-A1A). */
+const LINE_NUMBER = /\b\d{1,4}-[A-Z]{1,4}-\d{3,5}(-[A-Z0-9]{1,6})?\b/;
+
+const propText = (i: ClassifyInput, names: string[]): string => {
+  for (const n of names) {
+    const v = prop(i, n);
+    if (typeof v === 'string' && v.trim()) return v;
+  }
+  return '';
+};
+
+/** The line number of a pipe, valve or instrument: a LineNumber property, or an ISA-style number in its tag or name. */
+export function lineNumberOf(i: ClassifyInput): string {
+  const p = propText(i, ['LineNumber', 'Line Number', 'LineNo', 'Line No']);
+  if (p) return p;
+  const m = LINE_NUMBER.exec(`${i.psets['Attr']?.['Tag'] ?? ''} ${i.name}`);
+  return m ? m[0] : '';
+}
+
+/** The service text of an element: its systems and a Service or Medium property. */
+const serviceOf = (i: ClassifyInput): string => [...(i.systems ?? []), propText(i, ['Service']), propText(i, ['Medium'])].join(' | ').toLowerCase();
+
+export type ProcessEvidence = 'line' | 'service' | 'equipment';
+
+/** What one element says about a process context: a line number, a process service, or process equipment (a pressure vessel, a shell and tube exchanger). */
+export function processEvidenceOf(i: ClassifyInput): ProcessEvidence[] {
+  const out: ProcessEvidence[] = [];
+  if (propText(i, ['LineNumber', 'Line Number', 'LineNo', 'Line No']) || LINE_NUMBER.test(`${i.psets['Attr']?.['Tag'] ?? ''}`)) out.push('line');
+  if (PROCESS_SERVICE.test([...(i.systems ?? []), propText(i, ['Service'])].join(' | ').toLowerCase())) out.push('service');
+  const pt = String(i.psets['Attr']?.['PredefinedType'] ?? '').toUpperCase();
+  if ((i.ifcClass === 'IfcTank' && (pt === 'VESSEL' || pt === 'PRESSUREVESSEL')) || (i.ifcClass === 'IfcHeatExchanger' && pt === 'SHELLANDTUBE')) out.push('equipment');
+  return out;
+}
+
+/** Does the model show a process context? From the evidence of all its elements: two kinds, three elements. */
+export function isProcessModel(evidence: Iterable<readonly ProcessEvidence[]>): boolean {
+  const kinds = new Set<ProcessEvidence>();
+  let elements = 0;
+  for (const e of evidence) {
+    if (!e.length) continue;
+    elements++;
+    for (const k of e) kinds.add(k);
+  }
+  return kinds.size >= 2 && elements >= 3;
+}
+
+/**
+ * Is this element in a process context? The model-level flag when buildInput set it; otherwise the element's own evidence: a line number
+ * together with a process or utility service (a lone line number is not enough).
+ */
+export function isProcessContext(i: ClassifyInput): boolean {
+  if (i.processContext !== undefined) return i.processContext;
+  if (!lineNumberOf(i)) return false;
+  const svc = serviceOf(i);
+  return PROCESS_SERVICE.test(svc) || UTILITY_SERVICE.test(svc);
+}
+
 function prop(i: ClassifyInput, name: string): PsetValue | undefined {
   const want = name.toLowerCase();
   for (const set of Object.values(i.psets)) for (const [k, v] of Object.entries(set)) if (k.toLowerCase() === want) return v;
@@ -79,12 +147,17 @@ interface SystemHint {
 }
 
 /** Discipline hint from system names and other text, for the classes that several disciplines share (pipes, pumps, valves, tanks). */
-export function systemHint(hay: string, building: boolean): SystemHint | null {
+export function systemHint(hay: string, building: boolean, process = false): SystemHint | null {
   if (!building) {
     if (/sewer|storm|wastewater|waste water|drain|culvert|gully|rain/.test(hay)) return { discipline: 'CIV', sub: 'DRN', division: '33', section: null, why: 'site drainage name' };
     if (/water main|potable|water supply|hydrant|gas main|utility/.test(hay)) return { discipline: 'CIV', sub: 'UTL', division: '33', section: null, why: 'site utility name' };
   }
   if (/fire|sprinkler|standpipe|hose reel/.test(hay)) return { discipline: 'FPR', sub: 'SPR', division: '21', section: '21 13 13', why: 'fire or sprinkler system name' };
+  if (process) {
+    // In a process facility the process and utility services are piping (PIP), not HVAC or plumbing.
+    if (PROCESS_SERVICE.test(hay) || /\bcompressed air\b/.test(hay)) return { discipline: 'PIP', sub: 'PRC', division: '40', section: null, why: 'process service name' };
+    if (UTILITY_SERVICE.test(hay)) return { discipline: 'PIP', sub: 'UTL', division: '40', section: null, why: 'utility service name in a process facility' };
+  }
   if (/chilled|\bchw|hydronic|heating|cooling|condenser|hvac|boiler|refrigerant|glycol|steam|\bhw[sr]\b/.test(hay)) return { discipline: 'MEC', sub: 'HYD', division: '23', section: '23 21 13', why: 'heating or cooling system name' };
   if (/process|chemical|crude|hydrocarbon|flare|slurry|solvent|compressed air/.test(hay)) return { discipline: 'PIP', sub: 'PRC', division: '40', section: null, why: 'process system name' };
   if (/storm|rain/.test(hay)) return { discipline: 'PLB', sub: 'STM', division: '22', section: '22 14 00', why: 'storm drainage name' };
@@ -108,7 +181,7 @@ function materialDivision(hay: string): { division: string; why: string } | null
   return null;
 }
 
-type Ctx = { i: ClassifyInput; hay: string; building: boolean };
+type Ctx = { i: ClassifyInput; hay: string; building: boolean; process: boolean };
 type ClassRule = (c: Ctx) => RuleHit | null;
 const fixed = (d: string, s: string | null, div: string | null, conf: number, why: string, section: string | null = null): ClassRule => () => hit(d, s, div, conf, why, section);
 
@@ -181,23 +254,67 @@ const footing: ClassRule = (c) => {
 
 /** For classes that several disciplines share: the system hint decides; without one the rule is weak and the model decides. */
 const shared = (kind: 'pipe' | 'pump' | 'valve' | 'tank', weak: RuleHit): ClassRule => (c) => {
-  const h = systemHint(c.hay, c.building);
+  // In a process context the Service and Medium properties count as system names, and a pump or tank is process equipment unless a fire or plumbing name says otherwise.
+  const text = c.process ? `${c.hay} | ${serviceOf(c.i)}` : c.hay;
+  let h = systemHint(text, c.building, c.process);
+  if (c.process && (kind === 'pump' || kind === 'tank') && (!h || h.discipline === 'MEC' || h.discipline === 'CIV')) {
+    return hit('PIP', kind === 'pump' ? 'PMP' : 'VES', '43', 0.88, `${kind === 'pump' ? 'pump' : 'tank or vessel'} in a process facility`);
+  }
+  if (c.process && !h && lineNumberOf(c.i)) h = { discipline: 'PIP', sub: 'PRC', division: '40', section: null, why: 'line number in a process facility' };
   if (!h) return weak;
-  const named = (c.i.systems ?? []).some((s) => systemHint(s.toLowerCase(), c.building));
+  const named = (c.i.systems ?? []).some((s) => systemHint(s.toLowerCase(), c.building, c.process));
   const conf = named ? 0.92 : 0.86;
   const why = `${kind}, ${h.why}`;
   if (h.discipline === 'CIV') return hit('CIV', h.sub, null, conf, why);
   if (h.discipline === 'PIP') {
     if (kind === 'pump') return hit('PIP', 'PMP', '43', conf, why);
     if (kind === 'tank') return hit('PIP', 'VES', '43', conf, why);
-    return hit('PIP', kind === 'valve' ? 'VLV' : 'PRC', '40', conf, why);
+    // A regulating valve is a control valve (schema: INS/CTL "controllers, actuators and control valves").
+    if (kind === 'valve' && c.process && String(c.i.psets['Attr']?.['PredefinedType'] ?? '').toUpperCase() === 'REGULATING') return hit('INS', 'CTL', '40', conf, 'regulating valve, a control valve in a process facility');
+    return hit('PIP', kind === 'valve' ? 'VLV' : h.sub, '40', conf, why);
   }
   return hit(h.discipline, kind === 'pipe' ? h.sub : 'EQP', h.division, conf, why, kind === 'pipe' ? h.section : null);
+};
+
+// ---- supports and equipment parts
+// A member that says it is a pipe support (post, guide, sleeper, shoe, hanger) is PIP/SUP (schema: "pipe supports, hangers and guides"), and
+// a member that says it supports a cable tray goes with the tray (ELE/CND). The class is no evidence: IfcMember is also a brace.
+
+const TRAY_SUPPORT = /\b(cable )?(tray|ladder|trunking|basket)[- ](t[- ])?(support|hanger|bracket|stanchion|riser|trapeze|cantilever|post)|\bcable tray support/;
+const PIPE_SUPPORT = /\bpipe[- ](t[- ])?(support|sleeper|hanger|shoe|guide|anchor|rack support|clamp)|\bpipe hangers?\b|\bsleepers?\b|\briser guide|\bline guide|\bpipe supports?\b/;
+const SUPPORT_CLASSES = new Set(['IfcMember', 'IfcBuildingElementProxy', 'IfcDiscreteAccessory', 'IfcPlate', 'IfcElementAssembly', 'IfcMechanicalFastener', 'IfcBeam', 'IfcColumn']);
+
+/** The support rule of an element that names itself a pipe or cable tray support, or null. */
+export function supportByName(c: Ctx): RuleHit | null {
+  if (!SUPPORT_CLASSES.has(c.i.ifcClass)) return null;
+  const t = civilTextOf(c.i);
+  if (TRAY_SUPPORT.test(t)) return hit('ELE', 'CND', '26', 0.9, 'support of a cable tray, by name', '26 05 29');
+  if (PIPE_SUPPORT.test(t)) {
+    const div = c.process ? '40' : /water|plumbing|sanitary|drain/.test(c.hay) ? '22' : /hvac|chilled|heating|hydronic/.test(c.hay) ? '23' : '05';
+    return hit('PIP', 'SUP', div, 0.9, 'pipe support, guide or sleeper, by name');
+  }
+  return null;
+}
+const supportFirst = (rule: ClassRule): ClassRule => (c) => supportByName(c) ?? rule(c);
+
+/** Parts of process equipment (baseplate, skirt, saddle, channel, bundle) in a process facility, by name or type. They follow the equipment they belong to. */
+const EQUIPMENT_PART = /\b(pump|compressor|motor)[ -]*(baseplate|bedplate|skid|casing|coupling)|\b(exchanger|cooler|condenser|reboiler)[ -]*(channel|saddle|shell|bundle|head|support)|\b(vessel|drum|column|tower|tank)[ -]*(skirt|saddle|leg|support ring|manway)/;
+const equipmentPart: ClassRule = (c) => {
+  if (!c.process) return null;
+  const t = civilTextOf(c.i);
+  const m = EQUIPMENT_PART.exec(t);
+  if (!m) return null;
+  if (/pump|compressor|motor/.test(m[0])) return hit('PIP', 'PMP', '43', 0.86, 'part of a pump or compressor, in a process facility');
+  if (/exchanger|cooler|condenser|reboiler/.test(m[0])) return hit('PIP', 'HTX', '42', 0.86, 'part of a heat exchanger, in a process facility');
+  if (/vessel|drum|column|tower|tank/.test(m[0])) return hit('PIP', 'VES', '43', 0.86, 'part of a vessel, in a process facility');
+  return null;
 };
 
 const wall: ClassRule = (c) => {
   const lb = asBool(prop(c.i, 'LoadBearing'));
   const m = materialDivision(c.hay);
+  // A load-bearing masonry wall is structural but its work belongs to masonry (division 04), not concrete.
+  if (lb === true && m?.division === '04') return hit('STR', 'WLS', '04', 0.88, 'wall with LoadBearing=true, masonry material');
   if (lb === true) return hit('STR', 'WLS', '03', 0.88, 'wall with LoadBearing=true', '03 30 00');
   const base = m ? 0.9 : 0.86;
   return hit('ARC', 'WAL', m?.division ?? '09', base, `wall${lb === false ? ' with LoadBearing=false' : ''}${m ? `, ${m.why} material` : ''}`);
@@ -205,7 +322,7 @@ const wall: ClassRule = (c) => {
 
 const slab: ClassRule = (c) => {
   const lb = asBool(prop(c.i, 'LoadBearing'));
-  const steel = /steel deck|metal deck/.test(c.hay);
+  const steel = /steel deck|metal deck|grating|checker(ed)? plate/.test(c.hay);
   if (lb === false) return hit('ARC', 'FIN', '09', 0.7, 'slab with LoadBearing=false');
   // a base slab outside a building is site paving; a building ground slab stays structural
   if (String(c.i.psets['Attr']?.['PredefinedType'] ?? '').toUpperCase() === 'BASESLAB' && !c.building) {
@@ -214,9 +331,13 @@ const slab: ClassRule = (c) => {
   return hit('STR', 'SLB', steel ? '05' : '03', lb === true ? 0.92 : 0.88, `slab${lb === true ? ' with LoadBearing=true' : ''}`, steel ? '05 31 00' : '03 30 00');
 };
 
+/** Words of bracing and connection parts (schema STR/BRC: "bracing, plates, connections and other structural members"). */
+const BRACING_WORDS = /\b(brace|braces|bracing|strut|gusset|diagonal|splice plate|connection plate|base ?plate|cleat|stiffener)\b/;
+
 const member: ClassRule = (c) => {
   if (/mullion|curtain|glazing|window|transom/.test(c.hay)) return hit('ARC', 'WIN', '08', 0.86, 'member named as a glazing part', '08 44 00');
   const m = materialDivision(c.hay);
+  if (BRACING_WORDS.test(civilTextOf(c.i))) return hit('STR', 'BRC', m?.division === '06' ? '06' : m?.division === '03' ? '03' : '05', 0.9, 'member named as bracing or a connection part', '05 12 00');
   return hit('STR', 'BRC', m?.division === '06' ? '06' : m?.division === '03' ? '03' : '05', m ? 0.86 : 0.8, `structural member${m ? `, ${m.why}` : ''}`);
 };
 
@@ -247,18 +368,18 @@ const weakPlumbing = hit('PLB', 'SUP', '22', 0.55, 'pipe without a system hint',
 /** The IFC class map. */
 export const CLASS_RULES: Record<string, ClassRule> = {
   // structure
-  IfcBeam: fixed('STR', 'BEM', '05', 0.93, 'IfcBeam is a structural member', '05 12 00'),
-  IfcColumn: fixed('STR', 'COL', '05', 0.93, 'IfcColumn is a structural member', '05 12 00'),
+  IfcBeam: supportFirst(fixed('STR', 'BEM', '05', 0.93, 'IfcBeam is a structural member', '05 12 00')),
+  IfcColumn: supportFirst(fixed('STR', 'COL', '05', 0.93, 'IfcColumn is a structural member', '05 12 00')),
   IfcFooting: footing,
   IfcPile: fixed('STR', 'FND', '31', 0.95, 'IfcPile is a foundation', '31 60 00'),
   IfcReinforcingBar: fixed('STR', 'REB', '03', 0.95, 'reinforcement', '03 20 00'),
   IfcReinforcingMesh: fixed('STR', 'REB', '03', 0.95, 'reinforcement', '03 20 00'),
   IfcTendon: fixed('STR', 'REB', '03', 0.9, 'tendon', '03 38 00'),
-  IfcMember: civilFirst(member),
+  IfcMember: supportFirst(civilFirst(member)),
   IfcSlab: civilFirst(slab),
   IfcWall: civilFirst(wall),
   IfcWallStandardCase: civilFirst(wall),
-  IfcPlate: civilFirst(fixed('STR', 'BRC', '05', 0.6, 'plate, structural or architectural')),
+  IfcPlate: supportFirst(civilFirst((c) => (BRACING_WORDS.test(civilTextOf(c.i)) ? hit('STR', 'BRC', '05', 0.9, 'plate named as a connection part') : hit('STR', 'BRC', '05', 0.6, 'plate, structural or architectural')))),
   // architecture
   IfcDoor: fixed('ARC', 'DOR', '08', 0.95, 'IfcDoor', '08 10 00'),
   IfcWindow: fixed('ARC', 'WIN', '08', 0.95, 'IfcWindow', '08 50 00'),
@@ -294,8 +415,8 @@ export const CLASS_RULES: Record<string, ClassRule> = {
   IfcHumidifier: fixed('MEC', 'EQP', '23', 0.9, 'IfcHumidifier', '23 84 00'),
   IfcEvaporator: fixed('MEC', 'EQP', '23', 0.9, 'IfcEvaporator'),
   IfcCondenser: fixed('MEC', 'EQP', '23', 0.9, 'IfcCondenser'),
-  IfcCompressor: (c) => (systemHint(c.hay, c.building)?.discipline === 'PIP' ? hit('PIP', 'PMP', '43', 0.86, 'compressor, process system') : hit('MEC', 'EQP', '23', 0.7, 'compressor')),
-  IfcHeatExchanger: (c) => (systemHint(c.hay, c.building)?.discipline === 'PIP' ? hit('PIP', 'HTX', '42', 0.86, 'heat exchanger, process system') : hit('MEC', 'EQP', '23', 0.75, 'heat exchanger')),
+  IfcCompressor: (c) => (c.process || systemHint(c.hay, c.building)?.discipline === 'PIP' ? hit('PIP', 'PMP', '43', 0.86, 'compressor, process system') : hit('MEC', 'EQP', '23', 0.7, 'compressor')),
+  IfcHeatExchanger: (c) => (c.process || systemHint(c.hay, c.building)?.discipline === 'PIP' ? hit('PIP', 'HTX', '42', 0.88, 'heat exchanger, process system') : hit('MEC', 'EQP', '23', 0.75, 'heat exchanger')),
   // pipes and plumbing
   IfcPipeSegment: shared('pipe', weakPlumbing),
   IfcPipeFitting: shared('pipe', weakPlumbing),
@@ -324,18 +445,19 @@ export const CLASS_RULES: Record<string, ClassRule> = {
   IfcElectricGenerator: fixed('ELE', 'GEN', '26', 0.93, 'IfcElectricGenerator', '26 32 13'),
   IfcElectricFlowStorageDevice: fixed('ELE', 'GEN', '26', 0.9, 'IfcElectricFlowStorageDevice', '26 33 00'),
   IfcMotorConnection: fixed('ELE', 'PWR', '26', 0.85, 'IfcMotorConnection'),
-  IfcElectricMotor: fixed('ELE', 'PWR', '26', 0.7, 'IfcElectricMotor'),
+  // A motor that names the equipment it drives, in a process facility, is part of that pump or compressor.
+  IfcElectricMotor: (c) => (c.process && propText(c.i, ['Driver', 'DrivenEquipment', 'Driven Equipment', 'Driven']) ? hit('PIP', 'PMP', '43', 0.86, 'motor of a driven process machine') : hit('ELE', 'PWR', '26', 0.7, 'IfcElectricMotor')),
   IfcElectricAppliance: fixed('ELE', 'DEV', '26', 0.7, 'IfcElectricAppliance'),
   IfcSolarDevice: fixed('ELE', 'GEN', '48', 0.88, 'IfcSolarDevice'),
   // low voltage, controls
   IfcCommunicationsAppliance: fixed('TEL', 'DAT', '27', 0.92, 'IfcCommunicationsAppliance', '27 10 00'),
   IfcAudioVisualAppliance: fixed('TEL', 'AVS', '27', 0.92, 'IfcAudioVisualAppliance', '27 41 00'),
   IfcAlarm: fixed('TEL', 'ALM', '28', 0.9, 'IfcAlarm', '28 31 00'),
-  IfcSensor: (c) => (/smoke|fire|heat detector/.test(c.hay) ? hit('TEL', 'ALM', '28', 0.9, 'detector', '28 31 00') : hit('INS', 'SNS', '25', 0.65, 'sensor')),
-  IfcActuator: fixed('INS', 'CTL', '25', 0.88, 'IfcActuator'),
+  IfcSensor: (c) => (/smoke|fire|heat detector/.test(c.hay) ? hit('TEL', 'ALM', '28', 0.9, 'detector', '28 31 00') : c.process ? hit('INS', 'SNS', '40', 0.86, 'sensor on a process line') : hit('INS', 'SNS', '25', 0.65, 'sensor')),
+  IfcActuator: (c) => hit('INS', 'CTL', c.process ? '40' : '25', 0.88, 'IfcActuator'),
   IfcController: fixed('INS', 'CTL', '25', 0.9, 'IfcController'),
   IfcUnitaryControlElement: fixed('INS', 'CTL', '25', 0.88, 'IfcUnitaryControlElement'),
-  IfcFlowMeter: fixed('INS', 'SNS', '25', 0.65, 'IfcFlowMeter'),
+  IfcFlowMeter: (c) => (c.process ? hit('INS', 'SNS', '40', 0.86, 'flow meter on a process line') : hit('INS', 'SNS', '25', 0.65, 'IfcFlowMeter')),
   // site
   IfcCivilElement: civilFirst(fixed('CIV', null, null, 0.88, 'IfcCivilElement')),
   IfcAlignment: fixed('CIV', 'PAV', null, 0.9, 'IfcAlignment, a road or rail line'),
@@ -353,7 +475,7 @@ export const CLASS_RULES: Record<string, ClassRule> = {
   IfcTrackElement: fixed('CIV', 'PAV', null, 0.9, 'IfcTrackElement'),
   IfcBridge: fixed('STR', null, null, 0.86, 'IfcBridge'),
   // generic classes: only the name can say
-  IfcBuildingElementProxy: civilFirst(nameRule),
+  IfcBuildingElementProxy: supportFirst((c) => equipmentPart(c) ?? civilFirst(nameRule)(c)),
   IfcDistributionElement: nameRule,
   IfcFlowSegment: nameRule,
   IfcFlowFitting: nameRule,
@@ -363,16 +485,16 @@ export const CLASS_RULES: Record<string, ClassRule> = {
   IfcFlowStorageDevice: nameRule,
   IfcFlowTreatmentDevice: nameRule,
   IfcEnergyConversionDevice: nameRule,
-  IfcDiscreteAccessory: civilFirst(nameRule),
-  IfcMechanicalFastener: nameRule,
-  IfcElementAssembly: civilFirst(nameRule),
+  IfcDiscreteAccessory: supportFirst(civilFirst(nameRule)),
+  IfcMechanicalFastener: supportFirst(nameRule),
+  IfcElementAssembly: supportFirst(civilFirst(nameRule)),
 };
 
 /** The rule result for an element, in rules keys (the codes of the default schema), or null when no rule applies. */
 export function classByRules(i: ClassifyInput): RuleHit | null {
   const rule = CLASS_RULES[i.ifcClass];
   if (!rule) return null;
-  return rule({ i, hay: hayOf(i), building: isBuildingContext(i) });
+  return rule({ i, hay: hayOf(i), building: isBuildingContext(i), process: isProcessContext(i) });
 }
 
 /**

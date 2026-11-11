@@ -418,3 +418,18 @@ describe('the service: Calibrate on rules, persistence and the drawer numbers', 
     expect(svc.results().find((r) => r.id === before.id)!.discipline.confidence).toBeCloseTo(before.discipline.confidence, 6);
   });
 });
+
+describe('shipped temperatures after the truth refit', () => {
+  it('keep a per-question record of where each number came from, for the truth-bench models', async () => {
+    const { SHIPPED_TEMPERATURES } = await import('../src/classify/calibrationDefaults');
+    for (const id of ['decision:MoritzLaurer/deberta-v3-xsmall-zeroshot-v1.1-all-33', 'decision:MoritzLaurer/deberta-v3-base-zeroshot-v2.0', 'd3']) {
+      const fit = SHIPPED_TEMPERATURES[id]!;
+      expect(fit.n).toBe(114);
+      for (const q of ['discipline', 'sub_discipline', 'masterformat', 'building_element'] as const) expect(fit.detail?.[q], `${id} ${q}`).toMatch(/\S/);
+      for (const t of Object.values(fit.temperatures)) expect(t).toBeGreaterThanOrEqual(0.05);
+    }
+    // d3: the discipline question is not scaled any more (it was under-confident on the truth), the sub-discipline is
+    expect(SHIPPED_TEMPERATURES['d3']!.temperatures.discipline).toBeUndefined();
+    expect(SHIPPED_TEMPERATURES['d3']!.temperatures.sub_discipline).toBe(1.99);
+  });
+});

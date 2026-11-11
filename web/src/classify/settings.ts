@@ -24,6 +24,14 @@ import type { WebLlmMode } from './providers/webllm';
 export const PROVIDERS = ['off', 'decision', 'd3', 'webllm', 'jev', 'mock'] as const;
 export type ProviderId = (typeof PROVIDERS)[number];
 
+/**
+ * How the rules and the decision model combine. `final`: a rule hit with confidence at or above 0.85 (RULE_FINAL) is used as it is, for
+ * the discipline, the sub-discipline and the division together, and the model answers every other element (a weaker rule is kept only as
+ * the fallback when the model fails). `off`: the rules are not run; the model answers every element.
+ */
+export const RULES_MODES = ['final', 'off'] as const;
+export type RulesMode = (typeof RULES_MODES)[number];
+
 export interface ClassifyShared {
   /** URL of a schema file (`xray-classification-schema/1`). Empty: the built-in Throughline-aligned default schema. */
   schemaUrl: string;
@@ -31,6 +39,8 @@ export interface ClassifyShared {
   minConfidence: number | null;
   /** Write the results as properties under the pset name of the schema. */
   writePset: boolean;
+  /** Rules where certain, else the model (`final`), or the model for every element (`off`). */
+  rulesMode: RulesMode;
   /** Logit scaling of the confidence: shipped numbers per model (auto), numbers fitted on this model (fitted), your own (manual), or none (off). */
   calibration: CalibrationMode;
   /** Temperatures of the `manual` mode, per question. A question that is missing is not scaled. */
@@ -122,7 +132,7 @@ export const D3_DEFAULTS = {
   d3Backend: 'browser', d3Repo: D3_REPO_DEFAULT, d3Revision: D3_REVISION_DEFAULT, d3HfEndpoint: D3_HF_ENDPOINT_DEFAULT, d3Device: 'auto',
   d3Endpoint: D3_ENDPOINT_DEFAULT, d3Model: D3_MODEL_DEFAULT, d3MaxStateBytes: D3_STATE_BYTES_DEFAULT,
 } as const;
-export const SHARED_DEFAULTS = { calibration: 'auto', images: 'off', imageStyle: 'render', imagePlan: false, imageSize: IMAGE_SIZE_DEFAULT, imageMargin: IMAGE_MARGIN_DEFAULT, geometryText: 'off', geometryContext: true } as const;
+export const SHARED_DEFAULTS = { rulesMode: 'final', calibration: 'auto', images: 'off', imageStyle: 'render', imagePlan: false, imageSize: IMAGE_SIZE_DEFAULT, imageMargin: IMAGE_MARGIN_DEFAULT, geometryText: 'off', geometryContext: true } as const;
 
 /** Every field at once: the form behind the union. The drawer edits this; `toSettings` picks the part that the provider uses. */
 export interface ClassifyDraft extends ClassifyShared {
@@ -172,7 +182,7 @@ export const customHypotheses = (h: HypothesisTemplates): boolean => HYPOTHESIS_
 
 export function toSettings(d: ClassifyDraft): ClassifySettings {
   const shared: ClassifyShared = {
-    schemaUrl: d.schemaUrl, minConfidence: d.minConfidence, writePset: d.writePset, calibration: d.calibration, temperatures: { ...d.temperatures },
+    schemaUrl: d.schemaUrl, minConfidence: d.minConfidence, writePset: d.writePset, rulesMode: d.rulesMode, calibration: d.calibration, temperatures: { ...d.temperatures },
     images: d.images, imageStyle: d.imageStyle, imagePlan: d.imagePlan, imageSize: d.imageSize, imageMargin: d.imageMargin, geometryText: d.geometryText, geometryContext: d.geometryContext,
   };
   switch (d.provider) {
@@ -199,7 +209,7 @@ export function toSettings(d: ClassifyDraft): ClassifySettings {
 
 export function toDraft(s: ClassifySettings, base: ClassifyDraft = defaultDraft()): ClassifyDraft {
   const d: ClassifyDraft = {
-    ...base, provider: s.provider, schemaUrl: s.schemaUrl, minConfidence: s.minConfidence, writePset: s.writePset, calibration: s.calibration, temperatures: { ...s.temperatures },
+    ...base, provider: s.provider, schemaUrl: s.schemaUrl, minConfidence: s.minConfidence, writePset: s.writePset, rulesMode: s.rulesMode, calibration: s.calibration, temperatures: { ...s.temperatures },
     images: s.images, imageStyle: s.imageStyle, imagePlan: s.imagePlan, imageSize: s.imageSize, imageMargin: s.imageMargin, geometryText: s.geometryText, geometryContext: s.geometryContext,
   };
   if (s.provider === 'jev') Object.assign(d, { endpoint: s.endpoint, model: s.model, timeoutMs: s.timeoutMs, concurrency: s.concurrency, maxStateBytes: s.maxStateBytes, jevImages: s.jevImages });
@@ -234,7 +244,7 @@ const KNOWN = new Set([
   'provider', 'schemaUrl', 'minConfidence', 'writePset', 'endpoint', 'model', 'timeoutMs', 'concurrency', 'maxStateBytes', 'webllmModel',
   'webllmMode', 'webllmEmbedModel', 'embedTemperature', 'hybridMargin', 'webllmCustomModel', 'webllmCustomLib',
   'hfModel', 'device', 'dtype', 'hfEndpoint', 'hypothesis',
-  'calibration', 'temperatures', 'images', 'imageStyle', 'imagePlan', 'imageSize', 'imageMargin', 'imageViews', 'geometryText', 'geometryContext', 'jevImages',
+  'rulesMode', 'calibration', 'temperatures', 'images', 'imageStyle', 'imagePlan', 'imageSize', 'imageMargin', 'imageViews', 'geometryText', 'geometryContext', 'jevImages',
   'd3Backend', 'd3Repo', 'd3Revision', 'd3HfEndpoint', 'd3Device', 'd3Endpoint', 'd3Model', 'd3MaxStateBytes',
 ]);
 
@@ -377,6 +387,11 @@ export function validateSettings(raw: unknown): SettingsCheck {
   }
 
   // ---- logit scaling and pictures (shared)
+  if (raw['rulesMode'] !== undefined) {
+    if ((RULES_MODES as readonly unknown[]).includes(raw['rulesMode'])) d.rulesMode = raw['rulesMode'] as RulesMode;
+    else errors.push(`rulesMode must be one of ${RULES_MODES.join(', ')}. Using "${SHARED_DEFAULTS.rulesMode}".`);
+  }
+  if (d.rulesMode === 'off' && d.provider === 'off') warnings.push('rulesMode is "off" and no decision model is set, so nothing will be classified. Use "final", or choose a provider.');
   if (raw['calibration'] !== undefined) {
     if ((CALIBRATION_MODES as readonly unknown[]).includes(raw['calibration'])) d.calibration = raw['calibration'] as CalibrationMode;
     else errors.push(`calibration must be one of ${CALIBRATION_MODES.join(', ')}. Using "${SHARED_DEFAULTS.calibration}".`);

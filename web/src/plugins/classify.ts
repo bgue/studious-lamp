@@ -31,7 +31,7 @@ import { browserKeyStorages } from '../classify/keyStore';
 import { ClassifyService } from '../classify/service';
 import type { CalibrationStatus } from '../classify/calibrationStatus';
 import type { ModelTest, RunOptions, Target } from '../classify/service';
-import { PROVIDERS } from '../classify/settings';
+import { PROVIDERS, RULES_MODES } from '../classify/settings';
 import type { ProviderId } from '../classify/settings';
 import { D3_DEFAULTS, JEV_DEFAULTS } from '../classify/settings';
 import { propertyNames } from '../classify/schema';
@@ -716,8 +716,7 @@ function panel(box: HTMLElement, app: ViewerApp, svc: ClassifyService, tint: Tin
   box.appendChild(section('Run'));
   const estimateEl = statusLine('');
   estimateEl.style.whiteSpace = 'pre-line';
-  const useRules = add(check('Use rules first', () => useRulesOn, (v) => { useRulesOn = v; scheduleEstimate(); }));
-  let useRulesOn = true;
+  const useRules = add(pick('Rules and model', RULES_MODES.map((v) => ({ value: v, text: v === 'final' ? 'Rules where certain, else the model' : 'The model for everything' })), () => d().rulesMode, (v) => { apply({ rulesMode: v }); scheduleEstimate(); }));
   const prog = el('div', 'xc-prog');
   const bar = el('i');
   prog.appendChild(bar);
@@ -725,7 +724,7 @@ function panel(box: HTMLElement, app: ViewerApp, svc: ClassifyService, tint: Tin
   let runMsg: string | null = null;
   let infoMsg: string | null = null;
   const run = (target: Target): void => {
-    const opts: RunOptions = useRulesOn ? {} : { rules: false };
+    const opts: RunOptions = {};
     runMsg = null;
     infoMsg = null;
     if (target === 'selection' && app.selection.length === 0) {
@@ -892,7 +891,7 @@ function panel(box: HTMLElement, app: ViewerApp, svc: ClassifyService, tint: Tin
     estTimer = null;
     const m = svc.model;
     if (!m) { estimateEl.set('No model loaded'); return; }
-    const o: RunOptions = useRulesOn ? {} : { rules: false };
+    const o: RunOptions = {};
     const line = (label: string, e: ReturnType<typeof svc.estimate>): string =>
       `${label}: ${e.elements} elements, ${e.byRules} by rules, ${e.cached} cached, ${e.manual} manual. ${e.signatures} signature${e.signatures === 1 ? '' : 's'}, ${e.signatures === 0 ? '0' : `${e.callsMin} to ${e.calls}`} request${e.calls === 1 ? '' : 's'}.`;
     const s = svc.estimate('selection', o);

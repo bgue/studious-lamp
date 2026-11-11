@@ -9,7 +9,7 @@ export type { CallEstimate, ClassifyRun, ClassifyRunOptions, SubDisciplineStrate
 export { buildInput, buildInputs, splitProps } from './build';
 export { buildState, signatureOf, nameStem, DEFAULT_MAX_STATE_BYTES } from './state';
 export { mainQuestions, subQuestions } from './questions';
-export { classByRules, isBuildingContext, resolveRule, RULE_FINAL } from './rules';
+export { classByRules, isBuildingContext, isProcessContext, isProcessModel, processEvidenceOf, resolveRule, RULE_FINAL } from './rules';
 export { defaultSchema, parseSchema, propertyNames, schemaHash, DEFAULT_MIN_CONFIDENCE, SCHEMA_ID } from './schema';
 export { MemoryCache, StorageCache, cacheKey } from './cache';
 export type { CachedDecision, KeyValueStorage, SignatureCache } from './cache';
@@ -26,7 +26,8 @@ export { importDisciplineList, exportThroughline, exportThroughlineJson, schemaT
 export type { ThroughlineCodeValue, ThroughlineExport } from './throughline';
 export { createProvider, providerId, testConnection } from './providers';
 export { buildRequest, parseResponse, JEV_DEFAULT_ENDPOINT, JEV_DEFAULT_MODEL, JEV_LATEST_ALIAS } from './jevAdapter';
-export { validateSettings, defaultDraft, toSettings, toDraft, JEV_DEFAULTS, PROVIDERS } from './settings';
+export { validateSettings, defaultDraft, toSettings, toDraft, JEV_DEFAULTS, PROVIDERS, RULES_MODES } from './settings';
+export type { RulesMode } from './settings';
 export { ApiKeyStore, HF_TOKEN_STORAGE_NAME, KEY_STORAGE_NAME } from './keyStore';
 export { withBackoff } from './retry';
 

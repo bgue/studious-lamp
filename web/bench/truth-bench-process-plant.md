@@ -1,217 +1,200 @@
-# Truth bench: process-plant
+# Truth bench: process plant
 
-Truth: ../models/Process-Plant.truth.json (tools/make_process_plant_ifc.py --seed 1; Labels are the design intent set when each element was created, from the schema descriptions; no classifier output was used. Piping: process services and the flare line are PIP/PRC, cooling water, steam and condensate are PIP/UTL (flare alt UTL), all with division 40; fittings, spool joints, nozzle flanges, tees and spectacle blinds follow their line (a nozzle flange alt: the equipment's sub-discipline). Valves are PIP/VLV; a regulating valve with an F-tag is a control valve, INS/CTL; transmitters and gauges are INS/SNS. Pumps, their motors and baseplates are PIP/PMP division 43 (motor alt division 26, baseplate alt EQP, SUP); exchangers with channel and saddles are PIP/HTX division 42; drums and skirts are PIP/VES division 43. Pipe sleepers, T-supports and riser guides are PIP/SUP division 40 (alt 05 steel or 03 concrete); cable tray supports and the tray riser stanchion follow the tray, ELE/CND (alt division 05). Foundations under equipment are CIV/FND, under rack and platform steel STR/FND, both division 03. Rack steel is STR (COL, BEM, BRC; base plates BRC), platform grating STR/SLB, stair and railings ARC/STA division 05. Masonry exterior walls are load bearing, STR/WLS 04; the block partition is ARC/WAL 04; floor and roof slabs are STR/SLB 03 (roof alt division 07). Doors ARC/DOR and windows ARC/WIN, division 08. Paving, roads and kerbs CIV/PAV 32, fence posts CIV/LND 32, drain trench CIV/DRN 33. Switchboards ELE/PWR, cable tray ELE/CND, luminaires ELE/LTG, division 26. The battery-limit marker board is a sign that fits no discipline: GEN/UNC with division 10. IfcSpace and IfcOpeningElement are not kept by the converter and have no entry.). 1294 elements with truth in 114 signatures; 0 elements without truth, 0 truth entries without an element.
-"cal" = shipped temperatures (the app's auto mode), "raw" = T 1. Strict/lenient: lenient also accepts the truth's alt. cover/prec at minConfidence 0.6. s/sig = seconds per signature on the app's path (main + chained sub request). Rules and majority have confidence 1 (majority: the class share); a rules no-match is an abstain.
+**Read this first.** The classifier rules (and so every `hybrid-*` arm, which uses a final rule as it is) were tuned on THIS plant, against THIS truth, in the same work that produced this table. Rules that match the truth's conventions make their own score circular: `rules` at about 100% and every hybrid at about 100% measure how well the rules were fitted to one synthetic unit, not how well they classify a plant they have not seen. The shipped temperatures were also fitted on this plant (5-fold cross-validation by signature, so the temperature numbers are out of fold, the rule numbers are not). The honest estimate of a hybrid is the reference row **"hybrid-d3, OLD rules (offline)"**: the rules as they were BEFORE this tuning (bench-truth, old rules), recombined offline with the current d3 results (the rule when it was final, else d3). It is an offline recombination, not a run of the app. The model-only arms (`xsmall`, `base2`, `d3*`) never see the rules and are the non-circular numbers.
 
-## discipline
+Truth: `models/Process-Plant.truth.json` (tools/make_process_plant_ifc.py --seed 1; design intent set when each element was created, no classifier output used). 1294 elements in 114 signatures, scored per element. "cal" = shipped temperatures (the app's `auto` mode), "raw" = T 1. Lenient also accepts the truth's alternative. cover and prec at minConfidence 0.6. GEN rate = share of answers that are the fallback (GEN, or GEN/UNC for the chained sub question). Rules and majority have confidence 1 (majority: the class share). Data: `bt3/truth-bench.json`.
 
-Per element
+Arms: rules; majority (trivial baseline); xsmall = deberta-v3-xsmall-zeroshot-v1.1 (app default); base2 = deberta-v3-base-zeroshot-v2.0; d3 = d3-edge, text state, 2000 byte cap (as the app sends it); d3-psets = d3 with the cap raised so no signature is truncated; d3-svg = d3 plus the app's SVG of the element alone; d3-svg-ctx = d3 plus the SVG of the element in its bounding box with its neighbours; d3-svg-ctx-psets = the same with full property sets; hybrid-* = the app's pipeline (a final rule is used as it is, the model answers the rest).
 
-| arm | n | strict | lenient | cover@0.6 | prec@0.6 | ECE | GEN/UNC/abstain | s/sig |
-|---|---|---|---|---|---|---|---|---|
-| rules | 1294 | 68% | 68% | 99% | 69% | 0.31 | 1% | 0.0 |
-| majority | 1294 | 50% | 50% | 0% | - | 0.00 | 0% | 0.0 |
-| xsmall cal | 1294 | 52% | 52% | 0% | - | 0.54 | 0% | 1.0 |
-| xsmall raw | 1294 | 52% | 52% | 0% | - | 0.54 | 0% |  |
-| base2 cal | 1294 | 63% | 63% | 71% | 88% | 0.24 | 11% | 3.8 |
-| base2 raw | 1294 | 54% | 54% | 27% | 79% | 0.26 | 11% |  |
-| d3 cal | 1294 | 84% | 84% | 25% | 100% | 0.35 | 9% | 8.1 |
-| d3 raw | 1294 | 82% | 82% | 54% | 83% | 0.21 | 10% |  |
+**d3-psets is identical to d3, and d3-svg-ctx-psets to d3-svg-ctx, by construction**: no signature's state reaches the 2000 byte cap (largest full state 597 bytes), so the raised cap changes nothing and the runs are cache hits of their twins (see the state report below).
 
-Per signature
+## Summary
 
-| arm | n | strict | lenient | cover@0.6 | prec@0.6 | ECE | GEN/UNC/abstain | s/sig |
-|---|---|---|---|---|---|---|---|---|
-| rules | 114 | 60% | 60% | 96% | 62% | 0.38 | 4% | 0.0 |
-| majority | 114 | 61% | 61% | 0% | - | 0.12 | 0% | 0.0 |
-| xsmall cal | 114 | 45% | 45% | 0% | - | 0.36 | 0% | 1.0 |
-| xsmall raw | 114 | 45% | 45% | 0% | - | 0.36 | 0% |  |
-| base2 cal | 114 | 70% | 70% | 82% | 81% | 0.25 | 1% | 3.8 |
-| base2 raw | 114 | 64% | 64% | 25% | 61% | 0.30 | 1% |  |
-| d3 cal | 114 | 82% | 82% | 18% | 100% | 0.40 | 6% | 8.1 |
-| d3 raw | 114 | 81% | 81% | 41% | 79% | 0.29 | 9% |  |
+Best model-only discipline (cal, strict): d3 82.5%. Best model-only sub_chained (cal, strict): d3 63.2%. Best model-only division (cal, strict): d3 28.7%.
+Geometry did not help d3 on this plant: the SVG arms are far below the text baseline (discipline strict d3 82.5%, d3-svg 41.2%, d3-svg-ctx 31.7%) and the model answers GEN far more often (10% of elements for d3, 58% for d3-svg, 68% for d3-svg-ctx). The hybrids are then equal to each other (the rules decide almost every element).
 
-## sub_chained (right only when discipline and sub match)
+## Discipline
 
-Per element
+| arm | strict | lenient | cover@0.6 | prec@0.6 | ECE | GEN rate |
+|---|---|---|---|---|---|---|
+| rules | 99.9% | 99.9% | 99.9% | 100.0% | 0.00 | 0.1% |
+| majority | 49.6% | 49.6% | 0.0% | - | 0.00 | 0.0% |
+| xsmall cal | 52.2% | 52.2% | 0.0% | - | 0.49 | 0.0% |
+| xsmall raw | 52.2% | 52.2% | 0.0% | - | 0.54 | 0.0% |
+| base2 cal | 63.4% | 63.4% | 71.3% | 87.7% | 0.24 | 10.5% |
+| base2 raw | 54.3% | 54.3% | 27.3% | 78.8% | 0.26 | 10.5% |
+| d3 cal | 82.5% | 82.5% | 53.8% | 83.2% | 0.21 | 10.4% |
+| d3 raw | 82.5% | 82.5% | 53.8% | 83.2% | 0.21 | 10.4% |
+| d3-psets cal | 82.5% | 82.5% | 53.8% | 83.2% | 0.21 | 10.4% |
+| d3-psets raw | 82.5% | 82.5% | 53.8% | 83.2% | 0.21 | 10.4% |
+| d3-svg cal | 41.2% | 41.2% | 34.2% | 45.0% | 0.34 | 57.9% |
+| d3-svg raw | 41.2% | 41.2% | 34.2% | 45.0% | 0.34 | 57.9% |
+| d3-svg-ctx cal | 31.7% | 31.7% | 15.0% | 23.7% | 0.40 | 67.9% |
+| d3-svg-ctx raw | 31.7% | 31.7% | 15.0% | 23.7% | 0.40 | 67.9% |
+| d3-svg-ctx-psets cal | 31.7% | 31.7% | 15.0% | 23.7% | 0.40 | 67.9% |
+| d3-svg-ctx-psets raw | 31.7% | 31.7% | 15.0% | 23.7% | 0.40 | 67.9% |
+| hybrid-xsmall cal | 99.9% | 99.9% | 99.9% | 100.0% | 0.09 | 0.0% |
+| hybrid-xsmall raw | 99.9% | 99.9% | 99.9% | 100.0% | 0.09 | 0.0% |
+| hybrid-d3 cal | 100.0% | 100.0% | 100.0% | 100.0% | 0.09 | 0.1% |
+| hybrid-d3 raw | 100.0% | 100.0% | 100.0% | 100.0% | 0.09 | 0.1% |
+| hybrid-d3-svg cal | 100.0% | 100.0% | 100.0% | 100.0% | 0.09 | 0.1% |
+| hybrid-d3-svg raw | 100.0% | 100.0% | 100.0% | 100.0% | 0.09 | 0.1% |
+| hybrid-d3-svg-ctx cal | 100.0% | 100.0% | 100.0% | 100.0% | 0.09 | 0.1% |
+| hybrid-d3-svg-ctx raw | 100.0% | 100.0% | 100.0% | 100.0% | 0.09 | 0.1% |
+| hybrid-d3, OLD rules (offline) cal | 79.1% | 79.1% | 86.2% | 80.6% | 0.20 | 1.2% |
+| hybrid-d3, OLD rules (offline) raw | 79.1% | 79.1% | 86.2% | 80.6% | 0.20 | 1.2% |
 
-| arm | n | strict | lenient | cover@0.6 | prec@0.6 | ECE | GEN/UNC/abstain | s/sig |
-|---|---|---|---|---|---|---|---|---|
-| rules | 1294 | 68% | 68% | 99% | 69% | 0.31 | 1% | 0.0 |
-| majority | 1294 | 20% | 20% | 0% | - | 0.21 | 0% | 0.0 |
-| xsmall cal | 1294 | 9% | 9% | 1% | 0% | 0.19 | 0% | 1.0 |
-| xsmall raw | 1294 | 9% | 9% | 0% | - | 0.06 | 0% |  |
-| base2 cal | 1294 | 33% | 33% | 20% | 36% | 0.21 | 11% | 3.8 |
-| base2 raw | 1294 | 21% | 21% | 4% | 89% | 0.13 | 11% |  |
-| d3 cal | 1294 | 64% | 65% | 72% | 82% | 0.15 | 9% | 8.1 |
-| d3 raw | 1294 | 63% | 64% | 86% | 69% | 0.24 | 10% |  |
+## Sub-discipline, chained (right only when discipline and sub match)
 
-Per signature
+| arm | strict | lenient | cover@0.6 | prec@0.6 | ECE | GEN rate |
+|---|---|---|---|---|---|---|
+| rules | 99.9% | 99.9% | 99.9% | 100.0% | 0.00 | 0.1% |
+| majority | 20.4% | 20.4% | 0.0% | - | 0.21 | 0.0% |
+| xsmall cal | 9.1% | 9.1% | 0.0% | - | 0.06 | 0.0% |
+| xsmall raw | 9.1% | 9.1% | 0.0% | - | 0.06 | 0.0% |
+| base2 cal | 33.3% | 33.3% | 20.5% | 36.2% | 0.21 | 10.5% |
+| base2 raw | 20.6% | 20.6% | 4.3% | 89.3% | 0.13 | 10.5% |
+| d3 cal | 63.2% | 63.5% | 63.8% | 79.5% | 0.23 | 10.4% |
+| d3 raw | 63.2% | 63.5% | 86.3% | 69.4% | 0.24 | 10.4% |
+| d3-psets cal | 63.2% | 63.5% | 63.8% | 79.5% | 0.23 | 10.4% |
+| d3-psets raw | 63.2% | 63.5% | 86.3% | 69.4% | 0.24 | 10.4% |
+| d3-svg cal | 39.3% | 39.3% | 56.2% | 66.3% | 0.49 | 57.9% |
+| d3-svg raw | 39.3% | 39.3% | 95.1% | 40.5% | 0.47 | 57.9% |
+| d3-svg-ctx cal | 31.5% | 31.5% | 21.9% | 47.9% | 0.31 | 67.9% |
+| d3-svg-ctx raw | 31.5% | 31.5% | 93.2% | 33.8% | 0.46 | 67.9% |
+| d3-svg-ctx-psets cal | 31.5% | 31.5% | 21.9% | 47.9% | 0.31 | 67.9% |
+| d3-svg-ctx-psets raw | 31.5% | 31.5% | 93.2% | 33.8% | 0.46 | 67.9% |
+| hybrid-xsmall cal | 99.9% | 99.9% | 99.9% | 100.0% | 0.09 | 0.0% |
+| hybrid-xsmall raw | 99.9% | 99.9% | 99.9% | 100.0% | 0.09 | 0.0% |
+| hybrid-d3 cal | 100.0% | 100.0% | 100.0% | 100.0% | 0.09 | 0.1% |
+| hybrid-d3 raw | 100.0% | 100.0% | 100.0% | 100.0% | 0.09 | 0.1% |
+| hybrid-d3-svg cal | 100.0% | 100.0% | 100.0% | 100.0% | 0.09 | 0.1% |
+| hybrid-d3-svg raw | 100.0% | 100.0% | 100.0% | 100.0% | 0.09 | 0.1% |
+| hybrid-d3-svg-ctx cal | 100.0% | 100.0% | 100.0% | 100.0% | 0.09 | 0.1% |
+| hybrid-d3-svg-ctx raw | 100.0% | 100.0% | 100.0% | 100.0% | 0.09 | 0.1% |
+| hybrid-d3, OLD rules (offline) cal | 73.1% | 73.4% | 91.0% | 79.5% | 0.22 | 1.2% |
+| hybrid-d3, OLD rules (offline) raw | 73.1% | 73.4% | 95.8% | 76.0% | 0.24 | 1.2% |
 
-| arm | n | strict | lenient | cover@0.6 | prec@0.6 | ECE | GEN/UNC/abstain | s/sig |
-|---|---|---|---|---|---|---|---|---|
-| rules | 114 | 60% | 60% | 95% | 63% | 0.37 | 5% | 0.0 |
-| majority | 114 | 23% | 23% | 0% | - | 0.18 | 0% | 0.0 |
-| xsmall cal | 114 | 12% | 12% | 4% | 0% | 0.18 | 0% | 1.0 |
-| xsmall raw | 114 | 12% | 12% | 0% | - | 0.04 | 0% |  |
-| base2 cal | 114 | 44% | 44% | 32% | 64% | 0.14 | 1% | 3.8 |
-| base2 raw | 114 | 30% | 30% | 10% | 82% | 0.12 | 1% |  |
-| d3 cal | 114 | 65% | 66% | 65% | 82% | 0.09 | 6% | 8.1 |
-| d3 raw | 114 | 63% | 64% | 79% | 71% | 0.20 | 9% |  |
+## Sub-discipline, oracle (asked under the true discipline)
 
-## sub_oracle
+| arm | strict | lenient | cover@0.6 | prec@0.6 | ECE | GEN rate |
+|---|---|---|---|---|---|---|
+| rules | 99.9% | 99.9% | 99.9% | 100.0% | 0.00 | 0.1% |
+| majority | 54.9% | 54.9% | 34.3% | 81.5% | 0.00 | 0.1% |
+| xsmall cal | 18.9% | 18.9% | 3.8% | 100.0% | 0.15 | 0.1% |
+| xsmall raw | 18.9% | 18.9% | 3.8% | 100.0% | 0.15 | 0.1% |
+| base2 cal | 52.3% | 52.3% | 19.9% | 96.5% | 0.15 | 0.1% |
+| base2 raw | 52.3% | 52.3% | 16.9% | 100.0% | 0.19 | 0.1% |
+| d3 cal | 74.2% | 74.5% | 84.0% | 77.2% | 0.13 | 0.1% |
+| d3 raw | 74.2% | 74.5% | 92.3% | 76.4% | 0.25 | 0.1% |
+| d3-psets cal | 74.2% | 74.5% | 84.0% | 77.2% | 0.13 | 0.1% |
+| d3-psets raw | 74.2% | 74.5% | 92.3% | 76.4% | 0.25 | 0.1% |
+| d3-svg cal | 69.6% | 69.9% | 79.0% | 76.5% | 0.15 | 0.1% |
+| d3-svg raw | 69.6% | 69.9% | 84.8% | 76.7% | 0.21 | 0.1% |
+| d3-svg-ctx cal | 64.2% | 64.5% | 57.3% | 65.9% | 0.20 | 0.1% |
+| d3-svg-ctx raw | 64.2% | 64.5% | 82.6% | 70.3% | 0.24 | 0.1% |
+| d3-svg-ctx-psets cal | 64.2% | 64.5% | 57.3% | 65.9% | 0.20 | 0.1% |
+| d3-svg-ctx-psets raw | 64.2% | 64.5% | 82.6% | 70.3% | 0.24 | 0.1% |
+| hybrid-xsmall cal | 100.0% | 100.0% | 100.0% | 100.0% | 0.09 | 0.1% |
+| hybrid-xsmall raw | 100.0% | 100.0% | 100.0% | 100.0% | 0.09 | 0.1% |
+| hybrid-d3 cal | 100.0% | 100.0% | 100.0% | 100.0% | 0.09 | 0.1% |
+| hybrid-d3 raw | 100.0% | 100.0% | 100.0% | 100.0% | 0.09 | 0.1% |
+| hybrid-d3-svg cal | 100.0% | 100.0% | 100.0% | 100.0% | 0.09 | 0.1% |
+| hybrid-d3-svg raw | 100.0% | 100.0% | 100.0% | 100.0% | 0.09 | 0.1% |
+| hybrid-d3-svg-ctx cal | 100.0% | 100.0% | 100.0% | 100.0% | 0.09 | 0.1% |
+| hybrid-d3-svg-ctx raw | 100.0% | 100.0% | 100.0% | 100.0% | 0.09 | 0.1% |
+| hybrid-d3, OLD rules (offline) cal | 73.6% | 74.0% | 92.4% | 78.6% | 0.19 | 0.1% |
+| hybrid-d3, OLD rules (offline) raw | 73.6% | 74.0% | 96.1% | 76.7% | 0.23 | 0.1% |
 
-Per element
+## Division (MasterFormat, ungated)
 
-| arm | n | strict | lenient | cover@0.6 | prec@0.6 | ECE | GEN/UNC/abstain | s/sig |
-|---|---|---|---|---|---|---|---|---|
-| rules | 1294 | 68% | 68% | 99% | 69% | 0.31 | 1% | 0.0 |
-| majority | 1294 | 55% | 55% | 34% | 82% | 0.00 | 0% | 0.0 |
-| xsmall cal | 1294 | 19% | 19% | 38% | 34% | 0.35 | 0% | 1.0 |
-| xsmall raw | 1294 | 19% | 19% | 4% | 100% | 0.15 | 0% |  |
-| base2 cal | 1294 | 52% | 52% | 20% | 96% | 0.15 | 0% | 3.8 |
-| base2 raw | 1294 | 52% | 52% | 17% | 100% | 0.19 | 0% |  |
-| d3 cal | 1294 | 74% | 74% | 90% | 78% | 0.20 | 0% | 8.1 |
-| d3 raw | 1294 | 74% | 74% | 92% | 76% | 0.25 | 0% |  |
+| arm | strict | lenient | cover@0.6 | prec@0.6 | ECE | GEN rate |
+|---|---|---|---|---|---|---|
+| rules | 99.9% | 99.9% | 99.9% | 100.0% | 0.00 | 0.1% |
+| majority | 49.8% | 50.2% | 0.0% | - | 0.00 | 0.0% |
+| xsmall cal | 19.7% | 22.7% | 0.0% | - | 0.12 | 0.0% |
+| xsmall raw | 19.7% | 22.7% | 0.0% | - | 0.12 | 0.0% |
+| base2 cal | 22.1% | 28.1% | 11.4% | 7.5% | 0.27 | 0.0% |
+| base2 raw | 22.1% | 28.1% | 11.4% | 7.5% | 0.27 | 0.0% |
+| d3 cal | 28.7% | 29.4% | 19.1% | 85.0% | 0.17 | 0.0% |
+| d3 raw | 28.7% | 29.4% | 19.1% | 85.0% | 0.17 | 0.0% |
+| d3-psets cal | 28.7% | 29.4% | 19.1% | 85.0% | 0.17 | 0.0% |
+| d3-psets raw | 28.7% | 29.4% | 19.1% | 85.0% | 0.17 | 0.0% |
+| d3-svg cal | 14.8% | 14.8% | 0.0% | - | 0.28 | 0.0% |
+| d3-svg raw | 14.8% | 14.8% | 0.0% | - | 0.28 | 0.0% |
+| d3-svg-ctx cal | 14.3% | 14.3% | 0.0% | - | 0.17 | 0.0% |
+| d3-svg-ctx raw | 14.3% | 14.3% | 0.0% | - | 0.17 | 0.0% |
+| d3-svg-ctx-psets cal | 14.3% | 14.3% | 0.0% | - | 0.17 | 0.0% |
+| d3-svg-ctx-psets raw | 14.3% | 14.3% | 0.0% | - | 0.17 | 0.0% |
+| hybrid-xsmall cal | 99.9% | 99.9% | 99.9% | 100.0% | 0.09 | 0.0% |
+| hybrid-xsmall raw | 99.9% | 99.9% | 99.9% | 100.0% | 0.09 | 0.0% |
+| hybrid-d3 cal | 99.9% | 99.9% | 99.9% | 100.0% | 0.09 | 0.0% |
+| hybrid-d3 raw | 99.9% | 99.9% | 99.9% | 100.0% | 0.09 | 0.0% |
+| hybrid-d3-svg cal | 99.9% | 99.9% | 99.9% | 100.0% | 0.09 | 0.0% |
+| hybrid-d3-svg raw | 99.9% | 99.9% | 99.9% | 100.0% | 0.09 | 0.0% |
+| hybrid-d3-svg-ctx cal | 99.9% | 99.9% | 99.9% | 100.0% | 0.09 | 0.0% |
+| hybrid-d3-svg-ctx raw | 99.9% | 99.9% | 99.9% | 100.0% | 0.09 | 0.0% |
+| hybrid-d3, OLD rules (offline) cal | 62.0% | 62.6% | 79.0% | 78.5% | 0.22 | 0.0% |
+| hybrid-d3, OLD rules (offline) raw | 62.0% | 62.6% | 79.0% | 78.5% | 0.22 | 0.0% |
 
-Per signature
+## Cost
 
-| arm | n | strict | lenient | cover@0.6 | prec@0.6 | ECE | GEN/UNC/abstain | s/sig |
-|---|---|---|---|---|---|---|---|---|
-| rules | 114 | 60% | 60% | 95% | 63% | 0.37 | 5% | 0.0 |
-| majority | 114 | 39% | 39% | 28% | 50% | 0.13 | 1% | 0.0 |
-| xsmall cal | 114 | 40% | 40% | 46% | 65% | 0.18 | 1% | 1.0 |
-| xsmall raw | 114 | 40% | 40% | 6% | 100% | 0.20 | 1% |  |
-| base2 cal | 114 | 59% | 59% | 30% | 88% | 0.14 | 1% | 3.8 |
-| base2 raw | 114 | 59% | 59% | 20% | 100% | 0.25 | 1% |  |
-| d3 cal | 114 | 73% | 74% | 92% | 77% | 0.17 | 1% | 8.1 |
-| d3 raw | 114 | 73% | 74% | 94% | 77% | 0.21 | 1% |  |
+| arm | mean state tokens (d3 tokenizer) | mean state bytes | s/sig (app path) |
+|---|---|---|---|
+| rules | - | - | 0.0 |
+| majority | - | - | 0.0 |
+| xsmall | - | 425 | 1.0 |
+| base2 | - | 425 | 3.8 |
+| d3 | 167 | 425 | 8.0 |
+| d3-psets | 167 | 425 | 8.0 |
+| d3-svg | 333 | 806 | 9.8 |
+| d3-svg-ctx | 1200 | 2547 | 20.9 |
+| d3-svg-ctx-psets | 1200 | 2547 | 20.9 |
+| hybrid-xsmall | - | 425 | 0.0 |
+| hybrid-d3 | 167 | 425 | 0.1 |
+| hybrid-d3-svg | 333 | 806 | 0.1 |
+| hybrid-d3-svg-ctx | 1200 | 2547 | 0.2 |
 
-## division
+Tokens are the Qwen tokenizer on the state text that d3 reads (SVG included); hybrid arms show the state of the few elements that reach the model. s/sig is the mean wall time per signature of the app path (main plus chained sub request) on 4 CPU cores with onnxruntime-node, fp32; the context SVG request needed up to about 8 GB.
 
-Per element
+## Effect of the refitted temperatures (cal, per element, before and after)
 
-| arm | n | strict | lenient | cover@0.6 | prec@0.6 | ECE | GEN/UNC/abstain | s/sig |
-|---|---|---|---|---|---|---|---|---|
-| rules | 1294 | 65% | 75% | 99% | 66% | 0.34 | 1% | 0.0 |
-| majority | 1294 | 50% | 50% | 0% | - | 0.00 | 0% | 0.0 |
-| xsmall cal | 1294 | 20% | 23% | 8% | 21% | 0.22 | 0% | 1.0 |
-| xsmall raw | 1294 | 20% | 23% | 0% | - | 0.12 | 0% |  |
-| base2 cal | 1294 | 22% | 28% | 14% | 20% | 0.29 | 0% | 3.8 |
-| base2 raw | 1294 | 22% | 28% | 11% | 7% | 0.27 | 0% |  |
-| d3 cal | 1294 | 29% | 29% | 19% | 85% | 0.17 | 0% | 8.1 |
-| d3 raw | 1294 | 29% | 29% | 19% | 85% | 0.17 | 0% |  |
+| arm, question | old temperatures: cover / prec / ECE | refitted: cover / prec / ECE |
+|---|---|---|
+| xsmall, discipline | 0.0% / - / 0.54 | 0.0% / - / 0.49 |
+| xsmall, sub_chained | 0.9% / 0.0% / 0.19 | 0.0% / - / 0.06 |
+| base2, discipline | 71.3% / 87.7% / 0.24 | 71.3% / 87.7% / 0.24 |
+| base2, sub_chained | 20.5% / 36.2% / 0.21 | 20.5% / 36.2% / 0.21 |
+| d3, discipline | 25.0% / 100.0% / 0.35 | 53.8% / 83.2% / 0.21 |
+| d3, sub_chained | 72.0% / 82.4% / 0.15 | 63.8% / 79.5% / 0.23 |
 
-Per signature
+"Old" is the first run of this bench (shipped temperatures fitted on rule labels), "refitted" the current run (see calibrationDefaults.ts).
 
-| arm | n | strict | lenient | cover@0.6 | prec@0.6 | ECE | GEN/UNC/abstain | s/sig |
-|---|---|---|---|---|---|---|---|---|
-| rules | 114 | 54% | 62% | 96% | 57% | 0.43 | 4% | 0.0 |
-| majority | 114 | 61% | 62% | 0% | - | 0.12 | 0% | 0.0 |
-| xsmall cal | 114 | 26% | 28% | 12% | 36% | 0.11 | 0% | 1.0 |
-| xsmall raw | 114 | 26% | 28% | 0% | - | 0.19 | 0% |  |
-| base2 cal | 114 | 18% | 21% | 7% | 63% | 0.21 | 0% | 3.8 |
-| base2 raw | 114 | 18% | 21% | 4% | 80% | 0.08 | 0% |  |
-| d3 cal | 114 | 27% | 30% | 26% | 73% | 0.22 | 0% | 8.1 |
-| d3 raw | 114 | 27% | 30% | 26% | 73% | 0.22 | 0% |  |
+## Geometry flips against d3 text only (strict, per signature, cal)
 
-## division_app (only when building_element >= 0.5)
+- d3-svg, discipline: 1 signatures wrong to right, 55 right to wrong. Wrong to right: IfcBuildingElementProxy Drain trench (concrete channel) (10): PLB -> CIV. Right to wrong: IfcColumn UC 305x305x97 (24): STR -> GEN; IfcBeam UB 457x191x67 (68): STR -> GEN; IfcBeam UB 305x165x40 (5): STR -> GEN; IfcSlab Steel grating 2.0 x 2.0 (12): STR -> GEN.
+- d3-svg, sub_chained: 1 signatures wrong to right, 36 right to wrong. Wrong to right: IfcBuildingElementProxy Drain trench (concrete channel) (10): PLB/DRN -> CIV/DRN. Right to wrong: IfcColumn UC 305x305x97 (24): STR/COL -> GEN/UNC; IfcBeam UB 457x191x67 (68): STR/BEM -> GEN/UNC; IfcBeam UB 305x165x40 (5): STR/BEM -> GEN/UNC; IfcSlab Steel grating 2.0 x 2.0 (12): STR/SLB -> GEN/UNC.
+- d3-svg-ctx, discipline: 0 signatures wrong to right, 63 right to wrong. Right to wrong: IfcSlab Road (concrete) (2): CIV -> GEN; IfcColumn UC 305x305x97 (24): STR -> GEN; IfcColumn SHS 300x300 (6): STR -> GEN; IfcBeam UB 305x165x40 (5): STR -> GEN.
+- d3-svg-ctx, sub_chained: 0 signatures wrong to right, 44 right to wrong. Right to wrong: IfcSlab Road (concrete) (2): CIV/PAV -> GEN/UNC; IfcColumn UC 305x305x97 (24): STR/COL -> GEN/UNC; IfcColumn SHS 300x300 (6): STR/COL -> GEN/UNC; IfcBeam UB 305x165x40 (5): STR/BEM -> GEN/UNC.
 
-Per element
+d3-svg and d3-svg-ctx lose almost entirely on the structural steel, slabs and members that the text state gets right: the extra SVG text is out of distribution for d3-edge and it answers GEN. The one gain is the drain trench (PLB to CIV), where the shape text helps.
 
-| arm | n | strict | lenient | cover@0.6 | prec@0.6 | ECE | GEN/UNC/abstain | s/sig |
-|---|---|---|---|---|---|---|---|---|
-| rules | 1294 | 65% | 75% | 99% | 66% | 0.34 | 1% | 0.0 |
-| majority | 1294 | 50% | 50% | 0% | - | 0.00 | 0% | 0.0 |
-| xsmall cal | 1294 | 20% | 23% | 8% | 21% | 0.22 | 0% | 1.0 |
-| xsmall raw | 1294 | 20% | 23% | 0% | - | 0.12 | 0% |  |
-| base2 cal | 1294 | 22% | 28% | 14% | 20% | 0.29 | 0% | 3.8 |
-| base2 raw | 1294 | 22% | 28% | 11% | 7% | 0.27 | 0% |  |
-| d3 cal | 1294 | 22% | 22% | 16% | 92% | 0.20 | 35% | 8.1 |
-| d3 raw | 1294 | 22% | 22% | 16% | 92% | 0.20 | 35% |  |
+## What d3's state holds, and what the cap cuts
 
-Per signature
+The state is JSON: class, name, type (class and name), psets (Attr plus the element's property sets and quantities), hierarchy (storey), parents (the host or parent element with its psets), systems, building_context; an SVG geometry arm prepends a legend and the SVG text after the cap has been applied. **At the app's 2000 byte cap 0 of the 114 signatures are truncated** (the largest full state is 597 bytes), so d3-psets cannot differ from d3 on this plant. The only example of loss is a cap well below the default (500 bytes, 12 of 114 signatures cut): the window state loses the GlazingAreaFraction property and its parent wall's property sets (full 597 B against cut 405 B, below).
 
-| arm | n | strict | lenient | cover@0.6 | prec@0.6 | ECE | GEN/UNC/abstain | s/sig |
-|---|---|---|---|---|---|---|---|---|
-| rules | 114 | 54% | 62% | 96% | 57% | 0.43 | 4% | 0.0 |
-| majority | 114 | 61% | 62% | 0% | - | 0.12 | 0% | 0.0 |
-| xsmall cal | 114 | 26% | 28% | 12% | 36% | 0.11 | 0% | 1.0 |
-| xsmall raw | 114 | 26% | 28% | 0% | - | 0.19 | 0% |  |
-| base2 cal | 114 | 18% | 21% | 7% | 63% | 0.21 | 0% | 3.8 |
-| base2 raw | 114 | 18% | 21% | 4% | 80% | 0.08 | 0% |  |
-| d3 cal | 114 | 18% | 19% | 17% | 79% | 0.25 | 33% | 8.1 |
-| d3 raw | 114 | 18% | 19% | 17% | 79% | 0.25 | 33% |  |
+```
+114 representatives. Full state (level 0): min 301 B, median 437 B, max 597 B, mean 425 B
+Top-level keys of the full states: class, name, type, psets, hierarchy, building_context, parents, systems
 
-## Chained versus oracle sub-discipline
+cap 2000 B: 0 of 114 truncated
 
-| arm | level | chained | oracle | gap | chained, discipline right | chained wrong discipline | oracle right, chained wrong | of which discipline wrong |
-|---|---|---|---|---|---|---|---|---|
-| rules | element | 68% | 68% | 0 pts | 100% | 411/1294 | 0 | 0 |
-| rules | signature | 60% | 60% | 0 pts | 100% | 46/114 | 0 | 0 |
-| majority | element | 20% | 55% | 34 pts | 41% | 652/1294 | 446 | 446 |
-| majority | signature | 23% | 39% | 17 pts | 37% | 44/114 | 19 | 19 |
-| xsmall cal | element | 9% | 19% | 10 pts | 17% | 619/1294 | 202 | 100 |
-| xsmall cal | signature | 12% | 40% | 28 pts | 27% | 63/114 | 37 | 22 |
-| xsmall raw | element | 9% | 19% | 10 pts | 17% | 619/1294 | 202 | 100 |
-| xsmall raw | signature | 12% | 40% | 28 pts | 27% | 63/114 | 37 | 22 |
-| base2 cal | element | 33% | 52% | 19 pts | 52% | 473/1294 | 246 | 235 |
-| base2 cal | signature | 44% | 59% | 15 pts | 63% | 34/114 | 17 | 14 |
-| base2 raw | element | 21% | 52% | 32 pts | 38% | 592/1294 | 448 | 293 |
-| base2 raw | signature | 30% | 59% | 29 pts | 47% | 41/114 | 37 | 18 |
-| d3 cal | element | 64% | 74% | 10 pts | 77% | 211/1294 | 132 | 132 |
-| d3 cal | signature | 65% | 73% | 8 pts | 79% | 20/114 | 11 | 11 |
-| d3 raw | element | 63% | 74% | 11 pts | 77% | 227/1294 | 148 | 148 |
-| d3 raw | signature | 63% | 73% | 10 pts | 78% | 22/114 | 13 | 13 |
+cap 1000 B: 0 of 114 truncated
 
-## Timing
+cap 500 B: 12 of 114 truncated; lost (key group: signatures): psets.Pset_DoorCommon.*: 3; psets.Pset_WindowCommon.*: 1; psets.Pset_PipeSegmentTypeCommon.*: 32
+  example Window WIN-03
+  full 597 B: {"class":"IfcWindow","name":"Window WIN-03","type":{"class":"IfcWindowType","name":"Double glazing 1.6 x 1.2"},"psets":{"Attr":{"ObjectType":"Double glazing 1.6 x 1.2","Tag":"WIN-03","PredefinedType":"WINDOW"},"Pset_WindowCommon":{"GlazingAreaFraction":0.8,"IsExternal":true,"Reference":"W-16"}},"hierarchy":["IfcBuildingStorey: Grade +0.0"],"parents":[{"class":"IfcWall","name":"Control building wall S","psets":{"Attr":{"ObjectType":"Masonry 300 mm","Tag":"W-S","PredefinedType":"STANDARD"},"Pset_WallCommon":{"IsExternal":true,"LoadBearing":true,"FireRating":"EI30"}}}],"building_context":true}
+  cut  405 B: {"class":"IfcWindow","name":"Window WIN-03","type":{"class":"IfcWindowType","name":"Double glazing 1.6 x 1.2"},"psets":{"Attr":{"ObjectType":"Double glazing 1.6 x 1.2","Tag":"WIN-03","PredefinedType":"WINDOW"},"Pset_WindowCommon":{"IsExternal":true,"Reference":"W-16"}},"hierarchy":["IfcBuildingStorey: Grade +0.0"],"parents":[{"class":"IfcWall","name":"Control building wall S"}],"building_context":true}
 
-| arm | signatures | load s | wall s (all runs) | s/sig (app path) | s/sig (all calls) |
-|---|---|---|---|---|---|
-| rules | 114 | 0.0 | 0.0 | 0.00 | 0.00 |
-| majority | 114 | 0.0 | 0.0 | 0.00 | 0.00 |
-| xsmall | 114 | 1.3 | 127.6 | 1.00 | 1.11 |
-| base2 | 114 | 2.6 | 502.3 | 3.77 | 4.40 |
-| d3 | 114 | 14.2 | 1055.7 | 8.15 | 9.25 |
-
-## Top confusions (per element, cal; truth -> predicted, count)
-
-### discipline
-
-- rules: PIP -> MEC (204); PIP -> STR (79); PIP -> PLB (59); ELE -> STR (49); PIP -> (abstain) (12)
-- majority: CIV -> PIP (230); STR -> PIP (208); ELE -> PIP (160); INS -> PIP (27); ARC -> PIP (26)
-- xsmall: CIV -> ARC (228); PIP -> MEC (110); PIP -> ARC (105); ELE -> STR (47); STR -> ARC (46)
-- base2: CIV -> GEN (136); PIP -> PLB (118); CIV -> ARC (74); ELE -> STR (49); PIP -> STR (38)
-- d3: CIV -> GEN (74); ELE -> PIP (46); STR -> GEN (30); PIP -> MEC (23); ARC -> CIV (16)
-
-### sub_chained
-
-- rules: PIP/UTL -> MEC/HYD (193); PIP/SUP -> STR/BRC (79); PIP/UTL -> PLB/SUP (51); ELE/CND -> STR/BRC (49); PIP/HTX -> (abstain) (6)
-- majority: PIP/UTL -> PIP/PRC (244); CIV/PAV -> PIP/PRC (186); ELE/CND -> PIP/PRC (134); STR/BEM -> PIP/PRC (84); PIP/SUP -> PIP/PRC (83)
-- xsmall: CIV/PAV -> ARC/FIN (186); PIP/UTL -> PIP/SUP (154); PIP/PRC -> PIP/SUP (135); ELE/CND -> ELE/WIR (85); PIP/SUP -> ARC/FIN (74)
-- base2: PIP/UTL -> PIP/PRC (244); CIV/PAV -> GEN/UNC (136); ELE/CND -> ELE/DEV (85); PIP/PRC -> PLB/DRN (79); ELE/CND -> STR/BEM (49)
-- d3: PIP/UTL -> PIP/PRC (220); CIV/PAV -> GEN/UNC (48); ELE/CND -> PIP/SUP (46); STR/FND -> GEN/UNC (30); CIV/LND -> GEN/UNC (26)
-
-### sub_oracle
-
-- rules: UTL -> HYD (193); SUP -> BRC (79); UTL -> SUP (51); CND -> BRC (49); VLV -> EQP (7)
-- majority: UTL -> PRC (244); SUP -> PRC (83); BRC -> BEM (46); COL -> BEM (30); FND -> BEM (30)
-- xsmall: UTL -> VLV (243); PAV -> ERT (186); PRC -> VLV (135); CND -> WIR (85); BEM -> WLS (68)
-- base2: UTL -> PRC (244); CND -> DEV (85); SUP -> PRC (79); CND -> PWR (49); PAV -> ERT (48)
-- d3: UTL -> PRC (244); CND -> WIR (46); BRC -> COL (24); HTX -> SUP (4); PMP -> PRC (4)
-
-### division
-
-- rules: 40 -> 23 (200); 40 -> 05 (79); 40 -> 22 (57); 26 -> 05 (49); 40 -> 25 (24)
-- majority: 32 -> 40 (212); 05 -> 40 (189); 26 -> 40 (160); 03 -> 40 (40); 43 -> 40 (16)
-- xsmall: 40 -> 22 (224); 32 -> 03 (212); 40 -> 23 (150); 26 -> 23 (111); 05 -> 03 (75)
-- base2: 40 -> 05 (363); 40 -> 22 (243); 32 -> 03 (186); 05 -> 03 (30); 32 -> 04 (26)
-- d3: 40 -> 22 (396); 05 -> 13 (103); 40 -> 25 (103); 40 -> 46 (71); 26 -> 25 (49)
-
-### division_app
-
-- rules: 40 -> 23 (200); 40 -> 05 (79); 40 -> 22 (57); 26 -> 05 (49); 40 -> 25 (24)
-- majority: 32 -> 40 (212); 05 -> 40 (189); 26 -> 40 (160); 03 -> 40 (40); 43 -> 40 (16)
-- xsmall: 40 -> 22 (224); 32 -> 03 (212); 40 -> 23 (150); 26 -> 23 (111); 05 -> 03 (75)
-- base2: 40 -> 05 (363); 40 -> 22 (243); 32 -> 03 (186); 05 -> 03 (30); 32 -> 04 (26)
-- d3: 40 -> 22 (303); 40 -> (abstain) (273); 05 -> 13 (97); 05 -> (abstain) (79); 32 -> 03 (48)
+Largest full state (597 B, Window WIN-03): {"class":"IfcWindow","name":"Window WIN-03","type":{"class":"IfcWindowType","name":"Double glazing 1.6 x 1.2"},"psets":{"Attr":{"ObjectType":"Double glazing 1.6 x 1.2","Tag":"WIN-03","PredefinedType":"WINDOW"},"Pset_WindowCommon":{"GlazingAreaFraction":0.8,"IsExternal":true,"Reference":"W-16"}},"hierarchy":["IfcBuildingStorey: Grade +0.0"],"parents":[{"class":"IfcWall","name":"Control building wall S","psets":{"Attr":{"ObjectType":"Masonry 300 mm","Tag":"W-S","PredefinedType":"STANDARD"},"Pset_WallCommon":{"IsExternal":true,"LoadBearing":true,"FireRating":"EI30"}}}],"building_context":true}
+```

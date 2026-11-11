@@ -20,7 +20,13 @@ Cheapest step first. An element leaves the pipeline at the first step that decid
 2. **Deterministic rules** (`rules.ts`): an IFC class map with property, system-name and name hints. `IfcDuctSegment` is HVAC;
    `IfcBeam`, `IfcColumn` and `IfcFooting` are Structural; `IfcWall` is Architectural unless `LoadBearing = true`; `IfcPipeSegment`
    follows the system name (sprinkler, chilled water, domestic water, process, site drainage). A rule gives an answer and a
-   confidence. A rule at or above **0.85** is final. A weaker rule is kept as a fallback only.
+   confidence. A rule at or above **0.85** (`RULE_FINAL`) is **final**: the element is decided there, for the discipline, the
+   sub-discipline and the division together, with the rule's confidence, and no request goes out for it. A weaker rule is kept as a
+   fallback only (used, and flagged for review, when the model fails). The setting **`rulesMode`** chooses (drawer: *Rules and model*):
+   `final` (default, "rules where certain, else the model": the behaviour above) or `off` (the rules are not run, the model answers
+   every element; the *Calibrate on rules* run always uses this, as its labels must not be the model's own answers). There is no
+   per-question mix: a final rule that names the discipline keeps its own sub-discipline and division, so the three answers of
+   one element never come from two sources.
 3. **Signature cache**: one decision per signature, which is the IFC class, the type name (or, with no type name, the name stem
    without digits), `PredefinedType`, `LoadBearing`, `IsExternal`, the systems, the material, the class of the first parent and
    whether the element is in a building. A model with 5,000 elements needs tens of requests, not thousands. The cache is kept
@@ -88,6 +94,29 @@ civil name.
   unresolved 74 to 0. MEC 428, PIP 429, ELE 56, INS 19 and ARC 23 do not change. The 120 paving slabs, 2 roads, 48 kerbs,
   26 fence posts, 10 drain trenches and 8 equipment foundations (under the pumps, exchangers and vessels) are now CIV. The
   28 footings under the rack and platform columns stay STR.
+
+### Rules: process facilities, supports and equipment parts
+
+The same words mean different things in a process facility and in a building, and the schema decides (`default-schema.json`): `PIP/UTL` is "utility piping such as air, steam, water and nitrogen", `PIP/PMP` is
+"process pumps and compressors", `PIP/VES` and `PIP/HTX` are vessels and heat exchangers, `PIP/SUP` is "pipe supports, hangers and guides", `MEC/HYD` is "heating and cooling water piping" and `PLB` is "building plumbing",
+and MasterFormat division 40 is "process piping, valves, instrumentation and control of process systems". So the rules need to know which of the two they are in.
+
+- **Process context** (`isProcessModel`, `processEvidenceOf` in `rules.ts`; `buildInput` sets `ClassifyInput.processContext` for the whole model). It is decided for the model, conservatively: it needs **two different kinds of evidence on at least
+  three elements**. The kinds are a line number (a `LineNumber` property, or an ISA-style number such as `150-CW-1203-A1A` in the tag), a service that only a plant has (a system name or `Service` property with process, flare, crude,
+  hydrocarbon, slurry, solvent, chemical, blowdown, nitrogen, instrument air, plant air or fuel gas), and process equipment (an `IfcTank` `VESSEL` or `PRESSUREVESSEL`, an `IfcHeatExchanger` `SHELLANDTUBE`). Steam, condensate and cooling
+  water are **not** evidence: a hospital has them too. An element built without the model flag (a unit test, an API call) is in a process context only when it carries a line number **and** a process or utility service. None of the other
+  bundled models (building, fzk-haus, plumbing, synth5k, debris-demo) has a process context; a unit test checks it.
+- **In a process context:** steam, condensate, cooling water, boiler feed water, utility air or water and service water piping is `PIP/UTL` (division 40), process and flare services are `PIP/PRC`; a pipe with a line number and no service name is `PIP/PRC`;
+  a valve in such a line is `PIP/VLV`, a `REGULATING` valve is `INS/CTL` (the schema lists control valves there); an `IfcPump` or `IfcCompressor` is `PIP/PMP` (43), an `IfcTank` is `PIP/VES` (43) and an `IfcHeatExchanger` is `PIP/HTX` (42), unless a fire
+  or plumbing name says otherwise (a fire pump stays `FPR`); an `IfcElectricMotor` that names the machine it drives (`Driver`) is `PIP/PMP`; a sensor or flow meter is `INS/SNS` with division 40 (25 in a building); baseplates, skirts, saddles and channels of
+  pumps, vessels and exchangers follow their equipment. **In a building** the same names stay `MEC/HYD` (cooling, chilled, heating, steam), `PLB` (domestic water) and `MEC/EQP` or `PLB/EQP` (pumps, tanks, exchangers).
+- **Supports** (any context): a member, plate, proxy or accessory whose name, type, `ObjectType` or `PredefinedType` says pipe support, sleeper, hanger, shoe, guide or riser guide is `PIP/SUP` (division 40 in a process context, 22 or 23 by system name, else 05);
+  one that says it supports a cable tray (tray support, hanger, bracket, stanchion, riser) goes with the tray, `ELE/CND` (26). A member named bracing, strut or gusset and a plate named base plate, gusset or splice plate are `STR/BRC` at 0.9 (final); an unnamed member stays 0.8
+  and goes to the model.
+- **Other:** a load-bearing masonry wall is `STR/WLS` with division 04 (masonry), not 03; a grating or checker plate floor panel is a metal deck, division 05.
+- **Not read:** the generator's tags, the truth file, or any exact string of the process plant sample. The vocabulary is the one in the schema descriptions and common to real models, but it was written while looking at this plant: see
+  [the truth bench](#truth-bench-the-process-plant) for what that means for the numbers.
+- A unit test (`tests/classify-rules-regression.test.ts`) snapshots the rules' output for every other bundled model (`tests/fixtures/rules-snapshot.json`: discipline, sub-discipline, division and the final flag of 5,534 elements) and fails on any difference.
 
 ## What is sent to Jev
 
@@ -185,6 +214,7 @@ packed pages unless you pass it to `--params`). It is a discriminated union on `
 | `schemaUrl` | all | empty | URL of a schema file. Empty: the built-in placeholder (or the file you loaded in the drawer) |
 | `minConfidence` | all | `null` | 0 to 1. `null`: the value of the schema |
 | `writePset` | all | `true` | Write the results as properties of the elements |
+| `rulesMode` | all | `final` | `final`: a rule at or above 0.85 decides the element completely (discipline, sub-discipline, division), the model answers the rest. `off`: the model answers every element, the rules are not run. See [The pipeline](#the-pipeline) |
 | `calibration` | all | `auto` | Logit scaling of the confidence: `auto` (the numbers shipped for the model), `fitted` (fitted on this model by **Calibrate on rules**), `manual` (`temperatures`), `off` (the model as it comes) |
 | `temperatures` | all | `{}` | The `manual` mode: a number from 0.05 to 50 per question (`discipline`, `sub_discipline`, `masterformat`, `building_element`). A question that is missing is not scaled |
 | `images` | `d3` (endpoint, and the browser with a vision export), `jev` | `off` | Pictures of the element: `off`, `isolated` (the element alone), `context` (the element in its bounding box with the elements around it), `both` (isolated first, then context). The old values `element` and `element+neighbours` are read as `isolated` and `context`, with a warning. See [Pictures](#pictures-for-a-model-that-reads-images) |
@@ -500,6 +530,35 @@ What this says, honestly:
   three of the models, which the rules call ARC and STR: its option reading of this schema is the weak point, not its confidence. Its sub-discipline answers are the best of all models (83%).
 - **The minimum confidence stays 0.6.** After scaling, the answers that clear 0.6 are right about as often as 0.6 promises or more (v2.0: 94%, 82%, 60%), so there is no held-out reason to lower it per provider.
 - A shipped temperature is kept for a question only when, out of fold, it lowered the NLL and did not raise the ECE. The numbers are in `src/classify/calibrationDefaults.ts`.
+
+### Refit against the truth (process plant)
+
+The numbers above were fitted on rule labels. The process plant has a design-intent truth (`models/Process-Plant.truth.json`), so the temperatures of the three models of the truth bench were re-checked on it with
+`node bench/fit-truth-temperatures.mjs --bench <truth-bench.json> --truth ../models/Process-Plant.truth.json` (raw scores from `bench/real-classify-truth.mjs`). **One synthetic plant: 114 signatures, 1,294 elements, one generated unit.**
+These are measurements on it, not a general result, and the other models (xtremedistil, nli-deberta, base v1.1) were not re-checked.
+
+- One sample per element (the raw scores of its signature's representative, the truth as label), so the fit is weighted by element count; a second pass with one sample per signature must not contradict it.
+- **5-fold cross-validation by signature** (a seeded shuffle of the signatures, seed 20240611, fold = position mod 5): the elements of one signature never sit on both sides, and every sample is scored with a temperature fitted on the other folds.
+  The sub-discipline question is scored under the true discipline; the building question has no truth label and was left as it was.
+- A number ships only where, out of fold, it lowers the NLL and does not raise the ECE, against both T = 1 and the value that shipped before. Where the new fit does not beat the old value but the old value itself beats T = 1 on the truth, the old
+  value is kept; where nothing beats T = 1, the question has no shipped number. Each decision and its figures are written next to the number in `calibrationDefaults.ts` (`detail`).
+
+Cover and precision at 0.6 per element, before (the values shipped until now) and after (out of fold for a new fit):
+
+| Model | Question | Shipped before | Ships now | Cover before | Precision before | Cover after | Precision after | ECE before to after |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| xsmall | discipline | none | 1.49 | 0% | - | 0% | - | 0.32 to 0.22 |
+| xsmall | sub-discipline | 0.43 | none | 38% | 34% | 4% | 100% | 0.35 to 0.15 |
+| xsmall | division | 0.26 | none | 8% | 21% | 0% | - | 0.22 to 0.12 |
+| base v2.0 | discipline | 0.53 | 0.53 (kept) | 71% | 88% | 71% | 88% | 0.23 |
+| base v2.0 | sub-discipline | 0.58 | 0.58 (kept) | 20% | 96% | 20% | 96% | 0.15 |
+| base v2.0 | division | 0.76 | none | 14% | 20% | 11% | 7% | 0.29 to 0.27 |
+| d3 | discipline | 1.53 | none | 25% | 100% | 54% | 83% | 0.25 to 0.11 |
+| d3 | sub-discipline | 1.36 | 1.99 | 90% | 78% | 84% | 77% | 0.20 to 0.15 |
+| d3 | division | none | none | 19% | 85% | 19% | 85% | 0.17 |
+
+The d3 discipline question was under-confident against the truth (25% of the elements cleared 0.6 at 100% right with T = 1.53; raw, 54% clear at 83% right, and the raw numbers have the lower NLL and ECE). The default model's discipline question is
+right at the top option for 2% of the elements, so no temperature makes its answers clear 0.6: the 1.49 that ships only makes its confidence honest (ECE 0.32 to 0.22).
 
 ## Setup: Decision 3.0 d3-edge
 

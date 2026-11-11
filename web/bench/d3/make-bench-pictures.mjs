@@ -3,9 +3,11 @@
 // Node picks the elements (the rules and the sidecars or the IFC files, read with web-ifc); a headless browser (Playwright, WebGL by SwiftShader) loads every model
 // in the viewer (sidecars with ?model=, IFC files through the open-file input) and draws the pictures through window.__xrayClassify.thumbnails.
 // With GEOMETRY_ONLY=1 it draws no picture and writes the SVG geometry text of every element instead (geometry.json: the element alone, and with its bounding box), much faster.
-// Usage: SMOKE_PORT=5697 PICTURES_DIR=/tmp/bench-pictures [N=51] [GEOMETRY_ONLY=1] node bench/d3/make-bench-pictures.mjs
+// With REPS_FILE=<reps.json> (written by bench/real-classify-truth.mjs: the representative of every signature of a truth bench) the elements are those, in that model,
+// instead of the rule-labelled signatures of the bundled models; the geometry.json is then keyed `<model>|<gid>` for real-classify-truth.mjs --geometry.
+// Usage: SMOKE_PORT=5697 PICTURES_DIR=/tmp/bench-pictures [N=51] [GEOMETRY_ONLY=1] [REPS_FILE=reps.json] node bench/d3/make-bench-pictures.mjs
 import { spawn } from 'node:child_process';
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -20,8 +22,11 @@ if (!outDir) throw new Error('Set PICTURES_DIR.');
 mkdirSync(outDir, { recursive: true });
 
 // 1. which elements
-const ssr = await createServer({ root, logLevel: 'error', server: { middlewareMode: true, hmr: false, watch: null }, appType: 'custom' });
 const picks = [];
+if (process.env.REPS_FILE) {
+  for (const r of JSON.parse(readFileSync(resolve(process.env.REPS_FILE), 'utf8'))) picks.push({ model: r.model, gid: r.gid, signature: r.signature, ifcClass: r.ifcClass });
+} else {
+const ssr = await createServer({ root, logLevel: 'error', server: { middlewareMode: true, hmr: false, watch: null }, appType: 'custom' });
 try {
   const C = await ssr.ssrLoadModule('/src/classify/index.ts');
   const R = await ssr.ssrLoadModule('/src/classify/calibrateRules.ts');
@@ -32,6 +37,7 @@ try {
   for (const t of R.pickTruths([...seen.values()], Number(process.env.N ?? 1000))) picks.push({ model: t.model, gid: t.input.id, signature: t.signature, ifcClass: t.input.ifcClass });
 } finally {
   await ssr.close();
+}
 }
 console.log(`${picks.length} elements in ${new Set(picks.map((p) => p.model)).size} models`);
 
@@ -57,7 +63,7 @@ try {
     await ctx.addInitScript(() => { try { localStorage.setItem('xray.help', 'off'); } catch { /* no storage */ } });
     const page = await ctx.newPage();
     const t0 = Date.now();
-    if (SIDECARS.includes(model)) {
+    if (SIDECARS.includes(model) || process.env.REPS_FILE) {
       await page.goto(`http://127.0.0.1:${port}/?model=${model}`);
     } else {
       await page.goto(`http://127.0.0.1:${port}/`);

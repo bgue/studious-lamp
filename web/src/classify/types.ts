@@ -36,6 +36,12 @@ export interface ClassifyInput {
   /** Names of the systems (IfcSystem) the element belongs to. */
   systems?: string[];
   material?: string;
+  /**
+   * True when the model this element belongs to is a process facility (see `processEvidenceOf` in rules.ts): process equipment, line numbers
+   * and process services. Set by buildInput for the whole model; the rules then read steam, condensate and cooling water piping as utility
+   * piping (PIP/UTL) and a pump, vessel or exchanger as process equipment. Absent: the model is not known to be a process facility.
+   */
+  processContext?: boolean;
 }
 
 export type ResultSource = 'rules' | 'cache' | 'model' | 'manual';
