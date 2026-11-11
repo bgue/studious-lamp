@@ -9,7 +9,7 @@ import { COMBINED_SEP, Q_BUILDING, Q_DISCIPLINE, Q_MASTERFORMAT, Q_SUB } from '.
 import { classByRules, isBuildingContext, resolveRule, RULE_FINAL } from './rules';
 import { signatureOf } from './state';
 import { inHeldOut } from './calibrate';
-import type { ClassificationSchema, ClassifyInput } from './types';
+import type { ClassificationSchema, ClassifyInput, ClassifyResult } from './types';
 
 /** What a final rule says about a signature. */
 export interface RuleTruth {
@@ -34,6 +34,32 @@ export function ruleTruths(inputs: readonly ClassifyInput[], schema: Classificat
     if (!seen.has(sig)) seen.set(sig, { signature: sig, input: i, discipline: d.discipline, subDiscipline: d.subDiscipline, division: d.division, building });
   }
   return [...seen.values()];
+}
+
+/**
+ * One truth per distinct signature from the elements that a person committed in the review walk (committed labels count as truth).
+ * When the elements of a signature were given different codes, the most frequent codes win (ties: the first seen). Order: first seen.
+ */
+export function confirmedTruths(inputs: readonly ClassifyInput[], committed: ReadonlyMap<string, ClassifyResult>): RuleTruth[] {
+  const groups = new Map<string, { input: ClassifyInput; votes: Map<string, { n: number; r: ClassifyResult }> }>();
+  for (const i of inputs) {
+    const r = committed.get(i.id);
+    if (!r) continue;
+    const sig = signatureOf(i);
+    const g = groups.get(sig) ?? groups.set(sig, { input: i, votes: new Map() }).get(sig)!;
+    const key = `${r.discipline.code}|${r.subDiscipline?.code ?? ''}|${r.masterformat?.division ?? ''}`;
+    const v = g.votes.get(key);
+    if (v) v.n++;
+    else g.votes.set(key, { n: 1, r });
+  }
+  const out: RuleTruth[] = [];
+  for (const [sig, g] of groups) {
+    let best: { n: number; r: ClassifyResult } | null = null;
+    for (const v of g.votes.values()) if (!best || v.n > best.n) best = v;
+    if (!best) continue;
+    out.push({ signature: sig, input: g.input, discipline: best.r.discipline.code, subDiscipline: best.r.subDiscipline?.code ?? null, division: best.r.masterformat?.division ?? null, building: isBuildingContext(g.input) });
+  }
+  return out;
 }
 
 /** At most `n` truths, chosen by a hash of the signature (the same choice every time, spread over the classes). */

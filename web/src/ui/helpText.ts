@@ -3820,6 +3820,36 @@ export const CONTROL_HELP: Record<string, HelpEntry> = {
     'Filter the table. Click a row to select the part.',
     'Report: Limitations and extensions, classification',
   ),
+  'Classify drawer/Review (heading)': h(
+    'The section holds the review walk and the review log.',
+    'You confirm or correct labels here, and the choices become part of a record.',
+    'Click Review walk to start. Use the log buttons to share your work.',
+    'Report: Limitations and extensions, classification',
+  ),
+  'Classify drawer/Review walk': h(
+    'The button opens a panel that visits the classified elements in a logical order. You confirm, correct or skip each element.',
+    'Your choices wait as pending changes. A commit writes them to the log, and they then count as the result.',
+    'Click the button after a run. Press Enter to confirm. Click Commit when you are done.',
+    'Report: Limitations and extensions, classification',
+  ),
+  'Classify drawer/Export review log': h(
+    'The button saves every commit of this model as a review log file.',
+    'You get a file that records who confirmed what and when. It holds the names of the people.',
+    'Click the button to back up your work or to hand it to a colleague.',
+    'Report: Limitations and extensions, classification',
+  ),
+  'Classify drawer/Import review log': h(
+    'The button replays the commits of a review log file for this model.',
+    'New commits join the record and become results. The tool skips commits that it holds already. It refuses a file of another model.',
+    'Click the button and choose a file that you exported from the same model.',
+    'Report: Limitations and extensions, classification',
+  ),
+  'Classify drawer/Calibrate on confirmed': h(
+    'The button fits a temperature for each question. It uses the labels that you committed in the review walk as truth.',
+    'The model runs once for each kind of part. The table then shows the numbers before and after for a held-out share.',
+    'Commit at least 8 kinds of part in the review walk first. Then click the button.',
+    'Report: Limitations and extensions, classification',
+  ),
   'Classify drawer/Output (heading)': h(
     'The heading starts the section for the output.',
     'The block below shows the labels in the picture and saves them to files.',

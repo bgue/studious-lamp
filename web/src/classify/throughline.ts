@@ -235,6 +235,10 @@ export interface ThroughlineElement {
     source: string;
     model: string | null;
     needs_review: boolean;
+    /** Set only on a result that a person committed in the review walk (source confirmed or corrected). */
+    confirmed_by?: string;
+    confirmed_at?: string;
+    commit_id?: string;
   };
 }
 
@@ -277,6 +281,9 @@ export function exportThroughline(results: readonly ClassifyResult[], schema: Cl
         source: r.source,
         model: r.model ?? null,
         needs_review: r.needsReview,
+        ...(r.confirmedBy !== undefined ? { confirmed_by: r.confirmedBy } : {}),
+        ...(r.confirmedAt !== undefined ? { confirmed_at: r.confirmedAt } : {}),
+        ...(r.commitId !== undefined ? { commit_id: r.commitId } : {}),
       },
     };
   });

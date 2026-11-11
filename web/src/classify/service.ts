@@ -11,7 +11,10 @@ import { buildRequest, JEV_DEFAULT_MODEL } from './jevAdapter';
 import type { JevRequest } from './jevAdapter';
 import { calibrationStatus } from './calibrationStatus';
 import type { CalibrationStatus } from './calibrationStatus';
-import { collectSamples, fitFromSamples, pickTruths, ruleTruths, toStoredFit } from './calibrateRules';
+import { collectSamples, confirmedTruths, fitFromSamples, pickTruths, ruleTruths, toStoredFit } from './calibrateRules';
+import type { RuleTruth } from './calibrateRules';
+import { ReviewManager } from './reviewService';
+import type { ReviewPersistence } from './reviewLog';
 import type { CalibrationReport } from './calibrateRules';
 import { FitStore } from './calibrationStore';
 import { chooseTemperatures } from './calibrate';
@@ -73,6 +76,8 @@ export interface ServiceEnv {
   d3Decode?: Parameters<typeof createProvider>[1]['d3Decode'];
   d3CacheStorage?: Parameters<typeof createProvider>[1]['d3CacheStorage'];
   d3Gpu?: () => Promise<GpuProbe>;
+  /** Where the review log is kept (tests inject a fake). Default: IndexedDB, then `storage`. */
+  reviewPersistence?: ReviewPersistence;
 }
 
 /** The result of "Test model". */
@@ -98,7 +103,7 @@ export interface RunOptions {
   subDiscipline?: keyof typeof SUB_STRATEGIES | SubDisciplineStrategy;
 }
 
-const emptyStats = (): ClassifyStats => ({ total: 0, bySource: { rules: 0, cache: 0, model: 0, manual: 0 }, calls: 0, signatures: 0, needsReview: 0, failed: 0, aborted: false, errors: [], models: {}, usage: { input_tokens: 0, output_tokens: 0 } });
+const emptyStats = (): ClassifyStats => ({ total: 0, bySource: { rules: 0, cache: 0, model: 0, manual: 0, confirmed: 0, corrected: 0 }, calls: 0, signatures: 0, needsReview: 0, failed: 0, aborted: false, errors: [], models: {}, usage: { input_tokens: 0, output_tokens: 0 } });
 
 export class ClassifyService {
   draft: ClassifyDraft = defaultDraft();
@@ -141,7 +146,27 @@ export class ClassifyService {
   private written = new Set<number>();
   private writtenPset = '';
 
+  /** The review walk's state: pending changes, the commit log, the committed results. */
+  readonly review: ReviewManager;
+
   constructor(private readonly env: ServiceEnv) {
+    this.review = new ReviewManager(
+      {
+        schema: () => this.schema,
+        schemaHash: () => this.schemaHashValue,
+        model: () => this.model,
+        modelName: () => this.modelName,
+        store: () => this.store,
+        write: (results, clearIds) => {
+          if (!this.draft.writePset) return;
+          if (clearIds.length) this.clearWritten(clearIds);
+          if (results.length) this.writeToModel(results);
+        },
+        emit: () => this.emit(),
+      },
+      env.storage,
+      env.reviewPersistence,
+    );
     this.keys = new ApiKeyStore(env.keyStorages);
     this.hfToken = new ApiKeyStore(env.keyStorages, HF_TOKEN_STORAGE_NAME);
     this.d3Key = new ApiKeyStore(env.keyStorages, D3_KEY_STORAGE_NAME);
@@ -239,8 +264,27 @@ export class ClassifyService {
     if (this.running || this.calibrating) throw new Error('A run is already in progress. Stop it first.');
     const provider = this.provider();
     if (!provider) throw new Error('Choose a decision model first. Calibration fits the temperatures of the model that is selected.');
-    const all = ruleTruths(this.inputsFor('all'), this.schema);
-    if (all.length < 8) throw new Error(`The rules label only ${all.length} kinds of element in this model (by signature). At least 8 are needed to fit a temperature. Load a model with more elements that the rules know.`);
+    return this.calibrateOn(ruleTruths(this.inputsFor('all'), this.schema), 'rules', o);
+  }
+
+  /**
+   * Like "Calibrate on rules", with the labels that a person committed in the review walk as truth. The model runs for the committed kinds
+   * of element that are not in the cache yet.
+   */
+  async calibrateOnConfirmed(o: { maxSignatures?: number; heldOut?: number } = {}): Promise<CalibrationReport> {
+    if (!this.model) throw new Error('Load a model first: the committed labels belong to it.');
+    if (this.running || this.calibrating) throw new Error('A run is already in progress. Stop it first.');
+    if (!this.provider()) throw new Error('Choose a decision model first. Calibration fits the temperatures of the model that is selected.');
+    if (this.store.committed.size === 0) throw new Error('Nothing is confirmed yet. Confirm or correct elements in the review walk and commit them first.');
+    return this.calibrateOn(confirmedTruths(this.inputsFor([...this.store.committed.keys()]), this.store.committed), 'confirmed', o);
+  }
+
+  private async calibrateOn(all: RuleTruth[], kind: 'rules' | 'confirmed', o: { maxSignatures?: number; heldOut?: number }): Promise<CalibrationReport> {
+    const provider = this.provider();
+    if (!provider) throw new Error('Choose a decision model first. Calibration fits the temperatures of the model that is selected.');
+    if (all.length < 8) throw new Error(kind === 'rules'
+      ? `The rules label only ${all.length} kinds of element in this model (by signature). At least 8 are needed to fit a temperature. Load a model with more elements that the rules know.`
+      : `Only ${all.length} kinds of element are committed in this model (by signature). At least 8 are needed to fit a temperature. Confirm more kinds in the review walk.`);
     const picked = pickTruths(all, o.maxSignatures ?? 120);
     this.calibrating = true;
     this.ctl = new AbortController();
@@ -436,6 +480,7 @@ export class ClassifyService {
   /** Results and manual overrides belong to a model and a schema. */
   private reloadStore(): void {
     this.store = new ResultStore(this.env.storage, manualKey(this.modelName, this.schemaHashValue));
+    this.review.reload(); // the committed results of this model and schema come back when the stored log is read
   }
 
   clearCache(): void {
@@ -749,7 +794,7 @@ export class ClassifyService {
       const run = await classifyInputs(inputs, this.runOptions(s, this.provider(), this.ctl.signal, { sub, ...(o.rules === false ? { rules: false } : {}) }));
       this.store.merge(run.results);
       this.lastStats = run.stats;
-      if (s.writePset) this.writeToModel(run.results);
+      if (s.writePset) this.writeToModel(run.results.map((r) => this.store.get(r.id) ?? r)); // a committed result is not overwritten
       return run.results;
     } finally {
       this.running = false;
@@ -770,7 +815,7 @@ export class ClassifyService {
   }
 
   stats(): ClassifyStats {
-    const bySource = { rules: 0, cache: 0, model: 0, manual: 0 };
+    const bySource = { rules: 0, cache: 0, model: 0, manual: 0, confirmed: 0, corrected: 0 };
     let nr = 0;
     for (const r of this.store.all()) {
       bySource[r.source]++;

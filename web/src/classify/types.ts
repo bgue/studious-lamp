@@ -44,7 +44,7 @@ export interface ClassifyInput {
   processContext?: boolean;
 }
 
-export type ResultSource = 'rules' | 'cache' | 'model' | 'manual';
+export type ResultSource = 'rules' | 'cache' | 'model' | 'manual' | 'confirmed' | 'corrected';
 
 export interface CodeLabel {
   code: string;
@@ -83,6 +83,10 @@ export interface ClassifyResult {
   rationale?: string;
   /** The signature that the decision came from (source 'rules' has none). */
   signature?: string;
+  /** Source 'confirmed' or 'corrected': who committed it, when (ISO), and in which commit of the review log. */
+  confirmedBy?: string;
+  confirmedAt?: string;
+  commitId?: string;
 }
 
 // ---------------------------------------------------------------- target schema

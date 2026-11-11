@@ -85,7 +85,7 @@ export interface ClassifyRun {
   stats: ClassifyStats;
 }
 
-const emptyBySource = (): Record<ResultSource, number> => ({ rules: 0, cache: 0, model: 0, manual: 0 });
+const emptyBySource = (): Record<ResultSource, number> => ({ rules: 0, cache: 0, model: 0, manual: 0, confirmed: 0, corrected: 0 });
 
 // ---------------------------------------------------------------- building results
 

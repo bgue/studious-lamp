@@ -31,6 +31,10 @@ export type { RulesMode } from './settings';
 export { ApiKeyStore, HF_TOKEN_STORAGE_NAME, KEY_STORAGE_NAME } from './keyStore';
 export { withBackoff } from './retry';
 
+export { ReviewLog, parseReviewLog, modelFingerprint, createReviewPersistence, REVIEW_LOG_SCHEMA } from './reviewLog';
+export type { ReviewCommit, ReviewChange, ReviewState, ReviewPersistence } from './reviewLog';
+export { buildWalk, walkElementsOf, walkProgress, chainOrder, sweepOrder, runnerUp, WALK_ORDERS } from './reviewWalk';
+export type { WalkElement, WalkItem, WalkOrder } from './reviewWalk';
 export { ClassifyService, SCHEMA_STORAGE_KEY } from './service';
 export type { RunOptions, ServiceEnv, Target } from './service';
 export * from './types';

@@ -16,6 +16,7 @@
     "zip": "bash ../tools/make_zip.sh",
     "docs": "node tools/gen-settings-doc.mjs",
     "pack": "node tools/xray-pack.mjs",
+    "classify:truth": "node tools/classify-truth.mjs",
     "template": "node tools/build-single-file.mjs --template"
   },
   "dependencies": {

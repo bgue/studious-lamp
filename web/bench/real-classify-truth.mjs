@@ -3,6 +3,9 @@
 //   cd web && NODE_USE_ENV_PROXY=1 node bench/real-classify-truth.mjs --model process-plant --truth ../models/Process-Plant.truth.json \
 //        --arms rules,majority,xsmall,base2,d3,hybrid-xsmall,hybrid-d3 [--limit N] [--out <dir>] [--geometry <geometry.json>] [--psets-cap N]
 //
+// --sidecar <path/to/model.json> replaces --model: the element sidecar (xray-model/1) of any model, e.g. one written by tools/ifc2glb.py. --model is then only the
+// label (default: the file name without .json). `npm run classify:truth` does the IFC conversion and the truth checks and then calls this script.
+//
 // Arms (run one after the other, each cached per signature in <out>/cache/<arm>.json, so a crash or a rerun redoes nothing; a model is loaded only when a call
 // is not in the cache):
 //   rules     the app's rules (classByRules + resolveRule), confidence 1, no match = abstain
@@ -29,7 +32,7 @@
 // Env: TRANSFORMERS_NODE, ORT_NODE, D3_DIR (defaults point into the session scratchpad), MIN_CONF (0.6).
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
+import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { createServer } from 'vite';
 import { MIN_CONFIDENCE, compareChainedOracle, fmtPct, groupTruth, makeItem, mostFrequent, summarise } from './truth-metrics.mjs';
@@ -50,7 +53,8 @@ const args = (() => {
   }
   return o;
 })();
-if (!args.model) throw new Error('Usage: --model <sidecar name> --truth <truth.json> --arms rules,majority,xsmall,base2,d3 [--limit N] [--out dir]');
+if (args.sidecar && !args.model) args.model = basename(args.sidecar).replace(/\.json$/i, '');
+if (!args.model) throw new Error('Usage: --model <sidecar name in public/models> | --sidecar <path/to/sidecar.json>  --truth <truth.json> --arms rules,majority,xsmall,base2,d3 [--limit N] [--out dir]');
 if (!args.truth && !args.count) throw new Error('--truth is required.');
 const ARMS = args.arms.split(',').map((s) => s.trim()).filter(Boolean);
 const BASE_ARMS = ['xsmall', 'base2', 'd3', 'd3-psets', 'd3-svg', 'd3-svg-ctx', 'd3-svg-ctx-psets'];
@@ -76,7 +80,14 @@ try {
   const FALLBACK_S = schema.fallbackSubDiscipline ?? 'UNC';
 
   // ------------------------------------------------------------ 1. inputs and the join
-  const model = H.sidecarModel(args.model);
+  // A bundled model by name (public/models/<name>.json), or any sidecar file by path (the same SceneModel that sidecarModel builds).
+  const sidecarFromFile = async (file) => {
+    const L = await server.ssrLoadModule('/src/model/loader.ts');
+    const j = JSON.parse(readFileSync(resolve(file), 'utf8'));
+    const elements = j.elements.map((r, i) => L.normaliseRecord(r, i));
+    return { schema: 'xray-model/1', units: 'm', originShift: j.originShift ?? [0, 0, 0], storeys: j.storeys ?? [], elements, relations: L.normaliseRelations(j.relations), byGlobalId: new Map(elements.map((e) => [e.globalId, e.id])) };
+  };
+  const model = args.sidecar ? await sidecarFromFile(args.sidecar) : H.sidecarModel(args.model);
   const inputs = C.buildInputs(model, model.elements.map((e) => e.id));
   const truthFile = args.truth ? JSON.parse(readFileSync(resolve(args.truth), 'utf8')) : { elements: {} };
   if (args.truth && truthFile.format !== 'xray-truth/1') log(`warning: truth format is "${truthFile.format}", expected "xray-truth/1"`);

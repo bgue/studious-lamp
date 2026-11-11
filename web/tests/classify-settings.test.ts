@@ -17,11 +17,13 @@ import type { ViewsApp } from '../src/views/capture';
 import { encodeViewShare, VIEW_EXCLUDED_SECTIONS } from '../src/views/model';
 import { buildBoot, injectTemplate, injectionScript, parseArgs, INJECT_BEGIN, INJECT_END } from '../tools/pack/lib.mjs';
 import { fakeApp } from './presets-helpers';
+import { capturePreset } from '../src/presets/engine';
 import { jsonResponse, sidecarModel } from './classify-helpers';
 
 const KEY = 'sk-live-ABCDEF-0123456789';
 const HF_TOKEN = 'hf_QWERTYUIOPasdfghjkl0123456789';
 const D3_KEY = 'd3-live-ZXCVBN-9876543210';
+const REVIEWER = 'Rosalind Reviewer-Fanshawe'; // a reviewer's name is personal data: it goes into the review log on this device and nowhere else
 const THUMB = 'data:image/webp;base64,UklGRlRIVU1CTkFJTEJZVEVT'; // what a picture looks like: it must never leave the request
 const SVG_MARK = "<svg id='plan' data-class='IfcDuctSegment' data-size='0.3x2x0.2' viewBox='0 0 0.3 2'><rect x='0' y='0' width='0.3' height='2'/></svg>"; // the SVG text of an element: in the request state only
 const PICTURE_NOTE = 'Picture 1: the element alone, a line drawing, axonometric, with a scale bar.'; // the note about the pictures goes into the request state, not into params
@@ -182,6 +184,11 @@ describe('the API key never leaves the key store', () => {
     }
     await svc.thumbnails(0, { mode: 'both', style: 'vector', plan: true, size: 256, margin: 40 }).catch(() => undefined); // the drawer preview
     svc.override(svc.model!.elements[0]!.globalId, { discipline: 'ARC' });
+    // a commit of the review walk: the reviewer's name is in the log, which is kept on this device
+    svc.review.setReviewer(REVIEWER);
+    svc.review.propose([svc.model!.elements[1]!.globalId], { action: 'confirm', item: 'leak-test', comment: 'checked on site' });
+    expect(svc.review.commit('leak test').author).toBe(REVIEWER);
+    await new Promise((r) => setTimeout(r, 5)); // the log is written to storage
 
     const doc = collectParams(f.app, f.env);
     const docText = JSON.stringify(doc);
@@ -189,16 +196,24 @@ describe('the API key never leaves the key store', () => {
     const b64 = (s: string): string => btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
     const hasKey = (text: string): boolean => [KEY, HF_TOKEN, D3_KEY, THUMB, PICTURE_NOTE, 'Geometry as SVG', 'data-class=', 'UklGRlRIVU1CTkFJTEJZVEVT', 'data:image'].some((k) => text.includes(k) || text.includes(b64(k)) || text.includes(encodeURIComponent(k)));
     expect(hasKey(docText)).toBe(false);
+    const hasName = (text: string): boolean => [REVIEWER, 'Rosalind', 'Fanshawe'].some((k) => text.includes(k) || text.includes(b64(k)) || text.includes(encodeURIComponent(k)));
+    expect(hasName(docText), 'the reviewer name is not in the params').toBe(false);
 
     // share URL (#p=) and the encoded share document
     const url = shareUrl(doc, { origin: 'https://x.test', pathname: '/viewer' });
     expect(url).toContain('#p=');
     expect(hasKey(url)).toBe(false);
+    expect(hasName(url) || hasName(encodeShare(shareSubset(doc))), 'not in the share link').toBe(false);
     expect(hasKey(encodeShare(shareSubset(doc)))).toBe(false);
     expect(JSON.stringify(shareSubset(doc))).toContain('"classify"'); // the section is in the share, the key is not
 
     // exported params JSON (what the Export button writes)
     expect(hasKey(JSON.stringify(doc, null, 2))).toBe(false);
+    expect(hasName(JSON.stringify(doc, null, 2))).toBe(false);
+    // presets capture params sections: not the name either
+    const cap = capturePreset(f.app as never, ['classify'], { name: 'p' } as never, f.env as never);
+    expect(hasName(JSON.stringify(cap.preset)), 'not in a preset').toBe(false);
+    expect(hasKey(JSON.stringify(cap.preset))).toBe(false);
 
     // saved views: the section is excluded, and the view text has no key either
     expect(VIEW_EXCLUDED_SECTIONS).toContain('classify');
@@ -211,6 +226,7 @@ describe('the API key never leaves the key store', () => {
     expect(view.params['classify']).toBeUndefined();
     expect(hasKey(JSON.stringify(view))).toBe(false);
     expect(hasKey(encodeViewShare('building', view, null))).toBe(false);
+    expect(hasName(JSON.stringify(view)) || hasName(encodeViewShare('building', view, null)), 'not in a saved view').toBe(false);
 
     // packed output: a boot document built from the params, and the injected page
     const { options } = parseArgs(['a.glb', '-o', 'x.html', '--tools', 'classify', '--open-tool', 'classify']);
@@ -218,11 +234,19 @@ describe('the API key never leaves the key store', () => {
     const page = injectTemplate(`<!doctype html><html><head><title>old</title></head><body><script>\n${INJECT_BEGIN}\n${INJECT_END}\n</script></body></html>`, { models: {}, boot, title: 't' });
     expect(hasKey(page)).toBe(false);
     expect(hasKey(injectionScript({}, boot))).toBe(false);
+    expect(hasName(page) || hasName(injectionScript({}, boot)) || hasName(JSON.stringify(boot)), 'not in a packed page').toBe(false);
     expect(page).toContain('"classify"');
 
     // everything that the classifier stored in localStorage (cache, results, schema), apart from the key entry itself
     const dump = JSON.stringify([...storage.map.entries()]);
     expect(hasKey(dump)).toBe(false);
+    // the reviewer's name is stored on this device, in the reviewer entry and the review log only
+    const named = [...storage.map.entries()].filter(([, v]) => hasName(String(v))).map(([k]) => k).sort();
+    expect(named.length).toBeGreaterThan(0);
+    expect(named.every((k) => k === 'xray.classify.reviewer.v1' || k.startsWith('xray.classify.review.v1.')), named.join()).toBe(true);
+    expect(hasName(JSON.stringify(svc.collect())) || hasName(JSON.stringify(svc.settings())), 'not a setting').toBe(false);
+    expect(hasName(JSON.stringify(svc.model!.elements.map((e) => e.props))), 'not written into the model properties').toBe(false);
+    expect(hasName(JSON.stringify([...svc.store.manual.values()]))).toBe(false);
     expect(k.local.getItem('xray.classify.apiKey')).toBe(KEY); // it is only here
     expect(k.local.getItem('xray.classify.hfToken')).toBe(HF_TOKEN); // the token too, in its own entry
     expect(k.local.getItem('xray.classify.d3Key')).toBe(D3_KEY); // the d3 key too, in its own entry
@@ -403,7 +427,7 @@ describe('the service: properties, persistence, overrides', () => {
     expect(runQuery(m, 'XR_Classification.NeedsReview = TRUE').ids.sort()).toEqual([...nr].sort());
     const csv = svc.export('csv');
     const lines = csv.trim().split('\r\n');
-    expect(lines[0]).toBe('GlobalId,Discipline,DisciplineLabel,DisciplineConfidence,DisciplineTop2,SubDiscipline,SubDisciplineConfidence,MasterFormatDivision,MasterFormatTitle,MasterFormatConfidence,BuildingElement,Confidence,Source,Model,NeedsReview,Rationale');
+    expect(lines[0]).toBe('GlobalId,Discipline,DisciplineLabel,DisciplineConfidence,DisciplineTop2,SubDiscipline,SubDisciplineConfidence,MasterFormatDivision,MasterFormatTitle,MasterFormatConfidence,BuildingElement,Confidence,Source,Model,NeedsReview,Rationale,ConfirmedBy,ConfirmedAt,CommitId');
     expect(lines).toHaveLength(83);
     const json = JSON.parse(svc.export('json')) as { schema: string; results: unknown[]; stats: { models: Record<string, number> } };
     expect(json.schema).toBe('xray-classification/1');

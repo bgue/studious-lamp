@@ -47,10 +47,21 @@ export function makeManual(schema: ClassificationSchema, id: string, p: ManualPa
   };
 }
 
+/** Do two results carry the same discipline, sub-discipline and division? */
+export function sameCodes(a: ClassifyResult, b: ClassifyResult): boolean {
+  return a.discipline.code === b.discipline.code && (a.subDiscipline?.code ?? '') === (b.subDiscipline?.code ?? '') && (a.masterformat?.division ?? '') === (b.masterformat?.division ?? '');
+}
+
 /** The results of the model on screen, by element id (GlobalId), with the manual overrides kept in storage. */
 export class ResultStore {
   private readonly map = new Map<string, ClassifyResult>();
   private readonly manualMap = new Map<string, ClassifyResult>();
+  /** Results that a person committed in the review walk (source confirmed or corrected). They win over every computed result and over a manual one. */
+  private committedMap = new Map<string, ClassifyResult>();
+  /** For a committed element: the result of the latest run when it differs from the committed codes ("the model now disagrees"). */
+  private readonly disagreeMap = new Map<string, ClassifyResult>();
+  /** The latest computed result of a committed element: it comes back when the commit is reverted. */
+  private readonly shadowMap = new Map<string, ClassifyResult>();
 
   constructor(private readonly storage: KeyValueStorage | null = null, private readonly key = '') {
     try {
@@ -62,8 +73,36 @@ export class ResultStore {
     for (const [id, r] of this.manualMap) this.map.set(id, r);
   }
 
+  /** The manual overrides only (the pipeline skips these; a committed element is still computed, to find out whether the model disagrees). */
   get manual(): ReadonlyMap<string, ClassifyResult> {
     return this.manualMap;
+  }
+  get committed(): ReadonlyMap<string, ClassifyResult> {
+    return this.committedMap;
+  }
+  /** Committed elements where the latest run differs from the committed value: id -> what the run says. */
+  get disagreements(): ReadonlyMap<string, ClassifyResult> {
+    return this.disagreeMap;
+  }
+  /**
+   * Replace the committed results (the effective state of the review log). A committed result is the element's result from now on and a
+   * run never replaces it. An element that is no longer committed gets its manual result back, or no result until it is classified again.
+   */
+  setCommitted(next: ReadonlyMap<string, ClassifyResult>): void {
+    for (const id of this.committedMap.keys()) {
+      if (next.has(id)) continue;
+      const back = this.manualMap.get(id) ?? this.shadowMap.get(id);
+      if (back) this.map.set(id, back);
+      else this.map.delete(id);
+      this.disagreeMap.delete(id);
+      this.shadowMap.delete(id);
+    }
+    this.committedMap = new Map(next);
+    for (const [id, r] of next) {
+      const cur = this.map.get(id);
+      if (cur && cur.source !== 'manual' && cur.source !== 'confirmed' && cur.source !== 'corrected') this.shadowMap.set(id, cur);
+      this.map.set(id, r);
+    }
   }
   get(id: string): ClassifyResult | undefined {
     return this.map.get(id);
@@ -76,30 +115,42 @@ export class ResultStore {
   }
   /** Add computed results. A manual result is never replaced. */
   merge(results: readonly ClassifyResult[]): void {
-    for (const r of results) if (!this.manualMap.has(r.id)) this.map.set(r.id, r);
+    for (const r of results) {
+      const c = this.committedMap.get(r.id);
+      if (c) {
+        this.shadowMap.set(r.id, r);
+        if (sameCodes(c, r)) this.disagreeMap.delete(r.id);
+        else this.disagreeMap.set(r.id, r);
+        continue;
+      }
+      if (!this.manualMap.has(r.id)) this.map.set(r.id, r);
+    }
   }
   setManual(r: ClassifyResult): void {
     this.manualMap.set(r.id, r);
-    this.map.set(r.id, r);
+    if (!this.committedMap.has(r.id)) this.map.set(r.id, r);
     this.persist();
   }
   /** Drop one manual override (the computed result is gone with it: classify again). */
   removeManual(id: string): void {
-    if (this.manualMap.delete(id)) this.map.delete(id);
+    if (this.manualMap.delete(id) && !this.committedMap.has(id)) this.map.delete(id);
     this.persist();
   }
   /** Drop every computed result. Manual overrides stay unless `manual` is true. */
   clear(manual = false): void {
     this.map.clear();
+    this.disagreeMap.clear();
+    this.shadowMap.clear();
     if (manual) {
       this.manualMap.clear();
       this.persist();
     } else for (const [id, r] of this.manualMap) this.map.set(id, r);
+    for (const [id, r] of this.committedMap) this.map.set(id, r); // a committed result stays, like a manual one
   }
   /** Recompute the review flag after the confidence limit changed. */
   rereview(minConfidence: number, minMargin?: number): void {
     for (const [id, r] of this.map) {
-      if (r.source === 'manual') continue;
+      if (r.source === 'manual' || r.source === 'confirmed' || r.source === 'corrected') continue;
       const guess = r.source === 'rules' && r.discipline.confidence < RULE_FINAL; // a weak rule used as a fallback
       this.map.set(id, { ...r, needsReview: guess || computeNeedsReview(r, minConfidence, minMargin) });
     }
@@ -120,7 +171,7 @@ const top2Text = (p: Record<string, number>): string => topTwo(p).map(([k, v]) =
 
 export const CSV_HEADER = [
   'GlobalId', 'Discipline', 'DisciplineLabel', 'DisciplineConfidence', 'DisciplineTop2', 'SubDiscipline', 'SubDisciplineConfidence',
-  'MasterFormatDivision', 'MasterFormatTitle', 'MasterFormatConfidence', 'BuildingElement', 'Confidence', 'Source', 'Model', 'NeedsReview', 'Rationale',
+  'MasterFormatDivision', 'MasterFormatTitle', 'MasterFormatConfidence', 'BuildingElement', 'Confidence', 'Source', 'Model', 'NeedsReview', 'Rationale', 'ConfirmedBy', 'ConfirmedAt', 'CommitId',
 ] as const;
 
 export function toCsvRows(results: readonly ClassifyResult[]): Array<Array<string | number | boolean>> {
@@ -128,7 +179,7 @@ export function toCsvRows(results: readonly ClassifyResult[]): Array<Array<strin
     r.id, r.discipline.code, r.discipline.label, fmt(r.discipline.confidence), top2Text(r.discipline.probabilities),
     r.subDiscipline?.code ?? '', r.subDiscipline ? fmt(r.subDiscipline.confidence) : '',
     r.masterformat?.division ?? '', r.masterformat?.title ?? '', r.masterformat ? fmt(r.masterformat.confidence) : '',
-    fmt(r.buildingElement), fmt(overallConfidence(r)), r.source, r.model ?? '', r.needsReview, r.rationale ?? '',
+    fmt(r.buildingElement), fmt(overallConfidence(r)), r.source, r.model ?? '', r.needsReview, r.rationale ?? '', r.confirmedBy ?? '', r.confirmedAt ?? '', r.commitId ?? '',
   ]);
 }
 

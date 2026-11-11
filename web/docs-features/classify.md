@@ -762,6 +762,33 @@ Time per element (the main request with 3 questions and the sub request: 4 torso
 (The earlier table of this page, run with other background work, gave 8.4 / 11.3 / 12.9 s for the pipe and 7.5 / 10.4 / 13.2 s for the pump.) The SVG with the box costs about as much as two pictures or more on this CPU because every one of its 700 to 1,500
 tokens runs through the torso 4 times; the element alone costs about 100 tokens. Memory: a request with SVG and the box (6,000 tokens) needs about 8 GB in onnxruntime-node CPU, so run one such process at a time.
 
+## Scoring against a ground truth, from the command line
+
+`npm run classify:truth` scores the classifiers on any IFC for which you have a ground truth, without the GUI:
+
+```
+cd web
+npm run classify:truth -- --ifc <path.ifc> --truth <truth.json> [--arms rules,majority,xsmall,base2,d3,hybrid-d3] [--out dir] [--limit N] [--props common|all]
+```
+
+It checks the truth file against the shipped schema, converts the IFC to its element sidecar with `tools/ifc2glb.py` (into `<out>/sidecar/`),
+checks that every element has a truth entry, runs `bench/real-classify-truth.mjs --sidecar <sidecar>` and prints the markdown tables (also
+`<out>/truth-bench.md` and `truth-bench.json`). The default arms are `rules,majority,xsmall,base2,d3,hybrid-d3` (`hybrid-d3`: the rules where
+final, else d3); `--arms rules,majority` needs no model files. Results are cached per signature in `<out>/cache`, so a rerun with the same `--out` redoes
+nothing. `--props` is the converter's property mode (`common` is what the viewer's own IFC import keeps; `all` also keeps vendor property sets).
+The d3 and DeBERTa arms find their files as the bench does (env `D3_DIR`, `ORT_NODE`, `TRANSFORMERS_NODE`); the script sets `NODE_USE_ENV_PROXY=1`.
+
+The truth file is `xray-truth/1`: `{ format, model, generator, schema, convention, elements: { <GlobalId>: { name, ifcClass, discipline, subDiscipline,
+division, alt? } } }`, where `alt` may hold `subDiscipline` (same discipline) and `division` lists, which the lenient column accepts, plus informational
+`discipline` and `also` (`"DISC/sub"`) entries.
+
+Exit codes: `0` done; `2` bad truth file (not JSON, wrong format, a discipline, sub-discipline, division or alternate that the schema does not have)
+or an element of the model without a truth entry (a truth entry without an element is only a warning); `3` the converter or the bench failed;
+`64` bad usage. So it can run in CI. The checks are in `tools/classify-truth-lib.mjs`, tested by `tests/classify-truth-cli.test.ts`.
+
+The independent test facility is `models/independent/Water-Works.ifc` with `Water-Works.truth.json`, made by `tools/make_independent_plant_ifc.py`
+(a water treatment works with a different naming style; see `models/NOTE.md`). Its numbers are in `bench/truth-bench-independent.md`. The rules were not tuned on it.
+
 ## Number of calls
 
 Measured on the shipped models, with the mock provider (the numbers do not depend on the provider):
@@ -920,6 +947,104 @@ The pencil on a row opens a form: discipline, sub-discipline and division (lists
 element a result with source `manual` and confidence 1. A manual result wins over rules, cache and model, survives
 **Clear results** and new runs, and is kept per model and schema hash in `localStorage`. **Remove override** deletes it.
 
+## Review walk
+
+The **Review walk** (drawer section **Review**, the command palette entry "Classify: review walk", key **Shift+R**) visits the
+classified elements one work item at a time, shows what the classifier proposes and why, and records your answer as a
+**committed change**. Classify first (rules only is enough): the walk visits elements that have a result.
+
+### Order and filters
+
+| Order | Items | Sequence |
+| --- | --- | --- |
+| **By type, then location** (default) | One item per kind of element: same classification signature and same codes, confirmed once for all N | Storey (lowest first), system, discipline (schema order), position (serpentine sweep). Elements in no storey or no system come last. Inside an item the elements are in sweep order and you can step through them with `[` and `]` |
+| **Along systems** | One per element | Per distribution system (by name, "no system" last) the run is walked from one end: the end is found by two sweeps (farthest from the centroid, then farthest from that one), then each step goes to the nearest element left (gap between bounds, then centre distance) |
+| **By location** | One per element | Storey by storey, a serpentine sweep (rows along Z, X up then down) |
+| **Needs review first** | Like by type | Lowest overall confidence first, then the smallest discipline margin |
+
+Every order is deterministic. Filters: **Only needs review**, **Only unconfirmed** (leaves out kinds that are committed already),
+and a discipline list. The header counts the elements in scope: *confirmed, corrected, remaining* (pending changes count).
+
+### At each item
+
+The camera frames the element (or all N elements of the type) with the existing fly-to, the elements are the selection, and the
+x-ray machinery ghosts the context. **Esc** ends the walk and restores the camera and the selection you had. The panel shows
+class, name, tag, storey and system; the proposed discipline, sub-discipline and division, each with its confidence and its
+source (rule, model id, cached model, manual, or "confirmed by ..."); the rule rationale; the **runner-up** (the second choice
+for the part with the narrowest margin, checked against the schema); "needs review"; and "The model now disagrees" when a later
+run says something else than the committed value.
+
+| Action | Key | Button |
+| --- | --- | --- |
+| Confirm | Enter or Y | **Confirm** |
+| Take the runner-up | 2 | **Use XYZ** |
+| Correct (pickers for the three codes, sub-discipline restricted to the chosen discipline, schema values only) | E, then Enter to apply | **Correct...**, **Apply correction** |
+| Skip / back | N or right arrow / left arrow | **Skip**, **Back** |
+| All N of this type or this element only | A | radio buttons |
+| Undo the last pending item | U | **Undo last** |
+| Previous / next element of the type | `[` / `]` | **‹**, **›** |
+
+An optional comment goes into the change. On a phone the panel is a bottom sheet with large buttons; no key is needed.
+
+### Pending changes, commits, history
+
+A confirmation or correction first goes into the **pending** set (tab **Pending**: one row per item, each with **Undo**). **Commit N
+changes** writes one immutable commit:
+
+```json
+{ "id": "cmwc5i5o0f74o", "author": "RF", "time": "2026-11-11T13:20:01.000Z", "note": "first pass",
+  "modelName": "process-plant", "modelFingerprint": "9f3c...16 hex", "schemaEdition": "1.0.0",
+  "changes": [ { "globalId": "...", "before": { "discipline": "PIP", "subDiscipline": "UTL", "division": "40", "source": "rules", "confidence": 0.92 },
+                  "after":  { "discipline": "MEC", "subDiscipline": null, "division": "40", "source": "corrected", "confidence": 1 },
+                  "action": "correct", "comment": "walked on site" } ] }
+```
+
+`modelFingerprint` is a hash of the sorted element GlobalIds and the schema hash, so a log never applies to another model or schema.
+`reverts` is added to a commit that reverses another. Commits are **append only** and frozen in memory. **Revert** (tab
+**History**) appends a new commit that puts the state before the old commit back for every element that no later commit
+changed again; the old commit stays. The **History** tab lists who, when, note and count, and opens a commit to show its changes.
+
+The reviewer's name or initials are asked once, at the first commit, and kept in this browser (`localStorage`,
+`xray.classify.reviewer.v1`). **A name is personal data**: it is never in the params, a share link, a saved view, a preset, a packed page
+or the model properties. It is in the review log (and so in its export and in the exports of results), which are files you choose to make.
+
+### Where the log lives
+
+Per model fingerprint, in IndexedDB (database `xray-classification-review`, store `logs`), with `localStorage`
+(`xray.classify.review.v1.<fingerprint>`) as the fallback when IndexedDB is missing, blocked or fails. Every call is wrapped: if both
+fail, the walk still works for the session and the History tab says "Not saved on this device". A load merges both places by
+commit id.
+
+### Effect on results, and re-runs
+
+The effective state of the log (the latest change per element, in time order) becomes the result of the element: source
+`confirmed` or `corrected`, confidence 1, `needsReview` false, with `confirmedBy`, `confirmedAt` and `commitId`. This wins over
+rules, cache, model and a manual override, and **a re-run never overwrites it**: the run still computes the element, and where it
+differs from the committed codes the walk and the table (a `!` after the source) say **the model now disagrees**
+(`window.__xrayClassify.review.disagreements()`). **Clear results** keeps committed results, like manual ones. A revert brings back the latest
+computed result (or the manual one). The written property `Source` says `confirmed` or `corrected`; the name is not written.
+
+### Exports
+
+The JSON, CSV (`ConfirmedBy`, `ConfirmedAt`, `CommitId`) and Throughline exports (`confirmed_by`, `confirmed_at`, `commit_id` in
+the attributes of a committed element) carry the confirmation. **Export review log** saves `xray-classification-review/1`:
+
+```json
+{ "schema": "xray-classification-review/1", "modelName": "...", "modelFingerprint": "...", "schemaEdition": "...", "exportedAt": "...", "commits": [ ... ] }
+```
+
+**Import review log** replays a file: commits whose id is in the log already are skipped (importing twice changes nothing), and a file
+with another fingerprint is refused with a message that names both fingerprints. Commits replay in time order.
+
+### Calibrate on confirmed
+
+Next to **Calibrate on rules**: the committed labels count as truth (one label per signature, the most frequent codes when
+elements of a signature were labelled differently) and the same fit runs (the model scores the committed kinds of element, a held-out share is
+reported, at least 8 kinds and 4 answers per question). Use it when the rules are not a good proxy for your standard.
+
+Smoke test: `SMOKE_PORT=5699 node bench/smoke-review.mjs` (screenshots `bench/review-walk-*.png`). Unit tests: `tests/classify-review.test.ts`;
+the leak test (`tests/classify-settings.test.ts`) also checks that the reviewer's name is in no params, link, view, preset or packed page.
+
 ## API: `window.__xrayClassify`
 
 | Method | Meaning |
@@ -936,13 +1061,14 @@ element a result with source `manual` and confidence 1. A manual result wins ove
 | extras | `estimate`, `configure`, `settings`, `setKey`, `keyState`, `testConnection`, `selectNeedsReview`, `colourByDiscipline`, `state` |
 | decision model | `testModel()` (load, one tiny choice, load time, device, data type, size), `setHfToken(token, remember?)`, `hfTokenState()`, `modelCache()`, `clearModelCache()`, `decisionStats()` (requests, pairs, passes), `webllmStats()` |
 | Throughline | `importThroughline(json)` returns `{ errors, warnings }` |
-| calibration | `calibration()` (mode, what is in use, the numbers of the last fit), `calibrate({ maxSignatures?, heldOut? })` (**Calibrate on rules**), `forgetFit()` |
+| calibration | `calibration()` (mode, what is in use, the numbers of the last fit), `calibrate({ maxSignatures?, heldOut? })` (**Calibrate on rules**), `calibrateConfirmed(...)` (**Calibrate on confirmed**), `forgetFit()` |
+| review walk | `walk.open({ order? })`, `walk.close()`, `walk.state()`, `walk.items()`, `walk.goto(i)`; `review.ready()`, `reviewer()`, `setReviewer(name)`, `fingerprint()`, `pending()`, `propose(ids, { action, codes?, item?, comment? })`, `undoPending(item)`, `commit(note?)`, `revert(id, note?)`, `history()`, `exportLog()`, `importLog(text)`, `disagreements()`, `storage()` |
 | d3 and pictures | `setD3Key(key, remember?)`, `d3KeyState()`, `confirmD3Download()`, `thumbnails(id)` (the data URLs the model would get) |
 
 Types (`src/classify/types.ts`): `ClassifyInput { id, ifcClass, name, psets, quantities?, type?, hierarchy?: { path, parents? },
 systems?, material? }` and `ClassifyResult { id, discipline: { code, label, confidence, probabilities }, subDiscipline | null,
 masterformat: { division, title, confidence, probabilities } | null, buildingElement, source: 'rules' | 'cache' | 'model' |
-'manual', model?, needsReview, rationale? }`. Providers implement `DecisionModel { decide(state, questions, signal) }` and return
+'manual' | 'confirmed' | 'corrected', model?, needsReview, rationale?, confirmedBy?, confirmedAt?, commitId? }`. Providers implement `DecisionModel { decide(state, questions, signal) }` and return
 the Jev response shape.
 
 In Node:
@@ -953,7 +1079,7 @@ const provider = createJevProvider({ endpoint: '/api/jev', model: 'jev-1.13.0', 
 const { results, stats } = await classifyInputs(inputs, { schema: defaultSchema(), provider });
 ```
 
-Commands (palette): `classify.selection`, `classify.all`, `classify.review`, `classify.stop`, `classify.colour`.
+Commands (palette): `classify.selection`, `classify.all`, `classify.review`, `classify.walk` (key Shift+R), `classify.stop`, `classify.colour`.
 
 ## Key security
 

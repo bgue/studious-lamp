@@ -46,6 +46,11 @@ import { el } from '../ui/dom';
 import { registerParamSection } from '../ui/params';
 import { quoteIdent } from '../query';
 import { openCriteriaSetEditor } from './sidebar';
+import { ReviewWalk } from './classifyReview';
+import type { WalkState } from './classifyReview';
+import type { PendingChange } from '../classify/reviewService';
+import type { ImportOutcome, ReviewCommit } from '../classify/reviewLog';
+import type { WalkOrder } from '../classify/reviewWalk';
 
 declare global {
   interface Window {
@@ -93,7 +98,28 @@ export interface ClassifyApi {
   calibration(): CalibrationStatus;
   /** Fit one temperature per question on the elements that the rules labelled in this model (held-out numbers in the report). */
   calibrate(opts?: { maxSignatures?: number; heldOut?: number }): Promise<CalibrationReport>;
+  /** Like `calibrate`, with the labels that were committed in the review walk as truth. */
+  calibrateConfirmed(opts?: { maxSignatures?: number; heldOut?: number }): Promise<CalibrationReport>;
   forgetFit(): void;
+  /** The review walk panel. */
+  walk: { open(opts?: { order?: WalkOrder }): void; close(): void; state(): WalkState; items(): Array<{ key: string; title: string; elements: number }>; goto(index: number): void };
+  /** Pending changes, commits and the review log of the model on screen. The reviewer's name is kept on this device only. */
+  review: {
+    ready(): Promise<void>;
+    reviewer(): string;
+    setReviewer(name: string): void;
+    fingerprint(): string;
+    pending(): PendingChange[];
+    propose(globalIds: string[], o: { action: 'confirm' | 'correct'; codes?: ManualPartial; item?: string; comment?: string }): PendingChange[];
+    undoPending(itemOrGlobalId: string): number;
+    commit(note?: string): ReviewCommit;
+    revert(commitId: string, note?: string): { commit: ReviewCommit; skipped: string[] };
+    history(): ReviewCommit[];
+    exportLog(): string;
+    importLog(text: string): ImportOutcome;
+    disagreements(): string[];
+    storage(): { where: string; error: string };
+  };
   /** The API key of a d3 endpoint (its own entry; never in params, links, views or packed pages). */
   setD3Key(key: string, remember?: boolean): void;
   d3KeyState(): { set: boolean; remembered: boolean; mask: string };
@@ -690,8 +716,18 @@ function panel(box: HTMLElement, app: ViewerApp, svc: ClassifyService, tint: Tin
       (e: unknown) => { calBusy = false; calMsgText = e instanceof Error ? e.message : String(e); calMsg.classList.add('xc-err'); svc.notify(); },
     );
   }, { title: 'Fit one temperature per question on the elements that the rules label in this model, and show the numbers before and after' });
+  const calConfBtn = button('Calibrate on confirmed', () => {
+    calBusy = true;
+    calMsgText = 'Fitting: the model runs for the kinds of element that you committed in the review walk...';
+    calMsg.classList.remove('xc-err');
+    svc.notify();
+    void api.calibrateConfirmed().then(
+      (r) => { calBusy = false; calMsgText = `Done. The temperatures were fitted on ${r.scored} kinds of element that were confirmed or corrected in ${r.source}.`; svc.notify(); },
+      (e: unknown) => { calBusy = false; calMsgText = e instanceof Error ? e.message : String(e); calMsg.classList.add('xc-err'); svc.notify(); },
+    );
+  }, { title: 'Fit one temperature per question on the labels that you committed in the review walk (they count as truth), and show the numbers before and after' });
   const calForget = button('Forget fit', () => { svc.forgetFit(); calMsgText = null; }, { title: 'Delete the fitted temperatures of this model' });
-  calSec.append(calMode.root, calManual, calLine, row(calBtn, calForget), calMsg, calReport);
+  calSec.append(calMode.root, calManual, calLine, row(calBtn, calConfBtn, calForget), calMsg, calReport);
   box.append(section('Calibration'), calSec);
   const paintCal = (): void => {
     const st = svc.calibrationStatus();
@@ -703,6 +739,7 @@ function panel(box: HTMLElement, app: ViewerApp, svc: ClassifyService, tint: Tin
     const tempsText = TEMPERATURE_KEYS.filter((k) => st.temperatures[k] !== undefined).map((k) => `${QUESTION_LABEL[k]} ${fmt2(st.temperatures[k]!)}`).join(', ');
     calLine.set(`In use: ${st.label}${tempsText ? `. Temperatures: ${tempsText}` : ''}.${st.note ? `\n${st.note}` : ''}\nA temperature below 1 sharpens the confidence, above 1 flattens it. The choice of the model never changes.`);
     calBtn.setDisabled(calBusy ? 'Fitting is in progress' : svc.running ? 'A run is in progress' : !svc.model ? 'Load a model first' : false);
+    calConfBtn.setDisabled(calBusy ? 'Fitting is in progress' : svc.running ? 'A run is in progress' : !svc.model ? 'Load a model first' : svc.store.committed.size === 0 ? 'Nothing is confirmed yet: commit some confirmations in the review walk first' : false);
     calForget.setDisabled(st.fitted ? false : 'No fit is stored for this model');
     calMsg.set(calMsgText ?? '');
     calMsg.hidden = !calMsgText;
@@ -832,7 +869,9 @@ function panel(box: HTMLElement, app: ViewerApp, svc: ClassifyService, tint: Tin
         cell(r.masterformat?.division ?? '', undefined, r.masterformat?.title),
         cell(fmt2(overallConfidence(r)), r.needsReview ? 'xc-review' : undefined, r.needsReview ? 'Needs review' : ''),
         cell(topTwo(r.discipline.probabilities).map(([k, v]) => `${k} ${fmt2(v)}`).join(' '), 'xc-top2', r.rationale ?? ''),
-        cell(r.source, undefined, r.model ? `Model: ${r.model}` : r.rationale ?? ''),
+        svc.review.disagreements().has(r.id)
+          ? cell(`${r.source} !`, 'xc-review', `The model now disagrees: ${svc.review.disagreements().get(r.id)!.discipline.code}${svc.review.disagreements().get(r.id)!.subDiscipline ? `/${svc.review.disagreements().get(r.id)!.subDiscipline!.code}` : ''}`)
+          : cell(r.source, undefined, r.confirmedBy ? `${r.source} by ${r.confirmedBy}, ${r.confirmedAt ?? ''}` : r.model ? `Model: ${r.model}` : r.rationale ?? ''),
       );
       const tdEdit = el('td');
       const eb = el('button', 'xc-edit', { type: 'button', 'aria-label': `Edit ${rec?.name || r.id}`, title: 'Set the codes by hand' }, '✎');
@@ -843,6 +882,38 @@ function panel(box: HTMLElement, app: ViewerApp, svc: ClassifyService, tint: Tin
       tbody.appendChild(tr);
     }
     if (editId && !svc.results().some((r) => r.id === editId)) closeEditor();
+  };
+
+  // ---- review walk
+  box.appendChild(section('Review'));
+  const reviewLine = statusLine('');
+  reviewLine.setAttribute('data-role', 'review-summary');
+  const reviewFile = el('input', undefined, { type: 'file', accept: '.json,application/json', hidden: '' });
+  reviewFile.addEventListener('change', async () => {
+    const f = reviewFile.files?.[0];
+    reviewFile.value = '';
+    if (!f) return;
+    const r = svc.review.importLog(await f.text());
+    infoMsg = r.ok ? `Imported ${r.added.length} commit${r.added.length === 1 ? '' : 's'} of the review log; ${r.duplicates.length} were in the log already.` : r.error ?? 'The review log could not be imported.';
+    runMsg = r.ok ? null : infoMsg;
+    svc.notify();
+  });
+  const bWalk = button('Review walk', () => api.walk.open(), { primary: true, title: 'Walk the classified elements in a logical order, confirm or correct each, and commit the changes to the review log (Shift+R)' });
+  box.append(
+    reviewLine,
+    row(
+      bWalk,
+      button('Export review log', () => { try { downloadText(`classification-review-${app.modelName}.json`, svc.review.exportLog(), 'application/json'); } catch (e) { runMsg = e instanceof Error ? e.message : String(e); svc.notify(); } }, { title: 'Save the commits of this model as an xray-classification-review/1 file' }),
+      button('Import review log', () => reviewFile.click(), { title: 'Replay the commits of a review log file for this model. Commits that are in the log already are skipped.' }),
+    ),
+    reviewFile,
+  );
+  const paintReview = (): void => {
+    const rv = svc.review;
+    const c = svc.store.committed.size;
+    const h = rv.history().length;
+    bWalk.setDisabled(!svc.model ? 'Load a model first' : false);
+    reviewLine.set(`${c} element${c === 1 ? '' : 's'} confirmed or corrected in ${h} commit${h === 1 ? '' : 's'}, ${rv.pending().length} pending. ${svc.review.disagreements().size ? `${svc.review.disagreements().size} where the model now disagrees. ` : ''}${rv.storage.where === 'session' ? 'Not saved on this device.' : ''}`);
   };
 
   // ---- output
@@ -1017,6 +1088,7 @@ function panel(box: HTMLElement, app: ViewerApp, svc: ClassifyService, tint: Tin
     }
     renderTable();
     renderLegend();
+    paintReview();
     scheduleEstimate();
   };
 
@@ -1039,7 +1111,7 @@ function panel(box: HTMLElement, app: ViewerApp, svc: ClassifyService, tint: Tin
 function summaryText(st: ClassifyStats | null, n: number): string {
   if (!st) return `${n} results.`;
   const b = st.bySource;
-  return `${n} classified: rules ${b.rules}, cache ${b.cache}, model ${b.model}, manual ${b.manual}. ${st.calls} request${st.calls === 1 ? '' : 's'} for ${st.signatures} signature${st.signatures === 1 ? '' : 's'}. ${st.needsReview} need review.${st.aborted ? ' Stopped.' : ''}`;
+  return `${n} classified: rules ${b.rules}, cache ${b.cache}, model ${b.model}, manual ${b.manual}${b.confirmed + b.corrected ? `, confirmed ${b.confirmed}, corrected ${b.corrected}` : ''}. ${st.calls} request${st.calls === 1 ? '' : 's'} for ${st.signatures} signature${st.signatures === 1 ? '' : 's'}. ${st.needsReview} need review.${st.aborted ? ' Stopped.' : ''}`;
 }
 
 // ---------------------------------------------------------------- pictures: the geometry of the loaded model
@@ -1090,6 +1162,7 @@ function geoSource(app: ViewerApp): GeoSource {
 let svc: ClassifyService | null = null;
 let tint: Tint | null = null;
 let lastSelKey = '';
+let reviewWalk: ReviewWalk | null = null;
 
 export const classifyPlugin: AppPlugin = {
   name: 'classify',
@@ -1117,6 +1190,8 @@ export const classifyPlugin: AppPlugin = {
     };
     registerParamSection('classify', sectionApi);
 
+    const walk = new ReviewWalk(app, service, () => window.__xrayToolbar?.close());
+    reviewWalk = walk;
     const api: ClassifyApi = {
       classify: (target, opts) => service.classify(target, opts),
       classifyInputs: (inputs, opts) => service.classifyInputs(inputs, opts),
@@ -1161,7 +1236,25 @@ export const classifyPlugin: AppPlugin = {
       },
       calibration: () => service.calibrationStatus(),
       calibrate: (opts) => service.calibrateOnRules(opts),
+      calibrateConfirmed: (opts) => service.calibrateOnConfirmed(opts),
       forgetFit: () => service.forgetFit(),
+      walk: { open: (o) => walk.open(o), close: () => walk.close(), state: () => walk.state(), items: () => walk.list(), goto: (i) => walk.goto(i) },
+      review: {
+        ready: () => service.review.ready,
+        reviewer: () => service.review.reviewer(),
+        setReviewer: (n) => service.review.setReviewer(n),
+        fingerprint: () => service.review.fingerprint(),
+        pending: () => service.review.pending(),
+        propose: (ids, o) => service.review.propose(ids, { action: o.action, item: o.item ?? 'api', ...(o.codes ? { codes: o.codes } : {}), ...(o.comment ? { comment: o.comment } : {}) }),
+        undoPending: (k) => service.review.undoPending(k),
+        commit: (note) => service.review.commit(note),
+        revert: (id, note) => service.review.revert(id, note),
+        history: () => service.review.history(),
+        exportLog: () => service.review.exportLog(),
+        importLog: (t) => service.review.importLog(t),
+        disagreements: () => [...service.review.disagreements().keys()],
+        storage: () => ({ where: service.review.storage.where, error: service.review.storage.error }),
+      },
       setD3Key: (key, remember) => service.d3Key.set(key, remember === true),
       d3KeyState: () => ({ set: !!service.d3Key.get(), remembered: service.d3Key.remembered(), mask: service.d3Key.mask() }),
       confirmD3Download: () => service.confirmD3Download(),
@@ -1192,12 +1285,18 @@ export const classifyPlugin: AppPlugin = {
     registerAction({ id: 'classify.selection', label: 'Classify: selection', group: 'Tools', keys: [], run: () => void api.classify('selection') });
     registerAction({ id: 'classify.all', label: 'Classify: all elements', group: 'Tools', keys: [], run: () => void api.classify('all') });
     registerAction({ id: 'classify.review', label: 'Classify: select elements that need review', group: 'Tools', keys: [], run: () => void api.selectNeedsReview() });
+    registerAction({
+      id: 'classify.walk', label: 'Classify: review walk (confirm classifications)', group: 'Tools', keys: ['Shift+r'],
+      description: 'Walk the classified elements in a logical order, confirm or correct each, and commit the changes to the review log.',
+      enabled: () => !!service.model, run: () => walk.open(),
+    });
     registerAction({ id: 'classify.stop', label: 'Classify: stop', group: 'Tools', keys: [], run: () => api.abort() });
     registerAction({ id: 'classify.colour', label: 'Classify: colour by discipline', group: 'Tools', keys: [], run: () => api.colourByDiscipline(!t.on) });
   },
   onModel(app) {
     const service = svc;
     if (!service || !app.loaded) return;
+    reviewWalk?.onModel();
     tint?.forget();
     if (tint) tint.on = false;
     disposeThumbRenderer();
