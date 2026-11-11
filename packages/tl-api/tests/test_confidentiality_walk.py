@@ -234,6 +234,11 @@ def test_the_walk_finds_the_routes_and_the_seed_is_what_the_walk_assumes(
         "/projects/{project}/constraints/groups",
         "/projects/{project}/constraints/{key}",
     } <= paths
+    assert {  # P2-PUNCH-T03: the punch routes; a seeded walk is in tests/test_api_punch.py
+        "/projects/{project}/punch",
+        "/projects/{project}/punch/{key}",
+        "/projects/{project}/punch-counts",
+    } <= paths
     assert "/records/{record_id}/actions" in paths  # P1-UX2-S1: walked below as five readers
     assert "/records/{record_id}/addable-properties" in paths  # P1-UX3 r4: walked below too
     forms_query = next(q for p, _, q in routes if p == "/schema/forms")

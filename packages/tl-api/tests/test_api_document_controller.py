@@ -115,9 +115,11 @@ def test_the_controlling_set_is_the_twelve_and_the_actions_follow() -> None:
         "DefineItem", "ReviseItem", "RetireItem", "DefineLocation", "ReviseLocation",
         "RetireLocation", "VoidReceipt", "AdjustStock", "ScrapStock", "PublishDerivedMto",
     }  # fmt: skip
+    # the quality module (P2-PUNCH): verify, reopen and void of a punch item
+    quality = {"VerifyPunchItem", "ReopenPunchItem", "VoidPunchItem"}
     assert controller_actions() == {
         f"control.command.{n}"
-        for n in CONTROLLING | scheduling | correspondence | registry | awp | materials
+        for n in CONTROLLING | scheduling | correspondence | registry | awp | materials | quality
     }
 
 
