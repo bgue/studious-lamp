@@ -1,7 +1,7 @@
 # P2-PUNCH STATE  r=1 base=bb6f855b C=0 ck=0 gate=n/a wt=/home/user/wt/p2-punch
 ## BOARD   (r1: plan, two piece specs and nine tickets written; nothing dispatched; `todo` = spec written, deps unmet)
 S1 p mrg f 7c4ebaa schema + module spec; human gate (APPROVALS); dispatch r2 alone
-S2 p todo f - six commands, subject join, row; needs S1; human gate
+S2 p mrg f 1752551 six commands, subject join, row; needs S1; human gate
 T01 t todo f - read views + provided test (supervisor commits it after S2 merges); needs S2
 T02 t todo f - `tl punch` writes and reads; needs T01
 T03 t todo f - 3 API routes + PUNCH_COMMANDS door; needs T01
@@ -32,6 +32,7 @@ D14 Q5: S1 may add the new event names to the feed-policy list in tl_core/feed/c
 D15 Q1: no fixed order with p2/i4a; whichever merges to trunk second unions SUBJECT_LINKS rows and proposable_exclusions.toml.
 D16 Q3: T06 uses the generic record-screen action path if it covers clear/verify/reopen; else quality_command plus a form.
 D17 Q4: two hops claimed; the three-hop case is a known limit (DEFERRED line at close, with outside review 1 F5).
+D20 S2: quality tests keep conftest.py (path widened by orch; the retry that removed it broke collection, reverted)
 D19 S1 blk: FROZEN valid-time baseline never grows; new punch events get optional valid-time `at` (Raised, Edited, Reopened, Voided)
 D18 Q2: default applied (superuser verifies, never the clearer; verified can reopen); owner told.
 ## OPEN
