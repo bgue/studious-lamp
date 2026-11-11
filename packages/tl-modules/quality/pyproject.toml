@@ -8,6 +8,8 @@ dependencies = [
   "tl-core",
   "tl-schema",
   "tl-adapters",
+  # the test world makes a restricted record through the correspondence module's own commands
+  "tl-mod-correspondence",
 ]
 
 [project.entry-points."throughline.modules"]

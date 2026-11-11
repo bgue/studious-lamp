@@ -1,0 +1,10 @@
+# command = reason; a module command that is not a ProposableCommand row must be listed here.
+# ADR-0027 decision 4: every command ticket adds a row or an entry. Acts that a person decides, and
+# the owner's own field edits, are never proposed by an agent.
+[commands]
+# P2-PUNCH S2 quality (the row is `propose_punch_item`, RaisePunchItem)
+ClearPunchItem = "person acts directly"
+EditPunchItem = "person acts directly"
+VerifyPunchItem = "act: verifying is the controller's decision"
+ReopenPunchItem = "act: reopening is the controller's decision"
+VoidPunchItem = "act: voiding is the controller's decision"
