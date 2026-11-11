@@ -45,6 +45,11 @@ APP_COMMANDS: tuple[AppCommand, ...] = (
         "constraints", "Constraint log: open constraints and their owners", "", "constraints"
     ),
     AppCommand("backlog", "Backlog: IWPs by view, with the sizing view", "", "backlog"),
+    # P2-I4A requisition screens (T07d; `tl_tui/widgets/requisition_register.py`).
+    AppCommand(
+        "requisitions", "Requisitions: the requisition log, by kind and state", "", "requisitions"
+    ),
+    AppCommand("work-orders", "Work orders: the work order backlog, by state", "", "work_orders"),
     AppCommand("path", "Path of construction: the order of the areas, by version", "", "path"),
     AppCommand("packages", "External packages: EWP and PWP, forecast and actual", "", "packages"),
     AppCommand("settings", "about:config: settings and their history", "F9", "settings"),

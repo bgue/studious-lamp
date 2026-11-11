@@ -175,10 +175,12 @@ class RequisitionScreen(ModalScreen[None]):
     technical mode). Text only; Esc closes it, F5 reads it again."""
 
     KEY_HINTS: ClassVar[str] = "Esc back  F5 reload"
+    WORK_ORDER_HINT: ClassVar[str] = "  w Work order"
 
     BINDINGS: ClassVar[list[BindingType]] = [
         Binding("escape", "close", "Close", show=False),
         Binding("f5", "reload", "Reload", show=False),
+        Binding("w", "work_order", "Work order", show=False),
     ]
 
     DEFAULT_CSS = """
@@ -194,6 +196,7 @@ class RequisitionScreen(ModalScreen[None]):
         self.project = project
         self.key = key
         self._gen = 0
+        self._work_key: str | None = None  # the work order of the requisition, once read
 
     # --- layout --------------------------------------------------------------------------
 
@@ -220,23 +223,28 @@ class RequisitionScreen(ModalScreen[None]):
 
     async def _load(self, gen: int, technical: bool) -> None:
         try:
-            page = await asyncio.to_thread(self._read, technical)
+            page, work_key = await asyncio.to_thread(self._read, technical)
         except CLIENT_ERRORS as exc:
             if gen == self._gen and self.is_attached:
+                self._work_key = None
                 self._show(None, describe_error(exc))
             return
         if gen == self._gen and self.is_attached:
+            self._work_key = work_key
             self._show(page, "")
 
-    def _read(self, technical: bool) -> Page:
+    def _read(self, technical: bool) -> tuple[Page, str | None]:
         detail = self.client.get_requisition(self.project, self.key)
-        return req_page(detail, technical=technical)
+        work_key = None if detail.work_order is None else detail.work_order.key
+        return req_page(detail, technical=technical), work_key
 
     def _show(self, page: Page | None, error: str) -> None:
         body: Adaptive | str = (
             render(page) if page is not None else "This requisition could not be read."
         )
         self.query_one("#req-page", Static).update(body)
+        keys = self.KEY_HINTS + (self.WORK_ORDER_HINT if self._work_key else "")
+        self.query_one("#req-keys", Static).update(keys)
         status = self.query_one("#req-status", Static)
         status.update(("! " + error) if error else "")
 
@@ -246,8 +254,22 @@ class RequisitionScreen(ModalScreen[None]):
         """Text only: this screen offers no action."""
         return []
 
+    def check_action(self, action: str, parameters: tuple[object, ...]) -> bool | None:
+        """``w`` exists only when the requisition has a work order (no binding otherwise)."""
+        if action == "work_order":
+            return self._work_key is not None
+        return True
+
     def action_reload(self) -> None:
         self.reload()
+
+    def action_work_order(self) -> None:
+        """Open the work order of this requisition, on top of this screen (Esc returns)."""
+        if self._work_key is None:
+            return
+        from tl_tui.widgets.work_order_backlog import WorkOrderScreen
+
+        self.app.push_screen(WorkOrderScreen(self.client, self.project, self._work_key))
 
     def action_close(self) -> None:
         self.dismiss(None)
