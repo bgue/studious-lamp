@@ -1,6 +1,6 @@
 # P2-PUNCH STATE  r=1 base=bb6f855b C=0 ck=0 gate=n/a wt=/home/user/wt/p2-punch
 ## BOARD   (r1: plan, two piece specs and nine tickets written; nothing dispatched; `todo` = spec written, deps unmet)
-S1 p todo f - schema + module spec; human gate (APPROVALS); dispatch r2 alone
+S1 p mrg f 7c4ebaa schema + module spec; human gate (APPROVALS); dispatch r2 alone
 S2 p todo f - six commands, subject join, row; needs S1; human gate
 T01 t todo f - read views + provided test (supervisor commits it after S2 merges); needs S2
 T02 t todo f - `tl punch` writes and reads; needs T01
