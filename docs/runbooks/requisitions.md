@@ -48,8 +48,8 @@ The work order (`P123-WO-0001`, shown by `tl req show`) moves Open, Scheduled, I
 ### Run the work order in the TUI
 The TUI reads requisitions and work orders; it does not write them. Every write above is a terminal command.
 1. Palette (`Ctrl+P`, the command palette): `requisitions` opens the requisition log; `work-orders` opens the work order backlog.
-2. Requisition log: `k` changes the kind, `s` the state, `m` shows only mine.
-3. Work order backlog: `s` the state, `m` mine, `F5` reloads, Enter opens one work order (text only), `Esc` closes.
+2. Requisition log: `k` changes the kind, `s` the state, `m` shows only mine; Enter opens one requisition, where `w` opens its work order, `F5` reloads and `Esc` closes.
+3. Work order backlog: `s` the state, `m` mine; Enter opens one work order (text only), where `F5` reloads and `Esc` closes.
 
 ### What a refusal means
 Every refusal is one `error:` line and exit 1 unless noted. The text is fixed.
