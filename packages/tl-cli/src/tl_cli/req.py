@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import typer
 
-from tl_cli import req_write
+from tl_cli import req_read, req_write
 
 app = typer.Typer(
     help="Requisitions: raise, edit, approve, reject and cancel.", no_args_is_help=True
@@ -22,6 +22,7 @@ wo_app = typer.Typer(
 def register_all() -> None:
     """Add every write verb to ``req`` and ``wo``."""
     req_write.register(app, wo_app)
+    req_read.register(app, wo_app)
 
 
 register_all()
