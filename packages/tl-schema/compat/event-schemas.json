@@ -4749,6 +4749,203 @@
    "type": "object"
   }
  },
+ "PunchItem.Cleared": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "at": {
+     "format": "date-time",
+     "type": "string"
+    },
+    "by": {
+     "type": "string"
+    },
+    "feed_policy": {
+     "const": "none",
+     "type": "string"
+    },
+    "note": {
+     "type": "string"
+    },
+    "record_id": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "record_id",
+    "by",
+    "note",
+    "at",
+    "feed_policy"
+   ],
+   "type": "object"
+  }
+ },
+ "PunchItem.Edited": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "changes": {},
+    "feed_policy": {
+     "const": "none",
+     "type": "string"
+    },
+    "record_id": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "record_id",
+    "changes",
+    "feed_policy"
+   ],
+   "type": "object"
+  }
+ },
+ "PunchItem.Raised": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "area": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "assignee": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "category": {
+     "enum": [
+      "A",
+      "B",
+      "C"
+     ],
+     "type": "string"
+    },
+    "due_on": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "feed_policy": {
+     "const": "none",
+     "type": "string"
+    },
+    "raised_by": {
+     "type": "string"
+    },
+    "record_id": {
+     "type": "string"
+    },
+    "source_id": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "system": {
+     "type": [
+      "string",
+      "null"
+     ]
+    }
+   },
+   "required": [
+    "record_id",
+    "category",
+    "raised_by",
+    "feed_policy"
+   ],
+   "type": "object"
+  }
+ },
+ "PunchItem.Reopened": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "by": {
+     "type": "string"
+    },
+    "feed_policy": {
+     "const": "none",
+     "type": "string"
+    },
+    "reason": {
+     "type": "string"
+    },
+    "record_id": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "record_id",
+    "by",
+    "reason",
+    "feed_policy"
+   ],
+   "type": "object"
+  }
+ },
+ "PunchItem.Verified": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "at": {
+     "format": "date-time",
+     "type": "string"
+    },
+    "by": {
+     "type": "string"
+    },
+    "feed_policy": {
+     "const": "none",
+     "type": "string"
+    },
+    "record_id": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "record_id",
+    "by",
+    "at",
+    "feed_policy"
+   ],
+   "type": "object"
+  }
+ },
+ "PunchItem.Voided": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "by": {
+     "type": "string"
+    },
+    "feed_policy": {
+     "const": "none",
+     "type": "string"
+    },
+    "reason": {
+     "type": "string"
+    },
+    "record_id": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "record_id",
+    "by",
+    "reason",
+    "feed_policy"
+   ],
+   "type": "object"
+  }
+ },
  "Receipt.Accepted": {
   "1": {
    "additionalProperties": true,

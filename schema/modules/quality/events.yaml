@@ -1,0 +1,181 @@
+id: https://example.org/throughline/modules/quality/events
+name: tl_mod_quality_events
+title: Quality module events
+description: >-
+  The ledger events of the quality module (brief 18.3), in the same form as `schema/core/events.yaml`. A punch item
+  is created by `Record.Created` followed in the same append by `PunchItem.Raised`. Every event carries
+  `feed_policy: none`: a punch item makes no feed card. Each payload names the stream's `record_id`. `at` of
+  `Cleared` and `Verified` is the world date of the fact (ADR-0026); `due_on` is a plan, not valid time.
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+  - ../../core/annotations
+  - ../../core/record
+  - ../../core/events
+  - punch_item
+default_range: string
+annotations:
+  tl:module: quality
+
+classes:
+  PunchItemRaisedPayload:
+    is_a: EventPayload
+    description: >-
+      A punch item was raised. Stream type `quality.PunchItem`.
+    annotations:
+      tl:event_type: PunchItem.Raised
+      tl:event_version: "1"
+    attributes:
+      record_id:
+        description: "The punch item."
+        required: true
+      area:
+        description: "Area, or null."
+      system:
+        description: "System, or null."
+      due_on:
+        description: "YYYY-MM-DD, or null."
+      category:
+        range: PunchCategory
+        description: "A, B or C."
+        required: true
+      assignee:
+        description: "Assignee, or null."
+      raised_by:
+        description: "Actor text of who raised it."
+        required: true
+      source_id:
+        description: "The record it was raised from, or null."
+      feed_policy:
+        equals_string: none
+        description: "Always `none`: a punch item makes no feed card."
+        required: true
+    examples:
+      - value: "{\"area\": \"A1\", \"assignee\": \"user:rob\", \"category\": \"B\", \"due_on\": \"2026-12-01\", \"feed_policy\": \"none\", \"raised_by\": \"user:uma\", \"record_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P2\", \"source_id\": null, \"system\": \"47-01\"}"
+  PunchItemEditedPayload:
+    is_a: EventPayload
+    description: >-
+      A punch item was edited; only the fields that changed are present. Stream type `quality.PunchItem`.
+    annotations:
+      tl:event_type: PunchItem.Edited
+      tl:event_version: "1"
+    attributes:
+      record_id:
+        description: "The punch item."
+        required: true
+      changes:
+        description: "Object of field -> [old, new]."
+        range: Any
+        required: true
+        annotations:
+          tl:json: true
+      feed_policy:
+        equals_string: none
+        description: "Always `none`: a punch item makes no feed card."
+        required: true
+    examples:
+      - value: "{\"changes\": {\"area\": [\"A1\", \"A2\"]}, \"feed_policy\": \"none\", \"record_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P2\"}"
+  PunchItemClearedPayload:
+    is_a: EventPayload
+    description: >-
+      A punch item was cleared by its assignee. Stream type `quality.PunchItem`.
+    annotations:
+      tl:event_type: PunchItem.Cleared
+      tl:event_version: "1"
+    attributes:
+      record_id:
+        description: "The punch item."
+        required: true
+      by:
+        description: "Actor text of who cleared it."
+        required: true
+      note:
+        description: "What was done."
+        required: true
+      at:
+        range: datetime
+        description: "When it was cleared."
+        required: true
+        annotations:
+          tl:valid_time: at
+      feed_policy:
+        equals_string: none
+        description: "Always `none`: a punch item makes no feed card."
+        required: true
+    examples:
+      - value: "{\"at\": \"2026-12-02T09:30:00Z\", \"by\": \"user:rob\", \"feed_policy\": \"none\", \"note\": \"Guard fitted\", \"record_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P2\"}"
+  PunchItemVerifiedPayload:
+    is_a: EventPayload
+    description: >-
+      A cleared punch item was verified by a controller. Stream type `quality.PunchItem`.
+    annotations:
+      tl:event_type: PunchItem.Verified
+      tl:event_version: "1"
+    attributes:
+      record_id:
+        description: "The punch item."
+        required: true
+      by:
+        description: "Actor text of who verified it."
+        required: true
+      at:
+        range: datetime
+        description: "When it was verified."
+        required: true
+        annotations:
+          tl:valid_time: at
+      feed_policy:
+        equals_string: none
+        description: "Always `none`: a punch item makes no feed card."
+        required: true
+    examples:
+      - value: "{\"at\": \"2026-12-03T14:00:00Z\", \"by\": \"user:sue\", \"feed_policy\": \"none\", \"record_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P2\"}"
+  PunchItemReopenedPayload:
+    is_a: EventPayload
+    description: >-
+      A cleared or verified punch item was reopened by a controller. Stream type `quality.PunchItem`.
+    annotations:
+      tl:event_type: PunchItem.Reopened
+      tl:event_version: "1"
+    attributes:
+      record_id:
+        description: "The punch item."
+        required: true
+      by:
+        description: "Actor text of who reopened it."
+        required: true
+      reason:
+        description: "Why it was reopened."
+        required: true
+      feed_policy:
+        equals_string: none
+        description: "Always `none`: a punch item makes no feed card."
+        required: true
+    examples:
+      - value: "{\"by\": \"user:sue\", \"feed_policy\": \"none\", \"reason\": \"Guard loose\", \"record_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P2\"}"
+  PunchItemVoidedPayload:
+    is_a: EventPayload
+    description: >-
+      An open or cleared punch item was voided by a controller. Stream type `quality.PunchItem`.
+    annotations:
+      tl:event_type: PunchItem.Voided
+      tl:event_version: "1"
+    attributes:
+      record_id:
+        description: "The punch item."
+        required: true
+      by:
+        description: "Actor text of who voided it."
+        required: true
+      reason:
+        description: "Why it was voided."
+        required: true
+      feed_policy:
+        equals_string: none
+        description: "Always `none`: a punch item makes no feed card."
+        required: true
+    examples:
+      - value: "{\"by\": \"user:sue\", \"feed_policy\": \"none\", \"reason\": \"Raised twice\", \"record_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P2\"}"

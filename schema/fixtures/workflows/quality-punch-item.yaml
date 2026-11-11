@@ -1,0 +1,33 @@
+# Workflow of a punch item (brief 9 M5): Open, Cleared by the assignee, Verified by a controller. A cleared or
+# verified item can be reopened (back to Open); an open or cleared one can be voided. Void is the only final
+# state; Open to Verified, Verified to Void and any move out of Void are not moves. Every move is a command of
+# the quality module (by_module), so the file states the moves and names no role: who may do what is the access
+# word of each command (ADR-0013). No constraint guard: nothing is gated on a punch item here (ADR-0024: an
+# advisory constraint can be raised on it, a blocking one cannot).
+id: quality.punch-item
+version: 1
+record_type: quality.PunchItem
+scope: company
+initial_state: Open
+states:
+  - name: Open
+  - name: Cleared
+  - name: Verified
+  - name: Void
+transitions:
+  - name: clear
+    label: Clear the item
+    from: [Open]
+    to: Cleared
+  - name: verify
+    label: Verify the item
+    from: [Cleared]
+    to: Verified
+  - name: reopen
+    label: Reopen the item
+    from: [Cleared, Verified]
+    to: Open
+  - name: void
+    label: Void the item
+    from: [Open, Cleared]
+    to: Void

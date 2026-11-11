@@ -18,6 +18,7 @@ dependencies = [
   "tl-mod-schemareg",
   "tl-mod-legacy",
   "tl-mod-materials",
+  "tl-mod-quality",
   "httpx2",
   "pypdfium2",
   "rich-pixels==3.0.1",

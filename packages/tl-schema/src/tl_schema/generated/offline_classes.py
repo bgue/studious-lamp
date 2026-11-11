@@ -50,6 +50,7 @@ OFFLINE_CLASSES: Final[dict[str, OfflineClass]] = {
     "materials.ProjectItem": "none",
     "materials.Receipt": "draft_only",
     "materials.StockLot": "draft_only",
+    "quality.PunchItem": "draft_only",
     "schedule.ActivityRef": "none",
     "schedule.Schedule": "none",
     "schedule.ScheduleSnapshot": "none",
