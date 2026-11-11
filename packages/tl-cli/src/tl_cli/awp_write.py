@@ -10,7 +10,7 @@ verbs are not here.
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from typing import Annotated, Any, Literal
 
 import typer
@@ -68,9 +68,11 @@ CWP_HELP = "Construction work packages (CWPs)."
 PACKAGE_HELP = "Engineering and procurement work packages."
 
 
-def _handler(model: type[Command]) -> Callable[[UnitOfWork, Any], CommandResult]:
-    """The handler ``AWP_COMMANDS`` names for this command model."""
-    return next(c.handler for c in AWP_COMMANDS if c.model is model)
+def _handler(
+    model: type[Command], *, table: Sequence[Any] = AWP_COMMANDS
+) -> Callable[[UnitOfWork, Any], CommandResult]:
+    """The handler ``table`` names for this command model (``AWP_COMMANDS`` unless told)."""
+    return next(c.handler for c in table if c.model is model)
 
 
 def _parts(value: str, count: int, option: str, shape: str) -> list[str]:
@@ -103,12 +105,17 @@ def _quantities(values: list[str] | None) -> list[QuantityRow] | None:
     return rows
 
 
-def _execute(db: DbTarget, build: Callable[[UnitOfWork], Command]) -> CommandResult:
-    """Build the command on the ledger, gate it with the module role, run its handler; one write."""
+def _execute(
+    db: DbTarget, build: Callable[[UnitOfWork], Command], *, table: Sequence[Any] = AWP_COMMANDS
+) -> CommandResult:
+    """Build the command on the ledger, gate it with the module role, run its handler; one write.
+
+    ``table`` is the module's command table (``AWP_COMMANDS`` unless a module's CLI passes its own).
+    """
     with service_errors(), open_uow(db) as uow:
         command = build(uow)
         require_command(uow, command)
-        return _handler(type(command))(uow, command)
+        return _handler(type(command), table=table)(uow, command)
 
 
 def _cwp_id(uow: UnitOfWork, project: str, number: str) -> str:
