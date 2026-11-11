@@ -29,6 +29,14 @@
                 "null"
               ]
             },
+            "at": {
+              "description": "When it happened in the field; absent means the recorded time (D19).",
+              "format": "date-time",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
             "category": {
               "description": "A, B or C.",
               "enum": [

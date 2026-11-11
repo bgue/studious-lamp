@@ -49,6 +49,11 @@ classes:
         required: true
       source_id:
         description: "The record it was raised from, or null."
+      at:
+        range: datetime
+        description: "When it happened in the field; absent means the recorded time (D19)."
+        annotations:
+          tl:valid_time: at
       feed_policy:
         equals_string: none
         description: "Always `none`: a punch item makes no feed card."
@@ -72,6 +77,11 @@ classes:
         required: true
         annotations:
           tl:json: true
+      at:
+        range: datetime
+        description: "When it happened in the field; absent means the recorded time (D19)."
+        annotations:
+          tl:valid_time: at
       feed_policy:
         equals_string: none
         description: "Always `none`: a punch item makes no feed card."
@@ -150,6 +160,11 @@ classes:
       reason:
         description: "Why it was reopened."
         required: true
+      at:
+        range: datetime
+        description: "When it happened in the field; absent means the recorded time (D19)."
+        annotations:
+          tl:valid_time: at
       feed_policy:
         equals_string: none
         description: "Always `none`: a punch item makes no feed card."
@@ -173,6 +188,11 @@ classes:
       reason:
         description: "Why it was voided."
         required: true
+      at:
+        range: datetime
+        description: "When it happened in the field; absent means the recorded time (D19)."
+        annotations:
+          tl:valid_time: at
       feed_policy:
         equals_string: none
         description: "Always `none`: a punch item makes no feed card."

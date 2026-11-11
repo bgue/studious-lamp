@@ -217,18 +217,25 @@ def test_every_event_has_a_type_the_record_id_and_feed_policy_none() -> None:
         assert slots["feed_policy"].equals_string == "none" and slots["feed_policy"].required
 
 
-def test_cleared_and_verified_at_are_valid_time_tagged() -> None:
+def test_every_event_at_is_valid_time_tagged() -> None:
     view = _view("events.yaml")
-    for cls_name in ("PunchItemClearedPayload", "PunchItemVerifiedPayload"):
+    for cls_name in EVENTS.values():
         slot = {s.name: s for s in view.class_induced_slots(cls_name)}["at"]
-        assert _annotation(slot, "tl:valid_time") == "at"
-        assert slot.range == "datetime"
-    for cls_name in ("PunchItemRaisedPayload", "PunchItemEditedPayload"):
-        for slot in view.class_induced_slots(cls_name):
-            assert _annotation(slot, "tl:valid_time") is None, (cls_name, slot.name)
+        assert _annotation(slot, "tl:valid_time") == "at", cls_name
+        assert slot.range == "datetime", cls_name
+    for cls_name in ("PunchItemClearedPayload", "PunchItemVerifiedPayload"):
+        assert {s.name: s for s in view.class_induced_slots(cls_name)}["at"].required
+    for cls_name in (
+        "PunchItemRaisedPayload",
+        "PunchItemEditedPayload",
+        "PunchItemReopenedPayload",
+        "PunchItemVoidedPayload",
+    ):
+        assert not {s.name: s for s in view.class_induced_slots(cls_name)}["at"].required
+    due_on = {s.name: s for s in view.class_induced_slots("PunchItemRaisedPayload")}["due_on"]
+    assert _annotation(due_on, "tl:valid_time") is None
 
 
-def test_the_valid_time_baseline_has_no_quality_line_left_stale() -> None:
+def test_the_valid_time_baseline_has_no_quality_line() -> None:
     baseline = (ROOT / "tests" / "tools" / "valid_time_baseline.toml").read_text()
-    assert "tl_mod_quality_events.PunchItemClearedPayload" not in baseline
-    assert "tl_mod_quality_events.PunchItemVerifiedPayload" not in baseline
+    assert "tl_mod_quality_events" not in baseline

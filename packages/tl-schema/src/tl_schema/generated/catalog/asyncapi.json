@@ -45329,6 +45329,14 @@
                   "additionalProperties": true,
                   "description": "Delta and full modes. The ledger event payload, described per event type in the catalog.",
                   "properties": {
+                    "at": {
+                      "description": "When it happened in the field; absent means the recorded time (D19).",
+                      "format": "date-time",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
                     "changes": {},
                     "feed_policy": {
                       "const": "none",
@@ -45601,6 +45609,14 @@
                     },
                     "assignee": {
                       "description": "Assignee, or null.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "at": {
+                      "description": "When it happened in the field; absent means the recorded time (D19).",
+                      "format": "date-time",
                       "type": [
                         "string",
                         "null"
@@ -45899,6 +45915,14 @@
                   "additionalProperties": true,
                   "description": "Delta and full modes. The ledger event payload, described per event type in the catalog.",
                   "properties": {
+                    "at": {
+                      "description": "When it happened in the field; absent means the recorded time (D19).",
+                      "format": "date-time",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
                     "by": {
                       "description": "Actor text of who reopened it.",
                       "type": "string"
@@ -46432,6 +46456,14 @@
                   "additionalProperties": true,
                   "description": "Delta and full modes. The ledger event payload, described per event type in the catalog.",
                   "properties": {
+                    "at": {
+                      "description": "When it happened in the field; absent means the recorded time (D19).",
+                      "format": "date-time",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
                     "by": {
                       "description": "Actor text of who voided it.",
                       "type": "string"

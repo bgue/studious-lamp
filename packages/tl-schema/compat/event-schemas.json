@@ -4785,6 +4785,13 @@
   "1": {
    "additionalProperties": true,
    "properties": {
+    "at": {
+     "format": "date-time",
+     "type": [
+      "string",
+      "null"
+     ]
+    },
     "changes": {},
     "feed_policy": {
      "const": "none",
@@ -4813,6 +4820,13 @@
      ]
     },
     "assignee": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "at": {
+     "format": "date-time",
      "type": [
       "string",
       "null"
@@ -4868,6 +4882,13 @@
   "1": {
    "additionalProperties": true,
    "properties": {
+    "at": {
+     "format": "date-time",
+     "type": [
+      "string",
+      "null"
+     ]
+    },
     "by": {
      "type": "string"
     },
@@ -4923,6 +4944,13 @@
   "1": {
    "additionalProperties": true,
    "properties": {
+    "at": {
+     "format": "date-time",
+     "type": [
+      "string",
+      "null"
+     ]
+    },
     "by": {
      "type": "string"
     },

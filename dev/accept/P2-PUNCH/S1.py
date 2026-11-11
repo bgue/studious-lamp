@@ -36,9 +36,10 @@ CHECKS = [
         "events: type, record_id, feed_policy none",
         "test_every_event_has_a_type_the_record_id_and_feed_policy_none",
     ),
+    ("valid-time tag on `at` of all six events (D19)", "test_every_event_at_is_valid_time_tagged"),
     (
-        "valid-time tags on Cleared.at and Verified.at",
-        "test_cleared_and_verified_at_are_valid_time_tagged",
+        "no quality line in the valid-time baseline",
+        "test_the_valid_time_baseline_has_no_quality_line",
     ),
 ]
 

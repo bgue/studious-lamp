@@ -9221,6 +9221,7 @@ A punch item was edited; only the fields that changed are present. Stream type `
 
 | Field | Type | Required | Description |
 |---|---|---|---|
+| `at` | string or null | no | When it happened in the field; absent means the recorded time (D19). |
 | `changes` | any | yes |  |
 | `feed_policy` | string | yes | Always `none`: a punch item makes no feed card. |
 | `record_id` | string | yes | The punch item. |
@@ -9280,6 +9281,7 @@ A punch item was raised. Stream type `quality.PunchItem`.
 |---|---|---|---|
 | `area` | string or null | no | Area, or null. |
 | `assignee` | string or null | no | Assignee, or null. |
+| `at` | string or null | no | When it happened in the field; absent means the recorded time (D19). |
 | `category` | string | yes | A, B or C. |
 | `due_on` | string or null | no | YYYY-MM-DD, or null. |
 | `feed_policy` | string | yes | Always `none`: a punch item makes no feed card. |
@@ -9342,6 +9344,7 @@ A cleared or verified punch item was reopened by a controller. Stream type `qual
 
 | Field | Type | Required | Description |
 |---|---|---|---|
+| `at` | string or null | no | When it happened in the field; absent means the recorded time (D19). |
 | `by` | string | yes | Actor text of who reopened it. |
 | `feed_policy` | string | yes | Always `none`: a punch item makes no feed card. |
 | `reason` | string | yes | Why it was reopened. |
@@ -9450,6 +9453,7 @@ An open or cleared punch item was voided by a controller. Stream type `quality.P
 
 | Field | Type | Required | Description |
 |---|---|---|---|
+| `at` | string or null | no | When it happened in the field; absent means the recorded time (D19). |
 | `by` | string | yes | Actor text of who voided it. |
 | `feed_policy` | string | yes | Always `none`: a punch item makes no feed card. |
 | `reason` | string | yes | Why it was voided. |
