@@ -5,14 +5,14 @@ S2 p mrg f 43a94d5 engine cmds + subject-class join
 S3 p dfr f - roadmap 3c (fulfil, FIFO, stock(), shortage)
 S4 p dfr f - roadmap 3c; each ticket carries its tests
 T04a t mrg f 63b5e3a read views; D-r3c
-T04e1 t todo f - CLI writes, req/wo groups; needs S2
+T04e1 t mrg f 87307ee CLI writes; D-r3a D-r3b
 T04d t todo f - CLI reads; needs T04a T04e1
-T04c1 t todo f - API read routes; needs T04a
+T04c1 t mrg f 931992c API reads + word check
 T04c2 t todo f - client methods + fakes; needs T04c1
 T07a t todo f - requisition text, log, record page; needs T04c2
 T07b t todo f - work order backlog screen; needs T04c2
 T07d t todo f - TUI glue; needs T07a T07b
-T08b t todo f - MCP reads + propose_requisition tool file; needs T04a
+T08b t mrg f 78a134e MCP reads + propose_requisition
 T10b t todo f - demo clauses 1,5,7,8 exact verbs; needs T04c1 T04d T04e1 T07d T08b
 T12 t todo l - docs + 3 stale pointers; needs T10b
 T04f t dfr l - roadmap 3c labour forecast

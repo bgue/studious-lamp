@@ -5059,6 +5059,323 @@
    "type": "object"
   }
  },
+ "Requisition.Approved": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "approved_by": {
+     "type": "string"
+    },
+    "at": {
+     "format": "date-time",
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "feed_policy": {
+     "const": "full",
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "feed_text": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "work_order_id": {
+     "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+     "type": "string"
+    }
+   },
+   "required": [
+    "approved_by",
+    "work_order_id"
+   ],
+   "type": "object"
+  }
+ },
+ "Requisition.Cancelled": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "at": {
+     "format": "date-time",
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "by": {
+     "type": "string"
+    },
+    "reason": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "by",
+    "reason"
+   ],
+   "type": "object"
+  }
+ },
+ "Requisition.Fulfilled": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "at": {
+     "format": "date-time",
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "lines": {},
+    "shortage_qty": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "lines",
+    "shortage_qty"
+   ],
+   "type": "object"
+  }
+ },
+ "Requisition.Raised": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "at": {
+     "format": "date-time",
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "classification": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "craft": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "duration_days": {
+     "type": [
+      "integer",
+      "null"
+     ]
+    },
+    "elevation": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "end_date": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "for_record_id": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "from_location_id": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "general_type": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "gridline": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "headcount": {
+     "type": [
+      "integer",
+      "null"
+     ]
+    },
+    "height_m": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "kind": {
+     "enum": [
+      "labor",
+      "material",
+      "general",
+      "scaffold"
+     ],
+     "type": "string"
+    },
+    "length_m": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "lines": {},
+    "load_class": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "location_text": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "need_by": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "priority": {
+     "enum": [
+      "low",
+      "normal",
+      "high",
+      "urgent"
+     ],
+     "type": "string"
+    },
+    "purpose": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "requester": {
+     "type": "string"
+    },
+    "requirements": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "shift": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "start_date": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "subject": {
+     "type": "string"
+    },
+    "width_m": {
+     "type": [
+      "string",
+      "null"
+     ]
+    }
+   },
+   "required": [
+    "kind",
+    "subject",
+    "requester",
+    "priority"
+   ],
+   "type": "object"
+  }
+ },
+ "Requisition.Rejected": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "at": {
+     "format": "date-time",
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "by": {
+     "type": "string"
+    },
+    "feed_policy": {
+     "const": "full",
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "feed_text": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "reason": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "by",
+    "reason"
+   ],
+   "type": "object"
+  }
+ },
+ "Requisition.Revised": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "at": {
+     "format": "date-time",
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "changes": {},
+    "feed_policy": {
+     "const": "none",
+     "type": [
+      "string",
+      "null"
+     ]
+    }
+   },
+   "required": [
+    "changes"
+   ],
+   "type": "object"
+  }
+ },
  "ResponseClock.Cancelled": {
   "1": {
    "additionalProperties": true,
@@ -7681,6 +7998,198 @@
    },
    "required": [
     "changes"
+   ],
+   "type": "object"
+  }
+ },
+ "WorkOrder.Assigned": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "assigned_to": {
+     "type": "string"
+    },
+    "at": {
+     "format": "date-time",
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "feed_policy": {
+     "const": "none",
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "requisition_id": {
+     "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+     "type": "string"
+    }
+   },
+   "required": [
+    "requisition_id",
+    "assigned_to"
+   ],
+   "type": "object"
+  }
+ },
+ "WorkOrder.Closed": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "at": {
+     "format": "date-time",
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "requisition_id": {
+     "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+     "type": "string"
+    }
+   },
+   "required": [
+    "requisition_id"
+   ],
+   "type": "object"
+  }
+ },
+ "WorkOrder.Completed": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "at": {
+     "format": "date-time",
+     "type": "string"
+    },
+    "feed_policy": {
+     "const": "full",
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "feed_text": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "hours_actual": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "requisition_id": {
+     "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+     "type": "string"
+    }
+   },
+   "required": [
+    "requisition_id",
+    "at"
+   ],
+   "type": "object"
+  }
+ },
+ "WorkOrder.Opened": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "at": {
+     "format": "date-time",
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "feed_policy": {
+     "const": "none",
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "hours_planned": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "requisition_id": {
+     "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+     "type": "string"
+    },
+    "work_kind": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "requisition_id",
+    "work_kind"
+   ],
+   "type": "object"
+  }
+ },
+ "WorkOrder.Scheduled": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "at": {
+     "format": "date-time",
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "hours_planned": {
+     "pattern": "^((0|[1-9][0-9]{0,6})\\.[0-9]|10000000\\.0)$",
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "planned_finish": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "planned_start": {
+     "type": "string"
+    },
+    "requisition_id": {
+     "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+     "type": "string"
+    }
+   },
+   "required": [
+    "requisition_id",
+    "planned_start"
+   ],
+   "type": "object"
+  }
+ },
+ "WorkOrder.Started": {
+  "1": {
+   "additionalProperties": true,
+   "properties": {
+    "at": {
+     "format": "date-time",
+     "type": "string"
+    },
+    "requisition_id": {
+     "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+     "type": "string"
+    }
+   },
+   "required": [
+    "requisition_id",
+    "at"
    ],
    "type": "object"
   }
