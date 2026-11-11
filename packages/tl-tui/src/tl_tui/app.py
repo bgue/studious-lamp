@@ -719,6 +719,7 @@ class TlApp(App[None]):
         from tl_tui.widgets.iwp_register import IwpRegisterScreen
         from tl_tui.widgets.package_log import PackageLogScreen
         from tl_tui.widgets.path_screen import PathScreen
+        from tl_tui.widgets.punch_log import PunchLogScreen
         from tl_tui.widgets.wbs_screen import WbsScreen
 
         project = project_of_scope(self.scope)
@@ -734,6 +735,7 @@ class TlApp(App[None]):
             "iwps": IwpRegisterScreen,
             "constraints": ConstraintScreen,
             "backlog": BacklogScreen,
+            "punch": PunchLogScreen,
         }
         self.push_screen(screens[which](self.client, project))
 
@@ -768,6 +770,10 @@ class TlApp(App[None]):
     def action_packages(self) -> None:
         """External packages: the EWP and PWP log of this project (palette only)."""
         self._push_awp("packages")
+
+    def action_punch(self) -> None:
+        """The punch list of this project: items by state, area and system (palette only)."""
+        self._push_awp("punch")
 
     def action_settings(self) -> None:
         """about:config: the settings of this project, with their origin and history."""
