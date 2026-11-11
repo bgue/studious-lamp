@@ -4,7 +4,7 @@ S1 p mrg f 010b695 schema + module spec
 S2 p mrg f 43a94d5 engine cmds + subject-class join
 S3 p dfr f - roadmap 3c (fulfil, FIFO, stock(), shortage)
 S4 p dfr f - roadmap 3c; each ticket carries its tests
-T04a t todo f - read views + provided test T04a_test_views.py; needs S2
+T04a t mrg f 63b5e3a read views; D-r3c
 T04e1 t todo f - CLI writes, req/wo groups; needs S2
 T04d t todo f - CLI reads; needs T04a T04e1
 T04c1 t todo f - API read routes; needs T04a

@@ -60,4 +60,4 @@ Standard report (`docs/templates/haiku-report.md`), <= 60 lines, deviations firs
 (implementer writes here)
 
 ## Decision
-(supervisor or orchestrator writes here)
+D-r3c (orchestrator, 2026-11-11): attempt 1 blocked only on pyright in the provided test; the orchestrator added `assert ... is not None` narrowing to the test and its provided copy (63b5e3ac); check 0, gate 51 passed, full review pass. The report's Blocked lines are historical.
