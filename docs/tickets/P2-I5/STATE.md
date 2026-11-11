@@ -21,8 +21,9 @@ T16 t mrg f 7c5552b five-reader walk, three test files; after T11c T11b T04 (R-E
 T06b t mrg f 8cc2290 TUI steps 4-5 + actions.RULES rows StartIwpWork, CompleteIwpField; after T06a (R-F)
 T06c1 t mrg f f4f550a IWP log counts, filters, backlog 500, mine flag; after T11b (R-F)
 T06c2 t mrg f ed77ead landing at sign-in; after T06c1 T06b (R-G)
-T12 t blk f c6310e4 clauses 1-2 pass; stops at 3; retry after T12a
-T12a p stg f - four demo gaps (MCP propose x2, agent refusals, user layer, waived line)
+T12 t blk f c6310e4 clauses 1-2 pass; stops at 3; retried as T12b
+T12a p mrg f 4cbd11c four demo gaps; tl-api dir gate left to DONE (OOM)
+T12b t disp f - demo retry from c6310e4 + WBS->CWP chain for clause 5
 T13 t todo l - docs, three runbooks; after T12 (R-I)
 T17 t todo f - tour steps (Activity, Insights, intent, weekly loop, pack); after T12 (R-I)
 T15 t todo f - registrations only if glue > 50 lines
