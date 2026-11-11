@@ -3,10 +3,10 @@
 S1 p mrg f 7c4ebaa schema + module spec; APPROVALS done
 S2 p mrg f 1752551 six commands, subject join, row; APPROVALS done
 T01 t mrg f d6f91e0 read views; provided test + stub committed r4; dispatch now
-T02 t disp f fede9ed blk no-view actor; D28; retry
-T03 t disp f 5d43764 blk no-view actor; D28; retry
+T02 t mrg f df020f8 tl punch group; D28
+T03 t mrg f 028128c 3 GET routes + generic door; D28
 T05 t mrg f 49dfc6d MCP reads + propose_punch_item
-T04 t todo f - client reads + quality_command + fake; needs T03
+T04 t disp f - client reads + quality_command + fake
 T06 t todo f - punch_text, log, record screen c/v/o, palette; needs T04
 T07 t mrg f d82bb60 generator quality section + roster grant + pins; dispatch now
 T08 t todo f - dev/demos/P2-PUNCH.sh seven clauses; needs T02 T03 T04 T05 T06 T07
