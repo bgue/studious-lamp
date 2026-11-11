@@ -13,7 +13,7 @@ T07a t mrg f 1198a97 requisition text, log, page
 T07b t mrg f 7f2876f work order backlog
 T07d t mrg f a9a14fc TUI glue; item 4 deferred D-r3f
 T08b t mrg f 78a134e MCP reads + propose_requisition
-T10b t disp f 78abb3e blk clause 2 pset, clause 4 view; D-r3g D-r3h; retry
+T10b t mrg f 6eac974 demo P2-I4 both backends PASS (orch run); D-r3i
 T12 t todo l - docs + 3 stale pointers; needs T10b
 T04f t dfr l - roadmap 3c labour forecast
 T07c t dfr f - roadmap 3c forecast screen
@@ -44,6 +44,7 @@ D19 2026-11-11 r3: T08b writes requisition_tools.py on the iwp_tools pattern; PR
 D20 2026-11-11 r3: provided/ test changes state by commands only; hidden subject cannot be made by a command (IWP not confidential): not claimed (Q5)
 D-r3e 2026-11-11 orch: commit trailers name the model each agent ran as (session attribution); accepted; reports carry no model names
 D-r3g 2026-11-11 demo pins crane_lift in its own schema copy via TL_SCHEMA_DIR; no shared fixture change
+D-r3i 2026-11-11 T10b review F1: driver sub-check lines also read `PASS clause 4:`; accepted, nothing counts them
 D-r3h 2026-11-11 demo drops the view-word refusal (no account lacks read); MCP word check to DEFERRED
 ## SEC
 (none yet; SR3 rows in README, one wave review with I5)
