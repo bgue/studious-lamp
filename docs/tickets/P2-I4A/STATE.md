@@ -1,28 +1,26 @@
-# P2-I4A STATE  r=2 base=0ae6527 C=0 ck=0 gate=n/a wt=/home/user/wt/p2-i4a
-## BOARD   (ws all A; pieces S, tickets T; nothing dispatches before P2-INT C2 is on the trunk and merged here)
-S1 p mrg f 010b695 schema + module spec; spec r2; gate orch P2-Q10
-S2 p mrg f 43a94d5 engine cmds + subject-class join; spec r2; needs S1; gate orch
-S3 p todo f - fulfil, FIFO lots, stock(), shortage constraint; spec at C1; gate orch
-S4 p todo f - tests piece at C3
-T04a t todo f - read views, viewer=; needs S2
-T04f t todo l - labour forecast view, set-filtered; needs T04a
-T04c1 t todo f - API reads + word check; needs T04a T04f
-T04c2 t todo f - client methods + fakes
-T04d t todo f - CLI reads req, wo, forecast
-T04e1 t todo f - CLI writes (not fulfil); needs S2
-T04e2 t todo f - CLI fulfil; needs S3 T04e1
-T07a t todo f - requisition text + log + panel
-T07b t todo f - work order backlog screen
-T07c t todo f - labour forecast screen
-T07d t todo f - TUI glue, palette, technical rows
-T08a t todo l - reports (no hire report)
-T08b t todo f - MCP reads + propose_requisition; approver orch
-T10b t todo f - demo P2-I4 A clauses; grants superuser role
-T12 t todo l - docs, runbook
-T13 t todo f - registrations if >50 lines
-T10a t abn - cut F9
-T11 t abn - cut F10
-T04c3 t abn - folded into T04c1 F11
+# P2-I4A STATE  r=3 base=06cfd204 C=1 ck=1 gate=pass wt=/home/user/wt/p2-i4a
+## BOARD   (C1 and S2 merged; trimmed per owner 2026-11-09 row 4b; specs staged r3; `dfr` = deferred, roadmap 3c)
+S1 p mrg f 010b695 schema + module spec
+S2 p mrg f 43a94d5 engine cmds + subject-class join
+S3 p dfr f - roadmap 3c (fulfil, FIFO, stock(), shortage)
+S4 p dfr f - roadmap 3c; each ticket carries its tests
+T04a t todo f - read views + provided test T04a_test_views.py; needs S2
+T04e1 t todo f - CLI writes, req/wo groups; needs S2
+T04d t todo f - CLI reads; needs T04a T04e1
+T04c1 t todo f - API read routes; needs T04a
+T04c2 t todo f - client methods + fakes; needs T04c1
+T07a t todo f - requisition text, log, record page; needs T04c2
+T07b t todo f - work order backlog screen; needs T04c2
+T07d t todo f - TUI glue; needs T07a T07b
+T08b t todo f - MCP reads + propose_requisition tool file; needs T04a
+T10b t todo f - demo clauses 1,5,7,8 exact verbs; needs T04c1 T04d T04e1 T07d T08b
+T12 t todo l - docs + 3 stale pointers; needs T10b
+T04f t dfr l - roadmap 3c labour forecast
+T07c t dfr f - roadmap 3c forecast screen
+T08a t dfr l - roadmap 3c reports
+T04e2 t dfr f - roadmap 3c CLI fulfil
+T13 t abn - folded: tickets own registration lines
+T10a T11 T04c3 t abn - cut r2 (F9 F10 F11)
 ## DEC
 D1 2026-11-08 r2: plan check F1-F13 all accepted; 4 pieces + 16 tickets, ~10 points; README "Plan check"
 D2 2026-11-08 CLI and TUI only; web twins deferred to the web increment; README
@@ -39,15 +37,21 @@ D12 2026-11-08 F5: merge trunk after P2-INT C2 before S1; S2 asserts intent roun
 D13 2026-11-08 F8: WO events on the WO's own stream; contract §3 updated by S1
 D14 2026-11-08 F13: no module-roles edit in S1; T10b grants superuser; SR3 is one wave review with I5
 D15 2026-11-08 class names keep contract spelling (LaborRequisition); user words say labour
+D16 2026-11-09 owner row 4b: I4-A trimmed; S3 T04e2 T04f T07c T08a S4 `dfr`; one DEFERRED.md line added; README "Trim"
+D17 2026-11-11 r3: 11 tickets, 7 waves; T13 folded into tickets; tests ride in tickets (S4 dfr); only T04a has a provided test
+D18 2026-11-11 r3: CLI surface fixed in T04e1: req raise-labor|material|general|scaffold, edit, approve, reject, cancel; wo schedule|assign|start|complete|close; T04d adds ls, show
+D19 2026-11-11 r3: T08b writes requisition_tools.py on the iwp_tools pattern; PROPOSABLE row exists (S2), not edited; T10b lists each clause's verb
+D20 2026-11-11 r3: provided/ test changes state by commands only; hidden subject cannot be made by a command (IWP not confidential): not claimed (Q5)
 ## SEC
-(none yet; SR3 rows in README, one wave review with I5, range 0ae6527..wave 3 head)
+(none yet; SR3 rows in README, one wave review with I5)
 ## OPEN
-Q1 P2-INT C2 on trunk? S1 dispatch waits for it and the trunk merge needs orch raised r1
-Q2 closed r2 (intent slot arrives with P2-INT C2; S2 asserts round-trip)
-## DEFERRED lines for the orchestrator (do not edit DEFERRED.md here)
-1. Constraints whose target is a reference to a record (not the record itself), e.g. a requisition constraint pointing at its subject | needs the ADR-0024 target model extended | wave 3 follow-up
-2. Thread `/dispatch` wiring for material-request, labour, crane-lift, general requisitions | W3-4 internal only; T11 cut by plan check F10 | after P1-I7 WS-B is on trunk
-3. Moving a requisitions access word to another role per project (data edit through module roles) | S1 drops the module-roles edit, T10b grants superuser (F13) | Phase 3 with module-role editing
+Q1 closed (trunk merged @06cfd204)
+Q5 hidden-subject reads (IWP restricted by a command) untestable until an IWP can be confidential; only the viewer= default and word checks are tested | needs orch | raised r3
+Q6 requisitions.view is `read`: T04c1 confirms the route word check maps; T08b uses guarded like iwp_tools | needs builder | raised r3
+## DEFERRED lines for the orchestrator (the trim line is in DEFERRED.md; these are the older three, not yet added)
+1. Constraints whose target is a reference to a record | needs the ADR-0024 target model | wave 3 follow-up
+2. Thread `/dispatch` wiring for requisitions | W3-4 internal only; T11 cut | after P1-I7 WS-B
+3. Per-project move of a requisitions access word | S1 drops the module-roles edit | Phase 3
 ## DEC-ORCH
 D-o1 2026-11-08 C2 taken from p2/int @9700d54 (holds trunk @4fff675) instead of waiting for P2-INT on the trunk; P2-INT T02-T05 come with it later
 ## OPEN-ORCH
@@ -56,13 +60,12 @@ Q-o2 docs/reference/access-words.md and docs/build-spec/specs/offline-classes.md
 Q-o3 contract §3: say Raised payload is flat and Revised carries changes {field: [old, new]} (review F1 LO)
 Q-o4 ModuleSpec declaration for subject links to replace SUBJECT_LINKS (needs tl_core/modules.py; core ticket)
 ## NEXT
-1. Orchestrator: merge trunk after P2-INT C2 into p2/i4a; send `13.` with the merge sha.
-2. r3 dispatch: S1 alone (human gate P2-Q10, APPROVALS line). S2 after it merges; nothing else is ready.
-3. Write S3 spec at C1; T04a, T04f specs once S2 merges.
-4. At C2 do registrations (<= 50 lines) else dispatch T13.
-5. Round order r4 S3+T04a, r5 T04f+T04c1, r6 T04c2+T04d+T04e1, r7 T07a-c+T08a-b+T04e2, r8 T07d+T10b+S4, r9 T12.
+1. Orchestrator: dispatch wave 1 (T04a, T04e1); T04a gets its provided test copied byte-identical.
+2. After T04a merges: wave 2 T04c1, T04d (also needs T04e1), T08b.
+3. Then T04c2; T07a with T07b; T07d; T10b; T12. Supervisor r4 refines staged tickets from merged reports (names marked in them).
+4. Close: `just check`, whole gate, `just gate-pg` on touched dirs, `just demo P2-I4`, SR3 with I5.
 ## REFS
-Contract draft `docs/build-spec/phase2-contracts-draft.md` §3, §4; module design `module-designs/requisitions-and-scaffold.md`;
-patterns `packages/tl-modules/awp`, `materials`; words `schema/settings/access-words.yaml`; format example `docs/tickets/P2-I2/`.
+Tickets `docs/tickets/P2-I4A/T*.md`; provided test `docs/tickets/P2-I4A/provided/T04a_test_views.py`; world helper `packages/tl-modules/requisitions/tests/req_world.py`; patterns `docs/tickets/P2-I2/` (T04a T04c1 T04c2 T04d T04e1 T07b T07c T09b T10b); `tl_mcp/iwp_tools.py`; reports `docs/reports/P2-I4A/S1.md S2.md`.
+Candidate learning: a hidden-subject test needs a confidential IWP; Q-o1..Q-o4 below still stand (Q-o2, Q-o3 go to T12).
 ## TRAPS
-Gates name test files or one package (OOM on 16 GB); never pkill -f; never delete /tmp/pytest-of-root; pinned lists as union.
+Gates name test files or one package (OOM on 16 GB); `tests/tools` gate takes ~10 min (background); gate-pg on tests/confidentiality ~26 min; never pkill -f; never delete /tmp/pytest-of-root; pinned lists as union.

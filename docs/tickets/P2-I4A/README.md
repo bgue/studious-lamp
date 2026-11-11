@@ -7,6 +7,12 @@ dispatched before P2-INT C2 is on the trunk. Plan sources: `docs/build-spec/08-p
 Branch `p2/i4a` from `p2/wave2-close` @0ae6527 (P2-I2 merged); the trunk is merged in after P2-INT C2 and before S1 (F5).
 Worktree `/home/user/wt/p2-i4a`.
 
+## Trim (owner, 2026-11-09, roadmap row 4b) and r3 ticket set
+I4-A keeps raise, edit, approve, reject, cancel, the work order lifecycle, logs and the propose tool. Deferred (`dfr`, roadmap 3c, one `DEFERRED.md` line):
+S3, T04e2, T04f, T07c, T08a, S4 (tests ride in each ticket). T13 is folded: each ticket owns its registration lines. Demo clauses kept: 1 (raise to close, no fulfilment, no shortage constraint), 5, 7, 8 (no forecast); clause 4 deferred.
+Tickets (11): T04a views; T04e1 CLI writes and the `req`/`wo` groups; T04d CLI reads; T04c1 API routes; T04c2 client methods; T07a requisition screens; T07b work order backlog; T07d TUI glue; T08b MCP tools with `propose_requisition`; T10b demo; T12 docs.
+Waves: 1 T04a, T04e1; 2 T04c1, T04d, T08b; 3 T04c2; 4 T07a, T07b; 5 T07d; 6 T10b; 7 T12. The older tables below describe the original plan.
+
 ## Objective
 After this increment a new module `requisitions` (package `tl-mod-requisitions`) holds the generic request-to-work-order
 engine and its four specialisations: labour, material, general (type psets such as a crane lift) and scaffold request.
