@@ -2,7 +2,7 @@
 
 A layer names where a value is set. It maps to the ledger like this: the stream of a key at a layer
 is ``setting:<layer>:<key>`` (stream type ``core.Setting``) and the event scope is ``project:<id>``
-for a project layer, else ``company``. Only UI keys (``ui.*``) have a user layer.
+for a project layer, else ``company``. Only UI keys (``ui.*`` and ``tui.*``) have a user layer.
 """
 
 from __future__ import annotations
@@ -16,7 +16,7 @@ from tl_core.settings.display import shown
 from tl_core.settings.types import SettingDefinition
 
 SETTING_STREAM_TYPE = "core.Setting"
-USER_KEY_PREFIX = "ui."
+USER_KEY_PREFIXES = ("ui.", "tui.")  # D31: the TUI landing is a personal setting
 
 LayerKind = Literal["company", "project", "user"]
 _PROJECT_ID = re.compile(r"[A-Za-z0-9_.-]{1,64}")
@@ -77,10 +77,10 @@ def stream_id(layer: LayerRef, key: str) -> str:
 def allows_layer(defn: SettingDefinition, kind: LayerKind) -> bool:
     """Whether a value of ``defn`` may be set at a layer of this kind.
 
-    The definition's ``scopes`` must list it; the user layer also needs a ``ui.`` key.
+    The definition's ``scopes`` must list it; the user layer also needs a ``ui.`` or ``tui.`` key.
     """
     if kind == "user":
-        return "user" in defn.scopes and defn.key.startswith(USER_KEY_PREFIX)
+        return "user" in defn.scopes and defn.key.startswith(USER_KEY_PREFIXES)
     return kind in defn.scopes
 
 
@@ -89,7 +89,9 @@ def require_layer(defn: SettingDefinition, layer: LayerRef) -> None:
     if allows_layer(defn, layer.kind):
         return
     if layer.kind == "user" and "user" in defn.scopes:
-        raise SettingScopeError(f"{defn.key} is not a UI key; only ui.* keys have a user layer")
+        raise SettingScopeError(
+            f"{defn.key} is not a UI key; only ui.* and tui.* keys have a user layer"
+        )
     allowed = [k for k in ("company", "project", "user") if allows_layer(defn, k)]  # pyright: ignore[reportArgumentType]
     where = ", ".join(allowed) if allowed else "nowhere (it is a platform default only)"
     raise SettingScopeError(

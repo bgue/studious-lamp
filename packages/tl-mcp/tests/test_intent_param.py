@@ -44,6 +44,8 @@ PROPOSE_TOOLS = (
     "start_extraction",
     "propose_import",
     "propose_iwp_scope",
+    "propose_progress",  # P2-I5-T12a
+    "propose_week_commitment",  # P2-I5-T12a
     "propose_reservation",
     "propose_publish_schedule_snapshot",
     "propose_dispatch",

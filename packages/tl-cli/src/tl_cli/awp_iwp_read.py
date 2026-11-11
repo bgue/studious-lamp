@@ -13,6 +13,7 @@ from typing import Annotated
 
 import typer
 from tl_adapters.db import DbTarget, open_uow
+from tl_core.constraints import queries as constraint_queries
 from tl_mod_awp import iwp_views
 
 from tl_cli.awp_read import hours
@@ -71,13 +72,25 @@ def iwp_show(
 
     Lines: `iwp <number>`, `title`, `state`, `discipline`, `foreman`, `cwp`,
     `planned <start> to <finish>`, `hours <h or ->`, `crew`, `scope <n>` then `  <type>  <count>`
-    for each type, `pins <n>`, `open constraints <n>`, `signoffs <n>` then `  <by>  <role>  <at>`
-    for each sign-off (the record hash is never printed). An unknown, hidden or void IWP is
-    `error: no IWP <number>`.
+    for each type, `pins <n>`, `open constraints <n>`, `waived constraints <n>` then
+    `  <constraint key>  waived by <who>: <reason>` for each waived constraint, `signoffs <n>` then
+    `  <by>  <role>  <at>` for each sign-off (the record hash is never printed). An unknown, hidden
+    or void IWP is `error: no IWP <number>`.
     """
     db: DbTarget = ctx.obj
     with service_errors(), open_uow(db, readonly=True) as uow:
         d = iwp_views.iwp_detail(uow.conn(), scope_of(project), number)
+        waived = (
+            []
+            if d is None
+            else [
+                c
+                for c in constraint_queries.list_constraints(
+                    uow.conn(), scope_of(project), subject_id=d.id, state="Cleared"
+                )
+                if c.waived
+            ]
+        )
     if d is None:
         fail(f"no IWP {number}")
     lines = [
@@ -95,6 +108,10 @@ def iwp_show(
     lines.extend(f"  {record_type}  {n}" for record_type, n in d.scope_by_type.items())
     lines.append(f"pins {d.pin_count}")
     lines.append(f"open constraints {d.open_constraints}")
+    lines.append(f"waived constraints {len(waived)}")
+    lines.extend(
+        f"  {c.key}  waived by {cell(c.cleared_by)}: {cell(c.clear_reason, 300)}" for c in waived
+    )
     lines.append(f"signoffs {len(d.signoffs)}")
     lines.extend(
         f"  {cell(s.get('by'))}  {cell(s.get('role'))}  {cell(s.get('at'))}" for s in d.signoffs

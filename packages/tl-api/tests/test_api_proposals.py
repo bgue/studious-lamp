@@ -241,6 +241,18 @@ def test_an_agent_token_cannot_run_any_record_changing_command(harness: Harness)
     # RecordManualProgress, StartIwpWork, CompleteIwpField)
 
 
+def test_an_agent_is_refused_a_waive_and_a_week_close_with_the_reason(harness: Harness) -> None:
+    """P2-I5-T12a: a waived clear and closing a weekly plan are a person's acts; the refusal names
+    the reason (agents propose) and no body detail gets past it."""
+    agent = as_agent(harness)
+    for name in ("ClearConstraint", "CloseWeek"):
+        body = body_for(harness, name)
+        response = agent.post(f"/commands/{name}", json=body)
+        assert response.status_code == 403, (name, response.text)
+        assert response.json()["error"] == "agent_must_propose", name
+        assert response.json()["message"] == MESSAGE, name
+
+
 def test_an_agent_token_can_still_post_and_read_and_a_person_can_still_change_records(
     harness: Harness,
 ) -> None:
