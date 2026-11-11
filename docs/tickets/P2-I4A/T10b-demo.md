@@ -44,4 +44,12 @@ Expected: four `PASS clause N` lines per backend, no `DEMO FAILED`, exit 0, no l
 (implementer writes here)
 
 ## Decision
-(supervisor or orchestrator writes here)
+Orchestrator, 2026-11-11, after attempt 1 blocked at clause 2 (commit 78abb3e7 on `p2/i4a-t10b-demo-r1`).
+- Start: `git cherry-pick 78abb3e7` (script, driver, report), then continue from clause 2.
+- D-r3g clause 2: take option (b). The demo copies `schema/fixtures` into its workdir, adds
+  `- ref: co.acme.engineering@3.2.0#crane_lift` to the copy of `x.P123@1.4.0.yaml`, and exports `TL_SCHEMA_DIR` to that
+  copy for the whole run, before any `tl` call and for the driver (pattern: `dev/demos/P0-I2.sh` line 40). No shared
+  fixture changes. Say in the clause 2 PASS line that P123 adopts crane_lift in the demo world only.
+- D-r3h clause 4: drop "a person without `requisitions.view` is refused" (no account can lack read on this ledger, learning 2).
+  Everything else in clause 4 stays. The MCP list tool's missing word check goes to DEFERRED, not here.
+- Then run both backends and append a "Retry" section to the report (<= 20 lines, PASS lines per backend).
