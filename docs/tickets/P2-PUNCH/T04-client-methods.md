@@ -42,7 +42,7 @@ just gate tests/api/test_client_punch.py packages/tl-tui/tests/test_fakes_punch.
 ```
 
 ## Tests to add
-- `tests/api/test_client_punch.py`: ledger built by commands (`punch_world.py` loaded by path; no projection writes); the embedded client and `ApiClient` over a `TestClient` give equal answers for the three reads; `quality_command("RaisePunchItem", ...)` and `ClearPunchItem` through both change state and the next read shows it; `VerifyPunchItem` by the clearer is refused with the S2 text on both; `RecordNotFoundError` with one text for a missing key on both; an item of a restricted source is absent for the lowest-clearance client; an actor without `quality.view` (`World.person(name, ())`; if it cannot be created, write it under Blocked) is refused by the embedded list. The test builds its own `db` and `World` (no conftest is added).
+- `tests/api/test_client_punch.py`: ledger built by commands (`punch_world.py` loaded by path; no projection writes); the embedded client and `ApiClient` over a `TestClient` give equal answers for the three reads; `quality_command("RaisePunchItem", ...)` and `ClearPunchItem` through both change state and the next read shows it; `VerifyPunchItem` by the clearer is refused with the S2 text on both; `RecordNotFoundError` with one text for a missing key on both; an item of a restricted source is absent for the lowest-clearance client. (D28: no case for an actor without `quality.view`; no account can lack it.) The test builds its own `db` and `World` (no conftest is added).
 - `packages/tl-tui/tests/test_fakes_punch.py`: `seed_punch` counts, each filter narrows, `total` equals rows, counts by state, missing key raises `RecordNotFoundError`, `quality_command` is recorded.
 
 ## Escalation triggers

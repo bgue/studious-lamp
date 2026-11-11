@@ -3,9 +3,9 @@
 S1 p mrg f 7c4ebaa schema + module spec; APPROVALS done
 S2 p mrg f 1752551 six commands, subject join, row; APPROVALS done
 T01 t mrg f d6f91e0 read views; provided test + stub committed r4; dispatch now
-T02 t todo f - `tl punch` writes and reads; needs T01
-T03 t todo f - 3 API routes + PUNCH_COMMANDS door; needs T01
-T05 t todo f - punch_tools.py: 2 reads + propose_punch_item; needs T01
+T02 t disp f fede9ed blk no-view actor; D28; retry
+T03 t disp f 5d43764 blk no-view actor; D28; retry
+T05 t mrg f 49dfc6d MCP reads + propose_punch_item
 T04 t todo f - client reads + quality_command + fake; needs T03
 T06 t todo f - punch_text, log, record screen c/v/o, palette; needs T04
 T07 t mrg f d82bb60 generator quality section + roster grant + pins; dispatch now
@@ -39,6 +39,7 @@ D15 Q1: no fixed order with p2/i4a; whichever merges to trunk second unions SUBJ
 D16 Q3: T06 uses the generic record-screen action path if it covers clear/verify/reopen; else quality_command plus a form.
 D17 Q4: two hops claimed; the three-hop case is a known limit (DEFERRED line at close, with outside review 1 F5).
 D27 T07: restricting two existing letters for hidden sources and the WBS depth-3 title as `system` are accepted; anchors test passes at merge
+D28 2026-11-11 no account can lack quality.view (every role derives it): drop that test case in T02 T03 T04; code keeps the check
 D20 S2: quality tests keep conftest.py (path widened by orch; the retry that removed it broke collection, reverted)
 D19 S1 blk: FROZEN valid-time baseline never grows; new punch events get optional valid-time `at` (Raised, Edited, Reopened, Voided)
 D18 Q2: default applied (superuser verifies, never the clearer; verified can reopen); owner told.

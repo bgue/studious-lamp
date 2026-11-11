@@ -52,4 +52,9 @@ Standard report (`docs/templates/haiku-report.md`), <= 60 lines, deviations firs
 (implementer writes here)
 
 ## Decision
-(supervisor or orchestrator writes here)
+Orchestrator, 2026-11-11, D28, after attempt 1 blocked (commit fede9edd on `p2/punch-t02-cli-r1`).
+- Start: `git cherry-pick fede9edd`. Everything else in that commit is done; keep it.
+- D28: drop the "actor without `quality.view`" test case. No account can lack the read word on this ledger (every platform
+  role derives `quality.view`), the same finding as P2-I4A D-r3h. Keep the word check in the code. Say so in one line
+  under Deviations and move the Blocked text to "resolved by D28".
+- Then run the Acceptance and commit. No other change.
