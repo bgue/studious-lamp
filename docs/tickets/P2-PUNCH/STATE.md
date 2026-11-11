@@ -10,7 +10,7 @@ T04 t mrg f fbd1873 client reads + quality_command + fake; D29
 T06 t mrg f 166e112 TUI punch log + record screen
 T07 t mrg f d82bb60 generator quality section + roster grant + pins; dispatch now
 T08 t mrg f f6fb221 demo 7 sq + 6 pg PASS; D30
-T09 t todo l - docs, runbook, reference; ready
+T09 t mrg l 065713e docs; 2s on wording only (model name, gate coverage); fixed at merge
 ## DEC
 D1 2026-11-11 module `quality`, one record `quality.PunchItem`, table cur_quality_punch_item; README "Record shape"
 D2 2026-11-11 states Open, Cleared, Verified, Void; reopen from Cleared or Verified; Void only terminal; assignment is a field; S1
