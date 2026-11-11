@@ -35,6 +35,7 @@ A person raises, edits, approves, rejects and cancels requisitions and runs the 
 - `packages/tl-cli/src/tl_cli/main.py` (one import and two `add_typer` lines: `req`, `wo`)
 - `packages/tl-cli/tests/test_req_write.py` (create), consequential pins of the CLI command list (union form, listed)
 - `docs/reports/P2-I4A/T04e1.md` (create)
+- `packages/tl-cli/src/tl_cli/awp_write.py`: only a keyword-only `table` parameter on `_handler` and `_execute` (default `AWP_COMMANDS`, existing callers unchanged); Decision D-r3a
 
 ## Acceptance
 ```
@@ -55,4 +56,5 @@ Standard report (`docs/templates/haiku-report.md`), <= 60 lines, deviations firs
 (implementer writes here)
 
 ## Decision
-(supervisor or orchestrator writes here)
+D-r3a (orchestrator, 2026-11-11, after attempt 1 blocked): `_handler(model, *, table=AWP_COMMANDS)` and `_execute(db, build, *, table=AWP_COMMANDS)` in `awp_write.py`; `req_write.py` passes `table=REQUISITIONS_COMMANDS`. No copy of the dispatch.
+D-r3b: a key lookup that finds a requisition or work order the caller may not see answers exactly as an unknown key (same text, same exit code): `get_record` then `confidentiality.is_hidden` for the caller's viewer; add one test with a restricted subject only if a command can make one today (else say so in the report; Q5).
