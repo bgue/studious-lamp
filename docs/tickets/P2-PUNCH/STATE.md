@@ -6,8 +6,8 @@ T01 t mrg f d6f91e0 read views; provided test + stub committed r4; dispatch now
 T02 t mrg f df020f8 tl punch group; D28
 T03 t mrg f 028128c 3 GET routes + generic door; D28
 T05 t mrg f 49dfc6d MCP reads + propose_punch_item
-T04 t disp f - client reads + quality_command + fake
-T06 t todo f - punch_text, log, record screen c/v/o, palette; needs T04
+T04 t mrg f fbd1873 client reads + quality_command + fake; D29
+T06 t disp f - TUI punch log + record screen
 T07 t mrg f d82bb60 generator quality section + roster grant + pins; dispatch now
 T08 t todo f - dev/demos/P2-PUNCH.sh seven clauses; needs T02 T03 T04 T05 T06 T07
 T09 t todo l - docs, runbook, reference; needs T08
@@ -39,6 +39,7 @@ D15 Q1: no fixed order with p2/i4a; whichever merges to trunk second unions SUBJ
 D16 Q3: T06 uses the generic record-screen action path if it covers clear/verify/reopen; else quality_command plus a form.
 D17 Q4: two hops claimed; the three-hop case is a known limit (DEFERRED line at close, with outside review 1 F5).
 D27 T07: restricting two existing letters for hidden sources and the WBS depth-3 title as `system` are accepted; anchors test passes at merge
+D29 2026-11-11 T04 F1: seed_punch has three Open of six (the source-key item is Open); accepted
 D28 2026-11-11 no account can lack quality.view (every role derives it): drop that test case in T02 T03 T04; code keeps the check
 D20 S2: quality tests keep conftest.py (path widened by orch; the retry that removed it broke collection, reverted)
 D19 S1 blk: FROZEN valid-time baseline never grows; new punch events get optional valid-time `at` (Raised, Edited, Reopened, Voided)
