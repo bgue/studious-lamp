@@ -6,11 +6,11 @@ S3 p dfr f - roadmap 3c (fulfil, FIFO, stock(), shortage)
 S4 p dfr f - roadmap 3c; each ticket carries its tests
 T04a t mrg f 63b5e3a read views; D-r3c
 T04e1 t mrg f 87307ee CLI writes; D-r3a D-r3b
-T04d t todo f - CLI reads; needs T04a T04e1
+T04d t mrg f bf0ad8d CLI reads; D-r3d
 T04c1 t mrg f 931992c API reads + word check
 T04c2 t mrg f eb8778b client methods + fakes
-T07a t todo f - requisition text, log, record page; needs T04c2
-T07b t todo f - work order backlog screen; needs T04c2
+T07a t mrg f 1198a97 requisition text, log, page
+T07b t mrg f 7f2876f work order backlog
 T07d t todo f - TUI glue; needs T07a T07b
 T08b t mrg f 78a134e MCP reads + propose_requisition
 T10b t todo f - demo clauses 1,5,7,8 exact verbs; needs T04c1 T04d T04e1 T07d T08b
@@ -42,6 +42,7 @@ D17 2026-11-11 r3: 11 tickets, 7 waves; T13 folded into tickets; tests ride in t
 D18 2026-11-11 r3: CLI surface fixed in T04e1: req raise-labor|material|general|scaffold, edit, approve, reject, cancel; wo schedule|assign|start|complete|close; T04d adds ls, show
 D19 2026-11-11 r3: T08b writes requisition_tools.py on the iwp_tools pattern; PROPOSABLE row exists (S2), not edited; T10b lists each clause's verb
 D20 2026-11-11 r3: provided/ test changes state by commands only; hidden subject cannot be made by a command (IWP not confidential): not claimed (Q5)
+D-r3e 2026-11-11 orch: commit trailers name the model each agent ran as (session attribution); accepted; reports carry no model names
 ## SEC
 (none yet; SR3 rows in README, one wave review with I5)
 ## OPEN
