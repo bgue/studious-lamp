@@ -82,3 +82,10 @@ patterns:
     template: "{project}-{type}-{seq:4}"
     type_code: CON
     gap_free: true
+  # Punch items (brief 9 M5): one count per project, gap-free: P123-PUN-0001.
+  - id: quality.PunchItem
+    record_type: quality.PunchItem
+    scope: "project:*"
+    template: "{project}-{type}-{seq:4}"
+    type_code: PUN
+    gap_free: true

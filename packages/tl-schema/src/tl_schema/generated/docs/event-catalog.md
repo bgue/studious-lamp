@@ -163,6 +163,12 @@ Every ledger event type that can reach a webhook subscriber, generated from the 
 | [`Proposal.Failed`](#proposalfailed) | `tl.core.Proposal.Failed.v1` | A person accepted a proposal, but the command was refused (the record changed since, a guard failed). |
 | [`Proposal.Rejected`](#proposalrejected) | `tl.core.Proposal.Rejected.v1` | A person rejected a proposal. |
 | [`Pset.ValuesSet`](#psetvaluesset) | `tl.core.Pset.ValuesSet.v1` | Values of a property set were written on a record. |
+| [`PunchItem.Cleared`](#punchitemcleared) | `tl.core.PunchItem.Cleared.v1` | A punch item was cleared by its assignee. |
+| [`PunchItem.Edited`](#punchitemedited) | `tl.core.PunchItem.Edited.v1` | A punch item was edited; only the fields that changed are present. |
+| [`PunchItem.Raised`](#punchitemraised) | `tl.core.PunchItem.Raised.v1` | A punch item was raised. |
+| [`PunchItem.Reopened`](#punchitemreopened) | `tl.core.PunchItem.Reopened.v1` | A cleared or verified punch item was reopened by a controller. |
+| [`PunchItem.Verified`](#punchitemverified) | `tl.core.PunchItem.Verified.v1` | A cleared punch item was verified by a controller. |
+| [`PunchItem.Voided`](#punchitemvoided) | `tl.core.PunchItem.Voided.v1` | An open or cleared punch item was voided by a controller. |
 | [`Receipt.Accepted`](#receiptaccepted) | `tl.core.Receipt.Accepted.v1` | The receipt was accepted; one stock lot exists per line. |
 | [`Receipt.Defined`](#receiptdefined) | `tl.core.Receipt.Defined.v1` | A delivery was received (state Received). |
 | [`Receipt.Inspected`](#receiptinspected) | `tl.core.Receipt.Inspected.v1` | The delivery was inspected (Received to Inspected). |
@@ -9144,6 +9150,349 @@ Values of a property set were written on a record.
   "tlseq": 48211933,
   "tlstreamversion": 7,
   "type": "tl.core.Pset.ValuesSet.v1"
+}
+```
+
+## PunchItem.Cleared
+
+A punch item was cleared by its assignee. Stream type `quality.PunchItem`.
+
+- CloudEvents type: `tl.core.PunchItem.Cleared.v1`
+- Ledger payload class: `PunchItemClearedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `at` | string | yes | When it was cleared. |
+| `by` | string | yes | Actor text of who cleared it. |
+| `feed_policy` | string | yes | Always `none`: a punch item makes no feed card. |
+| `note` | string | yes | What was done. |
+| `record_id` | string | yes | The punch item. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "at": "2026-12-02T09:30:00Z",
+      "by": "user:rob",
+      "feed_policy": "none",
+      "note": "Guard fitted",
+      "record_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P2"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/PunchItem.Cleared/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.PunchItem.Cleared.v1"
+}
+```
+
+## PunchItem.Edited
+
+A punch item was edited; only the fields that changed are present. Stream type `quality.PunchItem`.
+
+- CloudEvents type: `tl.core.PunchItem.Edited.v1`
+- Ledger payload class: `PunchItemEditedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `at` | string or null | no | When it happened in the field; absent means the recorded time (D19). |
+| `changes` | any | yes |  |
+| `feed_policy` | string | yes | Always `none`: a punch item makes no feed card. |
+| `record_id` | string | yes | The punch item. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "changes": {
+        "area": [
+          "A1",
+          "A2"
+        ]
+      },
+      "feed_policy": "none",
+      "record_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P2"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/PunchItem.Edited/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.PunchItem.Edited.v1"
+}
+```
+
+## PunchItem.Raised
+
+A punch item was raised. Stream type `quality.PunchItem`.
+
+- CloudEvents type: `tl.core.PunchItem.Raised.v1`
+- Ledger payload class: `PunchItemRaisedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `area` | string or null | no | Area, or null. |
+| `assignee` | string or null | no | Assignee, or null. |
+| `at` | string or null | no | When it happened in the field; absent means the recorded time (D19). |
+| `category` | string | yes | A, B or C. |
+| `due_on` | string or null | no | YYYY-MM-DD, or null. |
+| `feed_policy` | string | yes | Always `none`: a punch item makes no feed card. |
+| `raised_by` | string | yes | Actor text of who raised it. |
+| `record_id` | string | yes | The punch item. |
+| `source_id` | string or null | no | The record it was raised from, or null. |
+| `system` | string or null | no | System, or null. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "area": "A1",
+      "assignee": "user:rob",
+      "category": "B",
+      "due_on": "2026-12-01",
+      "feed_policy": "none",
+      "raised_by": "user:uma",
+      "record_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P2",
+      "source_id": null,
+      "system": "47-01"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/PunchItem.Raised/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.PunchItem.Raised.v1"
+}
+```
+
+## PunchItem.Reopened
+
+A cleared or verified punch item was reopened by a controller. Stream type `quality.PunchItem`.
+
+- CloudEvents type: `tl.core.PunchItem.Reopened.v1`
+- Ledger payload class: `PunchItemReopenedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `at` | string or null | no | When it happened in the field; absent means the recorded time (D19). |
+| `by` | string | yes | Actor text of who reopened it. |
+| `feed_policy` | string | yes | Always `none`: a punch item makes no feed card. |
+| `reason` | string | yes | Why it was reopened. |
+| `record_id` | string | yes | The punch item. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "by": "user:sue",
+      "feed_policy": "none",
+      "reason": "Guard loose",
+      "record_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P2"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/PunchItem.Reopened/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.PunchItem.Reopened.v1"
+}
+```
+
+## PunchItem.Verified
+
+A cleared punch item was verified by a controller. Stream type `quality.PunchItem`.
+
+- CloudEvents type: `tl.core.PunchItem.Verified.v1`
+- Ledger payload class: `PunchItemVerifiedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `at` | string | yes | When it was verified. |
+| `by` | string | yes | Actor text of who verified it. |
+| `feed_policy` | string | yes | Always `none`: a punch item makes no feed card. |
+| `record_id` | string | yes | The punch item. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "at": "2026-12-03T14:00:00Z",
+      "by": "user:sue",
+      "feed_policy": "none",
+      "record_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P2"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/PunchItem.Verified/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.PunchItem.Verified.v1"
+}
+```
+
+## PunchItem.Voided
+
+An open or cleared punch item was voided by a controller. Stream type `quality.PunchItem`.
+
+- CloudEvents type: `tl.core.PunchItem.Voided.v1`
+- Ledger payload class: `PunchItemVoidedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `at` | string or null | no | When it happened in the field; absent means the recorded time (D19). |
+| `by` | string | yes | Actor text of who voided it. |
+| `feed_policy` | string | yes | Always `none`: a punch item makes no feed card. |
+| `reason` | string | yes | Why it was voided. |
+| `record_id` | string | yes | The punch item. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "by": "user:sue",
+      "feed_policy": "none",
+      "reason": "Raised twice",
+      "record_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P2"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/PunchItem.Voided/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.PunchItem.Voided.v1"
 }
 ```
 

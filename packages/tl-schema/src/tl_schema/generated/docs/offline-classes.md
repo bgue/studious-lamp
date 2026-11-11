@@ -55,6 +55,7 @@ Classes:
 | `materials.ProjectItem` | Project item | `none` | Online only. |
 | `materials.Receipt` | Receipt | `draft_only` | Drafts offline; issue, number and sign happen on the authority. |
 | `materials.StockLot` | Stock lot | `draft_only` | Drafts offline; issue, number and sign happen on the authority. |
+| `quality.PunchItem` | Punch item | `draft_only` | Drafts offline; issue, number and sign happen on the authority. |
 | `schedule.ActivityRef` | Activity reference | `none` | Online only. |
 | `schedule.Schedule` | Schedule | `none` | Online only. |
 | `schedule.ScheduleSnapshot` | Schedule snapshot | `none` | Online only. |

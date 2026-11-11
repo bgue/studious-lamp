@@ -40,3 +40,12 @@ words:
   materials.adjust: controller
   materials.mto.publish: controller
   materials.mto.assign: user
+
+  # quality: punch list (P2-PUNCH; an assignment is an edit, so there is no assign word)
+  quality.view: read
+  quality.punch.raise: user
+  quality.punch.edit: user
+  quality.punch.clear: user
+  quality.punch.verify: controller
+  quality.punch.reopen: controller
+  quality.punch.void: controller

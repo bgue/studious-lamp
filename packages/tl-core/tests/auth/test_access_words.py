@@ -52,18 +52,32 @@ MATERIALS = {
     "materials.mto.publish": "controller",
     "materials.mto.assign": "user",
 }
+#: The seven words of the punch list (P2-PUNCH S1); an assignment is an edit (no assign word).
+QUALITY = {
+    "quality.view": "read",
+    "quality.punch.raise": "user",
+    "quality.punch.edit": "user",
+    "quality.punch.clear": "user",
+    "quality.punch.verify": "controller",
+    "quality.punch.reopen": "controller",
+    "quality.punch.void": "controller",
+}
 GOOD = "version: 1\nwords:\n  awp.view: read\n  awp.cwp.edit: user\n"
 
 
-def test_the_shipped_table_loads_28_words() -> None:
+def test_the_shipped_table_loads_35_words() -> None:
     words = load_access_words()
-    assert len(words) == 28 == len(AWP) + len(AWP_IWP) + len(CORE_CONSTRAINT) + len(MATERIALS)
+    assert (
+        len(words)
+        == 35
+        == len(AWP) + len(AWP_IWP) + len(CORE_CONSTRAINT) + len(MATERIALS) + len(QUALITY)
+    )
     assert "awp.constraint.edit" not in words
 
 
 def test_every_word_of_the_two_module_specs_is_present_with_its_table_word() -> None:
     words = load_access_words()
-    for word, table in {**AWP, **AWP_IWP, **CORE_CONSTRAINT, **MATERIALS}.items():
+    for word, table in {**AWP, **AWP_IWP, **CORE_CONSTRAINT, **MATERIALS, **QUALITY}.items():
         assert words.get(word) == table, word
 
 

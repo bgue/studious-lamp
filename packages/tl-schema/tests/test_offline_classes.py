@@ -59,6 +59,7 @@ SPEC_RECORDS: dict[str, str] = {
     "materials.ProjectItem": "none",
     "materials.Receipt": "draft_only",
     "materials.StockLot": "draft_only",
+    "quality.PunchItem": "draft_only",
     "schedule.ActivityRef": "none",
     "schedule.Schedule": "none",
     "schedule.ScheduleSnapshot": "none",
@@ -87,7 +88,7 @@ SPEC_STREAMS: dict[str, str] = {
 
 def test_every_labelled_record_type_has_a_class_and_nothing_else() -> None:
     assert set(OFFLINE_CLASSES) == set(TYPE_LABELS)
-    assert len(OFFLINE_CLASSES) == 49
+    assert len(OFFLINE_CLASSES) == 50
 
 
 def test_the_record_table_is_the_spec_table_cell_for_cell() -> None:
