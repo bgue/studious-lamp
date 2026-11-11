@@ -122,6 +122,7 @@ TOOLS = (
     | AWP_PROPOSE_TOOLS
     | MATERIALS_PROPOSE_TOOLS
     | {"list_iwps", "get_iwp", "list_iwp_scope", "get_iwp_readiness", "propose_iwp_scope"}  # T09b
+    | {"propose_progress", "propose_week_commitment"}  # P2-I5-T12a
     | {
         "list_weekly_plans",
         "get_weekly_plan",
