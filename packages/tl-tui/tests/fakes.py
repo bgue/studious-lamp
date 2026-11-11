@@ -27,6 +27,7 @@ from fakes_iwp import FakeIwpSupport
 from fakes_links import FakeLinkSupport
 from fakes_materials import FakeMaterialsSupport
 from fakes_query import FakeQuerySupport
+from fakes_requisitions import FakeRequisitionSupport
 from fakes_schedule import FakeScheduleSupport
 from fakes_schemareg import FakeSchemaRegistrySupport
 from fakes_settings import FakeSettingsSupport
@@ -236,6 +237,7 @@ class FakeClient(
     FakeScheduleSupport,
     FakeAwpSupport,
     FakeIwpSupport,
+    FakeRequisitionSupport,
     FakeSchemaRegistrySupport,
     FakeMaterialsSupport,
 ):
@@ -272,6 +274,7 @@ class FakeClient(
         self._init_schedule()
         self._init_awp()
         self._init_iwp()
+        self._init_requisitions()
         self._init_schemareg()
         self._init_materials()
 

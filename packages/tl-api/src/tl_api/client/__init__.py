@@ -27,6 +27,7 @@ from tl_api.client.links import LinksApi
 from tl_api.client.materials import MaterialsApi
 from tl_api.client.proposals import ProposalsApi
 from tl_api.client.records import RecordsApi
+from tl_api.client.requisitions import RequisitionsApi
 from tl_api.client.schedule import ScheduleApi
 from tl_api.client.schemareg import SchemaRegistryApi
 from tl_api.client.settings import SettingsApi
@@ -57,6 +58,7 @@ class ApiClient(
     AdminApi,
     IntegrationApi,
     IwpApi,
+    RequisitionsApi,
     ThreadsApi,
     InsightsApi,
 ):
