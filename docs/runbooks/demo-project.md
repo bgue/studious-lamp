@@ -33,7 +33,7 @@ The recipe takes a SQLite path or a `postgresql://` URL and passes any further f
 | `--sections` | comma list of `core,engineering,documents,correspondence,awp,materials,quality` | all, in that order |
 | `--objects` | directory of the file store | `TL_OBJECT_ROOT` |
 
-Expected output: one line per section (`engineering: 434 records, 868 events, 5.3s`), a summary table, and a last line that says clients read the ledger with `TL_SCHEMA_DIR=dev/data/demo-project-schema`. The final `total` row for the default build is about 2034 records and 7965 events. A section whose record types are not installed prints `quality: skipped, quality.PunchItem not installed` and the build continues.
+Expected output: one line per section (`engineering: 434 records, 868 events, 5.3s`), a summary table, and a last line that says clients read the ledger with `TL_SCHEMA_DIR=dev/data/demo-project-schema`. The final `total` row for the default build is about 2132 records and 8579 events. The quality section adds 29 records and 167 events; a section whose record types are not installed prints `<section>: skipped, <record type> not installed` and the build continues.
 
 Checks:
 - Run the same command on the same file again. Expected: `error: ... already holds project P200; use a new database`, and the recipe exits 1. Use a new file name.
@@ -91,7 +91,7 @@ Every demo account has the same password, `p200-demo-pass`. It is demo data only
 | Correspondence | 30+ RFIs plus letters and transmittals, some overdue |
 | Work packaging | 40–60 CWPs, a WBS of about 100 nodes, 12 CWAs, a path of construction with two versions |
 | Materials | 150+ items, 150–250 stock lots, 300+ movements, 40–60 receipts (some without MTR), 150 take-off lines with real shortages |
-| Quality | punch items, switched on when the record type is installed |
+| Quality | 29 punch items on P200 (keys `P200-PUN-0001` to `-0029`): 12 Open (3 overdue, one reopened once), 8 Cleared, 7 Verified, 2 Void; 24 raised from IWPs, tags, CWPs and two restricted correspondence items, the rest free-standing |
 
 ## 5. The fixed names
 
@@ -121,5 +121,4 @@ It writes to `docs/reports/tour/wave1`. The tour seeds its own ledger from the g
 - To add a section, write a module in `dev/seed/demo_project/` with a build function that takes the world and its own random generator.
 - Register it in `SECTIONS` in `dev/seed/demo_project/registry.py` with the record types it needs. Keep the section name in `ORDER` in the same file.
 - A section whose record types are not installed is skipped with one line; the build does not fail.
-- The `quality` section is in the package but is skipped until `quality.PunchItem` is installed. Quality is the next section to switch on.
 - Add a test in `tests/tools/` next to the existing `test_demo_project*.py` files.

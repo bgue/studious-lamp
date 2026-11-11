@@ -48,7 +48,7 @@ PEOPLE: tuple[Person, ...] = (
     ),
     Person("cbrooks", "Callum Brooks", "Foreman, piping", ("user",), (("awp", "user"),)),
     Person("pnair", "Priya Nair", "Foreman, civil", ("user",), (("awp", "user"),)),
-    Person("hsato", "Hana Sato", "Quality inspector", ("user",)),
+    Person("hsato", "Hana Sato", "Quality inspector", ("user",), (("quality", "superuser"),)),
     Person("odoyle", "Owen Doyle", "RFI author", ("user",)),
     Person(
         "gwhitfield",
