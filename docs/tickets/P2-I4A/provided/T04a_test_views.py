@@ -50,10 +50,12 @@ def test_the_detail_carries_the_kind_fields_and_the_work_order(world: World) -> 
     approved, _ = seed(world)
     key = world.rows("SELECT key FROM cur_core_record WHERE id = :i", i=approved)[0]["key"]
     detail = read(world, views.requisition_detail, key)
+    assert detail is not None
     assert detail.row.id == approved and detail.row.state == "Approved"
     assert detail.fields["craft"] == "Pipefitter" and str(detail.fields["headcount"]) == "6"
     assert detail.work_order is not None and detail.work_order.state == "Open"
     wo = read(world, views.work_order_detail, detail.work_order.key)
+    assert wo is not None
     assert wo.row.requisition_id == approved and wo.requisition_key == key
 
 
