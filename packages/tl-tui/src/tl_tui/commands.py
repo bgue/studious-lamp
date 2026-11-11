@@ -47,6 +47,7 @@ APP_COMMANDS: tuple[AppCommand, ...] = (
     AppCommand("backlog", "Backlog: IWPs by view, with the sizing view", "", "backlog"),
     AppCommand("path", "Path of construction: the order of the areas, by version", "", "path"),
     AppCommand("packages", "External packages: EWP and PWP, forecast and actual", "", "packages"),
+    AppCommand("punch", "Punch list: items by state, area and system", "", "punch"),
     AppCommand("settings", "about:config: settings and their history", "F9", "settings"),
     AppCommand("admin", "Accounts and agent tokens (admins)", "F10", "admin"),
     AppCommand("review", "Review queue: accept or reject proposed values", "Ctrl+R", "review"),
