@@ -34,9 +34,10 @@ def test_every_command_in_the_table_has_a_route(harness: Harness) -> None:
     # registry (P1-I8: 13; AdoptSchemaSet: 14), the awp module (P2-I1: 25; P2-I2 IWP, scope
     # item commands: 10, the 4 constraint commands having left for the core; S3 sign-off, issue
     # and hold: 4) and the materials module (P2-I3: 22 + the 2 take-off commands) and
-    # the 4 core constraint commands (P2-I2 C2)
+    # the 4 core constraint commands (P2-I2 C2) and the quality module's six punch commands
+    # (P2-PUNCH S2)
     assert len(COMMANDS) == (
-        20 + 14 + 24 + 10 + 1 + 6 + 28 + 4 + 3 + 5 + 6 + 1 + 3 + 19 + 14 + 25 + 10 + 4 + 24 + 4
+        20 + 14 + 24 + 10 + 1 + 6 + 28 + 4 + 3 + 5 + 6 + 1 + 3 + 19 + 14 + 25 + 10 + 4 + 24 + 4 + 6
     )
 
 
@@ -309,6 +310,10 @@ def test_the_controller_actions_are_exactly_the_commands_marked_controller() -> 
             "AdjustStock",
             "ScrapStock",
             "PublishDerivedMto",
+            # the quality module (P2-PUNCH): verify, reopen and void are controller words
+            "VerifyPunchItem",
+            "ReopenPunchItem",
+            "VoidPunchItem",
         )
     }
     assert {s.name for s in COMMANDS if effective_access(s) == "controller"} == {
