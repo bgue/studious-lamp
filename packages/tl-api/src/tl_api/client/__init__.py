@@ -26,6 +26,7 @@ from tl_api.client.iwp import IwpApi
 from tl_api.client.links import LinksApi
 from tl_api.client.materials import MaterialsApi
 from tl_api.client.proposals import ProposalsApi
+from tl_api.client.quality import QualityApi
 from tl_api.client.records import RecordsApi
 from tl_api.client.schedule import ScheduleApi
 from tl_api.client.schemareg import SchemaRegistryApi
@@ -52,6 +53,7 @@ class ApiClient(
     AwpApi,
     CostApi,
     MaterialsApi,
+    QualityApi,
     SchemaRegistryApi,
     AuthApi,
     AdminApi,

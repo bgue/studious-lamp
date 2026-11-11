@@ -26,6 +26,7 @@ from fakes_integration import FakeIntegrationSupport
 from fakes_iwp import FakeIwpSupport
 from fakes_links import FakeLinkSupport
 from fakes_materials import FakeMaterialsSupport
+from fakes_punch import FakePunchSupport
 from fakes_query import FakeQuerySupport
 from fakes_schedule import FakeScheduleSupport
 from fakes_schemareg import FakeSchemaRegistrySupport
@@ -238,6 +239,7 @@ class FakeClient(
     FakeIwpSupport,
     FakeSchemaRegistrySupport,
     FakeMaterialsSupport,
+    FakePunchSupport,
 ):
     """Implements `tl_tui.client.ClientInterface` in memory."""
 
@@ -274,6 +276,7 @@ class FakeClient(
         self._init_iwp()
         self._init_schemareg()
         self._init_materials()
+        self._init_punch()
 
     # --- seeding -----------------------------------------------------------------------------
 
