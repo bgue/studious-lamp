@@ -59,6 +59,8 @@ RULES=schema/fixtures/packages/co.acme.awp@1.1.0.yaml
 PROJECT=P123
 IWP=P123-IWP-PIP-0001
 IWP2=P123-IWP-PIP-0002
+CWP=P123-CWP-PIP-0001
+SAMPLES=packages/tl-modules/awp/src/tl_mod_awp/samples
 
 export TL_ENV="${TL_ENV:-dev}"
 export TL_PG_URL="${TL_PG_URL:-postgresql://postgres:postgres@localhost:5432/tl_test}"
@@ -85,6 +87,7 @@ refuse() { # refuse TEXT cmd...: the command must fail and say TEXT
   echo "$out"; expect "$text" "$out"
 }
 last_word() { awk '{print $NF}' <<<"$1"; } # the key a `created ...` line ends with
+run_key() { awk '/^opened /{print $2}' <<<"$1"; } # the run key a `tl load open` printed
 state_of() { # state_of NUMBER: the workflow state of an IWP
   as alice tl awp iwp show "$1" --project "$PROJECT" | awk '/^state /{ $1=""; sub(/^ /,""); print }'
 }
@@ -175,6 +178,33 @@ run_backend() {
   expect "source setting" "$out"
   clause 1 "co.acme.awp@1.1.0 published by ada; a copy at 101 refused by L008; a plain publish refused; adopted for $PROJECT"
 
+  step "[$backend] the cost code, the WBS leaf that carries it, the CWA and the CWP the IWP sits under"
+  printf 'code,title,quantity_budget,hours_budget\nWLD,Welding,100,1000\nERC,Erection,100,800\nTST,Testing,100,300\n=cmd,=cmd,100,400\n' >"$workdir/cost.csv"
+  out="$(as demo tl cost import "$workdir/cost.csv" --project "$PROJECT" --period 2026-10 --as-of 2026-10-31 --apply)"; echo "$out" | tail -1
+  expect "applied 2026-10@1" "$out"
+  out="$(as ada tl load open "$SAMPLES/wbs-sample.csv" --project "$PROJECT" --loader awp-wbs)"; echo "$out"
+  wbs="$(run_key "$out")"
+  as ada tl load extract "$wbs" --project "$PROJECT" >/dev/null
+  as ada tl load profile "$wbs" --project "$PROJECT" >/dev/null
+  as ada tl load plan "$wbs" --project "$PROJECT" >/dev/null
+  out="$(as ada tl load load "$wbs" --project "$PROJECT" --expect-new 12)"; echo "$out"
+  expect "created 12" "$out"
+  out="$(as dora tl awp wbs map 1.1.1 --cost-code "=cmd:100" --project "$PROJECT")"; echo "$out"
+  out="$(as ada tl load open "$SAMPLES/cwa-sample.csv" --project "$PROJECT" --loader awp-cwa)"; echo "$out"
+  cwa="$(run_key "$out")"
+  as ada tl load extract "$cwa" --project "$PROJECT" >/dev/null
+  as ada tl load profile "$cwa" --project "$PROJECT" >/dev/null
+  as ada tl load plan "$cwa" --project "$PROJECT" >/dev/null
+  out="$(as ada tl load load "$cwa" --project "$PROJECT" --expect-new 5)"; echo "$out"
+  expect "created 5" "$out"
+  out="$(as alice tl awp cwp create --project "$PROJECT" --discipline PIP --title "Piping run 1" --cwa CWA-A \
+    --planned-start 2026-11-09 --planned-finish 2027-01-29 --budget-hours 120 --contractor "Acme Fab" --qty piping:100:m)"; echo "$out"
+  expect "created CWP $CWP" "$out"
+  as alice tl awp cwp move "$CWP" start-development --project "$PROJECT" >/dev/null
+  as alice tl awp cwp allocate "$CWP" --wbs 1.1.1:100 --project "$PROJECT" >/dev/null
+  out="$(as dora tl awp cwp move "$CWP" release --project "$PROJECT")"; echo "$out"
+  expect "move $CWP  version" "$out"
+
   step "[$backend] the work: standards, 32 scope items, three tags, two IWPs"
   keys24=()
   for n in $(seq 1 24); do
@@ -190,7 +220,7 @@ run_backend() {
     as alice tl tag create "47-FV-100$n" --class ControlValve --service "Feed gas" --project "$PROJECT" >/dev/null
   done
   out="$(as alice tl awp iwp create --project "$PROJECT" --discipline PIP --title "Pipe rack spools, level 1" \
-    --planned-start 2026-11-09 --planned-finish 2027-01-29 --foreman user:frank --hours 120)"; echo "$out"
+    --cwp "$CWP" --planned-start 2026-11-09 --planned-finish 2027-01-29 --foreman user:frank --hours 120)"; echo "$out"
   expect "created IWP $IWP" "$out"
   as alice tl awp iwp add-scope "$IWP" "${keys24[@]}" --project "$PROJECT" >/dev/null
   as alice tl awp iwp add-scope "$IWP" "${keys8[@]}" 47-FV-1001 47-FV-1002 47-FV-1003 --project "$PROJECT" >/dev/null
@@ -320,10 +350,8 @@ run_backend() {
   free_text="$(as alice tl awp report kpi_constraint_free --project "$PROJECT")"; echo "$free_text"
   kpi_ppc="$(as alice tl awp report kpi_ppc --project "$PROJECT")"; echo "$kpi_ppc"
   driver recount 2026-W46 "$ppc_text" "$free_text"
-  printf 'code,description,quantity_budget,quantity_actual,quantity_eac\n4210-CMD,=cmd,100,40,100\n' >"$workdir/cost.csv"
-  out="$(as demo tl cost import "$workdir/cost.csv" --project "$PROJECT" --period 2026-10 --as-of 2026-10-31 --apply)"; echo "$out" | tail -1
   out="$(as alice tl awp export progress --project "$PROJECT" --period 2026-W45)"; echo "$out"
-  expect "=cmd" "$out"
+  expect "'=cmd" "$out"
   clause 5 "$k0 at 90 after the material step and install; PPC 100.0 and the constraint-free figure equal a ledger recount; the CSV quotes =cmd"
 
   step "[$backend] clause 6: the work pack"
@@ -352,8 +380,47 @@ run_backend() {
 
   step "[$backend] clause 10: agents over MCP"
   driver tools
-  driver week-counts 2026-W46
-  fail "clause 10 is not complete: the agent's proposals, the person's acceptance, the refusals and the T16 walk are not in this demo yet"
+  # IWP-0001 is complete in the field by now (not committable); IWP-0003 is released the way IWP2 was
+  as alice tl awp week open --date 2026-11-16 --project "$PROJECT" >/dev/null
+  out="$(as alice tl awp iwp create --project "$PROJECT" --discipline PIP --title "Pipe rack spools, level 3" \
+    --cwp "$CWP" --planned-start 2026-11-23 --planned-finish 2027-02-12 --foreman user:frank --hours 40)"; echo "$out"
+  IWP3="$(awk '/^created IWP /{print $3}' <<<"$out")"
+  [ -n "$IWP3" ] || fail "no IWP was created for the agent's proposals"
+  out="$(as alice tl awp iwp item-create --project "$PROJECT" --commodity piping --description "Spool C1, line 49-P-1" --qty 4 --uom m --hours 2)"
+  k3="$(last_word "$out")"
+  as alice tl awp iwp add-scope "$IWP3" "$k3" --project "$PROJECT" >/dev/null
+  as alice tl awp iwp move "$IWP3" start-development --project "$PROJECT" >/dev/null
+  as alice tl awp iwp move "$IWP3" constraint-check --project "$PROJECT" >/dev/null
+  evaluate
+  out="$(as alice tl awp iwp hash "$IWP3" --project "$PROJECT")"; echo "$out"
+  hash3="$(awk '/^record hash /{print $3}' <<<"$out")"
+  [ -n "$hash3" ] || fail "no record hash for $IWP3"
+  as dora tl awp iwp sign-off "$IWP3" --project "$PROJECT" --hash "$hash3" >/dev/null
+  as sue tl awp iwp sign-off "$IWP3" --project "$PROJECT" --hash "$hash3" >/dev/null
+  out="$(as dora tl awp iwp issue "$IWP3" --project "$PROJECT" --hash "$hash3" --foreman user:frank)"; echo "$out"
+  expect "Issued" "$(state_of "$IWP3")"
+  as alice tl awp iwp start-work "$IWP3" --project "$PROJECT" >/dev/null
+  driver agent 2026-W47 "$IWP3" "$k3"
+  read -r pid_progress pid_week <<<"$(cat "$TL_DEMO_STATE")"
+  out="$(as alice tl proposal ls --project "$PROJECT")"; echo "$out"
+  expect "$pid_progress" "$out"
+  expect "$pid_week" "$out"
+  out="$(as alice tl awp week show 2026-W47 --project "$PROJECT")"; echo "$out"
+  case "$out" in *"$IWP3"*) fail "a proposal committed $IWP3 before a person accepted it" ;; esac
+  out="$(as alice tl proposal accept "$pid_progress")"; echo "$out"
+  expect "accepted $pid_progress" "$out"
+  out="$(as alice tl proposal accept "$pid_week")"; echo "$out"
+  expect "accepted $pid_week" "$out"
+  out="$(as alice tl awp week show 2026-W47 --project "$PROJECT")"; echo "$out"
+  expect "$IWP3" "$out"
+  driver refusals
+  driver week-counts 2026-W47
+  for walk in packages/tl-api/tests/test_awp_week_walk.py packages/tl-mcp/tests/test_mcp_week_walk.py \
+    packages/tl-mcp/tests/test_mcp_propose_awp.py packages/tl-cli/tests/test_awp_week_walk.py; do
+    out="$(quiet uv run pytest -q "$walk" 2>&1)" || { echo "$out" | tail -20; fail "the walk $walk does not pass"; }
+    echo "$walk: $(tail -1 <<<"$out")"
+  done
+  clause 10 "$IWP3 committed for 2026-W47 by a person's acceptance of the agent's propose_week_commitment (and its propose_progress); ClearConstraint and CloseWeek refused for the agent; the week reads the same on four surfaces; the walk files pass"
 
   stop_server
   drop_pg

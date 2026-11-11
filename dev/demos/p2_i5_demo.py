@@ -7,8 +7,11 @@ Modes (first argument):
 * ``grid``: clause 9: with ``tui.landing=default`` set for the foreman, the TUI opens on the grid.
 * ``recount WEEK PPC CONSTRAINT_FREE``: clause 5: the PPC and the percent constraint-free that the
   CLI and the report print are checked against a recount made with SQL on the ledger tables.
-* ``agent``: clause 10: the agent's MCP session (``propose_progress``, ``propose_week_commitment``),
-  the refusals, and the same week read over the API, the TUI client and MCP.
+* ``agent WEEK IWP ITEM``: clause 10: the agent's MCP session files ``propose_progress`` and
+  ``propose_week_commitment``; both are pending; their ids go to TL_DEMO_STATE.
+* ``refusals``: clause 10: the agent's API calls for ClearConstraint and CloseWeek are refused
+  ``agent_must_propose``.
+* ``week-counts WEEK``: clause 10: the same week's commitments over the API, the TUI client and MCP.
 
 Reads TL_DB (SQLite path or postgresql:// URL), TL_DEMO_URL (the API), TL_DEMO_AGENT_TOKEN and
 TL_DEMO_STATE. Every expectation is an assert: a failing check exits non-zero. Nothing printed holds
@@ -23,6 +26,7 @@ import os
 import sys
 from collections.abc import Callable
 from decimal import ROUND_HALF_UP, Decimal
+from pathlib import Path
 from typing import Any
 
 PROJECT = "P123"
@@ -171,7 +175,7 @@ def recount(week: str, ppc_text: str, free_text: str) -> None:
             _sql(
                 "SELECT r.id, w.state FROM cur_core_record AS r "
                 "JOIN cur_workflow_state AS w ON w.record_id = r.id "
-                "WHERE r.scope = :scope AND r.type = 'awp.IWP' AND r.voided = 0"
+                "WHERE r.scope = :scope AND r.type = 'awp.IWP' AND NOT r.voided"
             ),
             {"scope": scope},
         ).fetchall()
@@ -182,7 +186,7 @@ def recount(week: str, ppc_text: str, free_text: str) -> None:
                 _sql(
                     "SELECT COUNT(*) FROM cur_core_constraint AS c "
                     "JOIN cur_core_record AS r ON r.id = c.id "
-                    "WHERE c.subject_id = :iwp AND c.severity = 'blocking' AND r.voided = 0 "
+                    "WHERE c.subject_id = :iwp AND c.severity = 'blocking' AND NOT r.voided "
                     "AND COALESCE(r.status, 'Open') IN ('Open', 'Assigned')"
                 ),
                 {"iwp": rid},
@@ -229,12 +233,91 @@ def tools() -> None:
     assert not missing, f"MCP lists no tool {missing}"
     tool_map = agent_session(None)
     for name in sorted(wanted):
-        schema = tool_map[name].inputSchema if name in tool_map else {}
+        schema = tool_map[name].input_schema if name in tool_map else {}
         say(
             f"MCP tool {name}: present; arguments {sorted((schema.get('properties') or {}).keys())}"
         )
     cycle = sorted(n for n in names if "week" in n or "progress" in n or "constraint" in n)
     say(f"MCP tools of the weekly cycle: {', '.join(cycle)}")
+    excluded = {"clear_constraint", "close_week", "propose_clear_constraint", "propose_close_week"}
+    assert not (excluded & names), (
+        f"MCP lists a tool for an act an agent may not do: {excluded & names}"
+    )
+    say("MCP lists no tool for ClearConstraint or CloseWeek")
+
+
+def agent(week: str, iwp: str, item: str) -> None:
+    """The agent files two proposals; nothing is recorded until a person accepts them."""
+    progress = agent_session(
+        "propose_progress",
+        {
+            "project": PROJECT,
+            "iwp": iwp,
+            "steps": [{"scope_item": item, "step": "Material received", "done": True}],
+        },
+    )
+    assert not progress.is_error, progress
+    commit = agent_session(
+        "propose_week_commitment",
+        {"project": PROJECT, "week": week, "iwp": iwp, "committed_hours": "12.0"},
+    )
+    assert not commit.is_error, commit
+    ids = []
+    for result in (progress, commit):
+        proposal = (result.structured_content or {})["proposal"]
+        assert proposal["status"] == "pending", proposal
+        ids.append(proposal["proposal_id"])
+    Path(os.environ["TL_DEMO_STATE"]).write_text(" ".join(ids))
+    say(f"the agent's proposals {ids[0]} and {ids[1]} are pending; nothing is recorded yet")
+
+
+def _dummy(schema: dict[str, Any], defs: dict[str, Any]) -> Any:
+    """A value of the JSON schema's type (enough to pass request validation, not to succeed)."""
+    if "$ref" in schema:
+        return _dummy(defs[schema["$ref"].rsplit("/", 1)[1]], defs)
+    if "enum" in schema:
+        return schema["enum"][0]
+    if "anyOf" in schema:
+        options = [o for o in schema["anyOf"] if o.get("type") != "null"]
+        return _dummy(options[0], defs)
+    kind = schema.get("type")
+    if kind == "integer":
+        return 1
+    if kind == "boolean":
+        return False
+    if kind == "array":
+        return []
+    if kind == "object":
+        return {}
+    if "pattern" in schema:
+        return SCOPE
+    return "x"
+
+
+def refusals() -> None:
+    """An agent's ClearConstraint and CloseWeek are refused over the API: the agent must propose."""
+    import httpx
+
+    headers = {"Authorization": f"Bearer {os.environ['TL_DEMO_AGENT_TOKEN']}"}
+    with httpx.Client(base_url=os.environ["TL_DEMO_URL"], headers=headers, timeout=60) as http:
+        doc = http.get("/openapi.json").json()
+        defs = doc["components"]["schemas"]
+        for name in ("ClearConstraint", "CloseWeek"):
+            ref = doc["paths"][f"/commands/{name}"]["post"]["requestBody"]["content"][
+                "application/json"
+            ]["schema"]["$ref"]
+            model = defs[ref.rsplit("/", 1)[1]]
+            required = set(model.get("required", []))
+            body = {
+                key: _dummy(prop, defs)
+                for key, prop in model["properties"].items()
+                if key in required or key == "scope"
+            }
+            response = http.post(f"/commands/{name}", json=body)
+            found = response.json()
+            assert response.status_code == 403, (name, response.status_code)
+            assert found.get("error") == "agent_must_propose", (name, found.get("error"))
+            say(f"{name} by the agent is refused: {found['error']}")
 
 
 def week_counts(week: str) -> None:
@@ -270,6 +353,10 @@ def main() -> None:
         recount(sys.argv[2], sys.argv[3], sys.argv[4])
     elif mode == "tools":
         tools()
+    elif mode == "agent":
+        agent(sys.argv[2], sys.argv[3], sys.argv[4])
+    elif mode == "refusals":
+        refusals()
     elif mode == "week-counts":
         week_counts(sys.argv[2])
     else:
