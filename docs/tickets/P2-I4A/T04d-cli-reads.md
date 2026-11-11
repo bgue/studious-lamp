@@ -46,4 +46,4 @@ Standard report (`docs/templates/haiku-report.md`), <= 60 lines, deviations firs
 (implementer writes here)
 
 ## Decision
-(supervisor or orchestrator writes here)
+D-r3d (orchestrator, 2026-11-11, after attempt 1 blocked): option (b). `req show` may make ONE keyed lookup of `for_record_id` (the record's key through the existing core record read the CLI already uses, e.g. `get_record_by_id`) to print the serves key; a missing or unreadable record prints `-` (a requisition already inherits its subject's class, so a hidden IWP means a hidden requisition). No other second query; no change to the module views.

@@ -8,7 +8,7 @@ T04a t mrg f 63b5e3a read views; D-r3c
 T04e1 t mrg f 87307ee CLI writes; D-r3a D-r3b
 T04d t todo f - CLI reads; needs T04a T04e1
 T04c1 t mrg f 931992c API reads + word check
-T04c2 t todo f - client methods + fakes; needs T04c1
+T04c2 t mrg f eb8778b client methods + fakes
 T07a t todo f - requisition text, log, record page; needs T04c2
 T07b t todo f - work order backlog screen; needs T04c2
 T07d t todo f - TUI glue; needs T07a T07b
