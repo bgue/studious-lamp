@@ -46,4 +46,4 @@ Standard report (`docs/templates/haiku-report.md`), <= 60 lines, deviations firs
 (implementer writes here)
 
 ## Decision
-(supervisor or orchestrator writes here)
+D-r3f (orchestrator, 2026-11-11): brief item 4 (record-screen actions for requisitions and work orders) is out of this ticket: the generic record screen reads no action offers and `action_ui.ACTION_UI` has no requisition rows. Deferred (DEFERRED.md); the CLI covers every write and the demo reaches the TUI only through the palette. The rest passed review.

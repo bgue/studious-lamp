@@ -11,7 +11,7 @@ T04c1 t mrg f 931992c API reads + word check
 T04c2 t mrg f eb8778b client methods + fakes
 T07a t mrg f 1198a97 requisition text, log, page
 T07b t mrg f 7f2876f work order backlog
-T07d t todo f - TUI glue; needs T07a T07b
+T07d t mrg f a9a14fc TUI glue; item 4 deferred D-r3f
 T08b t mrg f 78a134e MCP reads + propose_requisition
 T10b t todo f - demo clauses 1,5,7,8 exact verbs; needs T04c1 T04d T04e1 T07d T08b
 T12 t todo l - docs + 3 stale pointers; needs T10b
