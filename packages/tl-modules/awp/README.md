@@ -245,7 +245,7 @@ uv run tl constraint ls --project P123
 Limits (`limits.py`): WBS depth at most 8 levels, at most 5 000 nodes per project; path at most 500 steps; an allocation list at most 20 lines; CWP quantities at most 50 rows.
 
 ## Not built yet
-Struck from P2-I5 (roadmap 3c). The list and the reasons are in `docs/build-spec/DEFERRED.md`: the closeout and subcontract screens, the PDF pack, demo clauses 7 and 8, and the web pages of the weekly cycle.
+Struck from P2-I5 (roadmap 3c; the cut is recorded in `docs/build-spec/roadmap-2026-11-07.md` §3c and `docs/tickets/P2-I5/README.md`): the closeout and subcontract screens, the PDF pack, demo clauses 7 and 8, and the web pages of the weekly cycle.
 
 ## Rules specific to this package
 See `AGENTS.md` in this directory.
