@@ -61,4 +61,17 @@ Builder return <= 15 lines; report <= 60 lines, one line per item with the root 
 (builder writes here)
 
 ## Decision
-(orchestrator writes here)
+2026-11-12 orchestrator, on the five Blocked items of the report (attempt 2 continues on this branch, same worktree):
+- Allowed paths widen to: `packages/tl-api/src/tl_api/errors.py` (+ regenerated `openapi.json` via the repo's codegen),
+  `packages/tl-mcp/src/tl_mcp/requisition_tools.py`, `packages/tl-core/tests/**`, `packages/tl-tui/tests/**`.
+- B1 error table: add one row per requisitions service error, mirroring the HTTP status and code style of the
+  materials/awp rows for the same kind (state -> same as their StateError, rule -> RuleError, scope -> as their scope
+  error, which must read like not-found: hidden looks like missing). Regenerate openapi.
+- B2: `max_length=10` on `need_by`, `start_date`, `end_date` in `propose_requisition`.
+- B3 offline oracle: add the four draft-only kinds to `SECTION_4_DRAFTS` to match the module declaration; for
+  "RaiseRequisition drafting on site", read the test's rule and the requisitions spec; update the oracle only if the
+  module follows the spec, else write it under Blocked (no module source change).
+- B4: update the pinned pset list to the new order.
+- B5 TUI: regenerate the three snapshots and the count with the repo's snapshot-update mechanism only after reading
+  each diff: every changed line must be a requisitions/work-order addition; anything else goes under Blocked.
+- Gate: run only the failing files plus `just check`; the orchestrator runs the split whole gate (`dev/gate.sh --parts 8`).
