@@ -169,7 +169,10 @@ def test_every_module_command_is_decided_by_the_table_for_every_role_and_project
 ) -> None:
     # requisitions has read routes only in the API (``routes/requisitions.py``); its commands run
     # from the CLI and as MCP proposals, so they have index rows and no row in the API table
-    index = {n: row for n, row in command_index().items() if row[0] != "requisitions"}
+    full = command_index()
+    assert any(m == "requisitions" for m, _ in full.values())
+    assert not any(s.module == "requisitions" for s in COMMANDS)
+    index = {n: row for n, row in full.items() if row[0] != "requisitions"}
     assert {s.name for s in COMMANDS if s.module is not None} == set(index)
     assert len(index) > 100
     mismatches: list[str] = []
