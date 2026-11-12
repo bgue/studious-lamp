@@ -26,6 +26,7 @@ T12a p mrg f 4cbd11c four demo gaps; tl-api dir gate left to DONE (OOM)
 T12b t mrg f fc1ec38 demo green sq+pg; F1 clause-3 check tightened
 T13 t mrg l 38a3d46 docs; 2s on wording, fixed at merge
 S7 p mrg f ab37724 SR3 F1-F3 + WeeklyPlan scanned (APPROVALS); review fixes
+S8 p disp f - trunk merge (27 conflicts) + registries
 T17 t mrg f da16eec tour 09-18 + pack; 3 rounds (needles, earned, plain close time)
 T15 t todo f - registrations only if glue > 50 lines
 S5 S6 T05 T07c T08 T10 abn - roadmap 3c, or replaced (T16)
