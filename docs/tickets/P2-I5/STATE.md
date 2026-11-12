@@ -24,7 +24,7 @@ T06c2 t mrg f ed77ead landing at sign-in; after T06c1 T06b (R-G)
 T12 t blk f c6310e4 clauses 1-2 pass; stops at 3; retried as T12b
 T12a p mrg f 4cbd11c four demo gaps; tl-api dir gate left to DONE (OOM)
 T12b t mrg f fc1ec38 demo green sq+pg; F1 clause-3 check tightened
-T13 t disp l - docs, three runbooks, reference, access words
+T13 t mrg l 38a3d46 docs; 2s on wording, fixed at merge
 S7 p disp f - SR3 fixes F1-F3
 T17 t disp f - tour steps 09-18 (Activity, Insights, intent, weekly loop, pack)
 T15 t todo f - registrations only if glue > 50 lines
