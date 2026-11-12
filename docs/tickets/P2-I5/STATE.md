@@ -25,6 +25,7 @@ T12 t blk f c6310e4 clauses 1-2 pass; stops at 3; retried as T12b
 T12a p mrg f 4cbd11c four demo gaps; tl-api dir gate left to DONE (OOM)
 T12b t mrg f fc1ec38 demo green sq+pg; F1 clause-3 check tightened
 T13 t disp l - docs, three runbooks, reference, access words
+S7 p disp f - SR3 fixes F1-F3
 T17 t disp f - tour steps 09-18 (Activity, Insights, intent, weekly loop, pack)
 T15 t todo f - registrations only if glue > 50 lines
 S5 S6 T05 T07c T08 T10 abn - roadmap 3c, or replaced (T16)
@@ -37,8 +38,11 @@ D31 2026-11-10 close: user layer takes tui.* keys too (tui.landing is personal, 
 D30 2026-11-09 r5 route and client read for the IWP record hash (T11a1, T11b) so the remote release step can sign off and issue; no new word; SR3 row added
 D31 2026-11-09 r5 web IWP page keeps IWP_COLUMNS; the TUI log gets IWP_COUNT_COLUMNS (T06c1); no web change
 D32 2026-11-09 r5 waves R-A..R-I in README; one workflow of 2-3 tickets with disjoint files per round; no builder left; shared one-line files (awp.py, app.py, openapi.json) are touched by one ticket per wave
-## SEC     (SR3 I5 rows in README; range ec3314d..head; none run yet)
-(none yet)
+## SEC     (SR3 run 2026-11-12, one wave review with I4A; I5 range a8f4710..p2/i5; all rows ok except below)
+F1 MD open pack --attach built at session clearance, stored under IWP class -> S7
+F2 LO open TUI sign-off/issue hash fetched at key press, not panel read -> S7
+F3 LO open conf walk week has no plan seeded -> S7
+F4 LO open proposable_exclusions.toml absent here; union at trunk merge (D15), filter I4A check to own module
 ## OPEN
 Q2 package-form file path schema/fixtures/packages/co.acme.awp@1.1.0.yaml (S1 dev 1) needs orch confirm raised r3; T12 clause 1 uses it
 Q4 core feed policy list lacks the eight new quiet events (S1 dev 6) and POLICY_EVENT_TYPES lacks WeeklyPlan.* and IWP.* (Q-o3) needs orch raised r3
