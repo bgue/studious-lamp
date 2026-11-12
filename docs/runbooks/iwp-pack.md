@@ -58,7 +58,7 @@ Every value from a record is escaped before it reaches the page. The page holds 
 
 ## Known limits
 - The page is a snapshot of the reads at the time it is written; a later change to the IWP needs a new pack.
-- The file is HTML only. Safety, inspection and permits show their fixed text: no command records them yet.
+- Safety, inspection and permits show their fixed text: no command records them yet.
 
 ## Roll back
 - The HTML file is a local file: delete it on the machine where it was written.
