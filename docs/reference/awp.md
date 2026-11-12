@@ -12,9 +12,11 @@ Examples use project `P123` and IWP `P123-IWP-PIP-0001`.
 | CLI | `tl awp iwp ls`, `tl awp iwp show <number>`, `tl awp iwp scope <number>`, `tl awp iwp hash <number>` | `tl constraint ls`, `tl constraint show <key>`, `tl constraint groups` | `tl awp readiness ls`, `tl awp readiness show <number>` |
 | CLI reports | `tl awp report iwp_status`, `tl awp report iwp_readiness` | `tl awp report constraint_log`, `constraints_by_category`, `constraints_by_owner`, `constraints_by_age` | `tl awp report iwp_readiness` |
 | API (GET) | `/projects/{project}/awp/iwps` (`list_iwps`), `/projects/{project}/awp/iwps/{number}` (`get_iwp`), `/projects/{project}/awp/iwps/{number}/scope` (`list_iwp_scope`), `/projects/{project}/awp/iwps/counts` (`list_iwp_counts`), `/projects/{project}/awp/iwps/{number}/progress` (`get_iwp_progress`), `/projects/{project}/awp/iwps/{number}/hash` (`get_iwp_hash`), `/projects/{project}/awp/progress/rollup` (`get_progress_rollup`), `/projects/{project}/awp/kpis` (`list_kpis`), `/projects/{project}/awp/weeks` (`list_weekly_plans`), `/projects/{project}/awp/weeks/{week}` (`get_weekly_plan`), `/projects/{project}/awp/miss-reasons` (`list_miss_reasons`), `/projects/{project}/awp/look-ahead` (`get_awp_look_ahead`) | `/projects/{project}/constraints` (`list_constraints_api`), `/projects/{project}/constraints/groups` (`constraint_groups`), `/projects/{project}/constraints/{key}` (`get_constraint_api`) | `/projects/{project}/awp/iwps/{number}/readiness` (`get_iwp_readiness`) |
-| TUI | IWP log (palette `iwps`); IWP screen (Enter on a row) | constraint log (palette `constraints`); constraints of one IWP (`c` on the IWP screen) | readiness screen (`r` on the IWP screen) |
+| TUI | IWP log (palette `iwps`); IWP screen (Enter on a row); weekly cycle (palette `week`, keys `1` to `5`) | constraint log (palette `constraints`); constraints of one IWP (`c` on the IWP screen) | readiness screen (`r` on the IWP screen) |
 | Web | `/web/p/{project}/iwps` | `/web/p/{project}/constraints`, and `/web/p/{project}/constraints?subject=<subject key>` for one subject | `/web/p/{project}/readiness?number=<IWP number>` |
-| MCP | `list_iwps`, `get_iwp`, `list_iwp_scope` | none (the agent holds no `core.constraint.*` word, D37) | `get_iwp_readiness` |
+| MCP | `list_iwps`, `get_iwp`, `list_iwp_scope`; weekly and progress reads `list_weekly_plans`, `get_weekly_plan`, `get_iwp_progress`, `get_progress_rollup`, `list_kpis`; proposals `propose_progress`, `propose_week_commitment` (not writes) | none (the agent holds no `core.constraint.*` word, D37) | `get_iwp_readiness` |
+
+Weekly cycle and rules of credit, CLI (P2-I5; every verb takes `--project P`): `tl awp look-ahead [--weeks N]`; `tl awp week open [--date D]`, `commit WEEK NUMBER --hours H [--foreman user:X] [--expected-version V]`, `outcome WEEK NUMBER done|missed [--reason KEY]`, `close WEEK`, `ls`, `show WEEK`, `ppc [--weeks N]`, `reasons`; `tl awp roc ls`, `roc show [--edition E]`, `roc set EDITION [--reason R]`; `tl awp iwp progress NUMBER`, `step NUMBER ITEM STEP [--undo]`, `item-move ITEM install|verify|return`, `start-work NUMBER [--date D]`, `complete-field NUMBER [--date D]`. Runbooks: `docs/runbooks/weekly-cycle.md`, `docs/runbooks/rules-of-credit.md`. Command routes: `POST /commands/<Name>` for `OpenWeeklyPlan`, `CommitIwpToWeek`, `RecordWeekOutcome`, `CloseWeek`, `RecordManualProgress`, `InstallScopeItem`, `ReturnScopeItem`, `VerifyScopeItem`, `StartIwpWork`, `CompleteIwpField` (bodies in `docs/reference/openapi.json`). Word of each: `packages/tl-modules/awp/README.md`, *Commands and access words*.
 
 KPI tiles (weekly cycle, P2-I5-T09): `tl awp report kpi_ppc` (PPC over the last 4 closed weeks) and `tl awp report kpi_constraint_free` (share of live IWPs with no open blocking constraint), one row each.
 Weekly-plan MCP reads (P2-I5-T11c, agent reads only): `list_weekly_plans`, `get_weekly_plan` (week `YYYY-Www`), `get_iwp_progress`, `get_progress_rollup`, `list_kpis`. Code: `tl_mcp/awp_week_tools.py`; each needs its `mcp.<tool>` action (`WEEK_MCP_ACTIONS`). The look-ahead is not on MCP this increment (D29).
@@ -96,6 +98,19 @@ One IWP in full: identity, state, summary, scope, sign-offs, drawings and constr
 
 The constraint log opened from the IWP screen (`c`) shows the same constraints, filtered to that IWP.
 
+### Weekly cycle (`week`, P2-I5)
+
+Five steps; keys `1` to `5` switch between them. Actions are keys on the highlighted row.
+
+| Step | Key | Action |
+|---|---|---|
+| 1 Look-ahead | | read only |
+| 2 Constraints | `x` | waive the highlighted check-raised constraint (asks for a reason) |
+| 3 Release | `s` / `i` | sign off the highlighted Ready IWP / issue it to its foreman |
+| 4 Commitments | `o` | open this week (when none is open; a screen key) |
+| 4 Commitments | `c` / `d` / `m` / `z` | commit an IWP (IWP, hours, foreman) / record done / record missed (asks the reason) / close the week after a confirm |
+| 5 Progress | `w` / `f` | start work on an Issued IWP / complete field work on an In progress IWP |
+
 ### Backlog (`backlog`)
 
 | Key | Action |
@@ -130,6 +145,6 @@ The constraint log opened from the IWP screen (`c`) shows the same constraints, 
 
 ## Known limits
 
-- A new blocking constraint on an Issued IWP does not put it On hold (Q1, `docs/tickets/P2-I2/STATE.md`).
+- A blocking constraint raised on an Issued IWP puts it On hold when `tl awp worker` runs (P2-I5; `readiness/hold_rule.py`).
 - Agents hold no constraint word (D37).
 - WBS constraint opt-in is deferred (`docs/build-spec/DEFERRED.md`).
