@@ -20,8 +20,15 @@ from typing import Any
 
 import pytest
 from harness import SCOPE, Harness
+from sqlalchemy import bindparam, text
+from test_api_awp import seed_awp
+from tl_adapters.db import open_uow
+from tl_core import confidentiality as cf
+from tl_core import modules as core_modules
 from tl_core.auth import accounts, sessions
 from tl_core.auth.password import prepare_password
+from tl_core.modules import ConfidentialSource
+from tl_mod_awp.names import IWP, WEEKLY_PLAN
 from tl_mod_correspondence.confseed import TOKENS, seed_hidden_world
 from tl_mod_legacy.testing import seed_restricted_run
 
@@ -48,8 +55,9 @@ MAY_READ = {
         "commercial",
         "secret_rfi",
         "loadrun",
+        "awp_hidden",
     },
-    "boss": {"open", "restricted", "document", "file", "commercial", "loadrun"},
+    "boss": {"open", "restricted", "document", "file", "commercial", "loadrun", "awp_hidden"},
     "amy": {"open", "privileged", "secret_rfi"},
     "bot": {"open"},
 }
@@ -132,14 +140,68 @@ def hidden_markers(seed_data: Seed, reader: str) -> tuple[list[str], list[str]]:
             continue
         ids.append(seed_data.ids[kind])
         ids += [v for k, v in seed_data.extra_ids.items() if k.startswith(f"{kind}_")]
+    if "awp_hidden" not in may:  # the restricted IWP of the seeded week, and its number
+        ids += [v for k, v in seed_data.extra_ids.items() if k.startswith("awp_hidden_")]
     if "restricted" not in may:  # the link and its post hang on the restricted item
         ids.append(seed_data.extra_ids["link"])
     return tokens, ids
 
 
+WEEK_SEEDED = "2026-W46"  # the weekly plan seeded below (week of 2026-11-09)
+
+
+def seed_week(h: Harness, seed_data: Seed, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A weekly plan with a commitment on an IWP that only a controller may read (restricted, by a
+    test-only source), and one on a visible IWP, so the weekly-plan route meets a hidden row."""
+    from test_awp_week_walk import progress_module
+
+    world = seed_awp(h, rollup=False)
+    progress = progress_module()
+    ww = progress.WeekWorld(progress.ProgressWorld(world))
+    ww.standards()
+    week = ww.open("2026-11-09")
+    visible, hidden = ww.issued(), ww.issued()
+    ww.commit(week, visible, hours="20.0")
+    ww.commit(week, hidden, hours="10.0")
+    number = str(world.scalar("SELECT key FROM cur_core_record WHERE id = :i", i=hidden))
+    table = "walk_awp_class"
+    with open_uow(h.target or h.db) as uow:
+        conn = uow.conn()
+        conn.execute(text(f"CREATE TABLE {table} (id TEXT PRIMARY KEY, cls TEXT NOT NULL)"))
+        found = conn.execute(
+            text("SELECT id FROM cur_core_record WHERE type IN :t").bindparams(
+                bindparam("t", expanding=True)
+            ),
+            {"t": [WEEKLY_PLAN, IWP]},
+        ).all()
+        for (record_id,) in found:
+            cls = "restricted" if str(record_id) == str(hidden) else "internal"
+            conn.execute(
+                text(f"INSERT INTO {table} (id, cls) VALUES (:i, :c)"),
+                {"i": str(record_id), "c": cls},
+            )
+    source = ConfidentialSource(
+        record_types=frozenset({WEEKLY_PLAN, IWP}),
+        table=table,
+        id_column="id",
+        class_column="cls",
+    )
+    real = core_modules.confidential_sources
+    monkeypatch.setattr(cf, "confidential_sources", lambda: [*real(), source])
+    seed_data.extra_ids["awp_hidden_iwp"] = str(hidden)
+    seed_data.extra_ids["awp_hidden_number"] = number
+
+
 @pytest.fixture
 def seeded(harness: Harness, tmp_path: Path) -> Seed:
     return seed(harness, tmp_path)
+
+
+@pytest.fixture
+def week_seeded(harness: Harness, seeded: Seed, monkeypatch: pytest.MonkeyPatch) -> Seed:
+    """``seeded`` plus a weekly plan with a hidden commitment (not for tests that seed awp)."""
+    seed_week(harness, seeded, monkeypatch)
+    return seeded
 
 
 def candidates(seed_data: Seed) -> dict[str, list[str]]:
@@ -161,7 +223,7 @@ def candidates(seed_data: Seed) -> dict[str, list[str]]:
         "kind": ["x"],
         "type_ref": ["x"],
         "activity_id": ["x", *all_ids[:2]],
-        "week": ["2026-W01"],  # P2-I5-T11a2: the weekly-plan route (no plan is seeded here)
+        "week": ["2026-W01", WEEK_SEEDED],  # the weekly-plan route: a missing week, a seeded one
     }
 
 
@@ -402,8 +464,9 @@ def test_the_feed_cards_do_not_tell_a_reader_what_happened_to_what_they_may_not_
 
 @pytest.mark.parametrize("reader", sorted(MAY_READ))
 def test_no_get_route_shows_a_reader_what_they_may_not_read(
-    harness: Harness, seeded: Seed, reader: str
+    harness: Harness, week_seeded: Seed, reader: str
 ) -> None:
+    seeded = week_seeded  # the ledger holds a weekly plan with a hidden commitment (F3)
     client = harness.client_for(None)
     headers = {"Authorization": f"Bearer {seeded.tokens[reader]}"}
     tokens, ids = hidden_markers(seeded, reader)

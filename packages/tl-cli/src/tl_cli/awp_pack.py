@@ -2,17 +2,22 @@
 
 The file is created with mode 0600 and replaces one already there. Reads go through the session's
 viewer; a missing or hidden IWP is `error: no IWP <n>` and writes nothing. With `--attach` the
-file is stored in the IWP's file slot `pack` (the same upload path a person's upload takes).
+file is stored in the IWP's file slot `pack` (the same upload path a person's upload takes); that
+file is readable by every reader of the IWP, so with `--attach` the pack is built as a viewer at the
+IWP's own class (the lowest clearance that reads it), never at the session's higher clearance.
 """
 
 from __future__ import annotations
 
 import os
+from dataclasses import replace
 from pathlib import Path
 from typing import Annotated
 
 import typer
+from sqlalchemy import Connection
 from tl_adapters.db import DbTarget, open_uow
+from tl_core.confidentiality import Viewer, is_hidden
 from tl_core.services.errors import RecordNotFoundError
 from tl_mod_awp.pack import build_pack_data, render_html
 
@@ -30,6 +35,16 @@ from tl_cli.session import session_viewer
 
 #: The file slot of an IWP that holds its pack.
 PACK_SLOT = "pack"
+
+
+def _record_viewer(conn: Connection, record_id: str, who: Viewer) -> Viewer | None:
+    """``who`` lowered to the lowest clearance level that still reads the record (its own class),
+    or None when no clearance level reads it."""
+    for level in (0, 1):
+        candidate = replace(who, level=level)
+        if not is_hidden(conn, record_id, candidate):
+            return candidate
+    return None
 
 
 def iwp_pack(
@@ -50,7 +65,16 @@ def iwp_pack(
     target = out if out is not None else Path(f"{number}.html")
     with service_errors(), open_uow(db, readonly=True) as uow:
         try:
-            data = build_pack_data(uow.conn(), scope_of(project), number, session_viewer(db))
+            who = session_viewer(db)
+            data = build_pack_data(uow.conn(), scope_of(project), number, who)
+            if attach:
+                lowered = _record_viewer(uow.conn(), data.iwp_id, who)
+                if lowered is None:
+                    fail(
+                        "the pack cannot be attached: no clearance level reads this IWP; "
+                        "write it with --out only"
+                    )
+                data = build_pack_data(uow.conn(), scope_of(project), number, lowered)
         except RecordNotFoundError:
             fail(f"no IWP {number}")
         page = render_html(data)

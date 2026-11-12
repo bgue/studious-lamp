@@ -283,6 +283,40 @@ def test_step_three_lists_the_ready_iwps_and_signs_off_and_issues_with_the_hash(
     assert issue.record_hash == HASH and sign_off.actor == "user:kim"
 
 
+def test_sign_off_and_issue_send_the_hash_read_with_the_panel_so_an_edit_is_refused() -> None:
+    """F2: an edit between reading the panel and pressing the key is a stale refusal, not a
+    sign-off of the new state."""
+    app, client = make_app()
+    ready = client.list_iwps(PROJECT, state="Ready")[0]
+    client.load_hashes(PROJECT, {ready.number: IwpHash(number=ready.number, record_hash=HASH)})
+    newer = "cd" * 32
+    refusal = ForbiddenError("the record changed since it was read")
+    signed: list[str] = []
+
+    def guarded(name: str, cmd: Any) -> Any:
+        if cmd.record_hash != newer:  # the ledger's hash is now `newer`
+            raise refusal
+        signed.append(name)  # pragma: no cover
+
+    client.awp_command = guarded  # type: ignore[method-assign]
+    seen: dict[str, Any] = {}
+
+    async def steps(pilot: Pilot[Any]) -> None:
+        app.action_week()
+        await settle(pilot)
+        await press(pilot, "3")  # the panel is shown with HASH
+        client.load_hashes(PROJECT, {ready.number: IwpHash(number=ready.number, record_hash=newer)})
+        await press(pilot, "s")
+        seen["sign"] = status_of(app)
+        await press(pilot, "i")
+        seen["issue"] = status_of(app)
+
+    run(app, steps)
+    assert seen["sign"] == "! " + describe_error(refusal)
+    assert seen["issue"] == "! " + describe_error(refusal)
+    assert signed == []
+
+
 def test_step_two_lists_a_waived_constraint_as_waived_and_does_not_count_it() -> None:
     app, client = make_app()
     target = check_raised(client)

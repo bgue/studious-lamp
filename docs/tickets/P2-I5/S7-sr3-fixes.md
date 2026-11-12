@@ -59,4 +59,14 @@ and `Claude-Session: https://claude.ai/code/session_01MSkuXpRjf5XzVwbAVQNqK4`. N
 (builder writes here)
 
 ## Decision
-(orchestrator writes here)
+2026-11-12 orchestrator, on the report's Blocked item (attempt 2 continues on this branch, same worktree):
+- Core change allowed (orchestrator gate, APPROVALS line at merge): add `"awp.WeeklyPlan"` to
+  `SCANNED_STREAM_TYPES` in `packages/tl-core/src/tl_core/confidentiality.py`, nothing else in that file. Allowed paths
+  widen to that line and `packages/tl-core/tests/**` (any pin on the set). The events route, stream, feed, webhooks
+  and Activity all read the set, so `WeeklyPlan.IwpCommitted` naming a hidden IWP is hidden from that reader.
+- Finish F3: the MCP walk (`packages/tl-mcp/tests/test_confidentiality_walk.py`, week `2026-W45`) seeds the same
+  kind of plan with a hidden commitment.
+- Gate (one pytest session at a time): the touched test files, `packages/tl-api/tests/test_confidentiality_walk.py`,
+  `packages/tl-mcp/tests/test_confidentiality_walk.py`, `packages/tl-core/tests/test_confidentiality*.py` and any
+  tl-core test naming `SCANNED_STREAM_TYPES`, `tests/confidentiality`, `tests/webhooks`. Do not run the whole
+  tl-cli or tl-tui directories; the orchestrator runs them.
