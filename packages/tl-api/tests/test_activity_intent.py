@@ -11,12 +11,12 @@ from typing import Any
 
 import pytest
 from harness import Harness
-from test_confidentiality_walk import Seed, seed  # pyright: ignore[reportMissingImports]
 from test_intent_walk import (  # pyright: ignore[reportMissingImports]
     CANNOT_READ_RESTRICTED,
     call,
     make,
 )
+from tl_api_walk import Seed, seed  # pyright: ignore[reportMissingImports]
 from tl_core.intent import NOT_AVAILABLE
 
 

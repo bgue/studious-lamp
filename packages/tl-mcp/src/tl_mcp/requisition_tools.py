@@ -364,7 +364,7 @@ def register_requisition_tools(server: MCPServer, ctx: McpContext) -> None:
         ],
         need_by: Annotated[
             str | None,
-            Field(description="The date it is needed, `YYYY-MM-DD`."),
+            Field(max_length=10, description="The date it is needed, `YYYY-MM-DD`."),
         ] = None,
         priority: Annotated[
             Priority | None,
@@ -386,11 +386,11 @@ def register_requisition_tools(server: MCPServer, ctx: McpContext) -> None:
         ] = None,
         start_date: Annotated[
             str | None,
-            Field(description="labor: the first day, `YYYY-MM-DD`."),
+            Field(max_length=10, description="labor: the first day, `YYYY-MM-DD`."),
         ] = None,
         end_date: Annotated[
             str | None,
-            Field(description="labor: the last day, `YYYY-MM-DD`."),
+            Field(max_length=10, description="labor: the last day, `YYYY-MM-DD`."),
         ] = None,
         lines: Annotated[
             list[LineArg],
