@@ -48,6 +48,7 @@ D-r3g 2026-11-11 demo pins crane_lift in its own schema copy via TL_SCHEMA_DIR; 
 D-r3i 2026-11-11 T10b review F1: driver sub-check lines also read `PASS clause 4:`; accepted, nothing counts them
 D-r3h 2026-11-11 demo drops the view-word refusal (no account lacks read); MCP word check to DEFERRED
 ## SEC
+SR3 2026-11-12 (wave review with I5, range f5e4ca1..p2/i4a): every I4A row ok, no finding. F4 LO (shared): at trunk merge union proposable_exclusions.toml and filter test_actions_and_words.py:34 to requisitions' own commands.
 (none yet; SR3 rows in README, one wave review with I5)
 ## OPEN
 Q1 closed (trunk merged @06cfd204)
