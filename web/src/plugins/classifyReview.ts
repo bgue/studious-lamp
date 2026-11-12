@@ -58,6 +58,15 @@ const CSS = `
 .xrw-btn:disabled{opacity:.45;cursor:default}
 .xrw-btn.primary{background:#1f4a7a;border-color:#2d6aa8;color:#fff}
 .xrw-btn kbd{font:inherit;font-size:10px;color:var(--sb-dim,#8d99a8);margin-left:4px;border:1px solid #2d3748;border-radius:3px;padding:0 3px}
+.xrw-dock{flex:0 0 auto;display:flex;flex-direction:column;gap:6px;padding:6px 8px;border-top:1px solid var(--sb-line,#262d3a);background:#10141b}
+.xrw-dock:empty{display:none}
+.xrw-dock label.xrw-unsure{display:flex;align-items:center;gap:6px;color:#e0b252;cursor:pointer}
+.xrw-dock label.xrw-unsure kbd{font:inherit;font-size:10px;color:var(--sb-dim,#8d99a8);border:1px solid #2d3748;border-radius:3px;padding:0 3px}
+.xrw-tag{display:inline-block;font-size:10px;line-height:1.3;padding:0 5px;border:1px solid #8a6d2b;border-radius:8px;color:#e0b252;margin-left:4px;white-space:nowrap}
+.xrw-skipped{flex:0 0 auto;background:transparent;border:1px solid #2d3748;border-radius:10px;color:var(--sb-dim,#8d99a8);cursor:pointer;font:inherit;font-size:11px;padding:1px 8px}
+.xrw-skipped:hover:not(:disabled){color:#fff;border-color:#3a4a66}
+.xrw-skipped[aria-pressed=true]{background:#1f4a7a;border-color:#2d6aa8;color:#fff}
+.xrw-skipped:disabled{opacity:.45;cursor:default}
 .xrw-foot{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:6px 8px;border-top:1px solid var(--sb-line,#262d3a)}
 .xrw-foot input[type=text]{flex:1 1 120px;width:auto}
 .xrw-row{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
@@ -66,11 +75,15 @@ const CSS = `
 .xrw-commit.rev{border-style:dashed}
 .xrw-changes{font-size:11px;color:var(--sb-dim,#8d99a8);display:flex;flex-direction:column;gap:2px;max-height:160px;overflow:auto}
 @media (max-width:760px){
-  .xrw{left:var(--sb-rail,28px);right:var(--dk-rail,28px);width:auto;bottom:${STATUS_H}px;max-height:62%;border-radius:10px 10px 0 0;font-size:13px}
-  .xrw-btn{padding:10px 8px;font-size:14px}
-  .xrw-acts{grid-template-columns:1fr 1fr}
-  .xrw-btn kbd{display:none}
-  .xrw select,.xrw input[type=text]{height:34px;font-size:14px}
+  .xrw{left:var(--sb-rail,28px);right:var(--dk-rail,28px);width:auto;bottom:${STATUS_H}px;max-height:70%;border-radius:10px 10px 0 0;font-size:13px}
+  .xrw-btn{padding:9px 4px;font-size:13px}
+  .xrw-acts{grid-template-columns:repeat(3,1fr);gap:5px}
+  .xrw-dock{padding:5px 8px}
+  .xrw-dock label.xrw-unsure{min-height:30px}
+  .xrw-dock label.xrw-unsure input{width:20px;height:20px}
+  .xrw-foot{padding:5px 8px}
+  .xrw-btn kbd,.xrw-keys{display:none}
+  .xrw select,.xrw input[type=text]{height:32px;font-size:14px}
   .xrw-x{font-size:24px;padding:0 8px}
 }
 `;
@@ -89,7 +102,7 @@ const when = (iso: string): string => (iso.length >= 16 ? `${iso.slice(0, 10)} $
 export interface WalkState {
   open: boolean;
   order: WalkOrder;
-  filters: { needsReview: boolean; unconfirmed: boolean; discipline: string };
+  filters: { needsReview: boolean; unconfirmed: boolean; discipline: string; unsure: boolean; onlySkipped: boolean };
   scope: 'all' | 'one';
   tab: 'walk' | 'pending' | 'history';
   itemIndex: number;
@@ -99,6 +112,10 @@ export interface WalkState {
   progress: { confirmed: number; corrected: number; remaining: number; total: number };
   pending: number;
   editing: boolean;
+  /** The "Unsure (a guess)" switch for the next Confirm, Runner-up or Correct. */
+  unsure: boolean;
+  /** Elements skipped in this session. */
+  skipped: number;
 }
 
 export class ReviewWalk {
@@ -107,9 +124,11 @@ export class ReviewWalk {
   private head!: HTMLElement;
   private foot!: HTMLElement;
   private tabs!: HTMLElement;
+  private dock!: HTMLElement;
   private opened = false;
   private order: WalkOrder = 'type';
-  private filters = { needsReview: false, unconfirmed: false, discipline: '' };
+  private filters = { needsReview: false, unconfirmed: false, discipline: '', unsure: false, onlySkipped: false };
+  private unsure = false;
   private scope: 'all' | 'one' = 'all';
   private tab: WalkState['tab'] = 'walk';
   private items: WalkItem[] = [];
@@ -144,10 +163,11 @@ export class ReviewWalk {
     return {
       elements: this.elements(),
       resultOf: (g) => this.svc.store.get(g),
-      isCommitted: (g) => this.svc.store.committed.has(g),
+      isCommitted: (g) => { const c = this.svc.store.committed.get(g); return !!c && c.unsure !== true; }, // an unsure commit is not settled
+      skipped: this.svc.review.skips,
       disciplineOrder: this.svc.schema.disciplines.map((d) => d.code),
       order,
-      filters: { ...(filters.needsReview ? { needsReview: true } : {}), ...(filters.unconfirmed ? { unconfirmed: true } : {}), ...(filters.discipline ? { discipline: filters.discipline } : {}) },
+      filters: { ...(filters.needsReview ? { needsReview: true } : {}), ...(filters.unconfirmed ? { unconfirmed: true } : {}), ...(filters.discipline ? { discipline: filters.discipline } : {}), ...(filters.unsure ? { unsure: true } : {}), ...(filters.onlySkipped ? { onlySkipped: true } : {}) },
     };
   }
 
@@ -188,6 +208,8 @@ export class ReviewWalk {
       progress: this.progress(),
       pending: this.svc.review.pending().length,
       editing: this.editing !== null,
+      unsure: this.unsure,
+      skipped: this.svc.review.skips.size,
     };
   }
 
@@ -202,7 +224,7 @@ export class ReviewWalk {
   }
 
   private progress(): ReturnType<typeof walkProgress> {
-    const scope = walkScope({ elements: this.elements(), resultOf: (g) => this.svc.store.get(g), filters: this.walkInput().filters });
+    const scope = walkScope({ elements: this.elements(), resultOf: (g) => this.svc.store.get(g), filters: this.walkInput().filters, skipped: this.svc.review.skips });
     return walkProgress(scope, (g) => this.svc.review.decision(g));
   }
 
@@ -225,6 +247,7 @@ export class ReviewWalk {
     this.message = null;
     this.tab = 'walk';
     this.editing = null;
+    this.unsure = false;
     this.rebuild(false);
     this.elementIndex = 0;
     this.render();
@@ -293,6 +316,7 @@ export class ReviewWalk {
     this.elementIndex = 0;
     this.editing = null;
     this.comment = '';
+    this.unsure = false; // the flag belongs to the element in view
     this.message = null;
     this.render();
     this.body.scrollTop = 0;
@@ -323,6 +347,64 @@ export class ReviewWalk {
     if (!it) return;
     this.elementIndex = Math.max(0, Math.min(it.elements.length - 1, i));
     this.editing = null;
+    this.comment = '';
+    this.unsure = false;
+    this.render();
+    this.focus();
+  }
+
+  // ------------------------------------------------------------ skip
+
+  /**
+   * Leave this element as it is and go on. In a type group the walk steps to the next element of the group (or on to the next item after
+   * the last one). An open correction is dropped unsaved. A skip is not a change: it is not pending, not committed and not in the log.
+   */
+  private skipElement(): void {
+    const it = this.item();
+    const cur = this.current();
+    if (!it || !cur) return;
+    this.svc.review.skips.add([cur.globalId]);
+    if (it.elements.length > 1 && this.elementIndex < it.elements.length - 1) this.goElement(this.elementIndex + 1);
+    else this.goItem(this.itemIndex + 1);
+  }
+
+  /** Leave every element of this type as it is and go to the next item. */
+  private skipGroup(): void {
+    const it = this.item();
+    if (!it) return;
+    this.svc.review.skips.add(it.elements.map((e) => e.globalId));
+    this.goItem(this.itemIndex + 1);
+  }
+
+  private groupSkipFirst(): boolean {
+    const it = this.item();
+    return !!it && it.elements.length > 1 && this.scope === 'all';
+  }
+
+  /** The Skip key (N, right arrow): the whole type when the scope is All, this element when it is "This element only". */
+  private skipByScope(): void {
+    if (this.groupSkipFirst()) this.skipGroup();
+    else this.skipElement();
+  }
+
+  /** Shift+N: the other of the two. */
+  private skipOther(): void {
+    if (this.groupSkipFirst()) this.skipElement();
+    else this.skipGroup();
+  }
+
+  private toggleUnsure(): void {
+    this.unsure = !this.unsure;
+    this.renderDock();
+  }
+
+  /** Show only the elements that were skipped (or all again). */
+  private toggleOnlySkipped(): void {
+    this.filters.onlySkipped = !this.filters.onlySkipped;
+    this.tab = 'walk';
+    this.itemIndex = 0;
+    this.rebuild(false);
+    this.elementIndex = 0;
     this.render();
     this.focus();
   }
@@ -334,7 +416,7 @@ export class ReviewWalk {
     if (!it) return;
     const gids = this.targets().map((e) => e.globalId);
     try {
-      this.svc.review.propose(gids, { action, ...(codes ? { codes } : {}), item: it.key, ...(this.comment.trim() ? { comment: this.comment.trim() } : {}) });
+      this.svc.review.propose(gids, { action, ...(codes ? { codes } : {}), item: it.key, ...(this.comment.trim() ? { comment: this.comment.trim() } : {}), ...(this.unsure ? { unsure: true } : {}) });
       this.message = null;
     } catch (e) {
       this.message = { text: e instanceof Error ? e.message : String(e), error: true };
@@ -343,6 +425,7 @@ export class ReviewWalk {
     }
     this.comment = '';
     this.editing = null;
+    this.unsure = false; // one action only
     this.next();
   }
 
@@ -420,7 +503,8 @@ export class ReviewWalk {
     if (getKeymap()?.anyOverlayOpen()) return;
     const t = e.target as HTMLElement | null;
     const tag = t?.tagName ?? '';
-    const typing = tag === 'INPUT' || tag === 'TEXTAREA' || !!t?.isContentEditable;
+    const inputType = tag === 'INPUT' ? (t as HTMLInputElement).type : '';
+    const typing = (tag === 'INPUT' && inputType !== 'checkbox' && inputType !== 'radio') || tag === 'TEXTAREA' || !!t?.isContentEditable; // a ticked box or a radio keeps the walk keys
     const onButton = tag === 'BUTTON';
     const take = (): void => { e.preventDefault(); e.stopPropagation(); };
     if (e.key === 'Escape') {
@@ -433,6 +517,8 @@ export class ReviewWalk {
     const k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
     if (this.editing) {
       if (k === 'Enter') { take(); this.applyEdit(); }
+      else if (k === '?') { take(); this.toggleUnsure(); }
+      else if ((k === 'n' || k === 'ArrowRight') && tag !== 'SELECT') { take(); e.shiftKey && k === 'n' ? this.skipOther() : this.skipByScope(); } // a picker keeps its letters and arrows
       return;
     }
     if (!this.item()) return;
@@ -440,7 +526,9 @@ export class ReviewWalk {
       case 'Enter': case 'y': take(); this.confirm(); break;
       case '2': take(); this.useRunnerUp(); break;
       case 'e': take(); this.startEdit(); break;
-      case 'n': case 'ArrowRight': take(); this.next(); break;
+      case 'n': take(); if (e.shiftKey) this.skipOther(); else this.skipByScope(); break;
+      case 'ArrowRight': take(); this.skipByScope(); break;
+      case '?': take(); this.toggleUnsure(); break;
       case 'ArrowLeft': take(); this.back(); break;
       case ']': take(); { const it = this.item(); if (it) this.goElement(this.elementIndex + 1); } break;
       case '[': take(); this.goElement(this.elementIndex - 1); break;
@@ -458,8 +546,9 @@ export class ReviewWalk {
     this.head = el('div', 'xrw-head');
     this.tabs = el('div', 'xrw-tabs', { role: 'tablist' });
     this.body = el('div', 'xrw-body');
+    this.dock = el('div', 'xrw-dock', { 'data-role': 'dock' });
     this.foot = el('div', 'xrw-foot');
-    root.append(this.head, this.tabs, this.body, this.foot);
+    root.append(this.head, this.tabs, this.body, this.dock, this.foot);
     stage.appendChild(root);
     this.root = root;
   }
@@ -488,6 +577,7 @@ export class ReviewWalk {
     this.renderHead();
     this.renderTabs();
     this.body.replaceChildren();
+    this.dock.replaceChildren();
     if (this.tab === 'walk') this.renderWalk();
     else if (this.tab === 'pending') this.renderPending();
     else this.renderHistory();
@@ -500,6 +590,11 @@ export class ReviewWalk {
       el('div', 'xrw-title', undefined, 'Review walk'),
       el('div', 'xrw-prog', { 'data-role': 'progress', 'aria-live': 'polite' }, `${p.confirmed} confirmed, ${p.corrected} corrected, ${p.remaining} remaining`),
     );
+    const n = this.svc.review.skips.size;
+    const sk = el('button', 'xrw-skipped', { type: 'button', 'data-role': 'skipped-count', 'aria-pressed': String(this.filters.onlySkipped), title: this.filters.onlySkipped ? 'Showing only the skipped elements: click to show all again' : n ? 'Revisit the elements that you skipped in this session (only skipped)' : 'Nothing was skipped yet' }, `Skipped (${n})`);
+    sk.disabled = n === 0 && !this.filters.onlySkipped;
+    sk.addEventListener('click', () => this.toggleOnlySkipped());
+    this.head.appendChild(sk);
     const x = el('button', 'xrw-x', { type: 'button', 'aria-label': 'End the review walk', title: 'End the walk and restore the view (Esc)' }, '×');
     x.addEventListener('click', () => this.close());
     this.head.appendChild(x);
@@ -526,16 +621,16 @@ export class ReviewWalk {
     // order and filters
     const bar = el('div', 'xrw-bar');
     bar.append(this.select('Order', this.order, WALK_ORDERS.map((o): [string, string] => [o, WALK_ORDER_LABEL[o]]), (v) => { this.order = v as WalkOrder; this.rebuild(false); this.render(); this.focus(); }, 'order'));
-    const chk = (label: string, key: 'needsReview' | 'unconfirmed', title: string): HTMLElement => {
+    const chk = (label: string, key: 'needsReview' | 'unconfirmed' | 'unsure' | 'onlySkipped', title: string, role: string = key): HTMLElement => {
       const l = el('label');
       l.title = title;
-      const i = el('input', undefined, { type: 'checkbox', 'data-role': key });
+      const i = el('input', undefined, { type: 'checkbox', 'data-role': role });
       i.checked = this.filters[key];
       i.addEventListener('change', () => { this.filters[key] = i.checked; this.rebuild(false); this.render(); this.focus(); });
       l.append(i, el('span', undefined, undefined, label));
       return l;
     };
-    bar.append(chk('Only needs review', 'needsReview', 'Visit only elements whose result needs review'), chk('Only unconfirmed', 'unconfirmed', 'Leave out kinds that are committed already'));
+    bar.append(chk('Only needs review', 'needsReview', 'Visit only elements whose result needs review'), chk('Only unconfirmed', 'unconfirmed', 'Leave out kinds that are committed already (a commit flagged unsure does not count: it is still a guess)'), chk('Only unsure', 'unsure', 'Visit only the elements that you committed as unsure (a guess)', 'filter-unsure'), chk('Only skipped', 'onlySkipped', 'Revisit only the elements that you skipped in this session', 'filter-skipped'));
     const discs = this.svc.schema.disciplines;
     bar.append(this.select('Discipline', this.filters.discipline, [['', 'All'], ...discs.map((d): [string, string] => [d.code, `${d.code} ${d.label}`])], (v) => { this.filters.discipline = v; this.rebuild(false); this.render(); this.focus(); }, 'discipline'));
     b.appendChild(bar);
@@ -554,7 +649,7 @@ export class ReviewWalk {
       b.append(
         el('div', 'xrw-item', undefined, 'End of the walk'),
         el('div', 'xrw-meta', undefined, `${p.confirmed} confirmed, ${p.corrected} corrected, ${p.remaining} remaining of ${p.total}. ${this.svc.review.pending().length} pending change(s) wait for a commit.`),
-        row(this.btn('Back to the last item', 'back', () => this.back()), this.btn('Review pending changes', 'to-pending', () => { this.tab = 'pending'; this.render(); })),
+        row(this.btn('Back to the last item', 'back', () => this.back()), this.btn('Review pending changes', 'to-pending', () => { this.tab = 'pending'; this.render(); }), ...(this.svc.review.skips.size > 0 && !this.filters.onlySkipped ? [this.btn(`Revisit skipped (${this.svc.review.skips.size})`, 'revisit-skipped', () => this.toggleOnlySkipped())] : [])),
       );
       const m = this.msgLine();
       if (m) b.appendChild(m);
@@ -588,7 +683,7 @@ export class ReviewWalk {
     const tbl = el('table', 'xrw-tbl');
     tbl.appendChild(el('thead')).append(...[el('tr')].map((tr) => { for (const h of ['', 'Proposed', 'Confidence', 'Source']) tr.appendChild(el('th', undefined, undefined, h)); return tr; }));
     const srcText = (res: ClassifyResult): string =>
-      res.source === 'model' ? `model ${res.model ?? ''}` : res.source === 'cache' ? `model ${res.model ?? ''} (cached)` : res.source === 'rules' ? 'rule' : res.source === 'manual' ? 'manual' : `${res.source} by ${res.confirmedBy ?? '?'}, ${when(res.confirmedAt ?? '')}`;
+      res.source === 'model' ? `model ${res.model ?? ''}` : res.source === 'cache' ? `model ${res.model ?? ''} (cached)` : res.source === 'rules' ? 'rule' : res.source === 'manual' ? 'manual' : `${res.source}${res.unsure ? ' (unsure)' : ''} by ${res.confirmedBy ?? '?'}, ${when(res.confirmedAt ?? '')}`;
     const tb = el('tbody');
     const line = (name: string, code: string, label: string, conf: number | null): void => {
       const tr = el('tr');
@@ -604,10 +699,12 @@ export class ReviewWalk {
     const up = this.runner();
     b.appendChild(el('div', up ? 'xrw-meta' : 'xrw-dim', { 'data-role': 'runner-up' }, up ? `Runner-up: ${up.code} instead of ${up.proposed} (${up.part === 'subDiscipline' ? 'sub-discipline' : up.part}, ${pct(up.probability)} against ${pct(up.proposedProbability)})` : 'No runner-up: only one option was scored.'));
     if (r.needsReview) b.appendChild(el('div', 'xrw-warn', undefined, `Needs review (overall confidence ${pct(overallConfidence(r))}).`));
+    if (r.unsure) b.appendChild(el('div', 'xrw-warn', { 'data-role': 'unsure-state' }, `Committed as unsure (a guess, confidence ${pct(r.discipline.confidence)}). It still needs review.`));
+    if (this.svc.review.skips.has(el0.globalId)) b.appendChild(el('div', 'xrw-dim', { 'data-role': 'skipped-state' }, 'You skipped this element earlier in this session.'));
     const dis = this.svc.review.disagreements().get(el0.globalId);
     if (dis) b.appendChild(el('div', 'xrw-warn', { 'data-role': 'disagree' }, `The model now disagrees: ${dis.discipline.code}${dis.subDiscipline ? `/${dis.subDiscipline.code}` : ''}${dis.masterformat ? `/${dis.masterformat.division}` : ''} (${dis.source === 'rules' ? 'rule' : dis.model ?? dis.source}), the committed value is ${r.discipline.code}${r.subDiscipline ? `/${r.subDiscipline.code}` : ''}${r.masterformat ? `/${r.masterformat.division}` : ''}.`));
     const pend = this.svc.review.pendingFor(el0.globalId);
-    if (pend) b.appendChild(el('div', 'xrw-ok', { 'data-role': 'pending-state' }, `Pending: ${pend.action === 'confirm' ? 'confirmed' : `corrected to ${pend.after.discipline}${pend.after.subDiscipline ? `/${pend.after.subDiscipline}` : ''}${pend.after.division ? `/${pend.after.division}` : ''}`}. It is written when you commit.`));
+    if (pend) b.appendChild(el('div', 'xrw-ok', { 'data-role': 'pending-state' }, `Pending: ${pend.action === 'confirm' ? 'confirmed' : `corrected to ${pend.after.discipline}${pend.after.subDiscipline ? `/${pend.after.subDiscipline}` : ''}${pend.after.division ? `/${pend.after.division}` : ''}`}${pend.unsure ? ' (unsure)' : ''}. It is written when you commit.`));
 
     // comment and actions
     const c = el('input', undefined, { type: 'text', placeholder: 'Comment (optional)', 'aria-label': 'Comment', 'data-role': 'comment', maxlength: '300' });
@@ -624,26 +721,60 @@ export class ReviewWalk {
           this.select('Discipline', e.disc, this.svc.schema.disciplines.map((x): [string, string] => [x.code, `${x.code} ${x.label}`]), (v) => { e.disc = v; e.sub = ''; fill(); }, 'edit-discipline'),
           this.select('Sub-discipline', e.sub, [['', '(none)'], ...(d?.subDisciplines ?? []).map((s): [string, string] => [s.code, `${s.code} ${s.label}`])], (v) => { e.sub = v; }, 'edit-sub'),
           this.select('Division', e.div, [['', '(none)'], ...this.svc.schema.masterformat.divisions.map((x): [string, string] => [x.division, `${x.division} ${x.title}`])], (v) => { e.div = v; }, 'edit-division'),
-          row(this.btn('Apply correction', 'apply-correct', () => this.applyEdit(), { primary: true, key: 'Enter' }), this.btn('Cancel', 'cancel-correct', () => { this.editing = null; this.render(); }, { key: 'Esc' })),
         );
       };
       fill();
       b.appendChild(box);
-    } else {
-      const acts = el('div', 'xrw-acts');
-      acts.append(
-        this.btn('Confirm', 'confirm', () => this.confirm(), { primary: true, key: 'Enter' }),
-        this.btn(up ? `Use ${up.code}` : 'Runner-up', 'runner-up', () => this.useRunnerUp(), { key: '2', disabled: !up, title: up ? `Take the runner-up ${up.code} for the ${up.part}` : 'There is no second option' }),
-        this.btn('Correct…', 'correct', () => this.startEdit(), { key: 'E', title: 'Pick the codes by hand' }),
-        this.btn('Skip', 'skip', () => this.next(), { key: 'N', title: 'Leave it and go to the next (right arrow)' }),
-        this.btn('Back', 'back', () => this.back(), { key: '←', disabled: this.itemIndex === 0 && this.elementIndex === 0 }),
-        this.btn('Undo last', 'undo', () => this.undoLast(), { key: 'U', disabled: this.svc.review.pending().length === 0, title: 'Take back the last pending item' }),
-      );
-      b.appendChild(acts);
-      b.appendChild(el('div', 'xrw-dim', undefined, 'Keys: Enter or Y confirm, 2 runner-up, E correct, N or right arrow skip, left arrow back, A all/one, U undo.'));
     }
     const m = this.msgLine();
     if (m) b.appendChild(m);
+    this.renderDock();
+  }
+
+  /** The decision controls, outside the scrolling part so that they are on screen on a phone: the Unsure switch and the buttons. */
+  private renderDock(): void {
+    this.dock.replaceChildren();
+    const it = this.tab === 'walk' ? this.item() : null;
+    if (!it || !this.current()) return;
+    const unsureBox = el('label', 'xrw-unsure');
+    unsureBox.title = 'Optional. Tick it when this is a guess: the next Confirm, Runner-up or Correct is recorded as unsure (confidence 75%, still needs review, left out of Calibrate on confirmed). It clears after each action.';
+    const chk = el('input', undefined, { type: 'checkbox', 'data-role': 'unsure', 'aria-label': 'Unsure (a guess)' });
+    chk.checked = this.unsure;
+    chk.addEventListener('change', () => { this.unsure = chk.checked; });
+    unsureBox.append(chk, el('span', undefined, undefined, 'Unsure (a guess)'), el('kbd', undefined, undefined, '?'));
+    const n = it.elements.length;
+    if (this.editing) {
+      const acts = el('div', 'xrw-acts');
+      acts.append(
+        this.btn('Apply correction', 'apply-correct', () => this.applyEdit(), { primary: true, key: 'Enter' }),
+        this.btn('Skip', 'skip-edit', () => this.skipByScope(), { key: 'N', title: 'Drop this correction unsaved and go to the next. A skip is not a change.' }),
+        this.btn('Cancel', 'cancel-correct', () => { this.editing = null; this.render(); }, { key: 'Esc' }),
+      );
+      this.dock.append(unsureBox, acts);
+      return;
+    }
+    const r = this.svc.store.get(this.current()!.globalId);
+    const up = r ? this.runner() : null;
+    const acts = el('div', 'xrw-acts');
+    acts.append(
+      this.btn('Confirm', 'confirm', () => this.confirm(), { primary: true, key: 'Enter' }),
+      this.btn(up ? `Use ${up.code}` : 'Runner-up', 'runner-up', () => this.useRunnerUp(), { key: '2', disabled: !up, title: up ? `Take the runner-up ${up.code} for the ${up.part}` : 'There is no second option' }),
+      this.btn('Correct…', 'correct', () => this.startEdit(), { key: 'E', title: 'Pick the codes by hand' }),
+    );
+    if (n > 1) {
+      const first = this.groupSkipFirst();
+      acts.append(
+        this.btn('Skip this one', 'skip-element', () => this.skipElement(), { key: first ? '⇧N' : 'N', title: 'Leave this element as it is and go to the next element of the type. Not a change.' }),
+        this.btn(`Skip all ${n}`, 'skip-group', () => this.skipGroup(), { key: first ? 'N' : '⇧N', title: `Leave all ${n} elements of this type as they are and go to the next item. Not a change.` }),
+      );
+    } else {
+      acts.append(this.btn('Skip', 'skip', () => this.skipElement(), { key: 'N', title: 'Leave it as it is and go to the next (right arrow). Not a change.' }));
+    }
+    acts.append(
+      this.btn('Back', 'back', () => this.back(), { key: '←', disabled: this.itemIndex === 0 && this.elementIndex === 0 }),
+      this.btn('Undo last', 'undo', () => this.undoLast(), { key: 'U', disabled: this.svc.review.pending().length === 0, title: 'Take back the last pending item' }),
+    );
+    this.dock.append(unsureBox, acts, el('div', 'xrw-dim xrw-keys', undefined, 'Keys: Enter or Y confirm, 2 runner-up, E correct, N or right arrow skip (Shift+N the other skip), ? unsure, left arrow back, [ ] step, A all/one, U undo.'));
   }
 
   private describe(a: { discipline: string; subDiscipline: string | null; division: string | null }): string {
@@ -671,7 +802,10 @@ export class ReviewWalk {
         el('div', 'xrw-row'),
       );
       const top = r.firstChild as HTMLElement;
-      top.append(el('div', 'grow', undefined, `${title}: ${list.length} element${list.length === 1 ? '' : 's'}, ${this.describe(first.before)} to ${this.describe(first.after)} (${first.action === 'confirm' ? 'confirm' : 'correct'})`), this.btn('Undo', 'undo-item', () => { this.svc.review.undoPending(key); this.message = null; this.render(); }, { title: 'Take this item back out of the pending changes' }));
+      const nUnsure = list.filter((x) => x.unsure).length;
+      const label = el('div', 'grow', undefined, `${title}: ${list.length} element${list.length === 1 ? '' : 's'}, ${this.describe(first.before)} to ${this.describe(first.after)} (${first.action === 'confirm' ? 'confirm' : 'correct'})`);
+      if (nUnsure > 0) label.appendChild(el('span', 'xrw-tag', { 'data-role': 'unsure-tag', title: 'Flagged as a guess' }, nUnsure === list.length ? 'unsure' : `unsure ${nUnsure} of ${list.length}`));
+      top.append(label, this.btn('Undo', 'undo-item', () => { this.svc.review.undoPending(key); this.message = null; this.render(); }, { title: 'Take this item back out of the pending changes' }));
       if (first.comment) r.append(el('div', 'xrw-dim', undefined, `Comment: ${first.comment}`));
       b.appendChild(r);
     }
@@ -701,14 +835,18 @@ export class ReviewWalk {
     const open = this.expanded.has(c.id);
     const top = el('div', 'xrw-row');
     top.append(
-      el('div', 'grow', undefined, `${when(c.time)}, ${c.author}${c.note ? `: ${c.note}` : ''} (${c.changes.length} change${c.changes.length === 1 ? '' : 's'}${c.reverts ? `, reverts ${c.reverts}` : ''})`),
+      el('div', 'grow', undefined, `${when(c.time)}, ${c.author}${c.note ? `: ${c.note}` : ''} (${c.changes.length} change${c.changes.length === 1 ? '' : 's'}${c.changes.some((x) => x.unsure) ? `, ${c.changes.filter((x) => x.unsure).length} unsure` : ''}${c.reverts ? `, reverts ${c.reverts}` : ''})`),
       this.btn(open ? 'Close' : 'Open', 'open-commit', () => { if (open) this.expanded.delete(c.id); else this.expanded.add(c.id); this.render(); }),
       this.btn('Revert', 'revert', () => this.revert(c), { disabled: !!c.reverts || this.svc.review.history().some((x) => x.reverts === c.id), title: 'Add a commit that puts the earlier results back. This commit stays in the log.' }),
     );
     r.appendChild(top);
     if (open) {
       const list = el('div', 'xrw-changes');
-      for (const ch of c.changes.slice(0, 200)) list.appendChild(el('div', undefined, undefined, `${ch.globalId}: ${this.describe(ch.before)} (${ch.before.source}) to ${this.describe(ch.after)} (${ch.action})${ch.comment ? `, "${ch.comment}"` : ''}`));
+      for (const ch of c.changes.slice(0, 200)) {
+        const line = el('div', undefined, undefined, `${ch.globalId}: ${this.describe(ch.before)} (${ch.before.source}) to ${this.describe(ch.after)} (${ch.action})${ch.comment ? `, "${ch.comment}"` : ''}`);
+        if (ch.unsure) line.appendChild(el('span', 'xrw-tag', { 'data-role': 'unsure-tag', title: 'Flagged as a guess' }, 'unsure'));
+        list.appendChild(line);
+      }
       if (c.changes.length > 200) list.appendChild(el('div', undefined, undefined, `... and ${c.changes.length - 200} more`));
       r.appendChild(list);
     }

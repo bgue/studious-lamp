@@ -276,15 +276,18 @@ export class ClassifyService {
     if (this.running || this.calibrating) throw new Error('A run is already in progress. Stop it first.');
     if (!this.provider()) throw new Error('Choose a decision model first. Calibration fits the temperatures of the model that is selected.');
     if (this.store.committed.size === 0) throw new Error('Nothing is confirmed yet. Confirm or correct elements in the review walk and commit them first.');
-    return this.calibrateOn(confirmedTruths(this.inputsFor([...this.store.committed.keys()]), this.store.committed), 'confirmed', o);
+    const unsureLeftOut = [...this.store.committed.values()].filter((r) => r.unsure === true).length;
+    const confirmedUsed = this.store.committed.size - unsureLeftOut;
+    if (confirmedUsed === 0) throw new Error(`Nothing is confirmed for sure yet: all ${unsureLeftOut} committed element${unsureLeftOut === 1 ? ' is' : 's are'} flagged unsure, and unsure changes are left out of the calibration. Confirm some without the flag first.`);
+    return this.calibrateOn(confirmedTruths(this.inputsFor([...this.store.committed.keys()]), this.store.committed), 'confirmed', o, { confirmedUsed, unsureLeftOut });
   }
 
-  private async calibrateOn(all: RuleTruth[], kind: 'rules' | 'confirmed', o: { maxSignatures?: number; heldOut?: number }): Promise<CalibrationReport> {
+  private async calibrateOn(all: RuleTruth[], kind: 'rules' | 'confirmed', o: { maxSignatures?: number; heldOut?: number }, counts?: { confirmedUsed: number; unsureLeftOut: number }): Promise<CalibrationReport> {
     const provider = this.provider();
     if (!provider) throw new Error('Choose a decision model first. Calibration fits the temperatures of the model that is selected.');
     if (all.length < 8) throw new Error(kind === 'rules'
       ? `The rules label only ${all.length} kinds of element in this model (by signature). At least 8 are needed to fit a temperature. Load a model with more elements that the rules know.`
-      : `Only ${all.length} kinds of element are committed in this model (by signature). At least 8 are needed to fit a temperature. Confirm more kinds in the review walk.`);
+      : `Only ${all.length} kinds of element are committed in this model (by signature). At least 8 are needed to fit a temperature. Confirm more kinds in the review walk.${counts && counts.unsureLeftOut > 0 ? ` (${counts.unsureLeftOut} unsure change${counts.unsureLeftOut === 1 ? ' was' : 's were'} left out.)` : ''}`);
     const picked = pickTruths(all, o.maxSignatures ?? 120);
     this.calibrating = true;
     this.ctl = new AbortController();
@@ -296,7 +299,8 @@ export class ClassifyService {
       const sets = collectSamples(picked, (sig) => this.cache.get(sig));
       const scored = picked.filter((t) => this.cache.get(t.signature)?.raw).length;
       if (scored < 8) throw new Error(`Only ${scored} of ${picked.length} signatures were scored by the model, which is too few to fit. ${this.lastStats?.errors[0] ?? ''}`.trim());
-      const rep = fitFromSamples(sets, { modelId: this.modelId(), source: this.modelName, minConfidence: this.minConfidence(), signatures: all.length, scored, ...(o.heldOut !== undefined ? { heldOut: o.heldOut } : {}) });
+      const rep0 = fitFromSamples(sets, { modelId: this.modelId(), source: this.modelName, minConfidence: this.minConfidence(), signatures: all.length, scored, ...(o.heldOut !== undefined ? { heldOut: o.heldOut } : {}) });
+      const rep: CalibrationReport = counts ? { ...rep0, ...counts } : rep0;
       if (!rep.questions.length) throw new Error('No question had enough labelled answers (4 or more) to fit.');
       this.fits.set(this.modelId(), toStoredFit(rep));
       this.lastCalibration = rep;

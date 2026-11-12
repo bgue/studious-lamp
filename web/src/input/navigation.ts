@@ -483,8 +483,12 @@ function toggleProjection(app: ViewerApp): void {
     ortho = { fov: camera.fov, far: camera.far, minDistance: controls.minDistance, maxDistance: controls.maxDistance };
     const nd = dollyForFov(dist, camera.fov, ORTHO_FOV);
     camera.fov = ORTHO_FOV;
-    camera.far = Math.max(camera.far, nd + modelDiagonal(app) * 3);
-    controls.maxDistance = Math.max(controls.maxDistance, nd * 2);
+    // The camera moves back by `ratio` to keep the framing, so the zoom range moves back with it. Limits left in
+    // perspective units stopped the wheel from zooming out to the whole model, and the far plane cut it when it did.
+    const ratio = nd / dist;
+    controls.minDistance = controls.minDistance * ratio;
+    controls.maxDistance = Math.max(controls.maxDistance * ratio, nd * 2);
+    camera.far = Math.max(camera.far, controls.maxDistance + modelDiagonal(app) * 3);
     camera.position.copy(controls.target).addScaledVector(dir, nd);
     camera.updateProjectionMatrix();
     showToast('Orthographic (approximation: 2 degree field of view)');

@@ -6,11 +6,12 @@
 // now disagrees.
 
 import type { KeyValueStorage } from './cache';
-import { committedResult, createReviewPersistence, isCommittedSource, modelFingerprint, ReviewLog, REVIEWER_STORAGE_KEY, sameState, schemaEditionOf, stateOf } from './reviewLog';
+import { committedResult, createReviewPersistence, isCommittedSource, modelFingerprint, ReviewLog, REVIEWER_STORAGE_KEY, sameState, schemaEditionOf, stateOf, UNSURE_CONFIDENCE } from './reviewLog';
 import type { ImportOutcome, ReviewAction, ReviewChange, ReviewCommit, ReviewPersistence, ReviewState } from './reviewLog';
 import { makeManual } from './results';
 import type { ManualPartial } from './results';
 import type { ResultStore } from './results';
+import { SkipList } from './reviewWalk';
 import type { ClassificationSchema, ClassifyResult } from './types';
 import type { SceneModel } from '../types';
 
@@ -34,6 +35,8 @@ export interface PendingChange extends ReviewChange {
 export class ReviewManager {
   log: ReviewLog | null = null;
   private pendingMap = new Map<string, PendingChange>();
+  /** The elements that the reviewer skipped in this session. Not a change: it is not committed, not in the log and not stored. */
+  readonly skips = new SkipList();
   /** Resolves when the stored log of the current model is loaded and applied. */
   ready: Promise<void> = Promise.resolve();
   /** Where the last save went, or the reason it failed. */
@@ -79,6 +82,7 @@ export class ReviewManager {
   reload(): void {
     const m = this.host.model();
     this.pendingMap.clear();
+    this.skips.clear();
     const token = ++this.token;
     if (!m) {
       this.log = null;
@@ -156,28 +160,33 @@ export class ReviewManager {
    * takes `codes`. A confirmation of an element that is committed with these codes already is left out. Throws a plain Error for a code
    * that is not in the schema.
    */
-  propose(globalIds: readonly string[], o: { action: ReviewAction; codes?: ManualPartial; item: string; comment?: string }): PendingChange[] {
+  propose(globalIds: readonly string[], o: { action: ReviewAction; codes?: ManualPartial; item: string; comment?: string; unsure?: boolean }): PendingChange[] {
     const store = this.host.store();
     const schema = this.host.schema();
     const made: PendingChange[] = [];
+    const unsure = o.unsure === true;
+    const confidence = unsure ? UNSURE_CONFIDENCE : 1;
     for (const gid of globalIds) {
       const cur = store.get(gid);
       if (!cur) continue;
       const before = stateOf(cur);
       let after: ReviewState;
       if (o.action === 'confirm') {
-        after = { discipline: before.discipline, subDiscipline: before.subDiscipline, division: before.division, source: 'confirmed', confidence: 1 };
+        after = { discipline: before.discipline, subDiscipline: before.subDiscipline, division: before.division, source: 'confirmed', confidence };
       } else {
         const r = makeManual(schema, gid, o.codes ?? {}, cur);
-        after = { discipline: r.discipline.code, subDiscipline: r.subDiscipline?.code ?? null, division: r.masterformat?.division ?? null, source: 'corrected', confidence: 1 };
+        after = { discipline: r.discipline.code, subDiscipline: r.subDiscipline?.code ?? null, division: r.masterformat?.division ?? null, source: 'corrected', confidence };
         if (after.discipline === before.discipline && after.subDiscipline === before.subDiscipline && after.division === before.division) after = { ...after, source: 'confirmed' };
       }
-      if (isCommittedSource(before.source) && sameState(before, after)) {
+      // The same codes again leave a committed element alone, unless the sureness changes: a sure confirmation replaces an unsure one.
+      if (isCommittedSource(before.source) && sameState(before, after) && (cur.unsure === true) === unsure) {
         this.pendingMap.delete(gid);
+        this.skips.remove([gid]);
         continue;
       }
-      const ch: PendingChange = { globalId: gid, before, after, action: after.source === 'corrected' ? 'correct' : 'confirm', item: o.item, ...(o.comment ? { comment: o.comment } : {}) };
+      const ch: PendingChange = { globalId: gid, before, after, action: after.source === 'corrected' ? 'correct' : 'confirm', item: o.item, ...(o.comment ? { comment: o.comment } : {}), ...(unsure ? { unsure: true as const } : {}) };
       this.pendingMap.set(gid, ch);
+      this.skips.remove([gid]); // a decision settles a skip
       made.push(ch);
     }
     this.host.emit();

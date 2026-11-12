@@ -427,7 +427,7 @@ describe('the service: properties, persistence, overrides', () => {
     expect(runQuery(m, 'XR_Classification.NeedsReview = TRUE').ids.sort()).toEqual([...nr].sort());
     const csv = svc.export('csv');
     const lines = csv.trim().split('\r\n');
-    expect(lines[0]).toBe('GlobalId,Discipline,DisciplineLabel,DisciplineConfidence,DisciplineTop2,SubDiscipline,SubDisciplineConfidence,MasterFormatDivision,MasterFormatTitle,MasterFormatConfidence,BuildingElement,Confidence,Source,Model,NeedsReview,Rationale,ConfirmedBy,ConfirmedAt,CommitId');
+    expect(lines[0]).toBe('GlobalId,Discipline,DisciplineLabel,DisciplineConfidence,DisciplineTop2,SubDiscipline,SubDisciplineConfidence,MasterFormatDivision,MasterFormatTitle,MasterFormatConfidence,BuildingElement,Confidence,Source,Model,NeedsReview,Rationale,ConfirmedBy,ConfirmedAt,CommitId,Unsure');
     expect(lines).toHaveLength(83);
     const json = JSON.parse(svc.export('json')) as { schema: string; results: unknown[]; stats: { models: Record<string, number> } };
     expect(json.schema).toBe('xray-classification/1');

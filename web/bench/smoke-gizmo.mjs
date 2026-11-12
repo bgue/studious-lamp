@@ -248,9 +248,10 @@ try {
     const el = document.getElementById('xray-gizmo');
     const openBtn = el.querySelector('.xg-open').getBoundingClientRect();
     const st = document.getElementById('stage').getBoundingClientRect();
-    return { collapsed: el.classList.contains('collapsed'), w: el.getBoundingClientRect().width, openRight: st.right - openBtn.right, openBottom: st.bottom - openBtn.bottom };
+    return { collapsed: el.classList.contains('collapsed'), w: el.getBoundingClientRect().width, openW: openBtn.width, openRight: st.right - openBtn.right, openBottom: st.bottom - openBtn.bottom };
   });
-  check('phone: collapsed to a small button clear of the dock rail and the status bar', ph.collapsed && ph.w < 60 && ph.openRight >= 28 && ph.openBottom >= 24, JSON.stringify(ph));
+  // Collapsed: the cube button, with the pointer toggle and the undo buttons beside it (plugins/gizmo.ts), so a phone keeps them.
+  check('phone: collapsed to a small button clear of the dock rail and the status bar', ph.collapsed && ph.openW < 60 && ph.w < 200 && ph.openRight >= 28 && ph.openBottom >= 24, JSON.stringify(ph));
   await phone.screenshot({ path: resolve(here, 'gizmo-phone-collapsed.png'), timeout: 180000 });
   await phone.locator('#xray-gizmo .xg-open').tap();
   await settle(phone, 300);

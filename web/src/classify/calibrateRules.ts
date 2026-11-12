@@ -38,13 +38,14 @@ export function ruleTruths(inputs: readonly ClassifyInput[], schema: Classificat
 
 /**
  * One truth per distinct signature from the elements that a person committed in the review walk (committed labels count as truth).
+ * A change that the reviewer flagged unsure is a guess and is left out.
  * When the elements of a signature were given different codes, the most frequent codes win (ties: the first seen). Order: first seen.
  */
 export function confirmedTruths(inputs: readonly ClassifyInput[], committed: ReadonlyMap<string, ClassifyResult>): RuleTruth[] {
   const groups = new Map<string, { input: ClassifyInput; votes: Map<string, { n: number; r: ClassifyResult }> }>();
   for (const i of inputs) {
     const r = committed.get(i.id);
-    if (!r) continue;
+    if (!r || r.unsure === true) continue;
     const sig = signatureOf(i);
     const g = groups.get(sig) ?? groups.set(sig, { input: i, votes: new Map() }).get(sig)!;
     const key = `${r.discipline.code}|${r.subDiscipline?.code ?? ''}|${r.masterformat?.division ?? ''}`;
@@ -109,6 +110,9 @@ export interface CalibrationReport {
   scored: number;
   questions: QuestionReport[];
   temperatures: Temperatures;
+  /** Calibration on confirmed only: how many committed elements were used as truth, and how many unsure ones were left out. */
+  confirmedUsed?: number;
+  unsureLeftOut?: number;
 }
 
 /** Fit every question that has enough samples (at least 4) and report held-out numbers. */

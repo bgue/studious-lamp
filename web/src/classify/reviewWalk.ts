@@ -48,6 +48,42 @@ export interface WalkFilters {
   unconfirmed?: boolean;
   /** Only this discipline code. */
   discipline?: string;
+  /** Only elements whose result is committed and flagged unsure. */
+  unsure?: boolean;
+  /** Only the elements that were skipped in this session (needs `skipped` in the input). */
+  onlySkipped?: boolean;
+}
+
+/**
+ * The elements that a reviewer skipped in this session, by GlobalId. A skip leaves the element as it is: it is not a change, it is not
+ * committed and it does not enter the review log. A decision on an element (confirm, runner-up, correct) takes it off the list.
+ */
+export class SkipList {
+  private readonly set = new Set<string>();
+  get size(): number {
+    return this.set.size;
+  }
+  has(globalId: string): boolean {
+    return this.set.has(globalId);
+  }
+  /** Add elements; returns how many were new. */
+  add(globalIds: Iterable<string>): number {
+    let n = 0;
+    for (const g of globalIds) if (!this.set.has(g)) { this.set.add(g); n++; }
+    return n;
+  }
+  /** Take elements off the list; returns how many were on it. */
+  remove(globalIds: Iterable<string>): number {
+    let n = 0;
+    for (const g of globalIds) if (this.set.delete(g)) n++;
+    return n;
+  }
+  clear(): void {
+    this.set.clear();
+  }
+  ids(): string[] {
+    return [...this.set];
+  }
 }
 
 export interface WalkItem {
@@ -71,6 +107,8 @@ export interface WalkInput {
   disciplineOrder: readonly string[];
   order: WalkOrder;
   filters?: WalkFilters;
+  /** The session's skipped elements, for the "Only skipped" filter. */
+  skipped?: { has(globalId: string): boolean };
 }
 
 const cmp = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
@@ -78,13 +116,15 @@ const num = (a: number, b: number): number => a - b;
 const centre = (b: WalkElement['bounds']): [number, number, number] => [(b[0] + b[3]) / 2, (b[1] + b[4]) / 2, (b[2] + b[5]) / 2];
 
 /** Elements that pass the needs-review and discipline filters and have a result. */
-export function walkScope(input: Pick<WalkInput, 'elements' | 'resultOf' | 'filters'>): WalkElement[] {
+export function walkScope(input: Pick<WalkInput, 'elements' | 'resultOf' | 'filters' | 'skipped'>): WalkElement[] {
   const f = input.filters ?? {};
   return input.elements.filter((e) => {
     const r = input.resultOf(e.globalId);
     if (!r) return false;
     if (f.needsReview && !r.needsReview) return false;
     if (f.discipline && r.discipline.code !== f.discipline) return false;
+    if (f.unsure && r.unsure !== true) return false;
+    if (f.onlySkipped && !(input.skipped?.has(e.globalId) ?? false)) return false;
     return true;
   });
 }

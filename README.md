@@ -161,6 +161,10 @@ parameter documents with `glowNear: true` load as `near`.
   section strip: planes X / Y / Z through the selection, a box fitted to the selection, flip, caps, clear. The section plane
   gets an arrow (push / pull with a metre readout) and rings (tilt in 15 degree steps, Shift free) on the model. Key `v`
   hides it; on a phone it collapses to a button.
+- **Pointer modes** ([pointer-modes.md](web/docs-features/pointer-modes.md)). An Arrow / Hand toggle on the gizmo (keys `r` / `g`):
+  Hand drags to orbit, Arrow drags a selection box (left to right picks what is inside, right to left what it touches).
+- **Undo** ([undo.md](web/docs-features/undo.md)). `Ctrl+Z` / `Ctrl+Shift+Z` and gizmo buttons step back and forward through camera
+  moves, selections and setting changes, this session only.
 - **Measure** ([measure.md](web/docs-features/measure.md)). Point to point (with vertex snapping) and element to element
   (minimum surface distance), dimension lines on the model, CSV export.
 - **Clearance** ([measure.md](web/docs-features/measure.md)). Colours the context by distance to the focus: clash (red), tight

@@ -16,6 +16,8 @@ import type { Classification, ElementId } from './types';
 import { PLUGINS } from './plugins';
 import { registerAction } from './input/actions';
 import { getKeymap } from './input/keymap';
+import { combineSelection, selectHowOf } from './input/pointerMode';
+import type { SelectHow } from './input/pointerMode';
 import { bootConfig } from './tools/registry';
 import { StatusBar } from './ui/statusBar';
 
@@ -280,6 +282,13 @@ export class ViewerApp {
     this.afterStatic();
   }
 
+  /** Pick ids into the selection: replace it, add to it (Shift) or toggle each id (Ctrl or Cmd). An empty replace clears. */
+  selectWith(ids: ElementId[], how: SelectHow): void {
+    if (how === 'add') this.selectIds(ids, true);
+    else if (how === 'toggle') this.selectIds(combineSelection(this.controller.selection, ids, 'toggle'));
+    else this.selectIds(ids);
+  }
+
   clearSelection(): void {
     this.controller.clearSelection();
     this.afterStatic();
@@ -421,11 +430,13 @@ export class ViewerApp {
       const moved = Math.hypot(e.clientX - down.x, e.clientY - down.y);
       down = null;
       if (moved > 5) return;
+      // A click selects in both pointer modes (src/input/pointerMode.ts): Shift adds, Ctrl or Cmd toggles.
+      const how = selectHowOf(e);
       const id = this.pickAt(e.clientX, e.clientY);
       if (id === null) {
-        if (!e.shiftKey) this.clearSelection();
+        if (how === 'replace') this.clearSelection();
       } else {
-        this.selectIds([id], e.shiftKey);
+        this.selectWith([id], how);
       }
     });
     let lastHover = 0;

@@ -130,6 +130,9 @@ const FOCUS_CATEGORY_COLORS: Array<[string, [number, number, number]]> = [
   ['CableCarrier', [0.95, 0.85, 0.2]],
 ];
 
+/** The field of view (radians) that the zoom limits of frameAll() are written for: the default perspective camera. */
+const FRAME_REF_FOV = (45 * Math.PI) / 180;
+
 export class XrayRenderer {
   readonly canvas: HTMLCanvasElement;
   readonly renderer: WebGLRenderer;
@@ -1890,14 +1893,19 @@ export class XrayRenderer {
     const fov = (this.camera.fov * Math.PI) / 180;
     const fit = Math.min(fov, 2 * Math.atan(Math.tan(fov / 2) * this.camera.aspect));
     const dist = (r / Math.sin(fit / 2)) * 1.05;
+    // The zoom range is a multiple of the fit distance of the normal 45 degree view. In the orthographic approximation
+    // (a 2 degree field of view) the camera sits about 24 times further away, so the range scales with it: a fixed r * 20
+    // would pull Home in to a third of the model and stop the wheel from zooming out to the whole of it.
+    const fitRef = Math.min(FRAME_REF_FOV, 2 * Math.atan(Math.tan(FRAME_REF_FOV / 2) * this.camera.aspect));
+    const scale = Math.max(1, dist / ((r / Math.sin(fitRef / 2)) * 1.05));
     const dir = new Vector3(0.7, 0.55, 0.85).normalize();
     this.camera.position.copy(sphere.center).addScaledVector(dir, dist);
     this.camera.near = Math.max(r * 0.005, 1e-3);
-    this.camera.far = dist + r * 50;
-    this.camera.updateProjectionMatrix();
     this.controls.target.copy(sphere.center);
-    this.controls.minDistance = r * 0.02;
-    this.controls.maxDistance = r * 20;
+    this.controls.minDistance = r * 0.02 * scale;
+    this.controls.maxDistance = r * 20 * scale;
+    this.camera.far = Math.max(dist + r * 50, this.controls.maxDistance + r * 2);
+    this.camera.updateProjectionMatrix();
     this.controls.update();
   }
 

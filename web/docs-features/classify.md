@@ -962,8 +962,8 @@ classified elements one work item at a time, shows what the classifier proposes 
 | **By location** | One per element | Storey by storey, a serpentine sweep (rows along Z, X up then down) |
 | **Needs review first** | Like by type | Lowest overall confidence first, then the smallest discipline margin |
 
-Every order is deterministic. Filters: **Only needs review**, **Only unconfirmed** (leaves out kinds that are committed already),
-and a discipline list. The header counts the elements in scope: *confirmed, corrected, remaining* (pending changes count).
+Every order is deterministic. Filters: **Only needs review**, **Only unconfirmed** (leaves out kinds that are committed already; a commit flagged unsure does not count as settled),
+**Only unsure** (committed as a guess), **Only skipped** (revisit what you skipped in this session) and a discipline list. The header counts the elements in scope: *confirmed, corrected, remaining* (pending changes count).
 
 ### At each item
 
@@ -979,12 +979,52 @@ run says something else than the committed value.
 | Confirm | Enter or Y | **Confirm** |
 | Take the runner-up | 2 | **Use XYZ** |
 | Correct (pickers for the three codes, sub-discipline restricted to the chosen discipline, schema values only) | E, then Enter to apply | **Correct...**, **Apply correction** |
-| Skip / back | N or right arrow / left arrow | **Skip**, **Back** |
+| Skip (see below) | N or right arrow; Shift+N for the other skip in a type | **Skip**, or **Skip this one** and **Skip all N** in a type |
+| Back | left arrow | **Back** |
+| Flag the next action as a guess | `?` (Shift+/) | checkbox **Unsure (a guess)** |
 | All N of this type or this element only | A | radio buttons |
 | Undo the last pending item | U | **Undo last** |
 | Previous / next element of the type | `[` / `]` | **‹**, **›** |
 
-An optional comment goes into the change. On a phone the panel is a bottom sheet with large buttons; no key is needed.
+An optional comment goes into the change. On a phone the panel is a bottom sheet with large buttons; no key is needed. The decision
+buttons and the Unsure box sit in a fixed strip under the scrolling part, so **Skip** and **Unsure** are on screen without scrolling.
+
+### Skip
+
+Skip is available in every state: at an item, with the correction form open, after **Back**, and at an element of a type that you step
+through with `[` and `]`. **Skip leaves the element as it is.** It is not a change: nothing goes into the pending set, nothing is committed
+and nothing enters the review log.
+
+- In a type of N elements, **Skip this one** skips the element in view and steps to the next element of the type (to the next item after
+  the last); **Skip all N** skips every element of the type and goes to the next item. The key **N** (and the right arrow) does the one
+  that matches the scope radio (**All N of this type** skips all N, **This element only** skips this one); **Shift+N** does the other.
+  Both buttons are always there, with their keys on them.
+- With the correction form open, **Skip** (or N, or the right arrow, when a picker does not have the focus) drops the unsaved correction
+  and moves on. **Cancel** (Esc) closes the form and stays.
+- The header shows **Skipped (n)**: the elements skipped in this session. Click it, or tick **Only skipped**, to walk only those (a type
+  shows only its skipped elements); click it again to go back. Deciding an element (confirm, runner-up, correct) takes it off the list.
+- The list lives in memory for the session and for the model on screen. It is not stored, exported or committed.
+  `window.__xrayClassify.review.skipped()` returns it.
+
+### Unsure (a guess)
+
+Optional, off by default: tick **Unsure (a guess)** or press `?` (it also shows in the correction form) before **Confirm**, **Use XYZ**
+or **Apply correction**. The flag applies to that one action and clears after it (and when you move to another element). `?` was chosen
+because it asks a question; the walk takes it while its panel is open (the keyboard cheat sheet is still on F1).
+
+An unsure change still sets the codes, but it is a guess:
+
+| | Sure (default) | Unsure |
+| --- | --- | --- |
+| Log change | no `unsure` field | `"unsure": true` |
+| Source | `confirmed` or `corrected` | `confirmed` or `corrected`, with an unsure marker (`unsure: true` on the result, `?` after the source in the table) |
+| Confidence | 1 | `UNSURE_CONFIDENCE` = **0.75** (`classify/reviewLog.ts`); the change's `after.confidence` records it |
+| `needsReview` | false | **true**: it comes back in "Needs review first" and "Only needs review" |
+| Calibrate on confirmed | counts as truth | left out |
+
+The **Pending** and **History** tabs show an `unsure` tag on each such change. A later change of the same element wins, so a sure
+confirmation of an element that was committed as unsure replaces the guess (the same codes are not left out as "already committed" when
+the sureness differs), and an unsure flag on a sure element is recorded too. A revert of a commit brings back the earlier sureness.
 
 ### Pending changes, commits, history
 
@@ -998,6 +1038,10 @@ changes** writes one immutable commit:
                   "after":  { "discipline": "MEC", "subDiscipline": null, "division": "40", "source": "corrected", "confidence": 1 },
                   "action": "correct", "comment": "walked on site" } ] }
 ```
+
+A change that was flagged unsure has one more field, `"unsure": true` (with `after.confidence` 0.75). It is additive: **absent means false**,
+so logs written before the flag and imports of them stay valid under the same format id. The validator accepts `true`, `false` or no
+field, and refuses anything else.
 
 `modelFingerprint` is a hash of the sorted element GlobalIds and the schema hash, so a log never applies to another model or schema.
 `reverts` is added to a commit that reverses another. Commits are **append only** and frozen in memory. **Revert** (tab
@@ -1018,7 +1062,8 @@ commit id.
 ### Effect on results, and re-runs
 
 The effective state of the log (the latest change per element, in time order) becomes the result of the element: source
-`confirmed` or `corrected`, confidence 1, `needsReview` false, with `confirmedBy`, `confirmedAt` and `commitId`. This wins over
+`confirmed` or `corrected`, confidence 1, `needsReview` false, with `confirmedBy`, `confirmedAt` and `commitId` (a change flagged unsure gives
+confidence 0.75, `needsReview` true and `unsure: true`, see [Unsure](#unsure-a-guess)). This wins over
 rules, cache, model and a manual override, and **a re-run never overwrites it**: the run still computes the element, and where it
 differs from the committed codes the walk and the table (a `!` after the source) say **the model now disagrees**
 (`window.__xrayClassify.review.disagreements()`). **Clear results** keeps committed results, like manual ones. A revert brings back the latest
@@ -1026,8 +1071,8 @@ computed result (or the manual one). The written property `Source` says `confirm
 
 ### Exports
 
-The JSON, CSV (`ConfirmedBy`, `ConfirmedAt`, `CommitId`) and Throughline exports (`confirmed_by`, `confirmed_at`, `commit_id` in
-the attributes of a committed element) carry the confirmation. **Export review log** saves `xray-classification-review/1`:
+The JSON, CSV (`ConfirmedBy`, `ConfirmedAt`, `CommitId`, `Unsure`, the last column, `true` or `false`) and Throughline exports
+(`confirmed_by`, `confirmed_at`, `commit_id` and `unsure` in the attributes of a committed element only) carry the confirmation. **Export review log** saves `xray-classification-review/1`:
 
 ```json
 { "schema": "xray-classification-review/1", "modelName": "...", "modelFingerprint": "...", "schemaEdition": "...", "exportedAt": "...", "commits": [ ... ] }
@@ -1041,6 +1086,8 @@ with another fingerprint is refused with a message that names both fingerprints.
 Next to **Calibrate on rules**: the committed labels count as truth (one label per signature, the most frequent codes when
 elements of a signature were labelled differently) and the same fit runs (the model scores the committed kinds of element, a held-out share is
 reported, at least 8 kinds and 4 answers per question). Use it when the rules are not a good proxy for your standard.
+**Changes flagged unsure are left out** (they are guesses, not truth). The result message says so: "N confirmed used, M unsure left out"
+(committed elements). If every commit is unsure the button explains that and does nothing.
 
 Smoke test: `SMOKE_PORT=5699 node bench/smoke-review.mjs` (screenshots `bench/review-walk-*.png`). Unit tests: `tests/classify-review.test.ts`;
 the leak test (`tests/classify-settings.test.ts`) also checks that the reviewer's name is in no params, link, view, preset or packed page.
@@ -1062,7 +1109,7 @@ the leak test (`tests/classify-settings.test.ts`) also checks that the reviewer'
 | decision model | `testModel()` (load, one tiny choice, load time, device, data type, size), `setHfToken(token, remember?)`, `hfTokenState()`, `modelCache()`, `clearModelCache()`, `decisionStats()` (requests, pairs, passes), `webllmStats()` |
 | Throughline | `importThroughline(json)` returns `{ errors, warnings }` |
 | calibration | `calibration()` (mode, what is in use, the numbers of the last fit), `calibrate({ maxSignatures?, heldOut? })` (**Calibrate on rules**), `calibrateConfirmed(...)` (**Calibrate on confirmed**), `forgetFit()` |
-| review walk | `walk.open({ order? })`, `walk.close()`, `walk.state()`, `walk.items()`, `walk.goto(i)`; `review.ready()`, `reviewer()`, `setReviewer(name)`, `fingerprint()`, `pending()`, `propose(ids, { action, codes?, item?, comment? })`, `undoPending(item)`, `commit(note?)`, `revert(id, note?)`, `history()`, `exportLog()`, `importLog(text)`, `disagreements()`, `storage()` |
+| review walk | `walk.open({ order? })`, `walk.close()`, `walk.state()`, `walk.items()`, `walk.goto(i)`; `review.ready()`, `reviewer()`, `setReviewer(name)`, `fingerprint()`, `pending()`, `propose(ids, { action, codes?, item?, comment?, unsure? })`, `undoPending(item)`, `commit(note?)`, `revert(id, note?)`, `history()`, `exportLog()`, `importLog(text)`, `disagreements()`, `storage()`, `skipped()` |
 | d3 and pictures | `setD3Key(key, remember?)`, `d3KeyState()`, `confirmD3Download()`, `thumbnails(id)` (the data URLs the model would get) |
 
 Types (`src/classify/types.ts`): `ClassifyInput { id, ifcClass, name, psets, quantities?, type?, hierarchy?: { path, parents? },

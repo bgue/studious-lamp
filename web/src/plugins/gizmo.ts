@@ -1,6 +1,8 @@
 // Gizmo plugin: an on-screen navigation cube with roll, quarter-turn, home and projection buttons, plus a compact section
 // strip (planes X / Y / Z, box fitted to the selection, flip, caps, clear) in the bottom-right corner of the stage, and
-// direct-manipulation handles for the section plane (src/gizmo/planeHandles.ts). Docs: docs-features/gizmo.md.
+// direct-manipulation handles for the section plane (src/gizmo/planeHandles.ts), and under the cube a row with the
+// Arrow / Hand pointer toggle (plugins/pointerMode.ts) and the Undo and Redo buttons (plugins/undo.ts).
+// Docs: docs-features/gizmo.md, docs-features/pointer-modes.md, docs-features/undo.md.
 //
 //   window.__xrayGizmo = { state, setVisible(v), setCollapsed(v), lookFrom(region), roll(sign), turn(sign), home(), handles }
 
@@ -18,6 +20,8 @@ import { isVertical, naturalUp, normalize, regionName, regionNear, regionView, r
 import type { Region, V3, View } from '../gizmo/maths';
 import type { SectionApi } from './section';
 import { registerParamSection } from '../ui/params';
+import { getPointerMode, onPointerModeChange, setPointerMode } from './pointerMode';
+import { onUndoChange, redoNow, undoNow, undoState } from './undo';
 
 export interface GizmoState {
   visible: boolean;
@@ -224,6 +228,15 @@ const CSS = `
 #xray-gizmo .xg-rccw{left:0;top:0}#xray-gizmo .xg-rcw{right:0;top:0}
 #xray-gizmo .xg-tl{left:0;top:98px}#xray-gizmo .xg-tr{right:0;top:98px}
 #xray-gizmo .xg-home{left:26px;bottom:0}#xray-gizmo .xg-proj{left:54px;bottom:0}#xray-gizmo .xg-min{left:82px;bottom:0}
+#xray-gizmo .xg-main{display:flex;flex-direction:column;align-items:flex-end;gap:4px}
+#xray-gizmo .xg-tools{box-sizing:border-box;width:132px;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:3px;
+  background:rgba(20,24,32,.82);border:1px solid #2d3748;border-radius:6px}
+#xray-gizmo .xg-seg,#xray-gizmo .xg-hist{display:flex}
+#xray-gizmo .xg-seg .xg-btn{border-radius:0}
+#xray-gizmo .xg-seg .xg-btn:first-child{border-radius:4px 0 0 4px}
+#xray-gizmo .xg-seg .xg-btn:last-child{border-radius:0 4px 4px 0;margin-left:-1px}
+#xray-gizmo .xg-hist{gap:3px}
+#xray-gizmo.collapsed .xg-tools{width:auto}
 #xray-gizmo .xg-open{display:none;width:34px;height:32px;border-radius:6px;background:rgba(27,34,48,.92)}
 #xray-gizmo .xg-open svg{width:20px;height:20px}
 #xray-gizmo.collapsed .xg-sec,#xray-gizmo.collapsed .xg-nav{display:none}
@@ -231,7 +244,7 @@ const CSS = `
 @media (max-width:700px){#xray-gizmo{right:36px}}
 /* Not enough room beside an open tool drawer (fitLayout): drop the section strip, then show only the cube button, then hide. */
 #xray-gizmo.fit-nav:not(.peek) .xg-sec{display:none}
-#xray-gizmo.fit-button:not(.peek) .xg-sec,#xray-gizmo.fit-button:not(.peek) .xg-nav{display:none}
+#xray-gizmo.fit-button:not(.peek) .xg-sec,#xray-gizmo.fit-button:not(.peek) .xg-nav,#xray-gizmo.fit-button:not(.peek) .xg-tools{display:none}
 #xray-gizmo.fit-button:not(.peek) .xg-open{display:flex}
 #xray-gizmo.fit-none:not(.peek){display:none}
 #xray-gizmo.peek{z-index:15}
@@ -251,6 +264,10 @@ const ICONS = {
   flip: I('<path d="M2 8h12"/><path d="M8 2v4M6.2 4 8 6l1.8-2M8 14v-4M6.2 12 8 10l1.8 2"/>'),
   caps: I('<path d="M3 3h10v10H3z"/><path d="M3 9l6-6M3 13 13 3M7 13l6-6"/>'),
   clear: I('<path d="M4 4l8 8M12 4l-8 8"/>'),
+  arrow: I('<path d="M3.6 2.4 12.4 6.6 8.2 8.2 6.6 12.4z"/><path d="M8.6 8.8 12 12.2"/>'),
+  hand: I('<path d="M5.2 8.6V4.2a.9.9 0 0 1 1.8 0V7.4M7 7.2V2.9a.9.9 0 0 1 1.8 0V7.2M8.8 7.2V3.6a.9.9 0 0 1 1.8 0v4M10.6 7.6V5.6a.9.9 0 0 1 1.8 0v3.6c0 2.7-1.5 4.4-4 4.4-1.8 0-2.8-.8-3.7-2L2.8 8.6a.9.9 0 0 1 1.4-1.1l1 1.2"/>'),
+  undo: I('<path d="M6.4 3.4 3.4 6.4l3 3"/><path d="M3.4 6.4h5.3a3.5 3.5 0 0 1 0 7H5.6"/>'),
+  redo: I('<path d="M9.6 3.4l3 3-3 3"/><path d="M12.6 6.4H7.3a3.5 3.5 0 0 0 0 7h3.1"/>'),
 };
 
 function btn(cls: string, html: string, label: string, help: string, onClick: () => void): HTMLButtonElement {
@@ -358,8 +375,53 @@ function build(app: ViewerApp): void {
     if (fit !== 'full' && fit !== 'nav') peek = true; // no room beside the drawer: open over it
     setCollapsed(false);
   });
-  el.append(sec, nav, open);
+
+  // Pointer mode toggle and history buttons, under the cube (and beside the cube button when the gizmo is collapsed).
+  const tools = document.createElement('div');
+  tools.className = 'xg-tools';
+  const seg = document.createElement('div');
+  seg.className = 'xg-seg';
+  seg.setAttribute('role', 'group');
+  seg.setAttribute('aria-label', 'Pointer mode');
+  const ptrSel = btn('xg-ptr-select', ICONS.arrow, 'Arrow: select mode', 'Gizmo/Select mode', () => setPointerMode('arrow'));
+  const ptrHand = btn('xg-ptr-hand', ICONS.hand, 'Hand: move mode', 'Gizmo/Move mode', () => setPointerMode('hand'));
+  seg.append(ptrSel, ptrHand);
+  const hist = document.createElement('div');
+  hist.className = 'xg-hist';
+  hist.setAttribute('role', 'group');
+  hist.setAttribute('aria-label', 'History');
+  const undoB = btn('xg-undo', ICONS.undo, 'Undo', 'Gizmo/Undo', () => void undoNow());
+  const redoB = btn('xg-redo', ICONS.redo, 'Redo', 'Gizmo/Redo', () => void redoNow());
+  hist.append(undoB, redoB);
+  tools.append(seg, hist);
+  const main = document.createElement('div');
+  main.className = 'xg-main';
+  main.append(nav, tools);
+  el.append(sec, main, open);
   stage.appendChild(el);
+
+  const refreshPointer = (): void => {
+    const m = getPointerMode();
+    ptrSel.setAttribute('aria-pressed', String(m === 'arrow'));
+    ptrHand.setAttribute('aria-pressed', String(m === 'hand'));
+    ptrSel.title = withKeys('Arrow: select. A click selects. Drag a box: left to right picks what is inside, right to left picks what it touches. Shift adds, Ctrl or Cmd toggles, Esc cancels', 'pointer.select');
+    ptrHand.title = withKeys('Hand: move. Drag to orbit, Shift or right drag to pan, wheel to zoom. A click still selects', 'pointer.hand');
+  };
+  const refreshUndo = (): void => {
+    const u = undoState();
+    undoB.disabled = !u.canUndo;
+    redoB.disabled = !u.canRedo;
+    const undoText = u.undoLabel ? `Undo ${u.undoLabel}` : 'Nothing to undo';
+    const redoText = u.redoLabel ? `Redo ${u.redoLabel}` : 'Nothing to redo';
+    undoB.setAttribute('aria-label', undoText);
+    redoB.setAttribute('aria-label', redoText);
+    undoB.title = withKeys(undoText, 'undo.undo');
+    redoB.title = withKeys(redoText, 'undo.redo');
+  };
+  onPointerModeChange(refreshPointer);
+  onUndoChange(refreshUndo);
+  refreshPointer();
+  refreshUndo();
 
   const titles = (): void => {
     px.title = 'Section plane X through the selection or model centre. Click again to remove it';
@@ -387,8 +449,13 @@ function build(app: ViewerApp): void {
     }
   };
   titles();
-  el.addEventListener('pointerenter', titles);
-  el.addEventListener('focusin', titles);
+  const retitle = (): void => {
+    titles();
+    refreshPointer();
+    refreshUndo();
+  };
+  el.addEventListener('pointerenter', retitle);
+  el.addEventListener('focusin', retitle);
 
   refreshButtons = (): void => {
     const s = section();

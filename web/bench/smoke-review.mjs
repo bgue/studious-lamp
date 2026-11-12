@@ -2,7 +2,9 @@
 // Playwright: rules-only classification, open the walk (Shift+R), confirm two items (the keyboard and a button), correct one, commit,
 // reload the page and check the commit and the results persist (IndexedDB), export the review log, import it on a fresh browser profile,
 // re-run the classifier over a committed element, end the walk (the view is restored), and the same on a phone. The reviewer's name must
-// not appear in the params or the share link. Screenshots: bench/review-walk-*.png.
+// not appear in the params or the share link. Also: Skip in every state (correction form open, one element or the whole type, after Back,
+// the "Only skipped" revisit), the optional Unsure flag (pending and history tags, results table marker, back under Only needs review,
+// superseded by a sure confirmation) and a phone run where Skip and Unsure are reachable. Screenshots: bench/review-walk-*.png.
 // Usage: SMOKE_PORT=5699 node bench/smoke-review.mjs
 import { spawn } from 'node:child_process';
 import { readFileSync } from 'node:fs';
@@ -90,7 +92,9 @@ async function runDesktop(browser) {
     const selN = await page.evaluate(() => window.__xray.app.selection.length);
     check(`${tag} the camera frames the item: its ${st.item.elements} element(s) are selected`, selN === st.item.elements, `${selN}`);
     check(`${tag} the camera moved`, JSON.stringify(await pose(page)) !== JSON.stringify(before));
+    await page.locator('.xrw [data-role=unsure]').check(); // the screenshot shows the Unsure control ticked
     await shot(page, 'review-walk-desktop.png');
+    await page.locator('.xrw [data-role=unsure]').uncheck();
     const orders = [];
     for (const o of ['type', 'systems', 'location', 'review']) {
       await page.locator('.xrw select[data-role=order]').selectOption(o);
@@ -214,7 +218,7 @@ async function runDesktop(browser) {
     // CSV and JSON carry the confirmation
     const csv = await page.evaluate(() => window.__xrayClassify.export('csv'));
     const row = csv.split('\r\n').find((l) => l.startsWith(correctedGid));
-    check(`${tag} the CSV carries confirmedBy, confirmedAt and the commit id`, csv.split('\r\n')[0].endsWith('ConfirmedBy,ConfirmedAt,CommitId') && row.includes(NAME) && row.endsWith(firstCommit.id.length ? `${firstCommit.time},${firstCommit.id}` : ''));
+    check(`${tag} the CSV carries confirmedBy, confirmedAt, the commit id and Unsure (false)`, csv.split('\r\n')[0].endsWith('ConfirmedBy,ConfirmedAt,CommitId,Unsure') && row.includes(NAME) && row.endsWith(`${firstCommit.time},${firstCommit.id},false`));
     const js = JSON.parse(await page.evaluate(() => window.__xrayClassify.export('json')));
     check(`${tag} the JSON export carries them too`, js.results.find((r) => r.id === correctedGid).commitId === firstCommit.id);
     const tl = JSON.parse(await page.evaluate(() => window.__xrayClassify.export('throughline')));
@@ -299,6 +303,203 @@ async function runDesktop(browser) {
   }
 }
 
+async function runSkipUnsure(browser) {
+  const tag = '[skip+unsure]';
+  const { ctx, page, errors } = await open(browser);
+  const hdr = async () => (await page.locator('.xrw [data-role=skipped-count]').textContent()).trim();
+  const listed = () => page.evaluate(() => window.__xrayClassify.walk.items());
+  const skipped = () => page.evaluate(() => window.__xrayClassify.review.skipped());
+  try {
+    await page.evaluate(() => window.__xrayClassify.configure({ provider: 'off' }));
+    await page.evaluate(() => window.__xrayClassify.classify('all'));
+    await page.keyboard.press('Shift+R');
+    await page.waitForSelector('.xrw:not([hidden])');
+    let items = await listed();
+    check(`${tag} the header starts at "Skipped (0)" and the button is disabled`, (await hdr()) === 'Skipped (0)' && (await page.locator('.xrw [data-role=skipped-count]').isDisabled()));
+    const single = items.findIndex((i) => i.elements === 1);
+    const multis = items.map((i, k) => [i, k]).filter(([i]) => i.elements > 2).map(([, k]) => k);
+    check(`${tag} the model has single items and types of several elements`, single >= 0 && multis.length >= 2, `${single} ${multis.length}`);
+
+    // ---- skip with the correction form open (button, then key)
+    await page.evaluate((i) => window.__xrayClassify.walk.goto(i), single);
+    await page.keyboard.press('e');
+    await page.waitForSelector('.xrw-edit');
+    const opts = await page.locator('.xrw-edit select[data-role=edit-discipline] option').evaluateAll((o) => o.map((x) => x.value));
+    const cur = await page.locator('.xrw-edit select[data-role=edit-discipline]').inputValue();
+    await page.locator('.xrw-edit select[data-role=edit-discipline]').selectOption(opts.find((d) => d !== cur));
+    const gid0 = (await walkState(page)).item.key.replace(/^[a-z]+:/, '');
+    await page.locator('.xrw [data-act=skip-edit]').click();
+    let st = await walkState(page);
+    check(`${tag} Skip with the correction form open drops the unsaved correction and moves on`, !st.editing && st.itemIndex === single + 1 && st.pending === 0 && (await page.locator('.xrw-edit').count()) === 0, JSON.stringify({ editing: st.editing, i: st.itemIndex, p: st.pending }));
+    check(`${tag} the skipped element is on the list, and the header counts it`, (await skipped()).includes(gid0) && (await hdr()) === 'Skipped (1)');
+    check(`${tag} a skip is not a change: nothing pending, no commit`, (await page.evaluate(() => window.__xrayClassify.review.pending().length + window.__xrayClassify.review.history().length)) === 0);
+    // by key: the picker must not have the focus (its letters are its own)
+    await page.keyboard.press('e');
+    await page.waitForSelector('.xrw-edit');
+    await page.locator('.xrw-edit select[data-role=edit-discipline]').selectOption(opts.find((d) => d !== (null)) ?? opts[0]);
+    await page.evaluate(() => document.activeElement && document.activeElement.blur());
+    await page.keyboard.press('n');
+    st = await walkState(page);
+    check(`${tag} the N key does the same while the form is open`, !st.editing && st.itemIndex === single + 2 && st.pending === 0 && (await hdr()) === 'Skipped (2)', JSON.stringify({ i: st.itemIndex, p: st.pending, h: await hdr() }));
+
+    // ---- one element of a type, then the whole type
+    const X = multis[0];
+    const nX = items[X].elements;
+    await page.evaluate((i) => window.__xrayClassify.walk.goto(i), X);
+    await page.locator('.xrw [data-role=scope-one]').check();
+    check(`${tag} a type shows both skips: this one and all ${nX}`, (await page.locator('.xrw [data-act=skip-element]').count()) === 1 && /Skip all \d+/.test(await page.locator('.xrw [data-act=skip-group]').textContent()));
+    const before = (await skipped()).length;
+    await page.keyboard.press('n'); // scope "this element only": skips this element
+    st = await walkState(page);
+    check(`${tag} N with "This element only" skips one element and steps to the next of the type`, st.itemIndex === X && st.elementIndex === 1 && (await skipped()).length === before + 1, JSON.stringify({ i: st.itemIndex, e: st.elementIndex }));
+    await page.keyboard.press('Shift+N'); // the other one: the whole type
+    st = await walkState(page);
+    const sk = await skipped();
+    check(`${tag} Shift+N skips the whole type (all ${nX}) and goes to the next item`, st.itemIndex === X + 1 && sk.length === before + nX, JSON.stringify({ i: st.itemIndex, n: sk.length, want: before + nX }));
+    // all of a type with the default scope
+    const Y = multis.find((k) => k > X + 1);
+    const nY = items[Y].elements;
+    await page.evaluate((i) => window.__xrayClassify.walk.goto(i), Y);
+    await page.locator('.xrw [data-role=scope-all]').check();
+    await page.keyboard.press('n');
+    st = await walkState(page);
+    check(`${tag} N with "All ${nY}" skips the whole type`, st.itemIndex === Y + 1 && (await skipped()).length === before + nX + nY);
+    // ---- after Back
+    await page.evaluate((i) => window.__xrayClassify.walk.goto(i), Y + 1);
+    const n0 = (await skipped()).length;
+    await page.keyboard.press('ArrowLeft');
+    st = await walkState(page);
+    check(`${tag} Back returns to the type that was skipped`, st.itemIndex === Y);
+    await page.keyboard.press('ArrowRight');
+    st = await walkState(page);
+    check(`${tag} Skip works after Back (right arrow)`, st.itemIndex === Y + 1 && (await skipped()).length === n0);
+    // ---- the header and "Only skipped"
+    const total = (await skipped()).length;
+    check(`${tag} the header counts every skipped element`, (await hdr()) === `Skipped (${total})`, await hdr());
+    check(`${tag} nothing was committed or made pending by skipping`, (await page.evaluate(() => window.__xrayClassify.review.pending().length + window.__xrayClassify.review.history().length)) === 0);
+    const allItems = (await listed()).length;
+    await page.locator('.xrw [data-role=skipped-count]').click();
+    st = await walkState(page);
+    const only = await listed();
+    check(`${tag} "Skipped (n)" revisits only the skipped elements`, st.filters.onlySkipped && st.progress.total === total && only.length < allItems && only.reduce((a, i) => a + i.elements, 0) === total, JSON.stringify({ total: st.progress.total, items: only.length, all: allItems }));
+    check(`${tag} the "Only skipped" filter box is ticked`, await page.locator('.xrw [data-role=filter-skipped]').isChecked());
+    const first = only[0];
+    await page.keyboard.press('y');
+    const left = (await skipped()).length;
+    check(`${tag} deciding a skipped item takes its elements off the list`, left === total - first.elements && (await hdr()) === `Skipped (${left})`, `${left} vs ${total - first.elements}`);
+    await page.locator('.xrw [data-role=skipped-count]').click();
+    check(`${tag} the header button turns the filter off again`, !(await walkState(page)).filters.onlySkipped && (await listed()).length >= allItems - 1);
+    await page.evaluate(() => window.__xrayClassify.review.pending().forEach((p) => window.__xrayClassify.review.undoPending(p.item)));
+    await page.evaluate(() => window.__xrayClassify.walk.close());
+    await page.evaluate(() => window.__xrayClassify.walk.open());
+
+    // ---- Unsure
+    await page.locator('.xrw select[data-role=order]').selectOption('location');
+    await page.evaluate(() => window.__xrayClassify.walk.goto(5));
+    check(`${tag} the Unsure box is there, off by default`, (await page.locator('.xrw [data-role=unsure]').count()) === 1 && !(await page.locator('.xrw [data-role=unsure]').isChecked()) && (await walkState(page)).unsure === false);
+    await page.keyboard.press('?');
+    check(`${tag} the ? key ticks it`, (await page.locator('.xrw [data-role=unsure]').isChecked()) && (await walkState(page)).unsure === true);
+    await page.keyboard.press('?');
+    check(`${tag} ? again clears it`, !(await page.locator('.xrw [data-role=unsure]').isChecked()));
+    await page.keyboard.press('?');
+    const uGid1 = (await walkState(page)).item.key.replace(/^[a-z]+:/, '');
+    await page.keyboard.press('Enter');
+    let pend = await page.evaluate(() => window.__xrayClassify.review.pending());
+    check(`${tag} Confirm with Unsure: a pending change with unsure true, confidence 0.75`, pend.length === 1 && pend[0].globalId === uGid1 && pend[0].unsure === true && pend[0].after.confidence === 0.75 && pend[0].after.source === 'confirmed', JSON.stringify(pend[0]));
+    check(`${tag} the Unsure box resets after the action`, !(await page.locator('.xrw [data-role=unsure]').isChecked()) && (await walkState(page)).unsure === false);
+    // the next one: Correct with Unsure set inside the form
+    const uGid2 = (await walkState(page)).item.key.replace(/^[a-z]+:/, '');
+    await page.keyboard.press('e');
+    await page.waitForSelector('.xrw-edit');
+    check(`${tag} the correction form shows the Unsure box`, (await page.locator('.xrw [data-role=unsure]').count()) === 1);
+    await page.locator('.xrw [data-role=unsure]').check();
+    const o2 = await page.locator('.xrw-edit select[data-role=edit-discipline] option').evaluateAll((o) => o.map((x) => x.value));
+    const c2 = await page.locator('.xrw-edit select[data-role=edit-discipline]').inputValue();
+    await page.locator('.xrw-edit select[data-role=edit-discipline]').selectOption(o2.find((d) => d !== c2));
+    await page.locator('.xrw [data-act=apply-correct]').click();
+    pend = await page.evaluate(() => window.__xrayClassify.review.pending());
+    const p2 = pend.find((p) => p.globalId === uGid2);
+    check(`${tag} Correct with Unsure: pending, corrected, unsure true`, p2 && p2.unsure === true && p2.after.source === 'corrected' && p2.action === 'correct', JSON.stringify(p2));
+    // Runner-up path or a sure confirmation on the third item
+    const sGid = (await walkState(page)).item.key.replace(/^[a-z]+:/, '');
+    await page.keyboard.press('Enter');
+    pend = await page.evaluate(() => window.__xrayClassify.review.pending());
+    check(`${tag} the next confirmation is sure: no unsure field, confidence 1`, pend.length === 3 && pend.find((p) => p.globalId === sGid).unsure === undefined && pend.find((p) => p.globalId === sGid).after.confidence === 1);
+    await page.locator('.xrw [data-tab=pending]').click();
+    const ptags = await page.locator('.xrw [data-role=unsure-tag]').count();
+    check(`${tag} the Pending tab shows an "unsure" tag on the two unsure items only`, ptags === 2 && (await page.locator('.xrw [data-item]').count()) === 3, `${ptags}`);
+    await page.locator('.xrw [data-tab=walk]').click();
+    await page.locator('.xrw [data-role=reviewer]').fill(NAME);
+    await page.locator('.xrw [data-act=commit]').click();
+    await page.waitForTimeout(400);
+    const commit = await page.evaluate(() => window.__xrayClassify.review.history()[0]);
+    const byG = Object.fromEntries(commit.changes.map((c) => [c.globalId, c]));
+    check(`${tag} the commit carries unsure: true on the two guesses and nothing on the sure one`, commit.changes.length === 3 && byG[uGid1].unsure === true && byG[uGid2].unsure === true && !('unsure' in byG[sGid]) && byG[uGid1].after.confidence === 0.75, JSON.stringify(commit.changes.map((c) => [c.globalId, c.unsure])));
+    const rs = await page.evaluate(([a, b, c]) => { const r = (g) => window.__xrayClassify.results().find((x) => x.id === g); return [a, b, c].map((g) => ({ source: r(g).source, unsure: r(g).unsure, nr: r(g).needsReview, conf: Math.min(r(g).discipline.confidence, r(g).subDiscipline?.confidence ?? 1, r(g).masterformat?.confidence ?? 1) })); }, [uGid1, uGid2, sGid]);
+    check(`${tag} the unsure results are confirmed/corrected with confidence 0.75 and still need review; the sure one does not`, rs[0].source === 'confirmed' && rs[0].unsure === true && rs[0].nr === true && rs[0].conf === 0.75 && rs[1].source === 'corrected' && rs[1].unsure === true && rs[1].nr === true && rs[2].source === 'confirmed' && rs[2].unsure === undefined && rs[2].nr === false && rs[2].conf === 1, JSON.stringify(rs));
+    await page.locator('.xrw [data-tab=history]').click();
+    await page.locator('.xrw [data-commit] [data-act=open-commit]').first().click();
+    check(`${tag} the History tab shows an "unsure" tag per unsure change`, (await page.locator('.xrw .xrw-changes [data-role=unsure-tag]').count()) === 2 && /2 unsure/.test(await page.locator('.xrw [data-commit]').first().textContent()));
+    // ---- exports
+    const csv = await page.evaluate(() => window.__xrayClassify.export('csv'));
+    const lines = csv.split('\r\n');
+    check(`${tag} the CSV has an Unsure column at the end: true for the guesses, false otherwise`, lines[0].endsWith(',CommitId,Unsure') && lines.find((l) => l.startsWith(uGid1)).endsWith(',true') && lines.find((l) => l.startsWith(sGid)).endsWith(',false'));
+    const js = JSON.parse(await page.evaluate(() => window.__xrayClassify.export('json')));
+    const tl = JSON.parse(await page.evaluate(() => window.__xrayClassify.export('throughline')));
+    check(`${tag} the JSON and Throughline exports carry it (Throughline: committed elements only)`, js.results.find((r) => r.id === uGid1).unsure === true && tl.elements.find((e) => e.global_id === uGid1).attributes.unsure === true && tl.elements.find((e) => e.global_id === sGid).attributes.unsure === false && !('unsure' in tl.elements.find((e) => !e.attributes.confirmed_by).attributes));
+    const log = JSON.parse(await page.evaluate(() => window.__xrayClassify.review.exportLog()));
+    check(`${tag} the review log keeps the format id and the additive field`, log.schema === 'xray-classification-review/1' && log.commits[0].changes.filter((c) => c.unsure === true).length === 2);
+
+    // ---- the results table marks it
+    await page.evaluate(() => window.__xrayClassify.walk.close());
+    await page.locator('.xt-btn-tool[data-tool="classify"]').click();
+    await page.waitForSelector('.xt-drawer:not(.hidden)');
+    await page.waitForTimeout(400);
+    const rowText = async (g) => (await page.locator(`.xt-drawer tr[data-gid="${g}"]`).first().locator('td').nth(6).textContent().catch(() => null));
+    const t1 = await rowText(uGid1);
+    check(`${tag} the results table marks the unsure result with "?" after the source`, t1 !== null && /^confirmed \?$/.test(t1.trim()), `${t1}`);
+    const marked = await page.evaluate(() => [...document.querySelectorAll('.xt-drawer tr[data-gid]')].filter((tr) => / \?( !)?$/.test(tr.children[6]?.textContent ?? '')).map((tr) => tr.dataset.gid).sort());
+    check(`${tag} only the unsure results carry the marker`, marked.join() === [uGid1, uGid2].sort().join(), marked.join());
+    await page.keyboard.press('Escape');
+    await page.evaluate(() => window.__xrayClassify.walk.open());
+    // ---- Only needs review, Only unsure
+    await page.locator('.xrw select[data-role=order]').selectOption('location');
+    await page.locator('.xrw [data-role=needsReview]').check();
+    const nr = await listed();
+    check(`${tag} the unsure elements are back under "Only needs review"; the sure one is not`, nr.some((i) => i.key === `location:${uGid1}`) && nr.some((i) => i.key === `location:${uGid2}`) && !nr.some((i) => i.key === `location:${sGid}`), `${nr.length}`);
+    await page.locator('.xrw [data-role=needsReview]').uncheck();
+    await page.locator('.xrw [data-role=filter-unsure]').check();
+    const un = await listed();
+    check(`${tag} "Only unsure" lists the two guesses and nothing else`, un.length === 2 && un.map((i) => i.key.replace('location:', '')).sort().join() === [uGid1, uGid2].sort().join(), JSON.stringify(un.map((i) => i.key)));
+    // order "Needs review first"
+    await page.locator('.xrw [data-role=filter-unsure]').uncheck();
+    await page.locator('.xrw select[data-role=order]').selectOption('review');
+    const rv = await listed();
+    check(`${tag} "Needs review first" still lists the unsure kinds`, rv.length > 0);
+    // ---- a later sure confirmation supersedes
+    await page.locator('.xrw select[data-role=order]').selectOption('location');
+    await page.locator('.xrw [data-role=filter-unsure]').check();
+    await page.evaluate(() => window.__xrayClassify.walk.goto(0));
+    const supG = (await walkState(page)).item.key.replace(/^[a-z]+:/, '');
+    check(`${tag} the walk says that the element was committed as unsure`, (await page.locator('.xrw [data-role=unsure-state]').count()) === 1);
+    await page.keyboard.press('Enter');
+    pend = await page.evaluate(() => window.__xrayClassify.review.pending());
+    check(`${tag} a sure Confirm on the same codes is not left out: it is pending`, pend.length === 1 && pend[0].globalId === supG && pend[0].unsure === undefined && pend[0].before.confidence === 0.75, JSON.stringify(pend[0]));
+    await page.locator('.xrw [data-act=commit]').click();
+    await page.waitForTimeout(300);
+    const after = await page.evaluate((g) => { const r = window.__xrayClassify.results().find((x) => x.id === g); return { unsure: r.unsure, nr: r.needsReview, conf: r.discipline.confidence, n: window.__xrayClassify.review.history().length }; }, supG);
+    check(`${tag} the latest change wins: the element is sure now (confidence 1, no review), two commits in the log`, after.unsure === undefined && after.nr === false && after.conf === 1 && after.n === 2, JSON.stringify(after));
+    await page.locator('.xrw [data-role=unsure]').count();
+    // the name is still in no params or link
+    const doc = await page.evaluate(() => JSON.stringify(window.__xray.exportParams?.collect?.() ?? window.__xrayParams?.collect?.() ?? {}));
+    check(`${tag} the reviewer name is still not in the params or the page URL`, !doc.includes('Fanshawe') && !page.url().includes('Fanshawe') && doc.length > 10);
+  } finally {
+    const real = errors.filter((e) => !/favicon/i.test(e));
+    check(`${tag} zero console errors`, real.length === 0, real.slice(0, 3).join(' | '));
+    await ctx.close();
+  }
+}
+
 async function runPhone(browser) {
   const tag = '[phone]';
   const { ctx, page, errors } = await open(browser, { viewport: { width: 390, height: 844 } });
@@ -311,16 +512,45 @@ async function runPhone(browser) {
     await page.waitForTimeout(900);
     check(`${tag} the Review walk button in the drawer opens the panel and closes the drawer`, (await page.locator('.xt-drawer:not(.hidden)').count()) === 0 && (await walkState(page)).open);
     const box = await page.evaluate(() => { const r = document.querySelector('.xrw').getBoundingClientRect(); return { left: r.left, right: r.right, top: r.top, bottom: r.bottom, vw: window.innerWidth, vh: window.innerHeight, scrollW: document.documentElement.scrollWidth }; });
-    check(`${tag} the panel fits the phone width and sits in the lower part of the screen`, box.left >= 0 && box.right <= box.vw + 1 && box.scrollW <= box.vw + 1 && box.top > box.vh * 0.3, JSON.stringify(box));
+    check(`${tag} the panel fits the phone width and sits in the lower part of the screen`, box.left >= 0 && box.right <= box.vw + 1 && box.scrollW <= box.vw + 1 && box.top > box.vh * 0.25, JSON.stringify(box));
     const tiny = await page.evaluate(() => [...document.querySelectorAll('.xrw-acts .xrw-btn')].filter((b) => b.getBoundingClientRect().height < 34 || b.getBoundingClientRect().right > window.innerWidth).length);
     check(`${tag} the action buttons are large and inside the screen`, tiny === 0);
+    // Skip and Unsure are on screen without scrolling, also on a short phone
+    const reach = (sel) => page.evaluate((q) => {
+      const e = document.querySelector(q);
+      if (!e) return { found: false };
+      const r = e.getBoundingClientRect();
+      const p = document.querySelector('.xrw').getBoundingClientRect();
+      return { found: true, inView: r.top >= 0 && r.bottom <= window.innerHeight && r.left >= 0 && r.right <= window.innerWidth, inPanel: r.top >= p.top - 1 && r.bottom <= p.bottom + 1, inScroller: !!e.closest('.xrw-body'), w: r.width, h: r.height };
+    }, sel);
+    for (const vp of [{ width: 390, height: 844 }, { width: 360, height: 640 }]) {
+      await page.setViewportSize(vp);
+      await page.waitForTimeout(250);
+      for (const [name, sel] of [['Skip', '.xrw [data-act=skip], .xrw [data-act=skip-element]'], ['Unsure', '.xrw label.xrw-unsure'], ['Confirm', '.xrw [data-act=confirm]']]) {
+        const r = await reach(sel);
+        check(`${tag} ${name} is on screen without scrolling at ${vp.width}x${vp.height}`, r.found && r.inView && r.inPanel && !r.inScroller && r.h >= 20, JSON.stringify(r));
+      }
+    }
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.waitForTimeout(250);
+    // Unsure with buttons only: tick it, Confirm, and the change is pending with the flag; the box clears
+    await page.locator('.xrw [data-role=unsure]').check();
+    check(`${tag} the Unsure box is ticked by a tap`, (await walkState(page)).unsure === true);
+    await page.locator('.xrw [data-act=confirm]').click();
+    const pu = await page.evaluate(() => window.__xrayClassify.review.pending());
+    check(`${tag} Confirm with Unsure ticked gives pending changes with unsure: true, and the box clears`, pu.length >= 1 && pu.every((p) => p.unsure === true && p.after.confidence === 0.75) && (await walkState(page)).unsure === false && !(await page.locator('.xrw [data-role=unsure]').isChecked()), JSON.stringify(pu[0]));
+    const sk0 = (await walkState(page)).skipped;
+    await page.locator('.xrw [data-act=skip], .xrw [data-act=skip-element]').first().click();
+    check(`${tag} Skip by button adds to the Skipped count in the header`, (await walkState(page)).skipped > sk0 && /Skipped \(\d+\)/.test(await page.locator('.xrw [data-role=skipped-count]').textContent()));
     await page.locator('.xrw [data-act=confirm]').tap().catch(() => page.locator('.xrw [data-act=confirm]').click());
-    await page.locator('.xrw [data-act=skip]').click();
+    await page.locator('.xrw [data-act=skip], .xrw [data-act=skip-element]').first().click();
     await page.locator('.xrw [data-act=correct]').click();
     await page.waitForSelector('.xrw-edit');
     await page.waitForTimeout(500);
     check(`${tag} Confirm, Skip and Correct work with buttons only`, (await walkState(page)).pending >= 1 && (await walkState(page)).editing);
+    await page.locator('.xrw [data-role=unsure]').check(); // the screenshot shows the control ticked
     await shot(page, 'review-walk-phone.png');
+    check(`${tag} the correction form has Unsure, Apply, Skip and Cancel in view`, (await Promise.all(['[data-role=unsure]', '[data-act=apply-correct]', '[data-act=skip-edit]', '[data-act=cancel-correct]'].map((q) => reach(`.xrw ${q}`)))).every((r) => r.found && r.inView && !r.inScroller));
     await page.locator('.xrw [data-act=cancel-correct]').click();
     await page.locator('.xrw-x').click();
     check(`${tag} the close button ends the walk`, (await page.locator('.xrw').count()) === 0);
@@ -337,6 +567,7 @@ try {
   await waitForServer();
   browser = await chromium.launch({ args: GL });
   await runDesktop(browser);
+  await runSkipUnsure(browser);
   await runPhone(browser);
   if (checks.some((c) => !c.ok)) exitCode = 1;
   console.log(`\n${checks.filter((c) => c.ok).length}/${checks.length} checks passed`);

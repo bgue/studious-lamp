@@ -87,6 +87,8 @@ export interface ClassifyResult {
   confirmedBy?: string;
   confirmedAt?: string;
   commitId?: string;
+  /** Source 'confirmed' or 'corrected' with the reviewer's "Unsure (a guess)" flag: the codes are set, the confidence is below 1 and the result still needs review. */
+  unsure?: boolean;
 }
 
 // ---------------------------------------------------------------- target schema

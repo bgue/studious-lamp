@@ -2126,6 +2126,30 @@ export const CONTROL_HELP: Record<string, HelpEntry> = {
     'Click the button to reach the cube and the cut tools.',
     'Report: Appendix I, Presets and keyboard',
   ),
+  'Gizmo/Select mode': h(
+    'The button sets the arrow mode. A click picks 1 element and a drag draws a box. A box dragged to the right picks what lies inside it. A box dragged to the left picks all that it touches.',
+    'Drag over the building and a frame appears. Parts inside the frame light up as your pick.',
+    'Press R for this mode. Hold Shift to add to your pick. Hold Ctrl to toggle. Press Esc to cancel a box.',
+    'Report: Appendix I, Presets and keyboard',
+  ),
+  'Gizmo/Move mode': h(
+    'The button sets the hand mode. A drag moves the camera and a click still picks 1 element. This is the default.',
+    'Drag over the picture and the building turns under your hand. Click a part and it lights up.',
+    'Press G for this mode. Drag to orbit. Drag with Shift or the right button to pan. Roll the wheel to zoom.',
+    'Report: Appendix I, Presets and keyboard',
+  ),
+  'Gizmo/Undo': h(
+    'The button takes back the last camera move, pick or setting change. The tip names the step.',
+    'Click and the picture goes back to how it looked before your last change.',
+    'Click the button after a wrong zoom or a wrong pick. Press Ctrl+Z for the same step.',
+    'Report: Appendix I, Presets and keyboard',
+  ),
+  'Gizmo/Redo': h(
+    'The button brings back the step that the last undo took away. The tip names the step.',
+    'Click and the change that you just took back returns to the picture.',
+    'Click the button after an undo that went too far. Press Ctrl+Shift+Z or Ctrl+Y for the same step.',
+    'Report: Appendix I, Presets and keyboard',
+  ),
   'Gizmo/Plane X': h(
     'The button adds a section plane square to the x axis through the centre of the selection or the model.',
     'Click and the building splits from side to side, so you look inside it. Click again and the cut goes away.',
@@ -3828,8 +3852,8 @@ export const CONTROL_HELP: Record<string, HelpEntry> = {
   ),
   'Classify drawer/Review walk': h(
     'The button opens a panel that visits the classified elements in a logical order. You confirm, correct or skip each element.',
-    'Your choices wait as pending changes. A commit writes them to the log, and they then count as the result.',
-    'Click the button after a run. Press Enter to confirm. Click Commit when you are done.',
+    'Your choices wait as pending changes. A commit writes them to the log, and they then count as the result. A skip is not a change. The Skipped count lets you revisit those elements.',
+    'Click the button after a run. Press Enter to confirm and N to skip. Tick Unsure, or press the question mark, when you only guess. Click Commit when you are done.',
     'Report: Limitations and extensions, classification',
   ),
   'Classify drawer/Export review log': h(
@@ -3846,7 +3870,7 @@ export const CONTROL_HELP: Record<string, HelpEntry> = {
   ),
   'Classify drawer/Calibrate on confirmed': h(
     'The button fits a temperature for each question. It uses the labels that you committed in the review walk as truth.',
-    'The model runs once for each kind of part. The table then shows the numbers before and after for a held-out share.',
+    'Changes that you flag as unsure are guesses, so the fit leaves them out. The message counts the labels it uses and the unsure ones it skips. The model runs once for each kind of part.',
     'Commit at least 8 kinds of part in the review walk first. Then click the button.',
     'Report: Limitations and extensions, classification',
   ),

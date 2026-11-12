@@ -73,6 +73,8 @@ same registry, so a plugin that registers an action gets a key, a cheat sheet ro
 | Select all visible | `Ctrl+a` |
 | Invert selection | `Ctrl+i` |
 | Select all of the same class | `Alt+s` |
+| Arrow mode (click selects, drag draws a selection box) / Hand mode (drag orbits), see [pointer-modes.md](pointer-modes.md) | `r` / `g` |
+| Undo / redo the last camera move, selection or setting, see [undo.md](undo.md) | `Ctrl+z`, `Meta+z` / `Ctrl+Shift+z`, `Meta+Shift+z`, `Ctrl+y` |
 | Toggle x-ray | `x` |
 | Hide selected | `h` |
 | Unhide all (your hides only; pins stay) | `Alt+h` |
@@ -85,7 +87,7 @@ same registry, so a plugin that registers an action gets a key, a cheat sheet ro
 | Presets 1 to 9 (placeholders until the presets plugin replaces them) | `code:Digit1` to `code:Digit9` |
 | Top bar modes: Ghost, Radiograph, Glow, Cutaway ([topbar.md](topbar.md)); pressing the active mode again returns to the normal view | `Shift+code:Digit1` to `Shift+code:Digit4` (`Shift+1` to `Shift+4`) |
 | Show or hide the top bar | `Shift+t` |
-| Classify: review walk, to confirm classifications ([classify.md](classify.md#review-walk)); while it is open it also takes Enter or Y, 2, E, N, the arrow keys, `[`, `]`, A, U and Esc | `Shift+r` |
+| Classify: review walk, to confirm classifications ([classify.md](classify.md#review-walk)); while it is open it also takes Enter or Y, 2, E, N (skip; Shift+N the other skip in a type), `?` (flag the next action as unsure, a guess), the arrow keys, `[`, `]`, A, U and Esc; the panel handles these itself | `Shift+r` |
 | Save view; previous / next saved view ([saved-views.md](saved-views.md)) | `Ctrl+Shift+s`; `Shift+PageUp` / `Shift+PageDown` |
 
 The top bar keys avoid the digits (presets), `Alt+<digit>` (views) and the numpad: `Shift+1` to `Shift+4` match by physical key, so they work on layouts where Shift+digit types another symbol. They are actions `topbar.mode.ghost`, `topbar.mode.radiograph`, `topbar.mode.glow`, `topbar.mode.cutaway` and `topbar.toggle`, rebindable like any other.

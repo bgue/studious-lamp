@@ -239,6 +239,8 @@ export interface ThroughlineElement {
     confirmed_by?: string;
     confirmed_at?: string;
     commit_id?: string;
+    /** On the same committed elements: true when the reviewer flagged the change as a guess ("Unsure"). */
+    unsure?: boolean;
   };
 }
 
@@ -284,6 +286,7 @@ export function exportThroughline(results: readonly ClassifyResult[], schema: Cl
         ...(r.confirmedBy !== undefined ? { confirmed_by: r.confirmedBy } : {}),
         ...(r.confirmedAt !== undefined ? { confirmed_at: r.confirmedAt } : {}),
         ...(r.commitId !== undefined ? { commit_id: r.commitId } : {}),
+        ...(r.confirmedBy !== undefined ? { unsure: r.unsure === true } : {}),
       },
     };
   });

@@ -15,6 +15,11 @@ import type { ClassificationSchema, ClassifyResult, ResultSource } from './types
 export const REVIEW_LOG_SCHEMA = 'xray-classification-review/1';
 export const REVIEWER_STORAGE_KEY = 'xray.classify.reviewer.v1';
 export const REVIEW_LOG_PREFIX = 'xray.classify.review.v1.';
+/**
+ * The confidence of a result that a person confirmed or corrected and flagged "Unsure (a guess)". The codes are set, but the result is not
+ * as good as a sure one (confidence 1) and it still needs review, so it comes up again in "Needs review first" and "Only needs review".
+ */
+export const UNSURE_CONFIDENCE = 0.75;
 
 /** The part of a result that a review records: the codes, where they came from and how sure the source was. */
 export interface ReviewState {
@@ -33,6 +38,8 @@ export interface ReviewChange {
   after: ReviewState;
   action: ReviewAction;
   comment?: string;
+  /** Set (true) when the reviewer flagged the change as a guess. Absent means false: older logs and imports have no such field. */
+  unsure?: true;
 }
 
 export interface ReviewCommit {
@@ -58,6 +65,9 @@ export interface ReviewLogDoc {
 }
 
 export const isCommittedSource = (s: ResultSource): boolean => s === 'confirmed' || s === 'corrected';
+
+/** Does a state (the "before" of a change) come from a committed result that was flagged unsure? A sure commit has confidence 1. */
+export const isUnsureState = (s: ReviewState): boolean => isCommittedSource(s.source) && s.confidence < 1;
 
 /** A short hash (two 32-bit FNV-1a passes, 16 hex characters) of the sorted GlobalIds and the schema hash. */
 export function modelFingerprint(globalIds: Iterable<string>, schemaHash: string): string {
@@ -160,7 +170,7 @@ export class ReviewLog {
       modelName: this.info.modelName,
       modelFingerprint: this.info.modelFingerprint,
       schemaEdition: this.info.schemaEdition,
-      changes: o.changes.map((x) => ({ globalId: x.globalId, before: { ...x.before }, after: { ...x.after }, action: x.action, ...(x.comment ? { comment: x.comment } : {}) })),
+      changes: o.changes.map((x) => ({ globalId: x.globalId, before: { ...x.before }, after: { ...x.after }, action: x.action, ...(x.comment ? { comment: x.comment } : {}), ...(x.unsure ? { unsure: true as const } : {}) })),
       ...(o.reverts ? { reverts: o.reverts } : {}),
     };
     if (!this.add(c)) throw new Error(`A commit with the id ${c.id} exists already.`);
@@ -204,7 +214,7 @@ export class ReviewLog {
         skipped.push(ch.globalId);
         continue;
       }
-      changes.push({ globalId: ch.globalId, before: { ...ch.after }, after: { ...ch.before }, action: 'correct', comment: `Reverts ${target.id}` });
+      changes.push({ globalId: ch.globalId, before: { ...ch.after }, after: { ...ch.before }, action: 'correct', comment: `Reverts ${target.id}`, ...(isUnsureState(ch.before) ? { unsure: true as const } : {}) });
     }
     if (changes.length === 0) throw new Error('Every element of that commit was changed again by a later commit, so there is nothing to revert.');
     const commit = this.commit({ author: o.author, note: o.note ?? `Reverts ${target.id}`, changes, reverts: target.id, ...(o.now ? { now: o.now } : {}), ...(o.id ? { id: o.id } : {}) });
@@ -299,7 +309,12 @@ export function parseReviewLog(input: unknown): { doc: ReviewLogDoc | null; erro
       }
       const before = parseState(ch['before'], `${at}: "before"`, errors);
       const after = parseState(ch['after'], `${at}: "after"`, errors);
-      if (before && after) changes.push({ globalId: ch['globalId'], before, after, action: ch['action'], ...(typeof ch['comment'] === 'string' && ch['comment'] ? { comment: ch['comment'] } : {}) });
+      const u = ch['unsure'];
+      if (u !== undefined && u !== null && typeof u !== 'boolean') {
+        errors.push(`${at} has an "unsure" that is not true or false.`);
+        return;
+      }
+      if (before && after) changes.push({ globalId: ch['globalId'], before, after, action: ch['action'], ...(typeof ch['comment'] === 'string' && ch['comment'] ? { comment: ch['comment'] } : {}), ...(u === true ? { unsure: true as const } : {}) });
     });
     commits.push({
       id: c['id'],
@@ -334,14 +349,25 @@ export function committedResult(schema: ClassificationSchema, e: Effective, prio
   const a = e.change.after;
   const base = makeManual(schema, e.change.globalId, { discipline: a.discipline, subDiscipline: a.subDiscipline, masterformat: a.division });
   const src: ResultSource = a.source === 'corrected' ? 'corrected' : 'confirmed';
+  const unsure = e.change.unsure === true;
+  if (unsure) {
+    for (const c of [base.discipline, base.subDiscipline, base.masterformat]) {
+      if (!c) continue;
+      c.confidence = UNSURE_CONFIDENCE;
+      const code = 'division' in c ? c.division : c.code;
+      c.probabilities = { [code]: UNSURE_CONFIDENCE };
+    }
+  }
   return {
     ...base,
     buildingElement: prior?.buildingElement ?? base.buildingElement,
     source: src,
-    rationale: src === 'corrected' ? 'corrected in the review walk' : 'confirmed in the review walk',
+    needsReview: unsure,
+    rationale: `${src === 'corrected' ? 'corrected' : 'confirmed'} in the review walk${unsure ? ' (unsure)' : ''}`,
     confirmedBy: e.commit.author,
     confirmedAt: e.commit.time,
     commitId: e.commit.id,
+    ...(unsure ? { unsure: true } : {}),
   };
 }
 

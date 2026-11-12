@@ -110,7 +110,7 @@ export interface ClassifyApi {
     setReviewer(name: string): void;
     fingerprint(): string;
     pending(): PendingChange[];
-    propose(globalIds: string[], o: { action: 'confirm' | 'correct'; codes?: ManualPartial; item?: string; comment?: string }): PendingChange[];
+    propose(globalIds: string[], o: { action: 'confirm' | 'correct'; codes?: ManualPartial; item?: string; comment?: string; unsure?: boolean }): PendingChange[];
     undoPending(itemOrGlobalId: string): number;
     commit(note?: string): ReviewCommit;
     revert(commitId: string, note?: string): { commit: ReviewCommit; skipped: string[] };
@@ -119,6 +119,8 @@ export interface ClassifyApi {
     importLog(text: string): ImportOutcome;
     disagreements(): string[];
     storage(): { where: string; error: string };
+    /** The GlobalIds skipped in this session (not changes, not in the log). */
+    skipped(): string[];
   };
   /** The API key of a d3 endpoint (its own entry; never in params, links, views or packed pages). */
   setD3Key(key: string, remember?: boolean): void;
@@ -722,10 +724,10 @@ function panel(box: HTMLElement, app: ViewerApp, svc: ClassifyService, tint: Tin
     calMsg.classList.remove('xc-err');
     svc.notify();
     void api.calibrateConfirmed().then(
-      (r) => { calBusy = false; calMsgText = `Done. The temperatures were fitted on ${r.scored} kinds of element that were confirmed or corrected in ${r.source}.`; svc.notify(); },
+      (r) => { calBusy = false; calMsgText = `Done. The temperatures were fitted on ${r.scored} kinds of element that were confirmed or corrected in ${r.source}: ${r.confirmedUsed ?? 0} confirmed used, ${r.unsureLeftOut ?? 0} unsure left out.`; svc.notify(); },
       (e: unknown) => { calBusy = false; calMsgText = e instanceof Error ? e.message : String(e); calMsg.classList.add('xc-err'); svc.notify(); },
     );
-  }, { title: 'Fit one temperature per question on the labels that you committed in the review walk (they count as truth), and show the numbers before and after' });
+  }, { title: 'Fit one temperature per question on the labels that you committed in the review walk (they count as truth), and show the numbers before and after. Changes that you flagged Unsure are guesses and are left out.' });
   const calForget = button('Forget fit', () => { svc.forgetFit(); calMsgText = null; }, { title: 'Delete the fitted temperatures of this model' });
   calSec.append(calMode.root, calManual, calLine, row(calBtn, calConfBtn, calForget), calMsg, calReport);
   box.append(section('Calibration'), calSec);
@@ -739,7 +741,7 @@ function panel(box: HTMLElement, app: ViewerApp, svc: ClassifyService, tint: Tin
     const tempsText = TEMPERATURE_KEYS.filter((k) => st.temperatures[k] !== undefined).map((k) => `${QUESTION_LABEL[k]} ${fmt2(st.temperatures[k]!)}`).join(', ');
     calLine.set(`In use: ${st.label}${tempsText ? `. Temperatures: ${tempsText}` : ''}.${st.note ? `\n${st.note}` : ''}\nA temperature below 1 sharpens the confidence, above 1 flattens it. The choice of the model never changes.`);
     calBtn.setDisabled(calBusy ? 'Fitting is in progress' : svc.running ? 'A run is in progress' : !svc.model ? 'Load a model first' : false);
-    calConfBtn.setDisabled(calBusy ? 'Fitting is in progress' : svc.running ? 'A run is in progress' : !svc.model ? 'Load a model first' : svc.store.committed.size === 0 ? 'Nothing is confirmed yet: commit some confirmations in the review walk first' : false);
+    calConfBtn.setDisabled(calBusy ? 'Fitting is in progress' : svc.running ? 'A run is in progress' : !svc.model ? 'Load a model first' : svc.store.committed.size === 0 ? 'Nothing is confirmed yet: commit some confirmations in the review walk first' : [...svc.store.committed.values()].every((r) => r.unsure === true) ? 'Only unsure changes are committed, and they are left out: confirm some without the Unsure flag first' : false);
     calForget.setDisabled(st.fitted ? false : 'No fit is stored for this model');
     calMsg.set(calMsgText ?? '');
     calMsg.hidden = !calMsgText;
@@ -870,8 +872,8 @@ function panel(box: HTMLElement, app: ViewerApp, svc: ClassifyService, tint: Tin
         cell(fmt2(overallConfidence(r)), r.needsReview ? 'xc-review' : undefined, r.needsReview ? 'Needs review' : ''),
         cell(topTwo(r.discipline.probabilities).map(([k, v]) => `${k} ${fmt2(v)}`).join(' '), 'xc-top2', r.rationale ?? ''),
         svc.review.disagreements().has(r.id)
-          ? cell(`${r.source} !`, 'xc-review', `The model now disagrees: ${svc.review.disagreements().get(r.id)!.discipline.code}${svc.review.disagreements().get(r.id)!.subDiscipline ? `/${svc.review.disagreements().get(r.id)!.subDiscipline!.code}` : ''}`)
-          : cell(r.source, undefined, r.confirmedBy ? `${r.source} by ${r.confirmedBy}, ${r.confirmedAt ?? ''}` : r.model ? `Model: ${r.model}` : r.rationale ?? ''),
+          ? cell(`${r.source}${r.unsure ? ' ?' : ''} !`, 'xc-review', `${r.unsure ? 'Flagged unsure (a guess). ' : ''}The model now disagrees: ${svc.review.disagreements().get(r.id)!.discipline.code}${svc.review.disagreements().get(r.id)!.subDiscipline ? `/${svc.review.disagreements().get(r.id)!.subDiscipline!.code}` : ''}`)
+          : cell(`${r.source}${r.unsure ? ' ?' : ''}`, undefined, r.confirmedBy ? `${r.source}${r.unsure ? ' (unsure, a guess)' : ''} by ${r.confirmedBy}, ${r.confirmedAt ?? ''}` : r.model ? `Model: ${r.model}` : r.rationale ?? ''),
       );
       const tdEdit = el('td');
       const eb = el('button', 'xc-edit', { type: 'button', 'aria-label': `Edit ${rec?.name || r.id}`, title: 'Set the codes by hand' }, '✎');
@@ -1245,7 +1247,7 @@ export const classifyPlugin: AppPlugin = {
         setReviewer: (n) => service.review.setReviewer(n),
         fingerprint: () => service.review.fingerprint(),
         pending: () => service.review.pending(),
-        propose: (ids, o) => service.review.propose(ids, { action: o.action, item: o.item ?? 'api', ...(o.codes ? { codes: o.codes } : {}), ...(o.comment ? { comment: o.comment } : {}) }),
+        propose: (ids, o) => service.review.propose(ids, { action: o.action, item: o.item ?? 'api', ...(o.codes ? { codes: o.codes } : {}), ...(o.comment ? { comment: o.comment } : {}), ...(o.unsure ? { unsure: true } : {}) }),
         undoPending: (k) => service.review.undoPending(k),
         commit: (note) => service.review.commit(note),
         revert: (id, note) => service.review.revert(id, note),
@@ -1254,6 +1256,7 @@ export const classifyPlugin: AppPlugin = {
         importLog: (t) => service.review.importLog(t),
         disagreements: () => [...service.review.disagreements().keys()],
         storage: () => ({ where: service.review.storage.where, error: service.review.storage.error }),
+        skipped: () => service.review.skips.ids(),
       },
       setD3Key: (key, remember) => service.d3Key.set(key, remember === true),
       d3KeyState: () => ({ set: !!service.d3Key.get(), remembered: service.d3Key.remembered(), mask: service.d3Key.mask() }),

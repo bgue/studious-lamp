@@ -45,6 +45,14 @@ repeated clicks do not drift. A pointer down or wheel on the canvas cancels a ru
 Roll and turn are also palette actions without default keys: `gizmo.rollCw`, `gizmo.rollCcw`, `gizmo.turnLeft`,
 `gizmo.turnRight`.
 
+## Pointer mode and history row
+
+Under the cube is a row with the Arrow / Hand toggle (a two-button segmented control, `aria-pressed`, keys `r` / `g`, see
+[pointer-modes.md](pointer-modes.md)) and the Undo and Redo buttons (see [undo.md](undo.md)). The row is visible in the full
+layout and in the "nav" fit layout (the section strip dropped), and beside the cube button when the gizmo is collapsed, which is
+how it shows on a phone; with only the cube button left (`fit-button`) or nothing (`fit-none`) it goes with the rest. The
+toggle is not in the gizmo params section.
+
 ## Section strip
 
 | Button | Action |
@@ -84,7 +92,7 @@ share URL).
 
 ## Scripting
 
-`window.__xrayGizmo = { state, setVisible(v), setCollapsed(v), lookFrom([sx, sy, sz]), roll(±1), turn(±1), home(), isMoving(), handles }`;
+`window.__xrayPointer` and `window.__xrayUndo` have their own pages. `window.__xrayGizmo = { state, setVisible(v), setCollapsed(v), lookFrom([sx, sy, sz]), roll(±1), turn(±1), home(), isMoving(), handles }`;
 `handles.positions()` gives the stage coordinates of the plane handles.
 
 ## Files and tests

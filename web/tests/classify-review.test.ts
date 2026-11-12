@@ -2,7 +2,7 @@
 // reviewer's name. No browser: the service runs with the rules only on the sidecar of a shipped model.
 
 import { describe, expect, it } from 'vitest';
-import { ClassifyService, ReviewLog, buildWalk, chainOrder, createReviewPersistence, modelFingerprint, parseReviewLog, runnerUp, sweepOrder, walkElementsOf, walkProgress } from '../src/classify';
+import { ClassifyService, ReviewLog, SkipList, UNSURE_CONFIDENCE, buildWalk, chainOrder, createReviewPersistence, modelFingerprint, parseReviewLog, runnerUp, sweepOrder, walkElementsOf, walkProgress } from '../src/classify';
 import type { KeyValueStorage, ReviewCommit, ReviewPersistence, WalkElement, WalkOrder } from '../src/classify';
 import { confirmedTruths } from '../src/classify/calibrateRules';
 import { makeManual, ResultStore } from '../src/classify/results';
@@ -10,6 +10,8 @@ import { defaultSchema, schemaHash } from '../src/classify/schema';
 import { MemoryStorage } from '../src/selectionSets';
 import type { ClassifyResult } from '../src/classify/types';
 import { sidecarModel } from './classify-helpers';
+
+import { overallConfidence as overallOf } from '../src/classify/review';
 
 const kv = (m: MemoryStorage): KeyValueStorage => m as unknown as KeyValueStorage;
 
@@ -370,10 +372,10 @@ describe('committed results', () => {
     expect(json.results.find((r) => r.id === other)!.confirmedBy).toBeUndefined();
     const lines = svc.export('csv').trim().split(/\r\n/);
     const head = lines[0]!.split(',');
-    expect(head.slice(-3)).toEqual(['ConfirmedBy', 'ConfirmedAt', 'CommitId']);
+    expect(head.slice(-4)).toEqual(['ConfirmedBy', 'ConfirmedAt', 'CommitId', 'Unsure']);
     const row = lines.find((l) => l.startsWith(door))!;
     expect(row).toContain(',confirmed,');
-    expect(row.endsWith(`Rita Reviewer,${c.time},${c.id}`)).toBe(true);
+    expect(row.endsWith(`Rita Reviewer,${c.time},${c.id},false`)).toBe(true);
     const tl = JSON.parse(svc.export('throughline')) as { elements: Array<{ global_id: string; attributes: Record<string, unknown> }> };
     expect(tl.elements.find((e) => e.global_id === door)!.attributes).toMatchObject({ source: 'confirmed', confirmed_by: 'Rita Reviewer', confirmed_at: c.time, commit_id: c.id });
     expect(Object.keys(tl.elements.find((e) => e.global_id === other)!.attributes)).not.toContain('confirmed_by');
@@ -430,5 +432,211 @@ describe('the result store', () => {
     expect(store.get('a')!.needsReview).toBe(false);
     store.setCommitted(new Map());
     expect(store.get('a')).toMatchObject({ source: 'rules', discipline: { code: 'PLB' } }); // the latest computed result is back
+  });
+});
+
+describe('the unsure flag', () => {
+  async function setup() {
+    const ctx = make({ model: 'fzk-haus' });
+    await ctx.svc.review.ready;
+    await ctx.svc.classify('all');
+    ctx.svc.review.setReviewer('Rita Reviewer');
+    const ids = (cls: string, n = 1): string[] => ctx.model.elements.filter((e) => e.ifcClass === cls).slice(0, n).map((e) => e.globalId);
+    return { ...ctx, ids };
+  }
+  const toMap = (gids: string[], svc: ClassifyService): Map<string, ClassifyResult> => new Map(gids.map((g) => [g, svc.store.get(g)!]));
+
+  it('is off by default and applies only where it is set', async () => {
+    const { svc, ids } = await setup();
+    const [a, b] = [ids('IfcDoor')[0]!, ids('IfcWallStandardCase')[0]!];
+    svc.review.propose([a], { action: 'confirm', item: 'a', unsure: true });
+    svc.review.propose([b], { action: 'confirm', item: 'b' });
+    expect(svc.review.pendingFor(a)).toMatchObject({ unsure: true, after: { source: 'confirmed', confidence: UNSURE_CONFIDENCE } });
+    expect(svc.review.pendingFor(b)!.unsure).toBeUndefined();
+    expect(svc.review.pendingFor(b)!.after.confidence).toBe(1);
+  });
+
+  it('round-trips through commit, JSON, CSV, Throughline, export and import, with the confidence below 1 and needsReview true', async () => {
+    const a = await setup();
+    const door = a.ids('IfcDoor')[0]!;
+    const wall = a.ids('IfcWallStandardCase')[0]!;
+    const sure = a.ids('IfcWindow')[0]!;
+    a.svc.review.propose([door], { action: 'confirm', item: 'd', unsure: true });
+    a.svc.review.propose([wall], { action: 'correct', codes: { discipline: 'STR', subDiscipline: 'BRC', masterformat: '05' }, item: 'w', unsure: true });
+    a.svc.review.propose([sure], { action: 'confirm', item: 's' });
+    const c = a.svc.review.commit('guesses');
+    expect(c.changes.find((x) => x.globalId === door)).toMatchObject({ unsure: true, action: 'confirm' });
+    expect(c.changes.find((x) => x.globalId === wall)).toMatchObject({ unsure: true, action: 'correct' });
+    expect('unsure' in c.changes.find((x) => x.globalId === sure)!).toBe(false); // absent means false
+    for (const g of [door, wall]) {
+      const r = a.svc.store.get(g)!;
+      expect(r.unsure).toBe(true);
+      expect(['confirmed', 'corrected']).toContain(r.source);
+      expect(overallOf(r)).toBe(UNSURE_CONFIDENCE);
+      expect(r.needsReview).toBe(true);
+    }
+    expect(a.svc.store.get(wall)).toMatchObject({ source: 'corrected', discipline: { code: 'STR' }, subDiscipline: { code: 'BRC' }, masterformat: { division: '05' } });
+    expect(a.svc.store.get(sure)).toMatchObject({ source: 'confirmed', needsReview: false });
+    expect(a.svc.store.get(sure)!.unsure).toBeUndefined();
+    // exports
+    const json = JSON.parse(a.svc.export('json')) as { results: ClassifyResult[] };
+    expect(json.results.find((r) => r.id === door)!.unsure).toBe(true);
+    const lines = a.svc.export('csv').trim().split(/\r\n/);
+    expect(lines.find((l) => l.startsWith(door))!.endsWith(',true')).toBe(true);
+    expect(lines.find((l) => l.startsWith(sure))!.endsWith(',false')).toBe(true);
+    const other = lines.find((l) => !l.startsWith('GlobalId') && l.includes(',rules,'))!;
+    expect(other.endsWith(',false')).toBe(true);
+    const tl = JSON.parse(a.svc.export('throughline')) as { elements: Array<{ global_id: string; attributes: Record<string, unknown> }> };
+    expect(tl.elements.find((e) => e.global_id === door)!.attributes).toMatchObject({ unsure: true, needs_review: true });
+    expect(tl.elements.find((e) => e.global_id === sure)!.attributes['unsure']).toBe(false);
+    const uncommitted = tl.elements.find((e) => !e.attributes['confirmed_by'])!;
+    expect(Object.keys(uncommitted.attributes)).not.toContain('unsure'); // only committed elements carry it
+    // the log file and an import on another page
+    const text = a.svc.review.exportLog();
+    const doc = JSON.parse(text) as { schema: string; commits: Array<{ changes: Array<{ globalId: string; unsure?: boolean }> }> };
+    expect(doc.schema).toBe('xray-classification-review/1');
+    expect(doc.commits[0]!.changes.filter((x) => x.unsure === true).map((x) => x.globalId).sort()).toEqual([door, wall].sort());
+    const b = make({ model: 'fzk-haus' });
+    await b.svc.review.ready;
+    await b.svc.classify('all');
+    expect(b.svc.review.importLog(text)).toMatchObject({ ok: true });
+    expect(b.svc.store.get(door)).toMatchObject({ unsure: true, needsReview: true, source: 'confirmed' });
+    expect(overallOf(b.svc.store.get(wall)!)).toBe(UNSURE_CONFIDENCE);
+    expect(b.svc.store.get(sure)!.unsure).toBeUndefined();
+  });
+
+  it('reads an old log without the field as sure, and checks the field when it is there', async () => {
+    const a = await setup();
+    const door = a.ids('IfcDoor')[0]!;
+    a.svc.review.propose([door], { action: 'confirm', item: 'd' });
+    a.svc.review.commit();
+    const old = JSON.parse(a.svc.review.exportLog()) as { commits: Array<{ changes: Array<Record<string, unknown>> }> };
+    expect(old.commits[0]!.changes.every((x) => !('unsure' in x))).toBe(true);
+    const p = parseReviewLog(old);
+    expect(p.errors).toEqual([]);
+    expect(p.doc!.commits[0]!.changes[0]!.unsure).toBeUndefined();
+    const b = make({ model: 'fzk-haus' });
+    await b.svc.review.ready;
+    await b.svc.classify('all');
+    expect(b.svc.review.importLog(JSON.stringify(old)).ok).toBe(true);
+    expect(b.svc.store.get(door)).toMatchObject({ source: 'confirmed', needsReview: false });
+    expect(b.svc.store.get(door)!.unsure).toBeUndefined();
+    expect(overallOf(b.svc.store.get(door)!)).toBe(1);
+    // the validator: true is kept, false is dropped, anything else is refused
+    const withFlag = (u: unknown): ReturnType<typeof parseReviewLog> => { const d = JSON.parse(JSON.stringify(old)) as typeof old; d.commits[0]!.changes[0]!['unsure'] = u; return parseReviewLog(d); };
+    expect(withFlag(true).doc!.commits[0]!.changes[0]!.unsure).toBe(true);
+    expect(withFlag(false).doc!.commits[0]!.changes[0]!.unsure).toBeUndefined();
+    const bad = withFlag('yes');
+    expect(bad.doc).toBeNull();
+    expect(bad.errors.join(' ')).toMatch(/unsure/);
+  });
+
+  it('keeps unsure results in the review filters: Only needs review, Only unsure, and not settled for Only unconfirmed', async () => {
+    const { svc, model, ids } = await setup();
+    const door = ids('IfcDoor')[0]!;
+    const sure = ids('IfcWindow')[0]!;
+    svc.review.propose([door], { action: 'confirm', item: 'd', unsure: true });
+    svc.review.propose([sure], { action: 'confirm', item: 's' });
+    svc.review.commit();
+    const input = { elements: walkElementsOf(model), resultOf: (g: string) => svc.store.get(g), isCommitted: (g: string) => { const c = svc.store.committed.get(g); return !!c && c.unsure !== true; }, disciplineOrder: svc.schema.disciplines.map((d) => d.code), order: 'location' as const };
+    const gids = (f: object): string[] => buildWalk({ ...input, filters: f }).flatMap((i) => i.elements.map((e) => e.globalId));
+    expect(gids({ needsReview: true })).toContain(door);
+    expect(gids({ needsReview: true })).not.toContain(sure);
+    expect(gids({ unsure: true })).toEqual([door]);
+    expect(gids({ unconfirmed: true })).toContain(door);
+    expect(gids({ unconfirmed: true })).not.toContain(sure);
+    const rev = buildWalk({ ...input, order: 'review' });
+    expect(rev.findIndex((i) => i.elements.some((e) => e.globalId === door))).toBeLessThan(rev.findIndex((i) => i.elements.some((e) => e.globalId === sure)));
+  });
+
+  it('is left out of the calibration labels, and a count says how many', async () => {
+    const { svc, ids } = await setup();
+    const walls = ids('IfcWallStandardCase', 3);
+    const door = ids('IfcDoor')[0]!;
+    svc.review.propose([walls[0]!, walls[1]!], { action: 'correct', codes: { discipline: 'STR' }, item: 'w' });
+    svc.review.propose([walls[2]!, door], { action: 'correct', codes: { discipline: 'MEC' }, item: 'x', unsure: true });
+    svc.review.commit();
+    const all = toMap([...walls, door], svc);
+    const truths = confirmedTruths(svc.inputsFor([...walls, door]), all);
+    expect(truths.length).toBeGreaterThan(0);
+    expect(truths.every((t) => t.discipline === 'STR')).toBe(true); // the unsure MEC guesses do not vote
+    const onlyUnsure = confirmedTruths(svc.inputsFor([walls[2]!, door]), toMap([walls[2]!, door], svc));
+    expect(onlyUnsure).toEqual([]);
+    expect([...svc.store.committed.values()].filter((r) => r.unsure === true)).toHaveLength(2);
+  });
+
+  it('is superseded by a later sure confirmation of the same element, and the latest change always wins', async () => {
+    const { svc, ids } = await setup();
+    const door = ids('IfcDoor')[0]!;
+    svc.review.propose([door], { action: 'confirm', item: 'd', unsure: true });
+    const c1 = svc.review.commit();
+    expect(svc.store.get(door)).toMatchObject({ unsure: true, needsReview: true });
+    // the same codes again, now sure: not left out as "already committed"
+    expect(svc.review.propose([door], { action: 'confirm', item: 'd2' })).toHaveLength(1);
+    const c2 = svc.review.commit();
+    expect(svc.store.get(door)!.unsure).toBeUndefined();
+    expect(svc.store.get(door)).toMatchObject({ source: 'confirmed', needsReview: false, commitId: c2.id });
+    expect(overallOf(svc.store.get(door)!)).toBe(1);
+    // reverting the sure commit puts the unsure state of c1 back
+    svc.review.revert(c2.id);
+    expect(svc.store.get(door)).toMatchObject({ unsure: true, needsReview: true });
+    expect(svc.review.log!.committedState(door)!.confidence).toBe(UNSURE_CONFIDENCE);
+    // sure again; the same sure confirmation is left out, an unsure flag on a sure one is recorded and can be reverted
+    svc.review.propose([door], { action: 'confirm', item: 'd3' });
+    svc.review.commit();
+    expect(svc.store.get(door)!.unsure).toBeUndefined();
+    expect(svc.review.propose([door], { action: 'confirm', item: 'd4' })).toHaveLength(0);
+    expect(svc.review.propose([door], { action: 'confirm', item: 'd5', unsure: true })).toHaveLength(1);
+    const c5 = svc.review.commit();
+    expect(svc.store.get(door)).toMatchObject({ unsure: true, needsReview: true });
+    svc.review.revert(c5.id);
+    expect(svc.store.get(door)!.unsure).toBeUndefined();
+    expect(c1.changes[0]!.unsure).toBe(true);
+  });
+});
+
+describe('skipping', () => {
+  it('keeps a session list that is not a change: nothing pending, nothing in the log', async () => {
+    const ctx = make({ model: 'fzk-haus' });
+    await ctx.svc.review.ready;
+    await ctx.svc.classify('all');
+    ctx.svc.review.setReviewer('RR');
+    const [a, b, c] = ctx.model.elements.slice(0, 3).map((e) => e.globalId) as [string, string, string];
+    const skips = ctx.svc.review.skips;
+    expect(skips.add([a, b])).toBe(2);
+    expect(skips.add([b, c])).toBe(1); // b was on the list
+    expect(skips.size).toBe(3);
+    expect(ctx.svc.review.pending()).toHaveLength(0);
+    expect(ctx.svc.review.history()).toHaveLength(0);
+    expect(() => ctx.svc.review.commit()).toThrow(/no pending/); // a skip is nothing to commit
+    // a decision settles the skip
+    ctx.svc.review.propose([a], { action: 'confirm', item: 'i' });
+    expect(skips.has(a)).toBe(false);
+    expect(skips.ids().sort()).toEqual([b, c].sort());
+    ctx.svc.review.commit();
+    expect(ctx.svc.review.history()[0]!.changes.map((x) => x.globalId)).toEqual([a]);
+    expect(JSON.stringify(ctx.svc.review.exportLog())).not.toContain(b); // skipped elements are in no log
+    // a new model or schema starts an empty list
+    ctx.svc.review.reload();
+    expect(skips.size).toBe(0);
+  });
+
+  it('revisits only the skipped elements, as groups of the same type', () => {
+    const el = (id: string, sig: string): WalkElement => ({ id: Number(id.slice(1)), globalId: id, ifcClass: 'IfcWall', name: id, tag: '', storey: 0, storeyName: 'L0', elevation: 0, system: '', signature: sig, bounds: [Number(id.slice(1)), 0, 0, Number(id.slice(1)) + 1, 1, 1] });
+    const els = [el('w0', 'A'), el('w1', 'A'), el('w2', 'A'), el('w3', 'B')];
+    const skips = new SkipList();
+    skips.add(['w1', 'w3']);
+    const base = { elements: els, resultOf: (g: string) => result(g, 'ARC'), isCommitted: () => false, disciplineOrder: ['ARC'], order: 'type' as const, skipped: skips };
+    const all = buildWalk(base);
+    expect(all.map((i) => i.elements.length).sort()).toEqual([1, 3]);
+    const only = buildWalk({ ...base, filters: { onlySkipped: true } });
+    expect(only.flatMap((i) => i.elements.map((e) => e.globalId)).sort()).toEqual(['w1', 'w3']);
+    expect(only.map((i) => i.elements.length).sort()).toEqual([1, 1]); // w1 alone: the group is the skipped part of the type
+    skips.remove(['w1', 'w3']);
+    expect(buildWalk({ ...base, filters: { onlySkipped: true } })).toEqual([]);
+    skips.add(['w0', 'w1', 'w2']);
+    expect(buildWalk({ ...base, filters: { onlySkipped: true } }).map((i) => i.elements.length)).toEqual([3]); // the whole group
+    skips.clear();
+    expect(skips.size).toBe(0);
   });
 });

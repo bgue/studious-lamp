@@ -171,7 +171,7 @@ const top2Text = (p: Record<string, number>): string => topTwo(p).map(([k, v]) =
 
 export const CSV_HEADER = [
   'GlobalId', 'Discipline', 'DisciplineLabel', 'DisciplineConfidence', 'DisciplineTop2', 'SubDiscipline', 'SubDisciplineConfidence',
-  'MasterFormatDivision', 'MasterFormatTitle', 'MasterFormatConfidence', 'BuildingElement', 'Confidence', 'Source', 'Model', 'NeedsReview', 'Rationale', 'ConfirmedBy', 'ConfirmedAt', 'CommitId',
+  'MasterFormatDivision', 'MasterFormatTitle', 'MasterFormatConfidence', 'BuildingElement', 'Confidence', 'Source', 'Model', 'NeedsReview', 'Rationale', 'ConfirmedBy', 'ConfirmedAt', 'CommitId', 'Unsure',
 ] as const;
 
 export function toCsvRows(results: readonly ClassifyResult[]): Array<Array<string | number | boolean>> {
@@ -179,7 +179,7 @@ export function toCsvRows(results: readonly ClassifyResult[]): Array<Array<strin
     r.id, r.discipline.code, r.discipline.label, fmt(r.discipline.confidence), top2Text(r.discipline.probabilities),
     r.subDiscipline?.code ?? '', r.subDiscipline ? fmt(r.subDiscipline.confidence) : '',
     r.masterformat?.division ?? '', r.masterformat?.title ?? '', r.masterformat ? fmt(r.masterformat.confidence) : '',
-    fmt(r.buildingElement), fmt(overallConfidence(r)), r.source, r.model ?? '', r.needsReview, r.rationale ?? '', r.confirmedBy ?? '', r.confirmedAt ?? '', r.commitId ?? '',
+    fmt(r.buildingElement), fmt(overallConfidence(r)), r.source, r.model ?? '', r.needsReview, r.rationale ?? '', r.confirmedBy ?? '', r.confirmedAt ?? '', r.commitId ?? '', r.unsure === true,
   ]);
 }
 
