@@ -62,22 +62,49 @@ QUALITY = {
     "quality.punch.reopen": "controller",
     "quality.punch.void": "controller",
 }
+#: The twelve words of the requisitions module (P2-I4A S1): approval is one word, no chain.
+REQUISITIONS = {
+    "requisitions.view": "read",
+    "requisitions.raise": "user",
+    "requisitions.edit": "user",
+    "requisitions.cancel": "user",
+    "requisitions.approve": "controller",
+    "requisitions.reject": "controller",
+    "requisitions.schedule": "controller",
+    "requisitions.assign": "controller",
+    "requisitions.start": "user",
+    "requisitions.complete": "user",
+    "requisitions.close": "controller",
+    "requisitions.fulfil": "user",
+}
 GOOD = "version: 1\nwords:\n  awp.view: read\n  awp.cwp.edit: user\n"
 
 
-def test_the_shipped_table_loads_35_words() -> None:
+def test_the_shipped_table_loads_47_words() -> None:
     words = load_access_words()
     assert (
         len(words)
-        == 35
-        == len(AWP) + len(AWP_IWP) + len(CORE_CONSTRAINT) + len(MATERIALS) + len(QUALITY)
+        == 47
+        == len(AWP)
+        + len(AWP_IWP)
+        + len(CORE_CONSTRAINT)
+        + len(MATERIALS)
+        + len(QUALITY)
+        + len(REQUISITIONS)
     )
     assert "awp.constraint.edit" not in words
 
 
 def test_every_word_of_the_two_module_specs_is_present_with_its_table_word() -> None:
     words = load_access_words()
-    for word, table in {**AWP, **AWP_IWP, **CORE_CONSTRAINT, **MATERIALS, **QUALITY}.items():
+    for word, table in {
+        **AWP,
+        **AWP_IWP,
+        **CORE_CONSTRAINT,
+        **MATERIALS,
+        **QUALITY,
+        **REQUISITIONS,
+    }.items():
         assert words.get(word) == table, word
 
 

@@ -1,0 +1,75 @@
+id: https://example.org/throughline/modules/requisitions/work_order
+name: tl_mod_requisitions_work_order
+title: Work orders (brief 9, M9)
+description: >-
+  A `WorkOrder` is opened when a requisition is approved and carries the doing of it: scheduled, assigned,
+  started, completed, closed. It has its own stream and its own life (`requisitions-work-order` workflow);
+  the requisition follows it after approval. Spec: docs/tickets/P2-I4A/S1-schema-and-module.md.
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+  - ../../core/annotations
+  - ../../core/record
+default_range: string
+annotations:
+  tl:module: requisitions
+
+classes:
+  WorkOrder:
+    title: Work order
+    description: >-
+      One work order. Record type `requisitions.WorkOrder`; its key is allocated (`P123-WO-0001`, gap-free).
+      Hours are text with one decimal, dates `YYYY-MM-DD`. Offline class `none`: a work order is opened by the
+      server when a requisition is approved. The workflow state is the envelope `status`.
+    annotations:
+      tl:current_state: true
+      tl:record_types: "requisitions.WorkOrder"
+      tl:offline: none
+      tl:ix_requisition: "requisition_id"
+      tl:ix_scope_assignee: "scope, assigned_to"
+    attributes:
+      id:
+        identifier: true
+        range: Ulid
+        required: true
+        description: "Record id; equals the ledger stream id and the `cur_core_record` id."
+      scope:
+        range: ScopeId
+        required: true
+        description: "The project scope, `project:<id>`."
+      requisition_id:
+        range: Ulid
+        required: true
+        description: "The requisition this work order carries out."
+      work_kind:
+        pattern: "^(erect|modify|dismantle|lift|general|labour|issue)$"
+        required: true
+        description: "erect, modify, dismantle, lift, general, labour or issue."
+      assigned_to:
+        pattern: "^.{1,120}$"
+        description: "An actor or free text, at most 120 characters; null until assigned."
+      planned_start:
+        pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+        description: "Planned start, `YYYY-MM-DD`; a plan, not valid time."
+      planned_finish:
+        pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+        description: "Planned finish, `YYYY-MM-DD`; not before the start."
+      actual_start:
+        pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+        description: "Day work started, `YYYY-MM-DD`; null until started."
+      actual_finish:
+        pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+        description: "Day work finished, `YYYY-MM-DD`; null until completed."
+      hours_planned:
+        pattern: "^((0|[1-9][0-9]{0,6})\\.[0-9]|10000000\\.0)$"
+        description: 'Planned hours, text with one decimal from "0.0" to "10000000.0"; null until set.'
+      hours_actual:
+        pattern: "^((0|[1-9][0-9]{0,6})\\.[0-9]|10000000\\.0)$"
+        description: 'Actual hours, text with one decimal from "0.0" to "10000000.0"; null until completed.'
+      last_seq:
+        range: integer
+        required: true
+        description: "Ledger `seq` of the last event applied to this row."

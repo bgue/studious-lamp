@@ -43,6 +43,7 @@ def test_company_scope_keeps_every_company_pset(build_docs: Build) -> None:
     schema = compose(company, "company")
     assert list(schema.psets) == [
         "correspondence_data",
+        "crane_lift",
         "document_data",
         "provenance",
         "rfi_data",

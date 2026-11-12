@@ -18,7 +18,7 @@ const WT = A.wtRoot
 function gateCmd(t) {
   if (A.gate) return A.gate
   const recipe = t.pg ? 'just gate-pg' : 'just gate'
-  return `just check && ${recipe} ${(t.tests || []).join(' ')} | tee .gate/summary.txt`
+  return `NODE_OPTIONS=--max-old-space-size=6144 just check && ${recipe} ${(t.tests || []).join(' ')} | tee .gate/summary.txt`
 }
 
 const IMPL_SCHEMA = {

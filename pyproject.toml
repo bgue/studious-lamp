@@ -49,6 +49,7 @@ tl-mod-legacy = { workspace = true }
 tl-mod-materials = { workspace = true }
 tl-mod-quality = { workspace = true }
 tl-mod-awp = { workspace = true }
+tl-mod-requisitions = { workspace = true }
 
 [tool.ruff]
 line-length = 100

@@ -14,6 +14,12 @@ from typing import Any, Literal, Protocol
 from pydantic import BaseModel
 from tl_api.routes.awp import CwpDetailView, ReadinessBody
 from tl_api.routes.constraints import ConstraintGroups, ConstraintList, ConstraintRow
+from tl_api.routes.requisitions import (
+    RequisitionDetailBody,
+    RequisitionList,
+    WorkOrderDetailBody,
+    WorkOrderList,
+)
 from tl_core.actions import RecordActions
 from tl_core.addable import AddableProperties
 from tl_core.auth.module_grants import ModuleRoleResult
@@ -1148,6 +1154,44 @@ class ClientInterface(Protocol):
 
     def get_constraint(self, project: str, key: str) -> ConstraintRow:
         """One constraint by key, with the key and type of its subject."""
+        ...
+
+    # --- the requisition and work order reads (P2-I4A T04c2) ----------------------------------
+    #
+    # The same names and signatures as ``tl_api.client.ApiClient``. A missing or hidden requisition
+    # or work order raises the service's ``RecordNotFoundError`` with one text. A refusal of the
+    # ``requisitions.view`` word is core's ``ForbiddenError``.
+
+    def list_requisitions(
+        self,
+        project: str,
+        *,
+        kind: Literal["labor", "material", "general", "scaffold"] | None = None,
+        state: str | None = None,
+        requester: str | None = None,
+        for_key: str | None = None,
+        limit: int = 200,
+    ) -> RequisitionList:
+        """The requisitions a viewer may read, by key; ``for_key`` is the IWP or CWP they serve."""
+        ...
+
+    def get_requisition(self, project: str, key: str) -> RequisitionDetailBody:
+        """One requisition with its kind fields and its work order (or None)."""
+        ...
+
+    def list_work_orders(
+        self,
+        project: str,
+        *,
+        state: str | None = None,
+        assigned_to: str | None = None,
+        limit: int = 200,
+    ) -> WorkOrderList:
+        """The work orders a viewer may read, by key."""
+        ...
+
+    def get_work_order(self, project: str, key: str) -> WorkOrderDetailBody:
+        """One work order with the key of its requisition."""
         ...
 
     # --- the schema workbench (P1-I8; brief 27.8) ----------------------------------------------

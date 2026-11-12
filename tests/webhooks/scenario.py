@@ -263,6 +263,29 @@ MODULE_STREAMS = (
     ("materials.StockLot", "StockLot.Defined", ("StockLot.Moved",)),
     ("materials.MTO", "MTO.Defined", ()),
     ("materials.MTOLine", "MTOLine.Defined", ("MTOLine.Assigned",)),
+    # requisitions (P2-I4A): the labour kind stands for the four kinds, which share the events
+    (
+        "requisitions.LaborRequisition",
+        "Requisition.Raised",
+        (
+            "Requisition.Revised",
+            "Requisition.Approved",
+            "Requisition.Rejected",
+            "Requisition.Cancelled",
+            "Requisition.Fulfilled",
+        ),
+    ),
+    (
+        "requisitions.WorkOrder",
+        "WorkOrder.Opened",
+        (
+            "WorkOrder.Scheduled",
+            "WorkOrder.Assigned",
+            "WorkOrder.Started",
+            "WorkOrder.Completed",
+            "WorkOrder.Closed",
+        ),
+    ),
 )
 
 
