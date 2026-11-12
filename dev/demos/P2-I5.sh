@@ -282,7 +282,8 @@ run_backend() {
   out="$(as ada tl constraint clear "$check_key" --project "$PROJECT" --reason "stale pin accepted for the demo")"; echo "$out"
   expect "clear $check_key" "$out"
   out="$(as alice tl awp iwp show "$IWP" --project "$PROJECT")"; echo "$out"
-  expect "waived" "$out"
+  expect "waived constraints 1" "$out"
+  expect "waived by user:ada: stale pin accepted for the demo" "$out"
   out="$(as dora tl doc stale --project "$PROJECT")"; echo "$out"
   link="$(awk '$3 == "ISO-1234" {print $NF; exit}' <<<"$out")"
   [ -n "$link" ] && as alice tl doc repin "$link" --project "$PROJECT" --apply >/dev/null
