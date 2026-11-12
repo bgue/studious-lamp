@@ -31,7 +31,8 @@ def test_every_command_is_a_proposable_row_or_an_exclusion() -> None:
     excluded = set(tomllib.loads(EXCLUSIONS.read_text())["commands"])
     rows = {p.model.__name__ for p in PROPOSABLE}
     assert rows == {"RaiseRequisition"} and [p.tool for p in PROPOSABLE] == ["propose_requisition"]
-    assert rows | excluded >= set(ACCESS) and not rows & excluded
+    mine = {n for n in excluded if n in ACCESS}
+    assert rows | mine == set(ACCESS) and not rows & mine
     assert all(reason for reason in tomllib.loads(EXCLUSIONS.read_text())["commands"].values())
 
 
