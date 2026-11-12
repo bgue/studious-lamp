@@ -2,12 +2,15 @@
 
 One run of ``main`` builds P200 in a temporary ledger (the generator, in this process), drives the
 TUI over it and writes the screenshots. The tour changes the process's environment and working
-directory, so the test puts both back afterwards. ``seed_demo_project`` must stay the only place
-the tour seeds the ledger: no ``tl init --dev`` (the demo account) anywhere in the module text.
+directory and freezes the clock and the ULID source of ``tl_core`` (and the "today" of two modules)
+for the rest of the process, so the test puts all of them back afterwards. ``seed_demo_project``
+must stay the only place the tour seeds the ledger: no ``tl init --dev`` (the demo account)
+anywhere in the module text.
 """
 
 from __future__ import annotations
 
+import importlib
 import importlib.util
 import os
 import sys
@@ -31,14 +34,33 @@ def _load_tour() -> ModuleType:
     return module
 
 
+#: The module attributes the tour replaces (``dev/tour/tourkit.py``).
+_PATCHED = (
+    ("tl_core.util", "datetime"),
+    ("tl_core.util", "ULID"),
+    ("tl_core.webhooks.base", "datetime"),
+    ("tl_lake.sync", "datetime"),
+    ("tl_lake.query", "datetime"),
+    ("tl_tui.widgets.domain_screen", "date"),
+    ("tl_core.archive.signing", "generate_signer"),
+)
+
+
 @pytest.fixture
 def restored_process() -> Iterator[None]:
-    """Put the environment and the working directory back as the tour found them."""
+    """Put the environment, the working directory and the patched module names back as the tour
+    found them (a frozen clock put every later ledger event on the tour's day)."""
     saved_env = dict(os.environ)
     saved_cwd = Path.cwd()
+    saved_names = [
+        (module, name, getattr(module, name))
+        for module, name in ((importlib.import_module(m), n) for m, n in _PATCHED)
+    ]
     try:
         yield
     finally:
+        for module, name, value in saved_names:
+            setattr(module, name, value)
         os.environ.clear()
         os.environ.update(saved_env)
         os.chdir(saved_cwd)
