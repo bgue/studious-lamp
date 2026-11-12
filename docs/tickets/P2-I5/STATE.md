@@ -26,7 +26,7 @@ T12a p mrg f 4cbd11c four demo gaps; tl-api dir gate left to DONE (OOM)
 T12b t mrg f fc1ec38 demo green sq+pg; F1 clause-3 check tightened
 T13 t mrg l 38a3d46 docs; 2s on wording, fixed at merge
 S7 p mrg f ab37724 SR3 F1-F3 + WeeklyPlan scanned (APPROVALS); review fixes
-S8 p disp f - trunk merge (27 conflicts) + registries
+S8 p mrg f a73c531 trunk merged (27 conflicts), registries; review fix scoped equality
 T17 t mrg f da16eec tour 09-18 + pack; 3 rounds (needles, earned, plain close time)
 T15 t todo f - registrations only if glue > 50 lines
 S5 S6 T05 T07c T08 T10 abn - roadmap 3c, or replaced (T16)
@@ -43,7 +43,7 @@ D32 2026-11-09 r5 waves R-A..R-I in README; one workflow of 2-3 tickets with dis
 F1 MD fixed@ab37724 pack --attach built at session clearance, stored under IWP class -> S7
 F2 LO fixed@ab37724 TUI sign-off/issue hash fetched at key press, not panel read -> S7
 F3 LO fixed@ab37724 conf walk week has no plan seeded -> S7
-F4 LO open proposable_exclusions.toml absent here; union at trunk merge (D15), filter I4A check to own module
+F4 LO fixed@S8 awp rows in proposable_exclusions.toml; each module checks its own names with equality
 ## OPEN
 Q2 package-form file path schema/fixtures/packages/co.acme.awp@1.1.0.yaml (S1 dev 1) needs orch confirm raised r3; T12 clause 1 uses it
 Q4 core feed policy list lacks the eight new quiet events (S1 dev 6) and POLICY_EVENT_TYPES lacks WeeklyPlan.* and IWP.* (Q-o3) needs orch raised r3
