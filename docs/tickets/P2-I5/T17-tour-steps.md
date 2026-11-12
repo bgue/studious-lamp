@@ -1,6 +1,6 @@
 # P2-I5-T17 — Highlights tour: Activity, Insights, intent, and the weekly loop
 
-Status: staged (runs last: needs T06c2, T06b, T07a, T09, T12 merged)
+Status: ready (all dependencies merged into `p2/i5`; T12 via T12b)
 Tier: haiku
 Kind: ticket
 Review: full

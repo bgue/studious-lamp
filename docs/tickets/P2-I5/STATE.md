@@ -24,8 +24,8 @@ T06c2 t mrg f ed77ead landing at sign-in; after T06c1 T06b (R-G)
 T12 t blk f c6310e4 clauses 1-2 pass; stops at 3; retried as T12b
 T12a p mrg f 4cbd11c four demo gaps; tl-api dir gate left to DONE (OOM)
 T12b t mrg f fc1ec38 demo green sq+pg; F1 clause-3 check tightened
-T13 t todo l - docs, three runbooks; after T12 (R-I)
-T17 t todo f - tour steps (Activity, Insights, intent, weekly loop, pack); after T12 (R-I)
+T13 t disp l - docs, three runbooks, reference, access words
+T17 t disp f - tour steps 09-18 (Activity, Insights, intent, weekly loop, pack)
 T15 t todo f - registrations only if glue > 50 lines
 S5 S6 T05 T07c T08 T10 abn - roadmap 3c, or replaced (T16)
 ## DEC     (D1-D25 in git history of this file at b9a8e6d; kept: D7 landing is a setting, D17 rollup on read, D18 waived derived, D19 exclusions, D23 gate rows)
