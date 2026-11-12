@@ -48,6 +48,7 @@ D18 Q2: default applied (superuser verifies, never the clearer; verified can reo
 ## OPEN
 (none: Q1-Q5 answered at D14-D18; the three-hop case is a known limit, DEFERRED line at close)
 ## NEXT
+0. (2026-11-12) Whole suite run split: 20 failures, all registries the punch module must join (test_auth_review x2, test_error_table, test_cli_controller_gates, test_offline_capture x2, twin walk x4, webhook catalog + parity, module_role_seams x2, modules_offline x2, tui module_roles_log x2 + command_palette; dispatcher replay = tour clock leak fixed by I4A S5). Order: I4A to trunk first, merge trunk into p2/punch, then one S-piece modelled on docs/tickets/P2-I4A/S5-done-gate-fixes.md with its widened paths. Logs: .gate/dbg.log, .gate/rest*.txt.
 1. Orchestrator: dispatch T01 (gate `packages/tl-modules/quality/tests`) and T07 (gate `tests/tools/test_demo_project_quality.py test_demo_project.py test_demo_project_awp.py`); disjoint.
 2. r5 after T01 merges: T02, T03, T05 (disjoint folders). r6 T04. r7 T06. r8 T08 (needs T07 too). r9 T09.
 3. After each merge `just gen` last, pinned lists as union; read the merged report and re-spec if a named interface moved (PunchRow, PunchDetail, PunchPage, PUNCH_COMMANDS, punch_world.py).
