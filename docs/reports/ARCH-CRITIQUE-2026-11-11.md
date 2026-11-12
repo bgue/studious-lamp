@@ -145,3 +145,19 @@ dispatcher.
 Not traced: CLI and TUI command paths (from OR §3), TUI handling of extension types, whether `/records` exposes the
 full query language. "225" counts `/commands/<Name>` in `docs/reference/openapi.json`; "15" is 6 core tools plus 9
 module rows (awp 2, correspondence 2, documents 3, materials 1, schedule 1).
+
+## Owner answers (2026-11-12)
+
+The owner answered yes to all four: agents file proposals in the pilot; accept-by-policy is a first-year goal; the
+first outside party to extend the system is the owner's own agents; a company admin may change a module's workflow
+states. In the owner's words, agents will do most extensions: full modules, and property extensions on existing
+modules to make a project specific.
+
+What this changes in the recommended order:
+- Item 3 is B6 (filing check and queue cap), not B8.
+- Item 4, the B5 delegation ADR, is written now, shadow mode first.
+- A1 (module-supplied commands, read routes and tools) and A4 (types and workflows through schema packages) come
+  before the web increment, not after it. Agent-authored modules and property sets are the main extension path.
+- A4's scope includes company-editable workflow states, not only types and property sets.
+- These items are planned at the next phase-plan step with a plan check (skill rule 8). In-flight increments
+  (P2-I4A, P2-I5, P2-PUNCH) close first, unchanged.
