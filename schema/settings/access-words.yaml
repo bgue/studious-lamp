@@ -40,3 +40,17 @@ words:
   materials.adjust: controller
   materials.mto.publish: controller
   materials.mto.assign: user
+
+  # requisitions: requests, approval and work orders (phase2 plan, I4-A; one word per command, no chain)
+  requisitions.view: read
+  requisitions.raise: user
+  requisitions.edit: user
+  requisitions.cancel: user
+  requisitions.approve: controller
+  requisitions.reject: controller
+  requisitions.schedule: controller
+  requisitions.assign: controller
+  requisitions.start: user
+  requisitions.complete: user
+  requisitions.close: controller
+  requisitions.fulfil: user

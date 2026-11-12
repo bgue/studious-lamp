@@ -105,6 +105,7 @@ READING = (
     | AWP_READ_TOOLS
     | MATERIALS_READ_TOOLS
     | {"list_iwps", "get_iwp", "list_iwp_scope", "get_iwp_readiness"}  # T09b
+    | {"list_requisitions", "get_requisition", "list_work_orders", "get_work_order"}  # T08b
 )
 TOOLS = (
     READING
@@ -115,6 +116,7 @@ TOOLS = (
     | AWP_PROPOSE_TOOLS
     | MATERIALS_PROPOSE_TOOLS
     | {"list_iwps", "get_iwp", "list_iwp_scope", "get_iwp_readiness", "propose_iwp_scope"}  # T09b
+    | {"propose_requisition"}  # T08b
     | {"post_feed", "post_thread_message", "propose_dispatch"}
 )
 

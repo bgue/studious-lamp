@@ -14,7 +14,7 @@ from typing import Any
 import pytest
 from harness import SCOPE, Harness
 from sqlalchemy import event, text
-from test_confidentiality_walk import FAKE_ID, MAY_READ, Seed, seed
+from tl_api_walk import FAKE_ID, MAY_READ, Seed, seed
 from tl_core.confidentiality import Viewer
 from tl_core.intent import NOT_AVAILABLE, Intent
 from tl_core.ledger import NewEvent

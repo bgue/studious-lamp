@@ -1,0 +1,369 @@
+id: https://example.org/throughline/modules/requisitions/events
+name: tl_mod_requisitions_events
+title: Requisitions module events
+description: >-
+  The ledger events of the requisitions module (brief 18.3), one class per event type, in the same form as
+  `schema/core/events.yaml`. A record is created by `Record.Created` and, in the same append, `Requisition.Raised`
+  or `WorkOrder.Opened`. A requisition's events (`Requisition.*`) are on the requisition's stream; a work order's
+  (`WorkOrder.*`) are on the work order's own stream, with `requisition_id` in every payload. Events with
+  `feed_policy: none` make no feed card; `Requisition.Approved`, `Requisition.Rejected` and `WorkOrder.Completed`
+  carry `feed_policy: full`. `Requisition.Approved` and `WorkOrder.Completed` are visible to webhooks through
+  `tl:event_type`. Every payload tags the slot `at` with `tl:valid_time` (ADR-0026); null means the recording time.
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+  - ../../core/annotations
+  - ../../core/record
+  - ../../core/events
+  - requisition
+default_range: string
+annotations:
+  tl:module: requisitions
+
+classes:
+  RequisitionRaisedPayload:
+    is_a: EventPayload
+    description: >-
+      A requisition was raised. The fields are the base fields of every kind and the fields of the kind named by `kind`; the other kinds' fields are absent. Stream type `requisitions.<kind>` (the requisition's own stream).
+    annotations:
+      tl:event_type: Requisition.Raised
+      tl:event_version: "1"
+    attributes:
+      kind:
+        range: RequisitionKind
+        required: true
+        description: "labor, material, general or scaffold."
+      subject:
+        required: true
+        description: "What is asked for."
+      requester:
+        required: true
+        description: "Actor text of the requester."
+      priority:
+        range: RequisitionPriority
+        required: true
+        description: "low, normal, high or urgent."
+      need_by:
+        description: "YYYY-MM-DD, or null."
+      location_text:
+        description: "Where, in words, or null."
+      for_record_id:
+        description: "The IWP or CWP the request serves, or null."
+      craft:
+        description: "Labour: the craft."
+      classification:
+        description: "Labour: the classification, or null."
+      headcount:
+        range: integer
+        description: "Labour: people wanted, 1 to 500."
+      start_date:
+        description: "Labour: YYYY-MM-DD."
+      end_date:
+        description: "Labour: YYYY-MM-DD."
+      shift:
+        description: "Labour: the shift, or null."
+      requirements:
+        description: "Labour: special requirements, or null."
+      from_location_id:
+        description: "Material: the location to issue from, or null."
+      lines:
+        range: Any
+        annotations:
+          tl:json: true
+        description: "Material: list of lines {item_id, qty, uom, cost_code_id, fulfilled_qty}; quantities are decimal text."
+      general_type:
+        description: "General: code of the code list GeneralRequisitionType."
+      purpose:
+        description: "Scaffold: what it is for."
+      elevation:
+        description: "Scaffold: elevation, or null."
+      gridline:
+        description: "Scaffold: gridline, or null."
+      length_m:
+        description: "Scaffold: decimal text, or null."
+      width_m:
+        description: "Scaffold: decimal text, or null."
+      height_m:
+        description: "Scaffold: decimal text, or null."
+      load_class:
+        description: "Scaffold: load class, or null."
+      duration_days:
+        range: integer
+        description: "Scaffold: 1 to 1000."
+      at:
+        range: datetime
+        annotations:
+          tl:valid_time: at
+        description: "UTC time the fact happened; null means the time it was recorded (valid time, ADR-0026)."
+    examples:
+      - value: "{\"at\": \"2026-11-02T08:00:00Z\", \"craft\": \"Pipefitter\", \"end_date\": \"2026-11-13\", \"headcount\": 6, \"kind\": \"labor\", \"priority\": \"normal\", \"requester\": \"user:ana\", \"start_date\": \"2026-11-02\", \"subject\": \"Six pipefitters for tie-ins\"}"
+  RequisitionRevisedPayload:
+    is_a: EventPayload
+    description: >-
+      Fields of a requisition changed while it was Requested. Stream type `requisitions.<kind>` (the requisition's own stream).
+    annotations:
+      tl:event_type: Requisition.Revised
+      tl:event_version: "1"
+    attributes:
+      changes:
+        range: Any
+        annotations:
+          tl:json: true
+        required: true
+        description: "Object of field -> [old, new]."
+      feed_policy:
+        equals_string: none
+        description: "The feed policy the handler fixed when it wrote the event; always \"none\" (no feed card)."
+      at:
+        range: datetime
+        annotations:
+          tl:valid_time: at
+        description: "UTC time the fact happened; null means the time it was recorded (valid time, ADR-0026)."
+    examples:
+      - value: "{\"at\": \"2026-11-02T08:00:00Z\", \"changes\": {\"need_by\": [null, \"2026-11-09\"]}, \"feed_policy\": \"none\"}"
+  RequisitionApprovedPayload:
+    is_a: EventPayload
+    description: >-
+      A requisition was approved and its work order opened. Stream type `requisitions.<kind>` (the requisition's own stream).
+    annotations:
+      tl:event_type: Requisition.Approved
+      tl:event_version: "1"
+    attributes:
+      approved_by:
+        required: true
+        description: "Actor text of the approver."
+      work_order_id:
+        range: Ulid
+        required: true
+        description: "The work order opened."
+      feed_policy:
+        equals_string: full
+        description: "The feed policy the handler fixed when it wrote the event; always \"full\"."
+      feed_text:
+        description: "The line of the feed card."
+      at:
+        range: datetime
+        annotations:
+          tl:valid_time: at
+        description: "UTC time the fact happened; null means the time it was recorded (valid time, ADR-0026)."
+    examples:
+      - value: "{\"approved_by\": \"user:sam\", \"at\": \"2026-11-02T08:00:00Z\", \"feed_policy\": \"full\", \"feed_text\": \"Requisition P123-REQ-LAB-0001 approved\", \"work_order_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P2\"}"
+  RequisitionRejectedPayload:
+    is_a: EventPayload
+    description: >-
+      A requisition was rejected with a reason. Stream type `requisitions.<kind>` (the requisition's own stream).
+    annotations:
+      tl:event_type: Requisition.Rejected
+      tl:event_version: "1"
+    attributes:
+      by:
+        required: true
+        description: "Actor text of the approver."
+      reason:
+        required: true
+        description: "Why, at most 300 characters."
+      feed_policy:
+        equals_string: full
+        description: "The feed policy the handler fixed when it wrote the event; always \"full\"."
+      feed_text:
+        description: "The line of the feed card."
+      at:
+        range: datetime
+        annotations:
+          tl:valid_time: at
+        description: "UTC time the fact happened; null means the time it was recorded (valid time, ADR-0026)."
+    examples:
+      - value: "{\"at\": \"2026-11-02T08:00:00Z\", \"by\": \"user:sam\", \"feed_policy\": \"full\", \"feed_text\": \"Requisition P123-REQ-LAB-0001 rejected\", \"reason\": \"Crew not needed\"}"
+  RequisitionCancelledPayload:
+    is_a: EventPayload
+    description: >-
+      A requisition was cancelled by its requester or an approver. Stream type `requisitions.<kind>` (the requisition's own stream).
+    annotations:
+      tl:event_type: Requisition.Cancelled
+      tl:event_version: "1"
+    attributes:
+      by:
+        required: true
+        description: "Actor text of who cancelled."
+      reason:
+        required: true
+        description: "Why."
+      at:
+        range: datetime
+        annotations:
+          tl:valid_time: at
+        description: "UTC time the fact happened; null means the time it was recorded (valid time, ADR-0026)."
+    examples:
+      - value: "{\"at\": \"2026-11-02T08:00:00Z\", \"by\": \"user:ana\", \"reason\": \"Plans changed\"}"
+  RequisitionFulfilledPayload:
+    is_a: EventPayload
+    description: >-
+      Stock was issued against a material requisition, in part or in full. Stream type `requisitions.<kind>` (the requisition's own stream).
+    annotations:
+      tl:event_type: Requisition.Fulfilled
+      tl:event_version: "1"
+    attributes:
+      lines:
+        range: Any
+        annotations:
+          tl:json: true
+        required: true
+        description: "List of {item_id, qty, uom, fulfilled_qty} issued by this call; quantities are decimal text."
+      shortage_qty:
+        required: true
+        description: "Total quantity still short, decimal text; \"0\" when none."
+      at:
+        range: datetime
+        annotations:
+          tl:valid_time: at
+        description: "UTC time the fact happened; null means the time it was recorded (valid time, ADR-0026)."
+    examples:
+      - value: "{\"at\": \"2026-11-02T08:00:00Z\", \"lines\": [{\"fulfilled_qty\": \"4\", \"item_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P1\", \"qty\": \"4\", \"uom\": \"EA\"}], \"shortage_qty\": \"2\"}"
+  WorkOrderOpenedPayload:
+    is_a: EventPayload
+    description: >-
+      A work order was opened by an approval. Stream type `requisitions.WorkOrder` (the work order's own stream); `requisition_id` is in every payload.
+    annotations:
+      tl:event_type: WorkOrder.Opened
+      tl:event_version: "1"
+    attributes:
+      requisition_id:
+        range: Ulid
+        required: true
+        description: "The requisition."
+      work_kind:
+        required: true
+        description: "erect, modify, dismantle, lift, general, labour or issue."
+      hours_planned:
+        description: "Decimal text with one decimal, or null."
+      feed_policy:
+        equals_string: none
+        description: "The feed policy the handler fixed when it wrote the event; always \"none\" (no feed card)."
+      at:
+        range: datetime
+        annotations:
+          tl:valid_time: at
+        description: "UTC time the fact happened; null means the time it was recorded (valid time, ADR-0026)."
+    examples:
+      - value: "{\"at\": \"2026-11-02T08:00:00Z\", \"feed_policy\": \"none\", \"requisition_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P1\", \"work_kind\": \"labour\"}"
+  WorkOrderScheduledPayload:
+    is_a: EventPayload
+    description: >-
+      A work order was scheduled. Stream type `requisitions.WorkOrder` (the work order's own stream); `requisition_id` is in every payload.
+    annotations:
+      tl:event_type: WorkOrder.Scheduled
+      tl:event_version: "1"
+    attributes:
+      requisition_id:
+        range: Ulid
+        required: true
+        description: "The requisition."
+      planned_start:
+        required: true
+        description: "YYYY-MM-DD."
+      planned_finish:
+        description: "YYYY-MM-DD, not before the start."
+      hours_planned:
+        pattern: "^((0|[1-9][0-9]{0,6})\\.[0-9]|10000000\\.0)$"
+        description: 'Planned hours, text with one decimal from "0.0" to "10000000.0"; absent when the command gives none.'
+      at:
+        range: datetime
+        annotations:
+          tl:valid_time: at
+        description: "UTC time the fact happened; null means the time it was recorded (valid time, ADR-0026)."
+    examples:
+      - value: "{\"at\": \"2026-11-02T08:00:00Z\", \"planned_finish\": \"2026-11-13\", \"planned_start\": \"2026-11-02\", \"requisition_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P1\"}"
+  WorkOrderAssignedPayload:
+    is_a: EventPayload
+    description: >-
+      A work order was assigned. Stream type `requisitions.WorkOrder` (the work order's own stream); `requisition_id` is in every payload.
+    annotations:
+      tl:event_type: WorkOrder.Assigned
+      tl:event_version: "1"
+    attributes:
+      requisition_id:
+        range: Ulid
+        required: true
+        description: "The requisition."
+      assigned_to:
+        required: true
+        description: "An actor or free text, at most 120 characters."
+      feed_policy:
+        equals_string: none
+        description: "The feed policy the handler fixed when it wrote the event; always \"none\" (no feed card)."
+      at:
+        range: datetime
+        annotations:
+          tl:valid_time: at
+        description: "UTC time the fact happened; null means the time it was recorded (valid time, ADR-0026)."
+    examples:
+      - value: "{\"assigned_to\": \"user:ana\", \"at\": \"2026-11-02T08:00:00Z\", \"feed_policy\": \"none\", \"requisition_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P1\"}"
+  WorkOrderStartedPayload:
+    is_a: EventPayload
+    description: >-
+      Work on a work order started. Stream type `requisitions.WorkOrder` (the work order's own stream); `requisition_id` is in every payload.
+    annotations:
+      tl:event_type: WorkOrder.Started
+      tl:event_version: "1"
+    attributes:
+      requisition_id:
+        range: Ulid
+        required: true
+        description: "The requisition."
+      at:
+        range: datetime
+        required: true
+        annotations:
+          tl:valid_time: at
+        description: "UTC time the work started (valid time, ADR-0026)."
+    examples:
+      - value: "{\"at\": \"2026-11-02T08:00:00Z\", \"requisition_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P1\"}"
+  WorkOrderCompletedPayload:
+    is_a: EventPayload
+    description: >-
+      Work on a work order was completed. Stream type `requisitions.WorkOrder` (the work order's own stream); `requisition_id` is in every payload.
+    annotations:
+      tl:event_type: WorkOrder.Completed
+      tl:event_version: "1"
+    attributes:
+      requisition_id:
+        range: Ulid
+        required: true
+        description: "The requisition."
+      hours_actual:
+        description: "Decimal text with one decimal, or null."
+      feed_policy:
+        equals_string: full
+        description: "The feed policy the handler fixed when it wrote the event; always \"full\"."
+      feed_text:
+        description: "The line of the feed card."
+      at:
+        range: datetime
+        required: true
+        annotations:
+          tl:valid_time: at
+        description: "UTC time the work was completed (valid time, ADR-0026)."
+    examples:
+      - value: "{\"at\": \"2026-11-02T08:00:00Z\", \"feed_policy\": \"full\", \"feed_text\": \"Work order P123-WO-0001 completed\", \"hours_actual\": \"96.0\", \"requisition_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P1\"}"
+  WorkOrderClosedPayload:
+    is_a: EventPayload
+    description: >-
+      A completed work order was closed. Stream type `requisitions.WorkOrder` (the work order's own stream); `requisition_id` is in every payload.
+    annotations:
+      tl:event_type: WorkOrder.Closed
+      tl:event_version: "1"
+    attributes:
+      requisition_id:
+        range: Ulid
+        required: true
+        description: "The requisition."
+      at:
+        range: datetime
+        annotations:
+          tl:valid_time: at
+        description: "UTC time the fact happened; null means the time it was recorded (valid time, ADR-0026)."
+    examples:
+      - value: "{\"at\": \"2026-11-02T08:00:00Z\", \"requisition_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P1\"}"

@@ -42,6 +42,7 @@ def test_effective_schema_for_a_project(directory: Path) -> None:
     assert provider.scopes() == ["company", "project:P123"]
     assert list(provider.effective("company").psets) == [
         "correspondence_data",
+        "crane_lift",
         "document_data",
         "provenance",
         "rfi_data",
