@@ -27,6 +27,16 @@ A module role does not filter reads: a `superuser` grant gives no restricted rea
 | `awp.cwp.close` | `controller` | awp |
 | `awp.void` | `controller` | awp |
 | `awp.package.edit` | `user` | awp |
+| `awp.week.plan` | `user` | awp |
+| `awp.week.commit` | `user` | awp |
+| `awp.week.close` | `controller` | awp |
+| `awp.progress.record` | `user` | awp |
+| `awp.closeout.record` | `user` | awp |
+| `awp.closeout.close` | `controller` | awp |
+| `awp.subcontract.assign` | `controller` | awp |
+| `awp.subcontract.progress` | `user` | awp |
+| `awp.worker.run` | `controller` | awp |
+| `core.constraint.waive` | `controller` | core |
 | `materials.view` | `read` | materials |
 | `materials.library.edit` | `controller` | materials |
 | `materials.item.adopt` | `user` | materials |
