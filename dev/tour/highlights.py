@@ -34,7 +34,7 @@ import os
 import re
 import shutil
 import sys
-from datetime import date, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -397,13 +397,13 @@ def activity_shots(ws: Workspace, n: dict[str, str]) -> None:
                 "09-record-activity",
                 "4: the Activity tab: the events of the RFI by person and day, newest first",
                 "4",
-                ("When", "Who", "Link"),
+                ("When", "Who", "Link", "amy", "2026-10-12 10:48"),
             ),
             (
                 "10-record-insights",
                 "9: the Insights tab: the checks that apply, each with its result and what to do",
                 "9",
-                ("Checks", "late"),
+                ("Checks", "Response clocks", "20 days late"),
             ),
         ],
         (150, 80),
@@ -469,10 +469,18 @@ CONTROLLER = "ipetrov"  # awp controller (granted in the tour)
 FOREMAN = "pnair"  # foreman, civil: the IWPs this foreman is on are Issued
 PIPING = "cbrooks"  # foreman, piping: the new package
 WEEKLY_ACTOR = f"user:{PLANNER}"
+CLOSED_AT = datetime(2026, 11, 13, 16, 0, tzinfo=UTC)  # the week closes on its Friday, 16:00
 
 
 def login(ws: Workspace, who: str, password: str) -> None:
     ws.tl("login", who, "--password-stdin", stdin=password + "\n", who=who)
+
+
+def sign_in_awp_people(ws: Workspace) -> None:
+    """Sign the people of the weekly cycle in again: a session lasts twelve hours, and the clock
+    of the cycle moves on to the Friday of its week, before the close."""
+    for who in (ADMIN, PLANNER, CONTROLLER, FOREMAN, PIPING):
+        login(ws, who, GENERATOR_PASSWORD)
 
 
 def version_of(output: str) -> int:
@@ -507,8 +515,9 @@ def schedule(ws: Workspace, iwp: str) -> None:
     ws.tl("xer", "link", iwp, "A1230", *P200, "--schedule", "MAIN", who=PLANNER)
 
 
-def new_package(ws: Workspace) -> str:
-    """A new IWP with four scope items, through the constraint check to Ready; not yet issued."""
+def new_package(ws: Workspace) -> tuple[str, list[str]]:
+    """A new IWP with four scope items, through the constraint check to Ready; not yet issued.
+    Returns the IWP number and the keys of its scope items."""
     created = ws.tl(
         "awp", "iwp", "create", *P200, "--discipline", "PIP",
         "--title", "Pipe rack spools, level 2",
@@ -541,16 +550,16 @@ def new_package(ws: Workspace) -> str:
     ws.tl("awp", "iwp", "move", iwp, "constraint-check", *P200, who=PLANNER)
     for _ in range(2):  # the readiness worker evaluates the package (one run per step)
         ws.tl("awp", "worker", "--once", who=ADMIN)
-    return iwp
+    return iwp, keys
 
 
-def awp_world(ws: Workspace) -> tuple[str, str]:
+def awp_world(ws: Workspace) -> tuple[str, str, list[str]]:
     """The P200 project next to the RFI world, the schedule, the Issued packages and the week's
-    commitments. Returns (the foreman's landing IWP, the new IWP of the week)."""
+    commitments. Returns (the foreman's landing IWP, the new IWP of the week, the new IWP's
+    scope item keys)."""
     w1.seed_demo_project(ws)
     tk.CLOCK.now = w1.TODAY  # the project calendar's today, as wave1 has it
-    for who in (ADMIN, PLANNER, CONTROLLER, FOREMAN, PIPING):
-        login(ws, who, GENERATOR_PASSWORD)
+    sign_in_awp_people(ws)
     ws.tl(
         "standards",
         "load",
@@ -568,9 +577,9 @@ def awp_world(ws: Workspace) -> tuple[str, str]:
     schedule(ws, "P200-IWP-INS-0005")
     for iwp in ("P200-IWP-INS-0005", "P200-IWP-INS-0006", "P200-IWP-ISL-0001"):
         issue(ws, iwp, f"user:{FOREMAN}")
-    new = new_package(ws)
+    new, keys = new_package(ws)
     issue(ws, new, f"user:{PIPING}")
-    return "P200-IWP-INS-0005", new
+    return "P200-IWP-INS-0005", new, keys
 
 
 def week_commit(ws: Workspace, iwps: list[tuple[str, str, str]]) -> None:
@@ -648,7 +657,16 @@ def landing_shot(ws: Workspace, iwp: str) -> None:
     tk.run_tui(ws, app, scenario, size=(170, 44))
 
 
-def weekly_shots(ws: Workspace, landing: str, new: str) -> None:
+def record_progress(ws: Workspace, iwp: str, keys: list[str]) -> None:
+    """Start the work on ``iwp`` and record field progress on its first scope item by CLI: the
+    material step done, then the item installed (the verbs of P2-I5 clause 5). The earned percent
+    of the IWP then reads above zero; ``tl awp iwp progress`` only reads it."""
+    ws.tl("awp", "iwp", "start-work", iwp, *P200, who=PLANNER)
+    ws.tl("awp", "iwp", "step", iwp, keys[0], "Material received", *P200, who=PLANNER)
+    ws.tl("awp", "iwp", "item-move", keys[0], "install", *P200, who=PLANNER)
+
+
+def weekly_shots(ws: Workspace, landing: str, new: str, keys: list[str]) -> None:
     """12 the foreman's landing; 13 to 17 the weekly cycle through its steps; 18 the work pack.
     Each screen is a fresh read of the ledger, so the commands of the cycle run between them."""
     landing_shot(ws, landing)
@@ -663,7 +681,7 @@ def weekly_shots(ws: Workspace, landing: str, new: str) -> None:
     )
     week_shot(
         ws, "13-week-look-ahead", "Weekly cycle, step 1: the look-ahead of the next weeks",
-        ("1",), "Look-ahead", "need-by",
+        ("1",), "Look-ahead", "need-by", "P200-IWP-INS-0005",
     )  # fmt: skip
     week_shot(
         ws, "14-week-constraints", "Step 2: a check-raised constraint, cleared as waived",
@@ -680,10 +698,13 @@ def weekly_shots(ws: Workspace, landing: str, new: str) -> None:
         ws, "15-week-commitments", "Step 4: the committed IWPs, their hours and foremen, outcomes",
         ("4",), "Commitments", "Weather",
     )  # fmt: skip
+    record_progress(ws, new, keys)
     week_shot(
         ws, "16-week-progress", "Step 5: the earned percent per IWP, the PPC and constraint-free",
-        ("5",), "PPC", "Constraint",
+        ("5",), "Earned 22.5%", "Constraint-free 48.0%", row=new,
     )  # fmt: skip
+    tk.CLOCK.now = CLOSED_AT  # the Friday of the week: the close is stamped with the clock
+    sign_in_awp_people(ws)
     closed = ws.tl(
         "awp", "week", "close", WEEK, "--expected-version", str(version_of(last)), *P200,
         who=CONTROLLER,
@@ -727,8 +748,8 @@ def main(argv: list[str] | None = None) -> int:
     awp = Workspace(out)
     try:
         print("the weekly cycle of P200: the schedule, the packages, the week", flush=True)
-        landing, new = awp_world(awp)
-        weekly_shots(awp, landing, new)
+        landing, new, keys = awp_world(awp)
+        weekly_shots(awp, landing, new, keys)
     finally:
         awp.close()
     print(f"wrote {len(ws.written) + len(awp.written)} screenshots to {out}")

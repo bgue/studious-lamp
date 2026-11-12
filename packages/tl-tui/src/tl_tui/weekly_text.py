@@ -22,6 +22,7 @@ from tl_mod_awp.week_views import CommitmentRow, WeekDetail, WeekRow
 from tl_tui.awp_text import date_text, hours_text
 from tl_tui.display import Labels, actor_label, humanize
 from tl_tui.layout import EMPTY
+from tl_tui.text import timestamp
 
 if TYPE_CHECKING:
     from tl_api.routes.awp_progress import IwpProgress
@@ -314,8 +315,9 @@ def commitment_summary(plan: WeekDetail) -> str:
 
 
 def plan_panel(plan: WeekDetail) -> str:
-    """The week in full: its start date, its state, the close date when closed, its notes."""
-    closed = f" · closed {plan.closed_at}" if plan.closed_at else ""
+    """The week in full: its start date, its state, the close time when closed (``2026-11-13
+    16:00``, as the other screens show a time), its notes."""
+    closed = f" · closed {timestamp(plan.closed_at)}" if plan.closed_at else ""
     head = f"Week {plan.week}, starting {plan.week_start} · {humanize(plan.state)}{closed}"
     return "\n".join([head, *plan.notes])
 

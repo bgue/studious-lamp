@@ -98,13 +98,13 @@ Step 4 shows the week's commitments: each IWP with its committed hours and forem
 
 ![Step 5: the earned percent per IWP, the PPC and constraint-free](tour/highlights/16-week-progress.svg)
 
-Step 5 lists the IWPs in the field (Issued, In progress, Field complete), and the KPI line: PPC (the share of the committed IWPs done) and constraint-free (the share of live IWPs with no open constraint). The panel of the highlighted IWP gives its earned percent, then one line per scope item with its steps.
+Step 5 lists the IWPs in the field (Issued, In progress, Field complete), and the KPI line: PPC (the share of the committed IWPs done) and constraint-free (the share of live IWPs with no open constraint). The panel of the highlighted IWP gives its earned percent, then one line per scope item with its steps. The highlighted IWP is the week's new package, `P200-IWP-PIP-0001`: its work is started and its first scope item has the material step done and is installed (by `tl awp iwp start-work`, `step` and `item-move`, the field verbs of clause 5 of the P2-I5 demo), so it reads `Earned 22.5%` (one of four items at 90%). The KPI line reads `PPC — no closed week yet` at this point: the week closes after this screen, so PPC appears in section 17; constraint-free reads 48.0%, 12 of 25 IWPs.
 
 ## 17 Week closed
 
 ![Step 4 once the week is closed: its PPC in the summary](tour/highlights/17-week-closed.svg)
 
-Once the week is closed (by the controller), step 4 reads Closed and gives the week's PPC in its summary line; the commitments keep their outcomes.
+Once the week is closed (by the controller, on its Friday, so the time in the panel is inside the week), step 4 reads Closed, its panel gives the close time in the plain form (`closed 2026-11-13 16:15`), and the summary line gives the week's PPC; the commitments keep their outcomes, and the new package reads In progress, its work having started before the close.
 
 ## 18 IWP pack
 
