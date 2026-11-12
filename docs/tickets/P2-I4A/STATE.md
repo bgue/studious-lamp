@@ -15,7 +15,7 @@ T07d t mrg f a9a14fc TUI glue; item 4 deferred D-r3f
 T08b t mrg f 78a134e MCP reads + propose_requisition
 T10b t mrg f 6eac974 demo P2-I4 both backends PASS (orch run); D-r3i
 T12 t mrg l 6b6b248 docs; review F2 F3 checked false (handler, widget bindings)
-S5 p disp f - DONE-gate fixes: collection clash, twin walk, webhooks, seams, offline, dispatcher
+S5 p stg f 44feb42 whole suite green (7 split sessions); full review next, then merge
 T04f t dfr l - roadmap 3c labour forecast
 T07c t dfr f - roadmap 3c forecast screen
 T08a t dfr l - roadmap 3c reports
@@ -65,6 +65,7 @@ Q-o2 docs/reference/access-words.md and docs/build-spec/specs/offline-classes.md
 Q-o3 contract §3: say Raised payload is flat and Revised carries changes {field: [old, new]} (review F1 LO)
 Q-o4 ModuleSpec declaration for subject links to replace SUBJECT_LINKS (needs tl_core/modules.py; core ticket)
 ## NEXT
+0. (2026-11-12) Slice ended at 35%. Next slice: full reviewer on p2/i4a-s5-done-fixes (wt /home/user/wt/i4a/s5, .gate/summary.txt PASS), merge, gate-pg on touched dirs, SR3 with I5 (D14), trunk merge with SUBJECT_LINKS + proposable_exclusions union (D15). Run the whole gate split: one session at a time, tl-api alone, tl-sim and tl-tui apart (part sessions above 12 GB die).
 1. Orchestrator: dispatch wave 1 (T04a, T04e1); T04a gets its provided test copied byte-identical.
 2. After T04a merges: wave 2 T04c1, T04d (also needs T04e1), T08b.
 3. Then T04c2; T07a with T07b; T07d; T10b; T12. Supervisor r4 refines staged tickets from merged reports (names marked in them).
