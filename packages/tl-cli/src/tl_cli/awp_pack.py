@@ -37,13 +37,14 @@ from tl_cli.session import session_viewer
 PACK_SLOT = "pack"
 
 
-def _record_viewer(conn: Connection, record_id: str, who: Viewer) -> Viewer:
-    """``who`` lowered to the lowest clearance level that still reads the record (its own class)."""
+def _record_viewer(conn: Connection, record_id: str, who: Viewer) -> Viewer | None:
+    """``who`` lowered to the lowest clearance level that still reads the record (its own class),
+    or None when no clearance level reads it."""
     for level in (0, 1):
         candidate = replace(who, level=level)
         if not is_hidden(conn, record_id, candidate):
             return candidate
-    return who
+    return None
 
 
 def iwp_pack(
@@ -67,12 +68,13 @@ def iwp_pack(
             who = session_viewer(db)
             data = build_pack_data(uow.conn(), scope_of(project), number, who)
             if attach:
-                data = build_pack_data(
-                    uow.conn(),
-                    scope_of(project),
-                    number,
-                    _record_viewer(uow.conn(), data.iwp_id, who),
-                )
+                lowered = _record_viewer(uow.conn(), data.iwp_id, who)
+                if lowered is None:
+                    fail(
+                        "the pack cannot be attached: no clearance level reads this IWP; "
+                        "write it with --out only"
+                    )
+                data = build_pack_data(uow.conn(), scope_of(project), number, lowered)
         except RecordNotFoundError:
             fail(f"no IWP {number}")
         page = render_html(data)

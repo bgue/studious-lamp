@@ -97,6 +97,23 @@ def test_attach_stores_the_file_in_the_pack_slot_and_a_second_run_replaces_it(
     assert "Traceback" not in second.output
 
 
+def test_attach_is_refused_when_no_clearance_level_reads_the_iwp(
+    built: Built, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """F2: no level reads the IWP, so --attach refuses before anything is stored."""
+    monkeypatch.setattr("tl_cli.awp_pack._record_viewer", lambda conn, record_id, who: None)
+    out = tmp_path / "refused.html"
+    result = built.cli.write("iwp", "pack", built.number, "--out", str(out), "--attach")
+    assert result.exit_code != 0, result.output
+    assert (
+        "the pack cannot be attached: no clearance level reads this IWP; write it with --out only"
+        in result.output
+    )
+    assert slot_files(built) == []
+    assert not out.exists()
+    assert "Traceback" not in result.output
+
+
 def test_attach_builds_the_pack_at_the_iwp_class_and_a_plain_out_at_the_session_clearance(
     built: Built, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
