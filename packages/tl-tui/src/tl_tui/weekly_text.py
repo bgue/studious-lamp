@@ -57,6 +57,8 @@ SIGNOFFS_NEEDED = 2
 NO_SCHEDULE = "No published schedule yet."
 #: The state word of a check-raised constraint that was cleared (S4b ``waived``).
 WAIVED = "waived"
+#: The words before a waived constraint's who and why (the panel of step 2, as ``tl awp iwp show``).
+WAIVED_BY = "waived by"
 #: The ``source`` of a constraint that a check raised; only these can be waived from the log.
 CHECK_SOURCE = "check"
 OPEN_STATES = ("Open", "Assigned")
@@ -213,8 +215,13 @@ def constraint_cells(row: ConstraintRow) -> tuple[str, ...]:
 
 
 def constraint_panel(row: ConstraintRow) -> str:
-    """The constraint's description (the panel of step 2)."""
-    return row.description or EMPTY
+    """The constraint's description (the panel of step 2). A waived one adds who waived it and
+    why, in the words of ``tl awp iwp show``: ``waived by <who>: <reason>``."""
+    text = row.description or EMPTY
+    if not row.waived:
+        return text
+    who = actor_label(Labels(), row.cleared_by) if row.cleared_by else EMPTY
+    return f"{text}\n{WAIVED_BY} {who}: {row.clear_reason or EMPTY}"
 
 
 def review_summary(blocking: int) -> str:
@@ -347,12 +354,13 @@ def progress_cells(row: IwpRow, count: IwpCountRow | None) -> tuple[str, ...]:
 
 
 def progress_panel(row: IwpRow, progress: IwpProgress | None) -> str:
-    """The IWP in full: its earned percent and edition, one line per scope item (its steps) and
-    the notes. ``progress`` None (the read failed) shows the empty mark for the earned percent."""
+    """The IWP in full: its earned percent, one line per scope item (its steps) and the notes.
+    The package edition is a technical detail and is not shown (this panel has no technical
+    mode). ``progress`` None (the read failed) shows the empty mark for the earned percent."""
     head = f"{row.title or EMPTY} · {row.number}"
     if progress is None:
         return f"{head}\nEarned {EMPTY}"
-    lines = [head, f"Earned {progress.pct}% · edition {progress.edition}"]
+    lines = [head, f"Earned {progress.pct}%"]
     for item in progress.items:
         steps = ", ".join(item.steps) if item.steps else EMPTY
         lines.append(f"{item.key}: {item.pct}% · steps {steps}")

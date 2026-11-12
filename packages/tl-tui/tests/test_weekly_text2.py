@@ -145,7 +145,7 @@ def test_progress_panel_lists_the_earned_percent_each_item_and_the_notes() -> No
     )
     assert progress_panel(row, progress).splitlines() == [
         "Pipe spools · P123-IWP-PIP-0001",
-        "Earned 42.5% · edition 2026",
+        "Earned 42.5%",
         "5.0: 50% · steps Fit, Weld",
         "Note: Checked",
     ]
