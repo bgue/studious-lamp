@@ -54,4 +54,19 @@ Standard report (`docs/templates/haiku-report.md`), <= 60 lines, deviations firs
 (implementer writes here)
 
 ## Decision
-(supervisor or orchestrator writes here)
+2026-11-12 orchestrator, on the report's open questions (attempt 2 continues on this branch, same worktree):
+- Shot 16: the plain progress panel must not show the package edition (technical detail). In
+  `packages/tl-tui/src/tl_tui/weekly_text.py` `progress_panel`, the head line drops `· edition ...` in the plain view
+  (keep it only where the panel already has a technical flag; add none). Update the pinned line in
+  `packages/tl-tui/tests/test_weekly_text2.py:148`. Then commit shot 16 with no `technical=True`.
+- Shot 14: the constraint panel shows `waived by <who>: <reason>` for a waived row, the same words as
+  `tl awp iwp show` (T12a, `packages/tl-cli/tests/test_awp_iwp_show_waived.py`), if the read the panel already uses
+  carries who and why (or one existing read function does). If it needs a new read, query or command, do not build
+  it: keep the state word, say so in the report, and the orchestrator logs it in DEFERRED.
+- Shot 11: if the clipped goal line can be shown by starting that shot's app with a taller terminal (the app's own
+  size argument; no new key, no source change), do it; else accept the clip and say so in HIGHLIGHTS-TOUR.md.
+- Accepted: P200 in its own Workspace (deviation 2); regenerated 03, 04, 06 (the tab rename History -> Activity,
+  P2-INS-T02b); `freeze_awp_clock` (deviation 7).
+- Then update `docs/reports/HIGHLIGHTS-TOUR.md` as the ticket says.
+- Allowed paths widen to `packages/tl-tui/src/tl_tui/weekly_text.py` (the two panels above only) and
+  `packages/tl-tui/tests/test_weekly_text*.py`.

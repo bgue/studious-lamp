@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from decimal import Decimal
+from types import SimpleNamespace
 from typing import Any
 
 from tl_mod_awp.kpis import KpiTile
@@ -15,6 +16,7 @@ from tl_tui.weekly_text import (
     LOOK_AHEAD_COLUMNS,
     WEEK_COLUMNS,
     commitment_cells,
+    constraint_panel,
     kpi_line,
     line_key,
     look_ahead_cells,
@@ -158,3 +160,21 @@ def test_kpi_lines() -> None:
     none_free = free.model_copy(update={"value": None, "numerator": 0, "denominator": 0})
     assert kpi_line(none_ppc) == f"PPC {EMPTY}  no closed week yet"
     assert kpi_line(none_free) == f"Constraint-free {EMPTY}  no live IWP"
+
+
+def test_a_waived_constraint_panel_names_who_waived_it_and_why() -> None:
+    # P2-I5-T17 (attempt 2): the same words as `tl awp iwp show` (waived by <who>: <reason>).
+    waived = SimpleNamespace(
+        description="readiness check materials_reserved is blocked",
+        waived=True,
+        cleared_by="user:mokafor",
+        clear_reason="Materials coordinator confirmed the reservation by phone",
+    )
+    assert constraint_panel(waived) == (  # type: ignore[arg-type]
+        "readiness check materials_reserved is blocked\n"
+        "waived by mokafor: Materials coordinator confirmed the reservation by phone"
+    )
+    open_row = SimpleNamespace(description="Crane booked", waived=False)
+    assert constraint_panel(open_row) == "Crane booked"  # type: ignore[arg-type]
+    no_text = SimpleNamespace(description=None, waived=False)
+    assert constraint_panel(no_text) == EMPTY  # type: ignore[arg-type]

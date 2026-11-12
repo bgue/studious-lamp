@@ -22,6 +22,7 @@ from tl_mod_awp.week_views import CommitmentRow, WeekDetail, WeekRow
 from tl_tui.awp_text import date_text, hours_text
 from tl_tui.display import Labels, actor_label, humanize
 from tl_tui.layout import EMPTY
+from tl_tui.text import timestamp
 
 if TYPE_CHECKING:
     from tl_api.routes.awp_progress import IwpProgress
@@ -57,6 +58,8 @@ SIGNOFFS_NEEDED = 2
 NO_SCHEDULE = "No published schedule yet."
 #: The state word of a check-raised constraint that was cleared (S4b ``waived``).
 WAIVED = "waived"
+#: The words before a waived constraint's who and why (the panel of step 2, as ``tl awp iwp show``).
+WAIVED_BY = "waived by"
 #: The ``source`` of a constraint that a check raised; only these can be waived from the log.
 CHECK_SOURCE = "check"
 OPEN_STATES = ("Open", "Assigned")
@@ -213,8 +216,13 @@ def constraint_cells(row: ConstraintRow) -> tuple[str, ...]:
 
 
 def constraint_panel(row: ConstraintRow) -> str:
-    """The constraint's description (the panel of step 2)."""
-    return row.description or EMPTY
+    """The constraint's description (the panel of step 2). A waived one adds who waived it and
+    why, in the words of ``tl awp iwp show``: ``waived by <who>: <reason>``."""
+    text = row.description or EMPTY
+    if not row.waived:
+        return text
+    who = actor_label(Labels(), row.cleared_by) if row.cleared_by else EMPTY
+    return f"{text}\n{WAIVED_BY} {who}: {row.clear_reason or EMPTY}"
 
 
 def review_summary(blocking: int) -> str:
@@ -307,8 +315,9 @@ def commitment_summary(plan: WeekDetail) -> str:
 
 
 def plan_panel(plan: WeekDetail) -> str:
-    """The week in full: its start date, its state, the close date when closed, its notes."""
-    closed = f" · closed {plan.closed_at}" if plan.closed_at else ""
+    """The week in full: its start date, its state, the close time when closed (``2026-11-13
+    16:00``, as the other screens show a time), its notes."""
+    closed = f" · closed {timestamp(plan.closed_at)}" if plan.closed_at else ""
     head = f"Week {plan.week}, starting {plan.week_start} · {humanize(plan.state)}{closed}"
     return "\n".join([head, *plan.notes])
 
@@ -347,12 +356,13 @@ def progress_cells(row: IwpRow, count: IwpCountRow | None) -> tuple[str, ...]:
 
 
 def progress_panel(row: IwpRow, progress: IwpProgress | None) -> str:
-    """The IWP in full: its earned percent and edition, one line per scope item (its steps) and
-    the notes. ``progress`` None (the read failed) shows the empty mark for the earned percent."""
+    """The IWP in full: its earned percent, one line per scope item (its steps) and the notes.
+    The package edition is a technical detail and is not shown (this panel has no technical
+    mode). ``progress`` None (the read failed) shows the empty mark for the earned percent."""
     head = f"{row.title or EMPTY} · {row.number}"
     if progress is None:
         return f"{head}\nEarned {EMPTY}"
-    lines = [head, f"Earned {progress.pct}% · edition {progress.edition}"]
+    lines = [head, f"Earned {progress.pct}%"]
     for item in progress.items:
         steps = ", ".join(item.steps) if item.steps else EMPTY
         lines.append(f"{item.key}: {item.pct}% · steps {steps}")

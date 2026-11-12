@@ -94,6 +94,24 @@ def test_plan_panel_gives_the_week_its_state_and_its_notes() -> None:
     assert text.splitlines()[-1] == "Plan notes"
 
 
+def test_plan_panel_shows_the_close_time_of_a_closed_week_in_the_plain_form() -> None:
+    closed = WeekDetail(
+        id="PLAN-2",
+        key="P123-WK-2",
+        week="2026-W45",
+        week_start="2026-11-02",
+        state="Closed",
+        ppc="66.7",
+        closed_at="2026-11-13T16:00:00.000000+00:00",
+        version=2,
+        commitments=[],
+        notes=[],
+    )
+    assert plan_panel(closed).splitlines()[0] == (
+        "Week 2026-W45, starting 2026-11-02 · Closed · closed 2026-11-13 16:00"
+    )
+
+
 def test_commitment_panel_gives_the_hours_and_the_outcome_with_its_reason() -> None:
     text = commitment_panel(_commitment("0001", outcome="missed", reason="Weather"))
     lines = text.splitlines()
@@ -145,7 +163,7 @@ def test_progress_panel_lists_the_earned_percent_each_item_and_the_notes() -> No
     )
     assert progress_panel(row, progress).splitlines() == [
         "Pipe spools · P123-IWP-PIP-0001",
-        "Earned 42.5% · edition 2026",
+        "Earned 42.5%",
         "5.0: 50% · steps Fit, Weld",
         "Note: Checked",
     ]
