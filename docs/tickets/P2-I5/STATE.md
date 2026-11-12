@@ -1,4 +1,4 @@
-# P2-I5 STATE  r=6 base=bcf3c2e C=1 ck=0 gate=n/a wt=/home/user/wt/p2-i5
+# P2-I5 STATE  r=7 base=bcf3c2e C=3 ck=0 gate=n/a wt=/home/user/wt/p2-i5
 ## BOARD   (merged: S1 S2 S3 S4a S4b T01 T03 T04b; reports docs/reports/P2-I5/<id>.md; tickets written r5: ready or staged by need)
 S1 p mrg f 76c15b4 schema, package content, words, settings
 S2 p mrg f 00647bf engine, progress cmds, IWP start/complete, math rules
@@ -23,7 +23,7 @@ T06c1 t mrg f f4f550a IWP log counts, filters, backlog 500, mine flag; after T11
 T06c2 t mrg f ed77ead landing at sign-in; after T06c1 T06b (R-G)
 T12 t blk f c6310e4 clauses 1-2 pass; stops at 3; retried as T12b
 T12a p mrg f 4cbd11c four demo gaps; tl-api dir gate left to DONE (OOM)
-T12b t disp f - demo retry from c6310e4 + WBS->CWP chain for clause 5
+T12b t mrg f fc1ec38 demo green sq+pg; F1 clause-3 check tightened
 T13 t todo l - docs, three runbooks; after T12 (R-I)
 T17 t todo f - tour steps (Activity, Insights, intent, weekly loop, pack); after T12 (R-I)
 T15 t todo f - registrations only if glue > 50 lines
