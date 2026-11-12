@@ -12,6 +12,10 @@ from sqlalchemy import text
 from test_awp_progress import Built
 from test_cli_awp import Cli, seed_copy
 from tl_adapters.db import as_target, open_uow
+from tl_core import confidentiality as cf
+from tl_core import modules as core_modules
+from tl_core.modules import ConfidentialSource
+from tl_mod_awp.names import DOCUMENT_TYPE
 
 LINE = re.compile(r"^pack (\S+)  (\d+) bytes  qr (yes|no)$")
 
@@ -91,3 +95,36 @@ def test_attach_stores_the_file_in_the_pack_slot_and_a_second_run_replaces_it(
     assert len(files) == 2
     assert [f["superseded_by"] is None for f in files] == [False, True]
     assert "Traceback" not in second.output
+
+
+def test_attach_builds_the_pack_at_the_iwp_class_and_a_plain_out_at_the_session_clearance(
+    built: Built, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """F1: the attached file is readable by every reader of the IWP (internal), so a restricted
+    drawing the session may read stays out of it; the plain --out file is the session's own."""
+    docs = built.w.documents(tmp_path / "objects", "ISO-1")
+    built.w.call("uma", "PinIwpDocument", iwp=built.iwp, document=docs["ISO-1"], pin="A")
+    title = str(built.w.scalar("SELECT title FROM cur_core_record WHERE id = :i", i=docs["ISO-1"]))
+    with open_uow(as_target(str(built.cli.db))) as uow:
+        conn = uow.conn()
+        conn.execute(text("CREATE TABLE s7_doc_class (id TEXT PRIMARY KEY, cls TEXT)"))
+        conn.execute(
+            text("INSERT INTO s7_doc_class VALUES (:i, 'restricted')"), {"i": docs["ISO-1"]}
+        )
+    source = ConfidentialSource(
+        record_types=frozenset({DOCUMENT_TYPE}),
+        table="s7_doc_class",
+        id_column="id",
+        class_column="cls",
+    )
+    real = core_modules.confidential_sources
+    monkeypatch.setattr(cf, "confidential_sources", lambda: [*real(), source])
+    plain = tmp_path / "plain.html"
+    attached = tmp_path / "attached.html"
+    first = built.cli.project("iwp", "pack", built.number, "--out", str(plain))
+    second = built.cli.write("iwp", "pack", built.number, "--out", str(attached), "--attach")
+    assert first.exit_code == 0 and second.exit_code == 0, (first.output, second.output)
+    assert "ISO-1" in plain.read_text(encoding="utf-8")
+    stored = attached.read_text(encoding="utf-8")
+    assert "ISO-1" not in stored
+    assert title not in stored

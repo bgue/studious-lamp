@@ -295,6 +295,7 @@ class ReleaseScreen(WeeklyScreen["IwpRow"]):
     def __init__(self, client: ClientInterface, project: str) -> None:
         super().__init__(client, project)
         self.counts: dict[str, IwpCountRow] = {}  # by IWP number, as the last read gave them
+        self.hashes: dict[str, str] = {}  # record hash of each IWP as its panel was shown
 
     def columns(self) -> Sequence[str]:
         return RELEASE_COLUMNS
@@ -319,12 +320,25 @@ class ReleaseScreen(WeeklyScreen["IwpRow"]):
         """The highlighted IWP in full; one ``get_iwp`` for it gives the sign-off count."""
         if row is None:
             return "No Ready IWP."
+        self.hashes.pop(row.number, None)
         try:
             detail = self.client.get_iwp(self.project, row.number)
         except CLIENT_ERRORS as exc:
             self.say(describe_error(exc), error=True)
             return release_panel(row, None)
+        try:
+            # what the person reads is what a key signs: a later edit makes the command stale
+            self.hashes[row.number] = self.client.get_iwp_hash(self.project, row.number).record_hash
+        except CLIENT_ERRORS:
+            pass  # the key reads it and reports the error
         return release_panel(row, len(detail.signoffs))
+
+    def _shown_hash(self, row: IwpRow) -> str:
+        """The hash fetched when the panel showed ``row``; read now only if no panel showed it."""
+        held = self.hashes.get(row.number)
+        if held is not None:
+            return held
+        return self.client.get_iwp_hash(self.project, row.number).record_hash
 
     def actions_for(self, row: IwpRow) -> Sequence[LogAction]:
         return [
@@ -336,18 +350,18 @@ class ReleaseScreen(WeeklyScreen["IwpRow"]):
         return release_summary(len(self.shown))
 
     def _sign_off(self, row: IwpRow) -> None:
-        digest = self.client.get_iwp_hash(self.project, row.number)
         cmd = stamp(
-            SignOffIwp(iwp=row.id, record_hash=digest.record_hash, **ENVELOPE),
+            SignOffIwp(iwp=row.id, record_hash=self._shown_hash(row), **ENVELOPE),
             actor=self._actor(),
             scope=self._scope(),
         )
         self.client.awp_command("SignOffIwp", cmd)
 
     def _issue(self, row: IwpRow) -> None:
-        digest = self.client.get_iwp_hash(self.project, row.number)
         cmd = stamp(
-            IssueIwp(iwp=row.id, foreman=row.foreman, record_hash=digest.record_hash, **ENVELOPE),
+            IssueIwp(
+                iwp=row.id, foreman=row.foreman, record_hash=self._shown_hash(row), **ENVELOPE
+            ),
             actor=self._actor(),
             scope=self._scope(),
         )
