@@ -35,7 +35,7 @@ from tl_core.changefeed import (
     fetch_changes,
 )
 from tl_core.confidentiality import Viewer
-from tl_core.intent import redact_events
+from tl_core.intent import redact_for_viewer
 from tl_core.ledger import Event
 
 from tl_api.backend import Backend
@@ -130,7 +130,7 @@ class FeedHub:
             return events
         with self.backend(True) as uow:
             shown = confidentiality.filter_events(uow.conn(), events, viewer)
-            return redact_events(uow.conn(), shown, viewer)  # ADR-0025 d5
+            return redact_for_viewer(uow.conn(), shown, viewer)  # ADR-0025 d5
 
     async def stream(
         self,

@@ -27,7 +27,7 @@ def client() -> FakeClient:
 
 def test_the_platform_definitions_are_listed_with_their_defaults(client: FakeClient) -> None:
     rows = client.list_settings()
-    assert len(rows) == 31 and [r.effective.key for r in rows] == sorted(
+    assert len(rows) == 32 and [r.effective.key for r in rows] == sorted(
         r.effective.key for r in rows
     )
     assert client.get_setting(KEY).effective.origin == "default"

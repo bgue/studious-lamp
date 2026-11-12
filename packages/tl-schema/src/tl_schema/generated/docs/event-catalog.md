@@ -181,6 +181,12 @@ Every ledger event type that can reach a webhook subscriber, generated from the 
 | [`Record.Voided`](#recordvoided) | `tl.core.Record.Voided.v1` | A record was voided. |
 | [`Rendition.Defined`](#renditiondefined) | `tl.core.Rendition.Defined.v1` | A file was registered as a rendition of a revision. |
 | [`Rendition.Superseded`](#renditionsuperseded) | `tl.core.Rendition.Superseded.v1` | A rendition was replaced by a newer one of the same kind on the same revision. |
+| [`Requisition.Approved`](#requisitionapproved) | `tl.core.Requisition.Approved.v1` | A requisition was approved and its work order opened. |
+| [`Requisition.Cancelled`](#requisitioncancelled) | `tl.core.Requisition.Cancelled.v1` | A requisition was cancelled by its requester or an approver. |
+| [`Requisition.Fulfilled`](#requisitionfulfilled) | `tl.core.Requisition.Fulfilled.v1` | Stock was issued against a material requisition, in part or in full. |
+| [`Requisition.Raised`](#requisitionraised) | `tl.core.Requisition.Raised.v1` | A requisition was raised. |
+| [`Requisition.Rejected`](#requisitionrejected) | `tl.core.Requisition.Rejected.v1` | A requisition was rejected with a reason. |
+| [`Requisition.Revised`](#requisitionrevised) | `tl.core.Requisition.Revised.v1` | Fields of a requisition changed while it was Requested. |
 | [`ResponseClock.Cancelled`](#responseclockcancelled) | `tl.core.ResponseClock.Cancelled.v1` | The clock was cancelled: no answer is needed any more. |
 | [`ResponseClock.Expired`](#responseclockexpired) | `tl.core.ResponseClock.Expired.v1` | The sweep found a running clock past its due date. |
 | [`ResponseClock.Met`](#responseclockmet) | `tl.core.ResponseClock.Met.v1` | The clock was met: the answer came in time (or late; the date says which). |
@@ -267,6 +273,12 @@ Every ledger event type that can reach a webhook subscriber, generated from the 
 | [`WeeklyPlan.IwpCommitted`](#weeklyplaniwpcommitted) | `tl.core.WeeklyPlan.IwpCommitted.v1` | A foreman committed an interim work package to the week. |
 | [`WeeklyPlan.Opened`](#weeklyplanopened) | `tl.core.WeeklyPlan.Opened.v1` | A weekly plan was opened for a project week. |
 | [`WeeklyPlan.OutcomeRecorded`](#weeklyplanoutcomerecorded) | `tl.core.WeeklyPlan.OutcomeRecorded.v1` | The outcome of one commitment was recorded: done, or missed with a reason. |
+| [`WorkOrder.Assigned`](#workorderassigned) | `tl.core.WorkOrder.Assigned.v1` | A work order was assigned. |
+| [`WorkOrder.Closed`](#workorderclosed) | `tl.core.WorkOrder.Closed.v1` | A completed work order was closed. |
+| [`WorkOrder.Completed`](#workordercompleted) | `tl.core.WorkOrder.Completed.v1` | Work on a work order was completed. |
+| [`WorkOrder.Opened`](#workorderopened) | `tl.core.WorkOrder.Opened.v1` | A work order was opened by an approval. |
+| [`WorkOrder.Scheduled`](#workorderscheduled) | `tl.core.WorkOrder.Scheduled.v1` | A work order was scheduled. |
+| [`WorkOrder.Started`](#workorderstarted) | `tl.core.WorkOrder.Started.v1` | Work on a work order started. |
 | [`Workflow.Transitioned`](#workflowtransitioned) | `tl.core.Workflow.Transitioned.v1` | A record moved from one workflow state to another. |
 
 ## Account.Created
@@ -10165,6 +10177,367 @@ A rendition was replaced by a newer one of the same kind on the same revision.
 }
 ```
 
+## Requisition.Approved
+
+A requisition was approved and its work order opened. Stream type `requisitions.<kind>` (the requisition's own stream).
+
+- CloudEvents type: `tl.core.Requisition.Approved.v1`
+- Ledger payload class: `RequisitionApprovedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `approved_by` | string | yes | Actor text of the approver. |
+| `at` | string or null | no | UTC time the fact happened; null means the time it was recorded (valid time, ADR-0026). |
+| `feed_policy` | string or null | no | The feed policy the handler fixed when it wrote the event; always "full". |
+| `feed_text` | string or null | no | The line of the feed card. |
+| `work_order_id` | string | yes | The work order opened. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "approved_by": "user:sam",
+      "at": "2026-11-02T08:00:00Z",
+      "feed_policy": "full",
+      "feed_text": "Requisition P123-REQ-LAB-0001 approved",
+      "work_order_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P2"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Requisition.Approved/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Requisition.Approved.v1"
+}
+```
+
+## Requisition.Cancelled
+
+A requisition was cancelled by its requester or an approver. Stream type `requisitions.<kind>` (the requisition's own stream).
+
+- CloudEvents type: `tl.core.Requisition.Cancelled.v1`
+- Ledger payload class: `RequisitionCancelledPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `at` | string or null | no | UTC time the fact happened; null means the time it was recorded (valid time, ADR-0026). |
+| `by` | string | yes | Actor text of who cancelled. |
+| `reason` | string | yes | Why. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "at": "2026-11-02T08:00:00Z",
+      "by": "user:ana",
+      "reason": "Plans changed"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Requisition.Cancelled/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Requisition.Cancelled.v1"
+}
+```
+
+## Requisition.Fulfilled
+
+Stock was issued against a material requisition, in part or in full. Stream type `requisitions.<kind>` (the requisition's own stream).
+
+- CloudEvents type: `tl.core.Requisition.Fulfilled.v1`
+- Ledger payload class: `RequisitionFulfilledPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `at` | string or null | no | UTC time the fact happened; null means the time it was recorded (valid time, ADR-0026). |
+| `lines` | any | yes |  |
+| `shortage_qty` | string | yes | Total quantity still short, decimal text; "0" when none. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "at": "2026-11-02T08:00:00Z",
+      "lines": [
+        {
+          "fulfilled_qty": "4",
+          "item_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P1",
+          "qty": "4",
+          "uom": "EA"
+        }
+      ],
+      "shortage_qty": "2"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Requisition.Fulfilled/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Requisition.Fulfilled.v1"
+}
+```
+
+## Requisition.Raised
+
+A requisition was raised. The fields are the base fields of every kind and the fields of the kind named by `kind`; the other kinds' fields are absent. Stream type `requisitions.<kind>` (the requisition's own stream).
+
+- CloudEvents type: `tl.core.Requisition.Raised.v1`
+- Ledger payload class: `RequisitionRaisedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `at` | string or null | no | UTC time the fact happened; null means the time it was recorded (valid time, ADR-0026). |
+| `classification` | string or null | no | Labour: the classification, or null. |
+| `craft` | string or null | no | Labour: the craft. |
+| `duration_days` | integer or null | no | Scaffold: 1 to 1000. |
+| `elevation` | string or null | no | Scaffold: elevation, or null. |
+| `end_date` | string or null | no | Labour: YYYY-MM-DD. |
+| `for_record_id` | string or null | no | The IWP or CWP the request serves, or null. |
+| `from_location_id` | string or null | no | Material: the location to issue from, or null. |
+| `general_type` | string or null | no | General: code of the code list GeneralRequisitionType. |
+| `gridline` | string or null | no | Scaffold: gridline, or null. |
+| `headcount` | integer or null | no | Labour: people wanted, 1 to 500. |
+| `height_m` | string or null | no | Scaffold: decimal text, or null. |
+| `kind` | string | yes | labor, material, general or scaffold. |
+| `length_m` | string or null | no | Scaffold: decimal text, or null. |
+| `lines` | any | no | Material: list of lines {item_id, qty, uom, cost_code_id, fulfilled_qty}; quantities are decimal text. |
+| `load_class` | string or null | no | Scaffold: load class, or null. |
+| `location_text` | string or null | no | Where, in words, or null. |
+| `need_by` | string or null | no | YYYY-MM-DD, or null. |
+| `priority` | string | yes | low, normal, high or urgent. |
+| `purpose` | string or null | no | Scaffold: what it is for. |
+| `requester` | string | yes | Actor text of the requester. |
+| `requirements` | string or null | no | Labour: special requirements, or null. |
+| `shift` | string or null | no | Labour: the shift, or null. |
+| `start_date` | string or null | no | Labour: YYYY-MM-DD. |
+| `subject` | string | yes | What is asked for. |
+| `width_m` | string or null | no | Scaffold: decimal text, or null. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "at": "2026-11-02T08:00:00Z",
+      "craft": "Pipefitter",
+      "end_date": "2026-11-13",
+      "headcount": 6,
+      "kind": "labor",
+      "priority": "normal",
+      "requester": "user:ana",
+      "start_date": "2026-11-02",
+      "subject": "Six pipefitters for tie-ins"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Requisition.Raised/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Requisition.Raised.v1"
+}
+```
+
+## Requisition.Rejected
+
+A requisition was rejected with a reason. Stream type `requisitions.<kind>` (the requisition's own stream).
+
+- CloudEvents type: `tl.core.Requisition.Rejected.v1`
+- Ledger payload class: `RequisitionRejectedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `at` | string or null | no | UTC time the fact happened; null means the time it was recorded (valid time, ADR-0026). |
+| `by` | string | yes | Actor text of the approver. |
+| `feed_policy` | string or null | no | The feed policy the handler fixed when it wrote the event; always "full". |
+| `feed_text` | string or null | no | The line of the feed card. |
+| `reason` | string | yes | Why, at most 300 characters. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "at": "2026-11-02T08:00:00Z",
+      "by": "user:sam",
+      "feed_policy": "full",
+      "feed_text": "Requisition P123-REQ-LAB-0001 rejected",
+      "reason": "Crew not needed"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Requisition.Rejected/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Requisition.Rejected.v1"
+}
+```
+
+## Requisition.Revised
+
+Fields of a requisition changed while it was Requested. Stream type `requisitions.<kind>` (the requisition's own stream).
+
+- CloudEvents type: `tl.core.Requisition.Revised.v1`
+- Ledger payload class: `RequisitionRevisedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `at` | string or null | no | UTC time the fact happened; null means the time it was recorded (valid time, ADR-0026). |
+| `changes` | any | yes |  |
+| `feed_policy` | string or null | no | The feed policy the handler fixed when it wrote the event; always "none" (no feed card). |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "at": "2026-11-02T08:00:00Z",
+      "changes": {
+        "need_by": [
+          null,
+          "2026-11-09"
+        ]
+      },
+      "feed_policy": "none"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Requisition.Revised/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Requisition.Revised.v1"
+}
+```
+
 ## ResponseClock.Cancelled
 
 The clock was cancelled: no answer is needed any more.
@@ -15092,6 +15465,326 @@ The outcome of one commitment was recorded: done, or missed with a reason.
   "tlseq": 48211933,
   "tlstreamversion": 7,
   "type": "tl.core.WeeklyPlan.OutcomeRecorded.v1"
+}
+```
+
+## WorkOrder.Assigned
+
+A work order was assigned. Stream type `requisitions.WorkOrder` (the work order's own stream); `requisition_id` is in every payload.
+
+- CloudEvents type: `tl.core.WorkOrder.Assigned.v1`
+- Ledger payload class: `WorkOrderAssignedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `assigned_to` | string | yes | An actor or free text, at most 120 characters. |
+| `at` | string or null | no | UTC time the fact happened; null means the time it was recorded (valid time, ADR-0026). |
+| `feed_policy` | string or null | no | The feed policy the handler fixed when it wrote the event; always "none" (no feed card). |
+| `requisition_id` | string | yes | The requisition. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "assigned_to": "user:ana",
+      "at": "2026-11-02T08:00:00Z",
+      "feed_policy": "none",
+      "requisition_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P1"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/WorkOrder.Assigned/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.WorkOrder.Assigned.v1"
+}
+```
+
+## WorkOrder.Closed
+
+A completed work order was closed. Stream type `requisitions.WorkOrder` (the work order's own stream); `requisition_id` is in every payload.
+
+- CloudEvents type: `tl.core.WorkOrder.Closed.v1`
+- Ledger payload class: `WorkOrderClosedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `at` | string or null | no | UTC time the fact happened; null means the time it was recorded (valid time, ADR-0026). |
+| `requisition_id` | string | yes | The requisition. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "at": "2026-11-02T08:00:00Z",
+      "requisition_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P1"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/WorkOrder.Closed/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.WorkOrder.Closed.v1"
+}
+```
+
+## WorkOrder.Completed
+
+Work on a work order was completed. Stream type `requisitions.WorkOrder` (the work order's own stream); `requisition_id` is in every payload.
+
+- CloudEvents type: `tl.core.WorkOrder.Completed.v1`
+- Ledger payload class: `WorkOrderCompletedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `at` | string | yes | UTC time the work was completed (valid time, ADR-0026). |
+| `feed_policy` | string or null | no | The feed policy the handler fixed when it wrote the event; always "full". |
+| `feed_text` | string or null | no | The line of the feed card. |
+| `hours_actual` | string or null | no | Decimal text with one decimal, or null. |
+| `requisition_id` | string | yes | The requisition. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "at": "2026-11-02T08:00:00Z",
+      "feed_policy": "full",
+      "feed_text": "Work order P123-WO-0001 completed",
+      "hours_actual": "96.0",
+      "requisition_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P1"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/WorkOrder.Completed/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.WorkOrder.Completed.v1"
+}
+```
+
+## WorkOrder.Opened
+
+A work order was opened by an approval. Stream type `requisitions.WorkOrder` (the work order's own stream); `requisition_id` is in every payload.
+
+- CloudEvents type: `tl.core.WorkOrder.Opened.v1`
+- Ledger payload class: `WorkOrderOpenedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `at` | string or null | no | UTC time the fact happened; null means the time it was recorded (valid time, ADR-0026). |
+| `feed_policy` | string or null | no | The feed policy the handler fixed when it wrote the event; always "none" (no feed card). |
+| `hours_planned` | string or null | no | Decimal text with one decimal, or null. |
+| `requisition_id` | string | yes | The requisition. |
+| `work_kind` | string | yes | erect, modify, dismantle, lift, general, labour or issue. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "at": "2026-11-02T08:00:00Z",
+      "feed_policy": "none",
+      "requisition_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P1",
+      "work_kind": "labour"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/WorkOrder.Opened/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.WorkOrder.Opened.v1"
+}
+```
+
+## WorkOrder.Scheduled
+
+A work order was scheduled. Stream type `requisitions.WorkOrder` (the work order's own stream); `requisition_id` is in every payload.
+
+- CloudEvents type: `tl.core.WorkOrder.Scheduled.v1`
+- Ledger payload class: `WorkOrderScheduledPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `at` | string or null | no | UTC time the fact happened; null means the time it was recorded (valid time, ADR-0026). |
+| `hours_planned` | string or null | no | Planned hours, text with one decimal from "0.0" to "10000000.0"; absent when the command gives none. |
+| `planned_finish` | string or null | no | YYYY-MM-DD, not before the start. |
+| `planned_start` | string | yes | YYYY-MM-DD. |
+| `requisition_id` | string | yes | The requisition. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "at": "2026-11-02T08:00:00Z",
+      "planned_finish": "2026-11-13",
+      "planned_start": "2026-11-02",
+      "requisition_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P1"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/WorkOrder.Scheduled/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.WorkOrder.Scheduled.v1"
+}
+```
+
+## WorkOrder.Started
+
+Work on a work order started. Stream type `requisitions.WorkOrder` (the work order's own stream); `requisition_id` is in every payload.
+
+- CloudEvents type: `tl.core.WorkOrder.Started.v1`
+- Ledger payload class: `WorkOrderStartedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `at` | string | yes | UTC time the work started (valid time, ADR-0026). |
+| `requisition_id` | string | yes | The requisition. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "at": "2026-11-02T08:00:00Z",
+      "requisition_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P1"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/WorkOrder.Started/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.WorkOrder.Started.v1"
 }
 ```
 

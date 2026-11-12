@@ -734,8 +734,10 @@ class TlApp(App[None]):
         from tl_tui.widgets.iwp_register import IwpRegisterScreen
         from tl_tui.widgets.package_log import PackageLogScreen
         from tl_tui.widgets.path_screen import PathScreen
+        from tl_tui.widgets.requisition_register import RequisitionLogScreen
         from tl_tui.widgets.wbs_screen import WbsScreen
         from tl_tui.widgets.weekly_screen import LookAheadScreen
+        from tl_tui.widgets.work_order_backlog import WorkOrderBacklogScreen
 
         project = project_of_scope(self.scope)
         if project is None:
@@ -751,6 +753,8 @@ class TlApp(App[None]):
             "constraints": ConstraintScreen,
             "backlog": BacklogScreen,
             "week": LookAheadScreen,
+            "requisitions": RequisitionLogScreen,
+            "work-orders": WorkOrderBacklogScreen,
         }
         self.push_screen(screens[which](self.client, project))
 
@@ -777,6 +781,14 @@ class TlApp(App[None]):
     def action_backlog(self) -> None:
         """The backlog of this project, with its sizing view (palette only)."""
         self._push_awp("backlog")
+
+    def action_requisitions(self) -> None:
+        """The requisition log of this project (palette only)."""
+        self._push_awp("requisitions")
+
+    def action_work_orders(self) -> None:
+        """The work order backlog of this project (palette only)."""
+        self._push_awp("work-orders")
 
     def action_path(self) -> None:
         """The path of construction of this project, by version (palette only)."""

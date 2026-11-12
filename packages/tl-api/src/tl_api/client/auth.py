@@ -9,6 +9,8 @@ includes a password or a token in an exception text.
 
 from __future__ import annotations
 
+from typing import Any
+
 import httpx2
 from tl_core.auth.module_role_views import EffectiveRoleView
 from tl_core.auth.types import Principal
@@ -45,6 +47,34 @@ def sign_in(
     if response.status_code >= 400:
         raise ApiClientBase.error_from(response)
     return SignInOut.model_validate(response.json())
+
+
+def health(
+    base_url: str,
+    *,
+    http: httpx2.Client | None = None,
+    timeout: float = DEFAULT_TIMEOUT_S,
+) -> dict[str, Any]:
+    """``GET /health``: the server's status and version. No token is sent (the route is open).
+
+    Like ``sign_in`` this is a function: nothing is authenticated yet. A response of 400 or above
+    raises ``ApiClientBase.error_from(response)``; a transport failure raises
+    ``ApiUnavailableError``.
+    """
+    client = (
+        http if http is not None else httpx2.Client(base_url=base_url.rstrip("/"), timeout=timeout)
+    )
+    try:
+        response = client.get("/health")
+    except httpx2.TransportError as exc:
+        raise ApiUnavailableError(exc) from exc
+    finally:
+        if http is None:
+            client.close()
+    if response.status_code >= 400:
+        raise ApiClientBase.error_from(response)
+    body: dict[str, Any] = response.json()
+    return body
 
 
 class AuthApi(ApiClientBase):

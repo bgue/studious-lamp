@@ -23,6 +23,7 @@ from typing import Any, cast
 
 import yaml
 from pydantic import ValidationError
+from tl_schema.resources import schema_root
 
 from tl_core.extypes.names import settings_key_problem
 from tl_core.services.errors import UnknownSettingError
@@ -31,8 +32,7 @@ from tl_core.settings.values import check_definition
 
 PLATFORM_FILE_ENV = "TL_SETTINGS_PLATFORM_FILE"
 PLATFORM_OWNER = "platform"
-_REPO_ROOT = Path(__file__).resolve().parents[5]
-DEFAULT_PLATFORM_FILE = _REPO_ROOT / "schema" / "settings" / "platform.yaml"
+DEFAULT_PLATFORM_FILE = schema_root() / "settings" / "platform.yaml"
 
 
 class SettingDefinitionError(ValueError):

@@ -35,8 +35,9 @@ from linkml_runtime.utils.schemaview import SchemaView
 
 from tl_schema.compose import project_of
 from tl_schema.effective import ALWAYS, EffectiveProperty, EffectivePset, EffectiveSchema
+from tl_schema.resources import schema_root
 
-CORE_SCHEMA_DIR: Path = Path(__file__).resolve().parents[4] / "schema" / "core"
+CORE_SCHEMA_DIR: Path = schema_root() / "core"
 CORE_ROOT = "core.yaml"
 
 _RANGE_FOR_KIND: dict[str, str] = {

@@ -15,7 +15,7 @@ from typing import Any
 import pytest
 from harness import Harness
 from sqlalchemy import event as sa_event
-from test_confidentiality_walk import (  # pyright: ignore[reportMissingImports]
+from tl_api_walk import (  # pyright: ignore[reportMissingImports]
     FAKE_ID,
     MAY_READ,
     Seed,

@@ -16,6 +16,7 @@ from tl_core.bus import Bus
 from tl_core.ledger import AppendResult, Event, Ledger, NewEvent
 from tl_core.projection.types import Projector, ProjectorRegistry
 
+from tl_adapters._payload_check import validate_events
 from tl_adapters._publish import COMMIT_LOCK, publisher_for
 
 REPLAY_PAGE = 1000
@@ -99,6 +100,7 @@ class BaseUnitOfWork:
         if self._readonly:
             raise RuntimeError("read-only unit of work cannot append")
         conn = self.conn()
+        validate_events(kwargs.get("events", ()))
         result = self._ledger.append_in(conn, **kwargs)
         for event in result.events:
             for projector in self._registry.for_event(event.event_type):

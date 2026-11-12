@@ -24,6 +24,7 @@ from tl_mcp.awp_week_tools import WEEK_MCP_ACTIONS
 from tl_mcp.context import Authorizer as McpAuthorizer
 from tl_mcp.iwp_tools import IWP_MCP_ACTIONS
 from tl_mcp.materials_tools import MATERIALS_MCP_ACTIONS
+from tl_mcp.requisition_tools import REQUISITION_MCP_ACTIONS
 
 #: Every action an MCP tool or resource asks the authorizer about (``mcp.<tool>`` and
 #: ``mcp.resource.<name>``). A test registers the real server and fails on a tool or resource that
@@ -107,6 +108,7 @@ MCP_ACTIONS = (
     | MATERIALS_MCP_ACTIONS
     | IWP_MCP_ACTIONS
     | WEEK_MCP_ACTIONS  # P2-I5-T11c: five weekly-plan reads
+    | REQUISITION_MCP_ACTIONS
 )
 
 TOKEN_ENV = "TL_AGENT_TOKEN"  # noqa: S105 - the name of the variable, not a secret

@@ -82,3 +82,34 @@ patterns:
     template: "{project}-{type}-{seq:4}"
     type_code: CON
     gap_free: true
+  # Requisitions (brief 9 M9): one gap-free counter per kind, P123-REQ-LAB-0001 and so on; the work order has its own.
+  - id: requisitions.LaborRequisition
+    record_type: requisitions.LaborRequisition
+    scope: "project:*"
+    template: "{project}-REQ-LAB-{seq:4}"
+    type_code: REQLAB
+    gap_free: true
+  - id: requisitions.MaterialRequisition
+    record_type: requisitions.MaterialRequisition
+    scope: "project:*"
+    template: "{project}-REQ-MAT-{seq:4}"
+    type_code: REQMAT
+    gap_free: true
+  - id: requisitions.GeneralRequisition
+    record_type: requisitions.GeneralRequisition
+    scope: "project:*"
+    template: "{project}-REQ-GEN-{seq:4}"
+    type_code: REQGEN
+    gap_free: true
+  - id: requisitions.ScaffoldRequest
+    record_type: requisitions.ScaffoldRequest
+    scope: "project:*"
+    template: "{project}-REQ-SCF-{seq:4}"
+    type_code: REQSCF
+    gap_free: true
+  - id: requisitions.WorkOrder
+    record_type: requisitions.WorkOrder
+    scope: "project:*"
+    template: "{project}-WO-{seq:4}"
+    type_code: WO
+    gap_free: true
