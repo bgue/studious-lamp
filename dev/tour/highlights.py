@@ -425,6 +425,8 @@ def activity_shots(ws: Workspace, n: dict[str, str]) -> None:
             "Why: " + INTENT_WHY, "Toward: ISO-6100 -> the drawing is confirmed",
         )  # fmt: skip
 
+    # The goal line of the intent panel is not drawn at 80, 96 or 130 rows: the record view clips
+    # it inside its own container, so a taller terminal does not show it (see the tour text).
     tk.run_tui(ws, app, scenario, size=(150, 80))
 
 
@@ -665,7 +667,7 @@ def weekly_shots(ws: Workspace, landing: str, new: str) -> None:
     )  # fmt: skip
     week_shot(
         ws, "14-week-constraints", "Step 2: a check-raised constraint, cleared as waived",
-        ("2",), "waived", row="P200-CON-0045",
+        ("2",), "waived", "waived by", "Materials coordinator", row="P200-CON-0045",
     )  # fmt: skip
     ws.tl("awp", "week", "outcome", WEEK, new, "done", *P200, who=PLANNER)
     ws.tl("awp", "week", "outcome", WEEK, "P200-IWP-ISL-0001", "done", *P200, who=PLANNER)
