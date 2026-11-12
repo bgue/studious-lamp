@@ -12,12 +12,17 @@ default:
 gen:
     uv run python -m tl_schema.generate
 
+# Refresh the event-schema compat baseline; refuses when a change is not additive (P2-GUARD)
+compat-update:
+    uv run python -m tl_schema.compat --update
+
 # Lint, format check, types, and codegen drift (fails if `just gen` would change committed output)
 check:
     uv run ruff check .
     uv run ruff format --check .
     uv run pyright
     uv run python -m tl_schema.generate --check
+    uv run python -m tl_schema.compat --check
     uv run python -m tl_api.openapi --check
     uv run python dev/tools/check_licences.py
 
@@ -146,6 +151,18 @@ drill *args:
 # Secret tripwire over the files git tracks (04-gates section 1, "Security scan")
 scan-secrets:
     uv run python dev/tools/scan_secrets.py
+
+# Release wheels: one per workspace package into dist/release-<version>/, with SHA256SUMS (dev/release/build.sh)
+release-build:
+    bash dev/release/build.sh
+
+# P200 starter bundle (ledger, overlay schema, START.txt) into dist/release-<version>/ (dev/release/starter.sh, P2-REL-T04)
+release-starter *args:
+    bash dev/release/starter.sh {{args}}
+
+# Clean-install smoke test of a release directory: install, try-it, real-server, session-file (dev/release/smoke.sh, P2-REL-T05)
+release-smoke *args:
+    bash dev/release/smoke.sh {{args}}
 
 # Known-vulnerability audit of the locked dependencies (needs network; pip-audit runs through uvx
 # and is not a dependency of the project)

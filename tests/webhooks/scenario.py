@@ -279,6 +279,29 @@ MODULE_STREAMS = (
         ("WeeklyPlan.IwpCommitted", "WeeklyPlan.OutcomeRecorded", "WeeklyPlan.Closed"),
     ),
     ("awp.IWPCloseout", "IWPCloseout.Recorded", ()),
+    # requisitions (P2-I4A): the labour kind stands for the four kinds, which share the events
+    (
+        "requisitions.LaborRequisition",
+        "Requisition.Raised",
+        (
+            "Requisition.Revised",
+            "Requisition.Approved",
+            "Requisition.Rejected",
+            "Requisition.Cancelled",
+            "Requisition.Fulfilled",
+        ),
+    ),
+    (
+        "requisitions.WorkOrder",
+        "WorkOrder.Opened",
+        (
+            "WorkOrder.Scheduled",
+            "WorkOrder.Assigned",
+            "WorkOrder.Started",
+            "WorkOrder.Completed",
+            "WorkOrder.Closed",
+        ),
+    ),
 )
 
 

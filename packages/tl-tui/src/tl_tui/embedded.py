@@ -23,6 +23,7 @@ from tl_api.auth import AGENT_MUST_PROPOSE
 from tl_api.client.files import save_download
 from tl_api.insights_sources import sources_for
 from tl_api.routes import constraints as constraint_routes
+from tl_api.routes import requisitions as requisition_routes
 from tl_api.routes.awp import CheckBody, CwpDetailView, ReadinessBody, TimelineRow, _note
 from tl_api.routes.awp_progress import IwpHash, IwpProgress, ProgressItem, RollupBody
 from tl_api.routes.constraints import (
@@ -30,6 +31,12 @@ from tl_api.routes.constraints import (
     ConstraintGroups,
     ConstraintList,
     ConstraintRow,
+)
+from tl_api.routes.requisitions import (
+    RequisitionDetailBody,
+    RequisitionList,
+    WorkOrderDetailBody,
+    WorkOrderList,
 )
 from tl_api.thread_runner import thread_runner
 from tl_core import confidentiality
@@ -86,7 +93,7 @@ from tl_core.insights.types import ActivityPage, CheckFinding
 from tl_core.integration import registry as integration_registry
 from tl_core.integration.actor_access import held_access
 from tl_core.integration.contract import SERVER_SET_FIELDS, Access
-from tl_core.intent import redact_events
+from tl_core.intent import redact_for_viewer
 from tl_core.ledger import Event
 from tl_core.links.expected import MissingLink, missing_expected_links
 from tl_core.links.provider import get_vocabulary
@@ -219,6 +226,8 @@ from tl_mod_engineering.views import TagView, tag_view, tag_views
 from tl_mod_materials import views as materials_views
 from tl_mod_materials import views_detail as materials_detail
 from tl_mod_materials.commands import MATERIALS_COMMANDS
+from tl_mod_requisitions import views as requisition_views
+from tl_mod_requisitions.api import RequisitionRow
 from tl_mod_schedule import views as schedule_views
 from tl_mod_schedule.compare import Comparison
 from tl_mod_schedule.handlers.activity import LinkActivity, handle_link_activity
@@ -489,7 +498,7 @@ class EmbeddedClient:
 
     def history(self, record_id: str) -> list[Event]:
         with self._uow(True) as uow:
-            return redact_events(uow.conn(), queries.record_history(uow, record_id))
+            return redact_for_viewer(uow.conn(), queries.record_history(uow, record_id))
 
     def activity(
         self,
@@ -2084,6 +2093,108 @@ class EmbeddedClient:
             self._own_command(cmd.actor)
             self._command_gate(uow, cmd)
             return self.own_writes.note(spec.handler(uow, cmd))
+
+    # --- the requisition and work order reads (P2-I4A T04c2): the reads the API routes serve ---
+
+    def _require_requisition_view(self, uow: UnitOfWork, scope: str) -> None:
+        """The access word of every requisition read, as the routes check it: the signed-in person
+        holds ``requisitions.view`` on the project (else ``ForbiddenError``)."""
+        require_word(
+            uow.conn(),
+            holder_for_actor(uow.conn(), self.actor),
+            scope=scope,
+            module=requisition_routes.ACCESS_MODULE,
+            word=normalise_word(requisition_routes.VIEW_WORD),
+            what=requisition_routes.VIEW_WORD,
+        )
+
+    def list_requisitions(
+        self,
+        project: str,
+        *,
+        kind: Literal["labor", "material", "general", "scaffold"] | None = None,
+        state: str | None = None,
+        requester: str | None = None,
+        for_key: str | None = None,
+        limit: int = 200,
+    ) -> RequisitionList:
+        scope = f"project:{project}"
+        with self._uow(True) as uow:
+            conn = uow.conn()
+            self._require_requisition_view(uow, scope)
+            viewer = confidentiality.current_viewer()
+            if for_key is None:
+                rows = requisition_views.requisition_list(
+                    conn,
+                    scope,
+                    kind=kind,
+                    state=state,
+                    requester=requester,
+                    limit=limit,
+                    viewer=viewer,
+                )
+            else:
+                found: list[RequisitionRow] = []
+                for record_id in requisition_routes._for_record_ids(conn, scope, for_key, viewer):
+                    found.extend(
+                        requisition_views.requisition_list(
+                            conn,
+                            scope,
+                            kind=kind,
+                            state=state,
+                            requester=requester,
+                            for_record=record_id,
+                            limit=limit,
+                            viewer=viewer,
+                        )
+                    )
+                rows = sorted(found, key=lambda r: (r.key, r.id))[:limit]
+        return RequisitionList(rows=rows, total=len(rows))
+
+    def get_requisition(self, project: str, key: str) -> RequisitionDetailBody:
+        scope = f"project:{project}"
+        with self._uow(True) as uow:
+            self._require_requisition_view(uow, scope)
+            detail = requisition_views.requisition_detail(
+                uow.conn(), scope, key, viewer=confidentiality.current_viewer()
+            )
+        if detail is None:
+            raise RecordNotFoundError(f"no requisition {key!r}")
+        return RequisitionDetailBody(
+            row=detail.row, fields=detail.fields, work_order=detail.work_order
+        )
+
+    def list_work_orders(
+        self,
+        project: str,
+        *,
+        state: str | None = None,
+        assigned_to: str | None = None,
+        limit: int = 200,
+    ) -> WorkOrderList:
+        scope = f"project:{project}"
+        with self._uow(True) as uow:
+            self._require_requisition_view(uow, scope)
+            rows = requisition_views.work_order_list(
+                uow.conn(),
+                scope,
+                state=state,
+                assigned_to=assigned_to,
+                limit=limit,
+                viewer=confidentiality.current_viewer(),
+            )
+        return WorkOrderList(rows=rows, total=len(rows))
+
+    def get_work_order(self, project: str, key: str) -> WorkOrderDetailBody:
+        scope = f"project:{project}"
+        with self._uow(True) as uow:
+            self._require_requisition_view(uow, scope)
+            detail = requisition_views.work_order_detail(
+                uow.conn(), scope, key, viewer=confidentiality.current_viewer()
+            )
+        if detail is None:
+            raise RecordNotFoundError(f"no work order {key!r}")
+        return WorkOrderDetailBody(row=detail.row, requisition_key=detail.requisition_key)
 
     # --- the schema workbench (P1-I8) ---------------------------------------------------------
 

@@ -6,6 +6,7 @@ live here.
 
 from __future__ import annotations
 
+from importlib.metadata import version as package_version
 from pathlib import Path
 from typing import Annotated, Any
 
@@ -81,6 +82,7 @@ from tl_cli import (
     proposal,
     pset,
     record,
+    req,
     restore,
     review,
     rfi,
@@ -159,6 +161,8 @@ app.add_typer(corr.app, name="corr")
 app.add_typer(rfi.app, name="rfi")
 app.add_typer(comm.app, name="comm")
 app.add_typer(mat.app, name="mat")  # P2-I3
+app.add_typer(req.app, name="req")  # P2-I4A-T04e1
+app.add_typer(req.wo_app, name="wo")  # P2-I4A-T04e1
 app.command("evidence")(evidence.evidence_cmd)
 corr.app.add_typer(corr_clock.app, name="clock")
 corr.app.add_typer(corr_registry.thread_app, name="thread")
@@ -212,9 +216,25 @@ projections = typer.Typer(help="Maintain projections from the ledger.", no_args_
 app.add_typer(projections, name="projections")
 
 
+def _version_callback(value: bool) -> None:
+    """``tl --version``: print ``throughline <version>`` from the installed tl-cli metadata."""
+    if value:
+        typer.echo(f"throughline {package_version('tl-cli')}")
+        raise typer.Exit()
+
+
 @app.callback()
 def root(
     ctx: typer.Context,
+    version_flag: Annotated[
+        bool,
+        typer.Option(
+            "--version",
+            callback=_version_callback,
+            is_eager=True,
+            help="Print the release version and exit.",
+        ),
+    ] = False,
     db: Annotated[
         str,
         typer.Option(

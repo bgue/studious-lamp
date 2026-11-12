@@ -33,6 +33,7 @@ from typing import TYPE_CHECKING, Any, Literal, cast
 
 import yaml
 from sqlalchemy import Connection, text
+from tl_schema.resources import schema_root
 
 from tl_core.auth.access_words import TABLE_WORDS, table_word
 from tl_core.auth.env import dev_tokens_allowed
@@ -46,9 +47,8 @@ from tl_core.services.commands import Command
 if TYPE_CHECKING:
     from tl_core.actions import Holds, Level
 
-_REPO_ROOT = Path(__file__).resolve().parents[5]
 #: The role table the platform ships. There is no override: the table is code-reviewed.
-DEFAULT_ROLE_TABLE_FILE = _REPO_ROOT / "schema" / "settings" / "module-roles.yaml"
+DEFAULT_ROLE_TABLE_FILE = schema_root() / "settings" / "module-roles.yaml"
 
 #: Platform words: not in the table and never grantable.
 PLATFORM_WORDS = frozenset({"admin", "company"})

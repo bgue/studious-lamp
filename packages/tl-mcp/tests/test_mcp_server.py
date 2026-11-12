@@ -112,6 +112,7 @@ READING = (
         "get_progress_rollup",
         "list_kpis",
     }  # T11c
+    | {"list_requisitions", "get_requisition", "list_work_orders", "get_work_order"}  # T08b
 )
 TOOLS = (
     READING
@@ -130,6 +131,7 @@ TOOLS = (
         "get_progress_rollup",
         "list_kpis",
     }  # T11c
+    | {"propose_requisition"}  # T08b
     | {"post_feed", "post_thread_message", "propose_dispatch"}
 )
 

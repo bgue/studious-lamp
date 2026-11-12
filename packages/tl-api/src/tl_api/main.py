@@ -7,6 +7,9 @@
     --host / --port   bind address (default 127.0.0.1:8765)
     --insecure-dev    allow a non-loopback bind; every request logs a warning (ADR-0005)
 
+A non-loopback bind is also allowed when TL_ENV names a deployment (not dev, test, ci or demo): then
+TL_OBJECT_SECRET is required, the dev token file is ignored and TLS is the proxy's job.
+
 Object storage comes from the environment like the CLI (`TL_OBJECT_STORE`, `TL_OBJECT_ROOT`,
 `TL_OBJECT_SECRET` or `TL_ENV=dev`). Without it the server starts and the file routes answer 503.
 """
@@ -15,18 +18,20 @@ from __future__ import annotations
 
 import argparse
 import logging
+import os
 import sys
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
 from tl_adapters.db import DbTarget, as_target, display_target
+from tl_core.auth.env import prod_like
 from tl_core.files.service import FileService
 from tl_core.files.types import ObjectStore
 
 from tl_api.backend import Backend
-from tl_api.settings import ApiSettings, check_bind
+from tl_api.settings import DEFAULT_TOKENS, ApiSettings, check_bind, is_loopback
 
 log = logging.getLogger("tl_api")
 
@@ -111,6 +116,26 @@ def started_server(app: Any, settings: ApiSettings, on_started: Callable[[], Non
     return StartedServer(config)
 
 
+def check_server_mode(settings: ApiSettings, env: Mapping[str, str] | None = None) -> str | None:
+    """Start-up checks for a prod-like, non-loopback server (ADR-0009 section 9).
+
+    Returns the refusal text, or ``None`` to go on. The dev token file is not read: a value given
+    for it is ignored with one log line. ``TL_OBJECT_SECRET`` must be set (the dev secret is
+    public). One line says whether a trusted proxy header is configured.
+    """
+    source = os.environ if env is None else env
+    if source.get("TL_TOKENS") or str(settings.tokens_path) != DEFAULT_TOKENS:
+        log.info("TL_ENV is %s: the dev token file is ignored", source.get("TL_ENV", "").strip())
+    if not source.get("TL_OBJECT_SECRET"):
+        return (
+            "TL_OBJECT_SECRET is not set: set it to a long random value "
+            "(the dev secret is public and only for TL_ENV=dev)"
+        )
+    proxy = "yes" if settings.trusted_proxy_header else "no"
+    log.info("serving on %s:%s behind TLS proxy: %s", settings.host, settings.port, proxy)
+    return None
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     from tl_core.offline import NodeKindNotBuiltError, require_node_built
 
@@ -145,16 +170,23 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     from tl_api.tokens import TokenStore
 
-    try:
-        TokenStore(settings.tokens_path).check()
-    except ValueError as exc:
-        print(f"error: {exc}", file=sys.stderr)
-        return 2
+    logging.basicConfig(level=logging.INFO)
+    server_mode = prod_like() and not is_loopback(settings.host)
+    if server_mode:
+        refusal = check_server_mode(settings)
+        if refusal is not None:
+            print(f"error: {refusal}", file=sys.stderr)
+            return 2
+    else:
+        try:
+            TokenStore(settings.tokens_path).check()
+        except ValueError as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 2
 
     from tl_api.app import create_app
     from tl_api.backend import open_backend
 
-    logging.basicConfig(level=logging.INFO)
     if settings.insecure_dev:
         log.warning("--insecure-dev: bound to %s with no real authentication", settings.host)
     try:

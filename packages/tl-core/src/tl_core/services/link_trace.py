@@ -83,7 +83,7 @@ def trace(
 
     def neighbours(rid: str) -> list[dict[str, Any]]:
         # a record the viewer may not read is not a neighbour (ADR-0016)
-        visible, visible_params = confidentiality.not_hidden("r.id")
+        visible, visible_params = confidentiality.not_hidden_each("r.id")
         rows = (
             uow.conn()
             .execute(

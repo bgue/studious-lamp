@@ -1,4 +1,4 @@
-"""The eleven platform settings of Phase 2 wave 0 (W0-B1): type, default, bounds, scopes, lock.
+"""The twelve platform settings of Phase 2 (W0-B1, requisitions): type, default, bounds, lock.
 
 The expectations are written out here from the W0-B1 report, not read back from the file.
 """
@@ -62,6 +62,7 @@ PHASE2: dict[str, tuple[str, Any, Any, Any, Any, Any, str]] = {
         "normal",
     ),
     "scaffold.inspection.interval_days": ("int", 7, 1, 90, None, None, "normal"),
+    "requisitions.forecast.weeks": ("int", 8, 1, 52, None, None, "normal"),
 }
 OLD_KEYS = 17
 
@@ -75,12 +76,12 @@ def definitions() -> dict[str, SettingDefinition]:
 P2_I5 = {"awp.pack.pdf", "tui.landing"}
 
 
-def test_the_platform_file_defines_31_keys_17_old_11_new_telemetry_and_two_of_p2_i5(
+def test_the_platform_file_defines_32_keys_17_old_12_new_telemetry_and_two_of_p2_i5(
     definitions: dict[str, SettingDefinition],
 ) -> None:
-    assert len(PHASE2) == 11
+    assert len(PHASE2) == 12
     # telemetry.retention_days is the P2-INS S2 key: neither old nor wave-0.
-    assert len(definitions) == 31 == OLD_KEYS + len(PHASE2) + 1 + len(P2_I5)
+    assert len(definitions) == 32 == OLD_KEYS + len(PHASE2) + 1 + len(P2_I5)
     assert set(PHASE2) <= set(definitions) and P2_I5 <= set(definitions)
     assert len(set(definitions) - set(PHASE2)) == OLD_KEYS + 1 + len(P2_I5)
 
@@ -245,7 +246,7 @@ def test_list_items_follow_the_item_pattern(
             normalise(found, [good[0], item])
 
 
-def test_the_two_risky_keys_are_the_only_advanced_ones_among_the_new_eleven(
+def test_the_two_risky_keys_are_the_only_advanced_ones_among_the_new_twelve(
     definitions: dict[str, SettingDefinition],
 ) -> None:
     assert {k for k in PHASE2 if definitions[k].risk == "advanced"} == {

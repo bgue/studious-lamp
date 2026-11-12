@@ -14872,10 +14872,15 @@
           "status": {
             "title": "Status",
             "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
           }
         },
         "required": [
-          "status"
+          "status",
+          "version"
         ],
         "title": "Health",
         "type": "object"
@@ -28965,6 +28970,169 @@
         "title": "RequestWaiverBody",
         "type": "object"
       },
+      "RequisitionDetailBody": {
+        "description": "A requisition with its kind-specific fields as stored, and its work order or null.",
+        "properties": {
+          "fields": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "title": "Fields",
+            "type": "object"
+          },
+          "row": {
+            "$ref": "#/components/schemas/RequisitionRow"
+          },
+          "work_order": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WorkOrderRow"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "row",
+          "fields",
+          "work_order"
+        ],
+        "title": "RequisitionDetailBody",
+        "type": "object"
+      },
+      "RequisitionList": {
+        "description": "The requisitions a viewer may read, and how many rows the list holds.",
+        "properties": {
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/RequisitionRow"
+            },
+            "title": "Rows",
+            "type": "array"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "rows",
+          "total"
+        ],
+        "title": "RequisitionList",
+        "type": "object"
+      },
+      "RequisitionRow": {
+        "description": "A requisition as a reader sees it (the columns every kind has).",
+        "properties": {
+          "approved_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approved By"
+          },
+          "for_record_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "For Record Id"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "need_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Need By"
+          },
+          "priority": {
+            "title": "Priority",
+            "type": "string"
+          },
+          "record_type": {
+            "title": "Record Type",
+            "type": "string"
+          },
+          "requester": {
+            "title": "Requester",
+            "type": "string"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          },
+          "subject": {
+            "title": "Subject",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          },
+          "work_order_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Work Order Id"
+          }
+        },
+        "required": [
+          "id",
+          "key",
+          "kind",
+          "record_type",
+          "subject",
+          "state",
+          "requester",
+          "priority",
+          "need_by",
+          "for_record_id",
+          "approved_by",
+          "work_order_id",
+          "version"
+        ],
+        "title": "RequisitionRow",
+        "type": "object"
+      },
       "ReservationRowView": {
         "properties": {
           "item_code": {
@@ -42919,6 +43087,168 @@
           "reason"
         ],
         "title": "WithdrawConstraintBody",
+        "type": "object"
+      },
+      "WorkOrderDetailBody": {
+        "description": "A work order with the key of its requisition.",
+        "properties": {
+          "requisition_key": {
+            "title": "Requisition Key",
+            "type": "string"
+          },
+          "row": {
+            "$ref": "#/components/schemas/WorkOrderRow"
+          }
+        },
+        "required": [
+          "row",
+          "requisition_key"
+        ],
+        "title": "WorkOrderDetailBody",
+        "type": "object"
+      },
+      "WorkOrderList": {
+        "description": "The work orders a viewer may read, and how many rows the list holds.",
+        "properties": {
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/WorkOrderRow"
+            },
+            "title": "Rows",
+            "type": "array"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "rows",
+          "total"
+        ],
+        "title": "WorkOrderList",
+        "type": "object"
+      },
+      "WorkOrderRow": {
+        "properties": {
+          "actual_finish": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Actual Finish"
+          },
+          "actual_start": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Actual Start"
+          },
+          "assigned_to": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assigned To"
+          },
+          "hours_actual": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hours Actual"
+          },
+          "hours_planned": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hours Planned"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "planned_finish": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Planned Finish"
+          },
+          "planned_start": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Planned Start"
+          },
+          "requisition_id": {
+            "title": "Requisition Id",
+            "type": "string"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          },
+          "work_kind": {
+            "title": "Work Kind",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "key",
+          "requisition_id",
+          "work_kind",
+          "state",
+          "assigned_to",
+          "planned_start",
+          "planned_finish",
+          "actual_start",
+          "actual_finish",
+          "hours_planned",
+          "hours_actual",
+          "version"
+        ],
+        "title": "WorkOrderRow",
         "type": "object"
       },
       "WorkflowStatus": {
@@ -72477,7 +72807,7 @@
     },
     "/health": {
       "get": {
-        "description": "The server is up. Does not touch the database.",
+        "description": "The server is up and its version. Does not touch the database.",
         "operationId": "health",
         "responses": {
           "200": {
@@ -81298,6 +81628,286 @@
         ]
       }
     },
+    "/projects/{project}/requisitions": {
+      "get": {
+        "description": "A project's requisitions by key, filtered by kind, state, requester and the IWP or CWP\nthey serve. A hidden or unknown ``for`` key gives an empty list, as a key with none does.",
+        "operationId": "list_requisitions",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project",
+            "required": true,
+            "schema": {
+              "title": "Project",
+              "type": "string"
+            }
+          },
+          {
+            "description": "The requisition kind.",
+            "in": "query",
+            "name": "kind",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "labor",
+                    "material",
+                    "general",
+                    "scaffold"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The requisition kind.",
+              "title": "Kind"
+            }
+          },
+          {
+            "description": "The state.",
+            "in": "query",
+            "name": "state",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 64,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The state.",
+              "title": "State"
+            }
+          },
+          {
+            "description": "The requester.",
+            "in": "query",
+            "name": "requester",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The requester.",
+              "title": "Requester"
+            }
+          },
+          {
+            "description": "The IWP or CWP key it serves.",
+            "in": "query",
+            "name": "for",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The IWP or CWP key it serves.",
+              "title": "For"
+            }
+          },
+          {
+            "description": "At most this many rows.",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 200,
+              "description": "At most this many rows.",
+              "maximum": 500,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RequisitionList"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Requisitions",
+        "tags": [
+          "requisitions"
+        ]
+      }
+    },
+    "/projects/{project}/requisitions/{key}": {
+      "get": {
+        "description": "One requisition with its kind-specific fields and its work order (or null). 404\n`record_not_found` when it is missing or hidden (one answer for both).",
+        "operationId": "get_requisition",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project",
+            "required": true,
+            "schema": {
+              "title": "Project",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "key",
+            "required": true,
+            "schema": {
+              "title": "Key",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RequisitionDetailBody"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Requisition",
+        "tags": [
+          "requisitions"
+        ]
+      }
+    },
     "/projects/{project}/rfis": {
       "get": {
         "description": "The RFI log of a project: every Technical item the person may read with its response\ntime and impact flags, newest first, and the counts over the lines.",
@@ -83674,6 +84284,243 @@
         "summary": "Get Transmittal",
         "tags": [
           "documents"
+        ]
+      }
+    },
+    "/projects/{project}/work-orders": {
+      "get": {
+        "description": "A project's work orders by key, filtered by state and assignee. Work orders of hidden\nrequisitions and hidden work orders are left out, and the total counts visible rows only.",
+        "operationId": "list_work_orders",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project",
+            "required": true,
+            "schema": {
+              "title": "Project",
+              "type": "string"
+            }
+          },
+          {
+            "description": "The state.",
+            "in": "query",
+            "name": "state",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 64,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The state.",
+              "title": "State"
+            }
+          },
+          {
+            "description": "Who the work order is assigned to.",
+            "in": "query",
+            "name": "assigned_to",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Who the work order is assigned to.",
+              "title": "Assigned To"
+            }
+          },
+          {
+            "description": "At most this many rows.",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 200,
+              "description": "At most this many rows.",
+              "maximum": 500,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkOrderList"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Work Orders",
+        "tags": [
+          "requisitions"
+        ]
+      }
+    },
+    "/projects/{project}/work-orders/{key}": {
+      "get": {
+        "description": "One work order with the key of its requisition. 404 `record_not_found` when it is missing\nor hidden (one answer for both).",
+        "operationId": "get_work_order",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project",
+            "required": true,
+            "schema": {
+              "title": "Project",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "key",
+            "required": true,
+            "schema": {
+              "title": "Key",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkOrderDetailBody"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Work Order",
+        "tags": [
+          "requisitions"
         ]
       }
     },

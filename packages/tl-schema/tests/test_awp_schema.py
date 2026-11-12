@@ -196,7 +196,7 @@ def test_the_awp_edition_holds_the_three_lists_in_order() -> None:
     doc = _yaml(FIXTURES / "standards" / "co.acme.awp@1.0.0.yaml")
     assert doc["standards"] == "co.acme.awp"
     lists = doc["code_lists"]
-    assert set(lists) == {"Commodity", "PathReason", "ConstraintType"}
+    assert set(lists) == {"Commodity", "PathReason", "ConstraintType", "GeneralRequisitionType"}
     assert [v["code"] for v in lists["Commodity"]["values"]] == COMMODITIES
     assert [v["code"] for v in lists["PathReason"]["values"]] == PATH_REASONS
     assert [v["code"] for v in lists["ConstraintType"]["values"]] == CONSTRAINTS

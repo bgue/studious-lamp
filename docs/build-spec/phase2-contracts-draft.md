@@ -229,7 +229,20 @@ slots:
   approval_chain: {range: string, multivalued: true}   # access words or account actors, P2-Q3
 ```
 
-Workflow fixtures `requisitions-requisition.yaml` (one definition, `record_type` per concrete class) and
+**As built (P2-I4A S1, supersedes the sketch above where they differ).** The base has no `is_a: RecordEnvelope` and
+no table; every concrete class is a record type and a table (`cur_requisitions_<snake>`), as `materials.*`. The base
+holds `kind`, `subject`, `requester`, `need_by`, `location_text`, `priority`, `for_record_id` (indexed; the
+confidentiality subject), `approved_by`, `approved_at`, `reject_reason`, `work_order_id`, `last_seq`; there is no
+`approval_chain` (F4). Enums: `RequisitionKind`, `RequisitionPriority`. `MaterialRequisition.lines` is the JSON column
+`lines_json`. `WorkOrder` adds `work_kind` and `hours_planned`, `hours_actual` (text, 1 dp). **Streams (F8):**
+`Requisition.*` events are on the requisition's stream; `WorkOrder.*` events are on the work order's own stream with
+`requisition_id` in every payload. Events: `Requisition.Raised|Revised|Approved|Rejected|Cancelled|Fulfilled`,
+`WorkOrder.Opened|Scheduled|Assigned|Started|Completed|Closed`; every payload has an optional `at` (datetime) tagged
+`tl:valid_time: at`, required on `Started` and `Completed`. The loader finds a workflow by exact record type, so the
+requisition workflow is four files (`requisitions-requisition-<kind>.yaml`, equal but for `id` and `record_type`).
+**As built (P2-I4A T12, from the events schema):** the `Requisition.Raised` payload is flat: the base fields and the fields of the kind named by `kind` sit at the top level, not under a `requisition` key (the `RaiseRequisition` command nests them; the event does not). `Requisition.Revised` carries `changes`, a map from each changed field to `[old, new]`, as `IWP.Revised` does. `WorkOrder.Scheduled` carries the optional `hours_planned`.
+
+Workflow fixtures `requisitions-requisition-<kind>.yaml` and
 `requisitions-work-order.yaml`. Links: a requisition `requires` from the IWP or CWP it serves; `references` a
 `cost.CostCode` and an activity; a work order `belongs_to` its requisition.
 
