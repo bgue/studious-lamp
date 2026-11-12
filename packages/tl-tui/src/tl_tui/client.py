@@ -1177,6 +1177,7 @@ class ClientInterface(Protocol):
     def constraint_command(self, name: str, cmd: Command) -> CommandResult:
         """Run a constraint command (a model of ``tl_core.constraints.commands.command_table()``)
         by name."""
+        ...
 
     # --- the requisition and work order reads (P2-I4A T04c2) ----------------------------------
     #
