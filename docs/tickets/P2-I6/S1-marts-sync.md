@@ -45,6 +45,7 @@ New `tl_lake/gold.py`:
 class GoldModel:
     name: str                  # table name, starts "mart_"; the SQL file is models/<name>.sql
     needs: tuple[str, ...]     # lake tables that must exist, else the mart is dropped and the model skipped
+    record_columns: tuple[str, ...] = ()  # columns holding a record id; rows kept only if NULL or in cur_core_record, each sync
 
 GOLD_MODELS: tuple[GoldModel, ...]   # build order
 def model_sql(name: str) -> str      # text of models/<name>.sql (importlib.resources), one SELECT, no trailing ';'
@@ -52,7 +53,7 @@ def build_gold_marts(con: Duck) -> None
     # per model in order: DROP TABLE IF EXISTS; if all needs exist: CREATE TABLE <ref> AS <model_sql>
     # (the table exists, possibly empty, whenever its needs exist). Names go through table_ref. No views, no indexes.
 ```
-`GOLD_MODELS` order and needs: `mart_iwp_readiness_history` needs `events`; `mart_materials` needs `cur_materials_movement`, `cur_materials_stock`;
+`GOLD_MODELS` order and needs (changed after the first build, see Decision): `mart_iwp_readiness_history` needs `events`, `cur_core_record` and lists `record_columns=("iwp_id",)`, so the runner keeps a row only when its `iwp_id` is a silver record (the model's SELECT must keep an `iwp_id` column); `mart_materials` needs `cur_materials_movement`, `cur_materials_stock`;
 `mart_schedule_vs_readiness` needs `mart_schedule_history`, `mart_iwp_readiness_history`.
 Call sites: `sync._sync` after `build_document_marts(con)` and before the `_tl_sync` insert; `xer._sync` right after `build_marts(con)`. Both inside the open transaction.
 
@@ -116,3 +117,12 @@ Standard (`docs/templates/haiku-report.md`), deviations first, <= 60 lines: the 
 
 ## Decision
 (supervisor or orchestrator writes here)
+
+## Decision (orchestrator, 2026-11-13, after the first build @95a66da0)
+
+Two follow-ups from the builder's open questions. Both are in scope of this piece (Sec: lake guard). T02 has not started, so the interface change is allowed now.
+
+1. **Q2, hide after copy.** A record hidden after its rows reached the lake must leave every gold mart on the next incremental sync, without `tl lake rebuild`. Add the visibility source (`cur_core_record`, or the table the guard already reads) to the `needs` of every gold model whose rows name a record that can later be hidden, and re-apply the guard on each sync. Test: reclassify, run an incremental sync, and the marts equal a rebuild and lack the record in rows and counts. Update the T02 provided tests and `refs/` if the interface line changes; say so in the report.
+2. **Q1, payload refs.** `PAYLOAD_REFS` (`packages/tl-core/src/tl_core/intent.py:262`) lacks entries for `IWP.ReadinessEvaluated` (`resolve_via` record ids) and `StockLot.Moved` (`iwp_id`, `requisition_id`), so bronze rows and other payload readers can carry hidden ids. Add those entries. Then list every event type added in Phase 2 module code (awp, materials, requisitions, quality) whose payload has a record-id field missing from `PAYLOAD_REFS`; add the clear id fields, and list any doubtful ones in the report without adding them. Additive: no event changes, a hidden id becomes null for the reader. One test per added entry (hidden id is null for a reader without access, present for one with). APPROVALS line by the orchestrator at merge (core change).
+
+Allowed paths widen to `packages/tl-core/src/tl_core/intent.py` and `packages/tl-core/tests/` for item 2.

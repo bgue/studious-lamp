@@ -8,6 +8,7 @@ from typing import Any
 
 from sqlalchemy import Engine
 from tl_adapters.db import create_schema, make_engine, open_uow, rebuild_projections
+from tl_core.ledger import NewEvent
 from tl_core.services.commands import CreateRecord, UpdateRecord, VoidRecord
 from tl_core.services.links import AddLink, RetractLink, handle_add_link, handle_retract_link
 from tl_core.services.psets import SetPsetValues, handle_set_pset_values
@@ -138,3 +139,50 @@ class LedgerBuilder:
     def head(self) -> int:
         with open_uow(self.db, readonly=True) as uow:
             return uow.ledger.head_seq()
+
+    def raw(
+        self, record_id: str, stream_type: str, event_type: str, payload: dict[str, Any]
+    ) -> None:
+        """Append one module event to the stream of an existing record, through the real
+        projectors (the record is a ``core.Record`` standing in for an IWP or a stock lot)."""
+        with open_uow(self.db) as uow:
+            done = uow.append(
+                stream_id=record_id,
+                stream_type=stream_type,
+                scope=self.scopes[record_id],
+                expected_version=self.versions[record_id],
+                events=[NewEvent(event_type=event_type, payload=payload)],
+                actor="user:u",
+                source="test",
+                correlation_id=f"corr-{record_id}-{self.versions[record_id]}",
+            )
+        self.versions[record_id] = done.events[-1].stream_version
+
+    def evaluate(
+        self,
+        iwp_id: str,
+        *,
+        today: str,
+        ready: bool,
+        checks: list[dict[str, Any]],
+    ) -> None:
+        """An ``IWP.ReadinessEvaluated`` on the stream of ``iwp_id``."""
+        self.raw(
+            iwp_id,
+            "awp.IWP",
+            "IWP.ReadinessEvaluated",
+            {
+                "iwp_id": iwp_id,
+                "evaluated_at": f"{today}T08:00:00Z",
+                "today": today,
+                "ready": ready,
+                "checks": checks,
+                "facts_hash": "0" * 64,
+                "feed_policy": "none",
+            },
+        )
+
+    def move(self, lot_id: str, kind: str, qty: str, **more: Any) -> None:
+        """A ``StockLot.Moved`` on the stream of ``lot_id`` (receive and issue are enough here)."""
+        payload: dict[str, Any] = {"kind": kind, "qty": qty, "uom": "EA", **more}
+        self.raw(lot_id, "materials.StockLot", "StockLot.Moved", payload)
