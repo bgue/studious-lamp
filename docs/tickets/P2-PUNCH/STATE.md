@@ -1,4 +1,4 @@
-# P2-PUNCH STATE  r=4 base=bb6f855b C=2 ck=0 gate=n/a wt=/home/user/wt/p2-punch
+# P2-PUNCH STATE  r=5 base=8e7134b1 C=4 ck=0 gate=pass wt=/home/user/wt/p2-punch
 ## BOARD   (r4: S1, S2 merged with APPROVALS; T01 provided test + views stub committed; tickets re-read against S1, S2; `todo` = deps unmet)
 S1 p mrg f 7c4ebaa schema + module spec; APPROVALS done
 S2 p mrg f 1752551 six commands, subject join, row; APPROVALS done
