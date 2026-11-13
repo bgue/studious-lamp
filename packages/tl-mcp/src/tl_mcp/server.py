@@ -36,6 +36,7 @@ from tl_mod_documents.derivation import store as derivation_store
 
 from tl_mcp import resources, tools
 from tl_mcp.awp_tools import register_awp_tools
+from tl_mcp.awp_week_tools import register_week_tools
 from tl_mcp.context import Authorizer, McpContext, UowFactory
 from tl_mcp.correspondence_tools import register_correspondence_tools
 from tl_mcp.derivation_tools import register_derivation_tools
@@ -152,6 +153,7 @@ def build_server(
     register_materials_tools(server, ctx)
     register_iwp_tools(server, ctx)
     register_punch_tools(server, ctx)  # P2-PUNCH-T05
+    register_week_tools(server, ctx)  # P2-I5-T11c
     register_requisition_tools(server, ctx)
 
     @server.tool(annotations=READ_ONLY)

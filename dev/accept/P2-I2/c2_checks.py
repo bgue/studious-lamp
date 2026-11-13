@@ -107,6 +107,22 @@ def build(db: Path) -> tuple[C2, dict[str, str]]:
     for name, roles in (("user", ("user",)), ("controller", ("document_controller",))):
         w.person(name, roles)
     w.person("viewer", ("user",))
+    w.person("waiver", ("user",))
+    with open_uow(w.db) as uow:  # P2-I5-S4b: the word core.constraint.waive is a controller word
+        grant_module_role(
+            uow,
+            GrantModuleRole(
+                actor="user:ada",
+                source="test",
+                account_id=uow.conn()
+                .execute(text("SELECT account_id FROM cur_account WHERE username='waiver'"))
+                .scalar_one(),
+                project=SCOPE,
+                module="*",
+                role="superuser",
+                reason="test",
+            ),
+        )
     with open_uow(w.db) as uow:
         acct = (
             uow.conn()

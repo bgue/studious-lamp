@@ -19,6 +19,7 @@ SELECT
   t.planned_finish AS planned_finish,
   t.budget_hours AS budget_hours,
   t.quantities_json AS quantities_json,
-  t.contractor_text AS contractor_text
+  t.contractor_text AS contractor_text,
+  t.assigned_party AS assigned_party
 FROM cur_awp_cwp AS t
 JOIN cur_core_record AS r ON r.id = t.id;

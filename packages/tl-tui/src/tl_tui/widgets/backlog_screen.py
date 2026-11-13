@@ -38,6 +38,7 @@ if TYPE_CHECKING:
     from tl_tui.client import ClientInterface
 
 TARGET_SETTING = "awp.backlog.target_weeks"
+IWP_LIMIT = 500  # IWPs read for the backlog; at this many the summary says so
 SIZE_SETTING = "awp.iwp.size_hours"
 BACKLOG = "backlog"
 SIZING = "sizing"
@@ -88,7 +89,7 @@ class BacklogScreen(LogScreen[BacklogLine]):
         low, high = self.client.get_setting(SIZE_SETTING, project=self.project).effective.value
         self.target = int(target)
         self.bounds = (Decimal(str(low)), Decimal(str(high)))
-        self.iwps = self.client.list_iwps(self.project)
+        self.iwps = self.client.list_iwps(self.project, limit=IWP_LIMIT)
         return self._filtered()
 
     def row_key(self, row: BacklogLine) -> str:
@@ -118,8 +119,12 @@ class BacklogScreen(LogScreen[BacklogLine]):
 
     def summary_text(self) -> str:
         if self.view == SIZING:
-            return sizing_summary(self.iwps, *self.bounds)
-        return backlog_summary(self.iwps, self.target)
+            head = sizing_summary(self.iwps, *self.bounds)
+        else:
+            head = backlog_summary(self.iwps, self.target)
+        if len(self.iwps) == IWP_LIMIT:
+            return f"first {IWP_LIMIT} IWPs · {head}"
+        return head
 
     def open_row(self, row: BacklogLine) -> None:
         """Enter opens nothing from the tile: the IWP log opens the records."""

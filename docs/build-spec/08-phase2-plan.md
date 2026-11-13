@@ -418,6 +418,7 @@ materials and scaffold `ok` (the §16 exit), on SQLite and Postgres; (4) `tl lak
 `seq` it covers; (5) every §12 M3, M4 and M9 base report runs from the CLI and the API with a non-empty result.
 **Fanout:** no. T02 and T03 run in wave 4 as I6 prep (under `docs/tickets/P2-I6/STATE.md`, beside I4-B); the rest
 is wave 5 alone.
+**Extension plan note (12 §3):** wave-1 prep is B2, T02, T03; B1 and T01 carry `material_late` and `design_revision` without scaffold (`scaffold_failed` and the scaffold clauses of the demo apply once the I4-B scaffold actor is merged); the exit follows the web increment.
 **Builder pieces (2):** B1 the injection semantics (`material_late` as a late receipt, `scaffold_failed`,
 `design_revision` against pinned IWP drawings) and the scenario references; B2 the marts sync pass (rebuild equals
 incremental, property-tested as the lake is) and the SQL model references. The exit demo is Haiku from the clause list.

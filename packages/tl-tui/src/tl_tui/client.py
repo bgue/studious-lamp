@@ -13,6 +13,7 @@ from typing import Any, Literal, Protocol
 
 from pydantic import BaseModel
 from tl_api.routes.awp import CwpDetailView, ReadinessBody
+from tl_api.routes.awp_progress import IwpHash, IwpProgress, RollupBody
 from tl_api.routes.constraints import ConstraintGroups, ConstraintList, ConstraintRow
 from tl_api.routes.requisitions import (
     RequisitionDetailBody,
@@ -59,8 +60,11 @@ from tl_core.threads.dispatch import DispatchFromThread
 from tl_core.threads.messages import EditThreadMessage, PostThreadMessage, RetractThreadMessage
 from tl_core.threads.planner import PreviewResult
 from tl_core.threads.queries import ThreadPage
-from tl_mod_awp import iwp_views
+from tl_mod_awp import iwp_views, week_views
 from tl_mod_awp import views as awp_views
+from tl_mod_awp.iwp_counts import IwpCountRow
+from tl_mod_awp.kpis import KpiTile
+from tl_mod_awp.look_ahead_view import LookAheadView
 from tl_mod_correspondence import evidence as correspondence_evidence
 from tl_mod_correspondence import reports_commercial, reports_technical
 from tl_mod_correspondence import views as correspondence_views
@@ -1154,6 +1158,62 @@ class ClientInterface(Protocol):
 
     def get_constraint(self, project: str, key: str) -> ConstraintRow:
         """One constraint by key, with the key and type of its subject."""
+        ...
+
+    # --- the awp progress, weekly-plan and look-ahead reads (P2-I5 T11b) and the two command doors
+    #
+    # The same names and signatures as ``tl_api.client.ApiClient``. A missing or hidden IWP, week
+    # or schedule raises the service's error with one text (``RecordNotFoundError``, or
+    # ``ScheduleNotFoundError`` for the look-ahead's schedule). ``awp_command`` and
+    # ``constraint_command`` run a command by its model's name, as the signed-in person; a name
+    # outside the table, or a command of another class, raises ``ForbiddenError``.
+
+    def list_iwp_counts(self, project: str) -> list[IwpCountRow]:
+        """The IWP log counts by number: Ready checks, open blocking constraints, state since."""
+        ...
+
+    def get_iwp_progress(self, project: str, number: str) -> IwpProgress:
+        """The earned progress of one IWP."""
+        ...
+
+    def get_progress_rollup(self, project: str) -> RollupBody:
+        """The earned hours of the project by CWP, WBS node and cost code."""
+        ...
+
+    def get_iwp_hash(self, project: str, number: str) -> IwpHash:
+        """The record hash of one IWP, the value a sign-off carries."""
+        ...
+
+    def list_kpis(self, project: str) -> list[KpiTile]:
+        """The two KPI tiles: PPC and percent constraint-free."""
+        ...
+
+    def list_weekly_plans(self, project: str, *, limit: int = 60) -> list[week_views.WeekRow]:
+        """The weekly plans, the latest week first."""
+        ...
+
+    def get_weekly_plan(self, project: str, week: str) -> week_views.WeekDetail:
+        """One weekly plan (``YYYY-Www``) with its commitments."""
+        ...
+
+    def list_miss_reasons(self, project: str) -> list[str]:
+        """The keys of the miss-reason code list of the adopted awp edition."""
+        ...
+
+    def get_awp_look_ahead(
+        self, project: str, schedule: str, *, snapshot: int | None = None, weeks: int = 4
+    ) -> LookAheadView:
+        """What is under way and what starts in the next ``weeks`` of the data date, each row with
+        the IWPs linked to its activity."""
+        ...
+
+    def awp_command(self, name: str, cmd: Command) -> CommandResult:
+        """Run an awp command (a model of ``tl_mod_awp.commands.AWP_COMMANDS``) by name."""
+        ...
+
+    def constraint_command(self, name: str, cmd: Command) -> CommandResult:
+        """Run a constraint command (a model of ``tl_core.constraints.commands.command_table()``)
+        by name."""
         ...
 
     # --- the requisition and work order reads (P2-I4A T04c2) ----------------------------------

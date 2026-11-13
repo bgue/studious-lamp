@@ -45,6 +45,8 @@ PROPOSE_TOOLS = (
     "propose_import",
     "propose_iwp_scope",
     "propose_punch_item",  # P2-PUNCH-T05
+    "propose_progress",  # P2-I5-T12a
+    "propose_week_commitment",  # P2-I5-T12a
     "propose_reservation",
     "propose_publish_schedule_snapshot",
     "propose_dispatch",

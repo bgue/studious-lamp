@@ -25,6 +25,7 @@ SPEC_RECORDS: dict[str, str] = {
     "awp.PWPRef": "none",
     "awp.PathOfConstruction": "none",
     "awp.WBSNode": "none",
+    "awp.WeeklyPlan": "none",  # P2-I5-S1: added after the spec table
     "core.Constraint": "draft_only",
     "core.Record": "full",
     "correspondence.CommercialItem": "none",

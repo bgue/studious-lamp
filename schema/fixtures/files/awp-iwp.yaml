@@ -1,0 +1,27 @@
+# File slot of an interim work package (brief 9 M3, 20.1; P2-I5). `pack` is the issued pack, rendered by the module as
+# HTML and, when the optional libraries are installed and `awp.pack.pdf` is on, as PDF. One current file: a new
+# upload replaces the previous one as the current file.
+id: https://example.org/throughline/fixtures/files/awp-iwp
+name: tl_fixture_awp_iwp_files
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+default_range: string
+annotations:
+  tl:module: awp
+
+classes:
+  IWP:
+    annotations:
+      tl:file_slots:
+        - name: pack
+          label: IWP pack
+          cardinality: one
+          accepted_types:
+            - text/html
+            - application/pdf
+          max_size: 52428800
+          retention_class: project

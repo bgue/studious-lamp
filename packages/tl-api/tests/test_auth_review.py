@@ -364,6 +364,8 @@ AGENT_MAY_NOT = {
     "record.write",
     "setting.write",
     "core.constraint.view",  # P2-I2-T04c1: constraint reads are closed to agents until allowed
+    "core.constraint.waive",  # P2-I5-S4b: a waived clear is a person's act (controller word)
+    "awp.worker.run",  # P2-I5-S4b: the awp worker word is a controller word, never an agent's
     "requisitions.view",  # P2-I4A-T04c1: requisition and work order reads are closed to agents
     "activity.read",  # P2-INS-S1: the activity read is closed to agents until allowed
     "insights.note_need",  # P2-INS-S2: telemetry write, closed to agents
@@ -515,6 +517,7 @@ AGENT_MAY_NOT = {
     "control.command.IssueIwp",
     "control.command.ReleaseHold",
     "control.command.SignOffIwp",
+    "control.command.CloseWeek",  # P2-I5-S4a: closing a weekly plan is a controller act
 }
 FEED_COMMANDS = {
     "PostToFeed",

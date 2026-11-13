@@ -16,3 +16,10 @@ Read the root `AGENTS.md` first. These rules add to it.
 - The nine readiness checks are read-only: a check reads nothing it does not need, uses no write, and answers one fixed detail text. `n_a` counts as passing (D9). A new check is registered through the entry-point group `throughline.readiness_checks`.
 - Constraints are core records (ADR-0024). awp holds no `awp.constraint.*` word; a constraint is raised, assigned, cleared or withdrawn only through the core commands (`core.constraint.edit`), and read through `core.constraint.view`.
 - The MCP IWP tools (`tl_mcp/iwp_tools.py`) are four reads and `propose_iwp_scope`. The proposal is not a write. Agents hold no constraint tool (D37).
+- Weekly plan, progress and the work pack are people's words (`awp.week.*`, `awp.progress.record`, `awp.iwp.edit`). An agent proposes only (`propose_progress`, `propose_week_commitment`); an agent is refused `CloseWeek` and `ClearConstraint` with `agent_must_propose`.
+- Handlers never read `intent` (ADR-0025).
+- A week closes once and is final: no command reopens it, and an outcome changes only while the week is `Committed`.
+- Progress figures keep the rules-of-credit edition in force when they were recorded. Never recompute a stored figure under a later edition.
+- The hold rule (`readiness/hold_rule.py`) reads `Constraint.Raised` only, moves an Issued IWP only, and never raises a constraint. It runs in `tl awp worker`, which needs `awp.worker.run`.
+- A viewer's roll-up, export and KPI tiles are computed from the records the viewer may open; the stored `cur_awp_rollup` totals are not read for a viewer.
+- Every record value in the work pack goes through `_e` before it reaches the template; the template holds no record value and no record id.

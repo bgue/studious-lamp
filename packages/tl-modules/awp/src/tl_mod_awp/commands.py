@@ -16,12 +16,14 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
+from datetime import date
 from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from tl_core.services.commands import Command, CommandResult
 from tl_core.text import clean_optional_text, clean_text
 from tl_core.uow import UnitOfWork
+from tl_schema.packages import MAX_STEP_NAME
 
 from tl_mod_awp.facts import MAX_SCOPE_IDS
 from tl_mod_awp.fields import (
@@ -67,6 +69,14 @@ from tl_mod_awp.handlers.path import (
     handle_define_path_of_construction,
     handle_move_cwa_in_path,
 )
+from tl_mod_awp.handlers.progress import (
+    handle_complete_iwp_field,
+    handle_install_scope_item,
+    handle_record_manual_progress,
+    handle_return_scope_item,
+    handle_start_iwp_work,
+    handle_verify_scope_item,
+)
 from tl_mod_awp.handlers.scope import (
     handle_add_iwp_scope,
     handle_create_scope_item,
@@ -85,6 +95,13 @@ from tl_mod_awp.handlers.wbs import (
     handle_reinstate_wbs_node,
     handle_retire_wbs_node,
     handle_revise_wbs_node,
+)
+from tl_mod_awp.handlers.week import (
+    handle_close_week,
+    handle_commit_iwp_to_week,
+    handle_open_weekly_plan,
+    handle_record_week_outcome,
+    parse_week_hours,
 )
 from tl_mod_awp.limits import (
     ACTOR_PATTERN,
@@ -117,6 +134,7 @@ from tl_mod_awp.limits import (
     MAX_TITLE,
     REASON_CODE_PATTERN,
 )
+from tl_mod_awp.names import MAX_MANUAL_PER_COMMAND  # noqa: E402
 
 
 def _text(value: str) -> str:
@@ -716,6 +734,110 @@ class ReleaseHold(_Strict):
         return clean_optional_text(value)
 
 
+class _OnScopeItem(_Strict):
+    """A move of one scope item, for the version the caller read."""
+
+    record_id: str = Field(min_length=1, max_length=MAX_ID)
+    expected_version: int = Field(ge=1)
+
+
+class InstallScopeItem(_OnScopeItem):
+    """Planned to Installed."""
+
+
+class ReturnScopeItem(_OnScopeItem):
+    """Installed back to Planned."""
+
+
+class VerifyScopeItem(_OnScopeItem):
+    """Installed to Verified."""
+
+
+class ManualStep(BaseModel):
+    """One hand entry: a step of a scope item is done, or is not."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    scope_item_id: str = Field(min_length=1, max_length=MAX_ID)
+    step: str = Field(min_length=1, max_length=MAX_STEP_NAME)
+    done: bool
+
+    @field_validator("step")
+    @classmethod
+    def _step(cls, value: str) -> str:
+        return _text(value)
+
+
+class RecordManualProgress(_Strict):
+    """Mark the steps of scope items that no record proves (evidence ``manual``) done by hand."""
+
+    iwp_id: str = Field(min_length=1, max_length=MAX_ID)
+    steps: list[ManualStep] = Field(min_length=1, max_length=MAX_MANUAL_PER_COMMAND)
+    expected_version: int = Field(ge=1)
+
+    @field_validator("steps")
+    @classmethod
+    def _steps(cls, value: list[ManualStep]) -> list[ManualStep]:
+        if len({(s.scope_item_id, s.step) for s in value}) != len(value):
+            raise ValueError("a step of an item is listed twice")
+        return value
+
+
+class StartIwpWork(_Strict):
+    """Issued to In progress, as of ``at`` (default now)."""
+
+    iwp_id: str = Field(min_length=1, max_length=MAX_ID)
+    expected_version: int = Field(ge=1)
+    at: date | None = None
+
+
+class CompleteIwpField(StartIwpWork):
+    """In progress to Field complete, as of ``at`` (default now); writes a last progress figure."""
+
+
+class OpenWeeklyPlan(_Strict):
+    """Open the plan of the project week that holds ``week_start`` (normalised to its Monday)."""
+
+    week_start: date
+
+
+class CommitIwpToWeek(_Strict):
+    """Commit an Issued or In progress IWP to a week, with its hours; a second commit replaces."""
+
+    plan_id: str = Field(min_length=1, max_length=MAX_ID)
+    iwp_id: str = Field(min_length=1, max_length=MAX_ID)
+    committed_hours: str = Field(min_length=1, max_length=16)
+    foreman: str | None = Field(default=None, pattern=ACTOR_PATTERN, max_length=MAX_FOREMAN)
+    expected_version: int = Field(ge=1)
+
+    @field_validator("committed_hours")
+    @classmethod
+    def _hours(cls, value: str) -> str:
+        return parse_week_hours(value)
+
+
+class RecordWeekOutcome(_Strict):
+    """Record a commitment done, or missed with a reason of the code list MissReason."""
+
+    plan_id: str = Field(min_length=1, max_length=MAX_ID)
+    iwp_id: str = Field(min_length=1, max_length=MAX_ID)
+    outcome: Literal["done", "missed"]
+    miss_reason: str | None = Field(default=None, max_length=MAX_CLEAR_REASON)
+    expected_version: int = Field(ge=1)
+
+    @field_validator("miss_reason")
+    @classmethod
+    def _reason(cls, value: str | None) -> str | None:
+        return clean_optional_text(value)
+
+
+class CloseWeek(_Strict):
+    """Close a Committed week whose commitments are all judged; writes the PPC."""
+
+    plan_id: str = Field(min_length=1, max_length=MAX_ID)
+    expected_version: int = Field(ge=1)
+
+
 @dataclass(frozen=True)
 class AwpCommand:
     model: type[Command]
@@ -763,4 +885,14 @@ AWP_COMMANDS: tuple[AwpCommand, ...] = (
     AwpCommand(IssueIwp, handle_issue_iwp, "awp.iwp.issue"),
     AwpCommand(HoldIwp, handle_hold_iwp, "awp.iwp.hold"),
     AwpCommand(ReleaseHold, handle_release_hold, "awp.iwp.hold"),
+    AwpCommand(InstallScopeItem, handle_install_scope_item, "awp.progress.record"),
+    AwpCommand(ReturnScopeItem, handle_return_scope_item, "awp.progress.record"),
+    AwpCommand(VerifyScopeItem, handle_verify_scope_item, "awp.progress.record"),
+    AwpCommand(RecordManualProgress, handle_record_manual_progress, "awp.progress.record"),
+    AwpCommand(StartIwpWork, handle_start_iwp_work, "awp.iwp.edit"),
+    AwpCommand(CompleteIwpField, handle_complete_iwp_field, "awp.iwp.edit"),
+    AwpCommand(OpenWeeklyPlan, handle_open_weekly_plan, "awp.week.plan"),
+    AwpCommand(CommitIwpToWeek, handle_commit_iwp_to_week, "awp.week.commit"),
+    AwpCommand(RecordWeekOutcome, handle_record_week_outcome, "awp.week.commit"),
+    AwpCommand(CloseWeek, handle_close_week, "awp.week.close"),
 )

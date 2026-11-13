@@ -13,7 +13,9 @@ import time
 from typing import Annotated
 
 import typer
-from tl_adapters.db import DbTarget
+from tl_adapters.db import DbTarget, open_uow
+from tl_core.auth.errors import ForbiddenError
+from tl_core.auth.module_roles import COMPANY, holder_for_actor, normalise_word, require_word
 from tl_mod_awp.commands import RequestRollup
 from tl_mod_awp.worker import build_worker, requeue_orphans
 
@@ -24,6 +26,7 @@ from tl_cli.derive_support import (
     Actor,
     Project,
     acting,
+    fail,
     scope_of,
     service_errors,
 )
@@ -43,6 +46,28 @@ def rollup(
     typer.echo(f"rollup requested  job {result.stream_id}")
 
 
+#: The access word `tl awp worker` needs (table word ``controller``), asked of the company.
+WORKER_WORD = "awp.worker.run"
+WORKER_MODULE = "awp"
+MSG_WORKER_WORD = "tl awp worker needs the awp.worker.run access word"
+
+
+def require_worker_word(db: DbTarget, actor: str) -> None:
+    """The actor holds ``awp.worker.run``; otherwise `error: forbidden: <fixed text>`, exit 1."""
+    with open_uow(db, readonly=True) as uow:
+        try:
+            require_word(
+                uow.conn(),
+                holder_for_actor(uow.conn(), actor),
+                scope=COMPANY,
+                module=WORKER_MODULE,
+                word=normalise_word(WORKER_WORD),
+                what=WORKER_WORD,
+            )
+        except ForbiddenError:
+            fail(f"forbidden: {MSG_WORKER_WORD}")
+
+
 def worker(
     ctx: typer.Context,
     once: Annotated[bool, typer.Option("--once", help="Run what is queued, then exit.")] = False,
@@ -52,14 +77,17 @@ def worker(
     idle: Annotated[
         float, typer.Option("--idle", min=0.1, help="Seconds to wait when idle.")
     ] = 2.0,
+    actor: Actor = DEV_ACTOR,
 ) -> None:
     """Run the awp job queue.
 
+    Needs the access word `awp.worker.run`.
     Prints `ran <job id> <kind> <outcome>` per job and `worker done: ran=<n>`.
 
     Without --once it keeps waiting for jobs until interrupted (Ctrl-C ends it cleanly).
     """
     db: DbTarget = ctx.obj
+    require_worker_word(db, acting(db, actor))
     with service_errors():
         if requeue:
             typer.echo(f"requeued {requeue_orphans(db)}")
@@ -68,6 +96,7 @@ def worker(
             try:
                 while True:
                     made.follower.poll()  # events -> readiness requests (D13)
+                    made.hold.poll()  # blocking constraint on an Issued IWP -> On hold (D9)
                     result = made.runner.run_once()
                     if result is None:
                         if once:

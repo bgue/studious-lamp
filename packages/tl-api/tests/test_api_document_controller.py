@@ -108,8 +108,8 @@ def test_the_controlling_set_is_the_twelve_and_the_actions_follow() -> None:
     # the awp words are fine words (awp.cwp.release ...); the controlling ones normalise to it
     awp = {c.model.__name__ for c in AWP_COMMANDS if normalise_word(c.access) == "controller"}
     # P2-I1: release, return, close, reopen, void, the configuring acts; P2-I2: CancelIwp;
-    # S3: sign-off, issue, hold, release of a hold
-    assert len(awp) == 14 + 1 + 4
+    # S3: sign-off, issue, hold, release of a hold; P2-I5: CloseWeek (the weekly plan's close)
+    assert len(awp) == 14 + 1 + 4 + 1
     # the materials module (P2-I3): the library, the location tree, void, write-offs, MTO publish
     materials = {
         "DefineItem", "ReviseItem", "RetireItem", "DefineLocation", "ReviseLocation",

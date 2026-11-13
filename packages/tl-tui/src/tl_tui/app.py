@@ -186,6 +186,21 @@ class TlApp(App[None]):
         warning = type_warning(self.client, self.record_type)
         if warning is not None:  # `--type` named something that cannot take records
             self.query_one("#footer", TlFooter).show_status(warning, "warning")
+        self.call_after_refresh(self._land)
+
+    def _land(self) -> None:
+        """Open the IWP log of a foreman when the person's landing says so (P2-I5 T06c2)."""
+        from tl_core.settings.layers import project_of_scope
+
+        from tl_tui.landing import landing
+
+        project = project_of_scope(self.scope)
+        if project is None or self._modal_open():
+            return
+        if landing(self.client, project, self.actor) == "iwp_mine":
+            from tl_tui.widgets.iwp_register import IwpRegisterScreen
+
+            self.push_screen(IwpRegisterScreen(self.client, project, mine=True))
 
     def on_unmount(self) -> None:
         if hasattr(self.client, "connection_listener"):
@@ -722,6 +737,7 @@ class TlApp(App[None]):
         from tl_tui.widgets.punch_log import PunchLogScreen
         from tl_tui.widgets.requisition_register import RequisitionLogScreen
         from tl_tui.widgets.wbs_screen import WbsScreen
+        from tl_tui.widgets.weekly_screen import LookAheadScreen
         from tl_tui.widgets.work_order_backlog import WorkOrderBacklogScreen
 
         project = project_of_scope(self.scope)
@@ -738,6 +754,7 @@ class TlApp(App[None]):
             "constraints": ConstraintScreen,
             "backlog": BacklogScreen,
             "punch": PunchLogScreen,
+            "week": LookAheadScreen,
             "requisitions": RequisitionLogScreen,
             "work-orders": WorkOrderBacklogScreen,
         }
@@ -786,6 +803,10 @@ class TlApp(App[None]):
     def action_punch(self) -> None:
         """The punch list of this project: items by state, area and system (palette only)."""
         self._push_awp("punch")
+
+    def action_week(self) -> None:
+        """The weekly cycle of this project: look-ahead, constraints, release (palette only)."""
+        self._push_awp("week")
 
     def action_settings(self) -> None:
         """about:config: the settings of this project, with their origin and history."""

@@ -1,0 +1,20 @@
+# Workflow of a weekly plan (brief 9, M3): Draft, Committed, Closed. Closed is final. Every move is made by a command of the
+# awp module (people cannot run a transition directly), so the file states the moves and names no role.
+id: awp.weekly_plan
+version: 1
+record_type: awp.WeeklyPlan
+scope: company
+initial_state: Draft
+states:
+  - name: Draft
+  - name: Committed
+  - name: Closed
+transitions:
+  - name: commit
+    label: Commit the plan for the week
+    from: [Draft]
+    to: Committed
+  - name: close
+    label: Close the week
+    from: [Committed]
+    to: Closed

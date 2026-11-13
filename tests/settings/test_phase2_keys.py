@@ -31,13 +31,14 @@ PHASE2: dict[str, tuple[str, Any, Any, Any, Any, Any, str]] = {
         "advanced",
     ),
     "awp.release.allow_unknown_checks": ("bool", False, None, None, None, None, "advanced"),
+    # P2-I5 S1: the pattern holds package@version
     "awp.rules_of_credit.set": (
         "string",
         "",
         None,
         None,
         None,
-        "^[A-Za-z0-9][A-Za-z0-9 ._-]{0,63}$|^$",
+        "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}@[0-9]+\\.[0-9]+\\.[0-9]+$|^$",
         "normal",
     ),
     "awp.constraint.aging_days": ("int", 14, 1, 365, None, None, "normal"),
@@ -71,14 +72,33 @@ def definitions() -> dict[str, SettingDefinition]:
     return {d.key: d for d in load_definitions(PLATFORM)}
 
 
-def test_the_platform_file_defines_30_keys_17_old_12_new_and_telemetry(
+#: The two keys P2-I5 S1 added: neither old nor wave-0.
+P2_I5 = {"awp.pack.pdf", "tui.landing"}
+
+
+def test_the_platform_file_defines_32_keys_17_old_12_new_telemetry_and_two_of_p2_i5(
     definitions: dict[str, SettingDefinition],
 ) -> None:
     assert len(PHASE2) == 12
     # telemetry.retention_days is the P2-INS S2 key: neither old nor wave-0.
-    assert len(definitions) == 30 == OLD_KEYS + len(PHASE2) + 1
-    assert set(PHASE2) <= set(definitions)
-    assert len(set(definitions) - set(PHASE2)) == OLD_KEYS + 1
+    assert len(definitions) == 32 == OLD_KEYS + len(PHASE2) + 1 + len(P2_I5)
+    assert set(PHASE2) <= set(definitions) and P2_I5 <= set(definitions)
+    assert len(set(definitions) - set(PHASE2)) == OLD_KEYS + 1 + len(P2_I5)
+
+
+def test_the_p2_i5_keys_have_their_defaults_scopes_and_choices(
+    definitions: dict[str, SettingDefinition],
+) -> None:
+    pack = definitions["awp.pack.pdf"]
+    assert (pack.type, pack.default) == ("bool", False)
+    assert set(pack.scopes) == {"platform", "company", "project"}
+    landing = definitions["tui.landing"]
+    assert (landing.type, landing.default) == ("enum", "default")
+    assert set(landing.scopes) == {"platform", "user"}
+    assert landing.validation is not None and landing.validation.choices == ["default", "iwp_mine"]
+    assert normalise(landing, "iwp_mine") == "iwp_mine"
+    with pytest.raises(InvalidSettingValueError, match="not one of"):
+        normalise(landing, "x")
 
 
 @pytest.mark.parametrize("key", sorted(PHASE2))
@@ -178,15 +198,18 @@ def test_signoff_roles_are_limited_to_the_choices(
     ("value", "good"),
     [
         ("", True),
-        ("COAA 2024", True),
-        ("a" * 64, True),
-        ("a" * 65, False),
-        (" leading space", False),
-        ("-dash first", False),
-        ("semi;colon", False),
+        ("co.acme.awp@1.1.0", True),
+        ("a" * 64 + "@10.20.30", True),
+        ("a" * 65 + "@1.0.0", False),
+        ("COAA 2024", False),
+        ("co acme", False),
+        ("co.acme.awp", False),
+        ("co.acme.awp@1.1", False),
+        ("-dash@1.0.0", False),
+        ("semi;colon@1.0.0", False),
     ],
 )
-def test_the_rules_of_credit_edition_is_empty_or_a_short_name(
+def test_the_rules_of_credit_edition_is_empty_or_package_at_version(
     definitions: dict[str, SettingDefinition], value: str, good: bool
 ) -> None:
     found = definitions["awp.rules_of_credit.set"]

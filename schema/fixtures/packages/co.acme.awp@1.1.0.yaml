@@ -1,0 +1,80 @@
+# Acme advanced work packaging, second edition, as a schema package (P2-I5). The code lists are those of
+# standards/co.acme.awp@1.1.0.yaml; the new section `rules_of_credit` says how much of an item's value each
+# step earns (weights of one entry sum to exactly 100). Any commodity without an entry uses the `piping`
+# steps. `record_state` evidence is inert until the record type exists (Phase 3). Published through the schema
+# registry (`PublishSchemaPackage`); kept out of the directory the registry reads at start so no scope adopts
+# it unasked.
+package: co.acme.awp
+version: 1.1.0
+kind: company
+title: Acme advanced work packaging
+description: Code lists and rules of credit for the awp module, second edition.
+code_lists:
+  Commodity:
+    description: "The kind of installed material a quantity of a construction work package counts."
+    value_list_policy: extensible
+    values:
+      - {code: piping, label: Piping}
+      - {code: structural-steel, label: Structural steel}
+      - {code: concrete, label: Concrete}
+      - {code: civil-earthworks, label: Civil and earthworks}
+      - {code: electrical, label: Electrical}
+      - {code: instrumentation, label: Instrumentation}
+      - {code: mechanical-equipment, label: Mechanical equipment}
+      - {code: insulation, label: Insulation}
+      - {code: painting, label: Painting}
+  PathReason:
+    description: "Why a construction work area was moved in the path of construction."
+    value_list_policy: extensible
+    values:
+      - {code: Access, label: Access}
+      - {code: Procurement, label: Procurement}
+      - {code: Engineering, label: Engineering}
+      - {code: Weather, label: Weather}
+      - {code: Crew, label: Crew}
+      - {code: Owner-request, label: Owner request}
+      - {code: Other, label: Other}
+  ConstraintType:
+    description: "What holds back field work on a construction work package."
+    value_list_policy: extensible
+    values:
+      - {code: Engineering, label: Engineering}
+      - {code: Procurement, label: Procurement}
+      - {code: Materials, label: Materials}
+      - {code: Equipment, label: Equipment}
+      - {code: Permit, label: Permit}
+      - {code: Predecessor, label: Predecessor}
+      - {code: Interface, label: Interface}
+      - {code: Access, label: Access}
+      - {code: Other, label: Other}
+  MissReason:
+    description: "Why a committed interim work package was not finished in its week."
+    value_list_policy: extensible
+    values:
+      - {code: Constraint, label: Constraint}
+      - {code: Material, label: Material}
+      - {code: Labour, label: Labour}
+      - {code: Weather, label: Weather}
+      - {code: Rework, label: Rework}
+      - {code: Access, label: Access}
+      - {code: Equipment, label: Equipment}
+      - {code: Other, label: Other}
+
+rules_of_credit:
+  - commodity: piping
+    kind: scope_item
+    steps:
+      - {name: Material received, weight: 30, evidence: manual}
+      - {name: Installed, weight: 60, evidence: "scope_state:Installed"}
+      - {name: Verified, weight: 10, evidence: "scope_state:Verified"}
+  - commodity: weld
+    kind: weld
+    steps:
+      - {name: Fit-up, weight: 20, evidence: "record_state:awp.Weld:Fit-up"}
+      - {name: Welded, weight: 60, evidence: "record_state:awp.Weld:Welded"}
+      - {name: NDE accepted, weight: 20, evidence: "record_state:awp.Weld:NDE accepted"}
+  - commodity: bolted_joint
+    kind: bolted_joint
+    steps:
+      - {name: Placed, weight: 50, evidence: "record_state:awp.BoltedJoint:Placed"}
+      - {name: Torqued, weight: 50, evidence: "record_state:awp.BoltedJoint:Torqued"}

@@ -16,6 +16,7 @@ OFFLINE_CLASSES: Final[dict[str, OfflineClass]] = {
     "awp.PathOfConstruction": "none",
     "awp.ScopeItem": "draft_only",
     "awp.WBSNode": "none",
+    "awp.WeeklyPlan": "none",
     "core.Constraint": "draft_only",
     "core.Record": "full",
     "correspondence.CommercialItem": "none",

@@ -347,6 +347,7 @@ def _mcp_values(hidden: Any) -> dict[str, list[Any]]:
             "P123-PUN-0001",  # get_punch_item (P2-PUNCH)
             "x",
         ],
+        "week": ["2026-W45", "2099-W01", "x"],  # get_weekly_plan (a week, YYYY-Www)
     }
 
 

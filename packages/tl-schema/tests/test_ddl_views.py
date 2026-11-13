@@ -125,6 +125,7 @@ def test_every_record_class_of_the_committed_modules_has_a_view() -> None:
         "v_awp_pwpref",
         "v_awp_scope_item",
         "v_awp_wbsnode",
+        "v_awp_weekly_plan",
         "v_correspondence_commercial_item",
         "v_correspondence_contract_clause",
         "v_correspondence_correspondence",

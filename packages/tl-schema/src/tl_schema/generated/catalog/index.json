@@ -505,6 +505,24 @@
       "version": 1
     },
     {
+      "ce_type": "tl.core.Cwp.PartyAssigned.v1",
+      "event_type": "Cwp.PartyAssigned",
+      "payload_class": "CwpPartyAssignedPayload",
+      "sample": "samples/Cwp.PartyAssigned.v1.json",
+      "schema": "schemas/Cwp.PartyAssigned.v1.json",
+      "title": "A construction work package was assigned to a party.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Cwp.SubcontractProgressRecorded.v1",
+      "event_type": "Cwp.SubcontractProgressRecorded",
+      "payload_class": "CwpSubcontractProgressRecordedPayload",
+      "sample": "samples/Cwp.SubcontractProgressRecorded.v1.json",
+      "schema": "schemas/Cwp.SubcontractProgressRecorded.v1.json",
+      "title": "Progress of a subcontracted construction work package was recorded from a file.",
+      "version": 1
+    },
+    {
       "ce_type": "tl.core.DerivedDocument.ContentRecorded.v1",
       "event_type": "DerivedDocument.ContentRecorded",
       "payload_class": "DerivedDocumentContentRecordedPayload",
@@ -766,6 +784,15 @@
       "version": 1
     },
     {
+      "ce_type": "tl.core.IWP.FieldCompleted.v1",
+      "event_type": "IWP.FieldCompleted",
+      "payload_class": "IWPFieldCompletedPayload",
+      "sample": "samples/IWP.FieldCompleted.v1.json",
+      "schema": "schemas/IWP.FieldCompleted.v1.json",
+      "title": "Field work on an interim work package was completed.",
+      "version": 1
+    },
+    {
       "ce_type": "tl.core.IWP.Held.v1",
       "event_type": "IWP.Held",
       "payload_class": "IWPHeldPayload",
@@ -790,6 +817,15 @@
       "sample": "samples/IWP.Issued.v1.json",
       "schema": "schemas/IWP.Issued.v1.json",
       "title": "An interim work package was issued to its foreman.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.IWP.ProgressRecorded.v1",
+      "event_type": "IWP.ProgressRecorded",
+      "payload_class": "IWPProgressRecordedPayload",
+      "sample": "samples/IWP.ProgressRecorded.v1.json",
+      "schema": "schemas/IWP.ProgressRecorded.v1.json",
+      "title": "The earned progress of an interim work package was recorded.",
       "version": 1
     },
     {
@@ -853,6 +889,24 @@
       "sample": "samples/IWP.Split.v1.json",
       "schema": "schemas/IWP.Split.v1.json",
       "title": "An interim work package was split into new ones.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.IWP.Started.v1",
+      "event_type": "IWP.Started",
+      "payload_class": "IWPStartedPayload",
+      "sample": "samples/IWP.Started.v1.json",
+      "schema": "schemas/IWP.Started.v1.json",
+      "title": "Field work on an interim work package started.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.IWPCloseout.Recorded.v1",
+      "event_type": "IWPCloseout.Recorded",
+      "payload_class": "IWPCloseoutRecordedPayload",
+      "sample": "samples/IWPCloseout.Recorded.v1.json",
+      "schema": "schemas/IWPCloseout.Recorded.v1.json",
+      "title": "The closeout of an interim work package was recorded.",
       "version": 1
     },
     {
@@ -2365,6 +2419,42 @@
       "sample": "samples/WebhookSubscription.Updated.v1.json",
       "schema": "schemas/WebhookSubscription.Updated.v1.json",
       "title": "A subscription's name, target, filter or payload mode changed.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.WeeklyPlan.Closed.v1",
+      "event_type": "WeeklyPlan.Closed",
+      "payload_class": "WeeklyPlanClosedPayload",
+      "sample": "samples/WeeklyPlan.Closed.v1.json",
+      "schema": "schemas/WeeklyPlan.Closed.v1.json",
+      "title": "The weekly plan was closed with its percent plan complete.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.WeeklyPlan.IwpCommitted.v1",
+      "event_type": "WeeklyPlan.IwpCommitted",
+      "payload_class": "WeeklyPlanIwpCommittedPayload",
+      "sample": "samples/WeeklyPlan.IwpCommitted.v1.json",
+      "schema": "schemas/WeeklyPlan.IwpCommitted.v1.json",
+      "title": "A foreman committed an interim work package to the week.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.WeeklyPlan.Opened.v1",
+      "event_type": "WeeklyPlan.Opened",
+      "payload_class": "WeeklyPlanOpenedPayload",
+      "sample": "samples/WeeklyPlan.Opened.v1.json",
+      "schema": "schemas/WeeklyPlan.Opened.v1.json",
+      "title": "A weekly plan was opened for a project week.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.WeeklyPlan.OutcomeRecorded.v1",
+      "event_type": "WeeklyPlan.OutcomeRecorded",
+      "payload_class": "WeeklyPlanOutcomeRecordedPayload",
+      "sample": "samples/WeeklyPlan.OutcomeRecorded.v1.json",
+      "schema": "schemas/WeeklyPlan.OutcomeRecorded.v1.json",
+      "title": "The outcome of one commitment was recorded: done, or missed with a reason.",
       "version": 1
     },
     {

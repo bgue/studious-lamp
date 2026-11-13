@@ -20,6 +20,7 @@ from tl_core.auth.sessions import UowFactory
 from tl_core.auth.tokens import token_kind
 from tl_core.auth.types import Authorizer, Principal
 
+from tl_mcp.awp_week_tools import WEEK_MCP_ACTIONS
 from tl_mcp.context import Authorizer as McpAuthorizer
 from tl_mcp.iwp_tools import IWP_MCP_ACTIONS
 from tl_mcp.materials_tools import MATERIALS_MCP_ACTIONS
@@ -108,6 +109,7 @@ MCP_ACTIONS = (
     | MATERIALS_MCP_ACTIONS
     | IWP_MCP_ACTIONS
     | PUNCH_MCP_ACTIONS
+    | WEEK_MCP_ACTIONS  # P2-I5-T11c: five weekly-plan reads
     | REQUISITION_MCP_ACTIONS
 )
 
