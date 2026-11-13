@@ -273,7 +273,6 @@ The ADR of X3 gets its own planner-tier check (O2). Whole-suite gate once per in
 | Rule that an admin may not retire locked states | X5 | owner decision made 2026-11-12, scope of locks needs owner sign-off |
 
 ## 6. Token cost (est.)
-
 No Phase 2 report gives a measured per-increment figure. Yardstick: `08-phase2-plan.md` §0.2 puts a process-v2
 increment at 0.15 to 0.3 B input tokens; security reviews are capped at 450k each. All figures below are est.
 
