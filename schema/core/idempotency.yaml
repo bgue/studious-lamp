@@ -1,0 +1,58 @@
+id: https://example.org/throughline/core/idempotency
+name: tl_core_idempotency
+title: Throughline idempotency keys (P2-X1)
+description: >-
+  A retry that carries the same `Idempotency-Key` never writes twice. One row per (actor, key): the command name,
+  the SHA-256 of the command's canonical JSON, the ids the first run produced (the stream id, then the event ids)
+  and when the row was made. No response text is kept: a replay re-reads the ids through the viewer filter
+  (ADR-0016). The row is inserted in the same transaction as the command's events, so it commits with them or
+  not at all. Like the `wh_*`, `auth_*` and `job_queue` tables it is operational: no event produces it, a rebuild
+  never clears it, and the archive, the lake and webhooks never read it. It uses `tl:current_state` and
+  `tl:table` only to get one DDL for both dialects. Rows are kept for `idempotency.retention_days` (a setting,
+  default 7); the purge job is deferred, so rows stay until it ships. The key value is a credential-like
+  secret of the client: it is never logged and never put in an error text.
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+  - annotations
+  - record
+default_range: string
+annotations:
+  tl:module: core
+
+classes:
+  IdempotencyKey:
+    description: >-
+      One claimed (actor, key). `result_json` is null while the claim has not been completed (it is set in the
+      same transaction by `tl_core.services.idempotency.record`, so another connection sees a claim only
+      complete, or, if a caller never recorded one, as in progress).
+    annotations:
+      tl:current_state: true
+      tl:table: idempotency_key
+    unique_keys:
+      actor_key:
+        description: One row per (actor, key); the claim insert conflicts here.
+        unique_key_slots:
+          - actor
+          - idem_key
+    attributes:
+      actor:
+        required: true
+        description: The actor the key belongs to; another actor's identical key is another row.
+      idem_key:
+        required: true
+        description: The client's key (ASCII, 1 to 128 characters). Never logged, never in an error text.
+      command:
+        required: true
+        description: The command name the key was first used for.
+      body_hash:
+        required: true
+        description: SHA-256 (hex) of the command's canonical JSON without key, correlation and causation ids.
+      result_json:
+        description: JSON list of the result ids (stream id, then event ids); null until recorded.
+      created_at:
+        required: true
+        description: ISO-8601 UTC with microseconds and a `Z` suffix.
