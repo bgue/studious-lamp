@@ -65,3 +65,13 @@ Standard report (`docs/templates/haiku-report.md`), <= 60 lines, deviations firs
 
 ## Decision
 (supervisor or orchestrator writes here)
+
+## Amendment (orchestrator, 2026-11-13, after attempt 1)
+Attempt 1 is on the branch (2cc54605): SQL written, materials 5/5 green, 11 readiness and schedule tests red with "Table ... does not exist".
+Cause: S1 made the readiness mart need `cur_core_record` (hide-after-copy guard, `gold.py` `record_columns`). The provided tests create only `events`, so the runner skips the mart. The guard is correct and stays.
+Fix (allowed now):
+- In `provided/T02_test_iwp_readiness_history.py` and `provided/T02_test_schedule_vs_readiness.py`, the `con` fixture also runs `CREATE TABLE lake.main.cur_core_record (id VARCHAR)`, and the helper that inserts an `IWP.ReadinessEvaluated` event also inserts its `iwp_id` into `cur_core_record` when absent.
+- Add one test to each of those two files: an evaluation whose `iwp_id` is not in `cur_core_record` (insert the event directly, skip the record row) is absent from the mart, and the other rows are unchanged.
+- Copy both provided files again to `packages/tl-lake/tests/` (byte-identical, `cmp`).
+- Do not change `gold.py` and do not weaken any assertion.
+Added allowed paths: `docs/tickets/P2-I6/provided/T02_test_iwp_readiness_history.py`, `docs/tickets/P2-I6/provided/T02_test_schedule_vs_readiness.py`.

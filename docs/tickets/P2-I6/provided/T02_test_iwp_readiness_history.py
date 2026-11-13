@@ -33,6 +33,7 @@ def con(tmp_path: Path) -> Iterator[Duck]:
             "CREATE TABLE lake.main.events (seq BIGINT, scope VARCHAR, event_type VARCHAR, "
             "payload VARCHAR)"
         )
+        opened.execute("CREATE TABLE lake.main.cur_core_record (id VARCHAR)")
         yield opened
 
 
@@ -43,10 +44,18 @@ def check(name: str, state: str) -> dict[str, Any]:
     }  # fmt: skip
 
 
+def record(con: Duck, iwp: str) -> None:
+    """The IWP is a readable record in silver (``cur_core_record``), as the runner requires."""
+    present = con.execute("SELECT id FROM lake.main.cur_core_record WHERE id = ?", [iwp]).fetchall()
+    if not present:
+        con.execute("INSERT INTO lake.main.cur_core_record VALUES (?)", [iwp])
+
+
 def evaluated(
     con: Duck, seq: int, iwp: str, ready: bool, checks: list[dict[str, Any]],
     scope: str = P1, today: str = "2026-11-02",
 ) -> None:  # fmt: skip
+    record(con, iwp)
     payload = {
         "iwp_id": iwp,
         "evaluated_at": f"{today}T08:00:00Z",
@@ -137,3 +146,18 @@ def test_no_detail_resolve_via_or_hash_column_is_exposed(con: Duck) -> None:
     described = con.execute(f"SELECT * FROM lake.main.{MART}").description
     assert [d[0] for d in described] == COLUMNS
     assert "detail" not in json.dumps(rows(con), default=str)
+
+
+def test_an_iwp_that_is_not_a_readable_record_is_absent_and_the_others_are_unchanged(
+    con: Duck,
+) -> None:
+    evaluated(con, 1, "I1", False, [check("a", "blocked")])
+    hidden = {"iwp_id": "HIDDEN", "evaluated_at": "2026-11-02T08:00:00Z",
+              "today": "2026-11-02", "ready": True, "checks": []}  # fmt: skip
+    con.execute(
+        "INSERT INTO lake.main.events VALUES (2, ?, 'IWP.ReadinessEvaluated', ?)",
+        [P1, json.dumps(hidden, sort_keys=True)],
+    )
+    assert rows(con) == [
+        (P1, "I1", 1, "2026-11-02T08:00:00Z", date(2026, 11, 2), False, 1, 1, 0, "a", True)
+    ]
