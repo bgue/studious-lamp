@@ -142,6 +142,11 @@ def diff(baseline: Baseline, current: Baseline) -> list[str]:
     return out
 
 
+def diff_openapi(baseline: dict[str, Any], current: dict[str, Any]) -> list[str]:
+    """One line per breaking change between two OpenAPI documents (P2-X1-T04)."""
+    raise NotImplementedError("P2-X1-T04")
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="python -m tl_schema.compat")
     mode = parser.add_mutually_exclusive_group(required=True)
