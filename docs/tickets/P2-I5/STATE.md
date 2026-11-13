@@ -1,4 +1,4 @@
-# P2-I5 STATE  r=7 base=bcf3c2e C=3 ck=0 gate=n/a wt=/home/user/wt/p2-i5
+# P2-I5 STATE  r=8 base=bcf3c2e C=4 ck=0 gate=pass wt=/home/user/wt/p2-i5
 ## BOARD   (merged: S1 S2 S3 S4a S4b T01 T03 T04b; reports docs/reports/P2-I5/<id>.md; tickets written r5: ready or staged by need)
 S1 p mrg f 76c15b4 schema, package content, words, settings
 S2 p mrg f 00647bf engine, progress cmds, IWP start/complete, math rules
