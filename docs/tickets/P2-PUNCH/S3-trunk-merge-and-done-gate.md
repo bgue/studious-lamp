@@ -76,4 +76,15 @@ lines `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>` and
 (builder writes here)
 
 ## Decision
-(orchestrator writes here)
+2026-11-13 (orchestrator). Split whole-suite run: one failure, deterministic in the full tl-api second half (files
+41-80, 1137 tests), absent in any sub-range and alone: `packages/tl-api/tests/test_stream.py::
+test_mapped_errors_leave_the_connection_usable` -> `httpx2.ReadTimeout` (5 s read). A faulthandler run shows many
+late tests in that half pass 4 s per test (TestClient calls, SQL, schema building): the session slows as it grows;
+the punch rows tip this one 5 s budget over. The test guards keep-alive reuse after mapped errors (its failure mode is
+`ReadError` / a closed connection), not latency. Fix, test file only:
+1. In `test_mapped_errors_leave_the_connection_usable`, use a local
+   `httpx2.Timeout(5.0, read=30.0)` for its client, with a one-line comment: the test guards connection reuse, not
+   latency; a late full-suite session can take > 5 s per request. Leave the module `TIMEOUT` and every other test as is.
+2. Acceptance: `uv run pytest -q -p no:cacheprovider --basetemp=/tmp/pt-punch-s3 packages/tl-api/tests/test_stream.py`
+   green; `just check` green. Commit `P2-PUNCH-S3: widen one stream test's read budget (session slowdown)`.
+The slowdown itself is logged in DEFERRED (find what accumulates across a tl-api session).
