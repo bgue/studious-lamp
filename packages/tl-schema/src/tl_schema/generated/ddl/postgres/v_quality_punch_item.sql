@@ -1,0 +1,32 @@
+CREATE OR REPLACE VIEW v_quality_punch_item AS
+SELECT
+  r.id AS id,
+  r.key AS key,
+  r.type AS record_type,
+  r.scope AS scope,
+  r.title AS title,
+  r.description AS description,
+  r.status AS status,
+  r.voided AS voided,
+  r.version AS version,
+  r.conformance AS conformance,
+  r.psets_json AS psets_json,
+  r.created_at AS created_at,
+  r.updated_at AS updated_at,
+  t.area AS area,
+  t.system AS system,
+  t.due_on AS due_on,
+  t.category AS category,
+  t.assignee AS assignee,
+  t.raised_by AS raised_by,
+  t.source_id AS source_id,
+  t.cleared_by AS cleared_by,
+  t.cleared_on AS cleared_on,
+  t.clear_note AS clear_note,
+  t.verified_by AS verified_by,
+  t.verified_on AS verified_on,
+  t.reopen_count AS reopen_count,
+  t.last_reopen_reason AS last_reopen_reason,
+  t.void_reason AS void_reason
+FROM cur_quality_punch_item AS t
+JOIN cur_core_record AS r ON r.id = t.id;

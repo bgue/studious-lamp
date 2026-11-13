@@ -453,6 +453,7 @@ def test_write_mode_is_refused_with_the_human_gate_message(env: McpHarness) -> N
         "propose_publish_schedule_snapshot",
         "propose_triage",
         "propose_iwp_scope",  # P2-I2-T09b
+        "propose_punch_item",  # P2-PUNCH-T05
         "propose_progress",  # P2-I5-S2
         "propose_scope_installed",  # P2-I5-S2
         "propose_week_commitment",  # P2-I5-S4a

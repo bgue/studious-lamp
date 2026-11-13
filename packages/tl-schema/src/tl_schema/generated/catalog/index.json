@@ -1468,6 +1468,60 @@
       "version": 1
     },
     {
+      "ce_type": "tl.core.PunchItem.Cleared.v1",
+      "event_type": "PunchItem.Cleared",
+      "payload_class": "PunchItemClearedPayload",
+      "sample": "samples/PunchItem.Cleared.v1.json",
+      "schema": "schemas/PunchItem.Cleared.v1.json",
+      "title": "A punch item was cleared by its assignee.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.PunchItem.Edited.v1",
+      "event_type": "PunchItem.Edited",
+      "payload_class": "PunchItemEditedPayload",
+      "sample": "samples/PunchItem.Edited.v1.json",
+      "schema": "schemas/PunchItem.Edited.v1.json",
+      "title": "A punch item was edited; only the fields that changed are present.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.PunchItem.Raised.v1",
+      "event_type": "PunchItem.Raised",
+      "payload_class": "PunchItemRaisedPayload",
+      "sample": "samples/PunchItem.Raised.v1.json",
+      "schema": "schemas/PunchItem.Raised.v1.json",
+      "title": "A punch item was raised.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.PunchItem.Reopened.v1",
+      "event_type": "PunchItem.Reopened",
+      "payload_class": "PunchItemReopenedPayload",
+      "sample": "samples/PunchItem.Reopened.v1.json",
+      "schema": "schemas/PunchItem.Reopened.v1.json",
+      "title": "A cleared or verified punch item was reopened by a controller.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.PunchItem.Verified.v1",
+      "event_type": "PunchItem.Verified",
+      "payload_class": "PunchItemVerifiedPayload",
+      "sample": "samples/PunchItem.Verified.v1.json",
+      "schema": "schemas/PunchItem.Verified.v1.json",
+      "title": "A cleared punch item was verified by a controller.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.PunchItem.Voided.v1",
+      "event_type": "PunchItem.Voided",
+      "payload_class": "PunchItemVoidedPayload",
+      "sample": "samples/PunchItem.Voided.v1.json",
+      "schema": "schemas/PunchItem.Voided.v1.json",
+      "title": "An open or cleared punch item was voided by a controller.",
+      "version": 1
+    },
+    {
       "ce_type": "tl.core.Receipt.Accepted.v1",
       "event_type": "Receipt.Accepted",
       "payload_class": "ReceiptAcceptedPayload",

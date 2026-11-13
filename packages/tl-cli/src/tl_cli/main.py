@@ -81,6 +81,7 @@ from tl_cli import (
     new,
     proposal,
     pset,
+    punch,
     record,
     req,
     restore,
@@ -161,6 +162,7 @@ app.add_typer(corr.app, name="corr")
 app.add_typer(rfi.app, name="rfi")
 app.add_typer(comm.app, name="comm")
 app.add_typer(mat.app, name="mat")  # P2-I3
+app.add_typer(punch.app, name="punch")  # P2-PUNCH
 app.add_typer(req.app, name="req")  # P2-I4A-T04e1
 app.add_typer(req.wo_app, name="wo")  # P2-I4A-T04e1
 app.command("evidence")(evidence.evidence_cmd)

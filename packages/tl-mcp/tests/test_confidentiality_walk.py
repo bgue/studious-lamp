@@ -61,10 +61,13 @@ def values(hidden: Hidden) -> dict[str, list[Any]]:
         "lot": ["P123-RCPT-0001@1", "x"],  # P2-I3-T11: get_material_lot (a lot key)
         "iwp": [*hidden.numbers.values(), "P123-IWP-0001", "x"],  # T09b: propose_iwp_scope
         "week": ["2026-W45", "2099-W01", "x"],  # T11c: get_weekly_plan (a week, YYYY-Www)
-        "key": [*hidden.numbers.values(), "P123-REQ-LAB-0001", "x"],  # T08b: get_requisition
+        # P2-PUNCH-T05: get_punch_item (a punch key); the proposal arguments are not walked
+        # T08b: get_requisition
+        "key": [*all_ids, *hidden.numbers.values(), "P123-PUN-0001", "P123-REQ-LAB-0001", "x"],
+        "from_key": ["P123-PUN-0001", "x"],
         "kind": ["labor", "x"],  # T08b: list_requisitions
         "for_key": [*hidden.numbers.values(), "P123-IWP-0001", "x"],  # T08b: list_requisitions
-        "subject": ["x"],  # T08b: propose_requisition
+        "subject": ["x"],  # propose_punch_item, propose_requisition
     }
 
 

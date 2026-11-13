@@ -256,7 +256,9 @@ def test_mapped_errors_leave_the_connection_usable(harness: Harness) -> None:
 
     It re-raises after sending the response, uvicorn then closes the keep-alive connection, and the
     next pooled request fails with ReadError (4 of 10 calls in the review's reproduction)."""
-    with harness.live() as server, httpx2.Client(base_url=server.base_url, timeout=TIMEOUT) as c:
+    # Guards connection reuse, not latency: a late full-suite session can take > 5 s per request.
+    slow_ok = httpx2.Timeout(5.0, read=30.0)
+    with harness.live() as server, httpx2.Client(base_url=server.base_url, timeout=slow_ok) as c:
         headers = {"Authorization": f"Bearer {server.token}"}
         for n in range(20):
             response = c.get("/records/NOPE/links", headers=headers)

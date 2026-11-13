@@ -60,6 +60,7 @@ SPEC_RECORDS: dict[str, str] = {
     "materials.ProjectItem": "none",
     "materials.Receipt": "draft_only",
     "materials.StockLot": "draft_only",
+    "quality.PunchItem": "draft_only",
     "requisitions.GeneralRequisition": "draft_only",
     "requisitions.LaborRequisition": "draft_only",
     "requisitions.MaterialRequisition": "draft_only",

@@ -272,6 +272,18 @@ MODULE_STREAMS = (
     ("materials.StockLot", "StockLot.Defined", ("StockLot.Moved",)),
     ("materials.MTO", "MTO.Defined", ()),
     ("materials.MTOLine", "MTOLine.Defined", ("MTOLine.Assigned",)),
+    # quality (P2-PUNCH): the punch item, raised, then every follow-on in a valid order
+    (
+        "quality.PunchItem",
+        "PunchItem.Raised",
+        (
+            "PunchItem.Edited",
+            "PunchItem.Cleared",
+            "PunchItem.Verified",
+            "PunchItem.Reopened",
+            "PunchItem.Voided",
+        ),
+    ),
     # awp part 3 (P2-I5): weekly plans and closeout
     (
         "awp.WeeklyPlan",

@@ -156,6 +156,7 @@ def test_every_record_class_of_the_committed_modules_has_a_view() -> None:
         "v_materials_project_item",
         "v_materials_receipt",
         "v_materials_stock_lot",
+        "v_quality_punch_item",
         "v_requisitions_general_requisition",
         "v_requisitions_labor_requisition",
         "v_requisitions_material_requisition",

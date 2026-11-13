@@ -489,6 +489,11 @@ AGENT_MAY_NOT = {
     "control.command.AdjustStock",
     "control.command.ScrapStock",
     "control.command.VoidReceipt",
+    # the punch list (P2-PUNCH): verify, reopen and void are the controller's decisions; an agent
+    # proposes a punch item (propose_punch_item) and does nothing else here
+    "control.command.VerifyPunchItem",
+    "control.command.ReopenPunchItem",
+    "control.command.VoidPunchItem",
     # the MTO publish (P2-I3-S4): a controlling act, access word controller (superuser holds it)
     "control.command.PublishDerivedMto",
     # the awp module (P2-I1): the superuser's acts; an agent proposes
