@@ -9,7 +9,7 @@ import { renderOps } from '../bcf/pins';
 import { fractionsToPixels, layoutMarkupFull } from './layout';
 import type { MarkupLayout } from './layout';
 import { distToPolyline, pointInPolygon } from './geometry';
-import { newMarkup } from './model';
+import { isSheetSet, newMarkup } from './model';
 import type { Markup } from './model';
 import { toolInfo } from './controller';
 import { buildAttachChip } from './attachUi';
@@ -73,6 +73,12 @@ export class MarkupView {
     c.cancelDrawing = () => this.cancel();
   }
 
+  /** The active sketch when it is drawn on the 3D view. A sketch on a PDF sheet is drawn by the sheet viewer (src/sheets), not here. */
+  private live(): import('./model').MarkupSet | null {
+    const s = this.c.active;
+    return s && !isSheetSet(s) ? s : null;
+  }
+
   get drawing(): boolean {
     return this.stroke !== null || this.poly !== null;
   }
@@ -110,7 +116,7 @@ export class MarkupView {
   }
 
   private drawingTool(e: PointerEvent): boolean {
-    if (!this.active || !this.c.active || this.c.tool === 'select' || !this.c.loaded) return false;
+    if (!this.active || !this.live() || this.c.tool === 'select' || !this.c.loaded) return false;
     // Mouse: the primary button draws, the others still orbit and pan. Touch and pen always draw.
     if (e.pointerType === 'mouse' && e.button !== 0) return false;
     return e.isPrimary !== false;
@@ -280,7 +286,7 @@ export class MarkupView {
   // ---------------------------------------------------------------- keys
 
   private onKey(e: KeyboardEvent): void {
-    if (!this.active || !this.c.active) return;
+    if (!this.active || !this.live()) return;
     const editing = isEditable(e.target);
     const mod = e.ctrlKey || e.metaKey;
     if (e.key === 'Escape') {
@@ -354,7 +360,7 @@ export class MarkupView {
     const stage = c.app.canvas.parentElement;
     if (!stage) return;
     if (!this.bar) this.bar = new DrawToolbar(c, stage);
-    const show = c.editing && !!c.active && c.loaded;
+    const show = c.editing && !!this.live() && c.loaded;
     this.floatRect = this.bar.update(show, this.overlay, this.polyPoints, () => this.finishPoly());
   }
 
@@ -417,7 +423,7 @@ export class MarkupView {
     if (!layer) return;
     layer.textContent = '';
     this.hits.clear();
-    const set = this.c.active;
+    const set = this.live();
     const chip = this.ensureChip();
     this.updateFloat();
     const want = this.active && this.c.tool !== 'select' && !!set;
@@ -562,7 +568,7 @@ export class MarkupView {
 
   /** The markup under a canvas point, topmost first (scripts and tests). */
   hitTest(x: number, y: number): string | null {
-    const set = this.c.active;
+    const set = this.live();
     if (!set) return null;
     for (let i = set.markups.length - 1; i >= 0; i--) {
       const m = set.markups[i]!;

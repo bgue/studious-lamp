@@ -128,7 +128,7 @@ function lockPin(m: Markup, ctx: LayoutContext, s: number, alpha: number, select
   for (const [u, v] of shape.points) { u0 = Math.min(u0, u); u1 = Math.max(u1, u); v0 = Math.min(v0, v); v1 = Math.max(v1, v); }
   const q = ctx.project(shapePointWorld(view, ctx.shift, (u0 + u1) / 2, (v0 + v1) / 2, shape.depth));
   if (!q.front) return [];
-  const hex = COLOURS[m.colour];
+  const hex = (m.hex ?? COLOURS[m.colour]);
   const label = String(m.number);
   const r = 9 * s;
   const key = `pin:${m.id}`;
@@ -144,7 +144,7 @@ function labelOps(m: Markup, minX: number, minY: number, ctx: LayoutContext, s: 
   const lines = m.text.trim() ? wrapText(m.text) : [];
   if (!lines.length) return [];
   const box = boxSize(lines, s);
-  const hex = COLOURS[m.colour];
+  const hex = (m.hex ?? COLOURS[m.colour]);
   let cx = minX + r + 3 * s + box.w / 2 + (m.offset?.[0] ?? 0) * ctx.height;
   let cy = minY - box.h / 2 - 4 * s + (m.offset?.[1] ?? 0) * ctx.height;
   let moved = false;
@@ -161,7 +161,7 @@ function labelOps(m: Markup, minX: number, minY: number, ctx: LayoutContext, s: 
 }
 
 function badge(m: Markup, x: number, y: number, s: number): DrawOp[] {
-  const hex = COLOURS[m.colour];
+  const hex = (m.hex ?? COLOURS[m.colour]);
   const label = String(m.number);
   const dark = m.colour === 'yellow';
   return [
@@ -178,7 +178,7 @@ function selectBox(minX: number, minY: number, maxX: number, maxY: number, s: nu
 /** All draw operations of one markup (shape, label, number badge), and its hit outline. */
 export function layoutMarkupFull(m: Markup, ctx: LayoutContext, opts: MarkupLayoutOptions = {}): MarkupLayout {
   const s = ctx.scale ?? 1;
-  const hex = COLOURS[m.colour];
+  const hex = (m.hex ?? COLOURS[m.colour]);
   const fade = (ops: DrawOp[]): DrawOp[] => {
     const f = (m.status === 'resolved' ? 0.5 : 1) * (opts.faded ? 0.55 : 1);
     return f === 1 ? ops : ops.map((o) => ({ ...o, alpha: (o.alpha ?? 1) * f }));

@@ -58,6 +58,16 @@ export function defaultColour(k: MarkupKind): ColourKey {
 }
 
 export type Weight = 1 | 2 | 3 | 4;
+
+/**
+ * What a sketch is drawn on. Absent: a 3D view (the set's camera). `sheet`: a page of a PDF drawing sheet (src/sheets); the shapes
+ * are then PDF user-space points of that page, not view fractions, and `camera` and `view` hold neutral placeholders that nothing reads.
+ */
+export type SketchFrame = { kind: 'sheet'; sheet: string };
+
+export function isSheetSet(s: { frame?: SketchFrame } | null | undefined): boolean {
+  return s?.frame?.kind === 'sheet';
+}
 /** Stroke width in CSS pixels per weight; highlights are wide markers. */
 export function strokePx(kind: MarkupKind, w: Weight): number {
   const base = [1.5, 2.5, 4, 6][w - 1]!;
@@ -85,8 +95,10 @@ export interface Markup {
   fill: boolean;
   /** The label, or the text of a text box, callout, pointer. */
   text: string;
-  /** Shape kinds. */
+  /** Shape kinds. On a sheet sketch the points are PDF user-space points of the page (depth 0). */
   shape?: BcfShape;
+  /** A colour that is not one of the palette (an annotation read from a PDF): `#rrggbb`. Drawn instead of `colour`. */
+  hex?: string;
   /**
    * Shape kinds: what the shape is attached to in 3D, or `{ kind: 'none' }` for view-locked. Absent in documents from before
    * attachments (the viewer then tries to attach the shape when the document is opened). `shape` stays: it is the view-locked
@@ -137,6 +149,10 @@ export interface MarkupSet {
    * holds its camera.
    */
   fromViewpoint?: boolean;
+  /** Absent: drawn on the 3D view. A sheet sketch is drawn on a PDF page (see SketchFrame). */
+  frame?: SketchFrame;
+  /** Read-only: the annotations that were already in a PDF. Copy it to get an editable sketch. */
+  readonly?: boolean;
 }
 
 export interface ModelIdentity {
@@ -232,6 +248,7 @@ export function newMarkup(kind: MarkupKind, o: Partial<Markup> & { author: strin
     comments: o.comments ?? [],
   };
   if (o.shape) m.shape = o.shape;
+  if (o.hex) m.hex = o.hex;
   if (o.attach) m.attach = o.attach;
   if (o.anchor) m.anchor = o.anchor;
   if (o.offset) m.offset = o.offset;
@@ -376,6 +393,8 @@ export function sanitizeMarkup(raw: unknown, fallbackAuthor = 'unknown'): Markup
     created: isoOr(raw['created'], now),
     comments: [],
   };
+  const hex = str(raw['hex'], 7);
+  if (hex && /^#[0-9a-fA-F]{6}$/.test(hex)) m.hex = hex.toLowerCase();
   if (isShapeKind(k)) {
     const sh = cleanShape(raw['shape'], k);
     if (!sh) return `${k} without a usable shape`;
@@ -412,6 +431,10 @@ function cleanCamera(v: unknown): BcfSnapshotView | null {
   return { position: [...v['position']] as Vec3, direction: [...v['direction']] as Vec3, up: [...v['up']] as Vec3, fov: v['fov'], aspect: v['aspect'] };
 }
 
+/** The camera and view of a sheet sketch: neutral values, there is no 3D view behind a sheet. */
+export const SHEET_CAMERA = (): BcfSnapshotView => ({ position: [0, 0, 1], direction: [0, 0, -1], up: [0, 1, 0], fov: 50, aspect: 1 });
+export const SHEET_VIEW = (title: string): { name: string; camera: { position: Vec3; target: Vec3 } } => ({ name: title, camera: { position: [0, 0, 1], target: [0, 0, 0] } });
+
 export interface SanitizedSet {
   set: MarkupSet;
   /** Markups that were left out, with the reason. */
@@ -422,10 +445,12 @@ export interface SanitizedSet {
 export function sanitizeSet(raw: unknown): SanitizedSet | string {
   if (!isObj(raw)) return 'not an object';
   const title = str(raw['title'], 300)?.trim() || 'Markup';
-  const view = sanitizeView(isObj(raw['view']) ? { name: title, ...raw['view'] } : null);
+  const sheetFrame = isObj(raw['frame']) && raw['frame']['kind'] === 'sheet';
+  const view = sanitizeView(isObj(raw['view']) ? { name: title, ...raw['view'] } : sheetFrame ? SHEET_VIEW(title) : null);
   if (typeof view === 'string') return `"${title}": view: ${view}`;
   delete view.thumb;
-  const camera = cleanCamera(raw['camera']);
+  const sheet = isObj(raw['frame']) && raw['frame']['kind'] === 'sheet' ? str(raw['frame']['sheet'], 120) : undefined;
+  const camera = sheet ? SHEET_CAMERA() : cleanCamera(raw['camera']);
   if (!camera) return `"${title}": camera needs position, direction, up, fov and aspect`;
   const now = nowIso();
   const author = str(raw['author'], 200) || 'unknown';
@@ -450,6 +475,8 @@ export function sanitizeSet(raw: unknown): SanitizedSet | string {
     if (t && v) set.issue = { topic: t, viewpoint: v };
   }
   if (raw['fromViewpoint'] === true) set.fromViewpoint = true;
+  if (sheet) set.frame = { kind: 'sheet', sheet };
+  if (raw['readonly'] === true) set.readonly = true;
   const thumb = str(raw['thumb'], 400000);
   if (thumb && /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(thumb)) set.thumb = thumb;
   const bad: string[] = [];

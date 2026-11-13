@@ -32,7 +32,7 @@ import { History } from './history';
 import { bounds as ptsBounds, simplify } from './geometry';
 import { boxCorners, ellipseInQuad, fractionsToPixels, layoutMarkups, markupName, rayToFraction, rebaseShape } from './layout';
 import {
-  KIND_LABEL, attachmentOf, isBoxKind, needsAttach, addMarkup, buildMarkupDoc, compareModels, defaultColour, defaultSetTitle, markupDocJson, mergeSets,
+  KIND_LABEL, attachmentOf, isBoxKind, isSheetSet, needsAttach, addMarkup, buildMarkupDoc, compareModels, defaultColour, defaultSetTitle, markupDocJson, mergeSets,
   modelIdentity, newMarkup, newMarkupId, nowIso, parseMarkupDoc, referencedGuids, setCounts, uniqueSetTitle,
 } from './model';
 import type { ColourKey, Markup, MarkupKind, MarkupSet, ModelIdentity, ModelMatch, Weight } from './model';
@@ -225,6 +225,10 @@ export class MarkupController {
     key(set: MarkupSet | null | undefined): string;
     apply(setId: string, mode: 'plan' | 'section' | '3d'): boolean;
   } | null = null;
+  /** src/sheets sets this: a PDF that carries no markup data of ours is a drawing sheet; this opens it as sheets. */
+  openPdfSheets: ((file: File | Blob, bytes: Uint8Array) => Promise<ImportReport>) | null = null;
+  /** src/sheets sets this: a sketch drawn on a PDF sheet has no 3D view to restore; this opens the sheet instead. True when it did. */
+  sheetRestore: ((set: MarkupSet) => boolean) | null = null;
   /** src/issues sets this: restoring a sketch made from an imported viewpoint applies that viewpoint. True when it did. */
   viewpointRestore: ((set: MarkupSet) => boolean) | null = null;
   private readonly removedListeners = new Set<(set: MarkupSet) => void>();
@@ -451,6 +455,15 @@ export class MarkupController {
     };
   }
 
+  /** Add a finished set made elsewhere (a sheet sketch, src/sheets) to the session, with its own undo history. */
+  adoptSet(set: MarkupSet, o: { activate?: boolean } = {}): MarkupSet {
+    this.sets.push(set);
+    if (!this.histories.has(set.id)) this.histories.set(set.id, new History());
+    if (o.activate) { this.activeId = set.id; this.selected = null; }
+    this.emit();
+    return set;
+  }
+
   /** A new set from the current view; it becomes the active one. */
   newSet(title?: string): MarkupSet {
     if (!this.loaded) throw new Error('No model loaded');
@@ -486,6 +499,13 @@ export class MarkupController {
   restore(id: string, animate = true): RestoreResult {
     const set = this.get(id);
     if (!set) throw new Error(`No markup set ${id}`);
+    if (isSheetSet(set)) {
+      this.activeId = set.id;
+      this.selected = null;
+      const ok = this.sheetRestore?.(set) ?? false;
+      this.setStatus(ok ? `Sheet of "${set.title}" opened` : `"${set.title}" is drawn on a PDF sheet, which is not open`);
+      return { name: set.title, missing: [], skipped: [], applied: ok ? ['sheet'] : [] };
+    }
     if (!this.loaded) throw new Error('No model loaded');
     this.untint();
     if (set.fromViewpoint && this.viewpointRestore?.(set)) {
@@ -563,6 +583,7 @@ export class MarkupController {
   updateView(id: string, keep: 'model' | 'screen' = this.updateKeep): { shapes: number; moved: number; kept: number } {
     const set = this.get(id);
     if (!set) throw new Error(`No markup set ${id}`);
+    if (isSheetSet(set)) throw new Error('A sketch on a PDF sheet has no 3D view to update');
     if (!this.loaded) throw new Error('No model loaded');
     this.cancelDrawing?.();
     const old = set.camera;
@@ -600,7 +621,7 @@ export class MarkupController {
 
   undo(): boolean {
     const set = this.active;
-    if (!set) return false;
+    if (!set || set.readonly) return false;
     const prev = this.history(set).undo(this.stateOf(set));
     if (!prev) return false;
     this.applyState(set, prev);
@@ -612,7 +633,7 @@ export class MarkupController {
   }
   redo(): boolean {
     const set = this.active;
-    if (!set) return false;
+    if (!set || set.readonly) return false;
     const next = this.history(set).redo(this.stateOf(set));
     if (!next) return false;
     this.applyState(set, next);
@@ -626,6 +647,7 @@ export class MarkupController {
   /** Add a finished markup to the active set (numbered, undoable, selected). */
   add(m: Markup, set: MarkupSet | null = this.active): Markup {
     if (!set) throw new Error('No markup set: create one from the view first');
+    if (set.readonly) throw new Error(`"${set.title}" is read-only (annotations that were already in the PDF). Copy it to an editable sketch first.`);
     if (needsAttach(m)) this.migrateMarkup(m, set);
     this.record(set);
     addMarkup(set, m);
@@ -638,7 +660,7 @@ export class MarkupController {
   /** Change fields of a markup. `quiet`: no history entry for this keystroke, a redraw only. */
   patch(id: string, p: Partial<Pick<Markup, 'text' | 'colour' | 'weight' | 'fill' | 'status' | 'assignee' | 'due' | 'offset' | 'shape'>>, o: { quiet?: boolean; noHistory?: boolean } = {}): boolean {
     const f = this.markup(id);
-    if (!f) return false;
+    if (!f || f.set.readonly) return false;
     if (!o.quiet && !o.noHistory) this.record(f.set);
     const m = f.m;
     if (p.text !== undefined) m.text = p.text;
@@ -656,7 +678,7 @@ export class MarkupController {
 
   remove(id: string): boolean {
     const f = this.markup(id);
-    if (!f) return false;
+    if (!f || f.set.readonly) return false;
     this.record(f.set);
     f.set.markups = f.set.markups.filter((m) => m.id !== id);
     f.set.updated = nowIso();
@@ -1322,6 +1344,7 @@ export class MarkupController {
     let migrated = 0;
     let nowAttached = 0;
     for (const set of shown) {
+      if (isSheetSet(set)) continue;
       const r = this.migrateSet(set);
       migrated += r.migrated;
       nowAttached += r.attached;
@@ -1335,7 +1358,7 @@ export class MarkupController {
       ok: true, sets: p.sets.length, markups: p.sets.reduce((a, s) => a + s.markups.length, 0), added: merged.added, replaced: merged.replaced,
       unknownGuids: unknown.size, match, warnings, skipped: p.bad,
     };
-    const first = shown[0];
+    const first = shown.find((x) => !isSheetSet(x));
     if (o.restore !== false && first) {
       this.activeId = first.id;
       this.selected = null;
@@ -1356,6 +1379,7 @@ export class MarkupController {
     if (isPdf) {
       const files = await extractAttachments(bytes);
       const hit = files.find((f) => /\.json$/i.test(f.name) || /json/.test(f.mime)) ?? files[0];
+      if (!hit && this.openPdfSheets) return this.openPdfSheets(file, bytes);
       if (!hit) {
         const e = 'This PDF does not carry markup data. Use a PDF exported from the Markup tool.';
         this.setStatus(e);

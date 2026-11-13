@@ -5,6 +5,7 @@
 
 import type { MarkupController, ToolId } from './controller';
 import { TOOLS, toolInfo } from './controller';
+import type { ToolInfo } from './controller';
 import { COLOURS, COLOUR_KEYS } from './model';
 import type { ColourKey, Weight } from './model';
 import type { Overlay, Rect } from '../ui/overlay';
@@ -12,31 +13,31 @@ import { buildViewSwitch } from '../issues/viewSwitchUi';
 
 const STYLE_ID = 'markup-toolbar-styles';
 const CSS = `
-#markup-float { position: absolute; left: 0; top: 0; z-index: 8; display: none; flex-direction: column; gap: 4px; padding: 5px 6px; border-radius: 12px;
+.markup-float { position: absolute; left: 0; top: 0; z-index: 8; display: none; flex-direction: column; gap: 4px; padding: 5px 6px; border-radius: 12px;
   width: max-content; max-width: calc(100% - 16px); box-sizing: border-box; border: 1px solid #3b9cff; background: rgba(20,32,46,0.96); color: #eaf2ff;
   font: 600 12px system-ui, sans-serif; box-shadow: 0 2px 10px rgba(0,0,0,0.4); }
-#markup-float * { box-sizing: border-box; }
-#markup-float .mf-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 4px; }
-#markup-float button { border: 1px solid #3b6c9c; background: #1c2f45; color: #eaf2ff; border-radius: 8px; font: inherit; cursor: pointer; min-height: 30px; padding: 0 9px; }
-#markup-float button:disabled { opacity: 0.4; cursor: default; }
-#markup-float button:hover:not(:disabled) { background: #26405e; }
-#markup-float .mf-tool { width: 32px; padding: 0; display: inline-flex; align-items: center; justify-content: center; }
-#markup-float .mf-tool svg { width: 18px; height: 18px; }
-#markup-float .mf-tool[aria-pressed=true] { background: #1f4a7a; border-color: #3b9cff; }
-#markup-float .mf-sw { width: 24px; height: 24px; min-height: 24px; border-radius: 50%; padding: 0; border: 2px solid transparent; outline: 1px solid #3b6c9c; }
-#markup-float .mf-sw[aria-pressed=true] { border-color: #fff; outline: 2px solid #3b9cff; }
-#markup-float .mf-w { width: 28px; padding: 0; display: inline-flex; align-items: center; justify-content: center; }
-#markup-float .mf-w[aria-pressed=true] { background: #1f4a7a; border-color: #3b9cff; }
-#markup-float .mf-w i { display: block; width: 14px; background: currentColor; border-radius: 2px; }
-#markup-float .mf-fill[aria-pressed=true] { background: #1f4a7a; border-color: #3b9cff; }
-#markup-float .mf-label { color: #9fc4ee; padding: 0 4px; white-space: nowrap; }
-#markup-float .mf-done { background: #1f6fe5; border-color: #3b9cff; }
-#markup-float input { background: #0e1218; color: #eaf2ff; border: 1px solid #3b6c9c; border-radius: 6px; padding: 4px 6px; font: 12px system-ui, sans-serif; min-width: 0; width: 100%; max-width: 360px; }
-#markup-float .vs-seg { border-radius: 8px; }
-#markup-float .vs-seg button { border: 0; border-radius: 0; background: #1c2f45; min-width: 44px; padding: 0 8px; }
-#markup-float .vs-seg button + button { border-left: 1px solid #3b6c9c; }
-#markup-float .vs-seg button[aria-pressed=true] { background: #1f4a7a; box-shadow: inset 0 -2px 0 #3b9cff; }
-@media (max-width: 760px) { #markup-float .mf-tool { width: 30px; } #markup-float button { min-height: 32px; } }
+.markup-float * { box-sizing: border-box; }
+.markup-float .mf-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 4px; }
+.markup-float button { border: 1px solid #3b6c9c; background: #1c2f45; color: #eaf2ff; border-radius: 8px; font: inherit; cursor: pointer; min-height: 30px; padding: 0 9px; }
+.markup-float button:disabled { opacity: 0.4; cursor: default; }
+.markup-float button:hover:not(:disabled) { background: #26405e; }
+.markup-float .mf-tool { width: 32px; padding: 0; display: inline-flex; align-items: center; justify-content: center; }
+.markup-float .mf-tool svg { width: 18px; height: 18px; }
+.markup-float .mf-tool[aria-pressed=true] { background: #1f4a7a; border-color: #3b9cff; }
+.markup-float .mf-sw { width: 24px; height: 24px; min-height: 24px; border-radius: 50%; padding: 0; border: 2px solid transparent; outline: 1px solid #3b6c9c; }
+.markup-float .mf-sw[aria-pressed=true] { border-color: #fff; outline: 2px solid #3b9cff; }
+.markup-float .mf-w { width: 28px; padding: 0; display: inline-flex; align-items: center; justify-content: center; }
+.markup-float .mf-w[aria-pressed=true] { background: #1f4a7a; border-color: #3b9cff; }
+.markup-float .mf-w i { display: block; width: 14px; background: currentColor; border-radius: 2px; }
+.markup-float .mf-fill[aria-pressed=true] { background: #1f4a7a; border-color: #3b9cff; }
+.markup-float .mf-label { color: #9fc4ee; padding: 0 4px; white-space: nowrap; }
+.markup-float .mf-done { background: #1f6fe5; border-color: #3b9cff; }
+.markup-float input { background: #0e1218; color: #eaf2ff; border: 1px solid #3b6c9c; border-radius: 6px; padding: 4px 6px; font: 12px system-ui, sans-serif; min-width: 0; width: 100%; max-width: 360px; }
+.markup-float .vs-seg { border-radius: 8px; }
+.markup-float .vs-seg button { border: 0; border-radius: 0; background: #1c2f45; min-width: 44px; padding: 0 8px; }
+.markup-float .vs-seg button + button { border-left: 1px solid #3b6c9c; }
+.markup-float .vs-seg button[aria-pressed=true] { background: #1f4a7a; box-shadow: inset 0 -2px 0 #3b9cff; }
+@media (max-width: 760px) { .markup-float .mf-tool { width: 30px; } .markup-float button { min-height: 32px; } }
 `;
 
 const SVG = (body: string): string =>
@@ -91,7 +92,11 @@ export class DrawToolbar {
   private key = '';
   rect: Rect | null = null;
 
-  constructor(private readonly c: MarkupController, stage: HTMLElement) {
+  /**
+   * `id`: the element id of the bar (default markup-float, the 3D view's). `frame`: the element whose box the bar is placed in
+   * (default the canvas); the sheet viewer (src/sheets) has its own bar over its own area. `tools`: the tools to offer.
+   */
+  constructor(private readonly c: MarkupController, stage: HTMLElement, private readonly o: { id?: string; frame?: () => HTMLElement | null; tools?: () => readonly ToolInfo[] } = {}) {
     if (!document.getElementById(STYLE_ID)) {
       const st = document.createElement('style');
       st.id = STYLE_ID;
@@ -99,7 +104,8 @@ export class DrawToolbar {
       document.head.appendChild(st);
     }
     const root = document.createElement('div');
-    root.id = 'markup-float';
+    root.id = o.id ?? 'markup-float';
+    root.classList.add('markup-float');
     root.setAttribute('role', 'toolbar');
     root.setAttribute('aria-label', 'Drawing tools');
     root.setAttribute('data-help-key', 'Drawing toolbar');
@@ -128,7 +134,7 @@ export class DrawToolbar {
     const tools = document.createElement('div');
     tools.className = 'mf-row';
     tools.setAttribute('data-mf', 'tools');
-    for (const t of TOOLS) {
+    for (const t of this.o.tools?.() ?? TOOLS) {
       const b = document.createElement('button');
       b.type = 'button';
       b.className = 'mf-tool';
@@ -246,7 +252,7 @@ export class DrawToolbar {
     // Wrap inside the free width between the edge chrome (a phone has rails at both sides), then measure.
     this.root.style.maxWidth = `${Math.max(160, Math.round(ov.width - ov.insets.left - ov.insets.right - 16))}px`;
     const stage = this.root.offsetParent as HTMLElement | null;
-    const cv = c.app.canvas.getBoundingClientRect();
+    const cv = (this.o.frame?.() ?? c.app.canvas).getBoundingClientRect();
     const st = stage?.getBoundingClientRect();
     const w = this.root.offsetWidth;
     const h = this.root.offsetHeight;

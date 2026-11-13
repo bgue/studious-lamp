@@ -1,6 +1,8 @@
 // Vite config for the single-file viewer. Produces one JS chunk and one CSS file in a scratch directory
 // (.single-build); tools/build-single-file.mjs then inlines them into web/dist-single/xray-viewer.html.
 //
+// The PDF libraries reach the bundle through src/sheets/pdfRuntime.ts; this config swaps it for pdfRuntime.single.ts, which unpacks
+// them from gzip + base64 in the HTML on first use (tools/build-single-file.mjs builds and embeds them, see vite.pdflibs.config.ts).
 // The IFC reader (web-ifc) reaches the bundle through src/model/ifcRuntime.ts. This config swaps that one module:
 //   default        -> ifcRuntime.single.ts  the module worker is inlined as a Blob worker (`?worker&inline`) and the
 //                                           wasm is NOT in the JS: build-single-file.mjs appends it to the HTML as base64
@@ -24,6 +26,7 @@ function ifcRuntimeVariant(): Plugin {
     resolveId(source, importer) {
       if (!importer) return null;
       if (/(^|\/)workerRuntime$/.test(source) && importer.includes('/pointcloud/')) return resolve(here, 'src/pointcloud/workerRuntime.single.ts');
+      if (/(^|\/)pdfRuntime$/.test(source) && importer.includes('/sheets/')) return resolve(here, 'src/sheets/pdfRuntime.single.ts');
       if (!/(^|\/)ifcRuntime$/.test(source)) return null;
       return target;
     },

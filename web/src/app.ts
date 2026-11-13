@@ -365,6 +365,9 @@ export class ViewerApp {
 
   // ---------------------------------------------------------------- frame loop
 
+  /** True while something covers the whole canvas (the sheet view, src/sheets): the frame loop keeps running but skips drawing the 3D scene. */
+  renderPaused = false;
+
   private frame = (now: number): void => {
     const t0 = performance.now();
     const dt = now - this.lastFrameTime;
@@ -373,7 +376,7 @@ export class ViewerApp {
     let dirty = this.controller.tick();
     for (const p of this.plugins) if (p.onFrame?.(this, now, dt)) dirty = true;
     if (dirty) this.renderer.markDirty();
-    this.renderer.render();
+    if (!this.renderPaused) this.renderer.render();
     for (const p of this.plugins) p.afterFrame?.(this, now);
     const cpu = performance.now() - t0;
 

@@ -394,6 +394,24 @@ export async function parseBcf(data: Uint8Array | ArrayBuffer, opts: ParseOption
           topic.viewpoints.push(ref);
         }
       }
+      // BCF 2.1: an internal DocumentReference is a path inside the zip. The file joins the project documents (once per file) and
+      // the reference names it by guid, like 3.0 does; the 2.1 writer turns it back into a path.
+      for (const dr of topic.documentReferences) {
+        if (dr.external || !dr.target || /^[0-9a-f]{8}-[0-9a-f]{4}-/i.test(dr.target) || project.versionId.startsWith('3')) continue;
+        const parts = (folder + dr.target.replace(/\\/g, '/')).split('/');
+        const norm: string[] = [];
+        for (const p of parts) { if (p === '..') norm.pop(); else if (p && p !== '.') norm.push(p); }
+        const path = norm.join('/');
+        const entry = get(path);
+        if (!entry) continue;
+        let doc = project.documents.find((d) => (d as { path?: string }).path === path);
+        if (!doc) {
+          doc = { guid: newGuid(), filename: path.slice(path.lastIndexOf('/') + 1), data: await entry.read() };
+          (doc as { path?: string }).path = path;
+          project.documents.push(doc);
+        }
+        dr.target = doc.guid;
+      }
       for (const ref of topic.viewpoints) {
         if (ref.viewpointFile) {
           const ve = get(folder + ref.viewpointFile);

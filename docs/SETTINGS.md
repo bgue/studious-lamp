@@ -61,6 +61,12 @@ Switch the tooltips off with `window.__xrayHelp.disable()` or `localStorage["xra
 - [Issues panel/Segments](#issues-panelsegments)
 - [Issues panel/Phone sheet](#issues-panelphone-sheet)
 - [Drawing toolbar](#drawing-toolbar)
+- [Sheet view](#sheet-view)
+- [Sheet view/Back to model](#sheet-viewback-to-model)
+- [Sheet view/Fit](#sheet-viewfit)
+- [Sheet view/Sketch](#sheet-viewsketch)
+- [Sheet view/Draw](#sheet-viewdraw)
+- [Sheet view/Drawing toolbar](#sheet-viewdrawing-toolbar)
 - [Issues panel/View switch](#issues-panelview-switch)
 - [Drawing toolbar/View switch](#drawing-toolbarview-switch)
 - [Status bar/Open issues](#status-baropen-issues)
@@ -716,7 +722,7 @@ Impact follows the same sentence rules and adds these:
 
 | Setting | Intent | Impact | Use | Ref |
 | --- | --- | --- | --- | --- |
-| *Folder: Issues panel/Segments* | The switch picks the list. Issues carry a status and comments. Sketches are saved views with drawings. | Click and the column swaps between the problems of your team and the drawn views. | Click Issues or Sketches. | Report: Appendix J, Coordination tools |
+| *Folder: Issues panel/Segments* | The switch picks the list. Issues carry a status and comments. Sketches are saved views with drawings. Sheets hold the pages of PDF drawings. | Click and the column swaps between the problems of your team, the drawn views and the paper drawings. | Click Issues, Sketches or Sheets. | Report: Appendix J, Coordination tools |
 
 ## Issues panel/Phone sheet
 
@@ -729,6 +735,42 @@ Impact follows the same sentence rules and adds these:
 | Setting | Intent | Impact | Use | Ref |
 | --- | --- | --- | --- | --- |
 | *Folder: Drawing toolbar* | The bar floats over the view while you draw on a sketch. It holds the tools, the colours, the line weights and Done. | This bar lets you mark a view with clouds, arrows, text and pen lines. It goes away when you press Done. | Pick a tool. Drag on the view. Press Done when the drawing is ready. | Report: Appendix J, Coordination tools |
+
+## Sheet view
+
+| Setting | Intent | Impact | Use | Ref |
+| --- | --- | --- | --- | --- |
+| *Folder: Sheet view* | The area shows 1 page of a PDF drawing in place of the 3D picture. The model stays loaded under it. | This area shows the paper drawing, so that you can mark it for your team. | Drag to move the page. Scroll or pinch to zoom. Press Back to model to return. | Report: Appendix J, Coordination tools |
+
+## Sheet view/Back to model
+
+| Setting | Intent | Impact | Use | Ref |
+| --- | --- | --- | --- | --- |
+| *Folder: Sheet view/Back to model* | The button closes the page and shows the 3D model again. | Click and the paper drawing goes away. The building picture returns as you left it. | Click the button. | Report: Appendix J, Coordination tools |
+
+## Sheet view/Fit
+
+| Setting | Intent | Impact | Use | Ref |
+| --- | --- | --- | --- | --- |
+| *Folder: Sheet view/Fit* | The button scales the page so that the whole page shows in the window. | Click and the whole drawing shows at once, centred in the area. | Click the button after you zoom in too far. | Report: Appendix J, Coordination tools |
+
+## Sheet view/Sketch
+
+| Setting | Intent | Impact | Use | Ref |
+| --- | --- | --- | --- | --- |
+| *Folder: Sheet view/Sketch* | The list picks the sketch that you draw on. A read-only sketch cannot change. | Pick one and your marks go into it. Pick the last choice to start a new one. | Pick a sketch from the list. | Report: Appendix J, Coordination tools |
+
+## Sheet view/Draw
+
+| Setting | Intent | Impact | Use | Ref |
+| --- | --- | --- | --- | --- |
+| *Folder: Sheet view/Draw* | The button shows the drawing tools and lets you draw on the page. | Click and a bar of tools appears. Your marks stay when the bar goes. | Click the button. Pick a tool. Drag on the page. | Report: Appendix J, Coordination tools |
+
+## Sheet view/Drawing toolbar
+
+| Setting | Intent | Impact | Use | Ref |
+| --- | --- | --- | --- | --- |
+| *Folder: Sheet view/Drawing toolbar* | The bar holds the tools, the colours and the line weights for the page. It has no tool that needs the 3D model. | Mark the page with clouds, arrows and text. The bar goes away when you press Done. | Pick a tool. Drag on the page. Press Done to finish. | Report: Appendix J, Coordination tools |
 
 ## Issues panel/View switch
 

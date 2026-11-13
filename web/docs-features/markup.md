@@ -87,6 +87,10 @@ The selected markup shows a chip in the panel (inside its detail) and on the can
 
 A document from before attachments has no `attach` on its shapes. When it is opened, each such shape is projected from its set camera with the same inference: clean gives an attachment, else `{ kind: 'none' }` with the original fractions untouched. A document made on a different model is not migrated until its sets are moved to the loaded model (they are hidden under `Other models`; see "Which model an item belongs to"). The schema string stays `xray-markup-set/1`: `attach` is an optional field that older viewers ignore, and every shape written now carries one. Update view with `Shapes stay: on the screen` makes shapes view-locked (their fractions stay and the target would be elsewhere); `on the model` keeps attachments and re-bases the fractions as before. Moving an attached shape projects it again at its new place.
 
+## Sketches on PDF sheets
+
+A markup set can be drawn on a page of a PDF instead of a 3D view: `frame: { kind: 'sheet', sheet: <id> }`. The shapes are then PDF user-space points of the page (not view fractions), the camera and view are placeholders, and the set can be `readonly` (annotations read from a PDF). The same toolbar and layout draw them; the 3D view skips them, and `restore` opens the sheet. A markup may carry `hex`, a colour outside the palette (read from a PDF). Export writes them as PDF annotations on their own layer. See [sheets.md](sheets.md).
+
 ## Which model an item belongs to
 
 Every markup set belongs to the model it was made on: `set.model` is a model identity (`name`, `elementCount`, `guidCount`, `guidHash`, see `ModelIdentity` in `src/markup/model.ts`; the same shape as the document's `model`). The rules are pure and tested (`src/markup/scope.ts`, `tests/markup-scope.test.ts`) and shared with the BCF topics ([bcf.md](bcf.md)). On every model change (the `onModel` hook of the plugins, which runs for the Sample Projects menu, the file loader and drops alike) each set is compared with the loaded model by `compareModels`:

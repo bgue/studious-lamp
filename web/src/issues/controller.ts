@@ -11,7 +11,7 @@
 import type { ViewerApp } from '../app';
 import type { BcfController } from '../bcf/controller';
 import type { MarkupController } from '../markup/controller';
-import { hasLegacyReview } from '../markup/model';
+import { hasLegacyReview, isSheetSet } from '../markup/model';
 import type { MarkupSet } from '../markup/model';
 import { newGuid, nowIso } from '../bcf/model';
 import type { BcfAnnotation, BcfTopic, BcfViewpointRef } from '../bcf/model';
@@ -23,7 +23,7 @@ import { withDerivedViewpoints } from './derivedViews';
 import { searchIssues } from './search';
 import type { IssueHit } from './search';
 
-export type Segment = 'issues' | 'sketches';
+export type Segment = 'issues' | 'sketches' | 'sheets';
 export type Detail = { kind: 'issue' | 'sketch'; id: string } | null;
 
 /** Statuses that count as closed: the status bar counts the others as open. */
@@ -44,6 +44,9 @@ export class IssuesController {
   confirmRemove: string | null = null;
   /** Whether the panel is up (the plugin sets it): status text and the phone sheet follow it. */
   panelOpen = false;
+  /** src/sheets sets this: the content of the Sheets segment, and "Raise as issue" for a sketch drawn on a PDF sheet. */
+  sheetsPane: { render(): HTMLElement[]; status(): string } | null = null;
+  sheetRaise: ((setId: string, o: { topic?: string }) => Promise<string>) | null = null;
   /** The result of the last migration, for the panel and scripts. */
   lastMigration: { issues: number; failed: number } | null = null;
   private readonly listeners = new Set<() => void>();
@@ -135,7 +138,7 @@ export class IssuesController {
         for (const v of t.viewpoints) {
           if (!v.sketchId) continue;
           const s = this.sets.find((x) => x.id === v.sketchId);
-          if (!s) continue;
+          if (!s || isSheetSet(s)) continue; // a sheet sketch has no 3D annotations: src/sheets keeps its viewpoint in step
           const sig = JSON.stringify([s.markups, s.camera]);
           if (this.synced.get(v) === sig) continue;
           this.synced.set(v, sig);
@@ -288,6 +291,20 @@ export class IssuesController {
   async raise(setId: string, o: { topic?: string; legacy?: LegacyIssue } = {}): Promise<string> {
     const set = this.markup.get(setId);
     if (!set) throw new Error(`No sketch ${setId}`);
+    if (isSheetSet(set)) {
+      if (!this.sheetRaise) throw new Error('Sheets are not available in this build');
+      const have0 = this.issueOf(setId);
+      if (have0) throw new Error(`"${set.title}" already belongs to the issue "${have0.topic.title}". Open that issue instead.`);
+      this.raising = true;
+      try {
+        const g = await this.sheetRaise(setId, { ...(o.topic ? { topic: o.topic } : {}) });
+        this.bcf.selectedTopic = g;
+        this.emit();
+        return g;
+      } finally {
+        this.raising = false;
+      }
+    }
     if (!this.markup.loaded) throw new Error('No model loaded');
     const have = this.issueOf(setId);
     if (have) throw new Error(`"${set.title}" already belongs to the issue "${have.topic.title}". Open that issue instead.`);
@@ -466,6 +483,16 @@ export class IssuesController {
   openSketch(id: string, o: { restore?: boolean } = {}): boolean {
     const s = this.markup.get(id);
     if (!s) return false;
+    if (isSheetSet(s)) {
+      // A sketch on a PDF sheet is listed with its sheet; opening it shows the sheet.
+      this.segment = 'sheets';
+      this.detail = null;
+      this.markup.activeId = id;
+      this.markup.selected = null;
+      this.markup.restore(id, true);
+      this.emit();
+      return true;
+    }
     this.segment = 'sketches';
     this.detail = { kind: 'sketch', id };
     void this.markup.select(id, { restore: o.restore !== false });
@@ -481,6 +508,7 @@ export class IssuesController {
       this.markup.activeId = id;
       this.markup.selected = null;
     }
+    if (isSheetSet(s)) this.markup.restore(id, true); // shows the sheet
     this.markup.setEditing(true);
     this.emit();
     return this.markup.editing;
@@ -538,6 +566,7 @@ export class IssuesController {
   visibleSketches(): MarkupSet[] {
     const terms = this.query.trim().toLowerCase().split(/\s+/).filter(Boolean);
     return this.markup.visibleSets().map((x) => x.set).filter((s) => {
+      if (isSheetSet(s)) return false; // listed in the Sheets segment, with their page
       if (!terms.length) return true;
       const hay = [s.title, s.note ?? ''].join(' ').toLowerCase();
       return terms.every((x) => hay.includes(x));

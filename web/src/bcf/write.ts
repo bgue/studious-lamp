@@ -484,7 +484,17 @@ export async function writeBcf(project: BcfProject, version: BcfVersion = '2.1',
     add('documents.xml', w.toString());
   }
 
-  for (const t of project.topics) {
+  // BCF 2.1 has no documents.xml: an internal DocumentReference names a file inside the zip, relative to the topic folder.
+  const docPath = new Map<string, string>();
+  if (!v3) {
+    for (const d of project.documents) {
+      if (!d.data || blank(d.filename)) continue;
+      files.push({ name: `Documents/${d.filename}`, data: d.data });
+      docPath.set(d.guid, `../Documents/${d.filename}`);
+    }
+  }
+  for (const t0 of project.topics) {
+    const t = docPath.size ? { ...t0, documentReferences: t0.documentReferences.map((r) => (!r.external && r.target && docPath.has(r.target) ? { ...r, target: docPath.get(r.target)! } : r)) } : t0;
     const folder = v3 ? t.guid.toLowerCase() : t.guid;
     const refs = viewpointNames(t, version);
     add(`${folder}/markup.bcf`, writeMarkup({ ...t, viewpoints: refs }, version));

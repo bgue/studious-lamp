@@ -91,6 +91,27 @@ export interface BcfDerived {
   of: string;
 }
 
+/**
+ * A viewpoint that is a drawing sheet instead of a 3D view: a page of a PDF with a sketch on it (src/sheets). The viewpoint has no
+ * .bcfv camera, only the snapshot image of the sheet region. The topic holds a DocumentReference to the PDF; this record (side file
+ * xray-markup.json) names the sheet and carries the shapes, so opening the file again gives the sketch back.
+ */
+export interface BcfSheetRef {
+  /** SHA-256 of the PDF (lowercase hex): the sheet is found again by it when the same PDF is open. */
+  sha256: string;
+  /** 1-based page. */
+  page: number;
+  /** Sheet name ("Plan, page 2") and the PDF file name. */
+  name: string;
+  docName: string;
+  /** The sketch title. */
+  title?: string;
+  /** The region the snapshot shows, displayed-page points: x0, y0, x1, y1 from the top left. */
+  bounds: [number, number, number, number];
+  /** The shapes of the sketch, PDF user-space points (src/markup Markup). Refreshed from the sketch before export. */
+  markups?: import('../markup/model').Markup[];
+}
+
 export interface BcfViewpointRef {
   guid: string;
   /** File name of the .bcfv inside the topic folder. */
@@ -128,6 +149,8 @@ export interface BcfViewpointRef {
   derived?: BcfDerived;
   /** Session only: element ids hidden at capture (hidden or ghosted), for the occlusion fade of the burned snapshot. */
   captureSeeThrough?: ReadonlySet<number>;
+  /** This viewpoint is a page of a PDF drawing sheet (side file `sheet`), not a 3D view. */
+  sheet?: BcfSheetRef;
 }
 
 // ---------------------------------------------------------------- viewer markup (pins and annotations)
@@ -300,6 +323,8 @@ export interface BcfDocument {
   filename: string;
   description?: string;
   data?: Uint8Array;
+  /** Session only: SHA-256 of `data`, to share one document between topics. */
+  sha256?: string;
 }
 
 export interface BcfProject {

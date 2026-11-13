@@ -21,6 +21,8 @@
   },
   "dependencies": {
     "lil-gui": "0.21.0",
+    "pdf-lib": "1.17.1",
+    "pdfjs-dist": "5.4.149",
     "three": "0.187.0",
     "three-mesh-bvh": "0.9.17",
     "web-ifc": "0.0.78"

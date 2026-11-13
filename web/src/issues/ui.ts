@@ -180,8 +180,10 @@ export function buildIssuesPanel(host: HTMLElement, c: IssuesController): Issues
   // ---------------------------------------------------------------- pieces
 
   function segmentBar(): HTMLElement {
-    const bar = el('div', 'is-seg', { role: 'tablist', 'aria-label': 'Issues or sketches', 'data-help-key': 'Issues panel/Segments' });
-    for (const [id, label] of [['issues', 'Issues'], ['sketches', 'Sketches']] as const) {
+    const bar = el('div', 'is-seg', { role: 'tablist', 'aria-label': c.sheetsPane ? 'Issues, sketches or sheets' : 'Issues or sketches', 'data-help-key': 'Issues panel/Segments' });
+    const segs: Array<readonly ['issues' | 'sketches' | 'sheets', string]> = [['issues', 'Issues'], ['sketches', 'Sketches']];
+    if (c.sheetsPane) segs.push(['sheets', 'Sheets']);
+    for (const [id, label] of segs) {
       const b = el('button', undefined, { type: 'button', role: 'tab', 'data-seg': id, 'aria-selected': String(c.segment === id) }, label);
       b.addEventListener('click', () => c.setSegment(id));
       bar.appendChild(b);
@@ -622,11 +624,13 @@ export function buildIssuesPanel(host: HTMLElement, c: IssuesController): Issues
     const d = c.detail;
     const topic = d?.kind === 'issue' && c.segment === 'issues' ? bcf.topic(d.id) : undefined;
     const sketch = d?.kind === 'sketch' && c.segment === 'sketches' ? mk.get(d.id) : undefined;
-    if (topic) kids.push(...issueDetail(topic));
+    const statusText = (): string => (c.segment === 'issues' ? bcf.status : c.segment === 'sheets' && c.sheetsPane ? c.sheetsPane.status() : mk.status);
+    if (c.segment === 'sheets' && c.sheetsPane) kids.push(...c.sheetsPane.render());
+    else if (topic) kids.push(...issueDetail(topic));
     else if (sketch) kids.push(...sketchDetail(sketch));
     else kids.push(...(c.segment === 'issues' ? issuesList() : sketchesList()));
     for (const k of kids) root.appendChild(k);
-    root.appendChild(el('div', 'is-status', { role: 'status', 'data-issues-status': '' }, c.segment === 'issues' ? bcf.status : mk.status));
+    root.appendChild(el('div', 'is-status', { role: 'status', 'data-issues-status': '' }, statusText()));
     const au = input('is-in', { type: 'text', placeholder: 'Your name (author of sketches and comments)', 'aria-label': 'Author', 'data-keep': 'author' }, mk.author);
     au.addEventListener('change', () => silently(() => mk.setAuthor(au.value)));
     root.appendChild(au);
@@ -643,14 +647,14 @@ export function buildIssuesPanel(host: HTMLElement, c: IssuesController): Issues
   const off = c.onChange(() => {
     if (hold) {
       const st = root.querySelector('[data-issues-status]');
-      if (st) st.textContent = c.segment === 'issues' ? bcf.status : mk.status;
+      if (st) st.textContent = c.segment === 'issues' ? bcf.status : c.segment === 'sheets' && c.sheetsPane ? c.sheetsPane.status() : mk.status;
       return;
     }
     // While a text box of the panel has the keyboard, redraw only when the list changed under it (typing must not lose focus).
     const f = document.activeElement;
     if (f instanceof HTMLElement && root.contains(f) && f.matches('input[data-keep]:not([data-keep=query]), textarea') && c.detail) {
       const st = root.querySelector('[data-issues-status]');
-      if (st) st.textContent = c.segment === 'issues' ? bcf.status : mk.status;
+      if (st) st.textContent = c.segment === 'issues' ? bcf.status : c.segment === 'sheets' && c.sheetsPane ? c.sheetsPane.status() : mk.status;
       return;
     }
     render();

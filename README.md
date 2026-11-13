@@ -184,6 +184,13 @@ parameter documents with `glowNear: true` load as `near`.
   markers on the model); the drawing of a viewpoint (callouts, notes, arrows, linked measurements, shapes) is its sketch, and opening a file
   makes a sketch of each drawn viewpoint. The drawing lives in a side file `xray-markup.json` per topic folder (the BCF XML still
   validates) and is burned into the exported snapshot.
+- **Sheets** ([sheets.md](web/docs-features/sheets.md)). Open or drop a PDF drawing as sheets (one per page) next to the model, in the
+  `Sheets` segment of the Issues tab. A 2D sheet view covers the 3D area (`Back to model` returns) with pan, wheel and pinch zoom and
+  pdf.js pages that sharpen when the zoom settles. Sketch on a sheet with the same toolbar (shapes are PDF points and stay put), raise it
+  as an issue (snapshot of the region, a DocumentReference to the PDF in the BCF 2.1 or 3.0 zip), and `Export marked-up PDF`: a copy of
+  the PDF with your sketches as real annotations (cloud, square, circle, line, arrow, ink, free text, callout) on the optional content
+  layer `X-ray markups`, re-export replaces them. Annotations already in a PDF come in: ours editable, others read-only. The PDF libraries
+  load on first use only. Scripting: `window.__xraySheets`.
 - **Markup** ([markup.md](web/docs-features/markup.md)). The drawing engine behind sketches: export a landscape A4 or Letter PDF (clean
   view, view with numbered markups, table of drawings, "how to get back" block) that carries the sketch as an embedded JSON file, or the
   JSON alone (`xray-markup-set/1`), at 150, 200 or 300 dpi rendered off screen. `Update view` re-captures a sketch from the current camera.

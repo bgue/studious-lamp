@@ -30,9 +30,11 @@ import { panelDockPlugin } from './panelDock';
 import { exportParamsPlugin } from './exportParams';
 import { viewsPlugin } from './views';
 import { issuesPlugin } from './issues';
+import { sheetsPlugin } from './sheets';
 import { topBarPlugin } from './topBar';
 import { awesomeBarPlugin } from './awesomeBar';
 
+// sheets right after issues (it adds the Sheets segment to the Issues panel and joins its controller).
 // issues after views (its sidebar tab follows Views) and after bcf and markup (it joins their controllers).
 // views after exportParams (its factory snapshot is the state after the first model and any #p= link) and before boot.
 // pointerMode before gizmo (its toggle lives there); undo last: its onModel runs after boot has applied the link, preset and camera,
@@ -40,4 +42,4 @@ import { awesomeBarPlugin } from './awesomeBar';
 // help runs after every panel-building plugin so it can see all controls; panelDock last so it wraps the finished panel.
 // topBar first: it creates the bar and the #xray-topbar-search host that the awesomeBar plugin mounts into, and its onModel
 // takes the factory settings hash before any other plugin changes the state.
-export const PLUGINS: AppPlugin[] = [topBarPlugin, fileLoaderPlugin, classStylesPlugin, sidebarPlugin, cinematicPlugin, oitPlugin, viewModesPlugin, imagingPlugin, sectionPlugin, pointerModePlugin, gizmoPlugin, cleanupPlugin, classifyPlugin, hoverInfoPlugin, presetsPlugin, penetrationsPlugin, measurePlugin, bcfPlugin, markupPlugin, pointcloudPlugin, xrPlugin, toolbarPlugin, keymapPlugin, exportParamsPlugin, viewsPlugin, issuesPlugin, helpPlugin, panelDockPlugin, awesomeBarPlugin, bootPlugin, undoPlugin];
+export const PLUGINS: AppPlugin[] = [topBarPlugin, fileLoaderPlugin, classStylesPlugin, sidebarPlugin, cinematicPlugin, oitPlugin, viewModesPlugin, imagingPlugin, sectionPlugin, pointerModePlugin, gizmoPlugin, cleanupPlugin, classifyPlugin, hoverInfoPlugin, presetsPlugin, penetrationsPlugin, measurePlugin, bcfPlugin, markupPlugin, pointcloudPlugin, xrPlugin, toolbarPlugin, keymapPlugin, exportParamsPlugin, viewsPlugin, issuesPlugin, sheetsPlugin, helpPlugin, panelDockPlugin, awesomeBarPlugin, bootPlugin, undoPlugin];

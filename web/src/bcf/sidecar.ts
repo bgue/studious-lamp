@@ -34,9 +34,9 @@
 
 import { ANNOTATION_TYPES, IFC_GUID_RE, isShapeType, newGuid } from './model';
 import { attachGuids, cleanAttachment, cloneAttachment } from './attach';
-import { cleanIdentity } from '../markup/model';
-import type { ModelIdentity } from '../markup/model';
-import type { BcfAnchor, BcfAnnotation, BcfDerived, BcfMeasureLink, BcfPin, BcfShape, BcfSnapshotView, BcfTopic, BcfVersion, BcfViewpointRef, Vec3 } from './model';
+import { cleanIdentity, sanitizeMarkup } from '../markup/model';
+import type { Markup, ModelIdentity } from '../markup/model';
+import type { BcfAnchor, BcfAnnotation, BcfDerived, BcfMeasureLink, BcfPin, BcfSheetRef, BcfShape, BcfSnapshotView, BcfTopic, BcfVersion, BcfViewpointRef, Vec3 } from './model';
 
 export const SIDECAR_NAME = 'xray-markup.json';
 export const SIDECAR_FORMAT = 'xray-bcf-markup';
@@ -51,6 +51,8 @@ export interface SidecarViewpoint {
   markupSelection?: string[];
   /** This viewpoint is a Plan or Section view derived from another viewpoint's sketch (see src/issues/derivedViews.ts). */
   derived?: BcfDerived;
+  /** The viewpoint is a page of a PDF sheet (see BcfSheetRef). */
+  sheet?: BcfSheetRef;
 }
 
 export interface Sidecar {
@@ -67,7 +69,7 @@ export interface Sidecar {
 
 /** True when the topic carries viewer markup (a pin or annotations). */
 export function hasMarkup(t: BcfTopic): boolean {
-  return !!t.pin || t.viewpoints.some((r) => (r.annotations?.length ?? 0) > 0 || !!r.derived);
+  return !!t.pin || t.viewpoints.some((r) => (r.annotations?.length ?? 0) > 0 || !!r.derived || !!r.sheet);
 }
 
 /**
@@ -135,7 +137,8 @@ export function sidecarJson(t: BcfTopic, version: BcfVersion, baseSnapshots: Rea
     const base = baseSnapshots.get(r.guid);
     if (base) v.baseSnapshot = base;
     if (r.derived) v.derived = { kind: r.derived.kind, ...(r.derived.sketch ? { sketch: r.derived.sketch } : {}), of: g(r.derived.of) };
-    if (v.annotations || v.baseSnapshot || v.snapshotView || v.derived) out.viewpoints[g(r.guid)] = v;
+    if (r.sheet) v.sheet = JSON.parse(JSON.stringify(r.sheet)) as BcfSheetRef;
+    if (v.annotations || v.baseSnapshot || v.snapshotView || v.derived || v.sheet) out.viewpoints[g(r.guid)] = v;
   }
   return `${JSON.stringify(out, null, 1)}\n`;
 }
@@ -264,6 +267,28 @@ export function readAnnotation(v: unknown): BcfAnnotation | null {
   return out;
 }
 
+/** The sheet record of a viewpoint, cleaned; null when it does not name a PDF and a page. */
+export function readSheetRef(v: unknown): BcfSheetRef | null {
+  if (!isObj(v)) return null;
+  const sha = str(v['sha256']);
+  const page = v['page'];
+  if (!sha || !/^[0-9a-f]{64}$/i.test(sha) || !fin(page) || !Number.isInteger(page) || page < 1 || page > 100000) return null;
+  const b = v['bounds'];
+  const bounds: [number, number, number, number] = Array.isArray(b) && b.length === 4 && b.every(fin) ? [Number(b[0]), Number(b[1]), Number(b[2]), Number(b[3])] : [0, 0, 1, 1];
+  const out: BcfSheetRef = { sha256: sha.toLowerCase(), page, name: str(v['name']) ?? `page ${page}`, docName: str(v['docName']) ?? 'drawing.pdf', bounds };
+  const title = str(v['title']);
+  if (title) out.title = title;
+  if (Array.isArray(v['markups'])) {
+    const list: Markup[] = [];
+    for (const m of v['markups'].slice(0, 5000)) {
+      const r = sanitizeMarkup(m);
+      if (typeof r !== 'string') list.push(r);
+    }
+    out.markups = list;
+  }
+  return out;
+}
+
 export interface SidecarRead {
   pinNumber?: number;
   pin?: BcfPin;
@@ -318,6 +343,8 @@ export function parseSidecar(text: string): SidecarRead {
       if (Array.isArray(v['markupSelection'])) sv.markupSelection = guidList(v['markupSelection']) ?? [];
       const dv = cleanDerived(v['derived']);
       if (dv) sv.derived = dv;
+      const sh = readSheetRef(v['sheet']);
+      if (sh) sv.sheet = sh;
       out.viewpoints.set(guid.toLowerCase(), sv);
     }
   }
@@ -343,6 +370,7 @@ export function applySidecar(t: BcfTopic, s: SidecarRead): { baseSnapshots: Map<
     // Absent (an older side file): derived from the annotations by markupSelectionOf.
     if (v.markupSelection) r.markupSelection = v.markupSelection;
     if (v.derived) r.derived = v.derived;
+    if (v.sheet) r.sheet = v.sheet;
     if (v.baseSnapshot) baseSnapshots.set(r.guid, v.baseSnapshot);
   }
   const missing = [...s.viewpoints.keys()].filter((g) => !seen.has(g));

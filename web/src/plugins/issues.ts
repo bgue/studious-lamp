@@ -140,7 +140,7 @@ export const issuesPlugin: AppPlugin = {
       if (panel.root.parentElement !== want) want.appendChild(panel.root);
       const show = inSheet && sheetWanted && !(mk.editing && mk.active);
       sheet.classList.toggle('on', show);
-      title.textContent = c.segment === 'issues' ? 'Issues' : 'Sketches';
+      title.textContent = c.segment === 'issues' ? 'Issues' : c.segment === 'sheets' ? 'Sheets' : 'Sketches';
     };
     const visible = (): boolean => (phone() ? sheet.classList.contains('on') : !!tab?.visible());
     const syncOpen = (): void => {

@@ -7,3 +7,4 @@ __pycache__/
 xray-ref.zip
 web/.single-build-template-*/
 web/tools/pack/reader.mjs
+web/.single-build-pdf*/

@@ -5,7 +5,7 @@ BCF is the container and the markup drawing engine is the drawing layer. There i
 - **Sketches** (formerly markup sets): a saved view, its drawings and an optional one-line note. They keep the 2D markup view and the PDF report. They have **no status and no comment thread**.
 - **Issues** (BCF topics): status, priority, assignee, due date, comments, history. **An issue's viewpoints are sketches.** Raising a sketch as an issue makes an issue (or adds the sketch to an existing one) whose viewpoint links to the sketch by id, not a copy.
 
-Where: the sidebar tab **Issues** (after Model, Sets and Views) with the switch `Issues · Sketches`; the drawing toolbar floats over the view while a sketch is edited; the status bar says `N open issues`; the top-bar search finds issues and sketches. Scripting: `window.__xrayIssues` (panel, links, search, migration), `window.__xrayBcf` (issues as BCF data), `window.__xrayMarkup` (sketches). Code: `src/issues/` (`link.ts`, `search.ts` and `derivedViews.ts` pure, `controller.ts`, `derivedSwitch.ts`, `viewSwitchUi.ts`, `ui.ts`), `src/plugins/issues.ts`, `src/markup/toolbar.ts`. See [markup.md](markup.md) for the drawing engine and the PDF, [bcf.md](bcf.md) for the file formats.
+Where: the sidebar tab **Issues** (after Model, Sets and Views) with the switch `Issues · Sketches · Sheets` (the third segment lists PDF drawing sheets and the sketches drawn on them, [sheets.md](sheets.md)); the drawing toolbar floats over the view while a sketch is edited; the status bar says `N open issues`; the top-bar search finds issues and sketches. Scripting: `window.__xrayIssues` (panel, links, search, migration), `window.__xrayBcf` (issues as BCF data), `window.__xrayMarkup` (sketches). Code: `src/issues/` (`link.ts`, `search.ts` and `derivedViews.ts` pure, `controller.ts`, `derivedSwitch.ts`, `viewSwitchUi.ts`, `ui.ts`), `src/plugins/issues.ts`, `src/markup/toolbar.ts`. See [markup.md](markup.md) for the drawing engine and the PDF, [bcf.md](bcf.md) for the file formats.
 
 ## The panel
 
@@ -16,6 +16,10 @@ The issue detail: snapshot with the drawing burned in, status and priority lists
 `Sketches` segment: `New sketch` (saves the current view and starts drawing), `Open file` (a sketch PDF or JSON), a search box (title and note), cards with thumbnails, and `Other models (n)`. The card of a sketch that belongs to an issue says `Issue: <title>`. The sketch detail: thumbnail, title, note, `Raise as issue` (a list picks `New issue` or `Add to: <issue>`), `Edit drawing`, `Restore view`, `Update view`, `Export PDF`, `Export JSON`, page size and picture quality for the PDF, `Delete sketch`, and the list of drawings (number, kind, text, the attachment chip of the selected one). A sketch that belongs to an issue shows `Viewpoint of the issue <title>` with `Open issue`: the link shows from both sides.
 
 Phone (up to 700 px wide): the sidebar collapses and the panel is a **bottom sheet** (like the classification review walk). It steps aside while a sketch is edited and comes back on `Done`; the cross closes it, `N open issues` in the status bar opens it.
+
+## Sheets
+
+`Sheets` segment: `Open PDF`, then each PDF with its pages as thumbnails, `Export marked-up PDF`, `Remove`, and under each page its sketches (`Edit drawing`, `Raise as issue`, `JSON`, `Delete`; a read-only `Imported annotations` sketch has `Copy to editable sketch`). A page opens the sheet view over the 3D area (`Back to model` returns). A sketch on a sheet is a markup set with a sheet frame; it is not listed in the Sketches grid. Raising it as an issue works as for any sketch: the viewpoint is a snapshot of the sheet region, the topic gets a document reference to the PDF and the side file names the sheet. See [sheets.md](sheets.md).
 
 ## Plan and Section views
 

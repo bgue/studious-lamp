@@ -6,6 +6,9 @@
 // gzip-compressed IFC (window.__xrayEmbeddedIfc, read by the built-in IFC reader; not with --no-ifc). The scratch directory is removed unless --keep.
 // IFC reader: the web-ifc wasm is embedded as base64 (window.__xrayIfcWasm) and the worker is already inside the JS chunk
 // (see src/model/ifcRuntime.single.ts). --no-ifc builds without the reader: no wasm, no worker, no web-ifc code.
+// PDF sheets (src/sheets): pdf.js, pdf-lib and the pdf.js worker are embedded as gzip + base64 (window.__xrayPdfLibsGz and
+// window.__xrayPdfWorkerGz) and unpacked on first use, like the IFC worker; the libraries are built into one ES module by
+// vite.pdflibs.config.ts, not into the app chunk. Every variant has them (templates too).
 // --template [--variant ifc|none] builds the templates used by tools/xray-pack.mjs instead: web/dist-single/xray-template-ifc.html
 // (with the IFC reader) and xray-template.html (without), no sample models, no footer note, and one clearly marked injection
 // block (XRAY-PACK:INJECT-BEGIN ... XRAY-PACK:INJECT-END) that holds window.__xrayEmbeddedModels = {}. Both variants are built
@@ -161,6 +164,30 @@ if (!noIfc) {
     '     is part of the IFC worker script and web-ifc.wasm is the wasm below (both gzip + base64). Source and licence: https://www.mozilla.org/MPL/2.0/ -->\n' +
     `<script>\nwindow.__xrayIfcWorkerGz = "${workerB64}";\nwindow.__xrayIfcWasm = "${b64}";\nwindow.__xrayIfcWasmEnc = "gzip";\n</script>\n`;
 }
+// The PDF libraries (sheets): one ES module with pdf.js and pdf-lib, and the pdf.js worker; both gzipped + base64 into the HTML.
+const pdfOut = join(root, template ? `.single-build-pdf-${variantArg}` : '.single-build-pdf');
+{
+  const viteBin = join(root, 'node_modules', 'vite', 'bin', 'vite.js');
+  const r = spawnSync(process.execPath, [viteBin, 'build', '--config', 'vite.pdflibs.config.ts'], { cwd: root, stdio: 'inherit', env: { ...process.env, XRAY_PDFLIBS_OUT: pdfOut } });
+  if (r.status !== 0) die('the PDF libraries build failed');
+}
+const pdfLibsJs = readFileSync(join(pdfOut, 'pdf-libs.mjs'));
+// The pdf.js worker is an ES module file; a module worker cannot start from a Blob URL on a file:// page, a classic one can (as the IFC
+// worker does). So the file is turned into a classic script: the one `import.meta.url` (a wasm glue path that is never used here) becomes
+// the worker's own address and the closing `export` goes. The script starts itself when it runs as a worker.
+const pdfWorkerSrc = readFileSync(join(root, 'node_modules', 'pdfjs-dist', 'build', 'pdf.worker.min.mjs'), 'utf8')
+  .replace(/import\.meta\.url/g, 'self.location.href')
+  .replace(/export\s*\{\s*WorkerMessageHandler\s*\};?\s*$/, '');
+if (/\bimport\.meta\b/.test(pdfWorkerSrc) || /(^|[;}\s])export\s*[{*d]/.test(pdfWorkerSrc.slice(-300))) die('the pdf.js worker could not be turned into a classic script (its format changed)');
+const pdfWorkerJs = Buffer.from(pdfWorkerSrc, 'utf8');
+if (/\bimport\s*\(\s*["']\.\.?\//.test(pdfLibsJs.toString('utf8'))) die('the PDF libraries bundle still imports a relative chunk');
+const pdfLibsB64 = gzipSync(pdfLibsJs, { level: 9 }).toString('base64');
+const pdfWorkerB64 = gzipSync(pdfWorkerJs, { level: 9 }).toString('base64');
+rmSync(pdfOut, { recursive: true, force: true });
+const pdfScript =
+  '<!-- pdf.js (https://github.com/mozilla/pdf.js, Apache License 2.0) and pdf-lib (https://github.com/Hopding/pdf-lib, MIT) are included unmodified,\n' +
+  '     bundled into one ES module, and the pdf.js worker; both gzip + base64, unpacked when the first PDF is opened. -->\n' +
+  `<script>\nwindow.__xrayPdfLibsGz = "${pdfLibsB64}";\nwindow.__xrayPdfWorkerGz = "${pdfWorkerB64}";\n</script>\n`;
 // Model credits and a note about the build: the status bar shows them (model segment tooltip and its "About models"
 // popover, src/ui/statusBar.ts) instead of a banner over the canvas.
 const credits = Object.fromEntries([...MODELS, ...IFC_MODELS].map((m) => [m.name, m.src]));
@@ -170,10 +197,10 @@ const creditScript = scriptSafe((Object.keys(credits).length ? `window.__xrayMod
 const embedScript = template
   // tools/xray-pack.mjs replaces everything between the two marker comments (models and window.__xrayBoot) and the <title>
   ? '<script>\n/* XRAY-PACK:INJECT-BEGIN */\nwindow.__xrayEmbeddedModels = {};\n/* XRAY-PACK:INJECT-END */\n</script>\n<script>\n' +
-    scriptSafe(`window.__xrayEmbeddedConfig = ${JSON.stringify(config)};\nwindow.__xrayEmbeddedPresets = ${JSON.stringify(presetsDoc)};`) + '\n' + creditScript + '</script>\n' + wasmScript
+    scriptSafe(`window.__xrayEmbeddedConfig = ${JSON.stringify(config)};\nwindow.__xrayEmbeddedPresets = ${JSON.stringify(presetsDoc)};`) + '\n' + creditScript + '</script>\n' + wasmScript + pdfScript
   : '<script>\n' +
     scriptSafe(`window.__xrayEmbeddedModels = ${JSON.stringify(embedded)};\nwindow.__xrayEmbeddedIfc = ${JSON.stringify(embeddedIfc)};\nwindow.__xrayEmbeddedConfig = ${JSON.stringify(config)};\nwindow.__xrayEmbeddedPresets = ${JSON.stringify(presetsDoc)};`) +
-    '\n' + creditScript + '</script>\n' + wasmScript;
+    '\n' + creditScript + '</script>\n' + wasmScript + pdfScript;
 
 // ---- Assemble: embed data first, then the app module.
 const moduleScript = `<script type="module">\n${scriptSafe(appJs)}\n</script>\n`;
@@ -189,5 +216,6 @@ const size = statSync(outFile).size;
 console.log(`wrote ${outFile}`);
 if (template) console.log('  template: injection block XRAY-PACK:INJECT-BEGIN/END, no sample models');
 console.log(`  app JS ${fmtMB(jsBytes)} (1 chunk${noIfc ? ', no IFC reader' : ''}), embedded: ${sizes.join('; ')}`);
+console.log(`  PDF sheets: libraries ${fmtMB(pdfLibsJs.length)} -> ${fmtMB(pdfLibsB64.length)} and worker ${fmtMB(pdfWorkerJs.length)} -> ${fmtMB(pdfWorkerB64.length)} embedded as gzip + base64`);
 console.log(noIfc ? '  IFC reader: not included (--no-ifc)' : `  IFC reader: worker script ${fmtMB(workerBytes)} -> ${fmtMB(workerEmbedded)} and web-ifc.wasm ${fmtMB(wasmBytes)} -> ${fmtMB(wasmEmbedded)} embedded as gzip + base64`);
 console.log(`  total ${size} bytes (${fmtMB(size)})${all ? ' [--all]' : ''}${noIfc ? ' [--no-ifc]' : ''}`);

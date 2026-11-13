@@ -60,6 +60,13 @@ export interface ApplyReport {
   status: string;
 }
 
+/** A PDF that goes into the project as a document: the sheet of a sheet viewpoint. */
+export interface SheetPdf {
+  filename: string;
+  data: Uint8Array;
+  sha256: string;
+}
+
 export interface CreateTopicOptions {
   title: string;
   description?: string;
@@ -188,6 +195,8 @@ export class BcfController {
   } | null = null;
   /** Runs before export and before a snapshot is composed: src/issues refreshes the drawings of linked sketches. */
   beforeExport: (() => void) | null = null;
+  /** Awaited before export: src/sheets renders the snapshots of sheet viewpoints from their sketches again. */
+  beforeExportAsync: (() => Promise<void>) | null = null;
   /** src/issues sets this: the project as exported, with the Plan and Section viewpoints of attached sketches added (not stored). */
   deriveForExport: ((project: BcfProject) => BcfProject) | null = null;
   /** The live markup view (pins.ts), set by it; the topic dialog starts pin placement through it. */
@@ -767,6 +776,45 @@ export class BcfController {
     this.selectedTopic = topic.guid;
     this.setStatus(`Topic created: ${topic.title}`);
     return topic;
+  }
+
+  /**
+   * A topic whose viewpoint is a page of a PDF sheet (src/sheets): `ref` carries the snapshot of the sheet region and the sheet
+   * record; the topic gets a DocumentReference to the PDF, which travels inside the bcfzip. No 3D capture is made.
+   */
+  createSheetTopic(o: CreateTopicOptions, ref: BcfViewpointRef, pdf: SheetPdf): BcfTopic {
+    const topic = this.newTopic(o, this.authorOf(o));
+    topic.viewpoints.push(ref);
+    this.attachPdf(topic, pdf);
+    topic.pinNumber = this.nextPinNumber();
+    this.project.topics.push(topic);
+    this.dirty = true;
+    this.selectedTopic = topic.guid;
+    this.setStatus(`Topic created: ${topic.title}`);
+    return topic;
+  }
+
+  /** One more sheet viewpoint on an existing topic. */
+  addSheetViewpoint(topicGuid: string, ref: BcfViewpointRef, pdf: SheetPdf): BcfTopic {
+    const topic = this.topic(topicGuid);
+    if (!topic) throw new Error(`No topic ${topicGuid}`);
+    topic.viewpoints.push(ref);
+    this.attachPdf(topic, pdf);
+    this.markupChanged(topic);
+    return topic;
+  }
+
+  /** The PDF as a document of the project (one per file) and a DocumentReference of the topic to it. */
+  private attachPdf(topic: BcfTopic, pdf: SheetPdf): void {
+    let doc = this.project.documents.find((d) => d.sha256 === pdf.sha256 || d.data === pdf.data);
+    if (!doc) {
+      const names = new Set(this.project.documents.map((d) => d.filename));
+      let filename = pdf.filename.replace(/[\\/]/g, '_') || 'drawing.pdf';
+      for (let n = 2; names.has(filename); n++) filename = pdf.filename.replace(/(\.pdf)?$/i, ` (${n}).pdf`);
+      doc = { guid: newGuid(), filename, data: pdf.data, sha256: pdf.sha256, description: 'Drawing sheet (PDF)' };
+      this.project.documents.push(doc);
+    }
+    if (!topic.documentReferences.some((r) => r.target === doc!.guid)) topic.documentReferences.push({ guid: newGuid(), target: doc.guid, external: false, description: doc.filename });
   }
 
   /** Several topics at once, each selecting and framing its elements. Snapshots default to on for up to 20 topics. */
@@ -1515,6 +1563,7 @@ export class BcfController {
 
   async exportZip(version: BcfVersion = this.exportVersion): Promise<Uint8Array> {
     this.beforeExport?.();
+    await this.beforeExportAsync?.();
     const project = this.deriveForExport ? this.deriveForExport(this.project) : this.project;
     const bytes = await writeBcf(project, version, { composeSnapshot: (t, r) => this.composeSnapshot(t, r) });
     this.dirty = false;

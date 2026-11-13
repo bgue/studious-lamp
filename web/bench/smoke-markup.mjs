@@ -550,7 +550,8 @@ print(json.dumps({'k': k, 'inner': float(inner), 'left': float(left), 'right': f
   const bad = await page.evaluate(async () => (await window.__xrayMarkup.importJson('{"schema":"xray-markup-set/2","sets":[]}')));
   check('a newer version is refused with a message', !bad.ok && /version 2/.test(bad.error));
   const badPdf = await page.evaluate(async () => (await window.__xrayMarkup.importFile(new File([new TextEncoder().encode('%PDF-1.4\n1 0 obj\n<< >>\nendobj\n%%EOF\n')], 'plain.pdf'))));
-  check('a PDF without markup data is refused', !badPdf.ok && /does not carry markup/.test(badPdf.error));
+  // A PDF without our markup data is a drawing sheet now (src/sheets): this broken one is refused because it cannot be read as a PDF.
+  check('a PDF without markup data is refused', !badPdf.ok && /does not carry markup|could not be read as a PDF/.test(badPdf.error), badPdf.error);
 
   // ------------------------------------------------------------------ part 4: convert to BCF, phone
   await boot();
