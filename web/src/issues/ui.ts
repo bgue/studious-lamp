@@ -11,6 +11,7 @@ import { PDF_RESOLUTIONS } from '../markup/controller';
 import type { PdfResolution } from '../markup/controller';
 import type { PageSize } from '../markup/report';
 import { buildAttachChip } from '../markup/attachUi';
+import { buildViewSwitch } from './viewSwitchUi';
 import { openTopicDialog, pickBcfFile } from '../bcf/ui';
 import { pickMarkupFile } from '../markup/ui';
 import type { BcfTopic, BcfViewpointRef } from '../bcf/model';
@@ -327,8 +328,19 @@ export function buildIssuesPanel(host: HTMLElement, c: IssuesController): Issues
     if (t.description) out.push(el('div', undefined, undefined, t.description));
 
     // sketches = viewpoints
-    out.push(el('div', 'is-h', undefined, `Sketches (${t.viewpoints.length})`));
+    out.push(el('div', 'is-h', undefined, `Sketches (${t.viewpoints.filter((v) => !v.derived).length})`));
     t.viewpoints.forEach((v, i) => {
+      if (v.derived) {
+        // A Plan or Section written beside a sketch's viewpoint: a view of that sketch, so no drawing of its own.
+        const d = el('div', 'is-vp', { 'data-viewpoint': v.guid, 'data-derived': v.derived.kind });
+        d.appendChild(el('span', 'is-t', undefined, v.derived.kind === 'plan' ? 'Plan (derived)' : 'Section (derived)'));
+        d.appendChild(act(button('Apply', () => { c.applyViewpoint(t, v); }, { title: 'Apply this derived view: an orthographic camera with its clip planes' }), 'apply'));
+        const dc = act(button('Clear', () => { bcf.clearViewpoint(); }, { title: 'Undo what the viewpoint changed' }), 'clear');
+        dc.disabled = bcf.applied?.viewpoint !== v.guid;
+        d.appendChild(dc);
+        out.push(d);
+        return;
+      }
       const s = c.viewpointSketch(v);
       const r = el('div', 'is-vp', { 'data-viewpoint': v.guid });
       r.appendChild(el('span', 'is-t', undefined, s ? s.title : `Viewpoint ${i + 1}`));
@@ -346,6 +358,7 @@ export function buildIssuesPanel(host: HTMLElement, c: IssuesController): Issues
       else if (v.annotations?.length) r.appendChild(el('span', 'is-meta', undefined, `${v.annotations.length} drawing${v.annotations.length === 1 ? '' : 's'} not editable`));
       r.appendChild(el('span', 'is-meta', { 'data-vp-count': '' }, s ? `${s.markups.length} drawing${s.markups.length === 1 ? '' : 's'}` : v.problem ?? ''));
       out.push(r);
+      if (s && c.views.tied(s)) out.push(viewSwitchRow(s));
     });
     const addVp = act(button('Add current view as sketch', () => {
       void (async () => {
@@ -395,6 +408,13 @@ export function buildIssuesPanel(host: HTMLElement, c: IssuesController): Issues
       del,
     ));
     return out;
+  }
+
+  /** `View: 3D · Plan · Section` for a sketch that is tied to a 3D construct. */
+  function viewSwitchRow(set: MarkupSet): HTMLElement {
+    const row = buildViewSwitch({ mode: () => c.views.mode(set), apply: (m) => { if (!c.views.apply(set.id, m)) mk.setStatus('This view needs the model the sketch is tied to'); } }, { labelled: true, helpKey: 'Issues panel/View switch' });
+    row.setAttribute('data-view-switch-row', set.id);
+    return row;
   }
 
   function labelled(label: string, control: HTMLElement): HTMLElement {
@@ -460,6 +480,7 @@ export function buildIssuesPanel(host: HTMLElement, c: IssuesController): Issues
     const title = input('is-in', { type: 'text', 'aria-label': 'Sketch title', 'data-keep': 'title', 'data-field': 'title' }, set.title);
     title.addEventListener('change', () => silently(() => mk.renameSet(set.id, title.value)));
     out.push(title);
+    if (c.views.tied(set)) out.push(viewSwitchRow(set)); // near the top: the sheet of a phone scrolls
     const note = input('is-in', { type: 'text', maxlength: '400', placeholder: 'One-line note', 'aria-label': 'Sketch note', 'data-keep': 'note', 'data-field': 'note' }, set.note ?? '');
     note.addEventListener('input', () => mk.setNote(set.id, note.value, { quiet: true }));
     out.push(note);

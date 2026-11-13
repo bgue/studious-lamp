@@ -395,6 +395,18 @@ export const FOLDER_HELP: Record<string, HelpEntry> = {
     'Pick a tool. Drag on the view. Press Done when the drawing is ready.',
     'Report: Appendix J, Coordination tools',
   ),
+  'Issues panel/View switch': h(
+    'The control shows a sketch in 3D, in plan or in section. It appears when a drawing sits on a part of the model.',
+    'Click Plan and the picture turns to a cut from above. Click Section for a cut from the side. Click 3D to go back.',
+    'Click 3D, Plan or Section. Your own cut returns when you click 3D.',
+    'Report: Appendix J, Coordination tools',
+  ),
+  'Drawing toolbar/View switch': h(
+    'The control shows the sketch in 3D, in plan or in section while you draw. It appears when a drawing sits on a part of the model.',
+    'Click Plan and the picture shows a cut from above, with your marks on the same part. Click Section for a cut from the side.',
+    'Click 3D, Plan or Section. Draw on any of them.',
+    'Report: Appendix J, Coordination tools',
+  ),
   'Status bar/Open issues': h(
     'The button counts the open issues of this model. An issue is open until it is resolved or closed.',
     'Click and the left side lists the problems that still need work.',

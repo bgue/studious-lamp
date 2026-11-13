@@ -61,6 +61,8 @@ Switch the tooltips off with `window.__xrayHelp.disable()` or `localStorage["xra
 - [Issues panel/Segments](#issues-panelsegments)
 - [Issues panel/Phone sheet](#issues-panelphone-sheet)
 - [Drawing toolbar](#drawing-toolbar)
+- [Issues panel/View switch](#issues-panelview-switch)
+- [Drawing toolbar/View switch](#drawing-toolbarview-switch)
 - [Status bar/Open issues](#status-baropen-issues)
 - [Markup drawer](#markup-drawer)
 - [Keyboard](#keyboard)
@@ -727,6 +729,18 @@ Impact follows the same sentence rules and adds these:
 | Setting | Intent | Impact | Use | Ref |
 | --- | --- | --- | --- | --- |
 | *Folder: Drawing toolbar* | The bar floats over the view while you draw on a sketch. It holds the tools, the colours, the line weights and Done. | This bar lets you mark a view with clouds, arrows, text and pen lines. It goes away when you press Done. | Pick a tool. Drag on the view. Press Done when the drawing is ready. | Report: Appendix J, Coordination tools |
+
+## Issues panel/View switch
+
+| Setting | Intent | Impact | Use | Ref |
+| --- | --- | --- | --- | --- |
+| *Folder: Issues panel/View switch* | The control shows a sketch in 3D, in plan or in section. It appears when a drawing sits on a part of the model. | Click Plan and the picture turns to a cut from above. Click Section for a cut from the side. Click 3D to go back. | Click 3D, Plan or Section. Your own cut returns when you click 3D. | Report: Appendix J, Coordination tools |
+
+## Drawing toolbar/View switch
+
+| Setting | Intent | Impact | Use | Ref |
+| --- | --- | --- | --- | --- |
+| *Folder: Drawing toolbar/View switch* | The control shows the sketch in 3D, in plan or in section while you draw. It appears when a drawing sits on a part of the model. | Click Plan and the picture shows a cut from above, with your marks on the same part. Click Section for a cut from the side. | Click 3D, Plan or Section. Draw on any of them. | Report: Appendix J, Coordination tools |
 
 ## Status bar/Open issues
 

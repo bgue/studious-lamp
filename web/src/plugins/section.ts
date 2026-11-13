@@ -30,6 +30,11 @@ export interface SectionApi {
   planes(): ClipPlane[];
   /** Clip planes that someone else set on the renderer (a BCF viewpoint) and that are in force now; 0 when none. */
   foreignPlanes(): number;
+  /**
+   * Take the renderer's planes back after someone else set them (the derived Plan and Section views of src/issues): forget what
+   * was pushed, so the next frame pushes the current settings again (or leaves the planes alone when the section is off).
+   */
+  reclaim(): void;
   /** The point the plane offset is measured from: the box centre, else the model centre. */
   centre(): Vec3;
   /** Unit axis direction of the plane before the flip (offset grows along it); the view direction for axis `camera`. */
@@ -65,6 +70,13 @@ function refreshGui(): void {
 /** Any change of the section settings takes the planes back from a foreign owner. */
 function touch(): void {
   foreign = false;
+  // Settings that want planes take them back from someone else who set planes (a BCF viewpoint, the Plan and Section switch).
+  const r = appRef?.renderer;
+  if (r && (config.box.enabled || config.plane.enabled) && r.clipVersion !== ownedVersion && r.getClipPlanes()) {
+    ownedVersion = r.clipVersion;
+    lastPlanes = [];
+    pushedAny = false;
+  }
   overlayInvalidate?.();
 }
 let overlayInvalidate: (() => void) | null = null;
@@ -172,6 +184,13 @@ const api: SectionApi = {
     if (!r) return 0;
     const n = r.getClipPlanes()?.length ?? 0;
     return n && (foreign || r.clipVersion !== ownedVersion) ? n : 0;
+  },
+  reclaim() {
+    foreign = false;
+    pushedAny = false;
+    lastPlanes = [];
+    if (appRef) ownedVersion = appRef.renderer.clipVersion;
+    overlayInvalidate?.();
   },
   centre: () => (appRef ? centre(appRef) : [0, 0, 0]),
   planeAxis() {

@@ -98,6 +98,8 @@ BCF uses IFC project coordinates (metres, Z up). The viewer uses metres, Y up, s
 | ClippingPlanes | `renderer.setClipPlanes` when the renderer provides it (typeof checked), otherwise reported as skipped. A BCF `Direction` points into the clipped (invisible) half-space; the renderer's normal points into the kept half-space, so the normal is the negated direction. |
 | Lines, Bitmaps | Not shown; counted in the status line. |
 
+The export adds two viewpoints after the viewpoint of each issue sketch that is tied to a 3D construct: a Plan and a Section, each an `OrthogonalCamera` with `ViewToWorldScale` and `ClippingPlanes`, marked `derived` in the side file and never made into sketches again. See [issues.md](issues.md), "Plan and Section views".
+
 Applying a viewpoint first clears the previous one. Viewpoint roll is ignored (the orbit camera keeps Y up).
 
 ## Authoring details
@@ -135,7 +137,7 @@ const bytes = await bcf.exportZip('3.0');        // Uint8Array; bcf.download('3.
 
 ## Files and tests
 
-- `src/bcf/sidecar.ts` the markup side file, `annotate.ts` pure markup layout (draw operations for the overlay and the snapshot canvas, snapshot camera projection), `pins.ts` the live overlay, placement and dragging; `src/measure/current.ts` read-only list of the measure tool's measurements.
+- `src/bcf/sidecar.ts` the markup side file (with the per-viewpoint `derived` marker of Plan and Section viewpoints), `annotate.ts` pure markup layout (draw operations for the overlay and the snapshot canvas, snapshot camera projection), `pins.ts` the live overlay, placement and dragging; `src/measure/current.ts` read-only list of the measure tool's measurements.
 - `src/bcf/zip.ts` zip reader and writer (stored and deflate through `CompressionStream`, CRC32, directory entries), `xml.ts` small strict XML reader (used instead of `DOMParser`, so browser and node tests behave identically), `parse.ts`, `write.ts`, `plan.ts` (pure viewpoint planning and capture), `controller.ts`, `ui.ts`; plugin `src/plugins/bcf.ts`.
 - Tests `tests/bcf-*.test.ts`, fixtures `tests/fixtures/bcf` (hand written 2.1 and 3.0 archives as folders, the official XSDs under `xsd/`, the BCF documentation under `docs/`). `tests/fixtures/bcf/validate_xsd.py` validates unpacked archives against the XSDs with lxml; `tests/bcf-xsd.test.ts` runs it and skips when python3 or lxml is missing.
 - `tests/markup-scope.test.ts` (topic identity through the side file and BCF round trips, the controller on a model change: lists, pins, annotations, `Open`, `Move to this model`, `Delete topic`); `SMOKE_PORT=5707 node bench/smoke-markup-scope.mjs` covers both tools.

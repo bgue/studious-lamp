@@ -188,6 +188,8 @@ export class BcfController {
   } | null = null;
   /** Runs before export and before a snapshot is composed: src/issues refreshes the drawings of linked sketches. */
   beforeExport: (() => void) | null = null;
+  /** src/issues sets this: the project as exported, with the Plan and Section viewpoints of attached sketches added (not stored). */
+  deriveForExport: ((project: BcfProject) => BcfProject) | null = null;
   /** The live markup view (pins.ts), set by it; the topic dialog starts pin placement through it. */
   markup: BcfMarkupView | null = null;
   /** Re-projection of surface outlines onto reshaped elements, cached per model load. */
@@ -454,7 +456,11 @@ export class BcfController {
     const r = this.app.renderer;
     const cam = r.camera;
     const ctl = r.controls;
-    cam.up.set(0, 1, 0);
+    // A view straight down or up needs its own up vector (a plan keeps north up); every other view keeps Y up.
+    const look = [c.target[0] - c.position[0], c.target[1] - c.position[1], c.target[2] - c.position[2]];
+    const ll = Math.hypot(look[0]!, look[1]!, look[2]!);
+    if (ll > 1e-9 && Math.abs(look[1]!) / ll > 0.999 && Math.hypot(c.up[0], c.up[1], c.up[2]) > 1e-9 && Math.abs(c.up[1]) < 0.01) cam.up.set(c.up[0], c.up[1], c.up[2]);
+    else cam.up.set(0, 1, 0);
     cam.position.set(...c.position);
     ctl.target.set(...c.target);
     cam.fov = c.fov;
@@ -591,6 +597,11 @@ export class BcfController {
     }
     app.runSightlinesNow();
     app.renderer.markDirty();
+  }
+
+  /** The clip planes of the applied viewpoint were put back by someone else (the Plan and Section switch): they are ours again. */
+  reclaimClip(): void {
+    if (this.clipOwned) this.clipVersion = this.clipApi().clipVersion;
   }
 
   /** Undo what the last viewpoint did: its hides, colours and clip planes. Camera and selection stay. */
@@ -1504,7 +1515,8 @@ export class BcfController {
 
   async exportZip(version: BcfVersion = this.exportVersion): Promise<Uint8Array> {
     this.beforeExport?.();
-    const bytes = await writeBcf(this.project, version, { composeSnapshot: (t, r) => this.composeSnapshot(t, r) });
+    const project = this.deriveForExport ? this.deriveForExport(this.project) : this.project;
+    const bytes = await writeBcf(project, version, { composeSnapshot: (t, r) => this.composeSnapshot(t, r) });
     this.dirty = false;
     const n = this.project.topics.length;
     this.setStatus(`Exported BCF ${version}: ${n} topic${n === 1 ? '' : 's'}, ${(bytes.length / 1024).toFixed(0)} KB`);

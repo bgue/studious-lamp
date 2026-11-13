@@ -511,6 +511,40 @@ export function isPseudoOrtho(): boolean {
   return ortho !== null;
 }
 
+/** Switch the pseudo-orthographic projection on or off (the camera keeps its framing). False when it was already so. */
+export function setPseudoOrtho(app: ViewerApp, on: boolean): boolean {
+  if (on === (ortho !== null)) return false;
+  toggleProjection(app);
+  return true;
+}
+
+/** Distance at which the pseudo-orthographic camera sees `height` metres top to bottom. */
+export function orthoDistance(height: number): number {
+  return height / 2 / Math.tan((ORTHO_FOV * Math.PI) / 360);
+}
+
+/**
+ * Put the camera at a pose at once (no tween), stopping other camera moves, and make the orbit limits and the far plane reach
+ * it. `up` is the screen up; `fov` (perspective only) is left alone when absent. Records the history for the back key.
+ */
+export function placeCamera(app: ViewerApp, pose: { position: readonly [number, number, number]; target: readonly [number, number, number]; up: readonly [number, number, number]; fov?: number }): void {
+  const { camera, controls } = app.renderer;
+  cancelMoves();
+  pushHistory(app, 'view');
+  const dist = Math.hypot(pose.position[0] - pose.target[0], pose.position[1] - pose.target[1], pose.position[2] - pose.target[2]);
+  if (controls.minDistance > dist) controls.minDistance = dist * 0.5;
+  if (controls.maxDistance > 0 && Number.isFinite(controls.maxDistance) && controls.maxDistance < dist * 1.05) controls.maxDistance = dist * 1.05;
+  const need = dist + modelDiagonal(app) * 2;
+  if (camera.far < need) camera.far = need;
+  if (pose.fov !== undefined && ortho === null) camera.fov = pose.fov;
+  camera.up.set(pose.up[0], pose.up[1], pose.up[2]);
+  camera.position.set(pose.position[0], pose.position[1], pose.position[2]);
+  controls.target.set(pose.target[0], pose.target[1], pose.target[2]);
+  camera.updateProjectionMatrix();
+  controls.update();
+  app.renderer.markDirty();
+}
+
 function levelsOf(app: ViewerApp): Level[] {
   const model = app.loaded?.model;
   if (!model) return [];

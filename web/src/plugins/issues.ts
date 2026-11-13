@@ -61,6 +61,14 @@ declare global {
       search(query: string): IssueHit[];
       hit(kind: 'issue' | 'sketch', id: string): IssueHit | null;
       openHit(hit: Pick<IssueHit, 'kind' | 'id'>): boolean;
+      /** The sketch is tied to a 3D construct, so it has the 3D · Plan · Section switch. */
+      viewSwitchAvailable(setId: string): boolean;
+      /** The live view of a sketch: `3d` unless Plan or Section was chosen for it. */
+      viewMode(setId: string): '3d' | 'plan' | 'section';
+      /** Switch the live view of a sketch (the buttons of the switch do this). False when it cannot. */
+      setViewMode(setId: string, mode: '3d' | 'plan' | 'section'): boolean;
+      /** The derived Plan or Section of a sketch as it would be set now (camera, clip planes), or null. */
+      derivedView(setId: string, mode: 'plan' | 'section'): import('../issues/derivedViews').DerivedView | null;
       /** Rebuild the drawings of the issue viewpoints from their sketches now (export does it too). */
       sync(): number;
       setStatusFilter(f: 'all' | 'open' | 'closed'): void;
@@ -259,6 +267,10 @@ export const issuesPlugin: AppPlugin = {
         if (ok) api.open(h.kind === 'issue' ? 'issues' : 'sketches');
         return ok;
       },
+      viewSwitchAvailable: (id) => c.views.tied(mk.get(id)),
+      viewMode: (id) => c.views.mode(mk.get(id)),
+      setViewMode: (id, mode) => c.views.apply(id, mode),
+      derivedView: (id, mode) => { const set = mk.get(id); return set ? c.views.derive(set, mode) : null; },
       sync: () => c.syncAll(),
       setStatusFilter: (f) => {
         c.statusFilter = f;

@@ -18,6 +18,8 @@ import type { BcfAnnotation, BcfTopic, BcfViewpointRef } from '../bcf/model';
 import { addMarkup } from '../markup/model';
 import { annotationToMarkup, clearLegacyReview, issueOfSketch, legacyIssueOf, legacySketches, linkSketch, reconcileLinks, sketchFromViewpoint, sketchesOfIssue, syncViewpoint, unlinkSketch } from './link';
 import type { IssueRef, LegacyIssue } from './link';
+import { DerivedViewSwitch } from './derivedSwitch';
+import { withDerivedViewpoints } from './derivedViews';
 import { searchIssues } from './search';
 import type { IssueHit } from './search';
 
@@ -53,6 +55,8 @@ export class IssuesController {
   /** The sketch state each linked viewpoint was last projected from: an unchanged sketch leaves an imported drawing as it was read. */
   private readonly synced = new WeakMap<BcfViewpointRef, string>();
   private migrating = false;
+  /** The 3D · Plan · Section switch of sketches that are tied to a 3D construct (derivedSwitch.ts). */
+  readonly views: DerivedViewSwitch;
   /** A sketch is being raised: the new issue does not take over the panel (the sketch detail shows the link). */
   private raising = false;
 
@@ -64,6 +68,16 @@ export class IssuesController {
       return s && markup.visibleSets().some((x) => x.set.id === s.id) ? s : null;
     };
     bcf.beforeExport = () => this.syncAll();
+    this.views = new DerivedViewSwitch(app, markup);
+    this.views.reclaimBcf = () => bcf.reclaimClip();
+    this.views.onChange(() => this.emit());
+    markup.viewSwitch = {
+      tied: (set) => this.views.tied(set),
+      mode: (set) => this.views.mode(set),
+      key: (set) => this.views.key(set),
+      apply: (id, mode) => this.views.apply(id, mode),
+    };
+    bcf.deriveForExport = (project) => withDerivedViewpoints(project, (t, r) => this.views.source(t, r));
     bcf.linked = {
       add: (ref, a) => this.annotationAdded(ref, a),
       update: (ref, guid, patch) => this.annotationUpdated(ref, guid, patch),
@@ -556,6 +570,7 @@ export class IssuesController {
   }
 
   onModel(): void {
+    this.views.onModel();
     this.detail = null;
     this.confirmRemove = null;
     this.markup.setEditing(false);

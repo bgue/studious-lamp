@@ -124,6 +124,8 @@ The result is cached per model load and per outline (`SurfaceResolver`): nothing
 
 View-locked shapes stay drawn on their depth plane in the 2D view and the PDF (see above for 3D). When the camera drifts from the set's view (more than 4 degrees, 5 percent of the distance, or 8 percent zoom) a `Return to markup view` button shows at the top of the view, and anchored markups draw faded. Attached shapes do not fade: they are in 3D.
 
+A sketch with at least one tied drawing (an attachment of kind `surface`, `elements`, `measurement`, `penetration`, `region` or `point`) can leave the authored camera: `3D · Plan · Section` shows it from above or in a vertical cut, and the attached drawings follow. See [issues.md](issues.md), "Plan and Section views".
+
 ## Export
 
 ### PDF

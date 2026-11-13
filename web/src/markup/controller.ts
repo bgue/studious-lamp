@@ -215,6 +215,16 @@ export class MarkupController {
   raise: ((setId: string, o?: { topic?: string }) => Promise<string>) | null = null;
   /** src/issues sets this: another sketch the live view draws next to the active one (the sketch of the applied issue viewpoint). */
   companion: (() => MarkupSet | null) | null = null;
+  /**
+   * src/issues sets this: the 3D · Plan · Section switch of a sketch that is tied to a 3D construct (src/issues/derivedSwitch.ts).
+   * The drawing toolbar shows it for the active sketch when `tied` is true; `key` changes when it must be drawn again.
+   */
+  viewSwitch: {
+    tied(set: MarkupSet | null | undefined): boolean;
+    mode(set: MarkupSet | null | undefined): 'plan' | 'section' | '3d';
+    key(set: MarkupSet | null | undefined): string;
+    apply(setId: string, mode: 'plan' | 'section' | '3d'): boolean;
+  } | null = null;
   /** src/issues sets this: restoring a sketch made from an imported viewpoint applies that viewpoint. True when it did. */
   viewpointRestore: ((set: MarkupSet) => boolean) | null = null;
   private readonly removedListeners = new Set<(set: MarkupSet) => void>();

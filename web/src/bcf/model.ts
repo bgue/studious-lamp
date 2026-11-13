@@ -82,6 +82,15 @@ export interface BcfViewpoint {
 
 // ---------------------------------------------------------------- topic and project
 
+/** A viewpoint that is a derived view (Plan or Section) of another viewpoint's sketch, not a view of its own. See src/issues/derivedViews.ts. */
+export interface BcfDerived {
+  kind: 'plan' | 'section';
+  /** The id of the sketch it is a view of (session ids: informational in a file). */
+  sketch?: string;
+  /** The guid of the viewpoint it is derived from. */
+  of: string;
+}
+
 export interface BcfViewpointRef {
   guid: string;
   /** File name of the .bcfv inside the topic folder. */
@@ -112,6 +121,11 @@ export interface BcfViewpointRef {
    * (side file xray-markup.json), and opening a file makes a sketch of them again.
    */
   sketchId?: string;
+  /**
+   * Set on a Plan or Section viewpoint written next to an attached sketch's viewpoint (an orthogonal camera, clipping planes).
+   * Stored in the side file. It is a view of the same sketch: opening a file makes no sketch of it.
+   */
+  derived?: BcfDerived;
   /** Session only: element ids hidden at capture (hidden or ghosted), for the occlusion fade of the burned snapshot. */
   captureSeeThrough?: ReadonlySet<number>;
 }

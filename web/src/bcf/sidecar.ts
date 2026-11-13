@@ -25,7 +25,9 @@
 //                            (attach: see attach.ts; a `lines` annotation of a foreign viewpoint has no shape)
 //         "markupSelection": ["<IfcGuid>", ...],
 //         "snapshotView": { "position", "direction", "up", "fov", "aspect" },
-//         "baseSnapshot": "xray-<viewpoint guid>-base.png"
+//         "baseSnapshot": "xray-<viewpoint guid>-base.png",
+//         "derived": { "kind": "plan" | "section", "sketch": "<sketch id>", "of": "<viewpoint guid>" }
+//                    (a Plan or Section viewpoint written beside a sketch's viewpoint; it has no annotations of its own)
 //       }
 //     }
 //   }
@@ -34,7 +36,7 @@ import { ANNOTATION_TYPES, IFC_GUID_RE, isShapeType, newGuid } from './model';
 import { attachGuids, cleanAttachment, cloneAttachment } from './attach';
 import { cleanIdentity } from '../markup/model';
 import type { ModelIdentity } from '../markup/model';
-import type { BcfAnchor, BcfAnnotation, BcfMeasureLink, BcfPin, BcfShape, BcfSnapshotView, BcfTopic, BcfVersion, BcfViewpointRef, Vec3 } from './model';
+import type { BcfAnchor, BcfAnnotation, BcfDerived, BcfMeasureLink, BcfPin, BcfShape, BcfSnapshotView, BcfTopic, BcfVersion, BcfViewpointRef, Vec3 } from './model';
 
 export const SIDECAR_NAME = 'xray-markup.json';
 export const SIDECAR_FORMAT = 'xray-bcf-markup';
@@ -47,6 +49,8 @@ export interface SidecarViewpoint {
   baseSnapshot?: string;
   /** IfcGuids in the viewpoint Selection only because annotations point at them (not selected on apply here). */
   markupSelection?: string[];
+  /** This viewpoint is a Plan or Section view derived from another viewpoint's sketch (see src/issues/derivedViews.ts). */
+  derived?: BcfDerived;
 }
 
 export interface Sidecar {
@@ -63,7 +67,7 @@ export interface Sidecar {
 
 /** True when the topic carries viewer markup (a pin or annotations). */
 export function hasMarkup(t: BcfTopic): boolean {
-  return !!t.pin || t.viewpoints.some((r) => (r.annotations?.length ?? 0) > 0);
+  return !!t.pin || t.viewpoints.some((r) => (r.annotations?.length ?? 0) > 0 || !!r.derived);
 }
 
 /**
@@ -130,7 +134,8 @@ export function sidecarJson(t: BcfTopic, version: BcfVersion, baseSnapshots: Rea
     if (r.snapshotView) v.snapshotView = { ...r.snapshotView, position: [...r.snapshotView.position], direction: [...r.snapshotView.direction], up: [...r.snapshotView.up] };
     const base = baseSnapshots.get(r.guid);
     if (base) v.baseSnapshot = base;
-    if (v.annotations || v.baseSnapshot || v.snapshotView) out.viewpoints[g(r.guid)] = v;
+    if (r.derived) v.derived = { kind: r.derived.kind, ...(r.derived.sketch ? { sketch: r.derived.sketch } : {}), of: g(r.derived.of) };
+    if (v.annotations || v.baseSnapshot || v.snapshotView || v.derived) out.viewpoints[g(r.guid)] = v;
   }
   return `${JSON.stringify(out, null, 1)}\n`;
 }
@@ -169,6 +174,15 @@ function vec3(v: unknown): Vec3 | null {
   return Array.isArray(v) && v.length === 3 && v.every(fin) ? [v[0] as number, v[1] as number, v[2] as number] : null;
 }
 const str = (v: unknown): string | undefined => (typeof v === 'string' && v.trim() !== '' ? v : undefined);
+
+/** A stored `derived` marker, or undefined when it is not usable. */
+export function cleanDerived(v: unknown): BcfDerived | undefined {
+  if (!isObj(v) || (v['kind'] !== 'plan' && v['kind'] !== 'section')) return undefined;
+  const of = str(v['of']);
+  const sketch = str(v['sketch']);
+  if (!of || of.length > 80 || (sketch && sketch.length > 80)) return undefined;
+  return { kind: v['kind'], ...(sketch ? { sketch } : {}), of };
+}
 
 function readView(v: unknown): BcfSnapshotView | undefined {
   if (!isObj(v)) return undefined;
@@ -302,6 +316,8 @@ export function parseSidecar(text: string): SidecarRead {
       const base = str(v['baseSnapshot']);
       if (base && !/[\\/]/.test(base)) sv.baseSnapshot = base;
       if (Array.isArray(v['markupSelection'])) sv.markupSelection = guidList(v['markupSelection']) ?? [];
+      const dv = cleanDerived(v['derived']);
+      if (dv) sv.derived = dv;
       out.viewpoints.set(guid.toLowerCase(), sv);
     }
   }
@@ -326,6 +342,7 @@ export function applySidecar(t: BcfTopic, s: SidecarRead): { baseSnapshots: Map<
     if (v.snapshotView) r.snapshotView = v.snapshotView;
     // Absent (an older side file): derived from the annotations by markupSelectionOf.
     if (v.markupSelection) r.markupSelection = v.markupSelection;
+    if (v.derived) r.derived = v.derived;
     if (v.baseSnapshot) baseSnapshots.set(r.guid, v.baseSnapshot);
   }
   const missing = [...s.viewpoints.keys()].filter((g) => !seen.has(g));

@@ -264,7 +264,8 @@ export interface FromViewpointOptions {
  */
 export function sketchFromViewpoint(topic: BcfTopic, ref: BcfViewpointRef, o: FromViewpointOptions): MarkupSet | null {
   const list = ref.annotations ?? [];
-  if (ref.sketchId || (!list.length && !o.empty)) return null;
+  // A derived Plan or Section viewpoint is a view of another viewpoint's sketch: it never gets a sketch of its own.
+  if (ref.derived || ref.sketchId || (!list.length && !o.empty)) return null;
   const markups: Markup[] = [];
   const ids = new Set<string>();
   for (let i = 0; i < list.length; i++) {

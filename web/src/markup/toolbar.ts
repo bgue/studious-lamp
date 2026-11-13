@@ -8,6 +8,7 @@ import { TOOLS, toolInfo } from './controller';
 import { COLOURS, COLOUR_KEYS } from './model';
 import type { ColourKey, Weight } from './model';
 import type { Overlay, Rect } from '../ui/overlay';
+import { buildViewSwitch } from '../issues/viewSwitchUi';
 
 const STYLE_ID = 'markup-toolbar-styles';
 const CSS = `
@@ -31,6 +32,10 @@ const CSS = `
 #markup-float .mf-label { color: #9fc4ee; padding: 0 4px; white-space: nowrap; }
 #markup-float .mf-done { background: #1f6fe5; border-color: #3b9cff; }
 #markup-float input { background: #0e1218; color: #eaf2ff; border: 1px solid #3b6c9c; border-radius: 6px; padding: 4px 6px; font: 12px system-ui, sans-serif; min-width: 0; width: 100%; max-width: 360px; }
+#markup-float .vs-seg { border-radius: 8px; }
+#markup-float .vs-seg button { border: 0; border-radius: 0; background: #1c2f45; min-width: 44px; padding: 0 8px; }
+#markup-float .vs-seg button + button { border-left: 1px solid #3b6c9c; }
+#markup-float .vs-seg button[aria-pressed=true] { background: #1f4a7a; box-shadow: inset 0 -2px 0 #3b9cff; }
 @media (max-width: 760px) { #markup-float .mf-tool { width: 30px; } #markup-float button { min-height: 32px; } }
 `;
 
@@ -186,6 +191,16 @@ export class DrawToolbar {
       row.appendChild(inp);
       root.appendChild(row);
     }
+    // Row 3b (only when the active sketch is tied to a 3D construct): 3D, Plan or Section.
+    const vs = c.viewSwitch;
+    const sk = c.active;
+    if (vs && sk && vs.tied(sk)) {
+      const row = document.createElement('div');
+      row.className = 'mf-row';
+      row.setAttribute('data-mf', 'view');
+      row.appendChild(buildViewSwitch({ mode: () => vs.mode(sk), apply: (m) => { vs.apply(sk.id, m); } }, { helpKey: 'Drawing toolbar/View switch' }));
+      root.appendChild(row);
+    }
     // Row 4: what is being drawn, undo, redo, finish, done.
     const act = document.createElement('div');
     act.className = 'mf-row';
@@ -216,7 +231,7 @@ export class DrawToolbar {
       this.key = '';
       return null;
     }
-    const key = [c.tool, c.colour(), c.weight, c.fill, c.canUndo, c.canRedo, polyPoints, c.active?.id, c.active?.title, c.text.length ? 1 : 0].join('|');
+    const key = [c.tool, c.colour(), c.weight, c.fill, c.canUndo, c.canRedo, polyPoints, c.active?.id, c.active?.title, c.text.length ? 1 : 0, c.viewSwitch?.key(c.active) ?? ''].join('|');
     const shown = this.root.style.display !== 'none';
     if (!shown || key !== this.key) {
       this.key = key;
