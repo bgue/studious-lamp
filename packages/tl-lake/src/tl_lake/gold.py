@@ -18,6 +18,8 @@ from importlib.resources import files
 
 from tl_lake.duck import Duck, lake_tables, table_ref
 
+RECORD_TABLE = "cur_core_record"
+
 
 @dataclass(frozen=True)
 class GoldModel:
@@ -25,10 +27,14 @@ class GoldModel:
 
     name: str
     needs: tuple[str, ...]
+    #: Columns of the model that hold a record id. The runner keeps a row only when each is NULL or
+    #: the id is in the lake's ``cur_core_record`` (silver holds readable records only), on every
+    #: sync: a record hidden after its events were copied leaves the mart without a rebuild.
+    record_columns: tuple[str, ...] = ()
 
 
 GOLD_MODELS: tuple[GoldModel, ...] = (
-    GoldModel("mart_iwp_readiness_history", ("events",)),
+    GoldModel("mart_iwp_readiness_history", ("events", RECORD_TABLE), record_columns=("iwp_id",)),
     GoldModel("mart_materials", ("cur_materials_movement", "cur_materials_stock")),
     GoldModel(
         "mart_schedule_vs_readiness", ("mart_schedule_history", "mart_iwp_readiness_history")
@@ -42,9 +48,21 @@ def model_sql(name: str) -> str:
     return text.strip().rstrip(";").rstrip()
 
 
+def _guarded_sql(model: GoldModel) -> str:
+    """The model's SELECT, restricted to rows whose record ids (``record_columns``) are readable."""
+    sql = model_sql(model.name)
+    if not model.record_columns:
+        return sql
+    keep = " AND ".join(
+        f'(model."{c}" IS NULL OR model."{c}" IN (SELECT id FROM {table_ref(RECORD_TABLE)}))'
+        for c in model.record_columns
+    )
+    return f"SELECT * FROM ({sql}) AS model WHERE {keep}"
+
+
 def build_gold_marts(con: Duck) -> None:
     """Replace every gold table from its model; skip (and drop) a model whose needs are missing."""
     for model in GOLD_MODELS:
         con.execute(f"DROP TABLE IF EXISTS {table_ref(model.name)}")
         if set(model.needs) <= set(lake_tables(con)):
-            con.execute(f"CREATE TABLE {table_ref(model.name)} AS {model_sql(model.name)}")
+            con.execute(f"CREATE TABLE {table_ref(model.name)} AS {_guarded_sql(model)}")

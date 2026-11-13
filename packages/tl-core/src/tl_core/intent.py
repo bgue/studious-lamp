@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import re
 import unicodedata
-from collections.abc import Generator, Iterable, Sequence
+from collections.abc import Generator, Iterable, Iterator, Sequence
 from contextlib import contextmanager
 from contextvars import ContextVar
 from typing import TYPE_CHECKING, Any, Final, cast
@@ -259,6 +259,15 @@ def redact_intent_ids(intent: Intent, hidden: set[str]) -> Intent:
 #: ``(id fields to look up, fields shown as null when any of them is hidden)``. A hidden target
 #: reads as a constraint raised with no target (the no-target twin of the constraint read,
 #: ADR-0024 F7). A stream type listed here is not a scanned one: the stream stays visible.
+#: An entry whose second part is empty nulls each hidden id field by itself (and a field of the
+#: first part is a path: ``a[].b`` is ``b`` of each item of the list ``a``; a hidden id inside a
+#: list is dropped from it). No event changes: the stored payload is the same, only the read.
+_RequisitionRefs = dict[str, tuple[tuple[str, ...], tuple[str, ...]]]
+_REQUISITION_RAISED: Final[_RequisitionRefs] = {
+    "Requisition.Raised": (("for_record_id",), ()),
+    "Requisition.Approved": (("work_order_id",), ()),
+}
+_WORK_ORDER_REQUISITION: Final = (("requisition_id",), ())
 PAYLOAD_REFS: Final[dict[str, dict[str, tuple[tuple[str, ...], tuple[str, ...]]]]] = {
     "core.Constraint": {
         "Constraint.Raised": (
@@ -267,7 +276,85 @@ PAYLOAD_REFS: Final[dict[str, dict[str, tuple[tuple[str, ...], tuple[str, ...]]]
         ),
         "Constraint.Cleared": (("resolved_by",), ("resolved_by",)),
     },
+    "awp.IWP": {
+        "IWP.ReadinessEvaluated": (("checks[].resolve_via",), ()),
+        "IWP.DocumentPinned": (("document_id", "revision_id"), ()),
+        "IWP.ScopeAdded": (("record_id",), ()),
+        "IWP.ScopeRemoved": (("record_id",), ()),
+    },
+    "materials.StockLot": {"StockLot.Moved": (("iwp_id", "requisition_id"), ())},
+    "materials.MTO": {"MTO.Defined": (("derived_document_id", "revision_id"), ())},
+    "materials.MTOLine": {"MTOLine.Assigned": (("work_package_id",), ())},
+    "requisitions.LaborRequisition": _REQUISITION_RAISED,
+    "requisitions.MaterialRequisition": _REQUISITION_RAISED,
+    "requisitions.GeneralRequisition": _REQUISITION_RAISED,
+    "requisitions.ScaffoldRequest": _REQUISITION_RAISED,
+    "requisitions.WorkOrder": {
+        event: _WORK_ORDER_REQUISITION
+        for event in (
+            "WorkOrder.Opened",
+            "WorkOrder.Scheduled",
+            "WorkOrder.Assigned",
+            "WorkOrder.Started",
+            "WorkOrder.Completed",
+            "WorkOrder.Closed",
+        )
+    },
 }
+
+
+def _path_ids(data: Any, parts: Sequence[str]) -> Iterator[str]:
+    """The ids at ``parts`` (``name`` or ``name[]``) below ``data``: a string, or a list of them."""
+    if not parts:
+        if isinstance(data, str):
+            yield data
+        elif isinstance(data, list):
+            for item in cast("list[Any]", data):
+                if isinstance(item, str):
+                    yield item
+        return
+    if not isinstance(data, dict):
+        return
+    name = parts[0]
+    each = name.endswith("[]")
+    value = cast("dict[str, Any]", data).get(name.removesuffix("[]"))
+    if each and isinstance(value, list):
+        for item in cast("list[Any]", value):
+            yield from _path_ids(item, parts[1:])
+    elif not each and value is not None:
+        yield from _path_ids(value, parts[1:])
+
+
+def _with(source: dict[str, Any], key: str, value: Any) -> dict[str, Any]:
+    changed: dict[str, Any] = {**source}
+    changed[key] = value
+    return changed
+
+
+def _path_without(data: Any, parts: Sequence[str], hidden: set[str]) -> Any:
+    """``data`` with each hidden id at ``parts`` null (a string) or dropped (inside a list)."""
+    original: Any = data
+    if not parts or not isinstance(original, dict):
+        return original
+    name = parts[0]
+    key = name.removesuffix("[]")
+    source = cast("dict[str, Any]", original)
+    if key not in source:
+        return source
+    value = source[key]
+    if name.endswith("[]"):
+        if not isinstance(value, list):
+            return source
+        items = [_path_without(item, parts[1:], hidden) for item in cast("list[Any]", value)]
+        return _with(source, key, items)
+    if len(parts) > 1:
+        return _with(source, key, _path_without(value, parts[1:], hidden))
+    if isinstance(value, list):
+        kept = [v for v in cast("list[Any]", value) if not (isinstance(v, str) and v in hidden)]
+        return _with(source, key, kept)
+    if isinstance(value, str) and value in hidden:
+        return _with(source, key, None)
+    return source
 
 
 def payload_ref_ids(stream_type: str, event_type: str, payload: Any) -> set[str]:
@@ -275,8 +362,7 @@ def payload_ref_ids(stream_type: str, event_type: str, payload: Any) -> set[str]
     rule = PAYLOAD_REFS.get(stream_type, {}).get(event_type)
     if rule is None or not isinstance(payload, dict):
         return set()
-    data: dict[str, Any] = cast("dict[str, Any]", payload)
-    return {str(data[f]) for f in rule[0] if data.get(f) is not None}
+    return {i for f in rule[0] for i in _path_ids(payload, f.split("."))}
 
 
 def redacted_payload(stream_type: str, event_type: str, payload: Any, hidden: set[str]) -> Any:
@@ -284,9 +370,14 @@ def redacted_payload(stream_type: str, event_type: str, payload: Any, hidden: se
     rule = PAYLOAD_REFS.get(stream_type, {}).get(event_type)
     if rule is None or not payload_ref_ids(stream_type, event_type, payload) & hidden:
         return payload
-    shown: dict[str, Any] = {**cast("dict[str, Any]", payload)}
-    shown.update({f: None for f in rule[1]})
-    return shown
+    if rule[1]:
+        shown: dict[str, Any] = {**cast("dict[str, Any]", payload)}
+        shown.update({f: None for f in rule[1]})
+        return shown
+    result: Any = payload
+    for f in rule[0]:
+        result = _path_without(result, f.split("."), hidden)
+    return result
 
 
 def redact_for_viewer[E: BaseModel](

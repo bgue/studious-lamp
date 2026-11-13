@@ -27,6 +27,10 @@ def make_events(con: Duck) -> None:
     )
 
 
+def make_records(con: Duck) -> None:
+    con.execute("CREATE TABLE lake.main.cur_core_record (id VARCHAR)")
+
+
 def make_materials(con: Duck) -> None:
     con.execute(
         "CREATE TABLE lake.main.cur_materials_movement (seq BIGINT, scope VARCHAR, "
@@ -43,7 +47,7 @@ def marts(con: Duck) -> list[str]:
 
 def test_the_models_are_in_build_order_with_their_needs() -> None:
     assert [(m.name, m.needs) for m in GOLD_MODELS] == [
-        ("mart_iwp_readiness_history", ("events",)),
+        ("mart_iwp_readiness_history", ("events", "cur_core_record")),
         ("mart_materials", ("cur_materials_movement", "cur_materials_stock")),
         (
             "mart_schedule_vs_readiness",
@@ -66,11 +70,15 @@ def test_every_model_has_a_file_that_is_one_select(model: object) -> None:
 def test_a_model_whose_needs_are_missing_is_skipped(con: Duck) -> None:
     make_events(con)
     build_gold_marts(con)
+    assert marts(con) == []  # the readiness model also needs the record table
+    make_records(con)
+    build_gold_marts(con)
     assert marts(con) == ["mart_iwp_readiness_history"]  # materials and schedule: no need met
 
 
 def test_a_chained_model_is_built_once_its_inputs_exist_in_order(con: Duck) -> None:
     make_events(con)
+    make_records(con)
     make_materials(con)
     con.execute(
         "CREATE TABLE lake.main.mart_schedule_history (scope VARCHAR, schedule_code VARCHAR, "
@@ -88,6 +96,7 @@ def test_a_chained_model_is_built_once_its_inputs_exist_in_order(con: Duck) -> N
 
 def test_a_stale_mart_is_dropped_when_its_need_disappears(con: Duck) -> None:
     make_events(con)
+    make_records(con)
     make_materials(con)
     build_gold_marts(con)
     assert "mart_materials" in marts(con)

@@ -24,9 +24,9 @@ from lakecheck import do_sync, lake_dump, lake_table_names
 from sqlalchemy import text
 from tl_core import confidentiality
 from tl_core.modules import ConfidentialSource, confidential_sources
-from tl_lake import LakeConfig
+from tl_lake import LakeConfig, gold
 from tl_lake.duck import open_lake
-from tl_lake.gold import GOLD_MODELS, model_sql
+from tl_lake.gold import GOLD_MODELS
 
 CLASS_TABLE = "lake_test_class"
 MARTS = tuple(m.name for m in GOLD_MODELS)
@@ -144,9 +144,15 @@ def assert_nothing_of(config: LakeConfig, hidden: set[str], marts: tuple[str, ..
 
 def assert_marts_are_the_models_over_the_lake(config: LakeConfig) -> None:
     """Each mart is its model run over the lake's own tables: a function of silver and bronze."""
+    by_name = {m.name: m for m in GOLD_MODELS}
     with open_lake(config, write=False) as con:
         for name in marts_in(config):
-            direct = sorted(map(repr, con.execute(f"SELECT * FROM ({model_sql(name)})").fetchall()))
+            direct = sorted(
+                map(
+                    repr,
+                    con.execute(f"SELECT * FROM ({gold._guarded_sql(by_name[name])})").fetchall(),
+                )
+            )
             held = sorted(map(repr, con.execute(f"SELECT * FROM {name}").fetchall()))
             assert held == direct, name
 
@@ -222,4 +228,37 @@ def test_declassify_brings_rows_back_reclassify_removes_them_and_a_rebuild_equal
     again = rebuilt(ledger, tmp_path, "fresh2")
     assert_nothing_of(again, world.hidden, marts_in(again))
     for table in (*SILVER, "mart_materials"):
+        assert lake_dump(lake, table) == lake_dump(again, table), table
+
+
+REFS = Path(__file__).resolve().parents[3] / "docs" / "tickets" / "P2-I6" / "refs"
+
+
+def test_a_record_hidden_after_its_events_were_copied_leaves_the_readiness_mart_at_the_next_sync(
+    ledger: LedgerBuilder, lake: LakeConfig, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The gold runner re-applies the guard each sync: no ``tl lake rebuild`` is needed."""
+    real = gold.model_sql
+
+    def with_reference(name: str) -> str:
+        ref = REFS / f"{name}.sql"
+        return ref.read_text(encoding="utf-8").strip() if ref.exists() else real(name)
+
+    monkeypatch.setattr(gold, "model_sql", with_reference)
+    world = World(ledger)
+    ids = world.ids
+    for name in ("iwp_hid", "lot_hid", "req_hid"):
+        classify(ledger, ids[name], "internal")  # everything readable: all copied to the lake
+    do_sync(ledger, lake)
+    rows = "SELECT count(*) FROM mart_iwp_readiness_history"
+    assert count(lake, rows) == 2
+
+    classify(ledger, ids["iwp_hid"], "restricted")  # hidden after the copy
+    do_sync(ledger, lake)
+    assert count(lake, rows) == 1
+    assert count(lake, f"SELECT count(*) FROM events WHERE stream_id = '{ids['iwp_hid']}'") > 0
+    assert_nothing_of(lake, {ids["iwp_hid"]}, ("mart_iwp_readiness_history", "mart_materials"))
+    assert_marts_are_the_models_over_the_lake(lake)
+    again = rebuilt(ledger, tmp_path, "fresh3")
+    for table in (*SILVER, *marts_in(lake)):
         assert lake_dump(lake, table) == lake_dump(again, table), table
