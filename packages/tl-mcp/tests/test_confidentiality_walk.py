@@ -20,10 +20,15 @@ from typing import Any
 import pytest
 from mcp.server.mcpserver.exceptions import ToolError
 from mcp_harness import SCOPE, McpHarness
-from tl_adapters.db import DbTarget
+from sqlalchemy import text
+from tl_adapters.db import DbTarget, open_uow
 from tl_adapters.objectstore.fs import FsObjectStore
+from tl_core import confidentiality as cf
+from tl_core import modules as core_modules
 from tl_core.files.service import FileService
+from tl_core.modules import ConfidentialSource
 from tl_mcp.server import build_server
+from tl_mod_awp.names import IWP, WEEKLY_PLAN
 from tl_mod_correspondence.confseed import TOKENS, Hidden, seed_hidden_world
 from tl_mod_legacy.testing import seed_restricted_run
 
@@ -55,6 +60,7 @@ def values(hidden: Hidden) -> dict[str, list[Any]]:
         "code": ["MER", "x", "1.1.1"],
         "lot": ["P123-RCPT-0001@1", "x"],  # P2-I3-T11: get_material_lot (a lot key)
         "iwp": [*hidden.numbers.values(), "P123-IWP-0001", "x"],  # T09b: propose_iwp_scope
+        "week": ["2026-W45", "2099-W01", "x"],  # T11c: get_weekly_plan (a week, YYYY-Www)
         "key": [*hidden.numbers.values(), "P123-REQ-LAB-0001", "x"],  # T08b: get_requisition
         "kind": ["labor", "x"],  # T08b: list_requisitions
         "for_key": [*hidden.numbers.values(), "P123-IWP-0001", "x"],  # T08b: list_requisitions
@@ -70,6 +76,42 @@ def text_of(server: Any, tool: str, args: dict[str, Any]) -> str:
     return result.model_dump_json() if hasattr(result, "model_dump_json") else str(result)
 
 
+def seed_week(env: McpHarness, hidden: Hidden, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Week 2026-W45 holds a plan with a visible and a restricted commitment (a test-only source
+    restricts the IWP), so get_weekly_plan is walked with a hidden row present (SR3 F3)."""
+    from test_mcp_week_tools import load_worlds
+
+    awp, progress = load_worlds()
+    w = awp.World(env.db)
+    w.people()
+    w.editions()
+    ww = progress.build_week_world(w)
+    plan = ww.open("2026-11-02")
+    visible, secret = ww.issued(), ww.issued()
+    ww.commit(plan, visible, hours="20.0")
+    ww.commit(plan, secret, hours="10.0")
+    number = str(w.scalar("SELECT key FROM cur_core_record WHERE id = :i", i=secret))
+    table = "walk_awp_class"
+    with open_uow(env.db) as uow:
+        conn = uow.conn()
+        conn.execute(text(f"CREATE TABLE {table} (id TEXT PRIMARY KEY, cls TEXT NOT NULL)"))
+        for row in w.rows(
+            "SELECT id FROM cur_core_record WHERE type IN ('awp.WeeklyPlan','awp.IWP')"
+        ):
+            cls = "restricted" if str(row["id"]) == str(secret) else "internal"
+            conn.execute(
+                text(f"INSERT INTO {table} (id, cls) VALUES (:i, :c)"),
+                {"i": str(row["id"]), "c": cls},
+            )
+    source = ConfidentialSource(
+        record_types=frozenset({WEEKLY_PLAN, IWP}), table=table, id_column="id", class_column="cls"
+    )
+    real = core_modules.confidential_sources
+    monkeypatch.setattr(cf, "confidential_sources", lambda: [*real(), source])
+    hidden.extra_ids["awp_hidden_iwp"] = str(secret)
+    hidden.extra_ids["awp_hidden_number"] = number
+
+
 @pytest.fixture
 def world(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, db: DbTarget
@@ -82,6 +124,7 @@ def world(
     run_id, run_files = seed_restricted_run(env.db, service)
     hidden.ids["loadrun"] = run_id
     hidden.extra_ids.update({f"loadrun_{slot}_file": fid for slot, fid in run_files.items()})
+    seed_week(env, hidden, monkeypatch)
     yield env, hidden, service
     env.close()
 

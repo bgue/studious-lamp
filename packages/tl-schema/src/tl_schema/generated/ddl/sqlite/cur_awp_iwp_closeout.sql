@@ -6,6 +6,9 @@ CREATE TABLE IF NOT EXISTS cur_awp_iwp_closeout (
   remaining_punch INTEGER,
   feedback TEXT,
   actuals_file_id TEXT,
+  redlines_file_id TEXT,
+  closed_by TEXT,
+  closed_at TEXT,
   last_seq INTEGER NOT NULL
 );
 

@@ -69,6 +69,9 @@ classes:
       contractor_text:
         pattern: "^.{0,120}$"
         description: The contractor named in words (at most 120 characters).
+      assigned_party:
+        pattern: "^.{0,120}$"
+        description: The party the package is assigned to, free text (at most 120 characters); null when unassigned.
       last_seq:
         range: integer
         required: true

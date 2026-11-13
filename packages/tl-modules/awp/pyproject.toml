@@ -13,6 +13,9 @@ dependencies = [
   "tl-mod-schedule",
 ]
 
+[project.optional-dependencies]
+pack = ["reportlab", "segno"]
+
 [project.entry-points."throughline.modules"]
 awp = "tl_mod_awp.module:spec"
 

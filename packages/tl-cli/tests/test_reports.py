@@ -46,7 +46,7 @@ def cli(tmp_path: Path) -> Cli:
     w.call("sue", "DefineCwa", code="A2", title="Area two")
     tool = Cli(path, tmp_path)
     assert tool.run("rollup", "--project", "P123", "--actor", "user:sue").exit_code == 0
-    assert tool.run("worker", "--once").exit_code == 0
+    assert tool.run("worker", "--once", "--actor", "user:ada").exit_code == 0
     return tool
 
 

@@ -11,10 +11,22 @@ from tl_core.projection.types import Projector
 
 from tl_mod_awp import MODULE
 from tl_mod_awp.actions import awp_actions
-from tl_mod_awp.commands import AWP_COMMANDS, AddIwpScope, CreateCwp
+from tl_mod_awp.commands import (
+    AWP_COMMANDS,
+    AddIwpScope,
+    CommitIwpToWeek,
+    CreateCwp,
+    InstallScopeItem,
+    RecordManualProgress,
+)
 from tl_mod_awp.guards import iwp_not_closed, not_closed
 from tl_mod_awp.handlers.cwp import handle_create_cwp
+from tl_mod_awp.handlers.progress import (
+    handle_install_scope_item,
+    handle_record_manual_progress,
+)
 from tl_mod_awp.handlers.scope import handle_add_iwp_scope
+from tl_mod_awp.handlers.week import handle_commit_iwp_to_week
 from tl_mod_awp.names import (
     CWA,
     CWP,
@@ -29,8 +41,10 @@ from tl_mod_awp.names import (
 from tl_mod_awp.projectors import CwaProjector, PathProjector, WbsProjector
 from tl_mod_awp.projectors.cwp import cwp_projectors
 from tl_mod_awp.projectors.iwp import iwp_projectors
+from tl_mod_awp.projectors.progress import progress_projectors
 from tl_mod_awp.projectors.rollup import rollup_projectors
 from tl_mod_awp.projectors.scope import scope_item_projectors
+from tl_mod_awp.projectors.week import week_projectors
 from tl_mod_awp.readiness.projector import readiness_projectors
 
 #: The life of a link that starts at the record (accept, decline, re-pin, verify, flag, retract).
@@ -59,11 +73,23 @@ LINKED_GENERIC_COMMANDS = frozenset({"AddLink", "SuggestLink"}) | LINK_LIFE
 #: An owner package reference takes links and the life of its links.
 PACKAGE_GENERIC_COMMANDS = frozenset({"AddLink", "SuggestLink"}) | LINK_LIFE
 
-#: What an agent may propose (ADR-0014 section 8): a new package. Accepting runs ``CreateCwp`` as
+#: What an agent may propose (ADR-0014 section 8, ADR-0027): a new package, scope, hand progress and
+#: an installed item. Accepting runs ``CreateCwp`` as
 #: the accepting person, who needs ``awp.cwp.edit`` (a ``user`` word).
 PROPOSABLE = (
     ProposableCommand("propose_cwp", CreateCwp, handle_create_cwp, "user"),
     ProposableCommand("propose_iwp_scope", AddIwpScope, handle_add_iwp_scope, "user"),
+    # progress is a person's word (awp.progress.record): accepting runs the command as that person
+    ProposableCommand(
+        "propose_progress", RecordManualProgress, handle_record_manual_progress, "user"
+    ),
+    ProposableCommand(
+        "propose_scope_installed", InstallScopeItem, handle_install_scope_item, "user"
+    ),
+    # a commitment to a week is a foreman's word (awp.week.commit, a user word)
+    ProposableCommand(
+        "propose_week_commitment", CommitIwpToWeek, handle_commit_iwp_to_week, "user"
+    ),
 )
 
 
@@ -79,6 +105,8 @@ def projectors() -> list[Projector]:
         *iwp_projectors(),
         *scope_item_projectors(),
         *readiness_projectors(),
+        *week_projectors(),
+        *progress_projectors(),
     ]
 
 

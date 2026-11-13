@@ -311,6 +311,11 @@ def _rows() -> tuple[ErrorSpec, ...]:
         s(awp.IwpNotReadyError, "not_ready", 422),
         s(awp.ScopeRuleError, "scope_rule", 422),
         s(awp.ScopeTakenError, "scope_taken", 409),
+        # --- awp module (P2-I5): weekly plan, progress entry and rules of credit ----------------
+        s(awp.WeekRuleError, "week_rule", 422),
+        s(awp.WeekStateError, "week_state", 409),
+        s(awp.ProgressRuleError, "progress_rule", 422),
+        s(awp.RulesOfCreditError, "rules_of_credit", 422),
         # --- cost module (P1-I4): cost codes and period snapshots -------------------------------
         s(cost.CostError, "cost_error", 422),
         s(cost.CostScopeError, "cost_scope", 422),

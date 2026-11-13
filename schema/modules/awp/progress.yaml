@@ -1,0 +1,58 @@
+id: https://example.org/throughline/modules/awp/progress
+name: tl_mod_awp_progress
+title: IWP progress (brief 9, M3)
+description: >-
+  The earned progress of one interim work package, kept in one row per IWP. Operational table in the sense of
+  `rollup.yaml`: derived from `IWP.ProgressRecorded`, never edited. Spec: module-designs/field-work-packaging.md.
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+  - ../../core/annotations
+  - ../../core/record
+default_range: string
+annotations:
+  tl:module: awp
+
+classes:
+  IwpProgress:
+    description: >-
+      The latest earned progress of one IWP. Not a record: replaced by each `IWP.ProgressRecorded`. `edition` names the
+      package and version of the rules of credit the figure was computed with, and `as_of_seq` the ledger position read.
+    annotations:
+      tl:current_state: true
+      tl:table: cur_awp_iwp_progress
+      tl:ix_scope: "scope"
+    attributes:
+      iwp_id:
+        identifier: true
+        range: Ulid
+        required: true
+        description: The `awp.IWP`.
+      scope:
+        range: ScopeId
+        required: true
+        description: The project scope, `project:<id>`.
+      earned_pct:
+        required: true
+        pattern: "^(100\\.0|[0-9]{1,2}\\.[0-9])$"
+        description: 'Earned percent, decimal text with one decimal from "0.0" to "100.0".'
+      edition:
+        required: true
+        pattern: "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}@[0-9]+\\.[0-9]+\\.[0-9]+$"
+        description: "The `package@version` of the rules of credit used."
+      as_of_seq:
+        range: integer
+        required: true
+        description: The ledger `seq` the figure was computed from.
+      manual:
+        range: Any
+        annotations:
+          tl:json: true
+        description: 'JSON list of at most 500 entries of manual credit (`scope_item_id`, `step`). Column `manual_json`.'
+      last_seq:
+        range: integer
+        required: true
+        description: Ledger `seq` of the event that wrote the row.

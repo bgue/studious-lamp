@@ -214,7 +214,13 @@ MODULE_STREAMS = (
     (
         "awp.CWP",
         "CWP.Defined",
-        ("CWP.Revised", "CWP.AllocatedToWbs", "CWP.Released"),
+        (
+            "CWP.Revised",
+            "CWP.AllocatedToWbs",
+            "CWP.Released",
+            "Cwp.PartyAssigned",
+            "Cwp.SubcontractProgressRecorded",
+        ),
     ),
     ("awp.EWPRef", "EWPRef.Defined", ("EWPRef.Updated",)),
     ("awp.PWPRef", "PWPRef.Defined", ("PWPRef.Updated",)),
@@ -231,6 +237,9 @@ MODULE_STREAMS = (
             "IWP.Ready",
             "IWP.SignedOff",
             "IWP.Issued",
+            "IWP.Started",
+            "IWP.ProgressRecorded",
+            "IWP.FieldCompleted",
             "IWP.Held",
             "IWP.HoldReleased",
             "IWP.Split",
@@ -263,6 +272,13 @@ MODULE_STREAMS = (
     ("materials.StockLot", "StockLot.Defined", ("StockLot.Moved",)),
     ("materials.MTO", "MTO.Defined", ()),
     ("materials.MTOLine", "MTOLine.Defined", ("MTOLine.Assigned",)),
+    # awp part 3 (P2-I5): weekly plans and closeout
+    (
+        "awp.WeeklyPlan",
+        "WeeklyPlan.Opened",
+        ("WeeklyPlan.IwpCommitted", "WeeklyPlan.OutcomeRecorded", "WeeklyPlan.Closed"),
+    ),
+    ("awp.IWPCloseout", "IWPCloseout.Recorded", ()),
     # requisitions (P2-I4A): the labour kind stands for the four kinds, which share the events
     (
         "requisitions.LaborRequisition",

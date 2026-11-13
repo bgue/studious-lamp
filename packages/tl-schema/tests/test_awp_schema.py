@@ -23,6 +23,8 @@ SCHEMA = ROOT / "schema"
 FIXTURES = SCHEMA / "fixtures"
 #: Added by P2-I2-S1 (the IWP part); the list above stays the part 1 record types.
 PART2_RECORD_TYPES = {"awp.IWP", "awp.ScopeItem", "awp.IWPCloseout"}
+#: Added by P2-I5-S1 (the weekly plan).
+PART3_RECORD_TYPES = {"awp.WeeklyPlan"}
 AWP = SCHEMA / "modules" / "awp"
 GENERATED = ROOT / "packages" / "tl-schema" / "src" / "tl_schema" / "generated"
 
@@ -127,7 +129,7 @@ def test_the_module_annotation_names_the_six_record_types() -> None:
     found: set[str] = set()
     for path in AWP.glob("*.yaml"):
         found |= set(re.findall(r'tl:record_types: "([^"]+)"', path.read_text(encoding="utf-8")))
-    assert found == set(RECORD_CLASSES) | PART2_RECORD_TYPES
+    assert found == set(RECORD_CLASSES) | PART2_RECORD_TYPES | PART3_RECORD_TYPES
 
 
 # --- tables ----------------------------------------------------------------------------------

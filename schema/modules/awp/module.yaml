@@ -33,6 +33,9 @@ imports:
   - closeout
   - readiness
   - iwp_events
+  - week
+  - progress
+  - week_events
 default_range: string
 annotations:
   tl:module: awp

@@ -8,6 +8,7 @@ from tl_adapters.db import open_uow
 from tl_core.actions import allowed_actions
 from tl_mod_awp.actions import RULES, level_of, states_for
 from tl_mod_awp.commands import AWP_COMMANDS
+from tl_mod_awp.names import IWP
 
 SPEC = {c.model.__name__: c for c in AWP_COMMANDS}
 
@@ -84,3 +85,22 @@ def test_a_retired_node_and_a_parent_are_offered_less(plant: World) -> None:
     assert _names(plant, "uma", leaf) == []
     plant.call("sue", "RetireWbsNode", node=leaf, reason="done")
     assert _names(plant, "sue", leaf) == []
+
+
+def test_the_table_holds_the_two_field_work_rows() -> None:
+    """P2-I5-T06b: the Start work and Complete field work offers, one row each, word equal to
+    the command's word (the parametrised test above), and the table counts its rows."""
+    rows = {r.command: r for r in RULES if r.command in ("StartIwpWork", "CompleteIwpField")}
+    assert rows["StartIwpWork"].label == "Start work"
+    assert rows["CompleteIwpField"].label == "Complete field work"
+    assert len(RULES) == 32  # 30 before P2-I5-T06b, plus the two field-work rows
+
+
+def test_start_work_is_offered_to_an_issued_iwp_and_not_to_a_draft(world: World) -> None:
+    assert states_for("StartIwpWork", IWP) == ("Issued",)
+    assert states_for("CompleteIwpField", IWP) == ("In progress",)
+    issued = world.iwp(title="Field spools", planned_start="2026-12-01", foreman="user:uma")
+    world.set_status(issued, "Issued")
+    draft = world.iwp(title="Draft spools", planned_start="2026-12-01", foreman="user:uma")
+    assert "StartIwpWork" in _names(world, "uma", issued)
+    assert "StartIwpWork" not in _names(world, "uma", draft)

@@ -19,7 +19,7 @@ blocks)."""
 from __future__ import annotations
 
 from collections.abc import Mapping
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 from datetime import date
 from typing import Any, cast
 
@@ -41,6 +41,8 @@ _COLUMNS = (
     "c.severity, c.category, c.source, c.owner, c.description_text, c.check_name, "
     "c.clear_reason, c.target_kind, c.target_id, c.target_ref_type, c.target_ref_text, "
     "c.effective_at, c.due_at, c.cleared_at, c.cleared_by, r.created_at, "
+    "(COALESCE(r.status, 'Open') = 'Cleared' AND c.source = 'check' "
+    "AND c.suppress_hash IS NOT NULL) AS waived, "
     "s.type AS subject_type, s.scope AS subject_scope"
 )
 _FROM = (
@@ -78,6 +80,7 @@ class ConstraintView:
     age_days: int
     aging: bool
     phase_ungated: bool
+    waived: bool = field(default=False, kw_only=True)  # Cleared check constraint, hash kept
 
 
 def _field(row: Any, name: str) -> Any:
@@ -148,6 +151,7 @@ def _build(
             age_days=0,
             aging=False,
             phase_ungated=False,
+            waived=bool(r.waived),
         )
         if base.scope not in limits:
             limits[base.scope] = aging_days_of(conn, base.scope)

@@ -457,7 +457,14 @@ def hidden_event_streams(
 #: is the stream of its own record, but a message in it may tag other records (`record_refs`): a
 #: reader who may read the thread but not a tagged record is not given that message (P1-I7 review).
 SCANNED_STREAM_TYPES: Final = frozenset(
-    {"numbering.Counter", "core.Proposal", "documents.Transmittal", "core.Thread", "awp.IWP"}
+    {
+        "numbering.Counter",
+        "core.Proposal",
+        "documents.Transmittal",
+        "core.Thread",
+        "awp.IWP",
+        "awp.WeeklyPlan",
+    }
 )
 _ULID = re.compile(r"(?<![0-9A-Za-z])[0-9A-HJKMNP-TV-Z]{26}(?![0-9A-Za-z])")
 

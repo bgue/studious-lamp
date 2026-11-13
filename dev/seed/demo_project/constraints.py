@@ -236,7 +236,7 @@ def build(world: World, rng: random.Random) -> None:
                     reason="Raised in error; the item is not in this package's scope",
                 )
 
-    # --- a check-raised one, cleared by a person (there is no waive word) ----------------------
+    # --- a check-raised one, waived by an admin (core.constraint.waive) ----------------------
     with world.on(TODAY - timedelta(days=12)):
         with open_uow(world.target) as uow:
             outcome = constraints.raise_constraint(

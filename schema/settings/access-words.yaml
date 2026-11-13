@@ -10,6 +10,7 @@ words:
   # core: constraints on any record (ADR-0024)
   core.constraint.edit: user
   core.constraint.view: read
+  core.constraint.waive: controller   # clear a check-raised constraint as waived (P2-I5)
 
   # awp: work breakdown, packages and release (specs/m3-wbs-cwp.md section 3)
   awp.view: read
@@ -25,6 +26,16 @@ words:
   awp.iwp.signoff: controller
   awp.iwp.issue: controller
   awp.iwp.hold: controller
+  # awp: weekly plan, progress, closeout and subcontract (P2-I5)
+  awp.week.plan: user
+  awp.week.commit: user
+  awp.week.close: controller
+  awp.progress.record: user
+  awp.closeout.record: user
+  awp.closeout.close: controller
+  awp.subcontract.assign: controller
+  awp.subcontract.progress: user
+  awp.worker.run: controller
 
   # materials: library, receipts, stock and take-offs (specs/m4-materials.md section 3)
   materials.view: read
