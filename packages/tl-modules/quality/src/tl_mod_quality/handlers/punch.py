@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING, Any
 from sqlalchemy import text
 from tl_core.auth.errors import ForbiddenError
 from tl_core.auth.module_roles import holder_for_actor, holds_word, normalise_word
+from tl_core.confidentiality import SUBJECT_LINKS
 from tl_core.ledger import NewEvent
 from tl_core.services.commands import Command, CommandResult
 from tl_core.services.links import AddLink, handle_add_link
@@ -70,6 +71,13 @@ if TYPE_CHECKING:
 MSG_NOT_PARTY = "only the raiser, the assignee or a verifier may edit a punch item"
 MSG_SELF_VERIFY = "the person who cleared a punch item may not verify it"
 MSG_NOTHING = "nothing to change"
+MSG_SOURCE_LINKED = (
+    "a punch item is raised from the work itself, not from a constraint, requisition, "
+    "work order or another punch item"
+)
+#: Record types that name a subject themselves. A punch item is never raised from one, so a chain
+#: of subjects ends at the punch item and stays within the confidentiality join's two hops.
+SOURCE_REFUSED: frozenset[str] = frozenset({"core.Constraint"} | {row[0] for row in SUBJECT_LINKS})
 _ROW_SQL = text(f"SELECT * FROM {PUNCH_ITEM_TABLE} WHERE id = :id")
 #: The edit fields held on the typed row; the subject and the description are the envelope's.
 _ENVELOPE = {"subject": "title", "description": "description"}
@@ -129,9 +137,12 @@ def handle_raise_punch_item(uow: UnitOfWork, cmd: RaisePunchItem) -> CommandResu
     the record it came from. ``raised_by`` is the actor."""
     require_project(cmd)
     cmd = correlated(cmd)
-    source_id = (
-        None if cmd.from_record_id is None else load_record(uow, cmd.scope, cmd.from_record_id).id
-    )
+    source_id = None
+    if cmd.from_record_id is not None:
+        source = load_record(uow, cmd.scope, cmd.from_record_id)
+        if source.record_type in SOURCE_REFUSED:
+            raise PunchRuleError(MSG_SOURCE_LINKED)
+        source_id = source.id
     made = create_module_record(
         uow,
         cmd,
