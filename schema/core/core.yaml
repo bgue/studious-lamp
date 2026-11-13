@@ -31,4 +31,5 @@ imports:
   - integration_ops
   - constraint
   - telemetry
+  - idempotency
 default_range: string

@@ -3650,6 +3650,48 @@
             "title": "Hashtag",
             "type": "object"
         },
+        "IdempotencyKey": {
+            "additionalProperties": false,
+            "description": "One claimed (actor, key). `result_json` is null while the claim has not been completed (it is set in the same transaction by `tl_core.services.idempotency.record`, so another connection sees a claim only complete, or, if a caller never recorded one, as in progress).",
+            "properties": {
+                "actor": {
+                    "description": "The actor the key belongs to; another actor's identical key is another row.",
+                    "type": "string"
+                },
+                "body_hash": {
+                    "description": "SHA-256 (hex) of the command's canonical JSON without key, correlation and causation ids.",
+                    "type": "string"
+                },
+                "command": {
+                    "description": "The command name the key was first used for.",
+                    "type": "string"
+                },
+                "created_at": {
+                    "description": "ISO-8601 UTC with microseconds and a `Z` suffix.",
+                    "type": "string"
+                },
+                "idem_key": {
+                    "description": "The client's key (ASCII, 1 to 128 characters). Never logged, never in an error text.",
+                    "type": "string"
+                },
+                "result_json": {
+                    "description": "JSON list of the result ids (stream id, then event ids); null until recorded.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                }
+            },
+            "required": [
+                "actor",
+                "idem_key",
+                "command",
+                "body_hash",
+                "created_at"
+            ],
+            "title": "IdempotencyKey",
+            "type": "object"
+        },
         "Importance": {
             "description": "Noise-control level (brief 21.3). System cards are low, posts normal, signal tags high.",
             "enum": [

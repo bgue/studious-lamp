@@ -426,3 +426,19 @@ settings:
       minimum: 1
       maximum: 90
     since: "0.1.0"
+
+  - key: idempotency.retention_days
+    type: int
+    default: 7
+    description: How many days an idempotency key is remembered. Proposed default.
+    docs: >-
+      A retry that carries the same Idempotency-Key within this time gets the first answer and writes nothing.
+      After it, a retry files the request anew. The purge job that removes older rows is not shipped yet, so
+      rows are kept until it is.
+    scopes: [platform, company]
+    lockable: true
+    validation:
+      minimum: 1
+      maximum: 90
+    risk: advanced
+    since: "0.1.0"

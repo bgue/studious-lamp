@@ -26,6 +26,7 @@ from tl_core.intent import IntentInvalid, IntentReferenceUnknown
 from tl_core.ledger import ConcurrencyError
 from tl_core.query import QuerySyntaxError
 from tl_core.services import errors as svc
+from tl_core.services import idempotency as idem
 from tl_core.threads import errors as thr
 from tl_core.webhooks import subscriptions as wh
 from tl_core.workflow.engine import GuardResult
@@ -79,6 +80,10 @@ def _rows() -> tuple[ErrorSpec, ...]:
         s(svc.LayerError, "layer_error", 422),
         s(svc.PsetValidationError, "pset_validation", 422),
         s(svc.InvalidScopeError, "invalid_scope", 422),
+        # --- idempotency keys (P2-X1) --------------------------------------------------------
+        s(idem.InvalidIdempotencyKeyError, "invalid_idempotency_key", 422),
+        s(idem.IdempotencyMismatch, "idempotency_mismatch", 409),
+        s(idem.IdempotencyInProgress, "idempotency_in_progress", 409),
         # --- links ---------------------------------------------------------------------------
         s(svc.LinkNotFoundError, "link_not_found", 404),
         s(svc.InvalidLinkTransitionError, "invalid_link_transition", 409),

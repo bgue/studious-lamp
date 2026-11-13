@@ -63,6 +63,7 @@ from tl_core.proposals.types import (
     ProposalView,
     SettingProposalInfo,
 )
+from tl_core.services import idempotency
 from tl_core.services.commands import Command, CommandResult, CreateRecord, UpdateRecord
 from tl_core.services.errors import (
     BudgetExceededError,
@@ -72,6 +73,7 @@ from tl_core.services.errors import (
     ProposalDeciderError,
     ProposalNotFoundError,
     ProposalNotPendingError,
+    RecordNotFoundError,
     RetryableTransactionError,
     RiskNotAcceptedError,
     ServiceError,
@@ -479,6 +481,21 @@ def propose(
     handler's own refusals at proposal time.
     """
     clean = _check_proposal(tool, agent, command, summary)
+    # one key, one proposal (P2-X1): a retry answers with the first one, counts nothing
+    replay = idempotency.check(
+        uow.conn(),
+        agent,
+        command.idempotency_key,
+        "propose",
+        {"tool": tool, "summary": clean, "command": command.model_dump(mode="json")},
+    )
+    if replay is not None:
+        from tl_core.integration.actor_access import viewer_of as replay_viewer
+
+        stream_id = replay.result_ids[0]
+        if confidentiality.hidden_among(uow.conn(), [stream_id], replay_viewer(uow.conn(), agent)):
+            raise RecordNotFoundError(f"no record {stream_id!r}")
+        return get_proposal(uow.conn(), stream_id)
     source = source_for(agent)
     limit = budget if budget is not None else daily_budget(uow.conn())
     if proposals_today(uow.conn(), agent, now=now) >= limit:
@@ -523,6 +540,7 @@ def propose(
         source=source,
         correlation_id=proposal_id,
     )
+    idempotency.record(uow.conn(), agent, command.idempotency_key, [proposal_id])
     return get_proposal(uow.conn(), proposal_id)
 
 
