@@ -1,7 +1,7 @@
 # P2-I6 STATE  r=2 base=8e7134b C=0 ck=- gate=n/a wt=/home/user/wt/p2-i6
 ## BOARD   (wave-1 prep only; exit items later)
 S1 p mrg f f567b59 marts sync; gate 3472 P; APPROVALS
-T02 t stg f - gold marts SQL; ready (S1 mrg)
+T02 t mrg f b92cfef 3 marts; lake 283 P; +hidden-IWP test
 T03 t mrg l ecb78e1 audit 16 rows, D01-D05 drafts; req/WO not in seed
 B1 p todo f - exit wave 5; not staged
 T01 t todo f - exit wave 5; needs B1
@@ -20,7 +20,7 @@ Q1 answered: P2-I5 on trunk 8e7134b 2026-11-13, merged into p2/i6
 Q2 scaffold register and scaffold quantities on hire reports wait for I4-B scaffold; T03 marks them gaps with that dependency | needs orch | raised r1
 ## NEXT
 1. Orch r2: S1 merged with trunk (I5). T02 interface change in S1 report: readiness model needs cur_core_record (refs and provided tests unchanged).
-2. Dispatch T02 (full) and T03 (lite) in one workflow; merge on pass.
+2. Done r2: T02 and T03 merged. Wave-1 prep complete (C1 of prep).
 3. SR-X1 at wave-1 end (S1, T02 rows); check I5 awp events against PAYLOAD_REFS there.
 4. Exit wave (B1, T01, T04, T05) only after the web increment.
 ## REFS
