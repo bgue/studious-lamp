@@ -9,6 +9,7 @@ import type * as PdfLib from 'pdf-lib';
 import { isOwnNm } from './annot';
 import type { AnnotSpec, AnnotSubtype, Rect4, Rgb, XrayMeta } from './annot';
 import { cleanRotation } from './model';
+import type { Plain, PlainDict } from './geoPdf';
 import type { PageBox, Rotation } from './model';
 import { COLOUR_KEYS } from '../markup/model';
 import type { ColourKey, MarkupKind, Weight } from '../markup/model';
@@ -305,3 +306,40 @@ export async function hasMarkupAnnotations(pdf: PdfJs.PDFDocumentProxy): Promise
 }
 
 export type { Rect4 };
+
+// ---------------------------------------------------------------- geo-referencing (geoPdf.ts)
+
+/** A PDF object as plain data (names and strings become strings), at most `depth` levels and `max` entries deep. References are followed. */
+function plainOf(lib: Lib, ctx: PdfLib.PDFContext, o: PdfLib.PDFObject | undefined, depth: number, budget: { n: number }): Plain {
+  if (o === undefined || budget.n-- <= 0 || depth < 0) return null;
+  if (o instanceof lib.PDFRef) return plainOf(lib, ctx, ctx.lookup(o), depth, budget);
+  if (o instanceof lib.PDFNumber) return o.asNumber();
+  if (o instanceof lib.PDFName) return o.decodeText();
+  if (o instanceof lib.PDFString || o instanceof lib.PDFHexString) return o.decodeText();
+  if (o instanceof lib.PDFBool) return o.asBoolean();
+  if (o instanceof lib.PDFArray) {
+    const out: Plain[] = [];
+    for (let i = 0; i < Math.min(o.size(), 400); i++) out.push(plainOf(lib, ctx, o.get(i), depth - 1, budget));
+    return out;
+  }
+  if (o instanceof lib.PDFDict) {
+    const out: { [k: string]: Plain } = {};
+    for (const [k, v] of o.entries()) out[k.decodeText()] = plainOf(lib, ctx, v, depth - 1, budget);
+    return out;
+  }
+  if (o instanceof lib.PDFRawStream || (o as { dict?: PdfLib.PDFDict }).dict) return null;
+  return null;
+}
+
+/** The /VP and /LGIDict entries of every page as plain data (null for a page without them), for readGeoPage. */
+export async function readGeoPages(lib: Lib, bytes: Uint8Array): Promise<Array<PlainDict | null>> {
+  const doc = await lib.PDFDocument.load(bytes, { updateMetadata: false, throwOnInvalidObject: false });
+  return doc.getPages().map((page) => {
+    const out: PlainDict = {};
+    for (const key of ['VP', 'LGIDict']) {
+      const v = page.node.get(lib.PDFName.of(key));
+      if (v !== undefined) out[key] = plainOf(lib, doc.context, v, 8, { n: 4000 });
+    }
+    return Object.keys(out).length ? out : null;
+  });
+}

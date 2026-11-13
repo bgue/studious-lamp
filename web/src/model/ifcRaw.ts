@@ -10,6 +10,8 @@
 //  - Type codes are the same in IFC2X3, IFC4 and IFC4X3 (CRC of the entity name).
 import * as WebIFC from 'web-ifc';
 import type { IfcAPI } from 'web-ifc';
+import type { MapConversion } from '../types';
+import { mapConversionFrom } from './ifcMap';
 import { isMarker, isSkippedClass, SYSTEM_CLASSES, smoothMesh } from './ifcShared';
 import type { IfcProgress, RawElement, RawModel, RawStorey } from './ifcShared';
 import {
@@ -145,6 +147,44 @@ function lengthScale(api: IfcAPI, model: number): number {
     }
   } catch { /* fall through */ }
   return 1;
+}
+
+
+/** Metres per unit of an IfcNamedUnit line (SI with prefix, or conversion based); 1 when it cannot be told. */
+function unitFactor(api: IfcAPI, model: number, unitId: number | null): number {
+  if (unitId === null) return 1;
+  try {
+    const line = api.GetLine(model, unitId);
+    if (!line) return 1;
+    const typeName = api.GetNameFromTypeCode(line.type);
+    if (typeName === 'IfcSIUnit') return PREFIX[str(line.Prefix)] ?? 1;
+    if (typeName === 'IfcConversionBasedUnit') {
+      const mwu = api.GetLine(model, refId(line.ConversionFactor) ?? -1);
+      const f = num(mwu?.ValueComponent) ?? 1;
+      const base = api.GetLine(model, refId(mwu?.UnitComponent) ?? -1);
+      return f * (base ? (PREFIX[str(base.Prefix)] ?? 1) : 1);
+    }
+  } catch { /* metres */ }
+  return 1;
+}
+
+/** The first IfcMapConversion of the file with its IfcProjectedCRS (IFC4 and later), in metres; undefined when there is none. */
+function readMapConversion(api: IfcAPI, model: number, lengthUnit: number): MapConversion | undefined {
+  try {
+    for (const id of ids(api, model, WebIFC.IFCMAPCONVERSION)) {
+      const c = api.GetLine(model, id);
+      if (!c) continue;
+      const crsId = refId(c.TargetCRS);
+      const crs = crsId !== null ? api.GetLine(model, crsId) : null;
+      const mapUnit = unitFactor(api, model, crs ? refId(crs.MapUnit) : null);
+      const m = mapConversionFrom({
+        Eastings: num(c.Eastings), Northings: num(c.Northings), OrthogonalHeight: num(c.OrthogonalHeight),
+        XAxisAbscissa: num(c.XAxisAbscissa), XAxisOrdinate: num(c.XAxisOrdinate), Scale: num(c.Scale),
+      }, crs ? { Name: str(crs.Name) } : null, { mapUnit, lengthUnit });
+      if (m) return m;
+    }
+  } catch { /* a file without the IFC4 map entities */ }
+  return undefined;
 }
 
 /** SI factors of the project units (LENGTH, AREA, VOLUME, MASS) as tools/glb_common.py `unit_scales` computes them. */
@@ -536,9 +576,12 @@ async function extractModel(
         } catch { /* 0 */ }
       }
     }
-    storeys.push({ expressId: sid, name: str(l.Name), elevation: elev });
+    const guid = str(l.GlobalId);
+    storeys.push({ expressId: sid, ...(guid ? { globalId: guid } : {}), name: str(l.Name), elevation: elev });
     storeySet.add(sid);
   }
+
+  const mapConversion = readMapConversion(api, model, scale);
 
   // containment and decomposition
   const containerOf = new Map<number, number>();
@@ -727,6 +770,7 @@ async function extractModel(
     origin: frame.origin ?? [0, 0, 0],
     elements,
     storeys,
+    ...(mapConversion ? { mapConversion } : {}),
     voids,
     fills,
     openings,

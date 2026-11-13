@@ -21,7 +21,10 @@ import { sanitizeView } from '../views/model';
 import type { SavedView } from '../views/model';
 import { specToMarkups } from './annot';
 import { layoutSheetMarkup } from './layout';
-import { docIdOf, parseSheetId, sha256Hex, sheetIdOf, sheetName, sheetUnit, userToDisplay } from './model';
+import { boxOf, docIdOf, parseSheetId, sha256Hex, sheetIdOf, sheetName, sheetUnit, userToDisplay } from './model';
+import { readGeoPage } from './geoPdf';
+import { PlaceService } from './placeService';
+import { placementStatus } from './placement';
 import type { Sheet, SheetDoc } from './model';
 import type { PdfSession } from './pdfSession';
 import { SheetStore } from './store';
@@ -56,10 +59,27 @@ function download(name: string, bytes: Uint8Array, type: string): void {
   setTimeout(() => URL.revokeObjectURL(a.href), 2000);
 }
 
+/** The status words of a placed sheet. */
+function placementWords(sh: Sheet): string {
+  return placementStatus(sh.placement);
+}
+
 const slug = (s: string): string => s.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^\w.-]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 60) || 'sheet';
 
 export class SheetsController {
   readonly store: SheetStore;
+  /** Placement of sheets in the model: levels, plan cut, geo, attachment (placeService.ts). */
+  readonly place: PlaceService;
+  /** Sheets shown in 3D as a textured quad (session), and the opacity of all of them. */
+  readonly shown3d = new Set<string>();
+  quadOpacity = 0.6;
+  /** Model overlay on the sheet: per sheet on or off, and the opacity of the lines. */
+  readonly overlayOn = new Set<string>();
+  overlayOpacity = 0.7;
+  /** The sheet that is being placed (the placement view is up), or null. */
+  placeId: string | null = null;
+  /** Set by the plugin: show the placement view for a sheet / hide it. */
+  showPlace: ((sheetId: string | null) => void) | null = null;
   /** The sheet that is open in the viewer, or null (the 3D view is showing). */
   openId: string | null = null;
   status = 'No sheets yet';
@@ -76,6 +96,7 @@ export class SheetsController {
 
   constructor(readonly app: ViewerApp, readonly markup: MarkupController, readonly bcf: BcfController | null, private readonly loader: SheetPdfLoader = () => import('./pdfSession').then((m) => m.session()), store?: SheetStore) {
     this.store = store ?? new SheetStore();
+    this.place = new PlaceService(this);
     markup.openPdfSheets = (file, bytes) => this.openBytes(bytes, (file as File).name ?? '').then((r) => this.asImportReport(r));
     markup.sheetRestore = (set) => this.openSet(set);
     markup.onChange(() => this.scheduleSave());
@@ -213,6 +234,14 @@ export class SheetsController {
         id: sheetIdOf(docId, p.page), docId, page: p.page, name: sheetName(doc.name, p.page, infos.length),
         widthPt: p.widthPt, heightPt: p.heightPt, rotation: p.rotation, box: p.box,
       }));
+      // Geo-referencing (ISO 32000 /VP, OGC LGIDict): kept with the sheet, so placing it needs no PDF library later.
+      try {
+        const geo = await s.read.readGeoPages(s.libs.pdfLib, bytes);
+        sheets.forEach((sh, i) => {
+          const r = readGeoPage(geo[i] ?? null, boxOf(sh));
+          if (r.info) sh.geo = r.info;
+        });
+      } catch { /* no geo data is fine */ }
       this.proxies.set(docId, Promise.resolve(pdf));
       const persisted = await this.store.putBytes(sha, bytes);
       if (!persisted && !this.store.persistent) rep.warnings.push('This browser does not keep files between visits; the PDF stays for this session only.');
@@ -232,8 +261,9 @@ export class SheetsController {
       rep.ok = true;
       rep.docId = docId;
       rep.pages = infos.length;
+      const geoPlaced = this.place.autoPlaceAll();
       this.adoptViewpoints();
-      this.setStatus(`${doc.name} opened: ${infos.length} sheet${infos.length === 1 ? '' : 's'}${rep.own || rep.foreign ? `, ${rep.own} markup${rep.own === 1 ? '' : 's'} of ours and ${rep.foreign} from others` : ''}`);
+      this.setStatus(`${doc.name} opened: ${infos.length} sheet${infos.length === 1 ? '' : 's'}${rep.own || rep.foreign ? `, ${rep.own} markup${rep.own === 1 ? '' : 's'} of ours and ${rep.foreign} from others` : ''}${geoPlaced ? `. ${geoPlaced} sheet${geoPlaced === 1 ? '' : 's'} placed in the model from the geo-referencing of the PDF` : ''}`);
       this.scheduleSave();
       return rep;
     } catch (e) {
@@ -386,6 +416,9 @@ export class SheetsController {
     for (const sh of sheets) {
       for (const set of this.sketchesOn(sh.id)) this.markup.deleteSet(set.id);
       if (this.openId === sh.id) this.close();
+      this.shown3d.delete(sh.id);
+      this.overlayOn.delete(sh.id);
+      if (this.placeId === sh.id) this.closePlace();
     }
     this.proxies.get(docId)?.then((p) => p.destroy()).catch(() => undefined);
     this.proxies.delete(docId);
@@ -428,6 +461,60 @@ export class SheetsController {
   onModel(): void {
     // Sheets belong to the model they were opened on: the viewer closes when the model changes; other models' sheets are hidden.
     if (this.openId) this.close();
+    if (this.placeId) this.closePlace();
+    this.shown3d.clear();
+    this.overlayOn.clear();
+    this.place.geoNotes.clear();
+    this.place.autoPlaceAll();
+    this.emit();
+  }
+
+  // ---------------------------------------------------------------- placement, 3D, overlay
+
+  /** A sheet was placed, placed anew or lost its placement: save, redraw, tell the panel. */
+  placementChanged(sheet: Sheet): void {
+    this.scheduleSave();
+    this.markup.emit(true);
+    this.setStatus(sheet.placement ? `${sheet.name}: ${placementWords(sheet)}` : `${sheet.name}: placement removed`);
+  }
+
+  /** A shape or text was drawn or moved on the sheet: attach it to the model elements under it (placed sheets only). */
+  attachNew(set: MarkupSet, m: Markup): void {
+    if (this.place.attachMarkup(set, m)) this.markup.emit(true);
+  }
+
+  openPlace(sheetId: string): boolean {
+    if (!this.store.sheet(sheetId) || !this.place.loaded) return false;
+    this.placeId = sheetId;
+    this.app.renderPaused = true;
+    this.showPlace?.(sheetId);
+    this.emit();
+    return true;
+  }
+  closePlace(): void {
+    if (this.placeId === null) return;
+    this.placeId = null;
+    if (this.openId === null) { this.app.renderPaused = false; this.app.renderer.markDirty(); }
+    this.showPlace?.(null);
+    this.emit();
+  }
+
+  /** Opacity of every sheet quad in 3D (the quads follow without the panel being rebuilt). */
+  setQuadOpacity(v: number): void {
+    this.quadOpacity = Math.max(0.05, Math.min(1, v));
+    this.quadOpacityChanged?.();
+  }
+  /** Set by the 3D scene: redraw the quads. */
+  quadOpacityChanged: (() => void) | null = null;
+
+  setShow3d(sheetId: string, on: boolean): void {
+    if (on && this.store.sheet(sheetId)?.placement) this.shown3d.add(sheetId);
+    else this.shown3d.delete(sheetId);
+    this.emit();
+  }
+  setOverlay(sheetId: string, on: boolean): void {
+    if (on && this.store.sheet(sheetId)?.placement) this.overlayOn.add(sheetId);
+    else this.overlayOn.delete(sheetId);
     this.emit();
   }
 
@@ -468,7 +555,7 @@ export class SheetsController {
 
   async save(): Promise<void> {
     const sets = this.sheetSets();
-    const sig = JSON.stringify([sets, this.store.docs.length, this.store.sheets.length]);
+    const sig = JSON.stringify([sets, this.store.docs.length, this.store.sheets.length, this.store.sheets.map((x) => [x.placement, x.geo])]);
     if (sig === this.lastSaved) return;
     this.lastSaved = sig;
     await this.store.saveMeta(sets);
@@ -543,7 +630,10 @@ export class SheetsController {
     if (!bytes) throw new Error(`The bytes of ${doc.name} are not stored. Open the PDF again.`);
     const region = this.snapshotRegion(set, sheet);
     const png = await this.snapshot(set, sheet, region);
-    const ref: BcfViewpointRef = { guid: newGuid(), data: null, snapshot: png, snapshotMime: 'image/png', sheet: this.sheetRef(set, sheet, doc, region), sketchId: set.id };
+    const guid = newGuid();
+    // A placed sheet with a sketch attached to the model gets a real 3D viewpoint too: the target elements as components and a camera that frames them.
+    const vp = this.place.viewpointFor(set);
+    const ref: BcfViewpointRef = { guid, data: vp ? { ...vp, guid } : null, snapshot: png, snapshotMime: 'image/png', sheet: this.sheetRef(set, sheet, doc, region), sketchId: set.id };
     const author = this.who;
     const topic: BcfTopic = o.topic
       ? bcf.addSheetViewpoint(o.topic, ref, { filename: doc.name, data: bytes, sha256: doc.sha256 })
@@ -572,6 +662,9 @@ export class SheetsController {
           v.snapshotMime = 'image/png';
         } catch { /* the earlier snapshot stays */ }
         v.sheet = this.sheetRef(set, sheet, doc, region);
+        const vp = this.place.viewpointFor(set);
+        if (vp) v.data = { ...vp, guid: v.data?.guid ?? v.guid };
+        else if (v.data && !sheet.placement) v.data = null;
         this.bcf.touch(t);
       }
     }

@@ -3,6 +3,8 @@
 // No web-ifc and no three.js imports, so the worker bundle stays small and tests need no WASM.
 // Reference: tools/ifc2glb.py (SKIP_CLASSES, CLASS_COLORS, is_marker, smooth_mesh).
 
+import type { MapConversion } from '../types';
+
 /** One physical element, geometry in the IFC frame (Z up, metres). */
 export interface RawElement {
   expressId: number;
@@ -27,6 +29,8 @@ export interface RawElement {
 
 export interface RawStorey {
   expressId: number;
+  /** GlobalId of the IfcBuildingStorey. */
+  globalId?: string;
   name: string;
   /** metres */
   elevation: number;
@@ -41,6 +45,8 @@ export interface RawModel {
   origin?: [number, number, number];
   elements: RawElement[];
   storeys: RawStorey[];
+  /** IfcMapConversion and its IfcProjectedCRS, in metres (src/model/ifcMap.ts). */
+  mapConversion?: MapConversion;
   /** [hostExpressId, openingExpressId] */
   voids: Array<[number, number]>;
   /** [openingExpressId, fillerExpressId] */

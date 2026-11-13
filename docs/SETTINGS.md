@@ -67,6 +67,11 @@ Switch the tooltips off with `window.__xrayHelp.disable()` or `localStorage["xra
 - [Sheet view/Sketch](#sheet-viewsketch)
 - [Sheet view/Draw](#sheet-viewdraw)
 - [Sheet view/Drawing toolbar](#sheet-viewdrawing-toolbar)
+- [Sheet view/Place in model](#sheet-viewplace-in-model)
+- [Sheet view/Model overlay](#sheet-viewmodel-overlay)
+- [Sheet view/Overlay opacity](#sheet-viewoverlay-opacity)
+- [Place in model](#place-in-model)
+- [Sheets/3D opacity](#sheets3d-opacity)
 - [Issues panel/View switch](#issues-panelview-switch)
 - [Drawing toolbar/View switch](#drawing-toolbarview-switch)
 - [Status bar/Open issues](#status-baropen-issues)
@@ -771,6 +776,36 @@ Impact follows the same sentence rules and adds these:
 | Setting | Intent | Impact | Use | Ref |
 | --- | --- | --- | --- | --- |
 | *Folder: Sheet view/Drawing toolbar* | The bar holds the tools, the colours and the line weights for the page. It has no tool that needs the 3D model. | Mark the page with clouds, arrows and text. The bar goes away when you press Done. | Pick a tool. Drag on the page. Press Done to finish. | Report: Appendix J, Coordination tools |
+
+## Sheet view/Place in model
+
+| Setting | Intent | Impact | Use | Ref |
+| --- | --- | --- | --- | --- |
+| *Folder: Sheet view/Place in model* | The button opens a view with the sheet on the left and the plan of a storey on the right. You pick 2 points on the sheet and the same 2 in the model. | The drawing gets its spot in the building. Your marks then stick to the walls under them. | Click the button. Choose the storey. Click point A on the sheet, then A in the model, then B and B. Click Accept. | Report: Appendix J, Coordination tools |
+
+## Sheet view/Model overlay
+
+| Setting | Intent | Impact | Use | Ref |
+| --- | --- | --- | --- | --- |
+| *Folder: Sheet view/Model overlay* | The toggle draws the model as thin lines over the sheet. The lines are the plan cut about 1.2 m above the storey. | You see the walls of the building on top of the drawing. If they match the drawing, the fit is right. | Click the toggle. Move the slider to fade the lines. A misfit number shows when you pick 3 or more points. | Report: Appendix J, Coordination tools |
+
+## Sheet view/Overlay opacity
+
+| Setting | Intent | Impact | Use | Ref |
+| --- | --- | --- | --- | --- |
+| *Folder: Sheet view/Overlay opacity* | The slider sets how strong the model lines look over the sheet. | Slide left and the lines fade, so the drawing shows through. Slide right and they get stronger. | Move the slider. | Report: Appendix J, Coordination tools |
+
+## Place in model
+
+| Setting | Intent | Impact | Use | Ref |
+| --- | --- | --- | --- | --- |
+| *Folder: Place in model* | The view fits a sheet to the model. The left side shows the sheet. The right side shows the plan of the chosen storey. A phone shows the 2 sides in turn. | The fit shows at once as the building lines over the drawing. Accept keeps it. Redo starts the points again. Cancel changes nothing. | Choose the storey. Click point A on the sheet and the same point in the model, then B. A third point gives a better fit. Or type the drawing scale and give the rotation. | Report: Appendix J, Coordination tools |
+
+## Sheets/3D opacity
+
+| Setting | Intent | Impact | Use | Ref |
+| --- | --- | --- | --- | --- |
+| *Folder: Sheets/3D opacity* | The slider sets how see-through the placed sheets look in the 3D view. | Slide left and the drawing fades, so the building shows through. Slide right and the drawing gets stronger. | Move the slider after you turn on Show in 3D for a sheet. | Report: Appendix J, Coordination tools |
 
 ## Issues panel/View switch
 

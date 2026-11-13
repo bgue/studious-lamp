@@ -431,6 +431,36 @@ export const FOLDER_HELP: Record<string, HelpEntry> = {
     'Pick a tool. Drag on the page. Press Done to finish.',
     'Report: Appendix J, Coordination tools',
   ),
+  'Sheet view/Place in model': h(
+    'The button opens a view with the sheet on the left and the plan of a storey on the right. You pick 2 points on the sheet and the same 2 in the model.',
+    'The drawing gets its spot in the building. Your marks then stick to the walls under them.',
+    'Click the button. Choose the storey. Click point A on the sheet, then A in the model, then B and B. Click Accept.',
+    'Report: Appendix J, Coordination tools',
+  ),
+  'Sheet view/Model overlay': h(
+    'The toggle draws the model as thin lines over the sheet. The lines are the plan cut about 1.2 m above the storey.',
+    'You see the walls of the building on top of the drawing. If they match the drawing, the fit is right.',
+    'Click the toggle. Move the slider to fade the lines. A misfit number shows when you pick 3 or more points.',
+    'Report: Appendix J, Coordination tools',
+  ),
+  'Sheet view/Overlay opacity': h(
+    'The slider sets how strong the model lines look over the sheet.',
+    'Slide left and the lines fade, so the drawing shows through. Slide right and they get stronger.',
+    'Move the slider.',
+    'Report: Appendix J, Coordination tools',
+  ),
+  'Place in model': h(
+    'The view fits a sheet to the model. The left side shows the sheet. The right side shows the plan of the chosen storey. A phone shows the 2 sides in turn.',
+    'The fit shows at once as the building lines over the drawing. Accept keeps it. Redo starts the points again. Cancel changes nothing.',
+    'Choose the storey. Click point A on the sheet and the same point in the model, then B. A third point gives a better fit. Or type the drawing scale and give the rotation.',
+    'Report: Appendix J, Coordination tools',
+  ),
+  'Sheets/3D opacity': h(
+    'The slider sets how see-through the placed sheets look in the 3D view.',
+    'Slide left and the drawing fades, so the building shows through. Slide right and the drawing gets stronger.',
+    'Move the slider after you turn on Show in 3D for a sheet.',
+    'Report: Appendix J, Coordination tools',
+  ),
   'Issues panel/View switch': h(
     'The control shows a sketch in 3D, in plan or in section. It appears when a drawing sits on a part of the model.',
     'Click Plan and the picture turns to a cut from above. Click Section for a cut from the side. Click 3D to go back.',

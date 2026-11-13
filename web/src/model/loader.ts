@@ -3,7 +3,7 @@
 import { Box3, Color, Matrix4, SRGBColorSpace, Vector3 } from 'three';
 import type { BufferGeometry, Material, Mesh, Object3D } from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
-import type { ClassStyles, ElementRecord, Relations, SceneModel, StoreyRecord } from '../types';
+import type { ClassStyles, ElementRecord, MapConversion, Relations, SceneModel, StoreyRecord } from '../types';
 import { MergedGeometry } from './merged';
 import { sanitizeProps } from './ifcProps';
 import type { MeshPart } from './merged';
@@ -21,6 +21,7 @@ interface SidecarJson {
   schema?: string;
   originShift?: [number, number, number];
   storeys?: StoreyRecord[];
+  mapConversion?: MapConversion;
   elements?: Array<Partial<ElementRecord> & { id?: number }>;
   relations?: Partial<Relations>;
   /** Class styles baked in by `ifc2glb.py --config` (passed through untouched; see src/styles.ts). */
@@ -188,6 +189,8 @@ export async function parseModel(glb: ArrayBuffer, sidecar?: unknown): Promise<L
     relations,
     byGlobalId,
   };
+  const mc = cleanMapConversion(side?.mapConversion);
+  if (mc) model.mapConversion = mc;
   if (side?.styles) model.styles = side.styles;
   if (side?.materialAliases) model.materialAliases = side.materialAliases;
   return { model, geometry };
@@ -239,7 +242,7 @@ export function reconcileBounds(elements: ElementRecord[], geometry: MergedGeome
 
 /** A LoadedModel from a sidecar head (everything but the elements), the normalised elements and the merged geometry. */
 export function assembleLoaded(
-  head: { originShift?: [number, number, number]; storeys?: StoreyRecord[]; relations?: Partial<Relations> },
+  head: { originShift?: [number, number, number]; storeys?: StoreyRecord[]; mapConversion?: MapConversion; relations?: Partial<Relations> },
   elements: ElementRecord[], geometry: MergedGeometry,
 ): LoadedModel {
   reconcileBounds(elements, geometry, true);
@@ -254,7 +257,21 @@ export function assembleLoaded(
     relations: normaliseRelations(head.relations),
     byGlobalId,
   };
+  const mc = cleanMapConversion(head.mapConversion);
+  if (mc) model.mapConversion = mc;
   return { model, geometry };
+}
+
+/** A sidecar's map conversion, or undefined when it is not all numbers. */
+function cleanMapConversion(m: unknown): MapConversion | undefined {
+  const r = m as Partial<MapConversion> | undefined;
+  if (!r || typeof r !== 'object') return undefined;
+  const ok = [r.eastings, r.northings, r.height, r.xAxisAbscissa, r.xAxisOrdinate, r.scale].every((v) => typeof v === 'number' && Number.isFinite(v)) && (r.scale as number) > 0;
+  if (!ok) return undefined;
+  const crs: MapConversion['crs'] = {};
+  if (typeof r.crs?.epsg === 'number') crs.epsg = r.crs.epsg;
+  if (typeof r.crs?.name === 'string') crs.name = r.crs.name.slice(0, 200);
+  return { eastings: r.eastings!, northings: r.northings!, height: r.height!, xAxisAbscissa: r.xAxisAbscissa!, xAxisOrdinate: r.xAxisOrdinate!, scale: r.scale!, crs };
 }
 
 function validBounds(b: ElementRecord['bounds']): boolean {

@@ -6,8 +6,10 @@ import { button, row } from '../tools/ui';
 import { KIND_LABEL } from '../markup/model';
 import type { MarkupSet } from '../markup/model';
 import type { IssuesController } from '../issues/controller';
+import { buildViewSwitch } from '../issues/viewSwitchUi';
 import type { SheetsController } from './controller';
 import type { Sheet, SheetDoc } from './model';
+import { isPlan, placementStatus } from './placement';
 
 const STYLE_ID = 'sheets-pane-styles';
 const CSS = `
@@ -25,6 +27,16 @@ const CSS = `
 .sh-sketch.active { background: var(--is-sel, #1f4a7a); }
 .sh-sketch-h { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .sh-sketch-h .is-t { flex: 1 1 100px; }
+.sh-place { display: flex; flex-direction: column; gap: 4px; border: 1px solid var(--is-line, #262d3a); border-radius: 4px; padding: 5px 6px; }
+.sh-place.placed { border-color: #3b6c9c; }
+.sh-place-h { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
+.sh-place-h .is-t { flex: 1 1 100px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sh-status { font-weight: 700; }
+.sh-status.placed { color: #7dd87d; }
+.sh-status.not { color: var(--is-dim, #8d99a8); }
+.sh-geo-note { color: #ffd27a; font-size: 11px; }
+.sh-place select, .sh-opac input { max-width: 100%; min-width: 0; }
+.sh-opac { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 11px; color: var(--is-dim, #8d99a8); }
 .sh-notes { display: flex; flex-direction: column; gap: 2px; color: var(--is-dim, #8d99a8); font-size: 11px; }
 `;
 
@@ -87,6 +99,7 @@ export function sheetsPane(c: SheetsController, issues: IssuesController, pick: 
     else arm(del, 'Delete', () => { issues.removeSketch(set.id, true); });
     btns.push(del);
     box.appendChild(row(...btns));
+    if (!set.readonly && issues.views.tied(set)) box.appendChild(buildViewSwitch({ mode: () => issues.views.mode(set), apply: (m) => { if (!issues.views.apply(set.id, m)) c.setStatus('The 3D, Plan and Section views need the model this sketch is attached to'); } }, { labelled: true, helpKey: 'Issues panel/View switch' }));
     if (issues.confirmRemove === set.id && ref) {
       const conf = el('div', 'is-confirm', { 'data-confirm-remove': set.id, role: 'alertdialog' });
       conf.appendChild(el('div', undefined, undefined, `"${set.title}" is a viewpoint of the issue "${ref.topic.title}". Remove it?`));
@@ -103,6 +116,40 @@ export function sheetsPane(c: SheetsController, issues: IssuesController, pick: 
       box.appendChild(notes);
     }
     void sheet;
+    return box;
+  }
+
+  /** The placement row of a sheet: status, level, and the actions. */
+  function placeRow(sh: Sheet, d: SheetDoc): HTMLElement {
+    const p = sh.placement;
+    const box = el('div', `sh-place${p ? ' placed' : ''}`, { 'data-sheet-place': sh.id });
+    const h = el('div', 'sh-place-h');
+    h.appendChild(el('span', 'is-t', { title: sh.name }, d.pageCount > 1 ? `Page ${sh.page}` : sh.name));
+    h.appendChild(el('span', `sh-status ${p ? 'placed' : 'not'}`, { 'data-placement-status': sh.id }, placementStatus(p)));
+    if (p) h.appendChild(el('span', 'is-meta', undefined, p.level.name ?? `${p.level.elevation} m`));
+    box.appendChild(h);
+    const loaded = c.place.loaded;
+    const btns: HTMLElement[] = [];
+    btns.push(act(button(p ? 'Place again…' : 'Place in model…', () => { c.openPlace(sh.id); phoneClose(); }, { primary: !p, title: loaded ? 'Pick two points on the sheet and the same two in the model, or use the drawing scale. A geo-referenced PDF is placed by itself when the model has the same coordinate system.' : 'Open a model first' }), 'place'));
+    if (p) {
+      const on3 = c.shown3d.has(sh.id);
+      const b3 = act(button('Show in 3D', () => c.setShow3d(sh.id, !on3), { title: 'The sheet as a textured quad at its level in the 3D view, with its sketches drawn on it' }), 'show3d');
+      b3.setAttribute('aria-pressed', String(on3));
+      btns.push(b3);
+      if (isPlan(p)) {
+        const onO = c.overlayOn.has(sh.id);
+        const bo = act(button('Model overlay', () => { c.setOverlay(sh.id, !onO); if (!onO) { c.open(sh.id); phoneClose(); } }, { title: 'Draw the model as thin outlines over the sheet (the plan cut about 1.2 m above the level)' }), 'overlay');
+        bo.setAttribute('aria-pressed', String(onO));
+        btns.push(bo);
+      }
+      const rm = act(button('Remove placement', () => undefined, { title: 'Take the sheet out of the model. Its sketches stay on the sheet and lose their attachment to the model.' }), 'remove-placement');
+      arm(rm, 'Remove placement', () => c.place.remove(sh.id));
+      btns.push(rm);
+    }
+    box.appendChild(row(...btns));
+    const note = !p ? c.place.geoNotes.get(sh.id) : undefined;
+    if (note) box.appendChild(el('div', 'sh-geo-note', { 'data-geo-note': sh.id }, note));
+    else if (!p && sh.geo) box.appendChild(el('div', 'sh-geo-note', { 'data-geo-note': sh.id }, `Found: ${sh.geo.summary}.`));
     return box;
   }
 
@@ -128,10 +175,12 @@ export function sheetsPane(c: SheetsController, issues: IssuesController, pick: 
       else card.appendChild(el('div', 'sh-nothumb', undefined, 'no picture'));
       card.appendChild(el('div', 'is-t', undefined, d.pageCount > 1 ? `Page ${sh.page}` : sh.name));
       card.appendChild(el('div', 'is-meta', undefined, n ? count(n, 'sketch', 'sketches') : `${Math.round(sh.widthPt)} x ${Math.round(sh.heightPt)} pt`));
+      card.appendChild(el('div', `is-meta sh-status ${sh.placement ? 'placed' : 'not'}`, undefined, placementStatus(sh.placement)));
       card.addEventListener('click', () => { c.open(sh.id); phoneClose(); });
       grid.appendChild(card);
     }
     box.appendChild(grid);
+    for (const sh of sheets) if (d.pageCount <= 6 || sh.placement || c.openId === sh.id) box.appendChild(placeRow(sh, d));
     for (const sh of sheets) {
       const sets = c.sketchesOn(sh.id).filter((s) => c.markup.inScope(s));
       if (!sets.length) continue;
@@ -151,6 +200,13 @@ export function sheetsPane(c: SheetsController, issues: IssuesController, pick: 
         act(button('Open PDF', pick, { primary: true, title: 'Open a PDF drawing as sheets, one per page. You can also drop it on the page. It does not replace the model.' }), 'open-pdf'),
       ));
       const { here, other } = c.docs();
+      if (here.some((d) => c.sheetsOf(d.id).some((x) => x.placement))) {
+        const o = el('label', 'sh-opac', { 'data-help-key': 'Sheets/3D opacity' }, 'Sheets in 3D, opacity');
+        const r = el('input', '', { type: 'range', min: '10', max: '100', step: '5', value: String(Math.round(c.quadOpacity * 100)), 'data-act': 'quad-opacity', 'aria-label': '3D sheet opacity' }) as HTMLInputElement;
+        r.addEventListener('input', () => c.setQuadOpacity(Number(r.value) / 100));
+        o.appendChild(r);
+        out.push(o);
+      }
       if (!here.length) out.push(el('div', 'is-empty', undefined, 'No sheets yet. Open a PDF drawing to view it, sketch on it and raise issues from it.'));
       for (const d of here) out.push(docBlock(d));
       const orphans = c.orphans().filter((s) => c.markup.inScope(s));

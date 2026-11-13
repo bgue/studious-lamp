@@ -5,6 +5,7 @@
 
 import type { MarkupSet } from '../markup/model';
 import type { Sheet, SheetDoc } from './model';
+import { sanitizePlacement } from './placement';
 
 export const DB_NAME = 'xray-sheets';
 const DB_VERSION = 1;
@@ -114,7 +115,11 @@ export class SheetStore {
       const meta = await this.backend.getMeta().catch(() => null);
       if (meta) {
         this.docs = meta.docs;
-        this.sheets = meta.sheets;
+        this.sheets = meta.sheets.map((sh) => {
+          const { placement, ...rest } = sh;
+          const p = sanitizePlacement(placement);
+          return p ? { ...rest, placement: p } : rest;
+        });
         this.thumbs = new Map(Object.entries(meta.thumbs ?? {}));
       }
       return meta;

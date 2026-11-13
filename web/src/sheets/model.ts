@@ -7,9 +7,11 @@
 //
 // A sheet sketch is a MarkupSet whose `frame` is `{ kind: 'sheet', sheet: <sheet id> }`. Its shapes are PDF user-space points
 // of the page (x right, y up, origin and units of the page's default user space, before /Rotate). The displayed page is turned by
-// `rotation`; `userToDisplay` / `displayToUser` convert. Stage 2 (registering a sheet to the model) adds `placement` to Sheet.
+// `rotation`; `userToDisplay` / `displayToUser` convert. A placed sheet (placement.ts) also maps its points into the model.
 
 import type { ModelIdentity } from '../markup/model';
+import type { GeoPdfInfo } from './geoPdf';
+import type { SheetPlacement } from './placement';
 
 export type Rotation = 0 | 90 | 180 | 270;
 
@@ -40,8 +42,10 @@ export interface Sheet {
   rotation: Rotation;
   /** The visible box in user space. Absent: [0, 0, w, h] of the unrotated page. */
   box?: PageBox;
-  /** Stage 2: how the sheet sits in the model. Not used yet. */
-  placement?: undefined;
+  /** Where the sheet sits in the model (placement.ts). Absent: not placed, the sheet works as a plain drawing. Saved with the sheet in IndexedDB, never in a URL, share link, saved view or preset. */
+  placement?: SheetPlacement;
+  /** What the PDF says about its place on the ground (geoPdf.ts), when it is geo-referenced. */
+  geo?: GeoPdfInfo;
 }
 
 export const DOC_PREFIX = 'doc-';

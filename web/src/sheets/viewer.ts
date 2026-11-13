@@ -21,6 +21,10 @@ import { layoutSheetMarkup, nextOffset } from './layout';
 import type { MarkupLayout } from '../markup/layout';
 import { displayToUser, userToDisplay } from './model';
 import type { Sheet } from './model';
+import { fitToChrome } from './chrome';
+import { drawCut, modelToPixels } from './overlayDraw';
+import { mm } from './placement';
+import { isPlan, placementStatus } from './placement';
 
 const STYLE_ID = 'sheet-view-styles';
 const CSS = `
@@ -41,6 +45,11 @@ const CSS = `
 #sheet-view .sv-stage.panning{cursor:grabbing}
 #sheet-view canvas{position:absolute;left:0;top:0;transform-origin:0 0;background:#fff;box-shadow:0 2px 14px rgba(0,0,0,.5);image-rendering:auto}
 #sheet-view canvas.sv-detail{box-shadow:none;display:none}
+#sheet-view canvas.sv-ovl{background:transparent;box-shadow:none;pointer-events:none}
+#sheet-view .sv-bar2{padding:3px 8px;font-size:12px}
+#sheet-view .sv-bar2 .sv-pstat{flex:1 1 140px;min-width:0;color:#9fc4ee;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#sheet-view .sv-opac{width:90px;min-width:60px}
+#sheet-view .sv-mis{color:#ffd27a;white-space:nowrap}
 #sheet-view svg.sv-marks{position:absolute;left:0;top:0;width:100%;height:100%;overflow:visible;pointer-events:none}
 #sheet-view .sv-msg{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);padding:8px 12px;border-radius:8px;background:rgba(20,24,32,.92);color:#eaf2ff;max-width:80%;text-align:center}
 #sheet-view .sv-info{position:absolute;left:8px;bottom:8px;max-width:min(420px,calc(100% - 16px));padding:6px 9px;border-radius:8px;background:rgba(20,24,32,.94);border:1px solid #3b6c9c;color:#eaf2ff;display:none}
@@ -50,8 +59,6 @@ const CSS = `
 @media (max-width:700px){#sheet-view .sv-bar{padding:4px 6px;gap:4px}#sheet-view .sv-sel{max-width:130px}}
 `;
 
-// What lies over the edges of the canvas (as in src/ui/overlay.ts): the sheet view sits clear of it.
-const EDGE_CHROME = ['#xray-toolbar', '#xray-toolbar-drawer', '#sidebar', '#dock', '#xray-overlay', '#xray-topbar'];
 const CLICK_SLOP = 5;
 const HIT_PX = 14;
 
@@ -80,6 +87,12 @@ export class SheetViewer {
   private readonly pageLbl: HTMLSpanElement;
   private readonly sketchSel: HTMLSelectElement;
   private readonly drawBtn: HTMLButtonElement;
+  private readonly ovl: HTMLCanvasElement;
+  private readonly pstat: HTMLSpanElement;
+  private readonly placeBtn: HTMLButtonElement;
+  private readonly ovlBtn: HTMLButtonElement;
+  private readonly opac: HTMLInputElement;
+  private readonly misfit: HTMLSpanElement;
   private readonly prevBtn: HTMLButtonElement;
   private readonly nextBtn: HTMLButtonElement;
   private bar: DrawToolbar | null = null;
@@ -104,6 +117,8 @@ export class SheetViewer {
   private hits = new Map<string, MarkupLayout['hit']>();
   /** Counts for the smoke test and scripts. */
   renders = { base: 0, detail: 0 };
+  /** How many element outlines the model overlay drew last (tests). */
+  overlayDrawn = 0;
 
   constructor(private readonly ctl: SheetsController, host: HTMLElement) {
     if (!document.getElementById(STYLE_ID)) {
@@ -142,9 +157,21 @@ export class SheetViewer {
       ctl.markup.setEditing(true);
     });
     bar.append(back, this.title, pager, fit, this.sketchSel, this.drawBtn);
+    // Second row: where the sheet is in the model, and the overlay of the model on it.
+    const bar2 = el('div', 'sv-bar sv-bar2', { 'data-sv': 'placebar' });
+    this.pstat = el('span', 'sv-pstat', { 'data-sv': 'placement' });
+    this.placeBtn = el('button', '', { type: 'button', 'data-act': 'place', title: 'Place this sheet in the model: pick two points on the sheet and the same two in the model', 'data-help-key': 'Sheet view/Place in model' }, 'Place in model…');
+    this.placeBtn.addEventListener('click', () => { if (this.sheet) ctl.openPlace(this.sheet.id); });
+    this.ovlBtn = el('button', '', { type: 'button', 'data-act': 'overlay', 'aria-pressed': 'false', title: 'Draw the model as thin outlines over the sheet: the plan cut about 1.2 m above the level, lined up through the placement', 'data-help-key': 'Sheet view/Model overlay' }, 'Model overlay');
+    this.ovlBtn.addEventListener('click', () => { if (this.sheet) ctl.setOverlay(this.sheet.id, !ctl.overlayOn.has(this.sheet.id)); });
+    this.opac = el('input', 'sv-opac', { type: 'range', min: '10', max: '100', step: '5', 'data-sv': 'opacity', 'aria-label': 'Overlay opacity', title: 'Opacity of the model overlay', 'data-help-key': 'Sheet view/Overlay opacity' }) as HTMLInputElement;
+    this.opac.addEventListener('input', () => { ctl.overlayOpacity = Number(this.opac.value) / 100; this.invalidate(); });
+    this.misfit = el('span', 'sv-mis', { 'data-sv': 'misfit', title: 'How far the points you picked are from where the fitted placement puts them (root mean square, millimetres of the model)' });
+    bar2.append(this.pstat, this.placeBtn, this.ovlBtn, this.opac, this.misfit);
     this.stage = el('div', 'sv-stage', { 'data-sv': 'stage' });
     this.base = el('canvas', 'sv-base', { 'data-sv': 'base' });
     this.detail = el('canvas', 'sv-detail', { 'data-sv': 'detail' });
+    this.ovl = el('canvas', 'sv-ovl', { 'data-sv': 'overlay' });
     this.svg = svgEl('svg', { class: 'sv-marks', 'data-sv': 'marks' }) as SVGSVGElement;
     this.layer = svgEl('g', {}) as SVGGElement;
     this.svg.appendChild(this.layer);
@@ -157,8 +184,8 @@ export class SheetViewer {
     zin.addEventListener('click', () => this.zoomAt(this.stage.clientWidth / 2, this.stage.clientHeight / 2, 1.5));
     zout.addEventListener('click', () => this.zoomAt(this.stage.clientWidth / 2, this.stage.clientHeight / 2, 1 / 1.5));
     zoom.append(zin, zout);
-    this.stage.append(this.base, this.detail, this.svg, zoom, this.msg, this.info);
-    root.append(bar, this.stage);
+    this.stage.append(this.base, this.detail, this.ovl, this.svg, zoom, this.msg, this.info);
+    root.append(bar, bar2, this.stage);
     host.appendChild(root);
     this.root = root;
     // The drawing toolbar is the markup one, in this viewer's own area.
@@ -180,6 +207,7 @@ export class SheetViewer {
     st.addEventListener('contextmenu', (e) => e.preventDefault());
     window.addEventListener('keydown', (e) => this.onKey(e), true);
     new ResizeObserver(() => { if (this.sheet) this.invalidate(); }).observe(st);
+    ctl.onChange(() => { if (this.sheet) this.invalidate(); });
     let lastTool: ToolId = ctl.markup.tool;
     let lastEditing = ctl.markup.editing;
     ctl.markup.onChange(() => {
@@ -555,7 +583,9 @@ export class SheetViewer {
     const m = newMarkup(info.kind, {
       author: c.author.trim() || 'unknown', colour: c.colour(tool), weight: c.weight, fill: c.fill, shape: { points: user, depth: 0 }, attach: { kind: 'none' },
     });
-    return c.add(m, set);
+    const added = c.add(m, set);
+    this.ctl.attachNew(set, added);
+    return added;
   }
 
   /** A click places a text box or a callout (anchored at the click, the box beside it). */
@@ -571,7 +601,9 @@ export class SheetViewer {
       author: c.author.trim() || 'unknown', colour: c.colour(tool), weight: c.weight, text: c.text,
       anchor: { kind: 'point', point: [Math.round(ux * 100) / 100, Math.round(uy * 100) / 100, 0] }, offset: nextOffset(n, info.kind),
     });
-    return c.add(m, set);
+    const added = c.add(m, set);
+    this.ctl.attachNew(set, added);
+    return added;
   }
 
   // ---------------------------------------------------------------- keys
@@ -673,7 +705,7 @@ export class SheetViewer {
       window.removeEventListener('pointercancel', up, true);
       const d = this.drag;
       this.drag = null;
-      if (d?.moved) c.emit();
+      if (d?.moved) { const f = c.markup(d.id); if (d.kind === 'shape' && f) this.ctl.attachNew(f.set, f.m); c.emit(); }
     };
     window.addEventListener('pointermove', move, true);
     window.addEventListener('pointerup', up, true);
@@ -698,27 +730,7 @@ export class SheetViewer {
 
   /** Keep the view clear of the edge chrome (the tool strip and drawer, the rails of a phone, the top and status bars). */
   private fitChrome(): void {
-    const host = this.root.offsetParent as HTMLElement | null;
-    if (!host) return;
-    const c = host.getBoundingClientRect();
-    const ins = { top: 0, right: 0, bottom: 0, left: 0 };
-    for (const sel of EDGE_CHROME) {
-      const e = document.querySelector(sel);
-      if (!(e instanceof HTMLElement) || e.hidden || e.getClientRects().length === 0 || e === this.root) continue;
-      const r = e.getBoundingClientRect();
-      if (!r.width || !r.height || r.right <= c.left || r.left >= c.right || r.bottom <= c.top || r.top >= c.bottom) continue;
-      if (r.height >= c.height * 0.6) {
-        if (r.left - c.left < c.right - r.right) ins.left = Math.max(ins.left, r.right - c.left);
-        else ins.right = Math.max(ins.right, c.right - r.left);
-      } else if (r.bottom >= c.bottom - 1) ins.bottom = Math.max(ins.bottom, c.bottom - r.top);
-      else if (r.top <= c.top + 1) ins.top = Math.max(ins.top, r.bottom - c.top);
-    }
-    const st = this.root.style;
-    const set = (k: 'left' | 'right' | 'top' | 'bottom', v: number): void => { const t = `${Math.round(v)}px`; if (st[k] !== t) st[k] = t; };
-    set('left', ins.left);
-    set('right', ins.right);
-    set('top', ins.top);
-    set('bottom', ins.bottom);
+    fitToChrome(this.root);
   }
 
   private draw(): void {
@@ -754,6 +766,7 @@ export class SheetViewer {
     this.drawBtn.setAttribute('aria-pressed', String(c.editing));
     this.drawBtn.textContent = c.editing ? 'Done' : 'Draw';
     this.stage.classList.toggle('drawing', this.drawingTool);
+    this.drawPlacement(sh);
     // Sketches.
     this.layer.textContent = '';
     this.hits.clear();
@@ -813,6 +826,44 @@ export class SheetViewer {
     this.bar?.update(show, ov, this.poly?.pts.length ?? 0, () => this.finishPoly());
   }
 
+  /** The placement row, the overlay toggle and the model overlay itself (vector outlines of the plan cut through the placement). */
+  private drawPlacement(sh: Sheet): void {
+    const c = this.ctl;
+    const p = sh.placement;
+    const placeable = c.place.loaded;
+    this.pstat.textContent = placementStatus(p) + (p ? ` · ${p.level.name ?? `level ${p.level.elevation} m`}` : '');
+    const geoNote = !p ? c.place.geoNotes.get(sh.id) : undefined;
+    this.pstat.title = geoNote ?? (p ? `${p.source}. Level at ${p.level.elevation} m.` : 'This sheet is a plain drawing: sketches on it stay on the sheet');
+    this.placeBtn.textContent = p ? 'Place again…' : 'Place in model…';
+    this.placeBtn.disabled = !placeable;
+    const plan = !!p && isPlan(p);
+    const on = plan && c.overlayOn.has(sh.id);
+    this.ovlBtn.hidden = !plan;
+    this.opac.hidden = !plan || !on;
+    this.ovlBtn.setAttribute('aria-pressed', String(on));
+    if (document.activeElement !== this.opac) this.opac.value = String(Math.round(c.overlayOpacity * 100));
+    this.misfit.hidden = !(plan && p!.residual !== undefined);
+    if (p?.residual !== undefined) this.misfit.textContent = `Misfit ±${mm(p.residual)} mm`;
+    // The overlay canvas covers the stage at the screen's pixel density.
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    const W = this.stage.clientWidth;
+    const H = this.stage.clientHeight;
+    if (this.ovl.width !== Math.round(W * dpr) || this.ovl.height !== Math.round(H * dpr)) {
+      this.ovl.width = Math.round(W * dpr);
+      this.ovl.height = Math.round(H * dpr);
+      this.ovl.style.width = `${W}px`;
+      this.ovl.style.height = `${H}px`;
+    }
+    const g = this.ovl.getContext('2d')!;
+    g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    g.clearRect(0, 0, W, H);
+    this.overlayDrawn = 0;
+    if (!on || !p) return;
+    const cut = c.place.cut(p.level.elevation);
+    const m = modelToPixels(p, (ux, uy) => this.toStage(ux, uy));
+    this.overlayDrawn = drawCut(g, cut, m, { color: '#d6336c', alpha: c.overlayOpacity, width: Math.max(1, Math.min(2, this.scale * 0.8)), view: [0, 0, W, H] });
+  }
+
   /** Author and contents of the selected markup (the annotations of a PDF show them here). */
   private updateInfo(): void {
     const c = this.ctl.markup;
@@ -834,10 +885,10 @@ export class SheetViewer {
 
   // ---------------------------------------------------------------- state for scripts and tests
 
-  state(): { open: boolean; sheet: string | null; scale: number; tx: number; ty: number; baseScale: number; detailScale: number; renders: { base: number; detail: number }; detailShown: boolean } {
+  state(): { open: boolean; sheet: string | null; scale: number; tx: number; ty: number; baseScale: number; detailScale: number; renders: { base: number; detail: number }; detailShown: boolean; overlayDrawn: number } {
     return {
       open: this.visible, sheet: this.sheet?.id ?? null, scale: this.scale, tx: this.tx, ty: this.ty, baseScale: this.baseScale,
-      detailScale: this.detailScale, renders: { ...this.renders }, detailShown: this.detail.style.display === 'block',
+      detailScale: this.detailScale, renders: { ...this.renders }, detailShown: this.detail.style.display === 'block', overlayDrawn: this.overlayDrawn,
     };
   }
 }

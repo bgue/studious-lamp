@@ -10,7 +10,7 @@ import { dirIfcToViewer } from '../bcf/model';
 import type { BcfTopic, BcfViewpointRef, Vec3 } from '../bcf/model';
 import type { Box6 } from '../bcf/plan';
 import { isPseudoOrtho, orthoDistance, placeCamera, setPseudoOrtho } from '../input/navigation';
-import { attachmentOf } from '../markup/model';
+import { attachmentOf, isSheetSet } from '../markup/model';
 import type { MarkupSet } from '../markup/model';
 import type { MarkupController } from '../markup/controller';
 import { storeyFloors } from '../xr/field';
@@ -38,6 +38,15 @@ export class DerivedViewSwitch {
   private ourVersion = -1;
   /** Set by the plugin: lets the BCF controller keep ownership of the planes it had set. */
   reclaimBcf: (() => void) | null = null;
+  /**
+   * Set by src/sheets for a sketch on a placed PDF sheet: where a markup is in the model (IFC frame), the camera that frames what the
+   * sketch is attached to (the 3D mode), and leaving the sheet view so that the 3D view shows.
+   */
+  sheet: {
+    anchor(set: MarkupSet, m: MarkupSet['markups'][number]): Vec3 | undefined;
+    framing(set: MarkupSet): { position: Vec3; target: Vec3; up: Vec3; fov: number } | null;
+    leave(): void;
+  } | null = null;
   private readonly listeners = new Set<() => void>();
 
   constructor(private readonly app: ViewerApp, private readonly markup: MarkupController) {}
@@ -50,6 +59,15 @@ export class DerivedViewSwitch {
   // ---------------------------------------------------------------- what a sketch is tied to
 
   private tiedOf(set: MarkupSet): TiedMarkup[] {
+    if (isSheetSet(set)) {
+      // A sheet sketch keeps PDF points in its shapes and anchors: the placement says where they are in the model.
+      return set.markups.map((m) => {
+        const p = this.sheet?.anchor(set, m);
+        const a = attachmentOf(m);
+        // A text on a sheet that is not placed is a point on the page, not in the model: nothing to tie.
+        return { id: m.id, attach: !p && a.kind === 'point' ? { kind: 'none' as const } : a, ...(p ? { anchorPoint: p } : {}) };
+      });
+    }
     return set.markups.map((m) => ({ id: m.id, attach: attachmentOf(m), ...(m.anchor ? { anchorPoint: m.anchor.point } : {}) }));
   }
 
@@ -142,6 +160,7 @@ export class DerivedViewSwitch {
     const set = this.markup.get(setId);
     const app = this.app;
     if (!set || !app.loaded) return false;
+    if (isSheetSet(set)) this.sheet?.leave();
     if (mode === '3d') return this.back(set);
     const view = this.derive(set, mode);
     if (!view) return false;
@@ -166,9 +185,17 @@ export class DerivedViewSwitch {
   /** 3D: the authored camera of the sketch and no clip planes of ours. */
   private back(set: MarkupSet): boolean {
     const app = this.app;
-    const cam = set.view.camera;
-    setPseudoOrtho(app, cam.ortho === true);
-    placeCamera(app, { position: cam.position, target: cam.target, up: cam.up, fov: cam.fov });
+    if (isSheetSet(set)) {
+      // No camera of its own: frame what the sketch is attached to.
+      const f = this.sheet?.framing(set);
+      if (!f) return false;
+      setPseudoOrtho(app, false);
+      placeCamera(app, { position: f.position, target: f.target, up: f.up, fov: f.fov });
+    } else {
+      const cam = set.view.camera;
+      setPseudoOrtho(app, cam.ortho === true);
+      placeCamera(app, { position: cam.position, target: cam.target, up: cam.up, fov: cam.fov });
+    }
     this.restore();
     this.active = null;
     this.markup.activeId = set.id;

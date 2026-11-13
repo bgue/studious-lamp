@@ -10,6 +10,22 @@ export interface StoreyRecord {
   id: number;
   name: string;
   elevation: number;
+  /** GlobalId of the IfcBuildingStorey, when the source gives one (IFC files read in the browser do). */
+  guid?: string;
+}
+
+/**
+ * IfcMapConversion with its IfcProjectedCRS, in metres: E + iN = (eastings + i northings) + scale (xAxisAbscissa + i xAxisOrdinate)
+ * (x + iy) for the project coordinates x, y. `scale` is metres on the map per metre in the model. See src/model/ifcMap.ts.
+ */
+export interface MapConversion {
+  eastings: number;
+  northings: number;
+  height: number;
+  xAxisAbscissa: number;
+  xAxisOrdinate: number;
+  scale: number;
+  crs: { epsg?: number; name?: string };
 }
 
 export interface ElementRecord {
@@ -54,6 +70,8 @@ export interface SceneModel {
   units: 'm';
   originShift: [number, number, number];
   storeys: StoreyRecord[];
+  /** Where the project coordinates sit in a projected CRS, when the IFC file says so. */
+  mapConversion?: MapConversion;
   elements: ElementRecord[];
   relations: Relations;
   byGlobalId: Map<string, ElementId>;

@@ -4,7 +4,7 @@
 // Z-up to Y-up, origin shift, storey assignment and fallback, hosts from voids and fills, ports, systems, federation and
 // GlobalId dedupe. ifcImport.ts re-exports everything here.
 
-import type { ElementRecord, Relations, StoreyRecord } from '../types';
+import type { ElementRecord, MapConversion, Relations, StoreyRecord } from '../types';
 import { computeEdges, EDGE_THRESHOLD_DEG } from './ifcEdges';
 import { classColor, isMarker, isSkippedClass, smoothMesh } from './ifcShared';
 import type { IfcProgress, RawElement, RawModel } from './ifcShared';
@@ -18,6 +18,8 @@ export interface Sidecar {
   units: 'm';
   originShift: [number, number, number];
   storeys: StoreyRecord[];
+  /** IfcMapConversion of the first file that has one (metres). */
+  mapConversion?: MapConversion;
   elements: ElementRecord[];
   relations: Relations;
 }
@@ -79,6 +81,7 @@ interface Prepared {
   report: BuildReport;
   files: string[];
   schemas: string[];
+  mapConversion?: MapConversion;
 }
 
 /** Steps shared by the glb path and the direct path: skip rules, welding fallback, dedupe, storeys, relations, origin shift. */
@@ -86,17 +89,17 @@ function prepare(raws: RawModel[]): Prepared {
   const report: BuildReport = { duplicatesSkipped: 0, renamed: 0, dropped: 0, storeyFallback: 0 };
 
   // ---- storeys of all files, merged by name and elevation within 1 cm, then sorted by elevation
-  interface MStorey { name: string; elevation: number }
+  interface MStorey { name: string; elevation: number; guid?: string }
   const merged: MStorey[] = [];
   const findStorey = (list: MStorey[], name: string, elev: number): number =>
     list.findIndex((s) => s.name === name && Math.abs(s.elevation - elev) <= 0.01);
   for (const raw of raws) {
     for (const s of raw.storeys) {
-      if (findStorey(merged, s.name, s.elevation) < 0) merged.push({ name: s.name, elevation: f4(s.elevation) });
+      if (findStorey(merged, s.name, s.elevation) < 0) merged.push({ name: s.name, elevation: f4(s.elevation), ...(s.globalId ? { guid: s.globalId } : {}) });
     }
   }
   const order = merged.map((_, i) => i).sort((a, b) => merged[a]!.elevation - merged[b]!.elevation || (merged[a]!.name < merged[b]!.name ? -1 : merged[a]!.name > merged[b]!.name ? 1 : 0));
-  const storeys: StoreyRecord[] = order.map((mi, i) => ({ id: i, name: merged[mi]!.name, elevation: merged[mi]!.elevation }));
+  const storeys: StoreyRecord[] = order.map((mi, i) => ({ id: i, name: merged[mi]!.name, elevation: merged[mi]!.elevation, ...(merged[mi]!.guid ? { guid: merged[mi]!.guid } : {}) }));
   const finalIndex = (name: string, elev: number): number => findStorey(storeys, name, elev);
 
   // ---- elements
@@ -228,6 +231,7 @@ function prepare(raws: RawModel[]): Prepared {
   return {
     items, storeys, shift, voids, fills, hosts, openingsRaw, ports, systems, report,
     files: raws.map((r) => r.fileName), schemas: [...new Set(raws.map((r) => r.schema))],
+    ...(raws.find((r) => r.mapConversion)?.mapConversion ? { mapConversion: raws.find((r) => r.mapConversion)!.mapConversion! } : {}),
   };
 }
 
@@ -293,6 +297,7 @@ function sidecarHead(pr: Prepared): Omit<Sidecar, 'elements'> {
     units: 'm',
     originShift: shift,
     storeys: pr.storeys,
+    ...(pr.mapConversion ? { mapConversion: pr.mapConversion } : {}),
     relations: {
       voids: pr.voids, fills: pr.fills, hosts: pr.hosts, ports: pr.ports,
       systems: [...pr.systems].map(([name, els]) => ({ name, elements: els })),
