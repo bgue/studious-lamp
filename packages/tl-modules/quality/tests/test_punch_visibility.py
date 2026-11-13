@@ -9,9 +9,12 @@ from tl_adapters.db import open_uow
 from tl_core import confidentiality as cf
 from tl_core.actions import Level
 from tl_core.auth.module_roles import normalise_word
+from tl_core.confidentiality import SUBJECT_LINKS
 from tl_core.services.errors import RecordNotFoundError
 from tl_mod_quality import api
 from tl_mod_quality.actions import RULES, punch_actions, states_for
+from tl_mod_quality.errors import PunchRuleError
+from tl_mod_quality.handlers.punch import MSG_SOURCE_LINKED, SOURCE_REFUSED
 from tl_mod_quality.module import PUNCH_COMMANDS, spec
 
 CLEARED = cf.Viewer(actor="user:dora", level=1, account="user:dora")
@@ -128,3 +131,48 @@ def test_the_actions_hook_offers_what_the_state_and_level_allow(world: World) ->
     assert offered({"user"}) == []
     world.call("sue", "VoidPunchItem", punch_item=item, reason="r")
     assert offered({"user", "controller"}) == []
+
+
+# --- the source rule (SR3): a punch item is never raised from a record that names a subject ---
+
+
+def _refused(world: World, who: str, source: str) -> None:
+    with pytest.raises(PunchRuleError) as caught:
+        world.call(who, "RaisePunchItem", subject="Leaky", from_record_id=source)
+    assert str(caught.value) == MSG_SOURCE_LINKED
+
+
+def test_a_punch_item_is_not_raised_from_a_constraint_on_a_hidden_record(world: World) -> None:
+    secret = world.hidden_record()
+    constraint = world.advisory(secret, who="dora")
+    before = world.count()
+    _refused(world, "dora", constraint)
+    assert world.count() == before
+
+
+def test_a_punch_item_is_not_raised_from_another_punch_item(world: World) -> None:
+    first = world.raise_item(from_record_id=world.record(IWP, "IWP-1"))
+    before = world.count()
+    _refused(world, "uma", first)
+    assert world.count() == before
+
+
+@pytest.mark.parametrize("record_type", ["requisitions.LaborRequisition", "requisitions.WorkOrder"])
+def test_a_punch_item_is_not_raised_from_a_requisition_or_work_order(
+    world: World, record_type: str
+) -> None:
+    _refused(world, "uma", world.record(record_type, "SRC-1"))
+
+
+def test_a_hidden_source_still_answers_as_a_missing_one(world: World) -> None:
+    secret = world.hidden_record()
+    with pytest.raises(RecordNotFoundError) as hidden:
+        world.call("uma", "RaisePunchItem", subject="X", from_record_id=secret)
+    with pytest.raises(RecordNotFoundError) as missing:
+        world.call("uma", "RaisePunchItem", subject="X", from_record_id="no-such-id")
+    assert str(hidden.value) == str(missing.value)
+
+
+def test_the_refused_source_types_derive_from_the_subject_links() -> None:
+    assert SOURCE_REFUSED == {"core.Constraint"} | {row[0] for row in SUBJECT_LINKS}
+    assert "quality.PunchItem" in SOURCE_REFUSED

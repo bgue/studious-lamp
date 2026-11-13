@@ -53,6 +53,8 @@ A punch item is hidden when its source record is hidden. The subject join is one
 (`tl_core.confidentiality`): `("quality.PunchItem", "cur_quality_punch_item", "id", "source_id")`, followed up to two hops.
 A hidden item looks like a missing one: reads and commands return the same text (`no punch item <key>`). Do not give punch
 items a class of their own; the source decides.
+Source rule: a punch item is raised only from a record that names no subject itself (not a `core.Constraint`, and no
+type in `SUBJECT_LINKS`, including another punch item), so a chain of subjects never passes the two-hop join.
 
 ## Record shape and Phase 3 compatibility
 `quality.PunchItem` (table `cur_quality_punch_item`; title is the subject, envelope description is the detail):
