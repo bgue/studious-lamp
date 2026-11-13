@@ -3,11 +3,15 @@
 //
 // Positions follow the BCF side file (src/bcf/sidecar.ts): 3D anchors are IFC project coordinates (metres, Z up) with an
 // optional element GlobalId and offset, so they follow elements and survive a re-conversion of the model; shapes are
-// points as fractions of the view of the set's camera on a plane `depth` metres along the view direction.
+// points as fractions of the view of the set's camera on a plane `depth` metres along the view direction. A shape also has
+// an `attach` (src/bcf/attach.ts): what it is bound to in 3D (elements, surface, measurement, penetration, region) or
+// `none` (view-locked); the fractions stay as the view-locked form.
 
 import { sanitizeView } from '../views/model';
 import type { SavedView } from '../views/model';
 import type { BcfAnchor, BcfMeasureLink, BcfShape, BcfSnapshotView, Vec3 } from '../bcf/model';
+import { attachGuids, attachmentOfAnchor, cleanAttachment } from '../bcf/attach';
+import type { Attachment } from '../bcf/attach';
 
 export type { Vec3 } from '../bcf/model';
 
@@ -83,6 +87,12 @@ export interface Markup {
   text: string;
   /** Shape kinds. */
   shape?: BcfShape;
+  /**
+   * Shape kinds: what the shape is attached to in 3D, or `{ kind: 'none' }` for view-locked. Absent in documents from before
+   * attachments (the viewer then tries to attach the shape when the document is opened). `shape` stays: it is the view-locked
+   * form, and what the 2D view and the PDF burn-in fall back on.
+   */
+  attach?: Attachment;
   /** Anchor kinds: 3D anchor in IFC coordinates, and the box offset (fractions of the view height). */
   anchor?: BcfAnchor;
   offset?: [number, number];
@@ -205,6 +215,7 @@ export function newMarkup(kind: MarkupKind, o: Partial<Markup> & { author: strin
     comments: o.comments ?? [],
   };
   if (o.shape) m.shape = o.shape;
+  if (o.attach) m.attach = o.attach;
   if (o.anchor) m.anchor = o.anchor;
   if (o.offset) m.offset = o.offset;
   if (o.assignee) m.assignee = o.assignee;
@@ -248,6 +259,7 @@ export function referencedGuids(s: MarkupSet): string[] {
   for (const m of s.markups) {
     if (m.anchor?.elementGuid) out.add(m.anchor.elementGuid);
     for (const g of m.anchor?.measurement?.elementGuids ?? []) out.add(g);
+    for (const g of attachGuids(m.attach)) out.add(g);
   }
   for (const g of s.view.selection) out.add(g);
   for (const g of s.view.hides?.ids ?? []) out.add(g);
@@ -258,6 +270,17 @@ export function referencedGuids(s: MarkupSet): string[] {
 /** The GlobalIds of a set that `has` rejects (each once). */
 export function unknownGuids(s: MarkupSet, has: (g: string) => boolean): string[] {
   return referencedGuids(s).filter((g) => !has(g));
+}
+
+/** The attachment of a markup: a shape's own (absent: view-locked), an anchor kind's anchor mapped 1:1. */
+export function attachmentOf(m: Markup): Attachment {
+  if (m.shape) return m.attach ?? { kind: 'none' };
+  return m.anchor ? attachmentOfAnchor(m.anchor) : { kind: 'none' };
+}
+
+/** A shape from a document made before attachments: it has no `attach` yet and wants a try at attaching on load. */
+export function needsAttach(m: Markup): boolean {
+  return !!m.shape && m.attach === undefined;
 }
 
 // ---------------------------------------------------------------- reading
@@ -332,6 +355,7 @@ export function sanitizeMarkup(raw: unknown, fallbackAuthor = 'unknown'): Markup
     const sh = cleanShape(raw['shape'], k);
     if (!sh) return `${k} without a usable shape`;
     m.shape = sh;
+    if (raw['attach'] !== undefined) m.attach = cleanAttachment(raw['attach']) ?? { kind: 'none' };
   } else {
     const a = cleanAnchor(raw['anchor']);
     if (!a) return `${k} without an anchor`;

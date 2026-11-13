@@ -4,12 +4,14 @@
 // they sit exactly where they were drawn, from another camera they stay on the model area they mark. Anchored kinds
 // (text, callout, pointer, measurement) reuse layoutAnnotation, the BCF callout layout. Pure: no DOM.
 
-import { boxSize, layoutAnnotation, shapeFraction, shapePointWorld, wrapText } from '../bcf/annotate';
+import { anchorPoint, boxSize, layoutAnnotation, shapeFraction, shapePointWorld, wrapText } from '../bcf/annotate';
 import type { DrawOp, LayoutContext } from '../bcf/annotate';
 import { dirIfcToViewer, ifcToViewer } from '../bcf/model';
 import type { BcfAnnotation, BcfSnapshotView, Vec3 } from '../bcf/model';
 import { freeSpot } from '../ui/reserved';
-import { arrowHead, bounds, cloudOutline, rectCorners } from './geometry';
+import { attachGuids, isSpatial, mostlyHidden, pickSamples, regionCorners, regionEdges } from '../bcf/attach';
+import type { Attachment, LockState, SurfaceData } from '../bcf/attach';
+import { arrowHead, bounds, cloudOutline, convexHull, rectCorners, scallopLine } from './geometry';
 import { COLOURS, KIND_LABEL, isAnchorKind, strokePx } from './model';
 import type { Markup } from './model';
 
@@ -75,6 +77,8 @@ export function ellipseInQuad(c: ReadonlyArray<readonly [number, number]>, n = 5
 
 export interface MarkupLayout {
   ops: DrawOp[];
+  /** An attached outline that is mostly hidden by other geometry from this camera: drawn dashed and faint. */
+  behind?: boolean;
   /** Pixel outline for hit testing (shapes), and whether it is closed and filled (a click inside counts). */
   hit?: { pts: number[]; closed: boolean; filled: boolean };
 }
@@ -83,6 +87,56 @@ export interface MarkupLayoutOptions {
   selected?: boolean;
   /** Draw faded (the camera is away from the view the markup was made in). */
   faded?: boolean;
+  /**
+   * The view-lock state of the set camera against the live camera (viewLockState): decides how a view-locked shape is drawn
+   * in 3D (full, faded, a pin, nothing). Absent: drawn at full strength, as the 2D view and the PDF do.
+   */
+  lock?: LockState;
+}
+
+/** World points (viewer frame) of a projected surface path: each follows its element (anchorPoint), IFC point as fallback. */
+export function surfaceWorld(s: SurfaceData, ctx: Pick<LayoutContext, 'shift' | 'element'>): Vec3[] {
+  return s.pts.map((sp) => anchorPoint({ point: sp.p, elementGuid: s.guids[sp.e], local: sp.l }, ctx).p);
+}
+
+/** GlobalIds of an attachment that the loaded model lacks (only checked when the context can look elements up). */
+export function missingGuids(a: Attachment, ctx: Pick<LayoutContext, 'element'>): string[] {
+  const el = ctx.element;
+  if (!el) return [];
+  return attachGuids(a).filter((g) => !el(g));
+}
+
+/** Pixels of the 3D path of an attached shape, or null when a point is behind the camera. */
+function projectWorld(pts: readonly Vec3[], ctx: LayoutContext): number[] | null {
+  const out: number[] = [];
+  for (const p of pts) {
+    const q = ctx.project(p);
+    if (!q.front) return null;
+    out.push(q.x, q.y);
+  }
+  return out;
+}
+
+const CLOSED_KINDS = ['rect', 'ellipse', 'cloud', 'polygon', 'highlightBox'];
+
+/** The pin a view-locked shape collapses to: at the centroid of the shape on its old depth plane. Null when behind the camera. */
+function lockPin(m: Markup, ctx: LayoutContext, s: number, alpha: number, selected: boolean): DrawOp[] {
+  const shape = m.shape;
+  const view = ctx.shapeView;
+  if (!shape || !view || alpha <= 0.01) return [];
+  let u0 = Infinity, v0 = Infinity, u1 = -Infinity, v1 = -Infinity;
+  for (const [u, v] of shape.points) { u0 = Math.min(u0, u); u1 = Math.max(u1, u); v0 = Math.min(v0, v); v1 = Math.max(v1, v); }
+  const q = ctx.project(shapePointWorld(view, ctx.shift, (u0 + u1) / 2, (v0 + v1) / 2, shape.depth));
+  if (!q.front) return [];
+  const hex = COLOURS[m.colour];
+  const label = String(m.number);
+  const r = 9 * s;
+  const key = `pin:${m.id}`;
+  return [
+    { op: 'poly', points: [q.x, q.y, q.x - r * 0.6, q.y - r * 1.5, q.x + r * 0.6, q.y - r * 1.5], fill: hex, stroke: '#ffffff', width: 1 * s, alpha, key, role: 'pin' },
+    { op: 'circle', x: q.x, y: q.y - r * 1.9, r, fill: hex, stroke: selected ? SELECT_COLOUR : '#ffffff', width: (selected ? 2.5 : 1.5) * s, alpha, key, role: 'pin' },
+    { op: 'text', x: q.x, y: q.y - r * 1.9 + (label.length > 2 ? 3 : 4) * s, text: label, size: (label.length > 2 ? 9 : 11) * s, fill: m.colour === 'yellow' ? INK : '#ffffff', align: 'middle', bold: true, alpha, key, role: 'pin' },
+  ];
 }
 
 /** The 2D box a label of a shape goes in: right of the number badge, above the top-left corner of the shape. */
@@ -147,68 +201,127 @@ export function layoutMarkupFull(m: Markup, ctx: LayoutContext, opts: MarkupLayo
 
   const shape = m.shape;
   if (!shape) return { ops: [] };
+  const att = m.attach;
+  const lock = opts.lock;
+  // Attached in 3D: the projected path or the region box, through the live camera. Detached (an element of it is missing from
+  // the model) it is shown view-locked instead of moving.
+  const spatial = !ctx.shapeDirect && isSpatial(att);
+  const missing = spatial ? missingGuids(att!, ctx) : [];
+  const use3d = spatial && missing.length === 0;
+  const tint = use3d && attachGuids(att).some((g) => ctx.hidden?.(g)) ? 0.35 : 1;
+  // View-locked (or detached) shapes follow the view-lock rule when the live view passes one; attached ones never fade.
+  const lockHere = !use3d && !ctx.shapeDirect ? lock : undefined;
+  const fadeBy = (ops: DrawOp[], extra = 1): DrawOp[] => {
+    const f = (m.status === 'resolved' ? 0.5 : 1) * (opts.faded && !use3d && !lockHere ? 0.55 : 1) * tint * extra;
+    return f === 1 ? ops : ops.map((o) => ({ ...o, alpha: (o.alpha ?? 1) * f }));
+  };
+  if (lockHere && (lockHere.mode === 'hidden' || lockHere.mode === 'pin')) {
+    const pin = lockPin(m, ctx, s, lockHere.pinAlpha * (m.status === 'resolved' ? 0.5 : 1), !!opts.selected);
+    return { ops: pin };
+  }
+
   const P = shape.points;
   let px: number[] | null;
   let closed = false;
   let fillable = false;
   let outline: number[] | null = null; // what is stroked (cloud outline replaces the base polygon)
-  switch (m.kind) {
-    case 'rect':
-    case 'highlightBox': {
-      px = fractionsToPixels(boxCorners(P), shape.depth, ctx);
-      closed = true; fillable = true;
-      break;
+  let region: number[][] | null = null; // region box: the projected edges
+  let samples: Vec3[] = []; // points of an attached outline for the occlusion test
+  if (use3d && att!.kind === 'region' && att!.region) {
+    samples = pickSamples([...regionCorners(att!.region).map((p) => ifcToViewer(p, ctx.shift)), ...regionEdges(att!.region).map(([p, q]) => ifcToViewer([(p[0] + q[0]) / 2, (p[1] + q[1]) / 2, (p[2] + q[2]) / 2], ctx.shift))]);
+    const c = regionCorners(att!.region).map((p) => ctx.project(ifcToViewer(p, ctx.shift)));
+    if (c.some((q) => !q.front)) return { ops: [] };
+    const flat = c.flatMap((q) => [q.x, q.y]);
+    px = convexHull(flat);
+    const cx = flat.filter((_v, i) => i % 2 === 0).reduce((a, b) => a + b, 0) / 8;
+    const cy = flat.filter((_v, i) => i % 2 === 1).reduce((a, b) => a + b, 0) / 8;
+    const arc = (11 + m.weight * 3) * s;
+    const E: ReadonlyArray<readonly [number, number]> = [[0, 1], [1, 3], [3, 2], [2, 0], [4, 5], [5, 7], [7, 6], [6, 4], [0, 4], [1, 5], [2, 6], [3, 7]];
+    region = E.map(([a, b]) => {
+      const mx = (c[a!]!.x + c[b!]!.x) / 2 - cx, my = (c[a!]!.y + c[b!]!.y) / 2 - cy;
+      return scallopLine(c[a!]!.x, c[a!]!.y, c[b!]!.x, c[b!]!.y, arc, mx, my);
+    });
+    closed = true; fillable = true;
+  } else if (use3d && att!.surface) {
+    const wp = surfaceWorld(att!.surface, ctx);
+    samples = pickSamples(wp);
+    px = projectWorld(wp, ctx);
+    closed = CLOSED_KINDS.includes(m.kind);
+    fillable = closed && m.kind !== 'highlightBox';
+    if (px && m.kind === 'cloud') outline = cloudOutline(px, { arc: (11 + m.weight * 3) * s });
+  } else {
+    switch (m.kind) {
+      case 'rect':
+      case 'highlightBox': {
+        px = fractionsToPixels(boxCorners(P), shape.depth, ctx);
+        closed = true; fillable = true;
+        break;
+      }
+      case 'ellipse': {
+        px = fractionsToPixels(ellipseInQuad(boxCorners(P), 56), shape.depth, ctx);
+        closed = true; fillable = true;
+        break;
+      }
+      case 'cloud': {
+        const base = fractionsToPixels(P.length === 2 ? boxCorners(P) : P, shape.depth, ctx);
+        px = base;
+        closed = true; fillable = true;
+        if (base) outline = cloudOutline(base, { arc: (11 + m.weight * 3) * s });
+        break;
+      }
+      case 'polygon':
+        px = fractionsToPixels(P, shape.depth, ctx);
+        closed = true; fillable = true;
+        break;
+      default:
+        px = fractionsToPixels(P, shape.depth, ctx);
     }
-    case 'ellipse': {
-      px = fractionsToPixels(ellipseInQuad(boxCorners(P), 56), shape.depth, ctx);
-      closed = true; fillable = true;
-      break;
-    }
-    case 'cloud': {
-      const base = fractionsToPixels(P.length === 2 ? boxCorners(P) : P, shape.depth, ctx);
-      px = base;
-      closed = true; fillable = true;
-      if (base) outline = cloudOutline(base, { arc: (11 + m.weight * 3) * s });
-      break;
-    }
-    case 'polygon':
-      px = fractionsToPixels(P, shape.depth, ctx);
-      closed = true; fillable = true;
-      break;
-    default:
-      px = fractionsToPixels(P, shape.depth, ctx);
   }
   if (!px || px.length < 4) return { ops: [] };
   const stroke = strokePx(m.kind, m.weight) * s;
   const ops: DrawOp[] = [];
   const key = m.id;
   const fillCol = m.fill && fillable ? rgba(hex, 0.16) : undefined;
-  switch (m.kind) {
-    case 'highlight':
-      ops.push({ op: 'path', points: px, stroke: hex, width: stroke, alpha: 0.5, blend: 'multiply', key, role: 'shape' });
-      break;
-    case 'highlightBox':
-      ops.push({ op: 'poly', points: px, fill: hex, alpha: 0.55, blend: 'multiply', key, role: 'shape' });
-      break;
-    case 'arrow': {
-      ops.push({ op: 'path', points: px, stroke: hex, width: stroke, key, role: 'shape' });
-      const n = px.length;
-      const head = arrowHead(px[n - 4]!, px[n - 3]!, px[n - 2]!, px[n - 1]!, (10 + m.weight * 3) * s, (4 + m.weight * 1.6) * s);
-      if (head) ops.push({ op: 'poly', points: head, fill: hex, key, role: 'shape' });
-      break;
+  if (region) {
+    for (const e of region) ops.push({ op: 'path', points: e, stroke: hex, width: stroke, key, role: 'shape' });
+    if (fillCol) ops.unshift({ op: 'poly', points: px, fill: fillCol, key, role: 'shape' });
+  } else {
+    switch (m.kind) {
+      case 'highlight':
+        ops.push({ op: 'path', points: px, stroke: hex, width: stroke, alpha: 0.5, blend: 'multiply', key, role: 'shape' });
+        break;
+      case 'highlightBox':
+        ops.push({ op: 'poly', points: px, fill: hex, alpha: 0.55, blend: 'multiply', key, role: 'shape' });
+        break;
+      case 'arrow': {
+        ops.push({ op: 'path', points: px, stroke: hex, width: stroke, key, role: 'shape' });
+        const n = px.length;
+        const head = arrowHead(px[n - 4]!, px[n - 3]!, px[n - 2]!, px[n - 1]!, (10 + m.weight * 3) * s, (4 + m.weight * 1.6) * s);
+        if (head) ops.push({ op: 'poly', points: head, fill: hex, key, role: 'shape' });
+        break;
+      }
+      case 'cloud':
+        ops.push({ op: 'path', points: outline ?? px, stroke: hex, width: stroke, closed: true, ...(fillCol ? { fill: fillCol } : {}), key, role: 'shape' });
+        break;
+      default:
+        ops.push({ op: 'path', points: px, stroke: hex, width: stroke, closed, ...(fillCol ? { fill: fillCol } : {}), key, role: 'shape' });
     }
-    case 'cloud':
-      ops.push({ op: 'path', points: outline ?? px, stroke: hex, width: stroke, closed: true, ...(fillCol ? { fill: fillCol } : {}), key, role: 'shape' });
-      break;
-    default:
-      ops.push({ op: 'path', points: px, stroke: hex, width: stroke, closed, ...(fillCol ? { fill: fillCol } : {}), key, role: 'shape' });
   }
   const bb = bounds(px);
   const r = 9 * s;
   ops.push(...labelOps(m, bb.x0, bb.y0, ctx, s, r));
   ops.push(...badge(m, bb.x0, bb.y0, s));
+  if (tint < 1) ops.push({ op: 'text', x: bb.x0 + r + 3 * s, y: bb.y1 + 12 * s, text: 'target hidden', size: 10 * s, fill: hex, align: 'start', key, role: 'badge' });
   if (opts.selected) ops.push(selectBox(bb.x0, bb.y0, bb.x1, bb.y1, s, key));
-  return { ops: fade(ops), hit: { pts: px, closed, filled: m.kind === 'highlightBox' || (m.fill && fillable) } };
+  const hit = { pts: closed && region ? px : px, closed, filled: m.kind === 'highlightBox' || (m.fill && fillable) };
+  // A view-locked shape in the fade zone also shows the pin it collapses to.
+  const fadeAlpha = lockHere && lockHere.mode === 'fade' ? lockHere.alpha : 1;
+  // Behind other geometry (most sample points hidden): dashed and faint instead of showing through.
+  const behind = use3d && samples.length > 0 && (ctx.behind ? ctx.behind(m.id, samples) : mostlyHidden(samples, ctx.occluded));
+  if (behind) for (let i = 0; i < ops.length; i++) { const o = ops[i]!; if (o.role === 'shape') ops[i] = { ...o, alpha: (o.alpha ?? 1) * 0.35, ...(o.op === 'path' ? { dash: [6 * s, 4 * s] } : {}) } as DrawOp; }
+  const out = fadeBy(ops, fadeAlpha);
+  if (lockHere && lockHere.mode === 'fade') out.push(...lockPin(m, ctx, s, lockHere.pinAlpha, !!opts.selected));
+  return { ops: out, hit, ...(behind ? { behind } : {}) };
 }
 
 export function layoutMarkup(m: Markup, ctx: LayoutContext, opts: MarkupLayoutOptions = {}): DrawOp[] {

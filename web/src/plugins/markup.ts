@@ -13,9 +13,11 @@ import { PDF_RESOLUTIONS } from '../markup/controller';
 import type { ExportedFile, ImportReport, PdfResolution, ToolId } from '../markup/controller';
 import { MarkupView } from '../markup/view';
 import { buildDrawer, installDrop, markupFileInput, pickMarkupFile } from '../markup/ui';
-import { newMarkup } from '../markup/model';
+import { attachmentOf, newMarkup } from '../markup/model';
 import type { ColourKey, Markup, MarkupKind, MarkupSet, Weight } from '../markup/model';
 import type { PageSize } from '../markup/report';
+import { VIEWLOCK_MODES } from '../bcf/attach';
+import type { AttachDescription, Attachment, LockState, ViewLockMode } from '../bcf/attach';
 import type { RestoreResult } from './views';
 
 export interface MarkupAddSpec {
@@ -66,6 +68,14 @@ declare global {
       importFile(file: File | Blob): Promise<ImportReport>;
       /** A BCF topic from a set, or from one markup of it. Returns the topic guid. */
       toBcf(setId: string, markupId?: string): Promise<string>;
+      /** What a shape is attached to, and the words of its chip. Anchored markups map their anchor 1:1. */
+      attachment(markupId: string): { attach: Attachment; description: AttachDescription } | null;
+      /** Change the attachment of a shape (undoable): `none` is view-locked. Measurement and penetration need their link. */
+      setAttachment(markupId: string, how: 'none' | 'elements' | 'surface' | 'region' | 'measurement' | 'penetration', link?: { measurement?: Attachment['measurement']; penetration?: Attachment['penetration'] }): boolean;
+      /** View-locked markups in 3D: "near view + pin" (default), "pin only" or "hidden". */
+      viewLocked3d: ViewLockMode;
+      /** The view-lock state of the live camera against the active set's camera. */
+      readonly lock: LockState | undefined;
       tool: ToolId;
       setTool(t: ToolId): void;
       readonly selected: string | null;
@@ -114,7 +124,7 @@ export const markupPlugin: AppPlugin = {
     if (gui) buildGui(gui, c);
 
     registerParamSection('markup', {
-      collect: () => ({ page: c.page, pdfResolution: c.pdfResolution, weight: c.weight, fill: c.fill }),
+      collect: () => ({ page: c.page, pdfResolution: c.pdfResolution, weight: c.weight, fill: c.fill, viewLocked3d: c.viewLocked3d }),
       apply: (value, bad, path) => {
         const o = obj(value);
         if (o['page'] !== undefined) {
@@ -133,6 +143,11 @@ export const markupPlugin: AppPlugin = {
         if (o['fill'] !== undefined) {
           if (typeof o['fill'] === 'boolean') c.fill = o['fill'];
           else bad.push(`${path}.fill`);
+        }
+        if (o['viewLocked3d'] !== undefined) {
+          const v = VIEWLOCK_MODES.find((x) => x === o['viewLocked3d']);
+          if (v !== undefined) c.viewLocked3d = v;
+          else bad.push(`${path}.viewLocked3d`);
         }
         gui?.controllersRecursive().forEach((k) => k.updateDisplay());
       },
@@ -195,6 +210,20 @@ export const markupPlugin: AppPlugin = {
       importJson: (t) => c.importJson(t),
       importFile: (f) => c.importFile(f),
       toBcf: (s, m) => c.toBcf(s, m),
+      attachment: (id) => {
+        const f = c.markup(id);
+        return f ? { attach: JSON.parse(JSON.stringify(attachmentOf(f.m))) as Attachment, description: c.describe(f.m) } : null;
+      },
+      setAttachment: (id, how, link) => c.setAttachment(id, how, link),
+      get viewLocked3d() {
+        return c.viewLocked3d;
+      },
+      set viewLocked3d(v: ViewLockMode) {
+        c.setViewLocked3d(v);
+      },
+      get lock() {
+        return c.lockState();
+      },
       get tool() {
         return c.tool;
       },
@@ -255,6 +284,7 @@ function buildGui(gui: GUI, c: MarkupController): void {
   folder.add(actions, 'json').name('Export markup JSON');
   folder.add(c, 'page', ['A4', 'Letter']).name('Markup page size');
   folder.add(c, 'pdfResolution', ['screen', 150, 200, 300]).name('Markup PDF resolution (dpi)');
+  folder.add(c, 'viewLocked3d', [...VIEWLOCK_MODES]).name('Markup view-locked in 3D').onChange((v: string) => c.setViewLocked3d(v));
   const st = new Proxy({} as { status: string }, { get: () => c.status, set: () => true });
   const ctrl = folder.add(st, 'status').name('Markup status').disable();
   c.onChange(() => ctrl.updateDisplay());

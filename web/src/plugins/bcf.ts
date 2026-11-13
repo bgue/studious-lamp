@@ -47,7 +47,7 @@ declare global {
       /** Start click-to-place (Escape cancels); placeAt clicks at a client position. */
       startPlacement(kind: PlaceKind, topicGuid: string, text?: string): boolean;
       /** Add a rectangle (2 corners) or a freehand line, in canvas CSS pixels, to the active viewpoint of a topic. */
-      addShape(topicGuid: string, kind: 'rect' | 'freehand', points: Array<[number, number]>, text?: string): BcfAnnotation;
+      addShape(topicGuid: string, kind: 'rect' | 'freehand', points: Array<[number, number]>, text?: string, attach?: import('../bcf/attach').Attachment): BcfAnnotation;
       /** The stable pin number of a topic. */
       pinNumber(topicGuid: string): number | null;
       placeAt(clientX: number, clientY: number): boolean;
@@ -166,7 +166,7 @@ export const bcfPlugin: AppPlugin = {
         return c.addAnnotation(t, { type: 'callout', text, anchor: { kind: 'measurement', measurement: m } });
       },
       startPlacement: (k, t, text) => view.start(k, t, text),
-      addShape: (t, k, pts, text) => c.addShape(t, k, pts, text),
+      addShape: (t, k, pts, text, attach) => c.addShape(t, k, pts, text, undefined, attach),
       pinNumber: (t) => {
         const topic = c.topic(t);
         return topic ? c.pinNumber(topic) : null;

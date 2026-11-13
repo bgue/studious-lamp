@@ -12,6 +12,8 @@ import { distToPolyline, pointInPolygon } from './geometry';
 import { newMarkup } from './model';
 import type { Markup } from './model';
 import { toolInfo } from './controller';
+import { buildAttachChip } from './attachUi';
+import { markupName } from './layout';
 import type { MarkupController, ToolId } from './controller';
 
 const CLICK_SLOP = 5;
@@ -45,6 +47,9 @@ export class MarkupView {
   private overlay: Overlay | null = null;
   private layer: SVGGElement | null = null;
   private chip: HTMLButtonElement | null = null;
+  /** The attachment chip next to the selected markup (canvas). */
+  private attachChip: HTMLDivElement | null = null;
+  private attachRect: { x: number; y: number; w: number; h: number } | null = null;
   private chipRect: { x: number; y: number; w: number; h: number } | null = null;
   private stroke: Stroke | null = null;
   private poly: { tool: ToolId; pts: Array<[number, number]>; at: number } | null = null;
@@ -91,6 +96,7 @@ export class MarkupView {
     this.layer = ov.layer('markup');
     ov.reserve('markup-return', () => this.chipRect);
     ov.reserve('markup-float', () => this.floatRect);
+    ov.reserve('markup-attach', () => this.attachRect);
     ov.onUpdate((o) => this.draw(o));
   }
 
@@ -113,6 +119,10 @@ export class MarkupView {
   }
 
   private onDown(e: PointerEvent): void {
+    if (this.c.pickLink && this.c.active && e.button === 0 && e.isPrimary !== false) {
+      this.down = { x: e.clientX, y: e.clientY, id: e.pointerId };
+      return;
+    }
     if (!this.drawingTool(e)) return;
     const tool = this.c.tool;
     const info = toolInfo(tool);
@@ -130,6 +140,18 @@ export class MarkupView {
   }
 
   private onUp(e: PointerEvent): void {
+    const pl = this.c.pickLink;
+    if (pl && this.c.active && e.button === 0 && (this.down || e.pointerType !== 'mouse')) {
+      const d0 = this.down;
+      this.down = null;
+      if (!d0 || Math.hypot(e.clientX - d0.x, e.clientY - d0.y) <= CLICK_SLOP) {
+        try { Object.defineProperty(e, 'button', { value: 2 }); } catch { /* the event stays as is */ }
+        const [x, y] = this.rel(e);
+        const link = this.c.linkAt(pl.kind, x, y);
+        if (link) { this.c.pickLink = null; this.c.setAttachment(pl.id, pl.kind, link); this.c.emit(); } else this.c.setStatus(`No ${pl.kind} under the click. Click it again, or press Esc`);
+        return;
+      }
+    }
     const d = this.down;
     if (!d || !this.drawingTool(e)) return;
     this.down = null;
@@ -264,6 +286,13 @@ export class MarkupView {
     const editing = isEditable(e.target);
     const mod = e.ctrlKey || e.metaKey;
     if (e.key === 'Escape') {
+      if (this.c.pickLink || this.c.attachMenuOpen) {
+        e.stopImmediatePropagation(); e.preventDefault();
+        this.c.pickLink = null;
+        this.c.attachMenuOpen = null;
+        this.c.emit();
+        return;
+      }
       if (this.cancel()) { e.stopImmediatePropagation(); e.preventDefault(); return; }
       if (this.c.tool !== 'select') { e.stopImmediatePropagation(); e.preventDefault(); this.c.setTool('select'); return; }
       if (this.c.selected) { e.stopImmediatePropagation(); e.preventDefault(); this.c.selectMarkup(null); }
@@ -363,6 +392,36 @@ export class MarkupView {
     this.floatRect = { x: r.left - cr.left, y: r.top - cr.top, w: r.width, h: r.height };
   }
 
+  /** The attachment chip next to the selected shape: its words and the Change menu. Hidden when nothing is selected. */
+  private updateAttachChip(ov: Overlay, set: import('./model').MarkupSet | null, box: { x0: number; y0: number; x1: number; y1: number } | null): void {
+    const sel = set && this.c.selected ? set.markups.find((m) => m.id === this.c.selected) : undefined;
+    const stage = this.c.app.canvas.parentElement;
+    if (!sel || !box || !stage) {
+      if (this.attachChip) { this.attachChip.style.display = 'none'; this.attachChip.textContent = ''; }
+      this.attachRect = null;
+      return;
+    }
+    if (!this.attachChip) {
+      const d = document.createElement('div');
+      d.id = 'markup-attach-chip';
+      d.style.cssText = 'position:absolute;z-index:8;pointer-events:auto;max-width:calc(100% - 16px)';
+      stage.appendChild(d);
+      this.attachChip = d;
+    }
+    const d = this.attachChip;
+    d.style.display = '';
+    d.textContent = '';
+    d.appendChild(buildAttachChip(this.c, sel, 'canvas'));
+    const ins = ov.insets;
+    const w = d.offsetWidth || 220;
+    const h = d.offsetHeight || 22;
+    const left = Math.min(Math.max(ins.left + 4, box.x0), Math.max(ins.left + 4, ov.width - ins.right - w - 4));
+    const top = Math.min(Math.max(ins.top + 4, box.y1 + 12), Math.max(ins.top + 4, ov.height - ins.bottom - h - 4));
+    d.style.left = `${left}px`;
+    d.style.top = `${top}px`;
+    this.attachRect = { x: left, y: top, w, h };
+  }
+
   private tmpMarkup(tool: ToolId, pts: Array<[number, number]>, W: number, H: number): Markup | null {
     const info = toolInfo(tool);
     if (!info.kind || pts.length < 2) return null;
@@ -389,20 +448,49 @@ export class MarkupView {
     if (!this.c.loaded || !set || !this.c.visible) {
       if (chip) chip.style.display = 'none';
       this.chipRect = null;
+      this.updateAttachChip(ov, null, null);
       return;
     }
-    const ctx = this.c.layoutContext(set, ov.width, ov.height, { insets: ov.insets, reserved: ov.reserved });
+    const ctx = this.c.layoutContext(set, ov.width, ov.height, { insets: ov.insets, reserved: ov.reserved, behind: (k, pts) => this.c.behindCache.behind(k, pts) });
     const faded = this.c.away();
+    const lock = this.c.lockState(set);
     const interactive = this.drawerOpen && this.c.tool === 'select';
+    let selBox: { x0: number; y0: number; x1: number; y1: number } | null = null;
     for (const m of set.markups) {
-      const L = layoutMarkupFull(m, ctx, { selected: m.id === this.c.selected, faded });
+      const L = layoutMarkupFull(m, ctx, { selected: m.id === this.c.selected, faded, ...(lock ? { lock } : {}) });
       if (!L.ops.length) continue;
       const g = svgEl('g', { 'data-mk': m.id, 'data-number': String(m.number) });
       renderOps(g, L.ops);
       layer.appendChild(g);
       this.hits.set(m.id, L.hit);
+      if (L.behind) {
+        g.setAttribute('data-behind', '1');
+        const t = svgEl('title');
+        t.textContent = `${markupName(m)}: behind other geometry from here`;
+        g.appendChild(t);
+      }
       if (interactive) this.wire(g, m, L, ctx);
+      // The pin a view-locked shape collapses to: always clickable, flies to the view the markup was made in.
+      const pins = Array.from(g.querySelectorAll<SVGElement>('[data-role="pin"]'));
+      if (pins.length) {
+        const t = svgEl('title');
+        t.textContent = `${markupName(m)}${m.text ? `: ${m.text.slice(0, 60)}` : ''}. Click to go to the view it was made in`;
+        g.appendChild(t);
+        g.setAttribute('data-mk-pin', m.id);
+        for (const el of pins) {
+          el.style.pointerEvents = 'all';
+          el.style.cursor = 'pointer';
+          el.addEventListener('pointerdown', (e: PointerEvent) => e.stopPropagation());
+          el.addEventListener('click', (e: MouseEvent) => { e.stopPropagation(); this.c.selectMarkup(m.id); this.c.restore(set.id, true); });
+        }
+      }
+      if (m.id === this.c.selected && L.hit && L.hit.pts.length >= 4 && !pins.length) {
+        let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+        for (let i = 0; i < L.hit.pts.length; i += 2) { x0 = Math.min(x0, L.hit.pts[i]!); x1 = Math.max(x1, L.hit.pts[i]!); y0 = Math.min(y0, L.hit.pts[i + 1]!); y1 = Math.max(y1, L.hit.pts[i + 1]!); }
+        selBox = { x0, y0, x1, y1 };
+      }
     }
+    this.updateAttachChip(ov, set, selBox);
     // The drawing in progress, drawn by the same layout (fractions of the canvas, drawn direct).
     const st = this.stroke;
     const pl = this.poly;
@@ -482,7 +570,7 @@ export class MarkupView {
       window.removeEventListener('pointercancel', up, true);
       const d = this.drag;
       this.drag = null;
-      if (d?.moved) this.c.emit();
+      if (d?.moved) { if (d.kind === 'shape') this.c.reattach(d.id); this.c.emit(); }
     };
     window.addEventListener('pointermove', move, true);
     window.addEventListener('pointerup', up, true);

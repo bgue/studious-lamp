@@ -2646,6 +2646,12 @@ export const CONTROL_HELP: Record<string, HelpEntry> = {
     'Select A4 or Letter.',
     'Report: Appendix J, Coordination tools',
   ),
+  'Markup/Markup view-locked in 3D': h(
+    'The list sets how a markup that is not attached to the model shows in 3D. It has 3 choices: near view and pin, pin only, hidden.',
+    'A drawing that only fits the angle where you made it shows in full there. Away from that angle it fades and leaves a small flag.',
+    'Select near view and pin. Select pin only to see pins at all times. Select hidden to hide them.',
+    'Report: Appendix J, Coordination tools',
+  ),
   'Markup/Markup status': h(
     'The read-only field shows the last message of the Markup tool.',
     'A short text tells you what the tool did or why it did not.',
@@ -2770,6 +2776,18 @@ export const CONTROL_HELP: Record<string, HelpEntry> = {
     'The button sets the line weight of the next markup or of the chosen item.',
     'A higher number makes a thicker stroke.',
     'Click a weight.',
+    'Report: Appendix J, Coordination tools',
+  ),
+  'Markup drawer/Attachment chip': h(
+    'The chip tells what the shape is attached to in 3D. A shape is attached to elements, a surface, a region, a measurement or a penetration. Else it is view-locked.',
+    'An attached shape stays on its target when you orbit. A view-locked shape stays with the view where you drew it.',
+    'Select a markup to see its chip. Read the text. Click change to pick another attachment.',
+    'Report: Appendix J, Coordination tools',
+  ),
+  'Markup drawer/Change attachment': h(
+    'The link opens a menu of attachments. You can use the selected elements, the surface, a 3D region, a measurement, a penetration or view-locked.',
+    'The shape moves to the new target. Undo brings the old target back.',
+    'Click change. Pick a choice. For a measurement or penetration, click it in the view.',
     'Report: Appendix J, Coordination tools',
   ),
   'Markup drawer/Set card': h(

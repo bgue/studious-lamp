@@ -559,7 +559,16 @@ print(json.dumps({'k': k, 'inner': float(inner), 'left': float(left), 'right': f
     return { id: set.id, rect: rect.id, anchors: set.markups.filter((x) => x.anchor).map((x) => x.anchor), pts: rect.shape.points, cam: set.camera, before: bb() };
   });
   await page.waitForTimeout(800);
-  const bbBefore = await page.evaluate((id) => { const r = document.querySelector(`svg.xray-svg-overlay [data-mk="${id}"] [data-role=shape]`).getBoundingClientRect(); return [r.left, r.top, r.right, r.bottom]; }, uv.rect);
+  // A view-locked shape seen from a camera far from its own is a pin at its centroid (markup attachments): then the pin tip is
+  // the place on the model to compare with; an attached or near shape is compared by its whole box, as before.
+  const bbBefore = await page.evaluate((id) => {
+    const svg = document.querySelector('svg.xray-svg-overlay').getBoundingClientRect();
+    const sh = document.querySelector(`svg.xray-svg-overlay [data-mk="${id}"] [data-role=shape]`);
+    if (sh) { const r = sh.getBoundingClientRect(); return [r.left, r.top, r.right, r.bottom]; }
+    const pin = document.querySelector(`svg.xray-svg-overlay [data-mk="${id}"] polygon[data-role=pin]`);
+    const n = pin.getAttribute('points').split(' ').map(Number);
+    return { pin: [svg.left + n[0], svg.top + n[1]] };
+  }, uv.rect);
   await page.click('#markup-drawer >> text=Update view');
   await page.waitForTimeout(800);
   const upd = await page.evaluate((u) => {
@@ -571,7 +580,10 @@ print(json.dumps({'k': k, 'inner': float(inner), 'left': float(left), 'right': f
   }, uv);
   check('Update view re-captures the camera of the set', Math.abs(upd.cam.position[0] - uv.cam.position[0]) > 0.5 && /updated/.test(upd.status) && !upd.away, upd.status);
   check('Update view keeps the 3D anchors', JSON.stringify(upd.anchors) === JSON.stringify(uv.anchors));
-  check('Update view keeps shapes on the model: same place on screen, new fractions', bbBefore.every((v, i) => Math.abs(v - upd.bb[i]) < 2.5) && JSON.stringify(upd.pts) !== JSON.stringify(uv.pts), `${JSON.stringify(bbBefore.map(Math.round))} vs ${JSON.stringify(upd.bb.map(Math.round))}`);
+  const sameSpot = Array.isArray(bbBefore)
+    ? bbBefore.every((v, i) => Math.abs(v - upd.bb[i]) < 2.5)
+    : Math.hypot(bbBefore.pin[0] - (upd.bb[0] + upd.bb[2]) / 2, bbBefore.pin[1] - (upd.bb[1] + upd.bb[3]) / 2) < 12;
+  check('Update view keeps shapes on the model: same place on screen, new fractions', sameSpot && JSON.stringify(upd.pts) !== JSON.stringify(uv.pts), `${JSON.stringify(bbBefore)} vs ${JSON.stringify(upd.bb.map(Math.round))}`);
   await page.evaluate(() => document.activeElement?.blur?.());
   await page.keyboard.press('Control+z');
   const undone = await page.evaluate((u) => { const set = window.__xrayMarkup.get(u.id); return { cam: set.camera.position, pts: set.markups.find((x) => x.id === u.rect).shape.points }; }, uv);

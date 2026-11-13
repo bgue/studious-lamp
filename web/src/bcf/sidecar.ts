@@ -19,7 +19,9 @@
 //                            "anchor": { "kind": "element" | "measurement" | "point", "point": [x, y, z], "elementGuid"?,
 //                                        "local"?: [dx, dy, dz],
 //                                        "measurement"?: { "kind", "a", "b", "distance", "label", "elementGuids"? } },
-//                            "shape"?: { "points": [[u, v], ...], "depth": d } } ],
+//                            "shape"?: { "points": [[u, v], ...], "depth": d },
+//                            "attach"?: { "kind": "none" | "elements" | "surface" | "measurement" | "penetration" | "region" | "lines", ... } } ],
+//                            (attach: see attach.ts; a `lines` annotation of a foreign viewpoint has no shape)
 //         "markupSelection": ["<IfcGuid>", ...],
 //         "snapshotView": { "position", "direction", "up", "fov", "aspect" },
 //         "baseSnapshot": "xray-<viewpoint guid>-base.png"
@@ -28,6 +30,7 @@
 //   }
 
 import { ANNOTATION_TYPES, IFC_GUID_RE, isShapeType, newGuid } from './model';
+import { attachGuids, cleanAttachment, cloneAttachment } from './attach';
 import type { BcfAnchor, BcfAnnotation, BcfMeasureLink, BcfPin, BcfShape, BcfSnapshotView, BcfTopic, BcfVersion, BcfViewpointRef, Vec3 } from './model';
 
 export const SIDECAR_NAME = 'xray-markup.json';
@@ -71,7 +74,7 @@ export function needsBurn(_t: BcfTopic, r: BcfViewpointRef): boolean {
 export function annotationGuids(list: readonly BcfAnnotation[] | undefined): string[] {
   const out = new Set<string>();
   for (const a of list ?? []) {
-    const g = [a.anchor.elementGuid, ...(a.anchor.measurement?.elementGuids ?? [])];
+    const g = [a.anchor.elementGuid, ...(a.anchor.measurement?.elementGuids ?? []), ...attachGuids(a.attach)];
     for (const x of g) {
       const s = x?.replace(/~\d+$/, '');
       if (s && IFC_GUID_RE.test(s)) out.add(s);
@@ -145,6 +148,7 @@ export function cloneAnnotation(a: BcfAnnotation): BcfAnnotation {
   }
   const out: BcfAnnotation = { guid: a.guid, type: a.type, text: a.text, anchor, offset: [a.offset[0], a.offset[1]] };
   if (a.shape) out.shape = { points: a.shape.points.map((p) => [p[0], p[1]] as [number, number]), depth: a.shape.depth };
+  if (a.attach) out.attach = cloneAttachment(a.attach);
   if (a.author) out.author = a.author;
   if (a.date) out.date = a.date;
   return out;
@@ -227,8 +231,11 @@ export function readAnnotation(v: unknown): BcfAnnotation | null {
   const out: BcfAnnotation = { guid: str(v['guid']) ?? newGuid(), type, text: typeof v['text'] === 'string' ? v['text'] : '', anchor, offset };
   if (isShapeType(type)) {
     const shape = readShape(v['shape'], type);
-    if (!shape) return null;
-    out.shape = shape;
+    // A foreign viewpoint's lines have no fractions: they are world lines, drawn in 3D only.
+    const attach = v['attach'] !== undefined ? cleanAttachment(v['attach']) : undefined;
+    if (!shape && attach?.kind !== 'lines') return null;
+    if (shape) out.shape = shape;
+    if (v['attach'] !== undefined) out.attach = attach ?? { kind: 'none' };
   }
   const au = str(v['author']);
   if (au) out.author = au;

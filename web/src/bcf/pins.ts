@@ -12,6 +12,7 @@ import { MARKUP_FONT, layoutAnnotation, layoutPin, projectPoint } from './annota
 import type { DrawOp, LayoutContext } from './annotate';
 import type { BcfController } from './controller';
 import { isShapeType } from './model';
+import { OcclusionCache } from './attach';
 import type { BcfAnnotationType, BcfShapeType } from './model';
 
 export type PlaceKind = 'pin' | BcfAnnotationType;
@@ -21,6 +22,11 @@ export class BcfMarkupView {
   private overlay: Overlay | null = null;
   private layer: SVGGElement | null = null;
   private readonly vp = new Matrix4();
+  /** Throttled "behind other geometry" test of attached outlines (at most every 150 ms after the camera moves). */
+  private readonly occ = new OcclusionCache((p) => this.c.occluded(p), () => {
+    const e = this.c.app.renderer.camera.matrixWorld.elements;
+    return `${e[12]!.toFixed(3)},${e[13]!.toFixed(3)},${e[14]!.toFixed(3)},${e[0]!.toFixed(4)},${e[2]!.toFixed(4)},${e[6]!.toFixed(4)}|${this.c.app.controller.settings.overrides.userHides.size}`;
+  }, () => this.overlay?.invalidate());
   /** Placement in progress: the next click on the model places it. */
   placing: { kind: PlaceKind; topic: string; text: string } | null = null;
   /** Highlighted annotation (list click, box drag). */
@@ -249,10 +255,14 @@ export class BcfMarkupView {
     const w = ov.width;
     const h = ov.height;
     const vis = this.c.visibleAnnotations();
+    const view = vis ? this.c.shapeView(vis.ref) : null;
+    const lock = view ? this.c.lockState(view) : undefined;
     return {
       width: w, height: h, shift: this.c.shift, scale: 1, insets: ov.insets, reserved: ov.reserved,
       project: (p) => projectPoint(m, w, h, p), occluded: (p) => this.c.occluded(p),
-      units: this.c.units, element: (g) => this.c.elementFrame(g), shapeView: vis ? this.c.shapeView(vis.ref) : null,
+      units: this.c.units, element: (g) => this.c.elementFrame(g), hidden: (g) => this.c.elementHidden(g), shapeView: view,
+      ...(lock ? { lock } : {}),
+      behind: (k, pts) => this.occ.behind(k, pts),
     };
   }
 
@@ -302,8 +312,14 @@ export class BcfMarkupView {
       el.addEventListener('pointerdown', (e: PointerEvent) => e.stopPropagation());
       el.addEventListener('click', (e: MouseEvent) => {
         e.stopPropagation();
-        const guid = el.getAttribute('data-key')!.slice(4);
-        this.activateTopic(guid);
+        const key = el.getAttribute('data-key')!;
+        if (key.startsWith('annpin:')) {
+          // The pin of a view-locked shape: back to the viewpoint it was drawn in.
+          const f = this.c.findAnnotation(key.slice(7));
+          if (f) { this.c.applyViewpoint(f.topic.guid, f.ref.guid); this.emit(); }
+          return;
+        }
+        this.activateTopic(key.slice(4));
       });
     }
     for (const el of Array.from(layer.querySelectorAll<SVGElement>('[data-role="box"]'))) {
@@ -390,6 +406,7 @@ export function renderOps(g: SVGGElement, ops: readonly DrawOp[]): void {
         break;
       case 'path':
         e = svgEl(o.closed ? 'polygon' : 'polyline', { points: o.points.map((v) => v.toFixed(1)).join(' '), fill: o.fill ?? 'none', stroke: o.stroke, 'stroke-width': o.width, 'stroke-linejoin': 'round', 'stroke-linecap': 'round' });
+        if (o.dash) e.setAttribute('stroke-dasharray', o.dash.join(' '));
         break;
       case 'poly':
         e = svgEl('polygon', { points: o.points.join(' '), fill: o.fill, 'stroke-linejoin': 'round' });

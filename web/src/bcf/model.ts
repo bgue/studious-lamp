@@ -6,6 +6,8 @@
 // that is: subtract the shift in the IFC frame, then rotate -90 degrees about X, (x, y, z) -> (x, z, -y).
 // Directions only rotate: (x, y, z) -> (x, z, -y). The inverse is p = ( v.x + s.x,  -v.z + s.y,  v.y + s.z ).
 
+import type { Attachment } from './attach';
+
 export type Vec3 = [number, number, number];
 export type BcfVersion = '2.1' | '3.0';
 
@@ -173,8 +175,13 @@ export interface BcfAnnotation {
   anchor: BcfAnchor;
   /** Text box position relative to the anchor, as fractions of the view height (x right, y down). */
   offset: [number, number];
-  /** Rectangle and freehand annotations: the shape. */
+  /** Rectangle and freehand annotations: the shape (fractions of the viewpoint camera's view; the view-locked form). */
   shape?: BcfShape;
+  /**
+   * Rectangle and freehand annotations: what the shape is attached to in 3D (src/bcf/attach.ts). Absent in files from before
+   * attachments: the viewer then tries to attach it when the viewpoint is applied, else it stays view-locked.
+   */
+  attach?: Attachment;
   author?: string;
   date?: string;
 }

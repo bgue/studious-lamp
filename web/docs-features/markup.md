@@ -34,9 +34,60 @@ Phone layout: the drawer covers the view, so choosing a drawing tool on a narrow
 
 Keys while the drawer is open or a drawing tool is on: `Ctrl+Z` undo, `Ctrl+Shift+Z` (or `Ctrl+Y`) redo, `Delete` removes the selection, `Escape` cancels a drawing, then returns to `Select`, then deselects, then (as always) closes the drawer. In a text field the keys edit text. Undo covers add, delete, move, edit and comments of the active set (100 steps).
 
+## Attachments: what a shape is bound to in 3D
+
+A shape is stored as fractions of the set camera's view plus the depth of a plane facing that camera. That plane is only right from the authored view: after an orbit the plane is seen obliquely and geometry at other depths slides out from under the outline. So every shape is either **attached** to something semantic in 3D, or **view-locked**. The fractions stay in every case (they are the view-locked form, and what the 2D view and the PDF burn-in use). The attachment model is shared with the BCF annotations and lives in `src/bcf/attach.ts` (types, reading, chip words, the view-lock rule), `src/bcf/surface.ts` (projection and inference, pure) and `src/markup/attachScene.ts` (rays of the live camera or of the set camera, the BVH).
+
+| `attach.kind` | What it is |
+| --- | --- |
+| `elements` | A list of GlobalIds. The user's outline is projected onto them (when it projects cleanly) and they get the selection tint while the markup is selected. |
+| `surface` | The outline's points were projected onto model surfaces. Each point is `{ e, p, l }`: the element (index into `guids`), the IFC point, and its offset from the element's bounds centre (the `anchorPoint` element-frame mechanism: it follows the element in an exploded view or a revised model). The IFC point is the fallback when the element has no frame. |
+| `measurement` | A measurement link (`BcfMeasureLink`, the one a callout uses). |
+| `penetration` | The pair of GlobalIds `{ mep, host }` of a penetration of the penetrations tool (its row ids change with every analysis, the pair is stable). |
+| `region` | A 3D box (`min`, `max`, IFC frame, axis aligned) fitted to the depth range of the geometry inside the outline. Drawn as a revision-cloud-style box (scalloped edges) in 3D, correct from any angle. |
+| `point` | A point in empty space (text boxes). |
+| `lines` | World lines in the IFC frame: a foreign BCF viewpoint's `<Lines>`. |
+| `none` | View-locked. |
+
+Callouts, text, pointers and measurements keep their `anchor`; `attachmentOf` maps it one to one (element anchor to `elements`, point to `point`, measurement to `measurement`).
+
+### Projection when a shape is finished
+
+`addShape` casts a ray from the live camera through each point of the drawn path (rectangle corners, the ellipse polygon, the cloud outline, line ends, freehand points), densified so no segment is longer than 14 px and thinned to at most 320 rays. `BcfController.castRay` is the same test as a normal pick in the current view mode: hidden and isolated elements are skipped and click-through ghosts are passed first. Hits are cleaned (`cleanHits`):
+
+- a miss, or a run of fewer than 3 hits between two depth jumps (a spike across a silhouette: the depth differs by more than 20 percent and 0.25 m and the two hits are not coplanar), is moved onto the surface plane of the nearest good hit along the stroke. The point stays on its own ray, so the authored view looks the same;
+- when more than 30 percent of the points needed that, the stroke does not project cleanly and surface mode is not used;
+- each point is lifted off the surface along its normal by 0.2 percent of its distance (5 mm to 5 cm) so the outline does not z-fight with the surface.
+
+The projected outline is drawn on the shared SVG overlay from the 3D points through the live camera each frame (there is no depth test against the geometry). A cloud keeps its scalloped look: the scallops are computed in screen space from the projected path each frame.
+
+### Inference order
+
+1. A measurement (a dimension line within 12 px of the middle of the shape) or a penetration (a marker within 16 px) under the shape: `measurement` or `penetration` (the outline is kept as surface data when it projects cleanly).
+2. At least 70 percent of the projected points on at most 5 elements: `surface`.
+3. Else for closed shapes (cloud, rectangle, ellipse, polygon, highlight box): a grid of at most 140 rays inside the outline; at least 4 elements with 3 percent of the hits each and 0.15 m of depth spread (10th to 90th percentile): `region`, the box of all hit points padded by 2 cm and 2 percent. Lines (line, arrow, pen, polyline, marker) that project cleanly: `surface`.
+4. Else `none`.
+
+Thresholds are in `SURFACE` (surface.ts) and `VIEWLOCK` (attach.ts).
+
+### The attachment chip
+
+The selected markup shows a chip in the panel (inside its detail) and on the canvas next to the shape: `Attached to: 2 pipes · change` or `View-locked · change` (`#markup-attach-chip`, `[data-attach-chip]`). `change` opens a menu: `Elements (current selection)`, `Surface`, `Region`, `Measurement (pick)`, `Penetration (pick)`, `View-locked`. Surface and Region project the stored shape again from the set camera; Measurement and Penetration wait for a click on the dimension line or marker in the view (Escape cancels). A change is one history step: Undo brings the old attachment back. Anchored markups show the chip without `change`. A markup whose elements are missing from the loaded model is flagged `Detached` in the panel and drawn view-locked (never silently moved).
+
+### 3D display rules
+
+- **Attached:** always drawn in 3D at the target, never faded. While selected, the target elements get the selection tint of the viewer. A target that is hidden or isolated away: the shape is drawn dimmed with a `target hidden` hint, it does not float.
+- **View-locked:** the rule compares the live camera with the set camera (`viewLockState`). View direction within 10 degrees and the eye within 20 percent of the scene scale: full strength. Fades smoothly (smoothstep) to nothing at 25 degrees or 50 percent of the scale, whichever is further along. Beyond that only a small pin at the centroid of the shape on its old depth plane is left; the pin fades in as the outline fades out. The scale is the larger of the model diagonal and the distance of the authored eye from the model centre, so an orbit of 10 degrees about the model is a shift of about 17 percent and the two criteria agree. Clicking the pin selects the markup and flies to the authored view (`restore`); its tooltip names the markup (`Cloud 3`).
+- **Setting `Markup view-locked in 3D`** (Markup folder, `window.__xrayMarkup.viewLocked3d`, params section `markup.viewLocked3d`): `near view + pin` (default), `pin only` (a pin at all times) or `hidden`.
+- **2D view, PDF, snapshot burn-in:** unchanged for view-locked markups: they render exactly as before from their set camera. Attached ones render from their 3D data projected through the camera of the page, which is the set camera.
+
+### Older documents
+
+A document from before attachments has no `attach` on its shapes. When it is opened, each such shape is projected from its set camera with the same inference: clean gives an attachment, else `{ kind: 'none' }` with the original fractions untouched. A document made on a different model is not migrated (all view-locked). The schema string stays `xray-markup-set/1`: `attach` is an optional field that older viewers ignore, and every shape written now carries one. Update view with `Shapes stay: on the screen` makes shapes view-locked (their fractions stay and the target would be elsewhere); `on the model` keeps attachments and re-bases the fractions as before. Moving an attached shape projects it again at its new place.
+
 ## View behaviour when the camera moves
 
-Markups stay drawn on their depth plane in 3D, exactly like BCF rectangles: a shape is stored as fractions of the set camera's view plus the depth (metres along the view direction) of the plane under its middle, so from another camera it stays on the model area it marks (callouts and pointers are 3D anchors that follow their element). When the camera drifts from the set's view (more than 4 degrees, 5 percent of the distance, or 8 percent zoom) the markups fade and a `Return to markup view` button shows at the top of the view. Why not fade-only: a shape that stays on its model area keeps its meaning while you look from the side or fly through the model; a fade-only rule would make the markup disappear exactly when someone wants to check what it marks. The button covers the case where the skewed view is not what you want.
+View-locked shapes stay drawn on their depth plane in the 2D view and the PDF (see above for 3D). When the camera drifts from the set's view (more than 4 degrees, 5 percent of the distance, or 8 percent zoom) a `Return to markup view` button shows at the top of the view, and anchored markups draw faded. Attached shapes do not fade: they are in 3D.
 
 ## Export
 
@@ -108,9 +159,14 @@ The saved views plugin gained `capture()`, `restoreView(view)` and `shareUrlFor(
 
 - `src/markup/model.ts` (types, JSON document, identity, sanitising), `geometry.ts` (scallops, ellipse, simplify, hit distances), `layout.ts` (draw operations; reuses `layoutAnnotation`, `shapePointWorld`, `shapeFraction`), `history.ts` (undo stack), `pdf.ts`, `report.ts`, `controller.ts`, `view.ts` (overlay layer, pointer and key input), `ui.ts` (drawer, drop), plugin `src/plugins/markup.ts`. `annotate.ts` gained a `style` override and a `blend` operation (multiply) for the highlighter.
 - Tests: `tests/markup-pdf.test.ts` (structure, xref offsets, stream lengths, escaping, embedded file round trip, Flate), `markup-report.test.ts`, `markup-model.test.ts` (schema round trip, mismatch, identity), `markup-geometry.test.ts` (scallops), `markup-history.test.ts`.
+- Attachments: `tests/markup-attach.test.ts` (inference on a synthetic scene of boxes, local-frame follow, the fade and pin rule, migration, BCF Lines, Components and side file round trip); smoke `SMOKE_PORT=5703 node bench/smoke-markup-attach.mjs` (cloud around an element attached and still on it after a 60 degree orbit, view-locked cloud faded at 15 and a pin at 60 degrees, the pin flies back, Change and Undo, BCF Lines and selection, both pointer modes, phone). Screenshots `bench/markup-attach-authored.png`, `markup-attach-orbited.png`, `markup-viewlocked-pin.png`.
 - Smoke: `SMOKE_PORT=5710 node bench/smoke-markup.mjs` draws every tool on fzk-haus, comments, undo and redo, exports PDF and JSON, validates the PDF with pypdf / pdfinfo / pdftoppm (when installed), reloads and drops the PDF, opens the JSON, tries another model, converts to BCF, phone layout with touch and pen. Screenshots `bench/markup-*.png`. The software renderer of headless Chromium runs at 2 to 3 frames per second, so the run takes 15 to 30 minutes.
 
 ## Limitations
+
+- Attached outlines are projected on the overlay with no depth test: an outline on a wall is still drawn when another element hides that wall from the new camera. Surface hits use the geometry as it was when the shape was finished; a revised model follows through the element frame (bounds centre), not through the triangles.
+- A region is an axis-aligned box in the IFC frame (not an oriented box).
+- `Measurement` and `Penetration` pick on the screen; penetration rows exist only after the penetrations tool ran.
 
 - Pictures have the aspect of the window (that of the set camera); a very tall window gives a narrow picture on a landscape page. Very large pictures are lowered to the graphics card limits (said in the status line); there is no tiled render.
 - A Markup set does not store a thumbnail in the JSON; the PDF pictures are the thumbnails of the report.

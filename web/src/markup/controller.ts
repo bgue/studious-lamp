@@ -11,9 +11,13 @@ import type { ViewerApp } from '../app';
 import { BcfController } from '../bcf/controller';
 import { anchorPoint, drawOps, projectPoint, shapeFraction } from '../bcf/annotate';
 import type { Ctx2D, LayoutContext } from '../bcf/annotate';
-import { dirViewerToIfc, ifcToViewer, viewerToIfc } from '../bcf/model';
+import { dirIfcToViewer, dirViewerToIfc, ifcToViewer, viewerToIfc } from '../bcf/model';
 import type { BcfSnapshotView, Vec3 } from '../bcf/model';
+import { attachGuids, cloneAttachment, describeAttachment, isSpatial, viewLockState } from '../bcf/attach';
+import type { AttachDescription, Attachment, LockState, ViewLockMode } from '../bcf/attach';
+import { OcclusionCache, VIEWLOCK_MODES, viewLockSetting } from '../bcf/attach';
 import { cameraRay } from '../measure/geometry';
+import { findHint, fractionInput, inferAttachment, projectRegion, projectSurface, projectSurfaceData, screenInput } from './attachScene';
 import { currentMeasurements } from '../measure/current';
 import type { Measurement } from '../measure/maths';
 import { formatLength } from '../measure/maths';
@@ -24,7 +28,7 @@ import { History } from './history';
 import { bounds as ptsBounds, simplify } from './geometry';
 import { boxCorners, ellipseInQuad, fractionsToPixels, layoutMarkups, markupName, rayToFraction, rebaseShape } from './layout';
 import {
-  KIND_LABEL, addComment, isBoxKind, addMarkup, buildMarkupDoc, compareModels, defaultColour, defaultSetTitle, markupDocJson, mergeSets,
+  KIND_LABEL, addComment, attachmentOf, isBoxKind, needsAttach, addMarkup, buildMarkupDoc, compareModels, defaultColour, defaultSetTitle, markupDocJson, mergeSets,
   modelIdentity, newMarkup, newMarkupId, nowIso, parseMarkupDoc, referencedGuids, setCounts, uniqueSetTitle,
 } from './model';
 import type { ColourKey, Markup, MarkupKind, MarkupSet, ModelIdentity, ModelMatch, Weight } from './model';
@@ -185,12 +189,32 @@ export class MarkupController {
   visible = true;
   /** Bumped on every change: views re-render on it. */
   rev = 0;
+  /** The markup whose Change menu of the attachment chip is open. */
+  attachMenuOpen: string | null = null;
+  /** The next click in the view picks a measurement or a penetration for this markup (the chip's pick choices). */
+  pickLink: { id: string; kind: 'measurement' | 'penetration' } | null = null;
+  /** View-locked markups in 3D: "near view + pin" (default), "pin only" or "hidden". A per-viewer display setting. */
+  get viewLocked3d(): ViewLockMode {
+    return viewLockSetting.mode;
+  }
+  set viewLocked3d(v: ViewLockMode) {
+    viewLockSetting.mode = v;
+  }
   /** The live view (view.ts) sets this: cancels a drawing in progress. */
   cancelDrawing: (() => void) | null = null;
   private readonly histories = new Map<string, History<SetState>>();
   private readonly listeners = new Set<(quiet: boolean) => void>();
   readonly geo: BcfController;
   private identity: { key: object; id: ModelIdentity } | null = null;
+  /** Throttled "behind other geometry" test for the live view (the PDF and snapshots test directly). */
+  readonly behindCache = new OcclusionCache(
+    (p) => this.geo.occluded(p),
+    () => {
+      const e = this.app.renderer.camera.matrixWorld.elements;
+      return `${e[12]!.toFixed(3)},${e[13]!.toFixed(3)},${e[14]!.toFixed(3)},${e[0]!.toFixed(4)},${e[2]!.toFixed(4)},${e[6]!.toFixed(4)}|${this.app.controller.settings.overrides.userHides.size}`;
+    },
+    () => this.emit(true),
+  );
 
   constructor(readonly app: ViewerApp) {
     this.geo = new BcfController(app);
@@ -296,6 +320,7 @@ export class MarkupController {
   onModel(): void {
     // The sets belong to the model that was open when they were made; they stay in the list (a different model shows a warning on restore).
     this.identity = null;
+    this.tinted = null;
     this.cancelDrawing?.();
     this.emit();
   }
@@ -354,8 +379,10 @@ export class MarkupController {
     const set = this.get(id);
     if (!set) throw new Error(`No markup set ${id}`);
     if (!this.loaded) throw new Error('No model loaded');
+    this.untint();
     const r = this.views.restoreView(set.view, { animate });
     this.activeId = set.id;
+    this.syncTint();
     const s = r.missing.length ? `; ${r.missing.length} element${r.missing.length === 1 ? '' : 's'} of the view not in this model` : '';
     this.setStatus(`View of "${set.title}" restored${s}`);
     return r;
@@ -434,7 +461,7 @@ export class MarkupController {
     for (const m of set.markups) {
       if (!m.shape) continue;
       shapes++;
-      if (keep === 'screen') { kept++; continue; }
+      if (keep === 'screen') { kept++; m.attach = { kind: 'none' }; continue; }
       const r = rebaseShape(m.shape, old, camera, this.shift, isBoxKind(m.kind) || (m.kind === 'cloud' && m.shape.points.length === 2));
       if (r) { m.shape = r; moved++; } else kept++;
     }
@@ -461,6 +488,7 @@ export class MarkupController {
     this.applyState(set, prev);
     set.updated = nowIso();
     if (this.selected && !set.markups.some((m) => m.id === this.selected)) this.selected = null;
+    this.syncTint();
     this.setStatus('Undone');
     return true;
   }
@@ -472,6 +500,7 @@ export class MarkupController {
     this.applyState(set, next);
     set.updated = nowIso();
     if (this.selected && !set.markups.some((m) => m.id === this.selected)) this.selected = null;
+    this.syncTint();
     this.setStatus('Redone');
     return true;
   }
@@ -479,9 +508,11 @@ export class MarkupController {
   /** Add a finished markup to the active set (numbered, undoable, selected). */
   add(m: Markup, set: MarkupSet | null = this.active): Markup {
     if (!set) throw new Error('No markup set: create one from the view first');
+    if (needsAttach(m)) this.migrateMarkup(m, set);
     this.record(set);
     addMarkup(set, m);
     this.selected = m.id;
+    this.syncTint();
     this.setStatus(`${KIND_LABEL[m.kind]} ${m.number} added`);
     return m;
   }
@@ -513,13 +544,14 @@ export class MarkupController {
     this.record(f.set);
     f.set.markups = f.set.markups.filter((m) => m.id !== id);
     f.set.updated = nowIso();
-    if (this.selected === id) this.selected = null;
+    if (this.selected === id) { this.selected = null; this.syncTint(); }
     this.setStatus(`${KIND_LABEL[f.m.kind]} ${f.m.number} deleted`);
     return true;
   }
 
   selectMarkup(id: string | null): void {
     this.selected = id;
+    this.syncTint();
     this.emit();
   }
 
@@ -608,9 +640,10 @@ export class MarkupController {
       return null;
     }
     const kind = info.kind;
+    const attach = this.inferScreen(kind, pts);
     const m = newMarkup(kind, {
       author: this.who, colour: style.colour ?? this.colour(tool), weight: style.weight ?? this.weight, fill: style.fill ?? this.fill, shape: sh,
-      ...(style.text ? { text: style.text } : {}),
+      attach, ...(style.text ? { text: style.text } : {}),
     });
     return this.add(m, set);
   }
@@ -689,6 +722,224 @@ export class MarkupController {
     return this.add(m, set);
   }
 
+  // ---------------------------------------------------------------- attachments (src/bcf/attach.ts)
+
+  /** A measurement or penetration under the shape, from the screen (live camera). */
+  private hintFor(path: ReadonlyArray<number>, closed: boolean, W: number, H: number) {
+    const ctx = this.layoutContext(this.active!, W, H);
+    const pen = window.__xrayPenetrations?.rows ?? [];
+    return findHint(path, closed, {
+      project: ctx.project, measurements: this.measurements(), measureLink: (m) => this.geo.measureLink(m),
+      penetrations: pen.map((r) => ({ location: r.location, mep: r.mep, host: r.host })), guidOfId: (id) => this.geo.guidOfId(id),
+    });
+  }
+
+  /** What a shape just drawn on the screen is attached to: the inference of src/bcf/surface.ts from the live camera. */
+  private inferScreen(kind: MarkupKind, screen: ReadonlyArray<readonly [number, number]>): Attachment {
+    try {
+      const { W, H } = this.canvasSize();
+      const inp = screenInput(this.geo, kind, screen, W, H, this.app.renderer.camera);
+      const hint = this.hintFor(inp.path, inp.closed, W, H);
+      const r = inferAttachment(hint ? { ...inp, hint } : inp);
+      return r.attach;
+    } catch {
+      return { kind: 'none' };
+    }
+  }
+
+  /** The same inference for a stored shape, from the rays of its set camera through its fractions. */
+  private inferStored(m: Markup, set: MarkupSet): Attachment {
+    if (!m.shape || !this.loaded) return { kind: 'none' };
+    try {
+      const { W, H } = this.canvasSize();
+      const inp = fractionInput(this.geo, m.kind, m.shape.points, set.camera, W, H);
+      const hint = this.hintFor(inp.path, inp.closed, W, H);
+      return inferAttachment(hint ? { ...inp, hint } : inp).attach;
+    } catch {
+      return { kind: 'none' };
+    }
+  }
+
+  /** Migration of a shape from a document made before attachments: attached when it projects cleanly, else view-locked. */
+  migrateMarkup(m: Markup, set: MarkupSet): void {
+    if (!m.shape) return;
+    m.attach = this.inferStored(m, set);
+  }
+
+  /** Migrate every old shape of a set (no `attach`); returns how many ended up attached. */
+  migrateSet(set: MarkupSet, o: { keepLocked?: boolean } = {}): { migrated: number; attached: number } {
+    let migrated = 0;
+    let attached = 0;
+    for (const m of set.markups) {
+      if (!needsAttach(m)) continue;
+      migrated++;
+      if (o.keepLocked) m.attach = { kind: 'none' };
+      else this.migrateMarkup(m, set);
+      if (m.attach && m.attach.kind !== 'none') attached++;
+    }
+    return { migrated, attached };
+  }
+
+  /** The words of the chip of a markup. */
+  describe(m: Markup): AttachDescription {
+    const att = attachmentOf(m);
+    const missing = this.loaded ? attachGuids(att).filter((g) => !this.hasGuid(g)) : [];
+    return describeAttachment(att, { classOf: (g) => this.geo.classOf(g), missing });
+  }
+
+  /** True when an attached markup lost an element: it shows view-locked and the panel says "detached". */
+  detached(m: Markup): boolean {
+    return this.describe(m).detached;
+  }
+
+  /**
+   * Change what a shape is attached to (undoable). `how`: `none` view-locked; `elements` the current selection;
+   * `surface` and `region` project the stored shape again from its set camera; `measurement` and `penetration` take their link.
+   * Returns false, with a status line, when it cannot be done.
+   */
+  setAttachment(id: string, how: 'none' | 'elements' | 'surface' | 'region' | 'measurement' | 'penetration', link?: { measurement?: NonNullable<Attachment['measurement']>; penetration?: NonNullable<Attachment['penetration']> }): boolean {
+    const f = this.markup(id);
+    if (!f?.m.shape) { this.setStatus('Only shapes can change their attachment'); return false; }
+    const { set, m } = f;
+    const fail = (t: string): false => { this.setStatus(t); return false; };
+    let att: Attachment | null = null;
+    if (how === 'none') att = { kind: 'none' };
+    else {
+      if (!this.loaded) return fail('No model loaded');
+      const { W, H } = this.canvasSize();
+      const inp = fractionInput(this.geo, m.kind, f.m.shape.points, set.camera, W, H);
+      if (how === 'surface') att = projectSurface(inp);
+      else if (how === 'region') att = projectRegion(inp);
+      else if (how === 'elements') {
+        const guids = this.app.selection.map((i) => this.geo.guidOfId(i)).filter((g): g is string => !!g);
+        if (!guids.length) return fail('Select the elements in the model first, then choose Elements');
+        att = { kind: 'elements', guids };
+        const sd = projectSurfaceData(inp);
+        if (sd) att.surface = sd;
+      } else if (how === 'measurement' || how === 'penetration') {
+        const l = link?.[how];
+        if (!l) return fail(`No ${how} to attach to`);
+        att = how === 'measurement' ? { kind: 'measurement', measurement: l as NonNullable<Attachment['measurement']> } : { kind: 'penetration', penetration: l as NonNullable<Attachment['penetration']> };
+        const sd = projectSurfaceData(inp);
+        if (sd) att.surface = sd;
+      }
+      if (!att) return fail(how === 'region' ? 'Nothing under the outline to fit a region to' : 'The outline does not project cleanly onto the model surfaces');
+    }
+    this.record(set);
+    m.attach = att;
+    m.modified = nowIso();
+    set.updated = m.modified;
+    this.syncTint();
+    this.setStatus(`${markupName(m)}: ${describeAttachment(att, { classOf: (g) => this.geo.classOf(g) }).text}`);
+    return true;
+  }
+
+  toggleAttachMenu(id: string): void {
+    this.attachMenuOpen = this.attachMenuOpen === id ? null : id;
+    this.emit();
+  }
+
+  /** A choice of the Change menu. Measurement and Penetration wait for a click on the link in the view. */
+  chooseAttachment(id: string, how: 'none' | 'elements' | 'surface' | 'region' | 'measurement' | 'penetration'): void {
+    this.attachMenuOpen = null;
+    this.pickLink = null;
+    if (how === 'measurement' || how === 'penetration') {
+      this.pickLink = { id, kind: how };
+      this.setStatus(how === 'measurement' ? 'Click a dimension line of the measure tool in the view (Esc cancels)' : 'Click a penetration marker in the view (Esc cancels)');
+      return;
+    }
+    this.setAttachment(id, how);
+    this.emit();
+  }
+
+  /** The measurement or penetration nearest to a canvas point (20 px at most), as a link. */
+  linkAt(kind: 'measurement' | 'penetration', x: number, y: number): { measurement?: NonNullable<Attachment['measurement']>; penetration?: NonNullable<Attachment['penetration']> } | null {
+    const { W, H } = this.canvasSize();
+    const ctx = this.layoutContext(this.active!, W, H);
+    let best = 20;
+    let out: ReturnType<MarkupController['linkAt']> = null;
+    if (kind === 'measurement') {
+      for (const m of this.measurements()) {
+        const a = ctx.project(m.a as unknown as Vec3);
+        const b = ctx.project(m.b as unknown as Vec3);
+        if (!a.front || !b.front) continue;
+        const d = ptsDist(x, y, a.x, a.y, b.x, b.y);
+        if (d < best) { best = d; out = { measurement: this.geo.measureLink(m) }; }
+      }
+    } else {
+      for (const r of window.__xrayPenetrations?.rows ?? []) {
+        const p = ctx.project(r.location);
+        const mep = this.geo.guidOfId(r.mep);
+        const host = this.geo.guidOfId(r.host);
+        if (!p.front || !mep || !host) continue;
+        const d = Math.hypot(p.x - x, p.y - y);
+        if (d < best) { best = d; out = { penetration: { mep, host } }; }
+      }
+    }
+    return out;
+  }
+
+  /** After a shape was moved: attached shapes are projected again at their new place (no history entry of their own). */
+  reattach(id: string): void {
+    const f = this.markup(id);
+    if (!f?.m.shape || !isSpatial(f.m.attach)) return;
+    f.m.attach = this.inferStored(f.m, f.set);
+    this.syncTint();
+    this.emit(true);
+  }
+
+  // ---------------------------------------------------------------- display: view lock, target highlight
+
+  /** The view-lock state of the live camera against the active set's camera (src/bcf/attach.ts viewLockState). */
+  lockState(set: MarkupSet | null = this.active): LockState | undefined {
+    if (!set || !this.loaded) return undefined;
+    const cam = this.app.renderer.camera;
+    cam.updateMatrixWorld();
+    const f = cam.getWorldDirection(cam.position.clone());
+    const sh = this.shift;
+    return viewLockState(
+      { position: [cam.position.x, cam.position.y, cam.position.z], direction: [f.x, f.y, f.z] },
+      { position: ifcToViewer(set.camera.position, sh), direction: dirIfcToViewer(set.camera.direction) },
+      this.geo.sceneScale(ifcToViewer(set.camera.position, sh)), this.viewLocked3d,
+    );
+  }
+
+  setViewLocked3d(v: string): void {
+    if ((VIEWLOCK_MODES as readonly string[]).includes(v)) this.viewLocked3d = v as ViewLockMode;
+    this.emit(true);
+  }
+
+  private tinted: Map<number, [number, number, number]> | null = null;
+
+  /** Put the colours back (before a view is restored: it sets its own). */
+  untint(): void {
+    const r = this.app.loaded ? this.app.renderer : null;
+    if (this.tinted && r) {
+      const color = r.state.color;
+      for (const [id, c] of this.tinted) { color[id * 3] = c[0]; color[id * 3 + 1] = c[1]; color[id * 3 + 2] = c[2]; }
+    }
+    this.tinted = null;
+  }
+
+  /** Give the elements an attached selected markup points at the selection tint of the viewer; restore the others. */
+  syncTint(): void {
+    const r = this.app.loaded ? this.app.renderer : null;
+    this.untint();
+    const sel = this.selected ? this.markup(this.selected) : null;
+    if (!r || !sel || !sel.m.shape || !isSpatial(sel.m.attach)) { r?.markDirty(); return; }
+    const color = r.state.color;
+    const saved = new Map<number, [number, number, number]>();
+    for (const g of attachGuids(sel.m.attach)) {
+      const id = this.app.controller.model.byGlobalId.get(g);
+      if (id === undefined || id * 3 + 2 >= color.length) continue;
+      saved.set(id, [color[id * 3]!, color[id * 3 + 1]!, color[id * 3 + 2]!]);
+      const T = [1, 0.85, 0.2];
+      for (let k = 0; k < 3; k++) color[id * 3 + k] = color[id * 3 + k]! + (T[k]! - color[id * 3 + k]!) * 0.5;
+    }
+    this.tinted = saved;
+    r.markDirty();
+  }
+
   // ---------------------------------------------------------------- view of the camera against the set
 
   /** True when the live camera is away from the active set's view. */
@@ -717,6 +968,7 @@ export class MarkupController {
       occluded: (p) => this.geo.occluded(p),
       units: this.geo.units,
       element: (g) => this.geo.elementFrame(g),
+      hidden: (g) => this.geo.elementHidden(g),
       shapeView: set.camera,
       ...extra,
     };
@@ -921,6 +1173,15 @@ export class MarkupController {
     for (const s of p.sets) for (const g of referencedGuids(s)) if (!this.hasGuid(g)) unknown.add(g);
     if (unknown.size) warnings.push(`${unknown.size} element${unknown.size === 1 ? '' : 's'} named in the markup ${unknown.size === 1 ? 'is' : 'are'} not in this model; their markups and view parts are left out or stay where they were drawn.`);
     if (p.bad.length) warnings.push(`${p.bad.length} item${p.bad.length === 1 ? '' : 's'} in the file could not be read.`);
+    // Shapes from a document made before attachments: attached when they project cleanly on this model, else view-locked.
+    let migrated = 0;
+    let nowAttached = 0;
+    for (const set of p.sets) {
+      const r = this.migrateSet(set, { keepLocked: cmp.match === 'different' });
+      migrated += r.migrated;
+      nowAttached += r.attached;
+    }
+    if (migrated) warnings.push(`${nowAttached} of ${migrated} older shape${migrated === 1 ? '' : 's'} could be attached to the model; the others stay view-locked.`);
     const merged = mergeSets(this.sets, p.sets);
     this.sets = merged.sets;
     for (const s of p.sets) if (!this.histories.has(s.id)) this.histories.set(s.id, new History());
@@ -1008,11 +1269,11 @@ export class MarkupController {
           bcf.addAnnotation(topic.guid, { type: 'callout', text: `${label} ${formatLength(ml.distance, this.geo.units)}`.trim(), anchor: { kind: 'point', point: mid } });
         } else if (m.shape) {
           const px = this.bcfPixels(m, ctx);
-          if ((m.kind === 'rect' || m.kind === 'highlightBox') && m.shape.points.length === 2) bcf.addShape(topic.guid, 'rect', [[px[0]!, px[1]!], [px[4]!, px[5]!]], label);
+          if ((m.kind === 'rect' || m.kind === 'highlightBox') && m.shape.points.length === 2) bcf.addShape(topic.guid, 'rect', [[px[0]!, px[1]!], [px[4]!, px[5]!]], label, m.attach);
           else {
             const pts: Array<[number, number]> = [];
             for (let i = 0; i < px.length; i += 2) pts.push([px[i]!, px[i + 1]!]);
-            bcf.addShape(topic.guid, 'freehand', pts, label);
+            bcf.addShape(topic.guid, 'freehand', pts, label, m.attach);
           }
         }
       } catch (e) {
@@ -1058,3 +1319,10 @@ export class MarkupController {
   }
 }
 
+
+function ptsDist(x: number, y: number, ax: number, ay: number, bx: number, by: number): number {
+  const dx = bx - ax, dy = by - ay;
+  const l2 = dx * dx + dy * dy;
+  const t = l2 > 0 ? Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy) / l2)) : 0;
+  return Math.hypot(x - (ax + t * dx), y - (ay + t * dy));
+}

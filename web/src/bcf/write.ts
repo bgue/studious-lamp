@@ -13,6 +13,7 @@ import type { ZipInput } from './zip';
 import { esc, num } from './xml';
 import { IFC_GUID_RE, GUID_RE, newGuid, nowIso } from './model';
 import { SIDECAR_NAME, annotationGuids, baseSnapshotName, needsBurn, sidecarJson } from './sidecar';
+import { attachmentSegments, segmentKey } from './attach';
 import type {
   BcfColoring, BcfComment, BcfComponent, BcfProject, BcfTopic, BcfVersion, BcfViewpoint, BcfViewpointRef,
 } from './model';
@@ -414,13 +415,38 @@ export interface WriteOptions {
   composeSnapshot?: (topic: BcfTopic, ref: BcfViewpointRef) => Promise<Uint8Array | null>;
 }
 
-/** The viewpoint as written: the elements the annotations point at join the selection, so other tools highlight them. */
+/**
+ * 3D lines of the annotations of a viewpoint (IFC frame): the projected path of a surface shape, the edges of a region. Lines
+ * that came from a foreign file (`lines` attachments) are in the viewpoint already and are not repeated.
+ */
+export function annotationLines(ref: BcfViewpointRef): Array<{ start: [number, number, number]; end: [number, number, number] }> {
+  const out: Array<{ start: [number, number, number]; end: [number, number, number] }> = [];
+  for (const a of ref.annotations ?? []) {
+    if (a.attach?.kind === 'lines') continue;
+    for (const [p, q] of attachmentSegments(a.attach)) out.push({ start: p, end: q });
+  }
+  return out;
+}
+
+/**
+ * The viewpoint as written: the elements the annotations point at join the selection (merged with what is there), so other
+ * tools highlight them, and attached shapes become real 3D `<Lines>` (merged with the viewpoint's own, which stay; the lines
+ * of an earlier export of ours are replaced, not doubled).
+ */
 export function viewpointWithMarkup(vp: BcfViewpoint, ref: BcfViewpointRef): BcfViewpoint {
+  let out = vp;
   const extra = annotationGuids(ref.annotations);
-  if (!extra.length) return vp;
-  const have = new Set(vp.selection.map((c) => c.ifcGuid).filter(Boolean));
-  const add = extra.filter((g) => !have.has(g)).map((g) => ({ ifcGuid: g }));
-  return add.length ? { ...vp, selection: [...vp.selection, ...add] } : vp;
+  if (extra.length) {
+    const have = new Set(vp.selection.map((c) => c.ifcGuid).filter(Boolean));
+    const add = extra.filter((g) => !have.has(g)).map((g) => ({ ifcGuid: g }));
+    if (add.length) out = { ...out, selection: [...vp.selection, ...add] };
+  }
+  const gen = annotationLines(ref);
+  if (gen.length) {
+    const own = new Set(gen.map((l) => segmentKey([l.start, l.end])));
+    out = { ...out, lines: [...vp.lines.filter((l) => !own.has(segmentKey([l.start, l.end]))), ...gen] };
+  }
+  return out;
 }
 
 /** Serialise a project as a .bcf / .bcfzip archive of the given version. */

@@ -9,6 +9,7 @@ import { PDF_RESOLUTIONS, TOOLS, toolInfo } from './controller';
 import type { PdfResolution } from './controller';
 import type { MarkupController, ToolId } from './controller';
 import type { MarkupView } from './view';
+import { buildAttachChip } from './attachUi';
 import type { PageSize } from './report';
 
 const STYLE_ID = 'markup-styles';
@@ -337,6 +338,7 @@ export function buildDrawer(container: HTMLElement, c: MarkupController, view: M
     x.addEventListener('click', (e) => { e.stopPropagation(); c.remove(m.id); });
     head.append(st, x);
     item.appendChild(head);
+    if (c.detached(m)) item.appendChild(el('div', 'mk-small', { 'data-detached': '1' }, 'Detached: an element it was attached to is not in this model. Shown view-locked.'));
     const text = el('input', 'mk-in mk-it', { type: 'text', placeholder: 'Text', 'aria-label': `Text of markup ${m.number}`, 'data-keep': `t-${m.id}`, 'data-field': 'text' });
     text.value = m.text;
     text.addEventListener('click', (e) => e.stopPropagation());
@@ -359,6 +361,7 @@ export function buildDrawer(container: HTMLElement, c: MarkupController, view: M
       const two = el('div', 'mk-two');
       two.append(asg, due);
       d.appendChild(two);
+      d.appendChild(buildAttachChip(c, m, 'panel'));
       d.appendChild(el('div', 'mk-small', undefined, `${m.author}, ${when(m.created)}`));
       for (const cm of m.comments) {
         const box = el('div', 'mk-comment');

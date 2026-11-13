@@ -14,6 +14,11 @@ import { dirViewerToIfc, emptyProject, ifcToViewer, newGuid, nowIso, toIfcGuid, 
 import type { BcfAnnotation, BcfAnnotationType, BcfComment, BcfMeasureLink, BcfProject, BcfShapeType, BcfSnapshotView, BcfTopic, BcfVersion, BcfViewpointRef, Vec3 } from './model';
 import { defaultOffset, drawOps, layoutSnapshot, shapeFraction, shapePointWorld, snapshotCamera, snapshotProjector, snapshotScale } from './annotate';
 import type { Ctx2D, LayoutContext } from './annotate';
+import type { ProbeHit, Ray3 } from './surface';
+import { cloneAttachment as cloneAttach, viewLockSetting, viewLockState } from './attach';
+import type { Attachment, LockState } from './attach';
+import { dirIfcToViewer } from './model';
+import { fractionInput, inferAttachment, screenInput } from '../markup/attachScene';
 import type { BcfMarkupView } from './pins';
 import { annotationGuids, cloneAnnotation, markupSelectionOf, needsBurn } from './sidecar';
 import { cameraRay, firstSurfaceHit } from '../measure/geometry';
@@ -313,6 +318,35 @@ export class BcfController {
     r.markDirty();
   }
 
+  /**
+   * Older and foreign viewpoints: a shape annotation without an attachment is projected onto the model from its viewpoint camera
+   * (attached when that is clean, else view-locked, its fractions untouched); a viewpoint with <Lines> and no annotations of
+   * ours gets one `lines` annotation, so a foreign tool's 3D redlines show here as world lines. Quiet: no change flag.
+   */
+  private prepareAttachments(ref: BcfViewpointRef): void {
+    if (!this.app.loaded || !ref.data) return;
+    const view = this.shapeView(ref);
+    const W = Math.max(1, this.app.canvas.clientWidth);
+    const H = Math.max(1, this.app.canvas.clientHeight);
+    for (const a of ref.annotations ?? []) {
+      if (!a.shape || a.attach !== undefined) continue;
+      try {
+        a.attach = view ? inferAttachment(fractionInput(this, a.type === 'rect' ? 'rect' : 'pen', a.shape.points, view, W, H)).attach : { kind: 'none' };
+      } catch {
+        a.attach = { kind: 'none' };
+      }
+    }
+    if (!ref.annotations?.length && ref.data.lines.length && !this.linesSeen.has(ref)) {
+      this.linesSeen.add(ref);
+      const lines = ref.data.lines.slice(0, 4000).map((l) => [l.start, l.end] as [Vec3, Vec3]);
+      ref.annotations = [{
+        guid: newGuid(), type: 'freehand', text: '', offset: [0, 0], anchor: { kind: 'point', point: lines[0]![0] },
+        attach: { kind: 'lines', lines },
+      }];
+    }
+  }
+  private readonly linesSeen = new WeakSet<BcfViewpointRef>();
+
   /** Apply a viewpoint of a loaded topic. With no viewpoint guid, the first viewpoint that has data. */
   applyViewpoint(topicGuid: string, viewpointGuid?: string): ApplyReport {
     const topic = this.topic(topicGuid);
@@ -350,6 +384,7 @@ export class BcfController {
     }
     this.execute(plan, vp.selection.length > 0, vp.coloring.length > 0, tint);
     this.applied = { topic: topic.guid, viewpoint: ref.guid };
+    this.prepareAttachments(ref);
     const unknown = plan.selectionUnknown + plan.visibilityUnknown + plan.colorUnknown;
     const status = `Viewpoint applied: ${plan.applied.join(', ') || 'nothing'}${plan.skipped.length ? `; skipped: ${plan.skipped.join(', ')}` : ''}`;
     this.setStatus(status);
@@ -795,12 +830,82 @@ export class BcfController {
     if (!loaded) return null;
     const cam = this.app.renderer.camera;
     cam.updateMatrixWorld();
-    const ray = cameraRay(cam, ndcX, ndcY);
+    const hit = this.castRay(cameraRay(cam, ndcX, ndcY));
+    return hit ? { point: hit.point, element: hit.element } : null;
+  }
+
+  /**
+   * The ray test behind pick, for any ray (viewer frame): the same hidden, isolated and click-through ghost rules as a pick in
+   * the current view. Also gives the surface normal (facing the ray origin) and the distance. Used by the attachment inference.
+   */
+  castRay(ray: Ray | Ray3): ProbeHit | null {
+    const loaded = this.app.loaded;
+    if (!loaded) return null;
+    const r = ray instanceof Ray ? ray : new Ray(new Vector3(...ray.o), new Vector3(...ray.d));
     const hides = this.app.controller.settings.overrides.userHides;
     const alpha = this.app.renderer.state.alpha;
-    const hit = firstSurfaceHit(loaded.geometry, ray, (id) => hides.has(id) || (alpha[id] ?? 1) < GHOST_ALPHA)
-      ?? firstSurfaceHit(loaded.geometry, ray, (id) => hides.has(id) || (alpha[id] ?? 1) < 0);
-    return hit ? { point: [hit.point.x, hit.point.y, hit.point.z], element: hit.element } : null;
+    const hit = firstSurfaceHit(loaded.geometry, r, (id) => hides.has(id) || (alpha[id] ?? 1) < GHOST_ALPHA)
+      ?? firstSurfaceHit(loaded.geometry, r, (id) => hides.has(id) || (alpha[id] ?? 1) < 0);
+    if (!hit) return null;
+    const [a, b, c] = hit.triangle;
+    const u: Vec3 = [b[0] - a[0], b[1] - a[1], b[2] - a[2]];
+    const w: Vec3 = [c[0] - a[0], c[1] - a[1], c[2] - a[2]];
+    let n: Vec3 = [u[1] * w[2] - u[2] * w[1], u[2] * w[0] - u[0] * w[2], u[0] * w[1] - u[1] * w[0]];
+    const l = Math.hypot(n[0], n[1], n[2]) || 1;
+    n = [n[0] / l, n[1] / l, n[2] / l];
+    if (n[0] * r.direction.x + n[1] * r.direction.y + n[2] * r.direction.z > 0) n = [-n[0], -n[1], -n[2]];
+    return { point: [hit.point.x, hit.point.y, hit.point.z], normal: n, element: hit.element, distance: hit.distance };
+  }
+
+  /** True when the element is hidden by the user, isolated away, or fully transparent: markup attached to it shows dimmed. */
+  elementHidden(guid: string): boolean {
+    const id = this.model?.byGlobalId.get(guid);
+    if (id === undefined || !this.app.loaded) return false;
+    return this.app.controller.settings.overrides.userHides.has(id) || (this.app.renderer.state.alpha[id] ?? 1) < 0.05;
+  }
+
+  /** The diagonal of the model bounds (m): the scale of the view-lock rule. */
+  sceneSize(): number {
+    const b = this.modelBounds();
+    return b ? Math.max(1, Math.hypot(b[3] - b[0], b[4] - b[1], b[5] - b[2])) : 10;
+  }
+
+  /** The view-lock state of the live camera against a viewpoint camera (IFC frame): fade and pin of view-locked shapes. */
+  lockState(view: BcfSnapshotView): LockState | undefined {
+    if (!this.app.loaded) return undefined;
+    const cam = this.app.renderer.camera;
+    cam.updateMatrixWorld();
+    const f = cam.getWorldDirection(cam.position.clone());
+    return viewLockState(
+      { position: [cam.position.x, cam.position.y, cam.position.z], direction: [f.x, f.y, f.z] },
+      { position: ifcToViewer(view.position, this.shift), direction: dirIfcToViewer(view.direction) },
+      this.sceneScale(ifcToViewer(view.position, this.shift)), viewLockSetting.mode,
+    );
+  }
+
+  /** GlobalId of an element id. */
+  guidOfId(id: number): string | undefined {
+    return this.model?.elements[id]?.globalId || undefined;
+  }
+
+  /** Bounds centre of an element id (viewer frame). */
+  centreOfId(id: number): Vec3 | null {
+    const b = this.model?.elements[id]?.bounds;
+    return b ? [(b[0] + b[3]) / 2, (b[1] + b[4]) / 2, (b[2] + b[5]) / 2] : null;
+  }
+
+  /** The scale of the view-lock shift for an authored eye (viewer frame): the model diagonal, or the eye's distance from the model centre if larger. */
+  sceneScale(eye: Vec3): number {
+    const b = this.modelBounds();
+    if (!b) return 10;
+    const d = Math.hypot(eye[0] - (b[0] + b[3]) / 2, eye[1] - (b[1] + b[4]) / 2, eye[2] - (b[2] + b[5]) / 2);
+    return Math.max(this.sceneSize(), d);
+  }
+
+  /** The IFC class of an element by GlobalId (the chip says "2 pipes"). */
+  classOf(guid: string): string | undefined {
+    const id = this.model?.byGlobalId.get(guid);
+    return id === undefined ? undefined : this.model.elements[id]?.ifcClass;
   }
 
   private readonly ray = new Ray();
@@ -969,7 +1074,7 @@ export class BcfController {
    * Add a rectangle (2 corners) or a freehand line drawn on the screen, in canvas CSS pixels, to the viewpoint of a topic.
    * The points are stored in the view of the viewpoint camera, on a plane through the surface under the middle of the shape.
    */
-  addShape(topicGuid: string, type: BcfShapeType, screen: ReadonlyArray<readonly [number, number]>, text = '', viewpointGuid?: string): BcfAnnotation {
+  addShape(topicGuid: string, type: BcfShapeType, screen: ReadonlyArray<readonly [number, number]>, text = '', viewpointGuid?: string, attachment?: Attachment): BcfAnnotation {
     const t = this.topic(topicGuid);
     if (!t) throw new Error(`No topic ${topicGuid}`);
     const ref = viewpointGuid ? t.viewpoints.find((v) => v.guid === viewpointGuid) : this.annotationViewpoint(topicGuid);
@@ -1029,6 +1134,15 @@ export class BcfController {
       anchor: { kind: 'point', point: viewerToIfc(shapePointWorld(view, sh, mu, mv, depth), sh) },
       shape: { points, depth: Math.round(depth * 1e4) / 1e4 },
     };
+    // What the shape is attached to in 3D (the inference of src/bcf/surface.ts from the live camera), unless the caller says.
+    if (attachment) a.attach = cloneAttach(attachment);
+    else {
+      try {
+        a.attach = inferAttachment(screenInput(this, type === 'rect' ? 'rect' : 'pen', src, W, H, cam)).attach;
+      } catch {
+        a.attach = { kind: 'none' };
+      }
+    }
     this.pushAnnotation(ref, a);
     this.status = `${type === 'rect' ? 'Rectangle' : 'Freehand line'} added to ${t.title}`;
     this.markupChanged(t);

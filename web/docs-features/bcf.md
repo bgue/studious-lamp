@@ -28,6 +28,19 @@ A topic is pinned to one 3D point, and each viewpoint can carry annotations. The
 - **Rectangles and freehand lines.** `Add rectangle` and `Draw freehand` apply the topic's viewpoint; then drag on the view (the orbit does not move while you draw; Escape cancels). The shape is stored in the view of the viewpoint camera (the snapshot camera): its points are fractions of the view width and height, on a plane through the surface under the middle of the shape (`depth`, metres along the view direction). With the viewpoint camera the shape sits exactly where it was drawn; from another camera it is drawn on that plane in 3D, so it stays on the model area it marks. The text typed first becomes a label above the top-left corner. Shapes are burned into the snapshot like callouts (pixel for pixel when the snapshot camera is known). A viewpoint with only an orthogonal camera and no snapshot camera cannot take shapes. `Link measurement` lists the measurements of the measure tool; a click copies the measurement (both end points, distance, label, element GlobalIds) into a callout, so it survives without the measure tool and draws its own dimension line. The length shows in the unit of the measure tool (`m` or `mm`, its `units` setting) on screen and in the burned snapshot, and follows that setting when it changes; the stored `distance` is metres. An element-to-element measurement moves its end points with the exploded elements. Annotations draw while their viewpoint is applied and follow the camera. Drag a text box to move it, edit the text in the list (double click a box to jump there), `Delete` removes it; a click on a list row highlights it and applies its viewpoint. Escape cancels a placement (a second Escape closes the drawer).
 - **Picking** uses the measure tool's ray test (first surface, hidden elements skipped) and passes ghosted elements first, so the click lands on what is drawn solid; placing clicks never change the selection.
 
+### Attachments and 3D lines
+
+Rectangles and freehand lines carry an `attach` like a markup shape (`src/bcf/attach.ts`, see [markup.md](markup.md), "Attachments"): `surface`, `region`, `measurement`, `penetration`, `elements`, `lines`, or `none` (view-locked). `addShape` projects the drawn path from the live camera onto the model with the same inference as the Markup tool; an annotation from an older file has no `attach` and is projected from its viewpoint camera when the viewpoint is applied (clean gives an attachment, else it stays view-locked with its fractions). Attached shapes draw in 3D; view-locked ones follow the same fade and pin rule (the pin returns to the viewpoint) and the `Markup view-locked in 3D` setting.
+
+Export mapping (`viewpointWithMarkup`, write.ts):
+
+- the target GlobalIds of attached shapes join the viewpoint `Components/Selection`, merged with what is there (other tools highlight them; the viewer does not select them again on apply, see `markupSelection`);
+- `surface` shapes (and the outline of `elements`, `measurement`, `penetration`) are written as `<Lines>`: the projected path as 3D segments in IFC coordinates; `region` shapes as the 12 edges of the box. The viewpoint's own lines stay; lines of an earlier export of ours are replaced, not doubled (matched by rounded endpoints);
+- the snapshot PNG keeps the burn-in as before;
+- the side file carries the full `attach` per annotation (surface points with their local frame, region, links), so a round trip through this viewer is lossless.
+
+Import of a foreign viewpoint with `<Lines>` and no annotations of ours: when the viewpoint is applied it shows one `lines` annotation, the segments drawn as 3D world lines in the IFC frame. Its lines are in the viewpoint already and are not written twice.
+
 ### Where the markup is stored
 
 BCF 2.1 and 3.0 have no field for a pin or annotations. The viewer writes a side file `<topic folder>/xray-markup.json` (src/bcf/sidecar.ts) and leaves the BCF XML as the schemas define it:
@@ -39,7 +52,8 @@ BCF 2.1 and 3.0 have no field for a pin or annotations. The viewer writes a side
     "annotations": [{ "guid": "...", "type": "callout", "text": "...", "offset": [0.1, -0.09],
                       "anchor": { "kind": "element", "point": [x, y, z], "elementGuid": "<IfcGuid>", "local": [dx, dy, dz] } },
                     { "guid": "...", "type": "rect", "text": "...", "offset": [0, 0], "anchor": { "kind": "point", "point": [x, y, z] },
-                      "shape": { "points": [[0.21, 0.3], [0.48, 0.62]], "depth": 12.4 } }],
+                      "shape": { "points": [[0.21, 0.3], [0.48, 0.62]], "depth": 12.4 },
+                      "attach": { "kind": "surface", "surface": { "guids": ["<IfcGuid>"], "closed": true, "pts": [{ "e": 0, "p": [x, y, z], "l": [dx, dy, dz] }] } } }],
     "markupSelection": ["<IfcGuid>"],
     "snapshotView": { "position": [...], "direction": [...], "up": [...], "fov": 42, "aspect": 1.78 },
     "baseSnapshot": "xray-<viewpoint guid>-base.png" } } }

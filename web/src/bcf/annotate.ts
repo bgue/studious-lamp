@@ -6,6 +6,8 @@
 // the view height, so they scale with the snapshot. Sizes are CSS pixels times `scale`.
 
 import { dirIfcToViewer, ifcToViewer } from './model';
+import { attachGuids, isSpatial, mostlyHidden, pickSamples, regionCorners, regionEdges } from './attach';
+import type { LockState } from './attach';
 import type { BcfAnchor, BcfAnnotation, BcfAnnotationType, BcfCamera, BcfPin, BcfShape, BcfSnapshotView, Vec3 } from './model';
 import { formatLength } from '../measure/maths';
 import type { Units } from '../measure/maths';
@@ -125,7 +127,7 @@ interface OpBase {
 }
 export type DrawOp =
   | (OpBase & { op: 'line'; x1: number; y1: number; x2: number; y2: number; stroke: string; width: number; dash?: number[] })
-  | (OpBase & { op: 'path'; points: number[]; stroke: string; width: number; closed?: boolean; fill?: string })
+  | (OpBase & { op: 'path'; points: number[]; stroke: string; width: number; closed?: boolean; fill?: string; dash?: number[] })
   | (OpBase & { op: 'poly'; points: number[]; fill: string; stroke?: string; width?: number })
   | (OpBase & { op: 'circle'; x: number; y: number; r: number; fill: string; stroke?: string; width?: number; dash?: number[] })
   | (OpBase & { op: 'rect'; x: number; y: number; w: number; h: number; r: number; fill: string; stroke?: string; width?: number; dash?: number[] })
@@ -214,6 +216,12 @@ export interface LayoutContext {
    * Element anchors with a `local` offset follow the element; without this, anchors stay at their stored point.
    */
   element?: (guid: string) => { centre: Vec3; offset: Vec3 } | null;
+  /** View-lock state of the live camera against the viewpoint camera (live view only): fades or collapses view-locked shapes. */
+  lock?: LockState;
+  /** Live view: throttled test whether an attached outline (sample points, viewer frame) is behind other geometry. Absent: tested directly with `occluded`. */
+  behind?: (key: string, samples: Vec3[]) => boolean;
+  /** True when the element (GlobalId) is hidden or isolated away: shapes attached to it are drawn dimmed with a hint. */
+  hidden?: (guid: string) => boolean;
   /** The camera of the viewpoint whose shapes are drawn (IFC frame): shapes go through it to 3D, then `project`. */
   shapeView?: BcfSnapshotView | null;
   /** The image is the view of that camera (a snapshot burn-in): shape fractions map straight to pixels. */
@@ -301,36 +309,113 @@ function shapePixels(shape: BcfShape, type: BcfAnnotationType, ctx: LayoutContex
   return out;
 }
 
+/** Pixel segments (flat x0 y0 x1 y1 ...) of an attached shape in 3D through the live camera, or null when it is not attached. */
+function attachedSegments(a: BcfAnnotation, ctx: LayoutContext): { segs: number[][]; path: number[] | null; closed: boolean; samples: Vec3[] } | null {
+  const att = a.attach;
+  if (ctx.shapeDirect || !isSpatial(att)) return null;
+  if (attachGuids(att).some((g) => ctx.element && !ctx.element(g))) return null; // detached: shown view-locked
+  const proj = (p: Vec3): Projected => ctx.project(p);
+  if (att.kind === 'region' && att.region) {
+    const segs: number[][] = [];
+    for (const [p, q] of regionEdges(att.region)) {
+      const A = proj(ifcToViewer(p, ctx.shift));
+      const B = proj(ifcToViewer(q, ctx.shift));
+      if (A.front && B.front) segs.push([A.x, A.y, B.x, B.y]);
+    }
+    const cs = regionCorners(att.region).map((p) => ifcToViewer(p, ctx.shift));
+    const mids = regionEdges(att.region).map(([p, q]) => ifcToViewer([(p[0] + q[0]) / 2, (p[1] + q[1]) / 2, (p[2] + q[2]) / 2], ctx.shift));
+    return segs.length ? { segs, path: null, closed: false, samples: pickSamples([...cs, ...mids]) } : null;
+  }
+  if (att.kind === 'lines' && att.lines) {
+    const segs: number[][] = [];
+    for (const [p, q] of att.lines) {
+      const A = proj(ifcToViewer(p, ctx.shift));
+      const B = proj(ifcToViewer(q, ctx.shift));
+      if (A.front && B.front) segs.push([A.x, A.y, B.x, B.y]);
+    }
+    return segs.length ? { segs, path: null, closed: false, samples: [] } : null;
+  }
+  if (att.surface) {
+    const path: number[] = [];
+    const world: Vec3[] = [];
+    for (const sp of att.surface.pts) {
+      const w = anchorPoint({ point: sp.p, elementGuid: att.surface.guids[sp.e], local: sp.l }, ctx).p;
+      const q = proj(w);
+      if (!q.front) return null;
+      path.push(q.x, q.y);
+      world.push(w);
+    }
+    return { segs: [], path, closed: att.surface.closed, samples: pickSamples(world) };
+  }
+  return null;
+}
+
 /** A rectangle or freehand highlight with its optional text box above the top-left corner. */
 function layoutShape(a: BcfAnnotation, ctx: LayoutContext, opts: { selected?: boolean }): DrawOp[] {
   const s = ctx.scale ?? 1;
   const st = STYLE[a.type];
   const key = a.guid;
-  const px = a.shape ? shapePixels(a.shape, a.type, ctx) : null;
-  if (!px || px.length < 4) return [];
+  const att3d = attachedSegments(a, ctx);
+  const lock = att3d ? undefined : ctx.lock;
+  const hiddenTarget = !!att3d && attachGuids(a.attach).some((g) => ctx.hidden?.(g));
+  const alphaOf = (o: DrawOp, f: number): DrawOp => (f === 1 ? o : { ...o, alpha: (o.alpha ?? 1) * f });
+  const px = att3d ? att3d.path : a.shape ? shapePixels(a.shape, a.type, ctx) : null;
   const w = (opts.selected ? 3.5 : 2.5) * s;
-  const closed = a.type === 'rect';
-  const ops: DrawOp[] = [
-    { op: 'path', points: px, stroke: HALO, width: w + 2 * s, closed, key, role: 'shape' },
-    { op: 'path', points: px, stroke: opts.selected ? '#ffffff' : st.stroke, width: w, closed, ...(closed ? { fill: SHAPE_FILL[a.type] } : {}), key, role: 'shape' },
-  ];
-  const lines = a.text.trim() ? wrapText(a.text) : [];
-  if (!lines.length) return ops;
-  let minX = Infinity;
-  let minY = Infinity;
-  for (let i = 0; i < px.length; i += 2) {
-    minX = Math.min(minX, px[i]!);
-    minY = Math.min(minY, px[i + 1]!);
+  const closed = att3d ? att3d.closed : a.type === 'rect';
+  const ops: DrawOp[] = [];
+  if (lock && (lock.mode === 'pin' || lock.mode === 'hidden')) return lock.mode === 'hidden' ? [] : shapePin(a, ctx, s, lock.pinAlpha, st.stroke);
+  if (att3d && att3d.segs.length) {
+    for (const g of att3d.segs) ops.push({ op: 'line', x1: g[0]!, y1: g[1]!, x2: g[2]!, y2: g[3]!, stroke: HALO, width: w + 2 * s, key, role: 'shape' }, { op: 'line', x1: g[0]!, y1: g[1]!, x2: g[2]!, y2: g[3]!, stroke: opts.selected ? '#ffffff' : st.stroke, width: w, key, role: 'shape' });
+  } else {
+    if (!px || px.length < 4) return [];
+    ops.push(
+      { op: 'path', points: px, stroke: HALO, width: w + 2 * s, closed, key, role: 'shape' },
+      { op: 'path', points: px, stroke: opts.selected ? '#ffffff' : st.stroke, width: w, closed, ...(closed ? { fill: SHAPE_FILL[a.type] } : {}), key, role: 'shape' },
+    );
   }
-  const box = boxSize(lines, s);
-  const spot = boxSpot(minX + box.w / 2 + a.offset[0] * ctx.height, minY - box.h / 2 - 4 * s + a.offset[1] * ctx.height, box.w, box.h, ctx);
-  const rect = { x: spot.x - box.w / 2, y: spot.y - box.h / 2, w: box.w, h: box.h };
-  if (spot.moved) ops.push({ op: 'line', x1: rect.x, y1: rect.y + rect.h, x2: minX, y2: minY, stroke: st.stroke, width: 1.5 * s, dash: [4 * s, 3 * s], key, role: 'line' });
-  ops.push({ op: 'rect', x: rect.x, y: rect.y, w: rect.w, h: rect.h, r: 4 * s, fill: st.fill, stroke: opts.selected ? '#ffffff' : st.stroke, width: opts.selected ? 2.5 * s : 1.5 * s, key, role: 'box' });
-  lines.forEach((l, i) => {
-    ops.push({ op: 'text', x: rect.x + box.pad, y: rect.y + box.pad + box.size * 0.8 + i * box.size * LINE_H, text: l, size: box.size, fill: st.text, align: 'start', key, role: 'box' });
+  const lines = a.text.trim() ? wrapText(a.text) : [];
+  const flat = att3d?.segs.length ? att3d.segs.flat() : px!;
+  if (lines.length) {
+    let minX = Infinity;
+    let minY = Infinity;
+    for (let i = 0; i < flat.length; i += 2) {
+      minX = Math.min(minX, flat[i]!);
+      minY = Math.min(minY, flat[i + 1]!);
+    }
+    const box = boxSize(lines, s);
+    const spot = boxSpot(minX + box.w / 2 + a.offset[0] * ctx.height, minY - box.h / 2 - 4 * s + a.offset[1] * ctx.height, box.w, box.h, ctx);
+    const rect = { x: spot.x - box.w / 2, y: spot.y - box.h / 2, w: box.w, h: box.h };
+    if (spot.moved) ops.push({ op: 'line', x1: rect.x, y1: rect.y + rect.h, x2: minX, y2: minY, stroke: st.stroke, width: 1.5 * s, dash: [4 * s, 3 * s], key, role: 'line' });
+    ops.push({ op: 'rect', x: rect.x, y: rect.y, w: rect.w, h: rect.h, r: 4 * s, fill: st.fill, stroke: opts.selected ? '#ffffff' : st.stroke, width: opts.selected ? 2.5 * s : 1.5 * s, key, role: 'box' });
+    lines.forEach((l, i) => {
+      ops.push({ op: 'text', x: rect.x + box.pad, y: rect.y + box.pad + box.size * 0.8 + i * box.size * LINE_H, text: l, size: box.size, fill: st.text, align: 'start', key, role: 'box' });
+    });
+  }
+  // Behind other geometry: dashed and faint instead of showing through.
+  const behind = !!att3d && att3d.samples.length > 0 && (ctx.behind ? ctx.behind(key, att3d.samples) : mostlyHidden(att3d.samples, ctx.occluded));
+  const f = (hiddenTarget || behind ? 0.35 : 1) * (lock && lock.mode === 'fade' ? lock.alpha : 1);
+  const out = ops.map((o) => {
+    const d = alphaOf(o, f);
+    return behind && o.role === 'shape' ? ({ ...d, dash: [6 * s, 4 * s] } as DrawOp) : d;
   });
-  return ops;
+  if (lock && lock.mode === 'fade') out.push(...shapePin(a, ctx, s, lock.pinAlpha, st.stroke));
+  return out;
+}
+
+/** The pin a view-locked shape collapses to: at its centroid on its old depth plane. Click: back to the viewpoint. */
+function shapePin(a: BcfAnnotation, ctx: LayoutContext, s: number, alpha: number, fill: string): DrawOp[] {
+  const view = ctx.shapeView;
+  if (!a.shape || !view || alpha <= 0.01) return [];
+  let u0 = Infinity, v0 = Infinity, u1 = -Infinity, v1 = -Infinity;
+  for (const [u, v] of a.shape.points) { u0 = Math.min(u0, u); u1 = Math.max(u1, u); v0 = Math.min(v0, v); v1 = Math.max(v1, v); }
+  const q = ctx.project(shapePointWorld(view, ctx.shift, (u0 + u1) / 2, (v0 + v1) / 2, a.shape.depth));
+  if (!q.front) return [];
+  const r = 8 * s;
+  const key = `annpin:${a.guid}`;
+  return [
+    { op: 'poly', points: [q.x, q.y, q.x - r * 0.6, q.y - r * 1.4, q.x + r * 0.6, q.y - r * 1.4], fill, stroke: HALO, width: 1 * s, alpha, key, role: 'pin' },
+    { op: 'circle', x: q.x, y: q.y - r * 1.8, r, fill, stroke: '#ffffff', width: 1.5 * s, alpha, key, role: 'pin' },
+  ];
 }
 
 /** Box geometry of an annotation around the box centre (cx, cy). */
@@ -567,6 +652,7 @@ export function drawOps(g: Ctx2D, ops: readonly DrawOp[]): void {
           g.fillStyle = o.fill;
           g.fill();
         }
+        if (o.dash) g.setLineDash(o.dash);
         g.strokeStyle = o.stroke;
         g.lineWidth = o.width;
         g.stroke();
