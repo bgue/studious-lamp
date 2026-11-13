@@ -116,3 +116,12 @@ Standard (`docs/templates/haiku-report.md`), deviations first, <= 60 lines: the 
 
 ## Decision
 (supervisor or orchestrator writes here)
+
+## Decision (orchestrator, 2026-11-13, after the first build @95a66da0)
+
+Two follow-ups from the builder's open questions. Both are in scope of this piece (Sec: lake guard). T02 has not started, so the interface change is allowed now.
+
+1. **Q2, hide after copy.** A record hidden after its rows reached the lake must leave every gold mart on the next incremental sync, without `tl lake rebuild`. Add the visibility source (`cur_core_record`, or the table the guard already reads) to the `needs` of every gold model whose rows name a record that can later be hidden, and re-apply the guard on each sync. Test: reclassify, run an incremental sync, and the marts equal a rebuild and lack the record in rows and counts. Update the T02 provided tests and `refs/` if the interface line changes; say so in the report.
+2. **Q1, payload refs.** `PAYLOAD_REFS` (`packages/tl-core/src/tl_core/intent.py:262`) lacks entries for `IWP.ReadinessEvaluated` (`resolve_via` record ids) and `StockLot.Moved` (`iwp_id`, `requisition_id`), so bronze rows and other payload readers can carry hidden ids. Add those entries. Then list every event type added in Phase 2 module code (awp, materials, requisitions, quality) whose payload has a record-id field missing from `PAYLOAD_REFS`; add the clear id fields, and list any doubtful ones in the report without adding them. Additive: no event changes, a hidden id becomes null for the reader. One test per added entry (hidden id is null for a reader without access, present for one with). APPROVALS line by the orchestrator at merge (core change).
+
+Allowed paths widen to `packages/tl-core/src/tl_core/intent.py` and `packages/tl-core/tests/` for item 2.
