@@ -1,7 +1,7 @@
 # P2-X1 STATE  r=2 base=7a0b140b C=0 ck=0 gate=n/a wt=/home/user/wt/p2-x1
 ## BOARD
 S1 p mrg f 4b42fa5 store+helper; mrg 77e9b51; review P 3 LO
-T04 t disp f - attempt 2 running; adds test_compat_openapi_params.py (F1)
+T04 t mrg f 77a1d8c openapi diff; +became-required test
 T01 t disp f - header on /commands/{Name}; r2 ticket
 T03 t disp f - write_tools.py 5 tools only; r2 ticket
 T02 t stg f - client key on retry; waits T01
