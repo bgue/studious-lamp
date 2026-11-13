@@ -94,7 +94,7 @@ SPEC_STREAMS: dict[str, str] = {
 
 def test_every_labelled_record_type_has_a_class_and_nothing_else() -> None:
     assert set(OFFLINE_CLASSES) == set(TYPE_LABELS)
-    assert len(OFFLINE_CLASSES) == 55
+    assert len(OFFLINE_CLASSES) == 56
 
 
 def test_the_record_table_is_the_spec_table_cell_for_cell() -> None:
