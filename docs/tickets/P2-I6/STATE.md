@@ -2,7 +2,7 @@
 ## BOARD   (wave-1 prep only; exit items later)
 S1 p mrg f f567b59 marts sync; gate 3472 P; APPROVALS
 T02 t stg f - gold marts SQL; ready (S1 mrg)
-T03 t stg l - ready (P2-I5 on trunk 8e7134b)
+T03 t mrg l ecb78e1 audit 16 rows, D01-D05 drafts; req/WO not in seed
 B1 p todo f - exit wave 5; not staged
 T01 t todo f - exit wave 5; needs B1
 T04 t todo f - exit demo; needs T01 T02
