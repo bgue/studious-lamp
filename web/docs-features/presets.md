@@ -1,6 +1,6 @@
 # Presets
 
-A preset is a named look of the viewer: a partial parameter document (`xray-params/1`, the same keys as the JSON export) plus an optional list of actions. Applying one never changes the model or the selection, and it moves the camera only when the preset carries a `camera` or the flag `frame: "selection"` (see below). Keys `1` to `9` apply the first nine presets, and the four modes of the top bar ([topbar.md](topbar.md)) apply `coordination`, `radiograph`, `focus-glow` and `peel-only`; the action panel has a `Presets` tool (order 5) and the parameter panel has a `Presets` folder.
+A preset is a named look of the viewer: a partial parameter document (`xray-params/1`, the same keys as the JSON export) plus an optional list of actions. Applying one never changes the model or the selection, and it moves the camera only when the preset carries a `camera` or the flag `frame: "selection"` (see below). Keys `1` to `9` apply the first nine presets, and the five modes of the top bar ([topbar.md](topbar.md)) apply `solid`, `coordination`, `radiograph`, `focus-glow` and `peel-only`; the action panel has a `Presets` tool (order 5) and the parameter panel has a `Presets` folder.
 
 ## The built-in presets
 
@@ -17,7 +17,8 @@ A preset is a named look of the viewer: a partial parameter document (`xray-para
 | 9 | `section-focus` | Cutaway | `section`: `box.enabled`, `box.fit selection`, `caps true`; action `section.fitSelection`; frames the selection. |
 | - | `presentation` | Presentation | `cinematic`: `dressing`, `bloom`, `flyTo`, `reveal` on, `sweep` enabled (`mode both`). |
 | - | `clearance-review` | Review | `clearance`: enabled with the default bands (`tight 0.05`, `max 0.5`). |
-| - | `plain` | Basic | `xray false`; `cinematic` `bloom` and `edgeGlow` off (so leaving the Glow mode gives a plain view). Clicking the active mode of the top bar applies it. |
+| - | `plain` | Basic | `xray false`; `cinematic` `bloom` and `edgeGlow` off (so leaving the Glow mode gives a plain view). Resets sections and clearance too (unlike `solid`). |
+| - | `solid` | Basic | `xray false`; `viewModes` and `imaging` reset; `cinematic` `bloom`, `edgeGlow` and `autoOrbit` off. Does not name `section` or `clearance`, so cuts and clearance stay as they are. The Solid mode of the top bar, and what a click on a lit mode switches to. |
 | - | `focus-glow` | Presentation | `cinematic`: `bloom` on, `edgeGlow` on, `glowScope focus`. The selection gets a soft halo and a bright outline; the structure around it stays ghosted. The Glow mode of the top bar. |
 
 `focus-glow` was added for the top bar (nothing else in the set glowed the selection); it has no key, so keys `1` to `9` did not move. The other three modes reuse `coordination`, `radiograph` and `peel-only`. Because Glow adds bloom and edge glow as a look of its own, `radiograph` and `peel-only` now also switch `cinematic.bloom` and `cinematic.edgeGlow` off (as `coordination` did already), so changing from Glow to another mode does not leave the glow on.

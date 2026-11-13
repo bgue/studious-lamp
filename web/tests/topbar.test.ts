@@ -16,9 +16,9 @@ afterEach(() => {
 const preset = (id: string) => BUILTIN_PRESETS.find((p) => p.id === id)!;
 
 describe('mode to preset mapping', () => {
-  it('has the four modes in order and each applies an existing built-in preset', () => {
-    expect(MODES.map((m) => m.id)).toEqual(['ghost', 'radiograph', 'glow', 'cutaway']);
-    expect(MODES.map((m) => m.presetId)).toEqual(['coordination', 'radiograph', 'focus-glow', 'peel-only']);
+  it('has the five modes in order and each applies an existing built-in preset', () => {
+    expect(MODES.map((m) => m.id)).toEqual(['solid', 'ghost', 'radiograph', 'glow', 'cutaway']);
+    expect(MODES.map((m) => m.presetId)).toEqual(['solid', 'coordination', 'radiograph', 'focus-glow', 'peel-only']);
     for (const m of MODES) {
       expect(preset(m.presetId), m.id).toBeDefined();
       expect(preset(m.presetId).builtIn).toBe(true);
@@ -26,10 +26,22 @@ describe('mode to preset mapping', () => {
       expect(modeById(m.id)).toBe(m);
     }
     expect(preset(OFF_PRESET_ID).params['xray']).toBe(false);
+    expect(OFF_PRESET_ID).toBe('solid');
   });
 
   it('gives every mode its own preset', () => {
     expect(new Set(MODES.map((m) => m.presetId)).size).toBe(MODES.length);
+  });
+
+  it('Solid: x-ray off, effects off, and it leaves sections and clearance alone', () => {
+    const p = preset('solid');
+    expect(p.params['xray']).toBe(false);
+    expect(p.params['viewModes']).toEqual({});
+    expect(p.params['imaging']).toEqual({});
+    expect(p.params['cinematic']).toEqual({ bloom: false, edgeGlow: false, autoOrbit: false });
+    expect(p.params).not.toHaveProperty('section');
+    expect(p.params).not.toHaveProperty('clearance');
+    expect(preset('plain').params).toHaveProperty('section');
   });
 
   it('what each mode sets', () => {
@@ -55,6 +67,7 @@ describe('active mode from the active preset', () => {
     expect(modeForPreset('radiograph')).toBe('radiograph');
     expect(modeForPreset('focus-glow')).toBe('glow');
     expect(modeForPreset('peel-only')).toBe('cutaway');
+    expect(modeForPreset('solid')).toBe('solid');
     for (const other of ['hide-blockers', 'behind-only', 'peelback', 'mri-scan', 'presentation', 'plain', 'shared-preset', 'my-own']) expect(modeForPreset(other), other).toBeNull();
     expect(modeForPreset(null)).toBeNull();
     expect(modeForPreset(undefined)).toBeNull();
@@ -111,20 +124,26 @@ describe('click plan', () => {
     expect(clickPlan('ghost', 'glow')).toEqual({ kind: 'apply', presetId: 'focus-glow' });
   });
 
-  it('returns to the normal view when the active mode is clicked again', () => {
-    for (const m of MODES) expect(clickPlan(m.id, m.id)).toEqual({ kind: 'off', presetId: 'plain' });
+  it('switches to Solid when another lit mode is clicked again, and does nothing for a lit Solid', () => {
+    for (const m of MODES) {
+      if (m.id === 'solid') expect(clickPlan('solid', 'solid')).toEqual({ kind: 'none' });
+      else expect(clickPlan(m.id, m.id)).toEqual({ kind: 'off', presetId: 'solid' });
+    }
+    expect(clickPlan(null, 'solid')).toEqual({ kind: 'apply', presetId: 'solid' });
   });
 
   it('survives a round trip: mode, off, mode', () => {
     let active: ModeId | null = null;
     const click = (id: ModeId): void => {
       const plan = clickPlan(active, id);
-      active = modeForPreset(plan.presetId);
+      if (plan.kind !== 'none') active = modeForPreset(plan.presetId);
     };
     click('radiograph');
     expect(active).toBe('radiograph');
     click('radiograph');
-    expect(active).toBeNull();
+    expect(active).toBe('solid');
+    click('solid');
+    expect(active).toBe('solid');
     click('cutaway');
     expect(active).toBe('cutaway');
   });
@@ -144,7 +163,7 @@ describe('keys', () => {
   it('are valid chords, unique, and clear of the preset digits and the view keys', () => {
     const keys = MODES.map((m) => chordKey(m.key));
     expect(keys.every((k) => k !== null)).toBe(true);
-    expect(new Set(keys).size).toBe(4);
+    expect(new Set(keys).size).toBe(5);
     const taken = new Set<string>();
     for (let n = 0; n <= 9; n++) taken.add(`code:digit${n}`);
     for (const n of [0, 1, 3, 5, 7]) taken.add(chordKey(`Alt+code:Digit${n}`)!);
@@ -156,8 +175,22 @@ describe('keys', () => {
     for (let i = 0; i < MODES.length; i++) {
       const c = parseChord(MODES[i]!.key)!;
       expect(c.shift).toBe(true);
-      const cands = eventCandidates({ key: '!', code: `Digit${i + 1}`, shiftKey: true });
+      const cands = eventCandidates({ key: '!', code: `Digit${i}`, shiftKey: true });
       expect(cands).toContain(chordKey(MODES[i]!.key));
     }
+  });
+});
+
+describe('Solid keeps cuts', () => {
+  it('applying Solid leaves the section state alone, plain resets it', () => {
+    const f = fakeApp();
+    const env: EngineEnv = { paramsEnv: f.env, clearance: null };
+    const sec = fakeSection('section', { box: { enabled: true } });
+    offs.push(sec.off);
+    const factory = (s: string): unknown => (s === 'section' ? { box: { enabled: false } } : undefined);
+    applyPreset(f.app, preset('solid'), { ...env, factory });
+    expect(sec.state.box.enabled).toBe(true);
+    applyPreset(f.app, preset('plain'), { ...env, factory });
+    expect(sec.state.box.enabled).toBe(false);
   });
 });

@@ -475,6 +475,7 @@ export class AwesomeBar {
       add('presets', this.sources.presets(text));
       add('views', this.sources.views(text));
       add('sets', this.sources.sets(text));
+      add('issues', this.sources.issues(text));
     }
     add('settings', this.sources.settingsRows(text));
     this.footNote = footer;

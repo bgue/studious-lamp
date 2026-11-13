@@ -1,11 +1,12 @@
 // Headless check for the Markup tool on /?model=fzk-haus:
-//   - open the drawer, make a set from the view, draw every tool with the mouse (the orbit must not move), add comments,
-//     status, assignee and due date, undo and redo with the keys, screenshots of the toolbar and the marked view;
+//   - open the Issues tab (Sketches segment; the Markup drawer is gone), make a sketch from the view, draw every tool of the floating
+//     drawing toolbar with the mouse (the orbit must not move), undo and redo with the keys, seed legacy comments and status through a
+//     JSON import and read them back read-only (sketches have no status or comments any more), screenshots of the toolbar and the marked view;
 //   - export the PDF and the JSON (downloads captured); validate the PDF with pypdf / pdfinfo / pdftoppm when present,
 //     extract the embedded JSON and compare it with the reader of the viewer;
 //   - reload, drop the PDF onto the page: the view and the markups come back (camera within tolerance, same markups);
 //     reload again and open the JSON through the file input; drop it on another model (warning, still restored);
-//   - convert a set to a BCF topic; "Return to markup view" after orbiting away; phone layout with touch drawing;
+//   - raise a sketch as an issue (its legacy comments move to the issue); "Return to markup view" after orbiting away; phone layout with touch drawing;
 //   - fails on any console error.
 // Screenshots: bench/markup-drawer.png, markup-tools.png, markup-pdf-1.png ... (new files only).
 // Usage: SMOKE_PORT=5710 node bench/smoke-markup.mjs
@@ -97,8 +98,8 @@ try {
       return { x: r.left + (v.x * 0.5 + 0.5) * r.width, y: r.top + (1 - (v.y * 0.5 + 0.5)) * r.height };
     }, p);
   }
-  const openDrawer = (pg = page) => pg.evaluate(() => window.__xrayToolbar.open('markup'));
-  const tool = (id, pg = page) => pg.click(`#markup-drawer [data-tool-id=${id}]`);
+  const openDrawer = (pg = page) => pg.evaluate(() => window.__xrayIssues.open('sketches'));
+  const tool = (id, pg = page) => pg.click(`#markup-float [data-tool-id=${id}]`);
   async function drag(x0, y0, x1, y1, pg = page) {
     await pg.mouse.move(x0, y0);
     await pg.mouse.down();
@@ -118,12 +119,13 @@ try {
   await setCamera();
   await page.waitForTimeout(600);
   await settle();
-  check('markup tool is registered with a key', await page.evaluate(() => window.__xrayToolbar.tools().includes('markup') && !!window.__xrayMarkup));
-  // key K opens the drawer
+  // Assertion changed: the Markup tool left the tool strip; sketches live in the Issues tab and key K still opens them.
+  check('markup API present, the tool left the tool strip', await page.evaluate(() => !window.__xrayToolbar.tools().includes('markup') && !!window.__xrayMarkup && !!window.__xrayIssues));
+  // key K opens the Issues tab on the Sketches segment
   await page.keyboard.press('k');
-  await page.waitForSelector('#markup-drawer');
-  check('key K opens the Markup drawer', true);
-  // The drawer covers the left of the view: pan the model into the free part (right of the drawer) before the set is made.
+  await page.waitForSelector('#issues-panel');
+  check('key K opens the Issues tab on Sketches', await page.evaluate(() => window.__xrayIssues.segment === 'sketches' && window.__xrayIssues.visible));
+  // The sidebar covers the left of the view: pan the model into the free part (right of the sidebar) before the sketch is made.
   await page.evaluate(() => {
     const app = window.__xray.app;
     const cm = app.renderer.camera;
@@ -132,7 +134,7 @@ try {
     const p = cm.position.clone().set((b[0] + b[3]) / 2, (b[1] + b[4]) / 2, (b[2] + b[5]) / 2);
     cm.updateMatrixWorld();
     const ndc = p.clone().project(cm);
-    const dr = document.querySelector('#xray-toolbar-drawer').getBoundingClientRect();
+    const dr = document.querySelector('#sidebar').getBoundingClientRect();
     const cv = app.canvas.getBoundingClientRect();
     const wantX = (dr.right + 12 + cv.right - 260) / 2 - cv.left; // CSS px in the canvas
     const nowX = (ndc.x * 0.5 + 0.5) * cv.width;
@@ -146,12 +148,12 @@ try {
     app.controller.settle();
   });
   await page.waitForTimeout(400);
-  await page.fill('#markup-drawer [data-keep=author]', 'smoke@example.org');
-  await page.dispatchEvent('#markup-drawer [data-keep=author]', 'change');
-  await page.click('#markup-drawer >> text=New set from view');
+  await page.fill('#issues-panel [data-keep=author]', 'smoke@example.org');
+  await page.dispatchEvent('#issues-panel [data-keep=author]', 'change');
+  await page.click('#issues-panel [data-act=new-sketch]');
   await page.waitForFunction(() => window.__xrayMarkup.list().length === 1);
-  await page.fill('#markup-drawer [aria-label="Set title"]', 'Level 1 routing');
-  await page.dispatchEvent('#markup-drawer [aria-label="Set title"]', 'change');
+  await page.fill('#issues-panel [aria-label="Sketch title"]', 'Level 1 routing');
+  await page.dispatchEvent('#issues-panel [aria-label="Sketch title"]', 'change');
   const author = await page.evaluate(() => localStorage.getItem('xray.bcf.author'));
   check('author is shared with the BCF key', author === 'smoke@example.org', String(author));
   const cam0 = await cam();
@@ -160,9 +162,10 @@ try {
   // The free part of the canvas: right of the drawer, left of the parameter panel, below the top bar.
   const freeArea = await page.evaluate(() => {
     const cv = window.__xray.app.canvas.getBoundingClientRect();
-    const dr = document.querySelector('#xray-toolbar-drawer')?.getBoundingClientRect();
+    const dr = document.querySelector('#sidebar')?.getBoundingClientRect();
     const gui = document.querySelector('.lil-gui.root')?.getBoundingClientRect();
-    return { x0: Math.max(cv.left, dr ? dr.right : 0) + 12, x1: Math.min(cv.right, gui && gui.width ? gui.left : cv.right) - 12, y0: cv.top + 60, y1: cv.bottom - 50 };
+    // x0 clears the tool strip (44 px), y1 the floating drawing toolbar at the bottom centre (about 150 px with its text row).
+    return { x0: Math.max(cv.left, dr ? dr.right : 0) + 60, x1: Math.min(cv.right, gui && gui.width ? gui.left : cv.right) - 12, y0: cv.top + 60, y1: cv.bottom - 200 };
   });
   console.log('free area', JSON.stringify(freeArea));
   const X0 = freeArea.x0, X1 = freeArea.x1, Y0 = freeArea.y0, Y1 = freeArea.y1;
@@ -229,20 +232,20 @@ try {
   // row 2
   c = cell(0, 2);
   await tool('pen'); await made('pen', () => path([[c.x, c.y + c.h], [c.x + c.w * 0.25, c.y], [c.x + c.w * 0.5, c.y + c.h], [c.x + c.w * 0.75, c.y], [c.x + c.w, c.y + c.h]]));
-  await page.fill('#markup-drawer [aria-label="Text for the next markup"]', 'Window reveal too small');
   const win = await screenOf(info.win.c);
-  await tool('callout'); await made('callout on an element', () => page.mouse.click(win.x, win.y));
-  await page.fill('#markup-drawer [aria-label="Text for the next markup"]', 'Check fire rating');
+  await tool('callout');
+  await page.fill('#markup-float [aria-label="Text for the next markup"]', 'Window reveal too small'); await made('callout on an element', () => page.mouse.click(win.x, win.y));
   const wall = await screenOf([info.wall.c[0], info.wall.c[1], info.wall.c[2]]);
-  await tool('pointer'); await made('pointer on an element', () => page.mouse.click(wall.x, wall.y));
-  await page.fill('#markup-drawer [aria-label="Text for the next markup"]', 'North side');
+  await tool('pointer');
+  await page.fill('#markup-float [aria-label="Text for the next markup"]', 'Check fire rating'); await made('pointer on an element', () => page.mouse.click(wall.x, wall.y));
   c = cell(3, 2);
-  await tool('text'); await made('text box', () => page.mouse.click(c.x + c.w / 2, c.y + c.h / 2));
+  await tool('text');
+  await page.fill('#markup-float [aria-label="Text for the next markup"]', 'North side'); await made('text box', () => page.mouse.click(c.x + c.w / 2, c.y + c.h / 2));
   // measurement link
   await page.evaluate((cc) => { const m = window.__xrayMeasure; m.click([cc[0] - 0.4, cc[1], cc[2]], 0); m.click([cc[0] + 0.4, cc[1], cc[2]], 0); }, info.win.c);
   await tool('select');
-  await page.waitForSelector('#markup-drawer select[aria-label="Link a measurement"]');
-  await page.selectOption('#markup-drawer select[aria-label="Link a measurement"]', { index: 1 });
+  await page.waitForSelector('#issues-panel select[aria-label="Link a measurement"]');
+  await page.selectOption('#issues-panel select[aria-label="Link a measurement"]', { index: 1 });
   await page.waitForFunction((k) => window.__xrayMarkup.get(window.__xrayMarkup.list().find((s) => s.active).id).markups.length === k, n + 1);
   n++;
   check('measurement link adds a markup', true);
@@ -300,27 +303,35 @@ try {
   await page.keyboard.press('Escape');
   check('a second Escape goes back to the select tool', (await page.evaluate(() => window.__xrayMarkup.tool)) === 'select');
 
-  // comments, status, assignee, due date through the drawer
+  // Sketches have a text per drawing and nothing else to edit: no status, assignee, due date or comment thread (those belong to an
+  // issue). Assertions changed from the drawer version: edit the text in the panel, check that no review controls exist, then seed
+  // legacy data the way old files carry it (a JSON with comments, a resolved status, an assignee and a due date) and read it back.
   const ids = set1.markups.map((m) => m.id);
-  await page.click(`#markup-drawer [data-mk-item="${ids[0]}"] .mk-head`);
-  await page.fill(`#markup-drawer [data-mk-item="${ids[0]}"] [data-field=text]`, 'Clash: duct through beam');
-  await page.fill(`#markup-drawer [data-mk-item="${ids[0]}"] [data-field=assignee]`, 'Ben');
-  await page.dispatchEvent(`#markup-drawer [data-mk-item="${ids[0]}"] [data-field=assignee]`, 'change');
-  await page.fill(`#markup-drawer [data-mk-item="${ids[0]}"] [data-field=due]`, '2026-12-24');
-  await page.dispatchEvent(`#markup-drawer [data-mk-item="${ids[0]}"] [data-field=due]`, 'change');
-  await page.fill(`#markup-drawer [data-mk-item="${ids[0]}"] [data-field=comment]`, 'Needs a sleeve (see detail 4)');
-  await page.click(`#markup-drawer [data-mk-item="${ids[0]}"] >> text=Add comment`);
-  await page.fill(`#markup-drawer [data-mk-item="${ids[0]}"] [data-field=comment]`, 'Agreed, Ben will update the model');
-  await page.click(`#markup-drawer [data-mk-item="${ids[0]}"] >> text=Add comment`);
-  await page.click(`#markup-drawer [data-mk-item="${ids[1]}"] .mk-head`);
-  await page.fill(`#markup-drawer [data-mk-item="${ids[1]}"] [data-field=comment]`, 'Done in revision B');
-  await page.click(`#markup-drawer [data-mk-item="${ids[1]}"] >> text=Add comment`);
-  await page.click(`#markup-drawer [data-mk-item="${ids[1]}"] [data-act=status]`);
+  await page.click(`#issues-panel [data-mk-item="${ids[0]}"] .is-mk-h`);
+  await page.fill(`#issues-panel [data-mk-item="${ids[0]}"] [data-field=text]`, 'Clash: duct through beam');
+  check('a drawing has a text and no review controls', !!(await page.$(`#issues-panel [data-mk-item="${ids[0]}"] [data-field=text]`)) && !(await page.$('#issues-panel [data-act=status], #issues-panel [data-field=assignee], #issues-panel [data-field=due], #issues-panel [data-field=comment]')));
+  check('a sketch refuses comments and keeps the status of its drawings', await page.evaluate((id) => !window.__xrayMarkup.comment(id, 'x') && window.__xrayMarkup.update(id, { status: 'resolved' }) !== undefined && window.__xrayMarkup.get(window.__xrayMarkup.list()[0].id).markups.every((m) => m.status === 'open' && m.comments.length === 0), ids[0]));
+  await page.evaluate(async (ids) => {
+    const m = window.__xrayMarkup;
+    const sid = m.list()[0].id;
+    const doc = JSON.parse(new TextDecoder().decode(m.exportJson({ ids: [sid] }).bytes));
+    const ms = doc.sets[0].markups;
+    ms[0].assignee = 'Ben';
+    ms[0].due = '2026-12-24';
+    ms[0].comments = [{ id: 'c1', author: 'smoke@example.org', date: '2026-01-02T08:00:00.000Z', text: 'Needs a sleeve (see detail 4)' }, { id: 'c2', author: 'smoke@example.org', date: '2026-01-03T08:00:00.000Z', text: 'Agreed, Ben will update the model' }];
+    ms[1].status = 'resolved';
+    ms[1].comments = [{ id: 'c3', author: 'smoke@example.org', date: '2026-01-04T08:00:00.000Z', text: 'Done in revision B' }];
+    m.deleteSet(sid);
+    await m.importJson(JSON.stringify(doc));
+    void ids;
+  }, ids);
+  await page.waitForFunction(() => window.__xrayMarkup.list().length === 1);
   const s2 = await page.evaluate(() => window.__xrayMarkup.get(window.__xrayMarkup.list()[0].id));
-  check('text, assignee, due date, comments and status are stored',
+  check('legacy text, assignee, due date, comments and status are kept in the data',
     s2.markups[0].text === 'Clash: duct through beam' && s2.markups[0].assignee === 'Ben' && s2.markups[0].due === '2026-12-24' && s2.markups[0].comments.length === 2 && s2.markups[0].comments[0].author === 'smoke@example.org' && s2.markups[1].status === 'resolved' && s2.markups[1].comments.length === 1);
-  await page.click(`#markup-drawer [data-mk-item="${ids[1]}"] .mk-head`); // collapse
-  await page.click(`#markup-drawer [data-mk-item="${ids[0]}"] .mk-head`); // select first: show detail
+  await page.click('#issues-panel [data-sketch]'); // the removed sketch closed the detail: open the imported one
+  await page.waitForSelector('#issues-panel [data-legacy]');
+  check('and show read-only on the sketch', (await page.textContent('#issues-panel [data-legacy]')).includes('Needs a sleeve') && !(await page.$('#issues-panel [data-legacy] input, #issues-panel [data-legacy] textarea')));
   await page.mouse.move(box.x + box.w * 0.5, box.y + 4);
   await page.waitForTimeout(500);
   await page.screenshot({ path: resolve(here, 'markup-drawer.png') });
@@ -328,20 +339,23 @@ try {
 
   // a second set, to test several sets
   await page.evaluate(() => { const app = window.__xray.app; app.renderer.camera.position.set(-8, 6, 9); app.renderer.controls.target.set(0, 1.5, 0); app.renderer.controls.update(); app.controller.settle(); });
-  await page.click('#markup-drawer >> text=New set from view');
+  await page.evaluate(() => window.__xrayIssues.newSketch()); // the sketch detail has no New sketch button; the list has
   await page.waitForFunction(() => window.__xrayMarkup.list().length === 2);
   await page.waitForTimeout(200);
-  const thumbs = await page.evaluate(() => [...document.querySelectorAll('#markup-drawer .mk-set img')].map((i) => i.src.startsWith('data:image/jpeg')));
-  check('two sets are listed with thumbnails', thumbs.length === 2 && thumbs.every(Boolean));
+  await page.click('#issues-panel [data-act=back]');
+  const thumbs = await page.evaluate(() => [...document.querySelectorAll('#issues-panel .is-card img')].map((i) => i.src.startsWith('data:image/jpeg')));
+  // Assertion changed: the first sketch went through the legacy-data JSON round trip above and the JSON carries no thumbnail, so it
+  // lists as "no picture"; the sketch made from the view has its picture.
+  check('two sketches are listed, the new one with a thumbnail', (await page.$$('#issues-panel .is-card')).length === 2 && thumbs.length >= 1 && thumbs.every(Boolean));
   await tool('cloud');
   await drag(box.x + box.w * 0.55, box.y + box.h * 0.4, box.x + box.w * 0.75, box.y + box.h * 0.6);
-  check('the second set has its own markup', (await page.evaluate(() => window.__xrayMarkup.get(window.__xrayMarkup.list()[1].id).markups.length)) === 1 && (await page.evaluate(() => window.__xrayMarkup.get(window.__xrayMarkup.list()[0].id).markups.length)) === 15);
-  // selecting set 1 restores its view
-  await page.click(`#markup-drawer [data-set="${set1.id}"]`);
+  check('the second sketch has its own markup', (await page.evaluate(() => window.__xrayMarkup.get(window.__xrayMarkup.list()[1].id).markups.length)) === 1 && (await page.evaluate(() => window.__xrayMarkup.get(window.__xrayMarkup.list()[0].id).markups.length)) === 15);
+  // selecting sketch 1 restores its view
+  await page.click(`#issues-panel [data-set="${set1.id}"]`);
   await page.waitForTimeout(1500);
   await settle();
   const camBack = await cam();
-  check('selecting a set restores its view', dist3(camBack.p, cam0.p) < 0.05 && dist3(camBack.t, cam0.t) < 0.05, `${dist3(camBack.p, cam0.p).toFixed(4)}`);
+  check('selecting a sketch restores its view', dist3(camBack.p, cam0.p) < 0.05 && dist3(camBack.t, cam0.t) < 0.05, `${dist3(camBack.p, cam0.p).toFixed(4)}`);
 
   // away from the view: markups stay on their plane in 3D, the "Return to markup view" button shows
   const before = await page.evaluate(() => document.querySelector('#markup-return').style.display);
@@ -357,10 +371,10 @@ try {
   check('Return to markup view brings the camera back', dist3(camRet.p, cam0.p) < 0.05, `${dist3(camRet.p, cam0.p).toFixed(4)}`);
 
   // ------------------------------------------------------------------ part 2: export
-  const [pdfDl] = await Promise.all([page.waitForEvent('download'), page.click('#markup-drawer >> text=Export PDF')]);
+  const [pdfDl] = await Promise.all([page.waitForEvent('download'), page.click('#issues-panel >> text=Export PDF')]);
   const pdfPath = join(tmp, 'set1.pdf');
   await pdfDl.saveAs(pdfPath);
-  const [jsonDl] = await Promise.all([page.waitForEvent('download'), page.click('#markup-drawer >> text=Export JSON')]);
+  const [jsonDl] = await Promise.all([page.waitForEvent('download'), page.click('#issues-panel >> text=Export JSON')]);
   const jsonPath = join(tmp, 'set1.json');
   await jsonDl.saveAs(jsonPath);
   check('download names', /^xray-markup-fzk-haus-Level_1_routing-\d{8}-\d{4}\.pdf$/.test(pdfDl.suggestedFilename()) && /\.json$/.test(jsonDl.suggestedFilename()), `${pdfDl.suggestedFilename()} ${jsonDl.suggestedFilename()}`);
@@ -510,7 +524,7 @@ print(json.dumps({'k': k, 'inner': float(inner), 'left': float(left), 'right': f
   const camAfter = await cam();
   check('dropping the PDF restores the view (camera within tolerance)', dist3(camAfter.p, cam0.p) < 0.01 && dist3(camAfter.t, cam0.t) < 0.01 && Math.abs(camAfter.fov - cam0.fov) < 1e-6, `${dist3(camAfter.p, cam0.p).toFixed(5)}`);
   check('dropping the PDF restores all markups at the same positions', back.set.markups.length === 15 && JSON.stringify(back.set.markups.map((m) => m.shape ?? m.anchor)) === JSON.stringify(s2.markups.map((m) => m.shape ?? m.anchor)), `${back.set.markups.length}`);
-  check('comments, status, assignee and numbers survive', back.set.markups[0].comments.length === 2 && back.set.markups[1].status === 'resolved' && back.set.markups[0].assignee === 'Ben' && back.set.markups.map((m) => m.number).join() === s2.markups.map((m) => m.number).join());
+  check('legacy comments, status, assignee and numbers survive', back.set.markups[0].comments.length === 2 && back.set.markups[1].status === 'resolved' && back.set.markups[0].assignee === 'Ben' && back.set.markups.map((m) => m.number).join() === s2.markups.map((m) => m.number).join());
   check('the restored markups are drawn', back.drawn === 15, `drawn ${back.drawn}`);
   check('no warning for the same model', !/warning/i.test(back.status), back.status);
   await page.screenshot({ path: resolve(here, 'markup-restored.png') });
@@ -545,7 +559,8 @@ print(json.dumps({'k': k, 'inner': float(inner), 'left': float(left), 'right': f
   await page.setInputFiles('input[data-markup=open]', jsonPath);
   await page.waitForFunction(() => window.__xrayMarkup.list().length === 1, null, { timeout: 30000 });
   await openDrawer();
-  await page.waitForTimeout(500);
+  await page.click('#issues-panel [data-sketch]'); // the detail of the only sketch (and its view comes back)
+  await page.waitForTimeout(2000);
   // ---- Update view: capture again from another camera; shapes stay on the model; undo brings the old view back
   const uv = await page.evaluate(() => {
     const m = window.__xrayMarkup;
@@ -569,7 +584,9 @@ print(json.dumps({'k': k, 'inner': float(inner), 'left': float(left), 'right': f
     const n = pin.getAttribute('points').split(' ').map(Number);
     return { pin: [svg.left + n[0], svg.top + n[1]] };
   }, uv.rect);
-  await page.click('#markup-drawer >> text=Update view');
+  // Ctrl+Z undoes it while the sketch is being edited (the toolbar is up): the markup history owns the keys then, not the global stack.
+  await page.click('#issues-panel [data-act=edit-drawing]');
+  await page.click('#issues-panel >> text=Update view');
   await page.waitForTimeout(800);
   const upd = await page.evaluate((u) => {
     const m = window.__xrayMarkup;
@@ -601,7 +618,7 @@ print(json.dumps({'k': k, 'inner': float(inner), 'left': float(left), 'right': f
   }, uv);
   check('Update view with "stay on the screen" keeps the shape fractions', scr.same && scr.r.moved === 0 && scr.r.shapes >= 10, JSON.stringify(scr));
   await page.evaluate((u) => window.__xrayMarkup.restore(u.id, { animate: false }), uv);
-  await page.click('#markup-drawer >> text=Convert to BCF topic');
+  await page.click('#issues-panel [data-act=raise]');
   await page.waitForFunction(() => window.__xrayBcf.topics.length === 1, null, { timeout: 30000 });
   const bcf = await page.evaluate(() => {
     const t = window.__xrayBcf.topics[0];
@@ -609,10 +626,12 @@ print(json.dumps({'k': k, 'inner': float(inner), 'left': float(left), 'right': f
     const list = Object.values(anns).flat();
     return { title: t.title, vps: t.viewpoints.length, snap: !!t.viewpoints[0].snapshot, types: list.map((a) => a.type), comments: t.comments.length, status: t.topicStatus };
   });
-  check('Convert to BCF topic: viewpoint, snapshot, annotations and comments', bcf.title === 'Level 1 routing' && bcf.vps === 1 && bcf.snap && bcf.types.length >= 14 && bcf.types.includes('freehand') && bcf.types.includes('callout') && bcf.comments >= 3 && bcf.status === 'Open', JSON.stringify(bcf));
-  // one markup to BCF
-  const one = await page.evaluate(async () => { const s = window.__xrayMarkup.list()[0]; const m = window.__xrayMarkup.get(s.id).markups[0]; return await window.__xrayMarkup.toBcf(s.id, m.id); });
-  check('a single markup converts too', typeof one === 'string' && (await page.evaluate(() => window.__xrayBcf.topics.length)) === 2);
+  // Assertion changed: Raise as issue links the viewpoint to the sketch (the drawing is projected from it) and moves the legacy comments.
+  check('Raise as issue: viewpoint, snapshot, drawing as annotations, legacy comments moved', bcf.title === 'Level 1 routing' && bcf.vps === 1 && bcf.snap && bcf.types.length >= 14 && bcf.types.includes('freehand') && bcf.types.includes('callout') && bcf.comments >= 3 && bcf.status === 'Open', JSON.stringify(bcf));
+  // Assertion changed: the single-markup conversion is gone (an issue is made of a sketch). Raising the same sketch again is refused.
+  const again = await page.evaluate(async () => { try { await window.__xrayMarkup.toBcf(window.__xrayMarkup.list()[0].id); return 'no error'; } catch (e) { return e.message; } });
+  check('a sketch belongs to at most one issue: raising it again is refused', /already belongs to the issue/.test(again) && (await page.evaluate(() => window.__xrayBcf.topics.length)) === 1, again);
+  check('the link shows from both sides', await page.evaluate(() => { const t = window.__xrayBcf.topics[0]; const sid = window.__xrayMarkup.list()[0].id; return t.viewpoints[0].sketchId === sid && window.__xrayMarkup.get(sid).issue?.topic === t.guid; }));
 
   // phone layout with touch drawing
   const phone = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, acceptDownloads: true });
@@ -624,20 +643,21 @@ print(json.dumps({'k': k, 'inner': float(inner), 'left': float(left), 'right': f
   await setCamera(pp);
   await pp.waitForTimeout(600);
   await openDrawer(pp);
-  await pp.waitForSelector('#markup-drawer');
-  await pp.click('#markup-drawer >> text=New set from view');
-  await pp.waitForFunction(() => window.__xrayMarkup.list().length === 1);
+  await pp.waitForSelector('#issues-sheet.on');
   await pp.waitForTimeout(300);
   await pp.screenshot({ path: resolve(here, 'markup-phone-drawer.png') });
   keep.push('markup-phone-drawer.png');
   const noScroll = await pp.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1);
-  check('phone: no horizontal page scroll with the drawer open', noScroll);
-  const dr = await pp.evaluate(() => { const r = document.querySelector('#markup-drawer').getBoundingClientRect(); return { w: r.width, vw: window.innerWidth, over: [...document.querySelectorAll('#markup-drawer *')].filter((e) => e.getBoundingClientRect().right > window.innerWidth + 1).length }; });
-  check('phone: the drawer content fits the screen', dr.over === 0, JSON.stringify(dr));
-  // pick the cloud tool: on a phone the drawer closes so the view is free, and the floating bar appears
+  check('phone: no horizontal page scroll with the sheet open', noScroll);
+  const dr = await pp.evaluate(() => { const r = document.querySelector('#issues-panel').getBoundingClientRect(); return { w: r.width, vw: window.innerWidth, over: [...document.querySelectorAll('#issues-panel *')].filter((e) => e.getBoundingClientRect().right > window.innerWidth + 1).length }; });
+  check('phone: the sheet content fits the screen', dr.over === 0, JSON.stringify(dr));
+  await pp.click('#issues-panel [data-act=new-sketch]');
+  await pp.waitForFunction(() => window.__xrayMarkup.list().length === 1);
+  await pp.waitForTimeout(300);
+  // New sketch starts editing: on a phone the sheet steps aside and the floating bar shows (it used to be: choosing a tool closed the drawer)
   await tool('cloud', pp);
   await pp.waitForTimeout(600);
-  check('phone: choosing a tool closes the drawer and shows the floating bar', (await pp.evaluate(() => !document.querySelector('#markup-drawer') && getComputedStyle(document.querySelector('#markup-float')).display !== 'none')));
+  check('phone: drawing hides the sheet and shows the floating bar', (await pp.evaluate(() => !document.querySelector('#issues-sheet').classList.contains('on') && getComputedStyle(document.querySelector('#markup-float')).display !== 'none')));
   await pp.screenshot({ path: resolve(here, 'markup-phone-float.png') });
   keep.push('markup-phone-float.png');
   const cdp = await phone.newCDPSession(pp);

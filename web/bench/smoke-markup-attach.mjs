@@ -141,15 +141,16 @@ try {
   // ------------------------------------------------------------------ part 1: attached cloud
   await boot();
   await page.keyboard.press('k');
-  await page.waitForSelector('#markup-drawer');
-  await page.fill('#markup-drawer [data-keep=author]', 'smoke@example.org');
-  await page.dispatchEvent('#markup-drawer [data-keep=author]', 'change');
-  // Close the drawer's cover: the free part of the canvas.
+  await page.waitForSelector('#issues-panel');
+  await page.fill('#issues-panel [data-keep=author]', 'smoke@example.org');
+  await page.dispatchEvent('#issues-panel [data-keep=author]', 'change');
+  // The free part of the canvas: right of the sidebar.
   const free = await page.evaluate(() => {
     const cv = window.__xray.app.canvas.getBoundingClientRect();
-    const dr = document.querySelector('#xray-toolbar-drawer')?.getBoundingClientRect();
+    const dr = document.querySelector('#sidebar')?.getBoundingClientRect();
     const gui = document.querySelector('.lil-gui.root')?.getBoundingClientRect();
-    return { x0: Math.max(cv.left, dr ? dr.right : 0) + 12, x1: Math.min(cv.right, gui && gui.width ? gui.left : cv.right) - 12, y0: cv.top + 60, y1: cv.bottom - 60 };
+    // x0 clears the tool strip, y1 the floating drawing toolbar at the bottom centre.
+    return { x0: Math.max(cv.left, dr ? dr.right : 0) + 60, x1: Math.min(cv.right, gui && gui.width ? gui.left : cv.right) - 12, y0: cv.top + 60, y1: cv.bottom - 200 };
   });
   // A wall element whose centre is looked at from the front-right, with the orbit pivot behind it, so the old plane would slide away.
   const wallGuid = await page.evaluate(() => {
@@ -169,7 +170,7 @@ try {
   const camPos = [c0[0] + along[0] * 14 + 4, c0[1] + 3, c0[2] + along[2] * 14 + 4];
   const pivot = [c0[0] - along[0] * 6, c0[1], c0[2] - along[2] * 6];
   await setCamera(camPos, pivot);
-  await page.click('#markup-drawer >> text=New set from view');
+  await page.click('#issues-panel [data-act=new-sketch]');
   await page.waitForFunction(() => window.__xrayMarkup.list().length === 1);
   await page.waitForTimeout(300);
   const wbox = await elementBox(wallGuid);
@@ -178,7 +179,7 @@ try {
   const cx0 = Math.max(wbox.x0, free.x0), cx1 = Math.min(wbox.x1, free.x1);
   const cy0 = wbox.y0, cy1 = wbox.y1;
   const rx0 = cx0 + (cx1 - cx0) * 0.3, rx1 = cx0 + (cx1 - cx0) * 0.7, ry0 = cy0 + (cy1 - cy0) * 0.3, ry1 = cy0 + (cy1 - cy0) * 0.7;
-  await page.click('#markup-drawer [data-tool-id=cloud]');
+  await page.click('#markup-float [data-tool-id=cloud]');
   await drag(rx0, ry0, rx1, ry1);
   await page.waitForTimeout(400);
   const m1 = await last();
@@ -186,7 +187,7 @@ try {
   check('a cloud drawn on an element is attached (surface)', a1?.attach.kind === 'surface' && a1.attach.surface.pts.length > 10, JSON.stringify(a1?.description));
   const ct = await chipText();
   check('the chip on the canvas says attached', /^Attached to:/.test(ct ?? ''), String(ct));
-  await page.click('#markup-drawer [data-tool-id=select]');
+  await page.click('#markup-float [data-tool-id=select]');
   const ob0 = await outlineBox(m1.id);
   const ov0 = ob0 ? overlap(ob0, await elementBox(wallGuid)) : 0;
   check('authored view: the outline lies on the element', ov0 > 0.7, ov0.toFixed(2));
@@ -197,13 +198,13 @@ try {
   const eb1 = await elementBox(wallGuid);
   const ov1 = ob1 ? overlap(ob1, eb1) : 0;
   check('after a 60 degree orbit the projected cloud still overlaps its element', ov1 > 0.6, ov1.toFixed(2));
-  // The drawer covers the left of the view: close it for the picture, then bring it back.
-  await page.evaluate(() => window.__xrayToolbar.close());
+  // (Phone: the sheet is closed for the picture and opened again; on a wide screen these two calls change nothing.)
+  await page.evaluate(() => window.__xrayIssues.close());
   await page.waitForTimeout(500);
   await page.screenshot({ path: resolve(here, 'markup-attach-orbited.png') });
   keep.push('markup-attach-orbited.png');
-  await page.evaluate(() => window.__xrayToolbar.open('markup'));
-  await page.waitForSelector('#markup-drawer');
+  await page.evaluate(() => window.__xrayIssues.open('sketches'));
+  await page.waitForSelector('#issues-panel');
 
   // Behind the building the wall hides the outline: dashed and faint instead of showing through.
   check('visible from the front side: not dimmed', (await page.$(`[data-mk="${m1.id}"][data-behind]`)) === null);
@@ -218,18 +219,18 @@ try {
 
   // ------------------------------------------------------------------ part 2: change the attachment, undo
   await setCamera(camPos, pivot);
-  await page.click(`#markup-drawer [data-mk-item="${m1.id}"]`);
-  await page.waitForSelector('#markup-drawer [data-attach-chip]');
-  check('panel chip shows the attachment', /^Attached to:/.test(await page.textContent('#markup-drawer [data-attach-chip] [data-attach-text]')));
-  await page.click('#markup-drawer [data-attach-chip] [data-act=attach-change]');
-  await page.click('#markup-drawer [data-attach-choice=none]');
+  await page.click(`#issues-panel [data-mk-item="${m1.id}"]`);
+  await page.waitForSelector('#issues-panel [data-attach-chip]');
+  check('panel chip shows the attachment', /^Attached to:/.test(await page.textContent('#issues-panel [data-attach-chip] [data-attach-text]')));
+  await page.click('#issues-panel [data-attach-chip] [data-act=attach-change]');
+  await page.click('#issues-panel [data-attach-choice=none]');
   await page.waitForTimeout(200);
-  check('Change > View-locked re-attaches', (await attachOf(m1.id)).attach.kind === 'none' && /View-locked/.test(await page.textContent('#markup-drawer [data-attach-chip] [data-attach-text]')));
+  check('Change > View-locked re-attaches', (await attachOf(m1.id)).attach.kind === 'none' && /View-locked/.test(await page.textContent('#issues-panel [data-attach-chip] [data-attach-text]')));
   await page.evaluate(() => window.__xrayMarkup.undo());
   await page.waitForTimeout(200);
   check('Undo brings the attachment back', (await attachOf(m1.id)).attach.kind === 'surface');
-  await page.click('#markup-drawer [data-attach-chip] [data-act=attach-change]');
-  await page.click('#markup-drawer [data-attach-choice=region]');
+  await page.click('#issues-panel [data-attach-chip] [data-act=attach-change]');
+  await page.click('#issues-panel [data-attach-choice=region]');
   await page.waitForTimeout(200);
   check('Change > Region fits a 3D box', (await attachOf(m1.id)).attach.kind === 'region');
   await page.evaluate(() => window.__xrayMarkup.undo());
@@ -253,19 +254,20 @@ try {
   check('BCF export: the target is in the viewpoint selection', new RegExp(`<Component IfcGuid="${wallGuid}"`).test(xml) || xml.includes(wallGuid));
 
   // ------------------------------------------------------------------ part 4: view-locked cloud, fade, pin, fly back
-  await page.click('#markup-drawer >> text=Close').catch(() => undefined);
+  await page.click('#issues-panel >> text=Close').catch(() => undefined);
   await setCamera([c0[0] + along[0] * 60 + 20, c0[1] + 25, c0[2] + along[2] * 60 + 20], c0);
   await page.evaluate(() => window.__xrayMarkup.setTool('select'));
-  await page.click('#markup-drawer >> text=New set from view');
+  // The sketch detail has no New sketch button (the list has): the second sketch comes from the scripting call.
+  await page.evaluate(() => window.__xrayIssues.newSketch());
   await page.waitForFunction(() => window.__xrayMarkup.list().length === 2);
   const sky = await page.evaluate(() => { const cv = window.__xray.app.canvas.getBoundingClientRect(); return { x: cv.left + cv.width * 0.62, y: cv.top + 80 }; });
-  await page.click('#markup-drawer [data-tool-id=cloud]');
+  await page.click('#markup-float [data-tool-id=cloud]');
   await drag(sky.x, sky.y, sky.x + 150, sky.y + 70);
   await page.waitForTimeout(300);
   const m2 = await last();
   const a2 = await attachOf(m2.id);
   check('a cloud in empty space is view-locked', a2?.attach.kind === 'none' && /View-locked/.test(a2.description.text), a2?.description.text);
-  await page.click('#markup-drawer [data-tool-id=select]');
+  await page.click('#markup-float [data-tool-id=select]');
   check('near the authored view the view-locked cloud is at full strength', (await page.evaluate(() => window.__xrayMarkup.lock?.mode)) === 'full');
   const set2cam = await cam();
   await orbit(15);
@@ -276,11 +278,11 @@ try {
   check('60 degrees: only a pin is left', l60.mode === 'pin' && (await page.$$(`[data-mk-pin="${m2.id}"] [data-role="pin"]`)).length > 0, `${l60.angle.toFixed(1)} deg`);
   const pinTitle = await page.textContent(`[data-mk-pin="${m2.id}"] title`);
   check('the pin tooltip names the markup', /Cloud \d+/.test(pinTitle ?? ''), String(pinTitle));
-  await page.evaluate(() => window.__xrayToolbar.close());
+  await page.evaluate(() => window.__xrayIssues.close());
   await page.waitForTimeout(500);
   await page.screenshot({ path: resolve(here, 'markup-viewlocked-pin.png') });
-  await page.evaluate(() => window.__xrayToolbar.open('markup'));
-  await page.waitForSelector('#markup-drawer');
+  await page.evaluate(() => window.__xrayIssues.open('sketches'));
+  await page.waitForSelector('#issues-panel');
   keep.push('markup-viewlocked-pin.png');
   await page.click(`[data-mk-pin="${m2.id}"] text[data-role=pin]`);
   await page.waitForTimeout(2500);
@@ -300,14 +302,14 @@ try {
     await page.evaluate((m) => window.__xrayPointer.setMode(m), mode);
     await setCamera(camPos, pivot);
     const before = (await page.evaluate(() => window.__xrayMarkup.get(window.__xrayMarkup.list().find((x) => x.active).id).markups.length));
-    await page.click('#markup-drawer [data-tool-id=rect]');
+    await page.click('#markup-float [data-tool-id=rect]');
     const camA = await cam();
     await drag(rx0, ry0 + 20, rx0 + 120, ry0 + 90);
     await page.waitForTimeout(250);
     const after = (await page.evaluate(() => window.__xrayMarkup.get(window.__xrayMarkup.list().find((x) => x.active).id).markups.length));
     const camB = await cam();
     check(`${mode} pointer mode: a rectangle draws and the orbit stays`, after === before + 1 && dist3(camA.p, camB.p) < 1e-6, `${before} -> ${after}`);
-    await page.click('#markup-drawer [data-tool-id=select]');
+    await page.click('#markup-float [data-tool-id=select]');
   }
 
   // ------------------------------------------------------------------ part 5b: a section cut (docs-features/markup.md, "Section cuts")
@@ -315,7 +317,7 @@ try {
   // attaches to that interior surface and not to the exterior wall that the plane removed; the outline is not dimmed (the
   // removed wall does not occlude it); and a box over the whole view does not pick elements outside a section box.
   {
-    await page.evaluate(() => { window.__xrayMarkup.setTool('select'); window.__xrayToolbar.open('markup'); });
+    await page.evaluate(() => { window.__xrayMarkup.setTool('select'); window.__xrayIssues.open('sketches'); });
     const sc = await page.evaluate(() => {
       const app = window.__xray.app;
       const r = app.renderer;
@@ -393,11 +395,11 @@ try {
   pp.on('console', (m) => { if (m.type() === 'error') errors.push(`[phone] ${m.text()}`); });
   pp.on('pageerror', (e) => errors.push(`[phone pageerror] ${e.message}`));
   await boot(pp);
-  await pp.evaluate(() => window.__xrayToolbar.open('markup'));
-  await pp.waitForSelector('#markup-drawer');
-  await pp.click('#markup-drawer >> text=New set from view');
+  await pp.evaluate(() => window.__xrayIssues.open('sketches'));
+  await pp.waitForSelector('#issues-panel');
+  await pp.click('#issues-panel [data-act=new-sketch]');
   await pp.waitForFunction(() => window.__xrayMarkup.list().length === 1);
-  await pp.evaluate(() => window.__xrayToolbar.close());
+  await pp.evaluate(() => window.__xrayIssues.close());
   const mm = await pp.evaluate(() => {
     const app = window.__xray.app;
     const sz = { w: app.canvas.clientWidth, h: app.canvas.clientHeight };

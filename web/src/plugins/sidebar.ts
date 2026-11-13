@@ -142,6 +142,12 @@ export function openCriteriaSetEditor(query: string, name: string): boolean {
   return true;
 }
 
+/** Collapse the sidebar to its rail (a phone: a bottom sheet takes over). No-op when it is collapsed or absent. */
+export function collapseSidebar(): void {
+  const u = ui;
+  if (u && !u.state.collapsed) setCollapsed(u, true);
+}
+
 export interface SidebarTabSpec {
   id: string;
   label: string;

@@ -17,6 +17,7 @@ import { ElementIndex } from './elementIndex';
 import { fuzzyScore, quickScore, termsOf } from './fuzzy';
 import { normalizeFuzzy, rankByText } from './rank';
 import type { SectionId } from './rank';
+import type { IssueHit } from '../issues/search';
 
 export interface Row {
   /** Stable key: 'e:<GlobalId>', 'a:<action id>', 'p:<preset id>', 'v:<view id>', 's:<set name>', 'g:<path>/<label>', 'q:'. */
@@ -39,6 +40,7 @@ export interface Row {
 type Win = Window & {
   __xrayPresets?: { list(): Array<{ id: string; name: string; description: string; group: string; key: string | null }>; apply(id: string): unknown };
   __xrayViews?: { list(): Array<{ id: string; name: string; summary: string }>; restore(key: string): unknown };
+  __xrayIssues?: { search(query: string): IssueHit[]; hit(kind: 'issue' | 'sketch', id: string): IssueHit | null; openHit(hit: Pick<IssueHit, 'kind' | 'id'>): boolean };
 };
 const win = (): Win => window as Win;
 
@@ -252,6 +254,27 @@ export class SearchSources {
     }));
   }
 
+  /** Issues and sketches of the loaded model, by title, note, description and comment text (src/issues/search.ts). */
+  issues(query: string): Row[] {
+    const api = win().__xrayIssues;
+    if (!api || !query.trim()) return [];
+    return api.search(query).map((h) => this.issueRow(h));
+  }
+
+  private issueRow(h: IssueHit): Row {
+    return {
+      key: `i:${h.kind}:${h.id}`,
+      section: 'issues' as const,
+      label: h.title,
+      positions: h.positions,
+      sub: h.sub,
+      score: h.score,
+      run: () => {
+        if (!win().__xrayIssues?.openHit(h)) this.toast(`The ${h.kind} is no longer there`);
+      },
+    };
+  }
+
   private setList(): SelectionSet[] {
     const model = this.app.controller.model;
     let stored: SelectionSet[] | null = null;
@@ -338,6 +361,11 @@ export class SearchSources {
         return this.views('').find((r) => r.key === key) ?? null;
       case 's:':
         return this.sets('').find((r) => r.key === key) ?? null;
+      case 'i:': {
+        const [k, ...rest] = ref.split(':');
+        const hit = win().__xrayIssues?.hit(k === 'sketch' ? 'sketch' : 'issue', rest.join(':'));
+        return hit ? this.issueRow(hit) : null;
+      }
       case 'g:':
         return this.settingsRows('').find((r) => r.key === key) ?? null;
       default:

@@ -1,5 +1,5 @@
 // Live markup on the shared SVG overlay, and the pointer and key handling of the markup tool: drawing (drag, freehand,
-// polyline clicks, click to place), select and move, undo / redo / delete / Escape while the drawer is open. Layout comes
+// polyline clicks, click to place), select and move, undo / redo / delete / Escape while a sketch is being edited. Layout comes
 // from layout.ts, the same code that burns the markups into the PDF. The orbit does not move while a shape is drawn:
 // the capture-phase handlers on the canvas swallow the pointer events of the drawing tools (mouse, touch and pen).
 
@@ -13,6 +13,7 @@ import { newMarkup } from './model';
 import type { Markup } from './model';
 import { toolInfo } from './controller';
 import { buildAttachChip } from './attachUi';
+import { DrawToolbar } from './toolbar';
 import { markupName } from './layout';
 import type { MarkupController, ToolId } from './controller';
 
@@ -32,17 +33,15 @@ interface Stroke {
 }
 
 export class MarkupView {
-  /** The drawer is open. */
-  drawerOpen = false;
   /**
-   * The tool takes pointer and key input: while the drawer is open, and also with it closed as long as a drawing tool is
-   * chosen (on a phone the drawer covers the view, so you draw with it closed; the floating bar says so and ends it).
+   * The view takes pointer and key input: while a sketch is being edited (the drawing toolbar is up), with the select tool
+   * (pick, move, delete) or a drawing tool.
    */
   get active(): boolean {
-    return this.drawerOpen || this.c.tool !== 'select';
+    return this.c.editing || this.c.tool !== 'select';
   }
+  private bar: DrawToolbar | null = null;
   private cursorSet = false;
-  private float: HTMLDivElement | null = null;
   private floatRect: { x: number; y: number; w: number; h: number } | null = null;
   private overlay: Overlay | null = null;
   private layer: SVGGElement | null = null;
@@ -81,9 +80,8 @@ export class MarkupView {
     return this.poly?.pts.length ?? 0;
   }
 
-  /** The drawer opened or closed. */
+  /** Editing started or stopped (the controller's `editing` flag): a drawing in progress is dropped on stop. */
   setActive(on: boolean): void {
-    this.drawerOpen = on;
     if (!on) this.cancel(true);
     this.overlay?.invalidate();
   }
@@ -350,46 +348,14 @@ export class MarkupView {
     else e.style.top = `${ins.top + 8}px`;
   }
 
-  /** The floating bar for a drawing tool that stays on with the drawer closed: what is drawn, undo, redo, done, tools. */
+  /** The drawing toolbar (toolbar.ts): up while a sketch is being edited, registered with `ov.reserve` as `markup-float`. */
   private updateFloat(): void {
     const c = this.c;
-    const show = !this.drawerOpen && c.tool !== 'select' && !!c.active && c.loaded;
-    if (!show) {
-      if (this.float) this.float.style.display = 'none';
-      this.floatRect = null;
-      return;
-    }
     const stage = c.app.canvas.parentElement;
     if (!stage) return;
-    if (!this.float) {
-      const f = document.createElement('div');
-      f.id = 'markup-float';
-      f.style.cssText = 'position:absolute;left:50%;bottom:44px;transform:translateX(-50%);z-index:8;display:flex;flex-wrap:wrap;justify-content:center;gap:6px;align-items:center;padding:6px 8px;border-radius:18px;width:max-content;border:1px solid #3b9cff;background:#14202e;color:#eaf2ff;font:600 12px system-ui,sans-serif;box-shadow:0 2px 8px rgba(0,0,0,0.35);max-width:calc(100% - 16px);box-sizing:border-box';
-      const mk = (label: string, act: string, fn: () => void): HTMLButtonElement => {
-        const b = document.createElement('button');
-        b.type = 'button';
-        b.textContent = label;
-        b.setAttribute('data-act', act);
-        b.style.cssText = 'border:1px solid #3b6c9c;background:#1c2f45;color:#eaf2ff;border-radius:12px;padding:5px 10px;font:inherit;cursor:pointer;min-height:30px';
-        b.addEventListener('click', fn);
-        return b;
-      };
-      const label = document.createElement('span');
-      label.setAttribute('data-act', 'label');
-      f.append(label, mk('Undo', 'undo', () => c.undo()), mk('Redo', 'redo', () => c.redo()), mk('Finish', 'finish', () => this.finishPoly()), mk('Done', 'done', () => c.setTool('select')), mk('Tools', 'tools', () => window.__xrayToolbar?.open('markup')));
-      stage.appendChild(f);
-      this.float = f;
-    }
-    const f = this.float;
-    f.style.display = 'flex';
-    this.place(f, 'bottom');
-    f.querySelector<HTMLElement>('[data-act=label]')!.textContent = toolInfo(c.tool).label;
-    f.querySelector<HTMLElement>('[data-act=finish]')!.style.display = this.polyPoints > 0 ? '' : 'none';
-    f.querySelector<HTMLButtonElement>('[data-act=undo]')!.disabled = !c.canUndo;
-    f.querySelector<HTMLButtonElement>('[data-act=redo]')!.disabled = !c.canRedo;
-    const r = f.getBoundingClientRect();
-    const cr = c.app.canvas.getBoundingClientRect();
-    this.floatRect = { x: r.left - cr.left, y: r.top - cr.top, w: r.width, h: r.height };
+    if (!this.bar) this.bar = new DrawToolbar(c, stage);
+    const show = c.editing && !!c.active && c.loaded;
+    this.floatRect = this.bar.update(show, this.overlay, this.polyPoints, () => this.finishPoly());
   }
 
   /** The attachment chip next to the selected shape: its words and the Change menu. Hidden when nothing is selected. */
@@ -432,6 +398,20 @@ export class MarkupView {
     });
   }
 
+  /** Draw another sketch next to the active one (the applied issue viewpoint): same layout, no hit areas, no selection. */
+  private drawCompanion(set: import('./model').MarkupSet, ov: Overlay, layer: SVGGElement): void {
+    const ctx = this.c.layoutContext(set, ov.width, ov.height, { insets: ov.insets, reserved: ov.reserved, behind: (k, pts) => this.c.behindCache.behind(k, pts) });
+    const faded = this.c.away(set);
+    const lock = this.c.lockState(set);
+    for (const m of set.markups) {
+      const L = layoutMarkupFull(m, ctx, { selected: false, faded, ...(lock ? { lock } : {}) });
+      if (!L.ops.length) continue;
+      const g = svgEl('g', { 'data-mk': m.id, 'data-number': String(m.number), 'data-mk-companion': set.id });
+      renderOps(g, L.ops);
+      layer.appendChild(g);
+    }
+  }
+
   private draw(ov: Overlay): void {
     const layer = this.layer;
     if (!layer) return;
@@ -445,6 +425,9 @@ export class MarkupView {
       this.c.app.canvas.style.cursor = want ? 'crosshair' : '';
       this.cursorSet = want;
     }
+    // The sketch of the viewpoint that is applied (an issue) draws too, when it is not the active one: not interactive.
+    const comp = this.c.companion?.() ?? null;
+    if (comp && comp.id !== set?.id && this.c.loaded && this.c.visible) this.drawCompanion(comp, ov, layer);
     if (!this.c.loaded || !set || !this.c.visible) {
       if (chip) chip.style.display = 'none';
       this.chipRect = null;
@@ -454,7 +437,7 @@ export class MarkupView {
     const ctx = this.c.layoutContext(set, ov.width, ov.height, { insets: ov.insets, reserved: ov.reserved, behind: (k, pts) => this.c.behindCache.behind(k, pts) });
     const faded = this.c.away();
     const lock = this.c.lockState(set);
-    const interactive = this.drawerOpen && this.c.tool === 'select';
+    const interactive = this.c.editing && this.c.tool === 'select';
     let selBox: { x0: number; y0: number; x1: number; y1: number } | null = null;
     for (const m of set.markups) {
       const L = layoutMarkupFull(m, ctx, { selected: m.id === this.c.selected, faded, ...(lock ? { lock } : {}) });

@@ -1,9 +1,9 @@
 // Headless check for BCF markup (topic pins and annotations) on /?model=fzk-haus:
-//   - select a window, create a topic through the drawer dialog with "click the model to place the pin" ticked, click a
+//   - select a window, create an issue through the New issue dialog of the Issues tab with "click the model to place the pin" ticked, click a
 //     wall on the canvas: the pin lands there (Escape cancels a second placement without closing anything);
-//   - measure two points with the measure tool API, then in the drawer: a callout on an element (canvas click), a linked
+//   - measure two points with the measure tool API, then with the drawing toolbar on the issue's sketch (the BCF drawer and its annotation buttons are gone: a viewpoint's drawing is its sketch): a callout on an element (canvas click), a linked
 //     measurement, a note; drag a callout text box with the mouse;
-//   - export 2.1 and 3.0 with the drawer buttons, validate both against the official XSDs, extract the burned snapshot;
+//   - export 2.1 and 3.0 with the Issues panel buttons, validate both against the official XSDs, extract the burned snapshot;
 //   - reload, import the 3.0 file, compare pins and annotations with the state before export (exact), apply the viewpoint
 //     and check the overlay draws them; click the pin to activate the topic. Fails on any console error.
 // Screenshots: bench/bcf-markup-live.png (before export), bench/bcf-markup-snapshot.png (the exported snapshot),
@@ -86,15 +86,7 @@ try {
     await page.waitForFunction('window.__xrayReady === true || window.__xrayError', null, { timeout: 240000 });
     const err = await page.evaluate('window.__xrayError');
     if (err) throw new Error(`startup failed: ${err}`);
-    await page.evaluate(async () => {
-      const { getTool } = await import('/src/tools/registry.ts');
-      document.getElementById('bcf-test-drawer')?.remove();
-      const d = document.createElement('div');
-      d.id = 'bcf-test-drawer';
-      d.style.cssText = 'position:fixed;right:8px;top:8px;bottom:8px;width:400px;z-index:20;background:#141820;border:1px solid #262d3a;border-radius:6px;overflow:auto';
-      document.body.appendChild(d);
-      getTool('bcf').panel(d, window.__xray.app);
-    });
+    await page.evaluate(() => window.__xrayIssues.open('issues'));
   }
   /** Client position of a viewer-frame point under the current camera. */
   async function screenOf(p) {
@@ -133,7 +125,7 @@ try {
     app.renderer.controls.update();
     app.controller.settle();
   });
-  await page.click('#bcf-drawer [data-act=new]');
+  await page.click('#issues-panel [data-act=new]');
   await page.fill('#bcf-f-title', 'Window reveal too small');
   await page.fill('#bcf-f-author', 'smoke@example.org');
   await page.check('#bcf-f-pinpick');
@@ -154,10 +146,10 @@ try {
   const pinDrawn = await page.evaluate(() => document.querySelectorAll('svg.xray-svg-overlay [data-bcf-pin]').length);
   check('the pin is drawn on the overlay', pinDrawn === 1, `${pinDrawn}`);
 
-  // Escape cancels a placement without closing the drawer
-  await page.click('#bcf-drawer [data-act=place-pin]');
+  // Escape cancels a placement without closing the panel
+  await page.click('#issues-panel [data-act=place-pin]');
   await page.keyboard.press('Escape');
-  const esc = await page.evaluate(() => ({ status: window.__xrayBcf.status, drawer: !!document.getElementById('bcf-drawer') }));
+  const esc = await page.evaluate(() => ({ status: window.__xrayBcf.status, drawer: !!document.getElementById('issues-panel') }));
   check('Escape cancels the placement', /cancelled/.test(esc.status) && esc.drawer, esc.status);
 
   // ------------------------------------------------------------------ part 2: measurement, callout, linked measurement, note
@@ -169,19 +161,23 @@ try {
   }, setup.win.centre);
   check('a measurement exists', meas.length === 1, JSON.stringify(meas));
 
-  await page.fill('#bcf-drawer [data-bcf-anntext]', 'Reveal 3 cm too small');
-  await page.click('#bcf-drawer [data-act=add-callout]');
+  // The drawing of the viewpoint is its sketch: Edit drawing makes it (linked to the issue) and shows the toolbar.
+  await page.click('#issues-panel [data-viewpoint] [data-act=edit-drawing]');
+  await page.waitForSelector('#markup-float', { state: 'visible' });
+  await page.click('#markup-float [data-tool-id=callout]');
+  await page.fill('#markup-float [aria-label="Text for the next markup"]', 'Reveal 3 cm too small');
   await settle();
   const win = await screenOf(setup.win.centre);
   await page.mouse.click(win.x, win.y);
-  await page.click('#bcf-drawer [data-act=link-measurement]');
-  await page.click('#bcf-drawer .bcf-mrow');
-  await page.fill('#bcf-drawer [data-bcf-anntext]', 'Check sill on site');
-  await page.click('#bcf-drawer [data-act=add-note]');
+  // The measurement joins the sketch through the scripting call (the Link a measurement list is covered in smoke-markup).
+  await page.evaluate((id) => window.__xrayMarkup.add({ kind: 'measure', measurementId: id }), meas[0].id);
+  await page.click('#markup-float [data-tool-id=text]');
+  await page.fill('#markup-float [aria-label="Text for the next markup"]', 'Check sill on site');
   const notePt = await screenOf([setup.win.centre[0] - 1.2, setup.win.centre[1] - 0.6, setup.win.centre[2]]);
   await page.mouse.click(notePt.x, notePt.y);
   await settle();
-  await page.waitForTimeout(300);
+  await page.click('#markup-float [data-tool-id=select]');
+  await page.waitForTimeout(400);
   const anns = await page.evaluate(() => {
     const b = window.__xrayBcf;
     const t = b.topics[0];
@@ -192,23 +188,27 @@ try {
     return {
       list: list.map((a) => ({ type: a.type, kind: a.anchor.kind, text: a.text, el: a.anchor.elementGuid ? cls(a.anchor.elementGuid) : null, m: a.anchor.measurement?.label })),
       sel: t.viewpoints[0].data.selection.map((s) => s.ifcGuid),
-      drawn: document.querySelectorAll('svg.xray-svg-overlay [data-bcf-ann]').length,
-      rows: document.querySelectorAll('#bcf-drawer [data-bcf-anns] .bcf-ann').length,
+      drawn: document.querySelectorAll('svg.xray-svg-overlay [data-mk]').length,
+      bcfDrawn: document.querySelectorAll('svg.xray-svg-overlay [data-bcf-ann]').length,
+      linked: !!t.viewpoints[0].sketchId,
     };
   });
   console.log('    annotations:', JSON.stringify(anns.list));
-  check('callout anchored on an element', anns.list.some((a) => a.type === 'callout' && a.kind === 'element' && a.el && a.text === 'Reveal 3 cm too small'));
+  // Assertion changed: the annotations are now the projection of the sketch, whose labels carry the markup number ("1. text").
+  check('callout anchored on an element', anns.list.some((a) => a.type === 'callout' && a.kind === 'element' && a.el && a.text === '1. Reveal 3 cm too small'));
   check('measurement linked with its label', anns.list.some((a) => a.kind === 'measurement' && /m$/.test(a.m ?? '')));
-  check('note on a free point', anns.list.some((a) => a.type === 'note' && a.kind === 'point' && a.text === 'Check sill on site'));
-  check('overlay draws the 3 annotations and the drawer lists them', anns.drawn === 3 && anns.rows === 3, `drawn ${anns.drawn}, rows ${anns.rows}`);
+  check('note on a free point', anns.list.some((a) => a.type === 'note' && a.kind === 'point' && a.text === '3. Check sill on site'));
+  // Assertion changed: the markup view draws the sketch (data-mk); the BCF overlay draws none of a linked viewpoint (no double drawing).
+  check('the sketch draws the 3 annotations, the BCF overlay none, and the viewpoint links to the sketch', anns.drawn === 3 && anns.bcfDrawn === 0 && anns.linked, `drawn ${anns.drawn}, bcf ${anns.bcfDrawn}, linked ${anns.linked}`);
   check('annotated element joins the viewpoint selection', anns.sel.length >= 2, `${anns.sel.length} selected`);
 
   // drag a callout text box (the topmost box at the centre of the element callout's box)
+  await page.click('#issues-panel [data-viewpoint] [data-act=edit-drawing]'); // the select tool of the toolbar moves boxes
   const callout = await page.evaluate(() => Object.values(window.__xrayBcf.annotations(window.__xrayBcf.topics[0].guid)).flat().find((a) => a.type === 'callout' && a.anchor.kind === 'element').guid);
   const grab = await page.evaluate((g) => {
-    const r = document.querySelector(`svg.xray-svg-overlay rect[data-role=box][data-key="${g}"]`).getBoundingClientRect();
+    const r = document.querySelector(`svg.xray-svg-overlay [data-mk="${g}"] rect[data-role=box]`).getBoundingClientRect();
     const x = r.left + r.width / 2, y = r.top + r.height / 2;
-    return { x, y, key: document.elementFromPoint(x, y)?.getAttribute('data-key') };
+    return { x, y, key: document.elementFromPoint(x, y)?.closest('[data-mk]')?.getAttribute('data-mk') };
   }, callout);
   const offOf = (g) => page.evaluate((g) => Object.values(window.__xrayBcf.annotations(window.__xrayBcf.topics[0].guid)).flat().find((a) => a.guid === g)?.offset, g);
   const before = await offOf(grab.key);
@@ -220,6 +220,7 @@ try {
   const moved = before && after ? [after[0] - before[0], after[1] - before[1]] : [0, 0];
   check('dragging a text box moves it', grab.key === callout && moved[0] > 0.02 && moved[1] < -0.02, `${grab.key === callout ? 'callout box on top' : 'another box on top'}; ${moved.map((v) => v.toFixed(3)).join(',')}`);
 
+  await page.click('#markup-float [data-act=done]');
   await page.waitForTimeout(400);
   await page.screenshot({ path: resolve(here, 'bcf-markup-live.png') });
   console.log('screenshot bench/bcf-markup-live.png');
@@ -227,8 +228,9 @@ try {
   // ------------------------------------------------------------------ part 3: export, snapshot, validation
   const state = await page.evaluate(() => window.__xrayBcf.topics.map((t) => ({ guid: t.guid.toLowerCase(), pin: t.pin, annotations: window.__xrayBcf.annotations(t.guid) })));
   const files = {};
+  await page.evaluate(() => window.__xrayIssues.openIssue(window.__xrayBcf.topics[0].guid, { apply: false }));
   for (const v of ['2.1', '3.0']) {
-    const [dl] = await Promise.all([page.waitForEvent('download'), page.click(`#bcf-drawer [data-act="export-${v}"]`)]);
+    const [dl] = await Promise.all([page.waitForEvent('download'), page.click(`#issues-panel [data-act="export-${v}"]`)]);
     files[v] = join(tmp, `markup-${v}.bcfzip`);
     await dl.saveAs(files[v]);
     const dir = unzip(files[v], v);
@@ -268,7 +270,8 @@ try {
   if (pinEl) await page.mouse.click(pinEl.x, pinEl.y);
   await page.waitForTimeout(2500);
   await settle();
-  const act = await page.evaluate(() => ({ status: window.__xrayBcf.status, drawn: document.querySelectorAll('svg.xray-svg-overlay [data-bcf-ann]').length, sel: document.querySelector('#bcf-drawer .bcf-item.sel') !== null }));
+  const act = await page.evaluate(() => ({ status: window.__xrayBcf.status, drawn: document.querySelectorAll('svg.xray-svg-overlay [data-mk]').length, sel: document.querySelector('#issues-panel .is-item.sel') !== null }));
+  // Assertion changed: the imported viewpoint became a sketch; once the viewpoint is applied the markup view draws it.
   check('clicking the pin applies the viewpoint and shows the annotations', /Viewpoint applied/.test(act.status) && act.drawn === 3 && act.sel, `${act.status}; drawn ${act.drawn}`);
   await page.waitForTimeout(400);
   await page.screenshot({ path: resolve(here, 'bcf-markup-reimport.png') });

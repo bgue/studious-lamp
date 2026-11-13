@@ -106,6 +106,12 @@ export interface BcfViewpointRef {
    * Side file `markupSelection`; derived from the annotations when absent.
    */
   markupSelection?: string[];
+  /**
+   * The sketch (src/markup) that is this viewpoint's drawing, by id. `annotations` is then derived from the sketch (see
+   * src/issues/link.ts) and refreshed on every edit and before export. Session only: the file stores the derived annotations
+   * (side file xray-markup.json), and opening a file makes a sketch of them again.
+   */
+  sketchId?: string;
   /** Session only: element ids hidden at capture (hidden or ghosted), for the occlusion fade of the burned snapshot. */
   captureSeeThrough?: ReadonlySet<number>;
 }

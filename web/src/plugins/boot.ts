@@ -62,6 +62,12 @@ export function resolveSelect(
 }
 
 function openTool(id: string): void {
+  // The BCF and Markup drawers moved into the sidebar tab Issues (src/plugins/issues.ts): old boot configs still name them.
+  const issues = (window as unknown as { __xrayIssues?: { open(segment: 'issues' | 'sketches'): void } }).__xrayIssues;
+  if ((id === 'bcf' || id === 'markup') && issues) {
+    issues.open(id === 'bcf' ? 'issues' : 'sketches');
+    return;
+  }
   const tb = win().__xrayToolbar;
   if (tb?.open) {
     tb.open(id);

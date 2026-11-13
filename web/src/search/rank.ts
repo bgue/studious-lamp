@@ -3,7 +3,7 @@
 
 import { fuzzyScore } from './fuzzy';
 
-export type SectionId = 'recent' | 'query' | 'elements' | 'commands' | 'presets' | 'views' | 'sets' | 'settings';
+export type SectionId = 'recent' | 'query' | 'elements' | 'commands' | 'presets' | 'views' | 'sets' | 'issues' | 'settings';
 
 export const SECTION_TITLES: Record<SectionId, string> = {
   recent: 'Recent',
@@ -13,11 +13,12 @@ export const SECTION_TITLES: Record<SectionId, string> = {
   presets: 'Presets',
   views: 'Saved views',
   sets: 'Selection sets',
+  issues: 'Issues and sketches',
   settings: 'Settings',
 };
 
 /** Tie order of the sections when their best scores are equal. */
-export const SECTION_ORDER: readonly SectionId[] = ['query', 'elements', 'commands', 'presets', 'views', 'sets', 'settings'];
+export const SECTION_ORDER: readonly SectionId[] = ['query', 'elements', 'commands', 'presets', 'views', 'sets', 'issues', 'settings'];
 
 export interface Ranked<T> {
   item: T;
@@ -70,6 +71,6 @@ export function orderGroups<G extends GroupLike>(groups: readonly G[]): G[] {
 }
 
 /** How many rows a section shows before "N more…". */
-export const SECTION_CAP: Record<SectionId, number> = { recent: 8, query: 1, elements: 50, commands: 8, presets: 5, views: 5, sets: 5, settings: 8 };
+export const SECTION_CAP: Record<SectionId, number> = { recent: 8, query: 1, elements: 50, commands: 8, presets: 5, views: 5, sets: 5, issues: 6, settings: 8 };
 /** How many rows an expanded section shows. */
 export const EXPANDED_CAP = 200;

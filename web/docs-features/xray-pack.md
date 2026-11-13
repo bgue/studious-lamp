@@ -99,6 +99,6 @@ Or in GitHub Actions: run `npm ci` in `web/`, then the loop above, then upload `
 - `--camera` is in the viewer frame, not IFC coordinates.
 - `--preset` and `--open-tool` depend on other plugins (`window.__xrayPresets`, `window.__xrayToolbar`); if a plugin is absent the request is skipped with a console warning, never an error.
 - `--kiosk` goes through the panels' own actions, which remember the collapsed state in that browser's local storage. The top bar (`topbar.md`) is hidden by `kiosk` and by `topBar: false`; the bar is read by the topBar plugin itself, not by the boot sequence, so a params document with `topBar.visible: false` hides it too.
-- Packed pages show the top bar by default: its four modes apply built-in presets, so `--preset` and a mode click agree.
+- Packed pages show the top bar by default: its five modes apply built-in presets, so `--preset` and a mode click agree.
 - The output is built from the current `web/src`: pack with the viewer version you want the recipient to have. IFC files in the page are not re-converted when the viewer changes.
 - `web-ifc` (MPL-2.0) is embedded unmodified with `--ifc-reader`; the licence notice stays in the page.

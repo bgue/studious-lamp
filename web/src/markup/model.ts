@@ -125,6 +125,18 @@ export interface MarkupSet {
    * on any model, tagged "model unknown". Sets of another model are hidden while a different model is loaded.
    */
   model?: ModelIdentity | null;
+  /** The one-line note of the sketch (src/issues). Sketches have no status and no comment thread. */
+  note?: string;
+  /**
+   * The issue (BCF topic) this sketch is a viewpoint of: topic guid and viewpoint guid. One sketch belongs to at most one issue.
+   * The topic's viewpoint holds the same link as `sketchId`; src/issues/link.ts keeps both sides in step.
+   */
+  issue?: { topic: string; viewpoint: string };
+  /**
+   * Made from a BCF viewpoint (an imported topic): restoring the sketch applies that viewpoint instead of `view`, which only
+   * holds its camera.
+   */
+  fromViewpoint?: boolean;
 }
 
 export interface ModelIdentity {
@@ -248,6 +260,14 @@ export function addComment(m: Markup, author: string, text: string, date = nowIs
 
 export function cloneSet(s: MarkupSet): MarkupSet {
   return JSON.parse(JSON.stringify(s)) as MarkupSet;
+}
+
+/**
+ * Legacy review data on a sketch: markups with a comment thread, a resolved status, an assignee or a due date. Sketches no
+ * longer carry these; they stay in the data, read-only, until the set is raised as an issue (src/issues/link.ts).
+ */
+export function hasLegacyReview(s: MarkupSet): boolean {
+  return s.markups.some((m) => m.comments.length > 0 || m.status === 'resolved' || !!m.assignee || !!m.due);
 }
 
 /** The markup counts of a set: open and resolved. */
@@ -422,6 +442,14 @@ export function sanitizeSet(raw: unknown): SanitizedSet | string {
   };
   // The model of the set: absent in older files (the document's model is used), null or unreadable: unknown.
   if ('model' in raw) set.model = cleanIdentity(raw['model']) ?? null;
+  const note = str(raw['note'], 400)?.replace(/\s+/g, ' ').trim();
+  if (note) set.note = note;
+  if (isObj(raw['issue'])) {
+    const t = str(raw['issue']['topic'], 64);
+    const v = str(raw['issue']['viewpoint'], 64);
+    if (t && v) set.issue = { topic: t, viewpoint: v };
+  }
+  if (raw['fromViewpoint'] === true) set.fromViewpoint = true;
   const thumb = str(raw['thumb'], 400000);
   if (thumb && /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(thumb)) set.thumb = thumb;
   const bad: string[] = [];

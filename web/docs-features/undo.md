@@ -30,7 +30,7 @@ It watches state, it does not hook the controls, so a key, a button, a preset or
 | Redo (`undo.redo`) | `Ctrl+Shift+z`, `Meta+Shift+z`, `Ctrl+y` |
 
 The keys are not taken: in an input, textarea, select or contenteditable (the keymap does not run there, so the browser undoes
-the typing); while the markup tool is on (its drawer is open or a drawing tool is chosen: its own undo owns the keys); while
+the typing); while a sketch is being edited (the drawing toolbar is up or a drawing tool is chosen, `window.__xrayMarkup.editing`: the markup history owns the keys); while
 the keyboard focus is inside the classification review walk panel (`.xrw`; it has its own `U` and ignores Ctrl). Another
 dialog open (palette, cheat sheet) also blocks them, like every key.
 

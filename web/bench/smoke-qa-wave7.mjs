@@ -67,7 +67,8 @@ const state = (page) => page.evaluate(() => {
     planes: planes ? planes.length : 0,
     box: sec.box.enabled, plane: sec.plane.enabled,
     pins: document.querySelectorAll('svg.xray-svg-overlay [data-bcf-pin]').length,
-    anns: document.querySelectorAll('svg.xray-svg-overlay [data-bcf-ann]').length,
+    // A viewpoint's drawing is its sketch (docs-features/issues.md): the markup view draws it (data-mk) and the BCF overlay draws none of it.
+    anns: document.querySelectorAll('svg.xray-svg-overlay [data-bcf-ann], svg.xray-svg-overlay [data-mk]').length,
     hidden: app.controller.settings.overrides.userHides.size,
     sel: app.selection.length,
     bcfStatus: b.status,
@@ -379,7 +380,9 @@ async function scene(name, vp, opts) {
     if (!open && !sbc) document.querySelector('.sb-toggle')?.click();
     if (open) [...document.querySelectorAll('.sb-tab')].find((t) => t.textContent === 'Views')?.click();
   }, opts.sidebar);
-  if (opts.drawer) await page.evaluate((d) => window.__xrayToolbar.open(d), opts.drawer);
+  // The BCF drawer moved into the sidebar tab Issues (docs-features/issues.md): the scene opens that tab instead.
+  if (opts.drawer === 'bcf') await page.evaluate(() => window.__xrayIssues.open('issues'));
+  else if (opts.drawer) await page.evaluate((d) => window.__xrayToolbar.open(d), opts.drawer);
   await page.waitForTimeout(800);
   // chrome rects over the canvas
   const chrome = await page.evaluate(() => {
@@ -429,7 +432,7 @@ async function scene(name, vp, opts) {
     const labels = [...document.querySelectorAll('[data-measure-label]')].map((l) => l.parentElement?.querySelector('rect') ?? l).map(box);
     // pin heads and edge markers; the 5 px dot at the end of a moved pin's leader marks the true point, under the chrome by design
     const pins = [...document.querySelectorAll('svg.xray-svg-overlay [data-bcf-pin] [data-role="pin"], svg.xray-svg-overlay [data-bcf-pin] [data-role="edge"]')].map(box).filter((r) => r.w >= 10 && r.h >= 10);
-    const anns = [...document.querySelectorAll('svg.xray-svg-overlay [data-bcf-ann] rect')].map(box);
+    const anns = [...document.querySelectorAll('svg.xray-svg-overlay [data-bcf-ann] rect, svg.xray-svg-overlay [data-mk] rect[data-role=box]')].map(box);
     return { labels, pins, anns };
   });
   const ov = (a, b) => a.x < b.x + b.w - 0.5 && a.x + a.w > b.x + 0.5 && a.y < b.y + b.h - 0.5 && a.y + a.h > b.y + 0.5;

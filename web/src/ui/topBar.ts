@@ -1,4 +1,4 @@
-// Top bar: a thin strip (32 px) along the top of #stage. On the left a segmented control with four visualisation modes,
+// Top bar: a thin strip (32 px) along the top of #stage. On the left a segmented control with five visualisation modes,
 // then a host element (#xray-topbar-search) that takes the rest of the width for the search bar (src/plugins/awesomeBar.ts
 // mounts into it; this module leaves it empty). Docs: docs-features/topbar.md.
 //
@@ -10,7 +10,7 @@ export const TOPBAR_H = 32;
 export const SEARCH_HOST_ID = 'xray-topbar-search';
 export const TOPBAR_ID = 'xray-topbar';
 
-export type ModeId = 'ghost' | 'radiograph' | 'glow' | 'cutaway';
+export type ModeId = 'solid' | 'ghost' | 'radiograph' | 'glow' | 'cutaway';
 
 export interface ModeDef {
   id: ModeId;
@@ -28,6 +28,14 @@ const svg = (body: string): string =>
   `<svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${body}</svg>`;
 
 export const MODES: readonly ModeDef[] = [
+  {
+    id: 'solid',
+    label: 'Solid',
+    presetId: 'solid',
+    key: 'Shift+code:Digit0',
+    keyLabel: 'Shift+0',
+    icon: svg('<path d="M3 6.5 10 3l7 3.5v7L10 17l-7-3.5z" fill="currentColor" fill-opacity=".35"/><path d="M3 6.5 10 10l7-3.5M10 10v7" stroke-width="1.2"/>'),
+  },
   {
     id: 'ghost',
     label: 'Ghost',
@@ -62,8 +70,8 @@ export const MODES: readonly ModeDef[] = [
   },
 ];
 
-/** The preset id that goes with a click on the active mode: normal shaded view (X-ray off, the modes' sections reset). */
-export const OFF_PRESET_ID = 'plain';
+/** The preset id that goes with a click on a lit mode (other than Solid): the Solid mode's preset, so the bar always offers a way back. */
+export const OFF_PRESET_ID = 'solid';
 
 export function modeById(id: string): ModeDef | undefined {
   return MODES.find((m) => m.id === id);
@@ -79,11 +87,11 @@ export function modeForPreset(presetId: string | null | undefined): ModeId | nul
   return MODES.find((m) => m.presetId === presetId)?.id ?? null;
 }
 
-export type ClickPlan = { kind: 'apply'; presetId: string } | { kind: 'off'; presetId: string };
+export type ClickPlan = { kind: 'apply'; presetId: string } | { kind: 'off'; presetId: string } | { kind: 'none' };
 
-/** What a click on `clicked` does when `active` is the highlighted mode: the active mode again returns to normal view. */
+/** What a click on `clicked` does when `active` is the highlighted mode: a lit mode again switches to Solid; Solid while lit does nothing. */
 export function clickPlan(active: ModeId | null, clicked: ModeId): ClickPlan {
-  if (active === clicked) return { kind: 'off', presetId: OFF_PRESET_ID };
+  if (active === clicked) return clicked === 'solid' ? { kind: 'none' } : { kind: 'off', presetId: OFF_PRESET_ID };
   return { kind: 'apply', presetId: presetForMode(clicked) };
 }
 

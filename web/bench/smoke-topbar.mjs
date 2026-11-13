@@ -1,12 +1,12 @@
 // Headless smoke test for the top bar (src/ui/topBar.ts, src/plugins/topBar.ts) and the radiograph controls in the X-ray panel.
 // Starts vite (bench/vite.smoke.config.mjs) and loads /?model=fzk-haus with window 22 selected at 1600x900, then checks:
-//   - the bar: 32 px high, on top of #stage, the four modes, the empty-or-mounted search host #xray-topbar-search;
+//   - the bar: 32 px high, on top of #stage, the five modes (Solid first), the empty-or-mounted search host #xray-topbar-search;
 //   - each mode applies its preset and is the only highlighted one; Ghost is highlighted at start (factory look);
 //   - a preset applied from the drawer or the API, a restored saved view, a key and a changed setting move the highlight;
-//   - a click on the active mode returns to the normal view (X-ray off, imaging standard);
+//   - a click on a lit mode switches to Solid (X-ray off, imaging standard, all opaque, sections kept); Solid lit does nothing;
 //   - the radiograph controls in the X-ray panel: Render style, the imaging folder open, dimmed controls, restore on leaving;
-//   - keys Shift+1..4 and Shift+T; the topBar.visible setting; hidden in a kiosk page and while a XR session runs;
-//   - layout: no overlap with the gizmo, the tool strip, the drawer, the status bar; reserved on the overlay; 390x844 phone;
+//   - keys Shift+0..4 and Shift+T; the topBar.visible setting; hidden in a kiosk page and while a XR session runs;
+//   - layout: no overlap with the gizmo, the tool strip, the drawer, the status bar; reserved on the overlay; 390x844 and 360x740 phones;
 //   - no console errors.
 // Screenshots: bench/topbar-*.png. Usage: SMOKE_PORT=5661 node bench/smoke-topbar.mjs
 import { spawn } from 'node:child_process';
@@ -46,6 +46,7 @@ function check(name, ok, detail = '') {
 }
 
 const MODES = [
+  { id: 'solid', preset: 'solid', digit: 0 },
   { id: 'ghost', preset: 'coordination', digit: 1 },
   { id: 'radiograph', preset: 'radiograph', digit: 2 },
   { id: 'glow', preset: 'focus-glow', digit: 3 },
@@ -148,7 +149,7 @@ try {
   const stage = await rect(page, '#stage');
   check('bar is 32 px high and sits at the top of the stage', !!bar && Math.abs(bar.h - 32) < 1 && Math.abs(bar.y - stage.y) < 1 && Math.abs(bar.w - stage.w) < 2, JSON.stringify({ bar, stage }));
   const labels = await page.evaluate(() => [...document.querySelectorAll('#xray-topbar .tb-mode')].map((b) => [b.dataset.mode, b.textContent.trim(), b.getAttribute('aria-label')]));
-  check('four modes in order Ghost, Radiograph, Glow, Cutaway with accessible names', JSON.stringify(labels.map((l) => l[1])) === JSON.stringify(['Ghost', 'Radiograph', 'Glow', 'Cutaway']) && labels.every((l) => /\(Shift\+\d\)$/.test(l[2])), JSON.stringify(labels));
+  check('five modes in order Solid, Ghost, Radiograph, Glow, Cutaway with accessible names', JSON.stringify(labels.map((l) => l[1])) === JSON.stringify(['Solid', 'Ghost', 'Radiograph', 'Glow', 'Cutaway']) && labels.every((l) => /\(Shift\+\d\)$/.test(l[2])), JSON.stringify(labels));
   const host = await page.evaluate(() => { const h = document.getElementById('xray-topbar-search'); return h ? { w: h.getBoundingClientRect().width, h: h.getBoundingClientRect().height, parentIsBar: h.parentElement.id === 'xray-topbar' } : null; });
   check('search host #xray-topbar-search exists, in the bar, with the flexible width', !!host && host.parentIsBar && host.w > 300 && host.h > 20, JSON.stringify(host));
   const s0 = await state(page);
@@ -162,12 +163,12 @@ try {
 
   // --- each mode applies and highlights
   let s;
-  // Ghost is the highlighted mode at start, so a click on it would turn X-ray off: it goes last (and first as the "again" case below).
+  // Ghost is the highlighted mode at start, so a click on it switches to Solid: it goes last (and first as the "again" case below).
   await page.click('#xray-topbar .tb-mode[data-mode=ghost]');
   await settle(page, 1200);
   s = await state(page);
-  check('clicking Ghost while it is highlighted (the factory look) turns X-ray off', s.xray === false && s.mode === null, JSON.stringify(s));
-  for (const m of [MODES[1], MODES[2], MODES[3], MODES[0]]) {
+  check('clicking Ghost while it is highlighted (the factory look) switches to Solid: X-ray off', s.xray === false && s.mode === 'solid', JSON.stringify(s));
+  for (const m of [MODES[2], MODES[3], MODES[4], MODES[1]]) {
     await page.click(`#xray-topbar .tb-mode[data-mode=${m.id}]`);
     await settle(page, 1800);
     s = await state(page);
@@ -176,6 +177,7 @@ try {
     if (m.id === 'radiograph') check('radiograph: imaging style radiograph, x-ray on', s.imaging === 'radiograph' && s.xray);
     if (m.id === 'glow') check('glow: edge glow on, scope focus, bloom on, imaging standard', s.glow.edge && s.glow.bloom && s.glow.scope === 'focus' && s.imaging === 'standard', JSON.stringify(s.glow));
     if (m.id === 'cutaway') check('cutaway: peel window on, outside solid, imaging standard', s.peel && s.peelOutside === 'solid' && s.imaging === 'standard');
+    if (m.id === 'solid') check('solid: x-ray off, no peel, imaging standard, glow off', !s.xray && !s.peel && s.imaging === 'standard' && !s.glow.edge && !s.glow.bloom, JSON.stringify(s));
     if (m.id === 'ghost') check('ghost: x-ray on, no peel, imaging standard, glow off', s.xray && !s.peel && s.imaging === 'standard' && !s.glow.edge && !s.glow.bloom);
     if (m.id !== 'glow') check(`${m.id}: the glow of the previous mode is switched off`, !s.glow.edge && !s.glow.bloom, JSON.stringify(s.glow));
     const aria = await page.evaluate((id) => document.querySelector(`#xray-topbar .tb-mode[data-mode=${id}]`).getAttribute('aria-pressed'), m.id);
@@ -245,18 +247,56 @@ try {
   await page.click('#xray-topbar .tb-mode[data-mode=radiograph]');
   await settle(page, 1200);
   s = await state(page);
-  check('clicking the active mode again: X-ray off, imaging standard, no highlight', s.xray === false && s.imaging === 'standard' && s.mode === null && s.pressed.length === 0, JSON.stringify(s));
+  check('clicking the lit mode again switches to Solid: X-ray off, imaging standard, Solid lit', s.xray === false && s.imaging === 'standard' && s.mode === 'solid' && JSON.stringify(s.pressed) === '["solid"]', JSON.stringify(s));
   const status = await page.evaluate(() => document.querySelector('#xray-overlay')?.textContent ?? '');
   check('status bar says x-ray off', /x-ray off/.test(status), status.slice(0, 80));
   await shot(page, 'off');
-  for (const m of MODES.filter((x) => x.id !== 'radiograph')) {
+  for (const m of MODES.filter((x) => x.id !== 'radiograph' && x.id !== 'solid')) {
     await page.click(`#xray-topbar .tb-mode[data-mode=${m.id}]`);
     await settle(page, 1000);
     await page.click(`#xray-topbar .tb-mode[data-mode=${m.id}]`);
     await settle(page, 800);
     s = await state(page);
-    check(`${m.id} twice: normal view`, s.xray === false && s.mode === null && !s.peel && !s.glow.edge && s.imaging === 'standard', JSON.stringify(s));
+    check(`${m.id} twice: Solid`, s.xray === false && s.mode === 'solid' && !s.peel && !s.glow.edge && s.imaging === 'standard', JSON.stringify(s));
   }
+
+  // --- Solid: opaque everything, sections kept, Shift+0, undo in one step, solid screenshot
+  await page.evaluate(() => document.activeElement?.blur?.());
+  await page.click('#xray-topbar .tb-mode[data-mode=glow]');
+  await settle(page, 1200);
+  await page.evaluate(() => { window.__xraySection.set({ box: { enabled: true, fit: 'model', margin: 3 } }); });
+  await page.evaluate(() => window.__xrayUndo.clear());
+  await page.keyboard.press('Shift+Digit0');
+  await settle(page, 1500);
+  s = await state(page);
+  check('Shift+0 applies Solid and lights it', s.mode === 'solid' && s.active === 'solid' && s.xray === false && JSON.stringify(s.pressed) === '["solid"]', JSON.stringify(s));
+  const SOL = await page.evaluate(() => {
+    const app = window.__xray.app;
+    const c = app.controller;
+    const low = [];
+    app.loaded.model.elements.forEach((e, i) => {
+      const capped = (c.styleIndex?.[i]?.alphaMax ?? 1) < 1; // a class style (or alias) cap is the project's own look, like glass
+      if ((c.state.alpha[i] ?? 1) < 0.999 && !capped && !/Window|Glass|Curtain/i.test(e.ifcClass)) low.push(`${e.ifcClass}#${i}`);
+    });
+    return { box: window.__xraySection.config.box.enabled, low: low.slice(0, 5), lowN: low.length, undo: window.__xrayUndo.list().undo.map((u) => u.label) };
+  });
+  check('Solid: no element below opacity 1 (apart from class-capped glass)', SOL.lowN === 0, JSON.stringify(SOL.low));
+  check('Solid: the section box stays on', SOL.box === true);
+  check('Solid applied in one undo entry', SOL.undo.length === 1, JSON.stringify(SOL.undo));
+  await page.evaluate(() => window.__xrayUndo.undo());
+  await sleep(600);
+  s = await state(page);
+  check('undo reverts Solid in one step (Glow state back, x-ray on)', s.xray === true, JSON.stringify(s));
+  await page.click('#xray-topbar .tb-mode[data-mode=solid]');
+  await settle(page, 1500);
+  s = await state(page);
+  check('clicking Solid lights it', s.mode === 'solid' && JSON.stringify(s.pressed) === '["solid"]');
+  await page.click('#xray-topbar .tb-mode[data-mode=solid]');
+  await settle(page, 600);
+  s = await state(page);
+  check('clicking lit Solid does nothing', s.mode === 'solid' && s.active === 'solid' && s.xray === false);
+  await shot(page, 'solid');
+
 
   // --- radiograph in the X-ray panel
   await page.click('#xray-topbar .tb-mode[data-mode=ghost]');
@@ -387,6 +427,7 @@ try {
   await sleep(800);
   check('boot topBar:false (xray-pack --no-topbar) hides the bar', (await rect(page, '#xray-topbar')) === null);
   await page.close();
+
   await desktop.close();
 
   // ============================================================== phone 390x844
@@ -412,7 +453,7 @@ try {
     };
   });
   check('phone: bar spans the width, 32 px high', !!P.bar && Math.abs(P.bar.w - 390) < 1 && Math.abs(P.bar.h - 32) < 1 && P.bar.y === 0, JSON.stringify(P.bar));
-  check('phone: four icon-only buttons with accessible labels', P.buttons.length === 4 && P.buttons.every((b) => b.w <= 36 && b.text.w <= 2 && /\(Shift\+\d\)$/.test(b.label)), JSON.stringify(P.buttons.map((b) => [b.mode, Math.round(b.w), b.label])));
+  check('phone 390: five icon-only buttons with accessible labels', P.buttons.length === 5 && P.buttons.every((b) => b.w <= 36 && b.text.w <= 2 && /\(Shift\+\d\)$/.test(b.label)), JSON.stringify(P.buttons.map((b) => [b.mode, Math.round(b.w), b.label])));
   check('phone: the search host shrinks but stays (at least 60 px) and the bar does not overflow', !!P.host && P.host.w >= 60 && P.host.w < 300 && P.host.x + P.host.w <= 390 + 0.5 && P.scrollW <= 390, JSON.stringify({ host: P.host, scrollW: P.scrollW }));
   check('phone: the rails of the sidebar and the dock start below the bar', P.sidebar.y >= 32 - 0.5 && P.dock.y >= 32 - 0.5 && P.strip.y >= 32 - 0.5, JSON.stringify({ sb: P.sidebar.y, dock: P.dock.y, strip: P.strip.y }));
   check('phone: gizmo clear of the bar and the status bar', !overlap(P.gizmo, P.bar) && !overlap(P.gizmo, P.status), JSON.stringify(P.gizmo));
@@ -440,6 +481,23 @@ try {
   await shot(page, 'phone-dock');
   await page.close();
   await phone.close();
+
+  // 360 px phone: five modes plus the search host still fit
+  const small = await browser.newContext({ viewport: { width: 360, height: 740 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
+  page = await open(small, 'phone360');
+  console.log('\n== phone 360x740');
+  await sleep(1500);
+  const Q = await page.evaluate(() => {
+    const r = (e) => { if (!e) return null; const b = e.getBoundingClientRect(); return { x: b.left, y: b.top, w: b.width, h: b.height }; };
+    return { bar: r(document.getElementById('xray-topbar')), host: r(document.getElementById('xray-topbar-search')), buttons: [...document.querySelectorAll('#xray-topbar .tb-mode')].map((b) => ({ ...r(b), label: b.getAttribute('aria-label') })), scrollW: document.documentElement.scrollWidth };
+  });
+  check('phone 360: five 30 px buttons with names, search host >= 60 px, no overflow', Q.buttons.length === 5 && Q.buttons.every((b) => Math.abs(b.w - 30) < 1.5 && b.label) && Q.host.w >= 60 && Q.host.x + Q.host.w <= 360.5 && Q.scrollW <= 360, JSON.stringify({ host: Q.host, scrollW: Q.scrollW, w: Q.buttons.map((b) => b.w) }));
+  await page.click('#xray-topbar .tb-mode[data-mode=solid]');
+  await sleep(500);
+  check('phone 360: tapping Solid lights it', (await state(page)).mode === 'solid');
+  await shot(page, 'phone-360');
+  await page.close();
+  await small.close();
 
   // ============================================================== console
   check('no console errors or page errors', errors.length === 0, errors.slice(0, 4).join(' | '));

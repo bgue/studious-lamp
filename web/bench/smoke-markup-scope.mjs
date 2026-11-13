@@ -3,7 +3,8 @@
 //   - on sample A (fzk-haus) a markup set (a cloud, a rectangle, a callout) and a BCF topic (pin, rectangle) are drawn;
 //   - the surface outlines carry the normal and the bounds of their target (what the re-projection of a revision needs);
 //   - on sample B (building) the overlay has no old pin, shape or annotation; the lists are empty and the panels say
-//     "Other models (1)" (markup drawer and BCF drawer), naming the model;
+//     "Other models (n)" (the Sketches and Issues segments of the Issues tab; the drawers are gone), naming the model;
+//     (the topic's rectangle is a viewpoint drawing, so it is a sketch linked to the issue: the Sketches segment counts 2, the Issues segment 1)
 //   - back on A they are drawn again; on B once more, Move to this model re-binds the set and the topic (detached targets show view-locked);
 //   - a different IFC opened through the file loader does the same (the sets of the sample are hidden);
 //   - an exported markup file made on A, opened on B, says so and lists its set under Other models;
@@ -76,14 +77,14 @@ try {
   }));
   const drawn = (o) => o.mk + o.pin + o.ann;
 
-  // The free part of the canvas: right of the drawer.
+  // The free part of the canvas: right of the sidebar.
   await page.keyboard.press('k');
-  await page.waitForSelector('#markup-drawer');
-  await page.fill('#markup-drawer [data-keep=author]', 'smoke@example.org');
-  await page.dispatchEvent('#markup-drawer [data-keep=author]', 'change');
+  await page.waitForSelector('#issues-panel');
+  await page.fill('#issues-panel [data-keep=author]', 'smoke@example.org');
+  await page.dispatchEvent('#issues-panel [data-keep=author]', 'change');
   const box = await page.evaluate(() => {
     const cv = window.__xray.app.canvas.getBoundingClientRect();
-    const dr = document.querySelector('#xray-toolbar-drawer')?.getBoundingClientRect();
+    const dr = document.querySelector('#sidebar')?.getBoundingClientRect();
     return { x0: Math.max(cv.left, dr ? dr.right : 0) + 40, x1: cv.right - 300, y0: cv.top + 120, y1: cv.bottom - 120, ox: cv.left, oy: cv.top };
   });
   // Frame the model from the front so that the shapes land on elements.
@@ -129,34 +130,37 @@ try {
   }, [cx, cy]);
   await page.waitForTimeout(500);
   const o1 = await overlay();
-  check('A: the overlay draws the markups, the topic pin and its annotation', o1.mk >= 3 && o1.pin >= 1 && o1.ann >= 1, JSON.stringify(o1));
+  // Assertion changed: the topic's rectangle is the drawing of a sketch linked to the issue. The markup view draws it (data-mk, next to
+  // the active set), the BCF overlay draws no annotation of a linked viewpoint, so there are 4 markup shapes and no data-bcf-ann.
+  check('A: the overlay draws the markups, the topic pin and its drawing', o1.mk >= 4 && o1.pin >= 1 && o1.ann === 0, JSON.stringify(o1));
   check('the topic records its model', (await page.evaluate((g) => window.__xrayBcf.topics.find((t) => t.guid === g)?.model?.name, topic)) === 'fzk-haus');
   const list1 = await page.evaluate(() => ({ mk: window.__xrayMarkup.list().length, bcf: window.__xrayBcf.currentTopics.length, other: window.__xrayMarkup.otherModels().length }));
-  check('A: one set, one topic, nothing under Other models', list1.mk === 1 && list1.bcf === 1 && list1.other === 0, JSON.stringify(list1));
+  // Assertion changed: 2 sketches (the set, and the sketch of the topic's viewpoint).
+  check('A: two sketches, one issue, nothing under Other models', list1.mk === 2 && list1.bcf === 1 && list1.other === 0, JSON.stringify(list1));
 
   // ---------------------------------------------------------------- B: building
   await switchTo('building');
   const o2 = await overlay();
   check('B: no old pin, shape or annotation in the overlay', drawn(o2) === 0, JSON.stringify(o2));
   const list2 = await page.evaluate(() => ({ mk: window.__xrayMarkup.list().length, all: window.__xrayMarkup.list({ all: true }).length, bcf: window.__xrayBcf.currentTopics.length, allBcf: window.__xrayBcf.topics.length, active: window.__xrayMarkup.list({ all: true }).some((s) => s.active), sel: window.__xrayMarkup.selected, scope: window.__xrayMarkup.list({ all: true })[0]?.scope }));
-  check('B: the old set and topic are not listed as current', list2.mk === 0 && list2.bcf === 0 && list2.all === 1 && list2.allBcf === 1 && !list2.active && list2.scope === 'different', JSON.stringify(list2));
+  check('B: the old set and topic are not listed as current', list2.mk === 0 && list2.bcf === 0 && list2.all === 2 && list2.allBcf === 1 && !list2.active && list2.scope === 'different', JSON.stringify(list2));
   check('B: the topic is not applied', (await page.evaluate(() => window.__xrayBcf.applied)) === null);
 
-  await page.evaluate(() => window.__xrayToolbar.open('markup'));
-  await page.waitForSelector('#markup-drawer');
-  const otherSummary = await page.textContent('#markup-drawer details[data-other-models] > summary');
-  check('B: the markup panel shows "Other models (1)"', otherSummary?.trim() === 'Other models (1)', String(otherSummary));
-  check('B: the group starts collapsed', (await page.getAttribute('#markup-drawer details[data-other-models]', 'open')) === null);
-  await page.click('#markup-drawer details[data-other-models] > summary');
-  const groupText = await page.textContent('#markup-drawer details[data-other-models]');
-  check('B: the group names the model and offers Open, Move to this model and Delete', /fzk-haus/.test(groupText ?? '') && !!(await page.$('#markup-drawer [data-act=other-open]')) && !!(await page.$('#markup-drawer [data-act=other-move]')) && !!(await page.$('#markup-drawer [data-act=other-delete]')), String(groupText).slice(0, 120));
-  check('B: no set card of A in the sets grid', (await page.$$('#markup-drawer .mk-set')).length === 0);
-  await page.evaluate(() => window.__xrayToolbar.open('bcf'));
-  await page.waitForSelector('#bcf-drawer');
-  const bcfSummary = await page.textContent('#bcf-drawer details[data-other-models] > summary');
+  await page.evaluate(() => window.__xrayIssues.open('sketches'));
+  await page.waitForSelector('#issues-panel');
+  const otherSummary = await page.textContent('#issues-panel details[data-other-models] > summary');
+  check('B: the Sketches segment shows "Other models (2)"', otherSummary?.trim() === 'Other models (2)', String(otherSummary));
+  check('B: the group starts collapsed', (await page.getAttribute('#issues-panel details[data-other-models]', 'open')) === null);
+  await page.click('#issues-panel details[data-other-models] > summary');
+  const groupText = await page.textContent('#issues-panel details[data-other-models]');
+  check('B: the group names the model and offers Open, Move to this model and Delete', /fzk-haus/.test(groupText ?? '') && !!(await page.$('#issues-panel [data-act=other-open]')) && !!(await page.$('#issues-panel [data-act=other-move]')) && !!(await page.$('#issues-panel [data-act=other-delete]')), String(groupText).slice(0, 120));
+  check('B: no sketch card of A in the sketches grid', (await page.$$('#issues-panel .is-card')).length === 0);
+  await page.evaluate(() => window.__xrayIssues.open('issues'));
+  await page.waitForSelector('#issues-panel [data-seg=issues][aria-selected=true]');
+  const bcfSummary = await page.textContent('#issues-panel details[data-other-models] > summary');
   check('B: the BCF panel shows "Other models (1)"', bcfSummary?.trim() === 'Other models (1)', String(bcfSummary));
-  check('B: the BCF list has no topic row', (await page.$$('#bcf-drawer [data-topic]')).length === 0);
-  check('B: the BCF drawer open draws no pin of A', drawn(await overlay()) === 0);
+  check('B: the issue list has no issue row', (await page.$$('#issues-panel [data-issue]')).length === 0);
+  check('B: the Issues panel open draws no pin of A', drawn(await overlay()) === 0);
 
   // ---------------------------------------------------------------- back to A
   await switchTo('fzk-haus');
@@ -165,14 +169,15 @@ try {
   await page.waitForTimeout(600);
   const o3 = await overlay();
   const list3 = await page.evaluate(() => ({ mk: window.__xrayMarkup.list().length, bcf: window.__xrayBcf.currentTopics.length, other: window.__xrayMarkup.otherModels().length, otherB: window.__xrayBcf.otherModels().length }));
-  check('A again: the set and the topic are current and drawn', list3.mk === 1 && list3.bcf === 1 && list3.other === 0 && list3.otherB === 0 && o3.mk >= 3 && o3.pin >= 1 && o3.ann >= 1, JSON.stringify({ list3, o3 }));
+  check('A again: the sketches and the issue are current and drawn', list3.mk === 2 && list3.bcf === 1 && list3.other === 0 && list3.otherB === 0 && o3.mk >= 4 && o3.pin >= 1 && o3.ann === 0, JSON.stringify({ list3, o3 }));
 
   // ---------------------------------------------------------------- Move to this model
   await switchTo('building');
-  await page.evaluate(() => window.__xrayToolbar.open('markup'));
-  await page.waitForSelector('#markup-drawer details[data-other-models]');
-  await page.click('#markup-drawer details[data-other-models] > summary');
-  await page.click('#markup-drawer [data-act=other-move]');
+  await page.evaluate(() => window.__xrayIssues.open('sketches'));
+  await page.waitForSelector('#issues-panel details[data-other-models]');
+  // Assertion changed: the panel keeps the group open once opened (it is one panel now, not a drawer rebuilt on every open).
+  await page.evaluate(() => { const d = document.querySelector('#issues-panel details[data-other-models]'); if (!d.open) d.open = true; });
+  await page.click('#issues-panel [data-act=other-move]');
   await page.waitForFunction(() => window.__xrayMarkup.list().length === 1);
   const moved = await page.evaluate(() => {
     const l = window.__xrayMarkup.list();
@@ -180,21 +185,24 @@ try {
     const att = set.markups.filter((m) => m.shape).map((m) => window.__xrayMarkup.attachment(m.id));
     return { scope: l[0].scope, model: set.model.name, other: window.__xrayMarkup.otherModels().length, detached: att.filter((a) => a.description.detached).length, shapes: att.length, status: window.__xrayMarkup.status };
   });
-  check('Move to this model: the set belongs to building and the group is gone', moved.scope === 'same' && moved.model === 'building' && moved.other === 0, JSON.stringify(moved));
+  // Assertion changed: the sketch of the topic's viewpoint stays on A until its issue moves (1 other model group member left, not 0).
+  check('Move to this model: the set belongs to building, only the issue sketch stays behind', moved.scope === 'same' && moved.model === 'building' && moved.other === 1, JSON.stringify(moved));
   check('Move to this model: targets this model lacks show detached (view-locked)', moved.detached >= 1 && /now belongs/.test(moved.status), JSON.stringify(moved));
-  check('the Other models group disappears from the panel', (await page.$('#markup-drawer details[data-other-models]')) === null);
-  await page.click('#markup-drawer .mk-set');
+  // Assertion changed: the sketch of the topic is still on the other model (the issue moves it, below).
+  check('the Other models group keeps only the sketch of the issue', (await page.textContent('#issues-panel details[data-other-models] > summary'))?.trim() === 'Other models (1)');
+  await page.click('#issues-panel .is-card');
   await page.waitForTimeout(600);
   const o4 = await overlay();
   check('the moved set is drawn on B (view-locked)', o4.mk >= 1, JSON.stringify(o4));
 
-  await page.evaluate(() => window.__xrayToolbar.open('bcf'));
-  await page.waitForSelector('#bcf-drawer details[data-other-models]');
-  await page.click('#bcf-drawer details[data-other-models] > summary');
-  await page.click('#bcf-drawer [data-act=other-move]');
+  await page.evaluate(() => window.__xrayIssues.open('issues'));
+  await page.waitForSelector('#issues-panel details[data-other-models]');
+  // Assertion changed: the panel keeps the group open once opened (it is one panel now, not a drawer rebuilt on every open).
+  await page.evaluate(() => { const d = document.querySelector('#issues-panel details[data-other-models]'); if (!d.open) d.open = true; });
+  await page.click('#issues-panel [data-act=other-move]');
   await page.waitForFunction(() => window.__xrayBcf.currentTopics.length === 1);
-  const mv = await page.evaluate(() => ({ scope: window.__xrayBcf.scopeOf(window.__xrayBcf.currentTopics[0].guid), other: window.__xrayBcf.otherModels().length, row: document.querySelectorAll('#bcf-drawer [data-topic]').length }));
-  check('Move to this model (BCF): the topic belongs to building', mv.scope === 'same' && mv.other === 0 && mv.row === 1, JSON.stringify(mv));
+  const mv = await page.evaluate(() => ({ scope: window.__xrayBcf.scopeOf(window.__xrayBcf.currentTopics[0].guid), other: window.__xrayBcf.otherModels().length, row: document.querySelectorAll('#issues-panel [data-issue]').length, sketches: window.__xrayMarkup.list().length, sketchOther: window.__xrayMarkup.otherModels().length }));
+  check('Move to this model (issue): the issue and its sketch belong to building', mv.scope === 'same' && mv.other === 0 && mv.row === 1 && mv.sketches === 2 && mv.sketchOther === 0, JSON.stringify(mv));
 
   // ---------------------------------------------------------------- Open, on purpose; a file opened on another model
   const exported = await page.evaluate(async () => {
@@ -210,7 +218,7 @@ try {
   const rep = await page.evaluate((t) => window.__xrayMarkup.importJson(t), JSON.stringify(fromA));
   check('opening a file made on another model warns and lists its sets under Other models', rep.ok && rep.match === 'different' && rep.warnings.some((w) => /Other models/.test(w)) && !rep.restored, JSON.stringify({ match: rep.match, restored: rep.restored, w: rep.warnings }));
   const l5 = await page.evaluate(() => ({ cur: window.__xrayMarkup.list().length, other: window.__xrayMarkup.otherModels() }));
-  check('the imported set is under Other models and not current', l5.cur === 1 && l5.other.length === 1 && l5.other[0].sets.length === 1, JSON.stringify(l5));
+  check('the imported sets are under Other models and not current', l5.cur === 2 && l5.other.length === 1 && l5.other[0].sets.length === 2, JSON.stringify(l5));
   const opened = await page.evaluate((id) => { window.__xrayMarkup.openOther(id); return window.__xrayMarkup.list().map((s) => [s.id.endsWith('-imp'), s.scope, s.active]); }, (await page.evaluate(() => window.__xrayMarkup.otherModels()[0].sets[0].id)));
   check('Open shows it on purpose (active, still marked as another model)', opened.some((x) => x[0] && x[1] === 'different' && x[2]), JSON.stringify(opened));
 
@@ -225,12 +233,13 @@ try {
   check('and the sets and topics are all under Other models', l6.cur === 0 && l6.all >= 2 && l6.bcf === 0 && l6.allBcf === 1 && l6.bcfOther >= 1, JSON.stringify(l6));
 
   // Delete from the group.
-  await page.evaluate(() => window.__xrayToolbar.open('markup'));
-  await page.waitForSelector('#markup-drawer details[data-other-models]');
+  await page.evaluate(() => window.__xrayIssues.open('sketches'));
+  await page.waitForSelector('#issues-panel details[data-other-models]');
   const before = await page.evaluate(() => window.__xrayMarkup.list({ all: true }).length);
-  await page.click('#markup-drawer details[data-other-models] > summary');
-  await page.click('#markup-drawer [data-act=other-delete]');
-  await page.click('#markup-drawer [data-act=other-delete]');
+  // Assertion changed: the panel keeps the group open once opened (it is one panel now, not a drawer rebuilt on every open).
+  await page.evaluate(() => { const d = document.querySelector('#issues-panel details[data-other-models]'); if (!d.open) d.open = true; });
+  await page.click('#issues-panel [data-act=other-delete]');
+  await page.click('#issues-panel [data-act=other-delete]');
   await page.waitForFunction((n) => window.__xrayMarkup.list({ all: true }).length === n - 1, before);
   check('Delete removes a set of another model (second click confirms)', true);
 

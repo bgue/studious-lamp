@@ -311,6 +311,24 @@
           "glowScope": "focus"
         }
       }
+    },
+    {
+      "id": "solid",
+      "name": "Solid",
+      "description": "Draws every element opaque: x-ray, view modes, imaging, glow and auto orbit off; section cuts and clearance stay as they are.",
+      "group": "Basic",
+      "base": "defaults",
+      "params": {
+        "schema": "xray-params/1",
+        "xray": false,
+        "viewModes": {},
+        "imaging": {},
+        "cinematic": {
+          "bloom": false,
+          "edgeGlow": false,
+          "autoOrbit": false
+        }
+      }
     }
   ]
 }

@@ -359,11 +359,12 @@ export function onUndoChange(cb: () => void): () => void {
   return stack.onChange(cb);
 }
 
-/** The markup tool is drawing or its drawer is open: its own undo owns Ctrl+Z. */
+/** A sketch is being edited (the drawing toolbar is up, or a drawing tool is on): the markup history owns Ctrl+Z. */
 function markupHasKeys(): boolean {
   const m = window.__xrayMarkup;
-  if (m && m.tool !== 'select') return true;
-  return !!document.querySelector('[data-tool="markup"].open');
+  if (m && (m.editing || m.tool !== 'select')) return true;
+  const bar = document.getElementById('markup-float');
+  return !!bar && bar.style.display !== 'none' && bar.style.display !== '';
 }
 
 /** The keyboard focus is inside the classification review walk panel. */

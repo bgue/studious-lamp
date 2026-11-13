@@ -13,7 +13,7 @@ import { anchorPoint, drawOps, projectPoint, shapeFraction } from '../bcf/annota
 import type { Ctx2D, LayoutContext } from '../bcf/annotate';
 import { dirIfcToViewer, dirViewerToIfc, ifcToViewer, viewerToIfc } from '../bcf/model';
 import type { BcfSnapshotView, Vec3 } from '../bcf/model';
-import { attachGuids, cloneAttachment, describeAttachment, isSpatial, viewLockState } from '../bcf/attach';
+import { attachGuids, describeAttachment, isSpatial, viewLockState } from '../bcf/attach';
 import type { AttachDescription, Attachment, LockState, ViewLockMode } from '../bcf/attach';
 import { OcclusionCache, VIEWLOCK_MODES, viewLockSetting } from '../bcf/attach';
 import { loadedIdentity, modelLabel, scopeOf, splitByScope } from './scope';
@@ -32,7 +32,7 @@ import { History } from './history';
 import { bounds as ptsBounds, simplify } from './geometry';
 import { boxCorners, ellipseInQuad, fractionsToPixels, layoutMarkups, markupName, rayToFraction, rebaseShape } from './layout';
 import {
-  KIND_LABEL, addComment, attachmentOf, isBoxKind, needsAttach, addMarkup, buildMarkupDoc, compareModels, defaultColour, defaultSetTitle, markupDocJson, mergeSets,
+  KIND_LABEL, attachmentOf, isBoxKind, needsAttach, addMarkup, buildMarkupDoc, compareModels, defaultColour, defaultSetTitle, markupDocJson, mergeSets,
   modelIdentity, newMarkup, newMarkupId, nowIso, parseMarkupDoc, referencedGuids, setCounts, uniqueSetTitle,
 } from './model';
 import type { ColourKey, Markup, MarkupKind, MarkupSet, ModelIdentity, ModelMatch, Weight } from './model';
@@ -206,6 +206,29 @@ export class MarkupController {
   }
   /** The live view (view.ts) sets this: cancels a drawing in progress. */
   cancelDrawing: (() => void) | null = null;
+  /**
+   * A sketch is being edited: the drawing toolbar is up and the view takes pointer and key input (select, move, delete,
+   * undo). Set by the Issues panel (Edit drawing, New sketch) and by choosing a drawing tool; Done clears it.
+   */
+  editing = false;
+  /** src/issues sets this: "Raise as issue" (a new issue from a sketch). Without it toBcf makes the old copy. */
+  raise: ((setId: string, o?: { topic?: string }) => Promise<string>) | null = null;
+  /** src/issues sets this: another sketch the live view draws next to the active one (the sketch of the applied issue viewpoint). */
+  companion: (() => MarkupSet | null) | null = null;
+  /** src/issues sets this: restoring a sketch made from an imported viewpoint applies that viewpoint. True when it did. */
+  viewpointRestore: ((set: MarkupSet) => boolean) | null = null;
+  private readonly removedListeners = new Set<(set: MarkupSet) => void>();
+  private readonly viewListeners = new Set<(set: MarkupSet) => void>();
+  /** A sketch was removed from the session (its issue link, if any, is cut by src/issues). */
+  onRemoved(cb: (set: MarkupSet) => void): () => void {
+    this.removedListeners.add(cb);
+    return () => this.removedListeners.delete(cb);
+  }
+  /** The view of a sketch was captured again (Update view): its issue viewpoint is captured again with it. */
+  onViewUpdated(cb: (set: MarkupSet) => void): () => void {
+    this.viewListeners.add(cb);
+    return () => this.viewListeners.delete(cb);
+  }
   private readonly histories = new Map<string, History<SetState>>();
   private readonly listeners = new Set<(quiet: boolean) => void>();
   readonly geo: BcfController;
@@ -287,7 +310,21 @@ export class MarkupController {
   setTool(t: ToolId): void {
     if (t !== this.tool) this.cancelDrawing?.();
     this.tool = t;
-    if (t !== 'select') this.selected = null;
+    if (t !== 'select') {
+      this.selected = null;
+      if (this.active) this.editing = true; // choosing a drawing tool starts editing the active sketch
+    }
+    this.emit();
+  }
+  /** Start or stop editing the active sketch (the drawing toolbar). Stopping also puts the pointer back to select. */
+  setEditing(on: boolean): void {
+    if (on && !this.active) return;
+    if (!on && this.tool !== 'select') {
+      this.cancelDrawing?.();
+      this.tool = 'select';
+    }
+    this.editing = on;
+    if (!on) this.pickLink = null;
     this.emit();
   }
   setWeight(w: Weight): void {
@@ -441,6 +478,12 @@ export class MarkupController {
     if (!set) throw new Error(`No markup set ${id}`);
     if (!this.loaded) throw new Error('No model loaded');
     this.untint();
+    if (set.fromViewpoint && this.viewpointRestore?.(set)) {
+      this.activeId = set.id;
+      this.syncTint();
+      this.setStatus(`View of "${set.title}" restored`);
+      return { name: set.title, missing: [], skipped: [], applied: ['viewpoint'] };
+    }
     const r = this.views.restoreView(set.view, { animate });
     this.activeId = set.id;
     this.syncTint();
@@ -466,8 +509,11 @@ export class MarkupController {
     if (this.activeId === id) {
       this.activeId = null;
       this.selected = null;
+      this.editing = false;
+      this.tool = 'select';
     }
-    this.setStatus(`Markup set "${gone!.title}" deleted`);
+    for (const l of this.removedListeners) l(gone!);
+    this.setStatus(`Sketch "${gone!.title}" deleted`);
   }
 
   // ---------------------------------------------------------------- markups
@@ -533,6 +579,7 @@ export class MarkupController {
     set.updated = nowIso();
     const msg = keep === 'screen' ? 'shapes stay on the screen' : `${moved} of ${shapes} shape${shapes === 1 ? '' : 's'} kept on the model${kept ? `, ${kept} left on the screen (behind the camera)` : ''}`;
     this.setStatus(`View of "${set.title}" updated: ${msg}`);
+    for (const l of this.viewListeners) l(set);
     return { shapes, moved, kept };
   }
 
@@ -588,9 +635,7 @@ export class MarkupController {
     if (p.colour) m.colour = p.colour;
     if (p.weight) m.weight = p.weight;
     if (p.fill !== undefined) m.fill = p.fill;
-    if (p.status) m.status = p.status;
-    if (p.assignee !== undefined) { if (p.assignee.trim()) m.assignee = p.assignee.trim(); else delete m.assignee; }
-    if (p.due !== undefined) { if (p.due) m.due = p.due; else delete m.due; }
+    // status, assignee and due are review data: sketches no longer take them (they belong to an issue). Old values stay as read.
     if (p.offset) m.offset = [p.offset[0], p.offset[1]];
     if (p.shape) m.shape = p.shape;
     m.modified = nowIso();
@@ -616,13 +661,21 @@ export class MarkupController {
     this.emit();
   }
 
-  comment(id: string, text: string): boolean {
-    const f = this.markup(id);
-    if (!f || !text.trim()) return false;
-    this.record(f.set);
-    addComment(f.m, this.who, text);
-    f.set.updated = f.m.modified!;
-    this.setStatus(`Comment added to ${markupName(f.m)}`);
+  /** Sketches have no comment threads: comments belong to an issue (raise the sketch as an issue). Always false. */
+  comment(_id: string, _text: string): boolean {
+    this.setStatus('Sketches have no comments. Raise the sketch as an issue to discuss it.');
+    return false;
+  }
+
+  /** The one-line note of a sketch. */
+  setNote(id: string, note: string, o: { quiet?: boolean } = {}): boolean {
+    const set = this.get(id);
+    if (!set) return false;
+    const t = note.replace(/\s+/g, ' ').trim().slice(0, 400);
+    if (t) set.note = t;
+    else delete set.note;
+    set.updated = nowIso();
+    this.emit(o.quiet === true);
     return true;
   }
 
@@ -1013,8 +1066,8 @@ export class MarkupController {
   // ---------------------------------------------------------------- view of the camera against the set
 
   /** True when the live camera is away from the active set's view. */
-  away(): boolean {
-    const set = this.active;
+  away(of: MarkupSet | null = this.active): boolean {
+    const set = of;
     if (!set) return false;
     const cam = this.app.renderer.camera;
     const t = this.app.renderer.controls.target;
@@ -1048,7 +1101,7 @@ export class MarkupController {
   // ---------------------------------------------------------------- export
 
   /** Wait for the ghost animation and the classification to settle after a restore. */
-  private async settleView(): Promise<void> {
+  async settleView(): Promise<void> {
     try {
       this.app.controller.settle();
     } catch {
@@ -1314,6 +1367,7 @@ export class MarkupController {
    * annotations and shapes, the comments as topic comments. Returns the topic guid. Needs the BCF tool.
    */
   async toBcf(setId: string, markupId?: string): Promise<string> {
+    if (this.raise) return this.raise(setId);
     const bcf = window.__xrayBcf;
     if (!bcf) throw new Error('The BCF tool is not available in this build');
     const set = this.get(setId);

@@ -11,6 +11,7 @@ A vertical icon strip at the left edge of the canvas (44 px, inside the stage, s
 
 | Tool | Drawer |
 | --- | --- |
+| BCF, Markup | moved: both live in the sidebar tab `Issues` ([issues.md](issues.md)); the actions `tool.bcf` and `tool.markup` and a boot config naming them still open it |
 | Open model | no drawer: runs the Open model button of the parameter panel |
 | X-ray | no drawer: toggles x-ray (same as key `X`), highlighted when on |
 | View modes | Behind-only and peelback toggles, front treatment, offset, front alpha, radius, slope, feather (the full set is in the View modes folder) |

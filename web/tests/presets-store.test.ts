@@ -194,10 +194,10 @@ describe('lookup and keys', () => {
   });
 
   it('keys 1 to 9 follow the list order', () => {
-    expect(BUILTIN_PRESETS.map((_, i) => keyOf(i))).toEqual(['1', '2', '3', '4', '5', '6', '7', '8', '9', null, null, null, null]);
+    expect(BUILTIN_PRESETS.map((_, i) => keyOf(i))).toEqual(['1', '2', '3', '4', '5', '6', '7', '8', '9', null, null, null, null, null]);
     const s = new PresetStore(null);
     s.add(user('Mine'));
-    expect(s.list()[13]!.name).toBe('Mine');
+    expect(s.list()[14]!.name).toBe('Mine');
     expect(s.list().slice(0, 9).map((p) => p.id)).toEqual(BUILTIN_PRESETS.slice(0, 9).map((p) => p.id));
   });
 });

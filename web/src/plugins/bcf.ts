@@ -1,18 +1,17 @@
-// BCF plugin: view and author BIM Collaboration Format 2.1 / 3.0 topics. Logic in src/bcf (zip, xml, parse, write, plan,
-// controller, ui); this file wires the tool, lil-gui folder, palette actions, params section and window.__xrayBcf.
+// BCF plugin: view and author BIM Collaboration Format 2.1 / 3.0 topics (the issues of the Issues tab, src/plugins/issues.ts).
+// Logic in src/bcf (zip, xml, parse, write, plan, controller, ui); this file wires the lil-gui folder, palette actions, params section and window.__xrayBcf.
 //
 //   window.__xrayBcf = { load, topics, applyViewpoint, clearViewpoint, createTopic, createTopics, exportZip, ... }
 
 import type GUI from 'lil-gui';
 import type { AppPlugin, ViewerApp } from '../app';
 import { registerAction } from '../input/actions';
-import { registerTool } from '../tools/registry';
 import { registerParamSection } from '../ui/params';
 import { BcfController } from '../bcf/controller';
 import type { AnnotationSpec, ApplyReport, CreateTopicOptions, TopicSpec } from '../bcf/controller';
 import { BcfMarkupView } from '../bcf/pins';
 import type { PlaceKind } from '../bcf/pins';
-import { bcfFileInput, buildDrawer, installDrop, openTopicDialog, pickBcfFile } from '../bcf/ui';
+import { bcfFileInput, installDrop, openTopicDialog, pickBcfFile } from '../bcf/ui';
 import type { BcfAnnotation, BcfProject, BcfTopic, BcfVersion, Vec3 } from '../bcf/model';
 
 declare global {
@@ -73,12 +72,13 @@ declare global {
   }
 }
 
-const ICON =
-  '<svg viewBox="0 0 20 20" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round">' +
-  '<path d="M3.5 4.5h13v9h-6l-3.5 3v-3h-3.5z"/><path d="M6.5 8h7M6.5 10.5h4.5"/></svg>';
-
 let ctl: BcfController | null = null;
 let markup: BcfMarkupView | null = null;
+
+/** The BCF controller (the Issues plugin, src/plugins/issues.ts, joins it with the markup controller). Null before install. */
+export function bcfController(): BcfController | null {
+  return ctl;
+}
 
 /** The remembered author name (localStorage `xray.bcf.author`), shared with the markup tool. */
 export const sharedAuthor = {
@@ -115,15 +115,6 @@ export const bcfPlugin: AppPlugin = {
     const view = new BcfMarkupView(c);
     markup = view;
 
-    registerTool({
-      id: 'bcf',
-      label: 'BCF',
-      title: 'BCF issues: open, review, create and export BIM Collaboration Format topics',
-      icon: ICON,
-      order: 80,
-      panel: (container) => buildDrawer(container, c, view),
-    });
-
     const gui = app.panel;
     if (gui) buildGui(gui, c);
 
@@ -143,8 +134,8 @@ export const bcfPlugin: AppPlugin = {
       },
     });
 
-    registerAction({ id: 'bcf.open', label: 'BCF: open file', group: 'BCF', keys: [], run: () => pickBcfFile(c) });
-    registerAction({ id: 'bcf.create', label: 'BCF: create topic from view', group: 'BCF', keys: [], run: () => openTopicDialog(c) });
+    registerAction({ id: 'bcf.open', label: 'BCF: open file', group: 'BCF', keys: [], run: () => { window.__xrayIssues?.open('issues'); pickBcfFile(c); } });
+    registerAction({ id: 'bcf.create', label: 'BCF: create topic from view', group: 'BCF', keys: [], run: () => { window.__xrayIssues?.open('issues'); openTopicDialog(c); } });
     registerAction({ id: 'bcf.export', label: 'BCF: export', group: 'BCF', keys: [], run: () => void c.download() });
     registerAction({ id: 'bcf.clear', label: 'BCF: clear viewpoint', group: 'BCF', keys: [], run: () => void c.clearViewpoint() });
 

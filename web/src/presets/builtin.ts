@@ -256,6 +256,21 @@ export const BUILTIN_PRESETS: Preset[] = [
     },
     builtIn: true,
   },
+  {
+    id: 'solid',
+    name: 'Solid',
+    description: 'Draws every element opaque: x-ray, view modes, imaging, glow and auto orbit off; section cuts and clearance stay as they are.',
+    group: 'Basic',
+    base: 'defaults',
+    params: {
+      schema: S,
+      xray: false,
+      viewModes: {},
+      imaging: {},
+      cinematic: { bloom: false, edgeGlow: false, autoOrbit: false },
+    },
+    builtIn: true,
+  },
 ];
 
 /** The ids bound to keys 1 to 9, in order. */

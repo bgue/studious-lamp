@@ -142,7 +142,7 @@ try {
     app.renderer.controls.target.set(0.5, 1.2, -0.5);
     app.renderer.controls.update();
     app.controller.settle();
-    window.__xrayToolbar?.open?.('bcf');
+    window.__xrayIssues?.open('issues'); // the BCF drawer moved into the Issues tab
   });
   await page.waitForTimeout(800);
 
@@ -187,7 +187,9 @@ try {
   check('6 new topics get pin numbers 1 and 2', made.nA === 1 && made.nB === 2, `${made.nA}, ${made.nB}`);
   check('3 the annotated wall joins the viewpoint selection for other tools', made.sel.includes(setup.wall.gid) && made.sel.includes(setup.win.gid), made.sel.join(','));
   await frames(page, 4);
-  const mmText = await page.evaluate((g) => [...document.querySelectorAll(`svg.xray-svg-overlay [data-bcf-ann="${g}"] text`)].map((t) => t.textContent), made.link);
+  // Assertions changed in 7, 5 and 4: the drawing of a viewpoint is its sketch, so the markup view draws it (data-mk, same guid) and
+  // the BCF overlay draws none; the annotation text carries the markup number ("N. text").
+  const mmText = await page.evaluate((g) => [...document.querySelectorAll(`svg.xray-svg-overlay [data-mk="${g}"] text`)].map((t) => t.textContent), made.link);
   check('7 the linked measurement shows in mm (the measure tool unit)', mmText.some((t) => /^\d+ mm$/.test(t)), JSON.stringify(mmText));
 
   // 5: a rectangle dragged with the mouse
@@ -213,17 +215,17 @@ try {
   const rect = await page.evaluate(() => {
     const t = window.__xrayBcf.topics[0];
     const a = Object.values(window.__xrayBcf.annotations(t.guid)).flat().find((x) => x.type === 'rect');
-    const el = a && document.querySelector(`svg.xray-svg-overlay [data-bcf-ann="${a.guid}"] polygon`);
+    const el = a && document.querySelector(`svg.xray-svg-overlay [data-mk="${a.guid}"] polygon, svg.xray-svg-overlay [data-mk="${a.guid}"] [data-role=shape]`);
     return { a, drawn: !!el, cam: window.__xray.app.renderer.camera.position.toArray(), sel: window.__xray.app.selection, status: window.__xrayBcf.status };
   });
   const camMoved = Math.hypot(rect.cam[0] - cam0[0], rect.cam[1] - cam0[1], rect.cam[2] - cam0[2]);
-  check('5 a mouse drag draws a rectangle in view fractions (the camera does not orbit)', !!rect.a && rect.drawn && rect.a.shape.points.length === 2 && Math.abs(rect.a.shape.points[0][0] - u0[0]) < 0.03 && Math.abs(rect.a.shape.points[1][1] - (u0[1] + 0.15)) < 0.03 && camMoved < 1e-6 && rect.a.text === 'Sill area',
+  check('5 a mouse drag draws a rectangle in view fractions (the camera does not orbit)', !!rect.a && rect.drawn && rect.a.shape.points.length === 2 && Math.abs(rect.a.shape.points[0][0] - u0[0]) < 0.03 && Math.abs(rect.a.shape.points[1][1] - (u0[1] + 0.15)) < 0.03 && camMoved < 1e-6 && /Sill area$/.test(rect.a.text),
     JSON.stringify({ pts: rect.a?.shape?.points, u0, camMoved, status: rect.status }));
 
   // 4: the wall callout follows the wall's displacement (what the exploded view sets per element)
   const follow = await page.evaluate(async (s) => {
     const app = window.__xray.app;
-    const pos = () => { const e = document.querySelector(`svg.xray-svg-overlay [data-bcf-ann="${s.call}"] circle[data-role=anchor]`); return e ? [Number(e.getAttribute('cx')), Number(e.getAttribute('cy'))] : null; };
+    const pos = () => { const e = document.querySelector(`svg.xray-svg-overlay [data-mk="${s.call}"] circle[data-role=anchor]`); return e ? [Number(e.getAttribute('cx')), Number(e.getAttribute('cy'))] : null; };
     const f = () => new Promise((r) => requestAnimationFrame(r));
     for (let i = 0; i < 3; i++) await f();
     const p0 = pos();

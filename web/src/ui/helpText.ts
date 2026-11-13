@@ -330,7 +330,7 @@ export const FOLDER_HELP: Record<string, HelpEntry> = {
     'Report: Appendix I, Presets and keyboard',
   ),
   'Top bar': h(
-    'The folder holds the setting of the thin strip at the top of the view. The strip holds 4 mode buttons and the search box.',
+    'The folder holds the setting of the thin strip at the top of the view. The strip holds 5 mode buttons and the search box.',
     'This setting shows or hides the thin strip above the picture. The picture itself does not change.',
     'Open the folder. Use the switch to show or hide the strip.',
     'Report: Appendix I, Presets and keyboard',
@@ -363,6 +363,42 @@ export const FOLDER_HELP: Record<string, HelpEntry> = {
     'The folder controls markup sets. A set is 1 saved view with clouds, notes, highlights and shapes.',
     'These controls save a view, open a shared file and write a PDF for your team.',
     'Click New markup set from view. Open the Markup tool to draw.',
+    'Report: Appendix J, Coordination tools',
+  ),
+  'Sidebar/Issues tab': h(
+    'The tab lists the issues and the sketches of this model. A switch at the top changes the list.',
+    'Click and the left side shows what your team must fix, and the drawings that show where.',
+    'Click the tab. Click an item to open it and bring its view back.',
+    'Report: Appendix J, Coordination tools',
+  ),
+  'Issues panel': h(
+    'The panel holds the issue list, the sketch list and the detail of the chosen item.',
+    'This column shows what is wrong, who owns it and where it sits.',
+    'Pick Issues or Sketches. Search or filter. Click an item to read it.',
+    'Report: Appendix J, Coordination tools',
+  ),
+  'Issues panel/Segments': h(
+    'The switch picks the list. Issues carry a status and comments. Sketches are saved views with drawings.',
+    'Click and the column swaps between the problems of your team and the drawn views.',
+    'Click Issues or Sketches.',
+    'Report: Appendix J, Coordination tools',
+  ),
+  'Issues panel/Phone sheet': h(
+    'On a small screen the list and the detail rise from the bottom edge of the view.',
+    'The list leaves the top of the picture free. It steps aside while you draw.',
+    'Tap the cross to close the sheet. Tap Issues in the status bar to open it again.',
+    'Report: Appendix J, Coordination tools',
+  ),
+  'Drawing toolbar': h(
+    'The bar floats over the view while you draw on a sketch. It holds the tools, the colours, the line weights and Done.',
+    'This bar lets you mark a view with clouds, arrows, text and pen lines. It goes away when you press Done.',
+    'Pick a tool. Drag on the view. Press Done when the drawing is ready.',
+    'Report: Appendix J, Coordination tools',
+  ),
+  'Status bar/Open issues': h(
+    'The button counts the open issues of this model. An issue is open until it is resolved or closed.',
+    'Click and the left side lists the problems that still need work.',
+    'Click the button.',
     'Report: Appendix J, Coordination tools',
   ),
   'Markup drawer': h(
@@ -1573,7 +1609,7 @@ export const CONTROL_HELP: Record<string, HelpEntry> = {
   'Sidebar/View as BCF topic': h(
     'The command restores the view and creates a BCF topic with a snapshot from it.',
     'Click and the app turns this bookmark into an issue with a picture, ready to send to another design tool.',
-    'Click the command. Open the BCF tool to add comments or to export the topic.',
+    'Click the command. Open the Issues tab to add comments or to export the topic.',
     'Report: Onboarding checklist',
   ),
   'Sidebar/Delete view': h(
@@ -2703,7 +2739,7 @@ export const CONTROL_HELP: Record<string, HelpEntry> = {
   'Markup drawer/Convert to BCF topic': h(
     'The button makes a BCF topic from the set. The topic has the viewpoint, the annotations and the comments.',
     'Click and the sheet joins the issue list. You can then send it as an issue file.',
-    'Click the button. Open the BCF tool to export it.',
+    'Click the button. Open the Issues tab to export it.',
     'Report: Appendix J, Coordination tools',
   ),
   'Markup drawer/Delete set': h(
@@ -3862,28 +3898,34 @@ export const CONTROL_HELP: Record<string, HelpEntry> = {
     'Turn the switch off for a clean picture. Press Shift+T for the same action.',
     'Report: Appendix I, Presets and keyboard',
   ),
+  'Top bar/Solid': h(
+    'The button applies the Solid preset. Every element is drawn opaque. X-ray, view modes, imaging, glow and auto orbit turn off. Section cuts and clearance stay.',
+    'The whole model shows with no see-through parts, except real glass. A cut you made stays cut.',
+    'Click the button. Press Shift+0 for the same action. A second click does nothing.',
+    'Report: Purpose',
+  ),
   'Top bar/Ghost': h(
     'The button applies the Coordination preset. This is the classic X-ray view. The objects that block the selection fade.',
     'The walls and slabs in front of the selected item turn see-through. The selected item stays solid and clear.',
-    'Select an object. Click the button. Click it again to return to the normal view. Press Shift+1 for the same action.',
+    'Select an object. Click the button. Click it again to switch to Solid. Press Shift+1 for the same action.',
     'Report: Purpose',
   ),
   'Top bar/Radiograph': h(
     'The button applies the Radiograph preset. The picture looks like a medical X-ray image of the model.',
     'The picture turns dark with blue and white tones. Dense parts glow and thin parts fade. The selected item shines like a bone.',
-    'Select an object. Click the button. Click it again to return to the normal view. Press Shift+2 for the same action.',
+    'Select an object. Click the button. Click it again to switch to Solid. Press Shift+2 for the same action.',
     'Report: Appendix G, Imaging and sectioning',
   ),
   'Top bar/Glow': h(
     'The button applies the Focus glow preset. It turns on the bloom and the edge glow for the focus.',
     'The selected item gets a soft halo and a bright outline. You find it fast, even in a large model.',
-    'Select an object. Click the button. Click it again to return to the normal view. Press Shift+3 for the same action.',
+    'Select an object. Click the button. Click it again to switch to Solid. Press Shift+3 for the same action.',
     'Report: Terminology, focus',
   ),
   'Top bar/Cutaway': h(
     'The button applies the Peel only preset. It cuts a window through the objects that block the view of the selection.',
     'A round hole opens in the walls and the roof in front of the selected item. The rest of the building stays solid.',
-    'Select an object. Click the button. Click it again to return to the normal view. Press Shift+4 for the same action.',
+    'Select an object. Click the button. Click it again to switch to Solid. Press Shift+4 for the same action.',
     'Report: Appendix F, View modes',
   ),
   'Classify drawer/Provider (heading)': h(

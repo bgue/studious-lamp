@@ -579,7 +579,7 @@ function buildPanel(c: ViewsController, api: ViewsApi): void {
       setTimeout(() => {
         try {
           const t = bcf.createTopic({ title: v.name, description: `Saved view: ${viewSummary(v) || 'default look'}.` });
-          c.note(`BCF topic "${t.title ?? v.name}" created. Open the BCF tool to export it.`, false);
+          c.note(`BCF topic "${t.title ?? v.name}" created. Open the Issues tab to export it.`, false);
         } catch (e) {
           c.note(`BCF topic failed: ${e instanceof Error ? e.message : String(e)}`, false);
         }

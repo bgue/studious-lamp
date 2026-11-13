@@ -18,6 +18,7 @@ highest comes first.
 | Presets | `window.__xrayPresets` | applies the preset |
 | Saved views | `window.__xrayViews` | restores the view |
 | Selection sets | the sets of the model (`src/selectionSets.ts`), static and criteria | selects the set and frames it |
+| Issues and sketches | issues (BCF topics) and sketches of the loaded model, by title, note or description and comment text, the row says which field matched ([issues.md](issues.md)) | opens the Issues tab on it and brings its view back |
 | Settings | every named control of the parameter panel: label, folder path, help text | opens its folders and the dock, scrolls to the control and flashes it |
 
 - **Shift+Enter** adds an element, a set or the query result to the selection instead of replacing it (the camera stays).
@@ -29,7 +30,7 @@ highest comes first.
 - **Hover preview.** The element row under the pointer or the arrow keys is highlighted in the 3D view
   (`renderer.setHoverHighlight`, the hover card hook) and cleared when the list closes.
 - **Recent items.** Focus the empty box to see the last 8 things you used, newest first (`localStorage` `xray.search.recent`,
-  keys such as `e:<GlobalId>`, `a:<action id>`, `p:<preset id>`, `v:<view id>`, `s:<set name>`, `g:<folder>/<label>`).
+  keys such as `e:<GlobalId>`, `a:<action id>`, `p:<preset id>`, `v:<view id>`, `s:<set name>`, `i:<issue or sketch>:<id>`, `g:<folder>/<label>`).
   Items that no longer exist are skipped.
 
 ## Query mode

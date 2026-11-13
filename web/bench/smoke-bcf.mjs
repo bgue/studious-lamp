@@ -1,9 +1,10 @@
-// Headless check for BCF: on /?model=fzk-haus select two windows, create a topic with a snapshot through the drawer's
-// New topic dialog, export 2.1 with the drawer button, reload the page, import the downloaded file through the file input,
-// apply its viewpoint from the drawer and assert the camera matches within 1 cm and the selection is restored; check hide
+// Headless check for BCF: on /?model=fzk-haus select two windows, create a topic with a snapshot through the New issue
+// dialog of the Issues tab (the BCF drawer is gone: the issues live in the sidebar tab, see docs-features/issues.md), export 2.1
+// with the panel button, reload the page, import the downloaded file through the file input,
+// apply its viewpoint (a click on the issue opens it and applies its view) and assert the camera matches within 1 cm and the selection is restored; check hide
 // provenance on Clear viewpoint; then createTopics for three wall GlobalIds through the API, export 3.0, reload, import
 // and count three topics. Both exports are also validated against the official XSDs (python3 + lxml, when available).
-// Screenshot bench/bcf-drawer.png with the drawer open and a topic selected. Fails on any console error.
+// Screenshot bench/bcf-drawer.png with the Issues panel open and an issue selected. Fails on any console error.
 // Usage: SMOKE_PORT=5333 node bench/smoke-bcf.mjs
 import { spawn, spawnSync } from 'node:child_process';
 import { createRequire } from 'node:module';
@@ -71,21 +72,13 @@ try {
     await page.waitForFunction('window.__xrayReady === true || window.__xrayError', null, { timeout: 180000 });
     const err = await page.evaluate('window.__xrayError');
     if (err) throw new Error(`startup failed: ${err}`);
-    // Mount the registered `bcf` tool panel in a drawer-like container (works with or without the toolbar plugin).
-    await page.evaluate(async () => {
-      const { getTool } = await import('/src/tools/registry.ts');
-      document.getElementById('bcf-test-drawer')?.remove();
-      const d = document.createElement('div');
-      d.id = 'bcf-test-drawer';
-      d.style.cssText = 'position:fixed;left:312px;top:8px;bottom:8px;width:400px;z-index:20;background:#141820;border:1px solid #262d3a;border-radius:6px;overflow:auto;box-shadow:0 4px 24px rgba(0,0,0,.4)';
-      document.body.appendChild(d);
-      getTool('bcf').panel(d, window.__xray.app);
-    });
+    // The issues live in the sidebar tab Issues: open it on the Issues segment.
+    await page.evaluate(() => window.__xrayIssues.open('issues'));
   }
 
   // ------------------------------------------------------------------ part 1: topic from view, export 2.1, reload, import, apply
   await boot();
-  check('bcf tool registered and API present', await page.evaluate(async () => { const { getTool } = await import('/src/tools/registry.ts'); return !!getTool('bcf') && typeof window.__xrayBcf?.createTopics === 'function'; }));
+  check('Issues tab and BCF API present, no BCF drawer in the tool strip', await page.evaluate(() => !!window.__xrayIssues && !window.__xrayToolbar.tools().includes('bcf') && typeof window.__xrayBcf?.createTopics === 'function'));
   const guiNames = await page.evaluate(() => [...document.querySelectorAll('.lil-gui .lil-name, .lil-gui .name, .lil-gui .lil-title, .lil-gui .title')].map((e) => e.textContent.trim()));
   for (const n of ['BCF', 'Open BCF', 'Create topic from view', 'Export BCF 2.1', 'Export BCF 3.0', 'Clear viewpoint', 'BCF status']) check(`lil-gui entry "${n}"`, guiNames.includes(n));
   const actionsOk = await page.evaluate(async () => {
@@ -113,7 +106,7 @@ try {
   });
   check('two windows selected', setup.winIds.length === 2, `ids ${setup.winIds}`);
 
-  await page.click('#bcf-drawer [data-act=new]');
+  await page.click('#issues-panel [data-act=new]');
   await page.fill('#bcf-f-title', 'Window reveal too small');
   await page.fill('#bcf-f-description', 'Check both windows & the reveal.');
   await page.fill('#bcf-f-type', 'Issue');
@@ -133,13 +126,13 @@ try {
   check('author remembered', created.author === 'smoke@example.org' && created.stored === 'smoke@example.org');
 
   // screenshot with the drawer open and the topic selected (thumbnail needs a moment to decode)
-  await page.waitForFunction(() => { const i = document.querySelector('#bcf-drawer .bcf-snap'); return i && i.complete && i.naturalWidth > 0; }, null, { timeout: 10000 });
+  await page.waitForFunction(() => { const i = document.querySelector('#issues-panel .is-snap'); return i && i.complete && i.naturalWidth > 0; }, null, { timeout: 10000 });
   await page.evaluate(() => window.__xray.app.controller.settle());
   await page.waitForTimeout(500);
   await page.screenshot({ path: resolve(here, 'bcf-drawer.png') });
   console.log('screenshot bench/bcf-drawer.png');
 
-  const [dl21] = await Promise.all([page.waitForEvent('download'), page.click('#bcf-drawer [data-act="export-2.1"]')]);
+  const [dl21] = await Promise.all([page.waitForEvent('download'), page.click('#issues-panel [data-act="export-2.1"]')]);
   const file21 = join(tmp, 'export-2.1.bcfzip');
   await dl21.saveAs(file21);
   check('Export 2.1 downloaded a .bcfzip', /\.bcfzip$/.test(dl21.suggestedFilename()), dl21.suggestedFilename());
@@ -150,7 +143,7 @@ try {
   check('reloaded page starts clean', fresh.sel === 0 && fresh.hides === 0 && fresh.n === 0);
   await page.setInputFiles('input[data-bcf=open]', file21);
   await page.waitForFunction(() => window.__xrayBcf.topics.length === 1, null, { timeout: 15000 });
-  const listed = await page.evaluate(() => ({ items: document.querySelectorAll('#bcf-drawer [data-topic]').length, title: document.querySelector('#bcf-drawer [data-topic] .bcf-title')?.textContent, chips: [...document.querySelectorAll('#bcf-drawer [data-topic] .bcf-chip')].map((c) => c.textContent) }));
+  const listed = await page.evaluate(() => ({ items: document.querySelectorAll('#issues-panel [data-issue]').length, title: document.querySelector('#issues-panel [data-issue] .is-t')?.textContent, chips: [...document.querySelectorAll('#issues-panel [data-issue] .is-tag')].map((c) => c.textContent) }));
   check('imported topic is listed with chips', listed.items === 1 && listed.title === 'Window reveal too small' && listed.chips.includes('Open') && listed.chips.includes('High'), JSON.stringify(listed.chips));
 
   // user hides another element first: it must survive Clear viewpoint
@@ -161,7 +154,7 @@ try {
     app.controller.refreshOverrides();
     return other;
   }, setup.hideId);
-  await page.click('#bcf-drawer [data-act=apply]');
+  await page.click('#issues-panel [data-issue]'); // opens the issue and applies its view (the viewpoint of its first sketch)
   await page.waitForTimeout(2500); // a selection fly-to (cinematic plugin) must not move the applied camera
   const applied = await page.evaluate(() => {
     const app = window.__xray.app;
@@ -173,7 +166,7 @@ try {
   check('selection restored', JSON.stringify(applied.sel) === JSON.stringify([...setup.winIds].sort((a, b) => a - b)), `${applied.sel}`);
   check('viewpoint hides the exception element (DefaultVisibility true)', applied.hides.includes(setup.hideId) && applied.hides.includes(userHid) && applied.hides.length === 2, `hides ${applied.hides}`);
   console.log(`    status: ${applied.status}`);
-  await page.click('#bcf-drawer [data-bcf-detail] [data-act=clear]');
+  await page.click('#issues-panel [data-viewpoint] [data-act=clear]');
   const cleared = await page.evaluate(() => [...window.__xray.app.settings.overrides.userHides]);
   check('Clear viewpoint restores only what BCF hid', JSON.stringify(cleared) === JSON.stringify([userHid]), `hides ${cleared}`);
 

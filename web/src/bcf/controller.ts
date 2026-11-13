@@ -176,6 +176,18 @@ export class BcfController {
   private drawers = 0;
   /** Bumped on every markup change (pins, annotations): views re-render on it. */
   markupRev = 0;
+  /**
+   * src/issues sets this. A viewpoint whose drawing is a sketch (`sketchId`) takes annotation changes through the sketch:
+   * `add` gets the new annotation, `update` a text or offset change, `remove` a deleted one (by annotation guid, which is the
+   * markup id). Each returns true when the sketch took the change.
+   */
+  linked: {
+    add(ref: BcfViewpointRef, a: BcfAnnotation): boolean;
+    update(ref: BcfViewpointRef, guid: string, patch: { text?: string; offset?: [number, number] }): boolean;
+    remove(ref: BcfViewpointRef, guid: string): boolean;
+  } | null = null;
+  /** Runs before export and before a snapshot is composed: src/issues refreshes the drawings of linked sketches. */
+  beforeExport: (() => void) | null = null;
   /** The live markup view (pins.ts), set by it; the topic dialog starts pin placement through it. */
   markup: BcfMarkupView | null = null;
   /** Re-projection of surface outlines onto reshaped elements, cached per model load. */
@@ -870,12 +882,72 @@ export class BcfController {
     this.emit();
   }
 
+  /** Change the priority, assignee or due date of a topic (an empty string clears it). */
+  setTopicFields(topicGuid: string, f: { priority?: string; assignedTo?: string; dueDate?: string }): boolean {
+    const t = this.topic(topicGuid);
+    if (!t) return false;
+    const set = (k: 'priority' | 'assignedTo' | 'dueDate', v: string | undefined): void => {
+      if (v === undefined) return;
+      const x = v.trim();
+      if (x) t[k] = x;
+      else delete t[k];
+    };
+    set('priority', f.priority);
+    set('assignedTo', f.assignedTo);
+    set('dueDate', f.dueDate);
+    t.modifiedDate = nowIso();
+    t.modifiedAuthor = this.authorOf();
+    this.dirty = true;
+    this.emit();
+    return true;
+  }
+
   // ---------------------------------------------------------------- markup: pins and annotations
 
   /** The model origin shift (IFC frame), zeros without a model. */
   get shift(): Vec3 {
     const s = this.app.loaded?.model.originShift;
     return s ? [s[0], s[1], s[2]] : [0, 0, 0];
+  }
+
+  /** Mark a topic as changed from outside (its comments or fields were edited by src/issues): stamps it and redraws. */
+  touch(t?: BcfTopic): void {
+    this.markupChanged(t);
+  }
+
+  /** Capture the current view as one more viewpoint of a topic (with a snapshot). */
+  addViewpoint(topicGuid: string): BcfViewpointRef {
+    const topic = this.topic(topicGuid);
+    if (!topic) throw new Error(`No topic ${topicGuid}`);
+    if (!this.app.loaded) throw new Error('No model loaded');
+    const cap = this.currentCapture();
+    const png = this.snapshot();
+    if (png) {
+      cap.ref.snapshot = png;
+      cap.ref.snapshotMime = 'image/png';
+    }
+    topic.viewpoints.push(cap.ref);
+    this.markupChanged(topic);
+    return cap.ref;
+  }
+
+  /** Replace the camera, selection, visibility and snapshot of a viewpoint with the current view (its guid, link and drawing stay). */
+  recaptureViewpoint(topicGuid: string, viewpointGuid: string): boolean {
+    const topic = this.topic(topicGuid);
+    const ref = topic?.viewpoints.find((v) => v.guid === viewpointGuid);
+    if (!topic || !ref || !this.app.loaded) return false;
+    const cap = this.currentCapture();
+    ref.data = { ...cap.ref.data!, guid: ref.guid };
+    delete ref.problem;
+    if (cap.ref.captureSeeThrough) ref.captureSeeThrough = cap.ref.captureSeeThrough;
+    if (cap.ref.snapshotView) ref.snapshotView = cap.ref.snapshotView;
+    const png = this.snapshot();
+    if (png) {
+      ref.snapshot = png;
+      ref.snapshotMime = 'image/png';
+    }
+    this.markupChanged(topic);
+    return true;
   }
 
   private markupChanged(t?: BcfTopic): void {
@@ -1184,7 +1256,8 @@ export class BcfController {
     const t = this.topic(this.applied.topic);
     if (t && !this.inScope(t)) return null; // another model: nothing of it is drawn
     const r = t?.viewpoints.find((v) => v.guid === this.applied!.viewpoint);
-    return t && r ? { topic: t, ref: r, list: r.annotations ?? [] } : null;
+    // A viewpoint whose drawing is a sketch: the markup view draws the sketch, so this one draws none (no double drawing).
+    return t && r ? { topic: t, ref: r, list: r.sketchId ? [] : (r.annotations ?? []) } : null;
   }
 
   findAnnotation(guid: string): { topic: BcfTopic; ref: BcfViewpointRef; ann: BcfAnnotation } | null {
@@ -1235,6 +1308,7 @@ export class BcfController {
 
   /** Add the annotation; the elements it points at join the viewpoint selection (other BCF tools highlight them). */
   private pushAnnotation(ref: BcfViewpointRef, a: BcfAnnotation): void {
+    if (ref.sketchId && this.linked?.add(ref, a)) return; // the sketch took it; its drawing is projected back onto the viewpoint
     (ref.annotations ??= []).push(a);
     if (!ref.data) return;
     const markup = new Set(markupSelectionOf(ref));
@@ -1330,6 +1404,7 @@ export class BcfController {
   updateAnnotation(guid: string, patch: { text?: string; offset?: [number, number] }, quiet = false): boolean {
     const f = this.findAnnotation(guid);
     if (!f) return false;
+    if (f.ref.sketchId && this.linked?.update(f.ref, guid, patch)) return true;
     if (patch.text !== undefined) f.ann.text = patch.text;
     if (patch.offset) f.ann.offset = [patch.offset[0], patch.offset[1]];
     if (quiet) {
@@ -1343,6 +1418,7 @@ export class BcfController {
   removeAnnotation(guid: string): boolean {
     const f = this.findAnnotation(guid);
     if (!f) return false;
+    if (f.ref.sketchId && this.linked?.remove(f.ref, guid)) return true;
     const before = markupSelectionOf(f.ref);
     f.ref.annotations = f.ref.annotations!.filter((a) => a.guid !== guid);
     if (!f.ref.annotations.length) delete f.ref.annotations;
@@ -1427,6 +1503,7 @@ export class BcfController {
   // ---------------------------------------------------------------- export
 
   async exportZip(version: BcfVersion = this.exportVersion): Promise<Uint8Array> {
+    this.beforeExport?.();
     const bytes = await writeBcf(this.project, version, { composeSnapshot: (t, r) => this.composeSnapshot(t, r) });
     this.dirty = false;
     const n = this.project.topics.length;

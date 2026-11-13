@@ -56,6 +56,12 @@ Switch the tooltips off with `window.__xrayHelp.disable()` or `localStorage["xra
 - [Clearance](#clearance)
 - [BCF](#bcf)
 - [Markup](#markup)
+- [Sidebar/Issues tab](#sidebarissues-tab)
+- [Issues panel](#issues-panel)
+- [Issues panel/Segments](#issues-panelsegments)
+- [Issues panel/Phone sheet](#issues-panelphone-sheet)
+- [Drawing toolbar](#drawing-toolbar)
+- [Status bar/Open issues](#status-baropen-issues)
 - [Markup drawer](#markup-drawer)
 - [Keyboard](#keyboard)
 - [Imaging](#imaging)
@@ -492,7 +498,7 @@ Impact follows the same sentence rules and adds these:
 | Rename view | The command changes the name of the view. | Click and you can type a new label for the bookmark. Press Enter to keep it. | Type the new name. Press Enter to accept or Escape to cancel. | Report: Onboarding checklist |
 | Duplicate view | The command makes a copy of the view below it. | Click and a second bookmark appears right under this one. Change the copy and keep the original. | Click the command, then update the copy. | Report: Onboarding checklist |
 | Copy view link | The command copies a link that opens the viewer in this view. The link holds the view itself, not the thumbnail. | Click and a web address lands on your clipboard. A colleague who opens it sees the same camera angle and look. | Click the command. Paste the link into a chat or an email. | Report: Onboarding checklist |
-| View as BCF topic | The command restores the view and creates a BCF topic with a snapshot from it. | Click and the app turns this bookmark into an issue with a picture, ready to send to another design tool. | Click the command. Open the BCF tool to add comments or to export the topic. | Report: Onboarding checklist |
+| View as BCF topic | The command restores the view and creates a BCF topic with a snapshot from it. | Click and the app turns this bookmark into an issue with a picture, ready to send to another design tool. | Click the command. Open the Issues tab to add comments or to export the topic. | Report: Onboarding checklist |
 | Delete view | The command removes the view from the list. The command asks for a second click. | Click twice and the bookmark disappears from the list for good. | Click the command 2 times to remove the view. | Report: Onboarding checklist |
 
 ## View modes
@@ -627,12 +633,13 @@ Impact follows the same sentence rules and adds these:
 
 | Setting | Intent | Impact | Use | Ref |
 | --- | --- | --- | --- | --- |
-| *Folder: Top bar* | The folder holds the setting of the thin strip at the top of the view. The strip holds 4 mode buttons and the search box. | This setting shows or hides the thin strip above the picture. The picture itself does not change. | Open the folder. Use the switch to show or hide the strip. | Report: Appendix I, Presets and keyboard |
+| *Folder: Top bar* | The folder holds the setting of the thin strip at the top of the view. The strip holds 5 mode buttons and the search box. | This setting shows or hides the thin strip above the picture. The picture itself does not change. | Open the folder. Use the switch to show or hide the strip. | Report: Appendix I, Presets and keyboard |
 | Show top bar | The switch shows or hides the top bar. The setting is topBar.visible in the parameter document. | On: a thin strip with the mode buttons and the search box sits above the picture. Off: the picture uses the full height. | Turn the switch off for a clean picture. Press Shift+T for the same action. | Report: Appendix I, Presets and keyboard |
-| Ghost | The button applies the Coordination preset. This is the classic X-ray view. The objects that block the selection fade. | The walls and slabs in front of the selected item turn see-through. The selected item stays solid and clear. | Select an object. Click the button. Click it again to return to the normal view. Press Shift+1 for the same action. | Report: Purpose |
-| Radiograph | The button applies the Radiograph preset. The picture looks like a medical X-ray image of the model. | The picture turns dark with blue and white tones. Dense parts glow and thin parts fade. The selected item shines like a bone. | Select an object. Click the button. Click it again to return to the normal view. Press Shift+2 for the same action. | Report: Appendix G, Imaging and sectioning |
-| Glow | The button applies the Focus glow preset. It turns on the bloom and the edge glow for the focus. | The selected item gets a soft halo and a bright outline. You find it fast, even in a large model. | Select an object. Click the button. Click it again to return to the normal view. Press Shift+3 for the same action. | Report: Terminology, focus |
-| Cutaway | The button applies the Peel only preset. It cuts a window through the objects that block the view of the selection. | A round hole opens in the walls and the roof in front of the selected item. The rest of the building stays solid. | Select an object. Click the button. Click it again to return to the normal view. Press Shift+4 for the same action. | Report: Appendix F, View modes |
+| Solid | The button applies the Solid preset. Every element is drawn opaque. X-ray, view modes, imaging, glow and auto orbit turn off. Section cuts and clearance stay. | The whole model shows with no see-through parts, except real glass. A cut you made stays cut. | Click the button. Press Shift+0 for the same action. A second click does nothing. | Report: Purpose |
+| Ghost | The button applies the Coordination preset. This is the classic X-ray view. The objects that block the selection fade. | The walls and slabs in front of the selected item turn see-through. The selected item stays solid and clear. | Select an object. Click the button. Click it again to switch to Solid. Press Shift+1 for the same action. | Report: Purpose |
+| Radiograph | The button applies the Radiograph preset. The picture looks like a medical X-ray image of the model. | The picture turns dark with blue and white tones. Dense parts glow and thin parts fade. The selected item shines like a bone. | Select an object. Click the button. Click it again to switch to Solid. Press Shift+2 for the same action. | Report: Appendix G, Imaging and sectioning |
+| Glow | The button applies the Focus glow preset. It turns on the bloom and the edge glow for the focus. | The selected item gets a soft halo and a bright outline. You find it fast, even in a large model. | Select an object. Click the button. Click it again to switch to Solid. Press Shift+3 for the same action. | Report: Terminology, focus |
+| Cutaway | The button applies the Peel only preset. It cuts a window through the objects that block the view of the selection. | A round hole opens in the walls and the roof in front of the selected item. The rest of the building stays solid. | Select an object. Click the button. Click it again to switch to Solid. Press Shift+4 for the same action. | Report: Appendix F, View modes |
 
 ## Penetrations
 
@@ -691,6 +698,42 @@ Impact follows the same sentence rules and adds these:
 | Markup status | The read-only field shows the last message of the Markup tool. | A short text tells you what the tool did or why it did not. | Read the line after each action. | Report: Appendix J, Coordination tools |
 | Markup PDF resolution (dpi) | The list sets the picture quality of the PDF in dots per inch. Screen uses the pixels of your window. | A higher number gives sharper pages and a bigger file. | Select 200 for most prints. Select 300 for fine detail. | Report: Appendix J, Coordination tools |
 
+## Sidebar/Issues tab
+
+| Setting | Intent | Impact | Use | Ref |
+| --- | --- | --- | --- | --- |
+| *Folder: Sidebar/Issues tab* | The tab lists the issues and the sketches of this model. A switch at the top changes the list. | Click and the left side shows what your team must fix, and the drawings that show where. | Click the tab. Click an item to open it and bring its view back. | Report: Appendix J, Coordination tools |
+
+## Issues panel
+
+| Setting | Intent | Impact | Use | Ref |
+| --- | --- | --- | --- | --- |
+| *Folder: Issues panel* | The panel holds the issue list, the sketch list and the detail of the chosen item. | This column shows what is wrong, who owns it and where it sits. | Pick Issues or Sketches. Search or filter. Click an item to read it. | Report: Appendix J, Coordination tools |
+
+## Issues panel/Segments
+
+| Setting | Intent | Impact | Use | Ref |
+| --- | --- | --- | --- | --- |
+| *Folder: Issues panel/Segments* | The switch picks the list. Issues carry a status and comments. Sketches are saved views with drawings. | Click and the column swaps between the problems of your team and the drawn views. | Click Issues or Sketches. | Report: Appendix J, Coordination tools |
+
+## Issues panel/Phone sheet
+
+| Setting | Intent | Impact | Use | Ref |
+| --- | --- | --- | --- | --- |
+| *Folder: Issues panel/Phone sheet* | On a small screen the list and the detail rise from the bottom edge of the view. | The list leaves the top of the picture free. It steps aside while you draw. | Tap the cross to close the sheet. Tap Issues in the status bar to open it again. | Report: Appendix J, Coordination tools |
+
+## Drawing toolbar
+
+| Setting | Intent | Impact | Use | Ref |
+| --- | --- | --- | --- | --- |
+| *Folder: Drawing toolbar* | The bar floats over the view while you draw on a sketch. It holds the tools, the colours, the line weights and Done. | This bar lets you mark a view with clouds, arrows, text and pen lines. It goes away when you press Done. | Pick a tool. Drag on the view. Press Done when the drawing is ready. | Report: Appendix J, Coordination tools |
+
+## Status bar/Open issues
+
+| Setting | Intent | Impact | Use | Ref |
+| --- | --- | --- | --- | --- |
+| *Folder: Status bar/Open issues* | The button counts the open issues of this model. An issue is open until it is resolved or closed. | Click and the left side lists the problems that still need work. | Click the button. | Report: Appendix J, Coordination tools |
+
 ## Markup drawer
 
 | Setting | Intent | Impact | Use | Ref |
@@ -702,7 +745,7 @@ Impact follows the same sentence rules and adds these:
 | Export PDF | The button downloads a PDF of this set. It has the clean view, the marked view and the comment table. | Click and the viewer renders both pictures. The file carries the data to bring back the notes. | Click the button. Wait for the download. | Report: Appendix J, Coordination tools |
 | Export JSON | The button downloads this set as a JSON file. | Click and you get a small file that brings back the notes on the same model. | Click the button. | Report: Appendix J, Coordination tools |
 | PDF of all sets | The button downloads a single PDF with every set. | Click and each card gets its own pages in the file. | Click the button when you have more than 1 set. | Report: Appendix J, Coordination tools |
-| Convert to BCF topic | The button makes a BCF topic from the set. The topic has the viewpoint, the annotations and the comments. | Click and the sheet joins the issue list. You can then send it as an issue file. | Click the button. Open the BCF tool to export it. | Report: Appendix J, Coordination tools |
+| Convert to BCF topic | The button makes a BCF topic from the set. The topic has the viewpoint, the annotations and the comments. | Click and the sheet joins the issue list. You can then send it as an issue file. | Click the button. Open the Issues tab to export it. | Report: Appendix J, Coordination tools |
 | Delete set | The button removes the set and its markups from the session. | Click twice and the card is gone. Save a file first if you need it later. | Click the button. Click again to confirm. | Report: Appendix J, Coordination tools |
 | Undo | The button undoes the last change to the markups. The keys are Ctrl+Z. | Click and the last change goes back. | Click the button or press Ctrl+Z. | Report: Appendix J, Coordination tools |
 | Redo | The button repeats the change that you undid. The keys are Ctrl+Shift+Z. | Click and the change comes back. | Click the button or press Ctrl+Shift+Z. | Report: Appendix J, Coordination tools |
@@ -718,6 +761,10 @@ Impact follows the same sentence rules and adds these:
 | Attachment chip | The chip tells what the shape is attached to in 3D. A shape is attached to elements, a surface, a region, a measurement or a penetration. Else it is view-locked. | An attached shape stays on its target when you orbit. A view-locked shape stays with the view where you drew it. | Select a markup to see its chip. Read the text. Click change to pick another attachment. | Report: Appendix J, Coordination tools |
 | Change attachment | The link opens a menu of attachments. You can use the selected elements, the surface, a 3D region, a measurement, a penetration or view-locked. | The shape moves to the new target. Undo brings the old target back. | Click change. Pick a choice. For a measurement or penetration, click it in the view. | Report: Appendix J, Coordination tools |
 | Set card | The card shows a set with its picture and its counts. | Click and the view comes back with its notes. | Click a card. | Report: Appendix J, Coordination tools |
+| Other models (group) | The group lists the sets made on other models. It starts closed. | Those sets stay out of the view, so an old note never sits on the wrong building. | Click the heading to open the group. Pick Open, Move to this model or Delete. | Report: Appendix J, Coordination tools |
+| Open | The button shows a set of another model on this model. | The set joins the list until you load a model again. Its shapes can sit in the wrong place. | Click the button. Check where the notes land. | Report: Appendix J, Coordination tools |
+| Move to this model | The button makes the set belong to the model on screen. | The set joins the list for good. Shapes whose parts are missing here lock to the screen and show a warning. | Click the button. Read the status line for the count of locked shapes. | Report: Appendix J, Coordination tools |
+| Model tag | The tag says the set comes from a revised model, or from a file that names none. | A new revision can move or remove the parts that a shape holds on to. Those shapes lock to the screen. | Hover the tag to read why. Move to this model when the set belongs here. | Report: Appendix J, Coordination tools |
 | Markup row | The row shows a single markup with its number, kind, status and text. | Click and the entry opens. It shows the comments. | Click a row. Edit the text. | Report: Appendix J, Coordination tools |
 | Sets (heading) | The heading names the list of markup sets. | The list shows each card with a picture. | Read the cards. | Report: Appendix J, Coordination tools |
 | Tools (heading) | The heading names the drawing tools. | Each one makes a different kind of mark. | Pick a tool. | Report: Appendix J, Coordination tools |
@@ -1001,6 +1048,10 @@ Impact follows the same sentence rules and adds these:
 | Status filter | The list filters the topics by status. | Pick a state and only the issue notes in that state stay on the list. | Select All statuses to see every topic. | Report: Appendix J, Coordination tools |
 | Search box | The text box filters the topics by title, description, assignee, labels and comments. | Type a word and only the issue notes that hold it stay on the list. | Type part of a word. Clear the box to see every topic. | Report: Appendix J, Coordination tools |
 | Topic row | The row shows 1 topic with its status, priority and counts. A click selects the topic. | Each item is an issue note. A click opens its picture, text and comments below. | Click the row to read the topic. | Report: Appendix J, Coordination tools |
+| Other models (group) | The group lists the topics made on other models. It starts closed. | Those topics stay out of the view, so an old marker never sits on the wrong building. | Click the heading to open the group. Pick Open, Move to this model or Delete topic. | Report: Appendix J, Coordination tools |
+| Open | The button shows a topic of another model on this model. | The topic joins the list until you load a model again. Its markers can sit in the wrong place. | Click the button. Check where the markers land. | Report: Appendix J, Coordination tools |
+| Move to this model | The button makes the topic belong to the model on screen. | The topic joins the list for good. Notes whose parts are missing here lock to the screen. | Click the button. Read the status line for the count of locked notes. | Report: Appendix J, Coordination tools |
+| Delete topic | The button removes a topic of another model from the session. | Click twice and it is gone. Export a file first if you need it later. | Click the button. Click again to confirm. | Report: Appendix J, Coordination tools |
 | Topic status list | The list sets the status of the selected topic. | Pick a value and the issue note changes state, for example from open to closed. | Select the new status. Export the topics to share the change. | Report: Appendix J, Coordination tools |
 | Snapshot | The picture shows the snapshot that the first viewpoint of the topic stores. | The small picture shows what the author saw when they made the note. | Look at the picture. Click Apply to see it live. | Report: Appendix J, Coordination tools |
 | Viewpoints (heading) | The heading names the list of viewpoints of the selected topic. | The buttons below jump to the views that the author saved. | Click Apply on a viewpoint. | Report: Appendix J, Coordination tools |

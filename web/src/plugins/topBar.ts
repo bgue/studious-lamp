@@ -1,8 +1,8 @@
-// Top bar plugin: the 32 px strip along the top of #stage with the four visualisation modes (Ghost, Radiograph, Glow,
+// Top bar plugin: the 32 px strip along the top of #stage with the five visualisation modes (Solid, Ghost, Radiograph, Glow,
 // Cutaway) and the host element #xray-topbar-search for the search bar. See src/ui/topBar.ts and docs-features/topbar.md.
 //
 //   window.__xrayTopBar = { modes(), active(), apply(id), setVisible(v), visible(), host }
-//   actions: topbar.mode.ghost|radiograph|glow|cutaway (Shift+1..4), topbar.toggle (Shift+T)
+//   actions: topbar.mode.solid|ghost|radiograph|glow|cutaway (Shift+0, Shift+1..4), topbar.toggle (Shift+T)
 //   params section `topBar` { visible } (default true; not in the share link, not in saved views, not in the presets hash)
 //
 // A mode applies a built-in preset through window.__xrayPresets. The highlight follows `__xrayPresets.active()`, which the
@@ -24,7 +24,7 @@ export interface TopBarApi {
   modes(): Array<{ id: ModeId; label: string; presetId: string; key: string }>;
   /** The highlighted mode, or null. */
   active(): ModeId | null;
-  /** Click a mode: apply its preset, or (when it is the active one) return to the normal view. False without a presets plugin. */
+  /** Click a mode: apply its preset, or (when it is the lit one) switch to Solid; Solid while lit does nothing. False without a presets plugin. */
   apply(id: ModeId): boolean;
   /** The `topBar.visible` setting. The bar can still be hidden by a kiosk page or an XR session (see `shown()`). */
   setVisible(v: boolean): void;
@@ -107,6 +107,7 @@ function applyMode(id: ModeId): boolean {
   const p = presets();
   if (!p) return false;
   const plan = clickPlan(currentMode(), id);
+  if (plan.kind === 'none') return true;
   try {
     p.apply(plan.presetId);
   } catch (e) {
@@ -171,7 +172,7 @@ export const topBarPlugin: AppPlugin = {
         label: `Top bar: ${m.label} mode`,
         group: 'Modes',
         keys: [m.key],
-        description: `Apply the ${m.label} look (the ${m.presetId} preset). Press it again to return to the normal view.`,
+        description: `Apply the ${m.label} look (the ${m.presetId} preset). Press a lit mode again to switch to Solid (Solid itself does nothing).`,
         run: () => void applyMode(m.id),
       });
     }

@@ -5,14 +5,13 @@
 
 import type GUI from 'lil-gui';
 import type { AppPlugin, ViewerApp } from '../app';
-import { getAction, registerAction } from '../input/actions';
-import { registerTool } from '../tools/registry';
+import { registerAction } from '../input/actions';
 import { registerParamSection } from '../ui/params';
 import { MarkupController, toolInfo } from '../markup/controller';
 import { PDF_RESOLUTIONS } from '../markup/controller';
 import type { ExportedFile, ImportReport, PdfResolution, ToolId } from '../markup/controller';
 import { MarkupView } from '../markup/view';
-import { buildDrawer, installDrop, markupFileInput, pickMarkupFile } from '../markup/ui';
+import { installDrop, markupFileInput, pickMarkupFile } from '../markup/ui';
 import { attachmentOf, newMarkup } from '../markup/model';
 import type { ColourKey, Markup, MarkupKind, MarkupSet, Weight } from '../markup/model';
 import type { PageSize } from '../markup/report';
@@ -89,6 +88,11 @@ declare global {
       readonly lock: LockState | undefined;
       tool: ToolId;
       setTool(t: ToolId): void;
+      /** A sketch is being edited: the drawing toolbar is up. */
+      readonly editing: boolean;
+      setEditing(on: boolean): void;
+      /** The one-line note of a sketch. */
+      setNote(setId: string, note: string): boolean;
       readonly selected: string | null;
       readonly status: string;
       /** The markup under a canvas position, or null. */
@@ -101,16 +105,17 @@ declare global {
   }
 }
 
-const ICON =
-  '<svg viewBox="0 0 20 20" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round">' +
-  '<path d="M5.5 14.5a2.4 2.4 0 0 1-.4-4.6 3 3 0 0 1 3.2-3.2 3 3 0 0 1 5.4.6 2.6 2.6 0 0 1 1.4 5 2.6 2.6 0 0 1-3.3 2.2 3 3 0 0 1-3.1.6 2.6 2.6 0 0 1-3.2-.6z"/></svg>';
-
 function obj(v: unknown): Record<string, unknown> {
   return v && typeof v === 'object' ? (v as Record<string, unknown>) : {};
 }
 
 let ctl: MarkupController | null = null;
 let view: MarkupView | null = null;
+
+/** The markup controller (the Issues plugin, src/plugins/issues.ts, joins it with the BCF controller). Null before install. */
+export function markupController(): MarkupController | null {
+  return ctl;
+}
 
 export const markupPlugin: AppPlugin = {
   name: 'markup',
@@ -120,16 +125,6 @@ export const markupPlugin: AppPlugin = {
     ctl = c;
     const v = new MarkupView(c);
     view = v;
-
-    registerTool({
-      id: 'markup',
-      label: 'Markup',
-      title: 'Markup: draw clouds, notes, highlights and shapes on a saved view, then export a PDF or JSON (key K)',
-      icon: ICON,
-      order: 85,
-      drawerWidth: 340,
-      panel: (container) => buildDrawer(container, c, v),
-    });
 
     const gui = app.panel;
     if (gui) buildGui(gui, c);
@@ -166,16 +161,16 @@ export const markupPlugin: AppPlugin = {
 
     registerAction({
       id: 'markup.toggle',
-      label: 'Markup: open or close the tool',
+      label: 'Sketches: open the tab',
       group: 'Panels',
       keys: ['k'],
-      description: 'Open the Markup drawer to draw on a saved view, or close it',
-      run: (a) => getAction('tool.markup')?.run(a),
+      description: 'Open the Issues tab on the Sketches segment, to draw on a saved view',
+      run: () => window.__xrayIssues?.open('sketches'),
     });
-    registerAction({ id: 'markup.new', label: 'Markup: new set from view', group: 'Markup', keys: [], run: () => { try { c.newSet(); } catch (e) { c.setStatus(e instanceof Error ? e.message : String(e)); } } });
-    registerAction({ id: 'markup.open', label: 'Markup: open PDF or JSON file', group: 'Markup', keys: [], run: () => pickMarkupFile(c) });
-    registerAction({ id: 'markup.pdf', label: 'Markup: export PDF of all sets', group: 'Markup', keys: [], run: () => void c.downloadPdf().catch((e) => c.setStatus(e instanceof Error ? e.message : String(e))) });
-    registerAction({ id: 'markup.json', label: 'Markup: export JSON of all sets', group: 'Markup', keys: [], run: () => { try { c.downloadJson(); } catch (e) { c.setStatus(e instanceof Error ? e.message : String(e)); } } });
+    registerAction({ id: 'markup.new', label: 'Sketches: new sketch from view', group: 'Markup', keys: [], run: () => { try { if (window.__xrayIssues) window.__xrayIssues.newSketch(); else c.newSet(); } catch (e) { c.setStatus(e instanceof Error ? e.message : String(e)); } } });
+    registerAction({ id: 'markup.open', label: 'Sketches: open PDF or JSON file', group: 'Markup', keys: [], run: () => { window.__xrayIssues?.open('sketches'); pickMarkupFile(c); } });
+    registerAction({ id: 'markup.pdf', label: 'Sketches: export PDF of all sketches', group: 'Markup', keys: [], run: () => void c.downloadPdf().catch((e) => c.setStatus(e instanceof Error ? e.message : String(e))) });
+    registerAction({ id: 'markup.json', label: 'Sketches: export JSON of all sketches', group: 'Markup', keys: [], run: () => { try { c.downloadJson(); } catch (e) { c.setStatus(e instanceof Error ? e.message : String(e)); } } });
 
     installDrop(c);
     markupFileInput(c); // the hidden picker input exists from the start (scripts and tests can feed it)
@@ -214,7 +209,7 @@ export const markupPlugin: AppPlugin = {
         else if (spec.at) m = c.addAnchored(tool, spec.at[0], spec.at[1], spec.text ?? '', style);
         else throw new Error('A markup needs points, fractions, at or measurementId');
         if (!m) throw new Error('The markup could not be placed');
-        if (spec.status || spec.assignee || spec.due) c.patch(m.id, { ...(spec.status ? { status: spec.status } : {}), ...(spec.assignee ? { assignee: spec.assignee } : {}), ...(spec.due ? { due: spec.due } : {}) }, { noHistory: true });
+        // spec.status, assignee and due are legacy review data: a sketch takes none. Kept in the type so old scripts still run.
         return m;
       },
       remove: (id) => c.remove(id),
@@ -247,6 +242,11 @@ export const markupPlugin: AppPlugin = {
         return c.tool;
       },
       setTool: (t) => c.setTool(t),
+      get editing() {
+        return c.editing;
+      },
+      setEditing: (on) => c.setEditing(on),
+      setNote: (id, n) => c.setNote(id, n),
       get selected() {
         return c.selected;
       },

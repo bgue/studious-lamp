@@ -36,7 +36,7 @@ describe('built-in presets', () => {
 
   it('map the first nine to the keys 1 to 9 in the documented order', () => {
     expect(KEYED_IDS).toEqual(['coordination', 'hide-blockers', 'behind-only', 'peelback', 'peel-only', 'stacked-floors', 'radiograph', 'mri-scan', 'section-focus']);
-    expect(BUILTIN_PRESETS.map((p) => p.id).slice(9)).toEqual(['presentation', 'clearance-review', 'plain', 'focus-glow']);
+    expect(BUILTIN_PRESETS.map((p) => p.id).slice(9)).toEqual(['presentation', 'clearance-review', 'plain', 'focus-glow', 'solid']);
   });
 
   it('only use keys that exist in a collected params document, except the allow-listed plugin sections', () => {
