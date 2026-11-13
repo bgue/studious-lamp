@@ -40,6 +40,7 @@ def con(tmp_path: Path) -> Iterator[Duck]:
             "snapshot_number BIGINT, data_date TIMESTAMP, latest_early_finish TIMESTAMP, "
             "finish_slip_days BIGINT)"
         )
+        opened.execute("CREATE TABLE lake.main.cur_core_record (id VARCHAR)")
         yield opened
 
 
@@ -53,7 +54,15 @@ def snap(
     )
 
 
+def record(con: Duck, iwp: str) -> None:
+    """The IWP is a readable record in silver (``cur_core_record``), as the runner requires."""
+    present = con.execute("SELECT id FROM lake.main.cur_core_record WHERE id = ?", [iwp]).fetchall()
+    if not present:
+        con.execute("INSERT INTO lake.main.cur_core_record VALUES (?)", [iwp])
+
+
 def evaluated(con: Duck, seq: int, iwp: str, today: str, ready: bool, scope: str = P1) -> None:
+    record(con, iwp)
     payload = {
         "iwp_id": iwp, "evaluated_at": f"{today}T08:00:00Z", "today": today, "ready": ready,
         "checks": [], "facts_hash": "0" * 64, "feed_policy": "none",
@@ -124,3 +133,17 @@ def test_scopes_and_schedules_do_not_see_each_others_iwps(con: Duck) -> None:
         (P2, "MAIN", 2, 0, 2, 0.0, 3),
         (P2, "REC", 2, 0, 2, 0.0, 3),  # a scope's IWPs count for each of its schedules
     ]
+
+
+def test_an_iwp_that_is_not_a_readable_record_is_not_counted(con: Duck) -> None:
+    evaluated(con, 1, "A1", "2026-08-01", True)
+    hidden = {
+        "iwp_id": "HIDDEN", "evaluated_at": "2026-08-01T08:00:00Z", "today": "2026-08-01",
+        "ready": False, "checks": [], "facts_hash": "0" * 64, "feed_policy": "none",
+    }  # fmt: skip
+    con.execute(
+        "INSERT INTO lake.main.events VALUES (2, ?, 'IWP.ReadinessEvaluated', ?)",
+        [P1, json.dumps(hidden, sort_keys=True)],
+    )
+    snap(con, 1, "2026-09-01 00:00:00")
+    assert rows(con) == [(P1, "MAIN", 1, datetime(2026, 9, 1), finish(), None, 1, 1, 0, 100.0, 1)]
