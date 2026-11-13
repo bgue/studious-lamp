@@ -142,9 +142,52 @@ def diff(baseline: Baseline, current: Baseline) -> list[str]:
     return out
 
 
+_METHODS = ("get", "put", "post", "delete", "patch", "head", "options")
+
+
+def _params(op: dict[str, Any]) -> dict[tuple[Any, Any], dict[str, Any]]:
+    """Operation parameters keyed by ``(name, in)``."""
+    return {(p.get("name"), p.get("in")): p for p in op.get("parameters", [])}
+
+
 def diff_openapi(baseline: dict[str, Any], current: dict[str, Any]) -> list[str]:
     """One line per breaking change between two OpenAPI documents (P2-X1-T04)."""
-    raise NotImplementedError("P2-X1-T04")
+    out: list[str] = []
+    bpaths: dict[str, Any] = baseline.get("paths", {})
+    cpaths: dict[str, Any] = current.get("paths", {})
+    for path in sorted(bpaths):
+        bitem: dict[str, Any] = bpaths[path]
+        citem: dict[str, Any] = cpaths.get(path, {})
+        for method in _METHODS:
+            if method not in bitem:
+                continue
+            label = f"{method.upper()} {path}"
+            if method not in citem:
+                out.append(f"{label}: operation removed")
+                continue
+            bop: dict[str, Any] = bitem[method]
+            cop: dict[str, Any] = citem[method]
+            bcodes = {str(code) for code in bop.get("responses", {})}
+            ccodes = {str(code) for code in cop.get("responses", {})}
+            for code in sorted(bcodes - ccodes):
+                out.append(f"{label}: response {code} removed")
+            bparams = _params(bop)
+            cparams = _params(cop)
+            for key in sorted(set(cparams) - set(bparams), key=repr):
+                if cparams[key].get("required") is True:
+                    out.append(f"{label}: parameter {key[0]!r} added as required")
+            for key in sorted(set(bparams) & set(cparams), key=repr):
+                if not bparams[key].get("required") and cparams[key].get("required") is True:
+                    out.append(f"{label}: parameter {key[0]!r} became required")
+    bschemas: dict[str, Any] = baseline.get("components", {}).get("schemas", {})
+    cschemas: dict[str, Any] = current.get("components", {}).get("schemas", {})
+    for name in sorted(bschemas):
+        where = f"schema {name}"
+        if name not in cschemas:
+            out.append(f"{where}: removed")
+        else:
+            _node(bschemas[name], cschemas[name], where, out)
+    return out
 
 
 def main(argv: list[str] | None = None) -> int:
