@@ -17,7 +17,7 @@ D3 2026-11-13 proposal rule and action paths keep key None; only agent `propose`
 ## SEC
 none yet; SR-X1 at DONE: S1, T01, T03, T07 plus I6 B2, T02
 ## OPEN
-Q1 owner approves OpenAPI baseline refresh rule before T05 merges needs owner raised r1 (plan §5)
+Q1 answered 2026-11-13 owner: baseline refreshed only as a release step; a breaking change between releases needs an APPROVALS line naming what breaks and a note in api-compat.md; removals are deprecated for at least one release first. T05 and T06 carry this rule.
 ## NEXT
 1. Orchestrator: create worktrees /home/user/wt/x1/s1, /home/user/wt/x1/t04; run S1 and T04.
 2. APPROVALS line for table + setting before S1 merge.
