@@ -1,6 +1,6 @@
 # P2-X1 STATE  r=1 base=237a1a6b C=0 ck=0 gate=n/a wt=/home/user/wt/p2-x1
 ## BOARD
-S1 p disp f - idempotency store, helper, call sites; gated 95
+S1 p mrg f 4b42fa5 store+helper; review P 3 LO; APPROVALS
 T04 t disp f - openapi diff; test + stub committed
 T01 t stg f - route header; waits S1 helper signature merged
 T03 t stg f - MCP tool arg; waits S1
