@@ -60,6 +60,7 @@ from tl_lake.duck import (
     table_ref,
 )
 from tl_lake.errors import LakeAheadError, LakeDivergedError, LakeSyncError
+from tl_lake.gold import build_gold_marts
 from tl_lake.ingest import CHUNK_ROWS, delete_keys, insert_rows
 from tl_lake.schema import (
     EVENTS_COLUMNS,
@@ -236,8 +237,13 @@ def _q(conn: Connection, name: str) -> str:
     return conn.dialect.identifier_preparer.quote(name)
 
 
-def _newest_seq(conn: Connection, table: LedgerTable) -> int | None:
-    row = conn.execute(text(f"SELECT MAX(last_seq) FROM {_q(conn, table.name)}")).scalar()
+def _newest_seq(conn: Connection, table: LedgerTable, silver: SilverTable) -> int | None:
+    """The newest event ``seq`` a ledger table names: ``last_seq``, or ``seq`` of an append-only
+    table; ``None`` for a table that is empty or has no change column."""
+    if silver.change == "whole":
+        return None
+    column = "seq" if silver.change == "seq" else "last_seq"
+    row = conn.execute(text(f"SELECT MAX({column}) FROM {_q(conn, table.name)}")).scalar()
     return None if row is None else int(row)
 
 
@@ -256,6 +262,8 @@ _VISIBLE_ENDS: dict[str, tuple[str, ...]] = {
     "cur_pset_values": ("record_id",),
     "cur_documents_document": ("id",),
     "cur_documents_revision": ("id", "document_id"),
+    "cur_materials_movement": ("lot_id", "iwp_id", "requisition_id"),
+    "cur_materials_stock": ("lot_id",),
 }
 #: Where a table keyed on something else than a record id finds the rows of a record that became
 #: readable again: ``(column of the table, ...)`` that name records; the table's own key column
@@ -285,24 +293,31 @@ def _links_of(ledger: Connection, record_ids: Sequence[str]) -> list[str]:
     return sorted(found)
 
 
+def _visible_guard(conn: Connection, source: str) -> tuple[str, dict[str, Any]]:
+    """``(clause, params)``: the row of ``source`` names no record the lowest reader may not read.
+
+    Only what an `internal` reader may see goes to silver (ADR-0016): a hidden record, and a link,
+    value or movement row of one, is left out. A row that was copied before it became hidden is
+    deleted by the same pass (``_purge_hidden``). A NULL end names no record and is kept.
+    """
+    clauses: list[str] = []
+    visible: dict[str, Any] = {}
+    for column in _VISIBLE_ENDS.get(source, ()):
+        quoted = _q(conn, column)
+        clause, params = confidentiality.not_hidden(quoted, confidentiality.LOWEST)
+        clauses.append(f"({quoted} IS NULL OR {clause})")
+        visible.update(params)
+    return " AND ".join(clauses), visible
+
+
 def _silver_rows(
-    conn: Connection, table: LedgerTable, key: str, keys: Sequence[str] | None, size: int
+    conn: Connection, table: LedgerTable, key: str, keys: Sequence[Any] | None, size: int
 ) -> Iterator[Mapping[str, Any]]:
     """Ledger rows of ``table``: all of them (``keys`` is ``None``) or those with these keys."""
     cols = ", ".join(_q(conn, c) for c in table.columns)
     order = ", ".join(_q(conn, c) for c in (key, *(["path"] if "path" in table.columns else [])))
     base = f"SELECT {cols} FROM {_q(conn, table.name)}"
-    # Only what an `internal` reader may see goes to silver (ADR-0016): a hidden record, and a
-    # link or value row of one, is left out. A row that was copied before it became hidden is
-    # deleted by the same pass, because the reclassification moved the record's `last_seq`.
-    ends = _VISIBLE_ENDS.get(table.name, ())
-    clauses: list[str] = []
-    visible: dict[str, Any] = {}
-    for column in ends:
-        clause, params = confidentiality.not_hidden(_q(conn, column), confidentiality.LOWEST)
-        clauses.append(clause)
-        visible.update(params)
-    guard = " AND ".join(clauses)
+    guard, visible = _visible_guard(conn, table.name)
     if keys is None:
         where = f" WHERE {guard}" if guard else ""
         for page in _pages(
@@ -459,8 +474,9 @@ def _sync(
         return SyncResult(None, None, head, 0, {})
 
     sources = {t.source: _read_table(ledger, t.source) for t in SILVER_TABLES}
-    for source in sources.values():
-        newest = _newest_seq(ledger, source)
+    for silver in SILVER_TABLES:
+        source = sources[silver.source]
+        newest = _newest_seq(ledger, source, silver)
         if newest is not None and newest > head:
             raise LakeSyncError(
                 f"{source.name} has a row at seq {newest}, past the events head {head}: the "
@@ -511,6 +527,7 @@ def _sync(
             )
         _purge_hidden(con, hidden_now, tmp, chunk)
         build_document_marts(con)
+        build_gold_marts(con)
 
         con.execute(
             f"INSERT INTO {table_ref(SYNC_TABLE)} VALUES (?, ?, ?, ?)",
@@ -589,6 +606,37 @@ def _purge_hidden(con: Duck, hidden: set[str], tmp: Path, chunk: int) -> None:
             delete_keys(con, silver.name, column, sorted(hidden), tmp, chunk=chunk)
 
 
+def _seq_keys(
+    con: Duck, ledger: Connection, silver: SilverTable, source: LedgerTable, watermark: int
+) -> list[int]:
+    """The ``seq`` of the rows an append-only table must copy now: those after the watermark, and
+    the readable ones the lake lacks (their record was hidden when they were first met and has
+    been declassified since). A row the lake holds is never copied again."""
+    k = _q(ledger, silver.key)
+    table = _q(ledger, source.name)
+    new = [
+        int(v)
+        for v in ledger.execute(
+            text(f"SELECT {k} FROM {table} WHERE {k} > :w ORDER BY {k}"), {"w": watermark}
+        ).scalars()
+    ]
+    guard, params = _visible_guard(ledger, source.name)
+    if not guard:
+        return new
+    statement = text(f"SELECT {k} FROM {table} WHERE {k} <= :w AND {guard} ORDER BY {k}")
+    readable = {
+        int(v) for v in ledger.execute(statement.bindparams(**params), {"w": watermark}).scalars()
+    }
+    held = {
+        int(r[0])
+        for r in con.execute(
+            f"SELECT {ident(silver.key)} FROM {table_ref(silver.name)} "
+            f"WHERE {ident(silver.key)} <= {int(watermark)}"
+        ).fetchall()
+    }
+    return sorted({*new, *(readable - held)})
+
+
 def _sync_silver(
     con: Duck,
     ledger: Connection,
@@ -605,10 +653,15 @@ def _sync_silver(
     extra = [c for c in source.columns if c not in generated]
     columns = silver_columns(silver, source.columns, _extra_types(ledger, source, extra))
     reload_all = _ensure_table(con, existing, silver.name, columns) or watermark == 0
-    if reload_all:
+    keys: list[Any] | None
+    if reload_all or silver.change == "whole":
         if silver.name in existing:
             con.execute(f"DELETE FROM {table_ref(silver.name)}")
         keys = None
+    elif silver.change == "seq":
+        keys = _seq_keys(con, ledger, silver, source, watermark)
+        if not keys:
+            return 0
     else:
         if silver.driver is None:
             keys = _changed_keys(ledger, source, silver.key, watermark)

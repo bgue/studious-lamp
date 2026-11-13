@@ -38,6 +38,9 @@ A crash before COMMIT changes nothing. The lake and the ledger are compared by t
 | `cur_documents_document`, `cur_documents_revision` | silver | the same ledger tables | The documents and revisions the lowest reader may read (P1-I8); a restricted document and its revisions are in no row |
 | `mart_document_status`, `mart_document_turnaround`, `mart_document_issues` | mart | the two document tables | Rebuilt by every sync from the silver above (`tl_lake.doc_marts`), so a mart holds nothing silver does not; no document means no mart |
 | `mart_schedule_history` | mart | the two schedule tables | One row per published snapshot: counts, percent complete, project finish, slip against the snapshot before that has activity rows, activities added and removed (`tl_lake.xer_marts`) |
+| `cur_materials_movement` | silver | `cur_materials_movement` | One row per `StockLot.Moved` event (key `seq`), append-only: rows after the watermark are copied once, and a never-copied readable row is added when its record is declassified. A row naming a hidden lot, IWP or requisition is in none (a NULL end is kept) |
+| `cur_materials_stock` | silver | `cur_materials_stock` | Balances per lot and location, replaced whole by every non-empty sync (no change column); rows at zero are not in the ledger table |
+| `mart_iwp_readiness_history`, `mart_materials`, `mart_schedule_vs_readiness` | gold | `events`, the two materials tables, the schedule history | SQL models in `tl_lake/models/<name>.sql`, built by `tl_lake.gold.build_gold_marts` at the end of the event pass and of the schedule pass, in `GOLD_MODELS` order. A model whose lake tables are missing leaves no table; the table exists, possibly empty, whenever they exist |
 | `_tl_sync` | control | | `snapshot_id, first_seq, last_seq, synced_at`: one row per sync |
 | `schedule_snapshot` | silver | `cur_schedule_schedule_snapshot` | One row per built snapshot (Valid, Published, Superseded): schedule code, number, state, `is_current`, data date, counts. Replaced as a whole when it differs |
 | `schedule_activity` | silver | `sched_activity` | The typed activities of every built snapshot, with schedule code, snapshot number, data date and floats in days (`total_float_days`, `free_float_days`) of the activity's own calendar. Added once per snapshot |
@@ -80,4 +83,4 @@ See `AGENTS.md` in this directory.
 - Loading bronze from archive Parquet segments directly is not built; restore the ledger, then sync.
 
 ## Status
-Introduced in P0-I7 (workstream B). Last interface change: P1-I8 (documents silver, document and schedule history marts, the readable-set rule).
+Introduced in P0-I7 (workstream B). Last interface change: P2-I6-S1 (`SilverTable.change`, the materials silver, the gold runner and its three models); before it P1-I8 (documents silver, document and schedule history marts, the readable-set rule).
