@@ -12,6 +12,7 @@ T07 t mrg f d82bb60 generator quality section + roster grant + pins; dispatch no
 T08 t mrg f f6fb221 demo 7 sq + 6 pg PASS; D30
 T09 t mrg l 065713e docs; 2s on wording only (model name, gate coverage); fixed at merge
 ## DEC
+D31 2026-11-13 S3 merged (trunk in, registries joined, split whole suite green; stream test read 30 s, DEFERRED slowdown); S4 merged (SR3 fix, no core change); SR3 proofs re-run refused
 D1 2026-11-11 module `quality`, one record `quality.PunchItem`, table cur_quality_punch_item; README "Record shape"
 D2 2026-11-11 states Open, Cleared, Verified, Void; reopen from Cleared or Verified; Void only terminal; assignment is a field; S1
 D3 2026-11-11 seven words: quality.view read; punch.raise|edit|clear user; punch.verify|reopen|void controller; no new setting; S1
@@ -32,7 +33,8 @@ D24 2026-11-12 command field is `from_record_id` (an id); CLI, route door and MC
 D25 2026-11-12 no-view person = account whose roles derive no module role (`World.person(n, ())`); each ticket says to write Blocked if it cannot be made
 D26 2026-11-12 T01 provided test `provided/T01_test_views.py` passes ruff + pyright (checked in a temp copy at tests/test_views.py, removed); views.py stub: bodies raise NotImplementedError
 ## SEC
-(none yet; rows in README "Security rows")
+F1 HI fixed@f80109f8 constraint step joined only at hop 0: punch from a constraint on a hidden record leaked its key (S4 source rule)
+F2 MD fixed@f80109f8 3-hop chain via punch/WO source past _HOPS=2 (S4: source must name no subject; chains stay <= 2)
 ## ORCH 2026-11-11 answers
 D14 Q5: S1 may add the new event names to the feed-policy list in tl_core/feed/cards.py if a test refuses them (one line); compat baseline update allowed (additive).
 D15 Q1: no fixed order with p2/i4a; whichever merges to trunk second unions SUBJECT_LINKS rows and proposable_exclusions.toml.
