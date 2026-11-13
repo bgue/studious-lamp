@@ -1,6 +1,6 @@
 # ADR-0029 — Delegation by policy: accept by policy, shadow mode first
 
-Status: Proposed
+Status: Accepted (owner, 2026-11-13: all six owner choices as recommended)
 Date: 2026-11-13
 Deciders: orchestrator (draft); owner decides the exit from shadow mode. Core interface, so a human gate (§25.5) and an APPROVALS line before merge.
 Brief sections: §11.3, §18.12, §25.5. Refines ADR-0027 decision 7. Builds on ADR-0009, ADR-0016, ADR-0017.
@@ -31,7 +31,7 @@ A policy is a stream of its own, `core.DelegationPolicy`, with a projection `cur
 | `policy_id` | stable id |
 | `agent` | one `agent:<username>` account |
 | `command_type` | one command name. Names are unique across modules (X4 S1 load check) |
-| `scope` | one project (first release) or one module scope (later). Never "all" |
+| `scope` | one project. Module scope is a later ADR (Owner choice 2). Never "all" |
 | `bounds` | zero or more `{path, op, value}` on the stored command. `op` is `eq`, `in`, `max` or `min` |
 | `daily_cap` | accepts per UTC day for this policy. Required, 1 to 50 (Owner choice 3) |
 | `expires_at` | required, at most 90 days after grant. A renewal is a new grant |
@@ -61,7 +61,7 @@ Bounds are checked at grant against the command's own model, which is already in
 ### 3. Shadow mode first: evaluate at filing, never accept
 - The evaluator runs after the filing is committed and after the X2 checks, on each proposal from an agent that has a policy for that command.
 - In `shadow` mode it writes `Policy.ShadowEvaluated {policy_id, proposal_id, would_accept, reason_code}`. It never accepts, never changes the proposal, never changes queue order.
-- Reason codes, closed: `matched`, `out_of_scope`, `bounds`, `cap`, `expired`, `stopped`, `excluded_command`. There is no `no_policy`: the evaluator runs only when a policy exists.
+- Reason codes, closed: `matched`, `out_of_scope`, `bounds`, `cap`, `expired`, `stopped`, `excluded_command`. There is no `no_policy`: the evaluator runs only when a policy exists. Live mode adds one code, `command_refused` (decision 4).
 - In shadow mode nothing is accepted, so `cap` counts would-accepts for the day. `cap` is returned with no count, because a count would reveal accepts of hidden records.
 - The record holds ids and codes only. No record text, no field values, no counts.
 - `core.DelegationPolicy` events and `Policy.ShadowEvaluated` are hidden on `/events`, `/stream`, the change feed and the feed, fail closed (the `hide_stream_types` pattern, ADR-0009). They are shown only through the filtered read.
@@ -73,8 +73,8 @@ Bounds are checked at grant against the command's own model, which is already in
 1. The filing is committed first, as today. It carries no policy work and cannot roll back because of one.
 2. The policy accept then runs in its own unit of work, and stops at the first failing step.
 3. Steps: command not excluded (decision 7); agent not stopped (decision 6); a confirmed, live, unexpired policy matches agent, command and scope; the scope resolves for the agent's viewer; every bound holds; the policy daily cap is not reached; then the command runs as in decision 2.
-4. A refusal before the command runs writes `Policy.AcceptSkipped {policy_id, proposal_id, reason_code}`. The proposal stays pending for a person.
-5. A refusal by the command itself is `Proposal.Failed` as today: terminal, after rollback, in a fresh unit of work. Owner choice 4 may send it back to pending instead, with a new event.
+4. A refusal before the command runs writes `Policy.AcceptSkipped {policy_id, proposal_id, reason_code}`, with a code from decision 3's closed list. The proposal stays pending for a person.
+5. A refusal by the command itself rolls back. In a fresh unit of work the evaluator writes `Policy.AcceptSkipped` with the added code `command_refused`, and the proposal stays pending for a person (Owner choice 4). No `Proposal.Failed` is written on the policy path. The code carries no error text.
 6. The policy cap counts policy accepts. The agent filing cap (`AGENT_DAILY_PROPOSALS`, proposals created per UTC day) is unchanged and is already checked at submit.
 
 ### 5. Who may grant
@@ -114,7 +114,7 @@ Rules:
 
 ### 8. Exit from shadow mode
 The owner decides. No agent and no orchestrator decides.
-- Measure, per policy: at least 4 weeks and at least 200 decided proposals, agreement at least 98 percent (Owner choices 1).
+- Measure, per policy: at least 4 weeks and at least 200 decided proposals, agreement at least 98 percent (Owner choice 1).
 - Undecided proposals stay out of the denominator.
 - Agreement means: would-accept and accepted without `edits`, or would-not-accept and not accepted.
 - Two disagreements are counted apart: would-accept then rejected (the unsafe one), and would-not-accept then accepted (lost throughput). The first must be at most 1 in 100 decided.
@@ -148,15 +148,15 @@ Dec. = decision above.
 - Out of scope: the build; any live accept; the dispatcher.
 - Risks: a loose bound lets a wrong accept through. Mitigations: closed list, cap, expiry, stop switch, shadow comparison, owner gate.
 
-## Owner choices (pending)
+## Owner choices (decided 2026-11-13)
 | # | Question | Recommendation | Owner answer |
 |---|---|---|---|
-| 1 | Exit measure | Per policy: at least 4 weeks, at least 200 decided proposals, at least 98 percent agreement, undecided excluded; would-accept-then-rejected at most 1 in 100 | |
-| 2 | First-release scope | Project scope only; module scope later | |
-| 3 | Cap and expiry | `daily_cap` ceiling 50; max expiry stays 90 days | |
-| 4 | Live command refusal | Back to pending with a new event, not terminal `failed`, so a person still decides | |
-| 5 | Shadow verdicts | Hidden from deciders until exit | |
-| 6 | Second approver | May be the owner account when the company has one admin | |
+| 1 | Exit measure | Per policy: at least 4 weeks, at least 200 decided proposals, at least 98 percent agreement, undecided excluded; would-accept-then-rejected at most 1 in 100 | Yes, as recommended |
+| 2 | First-release scope | Project scope only; module scope later | Yes, as recommended |
+| 3 | Cap and expiry | `daily_cap` ceiling 50; max expiry stays 90 days | Yes, as recommended |
+| 4 | Live command refusal | Back to pending with a new event, not terminal `failed`, so a person still decides | Yes, as recommended |
+| 5 | Shadow verdicts | Hidden from deciders until exit | Yes, as recommended |
+| 6 | Second approver | May be the owner account when the company has one admin | Yes, as recommended |
 
 ## Alternatives considered
 | Option | Why not |
